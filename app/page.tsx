@@ -52,7 +52,7 @@ export default function PaginaLogin() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="isaacpaezz@gmail.com"
+                  placeholder="tu@email.com"
                   className="block w-full pl-10 pr-3 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
               </div>
