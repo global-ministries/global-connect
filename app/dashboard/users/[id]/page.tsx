@@ -14,7 +14,8 @@ import {
   Heart,
   Hash,
   Shield,
-  Clock
+  Clock,
+  Trash2
 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
@@ -22,6 +23,8 @@ import { useUsuarioDetalle } from "@/hooks/use-usuario-detalle"
 import { obtenerNombreRelacion, obtenerColorRelacion } from "@/lib/config/relaciones-familiares"
 import { useState } from "react"
 import { AgregarFamiliarModal } from '@/components/modals/AgregarFamiliarModal'
+import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
+import { deleteFamilyRelation } from "@/lib/actions/user.actions"
 
 export default function PaginaDetalleUsuario() {
   const params = useParams()
@@ -30,6 +33,39 @@ export default function PaginaDetalleUsuario() {
   
   // Estado para el modal de agregar familiar
   const [mostrarModalAgregar, setMostrarModalAgregar] = useState(false)
+
+  // Estado para el modal de confirmación de borrado
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [relationToDelete, setRelationToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleOpenConfirmationModal = (relationId: string) => {
+    setRelationToDelete(relationId)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseConfirmationModal = () => {
+    setIsModalOpen(false)
+    setRelationToDelete(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!relationToDelete) return
+    setIsDeleting(true)
+    try {
+      // Pasa el id del usuario para revalidar el path correcto
+      await deleteFamilyRelation(relationToDelete, id)
+      setIsModalOpen(false)
+      setRelationToDelete(null)
+      setIsDeleting(false)
+      // recargar() // Si quieres recargar manualmente
+    } catch (err) {
+      setIsDeleting(false)
+      setIsModalOpen(false)
+      setRelationToDelete(null)
+      // Opcional: mostrar error
+    }
+  }
 
   // Función para obtener las iniciales del nombre y apellido
   const obtenerIniciales = (nombre: string, apellido: string) => {
@@ -86,25 +122,24 @@ export default function PaginaDetalleUsuario() {
     }
   }
 
-  // Función para formatear la fecha
+  // Función para formatear la fecha (usa siempre UTC para evitar diferencias SSR/CSR)
   const formatearFecha = (fecha: string) => {
+    if (!fecha) return 'No especificada'
     const fechaObj = new Date(fecha)
-    return fechaObj.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    // Siempre usa UTC para evitar hydration mismatch
+    const dia = String(fechaObj.getUTCDate()).padStart(2, '0')
+    const mes = String(fechaObj.getUTCMonth() + 1).padStart(2, '0')
+    const anio = fechaObj.getUTCFullYear()
+    return `${dia}/${mes}/${anio}`
   }
 
-  // Función para formatear la fecha de nacimiento
   const formatearFechaNacimiento = (fecha: string | null) => {
     if (!fecha) return 'No especificada'
     const fechaObj = new Date(fecha)
-    return fechaObj.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    const dia = String(fechaObj.getUTCDate()).padStart(2, '0')
+    const mes = String(fechaObj.getUTCMonth() + 1).padStart(2, '0')
+    const anio = fechaObj.getUTCFullYear()
+    return `${dia}/${mes}/${anio}`
   }
 
   // Función para obtener el rol del usuario
@@ -157,7 +192,7 @@ export default function PaginaDetalleUsuario() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <div className="text-red-500 text-6xl mb-4">⚠︝</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Error al cargar datos</h2>
           <p className="text-gray-600 mb-4">{error || 'Usuario no encontrado'}</p>
           <div className="flex gap-3 justify-center">
@@ -183,18 +218,18 @@ export default function PaginaDetalleUsuario() {
 
   return (
     <div className="space-y-6">
-      {/* Botón de Regreso */}
+      {/* Bot�n de Regreso */}
       <div>
         <Link 
           href="/dashboard/users"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-white/70 rounded-xl transition-all duration-200 text-gray-700 hover:bg-orange-50/50"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-orange-50/50 rounded-xl transition-all duration-200 text-gray-700"
         >
           <ArrowLeft className="w-4 h-4" />
           Volver a Usuarios
         </Link>
       </div>
 
-      {/* Información Principal del Usuario */}
+      {/* Informaci�n Principal del Usuario */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 lg:p-8 shadow-2xl">
         <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
           {/* Avatar */}
@@ -202,7 +237,7 @@ export default function PaginaDetalleUsuario() {
             {obtenerIniciales(usuario.nombre, usuario.apellido)}
           </div>
 
-          {/* Información Principal */}
+          {/* Informaci�n Principal */}
           <div className="flex-1">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
               <div>
@@ -236,161 +271,103 @@ export default function PaginaDetalleUsuario() {
         </div>
             </div>
 
-            {/* Información Básica */}
+            {/* Informaci�n B�sica */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <User className="w-5 h-5 text-orange-500" />
           Información Básica
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <Hash className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">ID de Usuario</p>
-              <p className="font-medium text-gray-800 font-mono text-sm break-all">
-                    {usuario.id}
-                  </p>
-                </div>
-              </div>
-
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <User className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">Cédula</p>
-                  <p className="font-medium text-gray-800">
-                {formatearCedula(usuario.cedula)}
-                  </p>
-                </div>
-              </div>
-
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <Clock className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">Fecha de Registro</p>
-                  <p className="font-medium text-gray-800">
-                {formatearFecha(usuario.fecha_registro)}
-                  </p>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <Hash className="w-5 h-5" /> ID de Usuario
+            </span>
+            <span className="font-mono text-gray-800 text-base break-all">{usuario.id}</span>
+          </div>
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <User className="w-5 h-5" /> Cédula
+            </span>
+            <span className="text-gray-800">{formatearCedula(usuario.cedula)}</span>
+          </div>
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <Clock className="w-5 h-5" /> Fecha de Registro
+            </span>
+            <span className="text-gray-800">{formatearFecha(usuario.fecha_registro)}</span>
           </div>
         </div>
       </div>
 
-      {/* Información de Contacto */}
+      {/* Informaci�n de Contacto */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <Mail className="w-5 h-5 text-orange-500" />
           Información de Contacto
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <Mail className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">Email</p>
-              <p className="font-medium text-gray-800 break-all">
-                {formatearEmail(usuario.email)}
-              </p>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <Mail className="w-5 h-5" /> Email
+            </span>
+            <span className="text-gray-800 break-all">{formatearEmail(usuario.email)}</span>
           </div>
-
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <Phone className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">Teléfono</p>
-              <p className="font-medium text-gray-800">
-                {formatearTelefono(usuario.telefono)}
-              </p>
-            </div>
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <Phone className="w-5 h-5" /> Teléfono
+            </span>
+            <span className="text-gray-800">{formatearTelefono(usuario.telefono)}</span>
           </div>
         </div>
       </div>
 
-      {/* Información Personal */}
+      {/* Informaci�n Personal */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <User className="w-5 h-5 text-orange-500" />
           Información Personal
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <Calendar className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">Fecha de Nacimiento</p>
-              <p className="font-medium text-gray-800">
-                {formatearFechaNacimiento(usuario.fecha_nacimiento)}
-              </p>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <Calendar className="w-5 h-5" /> Fecha de Nacimiento
+            </span>
+            <span className="text-gray-800">{formatearFechaNacimiento(usuario.fecha_nacimiento)}</span>
           </div>
-
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <Heart className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">Estado Civil</p>
-              <p className="font-medium text-gray-800">
-                {usuario.estado_civil}
-              </p>
-            </div>
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <Heart className="w-5 h-5" /> Estado Civil
+            </span>
+            <span className="text-gray-800">{usuario.estado_civil}</span>
           </div>
-
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <User className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">Género</p>
-              <p className="font-medium text-gray-800">
-                {usuario.genero}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Información Profesional */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <Briefcase className="w-5 h-5 text-orange-500" />
-          Información Profesional
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <Briefcase className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">Ocupación</p>
-              <p className="font-medium text-gray-800">
-                {usuario.ocupacion?.nombre || 'No especificada'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-            <GraduationCap className="w-5 h-5 text-gray-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-500 mb-1">Profesión</p>
-              <p className="font-medium text-gray-800">
-                {usuario.profesion?.nombre || 'No especificada'}
-              </p>
-            </div>
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <User className="w-5 h-5" /> Género
+            </span>
+            <span className="text-gray-800">{usuario.genero}</span>
           </div>
         </div>
       </div>
 
       {/* Relaciones Familiares */}
-      {usuario.relaciones_familiares && usuario.relaciones_familiares.length > 0 && (
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Heart className="w-5 h-5 text-orange-500" />
-              Relaciones Familiares
-        </h3>
-            <button 
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl transition-all duration-200 text-white shadow-lg text-sm"
-              onClick={() => setMostrarModalAgregar(true)}
-            >
-              <Users className="w-4 h-4" />
-              Agregar Familiar
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <Heart className="w-5 h-5 text-orange-500" />
+            Relaciones Familiares
+          </h3>
+          <button 
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl transition-all duration-200 text-white shadow-lg text-sm"
+            onClick={() => setMostrarModalAgregar(true)}
+          >
+            <Users className="w-4 h-4" />
+            Agregar Familiar
+          </button>
+        </div>
+        {usuario.relaciones_familiares && usuario.relaciones_familiares.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {usuario.relaciones_familiares.map((relacion) => (
-              <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px] group">
+              <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/70 rounded-xl min-h-[80px] group">
                 <div className={`w-10 h-10 bg-gradient-to-br ${obtenerColorRelacion(relacion.tipo_relacion)} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
                   {relacion.familiar.nombre.charAt(0)}{relacion.familiar.apellido.charAt(0)}
                 </div>
@@ -405,9 +382,19 @@ export default function PaginaDetalleUsuario() {
                       </span>
                     )}
                   </div>
-              <p className="font-medium text-gray-800">
-                    {relacion.familiar.nombre} {relacion.familiar.apellido}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-gray-800">
+                      {relacion.familiar.nombre} {relacion.familiar.apellido}
+                    </p>
+                    <button
+                      type="button"
+                      className="ml-1 p-0 flex items-center"
+                      title="Eliminar familiar"
+                      onClick={() => handleOpenConfirmationModal(relacion.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-600 transition-colors" />
+                    </button>
+                  </div>
                   {relacion.familiar.email && (
                     <p className="text-xs text-gray-500 truncate">
                       {relacion.familiar.email}
@@ -419,137 +406,41 @@ export default function PaginaDetalleUsuario() {
                     </p>
                   )}
                 </div>
-            </div>
+              </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Estado sin relaciones familiares */}
-      {(!usuario.relaciones_familiares || usuario.relaciones_familiares.length === 0) && (
-        <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Heart className="w-5 h-5 text-orange-500" />
-              Relaciones Familiares
-            </h3>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl transition-all duration-200 text-white shadow-lg text-sm">
-              <Users className="w-4 h-4" />
-              Agregar Familiar
-            </button>
-          </div>
+        ) : (
           <div className="text-center py-8">
             <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-lg font-medium mb-2">No hay relaciones familiares registradas</p>
             <p className="text-gray-400 text-sm">Este usuario no tiene relaciones familiares configuradas en el sistema.</p>
             <p className="text-gray-400 text-sm mt-2">Haz clic en "Agregar Familiar" para comenzar a configurar las relaciones familiares.</p>
-        </div>
+          </div>
+        )}
       </div>
-      )}
 
-      {/* Información de Ubicación */}
-      {usuario.direccion && (
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-orange-500" />
-            Información de Ubicación
-        </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-              <MapPin className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-500 mb-1">Calle</p>
-              <p className="font-medium text-gray-800">
-                  {usuario.direccion.calle || 'No especificada'}
-              </p>
-            </div>
-          </div>
-
-            <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-              <MapPin className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-500 mb-1">Barrio</p>
-                <p className="font-medium text-gray-800">
-                  {usuario.direccion.barrio || 'No especificado'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-              <MapPin className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-500 mb-1">Código Postal</p>
-                <p className="font-medium text-gray-800">
-                  {usuario.direccion.codigo_postal || 'No especificado'}
-                </p>
-              </div>
-            </div>
-
-            {usuario.direccion.referencia && (
-              <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px] md:col-span-2">
-                <MapPin className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-500 mb-1">Referencia</p>
-                  <p className="font-medium text-gray-800">
-                    {usuario.direccion.referencia}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {usuario.direccion.parroquia_id && (
-              <div className="flex items-center gap-3 p-4 bg-white/50 rounded-xl hover:bg-white/70 transition-colors min-h-[80px]">
-                <MapPin className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-500 mb-1">ID de Parroquia</p>
-                  <p className="font-medium text-gray-800 font-mono text-sm">
-                    {usuario.direccion.parroquia_id}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Acciones Rápidas */}
+      {/* Acciones R�pidas */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6">Acciones Rápidas</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {usuario.email && (
-            <button className="p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
-              <Mail className="w-6 h-6 mx-auto mb-2" />
-              <span className="block font-medium">Enviar Email</span>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link href={`/dashboard/users/${usuario.id}/edit`} className="flex-1">
+            <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
+              <Edit className="w-6 h-6 mb-2" />
+              <span className="block font-medium">Editar Perfil</span>
             </button>
-          )}
-          
-          {usuario.telefono && (
-            <button className="p-4 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
-              <Phone className="w-6 h-6 mx-auto mb-2" />
-              <span className="block font-medium">Llamar</span>
-            </button>
-          )}
-
-          <Link href={`/dashboard/users/${usuario.id}/edit`}>
-          <button className="p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
-            <Edit className="w-6 h-6 mx-auto mb-2" />
-            <span className="block font-medium">Editar Perfil</span>
-          </button>
           </Link>
-
-          {usuario.relaciones_familiares && usuario.relaciones_familiares.length > 0 && (
-            <button className="p-4 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
-              <Users className="w-6 h-6 mx-auto mb-2" />
-              <span className="block font-medium">Ver Familia Completa</span>
+          <Link href={`/dashboard/users/${usuario.id}/familia`} className="flex-1">
+            <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
+              <Users className="w-6 h-6 mb-2" />
+              <span className="block font-medium">Ver Familia</span>
             </button>
-          )}
-
-          {usuario.familia && (
-            <button className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
-              <MapPin className="w-6 h-6 mx-auto mb-2" />
-              <span className="block font-medium">Ver Dirección Familiar</span>
+          </Link>
+          <Link href={`/dashboard/users/${usuario.id}/ruta-crecimiento`} className="flex-1">
+            <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
+              <Shield className="w-6 h-6 mb-2" />
+              <span className="block font-medium">Ruta de Crecimiento</span>
             </button>
-          )}
+          </Link>
         </div>
       </div>
 
@@ -559,6 +450,16 @@ export default function PaginaDetalleUsuario() {
         onClose={() => setMostrarModalAgregar(false)}
         usuarioActualId={id}
         onRelacionCreada={recargar}
+      />
+
+      {/* Modal de Confirmación para eliminar relación */}
+      <ConfirmationModal
+        isOpen={isModalOpen}
+        onClose={handleCloseConfirmationModal}
+        onConfirm={handleConfirmDelete}
+        title="Confirmar Eliminación"
+        message="¿Estás seguro de que deseas eliminar esta relación familiar? Esta acción no se puede deshacer."
+        isLoading={isDeleting}
       />
     </div>
   )
