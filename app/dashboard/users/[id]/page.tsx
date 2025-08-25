@@ -14,7 +14,8 @@ import {
   Heart,
   Hash,
   Shield,
-  Clock
+  Clock,
+  Trash2
 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
@@ -22,6 +23,8 @@ import { useUsuarioDetalle } from "@/hooks/use-usuario-detalle"
 import { obtenerNombreRelacion, obtenerColorRelacion } from "@/lib/config/relaciones-familiares"
 import { useState } from "react"
 import { AgregarFamiliarModal } from '@/components/modals/AgregarFamiliarModal'
+import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
+import { deleteFamilyRelation } from "@/lib/actions/user.actions"
 
 export default function PaginaDetalleUsuario() {
   const params = useParams()
@@ -30,6 +33,39 @@ export default function PaginaDetalleUsuario() {
   
   // Estado para el modal de agregar familiar
   const [mostrarModalAgregar, setMostrarModalAgregar] = useState(false)
+
+  // Estado para el modal de confirmación de borrado
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [relationToDelete, setRelationToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleOpenConfirmationModal = (relationId: string) => {
+    setRelationToDelete(relationId)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseConfirmationModal = () => {
+    setIsModalOpen(false)
+    setRelationToDelete(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!relationToDelete) return
+    setIsDeleting(true)
+    try {
+      // Pasa el id del usuario para revalidar el path correcto
+      await deleteFamilyRelation(relationToDelete, id)
+      setIsModalOpen(false)
+      setRelationToDelete(null)
+      setIsDeleting(false)
+      // recargar() // Si quieres recargar manualmente
+    } catch (err) {
+      setIsDeleting(false)
+      setIsModalOpen(false)
+      setRelationToDelete(null)
+      // Opcional: mostrar error
+    }
+  }
 
   // Función para obtener las iniciales del nombre y apellido
   const obtenerIniciales = (nombre: string, apellido: string) => {
@@ -86,23 +122,23 @@ export default function PaginaDetalleUsuario() {
     }
   }
 
-  // Reemplaza la funci�n de formateo de fecha por una que no dependa del locale del sistema
+  // Función para formatear la fecha (usa siempre UTC para evitar diferencias SSR/CSR)
   const formatearFecha = (fecha: string) => {
     if (!fecha) return 'No especificada'
     const fechaObj = new Date(fecha)
-    // Formato fijo: dd/mm/yyyy
-    const dia = String(fechaObj.getDate()).padStart(2, '0')
-    const mes = String(fechaObj.getMonth() + 1).padStart(2, '0')
-    const anio = fechaObj.getFullYear()
+    // Siempre usa UTC para evitar hydration mismatch
+    const dia = String(fechaObj.getUTCDate()).padStart(2, '0')
+    const mes = String(fechaObj.getUTCMonth() + 1).padStart(2, '0')
+    const anio = fechaObj.getUTCFullYear()
     return `${dia}/${mes}/${anio}`
   }
 
   const formatearFechaNacimiento = (fecha: string | null) => {
     if (!fecha) return 'No especificada'
     const fechaObj = new Date(fecha)
-    const dia = String(fechaObj.getDate()).padStart(2, '0')
-    const mes = String(fechaObj.getMonth() + 1).padStart(2, '0')
-    const anio = fechaObj.getFullYear()
+    const dia = String(fechaObj.getUTCDate()).padStart(2, '0')
+    const mes = String(fechaObj.getUTCMonth() + 1).padStart(2, '0')
+    const anio = fechaObj.getUTCFullYear()
     return `${dia}/${mes}/${anio}`
   }
 
@@ -346,9 +382,19 @@ export default function PaginaDetalleUsuario() {
                       </span>
                     )}
                   </div>
-                  <p className="font-medium text-gray-800">
-                    {relacion.familiar.nombre} {relacion.familiar.apellido}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-gray-800">
+                      {relacion.familiar.nombre} {relacion.familiar.apellido}
+                    </p>
+                    <button
+                      type="button"
+                      className="ml-1 p-0 flex items-center"
+                      title="Eliminar familiar"
+                      onClick={() => handleOpenConfirmationModal(relacion.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-600 transition-colors" />
+                    </button>
+                  </div>
                   {relacion.familiar.email && (
                     <p className="text-xs text-gray-500 truncate">
                       {relacion.familiar.email}
@@ -404,6 +450,16 @@ export default function PaginaDetalleUsuario() {
         onClose={() => setMostrarModalAgregar(false)}
         usuarioActualId={id}
         onRelacionCreada={recargar}
+      />
+
+      {/* Modal de Confirmación para eliminar relación */}
+      <ConfirmationModal
+        isOpen={isModalOpen}
+        onClose={handleCloseConfirmationModal}
+        onConfirm={handleConfirmDelete}
+        title="Confirmar Eliminación"
+        message="¿Estás seguro de que deseas eliminar esta relación familiar? Esta acción no se puede deshacer."
+        isLoading={isDeleting}
       />
     </div>
   )
