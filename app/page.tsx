@@ -3,6 +3,7 @@
 import { Globe, Mail, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
+import { login } from "@/lib/actions/auth.actions"
 
 export default function PaginaLogin() {
   const [mostrarContraseña, setMostrarContraseña] = useState(false)
@@ -39,7 +40,7 @@ export default function PaginaLogin() {
           </div>
 
           {/* Formulario de Login */}
-          <form className="space-y-6">
+          <form className="space-y-6" action={login}>
             {/* Campo Email */}
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
@@ -49,6 +50,7 @@ export default function PaginaLogin() {
                 </div>
                 <input
                   id="email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -67,6 +69,7 @@ export default function PaginaLogin() {
                 </div>
                 <input
                   id="contraseña"
+                  name="password"
                   type={mostrarContraseña ? "text" : "password"}
                   value={contraseña}
                   onChange={(e) => setContraseña(e.target.value)}
