@@ -166,13 +166,13 @@ export async function updateUser(userId: string, data: UpdateUserData) {
               .eq('id', usuarioActual.familia_id)
 
             if (errorFamilia) {
-              console.error('⚠️ Error al actualizar familia (continuando):', errorFamilia)
+              console.error('⚠︝ Error al actualizar familia (continuando):', errorFamilia)
               // No lanzar error, continuar con la actualización del usuario
             } else {
               console.log('✅ Familia actualizada exitosamente')
             }
           } else {
-            console.log('ℹ️ Nombre de familia sin cambios, omitiendo actualización')
+            console.log('ℹ︝ Nombre de familia sin cambios, omitiendo actualización')
           }
         } else {
           // Crear nueva familia solo si no existe
@@ -185,7 +185,7 @@ export async function updateUser(userId: string, data: UpdateUserData) {
             .single()
 
           if (errorFamilia) {
-            console.error('⚠️ Error al crear familia (continuando):', errorFamilia)
+            console.error('⚠︝ Error al crear familia (continuando):', errorFamilia)
             // No lanzar error, continuar con la actualización del usuario
           } else {
             // Actualizar usuario con la nueva familia
@@ -195,14 +195,14 @@ export async function updateUser(userId: string, data: UpdateUserData) {
               .eq('id', userId)
 
             if (errorUpdateFamilia) {
-              console.error('⚠️ Error al asignar familia al usuario (continuando):', errorUpdateFamilia)
+              console.error('⚠︝ Error al asignar familia al usuario (continuando):', errorUpdateFamilia)
             } else {
               console.log('✅ Nueva familia creada y asignada al usuario')
             }
           }
         }
       } catch (error) {
-        console.error('⚠️ Error en manejo de familia (continuando):', error)
+        console.error('⚠︝ Error en manejo de familia (continuando):', error)
         // No lanzar error, continuar con la actualización del usuario
       }
     }
@@ -222,5 +222,29 @@ export async function updateUser(userId: string, data: UpdateUserData) {
     
     // Re-lanzar el error para que sea manejado por el componente
     throw error
+  }
+}
+
+export async function deleteFamilyRelation(relationId: string, userId?: string) {
+  try {
+    const { error } = await supabase
+      .from("relaciones_usuarios")
+      .delete()
+      .eq("id", relationId)
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    // Revalida la página de detalle de usuario (usa el userId si está disponible)
+    if (userId) {
+      revalidatePath(`/dashboard/users/${userId}`)
+    } else {
+      revalidatePath("/dashboard/users/[id]")
+    }
+
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: (err as Error).message }
   }
 }

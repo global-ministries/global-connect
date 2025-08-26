@@ -182,20 +182,27 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
       // La Server Action se encargará de la redirección
       
     } catch (err) {
-      console.error('❌ Error al enviar formulario:', err)
-      console.error('❌ Tipo de error:', typeof err)
-      console.error('❌ Error completo:', err)
-      
+      console.error('? Error al enviar formulario:', err)
+      // Elimina el log de tipo de error para evitar confusi�n
+      // Mostrar el error como JSON si no es instancia de Error
+      if (!(err instanceof Error)) {
+        try {
+          console.error('? Error (JSON):', JSON.stringify(err))
+        } catch {
+          console.error('? Error (no serializable):', err)
+        }
+      }
+      console.error('? Error completo:', err)
       if (err instanceof Error) {
         setError(err.message)
-      } else if (typeof err === 'string') {
-        setError(err)
+      } else if (typeof err === 'object' && err !== null && 'message' in err) {
+        setError((err as any).message)
       } else {
-        setError('Error inesperado al guardar cambios')
+        setError('Error desconocido al enviar el formulario')
       }
     } finally {
       setLoading(false)
-      console.log('🏁 onSubmit completado')
+      console.log('🝝 onSubmit completado')
     }
   }
 

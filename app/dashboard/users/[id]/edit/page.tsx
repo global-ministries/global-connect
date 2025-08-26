@@ -8,11 +8,11 @@ interface Props {
 }
 
 export default async function EditUserPage({ params }: Props) {
-  console.log('🔍 Params recibidos:', params)
+  console.log('🔝 Params recibidos:', params)
   
   const { id } = await params
-  console.log('🔍 ID extraído:', id)
-  console.log('🔍 Tipo de ID:', typeof id)
+  console.log('🔝 ID extraído:', id)
+  console.log('🔝 Tipo de ID:', typeof id)
 
   // Verificar que el ID sea válido
   if (!id || typeof id !== 'string') {
@@ -20,7 +20,7 @@ export default async function EditUserPage({ params }: Props) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <div className="text-red-500 text-6xl mb-4">⚠︝</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">ID de Usuario Inválido</h2>
           <p className="text-gray-600 mb-4">El ID proporcionado no es válido</p>
           <Link
@@ -34,7 +34,7 @@ export default async function EditUserPage({ params }: Props) {
     )
   }
 
-  console.log('🔍 Editando usuario con ID:', id)
+  console.log('🔝 Editando usuario con ID:', id)
 
   // Obtener datos del usuario básico
   const { data: usuario, error: errorUsuario } = await supabase
@@ -43,7 +43,7 @@ export default async function EditUserPage({ params }: Props) {
     .eq('id', id)
     .single()
 
-  console.log('🔍 Resultado de consulta usuario:', { usuario, error: errorUsuario })
+  console.log('🔝 Resultado de consulta usuario:', { usuario, error: errorUsuario })
 
   if (errorUsuario || !usuario) {
     console.error('❌ Error al obtener usuario:', errorUsuario)
@@ -51,7 +51,7 @@ export default async function EditUserPage({ params }: Props) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <div className="text-red-500 text-6xl mb-4">⚠︝</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Usuario no encontrado</h2>
           <p className="text-gray-600 mb-4">
             No se pudo cargar la información del usuario con ID: {id}
@@ -103,7 +103,7 @@ export default async function EditUserPage({ params }: Props) {
       direccion = dirData
       console.log('✅ Dirección obtenida con datos geográficos:', direccion)
     } else {
-      console.log('⚠️ Error al obtener dirección:', errorDir)
+      console.log('⚠︝ Error al obtener dirección:', errorDir)
     }
   }
 
@@ -120,10 +120,10 @@ export default async function EditUserPage({ params }: Props) {
       familia = famData
       console.log('✅ Familia obtenida:', familia)
     } else {
-      console.log('⚠️ Error al obtener familia:', errorFam)
+      console.log('⚠︝ Error al obtener familia:', errorFam)
     }
   } else {
-    console.log('ℹ️ Usuario no tiene familia asignada')
+    console.log('ℹ︝ Usuario no tiene familia asignada')
   }
 
   // Obtener ocupación si existe
@@ -139,10 +139,10 @@ export default async function EditUserPage({ params }: Props) {
       ocupacion = ocData
       console.log('✅ Ocupación obtenida:', ocupacion)
     } else {
-      console.log('⚠️ Error al obtener ocupación:', errorOc)
+      console.log('⚠︝ Error al obtener ocupación:', errorOc)
     }
   } else {
-    console.log('ℹ️ Usuario no tiene ocupación asignada')
+    console.log('ℹ︝ Usuario no tiene ocupación asignada')
   }
 
   // Obtener profesión si existe
@@ -158,16 +158,21 @@ export default async function EditUserPage({ params }: Props) {
       profesion = profData
       console.log('✅ Profesión obtenida:', profesion)
     } else {
-      console.log('⚠️ Error al obtener profesión:', errorProf)
+      console.log('⚠︝ Error al obtener profesión:', errorProf)
     }
   } else {
-    console.log('ℹ️ Usuario no tiene profesión asignada')
+    console.log('ℹ︝ Usuario no tiene profesión asignada')
   }
 
   // Construir el objeto completo del usuario
   const usuarioCompleto = {
     ...usuario,
-    direccion: direccion || undefined,
+    direccion: direccion
+      ? {
+          ...direccion,
+          parroquia: direccion.parroquia === null ? undefined : direccion.parroquia,
+        }
+      : undefined,
     familia: familia || undefined,
     ocupacion: ocupacion || undefined,
     profesion: profesion || undefined
@@ -253,7 +258,7 @@ export default async function EditUserPage({ params }: Props) {
       <div>
         <Link 
           href={`/dashboard/users/${id}`}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-white/70 rounded-xl transition-all duration-200 text-gray-700 hover:bg-orange-50/50"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-orange-50/50 rounded-xl transition-all duration-200 text-gray-700"
         >
           <ArrowLeft className="w-4 h-4" />
           Volver al Usuario
