@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'supabase/functions/handle-new-user/**'
-      - 'supabase/import_map.json' # Añadimos esto para que también se active si solo cambias el import map
+      - 'supabase/import_map.json'
 
 jobs:
   deploy-edge-function:
@@ -14,7 +14,6 @@ jobs:
     
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }} # Aunque no se use en deploy, es buena práctica tenerla
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
     steps:
@@ -28,4 +27,7 @@ jobs:
 
       - name: Deploy Edge Function
         run: |
-          supabase functions deploy handle-new-user --project-ref $SUPABASE_PROJECT_ID --no-verify-jwt --import-map supabase/import_map.json
+          supabase functions deploy handle-new-user \
+            --project-ref $SUPABASE_PROJECT_ID \
+            --no-verify-jwt \
+            --import-map ./supabase/import_map.json
