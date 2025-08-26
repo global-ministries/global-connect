@@ -23,3 +23,34 @@ export async function login(formData: FormData) {
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }
+
+export async function signup(formData: FormData) {
+  const nombre = formData.get("nombre") as string;
+  const apellido = formData.get("apellido") as string;
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  const supabase = createServerSupabaseClient();
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        nombre,
+        apellido,
+      },
+    },
+  });
+
+  if (error) {
+    if (error.message.includes("already registered") || error.message.includes("already exists")) {
+      return { error: "El email ya est� en uso. Por favor, utiliza otro." };
+    }
+    return { error: error.message || "Error al crear la cuenta." };
+  }
+
+  return {
+    success: "Registro exitoso. Revisa tu email para verificar tu cuenta.",
+  };
+}
