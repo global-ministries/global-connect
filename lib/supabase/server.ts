@@ -9,3 +9,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+
+// Devuelve el cliente supabase para usar en server actions
+export function createServerSupabaseClient() {
+  return supabase
+}
