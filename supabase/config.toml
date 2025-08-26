@@ -333,7 +333,5 @@ s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
 
-# supabase/config.toml
 [functions]
-# Especifica la ruta al mapa de importaciones para TODAS las funciones.
 import_map = "import_map.json"
