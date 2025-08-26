@@ -25,3 +25,4 @@ jobs:
 
       - name: Deploy Edge Function
         run: supabase functions deploy --project-ref $SUPABASE_PROJECT_ID --no-verify-jwt
+        
