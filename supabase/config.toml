@@ -335,4 +335,4 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 # Funciones
 [functions]
-import_map = import_map.json
+import_map = "import_map.json"
