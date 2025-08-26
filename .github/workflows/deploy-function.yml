@@ -3,29 +3,29 @@ name: Deploy Supabase Edge Function
 on:
   push:
     branches:
-      - main  # Se activa solo cuando subes cambios a la rama 'main'
+      - main
     paths:
-      - 'supabase/functions/handle-new-user/**' # Se activa solo si hay cambios en la funci�n
+      - 'supabase/functions/handle-new-user/**'
 
 jobs:
-  deploy:
+  deploy-edge-function:
     runs-on: ubuntu-latest
+    
+    # Asegúrate de que los secretos estén disponibles para los comandos
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Link Supabase project
-        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-
       - name: Deploy Edge Function
-        run: supabase functions deploy --no-verify-jwt handle-new-user
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy handle-new-user --project-ref $SUPABASE_PROJECT_ID --no-verify-jwt
