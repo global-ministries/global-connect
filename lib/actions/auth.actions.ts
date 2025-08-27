@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function login(formData: FormData) {
@@ -16,11 +15,9 @@ export async function login(formData: FormData) {
   });
 
   if (error) {
-    console.error(error);
     return { error: "Credenciales inválidas. Por favor, inténtalo de nuevo." };
   }
 
-  revalidatePath("/", "layout");
   redirect("/dashboard");
 }
 
@@ -33,7 +30,7 @@ export async function signup(formData: FormData) {
 
   const supabase = createServerSupabaseClient();
 
-  // 1. Buscar perfil preexistente por email o cédula
+  // 1. Buscar perfil preexistente por email o cÃ©dula
   let perfilExistente = null;
   {
     const orFilters = [`email.eq.${email}`];
@@ -47,7 +44,7 @@ export async function signup(formData: FormData) {
       .limit(1);
 
     if (errorBusqueda) {
-      return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
+      return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
     }
     if (usuarios && usuarios.length > 0) {
       perfilExistente = usuarios[0];
@@ -68,14 +65,14 @@ export async function signup(formData: FormData) {
 
   if (errorSignUp) {
     if (errorSignUp.status === 400) {
-      return { success: false, message: "Este correo electrónico ya está registrado." };
+      return { success: false, message: "Este correo electrÃ³nico ya estÃ¡ registrado." };
     }
-    return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
+    return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
   }
 
   const user = signUpData?.user;
   if (!user) {
-    return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
+    return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
   }
 
   // 3. Vincular perfil existente o crear uno nuevo
@@ -86,7 +83,7 @@ export async function signup(formData: FormData) {
       .eq("id", perfilExistente.id);
 
     if (errorUpdate) {
-      return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
+      return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
     }
   } else {
     const { error: errorInsert } = await supabase
@@ -103,7 +100,7 @@ export async function signup(formData: FormData) {
       });
 
     if (errorInsert) {
-      return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
+      return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
     }
   }
 

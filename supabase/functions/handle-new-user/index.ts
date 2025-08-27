@@ -1,7 +1,6 @@
 // Supabase Edge Function: handle-new-user
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { type AuthHookPayload } from 'https://esm.sh/@supabase/functions-js@2';
+import { serve } from "std/server";
+import { createClient } from "@supabase/supabase-js";
 
 // Tipado para el payload recibido del Auth Hook
 type AuthHookPayload = {
@@ -19,7 +18,7 @@ type AuthHookPayload = {
 serve(async (req) => {
   try {
     // 1. Parsear el payload recibido del Auth Hook
-    const { record } = await req.json() as AuthHookPayload;
+    const payload = (await req.json()) as AuthHookPayload;
     const { id: auth_id, email, user_metadata } = payload.record;
     const { nombre = "", apellido = "", cedula = "" } = user_metadata || {};
 
