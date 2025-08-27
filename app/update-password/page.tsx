@@ -3,12 +3,41 @@
 import { Globe, Eye, EyeOff, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+
+// Esquema de validación Zod
+const schema = z.object({
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+  confirmPassword: z.string().min(8, "Confirma tu contraseña"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirmPassword"],
+})
+
+type FormData = z.infer<typeof schema>
 
 export default function PaginaActualizarContraseña() {
-  const [contraseña, setContraseña] = useState("")
-  const [confirmarContraseña, setConfirmarContraseña] = useState("")
   const [mostrarContraseña, setMostrarContraseña] = useState(false)
   const [mostrarConfirmarContraseña, setMostrarConfirmarContraseña] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [formMessage, setFormMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  })
+
+  const onSubmit = async (data: FormData) => {
+    setIsLoading(true)
+    setFormMessage(null)
+    // @ts-ignore
+    const response = await import("@/lib/actions/auth.actions").then(mod => mod.updatePassword(data.password))
+    if (response?.error) {
+      setFormMessage({ type: "error", text: response.error })
+    }
+    setIsLoading(false)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-gray-50 to-white relative overflow-hidden flex items-center justify-center p-4">
@@ -40,62 +69,84 @@ export default function PaginaActualizarContraseña() {
           </div>
 
           {/* Formulario */}
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {/* Campo Nueva Contraseña */}
             <div className="space-y-2">
-              <label htmlFor="contraseña" className="block text-sm font-medium text-gray-700">Nueva Contraseña</label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Nueva Contraseña</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Globe className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="contraseña"
+                  id="password"
                   type={mostrarContraseña ? "text" : "password"}
-                  value={contraseña}
-                  onChange={(e) => setContraseña(e.target.value)}
+                  {...register("password")}
                   placeholder="••••••••"
                   className="block w-full pl-10 pr-12 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setMostrarContraseña(!mostrarContraseña)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  tabIndex={-1}
                 >
                   {mostrarContraseña ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
+              )}
             </div>
 
             {/* Campo Confirmar Contraseña */}
             <div className="space-y-2">
-              <label htmlFor="confirmarContraseña" className="block text-sm font-medium text-gray-700">Confirmar Contraseña</label>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirmar Contraseña</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Globe className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="confirmarContraseña"
+                  id="confirmPassword"
                   type={mostrarConfirmarContraseña ? "text" : "password"}
-                  value={confirmarContraseña}
-                  onChange={(e) => setConfirmarContraseña(e.target.value)}
+                  {...register("confirmPassword")}
                   placeholder="••••••••"
                   className="block w-full pl-10 pr-12 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setMostrarConfirmarContraseña(!mostrarConfirmarContraseña)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  tabIndex={-1}
                 >
                   {mostrarConfirmarContraseña ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>
+              )}
             </div>
+
+            {/* Mensaje del formulario */}
+            {formMessage && (
+              <div className={`text-sm font-medium mb-2 text-center ${formMessage.type === "error" ? "text-red-600" : "text-green-600"}`}>
+                {formMessage.text}
+              </div>
+            )}
 
             {/* Botón de Actualizar */}
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center"
+              disabled={isLoading}
             >
+              {isLoading && (
+                <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+              )}
               Actualizar Contraseña
             </button>
 
