@@ -11,18 +11,78 @@ import {
   UserCheckIcon as UserEdit,
 } from "lucide-react"
 import Link from "next/link"
-import { useState, useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { FiltrosUsuarios, type FiltrosUsuarios as FiltrosUsuariosType } from "@/components/ui/filtros-usuarios"
-import { useUsuarios, type UsuarioConRol } from "@/hooks/use-usuarios"
+import { supabase } from "@/lib/supabase/client"
+import type { UsuarioConRol } from "@/hooks/use-usuarios"
 
 export default function PaginaUsuarios() {
-  const { usuariosConRoles, rolesDisponibles, loading, error, recargar } = useUsuarios()
+  const [usuariosConRoles, setUsuariosConRoles] = useState<any[]>([])
+  const [rolesDisponibles, setRolesDisponibles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [filtros, setFiltros] = useState<FiltrosUsuariosType>({
     roles: [],
     conEmail: null,
     conTelefono: null,
     estado: []
   })
+
+  const recargar = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      // Corrige el error de "more than one relationship" usando la sintaxis correcta para el join
+      const { data: usuarios, error: errorUsuarios } = await supabase
+        .from("usuarios")
+        .select(`
+          *,
+          usuario_roles:usuario_roles!usuario_roles_usuario_id_fkey (
+            *,
+            roles_sistema:roles_sistema!usuario_roles_rol_id_fkey (
+              nombre_interno,
+              nombre_visible
+            )
+          )
+        `)
+        .order("nombre", { ascending: true })
+
+      if (errorUsuarios) {
+        setError(errorUsuarios.message || "Error al cargar usuarios")
+        setUsuariosConRoles([])
+        setRolesDisponibles([])
+        setLoading(false)
+        return
+      }
+
+      // Consulta todos los roles disponibles
+      const { data: roles, error: errorRoles } = await supabase
+        .from("roles_sistema")
+        .select("*")
+        .order("nombre_visible", { ascending: true })
+
+      if (errorRoles) {
+        setError(errorRoles.message || "Error al cargar roles")
+        setUsuariosConRoles([])
+        setRolesDisponibles([])
+        setLoading(false)
+        return
+      }
+
+      setUsuariosConRoles(usuarios || [])
+      setRolesDisponibles(roles || [])
+    } catch (err: any) {
+      setError("Error inesperado al cargar usuarios")
+      setUsuariosConRoles([])
+      setRolesDisponibles([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    recargar()
+  }, [])
 
   // Función para obtener las iniciales del nombre y apellido
   const obtenerIniciales = (nombre: string, apellido: string) => {
@@ -182,7 +242,7 @@ export default function PaginaUsuarios() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <div className="text-red-500 text-6xl mb-4">⚠︝</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Error al cargar datos</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button

@@ -1,11 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from './database.types'
+import { createBrowserClient } from '@supabase/ssr'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Faltan las variables de entorno de Supabase para el navegador')
-}
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+// Solo una exportación, sin duplicados ni chequeos innecesarios
+export const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)

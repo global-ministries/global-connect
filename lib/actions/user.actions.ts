@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { supabase } from "@/lib/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { Database } from "@/lib/supabase/database.types"
 
 type Usuario = Database["public"]["Tables"]["usuarios"]["Row"]
@@ -10,23 +10,23 @@ type Direccion = Database["public"]["Tables"]["direcciones"]["Row"]
 type Familia = Database["public"]["Tables"]["familias"]["Row"]
 
 interface UpdateUserData {
-  // Información básica
+  // InformaciÃ³n bÃ¡sica
   nombre: string
   apellido: string
   cedula?: string
   email?: string
   telefono?: string
   
-  // Información personal
+  // InformaciÃ³n personal
   fecha_nacimiento?: string
   estado_civil: "Soltero" | "Casado" | "Divorciado" | "Viudo"
   genero: "Masculino" | "Femenino" | "Otro"
   
-  // Información profesional
+  // InformaciÃ³n profesional
   ocupacion_id?: string
   profesion_id?: string
   
-  // Información de ubicación
+  // InformaciÃ³n de ubicaciÃ³n
   direccion?: {
     calle: string
     barrio?: string
@@ -38,16 +38,17 @@ interface UpdateUserData {
     parroquia_id?: string
   }
   
-  // Información familiar
+  // InformaciÃ³n familiar
   familia?: {
     nombre: string
   }
 }
 
 export async function updateUser(userId: string, data: UpdateUserData) {
+  const supabase = createSupabaseServerClient();
   try {
-    console.log('🔄 Iniciando actualización del usuario:', userId)
-    console.log('📝 Datos a actualizar:', data)
+    console.log('ðŸ”„ Iniciando actualizaciÃ³n del usuario:', userId)
+    console.log('ðŸ“� Datos a actualizar:', data)
 
     // 1. Actualizar tabla usuarios
     const { error: errorUsuario } = await supabase
@@ -67,19 +68,19 @@ export async function updateUser(userId: string, data: UpdateUserData) {
       .eq('id', userId)
 
     if (errorUsuario) {
-      console.error('❌ Error al actualizar usuario:', errorUsuario)
+      console.error('â�Œ Error al actualizar usuario:', errorUsuario)
       throw new Error(`Error al actualizar usuario: ${errorUsuario.message}`)
     }
 
-    console.log('✅ Usuario actualizado exitosamente')
-    console.log('📊 Campos actualizados:', {
+    console.log('âœ… Usuario actualizado exitosamente')
+    console.log('ðŸ“Š Campos actualizados:', {
       ocupacion_id: data.ocupacion_id || null,
       profesion_id: data.profesion_id || null
     })
 
-    // 2. Manejar dirección
+    // 2. Manejar direcciÃ³n
     if (data.direccion) {
-      // Obtener dirección actual del usuario
+      // Obtener direcciÃ³n actual del usuario
       const { data: usuarioActual } = await supabase
         .from('usuarios')
         .select('direccion_id')
@@ -87,7 +88,7 @@ export async function updateUser(userId: string, data: UpdateUserData) {
         .single()
 
       if (usuarioActual?.direccion_id) {
-        // Actualizar dirección existente
+        // Actualizar direcciÃ³n existente
         const { error: errorDireccion } = await supabase
           .from('direcciones')
           .update({
@@ -100,13 +101,13 @@ export async function updateUser(userId: string, data: UpdateUserData) {
           .eq('id', usuarioActual.direccion_id)
 
         if (errorDireccion) {
-          console.error('❌ Error al actualizar dirección:', errorDireccion)
-          throw new Error(`Error al actualizar dirección: ${errorDireccion.message}`)
+          console.error('â�Œ Error al actualizar direcciÃ³n:', errorDireccion)
+          throw new Error(`Error al actualizar direcciÃ³n: ${errorDireccion.message}`)
         }
 
-        console.log('✅ Dirección actualizada exitosamente')
+        console.log('âœ… DirecciÃ³n actualizada exitosamente')
       } else {
-        // Crear nueva dirección
+        // Crear nueva direcciÃ³n
         const { data: nuevaDireccion, error: errorDireccion } = await supabase
           .from('direcciones')
           .insert({
@@ -120,22 +121,22 @@ export async function updateUser(userId: string, data: UpdateUserData) {
           .single()
 
         if (errorDireccion) {
-          console.error('❌ Error al crear dirección:', errorDireccion)
-          throw new Error(`Error al crear dirección: ${errorDireccion.message}`)
+          console.error('â�Œ Error al crear direcciÃ³n:', errorDireccion)
+          throw new Error(`Error al crear direcciÃ³n: ${errorDireccion.message}`)
         }
 
-        // Actualizar usuario con la nueva dirección
+        // Actualizar usuario con la nueva direcciÃ³n
         const { error: errorUpdateDireccion } = await supabase
           .from('usuarios')
           .update({ direccion_id: nuevaDireccion.id })
           .eq('id', userId)
 
         if (errorUpdateDireccion) {
-          console.error('❌ Error al actualizar usuario con dirección:', errorUpdateDireccion)
-          throw new Error(`Error al actualizar usuario con dirección: ${errorUpdateDireccion.message}`)
+          console.error('â�Œ Error al actualizar usuario con direcciÃ³n:', errorUpdateDireccion)
+          throw new Error(`Error al actualizar usuario con direcciÃ³n: ${errorUpdateDireccion.message}`)
         }
 
-        console.log('✅ Nueva dirección creada y asignada al usuario')
+        console.log('âœ… Nueva direcciÃ³n creada y asignada al usuario')
       }
     }
 
@@ -166,13 +167,13 @@ export async function updateUser(userId: string, data: UpdateUserData) {
               .eq('id', usuarioActual.familia_id)
 
             if (errorFamilia) {
-              console.error('⚠︝ Error al actualizar familia (continuando):', errorFamilia)
-              // No lanzar error, continuar con la actualización del usuario
+              console.error('âš ï¸� Error al actualizar familia (continuando):', errorFamilia)
+              // No lanzar error, continuar con la actualizaciÃ³n del usuario
             } else {
-              console.log('✅ Familia actualizada exitosamente')
+              console.log('âœ… Familia actualizada exitosamente')
             }
           } else {
-            console.log('ℹ︝ Nombre de familia sin cambios, omitiendo actualización')
+            console.log('â„¹ï¸� Nombre de familia sin cambios, omitiendo actualizaciÃ³n')
           }
         } else {
           // Crear nueva familia solo si no existe
@@ -185,8 +186,8 @@ export async function updateUser(userId: string, data: UpdateUserData) {
             .single()
 
           if (errorFamilia) {
-            console.error('⚠︝ Error al crear familia (continuando):', errorFamilia)
-            // No lanzar error, continuar con la actualización del usuario
+            console.error('âš ï¸� Error al crear familia (continuando):', errorFamilia)
+            // No lanzar error, continuar con la actualizaciÃ³n del usuario
           } else {
             // Actualizar usuario con la nueva familia
             const { error: errorUpdateFamilia } = await supabase
@@ -195,48 +196,49 @@ export async function updateUser(userId: string, data: UpdateUserData) {
               .eq('id', userId)
 
             if (errorUpdateFamilia) {
-              console.error('⚠︝ Error al asignar familia al usuario (continuando):', errorUpdateFamilia)
+              console.error('âš ï¸� Error al asignar familia al usuario (continuando):', errorUpdateFamilia)
             } else {
-              console.log('✅ Nueva familia creada y asignada al usuario')
+              console.log('âœ… Nueva familia creada y asignada al usuario')
             }
           }
         }
       } catch (error) {
-        console.error('⚠︝ Error en manejo de familia (continuando):', error)
-        // No lanzar error, continuar con la actualización del usuario
+        console.error('âš ï¸� Error en manejo de familia (continuando):', error)
+        // No lanzar error, continuar con la actualizaciÃ³n del usuario
       }
     }
 
-    console.log('🎉 Usuario actualizado completamente')
+    console.log('ðŸŽ‰ Usuario actualizado completamente')
 
-    // 4. Invalidar caché de las páginas relacionadas
+    // 4. Invalidar cachÃ© de las pÃ¡ginas relacionadas
     revalidatePath('/dashboard/users')
     revalidatePath(`/dashboard/users/${userId}`)
-    console.log('🔄 Caché invalidado para usuarios y detalle del usuario')
+    console.log('ðŸ”„ CachÃ© invalidado para usuarios y detalle del usuario')
 
-    // 5. Redirigir al usuario de vuelta a la página de detalle
+    // 5. Redirigir al usuario de vuelta a la pÃ¡gina de detalle
     redirect(`/dashboard/users/${userId}`)
 
   } catch (error) {
-    console.error('❌ Error en updateUser:', error)
+    console.error('â�Œ Error en updateUser:', error)
     
     // Re-lanzar el error para que sea manejado por el componente
     throw error
   }
 }
-
 export async function deleteFamilyRelation(relationId: string, userId?: string) {
+  const supabase = createSupabaseServerClient();
   try {
     const { error } = await supabase
       .from("relaciones_usuarios")
       .delete()
+      .eq("id", relationId)
       .eq("id", relationId)
 
     if (error) {
       throw new Error(error.message)
     }
 
-    // Revalida la página de detalle de usuario (usa el userId si está disponible)
+    // Revalida la pÃ¡gina de detalle de usuario (usa el userId si estÃ¡ disponible)
     if (userId) {
       revalidatePath(`/dashboard/users/${userId}`)
     } else {
@@ -246,5 +248,30 @@ export async function deleteFamilyRelation(relationId: string, userId?: string) 
     return { success: true }
   } catch (err) {
     return { success: false, error: (err as Error).message }
+  }
+}
+export async function addFamilyRelation({
+  usuario1_id,
+  usuario2_id,
+  tipo_relacion,
+}: {
+  usuario1_id: string
+  usuario2_id: string
+  tipo_relacion: string
+}) {
+  const supabase = createSupabaseServerClient()
+  try {
+    const { error } = await supabase.rpc("agregar_relacion_familiar", {
+      p_usuario1_id: usuario1_id,
+      p_usuario2_id: usuario2_id,
+      p_tipo_relacion: tipo_relacion,
+    })
+    if (error) {
+      return { success: false, message: error.message }
+    }
+    revalidatePath(`/dashboard/users/${usuario1_id}`)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Error inesperado" }
   }
 }

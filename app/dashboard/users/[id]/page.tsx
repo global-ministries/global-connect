@@ -19,25 +19,59 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { useUsuarioDetalle } from "@/hooks/use-usuario-detalle"
+import { useState, useEffect } from "react"
 import { obtenerNombreRelacion, obtenerColorRelacion } from "@/lib/config/relaciones-familiares"
-import { useState } from "react"
 import { AgregarFamiliarModal } from '@/components/modals/AgregarFamiliarModal'
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
+import { supabase } from "@/lib/supabase/client"
 import { deleteFamilyRelation } from "@/lib/actions/user.actions"
 
 export default function PaginaDetalleUsuario() {
   const params = useParams()
   const id = params.id as string
-  const { usuario, loading, error, recargar } = useUsuarioDetalle(id)
-  
+
+  const [usuario, setUsuario] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   // Estado para el modal de agregar familiar
   const [mostrarModalAgregar, setMostrarModalAgregar] = useState(false)
 
-  // Estado para el modal de confirmación de borrado
+  // Estado para el modal de confirmaci�n de borrado
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [relationToDelete, setRelationToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  const recargar = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      // Llama a la funci�n RPC para obtener el detalle del usuario
+      const { data, error: errorUsuario } = await supabase
+        .rpc('obtener_detalle_usuario', { p_user_id: id })
+        .single()
+
+      if (errorUsuario) {
+        setError("Error al cargar usuario: " + errorUsuario.message)
+        setUsuario(null)
+      } else if (!data) {
+        setError("Usuario no encontrado")
+        setUsuario(null)
+      } else {
+        setUsuario(data)
+      }
+    } catch (err: any) {
+      setError("Error inesperado al cargar usuario")
+      setUsuario(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    recargar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const handleOpenConfirmationModal = (relationId: string) => {
     setRelationToDelete(relationId)
@@ -53,26 +87,22 @@ export default function PaginaDetalleUsuario() {
     if (!relationToDelete) return
     setIsDeleting(true)
     try {
-      // Pasa el id del usuario para revalidar el path correcto
       await deleteFamilyRelation(relationToDelete, id)
       setIsModalOpen(false)
       setRelationToDelete(null)
       setIsDeleting(false)
-      // recargar() // Si quieres recargar manualmente
+      recargar()
     } catch (err) {
       setIsDeleting(false)
       setIsModalOpen(false)
       setRelationToDelete(null)
-      // Opcional: mostrar error
     }
   }
 
-  // Función para obtener las iniciales del nombre y apellido
   const obtenerIniciales = (nombre: string, apellido: string) => {
-    return `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase()
+    return `${nombre?.charAt(0) ?? ""}${apellido?.charAt(0) ?? ""}`.toUpperCase()
   }
 
-  // Función para obtener el color del rol
   const obtenerColorRol = (rolInterno: string) => {
     switch (rolInterno) {
       case 'admin':
@@ -92,7 +122,6 @@ export default function PaginaDetalleUsuario() {
     }
   }
 
-  // Función para obtener el color del estado civil
   const obtenerColorEstadoCivil = (estadoCivil: string) => {
     switch (estadoCivil) {
       case 'Soltero':
@@ -108,7 +137,6 @@ export default function PaginaDetalleUsuario() {
     }
   }
 
-  // Función para obtener el color del género
   const obtenerColorGenero = (genero: string) => {
     switch (genero) {
       case 'Masculino':
@@ -122,11 +150,9 @@ export default function PaginaDetalleUsuario() {
     }
   }
 
-  // Función para formatear la fecha (usa siempre UTC para evitar diferencias SSR/CSR)
   const formatearFecha = (fecha: string) => {
     if (!fecha) return 'No especificada'
     const fechaObj = new Date(fecha)
-    // Siempre usa UTC para evitar hydration mismatch
     const dia = String(fechaObj.getUTCDate()).padStart(2, '0')
     const mes = String(fechaObj.getUTCMonth() + 1).padStart(2, '0')
     const anio = fechaObj.getUTCFullYear()
@@ -142,41 +168,22 @@ export default function PaginaDetalleUsuario() {
     return `${dia}/${mes}/${anio}`
   }
 
-  // Función para obtener el rol del usuario
-  const obtenerRolUsuario = () => {
-    if (!usuario?.usuario_roles || usuario.usuario_roles.length === 0) {
-      return { nombre: 'Sin rol', interno: 'sin-rol' }
-    }
-
-    const primerRol = usuario.usuario_roles[0]
-    if (primerRol.roles_sistema) {
-      return {
-        nombre: primerRol.roles_sistema.nombre_visible,
-        interno: primerRol.roles_sistema.nombre_interno
-      }
-    }
-
-    return { nombre: 'Sin rol', interno: 'sin-rol' }
-  }
-
-  // Función para formatear el teléfono
   const formatearTelefono = (telefono: string | null) => {
-    if (!telefono) return 'Sin teléfono'
+    if (!telefono) return 'Sin tel�fono'
     return telefono
   }
 
-  // Función para formatear el email
   const formatearEmail = (email: string | null) => {
     if (!email) return 'Sin email'
     return email
   }
 
-  // Función para formatear la cédula
   const formatearCedula = (cedula: string | null) => {
-    if (!cedula) return 'Sin cédula'
+    if (!cedula) return 'Sin c�dula'
     return cedula
   }
 
+  // Renderizado
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -192,7 +199,7 @@ export default function PaginaDetalleUsuario() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠︝</div>
+          <div className="text-red-500 text-6xl mb-4">??</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Error al cargar datos</h2>
           <p className="text-gray-600 mb-4">{error || 'Usuario no encontrado'}</p>
           <div className="flex gap-3 justify-center">
@@ -214,7 +221,15 @@ export default function PaginaDetalleUsuario() {
     )
   }
 
-  const rolUsuario = obtenerRolUsuario()
+  // Asume que la funci�n RPC retorna un objeto con las siguientes propiedades:
+  // usuario: { id, nombre, apellido, ... }
+  // roles: [{ nombre_visible, nombre_interno }]
+  // relaciones: [{ id, tipo_relacion, es_principal, familiar: { nombre, apellido, email, telefono, genero } }]
+  // ...otros campos seg�n tu funci�n
+
+  const rolUsuario = usuario.roles && usuario.roles.length > 0
+    ? usuario.roles[0]
+    : { nombre_visible: 'Sin rol', nombre_interno: 'sin-rol' }
 
   return (
     <div className="space-y-6">
@@ -245,8 +260,8 @@ export default function PaginaDetalleUsuario() {
                   {usuario.nombre} {usuario.apellido}
                 </h1>
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${obtenerColorRol(rolUsuario.interno)}`}>
-                    {rolUsuario.nombre}
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${obtenerColorRol(rolUsuario.nombre_interno)}`}>
+                    {rolUsuario.nombre_visible}
                   </span>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${obtenerColorEstadoCivil(usuario.estado_civil)}`}>
                     {usuario.estado_civil}
@@ -261,21 +276,21 @@ export default function PaginaDetalleUsuario() {
               </div>
               
               <Link href={`/dashboard/users/${usuario.id}/edit`}>
-              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
-                <Edit className="w-4 h-4" />
-                Editar Usuario
-              </button>
+                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
+                  <Edit className="w-4 h-4" />
+                  Editar Usuario
+                </button>
               </Link>
             </div>
           </div>
         </div>
-            </div>
+      </div>
 
-            {/* Informaci�n B�sica */}
+      {/* Informaci�n B�sica */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <User className="w-5 h-5 text-orange-500" />
-          Información Básica
+          Informaci�n B�sica
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
@@ -286,7 +301,7 @@ export default function PaginaDetalleUsuario() {
           </div>
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <User className="w-5 h-5" /> Cédula
+              <User className="w-5 h-5" /> C�dula
             </span>
             <span className="text-gray-800">{formatearCedula(usuario.cedula)}</span>
           </div>
@@ -303,7 +318,7 @@ export default function PaginaDetalleUsuario() {
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <Mail className="w-5 h-5 text-orange-500" />
-          Información de Contacto
+          Informaci�n de Contacto
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
@@ -314,7 +329,7 @@ export default function PaginaDetalleUsuario() {
           </div>
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <Phone className="w-5 h-5" /> Teléfono
+              <Phone className="w-5 h-5" /> Tel�fono
             </span>
             <span className="text-gray-800">{formatearTelefono(usuario.telefono)}</span>
           </div>
@@ -325,7 +340,7 @@ export default function PaginaDetalleUsuario() {
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <User className="w-5 h-5 text-orange-500" />
-          Información Personal
+          Informaci�n Personal
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
@@ -342,7 +357,7 @@ export default function PaginaDetalleUsuario() {
           </div>
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <User className="w-5 h-5" /> Género
+              <User className="w-5 h-5" /> G�nero
             </span>
             <span className="text-gray-800">{usuario.genero}</span>
           </div>
@@ -364,9 +379,20 @@ export default function PaginaDetalleUsuario() {
             Agregar Familiar
           </button>
         </div>
-        {usuario.relaciones_familiares && usuario.relaciones_familiares.length > 0 ? (
+        {usuario.relaciones && usuario.relaciones.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {usuario.relaciones_familiares.map((relacion) => (
+            {usuario.relaciones.map((relacion: {
+              id: string;
+              tipo_relacion: string;
+              es_principal?: boolean;
+              familiar: {
+                nombre: string;
+                apellido: string;
+                email?: string;
+                telefono?: string;
+                genero?: string;
+              };
+            }) => (
               <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/70 rounded-xl min-h-[80px] group">
                 <div className={`w-10 h-10 bg-gradient-to-br ${obtenerColorRelacion(relacion.tipo_relacion)} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
                   {relacion.familiar.nombre.charAt(0)}{relacion.familiar.apellido.charAt(0)}
@@ -421,7 +447,7 @@ export default function PaginaDetalleUsuario() {
 
       {/* Acciones R�pidas */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Acciones Rápidas</h3>
+        <h3 className="text-xl font-bold text-gray-800 mb-6">Acciones R�pidas</h3>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link href={`/dashboard/users/${usuario.id}/edit`} className="flex-1">
             <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
@@ -452,13 +478,13 @@ export default function PaginaDetalleUsuario() {
         onRelacionCreada={recargar}
       />
 
-      {/* Modal de Confirmación para eliminar relación */}
+      {/* Modal de Confirmaci�n para eliminar relaci�n */}
       <ConfirmationModal
         isOpen={isModalOpen}
         onClose={handleCloseConfirmationModal}
         onConfirm={handleConfirmDelete}
-        title="Confirmar Eliminación"
-        message="¿Estás seguro de que deseas eliminar esta relación familiar? Esta acción no se puede deshacer."
+        title="Confirmar Eliminaci�n"
+        message="�Est�s seguro de que deseas eliminar esta relaci�n familiar? Esta acci�n no se puede deshacer."
         isLoading={isDeleting}
       />
     </div>
