@@ -88,9 +88,7 @@ export default function PaginaDetalleUsuario() {
     if (!relationToDelete) return
     setIsDeleting(true)
     try {
-      console.log('Intentando borrar relación:', relationToDelete)
       const res = await deleteFamilyRelation(relationToDelete, id)
-      console.log('Resultado de deleteFamilyRelation:', res)
       if (res.success) {
         toast({
           title: "Relación eliminada",
@@ -106,7 +104,6 @@ export default function PaginaDetalleUsuario() {
         })
       }
     } catch (err: any) {
-      console.error('Error inesperado al borrar relación:', err)
       toast({
         title: "Error inesperado",
         description: err?.message || "No se pudo eliminar la relación.",
