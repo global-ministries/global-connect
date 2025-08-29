@@ -5,6 +5,24 @@ import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import type { Database } from "@/lib/supabase/database.types"
 
+// Elimina una relación familiar usando la función RPC y revalida la página de detalle
+export async function deleteFamilyRelation(relationId: string, userId: string) {
+  const supabase = createSupabaseServerClient();
+  try {
+    const { data, error } = await supabase.rpc('eliminar_relacion_familiar', { p_relacion_id: relationId });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    if (data && data.error) {
+      return { success: false, error: data.error };
+    }
+    revalidatePath(`/dashboard/users/${userId}`);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Error inesperado' };
+  }
+}
+
 type Usuario = Database["public"]["Tables"]["usuarios"]["Row"]
 type Direccion = Database["public"]["Tables"]["direcciones"]["Row"]
 type Familia = Database["public"]["Tables"]["familias"]["Row"]
@@ -223,31 +241,6 @@ export async function updateUser(userId: string, data: UpdateUserData) {
     
     // Re-lanzar el error para que sea manejado por el componente
     throw error
-  }
-}
-export async function deleteFamilyRelation(relationId: string, userId?: string) {
-  const supabase = createSupabaseServerClient();
-  try {
-    const { error } = await supabase
-      .from("relaciones_usuarios")
-      .delete()
-      .eq("id", relationId)
-      .eq("id", relationId)
-
-    if (error) {
-      throw new Error(error.message)
-    }
-
-    // Revalida la pÃ¡gina de detalle de usuario (usa el userId si estÃ¡ disponible)
-    if (userId) {
-      revalidatePath(`/dashboard/users/${userId}`)
-    } else {
-      revalidatePath("/dashboard/users/[id]")
-    }
-
-    return { success: true }
-  } catch (err) {
-    return { success: false, error: (err as Error).message }
   }
 }
 export async function addFamilyRelation({

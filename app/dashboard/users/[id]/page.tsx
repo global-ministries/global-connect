@@ -25,6 +25,7 @@ import { AgregarFamiliarModal } from '@/components/modals/AgregarFamiliarModal'
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
 import { supabase } from "@/lib/supabase/client"
 import { deleteFamilyRelation } from "@/lib/actions/user.actions"
+import { toast } from "@/components/ui/use-toast"
 
 export default function PaginaDetalleUsuario() {
   const params = useParams()
@@ -87,12 +88,31 @@ export default function PaginaDetalleUsuario() {
     if (!relationToDelete) return
     setIsDeleting(true)
     try {
-      await deleteFamilyRelation(relationToDelete, id)
-      setIsModalOpen(false)
-      setRelationToDelete(null)
-      setIsDeleting(false)
-      recargar()
-    } catch (err) {
+      console.log('Intentando borrar relación:', relationToDelete)
+      const res = await deleteFamilyRelation(relationToDelete, id)
+      console.log('Resultado de deleteFamilyRelation:', res)
+      if (res.success) {
+        toast({
+          title: "Relación eliminada",
+          description: "La relación familiar fue eliminada correctamente.",
+          variant: "default",
+        })
+        recargar()
+      } else {
+        toast({
+          title: "Error al eliminar",
+          description: res.error || "No se pudo eliminar la relación.",
+          variant: "destructive",
+        })
+      }
+    } catch (err: any) {
+      console.error('Error inesperado al borrar relación:', err)
+      toast({
+        title: "Error inesperado",
+        description: err?.message || "No se pudo eliminar la relación.",
+        variant: "destructive",
+      })
+    } finally {
       setIsDeleting(false)
       setIsModalOpen(false)
       setRelationToDelete(null)
