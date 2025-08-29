@@ -1,18 +1,18 @@
-// Configuración para relaciones familiares
+// ConfiguraciÃ³n para relaciones familiares
 export const RELACIONES_FAMILIARES = {
-  // Relaciones que requieren inversión cuando el usuario actual es usuario1_id
+  // Relaciones que requieren inversiÃ³n cuando el usuario actual es usuario1_id
   RELACIONES_INVERTIBLES: {
     'padre': 'hijo',
     'hijo': 'padre',
     'tutor': 'tutelado',
-    'hermano': 'hermano', // Los hermanos son recíprocos (no se invierten)
+    'hermano': 'hermano', // Los hermanos son recÃ­procos (no se invierten)
   },
   
-  // Relaciones que son recíprocas (no se invierten)
+  // Relaciones que son recÃ­procas (no se invierten)
   RELACIONES_RECIPROCAS: ['conyuge', 'hermano', 'otro_familiar'],
-  
+
   // Nombres en español para cada tipo de relación
-  NOMBRES_ESPAÑOL: {
+  NOMBRES_ESPANOL: {
     'conyuge': 'Cónyuge',
     'padre': 'Padre',
     'hijo': 'Hijo/a',
@@ -22,7 +22,7 @@ export const RELACIONES_FAMILIARES = {
     'otro_familiar': 'Otro Familiar',
   },
   
-  // Colores para cada tipo de relación
+  // Colores para cada tipo de relaciÃ³n
   COLORS: {
     'conyuge': 'from-pink-500 to-pink-600',
     'padre': 'from-blue-500 to-blue-600',
@@ -34,9 +34,9 @@ export const RELACIONES_FAMILIARES = {
   }
 } as const
 
-// Función para obtener el nombre en español de una relación
+// FunciÃ³n para obtener el nombre en espaÃ±ol de una relaciÃ³n
 export function obtenerNombreRelacion(tipoRelacion: string, familiar?: any): string {
-  // Si tenemos información del familiar, usar género específico
+  // Si tenemos informaciÃ³n del familiar, usar gÃ©nero especÃ­fico
   if (familiar && familiar.genero) {
     switch (tipoRelacion) {
       case 'padre':
@@ -52,23 +52,23 @@ export function obtenerNombreRelacion(tipoRelacion: string, familiar?: any): str
     }
   }
   
-  // Si no hay género o es otro tipo, usar nombres genéricos
-  return RELACIONES_FAMILIARES.NOMBRES_ESPAÑOL[tipoRelacion as keyof typeof RELACIONES_FAMILIARES.NOMBRES_ESPAÑOL] || 
+  // Si no hay gÃ©nero o es otro tipo, usar nombres genÃ©ricos
+  return RELACIONES_FAMILIARES.NOMBRES_ESPANOL[tipoRelacion as keyof typeof RELACIONES_FAMILIARES.NOMBRES_ESPANOL] || 
          tipoRelacion.charAt(0).toUpperCase() + tipoRelacion.slice(1)
 }
 
-// Función para obtener el color de una relación
+// FunciÃ³n para obtener el color de una relaciÃ³n
 export function obtenerColorRelacion(tipoRelacion: string): string {
   return RELACIONES_FAMILIARES.COLORS[tipoRelacion as keyof typeof RELACIONES_FAMILIARES.COLORS] || 
          'from-orange-500 to-orange-600'
 }
 
-// Función para invertir una relación
+// FunciÃ³n para invertir una relaciÃ³n
 export function invertirRelacion(tipoRelacion: string): string | null {
   return RELACIONES_FAMILIARES.RELACIONES_INVERTIBLES[tipoRelacion as keyof typeof RELACIONES_FAMILIARES.RELACIONES_INVERTIBLES] || null
 }
 
-// Función para verificar si una relación es recíproca
+// FunciÃ³n para verificar si una relaciÃ³n es recÃ­proca
 export function esRelacionReciproca(tipoRelacion: string): boolean {
   return RELACIONES_FAMILIARES.RELACIONES_RECIPROCAS.includes(tipoRelacion as any)
 }

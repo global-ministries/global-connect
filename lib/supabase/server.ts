@@ -1,16 +1,21 @@
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from './database.types'
+import { createServerClient } from '@supabase/ssr'
+import { cookies as nextCookies } from 'next/headers'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Faltan las variables de entorno de Supabase para el servidor')
-}
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
-
-// Devuelve el cliente supabase para usar en server actions
-export function createServerSupabaseClient() {
-  return supabase
+export function createSupabaseServerClient() {
+  const cookieStore = nextCookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: async (name: string) => (await cookieStore).get(name)?.value,
+        set: async (name: string, value: string, options: any) => {
+          (await cookieStore).set({ name, value, ...options })
+        },
+        remove: async (name: string, options: any) => {
+          (await cookieStore).set({ name, value: '', ...options })
+        }
+      }
+    }
+  )
 }

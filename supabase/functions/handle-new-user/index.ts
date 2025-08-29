@@ -1,6 +1,6 @@
 // Supabase Edge Function: handle-new-user
-import { serve } from "std/server";
-import { createClient } from "@supabase/supabase-js";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Tipado para el payload recibido del Auth Hook
 type AuthHookPayload = {
@@ -28,7 +28,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // 3. Buscar usuario preexistente por email o cédula (si la cédula no está vacía)
+    // 3. Buscar usuario preexistente por email o cÃ©dula (si la cÃ©dula no estÃ¡ vacÃ­a)
     let query = supabase
       .from("usuarios")
       .select("id")
@@ -102,7 +102,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         status: "error",
-        message: err?.message || "Error interno en la función handle-new-user.",
+        message: err?.message || "Error interno en la funciÃ³n handle-new-user.",
       }),
       { headers: { "Content-Type": "application/json" }, status: 500 }
     );

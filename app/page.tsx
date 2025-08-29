@@ -6,9 +6,9 @@ import { useState } from "react"
 import { login } from "@/lib/actions/auth.actions"
 
 export default function PaginaLogin() {
-  const [mostrarContraseña, setMostrarContraseña] = useState(false)
+  const [mostrarContrasena, setMostrarContrasena] = useState(false)
   const [email, setEmail] = useState("")
-  const [contraseña, setContraseña] = useState("")
+  const [contrasena, setContrasena] = useState("")
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-gray-50 to-white relative overflow-hidden flex items-center justify-center p-4">
@@ -40,7 +40,17 @@ export default function PaginaLogin() {
           </div>
 
           {/* Formulario de Login */}
-          <form className="space-y-6" action={login}>
+          <form
+            className="space-y-6"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const result = await login(new FormData(e.currentTarget));
+              // Manejar el resultado aqu�, por ejemplo mostrar errores
+              if (result?.error) {
+                alert(result.error);
+              }
+            }}
+          >
             {/* Campo Email */}
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
@@ -60,33 +70,33 @@ export default function PaginaLogin() {
               </div>
             </div>
 
-            {/* Campo Contraseña */}
+            {/* Campo Contrase�a */}
             <div className="space-y-2">
-              <label htmlFor="contraseña" className="block text-sm font-medium text-gray-700">Contraseña</label>
+              <label htmlFor="contrasena" className="block text-sm font-medium text-gray-700">Contrase�a</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Globe className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="contraseña"
+                  id="contrasena"
                   name="password"
-                  type={mostrarContraseña ? "text" : "password"}
-                  value={contraseña}
-                  onChange={(e) => setContraseña(e.target.value)}
-                  placeholder="••••••"
+                  type={mostrarContrasena ? "text" : "password"}
+                  value={contrasena}
+                  onChange={(e) => setContrasena(e.target.value)}
+                  placeholder="������"
                   className="block w-full pl-10 pr-12 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
                 <button
                   type="button"
-                  onClick={() => setMostrarContraseña(!mostrarContraseña)}
+                  onClick={() => setMostrarContrasena(!mostrarContrasena)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {mostrarContraseña ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {mostrarContrasena ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
-            {/* Botón de Login */}
+            {/* BotÃ³n de Login */}
             <button
               type="submit"
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -100,15 +110,15 @@ export default function PaginaLogin() {
                 href="/reset-password"
                 className="text-gray-600 hover:text-gray-800 text-sm transition-colors duration-200"
               >
-                ¿Olvidaste tu contraseña?
+                �Olvidaste tu contrase�a?
               </Link>
             </div>
           </form>
         </div>
 
-        {/* Pie de página */}
+        {/* Pie de p�gina */}
         <div className="text-center mt-6 sm:mt-8">
-          <p className="text-gray-500 text-xs sm:text-sm">© 2025 Global Connect. Todos los derechos reservados.</p>
+          <p className="text-gray-500 text-xs sm:text-sm">� 2025 Global Connect. Todos los derechos reservados.</p>
         </div>
       </div>
     </div>

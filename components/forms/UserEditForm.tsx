@@ -110,6 +110,18 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Obtener los IDs correctos para los selects de direcci�n
+  const parroquiaObj = usuario.direccion?.parroquia
+  const municipioObj = parroquiaObj?.municipio
+  const estadoObj = municipioObj?.estado
+  const paisObj = estadoObj?.pais
+
+  // Obtener los IDs actuales para selects (soportando undefined)
+  const parroquia_id = parroquiaObj?.id || ""
+  const municipio_id = municipioObj?.id || ""
+  const estado_id = estadoObj?.id || ""
+  const pais_id = paisObj?.id || ""
+
   const {
     register,
     handleSubmit,
@@ -135,11 +147,20 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         barrio: usuario.direccion.barrio || "",
         codigo_postal: usuario.direccion.codigo_postal || "",
         referencia: usuario.direccion.referencia || "",
-        pais_id: usuario.direccion.parroquia?.municipio?.estado?.pais?.id || "",
-        estado_id: usuario.direccion.parroquia?.municipio?.estado?.id || "",
-        municipio_id: usuario.direccion.parroquia?.municipio?.id || "",
-        parroquia_id: usuario.direccion.parroquia?.id || "none",
-      } : undefined,
+        pais_id: pais_id,
+        estado_id: estado_id,
+        municipio_id: municipio_id,
+        parroquia_id: parroquia_id || "none",
+      } : {
+        calle: "",
+        barrio: "",
+        codigo_postal: "",
+        referencia: "",
+        pais_id: "",
+        estado_id: "",
+        municipio_id: "",
+        parroquia_id: "none",
+      },
       familia_id: usuario.familia_id || "",
       familia: usuario.familia ? {
         nombre: usuario.familia.nombre || "",

@@ -3,6 +3,7 @@
 import React, { useState } from "react"
 import { LayoutDashboard, Users, UsersRound, Target, Calendar, Settings, Globe, Menu, X } from "lucide-react"
 import Link from "next/link"
+import { AuthStatusDebug } from "@/components/auth/AuthStatusDebug"
 
 interface PropiedadesLayoutTablero {
   children: React.ReactNode
@@ -17,7 +18,7 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
     { nombre: "Grupos", icono: UsersRound, enlace: "/grupos" },
     { nombre: "Segmentos", icono: Target, enlace: "/segmentos" },
     { nombre: "Temporadas", icono: Calendar, enlace: "/temporadas" },
-    { nombre: "Configuración", icono: Settings, enlace: "/configuracion" },
+    { nombre: "ConfiguraciÃ³n", icono: Settings, enlace: "/configuracion" },
   ]
 
   return (
@@ -31,7 +32,7 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
       </div>
       
       <div className="relative z-10">
-        {/* Botón de Menú Móvil */}
+        {/* BotÃ³n de MenÃº MÃ³vil */}
         <div className="lg:hidden fixed top-4 left-4 z-50">
           <button
             onClick={() => setSidebarAbierto(!sidebarAbierto)}
@@ -41,7 +42,7 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
           </button>
         </div>
 
-        {/* Overlay Móvil */}
+        {/* Overlay MÃ³vil */}
         {sidebarAbierto && (
           <div
             className="lg:hidden fixed inset-0 bg-black/20 backdrop-blur-sm z-30"
@@ -56,35 +57,43 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
               sidebarAbierto ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             }`}
           >
-            <div className="h-full p-4 lg:p-6">
-              <div className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-4 lg:p-6 shadow-2xl h-full">
-                {/* Logo */}
-                <div className="flex items-center justify-center mb-8">
-                  <img 
-                    src="/logo.png" 
-                    alt="Global Connect" 
-                    className="h-14 w-auto lg:h-16 lg:w-auto max-w-[240px]"
-                  />
+            <div className="h-full p-4 lg:p-6 flex flex-col justify-between">
+              <div>
+                <div className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-4 lg:p-6 shadow-2xl h-full flex flex-col">
+                  {/* Logo */}
+                  <div className="flex items-center justify-center mb-8">
+                    <img 
+                      src="/logo.png" 
+                      alt="Global Connect" 
+                      className="h-14 w-auto lg:h-16 lg:w-auto max-w-[240px]"
+                    />
+                  </div>
+
+                  {/* MenÃº de NavegaciÃ³n */}
+                  <nav className="space-y-2 flex-1">
+                    {elementosMenu.map((elemento) => {
+                      const Icono = elemento.icono
+
+                      return (
+                        <Link
+                          key={elemento.nombre}
+                          href={elemento.enlace}
+                          onClick={() => setSidebarAbierto(false)}
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-700 hover:bg-gradient-to-r hover:from-orange-100/60 hover:to-orange-50/60 hover:text-orange-600"
+                        >
+                          <Icono className="w-5 h-5" />
+                          <span className="font-medium">{elemento.nombre}</span>
+                        </Link>
+                      )
+                    })}
+                  </nav>
                 </div>
-
-                {/* Menú de Navegación */}
-                <nav className="space-y-2">
-                  {elementosMenu.map((elemento) => {
-                    const Icono = elemento.icono
-
-                    return (
-                      <Link
-                        key={elemento.nombre}
-                        href={elemento.enlace}
-                        onClick={() => setSidebarAbierto(false)}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-700 hover:bg-gradient-to-r hover:from-orange-100/60 hover:to-orange-50/60 hover:text-orange-600"
-                      >
-                        <Icono className="w-5 h-5" />
-                        <span className="font-medium">{elemento.nombre}</span>
-                      </Link>
-                    )
-                  })}
-                </nav>
+              </div>
+              {/* AuthStatusDebug al fondo de la sidebar */}
+              <div className="mt-6 flex flex-col items-center">
+                <AuthStatusDebug />
+                {/* Logo de la versiÃ³n o info de versiÃ³n aquÃ­ si existe */}
+                {/* <div className="text-xs text-gray-400 mt-2">v1.0.0</div> */}
               </div>
             </div>
           </div>

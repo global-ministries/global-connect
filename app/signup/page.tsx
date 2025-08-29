@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -40,16 +41,17 @@ type FormData = z.infer<typeof schema>;
 type FormMessage = { type: "success" | "error"; text: string };
 
 export default function SignupPage() {
+  const router = useRouter();
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [formMessage, setFormMessage] = useState<FormMessage | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
-    setFormMessage(null);
+    setErrorMessage(null);
 
     const formData = new window.FormData();
     formData.append("nombre", data.nombre);
@@ -61,9 +63,9 @@ export default function SignupPage() {
     // @ts-ignore
     const response = await import("@/lib/actions/auth.actions").then(mod => mod.signup(formData));
     if (response?.success) {
-      setFormMessage({ type: "success", text: response.message });
+      router.push("/verify-email");
     } else {
-      setFormMessage({ type: "error", text: response?.message || "Error desconocido" });
+      setErrorMessage(response?.message || "Error desconocido");
     }
     setIsLoading(false);
   };
@@ -161,10 +163,10 @@ export default function SignupPage() {
             )}
           </div>
 
-          {/* Mensaje del formulario */}
-          {formMessage && (
-            <div className={`text-sm font-medium mb-2 text-center ${formMessage.type === "error" ? "text-red-600" : "text-green-600"}`}>
-              {formMessage.text}
+          {/* Mensaje de error */}
+          {errorMessage && (
+            <div className="text-sm font-medium mb-2 text-center text-red-600">
+              {errorMessage}
             </div>
           )}
 
@@ -172,18 +174,15 @@ export default function SignupPage() {
             tipo="submit"
             deshabilitado={isLoading}
             claseAdicional={`flex items-center justify-center ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
-            niños={
-              <>
-                {isLoading ? (
-                  <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                ) : null}
-                Crear Cuenta
-              </>
-            }
-          />
+          >
+            {isLoading ? (
+              <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+            ) : null}
+            Crear Cuenta
+          </BotonGradiente>
 
           <div className="text-center mt-4">
             <Link href="/" className="text-orange-600 hover:underline text-sm">

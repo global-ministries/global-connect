@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { supabase } from "@/lib/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { UserEditForm } from "@/components/forms/UserEditForm"
 
 interface Props {
@@ -8,50 +8,23 @@ interface Props {
 }
 
 export default async function EditUserPage({ params }: Props) {
-  console.log('🔝 Params recibidos:', params)
-  
   const { id } = await params
-  console.log('🔝 ID extraído:', id)
-  console.log('🔝 Tipo de ID:', typeof id)
 
-  // Verificar que el ID sea válido
-  if (!id || typeof id !== 'string') {
-    console.error('❌ ID inválido:', id)
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠︝</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">ID de Usuario Inválido</h2>
-          <p className="text-gray-600 mb-4">El ID proporcionado no es válido</p>
-          <Link
-            href="/dashboard/users"
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-          >
-            Volver a Usuarios
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  console.log('🔝 Editando usuario con ID:', id)
+  // Crear cliente Supabase correctamente
+  const supabase = createSupabaseServerClient()
 
   // Obtener datos del usuario básico
   const { data: usuario, error: errorUsuario } = await supabase
     .from('usuarios')
     .select('*')
     .eq('id', id)
-    .single()
-
-  console.log('🔝 Resultado de consulta usuario:', { usuario, error: errorUsuario })
+    .maybeSingle() // Permite cero o un resultado, evita error si no existe
 
   if (errorUsuario || !usuario) {
-    console.error('❌ Error al obtener usuario:', errorUsuario)
-    console.error('❌ Usuario obtenido:', usuario)
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠︝</div>
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Usuario no encontrado</h2>
           <p className="text-gray-600 mb-4">
             No se pudo cargar la información del usuario con ID: {id}
@@ -70,12 +43,10 @@ export default async function EditUserPage({ params }: Props) {
     )
   }
 
-  console.log('✅ Usuario obtenido:', usuario)
-
   // Obtener dirección si existe
   let direccion = null
   if (usuario.direccion_id) {
-    const { data: dirData, error: errorDir } = await supabase
+    const { data: dirData } = await supabase
       .from('direcciones')
       .select(`
         *,
@@ -97,71 +68,49 @@ export default async function EditUserPage({ params }: Props) {
         )
       `)
       .eq('id', usuario.direccion_id)
-      .single()
-    
-    if (!errorDir) {
+      .maybeSingle()
+    if (dirData) {
       direccion = dirData
-      console.log('✅ Dirección obtenida con datos geográficos:', direccion)
-    } else {
-      console.log('⚠︝ Error al obtener dirección:', errorDir)
     }
   }
 
   // Obtener familia si existe
   let familia = null
   if (usuario.familia_id) {
-    const { data: famData, error: errorFam } = await supabase
+    const { data: famData } = await supabase
       .from('familias')
       .select('*')
       .eq('id', usuario.familia_id)
-      .single()
-    
-    if (!errorFam) {
+      .maybeSingle()
+    if (famData) {
       familia = famData
-      console.log('✅ Familia obtenida:', familia)
-    } else {
-      console.log('⚠︝ Error al obtener familia:', errorFam)
     }
-  } else {
-    console.log('ℹ︝ Usuario no tiene familia asignada')
   }
 
   // Obtener ocupación si existe
   let ocupacion = null
   if (usuario.ocupacion_id) {
-    const { data: ocData, error: errorOc } = await supabase
+    const { data: ocData } = await supabase
       .from('ocupaciones')
       .select('*')
       .eq('id', usuario.ocupacion_id)
-      .single()
-    
-    if (!errorOc) {
+      .maybeSingle()
+    if (ocData) {
       ocupacion = ocData
-      console.log('✅ Ocupación obtenida:', ocupacion)
-    } else {
-      console.log('⚠︝ Error al obtener ocupación:', errorOc)
     }
-  } else {
-    console.log('ℹ︝ Usuario no tiene ocupación asignada')
   }
 
   // Obtener profesión si existe
   let profesion = null
   if (usuario.profesion_id) {
-    const { data: profData, error: errorProf } = await supabase
+    const { data: profData } = await supabase
       .from('profesiones')
       .select('*')
       .eq('id', usuario.profesion_id)
-      .single()
-    
-    if (!errorProf) {
+      .maybeSingle()
+    if (profData) {
       profesion = profData
-      console.log('✅ Profesión obtenida:', profesion)
-    } else {
-      console.log('⚠︝ Error al obtener profesión:', errorProf)
     }
-  } else {
-    console.log('ℹ︝ Usuario no tiene profesión asignada')
   }
 
   // Construir el objeto completo del usuario
@@ -178,79 +127,41 @@ export default async function EditUserPage({ params }: Props) {
     profesion: profesion || undefined
   }
 
-  console.log('✅ Usuario completo construido:', usuarioCompleto)
-
   // Obtener ocupaciones disponibles
-  const { data: ocupaciones, error: errorOcupaciones } = await supabase
+  const { data: ocupaciones } = await supabase
     .from('ocupaciones')
     .select('id, nombre')
     .order('nombre')
 
-  if (errorOcupaciones) {
-    console.error('❌ Error al obtener ocupaciones:', errorOcupaciones)
-  } else {
-    console.log('✅ Ocupaciones disponibles:', ocupaciones)
-  }
-
   // Obtener profesiones disponibles
-  const { data: profesiones, error: errorProfesiones } = await supabase
+  const { data: profesiones } = await supabase
     .from('profesiones')
     .select('id, nombre')
     .order('nombre')
 
-  if (errorProfesiones) {
-    console.error('❌ Error al obtener profesiones:', errorProfesiones)
-  } else {
-    console.log('✅ Profesiones disponibles:', profesiones)
-  }
-
   // Obtener países disponibles
-  const { data: paises, error: errorPaises } = await supabase
+  const { data: paises } = await supabase
     .from('paises')
     .select('id, nombre')
     .order('nombre')
 
-  if (errorPaises) {
-    console.error('❌ Error al obtener países:', errorPaises)
-  } else {
-    console.log('✅ Países disponibles:', paises)
-  }
-
   // Obtener estados disponibles (por defecto Venezuela)
-  const { data: estados, error: errorEstados } = await supabase
+  const { data: estados } = await supabase
     .from('estados')
     .select('id, nombre, pais_id')
     .order('nombre')
 
-  if (errorEstados) {
-    console.error('❌ Error al obtener estados:', errorEstados)
-  } else {
-    console.log('✅ Estados disponibles:', estados)
-  }
-
   // Obtener municipios disponibles
-  const { data: municipios, error: errorMunicipios } = await supabase
+  const { data: municipios } = await supabase
     .from('municipios')
     .select('id, nombre, estado_id')
     .order('nombre')
 
-  if (errorMunicipios) {
-    console.error('❌ Error al obtener municipios:', errorMunicipios)
-  } else {
-    console.log('✅ Municipios disponibles:', municipios)
-  }
-
   // Obtener parroquias disponibles
-  const { data: parroquias, error: errorParroquias } = await supabase
+  const { data: parroquias } = await supabase
     .from('parroquias')
     .select('id, nombre, municipio_id')
     .order('nombre')
-
-  if (errorParroquias) {
-    console.error('❌ Error al obtener parroquias:', errorParroquias)
-  } else {
-    console.log('✅ Parroquias disponibles:', parroquias)
-  }
 
   return (
     <div className="space-y-6">
