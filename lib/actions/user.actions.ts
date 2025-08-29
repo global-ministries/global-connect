@@ -261,14 +261,41 @@ export async function addFamilyRelation({
 }) {
   const supabase = createSupabaseServerClient()
   try {
-    const { error } = await supabase.rpc("agregar_relacion_familiar", {
-      p_usuario1_id: usuario1_id,
-      p_usuario2_id: usuario2_id,
-      p_tipo_relacion: tipo_relacion,
-    })
-    if (error) {
-      return { success: false, message: error.message }
+
+    // Validar duplicados: solo una relación entre los mismos usuarios (en cualquier orden, sin importar tipo)
+    const { data: existing, error: errorExisting } = await supabase
+      .from('relaciones_usuarios')
+      .select('id')
+      .or(
+        `and(usuario1_id.eq.${usuario1_id},usuario2_id.eq.${usuario2_id})` +
+        `,and(usuario1_id.eq.${usuario2_id},usuario2_id.eq.${usuario1_id})`
+      )
+      .limit(1)
+
+    if (errorExisting) {
+      return { success: false, message: errorExisting.message }
     }
+
+    if (existing && existing.length > 0) {
+      return { success: false, message: 'Ya existe una relación entre estos usuarios' }
+    }
+
+    // Insertar una sola fila representando la relación desde la perspectiva de usuario1
+    const { data: inserted, error: errorInsert } = await supabase
+      .from('relaciones_usuarios')
+      .insert({
+        usuario1_id,
+        usuario2_id,
+        tipo_relacion,
+        es_principal: false,
+      })
+      .select()
+      .maybeSingle()
+
+    if (errorInsert) {
+      return { success: false, message: errorInsert.message }
+    }
+
     revalidatePath(`/dashboard/users/${usuario1_id}`)
     return { success: true }
   } catch (err: any) {

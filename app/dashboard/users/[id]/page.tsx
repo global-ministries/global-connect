@@ -381,59 +381,59 @@ export default function PaginaDetalleUsuario() {
         </div>
         {usuario.relaciones && usuario.relaciones.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {usuario.relaciones.map((relacion: {
-              id: string;
-              tipo_relacion: string;
-              es_principal?: boolean;
-              familiar: {
-                nombre: string;
-                apellido: string;
-                email?: string;
-                telefono?: string;
-                genero?: string;
-              };
-            }) => (
-              <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/70 rounded-xl min-h-[80px] group">
-                <div className={`w-10 h-10 bg-gradient-to-br ${obtenerColorRelacion(relacion.tipo_relacion)} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
-                  {relacion.familiar.nombre.charAt(0)}{relacion.familiar.apellido.charAt(0)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm text-gray-500 font-medium">
-                      {obtenerNombreRelacion(relacion.tipo_relacion, relacion.familiar)}
-                    </p>
-                    {relacion.es_principal && (
-                      <span className="inline-block px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full font-medium">
-                        Principal
-                      </span>
-                    )}
+              {usuario.relaciones.map((relacion: any) => {
+                // Determinar el tipo de relaci�n a mostrar seg�n el sentido
+                let tipoMostrar = relacion.tipo_relacion;
+                if (relacion.sentido === 'inverso') {
+                  // Si es inverso y no es rec�proca, invertir
+                  const { invertirRelacion, esRelacionReciproca } = require('@/lib/config/relaciones-familiares');
+                  if (!esRelacionReciproca(relacion.tipo_relacion)) {
+                    tipoMostrar = invertirRelacion(relacion.tipo_relacion) || relacion.tipo_relacion;
+                  }
+                }
+                return (
+                  <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/70 rounded-xl min-h-[80px] group">
+                    <div className={`w-10 h-10 bg-gradient-to-br ${obtenerColorRelacion(tipoMostrar)} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
+                      {relacion.familiar.nombre.charAt(0)}{relacion.familiar.apellido.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="text-sm text-gray-500 font-medium">
+                          {obtenerNombreRelacion(tipoMostrar, relacion.familiar)}
+                        </p>
+                        {relacion.es_principal && (
+                          <span className="inline-block px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full font-medium">
+                            Principal
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-800">
+                          {relacion.familiar.nombre} {relacion.familiar.apellido}
+                        </p>
+                        <button
+                          type="button"
+                          className="ml-1 p-0 flex items-center"
+                          title="Eliminar familiar"
+                          onClick={() => handleOpenConfirmationModal(relacion.id)}
+                        >
+                          <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-600 transition-colors" />
+                        </button>
+                      </div>
+                      {relacion.familiar.email && (
+                        <p className="text-xs text-gray-500 truncate">
+                          {relacion.familiar.email}
+                        </p>
+                      )}
+                      {relacion.familiar.telefono && (
+                        <p className="text-xs text-gray-500">
+                          {formatearTelefono(relacion.familiar.telefono)}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-gray-800">
-                      {relacion.familiar.nombre} {relacion.familiar.apellido}
-                    </p>
-                    <button
-                      type="button"
-                      className="ml-1 p-0 flex items-center"
-                      title="Eliminar familiar"
-                      onClick={() => handleOpenConfirmationModal(relacion.id)}
-                    >
-                      <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-600 transition-colors" />
-                    </button>
-                  </div>
-                  {relacion.familiar.email && (
-                    <p className="text-xs text-gray-500 truncate">
-                      {relacion.familiar.email}
-                    </p>
-                  )}
-                  {relacion.familiar.telefono && (
-                    <p className="text-xs text-gray-500">
-                      {formatearTelefono(relacion.familiar.telefono)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
+                );
+              })}
           </div>
         ) : (
           <div className="text-center py-8">
