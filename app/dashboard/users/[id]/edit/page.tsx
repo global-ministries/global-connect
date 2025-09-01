@@ -127,41 +127,31 @@ export default async function EditUserPage({ params }: Props) {
     profesion: profesion || undefined
   }
 
-  // Obtener ocupaciones disponibles
-  const { data: ocupaciones } = await supabase
-    .from('ocupaciones')
-    .select('id, nombre')
-    .order('nombre')
 
-  // Obtener profesiones disponibles
-  const { data: profesiones } = await supabase
-    .from('profesiones')
-    .select('id, nombre')
-    .order('nombre')
-
-  // Obtener países disponibles
-  const { data: paises } = await supabase
-    .from('paises')
-    .select('id, nombre')
-    .order('nombre')
-
-  // Obtener estados disponibles (por defecto Venezuela)
-  const { data: estados } = await supabase
-    .from('estados')
-    .select('id, nombre, pais_id')
-    .order('nombre')
-
-  // Obtener municipios disponibles
-  const { data: municipios } = await supabase
-    .from('municipios')
-    .select('id, nombre, estado_id')
-    .order('nombre')
-
-  // Obtener parroquias disponibles
-  const { data: parroquias } = await supabase
-    .from('parroquias')
-    .select('id, nombre, municipio_id')
-    .order('nombre')
+  // Obtener catálogos en paralelo
+  const [
+    { data: ocupaciones },
+    { data: profesiones },
+    { data: paises },
+    { data: estados },
+    { data: municipios },
+    { data: parroquias }
+  ] = await Promise.all([
+    supabase.from('ocupaciones').select('id, nombre').order('nombre'),
+    supabase.from('profesiones').select('id, nombre').order('nombre'),
+    supabase.from('paises').select('id, nombre').order('nombre'),
+    supabase.from('estados').select('id, nombre, pais_id').order('nombre'),
+    supabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
+    supabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
+  ])
+// AÑADE ESTO PARA DEPURAR
+console.log("DATOS CARGADOS DESDE EL SERVIDOR:");
+console.log("Ocupaciones:", ocupaciones);
+console.log("Profesiones:", profesiones);
+console.log("Países:", paises);
+console.log("Estados:", estados);
+console.log("Municipios:", municipios);
+console.log("Parroquias:", parroquias);
 
   return (
     <div className="space-y-6">
