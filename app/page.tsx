@@ -70,9 +70,9 @@ export default function PaginaLogin() {
               </div>
             </div>
 
-            {/* Campo Contrase�a */}
+            {/* Campo Contraseña */}
             <div className="space-y-2">
-              <label htmlFor="contrasena" className="block text-sm font-medium text-gray-700">Contrase�a</label>
+              <label htmlFor="contrasena" className="block text-sm font-medium text-gray-700">Contraseña</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Globe className="h-5 w-5 text-gray-400" />
@@ -83,7 +83,7 @@ export default function PaginaLogin() {
                   type={mostrarContrasena ? "text" : "password"}
                   value={contrasena}
                   onChange={(e) => setContrasena(e.target.value)}
-                  placeholder="������"
+                  placeholder="*****"
                   className="block w-full pl-10 pr-12 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
                 <button
@@ -96,7 +96,7 @@ export default function PaginaLogin() {
               </div>
             </div>
 
-            {/* BotÃ³n de Login */}
+            {/* Botón de Login */}
             <button
               type="submit"
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -110,15 +110,15 @@ export default function PaginaLogin() {
                 href="/reset-password"
                 className="text-gray-600 hover:text-gray-800 text-sm transition-colors duration-200"
               >
-                �Olvidaste tu contrase�a?
+                ¿Olvidaste tu contraseña?
               </Link>
             </div>
           </form>
         </div>
 
-        {/* Pie de p�gina */}
+        {/* Pie de página */}
         <div className="text-center mt-6 sm:mt-8">
-          <p className="text-gray-500 text-xs sm:text-sm">� 2025 Global Connect. Todos los derechos reservados.</p>
+          <p className="text-gray-500 text-xs sm:text-sm">© 2025 Global Connect. Todos los derechos reservados.</p>
         </div>
       </div>
     </div>

@@ -47,7 +47,7 @@ export default function PaginaDetalleUsuario() {
     setLoading(true)
     setError(null)
     try {
-      // Llama a la funci�n RPC para obtener el detalle del usuario
+      // Llama a la función RPC para obtener el detalle del usuario
       const { data, error: errorUsuario } = await supabase
         .rpc('obtener_detalle_usuario', { p_user_id: id })
         .single()
@@ -189,7 +189,7 @@ export default function PaginaDetalleUsuario() {
   }
 
   const formatearTelefono = (telefono: string | null) => {
-    if (!telefono) return 'Sin tel�fono'
+    if (!telefono) return 'Sin telefono'
     return telefono
   }
 
@@ -199,7 +199,7 @@ export default function PaginaDetalleUsuario() {
   }
 
   const formatearCedula = (cedula: string | null) => {
-    if (!cedula) return 'Sin c�dula'
+    if (!cedula) return 'Sin cedula'
     return cedula
   }
 
@@ -241,11 +241,11 @@ export default function PaginaDetalleUsuario() {
     )
   }
 
-  // Asume que la funci�n RPC retorna un objeto con las siguientes propiedades:
+  // Asume que la función RPC retorna un objeto con las siguientes propiedades:
   // usuario: { id, nombre, apellido, ... }
   // roles: [{ nombre_visible, nombre_interno }]
   // relaciones: [{ id, tipo_relacion, es_principal, familiar: { nombre, apellido, email, telefono, genero } }]
-  // ...otros campos seg�n tu funci�n
+  // ...otros campos según tu función
 
   const rolUsuario = usuario.roles && usuario.roles.length > 0
     ? usuario.roles[0]
@@ -253,7 +253,7 @@ export default function PaginaDetalleUsuario() {
 
   return (
     <div className="space-y-6">
-      {/* Bot�n de Regreso */}
+      {/* Boton de Regreso */}
       <div>
         <Link 
           href="/dashboard/users"
@@ -264,7 +264,7 @@ export default function PaginaDetalleUsuario() {
         </Link>
       </div>
 
-      {/* Informaci�n Principal del Usuario */}
+      {/* Información Principal del Usuario */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 lg:p-8 shadow-2xl">
         <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
           {/* Avatar */}
@@ -272,7 +272,7 @@ export default function PaginaDetalleUsuario() {
             {obtenerIniciales(usuario.nombre, usuario.apellido)}
           </div>
 
-          {/* Informaci�n Principal */}
+          {/* Información Principal */}
           <div className="flex-1">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
               <div>
@@ -306,11 +306,11 @@ export default function PaginaDetalleUsuario() {
         </div>
       </div>
 
-      {/* Informaci�n B�sica */}
+      {/* Información Básica */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <User className="w-5 h-5 text-orange-500" />
-          Informaci�n B�sica
+          Información Básica
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
@@ -321,7 +321,7 @@ export default function PaginaDetalleUsuario() {
           </div>
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <User className="w-5 h-5" /> C�dula
+              <User className="w-5 h-5" /> Cédula
             </span>
             <span className="text-gray-800">{formatearCedula(usuario.cedula)}</span>
           </div>
@@ -338,7 +338,7 @@ export default function PaginaDetalleUsuario() {
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <Mail className="w-5 h-5 text-orange-500" />
-          Informaci�n de Contacto
+          Información de Contacto
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
@@ -349,7 +349,7 @@ export default function PaginaDetalleUsuario() {
           </div>
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <Phone className="w-5 h-5" /> Tel�fono
+              <Phone className="w-5 h-5" /> Teléfono
             </span>
             <span className="text-gray-800">{formatearTelefono(usuario.telefono)}</span>
           </div>
@@ -360,7 +360,7 @@ export default function PaginaDetalleUsuario() {
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
           <User className="w-5 h-5 text-orange-500" />
-          Informaci�n Personal
+          Información Personal
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
@@ -377,7 +377,7 @@ export default function PaginaDetalleUsuario() {
           </div>
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <User className="w-5 h-5" /> G�nero
+              <User className="w-5 h-5" /> Género
             </span>
             <span className="text-gray-800">{usuario.genero}</span>
           </div>
@@ -402,10 +402,10 @@ export default function PaginaDetalleUsuario() {
         {usuario.relaciones && usuario.relaciones.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {usuario.relaciones.map((relacion: any) => {
-                // Determinar el tipo de relaci�n a mostrar seg�n el sentido
+                // Determinar el tipo de relación a mostrar según el sentido
                 let tipoMostrar = relacion.tipo_relacion;
                 if (relacion.sentido === 'inverso') {
-                  // Si es inverso y no es rec�proca, invertir
+                  // Si es inverso y no es reciproca, invertir
                   const { invertirRelacion, esRelacionReciproca } = require('@/lib/config/relaciones-familiares');
                   if (!esRelacionReciproca(relacion.tipo_relacion)) {
                     tipoMostrar = invertirRelacion(relacion.tipo_relacion) || relacion.tipo_relacion;
@@ -465,9 +465,9 @@ export default function PaginaDetalleUsuario() {
         )}
       </div>
 
-      {/* Acciones R�pidas */}
+      {/* Acciones Rápidas */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Acciones R�pidas</h3>
+        <h3 className="text-xl font-bold text-gray-800 mb-6">Acciones Rápidas</h3>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link href={`/dashboard/users/${usuario.id}/edit`} className="flex-1">
             <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
@@ -498,13 +498,13 @@ export default function PaginaDetalleUsuario() {
         onRelacionCreada={recargar}
       />
 
-      {/* Modal de Confirmaci�n para eliminar relaci�n */}
+      {/* Modal de Confirmación para eliminar relación */}
       <ConfirmationModal
         isOpen={isModalOpen}
         onClose={handleCloseConfirmationModal}
         onConfirm={handleConfirmDelete}
-        title="Confirmar Eliminaci�n"
-        message="�Est�s seguro de que deseas eliminar esta relaci�n familiar? Esta acci�n no se puede deshacer."
+        title="Confirmar Eliminación"
+        message="¿Estás seguro de que deseas eliminar esta relación familiar? Esta acción no se puede deshacer."
         isLoading={isDeleting}
       />
     </div>

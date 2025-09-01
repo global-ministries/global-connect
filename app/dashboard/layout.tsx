@@ -92,7 +92,7 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
               {/* AuthStatusDebug al fondo de la sidebar */}
               <div className="mt-6 flex flex-col items-center">
                 <AuthStatusDebug />
-                {/* Logo de la versiÃ³n o info de versiÃ³n aquÃ­ si existe */}
+                {/* Logo de la versión o info de versión aquí si existe */}
                 {/* <div className="text-xs text-gray-400 mt-2">v1.0.0</div> */}
               </div>
             </div>
