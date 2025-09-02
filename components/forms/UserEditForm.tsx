@@ -21,6 +21,8 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput"
+import { Controller } from "react-hook-form"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { updateUser } from "@/lib/actions/user.actions"
@@ -128,6 +130,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
     formState: { errors, isDirty },
     setValue,
     watch,
+    control,
   } = useForm<UserEditFormData>({
     resolver: zodResolver(userEditSchema),
     defaultValues: {
@@ -348,11 +351,15 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
 
           <div className="space-y-2">
             <Label htmlFor="telefono" className="text-sm font-medium text-gray-700">Teléfono</Label>
-            <Input
-              id="telefono"
-              {...register("telefono")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa el teléfono"
+            <Controller
+              name="telefono"
+              control={control}
+              render={({ field }) => (
+                <PhoneNumberInput
+                  value={field.value || ""}
+                  onChange={field.onChange}
+                />
+              )}
             />
             {errors.telefono && (
               <p className="text-red-500 text-sm">{errors.telefono.message}</p>
