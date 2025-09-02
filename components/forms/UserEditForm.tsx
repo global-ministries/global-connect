@@ -465,7 +465,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           <MapPin className="w-5 h-5 text-orange-500" />
           Información de Ubicación
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Fila superior: Selectores */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2">
             <Label htmlFor="pais_id" className="text-sm font-medium text-gray-700">País</Label>
             <Select onValueChange={(value) => setValue("direccion.pais_id", value)} defaultValue={watch("direccion.pais_id")}>
@@ -484,7 +485,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               <p className="text-red-500 text-sm">{errors.direccion.pais_id.message}</p>
             )}
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="estado_id" className="text-sm font-medium text-gray-700">Estado</Label>
             <Select 
@@ -509,7 +509,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               <p className="text-red-500 text-sm">{errors.direccion.estado_id.message}</p>
             )}
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="municipio_id" className="text-sm font-medium text-gray-700">Municipio</Label>
             <Select 
@@ -534,50 +533,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               <p className="text-red-500 text-sm">{errors.direccion.municipio_id.message}</p>
             )}
           </div>
-        </div>
-
-        {/* Mapa y coordenadas */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          <div className="md:col-span-2">
-            <Controller
-              name="direccion"
-              control={control}
-              render={({ field }) => {
-                const lat = field.value?.lat ?? 10.4681;
-                const lng = field.value?.lng ?? -66.8792;
-                return (
-                  <LocationPicker
-                    lat={lat}
-                    lng={lng}
-                    center={mapCenter}
-                    onLocationChange={({ lat, lng }) => {
-                      field.onChange({ ...field.value, lat, lng });
-                      setValue("direccion.lat", lat, { shouldValidate: true, shouldDirty: true });
-                      setValue("direccion.lng", lng, { shouldValidate: true, shouldDirty: true });
-                      setMapCenter({ lat, lng });
-                    }}
-                  />
-                );
-              }}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">Latitud</Label>
-            <Input
-              type="text"
-              value={watch("direccion")?.lat ?? ''}
-              disabled
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl bg-gray-100"
-            />
-            <Label className="text-sm font-medium text-gray-700">Longitud</Label>
-            <Input
-              type="text"
-              value={watch("direccion")?.lng ?? ''}
-              disabled
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl bg-gray-100"
-            />
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="parroquia_id" className="text-sm font-medium text-gray-700">Parroquia</Label>
             <Select 
@@ -603,7 +558,9 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               <p className="text-red-500 text-sm">{errors.direccion.parroquia_id.message}</p>
             )}
           </div>
-
+        </div>
+        {/* Sección central: Detalles de dirección */}
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2">
             <Label htmlFor="calle" className="text-sm font-medium text-gray-700">Calle *</Label>
             <Input
@@ -616,7 +573,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               <p className="text-red-500 text-sm">{errors.direccion.calle.message}</p>
             )}
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="barrio" className="text-sm font-medium text-gray-700">Barrio</Label>
             <Input
@@ -626,7 +582,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               placeholder="Ingresa el barrio"
             />
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="codigo_postal" className="text-sm font-medium text-gray-700">Código Postal</Label>
             <Input
@@ -636,8 +591,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               placeholder="Ingresa el código postal"
             />
           </div>
-
-          <div className="sm:col-span-2 lg:col-span-3 space-y-2">
+          <div className="space-y-2">
             <Label htmlFor="referencia" className="text-sm font-medium text-gray-700">Referencia</Label>
             <Input
               id="referencia"
@@ -645,6 +599,52 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
               placeholder="Ingresa puntos de referencia"
             />
+          </div>
+        </div>
+        {/* Fila inferior: Mapa y coordenadas */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="lg:col-span-2">
+            <Controller
+              name="direccion"
+              control={control}
+              render={({ field }) => {
+                const lat = field.value?.lat ?? 10.4681;
+                const lng = field.value?.lng ?? -66.8792;
+                return (
+                  <LocationPicker
+                    lat={lat}
+                    lng={lng}
+                    center={mapCenter}
+                    onLocationChange={({ lat, lng }) => {
+                      field.onChange({ ...field.value, lat, lng });
+                      setValue("direccion.lat", lat, { shouldValidate: true, shouldDirty: true });
+                      setValue("direccion.lng", lng, { shouldValidate: true, shouldDirty: true });
+                      setMapCenter({ lat, lng });
+                    }}
+                  />
+                );
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Latitud</Label>
+              <Input
+                type="text"
+                value={watch("direccion")?.lat ?? ''}
+                disabled
+                className="w-full h-11 px-4 border border-gray-300 rounded-xl bg-gray-100"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Longitud</Label>
+              <Input
+                type="text"
+                value={watch("direccion")?.lng ?? ''}
+                disabled
+                className="w-full h-11 px-4 border border-gray-300 rounded-xl bg-gray-100"
+              />
+            </div>
           </div>
         </div>
       </div>
