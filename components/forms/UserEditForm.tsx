@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -27,6 +27,7 @@ import { Controller } from "react-hook-form"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { updateUser } from "@/lib/actions/user.actions"
+import { geocodeAddress } from "@/lib/actions/location.actions"
 import type { Database } from '@/lib/supabase/database.types'
 
 type Usuario = Database["public"]["Tables"]["usuarios"]["Row"]
@@ -232,6 +233,44 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
       console.log('🝝 onSubmit completado')
     }
   }
+
+  // Coordenadas iniciales para el mapa
+  const latitudGuardada = usuario.direccion?.latitud;
+  const longitudGuardada = usuario.direccion?.longitud;
+  const initialLat = typeof latitudGuardada === "number" ? latitudGuardada : 10.4681;
+  const initialLng = typeof longitudGuardada === "number" ? longitudGuardada : -66.8792;
+  const [mapCenter, setMapCenter] = useState({ lat: initialLat, lng: initialLng });
+
+  // Actualizar el centro del mapa cuando cambian país, estado o municipio,
+  // pero solo si NO hay lat/lng guardados en la base de datos
+  useEffect(() => {
+    if (typeof latitudGuardada === "number" && typeof longitudGuardada === "number") {
+      // Si hay coordenadas guardadas, no actualizar el centro por selects
+      return;
+    }
+    const paisId = watch("direccion.pais_id")
+    const estadoId = watch("direccion.estado_id")
+    const municipioId = watch("direccion.municipio_id")
+
+    const paisNombre = paises.find(p => p.id === paisId)?.nombre
+    const estadoNombre = estados.find(e => e.id === estadoId)?.nombre
+    const municipioNombre = municipios.find(m => m.id === municipioId)?.nombre
+
+    // Construir dirección solo si hay al menos municipio, estado o país
+    const partes = [municipioNombre, estadoNombre, paisNombre].filter(Boolean)
+    const direccionStr = partes.join(", ")
+
+    if (direccionStr.length > 0) {
+      geocodeAddress(direccionStr).then(res => {
+        if (res.success && typeof res.lat === "number" && typeof res.lng === "number") {
+          setMapCenter({ lat: res.lat, lng: res.lng })
+          setValue("direccion.lat", res.lat, { shouldValidate: true, shouldDirty: true })
+          setValue("direccion.lng", res.lng, { shouldValidate: true, shouldDirty: true })
+        }
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watch("direccion.pais_id"), watch("direccion.estado_id"), watch("direccion.municipio_id")])
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -510,10 +549,12 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
                   <LocationPicker
                     lat={lat}
                     lng={lng}
+                    center={mapCenter}
                     onLocationChange={({ lat, lng }) => {
                       field.onChange({ ...field.value, lat, lng });
                       setValue("direccion.lat", lat, { shouldValidate: true, shouldDirty: true });
                       setValue("direccion.lng", lng, { shouldValidate: true, shouldDirty: true });
+                      setMapCenter({ lat, lng });
                     }}
                   />
                 );
