@@ -54,6 +54,8 @@ interface UpdateUserData {
     estado_id?: string
     municipio_id?: string
     parroquia_id?: string
+    lat?: number
+    lng?: number
   }
   
   // InformaciÃ³n familiar
@@ -65,11 +67,11 @@ interface UpdateUserData {
 export async function updateUser(userId: string, data: UpdateUserData) {
   const supabase = createSupabaseServerClient();
   try {
-    console.log('ðŸ”„ Iniciando actualizaciÃ³n del usuario:', userId)
-    console.log('ðŸ“� Datos a actualizar:', data)
+    // 1. Log de entrada
+    console.log('[updateUser] Datos recibidos:', data);
 
-    // 1. Actualizar tabla usuarios
-    const { error: errorUsuario } = await supabase
+    // 2. Actualizar tabla usuarios
+    const { data: usuarioActualizado, error: errorUsuario } = await supabase
       .from('usuarios')
       .update({
         nombre: data.nombre,
@@ -84,81 +86,64 @@ export async function updateUser(userId: string, data: UpdateUserData) {
         profesion_id: data.profesion_id || null,
       })
       .eq('id', userId)
+      .select()
+      .single();
+
+    console.log('[updateUser] Resultado update usuarios:', usuarioActualizado, errorUsuario);
 
     if (errorUsuario) {
-      console.error('â�Œ Error al actualizar usuario:', errorUsuario)
-      throw new Error(`Error al actualizar usuario: ${errorUsuario.message}`)
+      throw new Error(`Error al actualizar usuario: ${errorUsuario.message}`);
     }
 
-    console.log('âœ… Usuario actualizado exitosamente')
-    console.log('ðŸ“Š Campos actualizados:', {
-      ocupacion_id: data.ocupacion_id || null,
-      profesion_id: data.profesion_id || null
-    })
-
-    // 2. Manejar direcciÃ³n
+    // 3. Manejar dirección (estrategia upsert robusta)
     if (data.direccion) {
-      // Obtener direcciÃ³n actual del usuario
-      const { data: usuarioActual } = await supabase
+      // a. Obtener direccion_id actual
+      const { data: usuarioActual, error: errorUsuarioActual } = await supabase
         .from('usuarios')
         .select('direccion_id')
         .eq('id', userId)
-        .single()
+        .single();
 
-      if (usuarioActual?.direccion_id) {
-        // Actualizar direcciÃ³n existente
-        const { error: errorDireccion } = await supabase
-          .from('direcciones')
-          .update({
-            calle: data.direccion.calle,
-            barrio: data.direccion.barrio || null,
-            codigo_postal: data.direccion.codigo_postal || null,
-            referencia: data.direccion.referencia || null,
-            parroquia_id: data.direccion.parroquia_id || null,
-          })
-          .eq('id', usuarioActual.direccion_id)
+      if (errorUsuarioActual) {
+        throw new Error(`Error al obtener usuario: ${errorUsuarioActual.message}`);
+      }
 
-        if (errorDireccion) {
-          console.error('â�Œ Error al actualizar direcciÃ³n:', errorDireccion)
-          throw new Error(`Error al actualizar direcciÃ³n: ${errorDireccion.message}`)
-        }
+      const direccionId = usuarioActual?.direccion_id ?? null;
+      const direccionData = {
+        calle: data.direccion.calle,
+        barrio: data.direccion.barrio ?? null,
+        codigo_postal: data.direccion.codigo_postal ?? null,
+        referencia: data.direccion.referencia ?? null,
+        parroquia_id: data.direccion.parroquia_id ?? null,
+        latitud: data.direccion.lat ?? null,
+        longitud: data.direccion.lng ?? null,
+        ...(direccionId ? { id: direccionId } : {}),
+      };
 
-        console.log('âœ… DirecciÃ³n actualizada exitosamente')
-      } else {
-        // Crear nueva direcciÃ³n
-        const { data: nuevaDireccion, error: errorDireccion } = await supabase
-          .from('direcciones')
-          .insert({
-            calle: data.direccion.calle,
-            barrio: data.direccion.barrio || null,
-            codigo_postal: data.direccion.codigo_postal || null,
-            referencia: data.direccion.referencia || null,
-            parroquia_id: data.direccion.parroquia_id || null,
-          })
-          .select()
-          .single()
+      // b. Upsert en direcciones
+      const { data: upsertedDireccion, error: errorUpsertDireccion } = await supabase
+        .from('direcciones')
+        .upsert([direccionData], { onConflict: 'id' })
+        .select('id')
+        .single();
 
-        if (errorDireccion) {
-          console.error('â�Œ Error al crear direcciÃ³n:', errorDireccion)
-          throw new Error(`Error al crear direcciÃ³n: ${errorDireccion.message}`)
-        }
+      if (errorUpsertDireccion) {
+        throw new Error(`Error al guardar dirección: ${errorUpsertDireccion.message}`);
+      }
 
-        // Actualizar usuario con la nueva direcciÃ³n
-        const { error: errorUpdateDireccion } = await supabase
+      // c. Si el usuario no tenía dirección, vincularla
+      if (!direccionId && upsertedDireccion?.id) {
+        const { error: errorUpdateUsuarioDireccion } = await supabase
           .from('usuarios')
-          .update({ direccion_id: nuevaDireccion.id })
-          .eq('id', userId)
-
-        if (errorUpdateDireccion) {
-          console.error('â�Œ Error al actualizar usuario con direcciÃ³n:', errorUpdateDireccion)
-          throw new Error(`Error al actualizar usuario con direcciÃ³n: ${errorUpdateDireccion.message}`)
+          .update({ direccion_id: upsertedDireccion.id })
+          .eq('id', userId);
+        if (errorUpdateUsuarioDireccion) {
+          throw new Error(`Error al asignar dirección al usuario: ${errorUpdateUsuarioDireccion.message}`);
         }
-
-        console.log('âœ… Nueva direcciÃ³n creada y asignada al usuario')
       }
     }
 
-    // 3. Manejar familia (solo si es necesario)
+    // 4. Manejar familia (sin cambios)
     if (data.familia && data.familia.nombre) {
       try {
         // Obtener familia actual del usuario
@@ -228,19 +213,17 @@ export async function updateUser(userId: string, data: UpdateUserData) {
 
     console.log('ðŸŽ‰ Usuario actualizado completamente')
 
-    // 4. Invalidar cachÃ© de las pÃ¡ginas relacionadas
+    // 5. Invalidar cachÃ© de las pÃ¡ginas relacionadas
     revalidatePath('/dashboard/users')
     revalidatePath(`/dashboard/users/${userId}`)
-    console.log('ðŸ”„ CachÃ© invalidado para usuarios y detalle del usuario')
+    console.log('[updateUser] CachÃ© invalidado para usuarios y detalle del usuario')
 
-    // 5. Redirigir al usuario de vuelta a la pÃ¡gina de detalle
+    // 6. Redirigir al usuario de vuelta a la pÃ¡gina de detalle
     redirect(`/dashboard/users/${userId}`)
 
   } catch (error) {
-    console.error('â�Œ Error en updateUser:', error)
-    
-    // Re-lanzar el error para que sea manejado por el componente
-    throw error
+    console.error('Error en updateUser:', error);
+    throw error;
   }
 }
 export async function addFamilyRelation({

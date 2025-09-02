@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput"
+import LocationPicker from "@/components/maps/LocationPicker.client"
 import { Controller } from "react-hook-form"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -87,6 +88,8 @@ const userEditSchema = z.object({
     estado_id: z.string().optional(),
     municipio_id: z.string().optional(),
     parroquia_id: z.string().optional().or(z.literal("none")),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
   }).optional(),
   
   // Información familiar
@@ -238,7 +241,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           <User className="w-5 h-5 text-orange-500" />
           Información Básica
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-2">
             <Label htmlFor="nombre" className="text-sm font-medium text-gray-700">Nombre *</Label>
             <Input
@@ -491,6 +494,47 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             {errors.direccion?.municipio_id && (
               <p className="text-red-500 text-sm">{errors.direccion.municipio_id.message}</p>
             )}
+          </div>
+        </div>
+
+        {/* Mapa y coordenadas */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+          <div className="md:col-span-2">
+            <Controller
+              name="direccion"
+              control={control}
+              render={({ field }) => {
+                const lat = field.value?.lat ?? 10.4681;
+                const lng = field.value?.lng ?? -66.8792;
+                return (
+                  <LocationPicker
+                    lat={lat}
+                    lng={lng}
+                    onLocationChange={({ lat, lng }) => {
+                      field.onChange({ ...field.value, lat, lng });
+                      setValue("direccion.lat", lat, { shouldValidate: true, shouldDirty: true });
+                      setValue("direccion.lng", lng, { shouldValidate: true, shouldDirty: true });
+                    }}
+                  />
+                );
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Latitud</Label>
+            <Input
+              type="text"
+              value={watch("direccion")?.lat ?? ''}
+              disabled
+              className="w-full h-11 px-4 border border-gray-300 rounded-xl bg-gray-100"
+            />
+            <Label className="text-sm font-medium text-gray-700">Longitud</Label>
+            <Input
+              type="text"
+              value={watch("direccion")?.lng ?? ''}
+              disabled
+              className="w-full h-11 px-4 border border-gray-300 rounded-xl bg-gray-100"
+            />
           </div>
 
           <div className="space-y-2">
