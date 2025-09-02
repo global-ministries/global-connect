@@ -30,7 +30,7 @@ import dynamic from "next/dynamic"
 
 export default function PaginaDetalleUsuario() {
   const params = useParams()
-  const id = params.id as string
+  const id = params?.id as string
 
   const [usuario, setUsuario] = useState<any>(null)
   const [loading, setLoading] = useState(true)
