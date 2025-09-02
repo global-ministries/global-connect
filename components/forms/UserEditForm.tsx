@@ -93,10 +93,10 @@ const userEditSchema = z.object({
     lng: z.number().optional(),
   }).optional(),
   
-  // Información familiar
+  // Información familiar (eliminada, no requerida)
   familia_id: z.string().optional(),
   familia: z.object({
-    nombre: z.string().min(1, "El nombre de la familia es requerido"),
+    nombre: z.string().optional(),
   }).optional(),
 })
 
@@ -168,10 +168,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         municipio_id: "",
         parroquia_id: "none",
       },
-      familia_id: usuario.familia_id || "",
-      familia: usuario.familia ? {
-        nombre: usuario.familia.nombre || "",
-      } : undefined,
+  // familia_id y familia ya no son requeridos ni usados
     }
   })
 
@@ -196,6 +193,9 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           municipio_id: data.direccion.municipio_id || undefined,
           parroquia_id: data.direccion.parroquia_id === "none" ? undefined : data.direccion.parroquia_id,
         } : undefined,
+        familia: data.familia && typeof data.familia.nombre === "string"
+          ? { nombre: data.familia.nombre ?? "" }
+          : undefined,
       }
 
       console.log('📝 Datos procesados para enviar:', datosProcesados)
@@ -649,27 +649,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         </div>
       </div>
 
-      {/* Información Familiar */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <Users className="w-5 h-5 text-orange-500" />
-          Información Familiar
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="nombre_familia" className="text-sm font-medium text-gray-700">Nombre de la Familia</Label>
-            <Input
-              id="nombre_familia"
-              {...register("familia.nombre")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa el nombre de la familia"
-            />
-            {errors.familia?.nombre && (
-              <p className="text-red-500 text-sm">{errors.familia.nombre.message}</p>
-            )}
-          </div>
-        </div>
-      </div>
+
 
       {/* Mensaje de Error */}
       {error && (

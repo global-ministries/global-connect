@@ -26,6 +26,7 @@ import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
 import { supabase } from "@/lib/supabase/client"
 import { deleteFamilyRelation } from "@/lib/actions/user.actions"
 import { toast } from "@/components/ui/use-toast"
+import dynamic from "next/dynamic"
 
 export default function PaginaDetalleUsuario() {
   const params = useParams()
@@ -203,6 +204,12 @@ export default function PaginaDetalleUsuario() {
     return cedula
   }
 
+  // Importa LocationPicker de forma dinámica solo en cliente
+  const LocationPicker = dynamic(
+    () => import("@/components/maps/LocationPicker"),
+    { ssr: false }
+  );
+
   // Renderizado
   if (loading) {
     return (
@@ -252,7 +259,7 @@ export default function PaginaDetalleUsuario() {
     : { nombre_visible: 'Sin rol', nombre_interno: 'sin-rol' }
 
   return (
-    <div className="space-y-6">
+  <div className="space-y-6">
       {/* Boton de Regreso */}
       <div>
         <Link 
@@ -306,6 +313,7 @@ export default function PaginaDetalleUsuario() {
         </div>
       </div>
 
+
       {/* Información Básica */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
@@ -334,54 +342,128 @@ export default function PaginaDetalleUsuario() {
         </div>
       </div>
 
-      {/* Informaci�n de Contacto */}
+      {/* Información General */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <Mail className="w-5 h-5 text-orange-500" />
-          Información de Contacto
+          <User className="w-5 h-5 text-orange-500" />
+          Información General
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Email */}
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
               <Mail className="w-5 h-5" /> Email
             </span>
             <span className="text-gray-800 break-all">{formatearEmail(usuario.email)}</span>
           </div>
+          {/* Teléfono */}
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
               <Phone className="w-5 h-5" /> Teléfono
             </span>
             <span className="text-gray-800">{formatearTelefono(usuario.telefono)}</span>
           </div>
-        </div>
-      </div>
-
-      {/* Informaci�n Personal */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <User className="w-5 h-5 text-orange-500" />
-          Información Personal
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {/* Fecha de Nacimiento */}
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
               <Calendar className="w-5 h-5" /> Fecha de Nacimiento
             </span>
             <span className="text-gray-800">{formatearFechaNacimiento(usuario.fecha_nacimiento)}</span>
           </div>
+          {/* Estado Civil */}
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
               <Heart className="w-5 h-5" /> Estado Civil
             </span>
             <span className="text-gray-800">{usuario.estado_civil}</span>
           </div>
+          {/* Género */}
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
               <User className="w-5 h-5" /> Género
             </span>
             <span className="text-gray-800">{usuario.genero}</span>
           </div>
+          {/* Ocupación */}
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <Briefcase className="w-5 h-5" /> Ocupación
+            </span>
+            <span className="text-gray-800">{usuario.ocupacion?.nombre || 'Sin ocupación'}</span>
+          </div>
+          {/* Profesión */}
+          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+            <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <GraduationCap className="w-5 h-5" /> Profesión
+            </span>
+            <span className="text-gray-800">{usuario.profesion?.nombre || 'Sin profesión'}</span>
+          </div>
         </div>
+      </div>
+
+      {/* Información de Ubicación */}
+      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
+        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+          <MapPin className="w-5 h-5 text-orange-500" />
+          Información de Ubicación
+        </h3>
+        {usuario.direccion ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">País</span>
+                <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.estado?.pais?.nombre || 'Sin país'}</span>
+              </div>
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">Estado</span>
+                <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.estado?.nombre || 'Sin estado'}</span>
+              </div>
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">Municipio</span>
+                <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.nombre || 'Sin municipio'}</span>
+              </div>
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">Parroquia</span>
+                <span className="text-gray-800">{usuario.direccion?.parroquia?.nombre || 'Sin parroquia'}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">Calle</span>
+                <span className="text-gray-800">{usuario.direccion?.calle || 'Sin calle'}</span>
+              </div>
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">Barrio</span>
+                <span className="text-gray-800">{usuario.direccion?.barrio || 'Sin barrio'}</span>
+              </div>
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">Código Postal</span>
+                <span className="text-gray-800">{usuario.direccion?.codigo_postal || 'Sin código postal'}</span>
+              </div>
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">Referencia</span>
+                <span className="text-gray-800">{usuario.direccion?.referencia || 'Sin referencia'}</span>
+              </div>
+            </div>
+            {/* Mapa */}
+            <div className="mt-6">
+              {typeof usuario.direccion?.latitud === 'number' && typeof usuario.direccion?.longitud === 'number' ? (
+                <div className="rounded-xl overflow-hidden border border-gray-200">
+                  <LocationPicker
+                    lat={usuario.direccion.latitud}
+                    lng={usuario.direccion.longitud}
+                    center={{ lat: usuario.direccion.latitud, lng: usuario.direccion.longitud }}
+                    onLocationChange={() => {}}
+                  />
+                </div>
+              ) : (
+                <div className="text-gray-500 text-center py-8">No hay coordenadas para mostrar el mapa.</div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="text-gray-500 text-center py-8">Este usuario no tiene dirección agregada.</div>
+        )}
       </div>
 
       {/* Relaciones Familiares */}
