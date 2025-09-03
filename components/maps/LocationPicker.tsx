@@ -3,18 +3,20 @@
 import { useMemo, useState, useEffect } from "react";
 import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps";
 
-interface LocationPickerProps {
+export interface LocationPickerProps {
   lat: number;
   lng: number;
   center: { lat: number; lng: number };
   onLocationChange: (coords: { lat: number; lng: number }) => void;
+  draggable?: boolean;
 }
 
 const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
 
+
 export default function LocationPicker(props: LocationPickerProps) {
-  const { lat, lng, center, onLocationChange } = props;
+  const { lat, lng, center, onLocationChange, draggable = true } = props;
   const [markerPosition, setMarkerPosition] = useState(center);
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
@@ -51,8 +53,8 @@ export default function LocationPicker(props: LocationPickerProps) {
       >
         <AdvancedMarker
           position={markerPosition}
-          draggable={true}
-          onDragEnd={(e: google.maps.MapMouseEvent) => {
+          draggable={draggable}
+          onDragEnd={draggable ? (e: google.maps.MapMouseEvent) => {
             if (e.latLng) {
               const newPos = {
                 lat: e.latLng.lat(),
@@ -61,7 +63,7 @@ export default function LocationPicker(props: LocationPickerProps) {
               setMarkerPosition(newPos);
               onLocationChange(newPos);
             }
-          }}
+          } : undefined}
         />
       </Map>
     </APIProvider>
