@@ -68,12 +68,12 @@ export default async function EditGroupPage({ params }: PageProps) {
     { data: municipios },
     { data: parroquias }
   ] = await Promise.all([
-    supabase.from("temporadas").select("id, nombre").eq("activo", true),
-    supabase.from("segmentos").select("id, nombre").eq("activo", true),
-    supabase.from("paises").select("id, nombre").eq("activo", true),
-    supabase.from("estados").select("id, nombre").eq("activo", true),
-    supabase.from("municipios").select("id, nombre").eq("activo", true),
-    supabase.from("parroquias").select("id, nombre").eq("activo", true)
+    supabase.from("temporadas").select("id, nombre"),
+    supabase.from("segmentos").select("id, nombre"),
+    supabase.from("paises").select("id, nombre"),
+    supabase.from("estados").select("id, nombre"),
+    supabase.from("municipios").select("id, nombre"),
+    supabase.from("parroquias").select("id, nombre")
   ]);
 
   return (

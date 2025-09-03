@@ -37,15 +37,20 @@ export async function updateGroup(groupId: string, data: any) {
     // Validar datos
     const validatedData = groupEditSchema.parse(data);
 
-    // Obtener usuario autenticado
+    // 1. Crear instancia del cliente de Supabase para servidor
     const supabase = await createSupabaseServerClient();
+
+    // 2. Obtener usuario autenticado
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      console.error("Error de autenticación:", authError);
       throw new Error("Usuario no autenticado");
     }
 
-    // Obtener el id interno del usuario
+    console.log("Usuario autenticado:", user.id);
+
+    // 3. Obtener el id interno del usuario
     const { data: usuario, error: userError } = await supabase
       .from("usuarios")
       .select("id")
@@ -53,18 +58,29 @@ export async function updateGroup(groupId: string, data: any) {
       .single();
 
     if (userError || !usuario) {
+      console.error("Error obteniendo usuario interno:", userError);
       throw new Error("Usuario no encontrado");
     }
 
-    // Verificar permisos para editar el grupo
+    console.log("ID interno del usuario:", usuario.id);
+
+    // 4. Verificar permisos para editar el grupo usando el auth.id obtenido
     const { data: permiso, error: permisoError } = await supabase.rpc("puede_editar_grupo", {
-      p_usuario_id: usuario.id,
+      p_auth_id: user.id,
       p_grupo_id: groupId
     });
 
-    if (permisoError || !permiso) {
+    if (permisoError) {
+      console.error("Error en verificación de permisos:", permisoError);
+      throw new Error("Error al verificar permisos");
+    }
+
+    if (!permiso) {
+      console.error("Permiso denegado para usuario:", usuario.id, "en grupo:", groupId);
       throw new Error("No tienes permisos para editar este grupo");
     }
+
+    console.log("Permisos verificados correctamente");
 
     // Preparar datos para actualización
     const updateData: any = {
@@ -155,12 +171,7 @@ export async function updateGroup(groupId: string, data: any) {
     // Revalidar la página del grupo
     revalidatePath(`/dashboard/grupos/${groupId}`);
 
-    // Redirigir a la página del grupo
-    redirect(`/dashboard/grupos/${groupId}`);
-
-    // Revalidar la página del grupo
-    revalidatePath(`/dashboard/grupos/${groupId}`);
-
+    console.log("Grupo actualizado exitosamente");
     return { success: true };
   } catch (error) {
     console.error("Error en updateGroup:", error);
