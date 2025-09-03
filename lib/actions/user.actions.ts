@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import type { Database } from "@/lib/supabase/database.types"
 
 // Elimina una relación familiar usando la función RPC y revalida la página de detalle
@@ -67,23 +68,31 @@ interface UpdateUserData {
 export async function updateUser(userId: string, data: UpdateUserData) {
   const supabase = createSupabaseServerClient();
   try {
+    // Saneamiento de claves foráneas
+    const datosSaneados = {
+      ...data,
+      ocupacion_id: (!data.ocupacion_id || data.ocupacion_id === "none") ? null : data.ocupacion_id,
+      profesion_id: (!data.profesion_id || data.profesion_id === "none") ? null : data.profesion_id,
+      // familia_id no se recibe directamente en UpdateUserData, pero sí se puede usar en payloads internos
+    };
+
     // 1. Log de entrada
-    console.log('[updateUser] Datos recibidos:', data);
+    console.log('[updateUser] Datos recibidos:', datosSaneados);
 
     // 2. Actualizar tabla usuarios
     const { data: usuarioActualizado, error: errorUsuario } = await supabase
       .from('usuarios')
       .update({
-        nombre: data.nombre,
-        apellido: data.apellido,
-        cedula: data.cedula || null,
-        email: data.email || null,
-        telefono: data.telefono || null,
-        fecha_nacimiento: data.fecha_nacimiento || null,
-        estado_civil: data.estado_civil,
-        genero: data.genero,
-        ocupacion_id: data.ocupacion_id || null,
-        profesion_id: data.profesion_id || null,
+        nombre: datosSaneados.nombre,
+        apellido: datosSaneados.apellido,
+        cedula: datosSaneados.cedula || null,
+        email: datosSaneados.email || null,
+        telefono: datosSaneados.telefono || null,
+        fecha_nacimiento: datosSaneados.fecha_nacimiento || null,
+        estado_civil: datosSaneados.estado_civil,
+        genero: datosSaneados.genero,
+        ocupacion_id: datosSaneados.ocupacion_id,
+        profesion_id: datosSaneados.profesion_id,
       })
       .eq('id', userId)
       .select()
@@ -277,4 +286,43 @@ export async function addFamilyRelation({
   } catch (err: any) {
     return { success: false, message: err?.message || "Error inesperado" }
   }
+}
+
+
+import { createClient } from "@supabase/supabase-js";
+
+export async function createUser(data: {
+  nombre: string;
+  apellido: string;
+  cedula?: string;
+  email?: string;
+  telefono?: string;
+  fecha_nacimiento?: string;
+  genero?: string;
+  estado_civil?: string;
+}) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data: insertData, error } = await supabase
+    .from("usuarios")
+    .insert([
+      {
+        nombre: data.nombre,
+        apellido: data.apellido,
+        cedula: data.cedula,
+        email: data.email,
+        telefono: data.telefono,
+        fecha_nacimiento: data.fecha_nacimiento,
+        genero: data.genero,
+        estado_civil: data.estado_civil,
+      },
+    ])
+    .select("id")
+    .single();
+
+  if (error) throw new Error("Error al crear usuario: " + error.message);
+  return insertData.id;
 }

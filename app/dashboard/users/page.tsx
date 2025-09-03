@@ -323,10 +323,12 @@ export default function PaginaUsuarios() {
                 rolesDisponibles={rolesDisponibles}
                 onLimpiarFiltros={limpiarFiltros}
               />
-              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
-                <Plus className="w-4 h-4" />
-                Crear Usuario
-              </button>
+              <Link href="/dashboard/users/create" passHref legacyBehavior>
+                <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
+                  <Plus className="w-4 h-4" />
+                  Crear Usuario
+                </button>
+              </Link>
             </div>
           </div>
         </div>
