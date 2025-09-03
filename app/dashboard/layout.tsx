@@ -16,9 +16,9 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
     { nombre: "Dashboard", icono: LayoutDashboard, enlace: "/dashboard" },
     { nombre: "Usuarios", icono: Users, enlace: "/dashboard/users" },
     { nombre: "Grupos", icono: UsersRound, enlace: "/grupos" },
-    { nombre: "Segmentos", icono: Target, enlace: "/segmentos" },
-    { nombre: "Temporadas", icono: Calendar, enlace: "/temporadas" },
-    { nombre: "ConfiguraciÃ³n", icono: Settings, enlace: "/configuracion" },
+    { nombre: "Segmentos", icono: Target, enlace: "/dashboard/segments" },
+    { nombre: "Temporadas", icono: Calendar, enlace: "/dashboard/temporadas" },
+    { nombre: "Configuración", icono: Settings, enlace: "/dashboard/configuracion" },
   ]
 
   return (

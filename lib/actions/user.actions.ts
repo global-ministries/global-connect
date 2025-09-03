@@ -323,6 +323,9 @@ export async function createUser(data: {
     .select("id")
     .single();
 
+
   if (error) throw new Error("Error al crear usuario: " + error.message);
   return insertData.id;
 }
+
+//
