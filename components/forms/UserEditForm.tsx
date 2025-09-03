@@ -103,7 +103,7 @@ const userEditSchema = z.object({
 type UserEditFormData = z.infer<typeof userEditSchema>
 
 interface UserEditFormProps {
-  usuario: UsuarioDetallado
+  usuario?: UsuarioDetallado // <-- debe ser opcional
   ocupaciones: { id: string; nombre: string }[]
   profesiones: { id: string; nombre: string }[]
   paises: { id: string; nombre: string }[]
@@ -117,7 +117,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
   const [error, setError] = useState<string | null>(null)
 
   // Obtener los IDs correctos para los selects de direcci�n
-  const parroquiaObj = usuario.direccion?.parroquia
+  const parroquiaObj = usuario?.direccion?.parroquia
   const municipioObj = parroquiaObj?.municipio
   const estadoObj = municipioObj?.estado
   const paisObj = estadoObj?.pais
@@ -138,26 +138,26 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
   } = useForm<UserEditFormData>({
     resolver: zodResolver(userEditSchema),
     defaultValues: {
-      nombre: usuario.nombre,
-      apellido: usuario.apellido,
-      cedula: usuario.cedula || "",
-      email: usuario.email || "",
-      telefono: usuario.telefono || "",
-      fecha_nacimiento: usuario.fecha_nacimiento || "",
-      estado_civil: usuario.estado_civil,
-      genero: usuario.genero,
-      ocupacion_id: usuario.ocupacion_id || "none",
-      profesion_id: usuario.profesion_id || "none",
-      direccion_id: usuario.direccion_id || "",
-      direccion: usuario.direccion ? {
+      nombre: usuario?.nombre ?? "",
+      apellido: usuario?.apellido ?? "",
+      cedula: usuario?.cedula ?? "",
+      email: usuario?.email ?? "",
+      telefono: usuario?.telefono ?? "",
+      fecha_nacimiento: usuario?.fecha_nacimiento ?? "",
+      estado_civil: usuario?.estado_civil ?? "Soltero",
+      genero: usuario?.genero ?? "Masculino",
+      ocupacion_id: usuario?.ocupacion_id ?? "none",
+      profesion_id: usuario?.profesion_id ?? "none",
+      direccion_id: usuario?.direccion_id ?? "",
+      direccion: usuario?.direccion ? {
         calle: usuario.direccion.calle,
         barrio: usuario.direccion.barrio || "",
         codigo_postal: usuario.direccion.codigo_postal || "",
         referencia: usuario.direccion.referencia || "",
-        pais_id: pais_id,
-        estado_id: estado_id,
-        municipio_id: municipio_id,
-        parroquia_id: parroquia_id || "none",
+        pais_id: usuario.direccion.parroquia?.municipio?.estado?.pais?.id || "",
+        estado_id: usuario.direccion.parroquia?.municipio?.estado?.id || "",
+        municipio_id: usuario.direccion.parroquia?.municipio?.id || "",
+        parroquia_id: usuario.direccion.parroquia?.id || "none",
       } : {
         calle: "",
         barrio: "",
@@ -199,11 +199,16 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
       }
 
       console.log('📝 Datos procesados para enviar:', datosProcesados)
-      console.log('🆔 ID del usuario:', usuario.id)
+      console.log('🆔 ID del usuario:', usuario?.id)
 
       // Llamar a la Server Action
       console.log('📡 Llamando a updateUser...')
-      await updateUser(usuario.id, datosProcesados)
+      if (usuario) {
+        await updateUser(usuario.id, datosProcesados)
+      } else {
+        // Aquí debes llamar a la función para crear un usuario nuevo
+        // await createUser(datosProcesados)
+      }
 
       console.log('✅ updateUser completado exitosamente')
       // Si llegamos aquí, la actualización fue exitosa
@@ -235,8 +240,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
   }
 
   // Coordenadas iniciales para el mapa
-  const latitudGuardada = usuario.direccion?.latitud;
-  const longitudGuardada = usuario.direccion?.longitud;
+  const latitudGuardada = usuario?.direccion?.latitud;
+  const longitudGuardada = usuario?.direccion?.longitud;
   const initialLat = typeof latitudGuardada === "number" ? latitudGuardada : 10.4681;
   const initialLng = typeof longitudGuardada === "number" ? longitudGuardada : -66.8792;
   const [mapCenter, setMapCenter] = useState({ lat: initialLat, lng: initialLng });
