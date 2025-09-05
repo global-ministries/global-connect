@@ -9,18 +9,21 @@ import {
   Mail,
   Phone,
   UserCheckIcon as UserEdit,
+  Search,
 } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState, useMemo } from "react"
 import { FiltrosUsuarios, type FiltrosUsuarios as FiltrosUsuariosType } from "@/components/ui/filtros-usuarios"
 import { supabase } from "@/lib/supabase/client"
 import type { UsuarioConRol } from "@/hooks/use-usuarios"
+import { Input } from "@/components/ui/input"
 
 export default function PaginaUsuarios() {
   const [usuariosConRoles, setUsuariosConRoles] = useState<any[]>([])
   const [rolesDisponibles, setRolesDisponibles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
   const [filtros, setFiltros] = useState<FiltrosUsuariosType>({
     roles: [],
     conEmail: null,
@@ -141,7 +144,23 @@ export default function PaginaUsuarios() {
 
   // Aplicar filtros a los usuarios
   const usuariosFiltrados = useMemo(() => {
+    const lowercasedTerm = searchTerm.toLowerCase()
     return usuariosConRoles.filter(usuario => {
+      // Búsqueda en tiempo real
+      if (lowercasedTerm) {
+        const nombreCompleto = `${usuario.nombre || ''} ${usuario.apellido || ''}`.toLowerCase()
+        const email = (usuario.email || '').toLowerCase()
+        const cedula = (usuario.cedula || '').toLowerCase()
+        
+        if (
+          !nombreCompleto.includes(lowercasedTerm) &&
+          !email.includes(lowercasedTerm) &&
+          !cedula.includes(lowercasedTerm)
+        ) {
+          return false
+        }
+      }
+
       const rolUsuario = obtenerRolUsuario(usuario)
       
       // Filtro por roles
@@ -172,7 +191,7 @@ export default function PaginaUsuarios() {
       
       return true
     })
-  }, [usuariosConRoles, filtros])
+  }, [usuariosConRoles, filtros, searchTerm])
 
   // Calcular estadísticas basadas en datos filtrados
   const totalUsuarios = usuariosFiltrados.length
@@ -317,6 +336,16 @@ export default function PaginaUsuarios() {
               )}
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1 md:min-w-[300px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Buscar por nombre, email, cédula..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full rounded-xl py-2 bg-white/80"
+                />
+              </div>
               <FiltrosUsuarios
                 filtros={filtros}
                 onFiltrosChange={setFiltros}
