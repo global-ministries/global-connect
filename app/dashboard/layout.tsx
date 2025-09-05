@@ -15,7 +15,7 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
   const elementosMenu = [
     { nombre: "Dashboard", icono: LayoutDashboard, enlace: "/dashboard" },
     { nombre: "Usuarios", icono: Users, enlace: "/dashboard/users" },
-    { nombre: "Grupos", icono: UsersRound, enlace: "/grupos" },
+    { nombre: "Grupos", icono: UsersRound, enlace: "/dashboard/grupos" },
     { nombre: "Segmentos", icono: Target, enlace: "/dashboard/segments" },
     { nombre: "Temporadas", icono: Calendar, enlace: "/dashboard/temporadas" },
     { nombre: "Configuración", icono: Settings, enlace: "/dashboard/configuracion" },
