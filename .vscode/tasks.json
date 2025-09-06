@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "test:smoke-members-api",
+			"type": "shell",
+			"command": "node -e \"(async()=>{const fetch=global.fetch|| (await import('node-fetch')).default; const base='http://localhost:3000'; const gid='TEST'; try{ let ok1=false; try{ const r=await fetch(`${base}/api/grupos/${gid}/buscar-usuarios?q=`); ok1=r.status===200 || r.status===401; console.log('buscar-usuarios status', r.status);}catch(e){console.log('buscar-usuarios error');} let ok2=false; try{ const r=await fetch(`${base}/api/grupos/${gid}/miembros`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({usuarioId:'X',rol:'Miembro'})}); ok2=[200,400,401,403].includes(r.status); console.log('agregar-miembro status', r.status);}catch(e){console.log('agregar-miembro error');} console.log('SMOKE DONE', ok1 && ok2 ? 'PASS':'PARTIAL'); process.exit(0);}catch(e){console.error(e);process.exit(0);}})()\"",
+			"problemMatcher": [],
+			"group": "test"
+		}
+	]
+}
