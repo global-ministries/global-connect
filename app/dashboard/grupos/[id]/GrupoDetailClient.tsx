@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
 
 const MapModal = dynamic(() => import("@/components/modals/MapModal"), { ssr: false });
+const AddMemberModal = dynamic(() => import("@/components/modals/AddMemberModal"), { ssr: false });
 
 import { ReactNode } from "react";
 
@@ -41,6 +42,7 @@ interface Grupo {
   hora_reunion?: string;
   direccion?: Direccion;
   miembros?: Miembro[];
+  puede_gestionar_miembros?: boolean;
 }
 
 interface GrupoDetailClientProps {
@@ -50,6 +52,7 @@ interface GrupoDetailClientProps {
 
 export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps) {
   const [isMapOpen, setIsMapOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const obtenerIniciales = (nombre: string, apellido: string) => {
     return `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase();
@@ -105,6 +108,15 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 Editar Grupo
               </button>
             </Link>
+            {grupo.puede_gestionar_miembros && (
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl transition-all duration-200 text-white shadow-lg"
+              >
+                <Users className="w-4 h-4" />
+                Añadir miembro
+              </button>
+            )}
           </div>
         </div>
       </GlassCard>
@@ -198,6 +210,15 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
           )}
         </div>
       </GlassCard>
+
+      {/* Modal para añadir miembro */}
+      {grupo.puede_gestionar_miembros && (
+        <AddMemberModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          grupoId={String(id)}
+        />
+      )}
     </div>
   );
 }
