@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import Image from "next/image";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function WelcomePage() {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createSupabaseServerClient();
 
   // 1. Obtener usuario autenticado
   const { data: { user } } = await supabase.auth.getUser();

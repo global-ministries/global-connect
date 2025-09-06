@@ -2,13 +2,13 @@ import { Card } from "@/components/ui/card"
 import { ReactNode } from "react"
 
 interface TarjetaGlassmorphismProps {
-  niños: ReactNode
+  children: ReactNode
   claseAdicional?: string
   relleno?: "sm" | "md" | "lg"
 }
 
 export function TarjetaGlassmorphism({ 
-  niños, 
+  children, 
   claseAdicional = "", 
   relleno = "md" 
 }: TarjetaGlassmorphismProps) {
@@ -20,7 +20,7 @@ export function TarjetaGlassmorphism({
 
   return (
     <Card className={`backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl ${rellenos[relleno]} shadow-2xl ${claseAdicional}`}>
-      {niños}
+      {children}
     </Card>
   )
 }

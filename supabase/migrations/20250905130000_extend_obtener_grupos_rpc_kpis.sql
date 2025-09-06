@@ -1,0 +1,2 @@
+-- Esta migración quedó obsoleta por 20250905130500_replace_obtener_grupos_rpc_kpis.sql
+-- (intencionalmente vacía para no aplicar cambios)
