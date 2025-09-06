@@ -87,6 +87,18 @@ export default function GroupEditForm({
     },
   });
 
+  const dias = [
+    "Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"
+  ];
+  const horas = [
+    "05:00 AM","05:30 AM","06:00 AM","06:30 AM","07:00 AM","07:30 AM",
+    "08:00 AM","08:30 AM","09:00 AM","09:30 AM","10:00 AM","10:30 AM",
+    "11:00 AM","11:30 AM","12:00 PM","12:30 PM","01:00 PM","01:30 PM",
+    "02:00 PM","02:30 PM","03:00 PM","03:30 PM","04:00 PM","04:30 PM",
+    "05:00 PM","05:30 PM","06:00 PM","06:30 PM","07:00 PM","07:30 PM",
+    "08:00 PM","08:30 PM","09:00 PM","09:30 PM"
+  ];
+
   const handleSubmit = async (data: GroupEditFormData) => {
     setIsLoading(true);
     try {
@@ -188,9 +200,18 @@ export default function GroupEditForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Día de Reunión</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej: Lunes" {...field} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un día" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {dias.map((d) => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -202,9 +223,18 @@ export default function GroupEditForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Hora de Reunión</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej: 7:00 PM" {...field} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una hora" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="max-h-72">
+                        {horas.map((h) => (
+                          <SelectItem key={h} value={h}>{h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

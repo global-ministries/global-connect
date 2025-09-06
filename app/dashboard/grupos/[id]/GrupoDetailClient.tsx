@@ -48,6 +48,7 @@ interface Grupo {
   direccion?: Direccion;
   miembros?: Miembro[];
   puede_gestionar_miembros?: boolean;
+  rol_en_grupo?: string | null;
 }
 
 interface GrupoDetailClientProps {
@@ -292,8 +293,8 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         </div>
       </GlassCard>
 
-      {/* Auditoría: preview de últimos cambios */}
-      {grupo.puede_gestionar_miembros && (
+  {/* Auditoría: preview de últimos cambios (oculta a miembros) */}
+  {grupo.puede_gestionar_miembros && grupo.rol_en_grupo?.toLowerCase() !== 'miembro' && (
         <GlassCard>
           <GroupAuditPreview grupoId={String(id)} />
         </GlassCard>
