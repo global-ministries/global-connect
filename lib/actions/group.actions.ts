@@ -50,21 +50,7 @@ export async function updateGroup(groupId: string, data: any) {
 
     console.log("Usuario autenticado:", user.id);
 
-    // 3. Obtener el id interno del usuario
-    const { data: usuario, error: userError } = await supabase
-      .from("usuarios")
-      .select("id")
-      .eq("auth_id", user.id)
-      .single();
-
-    if (userError || !usuario) {
-      console.error("Error obteniendo usuario interno:", userError);
-      throw new Error("Usuario no encontrado");
-    }
-
-    console.log("ID interno del usuario:", usuario.id);
-
-    // 4. Verificar permisos para editar el grupo usando el auth.id obtenido
+  // 3. Verificar permisos para editar el grupo usando el auth.id obtenido (no requerimos fila en "usuarios")
     const { data: permiso, error: permisoError } = await supabase.rpc("puede_editar_grupo", {
       p_auth_id: user.id,
       p_grupo_id: groupId
@@ -76,7 +62,7 @@ export async function updateGroup(groupId: string, data: any) {
     }
 
     if (!permiso) {
-      console.error("Permiso denegado para usuario:", usuario.id, "en grupo:", groupId);
+      console.error("Permiso denegado para usuario auth:", user.id, "en grupo:", groupId);
       throw new Error("No tienes permisos para editar este grupo");
     }
 

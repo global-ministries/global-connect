@@ -52,7 +52,7 @@ interface Grupo {
 }
 
 interface GrupoDetailClientProps {
-  grupo: Grupo;
+  grupo: Grupo & { puede_editar_ui?: boolean };
   id: string | number;
 }
 
@@ -184,12 +184,14 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
             </div>
           </div>
           <div className="flex gap-3">
-            <Link href={`/dashboard/grupos/${id}/edit`}>
-              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
-                <Edit className="w-4 h-4" />
-                Editar Grupo
-              </button>
-            </Link>
+            {grupo.puede_editar_ui && (
+              <Link href={`/dashboard/grupos/${id}/edit`}>
+                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
+                  <Edit className="w-4 h-4" />
+                  Editar Grupo
+                </button>
+              </Link>
+            )}
             {grupo.puede_gestionar_miembros && (
               <button
                 onClick={() => setIsAddModalOpen(true)}

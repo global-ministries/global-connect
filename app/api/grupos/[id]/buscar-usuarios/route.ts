@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const grupoId = params.id;
+  const { id: grupoId } = await params;
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q") || "";
 

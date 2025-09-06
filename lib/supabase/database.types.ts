@@ -80,6 +80,68 @@ export type Database = {
           },
         ]
       }
+      audit_grupo_miembros: {
+        Row: {
+          action: string
+          actor_auth_id: string | null
+          actor_usuario_id: string | null
+          grupo_id: string
+          happened_at: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          usuario_id: string
+        }
+        Insert: {
+          action: string
+          actor_auth_id?: string | null
+          actor_usuario_id?: string | null
+          grupo_id: string
+          happened_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          usuario_id: string
+        }
+        Update: {
+          action?: string
+          actor_auth_id?: string | null
+          actor_usuario_id?: string | null
+          grupo_id?: string
+          happened_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          usuario_id?: string
+        }
+        Relationships: []
+      }
+      debug_toolbar_whitelist: {
+        Row: {
+          created_at: string
+          id: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "debug_toolbar_whitelist_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dias_excepcion: {
         Row: {
           creado_por_usuario_id: string | null
@@ -474,7 +536,7 @@ export type Database = {
           id?: string
           nombre?: string
         }
-       Relationships: [
+        Relationships: [
           {
             foreignKeyName: "fk_estado_id"
             columns: ["estado_id"]
@@ -487,7 +549,7 @@ export type Database = {
             columns: ["estado_id"]
             isOneToOne: false
             referencedRelation: "estados"
-            referencedColumns: ["id"] 
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -956,19 +1018,218 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_roles: {
-        Args: Record<PropertyKey, never>
+      actualizar_rol_miembro: {
+        Args: {
+          p_auth_id: string
+          p_grupo_id: string
+          p_rol: Database["public"]["Enums"]["enum_rol_grupo"]
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      actualizar_usuario_y_direccion: {
+        Args: {
+          p_apellido: string
+          p_barrio: string
+          p_calle: string
+          p_cedula: string
+          p_codigo_postal: string
+          p_direccion_id: string
+          p_email: string
+          p_estado_civil: string
+          p_fecha_nacimiento: string
+          p_genero: string
+          p_latitud: number
+          p_longitud: number
+          p_nombre: string
+          p_ocupacion_id: string
+          p_parroquia_id: string
+          p_profesion_id: string
+          p_referencia: string
+          p_telefono: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      agregar_miembro_a_grupo: {
+        Args: {
+          p_auth_id: string
+          p_grupo_id: string
+          p_rol?: Database["public"]["Enums"]["enum_rol_grupo"]
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      agregar_relacion_familiar: {
+        Args: {
+          p_tipo_relacion: string
+          p_usuario1_id: string
+          p_usuario2_id: string
+        }
+        Returns: undefined
+      }
+      buscar_usuarios_para_grupo: {
+        Args: {
+          p_auth_id: string
+          p_grupo_id: string
+          p_limit?: number
+          p_query: string
+        }
         Returns: {
-          rol: string
+          apellido: string
+          email: string
+          id: string
+          nombre: string
+          telefono: string
+          ya_es_miembro: boolean
         }[]
+      }
+      crear_grupo: {
+        Args: {
+          p_auth_id: string
+          p_nombre: string
+          p_segmento_id: string
+          p_temporada_id: string
+        }
+        Returns: string
+      }
+      debug_cambiar_rol: {
+        Args: { p_auth_id: string; p_nuevo_rol: string }
+        Returns: boolean
+      }
+      debug_cambiar_rol_usuario: {
+        Args: { p_auth_id: string; p_nuevo_rol: string }
+        Returns: boolean
+      }
+      eliminar_miembro_de_grupo: {
+        Args: { p_auth_id: string; p_grupo_id: string; p_usuario_id: string }
+        Returns: Json
+      }
+      eliminar_relacion_familiar: {
+        Args: { p_relacion_id: string }
+        Returns: undefined
+      }
+      es_director_de_grupo: {
+        Args: { p_grupo_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      es_lider_de_grupo: {
+        Args: { p_grupo_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      get_my_internal_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      obtener_auditoria_miembros: {
+        Args: {
+          p_action?: string
+          p_actor_query?: string
+          p_auth_id: string
+          p_desde?: string
+          p_grupo_id?: string
+          p_hasta?: string
+          p_limit?: number
+          p_offset?: number
+          p_usuario_id?: string
+        }
+        Returns: {
+          action: string
+          actor_auth_id: string
+          actor_nombre: string
+          actor_usuario_id: string
+          grupo_id: string
+          happened_at: string
+          id: string
+          new_data: Json
+          old_data: Json
+          total_count: number
+          usuario_email: string
+          usuario_id: string
+          usuario_nombre: string
+        }[]
+      }
+      obtener_detalle_grupo: {
+        Args: { p_auth_id: string; p_grupo_id: string }
+        Returns: Json
+      }
+      obtener_detalle_usuario: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      obtener_grupos_para_usuario: {
+        Args: {
+          p_activo?: boolean
+          p_auth_id: string
+          p_limit?: number
+          p_municipio_id?: string
+          p_offset?: number
+          p_parroquia_id?: string
+          p_segmento_id?: string
+          p_temporada_id?: string
+        }
+        Returns: {
+          activo: boolean
+          fecha_creacion: string
+          id: string
+          lideres: Json
+          miembros_count: number
+          municipio_id: string
+          municipio_nombre: string
+          nombre: string
+          parroquia_id: string
+          parroquia_nombre: string
+          segmento_nombre: string
+          temporada_nombre: string
+          total_count: number
+        }[]
+      }
+      obtener_roles_usuario: {
+        Args: { p_auth_id: string }
+        Returns: string[]
+      }
+      obtener_segmentos_para_director: {
+        Args: { p_auth_id: string }
+        Returns: {
+          id: string
+          nombre: string
+        }[]
+      }
+      puede_crear_grupo: {
+        Args: { p_auth_id: string; p_segmento_id: string }
+        Returns: boolean
+      }
+      puede_editar_grupo: {
+        Args: { p_auth_id: string; p_grupo_id: string }
+        Returns: boolean
+      }
+      puede_gestionar_miembros: {
+        Args: { p_auth_id: string; p_grupo_id: string }
+        Returns: boolean
+      }
+      puede_ver_debug_toolbar: {
+        Args: { p_auth_id: string }
+        Returns: boolean
+      }
+      puede_ver_grupo: {
+        Args: { p_grupo_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      puede_ver_usuario: {
+        Args: { p_target_user_id: string; p_viewer_id: string }
+        Returns: boolean
+      }
       resumen_dashboard_admin: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      tiene_rol_de_liderazgo: {
+        Args: { p_auth_id: string }
+        Returns: boolean
       }
     }
     Enums: {
@@ -989,6 +1250,7 @@ export type Database = {
         | "padre"
         | "hijo"
         | "tutor"
+        | "hermano"
         | "otro_familiar"
     }
     CompositeTypes: {
@@ -1135,6 +1397,7 @@ export const Constants = {
         "padre",
         "hijo",
         "tutor",
+        "hermano",
         "otro_familiar",
       ],
     },
