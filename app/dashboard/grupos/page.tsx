@@ -20,17 +20,32 @@ export default async function Page() {
   const supabase = await createSupabaseServerClient()
   const userData = await getUserWithRoles(supabase)
   if (!userData) {
+    console.log("[GC] No hay usuario autenticado")
     redirect("/login")
   }
   const rolesLiderazgo = ["admin", "pastor", "director-general", "director-etapa", "lider"]
   const tieneAcceso = userData.roles.some(r => rolesLiderazgo.includes(r))
   if (!tieneAcceso) {
+    console.log("[GC] Usuario sin acceso, roles:", userData.roles)
     redirect("/dashboard")
   }
 
-  // Obtener grupos usando la función RPC
+  // LOG: roles del usuario
+  console.log("[GC] Roles del usuario:", userData.roles)
+
+  // Obtener grupos para el usuario actual usando la RPC
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: grupos, error } = await supabase.rpc("obtener_grupos_para_usuario", { p_auth_id: user?.id })
+  let grupos: any[] = []
+  try {
+    const { data, error } = await supabase.rpc('obtener_grupos_para_usuario', { p_auth_id: user?.id })
+    if (error) {
+      console.log('[GC] Error RPC obtener_grupos_para_usuario:', error)
+    }
+    grupos = data || []
+    console.log('[GC] RPC grupos:', grupos?.length)
+  } catch (e) {
+    console.log('[GC] Excepción RPC obtener_grupos_para_usuario:', e)
+  }
 
   // Consultas de estadísticas en paralelo
   const [
@@ -158,9 +173,18 @@ export default async function Page() {
               {grupos && grupos.length > 0 ? (
                 grupos.map((grupo: any) => (
                   <tr key={grupo.id} className="bg-white/40 hover:bg-orange-50/40 transition-all">
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-800 font-medium">{grupo.nombre}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{grupo.segmentos?.nombre || "Sin segmento"}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{grupo.temporadas?.nombre || "Sin temporada"}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-800 font-medium">
+                      <div className="flex flex-col">
+                        <span className="text-gray-800 font-semibold">{grupo.nombre}</span>
+                        {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 && (
+                          <span className="text-xs text-gray-500 mt-1">
+                            {grupo.lideres.map((l: any) => l.nombre_completo).filter(Boolean).join(', ')}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{grupo.segmento_nombre || "Sin segmento"}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{grupo.temporada_nombre || "Sin temporada"}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant={grupo.activo ? "default" : "secondary"}>
                         {grupo.activo ? "Activo" : "Inactivo"}
