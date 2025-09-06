@@ -25,15 +25,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     console.log("[GC] No hay usuario autenticado")
     redirect("/login")
   }
-  const rolesLiderazgo = ["admin", "pastor", "director-general", "director-etapa", "lider"]
-  const tieneAcceso = userData.roles.some(r => rolesLiderazgo.includes(r))
-  if (!tieneAcceso) {
-    console.log("[GC] Usuario sin acceso, roles:", userData.roles)
-    redirect("/dashboard")
-  }
-
-  // LOG: roles del usuario
-  console.log("[GC] Roles del usuario:", userData.roles)
+  // Acceso: cualquier usuario autenticado puede entrar; la RPC limitará visibilidad según permisos
 
   // Resolver searchParams (puede venir como Promise según tipos de Next)
   const sp: Record<string, string | string[] | undefined> = typeof (searchParams as any)?.then === 'function'
