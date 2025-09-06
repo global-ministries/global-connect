@@ -2,8 +2,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import GroupCreateForm from "@/components/forms/GroupCreateForm";
+import { ReactNode } from "react";
 
-function GlassCard({ children, className = "" }) {
+function GlassCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div className={`backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 lg:p-8 shadow-2xl ${className}`}>
       {children}
