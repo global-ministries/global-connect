@@ -101,11 +101,12 @@ export default function GroupEditForm({
 
   function to12h(h?: string) {
     if (!h) return undefined;
-    const m = h.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    const trimmed = h.trim();
+    const m = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i);
     if (!m) return h;
     const hh = parseInt(m[1], 10);
     const mm = m[2];
-    const ap = m[3];
+    const ap = m[4];
     if (ap) return `${hh.toString().padStart(2, '0')}:${mm} ${ap.toUpperCase()}`;
     let hour = hh;
     const ampm = hour >= 12 ? 'PM' : 'AM';

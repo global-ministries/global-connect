@@ -84,12 +84,14 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
 
   function formatHora12(h?: string) {
     if (!h) return "";
-    const m = h.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    const trimmed = h.trim();
+    // HH:MM or HH:MM:SS with optional AM/PM
+    const m = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i);
     if (m) {
       // ya podría venir en 12h, normaliza
       const hh = parseInt(m[1], 10);
       const mm = m[2];
-      const ap = m[3];
+      const ap = m[4];
       if (ap) return `${hh.toString().padStart(2, '0')}:${mm} ${ap.toUpperCase()}`;
       // asumir 24h -> convertir
       let hour = hh;
@@ -99,14 +101,14 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
       return `${hour.toString().padStart(2, '0')}:${mm} ${ampm}`;
     }
     // si viniera como "7 PM" intenta rescatar
-    const m2 = h.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+    const m2 = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
     if (m2) {
       const hh = parseInt(m2[1], 10);
       const mm = m2[2] || '00';
       const ap = m2[3].toUpperCase();
       return `${hh.toString().padStart(2, '0')}:${mm} ${ap}`;
     }
-    return h;
+    return trimmed;
   }
 
   const onChangeRole = async (miembroId: string | number, newRole: "Líder" | "Colíder" | "Miembro") => {
