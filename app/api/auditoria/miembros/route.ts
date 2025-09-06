@@ -6,9 +6,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const grupoId = searchParams.get("grupoId");
     const usuarioId = searchParams.get("usuarioId");
-    const action = searchParams.get("action"); // CREATE|UPDATE|DELETE
+  const action = searchParams.get("action"); // CREATE|UPDATE|DELETE
     const desde = searchParams.get("desde"); // ISO string
     const hasta = searchParams.get("hasta"); // ISO string
+  const actor = searchParams.get("actor"); // texto a buscar en nombre/apellido
     const limit = Math.min(Number(searchParams.get("limit") || 50), 200);
     const offset = Number(searchParams.get("offset") || 0);
 
@@ -24,7 +25,8 @@ export async function GET(req: NextRequest) {
       p_desde: desde ? new Date(desde).toISOString() : null,
       p_hasta: hasta ? new Date(hasta).toISOString() : null,
       p_limit: limit,
-      p_offset: offset,
+  p_offset: offset,
+  p_actor_query: actor || null,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data ?? []);

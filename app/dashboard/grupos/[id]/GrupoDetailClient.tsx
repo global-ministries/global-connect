@@ -82,6 +82,33 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
     }
   };
 
+  function formatHora12(h?: string) {
+    if (!h) return "";
+    const m = h.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    if (m) {
+      // ya podría venir en 12h, normaliza
+      const hh = parseInt(m[1], 10);
+      const mm = m[2];
+      const ap = m[3];
+      if (ap) return `${hh.toString().padStart(2, '0')}:${mm} ${ap.toUpperCase()}`;
+      // asumir 24h -> convertir
+      let hour = hh;
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12;
+      if (hour === 0) hour = 12;
+      return `${hour.toString().padStart(2, '0')}:${mm} ${ampm}`;
+    }
+    // si viniera como "7 PM" intenta rescatar
+    const m2 = h.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+    if (m2) {
+      const hh = parseInt(m2[1], 10);
+      const mm = m2[2] || '00';
+      const ap = m2[3].toUpperCase();
+      return `${hh.toString().padStart(2, '0')}:${mm} ${ap}`;
+    }
+    return h;
+  }
+
   const onChangeRole = async (miembroId: string | number, newRole: "Líder" | "Colíder" | "Miembro") => {
     try {
       setRoleUpdatingId(miembroId);
@@ -193,7 +220,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
             </div>
             <div>
               <p className="text-sm text-gray-500">Hora</p>
-              <p className="font-medium text-gray-800">{grupo.hora_reunion || "No especificada"}</p>
+              <p className="font-medium text-gray-800">{formatHora12(grupo.hora_reunion) || "No especificada"}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

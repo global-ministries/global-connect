@@ -99,6 +99,21 @@ export default function GroupEditForm({
     "08:00 PM","08:30 PM","09:00 PM","09:30 PM"
   ];
 
+  function to12h(h?: string) {
+    if (!h) return undefined;
+    const m = h.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    if (!m) return h;
+    const hh = parseInt(m[1], 10);
+    const mm = m[2];
+    const ap = m[3];
+    if (ap) return `${hh.toString().padStart(2, '0')}:${mm} ${ap.toUpperCase()}`;
+    let hour = hh;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12;
+    if (hour === 0) hour = 12;
+    return `${hour.toString().padStart(2, '0')}:${mm} ${ampm}`;
+  }
+
   const handleSubmit = async (data: GroupEditFormData) => {
     setIsLoading(true);
     try {
@@ -200,7 +215,7 @@ export default function GroupEditForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Día de Reunión</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                    <Select onValueChange={field.onChange} defaultValue={to12h(field.value) || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona un día" />
@@ -223,7 +238,7 @@ export default function GroupEditForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Hora de Reunión</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                    <Select onValueChange={field.onChange} defaultValue={to12h(field.value) || undefined}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona una hora" />
