@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ArrowLeft, Edit, Users, MapPin, Clock, Calendar, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit, Users, MapPin, Clock, Calendar, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
@@ -60,7 +60,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   const [roleUpdatingId, setRoleUpdatingId] = useState<string | number | null>(null);
   const [removingId, setRemovingId] = useState<string | number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [memberToRemove, setMemberToRemove] = useState<Miembro | null>(null);
+  const [pendingRemovalId, setPendingRemovalId] = useState<string | number | null>(null);
   const router = useRouter();
 
   const obtenerIniciales = (nombre: string, apellido: string) => {
@@ -99,31 +99,27 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   };
 
   const onRemoveMember = async (miembroId: string | number) => {
+    setPendingRemovalId(miembroId);
+    setConfirmOpen(true);
+  };
+
+  const confirmRemove = async () => {
+    if (pendingRemovalId == null) return;
     try {
-      setRemovingId(miembroId);
-      const res = await fetch(`/api/grupos/${encodeURIComponent(String(id))}/miembros/${encodeURIComponent(String(miembroId))}`, {
+      setRemovingId(pendingRemovalId);
+      const res = await fetch(`/api/grupos/${encodeURIComponent(String(id))}/miembros/${encodeURIComponent(String(pendingRemovalId))}`, {
         method: 'DELETE'
       });
       if (!res.ok) throw new Error(await res.text());
       toast.success('Miembro eliminado');
+      setConfirmOpen(false);
+      setPendingRemovalId(null);
       router.refresh();
     } catch (e: any) {
       toast.error(e?.message || 'No se pudo eliminar el miembro');
     } finally {
       setRemovingId(null);
     }
-  };
-
-  const openConfirmRemove = (miembro: Miembro) => {
-    setMemberToRemove(miembro);
-    setConfirmOpen(true);
-  };
-
-  const confirmRemove = async () => {
-    if (!memberToRemove) return;
-    await onRemoveMember(memberToRemove.id);
-    setConfirmOpen(false);
-    setMemberToRemove(null);
   };
 
   return (
@@ -267,22 +263,15 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                           <SelectItem value="Miembro">Miembro</SelectItem>
                         </SelectContent>
                       </Select>
-                      {roleUpdatingId === miembro.id && (
-                        <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
-                      )}
                       <button
                         type="button"
                         aria-label="Quitar miembro"
                         className="p-2 rounded-lg hover:bg-red-50 text-red-600"
-                        onClick={() => openConfirmRemove(miembro)}
+                        onClick={() => onRemoveMember(miembro.id)}
                         disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
                         title="Quitar del grupo"
                       >
-                        {removingId === miembro.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
+                        <Trash2 className={`w-4 h-4 ${removingId === miembro.id ? 'animate-pulse' : ''}`} />
                       </button>
                     </>
                   ) : (
@@ -311,17 +300,15 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         />
       )}
 
-      {/* Confirmación para eliminar miembro */}
-      {grupo.puede_gestionar_miembros && (
-        <ConfirmationModal
-          isOpen={confirmOpen}
-          onClose={() => setConfirmOpen(false)}
-          onConfirm={confirmRemove}
-          title="Quitar miembro del grupo"
-          message={memberToRemove ? `Se quitará a ${memberToRemove.nombre} ${memberToRemove.apellido} de este grupo. Esta acción no elimina el usuario, solo su pertenencia al grupo.` : ""}
-          isLoading={removingId !== null}
-        />
-      )}
+      {/* Confirmación de borrado */}
+      <ConfirmationModal
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={confirmRemove}
+        title="Quitar miembro"
+        message="Esta acción removerá a la persona del grupo. ¿Deseas continuar?"
+        isLoading={removingId != null}
+      />
     </div>
   );
 }
