@@ -45,8 +45,11 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
       setError(null);
 
       const result = await createGroup(data);
-
-      if (result.success && result.newGroupId) {
+      if (!result?.success) {
+        setError(result?.error || "No autorizado para crear el grupo");
+        return;
+      }
+      if (result.newGroupId) {
         router.push(`/dashboard/grupos/${result.newGroupId}/edit`);
       }
     } catch (err: any) {

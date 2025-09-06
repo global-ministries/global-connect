@@ -74,6 +74,9 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     supabase.from("parroquias").select("id, nombre, municipio_id").order("nombre"),
   ])
 
+  const roles = userData.roles || []
+  const canCreate = roles.some(r => ["admin","pastor","director-general","director-etapa"].includes(r))
+
   return (
     <div className="space-y-6">
       {/* Header GlassCard */}
@@ -99,6 +102,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
           parroquias={parroquias || []}
           totalCount={totalCount}
           pageSize={pageSize}
+          canCreate={canCreate}
         />
       </GlassCard>
     </div>

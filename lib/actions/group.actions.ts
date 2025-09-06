@@ -183,24 +183,54 @@ export async function updateGroup(groupId: string, data: any) {
 }
 
 export async function createGroup(data: { nombre: string; temporada_id: string; segmento_id: string; }) {
+  // Validación de entrada
+  const parsed = createGroupSchema.safeParse(data)
+  if (!parsed.success) {
+    const msg = parsed.error.errors.map(e => e.message).join(" | ")
+    return { success: false, error: msg }
+  }
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
+    // Verificar usuario
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return { success: false, error: "No autenticado" }
+    }
+
+    // Chequear permiso para crear en el segmento elegido
+    const { data: permitido, error: permisoError } = await supabase.rpc("puede_crear_grupo", {
+      p_auth_id: user.id,
+      p_segmento_id: parsed.data.segmento_id,
+    })
+    if (permisoError) {
+      console.error("[createGroup] Error permiso:", permisoError)
+      return { success: false, error: "No fue posible validar permisos" }
+    }
+    if (!permitido) {
+      return { success: false, error: "No tienes permisos para crear grupos en este segmento" }
+    }
+
+    // Insertar
     const { data: insertData, error } = await supabase
       .from("grupos")
       .insert({
-        nombre: data.nombre,
-        temporada_id: data.temporada_id,
-        segmento_id: data.segmento_id,
+        nombre: parsed.data.nombre,
+        temporada_id: parsed.data.temporada_id,
+        segmento_id: parsed.data.segmento_id,
+        activo: true,
       })
       .select('id')
       .single();
 
     if (error) {
-      throw new Error(error.message);
+      return { success: false, error: error.message };
     }
 
+    // Revalidar listado y devolver id
+    revalidatePath('/dashboard/grupos')
     return { success: true, newGroupId: insertData.id };
   } catch (err: any) {
-    throw new Error(err.message || "Error al crear el grupo");
+    console.error('[createGroup] Excepción:', err)
+    return { success: false, error: err?.message || "Error al crear el grupo" }
   }
 }
