@@ -4,7 +4,7 @@ import { ArrowLeft, Edit, Users, MapPin, Clock, Calendar, Trash2 } from "lucide-
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
-import GroupAudit from "@/components/grupos/GroupAudit.client";
+import GroupAuditPreview from "@/components/grupos/GroupAuditPreview.client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -292,10 +292,10 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         </div>
       </GlassCard>
 
-      {/* Auditoría de cambios de miembros */}
+      {/* Auditoría: preview de últimos cambios */}
       {grupo.puede_gestionar_miembros && (
         <GlassCard>
-          <GroupAudit grupoId={String(id)} />
+          <GroupAuditPreview grupoId={String(id)} />
         </GlassCard>
       )}
 
