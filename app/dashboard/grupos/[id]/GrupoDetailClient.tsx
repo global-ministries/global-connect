@@ -4,6 +4,7 @@ import { ArrowLeft, Edit, Users, MapPin, Clock, Calendar, Trash2 } from "lucide-
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
+import GroupAuditPreview from "@/components/grupos/GroupAuditPreview.client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -47,6 +48,7 @@ interface Grupo {
   direccion?: Direccion;
   miembros?: Miembro[];
   puede_gestionar_miembros?: boolean;
+  rol_en_grupo?: string | null;
 }
 
 interface GrupoDetailClientProps {
@@ -79,6 +81,35 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         return 'bg-gray-100 text-gray-700';
     }
   };
+
+  function formatHora12(h?: string) {
+    if (!h) return "";
+    const trimmed = h.trim();
+    // HH:MM or HH:MM:SS with optional AM/PM
+    const m = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i);
+    if (m) {
+      // ya podría venir en 12h, normaliza
+      const hh = parseInt(m[1], 10);
+      const mm = m[2];
+      const ap = m[4];
+      if (ap) return `${hh.toString().padStart(2, '0')}:${mm} ${ap.toUpperCase()}`;
+      // asumir 24h -> convertir
+      let hour = hh;
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12;
+      if (hour === 0) hour = 12;
+      return `${hour.toString().padStart(2, '0')}:${mm} ${ampm}`;
+    }
+    // si viniera como "7 PM" intenta rescatar
+    const m2 = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+    if (m2) {
+      const hh = parseInt(m2[1], 10);
+      const mm = m2[2] || '00';
+      const ap = m2[3].toUpperCase();
+      return `${hh.toString().padStart(2, '0')}:${mm} ${ap}`;
+    }
+    return trimmed;
+  }
 
   const onChangeRole = async (miembroId: string | number, newRole: "Líder" | "Colíder" | "Miembro") => {
     try {
@@ -191,7 +222,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
             </div>
             <div>
               <p className="text-sm text-gray-500">Hora</p>
-              <p className="font-medium text-gray-800">{grupo.hora_reunion || "No especificada"}</p>
+              <p className="font-medium text-gray-800">{formatHora12(grupo.hora_reunion) || "No especificada"}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -227,7 +258,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         />
       </GlassCard>
 
-      {/* Líderes y Miembros */}
+  {/* Líderes y Miembros */}
       <GlassCard>
         <h3 className="text-lg lg:text-xl font-bold text-gray-800 mb-6">Líderes y Miembros</h3>
         <div className="space-y-4">
@@ -290,6 +321,13 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
           )}
         </div>
       </GlassCard>
+
+  {/* Auditoría: preview de últimos cambios (oculta a miembros) */}
+  {grupo.puede_gestionar_miembros && grupo.rol_en_grupo?.toLowerCase() !== 'miembro' && (
+        <GlassCard>
+          <GroupAuditPreview grupoId={String(id)} />
+        </GlassCard>
+      )}
 
       {/* Modal para añadir miembro */}
       {grupo.puede_gestionar_miembros && (

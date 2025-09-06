@@ -1,6 +1,8 @@
 SET search_path = public;
 
--- Corregir obtener_detalle_grupo: mapear auth_id -> usuario.id e incluir override de admin
+-- Actualiza obtener_detalle_grupo para incluir 'rol_en_grupo'
+DROP FUNCTION IF EXISTS public.obtener_detalle_grupo(uuid, uuid);
+
 CREATE OR REPLACE FUNCTION public.obtener_detalle_grupo(p_auth_id uuid, p_grupo_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
