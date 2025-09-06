@@ -8,7 +8,8 @@
     "lint": "next lint",
   "start": "next start",
   "gen:types": "supabase gen types typescript --project-id wcnqocyqtksxhthnquta > lib/supabase/database.types.ts",
-  "test:smoke:members": "node scripts/smoke-members-api.mjs"
+  "test:smoke:members": "node scripts/smoke-members-api.mjs",
+  "test:smoke:audit": "node scripts/smoke-audit-members.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
