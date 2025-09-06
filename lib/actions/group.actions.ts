@@ -210,25 +210,20 @@ export async function createGroup(data: { nombre: string; temporada_id: string; 
       return { success: false, error: "No tienes permisos para crear grupos en este segmento" }
     }
 
-    // Insertar
-    const { data: insertData, error } = await supabase
-      .from("grupos")
-      .insert({
-        nombre: parsed.data.nombre,
-        temporada_id: parsed.data.temporada_id,
-        segmento_id: parsed.data.segmento_id,
-        activo: true,
-      })
-      .select('id')
-      .single();
-
+    // Insertar vía RPC con SECURITY DEFINER para salvar RLS
+    const { data: newId, error } = await supabase.rpc('crear_grupo', {
+      p_auth_id: user.id,
+      p_nombre: parsed.data.nombre,
+      p_temporada_id: parsed.data.temporada_id,
+      p_segmento_id: parsed.data.segmento_id,
+    })
     if (error) {
       return { success: false, error: error.message };
     }
 
     // Revalidar listado y devolver id
     revalidatePath('/dashboard/grupos')
-    return { success: true, newGroupId: insertData.id };
+  return { success: true, newGroupId: newId as unknown as string };
   } catch (err: any) {
     console.error('[createGroup] Excepción:', err)
     return { success: false, error: err?.message || "Error al crear el grupo" }
