@@ -1,9 +1,13 @@
 "use client";
 import { useState } from "react";
-import { ArrowLeft, Edit, Users, MapPin, Clock, Calendar } from "lucide-react";
+import { ArrowLeft, Edit, Users, MapPin, Clock, Calendar, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 
 const MapModal = dynamic(() => import("@/components/modals/MapModal"), { ssr: false });
 const AddMemberModal = dynamic(() => import("@/components/modals/AddMemberModal"), { ssr: false });
@@ -53,6 +57,11 @@ interface GrupoDetailClientProps {
 export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps) {
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [roleUpdatingId, setRoleUpdatingId] = useState<string | number | null>(null);
+  const [removingId, setRemovingId] = useState<string | number | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<Miembro | null>(null);
+  const router = useRouter();
 
   const obtenerIniciales = (nombre: string, apellido: string) => {
     return `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase();
@@ -69,6 +78,52 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
       default:
         return 'bg-gray-100 text-gray-700';
     }
+  };
+
+  const onChangeRole = async (miembroId: string | number, newRole: "Líder" | "Colíder" | "Miembro") => {
+    try {
+      setRoleUpdatingId(miembroId);
+      const res = await fetch(`/api/grupos/${encodeURIComponent(String(id))}/miembros/${encodeURIComponent(String(miembroId))}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rol: newRole })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success('Rol actualizado');
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'No se pudo actualizar el rol');
+    } finally {
+      setRoleUpdatingId(null);
+    }
+  };
+
+  const onRemoveMember = async (miembroId: string | number) => {
+    try {
+      setRemovingId(miembroId);
+      const res = await fetch(`/api/grupos/${encodeURIComponent(String(id))}/miembros/${encodeURIComponent(String(miembroId))}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast.success('Miembro eliminado');
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'No se pudo eliminar el miembro');
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  const openConfirmRemove = (miembro: Miembro) => {
+    setMemberToRemove(miembro);
+    setConfirmOpen(true);
+  };
+
+  const confirmRemove = async () => {
+    if (!memberToRemove) return;
+    await onRemoveMember(memberToRemove.id);
+    setConfirmOpen(false);
+    setMemberToRemove(null);
   };
 
   return (
@@ -195,10 +250,46 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                     <span className="truncate">{miembro.telefono || "Sin teléfono"}</span>
                   </div>
                 </div>
-                <div className="flex-shrink-0">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${obtenerColorRol(miembro.rol)}`}>
-                    {miembro.rol}
-                  </span>
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  {grupo.puede_gestionar_miembros ? (
+                    <>
+                      <Select
+                        defaultValue={(miembro.rol as any) || 'Miembro'}
+                        onValueChange={(v) => onChangeRole(miembro.id, v as any)}
+                        disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
+                      >
+                        <SelectTrigger className="w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Líder">Líder</SelectItem>
+                          <SelectItem value="Colíder">Colíder</SelectItem>
+                          <SelectItem value="Miembro">Miembro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {roleUpdatingId === miembro.id && (
+                        <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                      )}
+                      <button
+                        type="button"
+                        aria-label="Quitar miembro"
+                        className="p-2 rounded-lg hover:bg-red-50 text-red-600"
+                        onClick={() => openConfirmRemove(miembro)}
+                        disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
+                        title="Quitar del grupo"
+                      >
+                        {removingId === miembro.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${obtenerColorRol(miembro.rol)}`}>
+                      {miembro.rol}
+                    </span>
+                  )}
                 </div>
               </div>
             ))
@@ -217,6 +308,18 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
           grupoId={String(id)}
+        />
+      )}
+
+      {/* Confirmación para eliminar miembro */}
+      {grupo.puede_gestionar_miembros && (
+        <ConfirmationModal
+          isOpen={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={confirmRemove}
+          title="Quitar miembro del grupo"
+          message={memberToRemove ? `Se quitará a ${memberToRemove.nombre} ${memberToRemove.apellido} de este grupo. Esta acción no elimina el usuario, solo su pertenencia al grupo.` : ""}
+          isLoading={removingId !== null}
         />
       )}
     </div>
