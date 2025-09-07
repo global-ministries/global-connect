@@ -184,7 +184,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
             </div>
           </div>
           <div className="flex gap-3">
-            {grupo.puede_editar_ui && (
+            {grupo.puede_editar_ui && (grupo.rol_en_grupo?.toLowerCase() !== 'miembro') && (
               <Link href={`/dashboard/grupos/${id}/edit`}>
                 <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
                   <Edit className="w-4 h-4" />
