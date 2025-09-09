@@ -1,6 +1,15 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import AttendanceList from "@/components/grupos/AttendanceList.client";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 type Evento = { id: string; grupo_id: string; fecha: string; hora: string | null; tema: string | null; notas: string | null }
 type AsistenciaRow = {
@@ -58,37 +67,90 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Asistencia del {ev.fecha}</h1>
-          <p className="text-muted-foreground">Tema: {ev.tema || '—'} • Notas: {ev.notas || '—'}</p>
-        </div>
-        <div className="flex gap-4">
-          {puedeEditar && (
-            <Link href={`/dashboard/grupos/${id}/asistencia/editar/${eventoId}`} className="text-blue-600 underline">Editar</Link>
-          )}
-          <Link href={`/dashboard/grupos/${id}`} className="text-orange-600 underline">Volver</Link>
-        </div>
-      </div>
+      {/* Migas de pan */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/dashboard">Dashboard</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/dashboard/grupos">Grupos</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/dashboard/grupos/${id}`}>Detalle</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Asistencia</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
+      {/* Encabezado */}
+      <Card className="">
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-2xl">Asistencia del {ev.fecha}</CardTitle>
+            <CardDescription>
+              Tema: {ev.tema || '—'} • Notas: {ev.notas || '—'}
+            </CardDescription>
+          </div>
+          <div className="flex gap-3">
+            {puedeEditar && (
+              <Link
+                href={`/dashboard/grupos/${id}/asistencia/editar/${eventoId}`}
+                className="text-blue-600 underline"
+              >
+                Editar
+              </Link>
+            )}
+            <Link href={`/dashboard/grupos/${id}`} className="text-orange-600 underline">
+              Volver
+            </Link>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 rounded-lg border">
-          <div className="text-sm text-muted-foreground">Presentes</div>
-          <div className="text-2xl font-semibold">{presentes}</div>
-        </div>
-        <div className="p-4 rounded-lg border">
-          <div className="text-sm text-muted-foreground">Total</div>
-          <div className="text-2xl font-semibold">{total}</div>
-        </div>
-        <div className="p-4 rounded-lg border">
-          <div className="text-sm text-muted-foreground">% Asistencia</div>
-          <div className="text-2xl font-semibold">{porcentaje}%</div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardDescription>Presentes</CardDescription>
+            <CardTitle className="text-2xl">{presentes}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Total</CardDescription>
+            <CardTitle className="text-2xl">{total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>% Asistencia</CardDescription>
+            <CardTitle className="text-2xl">{porcentaje}%</CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
-      <div className="border rounded-lg divide-y">
-        <AttendanceList attendees={asistentes} />
-      </div>
+      {/* Listas de asistencia */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Listado</CardTitle>
+          <CardDescription>Presentes y ausentes del evento</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AttendanceList attendees={asistentes} />
+        </CardContent>
+      </Card>
     </div>
   )
 }

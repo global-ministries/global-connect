@@ -1,6 +1,15 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import AttendanceRegister from '@/components/grupos/AttendanceRegister.client'
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 type Evento = { id: string; grupo_id: string; fecha: string; hora: string | null; tema: string | null; notas: string | null }
 type AsistenciaRow = {
@@ -42,18 +51,50 @@ export default async function EditarAsistenciaPage({ params }: { params: Promise
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Editar asistencia — {grupo.nombre}</h1>
-          <p className="text-muted-foreground">Fecha: {ev.fecha}</p>
-        </div>
-        <div className="flex gap-4">
-          <Link href={`/dashboard/grupos/${id}/asistencia/${eventoId}`} className="text-orange-600 underline">Ver evento</Link>
-          <Link href={`/dashboard/grupos/${id}/asistencia/historial`} className="text-blue-600 underline">Historial</Link>
-        </div>
-      </div>
-      {/* Reutilizamos el componente en modo edición */}
-      <AttendanceRegister grupoId={id} miembros={miembros} initialData={initial} isEdit />
+      {/* Migas de pan */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/dashboard">Dashboard</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/dashboard/grupos">Grupos</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/dashboard/grupos/${id}`}>Detalle</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Editar asistencia</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      {/* Encabezado */}
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-2xl">Editar asistencia — {grupo.nombre}</CardTitle>
+            <CardDescription>Fecha: {ev.fecha}</CardDescription>
+          </div>
+          <div className="flex gap-3">
+            <Link href={`/dashboard/grupos/${id}/asistencia/${eventoId}`} className="text-orange-600 underline">Ver evento</Link>
+            <Link href={`/dashboard/grupos/${id}/asistencia/historial`} className="text-blue-600 underline">Historial</Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Reutilizamos el componente en modo edición */}
+          <AttendanceRegister grupoId={id} miembros={miembros} initialData={initial} isEdit />
+        </CardContent>
+      </Card>
     </div>
   )
 }

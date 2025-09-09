@@ -1,5 +1,14 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default async function HistorialAsistenciaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -39,34 +48,69 @@ export default async function HistorialAsistenciaPage({ params }: { params: Prom
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Historial de asistencia — {grupo.nombre}</h1>
-          <p className="text-muted-foreground">Últimos eventos registrados</p>
-        </div>
-        <div className="flex gap-4">
-          <Link href={`/dashboard/grupos/${id}`} className="text-orange-600 underline">Volver</Link>
-          <Link href={`/dashboard/grupos/${id}/asistencia`} className="text-blue-600 underline">Registrar nuevo</Link>
-        </div>
-      </div>
+      {/* Migas de pan */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/dashboard">Dashboard</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/dashboard/grupos">Grupos</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/dashboard/grupos/${id}`}>Detalle</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Historial</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
-      <div className="border rounded-lg divide-y">
-        {rows.map((ev) => (
-          <div key={ev.id} className="flex items-center justify-between p-3">
-            <div>
-              <div className="font-medium">{ev.fecha} — {ev.tema || 'Sin tema'}</div>
-              <div className="text-xs text-muted-foreground">Presentes {ev.presentes}/{ev.total} — {ev.porcentaje}%</div>
-            </div>
-            <div className="flex gap-3 text-sm">
-              <Link href={`/dashboard/grupos/${id}/asistencia/${ev.id}`} className="text-orange-600 underline">Ver</Link>
-              <Link href={`/dashboard/grupos/${id}/asistencia/editar/${ev.id}`} className="text-blue-600 underline">Editar</Link>
-            </div>
+      {/* Encabezado */}
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-2xl">Historial de asistencia — {grupo.nombre}</CardTitle>
+            <CardDescription>Últimos eventos registrados</CardDescription>
           </div>
-        ))}
-        {rows.length === 0 && (
-          <div className="p-6 text-sm text-muted-foreground">No hay eventos registrados aún.</div>
-        )}
-      </div>
+          <div className="flex gap-3">
+            <Link href={`/dashboard/grupos/${id}`} className="text-orange-600 underline">Volver</Link>
+            <Link href={`/dashboard/grupos/${id}/asistencia`} className="text-blue-600 underline">Registrar nuevo</Link>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Lista */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="divide-y">
+            {rows.map((ev) => (
+              <div key={ev.id} className="flex items-center justify-between p-4">
+                <div>
+                  <div className="font-medium">{ev.fecha} — {ev.tema || 'Sin tema'}</div>
+                  <div className="text-xs text-muted-foreground">Presentes {ev.presentes}/{ev.total} — {ev.porcentaje}%</div>
+                </div>
+                <div className="flex gap-3 text-sm">
+                  <Link href={`/dashboard/grupos/${id}/asistencia/${ev.id}`} className="text-orange-600 underline">Ver</Link>
+                  <Link href={`/dashboard/grupos/${id}/asistencia/editar/${ev.id}`} className="text-blue-600 underline">Editar</Link>
+                </div>
+              </div>
+            ))}
+            {rows.length === 0 && (
+              <div className="p-6 text-sm text-muted-foreground">No hay eventos registrados aún.</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
