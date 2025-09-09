@@ -13,6 +13,7 @@ export default function AttendanceRegister({ grupoId, miembros }: { grupoId: str
   const [fecha, setFecha] = useState<string>(() => new Date().toISOString().slice(0,10))
   const [tema, setTema] = useState<string>('')
   const [notas, setNotas] = useState<string>('')
+  const [saving, setSaving] = useState<boolean>(false)
   const [estado, setEstado] = useState<Record<string, { presente: boolean; motivo?: string }>>(() => {
     const map: Record<string, { presente: boolean; motivo?: string }> = {}
     for (const m of miembros) map[m.id] = { presente: true }
@@ -20,8 +21,15 @@ export default function AttendanceRegister({ grupoId, miembros }: { grupoId: str
   })
   const totalPresentes = useMemo(() => Object.values(estado).filter(v => v.presente).length, [estado])
 
+  const marcarTodos = (presente: boolean) => {
+    const map: Record<string, { presente: boolean; motivo?: string }> = {}
+    for (const m of miembros) map[m.id] = { presente }
+    setEstado(map)
+  }
+
   const guardar = async () => {
     try {
+      setSaving(true)
       const asistencias = miembros.map(m => ({
         usuario_id: m.id,
         presente: !!estado[m.id]?.presente,
@@ -39,6 +47,8 @@ export default function AttendanceRegister({ grupoId, miembros }: { grupoId: str
       router.refresh()
     } catch (e: any) {
       toast.error(e?.message || 'Error registrando asistencia')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -57,6 +67,11 @@ export default function AttendanceRegister({ grupoId, miembros }: { grupoId: str
           <label className="block text-sm font-medium mb-1">Notas</label>
           <Input value={notas} onChange={e => setNotas(e.target.value)} placeholder="Opcional" />
         </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" onClick={() => marcarTodos(true)}>Marcar todos presentes</Button>
+        <Button type="button" variant="outline" onClick={() => marcarTodos(false)}>Marcar todos ausentes</Button>
       </div>
 
       <div className="border rounded-lg divide-y">
@@ -84,7 +99,9 @@ export default function AttendanceRegister({ grupoId, miembros }: { grupoId: str
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">Presentes: {totalPresentes} / {miembros.length}</div>
-        <Button onClick={guardar} className="bg-orange-600 hover:bg-orange-700">Guardar asistencia</Button>
+        <Button onClick={guardar} className="bg-orange-600 hover:bg-orange-700" disabled={saving}>
+          {saving ? 'Guardando…' : 'Guardar asistencia'}
+        </Button>
       </div>
     </div>
   )
