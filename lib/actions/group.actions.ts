@@ -50,21 +50,7 @@ export async function updateGroup(groupId: string, data: any) {
 
     console.log("Usuario autenticado:", user.id);
 
-    // 3. Obtener el id interno del usuario
-    const { data: usuario, error: userError } = await supabase
-      .from("usuarios")
-      .select("id")
-      .eq("auth_id", user.id)
-      .single();
-
-    if (userError || !usuario) {
-      console.error("Error obteniendo usuario interno:", userError);
-      throw new Error("Usuario no encontrado");
-    }
-
-    console.log("ID interno del usuario:", usuario.id);
-
-    // 4. Verificar permisos para editar el grupo usando el auth.id obtenido
+  // 3. Verificar permisos para editar el grupo usando el auth.id obtenido (no requerimos fila en "usuarios")
     const { data: permiso, error: permisoError } = await supabase.rpc("puede_editar_grupo", {
       p_auth_id: user.id,
       p_grupo_id: groupId
@@ -76,7 +62,7 @@ export async function updateGroup(groupId: string, data: any) {
     }
 
     if (!permiso) {
-      console.error("Permiso denegado para usuario:", usuario.id, "en grupo:", groupId);
+      console.error("Permiso denegado para usuario auth:", user.id, "en grupo:", groupId);
       throw new Error("No tienes permisos para editar este grupo");
     }
 
@@ -183,24 +169,49 @@ export async function updateGroup(groupId: string, data: any) {
 }
 
 export async function createGroup(data: { nombre: string; temporada_id: string; segmento_id: string; }) {
+  // Validación de entrada
+  const parsed = createGroupSchema.safeParse(data)
+  if (!parsed.success) {
+    const msg = parsed.error.errors.map(e => e.message).join(" | ")
+    return { success: false, error: msg }
+  }
   try {
-    const supabase = createSupabaseServerClient();
-    const { data: insertData, error } = await supabase
-      .from("grupos")
-      .insert({
-        nombre: data.nombre,
-        temporada_id: data.temporada_id,
-        segmento_id: data.segmento_id,
-      })
-      .select('id')
-      .single();
-
-    if (error) {
-      throw new Error(error.message);
+    const supabase = await createSupabaseServerClient();
+    // Verificar usuario
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return { success: false, error: "No autenticado" }
     }
 
-    return { success: true, newGroupId: insertData.id };
+    // Chequear permiso para crear en el segmento elegido
+    const { data: permitido, error: permisoError } = await supabase.rpc("puede_crear_grupo", {
+      p_auth_id: user.id,
+      p_segmento_id: parsed.data.segmento_id,
+    })
+    if (permisoError) {
+      console.error("[createGroup] Error permiso:", permisoError)
+      return { success: false, error: "No fue posible validar permisos" }
+    }
+    if (!permitido) {
+      return { success: false, error: "No tienes permisos para crear grupos en este segmento" }
+    }
+
+    // Insertar vía RPC con SECURITY DEFINER para salvar RLS
+    const { data: newId, error } = await supabase.rpc('crear_grupo', {
+      p_auth_id: user.id,
+      p_nombre: parsed.data.nombre,
+      p_temporada_id: parsed.data.temporada_id,
+      p_segmento_id: parsed.data.segmento_id,
+    })
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    // Revalidar listado y devolver id
+    revalidatePath('/dashboard/grupos')
+  return { success: true, newGroupId: newId as unknown as string };
   } catch (err: any) {
-    throw new Error(err.message || "Error al crear el grupo");
+    console.error('[createGroup] Excepción:', err)
+    return { success: false, error: err?.message || "Error al crear el grupo" }
   }
 }

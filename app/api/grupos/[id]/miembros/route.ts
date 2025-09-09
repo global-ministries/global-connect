@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const grupoId = params.id;
+  const { id: grupoId } = await params;
     const body = await req.json();
     const usuarioId: string = body?.usuarioId;
     const rol: "Líder" | "Colíder" | "Miembro" = body?.rol || "Miembro";

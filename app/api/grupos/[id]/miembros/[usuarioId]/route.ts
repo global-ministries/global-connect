@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string; usuarioId: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string; usuarioId: string }> }) {
   try {
-    const grupoId = params.id;
-    const usuarioId = params.usuarioId;
+  const { id: grupoId, usuarioId } = await params;
     const body = await req.json();
     const rol: "Líder" | "Colíder" | "Miembro" = body?.rol;
     if (!rol) return NextResponse.json({ error: "rol requerido" }, { status: 400 });
@@ -27,10 +26,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string; usuarioId: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string; usuarioId: string }> }) {
   try {
-    const grupoId = params.id;
-    const usuarioId = params.usuarioId;
+  const { id: grupoId, usuarioId } = await params;
 
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();

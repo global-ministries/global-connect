@@ -3,7 +3,7 @@
 import React, { useState } from "react"
 import { LayoutDashboard, Users, UsersRound, Target, Calendar, Settings, Globe, Menu, X } from "lucide-react"
 import Link from "next/link"
-import { AuthStatusDebug } from "@/components/auth/AuthStatusDebug"
+import TopDebugBar from "@/components/auth/TopDebugBar.client"
 
 interface PropiedadesLayoutTablero {
   children: React.ReactNode
@@ -50,7 +50,8 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
           />
         )}
 
-        <div className="flex">
+  <TopDebugBar />
+  <div className="flex">
           {/* Barra Lateral */}
           <div
             className={`fixed lg:static inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 ease-in-out lg:transform-none ${
@@ -89,12 +90,7 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
                   </nav>
                 </div>
               </div>
-              {/* AuthStatusDebug al fondo de la sidebar */}
-              <div className="mt-6 flex flex-col items-center">
-                <AuthStatusDebug />
-                {/* Logo de la versión o info de versión aquí si existe */}
-                {/* <div className="text-xs text-gray-400 mt-2">v1.0.0</div> */}
-              </div>
+              {/* Debug lateral eliminado en favor de barra superior */}
             </div>
           </div>
 

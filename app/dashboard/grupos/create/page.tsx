@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import GroupCreateForm from "@/components/forms/GroupCreateForm";
+import { getUserWithRoles } from "@/lib/getUserWithRoles";
 import { ReactNode } from "react";
 
 function GlassCard({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -13,12 +14,39 @@ function GlassCard({ children, className = "" }: { children: ReactNode; classNam
 }
 
 export default async function CreateGroupPage() {
-  // Cargar temporadas y segmentos en paralelo
   const supabase = await createSupabaseServerClient();
+  const userData = await getUserWithRoles(supabase)
+  if (!userData) {
+    return null
+  }
+  const roles = userData.roles || []
+  const esAdminOPastorODG = roles.some(r => ["admin","pastor","director-general"].includes(r))
+  const esDirectorEtapa = roles.includes("director-etapa")
 
+  // Si no es admin/pastor/director-general ni director-etapa, redirigir a listado
+  if (!esAdminOPastorODG && !esDirectorEtapa) {
+    // Usuarios Líder / Colíder / Miembro no pueden crear
+    return (
+      <div className="p-6 text-sm text-red-600">No tienes permisos para crear grupos.</div>
+    )
+  }
+
+  // Cargar temporadas activas y segmentos permitidos
   const [temporadasResult, segmentosResult] = await Promise.all([
-    supabase.from("temporadas").select("id, nombre"),
-    supabase.from("segmentos").select("id, nombre")
+    supabase.from("temporadas").select("id, nombre").order('nombre'),
+    (async () => {
+      if (esAdminOPastorODG) {
+        return await supabase.from("segmentos").select("id, nombre").order('nombre')
+      }
+      // director-etapa: sólo segmentos donde es líder de etapa
+      const { data: authData } = await supabase.auth.getUser()
+      const { data: segs, error } = await supabase.rpc('obtener_segmentos_para_director', { p_auth_id: authData?.user?.id })
+      if (error) {
+        console.error('[Create] obtener_segmentos_para_director error:', error)
+        return { data: [], error }
+      }
+      return { data: (segs as any[])?.map(s => ({ id: s.id, nombre: s.nombre })) || [], error: null }
+    })()
   ]);
 
   // Manejar errores y logging para depuración
@@ -49,7 +77,7 @@ export default async function CreateGroupPage() {
         </div>
       </div>
 
-      {/* Formulario */}
+  {/* Formulario */}
       <GlassCard className="max-w-2xl">
         <GroupCreateForm
           temporadas={temporadas}

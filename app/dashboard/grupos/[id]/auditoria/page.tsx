@@ -3,7 +3,7 @@ import AuditViewer from "@/components/grupos/AuditViewer.client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export default async function GrupoAuditPage({ params }: { params: { id: string } }) {
+export default async function GrupoAuditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();

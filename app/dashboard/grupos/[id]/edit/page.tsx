@@ -54,6 +54,15 @@ export default async function EditGroupPage({ params }: PageProps) {
     );
   }
 
+  // Chequear permiso explícito para editar; si no tiene, redirigir al detalle
+  const { data: puedeEditar } = await supabase.rpc("puede_editar_grupo", {
+    p_auth_id: user.id,
+    p_grupo_id: id,
+  });
+  if (!puedeEditar) {
+    redirect(`/dashboard/grupos/${id}`);
+  }
+
   // Regla de Mapeo: Mapear latitud/longitud a lat/lng
   if (grupo.direccion) {
     grupo.direccion.lat = grupo.direccion.latitud;

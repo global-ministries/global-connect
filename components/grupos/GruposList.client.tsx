@@ -74,6 +74,7 @@ export default function GruposListClient({
   parroquias,
   totalCount = 0,
   pageSize = 20,
+  canCreate = false,
 }: {
   grupos: Grupo[]
   segmentos: Segmento[]
@@ -82,6 +83,7 @@ export default function GruposListClient({
   parroquias?: Parroquia[]
   totalCount?: number
   pageSize?: number
+  canCreate?: boolean
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -195,12 +197,14 @@ export default function GruposListClient({
               </div>
             </SheetContent>
           </Sheet>
-          <Link href="/dashboard/grupos/create">
-            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
-              <Plus className="w-4 h-4" />
-              Crear Grupo
-            </button>
-          </Link>
+          {canCreate && (
+            <Link href="/dashboard/grupos/create">
+              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
+                <Plus className="w-4 h-4" />
+                Crear Grupo
+              </button>
+            </Link>
+          )}
         </div>
       </div>
 

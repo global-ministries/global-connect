@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import GrupoDetailClient from "./GrupoDetailClient";
 
-export default async function GrupoDetailServer({ params }: { params: { id: string } }) {
+export default async function GrupoDetailServer({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -35,6 +35,16 @@ export default async function GrupoDetailServer({ params }: { params: { id: stri
   if (grupo.direccion) {
     grupo.direccion.lat = grupo.direccion.latitud;
     grupo.direccion.lng = grupo.direccion.longitud;
+  }
+  // Calcular permiso de edición (si hay usuario); inyectar en el objeto grupo para el cliente
+  if (user?.id) {
+    const { data: permitido } = await supabase.rpc("puede_editar_grupo", {
+      p_auth_id: user.id,
+      p_grupo_id: id,
+    });
+    (grupo as any).puede_editar_ui = !!permitido;
+  } else {
+    (grupo as any).puede_editar_ui = false;
   }
 
   return <GrupoDetailClient grupo={grupo} id={id} />;
