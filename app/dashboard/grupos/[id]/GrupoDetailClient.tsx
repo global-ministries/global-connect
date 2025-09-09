@@ -192,6 +192,14 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 </button>
               </Link>
             )}
+            {grupo.puede_editar_ui && (
+              <Link href={`/dashboard/grupos/${id}/asistencia`}>
+                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 rounded-xl transition-all duration-200 text-white shadow-lg">
+                  <Users className="w-4 h-4" />
+                  Tomar asistencia
+                </button>
+              </Link>
+            )}
             {grupo.puede_gestionar_miembros && (
               <button
                 onClick={() => setIsAddModalOpen(true)}
