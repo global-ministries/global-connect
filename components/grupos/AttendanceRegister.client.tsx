@@ -43,7 +43,11 @@ export default function AttendanceRegister({ grupoId, miembros }: { grupoId: str
       const json = await res.json()
       if (!res.ok || !json?.ok) throw new Error(json?.error || 'No se pudo registrar la asistencia')
       toast.success('Asistencia registrada')
-      router.push(`/dashboard/grupos/${grupoId}`)
+      if (json.eventoId) {
+        router.push(`/dashboard/grupos/${grupoId}/asistencia/${json.eventoId}`)
+      } else {
+        router.push(`/dashboard/grupos/${grupoId}`)
+      }
       router.refresh()
     } catch (e: any) {
       toast.error(e?.message || 'Error registrando asistencia')
