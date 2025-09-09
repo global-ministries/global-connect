@@ -1,5 +1,5 @@
 "use client"
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -8,17 +8,36 @@ import { useRouter } from 'next/navigation'
 
 type Miembro = { id: string; nombre: string; apellido: string; rol?: string }
 
-export default function AttendanceRegister({ grupoId, miembros }: { grupoId: string; miembros: Miembro[] }) {
+type InitialData = {
+  fecha?: string
+  tema?: string | null
+  notas?: string | null
+  estado?: Record<string, { presente: boolean; motivo?: string }>
+}
+
+export default function AttendanceRegister({ grupoId, miembros, initialData, isEdit }: { grupoId: string; miembros: Miembro[]; initialData?: InitialData; isEdit?: boolean }) {
   const router = useRouter()
-  const [fecha, setFecha] = useState<string>(() => new Date().toISOString().slice(0,10))
-  const [tema, setTema] = useState<string>('')
-  const [notas, setNotas] = useState<string>('')
+  const [fecha, setFecha] = useState<string>(() => initialData?.fecha || new Date().toISOString().slice(0,10))
+  const [tema, setTema] = useState<string>(() => initialData?.tema || '')
+  const [notas, setNotas] = useState<string>(() => initialData?.notas || '')
   const [saving, setSaving] = useState<boolean>(false)
   const [estado, setEstado] = useState<Record<string, { presente: boolean; motivo?: string }>>(() => {
+    if (initialData?.estado) return initialData.estado
     const map: Record<string, { presente: boolean; motivo?: string }> = {}
     for (const m of miembros) map[m.id] = { presente: true }
     return map
   })
+
+  useEffect(() => {
+    if (initialData) {
+      setFecha(initialData.fecha || new Date().toISOString().slice(0,10))
+      setTema(initialData.tema || '')
+      setNotas(initialData.notas || '')
+      if (initialData.estado) setEstado(initialData.estado)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(initialData)])
+
   const totalPresentes = useMemo(() => Object.values(estado).filter(v => v.presente).length, [estado])
 
   const marcarTodos = (presente: boolean) => {
@@ -42,7 +61,7 @@ export default function AttendanceRegister({ grupoId, miembros }: { grupoId: str
       })
       const json = await res.json()
       if (!res.ok || !json?.ok) throw new Error(json?.error || 'No se pudo registrar la asistencia')
-      toast.success('Asistencia registrada')
+      toast.success(isEdit ? 'Asistencia actualizada' : 'Asistencia registrada')
       if (json.eventoId) {
         router.push(`/dashboard/grupos/${grupoId}/asistencia/${json.eventoId}`)
       } else {
@@ -61,7 +80,7 @@ export default function AttendanceRegister({ grupoId, miembros }: { grupoId: str
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium mb-1">Fecha</label>
-          <Input type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
+          <Input type="date" value={fecha} onChange={e => setFecha(e.target.value)} disabled={!!isEdit} />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Tema</label>
@@ -104,7 +123,7 @@ export default function AttendanceRegister({ grupoId, miembros }: { grupoId: str
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">Presentes: {totalPresentes} / {miembros.length}</div>
         <Button onClick={guardar} className="bg-orange-600 hover:bg-orange-700" disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar asistencia'}
+          {saving ? 'Guardando…' : (isEdit ? 'Actualizar asistencia' : 'Guardar asistencia')}
         </Button>
       </div>
     </div>

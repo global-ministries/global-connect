@@ -41,7 +41,16 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
         </div>
         <Link href={`/dashboard/grupos/${id}`} className="text-orange-600 underline">Volver</Link>
       </div>
-      <AttendanceRegister grupoId={id} miembros={grupo.miembros || []} />
+      {/** Normalizamos miembros al shape esperado por el componente */}
+      <AttendanceRegister
+        grupoId={id}
+        miembros={(grupo.miembros || []).map((m: { id: string; nombre: string; apellido: string; rol?: string | null }) => ({
+          id: m.id,
+          nombre: m.nombre,
+          apellido: m.apellido,
+          rol: m.rol || undefined,
+        }))}
+      />
     </div>
   )
 }

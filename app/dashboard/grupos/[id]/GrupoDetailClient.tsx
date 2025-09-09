@@ -200,6 +200,14 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 </button>
               </Link>
             )}
+            {grupo.puede_editar_ui && (
+              <Link href={`/dashboard/grupos/${id}/asistencia/historial`}>
+                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 rounded-xl transition-all duration-200 text-white shadow-lg">
+                  <Calendar className="w-4 h-4" />
+                  Historial
+                </button>
+              </Link>
+            )}
             {grupo.puede_gestionar_miembros && (
               <button
                 onClick={() => setIsAddModalOpen(true)}
