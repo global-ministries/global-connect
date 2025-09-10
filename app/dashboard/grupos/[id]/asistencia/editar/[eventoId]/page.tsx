@@ -44,6 +44,7 @@ export default async function EditarAsistenciaPage({ params }: { params: Promise
   const miembros = (grupo.miembros || []).map((m: { id: string; nombre: string; apellido: string; rol?: string | null }) => ({ id: m.id, nombre: m.nombre, apellido: m.apellido, rol: m.rol || undefined }))
   const initial = {
     fecha: ev.fecha as string,
+  hora: ev.hora as string | null,
     tema: ev.tema as string | null,
     notas: ev.notas as string | null,
     estado: Object.fromEntries(((Array.isArray(lista) ? (lista as AsistenciaRow[]) : [])).map((r) => [r.usuario_id, { presente: r.presente, motivo: r.motivo_inasistencia || '' }])) as Record<string, { presente: boolean; motivo?: string }>
