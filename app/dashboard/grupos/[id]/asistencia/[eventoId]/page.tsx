@@ -33,7 +33,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
     supabase.rpc('obtener_evento_grupo', { p_auth_id: user.id, p_evento_id: eventoId }),
     supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id }),
   ])
-  try { console.log('evento/raw', { evento, eventoId, groupId: id, userId: user.id, puedeEditar }) } catch {}
+  // (log depuración removido)
 
   const ev = (Array.isArray(evento) ? (evento[0] as Evento | undefined) : undefined)
   if (!ev) return (
@@ -48,7 +48,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
     p_auth_id: user?.id ?? null,
     p_evento_id: eventoId,
   });
-  console.log("asistencia/raw", { data: asistenciaRes.data, error: asistenciaRes.error, eventoId });
+  // (log depuración removido)
 
   const asistentes = Array.isArray(asistenciaRes.data)
     ? asistenciaRes.data.map((r: any) => ({
@@ -100,7 +100,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
           <div>
             <CardTitle className="text-2xl">Asistencia del {ev.fecha}</CardTitle>
             <CardDescription>
-              Tema: {ev.tema || '—'} • Notas: {ev.notas || '—'}
+              {ev.hora ? `Hora: ${ev.hora} • ` : ''}Tema: {ev.tema || '—'} • Notas: {ev.notas || '—'}
             </CardDescription>
           </div>
           <div className="flex gap-3">

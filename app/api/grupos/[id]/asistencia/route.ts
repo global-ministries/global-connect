@@ -35,6 +35,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     })
     return NextResponse.json({ ok: false, error: error.message }, { status: 400 })
   }
-  try { console.log('registrar_asistencia ok', { eventoId: data, grupoId: id, fecha }) } catch {}
+  // (log éxito removido; se mantienen logs de error)
   return NextResponse.json({ ok: true, eventoId: data })
 }

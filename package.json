@@ -9,7 +9,8 @@
     "start": "next start",
     "gen:types": "supabase gen types typescript --project-id wcnqocyqtksxhthnquta > lib/supabase/database.types.ts",
     "test:smoke:members": "node scripts/smoke-members-api.mjs",
-    "test:smoke:audit": "node scripts/smoke-audit-members.mjs"
+  "test:smoke:audit": "node scripts/smoke-audit-members.mjs",
+  "test:rpc:asistencia": "ts-node scripts/test-rpc-asistencia.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

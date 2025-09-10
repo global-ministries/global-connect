@@ -24,15 +24,7 @@ export default async function HistorialAsistenciaPage({ params }: { params: Prom
   const grupo = grupoRes.data
   const puedeEditar = puedeEditarRes.data
   const eventos = eventosRes.data
-  try {
-    console.log('historial/raw', {
-      count: Array.isArray(eventos) ? eventos.length : null,
-      puedeEditar,
-      groupId: id,
-      userId: user.id,
-      eventosError: (eventosRes as any)?.error || null
-    })
-  } catch {}
+  // (log depuración removido)
 
   if (!puedeEditar || !grupo) {
     return (
