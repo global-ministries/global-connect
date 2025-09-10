@@ -123,8 +123,8 @@ async function obtenerUsuariosReales() {
       auth_id,
       nombre,
       apellido,
-      usuario_roles!inner (
-        roles_sistema!inner (
+      usuario_roles!fk_usuario_roles_usuario_id (
+        roles_sistema!fk_usuario_roles_rol_id (
           nombre_interno,
           nombre_visible
         )
