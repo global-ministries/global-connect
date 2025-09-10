@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState } from "react"
-import { LayoutDashboard, Users, UsersRound, Target, Calendar, Settings, Globe, Menu, X } from "lucide-react"
+import { LayoutDashboard, Users, UsersRound, Target, Calendar, Settings, Globe, Menu, X, LogOut } from "lucide-react"
+import { logout } from "@/lib/actions/auth.actions"
 import Link from "next/link"
 import TopDebugBar from "@/components/auth/TopDebugBar.client"
 
@@ -88,6 +89,15 @@ export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
                       )
                     })}
                   </nav>
+                  <form action={logout} className="mt-6">
+                    <button
+                      type="submit"
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-700 bg-white/40 hover:bg-orange-100/60 hover:text-orange-600 border border-white/40 shadow-sm"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span className="font-medium">Cerrar sesión</span>
+                    </button>
+                  </form>
                 </div>
               </div>
               {/* Debug lateral eliminado en favor de barra superior */}
