@@ -112,3 +112,9 @@ export async function signup(formData: FormData) {
     message: "Â¡Registro exitoso! Por favor, revisa tu bandeja de entrada para verificar tu cuenta.",
   };
 }
+
+export async function logout() {
+  const supabase = createSupabaseServerClient()
+  await supabase.auth.signOut()
+  redirect('/')
+}

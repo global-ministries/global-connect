@@ -1125,6 +1125,37 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      listar_eventos_grupo: {
+        Args: {
+          p_auth_id: string
+          p_grupo_id: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          fecha: string
+          hora: string
+          id: string
+          notas: string
+          porcentaje: number
+          presentes: number
+          tema: string
+          total: number
+        }[]
+      }
+      obtener_asistencia_evento: {
+        Args: { p_auth_id: string; p_evento_id: string }
+        Returns: {
+          apellido: string
+          fecha_registro: string
+          motivo_inasistencia: string
+          nombre: string
+          presente: boolean
+          registrado_por_usuario_id: string
+          rol: string
+          usuario_id: string
+        }[]
+      }
       obtener_auditoria_miembros: {
         Args: {
           p_action?: string
@@ -1160,6 +1191,17 @@ export type Database = {
       obtener_detalle_usuario: {
         Args: { p_user_id: string }
         Returns: Json
+      }
+      obtener_evento_grupo: {
+        Args: { p_auth_id: string; p_evento_id: string }
+        Returns: {
+          fecha: string
+          grupo_id: string
+          hora: string
+          id: string
+          notas: string
+          tema: string
+        }[]
       }
       obtener_grupos_para_usuario: {
         Args: {
@@ -1222,6 +1264,18 @@ export type Database = {
       puede_ver_usuario: {
         Args: { p_target_user_id: string; p_viewer_id: string }
         Returns: boolean
+      }
+      registrar_asistencia: {
+        Args: {
+          p_asistencias?: Json
+          p_auth_id: string
+          p_fecha: string
+          p_grupo_id: string
+          p_hora?: string
+          p_notas?: string
+          p_tema?: string
+        }
+        Returns: string
       }
       resumen_dashboard_admin: {
         Args: Record<PropertyKey, never>
