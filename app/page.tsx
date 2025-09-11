@@ -105,6 +105,16 @@ export default function PaginaLogin() {
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
+
+            {/* Sign Up Link */}
+            <div className="text-center">
+              <Link
+                href="/signup"
+                className="text-orange-600 hover:text-orange-800 text-sm font-medium transition-colors duration-200"
+              >
+                ¿No tienes cuenta? Crear cuenta
+              </Link>
+            </div>
           </form>
         </div>
 
