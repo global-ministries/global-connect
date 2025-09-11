@@ -1,481 +1,263 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select'
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table'
-import { 
-  Search, 
-  Users, 
-  Mail, 
-  Phone, 
-  Calendar,
-  Filter,
-  RefreshCw,
-  Info,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react'
+import {
+  Eye,
+  Edit,
+  Trash2,
+  Plus,
+  Users,
+  Mail,
+  Phone,
+  UserCheckIcon as UserEdit,
+  Search,
+} from "lucide-react"
+import Link from "next/link"
+import { Input } from "@/components/ui/input"
 import { useUsuariosConPermisos } from '@/hooks/use-usuarios-con-permisos'
 
-const ROLES_DISPONIBLES = [
-  { value: 'admin', label: 'Administrador' },
-  { value: 'pastor', label: 'Pastor' },
-  { value: 'director-general', label: 'Director General' },
-  { value: 'director-etapa', label: 'Director de Etapa' },
-  { value: 'lider', label: 'Líder' },
-  { value: 'miembro', label: 'Miembro' }
-]
-
-function AlertaPermisos({ rolUsuario }: { rolUsuario?: string }) {
-  const getPermisoInfo = (rol?: string) => {
-    switch (rol) {
-      case 'admin':
-      case 'pastor':
-      case 'director-general':
-        return {
-          tipo: 'info',
-          titulo: 'Acceso Completo',
-          descripcion: 'Puedes ver todos los usuarios del sistema.'
-        }
-      case 'director-etapa':
-        return {
-          tipo: 'warning',
-          titulo: 'Acceso por Etapa',
-          descripcion: 'Solo puedes ver usuarios de los grupos en tus etapas asignadas.'
-        }
-      case 'lider':
-        return {
-          tipo: 'warning',
-          titulo: 'Acceso por Grupo',
-          descripcion: 'Solo puedes ver usuarios de los grupos donde eres líder.'
-        }
-      case 'miembro':
-        return {
-          tipo: 'info',
-          titulo: 'Acceso Familiar',
-          descripcion: 'Solo puedes ver usuarios de tu familia y relaciones familiares.'
-        }
-      default:
-        return {
-          tipo: 'error',
-          titulo: 'Sin Permisos',
-          descripcion: 'No tienes permisos para ver usuarios.'
-        }
-    }
-  }
-
-  const info = getPermisoInfo(rolUsuario)
-
-  return (
-    <Alert className="mb-6">
-      <Info className="h-4 w-4" />
-      <AlertDescription>
-        <strong>{info.titulo}:</strong> {info.descripcion}
-      </AlertDescription>
-    </Alert>
-  )
-}
-
-function EstadisticasCard({ estadisticas, cargando }: { 
-  estadisticas: any, 
-  cargando: boolean 
-}) {
-  if (cargando) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-4" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-16" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
-  }
-
-  if (!estadisticas) return null
-
-  const stats = [
-    {
-      titulo: 'Total Usuarios',
-      valor: estadisticas.total_usuarios,
-      icono: Users,
-      descripcion: 'Usuarios visibles'
-    },
-    {
-      titulo: 'Con Email',
-      valor: estadisticas.con_email,
-      icono: Mail,
-      descripcion: 'Tienen email registrado'
-    },
-    {
-      titulo: 'Con Teléfono',
-      valor: estadisticas.con_telefono,
-      icono: Phone,
-      descripcion: 'Tienen teléfono registrado'
-    },
-    {
-      titulo: 'Registrados Hoy',
-      valor: estadisticas.registrados_hoy,
-      icono: Calendar,
-      descripcion: 'Nuevos registros hoy'
-    }
-  ]
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-      {stats.map((stat, index) => {
-        const Icono = stat.icono
-        return (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.titulo}
-              </CardTitle>
-              <Icono className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.valor}</div>
-              <p className="text-xs text-muted-foreground">
-                {stat.descripcion}
-              </p>
-            </CardContent>
-          </Card>
-        )
-      })}
-    </div>
-  )
-}
-
-function FiltrosUsuarios({ 
-  filtros, 
-  actualizarFiltros, 
-  limpiarFiltros 
-}: {
-  filtros: any
-  actualizarFiltros: (filtros: any) => void
-  limpiarFiltros: () => void
-}) {
-  return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          Filtros
-        </CardTitle>
-        <CardDescription>
-          Filtra usuarios según tus permisos
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <Input
-              placeholder="Buscar por nombre, apellido, email o cédula..."
-              value={filtros.busqueda}
-              onChange={(e) => actualizarFiltros({ busqueda: e.target.value })}
-              className="w-full"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Select
-              value={filtros.con_email === null ? 'todos' : filtros.con_email ? 'con_email' : 'sin_email'}
-              onValueChange={(value) => {
-                const con_email = value === 'todos' ? null : value === 'con_email'
-                actualizarFiltros({ con_email })
-              }}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="con_email">Con Email</SelectItem>
-                <SelectItem value="sin_email">Sin Email</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={filtros.con_telefono === null ? 'todos' : filtros.con_telefono ? 'con_telefono' : 'sin_telefono'}
-              onValueChange={(value) => {
-                const con_telefono = value === 'todos' ? null : value === 'con_telefono'
-                actualizarFiltros({ con_telefono })
-              }}
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="con_telefono">Con Teléfono</SelectItem>
-                <SelectItem value="sin_telefono">Sin Teléfono</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button 
-              variant="outline" 
-              onClick={limpiarFiltros}
-              className="whitespace-nowrap"
-            >
-              Limpiar
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {ROLES_DISPONIBLES.map((rol) => (
-            <Badge
-              key={rol.value}
-              variant={filtros.roles.includes(rol.value) ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => {
-                const nuevosRoles = filtros.roles.includes(rol.value)
-                  ? filtros.roles.filter((r: string) => r !== rol.value)
-                  : [...filtros.roles, rol.value]
-                actualizarFiltros({ roles: nuevosRoles })
-              }}
-            >
-              {rol.label}
-            </Badge>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function TablaUsuarios({ 
-  usuarios, 
-  cargando 
-}: { 
-  usuarios: any[], 
-  cargando: boolean 
-}) {
-  if (cargando) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center space-x-4">
-                <Skeleton className="h-12 w-12 rounded-full" />
-                <div className="space-y-2 flex-1">
-                  <Skeleton className="h-4 w-[250px]" />
-                  <Skeleton className="h-4 w-[200px]" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (usuarios.length === 0) {
-    return (
-      <Card>
-        <CardContent className="p-6 text-center">
-          <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No se encontraron usuarios</h3>
-          <p className="text-muted-foreground">
-            Intenta ajustar los filtros o verifica tus permisos.
-          </p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  return (
-    <Card>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Usuario</TableHead>
-              <TableHead>Contacto</TableHead>
-              <TableHead>Rol</TableHead>
-              <TableHead>Registro</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {usuarios.map((usuario) => (
-              <TableRow key={usuario.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">
-                      {usuario.nombre} {usuario.apellido}
-                    </div>
-                    {usuario.cedula && (
-                      <div className="text-sm text-muted-foreground">
-                        C.I: {usuario.cedula}
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    {usuario.email && (
-                      <div className="flex items-center gap-1 text-sm">
-                        <Mail className="h-3 w-3" />
-                        {usuario.email}
-                      </div>
-                    )}
-                    {usuario.telefono && (
-                      <div className="flex items-center gap-1 text-sm">
-                        <Phone className="h-3 w-3" />
-                        {usuario.telefono}
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">
-                    {usuario.rol_nombre_visible}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm text-muted-foreground">
-                    {new Date(usuario.fecha_registro).toLocaleDateString('es-ES')}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  )
-}
-
-function Paginacion({ 
-  paginaActual, 
-  totalPaginas, 
-  cambiarPagina 
-}: {
-  paginaActual: number
-  totalPaginas: number
-  cambiarPagina: (pagina: number) => void
-}) {
-  if (totalPaginas <= 1) return null
-
-  return (
-    <div className="flex items-center justify-between mt-6">
-      <div className="text-sm text-muted-foreground">
-        Página {paginaActual} de {totalPaginas}
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => cambiarPagina(paginaActual - 1)}
-          disabled={paginaActual <= 1}
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Anterior
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => cambiarPagina(paginaActual + 1)}
-          disabled={paginaActual >= totalPaginas}
-        >
-          Siguiente
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-export default function UsuariosConPermisosPage() {
+export default function PaginaUsuarios() {
   const {
     usuarios,
     estadisticas,
     cargando,
-    cargandoEstadisticas,
-    error,
     filtros,
     paginaActual,
     totalPaginas,
-    totalUsuarios,
     actualizarFiltros,
-    cambiarPagina,
     recargarDatos,
-    limpiarFiltros
+    limpiarFiltros: limpiarFiltrosHook,
+    cambiarPagina
   } = useUsuariosConPermisos()
 
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
-          <p className="text-muted-foreground">
-            Sistema de usuarios con permisos por rol
-          </p>
+  const limpiarFiltros = () => {
+    limpiarFiltrosHook()
+  }
+
+  // Helpers UI y utilidades
+  const obtenerIniciales = (nombre: string, apellido: string) => `${nombre?.[0] || ""}${apellido?.[0] || ""}`.toUpperCase()
+  const obtenerColorRol = (rolInterno: string) => {
+    switch (rolInterno) {
+      case 'admin':
+        return 'bg-red-100 text-red-700'
+      case 'pastor':
+        return 'bg-orange-100 text-orange-700'
+      case 'director-general':
+        return 'bg-purple-100 text-purple-700'
+      case 'director-etapa':
+        return 'bg-blue-100 text-blue-700'
+      case 'lider':
+        return 'bg-green-100 text-green-700'
+      case 'miembro':
+        return 'bg-gray-100 text-gray-700'
+      default:
+        return 'bg-gray-100 text-gray-700'
+    }
+  }
+  const formatearTelefono = (t: string | null) => (t ? t : 'Sin teléfono')
+  const formatearEmail = (e: string | null) => (e ? e : 'Sin email')
+  const getRolLabel = (rolInterno: string) => {
+    switch (rolInterno) {
+      case 'admin': return 'Administrador'
+      case 'pastor': return 'Pastor'
+      case 'director-general': return 'Director General'
+      case 'director-etapa': return 'Director de Etapa'
+      case 'lider': return 'Líder'
+      case 'miembro': return 'Miembro'
+      default: return 'Sin rol'
+    }
+  }
+
+  const estadisticasUsuarios = [
+    { titulo: "Total Usuarios", valor: estadisticas?.total_usuarios || 0, crecimiento: "+12.5%", esPositivo: true, icono: Users, color: "from-orange-500 to-orange-600" },
+    { titulo: "Con Email", valor: estadisticas?.con_email || 0, crecimiento: "+8.2%", esPositivo: true, icono: Mail, color: "from-gray-500 to-gray-600" },
+    { titulo: "Con Teléfono", valor: estadisticas?.con_telefono || 0, crecimiento: "+15.3%", esPositivo: true, icono: Phone, color: "from-orange-400 to-orange-500" },
+    { titulo: "Registrados Hoy", valor: estadisticas?.registrados_hoy || 0, crecimiento: "+5.7%", esPositivo: true, icono: UserEdit, color: "from-gray-400 to-gray-500" },
+  ]
+
+  if (cargando) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando usuarios...</p>
         </div>
-        <Button 
-          onClick={recargarDatos}
-          disabled={cargando}
-          variant="outline"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${cargando ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Encabezado */}
+      <div>
+        <div className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-4 lg:p-6 shadow-2xl">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4 mb-4">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+              <Users className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Gestión de Usuarios</h2>
+              <p className="text-gray-600 text-sm lg:text-base">Administra y organiza tu comunidad de manera eficiente</p>
+            </div>
+            <div className="text-left lg:text-right">
+              <p className="text-sm text-gray-500">Usuarios Totales</p>
+              <p className="text-xl lg:text-2xl font-bold text-gray-800">{estadisticas?.total_usuarios || 0}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <AlertaPermisos />
+      {/* Tarjetas de Estadísticas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        {estadisticasUsuarios.map((estadistica, indice) => {
+          const Icono = estadistica.icono
+          return (
+            <div key={indice} className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-4 lg:p-6 shadow-2xl hover:shadow-3xl transition-all duration-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br ${estadistica.color} rounded-xl flex items-center justify-center`}>
+                  <Icono className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
+                </div>
+                <div className={`flex items-center gap-1 text-xs lg:text-sm font-medium ${estadistica.esPositivo ? "text-green-600" : "text-red-500"}`}>
+                  <span>{estadistica.crecimiento}</span>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-xl lg:text-2xl font-bold text-gray-800 mb-1">{estadistica.valor}</h3>
+                <p className="text-gray-600 text-xs lg:text-sm">{estadistica.titulo}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
 
-      <EstadisticasCard 
-        estadisticas={estadisticas} 
-        cargando={cargandoEstadisticas} 
-      />
+      {/* Tabla de Usuarios */}
+      <div className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-4 lg:p-6 shadow-2xl overflow-hidden">
+        {/* Encabezado de Tabla */}
+        <div className="p-4 lg:p-6 border-b border-white/20">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+            <div>
+              <h3 className="text-lg lg:text-xl font-bold text-gray-800 mb-1">Lista de Usuarios</h3>
+              <p className="text-gray-600 text-sm">Gestiona y organiza tu comunidad</p>
+              {estadisticas?.total_usuarios && estadisticas.total_usuarios > 0 && (
+                <p className="text-sm text-orange-600 mt-1">Mostrando {usuarios.length} de {estadisticas.total_usuarios} usuarios</p>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1 md:min-w-[300px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Buscar por nombre, email, cédula..."
+                  value={filtros.busqueda}
+                  onChange={(e) => actualizarFiltros({ busqueda: e.target.value })}
+                  className="pl-10 w-full rounded-xl py-2 bg-white/80"
+                />
+              </div>
+              <button 
+                onClick={limpiarFiltros}
+                className="px-4 py-2 text-sm bg-white/60 border border-white/40 rounded-xl hover:bg-white/80 transition-colors"
+              >
+                Limpiar Filtros
+              </button>
+              <Link href="/dashboard/users/create" passHref legacyBehavior>
+                <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
+                  <Plus className="w-4 h-4" />
+                  Crear Usuario
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
 
-      <FiltrosUsuarios
-        filtros={filtros}
-        actualizarFiltros={actualizarFiltros}
-        limpiarFiltros={limpiarFiltros}
-      />
+        {/* Lista de Usuarios con Espaciado Optimizado */}
+        <div className="p-4 space-y-4">
+          {usuarios && usuarios.length > 0 ? (
+            usuarios.map((usuario) => (
+              <div key={usuario.id} className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-2xl p-6 hover:bg-white/60 transition-all duration-200">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                  {/* Avatar y Nombre - 4 columnas */}
+                  <div className="lg:col-span-4 flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold shadow-lg flex-shrink-0">
+                      {obtenerIniciales(usuario.nombre, usuario.apellido)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-gray-800 truncate text-lg mb-1">{usuario.nombre} {usuario.apellido}</h4>
+                      <div className="space-y-1 text-sm text-gray-500">
+                        <div className="truncate">{formatearEmail(usuario.email)}</div>
+                        <div className="truncate">{formatearTelefono(usuario.telefono)}</div>
+                      </div>
+                    </div>
+                  </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+                  {/* Rol - 3 columnas */}
+                  <div className="lg:col-span-3 flex justify-center lg:justify-start">
+                    <span className={`px-4 py-2 rounded-full text-sm font-medium ${obtenerColorRol(usuario.rol_nombre_interno)} whitespace-nowrap`}>
+                      {getRolLabel(usuario.rol_nombre_interno)}
+                    </span>
+                  </div>
 
-      <TablaUsuarios 
-        usuarios={usuarios} 
-        cargando={cargando} 
-      />
+                  {/* Estado - 2 columnas */}
+                  <div className="lg:col-span-2 flex justify-center lg:justify-start">
+                    <span className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium whitespace-nowrap">Activo</span>
+                  </div>
 
-      <Paginacion
-        paginaActual={paginaActual}
-        totalPaginas={totalPaginas}
-        cambiarPagina={cambiarPagina}
-      />
+                  {/* Acciones - 3 columnas */}
+                  <div className="lg:col-span-3 flex items-center justify-center lg:justify-end gap-3">
+                    <Link href={`/dashboard/users/${usuario.id}`}>
+                      <button className="p-3 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600 hover:scale-105" title="Ver detalles">
+                        <Eye className="w-5 h-5" />
+                      </button>
+                    </Link>
+                    <button className="p-3 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600 hover:scale-105" title="Editar">
+                      <Edit className="w-5 h-5" />
+                    </button>
+                    <button className="p-3 hover:bg-red-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-red-600 hover:scale-105" title="Eliminar">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-600 mb-2">
+                {estadisticas?.total_usuarios === 0 ? 'No hay usuarios registrados' : 'No hay usuarios que coincidan con los filtros'}
+              </h3>
+              <p className="text-gray-500">
+                {estadisticas?.total_usuarios === 0 ? 'Comienza creando el primer usuario de tu comunidad' : 'Intenta ajustar los filtros o cambiar de página'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Controles de Paginación */}
+        {estadisticas?.total_usuarios && estadisticas.total_usuarios > 0 && (
+          <div className="px-4 py-4 border-t border-white/20">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Info de página y controles */}
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600">Página {paginaActual} de {totalPaginas}</span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => cambiarPagina(paginaActual - 1)} 
+                    disabled={paginaActual === 1} 
+                    className="px-3 py-1 text-sm bg-white/60 border border-white/40 rounded-lg hover:bg-white/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Anterior
+                  </button>
+                  <button 
+                    onClick={() => cambiarPagina(paginaActual + 1)} 
+                    disabled={paginaActual >= totalPaginas} 
+                    className="px-3 py-1 text-sm bg-white/60 border border-white/40 rounded-lg hover:bg-white/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
