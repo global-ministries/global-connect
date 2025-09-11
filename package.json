@@ -8,9 +8,13 @@
     "lint": "next lint",
     "start": "next start",
     "gen:types": "supabase gen types typescript --project-id wcnqocyqtksxhthnquta > lib/supabase/database.types.ts",
+    "db:push:staging": "supabase db push --project-ref wcnqocyqtksxhthnquta",
+    "db:reset:staging": "supabase db reset --project-ref wcnqocyqtksxhthnquta",
+    "db:status:staging": "supabase migration list --project-ref wcnqocyqtksxhthnquta",
+    "migrate:staging": "node scripts/apply-migrations-staging.mjs",
     "test:smoke:members": "node scripts/smoke-members-api.mjs",
-  "test:smoke:audit": "node scripts/smoke-audit-members.mjs",
-  "test:rpc:asistencia": "ts-node scripts/test-rpc-asistencia.ts"
+    "test:smoke:audit": "node scripts/smoke-audit-members.mjs",
+    "test:rpc:asistencia": "ts-node scripts/test-rpc-asistencia.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
