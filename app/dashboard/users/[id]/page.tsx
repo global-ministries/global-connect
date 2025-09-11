@@ -260,52 +260,61 @@ export default function PaginaDetalleUsuario() {
 
   return (
   <div className="space-y-6">
-      {/* Boton de Regreso */}
-      <div>
+      {/* Header con botón de regreso - Posición fija en móvil */}
+      <div className="fixed top-4 right-4 z-50 md:relative md:top-auto md:right-auto md:z-auto md:flex md:items-center md:justify-end md:mb-6">
         <Link 
           href="/dashboard/users"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-orange-50/50 rounded-xl transition-all duration-200 text-gray-700"
+          className="inline-flex items-center gap-2 px-3 py-2 bg-white/80 hover:bg-orange-50/80 backdrop-blur-xl rounded-xl transition-all duration-200 text-gray-700 text-sm shadow-lg border border-white/30"
         >
           <ArrowLeft className="w-4 h-4" />
-          Volver a Usuarios
+          <span className="hidden sm:inline">Volver a Usuarios</span>
+          <span className="sm:hidden">Volver</span>
         </Link>
       </div>
 
-      {/* Información Principal del Usuario */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 lg:p-8 shadow-2xl">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
-          {/* Avatar */}
-          <div className="w-24 h-24 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-xl">
-            {obtenerIniciales(usuario.nombre, usuario.apellido)}
-          </div>
-
-          {/* Información Principal */}
-          <div className="flex-1">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                  {usuario.nombre} {usuario.apellido}
-                </h1>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${obtenerColorRol(rolUsuario.nombre_interno)}`}>
-                    {rolUsuario.nombre_visible}
-                  </span>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${obtenerColorEstadoCivil(usuario.estado_civil)}`}>
-                    {usuario.estado_civil}
-                  </span>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${obtenerColorGenero(usuario.genero)}`}>
-                    {usuario.genero}
-                  </span>
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                    Activo
-                  </span>
-                </div>
+      {/* Tarjeta Principal del Usuario - Estilo Glassmorphism Mejorado */}
+      <div className="backdrop-blur-2xl bg-white/30 border border-white/20 rounded-3xl shadow-2xl overflow-hidden">
+        <div className="p-8">
+          <div className="flex flex-col lg:flex-row items-center gap-8">
+            {/* Avatar con efecto glassmorphism */}
+            <div className="relative flex-shrink-0">
+              <div className="w-32 h-32 backdrop-blur-xl bg-gradient-to-br from-orange-400/30 to-orange-600/30 border border-white/30 rounded-full flex items-center justify-center text-orange-600 text-3xl font-bold shadow-2xl">
+                {obtenerIniciales(usuario.nombre, usuario.apellido)}
               </div>
+              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-400 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                <div className="w-3 h-3 bg-white rounded-full"></div>
+              </div>
+            </div>
+
+            {/* Información principal */}
+            <div className="flex-1 text-center lg:text-left">
+              <h1 className="text-4xl font-bold text-gray-800 mb-3">
+                {usuario.nombre} {usuario.apellido}
+              </h1>
+              <p className="text-gray-600 text-lg mb-4">
+                {formatearEmail(usuario.email)}
+              </p>
               
+              {/* Badges con glassmorphism */}
+              <div className="flex flex-wrap justify-center lg:justify-start items-center gap-3 mb-6">
+                <span className={`px-4 py-2 backdrop-blur-xl bg-white/40 border border-white/30 rounded-full text-sm font-medium ${obtenerColorRol(rolUsuario.nombre_interno)} shadow-lg`}>
+                  {rolUsuario.nombre_visible}
+                </span>
+                <span className={`px-4 py-2 backdrop-blur-xl bg-white/40 border border-white/30 rounded-full text-sm font-medium ${obtenerColorEstadoCivil(usuario.estado_civil)} shadow-lg`}>
+                  {usuario.estado_civil}
+                </span>
+                <span className={`px-4 py-2 backdrop-blur-xl bg-white/40 border border-white/30 rounded-full text-sm font-medium ${obtenerColorGenero(usuario.genero)} shadow-lg`}>
+                  {usuario.genero}
+                </span>
+              </div>
+            </div>
+
+            {/* Botón de editar mejorado */}
+            <div className="flex-shrink-0">
               <Link href={`/dashboard/users/${usuario.id}/edit`}>
-                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
-                  <Edit className="w-4 h-4" />
-                  Editar Usuario
+                <button className="group flex items-center gap-3 px-6 py-3 backdrop-blur-xl bg-gradient-to-r from-orange-500/80 to-orange-600/80 hover:from-orange-500 hover:to-orange-600 border border-white/30 rounded-2xl transition-all duration-300 text-white shadow-2xl hover:scale-105 hover:shadow-orange-500/25">
+                  <Edit className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
+                  <span className="font-medium">Editar Perfil</span>
                 </button>
               </Link>
             </div>

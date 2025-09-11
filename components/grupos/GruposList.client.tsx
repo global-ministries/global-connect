@@ -166,12 +166,12 @@ export default function GruposListClient({
 
   return (
     <div className="space-y-4">
-      {/* KPIs responsivos */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* KPIs responsivos - Estilo mejorado */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard title="Total de Grupos" value={kpis.total} gradient="from-blue-500 to-cyan-500" Icon={Users2} />
         <KpiCard title="Grupos Activos" value={kpis.activos} gradient="from-green-500 to-emerald-500" Icon={Sparkles} />
-        <KpiCard title="Nuevos Grupos (Este mes)" value={kpis.nuevosMes} gradient="from-orange-500 to-red-500" Icon={UserPlus} />
-        <KpiCard title="Total Miembros en Grupos" value={kpis.totalMiembros} gradient="from-purple-500 to-pink-500" Icon={Users2} />
+        <KpiCard title="Nuevos Grupos" subtitle="Este mes" value={kpis.nuevosMes} gradient="from-orange-500 to-red-500" Icon={UserPlus} />
+        <KpiCard title="Total Miembros" subtitle="En grupos" value={kpis.totalMiembros} gradient="from-purple-500 to-pink-500" Icon={Users2} />
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -209,7 +209,8 @@ export default function GruposListClient({
       </div>
 
 
-  <div className="overflow-x-auto">
+      {/* Lista responsiva - Desktop: tabla, Móvil: tarjetas */}
+      <div className="hidden lg:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead>
             <tr>
@@ -269,6 +270,60 @@ export default function GruposListClient({
         </table>
       </div>
 
+      {/* Vista móvil - Tarjetas */}
+      <div className="lg:hidden space-y-4">
+        {gruposFiltrados && gruposFiltrados.length > 0 ? (
+          gruposFiltrados.map((grupo) => (
+            <div key={grupo.id} className="backdrop-blur-2xl bg-white/30 border border-white/20 rounded-2xl p-4 shadow-2xl">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-800 text-lg mb-1">{grupo.nombre}</h4>
+                  {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 && (
+                    <p className="text-sm text-gray-500 mb-2">
+                      {grupo.lideres.map((l) => l.nombre_completo).filter(Boolean).join(", ")}
+                    </p>
+                  )}
+                </div>
+                <Badge variant={grupo.activo ? "default" : "secondary"} className="ml-2">
+                  {grupo.activo ? "Activo" : "Inactivo"}
+                </Badge>
+              </div>
+              
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 w-20">Segmento:</span>
+                  <Badge className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}>
+                    {grupo.segmento_nombre || "Sin segmento"}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 w-20">Temporada:</span>
+                  <span className="text-sm text-gray-700">{grupo.temporada_nombre || "Sin temporada"}</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-end gap-2">
+                <Link href={`/dashboard/grupos/${grupo.id}`}>
+                  <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl transition-all duration-200 text-white shadow-lg text-sm">
+                    <Eye className="w-4 h-4" />
+                    Ver Grupo
+                  </button>
+                </Link>
+                <button className="p-2 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600" title="Editar">
+                  <Edit className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="backdrop-blur-2xl bg-white/30 border border-white/20 rounded-2xl p-8 text-center shadow-2xl">
+            <Users2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg font-medium mb-2">No hay grupos disponibles</p>
+            <p className="text-gray-400 text-sm">No hay grupos que coincidan con los filtros seleccionados.</p>
+          </div>
+        )}
+      </div>
+
       {/* Paginación y tamaño de página */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
         <PageSizeSelector />
@@ -280,17 +335,22 @@ export default function GruposListClient({
   )
 }
 
-function KpiCard({ title, value, gradient, Icon }: { title: string; value: number; gradient: string; Icon: React.ComponentType<any> }) {
+function KpiCard({ title, subtitle, value, gradient, Icon }: { title: string; subtitle?: string; value: number; gradient: string; Icon: React.ComponentType<any> }) {
   return (
-    <div className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-2xl p-4 shadow-lg">
-      <div className="flex items-center justify-between mb-2">
-        <div className={cn("w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center text-white bg-gradient-to-br", gradient)}>
-          <Icon className="w-5 h-5 lg:w-6 lg:h-6" />
+    <div className="backdrop-blur-2xl bg-white/30 border border-white/20 rounded-2xl p-4 shadow-2xl hover:scale-105 transition-all duration-200">
+      <div className="flex items-center justify-between mb-3">
+        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white bg-gradient-to-br shadow-lg", gradient)}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-gray-800">{value}</div>
         </div>
       </div>
       <div>
-        <div className="text-xl lg:text-2xl font-bold text-gray-800">{value}</div>
-        <div className="text-gray-600 text-xs lg:text-sm">{title}</div>
+        <div className="text-sm font-medium text-gray-800">{title}</div>
+        {subtitle && (
+          <div className="text-xs text-gray-500">{subtitle}</div>
+        )}
       </div>
     </div>
   )
