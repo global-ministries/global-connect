@@ -24,14 +24,6 @@ export default function PaginaLogin() {
       <div className="relative z-10 w-full max-w-md">
         {/* Tarjeta Principal de Login */}
         <div className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 sm:p-8 shadow-2xl">
-          {/* Logo de Global Connect */}
-          <div className="flex justify-center mb-6">
-            <img 
-              src="/logo.png" 
-              alt="Global Connect" 
-              className="h-14 w-auto sm:h-16 sm:w-auto max-w-[220px] sm:max-w-[280px]"
-            />
-          </div>
 
           {/* Title and Subtitle */}
           <div className="text-center mb-8">
@@ -118,7 +110,7 @@ export default function PaginaLogin() {
 
         {/* Pie de página */}
         <div className="text-center mt-6 sm:mt-8">
-          <p className="text-gray-500 text-xs sm:text-sm">© 2025 Global Connect. Todos los derechos reservados.</p>
+          <p className="text-gray-500 text-xs sm:text-sm">© 2025 Global Barquisimeto. Todos los derechos reservados.</p>
         </div>
       </div>
     </div>

@@ -73,19 +73,11 @@ export default function SignupPage() {
   return (
     <FondoGlobalConnect>
       <div className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 sm:p-8 shadow-2xl">
-        {/* Logo de Global Connect */}
-        <div className="flex justify-center mb-6">
-          <img 
-            src="/logo.png" 
-            alt="Global Connect" 
-            className="h-14 w-auto sm:h-16 sm:w-auto max-w-[220px] sm:max-w-[280px]"
-          />
-        </div>
 
         {/* Título y subtítulo */}
         <div className="text-center mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Crear Cuenta</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Regístrate para acceder a tu comunidad</p>
+          <p className="text-gray-600 text-sm sm:text-base">Regístrate en Global Connect</p>
         </div>
 
         {/* Formulario */}
@@ -193,7 +185,7 @@ export default function SignupPage() {
 
         {/* Pie de página */}
         <div className="text-center mt-6 sm:mt-8">
-          <p className="text-gray-500 text-xs sm:text-sm">© 2025 Global Connect. Todos los derechos reservados.</p>
+          <p className="text-gray-500 text-xs sm:text-sm">© 2025 Global Barquisimeto. Todos los derechos reservados.</p>
         </div>
       </div>
     </FondoGlobalConnect>
