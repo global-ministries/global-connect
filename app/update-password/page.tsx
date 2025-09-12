@@ -165,7 +165,7 @@ export default function PaginaActualizarContraseña() {
 
         {/* Pie de página */}
         <div className="text-center mt-6 sm:mt-8">
-          <p className="text-gray-500 text-xs sm:text-sm">© 2025 Global Connect. Todos los derechos reservados.</p>
+          <p className="text-gray-500 text-xs sm:text-sm">© 2025 Global Barquisimeto. Todos los derechos reservados.</p>
         </div>
       </div>
     </div>

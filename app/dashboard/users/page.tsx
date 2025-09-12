@@ -3,7 +3,6 @@
 import {
   Eye,
   Edit,
-  Trash2,
   Plus,
   Users,
   Mail,
@@ -98,31 +97,29 @@ export default function PaginaUsuarios() {
               <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Gestión de Usuarios</h2>
               <p className="text-gray-600 text-sm lg:text-base">Administra y organiza tu comunidad de manera eficiente</p>
             </div>
-            <div className="text-left lg:text-right">
-              <p className="text-sm text-gray-500">Usuarios Totales</p>
-              <p className="text-xl lg:text-2xl font-bold text-gray-800">{estadisticas?.total_usuarios || 0}</p>
-            </div>
           </div>
         </div>
       </div>
 
       {/* Tarjetas de Estadísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {estadisticasUsuarios.map((estadistica, indice) => {
           const Icono = estadistica.icono
           return (
-            <div key={indice} className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-4 lg:p-6 shadow-2xl hover:shadow-3xl transition-all duration-200">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br ${estadistica.color} rounded-xl flex items-center justify-center`}>
+            <div key={indice} className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-2xl p-3 lg:p-4 shadow-2xl hover:shadow-3xl transition-all duration-200">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br ${estadistica.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
                   <Icono className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
                 </div>
-                <div className={`flex items-center gap-1 text-xs lg:text-sm font-medium ${estadistica.esPositivo ? "text-green-600" : "text-red-500"}`}>
-                  <span>{estadistica.crecimiento}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg lg:text-xl font-bold text-gray-800 truncate">{estadistica.valor}</h3>
+                    <div className={`flex items-center gap-1 text-xs font-medium ${estadistica.esPositivo ? "text-green-600" : "text-red-500"} ml-2`}>
+                      <span>{estadistica.crecimiento}</span>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 text-xs lg:text-sm truncate">{estadistica.titulo}</p>
                 </div>
-              </div>
-              <div>
-                <h3 className="text-xl lg:text-2xl font-bold text-gray-800 mb-1">{estadistica.valor}</h3>
-                <p className="text-gray-600 text-xs lg:text-sm">{estadistica.titulo}</p>
               </div>
             </div>
           )
@@ -168,51 +165,92 @@ export default function PaginaUsuarios() {
           </div>
         </div>
 
-        {/* Lista de Usuarios con Espaciado Optimizado */}
-        <div className="p-4 space-y-4">
+        {/* Lista de Usuarios Optimizada para Móvil */}
+        <div className="p-3 sm:p-4 space-y-3">
           {usuarios && usuarios.length > 0 ? (
             usuarios.map((usuario) => (
-              <div key={usuario.id} className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-2xl p-6 hover:bg-white/60 transition-all duration-200">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-                  {/* Avatar y Nombre - 4 columnas */}
-                  <div className="lg:col-span-4 flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold shadow-lg flex-shrink-0">
+              <div key={usuario.id} className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-2xl hover:bg-white/60 transition-all duration-200">
+                {/* Layout Móvil: Diseño vertical optimizado */}
+                <div className="lg:hidden p-4">
+                  {/* Header: Avatar, Nombre y Acciones */}
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold shadow-lg flex-shrink-0">
                       {obtenerIniciales(usuario.nombre, usuario.apellido)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-800 truncate text-lg mb-1">{usuario.nombre} {usuario.apellido}</h4>
-                      <div className="space-y-1 text-sm text-gray-500">
-                        <div className="truncate">{formatearEmail(usuario.email)}</div>
-                        <div className="truncate">{formatearTelefono(usuario.telefono)}</div>
+                      <h4 className="font-semibold text-gray-800 text-base mb-1 leading-tight">{usuario.nombre} {usuario.apellido}</h4>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${obtenerColorRol(usuario.rol_nombre_interno)}`}>
+                          {getRolLabel(usuario.rol_nombre_interno)}
+                        </span>
+                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Activo</span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Rol - 3 columnas */}
-                  <div className="lg:col-span-3 flex justify-center lg:justify-start">
-                    <span className={`px-4 py-2 rounded-full text-sm font-medium ${obtenerColorRol(usuario.rol_nombre_interno)} whitespace-nowrap`}>
-                      {getRolLabel(usuario.rol_nombre_interno)}
-                    </span>
-                  </div>
-
-                  {/* Estado - 2 columnas */}
-                  <div className="lg:col-span-2 flex justify-center lg:justify-start">
-                    <span className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium whitespace-nowrap">Activo</span>
-                  </div>
-
-                  {/* Acciones - 3 columnas */}
-                  <div className="lg:col-span-3 flex items-center justify-center lg:justify-end gap-3">
-                    <Link href={`/dashboard/users/${usuario.id}`}>
-                      <button className="p-3 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600 hover:scale-105" title="Ver detalles">
-                        <Eye className="w-5 h-5" />
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Link href={`/dashboard/users/${usuario.id}`}>
+                        <button className="p-2 hover:bg-orange-100/60 rounded-lg transition-all duration-200 text-gray-600 hover:text-orange-600" title="Ver detalles">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </Link>
+                      <button className="p-2 hover:bg-orange-100/60 rounded-lg transition-all duration-200 text-gray-600 hover:text-orange-600" title="Editar">
+                        <Edit className="w-4 h-4" />
                       </button>
-                    </Link>
-                    <button className="p-3 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600 hover:scale-105" title="Editar">
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button className="p-3 hover:bg-red-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-red-600 hover:scale-105" title="Eliminar">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    </div>
+                  </div>
+                  
+                  {/* Info de contacto en tarjeta separada */}
+                  <div className="bg-white/40 rounded-lg p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Mail className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                      <span className="truncate font-medium">{formatearEmail(usuario.email)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                      <span className="truncate font-medium">{formatearTelefono(usuario.telefono)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Layout Desktop: Grid horizontal */}
+                <div className="hidden lg:block p-6">
+                  <div className="grid grid-cols-12 gap-4 items-center">
+                    {/* Avatar y Nombre - 4 columnas */}
+                    <div className="col-span-4 flex items-center gap-4">
+                      <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold shadow-lg flex-shrink-0">
+                        {obtenerIniciales(usuario.nombre, usuario.apellido)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-800 truncate text-lg mb-1">{usuario.nombre} {usuario.apellido}</h4>
+                        <div className="space-y-1 text-sm text-gray-500">
+                          <div className="truncate">{formatearEmail(usuario.email)}</div>
+                          <div className="truncate">{formatearTelefono(usuario.telefono)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rol - 3 columnas */}
+                    <div className="col-span-3 flex justify-start">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${obtenerColorRol(usuario.rol_nombre_interno)} whitespace-nowrap`}>
+                        {getRolLabel(usuario.rol_nombre_interno)}
+                      </span>
+                    </div>
+
+                    {/* Estado - 2 columnas */}
+                    <div className="col-span-2 flex justify-start">
+                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium whitespace-nowrap">Activo</span>
+                    </div>
+
+                    {/* Acciones - 3 columnas */}
+                    <div className="col-span-3 flex items-center justify-end gap-3">
+                      <Link href={`/dashboard/users/${usuario.id}`}>
+                        <button className="p-3 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600 hover:scale-105" title="Ver detalles">
+                          <Eye className="w-5 h-5" />
+                        </button>
+                      </Link>
+                      <button className="p-3 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600 hover:scale-105" title="Editar">
+                        <Edit className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
