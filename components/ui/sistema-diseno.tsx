@@ -155,10 +155,10 @@ export const TarjetaSistema = React.forwardRef<HTMLDivElement, TarjetaSistemaPro
 )
 TarjetaSistema.displayName = "TarjetaSistema"
 
-// Fondo con orbes para páginas de autenticación
+// Fondo con orbes para páginas de autenticación - Optimizado para móvil
 export const FondoAutenticacion = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-gray-50 to-white relative overflow-hidden flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-gray-50 to-white relative overflow-hidden">
       {/* Orbes flotantes optimizados */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-orange-300/20 to-orange-400/20 rounded-full blur-xl animate-pulse"></div>
@@ -167,8 +167,11 @@ export const FondoAutenticacion = ({ children }: { children: React.ReactNode }) 
         <div className="absolute bottom-20 right-20 w-28 h-28 bg-gradient-to-br from-orange-400/20 to-orange-300/20 rounded-full blur-xl animate-bounce" style={{animationDuration: '4s', animationDelay: '0.5s'}}></div>
       </div>
       
-      <div className="relative z-10 w-full max-w-md">
-        {children}
+      {/* Contenedor responsive optimizado para móvil */}
+      <div className="relative z-10 flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-md sm:max-w-lg">
+          {children}
+        </div>
       </div>
     </div>
   )
@@ -263,3 +266,132 @@ export const TextoSistema = React.forwardRef<HTMLParagraphElement, TextoSistemaP
   }
 )
 TextoSistema.displayName = "TextoSistema"
+
+// Contenedor principal para páginas del dashboard
+interface ContenedorPrincipalProps extends React.HTMLAttributes<HTMLDivElement> {
+  titulo?: string
+  descripcion?: string
+  accionPrincipal?: React.ReactNode
+}
+
+export const ContenedorPrincipal = React.forwardRef<HTMLDivElement, ContenedorPrincipalProps>(
+  ({ className, titulo, descripcion, accionPrincipal, children, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "min-h-screen bg-gray-50/50 p-4 sm:p-6 lg:p-8",
+          className
+        )}
+        {...props}
+      >
+        {/* Encabezado de página */}
+        {(titulo || descripcion || accionPrincipal) && (
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="space-y-1">
+                {titulo && (
+                  <TituloSistema nivel={1} className="text-gray-900">
+                    {titulo}
+                  </TituloSistema>
+                )}
+                {descripcion && (
+                  <TextoSistema variante="sutil" tamaño="base">
+                    {descripcion}
+                  </TextoSistema>
+                )}
+              </div>
+              {accionPrincipal && (
+                <div className="flex-shrink-0">
+                  {accionPrincipal}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Contenido principal */}
+        <div className="space-y-6">
+          {children}
+        </div>
+      </div>
+    )
+  }
+)
+ContenedorPrincipal.displayName = "ContenedorPrincipal"
+
+// Badge/Etiqueta del sistema
+interface BadgeSistemaProps extends React.HTMLAttributes<HTMLSpanElement> {
+  variante?: 'default' | 'success' | 'warning' | 'error' | 'info'
+  tamaño?: 'sm' | 'md' | 'lg'
+}
+
+export const BadgeSistema = React.forwardRef<HTMLSpanElement, BadgeSistemaProps>(
+  ({ className, variante = 'default', tamaño = 'md', ...props }, ref) => {
+    const variantes = {
+      default: "bg-gray-100 text-gray-800 border-gray-200",
+      success: "bg-green-100 text-green-800 border-green-200",
+      warning: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      error: "bg-red-100 text-red-800 border-red-200",
+      info: "bg-blue-100 text-blue-800 border-blue-200"
+    }
+    
+    const tamaños = {
+      sm: "px-2 py-1 text-xs",
+      md: "px-3 py-1 text-sm",
+      lg: "px-4 py-2 text-base"
+    }
+
+    return (
+      <span
+        ref={ref}
+        className={cn(
+          "inline-flex items-center font-medium rounded-full border",
+          variantes[variante],
+          tamaños[tamaño],
+          className
+        )}
+        {...props}
+      />
+    )
+  }
+)
+BadgeSistema.displayName = "BadgeSistema"
+
+// Separador visual
+export const SeparadorSistema = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("shrink-0 bg-gray-200 h-[1px] w-full", className)}
+    {...props}
+  />
+))
+SeparadorSistema.displayName = "SeparadorSistema"
+
+// Skeleton para estados de carga
+interface SkeletonSistemaProps extends React.HTMLAttributes<HTMLDivElement> {
+  ancho?: string
+  alto?: string
+  redondo?: boolean
+}
+
+export const SkeletonSistema = React.forwardRef<HTMLDivElement, SkeletonSistemaProps>(
+  ({ className, ancho = "100%", alto = "1rem", redondo = false, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "animate-pulse bg-gray-200",
+          redondo ? "rounded-full" : "rounded-md",
+          className
+        )}
+        style={{ width: ancho, height: alto }}
+        {...props}
+      />
+    )
+  }
+)
+SkeletonSistema.displayName = "SkeletonSistema"
