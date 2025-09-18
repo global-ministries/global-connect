@@ -45,12 +45,12 @@ export const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({ value, onCha
   };
 
   return (
-    <div className="flex gap-2 w-full">
+    <div className="flex gap-2 w-full max-w-full">
       <select
         value={prefix}
         onChange={handlePrefixChange}
-        className="h-11 px-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
-        style={{ minWidth: 120 }}
+        className="h-11 px-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 shrink-0"
+        style={{ width: 120 }}
       >
         {COUNTRY_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
@@ -63,7 +63,7 @@ export const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({ value, onCha
         value={number}
         onChange={handleNumberChange}
         placeholder="Número de teléfono"
-        className="flex-1 h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
+        className="flex-1 min-w-0 h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
       />
     </div>
   );
