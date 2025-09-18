@@ -209,8 +209,6 @@ interface TituloSistemaProps extends React.HTMLAttributes<HTMLHeadingElement> {
 
 export const TituloSistema = React.forwardRef<HTMLHeadingElement, TituloSistemaProps>(
   ({ className, nivel = 1, variante = 'default', children, ...props }, ref) => {
-    const Component = `h${nivel}` as keyof JSX.IntrinsicElements
-    
     const estilos = {
       1: "text-2xl sm:text-3xl font-bold",
       2: "text-xl sm:text-2xl font-semibold",
@@ -223,15 +221,17 @@ export const TituloSistema = React.forwardRef<HTMLHeadingElement, TituloSistemaP
       sutil: "text-gray-600"
     }
 
-    return React.createElement(
-      Component,
-      {
-        ref,
-        className: cn(estilos[nivel], variantes[variante], className),
-        ...props
-      },
-      children
-    )
+    const clases = cn(estilos[nivel], variantes[variante], className)
+
+    if (nivel === 1) {
+      return <h1 ref={ref} className={clases} {...props}>{children}</h1>
+    } else if (nivel === 2) {
+      return <h2 ref={ref} className={clases} {...props}>{children}</h2>
+    } else if (nivel === 3) {
+      return <h3 ref={ref} className={clases} {...props}>{children}</h3>
+    } else {
+      return <h4 ref={ref} className={clases} {...props}>{children}</h4>
+    }
   }
 )
 TituloSistema.displayName = "TituloSistema"
