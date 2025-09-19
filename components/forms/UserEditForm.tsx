@@ -110,9 +110,10 @@ interface UserEditFormProps {
   estados: { id: string; nombre: string; pais_id: string }[]
   municipios: { id: string; nombre: string; estado_id: string }[]
   parroquias: { id: string; nombre: string; municipio_id: string }[]
+  esPerfil?: boolean // Nueva prop para indicar si es página de perfil
 }
 
-export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estados, municipios, parroquias }: UserEditFormProps) {
+export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estados, municipios, parroquias, esPerfil = false }: UserEditFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -212,7 +213,14 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
 
       console.log('✅ updateUser completado exitosamente')
       // Si llegamos aquí, la actualización fue exitosa
-      // La Server Action se encargará de la redirección
+      // Redirección condicional según el contexto
+      if (esPerfil) {
+        // En perfil, mostrar mensaje de éxito sin redirección
+        alert('Perfil actualizado exitosamente')
+        window.location.reload() // Recargar para mostrar cambios
+      } else {
+        // En edición de usuario, la Server Action se encarga de la redirección
+      }
       
     } catch (err) {
       console.error('? Error al enviar formulario:', err)
