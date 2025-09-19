@@ -57,12 +57,6 @@ const menuItems: MenuItem[] = [
     href: '/dashboard/temporadas',
   },
   {
-    id: 'perfil',
-    label: 'Mi Perfil',
-    icon: User,
-    href: '/dashboard/perfil',
-  },
-  {
     id: 'configuracion',
     label: 'Configuración',
     icon: Settings,
@@ -230,8 +224,39 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
           </ul>
         </nav>
 
-        {/* Footer con logout */}
-        <div className="p-4 border-t border-gray-200">
+        {/* Footer con perfil y logout */}
+        <div className="p-4 border-t border-gray-200 space-y-2">
+          {/* Mi Perfil */}
+          <Link
+            href="/dashboard/perfil"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative w-full",
+              pathname === '/dashboard/perfil'
+                ? "bg-orange-50 text-orange-700 border border-orange-200" 
+                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
+              isCollapsed && "justify-center px-2"
+            )}
+          >
+            <User className={cn(
+              "flex-shrink-0 transition-colors",
+              pathname === '/dashboard/perfil' ? "text-orange-600" : "text-gray-500 group-hover:text-gray-700",
+              isCollapsed ? "w-6 h-6" : "w-5 h-5"
+            )} />
+            
+            {!isCollapsed && (
+              <span className="font-medium">Mi Perfil</span>
+            )}
+
+            {/* Tooltip para modo colapsado */}
+            {isCollapsed && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                Mi Perfil
+                <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+              </div>
+            )}
+          </Link>
+
+          {/* Cerrar Sesión */}
           <button
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative w-full text-left",

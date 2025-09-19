@@ -1,8 +1,9 @@
 "use client"
 
 import React from 'react'
+import Link from 'next/link'
 import { logout } from "@/lib/actions/auth.actions"
-import { LogOut } from 'lucide-react'
+import { LogOut, User } from 'lucide-react'
 
 export function HeaderMovil() {
   return (
@@ -16,15 +17,25 @@ export function HeaderMovil() {
           <span className="font-semibold text-gray-900">Global Connect</span>
         </div>
         
-        {/* Botón de logout */}
-        <form action={logout}>
-          <button
-            type="submit"
-            className="p-2 rounded-lg text-gray-600 hover:text-orange-600 hover:bg-orange-50/50 transition-all duration-200"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
-        </form>
+        {/* Botones de perfil y logout */}
+        <div className="flex items-center gap-2">
+          {/* Botón de perfil */}
+          <Link href="/dashboard/perfil">
+            <button className="p-2 rounded-lg text-gray-600 hover:text-orange-600 hover:bg-orange-50/50 transition-all duration-200">
+              <User className="w-5 h-5" />
+            </button>
+          </Link>
+          
+          {/* Botón de logout */}
+          <form action={logout}>
+            <button
+              type="submit"
+              className="p-2 rounded-lg text-gray-600 hover:text-orange-600 hover:bg-orange-50/50 transition-all duration-200"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

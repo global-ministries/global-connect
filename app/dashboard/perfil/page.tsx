@@ -1,4 +1,4 @@
-import { ArrowLeft, User } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { UserEditForm } from "@/components/forms/UserEditForm"
@@ -180,30 +180,21 @@ export default async function PerfilPage() {
   return (
     <DashboardLayout>
       <ContenedorDashboard
-        titulo="Mi Perfil"
+        titulo={`${usuario.nombre} ${usuario.apellido}`}
         subtitulo="Gestiona tu información personal"
-        botonRegreso={{
-          href: "/dashboard",
-          texto: "Volver al Dashboard"
-        }}
+        accionPrincipal={
+          <Link href="/dashboard">
+            <BotonSistema 
+              variante="ghost" 
+              tamaño="sm"
+              className="p-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </BotonSistema>
+          </Link>
+        }
       >
         <div className="space-y-6">
-          {/* Header con información del usuario */}
-          <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-orange-50 to-orange-100 rounded-2xl border border-orange-200">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
-              <User className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <TituloSistema nivel={2} className="text-gray-900">
-                {usuario.nombre} {usuario.apellido}
-              </TituloSistema>
-              <p className="text-gray-600">{usuario.email}</p>
-              {usuario.telefono && (
-                <p className="text-gray-500 text-sm">{usuario.telefono}</p>
-              )}
-            </div>
-          </div>
-
           {/* Formulario de Edición */}
           <UserEditForm 
             usuario={usuarioCompleto}
