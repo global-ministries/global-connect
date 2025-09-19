@@ -10,8 +10,14 @@ import { useRouter } from "next/navigation";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 
-const MapModal = dynamic(() => import("@/components/modals/MapModal"), { ssr: false });
-const AddMemberModal = dynamic(() => import("@/components/modals/AddMemberModal"), { ssr: false });
+const MapModal = dynamic(() => import("@/components/modals/MapModal"), { 
+  ssr: false,
+  loading: () => <div>Cargando mapa...</div>
+});
+const AddMemberModal = dynamic(() => import("@/components/modals/AddMemberModal"), { 
+  ssr: false,
+  loading: () => <div>Cargando...</div>
+});
 
 import { ReactNode } from "react";
 
@@ -154,13 +160,20 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   };
 
   return (
-    <ContenedorDashboard 
+    <ContenedorDashboard
       titulo={grupo.nombre}
-      subtitulo={`${grupo.segmento_nombre || "Sin segmento"} • ${grupo.temporada_nombre || "Sin temporada"}`}
-      botonRegreso={{
-        href: "/dashboard/grupos",
-        texto: "Volver a Grupos"
-      }}
+      subtitulo={`${grupo.segmento_nombre} • ${grupo.temporada_nombre}`}
+      accionPrincipal={
+        <Link href="/dashboard/grupos">
+          <BotonSistema 
+            variante="ghost" 
+            tamaño="sm"
+            className="p-2"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </BotonSistema>
+        </Link>
+      }
     >
 
       {/* Tarjeta Principal del Grupo */}
@@ -206,7 +219,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 <Link href={`/dashboard/grupos/${id}/asistencia`} className="col-span-2 sm:col-span-1">
                   <BotonSistema variante="primario" className="w-full h-10 text-sm">
                     <Users className="w-4 h-4" />
-                    <span className="ml-2">Tomar Asistencia</span>
+                    <span className="ml-2">Asistencia</span>
                   </BotonSistema>
                 </Link>
               )}

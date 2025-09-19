@@ -1,6 +1,7 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
-import { LucideIcon } from 'lucide-react'
+import { LucideIcon, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
 // Colores de marca definidos
 export const coloresMarca = {
@@ -324,12 +325,17 @@ ContenedorPrincipal.displayName = "ContenedorPrincipal"
 interface ContenedorDashboardProps extends React.HTMLAttributes<HTMLDivElement> {
   titulo?: string
   descripcion?: string
+  subtitulo?: string
   accionPrincipal?: React.ReactNode
   breadcrumbs?: React.ReactNode
+  botonRegreso?: {
+    href: string
+    texto: string
+  }
 }
 
 export const ContenedorDashboard = React.forwardRef<HTMLDivElement, ContenedorDashboardProps>(
-  ({ className, titulo, descripcion, accionPrincipal, breadcrumbs, children, ...props }, ref) => {
+  ({ className, titulo, descripcion, subtitulo, accionPrincipal, breadcrumbs, botonRegreso, children, ...props }, ref) => {
     return (
       <div
         ref={ref}
@@ -355,11 +361,28 @@ export const ContenedorDashboard = React.forwardRef<HTMLDivElement, ContenedorDa
                   {accionPrincipal}
                 </div>
               )}
-              {titulo && (
-                <TituloSistema nivel={1} className="text-gray-900">
-                  {titulo}
-                </TituloSistema>
-              )}
+              <div className="flex items-center gap-4">
+                {botonRegreso && (
+                  <Link href={botonRegreso.href}>
+                    <BotonSistema variante="outline" tamaño="sm">
+                      <ArrowLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline ml-2">{botonRegreso.texto}</span>
+                    </BotonSistema>
+                  </Link>
+                )}
+                <div>
+                  {titulo && (
+                    <TituloSistema nivel={1} className="text-gray-900">
+                      {titulo}
+                    </TituloSistema>
+                  )}
+                  {subtitulo && (
+                    <TextoSistema variante="sutil" tamaño="base">
+                      {subtitulo}
+                    </TextoSistema>
+                  )}
+                </div>
+              </div>
               {descripcion && (
                 <TextoSistema variante="sutil" tamaño="base" className="hidden sm:block">
                   {descripcion}

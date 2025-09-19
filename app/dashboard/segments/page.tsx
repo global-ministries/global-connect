@@ -1,17 +1,10 @@
-
-
 import type { ReactNode } from "react"
 import { redirect } from "next/navigation"
 import { Layers, Edit, Trash2, Plus } from "lucide-react"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
-function GlassCard({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={`backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 lg:p-8 shadow-2xl ${className}`}>
-      {children}
-    </div>
-  )
-}
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema } from "@/components/ui/sistema-diseno"
 
 export default async function Page() {
   // Instancia única de supabase para toda la página
@@ -37,61 +30,98 @@ export default async function Page() {
     .order("nombre", { ascending: true });
 
   return (
-    <div className="space-y-6">
-      {/* Header GlassCard */}
-      <GlassCard>
-        <div className="flex items-center gap-4 mb-2">
-          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-            <Layers className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
+    <DashboardLayout>
+      <ContenedorDashboard
+        titulo="Segmentos"
+        subtitulo="Administra las categorías de tus grupos"
+      >
+        {/* Lista de Segmentos */}
+        <div className="space-y-4">
+          {/* Encabezado con título */}
+          <div className="flex items-center justify-between">
+            <TituloSistema nivel={2}>Lista de Segmentos</TituloSistema>
+            <BotonSistema variante="primario" tamaño="md">
+              <Plus className="w-4 h-4 mr-2" />
+              Crear Segmento
+            </BotonSistema>
           </div>
-          <div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Gestión de Segmentos</h2>
-            <p className="text-gray-600 text-sm lg:text-base">Administra las categorías de tus grupos</p>
-          </div>
-        </div>
-      </GlassCard>
 
-      {/* Lista de Segmentos */}
-      <GlassCard>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg lg:text-xl font-bold text-gray-800 mb-1">Lista de Segmentos</h3>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
-            <Plus className="w-4 h-4" />
-            Crear Segmento
-          </button>
+          {/* Lista responsive */}
+          <div className="space-y-2 sm:space-y-3">
+            {segmentos && segmentos.length > 0 ? (
+              segmentos.map(segmento => (
+                <div key={segmento.id}>
+                  {/* Versión Móvil - Lista Simple */}
+                  <div className="sm:hidden flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Layers className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 truncate">
+                        {segmento.nombre}
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <BotonSistema variante="ghost" tamaño="sm">
+                        <Edit className="w-4 h-4" />
+                      </BotonSistema>
+                      <BotonSistema variante="ghost" tamaño="sm">
+                        <Trash2 className="w-4 h-4" />
+                      </BotonSistema>
+                    </div>
+                  </div>
+
+                  {/* Versión Desktop - Tarjeta Completa */}
+                  <TarjetaSistema className="hidden sm:block">
+                    <div className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Layers className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <TituloSistema nivel={4} className="text-gray-900">
+                            {segmento.nombre}
+                          </TituloSistema>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <BotonSistema variante="outline" tamaño="sm">
+                          <Edit className="w-4 h-4 mr-2" />
+                          Editar
+                        </BotonSistema>
+                        <BotonSistema variante="outline" tamaño="sm">
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Eliminar
+                        </BotonSistema>
+                      </div>
+                    </div>
+                  </TarjetaSistema>
+                </div>
+              ))
+            ) : (
+              <TarjetaSistema className="p-8 text-center">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                    <Layers className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <div>
+                    <TituloSistema nivel={3} variante="sutil" className="mb-2">
+                      No hay segmentos registrados
+                    </TituloSistema>
+                    <TextoSistema variante="sutil">
+                      Comienza creando el primer segmento para organizar tus grupos
+                    </TextoSistema>
+                  </div>
+                  <BotonSistema variante="primario" tamaño="md">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear Primer Segmento
+                  </BotonSistema>
+                </div>
+              </TarjetaSistema>
+            )}
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre del Segmento</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {segmentos && segmentos.length > 0 ? (
-                segmentos.map(segmento => (
-                  <tr key={segmento.id} className="bg-white/40 hover:bg-orange-50/40 transition-all">
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-800 font-medium">{segmento.nombre}</td>
-                    <td className="px-6 py-4 whitespace-nowrap flex gap-2">
-                      <button className="p-2 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600" title="Editar">
-                        <Edit className="w-5 h-5" />
-                      </button>
-                      <button className="p-2 hover:bg-red-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-red-600" title="Eliminar">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={2} className="px-6 py-8 text-center text-gray-500">No hay segmentos registrados.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </GlassCard>
-    </div>
+      </ContenedorDashboard>
+    </DashboardLayout>
   )
 }

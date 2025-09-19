@@ -1,6 +1,9 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import AttendanceRegister from '@/components/grupos/AttendanceRegister.client'
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 
 export default async function RegistrarAsistenciaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -8,7 +11,21 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return (
-      <div className="p-8">Debes iniciar sesión.</div>
+      <DashboardLayout>
+        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
+              <p className="text-gray-600 mb-4">Debes iniciar sesión para acceder a esta página.</p>
+              <Link href="/login">
+                <BotonSistema variante="primario">
+                  Iniciar Sesión
+                </BotonSistema>
+              </Link>
+            </div>
+          </div>
+        </ContenedorDashboard>
+      </DashboardLayout>
     )
   }
 
@@ -19,10 +36,22 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
 
   if (!grupo || !puedeEditar) {
     return (
-      <div className="p-8">
-        <p className="mb-4">No tienes permiso para registrar asistencia en este grupo.</p>
-        <Link href={`/dashboard/grupos/${id}`} className="text-orange-600 underline">Volver al grupo</Link>
-      </div>
+      <DashboardLayout>
+        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <TituloSistema nivel={2}>Sin permisos</TituloSistema>
+              <p className="text-gray-600 mb-4">No tienes permiso para registrar asistencia en este grupo.</p>
+              <Link href={`/dashboard/grupos/${id}`}>
+                <BotonSistema variante="primario">
+                  Volver al grupo
+                </BotonSistema>
+              </Link>
+            </div>
+          </div>
+        </ContenedorDashboard>
+      </DashboardLayout>
     )
   }
 
@@ -33,24 +62,33 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Registrar asistencia - {grupo.nombre}</h1>
-          <p className="text-muted-foreground">Marca presentes y guarda en un clic.</p>
-        </div>
-        <Link href={`/dashboard/grupos/${id}`} className="text-orange-600 underline">Volver</Link>
-      </div>
-      {/** Normalizamos miembros al shape esperado por el componente */}
-      <AttendanceRegister
-        grupoId={id}
-        miembros={(grupo.miembros || []).map((m: { id: string; nombre: string; apellido: string; rol?: string | null }) => ({
-          id: m.id,
-          nombre: m.nombre,
-          apellido: m.apellido,
-          rol: m.rol || undefined,
-        }))}
-      />
-    </div>
+    <DashboardLayout>
+      <ContenedorDashboard
+        titulo={`Registrar Asistencia - ${grupo.nombre}`}
+        descripcion="Marca presentes y guarda en un clic."
+        accionPrincipal={
+          <Link href={`/dashboard/grupos/${id}`}>
+            <BotonSistema 
+              variante="ghost" 
+              tamaño="sm"
+              className="p-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </BotonSistema>
+          </Link>
+        }
+      >
+        {/** Normalizamos miembros al shape esperado por el componente */}
+        <AttendanceRegister
+          grupoId={id}
+          miembros={(grupo.miembros || []).map((m: { id: string; nombre: string; apellido: string; rol?: string | null }) => ({
+            id: m.id,
+            nombre: m.nombre,
+            apellido: m.apellido,
+            rol: m.rol || undefined,
+          }))}
+        />
+      </ContenedorDashboard>
+    </DashboardLayout>
   )
 }
