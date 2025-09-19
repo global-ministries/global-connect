@@ -2,7 +2,7 @@
 
 import { Users, UsersRound, Activity, UserCheck, Calendar, TrendingUp, MapPin } from "lucide-react"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { ContenedorDashboard, TextoSistema } from '@/components/ui/sistema-diseno'
 import { useSwapy } from '@/hooks/useSwapy'
 import { MetricWidget } from '@/components/dashboard/widgets/MetricWidget'
 import { DonutWidget } from '@/components/dashboard/widgets/DonutWidget'
@@ -11,7 +11,7 @@ import { StatsWidget } from '@/components/dashboard/widgets/StatsWidget'
 import { QuickActionsWidget } from '@/components/dashboard/widgets/QuickActionsWidget'
 
 export default function PaginaTablero() {
-  const { containerRef } = useSwapy({
+  const { containerRef, isMobile } = useSwapy({
     onSwap: (event) => {
       console.log('Tarjetas intercambiadas:', event)
       // Aquí podrías guardar el nuevo orden en localStorage o base de datos
@@ -92,8 +92,17 @@ export default function PaginaTablero() {
     <DashboardLayout>
       <ContenedorDashboard
         titulo="Dashboard"
-        subtitulo="Resumen interactivo de tu comunidad"
+        subtitulo={isMobile ? "Resumen de tu comunidad" : "Resumen interactivo de tu comunidad"}
       >
+        {/* Indicador de scroll en móvil */}
+        {isMobile && (
+          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <TextoSistema tamaño="sm" className="text-orange-700">
+              💡 En móvil puedes hacer scroll normalmente. El reordenamiento está disponible en desktop.
+            </TextoSistema>
+          </div>
+        )}
+
         {/* Grid de tarjetas reordenables */}
         <div 
           ref={containerRef}

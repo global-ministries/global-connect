@@ -27,7 +27,7 @@ export function DashboardCard({
   return (
     <div data-swapy-slot={id}>
       <div data-swapy-item={id}>
-        <TarjetaSistema className={`p-6 h-full cursor-grab active:cursor-grabbing hover:shadow-lg transition-all duration-200 ${className}`}>
+        <TarjetaSistema className={`p-6 h-full md:cursor-grab md:active:cursor-grabbing hover:shadow-lg transition-all duration-200 ${className}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               {Icon && (
