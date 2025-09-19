@@ -2,13 +2,12 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react"
 import Link from "next/link"
-import { Eye, Edit, Trash2, Plus, Users2, Sparkles, UserPlus, Filter } from "lucide-react"
+import { Eye, Edit, Trash2, Plus, Users2, Sparkles, UserPlus, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import FiltrosGrupos, { type FiltrosGruposState } from "@/components/ui/FiltrosGrupos"
-import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno"
 
 type Segmento = { id: string; nombre: string }
 type Temporada = { id: string; nombre: string }
@@ -89,6 +88,7 @@ export default function GruposListClient({
   const pathname = usePathname()
   const sp = useSearchParams()
   const [filtros, setFiltros] = useState<FiltrosGruposState>({})
+  const [mostrarTodosKpis, setMostrarTodosKpis] = useState(false)
 
   const segmentoNombreById = useMemo(() => {
     const m = new Map<string, string>()
@@ -165,9 +165,41 @@ export default function GruposListClient({
   }, [filtros])
 
   return (
-    <div className="space-y-4">
-      {/* KPIs responsivos - Estilo mejorado */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-6">
+      {/* KPIs responsivos - Móvil: solo total + botón, Desktop: todos */}
+      <div className="md:hidden">
+        <div className="grid grid-cols-1 gap-4">
+          <KpiCard title="Total de Grupos" value={kpis.total} gradient="from-blue-500 to-cyan-500" Icon={Users2} />
+          {mostrarTodosKpis && (
+            <>
+              <KpiCard title="Grupos Activos" value={kpis.activos} gradient="from-green-500 to-emerald-500" Icon={Sparkles} />
+              <KpiCard title="Nuevos Grupos" subtitle="Este mes" value={kpis.nuevosMes} gradient="from-orange-500 to-red-500" Icon={UserPlus} />
+              <KpiCard title="Total Miembros" subtitle="En grupos" value={kpis.totalMiembros} gradient="from-purple-500 to-pink-500" Icon={Users2} />
+            </>
+          )}
+          <BotonSistema 
+            variante="outline" 
+            tamaño="sm"
+            onClick={() => setMostrarTodosKpis(!mostrarTodosKpis)}
+            className="w-full"
+          >
+            {mostrarTodosKpis ? (
+              <>
+                <ChevronUp className="w-4 h-4 mr-2" />
+                Mostrar menos
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4 mr-2" />
+                Ver todas las estadísticas
+              </>
+            )}
+          </BotonSistema>
+        </div>
+      </div>
+      
+      {/* Desktop: mostrar todas las KPIs */}
+      <div className="hidden md:grid md:grid-cols-4 gap-4">
         <KpiCard title="Total de Grupos" value={kpis.total} gradient="from-blue-500 to-cyan-500" Icon={Users2} />
         <KpiCard title="Grupos Activos" value={kpis.activos} gradient="from-green-500 to-emerald-500" Icon={Sparkles} />
         <KpiCard title="Nuevos Grupos" subtitle="Este mes" value={kpis.nuevosMes} gradient="from-orange-500 to-red-500" Icon={UserPlus} />
@@ -179,30 +211,31 @@ export default function GruposListClient({
         <div className="flex items-center gap-2">
             <Sheet>
             <SheetTrigger asChild>
-                <Button variant="secondary" className="relative flex items-center gap-2">
-                  <Filter className="w-4 h-4" /> Filtros
+                <BotonSistema variante="outline" tamaño="sm" className="relative min-w-0">
+                  <Filter className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline ml-2">Filtros</span>
                   {filtrosActivos > 0 && (
-                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-orange-600 text-white text-[10px] w-4 h-4">
+                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-orange-600 text-white text-[10px] w-4 h-4 z-10">
                       {filtrosActivos}
                     </span>
                   )}
-                </Button>
+                </BotonSistema>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:max-w-md">
-              <SheetHeader>
-                <SheetTitle>Filtros de grupos</SheetTitle>
+            <SheetContent side="right" className="w-full sm:max-w-md p-0">
+              <SheetHeader className="px-6 py-4 border-b border-gray-200">
+                <SheetTitle className="text-lg font-semibold text-gray-900">Filtros de grupos</SheetTitle>
               </SheetHeader>
-              <div className="p-4">
+              <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
                 <FiltrosGrupos filtros={filtros} onFiltrosChange={onFiltrosChange} segmentos={segmentos} temporadas={temporadas} municipios={municipios || []} parroquias={parroquias || []} />
               </div>
             </SheetContent>
           </Sheet>
           {canCreate && (
             <Link href="/dashboard/grupos/create">
-              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg">
-                <Plus className="w-4 h-4" />
-                Crear Grupo
-              </button>
+              <BotonSistema variante="primario" tamaño="sm" className="min-w-0">
+                <Plus className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden sm:inline ml-2">Crear Grupo</span>
+              </BotonSistema>
             </Link>
           )}
         </div>
@@ -210,117 +243,147 @@ export default function GruposListClient({
 
 
       {/* Lista responsiva - Desktop: tabla, Móvil: tarjetas */}
-      <div className="hidden lg:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead>
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre del Grupo</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmento</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temporada</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {gruposFiltrados && gruposFiltrados.length > 0 ? (
-              gruposFiltrados.map((grupo) => (
-                <tr key={grupo.id} className="bg-white/40 hover:bg-orange-50/40 transition-all">
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-800 font-medium">
-                    <div className="flex flex-col">
-                      <span className="text-gray-800 font-semibold">{grupo.nombre}</span>
-                      {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 && (
-                        <span className="text-xs text-gray-500 mt-1">
-                          {grupo.lideres.map((l) => l.nombre_completo).filter(Boolean).join(", ")}
-                        </span>
-                      )}
+      <TarjetaSistema className="hidden md:block">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grupo</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Líder</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmento</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temporada</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {gruposFiltrados && gruposFiltrados.length > 0 ? (
+                gruposFiltrados.map((grupo) => (
+                  <tr key={grupo.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        {/* Placeholder para imagen horizontal - más grande en desktop */}
+                        <div className="w-16 h-10 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
+                        <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
+                          <div className="font-medium text-gray-900 hover:underline cursor-pointer">{grupo.nombre}</div>
+                        </Link>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 
+                        ? grupo.lideres.map((l) => l.nombre_completo).filter(Boolean).join(", ")
+                        : "Sin líder asignado"
+                      }
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <BadgeSistema 
+                        variante="default" 
+                        tamaño="sm"
+                        className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}
+                      >
+                        {grupo.segmento_nombre || "Sin segmento"}
+                      </BadgeSistema>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {grupo.temporada_nombre || "Sin temporada"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <BadgeSistema 
+                        variante={grupo.activo ? "success" : "default"}
+                        tamaño="sm"
+                      >
+                        {grupo.activo ? "Activo" : "Inactivo"}
+                      </BadgeSistema>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Users2 className="w-12 h-12 text-gray-300" />
+                      <div>
+                        <p className="text-gray-500 font-medium">No hay grupos registrados</p>
+                        <p className="text-gray-400 text-sm">No hay grupos que coincidan con los filtros</p>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}>
-                      {grupo.segmento_nombre || "Sin segmento"}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">{grupo.temporada_nombre || "Sin temporada"}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge variant={grupo.activo ? "default" : "secondary"}>
-                      {grupo.activo ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap flex gap-2">
-                    <Link href={`/dashboard/grupos/${grupo.id}`}>
-                      <button className="p-2 hover:bg-blue-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-blue-600" title="Ver">
-                        <Eye className="w-5 h-5" />
-                      </button>
-                    </Link>
-                    <button className="p-2 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600" title="Editar">
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button className="p-2 hover:bg-red-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-red-600" title="Eliminar">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No hay grupos que coincidan con los filtros.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </TarjetaSistema>
 
       {/* Vista móvil - Tarjetas */}
-      <div className="lg:hidden space-y-4">
+      <div className="md:hidden space-y-4">
         {gruposFiltrados && gruposFiltrados.length > 0 ? (
           gruposFiltrados.map((grupo) => (
-            <div key={grupo.id} className="backdrop-blur-2xl bg-white/30 border border-white/20 rounded-2xl p-4 shadow-2xl">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-800 text-lg mb-1">{grupo.nombre}</h4>
-                  {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 && (
-                    <p className="text-sm text-gray-500 mb-2">
-                      {grupo.lideres.map((l) => l.nombre_completo).filter(Boolean).join(", ")}
-                    </p>
-                  )}
+            <TarjetaSistema key={grupo.id} className="p-4">
+              <div className="flex items-start gap-3">
+                {/* Placeholder para imagen horizontal */}
+                <div className="w-12 h-8 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
+                        <h3 className="font-semibold text-gray-900 truncate hover:underline cursor-pointer">{grupo.nombre}</h3>
+                      </Link>
+                    </div>
+                    <BadgeSistema 
+                      variante={grupo.activo ? "success" : "default"}
+                      tamaño="sm"
+                      className="ml-2 flex-shrink-0"
+                    >
+                      {grupo.activo ? "Activo" : "Inactivo"}
+                    </BadgeSistema>
+                  </div>
+                  
+                  <div className="space-y-1 text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Líder:</span>{" "}
+                      <span>
+                        {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 
+                          ? grupo.lideres.map((l) => l.nombre_completo).filter(Boolean).join(", ")
+                          : "Sin líder asignado"
+                        }
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Segmento:</span>
+                      <BadgeSistema 
+                        variante="default" 
+                        tamaño="sm"
+                        className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}
+                      >
+                        {grupo.segmento_nombre || "Sin segmento"}
+                      </BadgeSistema>
+                    </div>
+                    <div>
+                      <span className="font-medium">Temporada:</span>{" "}
+                      <span>{grupo.temporada_nombre || "Sin temporada"}</span>
+                    </div>
+                  </div>
                 </div>
-                <Badge variant={grupo.activo ? "default" : "secondary"} className="ml-2">
-                  {grupo.activo ? "Activo" : "Inactivo"}
-                </Badge>
               </div>
-              
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 w-20">Segmento:</span>
-                  <Badge className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}>
-                    {grupo.segmento_nombre || "Sin segmento"}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 w-20">Temporada:</span>
-                  <span className="text-sm text-gray-700">{grupo.temporada_nombre || "Sin temporada"}</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-end gap-2">
-                <Link href={`/dashboard/grupos/${grupo.id}`}>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl transition-all duration-200 text-white shadow-lg text-sm">
-                    <Eye className="w-4 h-4" />
-                    Ver Grupo
-                  </button>
-                </Link>
-                <button className="p-2 hover:bg-orange-100/60 rounded-xl transition-all duration-200 text-gray-600 hover:text-orange-600" title="Editar">
-                  <Edit className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            </TarjetaSistema>
           ))
         ) : (
-          <div className="backdrop-blur-2xl bg-white/30 border border-white/20 rounded-2xl p-8 text-center shadow-2xl">
-            <Users2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg font-medium mb-2">No hay grupos disponibles</p>
-            <p className="text-gray-400 text-sm">No hay grupos que coincidan con los filtros seleccionados.</p>
-          </div>
+          <TarjetaSistema className="p-8">
+            <div className="text-center">
+              <Users2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay grupos disponibles</h3>
+              <p className="text-gray-500 mb-6">No hay grupos que coincidan con los filtros seleccionados</p>
+              {canCreate && (
+                <Link href="/dashboard/grupos/create">
+                  <BotonSistema variante="primario">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear Primer Grupo
+                  </BotonSistema>
+                </Link>
+              )}
+            </div>
+          </TarjetaSistema>
         )}
       </div>
 
@@ -337,7 +400,7 @@ export default function GruposListClient({
 
 function KpiCard({ title, subtitle, value, gradient, Icon }: { title: string; subtitle?: string; value: number; gradient: string; Icon: React.ComponentType<any> }) {
   return (
-    <div className="backdrop-blur-2xl bg-white/30 border border-white/20 rounded-2xl p-4 shadow-2xl hover:scale-105 transition-all duration-200">
+    <TarjetaSistema className="p-4 hover:scale-105 transition-all duration-200">
       <div className="flex items-center justify-between mb-3">
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white bg-gradient-to-br shadow-lg", gradient)}>
           <Icon className="w-5 h-5" />
@@ -352,7 +415,7 @@ function KpiCard({ title, subtitle, value, gradient, Icon }: { title: string; su
           <div className="text-xs text-gray-500">{subtitle}</div>
         )}
       </div>
-    </div>
+    </TarjetaSistema>
   )
 }
 
@@ -369,9 +432,13 @@ function PaginationControls({ totalCount, pageSize }: { totalCount: number; page
   }
   return (
     <div className="flex items-center justify-between mt-4">
-      <Button variant="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</Button>
+      <BotonSistema variante="outline" tamaño="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+        Anterior
+      </BotonSistema>
       <div className="text-sm text-gray-600">Página {page} de {totalPages}</div>
-      <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente</Button>
+      <BotonSistema variante="outline" tamaño="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+        Siguiente
+      </BotonSistema>
     </div>
   )
 }

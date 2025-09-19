@@ -1,6 +1,7 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
-import { LucideIcon } from 'lucide-react'
+import { LucideIcon, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 
 // Colores de marca definidos
 export const coloresMarca = {
@@ -280,7 +281,7 @@ export const ContenedorPrincipal = React.forwardRef<HTMLDivElement, ContenedorPr
       <div
         ref={ref}
         className={cn(
-          "min-h-screen bg-gray-50/50 p-4 sm:p-6 lg:p-8",
+          "min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8",
           className
         )}
         {...props}
@@ -319,6 +320,95 @@ export const ContenedorPrincipal = React.forwardRef<HTMLDivElement, ContenedorPr
   }
 )
 ContenedorPrincipal.displayName = "ContenedorPrincipal"
+
+// Contenedor específico para páginas del dashboard con sidebar
+interface ContenedorDashboardProps extends React.HTMLAttributes<HTMLDivElement> {
+  titulo?: string
+  descripcion?: string
+  subtitulo?: string
+  accionPrincipal?: React.ReactNode
+  breadcrumbs?: React.ReactNode
+  botonRegreso?: {
+    href: string
+    texto: string
+  }
+}
+
+export const ContenedorDashboard = React.forwardRef<HTMLDivElement, ContenedorDashboardProps>(
+  ({ className, titulo, descripcion, subtitulo, accionPrincipal, breadcrumbs, botonRegreso, children, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "flex-1 overflow-auto bg-gray-50",
+          className
+        )}
+        {...props}
+      >
+        {/* Header fijo */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-20 py-4">
+          {breadcrumbs && (
+            <div className="mb-2">
+              {breadcrumbs}
+            </div>
+          )}
+          
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* En móvil: alineación horizontal del título con la acción */}
+            <div className="flex items-center gap-4 sm:block sm:space-y-1">
+              {accionPrincipal && (
+                <div className="flex-shrink-0 sm:hidden">
+                  {accionPrincipal}
+                </div>
+              )}
+              <div className="flex items-center gap-4">
+                {botonRegreso && (
+                  <Link href={botonRegreso.href}>
+                    <BotonSistema variante="outline" tamaño="sm">
+                      <ArrowLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline ml-2">{botonRegreso.texto}</span>
+                    </BotonSistema>
+                  </Link>
+                )}
+                <div>
+                  {titulo && (
+                    <TituloSistema nivel={1} className="text-gray-900">
+                      {titulo}
+                    </TituloSistema>
+                  )}
+                  {subtitulo && (
+                    <TextoSistema variante="sutil" tamaño="base">
+                      {subtitulo}
+                    </TextoSistema>
+                  )}
+                </div>
+              </div>
+              {descripcion && (
+                <TextoSistema variante="sutil" tamaño="base" className="hidden sm:block">
+                  {descripcion}
+                </TextoSistema>
+              )}
+            </div>
+            {/* En desktop: acción a la derecha */}
+            {accionPrincipal && (
+              <div className="flex-shrink-0 hidden sm:block">
+                {accionPrincipal}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Contenido scrolleable */}
+        <div className="p-4 sm:p-6 lg:p-20">
+          <div className="space-y-6">
+            {children}
+          </div>
+        </div>
+      </div>
+    )
+  }
+)
+ContenedorDashboard.displayName = "ContenedorDashboard"
 
 // Badge/Etiqueta del sistema
 interface BadgeSistemaProps extends React.HTMLAttributes<HTMLSpanElement> {

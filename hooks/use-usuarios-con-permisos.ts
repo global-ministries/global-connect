@@ -29,6 +29,7 @@ interface FiltrosUsuarios {
   roles: string[]
   con_email: boolean | null
   con_telefono: boolean | null
+  limite?: number
 }
 
 interface UseUsuariosConPermisosReturn {
@@ -72,7 +73,8 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
     busqueda: '',
     roles: [],
     con_email: null,
-    con_telefono: null
+    con_telefono: null,
+    limite: 20
   })
 
   const { toast } = useToast()
@@ -101,7 +103,8 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
         throw new Error('Usuario no autenticado')
       }
 
-      const offset = (paginaActual - 1) * USUARIOS_POR_PAGINA
+      const limite = filtros.limite || 20
+      const offset = (paginaActual - 1) * limite
 
       const { data, error: errorRPC } = await supabase.rpc('listar_usuarios_con_permisos', {
         p_auth_id: user.id,
@@ -109,7 +112,7 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
         p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : null,
         p_con_email: filtros.con_email,
         p_con_telefono: filtros.con_telefono,
-        p_limite: USUARIOS_POR_PAGINA,
+        p_limite: limite,
         p_offset: offset
       })
 
@@ -219,18 +222,21 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
   }, [cargarUsuarios, cargarEstadisticas])
 
   const limpiarFiltros = useCallback(() => {
+    setPaginaActual(1)
     setFiltros({
       busqueda: '',
       roles: [],
       con_email: null,
-      con_telefono: null
+      con_telefono: null,
+      limite: 20
     })
   }, [])
 
   // Valores calculados
   const totalPaginas = useMemo(() => {
-    return Math.ceil(totalUsuarios / USUARIOS_POR_PAGINA)
-  }, [totalUsuarios])
+    const limite = filtros.limite || 20
+    return Math.ceil(totalUsuarios / limite)
+  }, [totalUsuarios, filtros.limite])
 
   const hayMasPaginas = useMemo(() => {
     return paginaActual < totalPaginas

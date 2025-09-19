@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation"
 import { createUser } from "@/lib/actions/user.actions"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { InputSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { User, Mail, Phone, Calendar, Users } from "lucide-react"
 
 const userCreateSchema = z.object({
   nombre: z.string().min(2, "El nombre es requerido"),
@@ -54,85 +53,149 @@ export default function UserCreateForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="nombre">Nombre *</Label>
-          <Input id="nombre" {...register("nombre")} placeholder="Nombre" />
-          {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre.message}</p>}
+    <TarjetaSistema>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Información Personal */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <User className="w-5 h-5" />
+            Información Personal
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputSistema
+              label="Nombre *"
+              placeholder="Nombre"
+              icono={User}
+              error={errors.nombre?.message}
+              {...register("nombre")}
+            />
+            
+            <InputSistema
+              label="Apellido *"
+              placeholder="Apellido"
+              error={errors.apellido?.message}
+              {...register("apellido")}
+            />
+            
+            <InputSistema
+              label="Cédula"
+              placeholder="Número de cédula"
+              {...register("cedula")}
+            />
+            
+            <InputSistema
+              label="Fecha de Nacimiento"
+              type="date"
+              icono={Calendar}
+              {...register("fecha_nacimiento")}
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="apellido">Apellido *</Label>
-          <Input id="apellido" {...register("apellido")} placeholder="Apellido" />
-          {errors.apellido && <p className="text-red-500 text-sm">{errors.apellido.message}</p>}
+
+        {/* Información de Contacto */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <Mail className="w-5 h-5" />
+            Contacto
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputSistema
+              label="Email"
+              type="email"
+              placeholder="correo@ejemplo.com"
+              icono={Mail}
+              error={errors.email?.message}
+              {...register("email")}
+            />
+            
+            <InputSistema
+              label="Teléfono"
+              placeholder="Número de teléfono"
+              icono={Phone}
+              {...register("telefono")}
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="cedula">Cédula</Label>
-          <Input id="cedula" {...register("cedula")} placeholder="Cédula" />
+
+        {/* Información Adicional */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Información Adicional
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Género *
+              </label>
+              <Controller
+                name="genero"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full py-3 px-3 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200">
+                      <SelectValue placeholder="Selecciona el género" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Masculino">Masculino</SelectItem>
+                      <SelectItem value="Femenino">Femenino</SelectItem>
+                      <SelectItem value="Otro">Otro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.genero && <p className="text-red-500 text-sm mt-1">{errors.genero.message}</p>}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Estado Civil *
+              </label>
+              <Controller
+                name="estado_civil"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full py-3 px-3 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200">
+                      <SelectValue placeholder="Selecciona el estado civil" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Soltero">Soltero</SelectItem>
+                      <SelectItem value="Casado">Casado</SelectItem>
+                      <SelectItem value="Divorciado">Divorciado</SelectItem>
+                      <SelectItem value="Viudo">Viudo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.estado_civil && <p className="text-red-500 text-sm mt-1">{errors.estado_civil.message}</p>}
+            </div>
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" {...register("email")} placeholder="Email" />
-          {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+
+        {/* Error general */}
+        {errors.root && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 text-center font-medium">{errors.root.message}</p>
+          </div>
+        )}
+
+        {/* Botón de envío */}
+        <div className="pt-4">
+          <BotonSistema
+            type="submit"
+            variante="primario"
+            tamaño="lg"
+            disabled={isSubmitting}
+            className="w-full md:w-auto md:min-w-[200px] md:ml-auto md:block"
+          >
+            {isSubmitting ? 'Creando...' : 'Crear y Continuar'}
+          </BotonSistema>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="telefono">Teléfono</Label>
-          <Input id="telefono" {...register("telefono")} placeholder="Teléfono" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
-          <Input id="fecha_nacimiento" type="date" {...register("fecha_nacimiento")} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="genero">Género *</Label>
-          <Controller
-            name="genero"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="genero">
-                  <SelectValue placeholder="Selecciona el género" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Masculino">Masculino</SelectItem>
-                  <SelectItem value="Femenino">Femenino</SelectItem>
-                  <SelectItem value="Otro">Otro</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.genero && <p className="text-red-500 text-sm">{errors.genero.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="estado_civil">Estado Civil *</Label>
-          <Controller
-            name="estado_civil"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="estado_civil">
-                  <SelectValue placeholder="Selecciona el estado civil" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Soltero">Soltero</SelectItem>
-                  <SelectItem value="Casado">Casado</SelectItem>
-                  <SelectItem value="Divorciado">Divorciado</SelectItem>
-                  <SelectItem value="Viudo">Viudo</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.estado_civil && <p className="text-red-500 text-sm">{errors.estado_civil.message}</p>}
-        </div>
-      </div>
-      {errors.root && (
-        <div className="text-red-600 text-center font-medium mb-4">{errors.root.message}</div>
-      )}
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isSubmitting} className="px-8 py-3 h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl">
-          {isSubmitting ? 'Creando...' : 'Crear y Continuar'}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </TarjetaSistema>
   )
 }
