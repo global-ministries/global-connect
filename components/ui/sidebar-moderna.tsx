@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
-  Calendar
+  Calendar,
+  User
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
 
@@ -54,6 +55,12 @@ const menuItems: MenuItem[] = [
     label: 'Temporadas',
     icon: Calendar,
     href: '/dashboard/temporadas',
+  },
+  {
+    id: 'perfil',
+    label: 'Mi Perfil',
+    icon: User,
+    href: '/dashboard/perfil',
   },
   {
     id: 'configuracion',
