@@ -2,7 +2,7 @@
 
 import { useMemo, useCallback } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
+import { BotonSistema } from "@/components/ui/sistema-diseno"
 
 type Segmento = { id: string; nombre: string }
 type Temporada = { id: string; nombre: string }
@@ -46,13 +46,13 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
   }, [parroquias, filtros.municipioId])
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 w-full">
+    <div className="flex flex-col gap-6 p-6">
+      <div className="space-y-4">
         {/* Segmento */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-600">Filtrar por Segmento</label>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Filtrar por Segmento</label>
           <Select value={filtros.segmentoId ?? ""} onValueChange={(v) => handleChange({ segmentoId: v === "__all__" ? undefined : v })}>
-            <SelectTrigger className="bg-white/60 backdrop-blur border-gray-200">
+            <SelectTrigger className="h-11 bg-white border-gray-200 focus:border-orange-500 focus:ring-orange-500/20">
               <SelectValue placeholder="Todos los segmentos" />
             </SelectTrigger>
             <SelectContent>
@@ -65,10 +65,10 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
         </div>
 
         {/* Temporada */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-600">Filtrar por Temporada</label>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Filtrar por Temporada</label>
           <Select value={filtros.temporadaId ?? ""} onValueChange={(v) => handleChange({ temporadaId: v === "__all__" ? undefined : v })}>
-            <SelectTrigger className="bg-white/60 backdrop-blur border-gray-200">
+            <SelectTrigger className="h-11 bg-white border-gray-200 focus:border-orange-500 focus:ring-orange-500/20">
               <SelectValue placeholder="Todas las temporadas" />
             </SelectTrigger>
             <SelectContent>
@@ -81,10 +81,10 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
         </div>
 
         {/* Estado */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-600">Filtrar por Estado</label>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Filtrar por Estado</label>
           <Select value={filtros.estado ?? ""} onValueChange={(v) => handleChange({ estado: (v === "__all__" ? undefined : (v as FiltrosGruposState["estado"])) })}>
-            <SelectTrigger className="bg-white/60 backdrop-blur border-gray-200">
+            <SelectTrigger className="h-11 bg-white border-gray-200 focus:border-orange-500 focus:ring-orange-500/20">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
@@ -96,10 +96,10 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
         </div>
 
         {/* Municipio */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-600">Filtrar por Municipio</label>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Filtrar por Municipio</label>
           <Select value={filtros.municipioId ?? ""} onValueChange={(v) => handleChange({ municipioId: v === "__all__" ? undefined : v, parroquiaId: undefined })}>
-            <SelectTrigger className="bg-white/60 backdrop-blur border-gray-200">
+            <SelectTrigger className="h-11 bg-white border-gray-200 focus:border-orange-500 focus:ring-orange-500/20">
               <SelectValue placeholder="Todos los municipios" />
             </SelectTrigger>
             <SelectContent>
@@ -112,10 +112,10 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
         </div>
 
         {/* Parroquia */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-gray-600">Filtrar por Parroquia</label>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Filtrar por Parroquia</label>
           <Select value={filtros.parroquiaId ?? ""} onValueChange={(v) => handleChange({ parroquiaId: v === "__all__" ? undefined : v })}>
-            <SelectTrigger className="bg-white/60 backdrop-blur border-gray-200">
+            <SelectTrigger className="h-11 bg-white border-gray-200 focus:border-orange-500 focus:ring-orange-500/20">
               <SelectValue placeholder="Todas las parroquias" />
             </SelectTrigger>
             <SelectContent>
@@ -128,8 +128,10 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
         </div>
       </div>
 
-      <div className="flex gap-2 sticky bottom-0 bg-background/60 backdrop-blur p-2 rounded-xl sm:static sm:bg-transparent sm:p-0">
-        <Button variant="secondary" onClick={limpiar} className="w-full sm:w-auto">Limpiar filtros</Button>
+      <div className="flex gap-3 pt-4 border-t border-gray-200">
+        <BotonSistema variante="outline" onClick={limpiar} className="flex-1">
+          Limpiar filtros
+        </BotonSistema>
       </div>
     </div>
   )

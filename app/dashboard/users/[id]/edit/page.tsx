@@ -2,6 +2,8 @@ import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { UserEditForm } from "@/components/forms/UserEditForm"
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -22,24 +24,31 @@ export default async function EditUserPage({ params }: Props) {
 
   if (errorUsuario || !usuario) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Usuario no encontrado</h2>
-          <p className="text-gray-600 mb-4">
-            No se pudo cargar la información del usuario con ID: {id}
-          </p>
-          <p className="text-gray-500 text-sm mb-4">
-            Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
-          </p>
-          <Link
-            href="/dashboard/users"
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-          >
-            Volver a Usuarios
-          </Link>
-        </div>
-      </div>
+      <DashboardLayout>
+        <ContenedorDashboard
+          titulo=""
+          descripcion=""
+          accionPrincipal={null}
+        >
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <TituloSistema nivel={2}>Usuario no encontrado</TituloSistema>
+              <p className="text-gray-600 mb-4">
+                No se pudo cargar la información del usuario con ID: {id}
+              </p>
+              <p className="text-gray-500 text-sm mb-4">
+                Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
+              </p>
+              <Link href="/dashboard/users">
+                <BotonSistema variante="primario">
+                  Volver a Usuarios
+                </BotonSistema>
+              </Link>
+            </div>
+          </div>
+        </ContenedorDashboard>
+      </DashboardLayout>
     )
   }
 
@@ -144,48 +153,40 @@ export default async function EditUserPage({ params }: Props) {
     supabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
     supabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
   ])
-// AÑADE ESTO PARA DEPURAR
-console.log("DATOS CARGADOS DESDE EL SERVIDOR:");
-console.log("Ocupaciones:", ocupaciones);
-console.log("Profesiones:", profesiones);
-console.log("Países:", paises);
-console.log("Estados:", estados);
-console.log("Municipios:", municipios);
-console.log("Parroquias:", parroquias);
-
   return (
-    <div className="space-y-6">
-      {/* Botón de Regreso */}
-      <div>
-        <Link 
-          href={`/dashboard/users/${id}`}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-orange-50/50 rounded-xl transition-all duration-200 text-gray-700"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Volver al Usuario
-        </Link>
-      </div>
+    <DashboardLayout>
+      <ContenedorDashboard
+        titulo=""
+        descripcion=""
+        accionPrincipal={null}
+      >
+        <div className="space-y-6">
+          {/* Header minimalista con botón de regreso */}
+          <div className="flex items-center gap-4">
+            <Link href={`/dashboard/users/${id}`}>
+              <BotonSistema 
+                variante="ghost" 
+                tamaño="sm"
+                className="p-2"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </BotonSistema>
+            </Link>
+            <TituloSistema nivel={2}>Editar {usuario.nombre}</TituloSistema>
+          </div>
 
-      {/* Título de la Página */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 lg:p-8 shadow-2xl">
-        <h1 className="text-3xl font-bold text-gray-800">
-          Editar Usuario
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Modifica la información de {usuario.nombre} {usuario.apellido}
-        </p>
-      </div>
-
-      {/* Formulario de Edición */}
-      <UserEditForm 
-        usuario={usuarioCompleto}
-        ocupaciones={ocupaciones || []}
-        profesiones={profesiones || []}
-        paises={paises || []}
-        estados={estados || []}
-        municipios={municipios || []}
-        parroquias={parroquias || []}
-      />
-    </div>
+          {/* Formulario de Edición */}
+          <UserEditForm 
+            usuario={usuarioCompleto}
+            ocupaciones={ocupaciones || []}
+            profesiones={profesiones || []}
+            paises={paises || []}
+            estados={estados || []}
+            municipios={municipios || []}
+            parroquias={parroquias || []}
+          />
+        </div>
+      </ContenedorDashboard>
+    </DashboardLayout>
   )
 }

@@ -1,7 +1,9 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import AuditViewer from "@/components/grupos/AuditViewer.client";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { ContenedorDashboard, BotonSistema, TituloSistema } from "@/components/ui/sistema-diseno";
 
 export default async function GrupoAuditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,10 +18,19 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
 
   if (!detalle) {
     return (
-      <div className="p-6">
-        <p className="text-red-600">No tienes acceso a esta auditoría.</p>
-        <Link href={`/dashboard/grupos/${id}`} className="text-blue-600 hover:underline">Volver</Link>
-      </div>
+      <DashboardLayout>
+        <ContenedorDashboard>
+          <div className="text-center py-12">
+            <p className="text-red-600 mb-4">No tienes acceso a esta auditoría.</p>
+            <Link href={`/dashboard/grupos/${id}`}>
+              <BotonSistema variante="outline" tamaño="mediano">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver al grupo
+              </BotonSistema>
+            </Link>
+          </div>
+        </ContenedorDashboard>
+      </DashboardLayout>
     );
   }
 
@@ -28,22 +39,34 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
 
   if (!puedeVerAuditoria) {
     return (
-      <div className="p-6">
-        <p className="text-red-600">No tienes permiso para ver la auditoría.</p>
-        <Link href={`/dashboard/grupos/${id}`} className="text-blue-600 hover:underline">Volver</Link>
-      </div>
+      <DashboardLayout>
+        <ContenedorDashboard>
+          <div className="text-center py-12">
+            <p className="text-red-600 mb-4">No tienes permiso para ver la auditoría.</p>
+            <Link href={`/dashboard/grupos/${id}`}>
+              <BotonSistema variante="outline" tamaño="mediano">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver al grupo
+              </BotonSistema>
+            </Link>
+          </div>
+        </ContenedorDashboard>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="space-y-6 p-4 lg:p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Auditoría del grupo</h1>
-        <Link href={`/dashboard/grupos/${id}`}>
-          <Button variant="outline">Volver al grupo</Button>
-        </Link>
-      </div>
-  <AuditViewer grupoId={id} />
-    </div>
+    <DashboardLayout>
+      <ContenedorDashboard
+        titulo="Auditoría"
+        subtitulo={`Historial de cambios del grupo ${detalle.nombre}`}
+        botonRegreso={{
+          href: `/dashboard/grupos/${id}`,
+          texto: "Volver al grupo"
+        }}
+      >
+        <AuditViewer grupoId={id} />
+      </ContenedorDashboard>
+    </DashboardLayout>
   );
 }

@@ -6,24 +6,16 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Input } from "@/components/ui/input";
-import { BotonGradiente } from "@/components/ui/boton-gradiente";
-
-// Reutiliza el fondo y la tarjeta principal igual que en /app/page.tsx
-function FondoGlobalConnect({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-gray-50 to-white relative overflow-hidden flex items-center justify-center p-4">
-      {/* Orbes flotantes */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-orange-300/30 to-orange-400/30 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-40 right-32 w-24 h-24 bg-gradient-to-br from-gray-300/25 to-orange-300/25 rounded-full blur-lg animate-bounce" style={{animationDuration: '3s'}}></div>
-        <div className="absolute bottom-32 left-32 w-40 h-40 bg-gradient-to-br from-orange-200/20 to-gray-200/20 rounded-full blur-2xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-20 right-20 w-28 h-28 bg-gradient-to-br from-orange-400/30 to-orange-300/30 rounded-full blur-xl animate-bounce" style={{animationDuration: '4s', animationDelay: '0.5s'}}></div>
-      </div>
-      <div className="relative z-10 w-full max-w-md">{children}</div>
-    </div>
-  );
-}
+import { User, Mail, Lock, CreditCard, Eye, EyeOff } from "lucide-react";
+import {
+  FondoAutenticacion,
+  TarjetaSistema,
+  InputSistema,
+  BotonSistema,
+  TituloSistema,
+  TextoSistema,
+  EnlaceSistema
+} from "@/components/ui/sistema-diseno";
 
 const schema = z.object({
   nombre: z.string().min(1, "El nombre es obligatorio"),
@@ -38,156 +30,208 @@ const schema = z.object({
 });
 
 type FormData = z.infer<typeof schema>;
-type FormMessage = { type: "success" | "error"; text: string };
 
 export default function SignupPage() {
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
+  const [mostrarConfirmarContrasena, setMostrarConfirmarContrasena] = useState(false);
+
+  const watchedFields = watch();
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     setErrorMessage(null);
 
-    const formData = new window.FormData();
-    formData.append("nombre", data.nombre);
-    formData.append("apellido", data.apellido);
-    formData.append("email", data.email);
-    formData.append("password", data.password);
-    formData.append("cedula", data.cedula);
+    try {
+      const formData = new window.FormData();
+      formData.append("nombre", data.nombre);
+      formData.append("apellido", data.apellido);
+      formData.append("email", data.email);
+      formData.append("password", data.password);
+      formData.append("cedula", data.cedula);
 
-    // @ts-ignore
-    const response = await import("@/lib/actions/auth.actions").then(mod => mod.signup(formData));
-    if (response?.success) {
-      router.push("/verify-email");
-    } else {
-      setErrorMessage(response?.message || "Error desconocido");
+      // @ts-ignore
+      const response = await import("@/lib/actions/auth.actions").then(mod => mod.signup(formData));
+      if (response?.success) {
+        router.push("/verify-email");
+      } else {
+        setErrorMessage(response?.message || "Error desconocido");
+      }
+    } catch (err) {
+      setErrorMessage("Error al crear la cuenta. Inténtalo de nuevo.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
-    <FondoGlobalConnect>
-      <div className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 sm:p-8 shadow-2xl">
-
-        {/* Título y subtítulo */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Crear Cuenta</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Regístrate en Global Connect</p>
+    <FondoAutenticacion>
+      <TarjetaSistema variante="elevated" className="space-y-8">
+        {/* Encabezado */}
+        <div className="text-center space-y-2">
+          <TituloSistema nivel={1} className="mb-2">
+            Crear Cuenta
+          </TituloSistema>
+          <TextoSistema variante="sutil" tamaño="base">
+            Únete a Global Connect
+          </TextoSistema>
         </div>
 
         {/* Formulario */}
-        <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-          <div>
-            <label className="block text-sm font-medium mb-1">Nombre</label>
-            <Input
-              type="text"
-              {...register("nombre")}
-              className="block w-full pl-3 pr-3 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              disabled={isLoading}
-            />
-            {errors.nombre && (
-              <p className="text-red-500 text-xs mt-1">{errors.nombre.message}</p>
-            )}
+        <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+          {/* Fila de Nombre y Apellido */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <InputSistema
+                label="Nombre"
+                type="text"
+                placeholder="Tu nombre"
+                icono={User}
+                error={errors.nombre?.message}
+                disabled={isLoading}
+                {...register("nombre")}
+              />
+            </div>
+            <div>
+              <InputSistema
+                label="Apellido"
+                type="text"
+                placeholder="Tu apellido"
+                icono={User}
+                error={errors.apellido?.message}
+                disabled={isLoading}
+                {...register("apellido")}
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Apellido</label>
-            <Input
-              type="text"
-              {...register("apellido")}
-              className="block w-full pl-3 pr-3 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              disabled={isLoading}
-            />
-            {errors.apellido && (
-              <p className="text-red-500 text-xs mt-1">{errors.apellido.message}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <Input
-              type="email"
-              {...register("email")}
-              className="block w-full pl-3 pr-3 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              disabled={isLoading}
-            />
-            {errors.email && (
-              <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Cédula de Identidad</label>
-            <Input
-              type="text"
-              {...register("cedula")}
-              className="block w-full pl-3 pr-3 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              disabled={isLoading}
-            />
-            {errors.cedula && (
-              <p className="text-red-500 text-xs mt-1">{errors.cedula.message}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Contraseña</label>
-            <Input
-              type="password"
-              {...register("password")}
-              className="block w-full pl-3 pr-3 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              disabled={isLoading}
-            />
+
+          {/* Email */}
+          <InputSistema
+            label="Correo electrónico"
+            type="email"
+            placeholder="tu@email.com"
+            icono={Mail}
+            error={errors.email?.message}
+            disabled={isLoading}
+            {...register("email")}
+          />
+
+          {/* Cédula */}
+          <InputSistema
+            label="Cédula de Identidad"
+            type="text"
+            placeholder="12345678"
+            icono={CreditCard}
+            error={errors.cedula?.message}
+            disabled={isLoading}
+            {...register("cedula")}
+          />
+
+          {/* Contraseña */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Contraseña
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type={mostrarContrasena ? "text" : "password"}
+                placeholder="Mínimo 8 caracteres"
+                className="block w-full py-3 pl-10 pr-12 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-400 disabled:bg-gray-50 disabled:text-gray-500"
+                disabled={isLoading}
+                {...register("password")}
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarContrasena(!mostrarContrasena)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {mostrarContrasena ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
             {errors.password && (
-              <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
+              <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
             )}
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Confirmar Contraseña</label>
-            <Input
-              type="password"
-              {...register("confirmPassword")}
-              className="block w-full pl-3 pr-3 py-3 border border-white/30 rounded-xl bg-white/50 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              disabled={isLoading}
-            />
+
+          {/* Confirmar Contraseña */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Confirmar Contraseña
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type={mostrarConfirmarContrasena ? "text" : "password"}
+                placeholder="Repite tu contraseña"
+                className="block w-full py-3 pl-10 pr-12 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-400 disabled:bg-gray-50 disabled:text-gray-500"
+                disabled={isLoading}
+                {...register("confirmPassword")}
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarConfirmarContrasena(!mostrarConfirmarContrasena)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {mostrarConfirmarContrasena ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
             {errors.confirmPassword && (
-              <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>
+              <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
             )}
           </div>
 
           {/* Mensaje de error */}
           {errorMessage && (
-            <div className="text-sm font-medium mb-2 text-center text-red-600">
-              {errorMessage}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <TextoSistema variante="default" tamaño="sm" className="text-red-700">
+                {errorMessage}
+              </TextoSistema>
             </div>
           )}
 
-          <BotonGradiente
-            tipo="submit"
-            deshabilitado={isLoading}
-            claseAdicional={`flex items-center justify-center ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
+          {/* Botón de Registro */}
+          <BotonSistema
+            type="submit"
+            variante="primario"
+            tamaño="lg"
+            cargando={isLoading}
+            className="w-full"
+            disabled={!watchedFields.nombre || !watchedFields.apellido || !watchedFields.email || !watchedFields.cedula || !watchedFields.password || !watchedFields.confirmPassword}
           >
-            {isLoading ? (
-              <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
-            ) : null}
-            Crear Cuenta
-          </BotonGradiente>
+            {isLoading ? "Creando cuenta..." : "Crear Cuenta"}
+          </BotonSistema>
 
-          <div className="text-center mt-4">
-            <Link href="/" className="text-orange-600 hover:underline text-sm">
-              ¿Ya tienes una cuenta? Inicia sesión
+          {/* Enlace a Login */}
+          <div className="text-center">
+            <TextoSistema variante="sutil" tamaño="sm" className="inline">
+              ¿Ya tienes cuenta?{" "}
+            </TextoSistema>
+            <Link href="/">
+              <EnlaceSistema variante="marca" className="text-sm">
+                Iniciar sesión
+              </EnlaceSistema>
             </Link>
           </div>
         </form>
+      </TarjetaSistema>
 
-        {/* Pie de página */}
-        <div className="text-center mt-6 sm:mt-8">
-          <p className="text-gray-500 text-xs sm:text-sm">© 2025 Global Barquisimeto. Todos los derechos reservados.</p>
-        </div>
+      {/* Pie de página */}
+      <div className="text-center mt-8">
+        <TextoSistema variante="muted" tamaño="sm">
+          © 2025 Global Barquisimeto. Todos los derechos reservados.
+        </TextoSistema>
       </div>
-    </FondoGlobalConnect>
+    </FondoAutenticacion>
   );
 }

@@ -3,15 +3,8 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import GroupEditForm from "@/components/forms/GroupEditForm";
-import { ReactNode } from "react";
-
-function GlassCard({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={`backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 lg:p-8 shadow-2xl ${className}`}>
-      {children}
-    </div>
-  );
-}
+import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -36,21 +29,24 @@ export default async function EditGroupPage({ params }: PageProps) {
 
   if (error || !grupo) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Grupo no encontrado</h2>
-          <p className="text-gray-600 mb-4">
-            El grupo solicitado no existe o no tienes acceso para editarlo.
-          </p>
-          <Link
-            href="/dashboard/grupos"
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-          >
-            Volver a Grupos
-          </Link>
-        </div>
-      </div>
+      <DashboardLayout>
+        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <TituloSistema nivel={2}>Grupo no encontrado</TituloSistema>
+              <p className="text-gray-600 mb-4">
+                El grupo solicitado no existe o no tienes acceso para editarlo.
+              </p>
+              <Link href="/dashboard/grupos">
+                <BotonSistema variante="primario">
+                  Volver a Grupos
+                </BotonSistema>
+              </Link>
+            </div>
+          </div>
+        </ContenedorDashboard>
+      </DashboardLayout>
     );
   }
 
@@ -87,34 +83,35 @@ export default async function EditGroupPage({ params }: PageProps) {
   ]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Link
-            href={`/dashboard/grupos/${id}`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-orange-50/50 rounded-xl transition-all duration-200 text-gray-700 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Volver al Grupo
+    <DashboardLayout>
+      <ContenedorDashboard
+        titulo="Editar Grupo"
+        descripcion={`Modifica la información del grupo "${grupo.nombre}"`}
+        accionPrincipal={
+          <Link href={`/dashboard/grupos/${id}`}>
+            <BotonSistema 
+              variante="ghost" 
+              tamaño="sm"
+              className="p-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </BotonSistema>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-800">Editar Grupo</h1>
-          <p className="text-gray-600 mt-2">Modifica la información del grupo "{grupo.nombre}"</p>
-        </div>
-      </div>
-
-      {/* Formulario */}
-      <GlassCard>
-        <GroupEditForm
-          grupo={grupo}
-          temporadas={temporadas || []}
-          segmentos={segmentos || []}
-          paises={paises || []}
-          estados={estados || []}
-          municipios={municipios || []}
-          parroquias={parroquias || []}
-        />
-      </GlassCard>
-    </div>
+        }
+      >
+        {/* Formulario */}
+        <TarjetaSistema className="p-6">
+          <GroupEditForm
+            grupo={grupo}
+            temporadas={temporadas || []}
+            segmentos={segmentos || []}
+            paises={paises || []}
+            estados={estados || []}
+            municipios={municipios || []}
+            parroquias={parroquias || []}
+          />
+        </TarjetaSistema>
+      </ContenedorDashboard>
+    </DashboardLayout>
   );
 }

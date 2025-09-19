@@ -166,29 +166,39 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
         <div className="flex items-end pb-1 text-xs text-muted-foreground">{hora12 && minutos ? `Hora seleccionada: ${hora12.padStart(2,'0')}:${minutos} ${amPm}` : 'Sin hora'}</div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button type="button" variant="outline" onClick={() => marcarTodos(true)}>Marcar todos presentes</Button>
-        <Button type="button" variant="outline" onClick={() => marcarTodos(false)}>Marcar todos ausentes</Button>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <Button type="button" variant="outline" onClick={() => marcarTodos(true)} className="flex-1 sm:flex-none">
+          <span className="sm:hidden">✓ Todos presentes</span>
+          <span className="hidden sm:inline">Marcar todos presentes</span>
+        </Button>
+        <Button type="button" variant="outline" onClick={() => marcarTodos(false)} className="flex-1 sm:flex-none">
+          <span className="sm:hidden">✗ Todos ausentes</span>
+          <span className="hidden sm:inline">Marcar todos ausentes</span>
+        </Button>
       </div>
 
       <div className="border rounded-lg divide-y">
         {miembros.map(m => (
-          <div key={m.id} className="flex items-center gap-3 p-3">
-            <Checkbox
-              checked={!!estado[m.id]?.presente}
-              onCheckedChange={(v) => setEstado(s => ({ ...s, [m.id]: { ...s[m.id], presente: !!v } }))}
-            />
-            <div className="flex-1">
-              <div className="font-medium">{m.nombre} {m.apellido}</div>
-              <div className="text-xs text-muted-foreground">{m.rol || 'Miembro'}</div>
+          <div key={m.id} className="p-3">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={!!estado[m.id]?.presente}
+                onCheckedChange={(v) => setEstado(s => ({ ...s, [m.id]: { ...s[m.id], presente: !!v } }))}
+              />
+              <div className="flex-1">
+                <div className="font-medium">{m.nombre} {m.apellido}</div>
+                <div className="text-xs text-muted-foreground">{m.rol || 'Miembro'}</div>
+              </div>
             </div>
             {!estado[m.id]?.presente && (
-              <Input
-                className="max-w-xs"
-                placeholder="Motivo de inasistencia (opcional)"
-                value={estado[m.id]?.motivo || ''}
-                onChange={e => setEstado(s => ({ ...s, [m.id]: { ...s[m.id], motivo: e.target.value } }))}
-              />
+              <div className="mt-3 ml-7">
+                <Input
+                  className="w-full"
+                  placeholder="Motivo de inasistencia (opcional)"
+                  value={estado[m.id]?.motivo || ''}
+                  onChange={e => setEstado(s => ({ ...s, [m.id]: { ...s[m.id], motivo: e.target.value } }))}
+                />
+              </div>
             )}
           </div>
         ))}

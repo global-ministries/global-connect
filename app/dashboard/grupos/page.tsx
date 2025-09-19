@@ -4,16 +4,8 @@ import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import GruposListClient from "@/components/grupos/GruposList.client"
-
-import { ReactNode } from "react"
-
-function GlassCard({ children, className = "" }: { children: ReactNode, className?: string }) {
-  return (
-    <div className={`backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 lg:p-8 shadow-2xl ${className}`}>
-      {children}
-    </div>
-  )
-}
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 
 // (El color por segmento ahora se maneja dentro del componente cliente)
 
@@ -78,22 +70,11 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
   const canCreate = roles.some(r => ["admin","pastor","director-general","director-etapa"].includes(r))
 
   return (
-    <div className="space-y-6">
-      {/* Header GlassCard */}
-      <GlassCard>
-        <div className="flex items-center gap-4 mb-2">
-          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-            <Users2 className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Gestión de Grupos</h2>
-            <p className="text-gray-600 text-sm lg:text-base">Administra y organiza los grupos de tu comunidad</p>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* Tarjetas + Lista (dinámicas con filtros) */}
-      <GlassCard>
+    <DashboardLayout>
+      <ContenedorDashboard
+        titulo="Grupos"
+        descripcion="Administra y organiza los grupos de tu comunidad"
+      >
         <GruposListClient
           grupos={grupos || []}
           segmentos={segmentos || []}
@@ -104,7 +85,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
           pageSize={pageSize}
           canCreate={canCreate}
         />
-      </GlassCard>
-    </div>
+      </ContenedorDashboard>
+    </DashboardLayout>
   )
 }

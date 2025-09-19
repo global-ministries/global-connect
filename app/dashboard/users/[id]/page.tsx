@@ -12,7 +12,6 @@ import {
   Briefcase, 
   GraduationCap,
   Heart,
-  Hash,
   Shield,
   Clock,
   Trash2
@@ -26,6 +25,8 @@ import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
 import { supabase } from "@/lib/supabase/client"
 import { deleteFamilyRelation } from "@/lib/actions/user.actions"
 import { toast } from "@/components/ui/use-toast"
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ContenedorDashboard, TituloSistema, BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import dynamic from "next/dynamic"
 
 export default function PaginaDetalleUsuario() {
@@ -213,38 +214,42 @@ export default function PaginaDetalleUsuario() {
   // Renderizado
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando datos del usuario...</p>
-        </div>
-      </div>
+      <DashboardLayout>
+        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Cargando datos del usuario...</p>
+            </div>
+          </div>
+        </ContenedorDashboard>
+      </DashboardLayout>
     )
   }
 
   if (error || !usuario) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">??</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Error al cargar datos</h2>
-          <p className="text-gray-600 mb-4">{error || 'Usuario no encontrado'}</p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={recargar}
-              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-            >
-              Reintentar
-            </button>
-            <Link
-              href="/dashboard/users"
-              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-            >
-              Volver a Usuarios
-            </Link>
+      <DashboardLayout>
+        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <TituloSistema nivel={2}>Error al cargar datos</TituloSistema>
+              <p className="text-gray-600 mb-4">{error || 'Usuario no encontrado'}</p>
+              <div className="flex gap-3 justify-center">
+                <BotonSistema onClick={recargar} variante="primario">
+                  Reintentar
+                </BotonSistema>
+                <Link href="/dashboard/users">
+                  <BotonSistema variante="secundario">
+                    Volver a Usuarios
+                  </BotonSistema>
+                </Link>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </ContenedorDashboard>
+      </DashboardLayout>
     )
   }
 
@@ -259,68 +264,69 @@ export default function PaginaDetalleUsuario() {
     : { nombre_visible: 'Sin rol', nombre_interno: 'sin-rol' }
 
   return (
-  <div className="space-y-6">
-      {/* Header con botón de regreso - Posición fija en móvil */}
-      <div className="fixed top-4 right-4 z-50 md:relative md:top-auto md:right-auto md:z-auto md:flex md:items-center md:justify-end md:mb-6">
-        <Link 
-          href="/dashboard/users"
-          className="inline-flex items-center gap-2 px-3 py-2 bg-white/80 hover:bg-orange-50/80 backdrop-blur-xl rounded-xl transition-all duration-200 text-gray-700 text-sm shadow-lg border border-white/30"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="hidden sm:inline">Volver a Usuarios</span>
-          <span className="sm:hidden">Volver</span>
-        </Link>
-      </div>
+    <DashboardLayout>
+      <ContenedorDashboard
+        titulo={`${usuario.nombre} ${usuario.apellido}`}
+        descripcion=""
+        accionPrincipal={
+          <Link href="/dashboard/users">
+            <BotonSistema 
+              variante="ghost" 
+              tamaño="sm"
+              className="p-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </BotonSistema>
+          </Link>
+        }
+      >
+        <div className="space-y-6">
 
-      {/* Tarjeta Principal del Usuario - Estilo Glassmorphism Mejorado */}
-      <div className="backdrop-blur-2xl bg-white/30 border border-white/20 rounded-3xl shadow-2xl overflow-hidden">
-        <div className="p-8">
-          <div className="flex flex-col lg:flex-row items-center gap-8">
-            {/* Avatar con efecto glassmorphism */}
-            <div className="relative flex-shrink-0">
-              <div className="w-32 h-32 backdrop-blur-xl bg-gradient-to-br from-orange-400/30 to-orange-600/30 border border-white/30 rounded-full flex items-center justify-center text-orange-600 text-3xl font-bold shadow-2xl">
-                {obtenerIniciales(usuario.nombre, usuario.apellido)}
+          {/* Tarjeta Principal del Usuario - Minimalista */}
+          <TarjetaSistema className="p-4">
+            <div className="flex items-center gap-4">
+              {/* Avatar compacto */}
+              <div className="relative flex-shrink-0">
+                <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-white text-lg font-bold">
+                  {obtenerIniciales(usuario.nombre, usuario.apellido)}
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white"></div>
               </div>
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-400 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                <div className="w-3 h-3 bg-white rounded-full"></div>
+
+              {/* Información principal compacta */}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl font-bold text-gray-800 truncate">
+                  {usuario.nombre} {usuario.apellido}
+                </h1>
+                <p className="text-gray-600 text-sm truncate">
+                  {formatearEmail(usuario.email)}
+                </p>
+                
+                {/* Badges compactos */}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${obtenerColorRol(rolUsuario.nombre_interno)}`}>
+                    {rolUsuario.nombre_visible}
+                  </span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${obtenerColorEstadoCivil(usuario.estado_civil)}`}>
+                    {usuario.estado_civil}
+                  </span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${obtenerColorGenero(usuario.genero)}`}>
+                    {usuario.genero}
+                  </span>
+                </div>
+              </div>
+
+              {/* Botón de editar compacto */}
+              <div className="flex-shrink-0">
+                <Link href={`/dashboard/users/${usuario.id}/edit`}>
+                  <BotonSistema variante="primario" tamaño="sm" className="gap-2">
+                    <Edit className="w-4 h-4" />
+                    <span className="hidden sm:inline">Editar Perfil</span>
+                  </BotonSistema>
+                </Link>
               </div>
             </div>
-
-            {/* Información principal */}
-            <div className="flex-1 text-center lg:text-left">
-              <h1 className="text-4xl font-bold text-gray-800 mb-3">
-                {usuario.nombre} {usuario.apellido}
-              </h1>
-              <p className="text-gray-600 text-lg mb-4">
-                {formatearEmail(usuario.email)}
-              </p>
-              
-              {/* Badges con glassmorphism */}
-              <div className="flex flex-wrap justify-center lg:justify-start items-center gap-3 mb-6">
-                <span className={`px-4 py-2 backdrop-blur-xl bg-white/40 border border-white/30 rounded-full text-sm font-medium ${obtenerColorRol(rolUsuario.nombre_interno)} shadow-lg`}>
-                  {rolUsuario.nombre_visible}
-                </span>
-                <span className={`px-4 py-2 backdrop-blur-xl bg-white/40 border border-white/30 rounded-full text-sm font-medium ${obtenerColorEstadoCivil(usuario.estado_civil)} shadow-lg`}>
-                  {usuario.estado_civil}
-                </span>
-                <span className={`px-4 py-2 backdrop-blur-xl bg-white/40 border border-white/30 rounded-full text-sm font-medium ${obtenerColorGenero(usuario.genero)} shadow-lg`}>
-                  {usuario.genero}
-                </span>
-              </div>
-            </div>
-
-            {/* Botón de editar mejorado */}
-            <div className="flex-shrink-0">
-              <Link href={`/dashboard/users/${usuario.id}/edit`}>
-                <button className="group flex items-center gap-3 px-6 py-3 backdrop-blur-xl bg-gradient-to-r from-orange-500/80 to-orange-600/80 hover:from-orange-500 hover:to-orange-600 border border-white/30 rounded-2xl transition-all duration-300 text-white shadow-2xl hover:scale-105 hover:shadow-orange-500/25">
-                  <Edit className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
-                  <span className="font-medium">Editar Perfil</span>
-                </button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+          </TarjetaSistema>
 
 
       {/* Información Básica */}
@@ -330,12 +336,6 @@ export default function PaginaDetalleUsuario() {
           Información Básica
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <Hash className="w-5 h-5" /> ID de Usuario
-            </span>
-            <span className="font-mono text-gray-800 text-base break-all">{usuario.id}</span>
-          </div>
           <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
             <span className="flex items-center gap-2 text-gray-500 text-sm">
               <User className="w-5 h-5" /> Cédula
@@ -598,6 +598,8 @@ export default function PaginaDetalleUsuario() {
         message="¿Estás seguro de que deseas eliminar esta relación familiar? Esta acción no se puede deshacer."
         isLoading={isDeleting}
       />
-    </div>
+        </div>
+      </ContenedorDashboard>
+    </DashboardLayout>
   )
 }
