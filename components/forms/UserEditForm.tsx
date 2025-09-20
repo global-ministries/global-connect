@@ -159,8 +159,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         estado_id: usuario.direccion.parroquia?.municipio?.estado?.id || "",
         municipio_id: usuario.direccion.parroquia?.municipio?.id || "",
         parroquia_id: usuario.direccion.parroquia?.id || "none",
-        lat: usuario.direccion.lat,
-        lng: usuario.direccion.lng,
+        lat: usuario.direccion.latitud || undefined,
+        lng: usuario.direccion.longitud || undefined,
       } : {
         calle: "",
         barrio: "",
@@ -252,8 +252,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
   }
 
   // Coordenadas iniciales para el mapa
-  const latitudGuardada = usuario?.direccion?.lat;
-  const longitudGuardada = usuario?.direccion?.lng;
+  const latitudGuardada = usuario?.direccion?.latitud;
+  const longitudGuardada = usuario?.direccion?.longitud;
   const initialLat = typeof latitudGuardada === "number" ? latitudGuardada : 10.4681;
   const initialLng = typeof longitudGuardada === "number" ? longitudGuardada : -66.8792;
   const [mapCenter, setMapCenter] = useState({ lat: initialLat, lng: initialLng });
@@ -635,8 +635,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               name="direccion"
               control={control}
               render={({ field }) => {
-                const lat = field.value?.lat ?? 10.4681;
-                const lng = field.value?.lng ?? -66.8792;
+                const lat = field.value?.lat ?? initialLat;
+                const lng = field.value?.lng ?? initialLng;
                 return (
                   <LocationPicker
                     lat={lat}
