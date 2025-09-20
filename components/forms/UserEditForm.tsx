@@ -159,6 +159,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         estado_id: usuario.direccion.parroquia?.municipio?.estado?.id || "",
         municipio_id: usuario.direccion.parroquia?.municipio?.id || "",
         parroquia_id: usuario.direccion.parroquia?.id || "none",
+        lat: usuario.direccion.lat,
+        lng: usuario.direccion.lng,
       } : {
         calle: "",
         barrio: "",
@@ -168,6 +170,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         estado_id: "",
         municipio_id: "",
         parroquia_id: "none",
+        lat: undefined,
+        lng: undefined,
       },
   // familia_id y familia ya no son requeridos ni usados
     }
@@ -248,8 +252,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
   }
 
   // Coordenadas iniciales para el mapa
-  const latitudGuardada = usuario?.direccion?.latitud;
-  const longitudGuardada = usuario?.direccion?.longitud;
+  const latitudGuardada = usuario?.direccion?.lat;
+  const longitudGuardada = usuario?.direccion?.lng;
   const initialLat = typeof latitudGuardada === "number" ? latitudGuardada : 10.4681;
   const initialLng = typeof longitudGuardada === "number" ? longitudGuardada : -66.8792;
   const [mapCenter, setMapCenter] = useState({ lat: initialLat, lng: initialLng });
