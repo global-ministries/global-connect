@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { updateUser } from "@/lib/actions/user.actions"
 import { geocodeAddress } from "@/lib/actions/location.actions"
+import { ProfilePhotoUploader } from "@/components/ui/ProfilePhotoUploader"
 import type { Database } from '@/lib/supabase/database.types'
 
 type Usuario = Database["public"]["Tables"]["usuarios"]["Row"]
@@ -301,6 +302,25 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Foto de Perfil */}
+      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
+        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+          <User className="w-5 h-5 text-orange-500" />
+          Foto de Perfil
+        </h3>
+        <div className="flex justify-center">
+          <ProfilePhotoUploader
+            currentPhotoUrl={usuario?.foto_perfil_url}
+            size="lg"
+            onPhotoChange={(newPhotoUrl) => {
+              // La foto se actualiza automáticamente en la base de datos
+              // Aquí podrías actualizar el estado local si es necesario
+              console.log('Nueva foto:', newPhotoUrl)
+            }}
+          />
+        </div>
+      </div>
+
       {/* Información Básica */}
       <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">

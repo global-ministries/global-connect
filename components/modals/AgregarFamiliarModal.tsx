@@ -10,13 +10,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { UserAvatar } from '@/components/ui/UserAvatar'
 import { supabase } from '@/lib/supabase/client'
 import { addFamilyRelation } from "@/lib/actions/user.actions"
 
 
 // Si necesitas el tipo Usuario, puedes importarlo desde donde lo tengas definido
 
-// Tipo para los resultados de bÃºsqueda (solo los campos que necesitamos)
+// Tipo para los resultados de búsqueda (solo los campos que necesitamos)
 export type Usuario = {
   id: string
   nombre: string
@@ -24,6 +25,7 @@ export type Usuario = {
   email: string
   genero: string
   cedula: string
+  foto_perfil_url: string | null
 }
 
 interface AgregarFamiliarModalProps {
@@ -59,7 +61,7 @@ export function AgregarFamiliarModal({
     try {
       const { data, error } = await supabase
         .from('usuarios')
-        .select('id, nombre, apellido, email, genero, cedula')
+        .select('id, nombre, apellido, email, genero, cedula, foto_perfil_url')
         .or(`nombre.ilike.%${terminoBusqueda}%,apellido.ilike.%${terminoBusqueda}%,cedula.ilike.%${terminoBusqueda}%,email.ilike.%${terminoBusqueda}%`)
         .neq('id', usuarioActualId)
         .limit(10)
@@ -207,9 +209,12 @@ export function AgregarFamiliarModal({
                         disabled={yaEsFamiliar}
                         title={yaEsFamiliar ? 'Este usuario ya es tu familiar' : ''}
                       >
-                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                          {usuario.nombre.charAt(0)}{usuario.apellido.charAt(0)}
-                        </div>
+                        <UserAvatar
+                          photoUrl={usuario.foto_perfil_url}
+                          nombre={usuario.nombre}
+                          apellido={usuario.apellido}
+                          size="md"
+                        />
                         <div className="text-left flex-1">
                           <p className="font-medium text-gray-800">
                             {usuario.nombre} {usuario.apellido}

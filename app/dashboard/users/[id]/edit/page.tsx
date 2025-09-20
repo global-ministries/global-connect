@@ -155,14 +155,33 @@ export default async function EditUserPage({ params }: Props) {
   ])
   return (
     <DashboardLayout>
-      <ContenedorDashboard
-        titulo=""
-        descripcion=""
-        accionPrincipal={null}
-      >
-        <div className="space-y-6">
-          {/* Header minimalista con botón de regreso */}
-          <div className="flex items-center gap-4">
+      {/* Header sticky como en ver usuario */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-20 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4 sm:block sm:space-y-1">
+            {/* Botón de regreso en móvil */}
+            <div className="flex-shrink-0 sm:hidden">
+              <Link href={`/dashboard/users/${id}`}>
+                <BotonSistema 
+                  variante="ghost" 
+                  tamaño="sm"
+                  className="p-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </BotonSistema>
+              </Link>
+            </div>
+            {/* Título */}
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  {usuario.nombre} {usuario.apellido}
+                </h1>
+              </div>
+            </div>
+          </div>
+          {/* Botón de regreso en desktop */}
+          <div className="flex-shrink-0 hidden sm:block">
             <Link href={`/dashboard/users/${id}`}>
               <BotonSistema 
                 variante="ghost" 
@@ -172,21 +191,22 @@ export default async function EditUserPage({ params }: Props) {
                 <ArrowLeft className="w-5 h-5" />
               </BotonSistema>
             </Link>
-            <TituloSistema nivel={2}>Editar {usuario.nombre}</TituloSistema>
           </div>
-
-          {/* Formulario de Edición */}
-          <UserEditForm 
-            usuario={usuarioCompleto}
-            ocupaciones={ocupaciones || []}
-            profesiones={profesiones || []}
-            paises={paises || []}
-            estados={estados || []}
-            municipios={municipios || []}
-            parroquias={parroquias || []}
-          />
         </div>
-      </ContenedorDashboard>
+      </div>
+
+      {/* Contenido principal */}
+      <div className="px-4 sm:px-6 lg:px-20 py-6">
+        <UserEditForm 
+          usuario={usuarioCompleto}
+          ocupaciones={ocupaciones || []}
+          profesiones={profesiones || []}
+          paises={paises || []}
+          estados={estados || []}
+          municipios={municipios || []}
+          parroquias={parroquias || []}
+        />
+      </div>
     </DashboardLayout>
   )
 }

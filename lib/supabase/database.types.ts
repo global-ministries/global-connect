@@ -913,6 +913,7 @@ export type Database = {
           familia_id: string | null
           fecha_nacimiento: string | null
           fecha_registro: string
+          foto_perfil_url: string | null
           genero: Database["public"]["Enums"]["enum_genero"]
           id: string
           nombre: string
@@ -930,6 +931,7 @@ export type Database = {
           familia_id?: string | null
           fecha_nacimiento?: string | null
           fecha_registro?: string
+          foto_perfil_url?: string | null
           genero: Database["public"]["Enums"]["enum_genero"]
           id?: string
           nombre: string
@@ -947,6 +949,7 @@ export type Database = {
           familia_id?: string | null
           fecha_nacimiento?: string | null
           fecha_registro?: string
+          foto_perfil_url?: string | null
           genero?: Database["public"]["Enums"]["enum_genero"]
           id?: string
           nombre?: string
@@ -1143,6 +1146,30 @@ export type Database = {
           total: number
         }[]
       }
+      listar_usuarios_con_permisos: {
+        Args: {
+          p_auth_id: string
+          p_busqueda?: string
+          p_con_email?: boolean
+          p_con_telefono?: boolean
+          p_limite?: number
+          p_offset?: number
+          p_roles_filtro?: string[]
+        }
+        Returns: {
+          apellido: string
+          cedula: string
+          email: string
+          fecha_registro: string
+          id: string
+          nombre: string
+          puede_ver: boolean
+          rol_nombre_interno: string
+          rol_nombre_visible: string
+          telefono: string
+          total_count: number
+        }[]
+      }
       obtener_asistencia_evento: {
         Args: { p_auth_id: string; p_evento_id: string }
         Returns: {
@@ -1191,6 +1218,15 @@ export type Database = {
       obtener_detalle_usuario: {
         Args: { p_user_id: string }
         Returns: Json
+      }
+      obtener_estadisticas_usuarios_con_permisos: {
+        Args: { p_auth_id: string }
+        Returns: {
+          con_email: number
+          con_telefono: number
+          registrados_hoy: number
+          total_usuarios: number
+        }[]
       }
       obtener_evento_grupo: {
         Args: { p_auth_id: string; p_evento_id: string }

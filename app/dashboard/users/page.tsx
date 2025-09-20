@@ -14,6 +14,7 @@ import {
 import Link from "next/link"
 import { useUsuariosConPermisos } from '@/hooks/use-usuarios-con-permisos'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { UserAvatar } from '@/components/ui/UserAvatar'
 import {
   ContenedorDashboard,
   TarjetaSistema,
@@ -26,12 +27,6 @@ import {
 } from '@/components/ui/sistema-diseno'
 
 // Funciones auxiliares
-function obtenerIniciales(nombre?: string | null, apellido?: string | null): string {
-  const inicial1 = nombre?.charAt(0)?.toUpperCase() || ''
-  const inicial2 = apellido?.charAt(0)?.toUpperCase() || ''
-  return inicial1 + inicial2 || 'U'
-}
-
 function obtenerVarianteBadgeRol(rol?: string): "default" | "success" | "warning" | "error" | "info" {
   switch (rol) {
     case 'admin':
@@ -289,9 +284,13 @@ export default function PaginaUsuarios() {
                 <Link key={usuario.id} href={`/dashboard/users/${usuario.id}`} className="block">
                   {/* Versión Móvil - Lista Simple */}
                   <div className="md:hidden flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                      {obtenerIniciales(usuario.nombre, usuario.apellido)}
-                    </div>
+                    <UserAvatar
+                      photoUrl={usuario.foto_perfil_url || null}
+                      nombre={usuario.nombre}
+                      apellido={usuario.apellido}
+                      size="md"
+                      className="flex-shrink-0"
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 truncate">
                         {usuario.nombre} {usuario.apellido}
@@ -310,9 +309,13 @@ export default function PaginaUsuarios() {
                   {/* Versión Desktop - Tarjeta Completa */}
                   <TarjetaSistema className="hidden md:block p-4 hover:shadow-md transition-all duration-200">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold shadow-lg flex-shrink-0">
-                        {obtenerIniciales(usuario.nombre, usuario.apellido)}
-                      </div>
+                      <UserAvatar
+                        photoUrl={usuario.foto_perfil_url || null}
+                        nombre={usuario.nombre}
+                        apellido={usuario.apellido}
+                        size="lg"
+                        className="flex-shrink-0 shadow-lg"
+                      />
                       
                       <div className="flex-1 min-w-0 grid grid-cols-4 gap-4">
                         <div>

@@ -20,6 +20,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   grupoId: string;
+  segmentoNombre?: string;
 }
 
 const roles: Array<{ value: "Líder" | "Colíder" | "Miembro"; label: string }> = [
@@ -28,7 +29,7 @@ const roles: Array<{ value: "Líder" | "Colíder" | "Miembro"; label: string }> 
   { value: "Miembro", label: "Miembro" },
 ];
 
-export default function AddMemberModal({ isOpen, onClose, grupoId }: Props) {
+export default function AddMemberModal({ isOpen, onClose, grupoId, segmentoNombre }: Props) {
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<"Líder" | "Colíder" | "Miembro">("Miembro");
   const [loading, setLoading] = useState(false);
@@ -68,14 +69,27 @@ export default function AddMemberModal({ isOpen, onClose, grupoId }: Props) {
   const handleAdd = async () => {
     if (!selectedUser) return;
     setLoading(true);
+    
+    const esSegmentoMatrimonio = segmentoNombre?.toLowerCase().includes('matrimonio') || false;
+    
     try {
       const res = await fetch(`/api/grupos/${encodeURIComponent(grupoId)}/miembros`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usuarioId: selectedUser.id, rol: role })
+        body: JSON.stringify({ 
+          usuarioId: selectedUser.id, 
+          rol: role,
+          incluirConyuge: esSegmentoMatrimonio
+        })
       });
       if (!res.ok) throw new Error(await res.text());
-      toast.success("Miembro agregado correctamente");
+      
+      if (esSegmentoMatrimonio) {
+        toast.success("Miembro y cónyuge agregados correctamente al grupo");
+      } else {
+        toast.success("Miembro agregado correctamente");
+      }
+      
       router.refresh();
       onClose();
     } catch (e: any) {
@@ -90,7 +104,16 @@ export default function AddMemberModal({ isOpen, onClose, grupoId }: Props) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Añadir persona al grupo</DialogTitle>
-          <DialogDescription>Busca una persona y asigna su rol en el grupo.</DialogDescription>
+          <DialogDescription>
+            Busca una persona y asigna su rol en el grupo.
+            {segmentoNombre?.toLowerCase().includes('matrimonio') && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                <span className="text-blue-700 text-sm font-medium">
+                  💑 Segmento de matrimonio: Se agregará automáticamente al cónyuge también
+                </span>
+              </div>
+            )}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

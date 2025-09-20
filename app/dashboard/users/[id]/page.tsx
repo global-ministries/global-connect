@@ -27,6 +27,7 @@ import { deleteFamilyRelation } from "@/lib/actions/user.actions"
 import { toast } from "@/components/ui/use-toast"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { UserAvatar } from '@/components/ui/UserAvatar'
 import dynamic from "next/dynamic"
 
 export default function PaginaDetalleUsuario() {
@@ -121,9 +122,6 @@ export default function PaginaDetalleUsuario() {
     }
   }
 
-  const obtenerIniciales = (nombre: string, apellido: string) => {
-    return `${nombre?.charAt(0) ?? ""}${apellido?.charAt(0) ?? ""}`.toUpperCase()
-  }
 
   const obtenerColorRol = (rolInterno: string) => {
     switch (rolInterno) {
@@ -287,9 +285,13 @@ export default function PaginaDetalleUsuario() {
             <div className="flex items-center gap-4">
               {/* Avatar compacto */}
               <div className="relative flex-shrink-0">
-                <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-white text-lg font-bold">
-                  {obtenerIniciales(usuario.nombre, usuario.apellido)}
-                </div>
+                <UserAvatar
+                  photoUrl={usuario.foto_perfil_url}
+                  nombre={usuario.nombre}
+                  apellido={usuario.apellido}
+                  size="xl"
+                  className="shadow-lg"
+                />
                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white"></div>
               </div>
 
@@ -504,8 +506,13 @@ export default function PaginaDetalleUsuario() {
                 }
                 return (
                   <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/70 rounded-xl min-h-[80px] group">
-                    <div className={`w-10 h-10 bg-gradient-to-br ${obtenerColorRelacion(tipoMostrar)} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
-                      {relacion.familiar.nombre.charAt(0)}{relacion.familiar.apellido.charAt(0)}
+                    <div className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                      <UserAvatar
+                        photoUrl={relacion.familiar.foto_perfil_url}
+                        nombre={relacion.familiar.nombre}
+                        apellido={relacion.familiar.apellido}
+                        size="md"
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
