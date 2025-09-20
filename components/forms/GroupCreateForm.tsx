@@ -5,11 +5,10 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createGroup } from "@/lib/actions/group.actions";
+import { InputSistema, BotonSistema } from "@/components/ui/sistema-diseno";
+import { cn } from "@/lib/utils";
 
 // Esquema de validación con Zod
 const groupCreateSchema = z.object({
@@ -66,76 +65,99 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
           <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
-      {/* Campo Nombre */}
-      <div className="space-y-2">
-        <Label htmlFor="nombre">Nombre del Grupo</Label>
-        <Input
-          id="nombre"
-          {...register("nombre")}
-          placeholder="Ingresa el nombre del grupo"
-          className="w-full"
-        />
-        {errors.nombre && (
-          <p className="text-sm text-red-600">{errors.nombre.message}</p>
-        )}
-      </div>
+      {/* Campos en grid para consistencia visual */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Campo Nombre: ocupa dos columnas en md */}
+        <div className="space-y-2 md:col-span-2">
+          <InputSistema
+            id="nombre"
+            label="Nombre del Grupo"
+            placeholder="Ingresa el nombre del grupo"
+            error={errors.nombre?.message}
+            {...register("nombre")}
+          />
+        </div>
 
-      {/* Campo Temporada */}
-      <div className="space-y-2">
-        <Label htmlFor="temporada">Temporada</Label>
-        <Controller
-          name="temporada_id"
-          control={control}
-          render={({ field }) => (
-            <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona una temporada" />
-              </SelectTrigger>
-              <SelectContent>
-                {temporadas.map((temporada) => (
-                  <SelectItem key={temporada.id} value={temporada.id}>
-                    {temporada.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Campo Temporada */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Temporada</label>
+          <Controller
+            name="temporada_id"
+            control={control}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger
+                  className={cn(
+                    "w-full py-3 px-3 border border-gray-200 rounded-lg bg-white",
+                    "focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200",
+                    errors.temporada_id && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                  )}
+                  aria-invalid={!!errors.temporada_id}
+                >
+                  <SelectValue placeholder="Selecciona una temporada" />
+                </SelectTrigger>
+                <SelectContent>
+                  {temporadas.map((temporada) => (
+                    <SelectItem key={temporada.id} value={temporada.id}>
+                      {temporada.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.temporada_id && (
+            <p className="text-sm text-red-600">{errors.temporada_id.message}</p>
           )}
-        />
-        {errors.temporada_id && (
-          <p className="text-sm text-red-600">{errors.temporada_id.message}</p>
-        )}
-      </div>
+        </div>
 
-      {/* Campo Segmento */}
-      <div className="space-y-2">
-        <Label htmlFor="segmento">Segmento</Label>
-        <Controller
-          name="segmento_id"
-          control={control}
-          render={({ field }) => (
-            <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un segmento" />
-              </SelectTrigger>
-              <SelectContent>
-                {segmentos.map((segmento) => (
-                  <SelectItem key={segmento.id} value={segmento.id}>
-                    {segmento.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Campo Segmento */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Segmento</label>
+          <Controller
+            name="segmento_id"
+            control={control}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger
+                  className={cn(
+                    "w-full py-3 px-3 border border-gray-200 rounded-lg bg-white",
+                    "focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200",
+                    errors.segmento_id && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+                  )}
+                  aria-invalid={!!errors.segmento_id}
+                >
+                  <SelectValue placeholder="Selecciona un segmento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {segmentos.map((segmento) => (
+                    <SelectItem key={segmento.id} value={segmento.id}>
+                      {segmento.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.segmento_id && (
+            <p className="text-sm text-red-600">{errors.segmento_id.message}</p>
           )}
-        />
-        {errors.segmento_id && (
-          <p className="text-sm text-red-600">{errors.segmento_id.message}</p>
-        )}
+        </div>
       </div>
 
       {/* Botón de envío */}
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Creando..." : "Crear Grupo y Continuar"}
-      </Button>
+  <div className="pt-2">
+        <BotonSistema
+          type="submit"
+          variante="primario"
+          tamaño="lg"
+          className="w-full md:w-auto md:min-w-[200px] md:ml-auto md:block"
+          disabled={isLoading}
+          cargando={isLoading}
+        >
+          {isLoading ? "Creando..." : "Crear Grupo y Continuar"}
+        </BotonSistema>
+      </div>
     </form>
   );
 }
