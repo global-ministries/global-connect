@@ -223,11 +223,11 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 </Link>
               )}
               
-              {grupo.puede_editar_ui && (grupo.rol_en_grupo?.toLowerCase() !== 'miembro') && (
-                <Link href={`/dashboard/grupos/${id}/edit`}>
-                  <BotonSistema variante="outline" className="w-full h-10 text-sm">
+              {grupo.puede_editar_ui && (
+                <Link href={`/dashboard/grupos/${id}/edit`} className="col-span-1">
+                  <BotonSistema variante="outline" className="w-full h-10 text-sm" data-testid="btn-editar-grupo">
                     <Edit className="w-4 h-4" />
-                    <span className="ml-2 hidden sm:inline">Editar</span>
+                    <span className="ml-2 hidden sm:inline">Editar Grupo</span>
                     <span className="ml-2 sm:hidden">Editar</span>
                   </BotonSistema>
                 </Link>
