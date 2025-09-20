@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
 import { logout } from '@/lib/actions/auth.actions'
+import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
 import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
@@ -76,6 +77,7 @@ const menuItems: MenuItem[] = [
 export function SidebarModerna({ className }: SidebarModernaProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
   const pathname = usePathname()
   const { usuario, roles, loading } = useCurrentUser()
 
@@ -318,36 +320,46 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
           </Link>
 
           {/* Cerrar Sesión */}
-          <form action={logout} className="w-full">
-            <button
-              type="submit"
-              aria-label="Cerrar sesión"
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative w-full text-left",
-                "text-gray-700 hover:bg-red-50 hover:text-red-700",
-                isCollapsed && "justify-center px-2"
-              )}
-            >
-              <LogOut className={cn(
-                "flex-shrink-0 transition-colors text-gray-500 group-hover:text-red-600",
-                isCollapsed ? "w-6 h-6" : "w-5 h-5"
-              )} />
-              
-              {!isCollapsed && (
-                <span className="font-medium">Cerrar Sesión</span>
-              )}
+          <button
+            type="button"
+            aria-label="Cerrar sesión"
+            onClick={() => setConfirmLogoutOpen(true)}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative w-full text-left",
+              "text-gray-700 hover:bg-red-50 hover:text-red-700",
+              isCollapsed && "justify-center px-2"
+            )}
+          >
+            <LogOut className={cn(
+              "flex-shrink-0 transition-colors text-gray-500 group-hover:text-red-600",
+              isCollapsed ? "w-6 h-6" : "w-5 h-5"
+            )} />
+            
+            {!isCollapsed && (
+              <span className="font-medium">Cerrar Sesión</span>
+            )}
 
-              {/* Tooltip para modo colapsado */}
-              {isCollapsed && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
-                  Cerrar Sesión
-                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
-                </div>
-              )}
-            </button>
-          </form>
+            {/* Tooltip para modo colapsado */}
+            {isCollapsed && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                Cerrar Sesión
+                <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+              </div>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* Modal de confirmación de logout */}
+      <ConfirmationModal
+        isOpen={confirmLogoutOpen}
+        onClose={() => setConfirmLogoutOpen(false)}
+        onConfirm={() => setConfirmLogoutOpen(false)}
+        title="Cerrar sesión"
+        message="¿Seguro que deseas cerrar tu sesión?"
+        confirmLabel="Sí, cerrar sesión"
+        confirmFormAction={logout}
+      />
 
     </>
   )
@@ -365,4 +377,10 @@ export function useSidebarModerna() {
   }, [])
 
   return { isCollapsed }
+}
+
+// Modal de confirmación de logout (portaled en el body)
+export function SidebarLogoutConfirm() {
+  const [open, setOpen] = useState(false)
+  return null
 }

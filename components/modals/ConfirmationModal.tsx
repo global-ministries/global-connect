@@ -26,6 +26,9 @@ interface ConfirmationModalProps {
   title: string
   message: string
   isLoading?: boolean
+  confirmLabel?: string
+  // Si se pasa, el botón de confirmar será un submit de este formulario (server action)
+  confirmFormAction?: (formData: FormData) => Promise<void> | void
 }
 
 export function ConfirmationModal({
@@ -35,6 +38,8 @@ export function ConfirmationModal({
   title,
   message,
   isLoading = false,
+  confirmLabel = "Confirmar Borrado",
+  confirmFormAction,
 }: ConfirmationModalProps) {
   if (!isOpen) return null
 
@@ -56,16 +61,30 @@ export function ConfirmationModal({
             >
               Cancelar
             </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              className="flex-1 flex items-center justify-center"
-              onClick={onConfirm}
-              disabled={isLoading}
-            >
-              {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Confirmar Borrado
-            </Button>
+            {confirmFormAction ? (
+              <form action={confirmFormAction} className="flex-1">
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  className="w-full flex items-center justify-center"
+                  disabled={isLoading}
+                >
+                  {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {confirmLabel}
+                </Button>
+              </form>
+            ) : (
+              <Button
+                type="button"
+                variant="destructive"
+                className="flex-1 flex items-center justify-center"
+                onClick={onConfirm}
+                disabled={isLoading}
+              >
+                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {confirmLabel}
+              </Button>
+            )}
           </div>
         </GlassCard>
       </div>
