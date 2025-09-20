@@ -218,7 +218,7 @@ export default function SignupPage() {
               ¿Ya tienes cuenta?{" "}
             </TextoSistema>
             <Link href="/">
-              <EnlaceSistema variante="marca" className="text-sm">
+              <EnlaceSistema variante="marca" className="text-sm" comoSpan>
                 Iniciar sesión
               </EnlaceSistema>
             </Link>

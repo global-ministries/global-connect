@@ -179,22 +179,37 @@ export const FondoAutenticacion = ({ children }: { children: React.ReactNode }) 
 }
 
 // Enlace del sistema
-interface EnlaceSistemaProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+interface EnlaceSistemaProps extends React.HTMLAttributes<HTMLElement> {
   variante?: 'default' | 'marca' | 'sutil'
+  comoSpan?: boolean // Para usar dentro de Link de Next.js
+  href?: string // Solo cuando no se usa comoSpan
 }
 
-export const EnlaceSistema = React.forwardRef<HTMLAnchorElement, EnlaceSistemaProps>(
-  ({ className, variante = 'default', ...props }, ref) => {
+export const EnlaceSistema = React.forwardRef<HTMLElement, EnlaceSistemaProps>(
+  ({ className, variante = 'default', comoSpan = false, href, ...props }, ref) => {
     const variantes = {
       default: "text-gray-600 hover:text-gray-900 transition-colors duration-200",
       marca: "text-orange-600 hover:text-orange-800 font-medium transition-colors duration-200",
       sutil: "text-gray-500 hover:text-gray-700 text-sm transition-colors duration-200"
     }
 
+    const clases = cn(variantes[variante], className)
+
+    if (comoSpan) {
+      return (
+        <span
+          ref={ref as React.Ref<HTMLSpanElement>}
+          className={clases}
+          {...props}
+        />
+      )
+    }
+
     return (
       <a
-        ref={ref}
-        className={cn(variantes[variante], className)}
+        ref={ref as React.Ref<HTMLAnchorElement>}
+        href={href}
+        className={clases}
         {...props}
       />
     )

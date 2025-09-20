@@ -121,7 +121,7 @@ export default function PaginaRestablecerContraseña() {
           {/* Enlace para volver */}
           <div className="text-center">
             <Link href="/">
-              <EnlaceSistema variante="default" className="inline-flex items-center gap-2 text-sm">
+              <EnlaceSistema variante="default" className="inline-flex items-center gap-2 text-sm" comoSpan>
                 <ArrowLeft className="w-4 h-4" />
                 Volver al Login
               </EnlaceSistema>
