@@ -8,12 +8,14 @@ type Usuario = Database['public']['Tables']['usuarios']['Row']
 
 interface CurrentUserData {
   usuario: Usuario | null
+  roles: string[]
   loading: boolean
   error: string | null
 }
 
 export function useCurrentUser(): CurrentUserData {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
+  const [roles, setRoles] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,6 +36,7 @@ export function useCurrentUser(): CurrentUserData {
 
         if (!user) {
           setUsuario(null)
+          setRoles([])
           return
         }
 
@@ -48,11 +51,25 @@ export function useCurrentUser(): CurrentUserData {
           throw new Error('Error al obtener datos del usuario: ' + userError.message)
         }
 
+        // Obtener roles del usuario usando la función RPC
+        const { data: rolesData, error: rolesError } = await supabase
+          .rpc('obtener_roles_usuario', { p_auth_id: user.id })
+
+        let userRoles: string[] = []
+        if (!rolesError && rolesData) {
+          // rolesData puede ser array de strings o de objetos
+          userRoles = Array.isArray(rolesData)
+            ? rolesData.map(r => typeof r === "string" ? r : r.nombre_interno).filter(Boolean)
+            : []
+        }
+
         setUsuario(userData)
+        setRoles(userRoles)
       } catch (err) {
         console.error('Error en useCurrentUser:', err)
         setError(err instanceof Error ? err.message : 'Error desconocido')
         setUsuario(null)
+        setRoles([])
       } finally {
         setLoading(false)
       }
@@ -65,6 +82,7 @@ export function useCurrentUser(): CurrentUserData {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: any, session: any) => {
       if (event === 'SIGNED_OUT') {
         setUsuario(null)
+        setRoles([])
         setLoading(false)
       } else if (event === 'SIGNED_IN' && session) {
         fetchCurrentUser()
@@ -76,5 +94,5 @@ export function useCurrentUser(): CurrentUserData {
     }
   }, [])
 
-  return { usuario, loading, error }
+  return { usuario, roles, loading, error }
 }

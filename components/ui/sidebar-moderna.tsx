@@ -76,7 +76,27 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const pathname = usePathname()
-  const { usuario, loading } = useCurrentUser()
+  const { usuario, roles, loading } = useCurrentUser()
+
+  // Formatear roles para mostrar
+  const formatearRoles = (roles: string[]): string => {
+    if (!roles || roles.length === 0) return 'Usuario'
+    
+    // Mapear roles internos a nombres amigables
+    const rolesAmigables = roles.map(rol => {
+      switch (rol) {
+        case 'admin': return 'Administrador'
+        case 'lider': return 'Líder'
+        case 'coordinador': return 'Coordinador'
+        case 'voluntario': return 'Voluntario'
+        case 'miembro': return 'Miembro'
+        default: return rol.charAt(0).toUpperCase() + rol.slice(1)
+      }
+    })
+    
+    // Si tiene múltiples roles, mostrar el más importante o el primero
+    return rolesAmigables[0]
+  }
 
   // Detectar si es móvil
   useEffect(() => {
@@ -188,7 +208,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                       {usuario.nombre} {usuario.apellido}
                     </p>
                     <p className="text-sm text-gray-500 truncate">
-                      Bienvenido de vuelta
+                      {formatearRoles(roles)}
                     </p>
                   </div>
                 )}
