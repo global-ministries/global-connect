@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Segmento inválido" }, { status: 400 });
     }
 
-    const base = `${ubicacion} ${segmento.nombre}`.trim();
+  const base = `${ubicacion} ${segmento.nombre}`.trim();
+  const endsWithNumber = /\d$/.test(segmento.nombre.trim());
 
     // Buscar nombres existentes en misma temporada y segmento que empiecen con base
     const { data: grupos, error: gruposError } = await supabase
@@ -46,17 +47,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No es posible sugerir el nombre" }, { status: 500 });
     }
 
-    // Extraer sufijos numéricos
+    // Extraer sufijos numéricos (compatibilidad con nombres previos con o sin guion)
+    const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const baseEsc = escapeRegExp(base);
+    const reWithDash = new RegExp(`^${baseEsc}\\s+-\\s+(\\d+)$`, "i");
+    const reWithoutDash = new RegExp(`^${baseEsc}\\s+(\\d+)$`, "i");
     let maxN = 0;
     for (const g of grupos || []) {
-      const m = String(g.nombre || "").match(new RegExp(`^${base}\\s+(\\d+)$`));
+      const nombreG = String(g.nombre || "").trim();
+      const mDash = nombreG.match(reWithDash);
+      const mNoDash = !mDash && nombreG.match(reWithoutDash);
+      const m = mDash || mNoDash;
       if (m) {
         const n = parseInt(m[1], 10);
         if (!Number.isNaN(n)) maxN = Math.max(maxN, n);
       }
     }
     const next = maxN + 1;
-    const nombre = `${base} ${next}`;
+    const nombre = endsWithNumber ? `${base} - ${next}` : `${base} ${next}`;
     return NextResponse.json({ nombre });
   } catch (e) {
     console.error("[sugerir-nombre] error:", e);
