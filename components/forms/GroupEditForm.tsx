@@ -88,7 +88,7 @@ export default function GroupEditForm({
   });
 
   const dias = [
-    "Lunes","Miércoles","Jueves","Viernes","Sábado"
+    "Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"
   ];
   const horas = [
     "05:00 AM","05:30 AM","06:00 AM","06:30 AM","07:00 AM","07:30 AM",

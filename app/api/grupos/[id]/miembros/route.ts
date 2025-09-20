@@ -6,7 +6,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id: grupoId } = await params;
     const body = await req.json();
     const usuarioId: string = body?.usuarioId;
-  const rol: "Líder" | "Colíder" | "Miembro" = body?.rol || "Miembro"; // UI muestra 'Aprendiz'
+    const rol: "Líder" | "Colíder" | "Miembro" = body?.rol || "Miembro";
     const incluirConyuge: boolean = body?.incluirConyuge || false;
     
     if (!usuarioId) return NextResponse.json({ error: "usuarioId requerido" }, { status: 400 });
