@@ -15,6 +15,7 @@ interface Usuario {
   rol_nombre_interno: string
   rol_nombre_visible: string
   puede_ver: boolean
+  foto_perfil_url: string | null
 }
 
 interface EstadisticasUsuarios {
