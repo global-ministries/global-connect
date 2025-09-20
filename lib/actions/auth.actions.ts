@@ -8,7 +8,7 @@ export async function login(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  const supabase = createSupabaseServerClient(); // Usa la funciÃ³n personalizada
+  const supabase = await createSupabaseServerClient(); // Await la función async
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -16,7 +16,7 @@ export async function login(formData: FormData) {
   });
 
   if (error) {
-    return { error: "Credenciales invÃ¡lidas. Por favor, intÃ©ntalo de nuevo." };
+    return { error: "Credenciales inválidas. Por favor, inténtalo de nuevo." };
   }
 
   redirect("/dashboard");
@@ -29,8 +29,8 @@ export async function signup(formData: FormData) {
   const password = formData.get("password") as string;
   const cedula = formData.get("cedula") as string | undefined;
 
-  // 1. Crear usuario en auth usando el cliente de sesiÃ³n normal
-  const supabase = createSupabaseServerClient();
+  // 1. Crear usuario en auth usando el cliente de sesión normal
+  const supabase = await createSupabaseServerClient();
   const { data: signUpData, error: errorSignUp } = await supabase.auth.signUp({
     email,
     password,
@@ -114,7 +114,7 @@ export async function signup(formData: FormData) {
 }
 
 export async function logout() {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
   await supabase.auth.signOut()
   redirect('/')
 }
