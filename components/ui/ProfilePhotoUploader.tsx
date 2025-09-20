@@ -55,12 +55,34 @@ export function ProfilePhotoUploader({
         return
       }
 
-      const img = new Image()
+      const img = document.createElement('img') as HTMLImageElement
 
       img.onload = () => {
         try {
-          const MAX_SIZE = 800
+          // Detectar si es móvil para compresión más agresiva
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+          
+          // Configuración de compresión basada en el dispositivo y tamaño original
+          let MAX_SIZE = 800
+          let quality = 0.8
+          
+          // Configuración agresiva para asegurar que siempre sea < 1MB
+          if (isMobile || file.size > 2 * 1024 * 1024) {
+            // Para móviles o archivos grandes, comprimir agresivamente
+            MAX_SIZE = 300 // Muy pequeño
+            quality = 0.4  // Calidad baja para tamaño pequeño
+            console.log('Aplicando compresión agresiva para asegurar < 1MB')
+          }
+          
+          // Si el archivo original es enorme, ser extremadamente agresivo
+          if (file.size > 5 * 1024 * 1024) { // Mayor a 5MB
+            MAX_SIZE = 200 // Extremadamente pequeño
+            quality = 0.3  // Calidad muy baja
+            console.log('Archivo enorme, aplicando compresión extrema')
+          }
+          
           let { width, height } = img
+          console.log('Dimensiones originales:', width, 'x', height)
           
           // Redimensionar manteniendo aspect ratio
           if (width > height) {
@@ -75,6 +97,9 @@ export function ProfilePhotoUploader({
             }
           }
 
+          console.log('Dimensiones finales:', width, 'x', height)
+          console.log('Calidad JPEG:', quality)
+
           canvas.width = width
           canvas.height = height
           ctx.drawImage(img, 0, 0, width, height)
@@ -85,6 +110,7 @@ export function ProfilePhotoUploader({
               URL.revokeObjectURL(img.src)
               
               if (blob) {
+                console.log('Blob creado:', blob.size, 'bytes')
                 const processedFile = new File([blob], file.name, {
                   type: 'image/jpeg',
                   lastModified: Date.now()
@@ -95,7 +121,7 @@ export function ProfilePhotoUploader({
               }
             },
             'image/jpeg',
-            0.8
+            quality
           )
         } catch (error) {
           URL.revokeObjectURL(img.src)
@@ -129,22 +155,67 @@ export function ProfilePhotoUploader({
       }
 
       if (file.size > 5 * 1024 * 1024) { // 5MB
-        setError('El archivo es demasiado grande. Máximo 5MB.')
+        setError('El archivo es demasiado grande. Máximo permitido: 5MB.')
         return
       }
 
       let fileToUpload = file
 
-      // Solo procesar si el archivo es muy grande o no es JPEG
-      if (file.size > 1024 * 1024 || !file.type.includes('jpeg')) {
+      // Detectar si es móvil para compresión más agresiva
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      
+      // Procesar imagen si es muy grande o si es de móvil (las fotos móviles suelen ser enormes)
+      const shouldCompress = file.size > 1024 * 1024 || // Mayor a 1MB
+                            isMobile || // Siempre comprimir en móvil
+                            !file.type.includes('jpeg') // No es JPEG
+      
+      console.log('Archivo original:', file.name, file.size, 'bytes')
+      console.log('Es móvil:', isMobile)
+      console.log('Debe comprimir:', shouldCompress)
+      
+      if (shouldCompress) {
         try {
-          fileToUpload = await processImageFile(file)
+          console.log('Iniciando compresión...')
+          setError('Comprimiendo imagen, por favor espera...')
+          
+          // Timeout para evitar que se cuelgue
+          const compressionPromise = processImageFile(file)
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Timeout de compresión')), 30000) // 30 segundos
+          })
+          
+          fileToUpload = await Promise.race([compressionPromise, timeoutPromise])
+          
+          console.log('Archivo comprimido:', fileToUpload.size, 'bytes')
+          console.log('Reducción:', Math.round((1 - fileToUpload.size / file.size) * 100) + '%')
+          setError(null) // Limpiar mensaje de compresión
         } catch (processError) {
           console.warn('Error al procesar imagen, usando archivo original:', processError)
-          // Si falla el procesamiento, usar el archivo original
+          setError(null)
+          
+          // Si falla el procesamiento y el archivo original es muy grande, rechazar
+          if (file.size > 5 * 1024 * 1024) {
+            setError(`La imagen es muy grande (${Math.round(file.size / 1024 / 1024)}MB) y no se pudo comprimir. Intenta con una foto más pequeña.`)
+            return
+          }
+          
+          // Si el archivo original es aceptable, usarlo
           fileToUpload = file
         }
       }
+
+      // Verificación final de tamaño después de compresión
+      if (fileToUpload.size > 1024 * 1024) { // 1MB límite para Server Actions
+        setError(`La imagen aún es muy grande (${Math.round(fileToUpload.size / 1024)}KB). Límite: 1MB. Intenta con una foto más pequeña o de menor calidad.`)
+        return
+      }
+      
+      if (fileToUpload.size > 5 * 1024 * 1024) {
+        setError(`La imagen sigue siendo muy grande después de la compresión (${Math.round(fileToUpload.size / 1024 / 1024)}MB). Intenta con una foto más pequeña.`)
+        return
+      }
+
+      console.log('Archivo final para subir:', fileToUpload.size, 'bytes')
 
       // Crear FormData
       const formData = new FormData()
@@ -199,22 +270,225 @@ export function ProfilePhotoUploader({
   // Iniciar cámara
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user' // Cámara frontal por defecto
-        } 
-      })
+      setError(null)
+      
+      // Verificar compatibilidad del navegador
+      if (typeof navigator === 'undefined') {
+        setError('Funcionalidad no disponible en este entorno')
+        return
+      }
+
+      // Detectar si es móvil
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      console.log('Es móvil:', isMobile)
+      console.log('User Agent:', navigator.userAgent)
+
+      // Verificar compatibilidad específica para móviles
+      let hasCamera = false
+      let cameraMethod = 'none'
+      
+      // Para móviles, verificar de manera más específica
+      if (isMobile) {
+        console.log('=== VERIFICACIÓN MÓVIL ===')
+        
+        // Verificar si navigator.mediaDevices existe
+        if (navigator.mediaDevices) {
+          console.log('✅ navigator.mediaDevices existe')
+          
+          if (typeof navigator.mediaDevices.getUserMedia === 'function') {
+            console.log('✅ navigator.mediaDevices.getUserMedia existe')
+            hasCamera = true
+            cameraMethod = 'modern'
+          } else {
+            console.log('❌ navigator.mediaDevices.getUserMedia NO existe')
+          }
+        } else {
+          console.log('❌ navigator.mediaDevices NO existe')
+          
+          // Fallback para móviles antiguos
+          if ((navigator as any).getUserMedia) {
+            console.log('✅ navigator.getUserMedia existe (legacy)')
+            hasCamera = true
+            cameraMethod = 'legacy'
+          } else if ((navigator as any).webkitGetUserMedia) {
+            console.log('✅ navigator.webkitGetUserMedia existe (webkit)')
+            hasCamera = true
+            cameraMethod = 'webkit'
+          } else {
+            console.log('❌ No hay métodos getUserMedia disponibles')
+          }
+        }
+      } else {
+        // Para desktop, usar verificación normal
+        if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+          hasCamera = true
+          cameraMethod = 'modern'
+          console.log('✅ Método moderno disponible (desktop)')
+        } else if (typeof (navigator as any).getUserMedia === 'function') {
+          hasCamera = true
+          cameraMethod = 'legacy'
+          console.log('✅ Método legacy disponible (desktop)')
+        } else if (typeof (navigator as any).webkitGetUserMedia === 'function' || typeof (navigator as any).mozGetUserMedia === 'function') {
+          hasCamera = true
+          cameraMethod = 'webkit'
+          console.log('✅ Método con prefijo disponible (desktop)')
+        }
+      }
+      
+      console.log('Método de cámara detectado:', cameraMethod)
+      
+      if (!hasCamera) {
+        if (isMobile) {
+          // En móvil, ofrecer alternativa con input file
+          setError('Tu navegador móvil no soporta cámara web. Usa el botón "Subir archivo" para seleccionar una foto de tu galería.')
+        } else {
+          setError('Tu navegador no soporta acceso a la cámara. Asegúrate de usar Chrome, Firefox o Safari actualizado.')
+        }
+        return
+      }
+
+      console.log('Abriendo modal de cámara...')
+      
+      // Primero mostrar el modal
+      setShowCamera(true)
+      
+      // Esperar un poco para que el modal se renderice
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      console.log('Solicitando acceso a la cámara...')
+      console.log('Navigator disponible:', !!navigator)
+      console.log('MediaDevices disponible:', !!navigator.mediaDevices)
+      console.log('getUserMedia disponible:', !!navigator.mediaDevices?.getUserMedia)
+      
+      // Configuraciones específicas para móvil vs desktop
+      let constraints: MediaStreamConstraints
+      
+      if (isMobile) {
+        // Configuración optimizada para móviles
+        constraints = {
+          video: {
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 },
+            facingMode: 'user', // Cámara frontal
+            frameRate: { ideal: 30, max: 30 }
+          },
+          audio: false
+        }
+        console.log('Usando configuración móvil:', constraints)
+      } else {
+        // Configuración simple para desktop
+        constraints = {
+          video: true,
+          audio: false
+        }
+        console.log('Usando configuración desktop:', constraints)
+      }
+      
+      console.log('Constraints:', constraints)
+      
+      let stream: MediaStream
+      
+      try {
+        if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+          console.log('Usando método moderno getUserMedia...')
+          stream = await navigator.mediaDevices.getUserMedia(constraints)
+          console.log('Stream obtenido:', stream)
+          console.log('Video tracks:', stream.getVideoTracks().length)
+        } else if (typeof (navigator as any).getUserMedia === 'function') {
+          console.log('Usando fallback navigator.getUserMedia...')
+          stream = await new Promise<MediaStream>((resolve, reject) => {
+            (navigator as any).getUserMedia(constraints, resolve, reject)
+          })
+        } else if (typeof (navigator as any).webkitGetUserMedia === 'function') {
+          console.log('Usando fallback webkitGetUserMedia...')
+          stream = await new Promise<MediaStream>((resolve, reject) => {
+            (navigator as any).webkitGetUserMedia(constraints, resolve, reject)
+          })
+        } else if (typeof (navigator as any).mozGetUserMedia === 'function') {
+          console.log('Usando fallback mozGetUserMedia...')
+          stream = await new Promise<MediaStream>((resolve, reject) => {
+            (navigator as any).mozGetUserMedia(constraints, resolve, reject)
+          })
+        } else {
+          throw new Error('No se encontró método getUserMedia compatible')
+        }
+      } catch (streamError) {
+        console.error('Error al obtener stream:', streamError)
+        throw streamError
+      }
+      
+      console.log('Acceso a cámara concedido, configurando video...')
+      
+      // Esperar a que el videoRef esté disponible con más intentos
+      let attempts = 0
+      while (!videoRef.current && attempts < 20) {
+        console.log(`Esperando videoRef, intento ${attempts + 1}/20`)
+        await new Promise(resolve => setTimeout(resolve, 100))
+        attempts++
+      }
       
       if (videoRef.current) {
+        console.log('VideoRef encontrado, asignando stream...')
         videoRef.current.srcObject = stream
         streamRef.current = stream
-        setShowCamera(true)
+        
+        // Configurar eventos del video
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded - dimensiones:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight)
+        }
+        
+        videoRef.current.oncanplay = () => {
+          console.log('Video can play')
+        }
+        
+        videoRef.current.onplay = () => {
+          console.log('Video started playing')
+        }
+        
+        videoRef.current.onerror = (e) => {
+          console.error('Video element error:', e)
+          setError('Error en el elemento de video')
+        }
+        
+        // Forzar reproducción
+        try {
+          console.log('Intentando reproducir video...')
+          await videoRef.current.play()
+          console.log('Video reproduciéndose correctamente')
+        } catch (playError) {
+          console.warn('No se pudo auto-reproducir el video:', playError)
+          // No es crítico, el video puede funcionar sin autoplay
+        }
+      } else {
+        console.error('videoRef.current sigue siendo null después de 20 intentos')
+        setError('Error interno: no se pudo inicializar el video después de múltiples intentos.')
+        
+        // Limpiar el stream si no podemos usarlo
+        stream.getTracks().forEach(track => track.stop())
+        setShowCamera(false)
       }
     } catch (err) {
       console.error('Error al acceder a la cámara:', err)
-      setError('No se pudo acceder a la cámara')
+      setShowCamera(false)
+      
+      // Mensajes de error más específicos
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          setError('Permisos de cámara denegados. Por favor, permite el acceso a la cámara en tu navegador.')
+        } else if (err.name === 'NotFoundError') {
+          setError('No se encontró ninguna cámara en tu dispositivo.')
+        } else if (err.name === 'NotSupportedError') {
+          setError('Tu navegador no soporta acceso a la cámara. Prueba con Chrome, Firefox o Safari.')
+        } else if (err.name === 'NotReadableError') {
+          setError('La cámara está siendo usada por otra aplicación.')
+        } else if (err.name === 'OverconstrainedError') {
+          setError('La configuración de cámara solicitada no es compatible con tu dispositivo.')
+        } else {
+          setError(`Error de cámara: ${err.message}`)
+        }
+      } else {
+        setError('Error desconocido al acceder a la cámara')
+      }
     }
   }, [])
 
@@ -229,27 +503,81 @@ export function ProfilePhotoUploader({
 
   // Tomar foto con cámara
   const capturePhoto = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return
+    console.log('=== CAPTURANDO FOTO ===')
+    
+    if (!videoRef.current) {
+      console.error('videoRef.current es null')
+      setError('Error: elemento de video no disponible')
+      return
+    }
+    
+    if (!canvasRef.current) {
+      console.error('canvasRef.current es null')
+      setError('Error: elemento canvas no disponible')
+      return
+    }
 
     const video = videoRef.current
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
 
+    if (!ctx) {
+      console.error('No se pudo obtener contexto 2D del canvas')
+      setError('Error: no se pudo crear contexto de canvas')
+      return
+    }
+
+    console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight)
+    
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error('Video no tiene dimensiones válidas')
+      setError('Error: video no está listo. Espera un momento e intenta de nuevo.')
+      return
+    }
+
+    // Configurar canvas con las dimensiones del video
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
-    ctx?.drawImage(video, 0, 0)
+    
+    console.log('Canvas configurado:', canvas.width, 'x', canvas.height)
 
-    canvas.toBlob(async (blob) => {
-      if (blob) {
-        const file = new File([blob], 'camera-photo.jpg', {
-          type: 'image/jpeg',
-          lastModified: Date.now()
-        })
-        
-        stopCamera()
-        await handleFileUpload(file)
+    // Dibujar el frame actual del video en el canvas
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    
+    console.log('Frame dibujado en canvas')
+
+    // Convertir canvas a blob
+    try {
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, 'image/jpeg', 0.8)
+      })
+
+      if (!blob) {
+        console.error('No se pudo crear blob desde canvas')
+        setError('Error al procesar la imagen capturada')
+        return
       }
-    }, 'image/jpeg', 0.8)
+
+      console.log('Blob creado:', blob.size, 'bytes')
+
+      const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      })
+      
+      console.log('Archivo creado:', file.name, file.size, 'bytes')
+      
+      // Cerrar cámara antes de subir
+      stopCamera()
+      
+      // Subir archivo
+      console.log('Iniciando subida de archivo...')
+      await handleFileUpload(file)
+      
+    } catch (error) {
+      console.error('Error en captura de foto:', error)
+      setError('Error al capturar la foto')
+    }
   }, [stopCamera, handleFileUpload])
 
   // Eliminar foto
@@ -313,7 +641,15 @@ export function ProfilePhotoUploader({
             {previewUrl ? 'Cambiar foto' : 'Subir foto de perfil'}
           </p>
           <p className={`${config.text} text-gray-400`}>
-            Arrastra una imagen o haz clic para seleccionar
+            <span className="hidden md:inline">Arrastra una imagen o </span>
+            Haz clic para seleccionar
+            <span className="md:hidden"> de tu galería</span>
+          </p>
+          <p className={`text-xs text-gray-500 mt-1`}>
+            Máximo 5MB • Formatos: JPG, PNG, WebP
+          </p>
+          <p className={`text-xs text-gray-400 mt-1`}>
+            Las imágenes se optimizan automáticamente para web
           </p>
         </div>
       </div>
@@ -332,17 +668,22 @@ export function ProfilePhotoUploader({
           Subir archivo
         </Button>
 
+        {/* Botón de cámara - solo en desktop */}
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={startCamera}
+          onClick={() => {
+            console.log('Botón de cámara clickeado')
+            startCamera()
+          }}
           disabled={isUploading}
-          className="flex items-center gap-2"
+          className="hidden md:flex items-center gap-2" // Solo visible en desktop
         >
           <Camera className="w-4 h-4" />
           Usar cámara
         </Button>
+
 
         {previewUrl && (
           <Button
@@ -359,47 +700,75 @@ export function ProfilePhotoUploader({
         )}
       </div>
 
-      {/* Input de archivo oculto */}
+      {/* Input de archivo oculto - optimizado para móviles */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        // Removemos capture para que solo abra galería en móvil
         onChange={handleFileSelect}
         className="hidden"
       />
 
       {/* Modal de cámara */}
       {showCamera && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999]"
+          style={{ zIndex: 9999 }}
+        >
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Tomar foto</h3>
+              <h3 className="text-lg font-semibold text-gray-800">Tomar foto de perfil</h3>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={stopCamera}
-                className="p-1"
+                className="p-1 hover:bg-gray-100"
               >
                 <X className="w-5 h-5" />
               </Button>
             </div>
             
             <div className="space-y-4">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full rounded-lg"
-              />
+              {/* Contenedor del video con aspect ratio */}
+              <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                  onLoadedMetadata={() => {
+                    console.log('Video metadata loaded')
+                  }}
+                  onError={(e) => {
+                    console.error('Video error:', e)
+                    setError('Error al cargar el video de la cámara')
+                  }}
+                />
+                
+                {/* Indicador de carga mientras se inicia la cámara */}
+                {!streamRef.current && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
+                    <div className="text-center">
+                      <RotateCcw className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-500" />
+                      <p className="text-sm text-gray-600">Iniciando cámara...</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Si aparece una solicitud de permisos, por favor acepta
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
               
-              <div className="flex justify-center gap-2">
+              <div className="flex justify-center gap-3">
                 <Button
                   onClick={capturePhoto}
-                  disabled={isUploading}
-                  className="flex items-center gap-2"
+                  disabled={isUploading || !videoRef.current?.srcObject}
+                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600"
                 >
                   <Camera className="w-4 h-4" />
-                  Capturar
+                  {isUploading ? 'Procesando...' : 'Capturar foto'}
                 </Button>
                 
                 <Button
@@ -410,6 +779,13 @@ export function ProfilePhotoUploader({
                   <X className="w-4 h-4" />
                   Cancelar
                 </Button>
+              </div>
+              
+              {/* Instrucciones */}
+              <div className="text-center">
+                <p className="text-xs text-gray-500">
+                  Asegúrate de estar bien iluminado y centrado en la cámara
+                </p>
               </div>
             </div>
           </div>
@@ -431,8 +807,11 @@ export function ProfilePhotoUploader({
         <div className="text-center">
           <div className="inline-flex items-center gap-2 text-sm text-gray-600">
             <RotateCcw className="w-4 h-4 animate-spin" />
-            Subiendo foto...
+            Procesando y subiendo foto...
           </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Optimizando imagen para web (puede tomar unos segundos)
+          </p>
         </div>
       )}
     </div>
