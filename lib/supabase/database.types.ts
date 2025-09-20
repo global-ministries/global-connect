@@ -913,6 +913,7 @@ export type Database = {
           familia_id: string | null
           fecha_nacimiento: string | null
           fecha_registro: string
+          foto_perfil_url: string | null
           genero: Database["public"]["Enums"]["enum_genero"]
           id: string
           nombre: string
@@ -930,6 +931,7 @@ export type Database = {
           familia_id?: string | null
           fecha_nacimiento?: string | null
           fecha_registro?: string
+          foto_perfil_url?: string | null
           genero: Database["public"]["Enums"]["enum_genero"]
           id?: string
           nombre: string
@@ -947,6 +949,7 @@ export type Database = {
           familia_id?: string | null
           fecha_nacimiento?: string | null
           fecha_registro?: string
+          foto_perfil_url?: string | null
           genero?: Database["public"]["Enums"]["enum_genero"]
           id?: string
           nombre?: string
