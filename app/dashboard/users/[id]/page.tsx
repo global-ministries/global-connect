@@ -27,6 +27,7 @@ import { deleteFamilyRelation } from "@/lib/actions/user.actions"
 import { toast } from "@/components/ui/use-toast"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { UserAvatar } from '@/components/ui/UserAvatar'
 import dynamic from "next/dynamic"
 
 export default function PaginaDetalleUsuario() {
@@ -121,9 +122,6 @@ export default function PaginaDetalleUsuario() {
     }
   }
 
-  const obtenerIniciales = (nombre: string, apellido: string) => {
-    return `${nombre?.charAt(0) ?? ""}${apellido?.charAt(0) ?? ""}`.toUpperCase()
-  }
 
   const obtenerColorRol = (rolInterno: string) => {
     switch (rolInterno) {
@@ -287,9 +285,13 @@ export default function PaginaDetalleUsuario() {
             <div className="flex items-center gap-4">
               {/* Avatar compacto */}
               <div className="relative flex-shrink-0">
-                <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-white text-lg font-bold">
-                  {obtenerIniciales(usuario.nombre, usuario.apellido)}
-                </div>
+                <UserAvatar
+                  photoUrl={usuario.foto_perfil_url}
+                  nombre={usuario.nombre}
+                  apellido={usuario.apellido}
+                  size="xl"
+                  className="shadow-lg"
+                />
                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white"></div>
               </div>
 
