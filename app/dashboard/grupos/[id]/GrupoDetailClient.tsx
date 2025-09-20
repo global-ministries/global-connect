@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 
 const MapModal = dynamic(() => import("@/components/modals/MapModal"), { 
   ssr: false,
@@ -43,6 +44,7 @@ interface Miembro {
   email?: string;
   telefono?: string;
   rol?: string;
+  foto_perfil_url?: string | null;
 }
 
 interface Grupo {
@@ -71,9 +73,6 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   const [pendingRemovalId, setPendingRemovalId] = useState<string | number | null>(null);
   const router = useRouter();
 
-  const obtenerIniciales = (nombre: string, apellido: string) => {
-    return `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase();
-  };
 
   const obtenerColorRol = (rol: string | undefined) => {
     switch (rol?.toLowerCase()) {
@@ -283,9 +282,13 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
               <div key={miembro.id} className="bg-white/50 border border-gray-200 rounded-xl p-4">
                 {/* Desktop: layout horizontal alineado */}
                 <div className="hidden lg:flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                    {obtenerIniciales(miembro.nombre, miembro.apellido)}
-                  </div>
+                  <UserAvatar
+                    photoUrl={miembro.foto_perfil_url}
+                    nombre={miembro.nombre}
+                    apellido={miembro.apellido}
+                    size="lg"
+                    className="flex-shrink-0"
+                  />
                   
                   {/* Información en columnas alineadas */}
                   <div className="flex-1 grid grid-cols-3 gap-4 items-center">
@@ -344,9 +347,13 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
 
                 {/* Móvil: layout vertical como estaba */}
                 <div className="lg:hidden flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
-                    {obtenerIniciales(miembro.nombre, miembro.apellido)}
-                  </div>
+                  <UserAvatar
+                    photoUrl={miembro.foto_perfil_url}
+                    nombre={miembro.nombre}
+                    apellido={miembro.apellido}
+                    size="lg"
+                    className="flex-shrink-0"
+                  />
                   <div className="flex-1 min-w-0">
                     <Link 
                       href={`/dashboard/users/${miembro.id}`}
