@@ -56,7 +56,10 @@ export default function GroupAuditPreview({ grupoId }: { grupoId: string }) {
     if (oldRol || newRol) {
       return (
         <div className="text-xs text-gray-600">
-          Rol: <span className="font-medium">{oldRol ?? "-"}</span> → <span className="font-medium">{newRol ?? "-"}</span>
+          {"Rol: "}
+          <span className="font-medium">{oldRol === 'Colíder' ? 'Aprendiz' : (oldRol ?? "-")}</span>
+          {" → "}
+          <span className="font-medium">{newRol === 'Colíder' ? 'Aprendiz' : (newRol ?? "-")}</span>
         </div>
       );
     }
