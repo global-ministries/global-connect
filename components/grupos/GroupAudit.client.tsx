@@ -71,11 +71,6 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grupoId, action, actor, desde, hasta]);
 
-  const rolLabel = (rol: string | null | undefined) => {
-    if (!rol) return rol;
-    return rol === 'Colíder' ? 'Aprendiz' : rol;
-  };
-
   function renderDiff(it: AuditItem) {
     const oldRol = it.old_data?.rol ?? null;
     const newRol = it.new_data?.rol ?? null;
@@ -85,11 +80,11 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
           <span className="font-medium text-gray-700">Cambio de rol:</span>
           <div className="flex items-center gap-2 mt-1">
             <BadgeSistema variante={oldRol ? "info" : "default"}>
-              {oldRol ? rolLabel(oldRol) : "Sin rol"}
+              {oldRol ?? "Sin rol"}
             </BadgeSistema>
             <span className="text-gray-400">→</span>
             <BadgeSistema variante={newRol ? "success" : "default"}>
-              {newRol ? rolLabel(newRol) : "Sin rol"}
+              {newRol ?? "Sin rol"}
             </BadgeSistema>
           </div>
         </div>
@@ -108,8 +103,8 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
       it.actor_nombre || "",
       it.usuario_nombre || it.usuario_id,
       it.usuario_email || "",
-      rolLabel(it.old_data?.rol ?? "") || "",
-      rolLabel(it.new_data?.rol ?? "") || "",
+      it.old_data?.rol ?? "",
+      it.new_data?.rol ?? "",
     ]);
     const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -146,7 +141,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
               onClick={() => load(0)}
               variante="primario"
               tamaño="md"
-              disabled={loading}
+              deshabilitado={loading}
               className="w-full sm:w-auto"
             >
               <Filter className="w-4 h-4 mr-2" />
@@ -286,7 +281,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
             onClick={() => load(page + 1)}
             variante={canLoadMore ? "primario" : "outline"}
             tamaño="md"
-            disabled={loading || !canLoadMore}
+            deshabilitado={loading || !canLoadMore}
             className="w-full sm:w-auto"
           >
             {loading ? "Cargando..." : canLoadMore ? "Cargar más" : "No hay más"}
