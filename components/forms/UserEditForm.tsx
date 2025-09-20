@@ -269,6 +269,16 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
     const estadoNombre = estados.find(e => e.id === estadoId)?.nombre
     const municipioNombre = municipios.find(m => m.id === municipioId)?.nombre
 
+    // Coordenadas específicas para municipio Iribarren
+    if (municipioNombre?.toLowerCase() === 'iribarren') {
+      const iribarrenLat = 10.078726345593038
+      const iribarrenLng = -69.28487917698043
+      setMapCenter({ lat: iribarrenLat, lng: iribarrenLng })
+      setValue("direccion.lat", iribarrenLat, { shouldValidate: true, shouldDirty: true })
+      setValue("direccion.lng", iribarrenLng, { shouldValidate: true, shouldDirty: true })
+      return
+    }
+
     // Construir dirección solo si hay al menos municipio, estado o país
     const partes = [municipioNombre, estadoNombre, paisNombre].filter(Boolean)
     const direccionStr = partes.join(", ")
