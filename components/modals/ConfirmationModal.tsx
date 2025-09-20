@@ -3,6 +3,7 @@
 import { AlertTriangle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import React from "react"
+import { createPortal } from "react-dom"
 
 // Usa un div con estilos glassmorphism en vez de GlassCard si no existe el componente
 export function GlassCard({ className = "", children }: { className?: string; children: React.ReactNode }) {
@@ -43,11 +44,11 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
   if (!isOpen) return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  const content = (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm overflow-y-auto">
       <div className="absolute inset-0 bg-white/20 backdrop-blur-[6px] pointer-events-none" />
-      <div className="relative z-10 w-full max-w-md mx-auto">
-        <GlassCard className="p-8 flex flex-col items-center gap-6">
+      <div className="relative z-10 w-full max-w-sm md:max-w-md mx-4 my-8">
+        <GlassCard className="p-6 md:p-8 flex flex-col items-center gap-6">
           <AlertTriangle className="w-12 h-12 text-orange-500 mb-2" />
           <h2 className="text-xl font-bold text-gray-800 text-center">{title}</h2>
           <p className="text-gray-600 text-center">{message}</p>
@@ -90,4 +91,10 @@ export function ConfirmationModal({
       </div>
     </div>
   )
+
+  // Portalizar al body para evitar contenedores con position/overflow que impidan el centrado (especialmente en móvil)
+  if (typeof document !== "undefined") {
+    return createPortal(content, document.body)
+  }
+  return content
 }
