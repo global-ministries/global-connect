@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { UserEditForm } from "@/components/forms/UserEditForm"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
@@ -12,8 +12,8 @@ interface Props {
 export default async function EditUserPage({ params }: Props) {
   const { id } = await params
 
-  // Crear cliente Supabase correctamente
-  const supabase = createSupabaseServerClient()
+  // Usar admin client para bypass RLS
+  const supabase = createSupabaseAdminClient()
 
   // Obtener datos del usuario básico
   const { data: usuario, error: errorUsuario } = await supabase

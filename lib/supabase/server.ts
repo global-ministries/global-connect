@@ -1,29 +1,24 @@
 import { createServerClient } from '@supabase/ssr'
-import { cookies as nextCookies } from 'next/headers'
+import { cookies } from 'next/headers'
 
-export function createSupabaseServerClient() {
-  const cookieStore = nextCookies()
+export async function createSupabaseServerClient() {
+  const cookieStore = await cookies()
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: async (name: string) => (await cookieStore).get(name)?.value,
-        set: async (name: string, value: string, options: any) => {
+        get: (name: string) => cookieStore.get(name)?.value,
+        set: (name: string, value: string, options: any) => {
           try {
-            ;(await cookieStore).set(name, value, options)
+            cookieStore.set(name, value, options)
           } catch {
             // set solo permitido en Server Actions / Route Handlers. Ignorar en RSC.
           }
         },
-        remove: async (name: string, options: any) => {
+        remove: (name: string, options: any) => {
           try {
-            const store = await cookieStore
-            if (typeof (store as any).delete === 'function') {
-              ;(store as any).delete(name, options)
-            } else {
-              store.set(name, '', options)
-            }
+            cookieStore.delete(name)
           } catch {
             // remove solo permitido en Server Actions / Route Handlers. Ignorar en RSC.
           }
