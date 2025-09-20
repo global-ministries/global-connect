@@ -41,51 +41,78 @@ export function ProfilePhotoUploader({
 
   // Procesar archivo de imagen
   const processImageFile = useCallback(async (file: File): Promise<File> => {
+    // Verificar que estamos en el cliente
+    if (typeof window === 'undefined') {
+      return Promise.reject(new Error('El procesamiento de imágenes solo está disponible en el cliente'))
+    }
+
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
+      
+      if (!ctx) {
+        reject(new Error('No se pudo crear el contexto del canvas'))
+        return
+      }
+
       const img = new Image()
 
       img.onload = () => {
-        const MAX_SIZE = 800
-        let { width, height } = img
-        
-        // Redimensionar manteniendo aspect ratio
-        if (width > height) {
-          if (width > MAX_SIZE) {
-            height = (height * MAX_SIZE) / width
-            width = MAX_SIZE
-          }
-        } else {
-          if (height > MAX_SIZE) {
-            width = (width * MAX_SIZE) / height
-            height = MAX_SIZE
-          }
-        }
-
-        canvas.width = width
-        canvas.height = height
-        ctx?.drawImage(img, 0, 0, width, height)
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const processedFile = new File([blob], file.name, {
-                type: 'image/jpeg',
-                lastModified: Date.now()
-              })
-              resolve(processedFile)
-            } else {
-              reject(new Error('Error al procesar la imagen'))
+        try {
+          const MAX_SIZE = 800
+          let { width, height } = img
+          
+          // Redimensionar manteniendo aspect ratio
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height = (height * MAX_SIZE) / width
+              width = MAX_SIZE
             }
-          },
-          'image/jpeg',
-          0.8
-        )
+          } else {
+            if (height > MAX_SIZE) {
+              width = (width * MAX_SIZE) / height
+              height = MAX_SIZE
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+          ctx.drawImage(img, 0, 0, width, height)
+
+          canvas.toBlob(
+            (blob) => {
+              // Limpiar URL del objeto
+              URL.revokeObjectURL(img.src)
+              
+              if (blob) {
+                const processedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                })
+                resolve(processedFile)
+              } else {
+                reject(new Error('Error al procesar la imagen'))
+              }
+            },
+            'image/jpeg',
+            0.8
+          )
+        } catch (error) {
+          URL.revokeObjectURL(img.src)
+          reject(new Error('Error al procesar la imagen: ' + (error as Error).message))
+        }
       }
 
-      img.onerror = () => reject(new Error('Error al cargar la imagen'))
-      img.src = URL.createObjectURL(file)
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src)
+        reject(new Error('Error al cargar la imagen'))
+      }
+
+      try {
+        img.src = URL.createObjectURL(file)
+      } catch (error) {
+        reject(new Error('Error al crear URL del archivo'))
+      }
     })
   }, [])
 
@@ -95,12 +122,33 @@ export function ProfilePhotoUploader({
       setIsUploading(true)
       setError(null)
 
-      // Procesar imagen
-      const processedFile = await processImageFile(file)
+      // Validar archivo antes de procesar
+      if (!file.type.startsWith('image/')) {
+        setError('Por favor selecciona un archivo de imagen válido')
+        return
+      }
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        setError('El archivo es demasiado grande. Máximo 5MB.')
+        return
+      }
+
+      let fileToUpload = file
+
+      // Solo procesar si el archivo es muy grande o no es JPEG
+      if (file.size > 1024 * 1024 || !file.type.includes('jpeg')) {
+        try {
+          fileToUpload = await processImageFile(file)
+        } catch (processError) {
+          console.warn('Error al procesar imagen, usando archivo original:', processError)
+          // Si falla el procesamiento, usar el archivo original
+          fileToUpload = file
+        }
+      }
 
       // Crear FormData
       const formData = new FormData()
-      formData.append('photo', processedFile)
+      formData.append('photo', fileToUpload)
 
       // Subir foto
       const result = await uploadProfilePhoto(formData)
@@ -113,7 +161,7 @@ export function ProfilePhotoUploader({
       }
     } catch (err) {
       console.error('Error al subir foto:', err)
-      setError('Error al procesar la imagen')
+      setError('Error al subir la foto')
     } finally {
       setIsUploading(false)
     }

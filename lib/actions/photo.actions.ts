@@ -36,53 +36,7 @@ function generateUniqueFileName(userId: string, originalName: string): string {
   return `${userId}_${timestamp}.${extension}`
 }
 
-// Función para redimensionar imagen en el cliente (se llamará desde el componente)
-export async function processImageFile(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    const img = new Image()
-
-    img.onload = () => {
-      // Calcular nuevas dimensiones manteniendo aspect ratio
-      let { width, height } = img
-      
-      if (width > height) {
-        if (width > MAX_WIDTH) {
-          height = (height * MAX_WIDTH) / width
-          width = MAX_WIDTH
-        }
-      } else {
-        if (height > MAX_HEIGHT) {
-          width = (width * MAX_HEIGHT) / height
-          height = MAX_HEIGHT
-        }
-      }
-
-      canvas.width = width
-      canvas.height = height
-
-      // Dibujar imagen redimensionada
-      ctx?.drawImage(img, 0, 0, width, height)
-
-      // Convertir a blob
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob)
-          } else {
-            reject(new Error('Error al procesar la imagen'))
-          }
-        },
-        'image/jpeg',
-        IMAGE_QUALITY
-      )
-    }
-
-    img.onerror = () => reject(new Error('Error al cargar la imagen'))
-    img.src = URL.createObjectURL(file)
-  })
-}
+// Esta función se movió al componente cliente ya que usa APIs del DOM
 
 // Subir foto de perfil
 export async function uploadProfilePhoto(formData: FormData) {
