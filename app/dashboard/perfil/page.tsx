@@ -1,13 +1,14 @@
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { UserEditForm } from "@/components/forms/UserEditForm"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 
 export default async function PerfilPage() {
   // Crear cliente Supabase correctamente
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
 
   // Obtener usuario actual autenticado
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -39,11 +40,14 @@ export default async function PerfilPage() {
     )
   }
 
-  // Obtener datos del usuario desde la tabla usuarios usando el email
-  const { data: usuario, error: errorUsuario } = await supabase
+  // Usar admin client para bypass RLS y obtener datos del usuario
+  const adminSupabase = createSupabaseAdminClient()
+  
+  // Buscar usuario por auth_id usando admin client (bypass RLS)
+  const { data: usuario, error: errorUsuario } = await adminSupabase
     .from('usuarios')
     .select('*')
-    .eq('email', user.email)
+    .eq('auth_id', user.id)
     .maybeSingle()
 
   if (errorUsuario || !usuario) {
@@ -64,6 +68,9 @@ export default async function PerfilPage() {
               <p className="text-gray-500 text-sm mb-4">
                 Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
               </p>
+              <p className="text-gray-400 text-xs mb-4">
+                Debug: Auth ID: {user.id} | Email: {user.email}
+              </p>
               <Link href="/dashboard">
                 <BotonSistema variante="primario">
                   Volver al Dashboard
@@ -76,10 +83,10 @@ export default async function PerfilPage() {
     )
   }
 
-  // Obtener dirección si existe
+  // Obtener dirección si existe usando admin client
   let direccion = null
   if (usuario.direccion_id) {
-    const { data: dirData } = await supabase
+    const { data: dirData } = await adminSupabase
       .from('direcciones')
       .select(`
         *,
@@ -107,10 +114,10 @@ export default async function PerfilPage() {
     }
   }
 
-  // Obtener familia si existe
+  // Obtener familia si existe usando admin client
   let familia = null
   if (usuario.familia_id) {
-    const { data: famData } = await supabase
+    const { data: famData } = await adminSupabase
       .from('familias')
       .select('*')
       .eq('id', usuario.familia_id)
@@ -120,10 +127,10 @@ export default async function PerfilPage() {
     }
   }
 
-  // Obtener ocupación si existe
+  // Obtener ocupación si existe usando admin client
   let ocupacion = null
   if (usuario.ocupacion_id) {
-    const { data: ocData } = await supabase
+    const { data: ocData } = await adminSupabase
       .from('ocupaciones')
       .select('*')
       .eq('id', usuario.ocupacion_id)
@@ -133,10 +140,10 @@ export default async function PerfilPage() {
     }
   }
 
-  // Obtener profesión si existe
+  // Obtener profesión si existe usando admin client
   let profesion = null
   if (usuario.profesion_id) {
-    const { data: profData } = await supabase
+    const { data: profData } = await adminSupabase
       .from('profesiones')
       .select('*')
       .eq('id', usuario.profesion_id)
@@ -160,7 +167,7 @@ export default async function PerfilPage() {
     profesion: profesion || undefined
   }
 
-  // Obtener catálogos en paralelo
+  // Obtener catálogos en paralelo usando admin client
   const [
     { data: ocupaciones },
     { data: profesiones },
@@ -169,12 +176,12 @@ export default async function PerfilPage() {
     { data: municipios },
     { data: parroquias }
   ] = await Promise.all([
-    supabase.from('ocupaciones').select('id, nombre').order('nombre'),
-    supabase.from('profesiones').select('id, nombre').order('nombre'),
-    supabase.from('paises').select('id, nombre').order('nombre'),
-    supabase.from('estados').select('id, nombre, pais_id').order('nombre'),
-    supabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
-    supabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
+    adminSupabase.from('ocupaciones').select('id, nombre').order('nombre'),
+    adminSupabase.from('profesiones').select('id, nombre').order('nombre'),
+    adminSupabase.from('paises').select('id, nombre').order('nombre'),
+    adminSupabase.from('estados').select('id, nombre, pais_id').order('nombre'),
+    adminSupabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
+    adminSupabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
   ])
 
   return (

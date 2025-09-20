@@ -8,7 +8,7 @@ import type { Database } from "@/lib/supabase/database.types"
 
 // Elimina una relación familiar usando la función RPC y revalida la página de detalle
 export async function deleteFamilyRelation(relationId: string, userId: string) {
-  const supabase = createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
   try {
     const { data, error } = await supabase.rpc('eliminar_relacion_familiar', { p_relacion_id: relationId });
     if (error) {
@@ -65,8 +65,8 @@ interface UpdateUserData {
   }
 }
 
-export async function updateUser(userId: string, data: UpdateUserData) {
-  const supabase = createSupabaseServerClient();
+export async function updateUser(userId: string, data: UpdateUserData, esPerfil: boolean = false) {
+  const supabase = createSupabaseAdminClient();
   try {
     // Saneamiento de claves foráneas
     const datosSaneados = {
@@ -227,8 +227,12 @@ export async function updateUser(userId: string, data: UpdateUserData) {
     revalidatePath(`/dashboard/users/${userId}`)
     console.log('[updateUser] CachÃ© invalidado para usuarios y detalle del usuario')
 
-    // 6. Redirigir al usuario de vuelta a la pÃ¡gina de detalle
-    redirect(`/dashboard/users/${userId}`)
+    // 6. Redirigir condicionalmente
+    if (!esPerfil) {
+      // Solo redirigir si NO es perfil (edición de usuario normal)
+      redirect(`/dashboard/users/${userId}`)
+    }
+    // Si es perfil, no redirigir - se maneja en el cliente
 
   } catch (error) {
     console.error('Error en updateUser:', error);
@@ -244,7 +248,7 @@ export async function addFamilyRelation({
   usuario2_id: string
   tipo_relacion: string
 }) {
-  const supabase = createSupabaseServerClient()
+  const supabase = createSupabaseAdminClient()
   try {
 
     // Validar duplicados: solo una relación entre los mismos usuarios (en cualquier orden, sin importar tipo)

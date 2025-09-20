@@ -205,7 +205,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
       // Llamar a la Server Action
       console.log('📡 Llamando a updateUser...')
       if (usuario) {
-        await updateUser(usuario.id, datosProcesados)
+        await updateUser(usuario.id, datosProcesados, esPerfil)
       } else {
         // Aquí debes llamar a la función para crear un usuario nuevo
         // await createUser(datosProcesados)
@@ -215,9 +215,9 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
       // Si llegamos aquí, la actualización fue exitosa
       // Redirección condicional según el contexto
       if (esPerfil) {
-        // En perfil, mostrar mensaje de éxito sin redirección
+        // En perfil, mostrar mensaje de éxito y redirigir al perfil
         alert('Perfil actualizado exitosamente')
-        window.location.reload() // Recargar para mostrar cambios
+        window.location.href = '/dashboard/perfil'
       } else {
         // En edición de usuario, la Server Action se encarga de la redirección
       }
