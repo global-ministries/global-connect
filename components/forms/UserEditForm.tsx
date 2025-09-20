@@ -159,8 +159,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         estado_id: usuario.direccion.parroquia?.municipio?.estado?.id || "",
         municipio_id: usuario.direccion.parroquia?.municipio?.id || "",
         parroquia_id: usuario.direccion.parroquia?.id || "none",
-        lat: usuario.direccion.latitud ?? undefined,
-        lng: usuario.direccion.longitud ?? undefined,
       } : {
         calle: "",
         barrio: "",
