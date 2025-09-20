@@ -25,9 +25,9 @@ interface Props {
 
 const roles: Array<{ value: "Líder" | "Colíder" | "Miembro"; label: string }> = [
   { value: "Líder", label: "Líder" },
-  { value: "Colíder", label: "Colíder" },
+  { value: "Colíder", label: "Aprendiz" },
   { value: "Miembro", label: "Miembro" },
-];
+]
 
 export default function AddMemberModal({ isOpen, onClose, grupoId, segmentoNombre }: Props) {
   const [query, setQuery] = useState("");

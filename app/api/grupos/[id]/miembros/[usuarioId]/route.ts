@@ -5,7 +5,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
   const { id: grupoId, usuarioId } = await params;
     const body = await req.json();
-    const rol: "Líder" | "Colíder" | "Miembro" = body?.rol;
+  const rol: "Líder" | "Colíder" | "Miembro" = body?.rol; // UI muestra 'Aprendiz'
     if (!rol) return NextResponse.json({ error: "rol requerido" }, { status: 400 });
 
     const supabase = await createSupabaseServerClient();

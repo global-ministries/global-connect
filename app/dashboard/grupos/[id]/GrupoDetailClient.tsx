@@ -322,7 +322,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Líder">Líder</SelectItem>
-                            <SelectItem value="Colíder">Colíder</SelectItem>
+                            <SelectItem value="Colíder">Aprendiz</SelectItem>
                             <SelectItem value="Miembro">Miembro</SelectItem>
                           </SelectContent>
                         </Select>
@@ -339,7 +339,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                       </>
                     ) : (
                       <BadgeSistema variante="default" tamaño="sm">
-                        {miembro.rol}
+                        {miembro.rol === 'Colíder' ? 'Aprendiz' : miembro.rol}
                       </BadgeSistema>
                     )}
                   </div>
@@ -382,7 +382,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Líder">Líder</SelectItem>
-                          <SelectItem value="Colíder">Colíder</SelectItem>
+                          <SelectItem value="Colíder">Aprendiz</SelectItem>
                           <SelectItem value="Miembro">Miembro</SelectItem>
                         </SelectContent>
                       </Select>
