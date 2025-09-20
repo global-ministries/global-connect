@@ -62,6 +62,13 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
 
   const totalPresentes = useMemo(() => Object.values(estado).filter(v => v.presente).length, [estado])
 
+  const rolLabel = (rol?: string) => {
+    if (!rol) return 'Miembro'
+    // Soporta variantes con/sin acento
+    if (rol === 'Colíder' || rol === 'Colider') return 'Aprendiz'
+    return rol
+  }
+
   const marcarTodos = (presente: boolean) => {
     const map: Record<string, { presente: boolean; motivo?: string }> = {}
     for (const m of miembros) map[m.id] = { presente }
@@ -187,7 +194,7 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
               />
               <div className="flex-1">
                 <div className="font-medium">{m.nombre} {m.apellido}</div>
-                <div className="text-xs text-muted-foreground">{m.rol || 'Miembro'}</div>
+                <div className="text-xs text-muted-foreground">{rolLabel(m.rol)}</div>
               </div>
             </div>
             {!estado[m.id]?.presente && (

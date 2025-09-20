@@ -227,7 +227,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 <Link href={`/dashboard/grupos/${id}/edit`} className="col-span-1">
                   <BotonSistema variante="outline" className="w-full h-10 text-sm" data-testid="btn-editar-grupo">
                     <Edit className="w-4 h-4" />
-                    <span className="ml-2 hidden sm:inline">Editar Grupo</span>
+                    <span className="ml-2 hidden sm:inline">Editar</span>
                     <span className="ml-2 sm:hidden">Editar</span>
                   </BotonSistema>
                 </Link>
@@ -260,7 +260,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                   className="w-full h-10 text-sm"
                 >
                   <Users className="w-4 h-4" />
-                  <span className="ml-2 hidden sm:inline">Añadir Miembro</span>
+                  <span className="ml-2 hidden sm:inline">Añadir</span>
                   <span className="ml-2 sm:hidden">Añadir</span>
                 </BotonSistema>
               )}
