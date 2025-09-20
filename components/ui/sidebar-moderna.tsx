@@ -17,6 +17,8 @@ import {
   User
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
+import { UserAvatar } from './UserAvatar'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 interface SidebarModernaProps {
   className?: string
@@ -74,6 +76,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const pathname = usePathname()
+  const { usuario, loading } = useCurrentUser()
 
   // Detectar si es móvil
   useEffect(() => {
@@ -158,14 +161,51 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         {/* Perfil de usuario */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-medium text-sm">SJ</span>
-            </div>
-            {!isCollapsed && (
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-gray-900 truncate">Sarah Johnson</p>
-                <p className="text-sm text-gray-500 truncate">Bienvenida de vuelta</p>
-              </div>
+            {loading ? (
+              // Skeleton loading
+              <>
+                <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
+                {!isCollapsed && (
+                  <div className="min-w-0 flex-1">
+                    <div className="h-4 bg-gray-200 rounded animate-pulse mb-1" />
+                    <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+                  </div>
+                )}
+              </>
+            ) : usuario ? (
+              // Usuario logueado
+              <>
+                <UserAvatar
+                  photoUrl={usuario.foto_perfil_url}
+                  nombre={usuario.nombre}
+                  apellido={usuario.apellido}
+                  size="md"
+                  className="flex-shrink-0"
+                />
+                {!isCollapsed && (
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 truncate">
+                      {usuario.nombre} {usuario.apellido}
+                    </p>
+                    <p className="text-sm text-gray-500 truncate">
+                      Bienvenido de vuelta
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              // Usuario no encontrado/error
+              <>
+                <div className="w-10 h-10 rounded-full bg-gray-400 flex items-center justify-center flex-shrink-0">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                {!isCollapsed && (
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 truncate">Usuario</p>
+                    <p className="text-sm text-gray-500 truncate">No identificado</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
