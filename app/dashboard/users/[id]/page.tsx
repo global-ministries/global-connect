@@ -506,8 +506,13 @@ export default function PaginaDetalleUsuario() {
                 }
                 return (
                   <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/70 rounded-xl min-h-[80px] group">
-                    <div className={`w-10 h-10 bg-gradient-to-br ${obtenerColorRelacion(tipoMostrar)} rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
-                      {relacion.familiar.nombre.charAt(0)}{relacion.familiar.apellido.charAt(0)}
+                    <div className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                      <UserAvatar
+                        photoUrl={relacion.familiar.foto_perfil_url}
+                        nombre={relacion.familiar.nombre}
+                        apellido={relacion.familiar.apellido}
+                        size="md"
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
