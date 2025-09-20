@@ -428,6 +428,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
           isOpen={isAddModalOpen}
           onClose={() => setIsAddModalOpen(false)}
           grupoId={String(id)}
+          segmentoNombre={grupo.segmento_nombre}
         />
       )}
 
