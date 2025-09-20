@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 
 // Obtiene los roles del usuario actual desde la sesión y la tabla usuario_roles
 async function obtenerRolesUsuarioActual() {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
   const { data: { user }, error: errorUser } = await supabase.auth.getUser()
   if (errorUser || !user) return []
   // Consulta los roles del usuario

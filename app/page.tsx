@@ -118,7 +118,7 @@ export default function PaginaLogin() {
           <div className="space-y-4">
             <div className="text-center">
               <Link href="/reset-password">
-                <EnlaceSistema variante="default" className="text-sm">
+                <EnlaceSistema variante="default" className="text-sm" comoSpan>
                   ¿Olvidaste tu contraseña?
                 </EnlaceSistema>
               </Link>
@@ -129,7 +129,7 @@ export default function PaginaLogin() {
                 ¿No tienes cuenta?{" "}
               </TextoSistema>
               <Link href="/signup">
-                <EnlaceSistema variante="marca" className="text-sm">
+                <EnlaceSistema variante="marca" className="text-sm" comoSpan>
                   Crear cuenta
                 </EnlaceSistema>
               </Link>

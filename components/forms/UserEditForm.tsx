@@ -159,6 +159,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         estado_id: usuario.direccion.parroquia?.municipio?.estado?.id || "",
         municipio_id: usuario.direccion.parroquia?.municipio?.id || "",
         parroquia_id: usuario.direccion.parroquia?.id || "none",
+        lat: usuario.direccion.latitud || undefined,
+        lng: usuario.direccion.longitud || undefined,
       } : {
         calle: "",
         barrio: "",
@@ -168,6 +170,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         estado_id: "",
         municipio_id: "",
         parroquia_id: "none",
+        lat: undefined,
+        lng: undefined,
       },
   // familia_id y familia ya no son requeridos ni usados
     }
@@ -631,8 +635,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               name="direccion"
               control={control}
               render={({ field }) => {
-                const lat = field.value?.lat ?? 10.4681;
-                const lng = field.value?.lng ?? -66.8792;
+                const lat = field.value?.lat ?? initialLat;
+                const lng = field.value?.lng ?? initialLng;
                 return (
                   <LocationPicker
                     lat={lat}
