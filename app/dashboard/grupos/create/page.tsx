@@ -19,7 +19,6 @@ export default async function CreateGroupPage() {
 
   // Si no es admin/pastor/director-general ni director-etapa, redirigir a listado
   if (!esAdminOPastorODG && !esDirectorEtapa && !esLider) {
-  // Usuarios Líder / Aprendiz / Miembro no pueden crear
     return (
       <DashboardLayout>
         <ContenedorDashboard

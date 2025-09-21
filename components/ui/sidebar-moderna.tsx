@@ -17,8 +17,6 @@ import {
   User
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
-import { logout } from '@/lib/actions/auth.actions'
-import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
 import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
@@ -77,7 +75,6 @@ const menuItems: MenuItem[] = [
 export function SidebarModerna({ className }: SidebarModernaProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
   const pathname = usePathname()
   const { usuario, roles, loading } = useCurrentUser()
 
@@ -321,9 +318,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
 
           {/* Cerrar Sesión */}
           <button
-            type="button"
-            aria-label="Cerrar sesión"
-            onClick={() => setConfirmLogoutOpen(true)}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative w-full text-left",
               "text-gray-700 hover:bg-red-50 hover:text-red-700",
@@ -350,17 +344,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         </div>
       </div>
 
-      {/* Modal de confirmación de logout */}
-      <ConfirmationModal
-        isOpen={confirmLogoutOpen}
-        onClose={() => setConfirmLogoutOpen(false)}
-        onConfirm={() => setConfirmLogoutOpen(false)}
-        title="Cerrar sesión"
-        message="¿Seguro que deseas cerrar tu sesión?"
-        confirmLabel="Sí, cerrar sesión"
-        confirmFormAction={logout}
-      />
-
     </>
   )
 }
@@ -377,10 +360,4 @@ export function useSidebarModerna() {
   }, [])
 
   return { isCollapsed }
-}
-
-// Modal de confirmación de logout (portaled en el body)
-export function SidebarLogoutConfirm() {
-  const [open, setOpen] = useState(false)
-  return null
 }

@@ -223,9 +223,9 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 </Link>
               )}
               
-              {grupo.puede_editar_ui && (
-                <Link href={`/dashboard/grupos/${id}/edit`} className="col-span-1">
-                  <BotonSistema variante="outline" className="w-full h-10 text-sm" data-testid="btn-editar-grupo">
+              {grupo.puede_editar_ui && (grupo.rol_en_grupo?.toLowerCase() !== 'miembro') && (
+                <Link href={`/dashboard/grupos/${id}/edit`}>
+                  <BotonSistema variante="outline" className="w-full h-10 text-sm">
                     <Edit className="w-4 h-4" />
                     <span className="ml-2 hidden sm:inline">Editar</span>
                     <span className="ml-2 sm:hidden">Editar</span>
@@ -322,7 +322,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Líder">Líder</SelectItem>
-                            <SelectItem value="Colíder">Aprendiz</SelectItem>
+                            <SelectItem value="Colíder">Colíder</SelectItem>
                             <SelectItem value="Miembro">Miembro</SelectItem>
                           </SelectContent>
                         </Select>
@@ -339,7 +339,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                       </>
                     ) : (
                       <BadgeSistema variante="default" tamaño="sm">
-                        {miembro.rol === 'Colíder' ? 'Aprendiz' : miembro.rol}
+                        {miembro.rol}
                       </BadgeSistema>
                     )}
                   </div>
@@ -382,7 +382,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Líder">Líder</SelectItem>
-                          <SelectItem value="Colíder">Aprendiz</SelectItem>
+                          <SelectItem value="Colíder">Colíder</SelectItem>
                           <SelectItem value="Miembro">Miembro</SelectItem>
                         </SelectContent>
                       </Select>
