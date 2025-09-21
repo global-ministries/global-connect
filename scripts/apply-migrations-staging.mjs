@@ -57,33 +57,27 @@ async function main() {
     process.exit(1)
   }
 
-  // Verificar si las migraciones ya existen
+  // Verificar si las migraciones ya existen (informativo, no retornar)
   log('\n🔍 Verificando estado de migraciones...', 'cyan')
-  
   try {
-    const { data: existingRpc1 } = await supabase.rpc('listar_usuarios_con_permisos', {
+    await supabase.rpc('listar_usuarios_con_permisos', {
       p_auth_id: '00000000-0000-0000-0000-000000000000',
       p_limite: 1
     })
-    
-    const { data: existingRpc2 } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
+    await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
       p_auth_id: '00000000-0000-0000-0000-000000000000'
     })
-
-    if (existingRpc1 !== null && existingRpc2 !== null) {
-      log('✅ Las RPCs ya están disponibles en staging', 'green')
-      log('📊 Sistema de permisos ya está desplegado', 'green')
-      return
-    }
+    log('ℹ️ RPCs base presentes. Continuando con posibles migraciones pendientes...', 'yellow')
   } catch (error) {
-    log('⚠️  Las RPCs no están disponibles, aplicando migraciones...', 'yellow')
+    log('⚠️  Las RPCs no están disponibles, aplicando migraciones completas...', 'yellow')
   }
 
   // Leer y aplicar migraciones
   const migrationsDir = join(__dirname, '..', 'supabase', 'migrations')
   const migrations = [
     '20250910210000_listar_usuarios_con_permisos_fixed.sql',
-    '20250910211000_estadisticas_usuarios_con_permisos_fixed.sql'
+    '20250910211000_estadisticas_usuarios_con_permisos_fixed.sql',
+    '20250921123000_rls_lider_ve_miembros.sql'
   ]
 
   for (const migrationFile of migrations) {
