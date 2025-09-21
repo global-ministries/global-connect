@@ -57,19 +57,21 @@ async function main() {
     process.exit(1)
   }
 
-  // Verificar si las migraciones ya existen (informativo, no retornar)
-  log('\n🔍 Verificando estado de migraciones...', 'cyan')
+  // Verificar si existen RPCs base (solo informativo, no salir)
+  log('\n🔍 Verificando estado de migraciones base...', 'cyan')
   try {
-    await supabase.rpc('listar_usuarios_con_permisos', {
+    const { data: existingRpc1 } = await supabase.rpc('listar_usuarios_con_permisos', {
       p_auth_id: '00000000-0000-0000-0000-000000000000',
       p_limite: 1
     })
-    await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
+    const { data: existingRpc2 } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
       p_auth_id: '00000000-0000-0000-0000-000000000000'
     })
-    log('ℹ️ RPCs base presentes. Continuando con posibles migraciones pendientes...', 'yellow')
+    if (existingRpc1 !== null && existingRpc2 !== null) {
+      log('ℹ️  RPCs base detectadas. Continuando para aplicar migraciones recientes...', 'yellow')
+    }
   } catch (error) {
-    log('⚠️  Las RPCs no están disponibles, aplicando migraciones completas...', 'yellow')
+    log('ℹ️  RPCs base no disponibles aún. Se intentará aplicar todo lo necesario...', 'yellow')
   }
 
   // Leer y aplicar migraciones
@@ -77,7 +79,8 @@ async function main() {
   const migrations = [
     '20250910210000_listar_usuarios_con_permisos_fixed.sql',
     '20250910211000_estadisticas_usuarios_con_permisos_fixed.sql',
-    '20250921123000_rls_lider_ve_miembros.sql'
+    // Permitir que líderes gestionen miembros de su grupo
+    '20250921120000_permitir_lider_gestion_miembros.sql'
   ]
 
   for (const migrationFile of migrations) {
@@ -88,29 +91,20 @@ async function main() {
       const migrationSql = readFileSync(migrationPath, 'utf8')
       
       // Ejecutar la migración
-      const { error } = await supabase.rpc('exec', { sql: migrationSql })
-      
-      if (error) {
-        // Intentar ejecutar directamente si rpc('exec') no está disponible
-        const { error: directError } = await supabase
-          .from('_supabase_migrations')
-          .insert({ version: migrationFile.split('_')[0], name: migrationFile })
-        
-        if (directError && !directError.message.includes('already exists')) {
-          throw directError
-        }
-      }
+  const { error } = await supabase.rpc('exec', { sql: migrationSql })
+  if (error) throw error
       
       log(`   ✅ ${migrationFile} aplicada exitosamente`, 'green')
     } catch (error) {
       log(`   ❌ Error aplicando ${migrationFile}: ${error.message}`, 'red')
       
-      // Si es un error de función ya existente, continuar
-      if (error.message.includes('already exists')) {
-        log(`   ⚠️  Función ya existe, continuando...`, 'yellow')
-        continue
+      // Si falla porque no existe rpc('exec'), dar guía clara y abortar
+      if (error.message && (error.message.includes('exec') || error.message.includes('not exist'))) {
+        log(`   ❗ Parece que no existe la RPC 'exec' para ejecutar SQL arbitrario.`, 'yellow')
+        log(`   👉 Alternativas:`, 'yellow')
+        log(`      - Exporta NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY y vuelve a ejecutar.`, 'yellow')
+        log(`      - O usa el CLI: 'pnpm run db:push:staging' (requiere Supabase CLI autenticado).`, 'yellow')
       }
-      
       process.exit(1)
     }
   }

@@ -4,13 +4,21 @@
 
 const base = process.env.BASE_URL || 'http://localhost:3000';
 const grupoId = process.env.GROUP_ID || 'TEST-GROUP-ID';
+const cookieHeader = process.env.COOKIE; // e.g., sb-access-token=...; sb-refresh-token=...
+const bearer = process.env.AUTH_BEARER; // e.g., a Supabase access token
 
 async function run() {
   const results = [];
 
-  async function tryFetch(name, url, init) {
+  async function tryFetch(name, url, init = {}) {
+    const headers = {
+      ...(init.headers || {}),
+    };
+    if (cookieHeader) headers['cookie'] = cookieHeader;
+    if (bearer) headers['authorization'] = `Bearer ${bearer}`;
+    const finalInit = { ...init, headers };
     try {
-      const res = await fetch(url, init);
+      const res = await fetch(url, finalInit);
       results.push({ name, status: res.status });
       console.log(`${name}: ${res.status}`);
     } catch (e) {
