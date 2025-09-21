@@ -58,7 +58,7 @@ export default function ImportarGruposPage() {
                 </Link>
                 <TextoSistema variante="sutil" tamaño="sm">Encabezados requeridos: nombre_grupo, segmento, temporada, miembros</TextoSistema>
               </div>
-              <TextoSistema variante="muted" tamaño="sm">Formato miembros: "Nombre Apellido|Líder; Otra Persona|Miembro" (separa miembros con ;)</TextoSistema>
+              <TextoSistema variante="muted" tamaño="sm">Formato miembros: "Nombre Apellido|Líder|12345678; Otra Persona|Miembro|87654321" (separa miembros con ;, cédula opcional en la 3ra posición)</TextoSistema>
             </div>
 
             <div>

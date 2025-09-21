@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+// Asegurar runtime Node.js (necesario para usar SDK admin de Supabase y env vars)
+export const runtime = 'nodejs'
+
 type Row = {
   nombre_grupo?: string
   segmento?: string
   temporada?: string
-  miembros?: string // formato: "Nombre Apellido|Líder, Otro Miembro|Miembro"
+  miembros?: string // formato: "Nombre Apellido|Líder; Otro Miembro|Miembro|12345678"
 }
 
 function parseCSV(text: string): Row[] {
@@ -34,6 +37,7 @@ function parseCSV(text: string): Row[] {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('[import/grupos] POST recibido')
     const supabase = await createSupabaseServerClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
@@ -89,35 +93,46 @@ export async function POST(req: NextRequest) {
 
       const grupoId = newGroup.id as string
 
-      // Procesar miembros: "Nombre Apellido|Líder, Otro|Miembro"
+      // Procesar miembros: "Nombre Apellido|Líder; Otro|Miembro|12345678"
       const miembrosTxt = (r.miembros || '').trim()
-      const miembros = miembrosTxt ? miembrosTxt.split(/\s*;\s*|\s*,\s*/).filter(Boolean) : []
+      const miembros = miembrosTxt ? miembrosTxt.split(/\s*;\s*/).filter(Boolean) : []
       for (const item of miembros) {
-        const [nombreCompleto, rolRaw] = item.split('|').map(s => (s || '').trim())
+        const partesItem = item.split('|').map(s => (s || '').trim())
+        const nombreCompleto = partesItem[0] || ''
+        const rolRaw = partesItem[1] || 'Miembro'
+        const cedulaCsv = partesItem[2] || ''
         if (!nombreCompleto) continue
         const partes = nombreCompleto.split(/\s+/)
         const apellido = partes.length > 1 ? partes.pop()! : ''
         const nombre = partes.join(' ') || apellido
         const rolCsv = (rolRaw || 'Miembro').toLowerCase()
-        // Normalizar rol: permitir "lider" y "miembro" (aprendiz no via CSV según requerimiento)
         let rol: 'Líder' | 'Miembro' = rolCsv.startsWith('lider') ? 'Líder' : 'Miembro'
 
-        // Buscar usuario por nombre+apellido exactos (ideal: por email/cedula, pero CSV no lo trae)
-        const { data: existingUser, error: uErr } = await admin
-          .from('usuarios')
-          .select('id')
-          .ilike('nombre', nombre)
-          .ilike('apellido', apellido)
-          .maybeSingle()
-        let usuarioId: string | null = existingUser?.id || null
-        if (uErr) {
-          resultados.push({ fila: filaN, ok: false, detalle: `Error buscando usuario: ${uErr.message}` })
+        // Buscar usuario por cédula primero, luego por nombre+apellido
+        let usuarioId: string | null = null
+        if (cedulaCsv) {
+          const { data: byCedula } = await admin
+            .from('usuarios')
+            .select('id')
+            .eq('cedula', cedulaCsv)
+            .maybeSingle()
+          usuarioId = byCedula?.id || null
         }
         if (!usuarioId) {
-          // Crear usuario mínimo
+          const { data: existingUser } = await admin
+            .from('usuarios')
+            .select('id')
+            .ilike('nombre', nombre)
+            .ilike('apellido', apellido)
+            .maybeSingle()
+          usuarioId = existingUser?.id || null
+        }
+
+        if (!usuarioId) {
+          // Crear usuario mínimo con defaults requeridos
           const { data: created, error: cErr } = await admin
             .from('usuarios')
-            .insert({ nombre, apellido })
+            .insert({ nombre, apellido, cedula: cedulaCsv || null, genero: 'Otro', estado_civil: 'Soltero' })
             .select('id')
             .single()
           if (cErr || !created) {
@@ -130,6 +145,9 @@ export async function POST(req: NextRequest) {
           if (roleData?.id) {
             await admin.from('usuario_roles').insert({ usuario_id: usuarioId, rol_id: roleData.id })
           }
+        } else if (cedulaCsv) {
+          // Si existe usuario por nombre y no tiene cédula, intentar setearla
+          await admin.from('usuarios').update({ cedula: cedulaCsv }).eq('id', usuarioId)
         }
 
         // Agregar a grupo
@@ -148,5 +166,14 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     console.error('[import/grupos] error', e)
     return NextResponse.json({ error: e?.message || 'Error inesperado' }, { status: 500 })
+  }
+}
+
+// Endpoint de salud para depurar conectividad rápidamente
+export async function GET() {
+  try {
+    return NextResponse.json({ ok: true, mensaje: 'import/grupos OK' })
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message || 'Error' }, { status: 500 })
   }
 }
