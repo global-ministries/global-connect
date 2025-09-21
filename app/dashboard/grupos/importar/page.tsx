@@ -3,7 +3,7 @@ import { useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ContenedorDashboard, TarjetaSistema, TituloSistema, BotonSistema, TextoSistema } from "@/components/ui/sistema-diseno"
 import Link from "next/link"
-import { ArrowLeft, Upload } from "lucide-react"
+import { ArrowLeft, Upload, Download } from "lucide-react"
 
 export default function ImportarGruposPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -50,8 +50,15 @@ export default function ImportarGruposPage() {
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Archivo CSV</label>
               <input type="file" accept=".csv" onChange={e => setFile(e.target.files?.[0] || null)} />
-              <TextoSistema variante="sutil" tamaño="sm">Encabezados requeridos: nombre_grupo, segmento, temporada, miembros</TextoSistema>
-              <TextoSistema variante="muted" tamaño="sm">Formato miembros: "Nombre Apellido|Líder, Otra Persona|Miembro"</TextoSistema>
+              <div className="flex items-center gap-3">
+                <Link href="/plantillas/import-grupos.csv" target="_blank" download>
+                  <BotonSistema variante="ghost" tamaño="sm" icono={Download}>
+                    Descargar plantilla CSV
+                  </BotonSistema>
+                </Link>
+                <TextoSistema variante="sutil" tamaño="sm">Encabezados requeridos: nombre_grupo, segmento, temporada, miembros</TextoSistema>
+              </div>
+              <TextoSistema variante="muted" tamaño="sm">Formato miembros: "Nombre Apellido|Líder; Otra Persona|Miembro" (separa miembros con ;)</TextoSistema>
             </div>
 
             <div>
