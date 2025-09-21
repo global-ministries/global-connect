@@ -1,11 +1,11 @@
-import { Users2 } from "lucide-react"
+import { Users2, Upload } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import GruposListClient from "@/components/grupos/GruposList.client"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { ContenedorDashboard, BotonSistema } from '@/components/ui/sistema-diseno'
 
 // (El color por segmento ahora se maneja dentro del componente cliente)
 
@@ -74,6 +74,13 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
       <ContenedorDashboard
         titulo="Grupos"
         descripcion="Administra y organiza los grupos de tu comunidad"
+        accionPrincipal={canCreate ? (
+          <Link href="/dashboard/grupos/importar">
+            <BotonSistema variante="outline" tamaño="sm" icono={Upload}>
+              Importar CSV
+            </BotonSistema>
+          </Link>
+        ) : null}
       >
         <GruposListClient
           grupos={grupos || []}
