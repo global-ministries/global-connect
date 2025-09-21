@@ -31,7 +31,7 @@ export async function signup(formData: FormData) {
 
   // 1. Crear usuario en auth usando el cliente de sesión normal
   const supabase = await createSupabaseServerClient();
-  const { data: signUpData, error: errorSignUp } = await supabase.auth.signUp({
+  let { data: signUpData, error: errorSignUp } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -43,18 +43,40 @@ export async function signup(formData: FormData) {
   });
 
   if (errorSignUp) {
-    if (errorSignUp.status === 400) {
-      return { success: false, message: "Este correo electrÃ³nico ya estÃ¡ registrado." };
+    console.error("[signup] auth.signUp error:", errorSignUp);
+
+    // Fallback temporal en producción para evitar el rate limit de correos o fallos de envío
+    if ((errorSignUp.code === 'over_email_send_rate_limit' || errorSignUp.code === 'unexpected_failure')) {
+      console.warn(`[signup] Fallo en envío de correo (${errorSignUp.code}). Creando usuario con admin API (fallback temporal).`);
+      const admin = createSupabaseAdminClient();
+      const { data: adminSignUpData, error: adminError } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true, // Auto-confirma el email
+        user_metadata: { nombre, apellido },
+      });
+
+      if (adminError) {
+        console.error('[signup] Admin createUser error:', adminError);
+        return { success: false, message: "Ocurrió un error inesperado (admin fallback)." };
+      }
+      // Sobrescribir los datos de signUp con los del admin para continuar el flujo
+      signUpData = { ...adminSignUpData, session: null };
+    } else {
+      if (errorSignUp.status === 400) {
+        return { success: false, message: "Este correo electrónico ya está registrado." };
+      }
+      return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
     }
-    return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
   }
 
   const user = signUpData?.user;
   if (!user) {
-    return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
+    console.error("[signup] No user object returned from signUp");
+    return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
   }
 
-  // 2. Usar el cliente admin para la lÃ³gica de perfiles (RLS bypass)
+  // 2. Usar el cliente admin para la lógica de perfiles (RLS bypass)
   const admin = createSupabaseAdminClient();
   let perfilExistente = null;
   {
@@ -69,7 +91,8 @@ export async function signup(formData: FormData) {
       .limit(1);
 
     if (errorBusqueda) {
-      return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
+      console.error("[signup] Profile search error:", errorBusqueda);
+      return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
     }
     if (usuarios && usuarios.length > 0) {
       perfilExistente = usuarios[0];
@@ -84,7 +107,8 @@ export async function signup(formData: FormData) {
       .eq("id", perfilExistente.id);
 
     if (errorUpdate) {
-      return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
+      console.error("[signup] Profile update error:", errorUpdate);
+      return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
     }
   } else {
     const { error: errorInsert } = await admin
@@ -103,13 +127,14 @@ export async function signup(formData: FormData) {
       ]);
 
     if (errorInsert) {
-      return { success: false, message: "OcurriÃ³ un error inesperado. Por favor, intÃ©ntalo de nuevo." };
+      console.error("[signup] Profile insert error:", errorInsert);
+      return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
     }
   }
 
   return {
     success: true,
-    message: "Â¡Registro exitoso! Por favor, revisa tu bandeja de entrada para verificar tu cuenta.",
+    message: "¡Registro exitoso! Por favor, revisa tu bandeja de entrada para verificar tu cuenta.",
   };
 }
 

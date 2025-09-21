@@ -67,14 +67,15 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
   ])
 
   const roles = userData.roles || []
-  const canCreate = roles.some(r => ["admin","pastor","director-general","director-etapa"].includes(r))
+  const canCreateSuperior = roles.some(r => ["admin","pastor","director-general","director-etapa"].includes(r))
+  const canCreate = canCreateSuperior || roles.includes('lider')
 
   return (
     <DashboardLayout>
       <ContenedorDashboard
         titulo="Grupos"
         descripcion="Administra y organiza los grupos de tu comunidad"
-        accionPrincipal={canCreate ? (
+  accionPrincipal={canCreateSuperior ? (
           <Link href="/dashboard/grupos/importar">
             <BotonSistema variante="outline" tamaño="sm" icono={Upload}>
               Importar CSV
