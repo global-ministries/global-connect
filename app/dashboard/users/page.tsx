@@ -10,6 +10,8 @@ import {
   Phone,
   UserCheckIcon as UserEdit,
   Search,
+  CheckSquare,
+  Square,
 } from "lucide-react"
 import Link from "next/link"
 import { useUsuariosConPermisos } from '@/hooks/use-usuarios-con-permisos'
@@ -102,6 +104,26 @@ export default function PaginaUsuarios() {
     })
   }
   const limpiarSeleccion = () => setSeleccionados(new Set())
+
+  // Seleccionar todos en la página actual
+  const visiblesIds = useMemo(() => (usuarios || []).map(u => u.id), [usuarios])
+  const todosSeleccionadosEnPagina = useMemo(
+    () => visiblesIds.length > 0 && visiblesIds.every(id => seleccionados.has(id)),
+    [visiblesIds, seleccionados]
+  )
+  const toggleSeleccionPagina = () => {
+    setSeleccionados(prev => {
+      const nuevo = new Set(prev)
+      if (todosSeleccionadosEnPagina) {
+        // deseleccionar todos los visibles
+        visiblesIds.forEach(id => nuevo.delete(id))
+      } else {
+        // seleccionar todos los visibles
+        visiblesIds.forEach(id => nuevo.add(id))
+      }
+      return nuevo
+    })
+  }
 
   // Cambiar rol
   const [cambiandoRol, setCambiandoRol] = useState(false)
@@ -324,16 +346,31 @@ export default function PaginaUsuarios() {
               icono={Search}
             />
 
-            {filtros.busqueda && (
-              <BotonSistema
-                variante="outline"
-                onClick={limpiarFiltros}
-                tamaño="sm"
-                className="w-full md:w-auto"
-              >
-                Limpiar Filtros
-              </BotonSistema>
-            )}
+            <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
+              {filtros.busqueda && (
+                <BotonSistema
+                  variante="outline"
+                  onClick={limpiarFiltros}
+                  tamaño="sm"
+                  className="w-full md:w-auto"
+                >
+                  Limpiar Filtros
+                </BotonSistema>
+              )}
+
+              {esAdmin && (usuarios && usuarios.length > 0) && seleccionados.size > 0 && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <BotonSistema
+                    variante="outline"
+                    tamaño="sm"
+                    onClick={toggleSeleccionPagina}
+                    icono={todosSeleccionadosEnPagina ? CheckSquare : Square}
+                  >
+                    {todosSeleccionadosEnPagina ? 'Deseleccionar todos (página)' : 'Seleccionar todos (página)'}
+                  </BotonSistema>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Lista de Usuarios */}

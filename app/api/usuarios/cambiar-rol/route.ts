@@ -13,11 +13,19 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-    // Validar que sea admin
+    // Resolver id interno del usuario (usuarios.id) a partir de auth_id
+    const { data: me, error: meErr } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('auth_id', user.id)
+      .single()
+    if (meErr || !me?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+
+    // Validar que sea admin usando usuarios.id
     const { data: rolesData, error: rolesErr } = await supabase
       .from('usuario_roles')
-      .select('roles_sistema(nombre_interno)')
-      .eq('usuario_id', user.id)
+      .select('roles_sistema:roles_sistema!usuario_roles_rol_id_fkey (nombre_interno)')
+      .eq('usuario_id', me.id)
     if (rolesErr) return NextResponse.json({ error: rolesErr.message }, { status: 500 })
     const esAdmin = (rolesData || []).some((r: any) => r.roles_sistema?.nombre_interno === 'admin')
     if (!esAdmin) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
