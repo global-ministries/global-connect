@@ -15,9 +15,10 @@ export default async function CreateGroupPage() {
   const roles = userData.roles || []
   const esAdminOPastorODG = roles.some(r => ["admin","pastor","director-general"].includes(r))
   const esDirectorEtapa = roles.includes("director-etapa")
+  const esLider = roles.includes("lider") // excepción temporal
 
   // Si no es admin/pastor/director-general ni director-etapa, redirigir a listado
-  if (!esAdminOPastorODG && !esDirectorEtapa) {
+  if (!esAdminOPastorODG && !esDirectorEtapa && !esLider) {
   // Usuarios Líder / Aprendiz / Miembro no pueden crear
     return (
       <DashboardLayout>
@@ -45,7 +46,7 @@ export default async function CreateGroupPage() {
   const [temporadasResult, segmentosResult] = await Promise.all([
     supabase.from("temporadas").select("id, nombre").order('nombre'),
     (async () => {
-      if (esAdminOPastorODG) {
+      if (esAdminOPastorODG || esLider) {
         return await supabase.from("segmentos").select("id, nombre").order('nombre')
       }
       // director-etapa: sólo segmentos donde es líder de etapa

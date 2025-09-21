@@ -5,7 +5,7 @@ import type { Database } from '@/lib/supabase/database.types'
 // Eliminar función vacía o remanente para corregir el error de sintaxis
 
 import { useState, useEffect } from 'react'
-import { X, Search, User, Users } from 'lucide-react'
+import { X, Search, User, Users, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { supabase } from '@/lib/supabase/client'
 import { addFamilyRelation } from "@/lib/actions/user.actions"
+import { CrearMiembroModal, type UsuarioMin } from '@/components/modals/CrearMiembroModal'
 
 
 // Si necesitas el tipo Usuario, puedes importarlo desde donde lo tengas definido
@@ -48,6 +49,8 @@ export function AgregarFamiliarModal({
   const [creando, setCreando] = useState(false)
   // Lista de IDs de familiares ya existentes (para deshabilitar selección)
   const [familiaresExistentes, setFamiliaresExistentes] = useState<string[]>([])
+  // Modal crear miembro
+  const [crearAbierto, setCrearAbierto] = useState(false)
 
   // Usar el cliente supabase global importado
 
@@ -186,7 +189,12 @@ export function AgregarFamiliarModal({
 
             {/* Resultados de búsqueda */}
             {terminoBusqueda.length >= 2 && !creando && resultados.length === 0 && (
-              <div className="text-center text-gray-500 py-4">No se encontraron usuarios con ese criterio.</div>
+              <div className="text-center py-6">
+                <p className="text-gray-500 mb-3">No se encontraron usuarios con ese criterio.</p>
+                <Button type="button" onClick={() => setCrearAbierto(true)} className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700">
+                  <Plus className="w-4 h-4" /> Crear nuevo miembro
+                </Button>
+              </div>
             )}
             {resultados.length > 0 && (
               <div className="space-y-2">
@@ -291,6 +299,24 @@ export function AgregarFamiliarModal({
           </div>
         </form>
       </div>
+      {/* Modal crear miembro */}
+      <CrearMiembroModal
+        isOpen={crearAbierto}
+        onClose={() => setCrearAbierto(false)}
+        onCreated={(u: UsuarioMin) => {
+          // Al crear, seleccionarlo y pedir tipo de relación
+          setCrearAbierto(false)
+          setFamiliarSeleccionado({
+            id: u.id,
+            nombre: u.nombre,
+            apellido: u.apellido,
+            email: u.email || '',
+            genero: (u.genero as any) || 'Otro',
+            cedula: u.cedula || '',
+            foto_perfil_url: u.foto_perfil_url,
+          })
+        }}
+      />
     </div>
   )
 }
