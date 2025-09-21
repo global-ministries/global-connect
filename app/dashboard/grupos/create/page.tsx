@@ -3,15 +3,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import GroupCreateForm from "@/components/forms/GroupCreateForm";
 import { getUserWithRoles } from "@/lib/getUserWithRoles";
-import { ReactNode } from "react";
-
-function GlassCard({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={`backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 lg:p-8 shadow-2xl ${className}`}>
-      {children}
-    </div>
-  );
-}
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
 
 export default async function CreateGroupPage() {
   const supabase = await createSupabaseServerClient();
@@ -27,7 +20,24 @@ export default async function CreateGroupPage() {
   if (!esAdminOPastorODG && !esDirectorEtapa) {
     // Usuarios Líder / Colíder / Miembro no pueden crear
     return (
-      <div className="p-6 text-sm text-red-600">No tienes permisos para crear grupos.</div>
+      <DashboardLayout>
+        <ContenedorDashboard
+          titulo="Crear Grupo"
+          descripcion="No tienes permisos para crear grupos"
+          accionPrincipal={
+            <Link href="/dashboard/grupos">
+              <BotonSistema variante="outline" tamaño="sm">
+                <ArrowLeft className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Volver</span>
+              </BotonSistema>
+            </Link>
+          }
+        >
+          <TarjetaSistema>
+            <div className="text-sm text-red-600">No tienes permisos para crear grupos.</div>
+          </TarjetaSistema>
+        </ContenedorDashboard>
+      </DashboardLayout>
     )
   }
 
@@ -61,29 +71,23 @@ export default async function CreateGroupPage() {
   const segmentos = segmentosResult.data || [];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Link
-            href="/dashboard/grupos"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-orange-50/50 rounded-xl transition-all duration-200 text-gray-700 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Volver a Grupos
+    <DashboardLayout>
+      <ContenedorDashboard
+        titulo="Crear Grupo"
+        descripcion="Ingresa los datos para crear un nuevo grupo"
+        accionPrincipal={
+          <Link href="/dashboard/grupos">
+            <BotonSistema variante="outline" tamaño="sm">
+              <ArrowLeft className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Volver</span>
+            </BotonSistema>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-800">Crear Nuevo Grupo</h1>
-          <p className="text-gray-600 mt-2">Complete la información básica del grupo</p>
-        </div>
-      </div>
-
-  {/* Formulario */}
-      <GlassCard className="max-w-2xl">
-        <GroupCreateForm
-          temporadas={temporadas}
-          segmentos={segmentos}
-        />
-      </GlassCard>
-    </div>
+        }
+      >
+        <TarjetaSistema>
+          <GroupCreateForm temporadas={temporadas} segmentos={segmentos} />
+        </TarjetaSistema>
+      </ContenedorDashboard>
+    </DashboardLayout>
   );
 }

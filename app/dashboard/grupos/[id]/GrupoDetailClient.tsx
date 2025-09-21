@@ -234,11 +234,11 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
               )}
               
               {grupo.puede_editar_ui && (
-                <Link href={`/dashboard/grupos/${id}/asistencia/historial`}>
+                <Link href={`/dashboard/grupos/${id}/auditoria`}>
                   <BotonSistema variante="outline" className="w-full h-10 text-sm">
                     <Calendar className="w-4 h-4" />
-                    <span className="ml-2 hidden sm:inline">Historial</span>
-                    <span className="ml-2 sm:hidden">Historial</span>
+                    <span className="ml-2 hidden sm:inline">Auditoría</span>
+                    <span className="ml-2 sm:hidden">Auditoría</span>
                   </BotonSistema>
                 </Link>
               )}
@@ -260,7 +260,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                   className="w-full h-10 text-sm"
                 >
                   <Users className="w-4 h-4" />
-                  <span className="ml-2 hidden sm:inline">Añadir Miembro</span>
+                  <span className="ml-2 hidden sm:inline">Añadir</span>
                   <span className="ml-2 sm:hidden">Añadir</span>
                 </BotonSistema>
               )}
@@ -415,8 +415,8 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         </div>
       </TarjetaSistema>
 
-      {/* Auditoría: preview de últimos cambios (oculta a miembros) */}
-      {grupo.puede_gestionar_miembros && grupo.rol_en_grupo?.toLowerCase() !== 'miembro' && (
+  {/* Auditoría: preview de últimos cambios (visible si no es rol "miembro") */}
+  {(grupo.rol_en_grupo == null || grupo.rol_en_grupo?.toLowerCase() !== 'miembro') && (
         <TarjetaSistema>
           <GroupAuditPreview grupoId={String(id)} />
         </TarjetaSistema>
