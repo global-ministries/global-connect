@@ -35,7 +35,7 @@ export default async function CreateGroupPage() {
           }
         >
           <TarjetaSistema>
-            <div className="text-sm text-red-600">No tienes permisos para crear grupos.</div>
+            <div className="text-sm text-red-600">No Tienes permisos para crear grupos.</div>
           </TarjetaSistema>
         </ContenedorDashboard>
       </DashboardLayout>
