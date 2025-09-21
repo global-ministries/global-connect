@@ -234,11 +234,11 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
               )}
               
               {grupo.puede_editar_ui && (
-                <Link href={`/dashboard/grupos/${id}/auditoria`}>
+                <Link href={`/dashboard/grupos/${id}/asistencia/historial`}>
                   <BotonSistema variante="outline" className="w-full h-10 text-sm">
                     <Calendar className="w-4 h-4" />
-                    <span className="ml-2 hidden sm:inline">Auditoría</span>
-                    <span className="ml-2 sm:hidden">Auditoría</span>
+                    <span className="ml-2 hidden sm:inline">Historial</span>
+                    <span className="ml-2 sm:hidden">Historial</span>
                   </BotonSistema>
                 </Link>
               )}
