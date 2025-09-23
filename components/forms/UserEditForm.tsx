@@ -73,7 +73,7 @@ const userEditSchema = z.object({
   // Información personal
   fecha_nacimiento: z.string().optional(),
   estado_civil: z.enum(["Soltero", "Casado", "Divorciado", "Viudo"]),
-  genero: z.enum(["Masculino", "Femenino", "Otro"]),
+  genero: z.enum(["Masculino", "Femenino"]),
   
   // Información profesional
   ocupacion_id: z.string().optional().or(z.literal("none")),
@@ -147,7 +147,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
       telefono: usuario?.telefono ?? "",
       fecha_nacimiento: usuario?.fecha_nacimiento ?? "",
       estado_civil: usuario?.estado_civil ?? "Soltero",
-      genero: usuario?.genero ?? "Masculino",
+      genero: usuario?.genero === "Otro" ? "Masculino" : (usuario?.genero ?? "Masculino"),
       ocupacion_id: usuario?.ocupacion_id ?? "none",
       profesion_id: usuario?.profesion_id ?? "none",
       direccion_id: usuario?.direccion_id ?? "",
@@ -382,14 +382,13 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
 
           <div className="space-y-2">
             <Label htmlFor="genero" className="text-sm font-medium text-gray-700">Género</Label>
-            <Select onValueChange={(value) => setValue("genero", value as "Masculino" | "Femenino" | "Otro")} defaultValue={watch("genero")}>
+            <Select onValueChange={(value) => setValue("genero", value as "Masculino" | "Femenino")} defaultValue={watch("genero")}>
               <SelectTrigger className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200">
                 <SelectValue placeholder="Selecciona el género" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Masculino">Masculino</SelectItem>
                 <SelectItem value="Femenino">Femenino</SelectItem>
-                <SelectItem value="Otro">Otro</SelectItem>
               </SelectContent>
             </Select>
             {errors.genero && (
