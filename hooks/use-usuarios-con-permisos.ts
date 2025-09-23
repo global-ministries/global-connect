@@ -30,6 +30,7 @@ interface FiltrosUsuarios {
   roles: string[]
   con_email: boolean | null
   con_telefono: boolean | null
+  en_grupo: boolean | null
   limite?: number
 }
 
@@ -75,6 +76,7 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
     roles: [],
     con_email: null,
     con_telefono: null,
+  en_grupo: null,
     limite: 20
   })
 
@@ -107,15 +109,35 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
       const limite = filtros.limite || 20
       const offset = (paginaActual - 1) * limite
 
-      const { data, error: errorRPC } = await supabase.rpc('listar_usuarios_con_permisos', {
+      const rpcParams: any = {
         p_auth_id: user.id,
         p_busqueda: busquedaDebounced,
         p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : null,
         p_con_email: filtros.con_email,
         p_con_telefono: filtros.con_telefono,
         p_limite: limite,
-        p_offset: offset
-      })
+        p_offset: offset,
+      }
+      if (filtros.en_grupo !== null) {
+        rpcParams.p_en_grupo = filtros.en_grupo
+      }
+
+      let { data, error: errorRPC } = await supabase.rpc('listar_usuarios_con_permisos', rpcParams)
+
+      // Fallback de compatibilidad si el RPC no acepta p_en_grupo (instancias viejas)
+      if (errorRPC && filtros.en_grupo !== null) {
+        const { data: data2, error: error2 } = await supabase.rpc('listar_usuarios_con_permisos', {
+          p_auth_id: user.id,
+          p_busqueda: busquedaDebounced,
+          p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : null,
+          p_con_email: filtros.con_email,
+          p_con_telefono: filtros.con_telefono,
+          p_limite: limite,
+          p_offset: offset,
+        })
+        data = data2 as any
+        errorRPC = error2 as any
+      }
 
       if (errorRPC) {
         throw errorRPC
@@ -140,7 +162,7 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
     } finally {
       setCargando(false)
     }
-  }, [supabase, paginaActual, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, toast])
+  }, [supabase, paginaActual, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, toast])
 
   // Cargar estadísticas con caché
   const cargarEstadisticas = useCallback(async () => {
@@ -204,7 +226,7 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setPaginaActual(1)
-  }, [busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono])
+  }, [busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo])
 
   // Funciones de control
   const actualizarFiltros = useCallback((nuevosFiltros: Partial<FiltrosUsuarios>) => {
@@ -229,6 +251,7 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
       roles: [],
       con_email: null,
       con_telefono: null,
+  en_grupo: null,
       limite: 20
     })
   }, [])

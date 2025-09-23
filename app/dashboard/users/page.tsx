@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/sistema-diseno'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { FiltrosUsuarios as FiltrosUsuariosUI } from '@/components/ui/filtros-usuarios'
+import type { FiltrosUsuarios as FiltrosUsuariosType } from '@/components/ui/filtros-usuarios'
 
 // Funciones auxiliares
 function obtenerVarianteBadgeRol(rol?: string): "default" | "success" | "warning" | "error" | "info" {
@@ -369,14 +370,25 @@ export default function PaginaUsuarios() {
             <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
               {/* Filtros avanzados */}
               <div>
-                <FiltrosUsuariosUI
-                  filtros={{ roles: filtros.roles, conEmail: filtros.con_email, conTelefono: filtros.con_telefono, estado: [] }}
-                  onFiltrosChange={(f) => {
-                    actualizarFiltros({ roles: f.roles, con_email: f.conEmail, con_telefono: f.conTelefono })
-                  }}
-                  rolesDisponibles={rolesDisponibles}
-                  onLimpiarFiltros={limpiarFiltros}
-                />
+                {(() => {
+                  const filtrosUI: FiltrosUsuariosType = {
+                    roles: filtros.roles,
+                    conEmail: filtros.con_email,
+                    conTelefono: filtros.con_telefono,
+                    enGrupo: filtros.en_grupo ?? null,
+                    estado: []
+                  }
+                  return (
+                    <FiltrosUsuariosUI
+                      filtros={filtrosUI}
+                      onFiltrosChange={(f) => {
+                        actualizarFiltros({ roles: f.roles, con_email: f.conEmail, con_telefono: f.conTelefono, en_grupo: f.enGrupo })
+                      }}
+                      rolesDisponibles={rolesDisponibles}
+                      onLimpiarFiltros={limpiarFiltros}
+                    />
+                  )
+                })()}
               </div>
               {filtros.busqueda && (
                 <BotonSistema

@@ -9,6 +9,7 @@ export interface FiltrosUsuarios {
   roles: string[]
   conEmail: boolean | null
   conTelefono: boolean | null
+  enGrupo: boolean | null
   estado: string[]
 }
 
@@ -35,22 +36,19 @@ export function FiltrosUsuarios({
     onFiltrosChange({ ...filtros, roles: nuevosRoles })
   }
 
-  const toggleConEmail = () => {
-    let nuevoValor: boolean | null
-    if (filtros.conEmail === null) nuevoValor = true
-    else if (filtros.conEmail === true) nuevoValor = false
-    else nuevoValor = null
-    
+  const setConEmail = (valor: boolean) => {
+    const nuevoValor: boolean | null = filtros.conEmail === valor ? null : valor
     onFiltrosChange({ ...filtros, conEmail: nuevoValor })
   }
 
-  const toggleConTelefono = () => {
-    let nuevoValor: boolean | null
-    if (filtros.conTelefono === null) nuevoValor = true
-    else if (filtros.conTelefono === true) nuevoValor = false
-    else nuevoValor = null
-    
+  const setConTelefono = (valor: boolean) => {
+    const nuevoValor: boolean | null = filtros.conTelefono === valor ? null : valor
     onFiltrosChange({ ...filtros, conTelefono: nuevoValor })
+  }
+
+  const setEnGrupo = (valor: boolean) => {
+    const nuevoValor: boolean | null = filtros.enGrupo === valor ? null : valor
+    onFiltrosChange({ ...filtros, enGrupo: nuevoValor })
   }
 
   const toggleEstado = (estado: string) => {
@@ -65,6 +63,7 @@ export function FiltrosUsuarios({
     return filtros.roles.length > 0 || 
            filtros.conEmail !== null || 
            filtros.conTelefono !== null || 
+           filtros.enGrupo !== null || 
            filtros.estado.length > 0
   }
 
@@ -78,6 +77,12 @@ export function FiltrosUsuarios({
     if (filtros.conTelefono === true) return "Con teléfono"
     if (filtros.conTelefono === false) return "Sin teléfono"
     return "Teléfono"
+  }
+
+  const obtenerTextoFiltroEnGrupo = () => {
+    if (filtros.enGrupo === true) return "En grupo"
+    if (filtros.enGrupo === false) return "Sin grupo"
+    return "Grupos"
   }
 
   return (
@@ -96,6 +101,7 @@ export function FiltrosUsuarios({
             {filtros.roles.length +
               (filtros.conEmail !== null ? 1 : 0) +
               (filtros.conTelefono !== null ? 1 : 0) +
+              (filtros.enGrupo !== null ? 1 : 0) +
               filtros.estado.length}
           </Badge>
         )}
@@ -165,7 +171,7 @@ export function FiltrosUsuarios({
                   <Button
                     variant={filtros.conEmail === true ? 'default' : 'outline'}
                     size="sm"
-                    onClick={toggleConEmail}
+                    onClick={() => setConEmail(true)}
                     className="text-xs"
                   >
                     Con email
@@ -173,7 +179,7 @@ export function FiltrosUsuarios({
                   <Button
                     variant={filtros.conEmail === false ? 'default' : 'outline'}
                     size="sm"
-                    onClick={toggleConEmail}
+                    onClick={() => setConEmail(false)}
                     className="text-xs"
                   >
                     Sin email
@@ -188,7 +194,7 @@ export function FiltrosUsuarios({
                   <Button
                     variant={filtros.conTelefono === true ? 'default' : 'outline'}
                     size="sm"
-                    onClick={toggleConTelefono}
+                    onClick={() => setConTelefono(true)}
                     className="text-xs"
                   >
                     Con teléfono
@@ -196,10 +202,33 @@ export function FiltrosUsuarios({
                   <Button
                     variant={filtros.conTelefono === false ? 'default' : 'outline'}
                     size="sm"
-                    onClick={toggleConTelefono}
+                    onClick={() => setConTelefono(false)}
                     className="text-xs"
                   >
                     Sin teléfono
+                  </Button>
+                </div>
+              </div>
+
+              {/* Filtro por pertenencia a Grupos */}
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Pertenencia a Grupos</h4>
+                <div className="flex gap-2">
+                  <Button
+                    variant={filtros.enGrupo === true ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEnGrupo(true)}
+                    className="text-xs"
+                  >
+                    En grupo
+                  </Button>
+                  <Button
+                    variant={filtros.enGrupo === false ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEnGrupo(false)}
+                    className="text-xs"
+                  >
+                    Sin grupo
                   </Button>
                 </div>
               </div>
@@ -255,7 +284,7 @@ export function FiltrosUsuarios({
                       <Badge variant="secondary" className="flex items-center gap-1">
                         {obtenerTextoFiltroEmail()}
                         <button
-                          onClick={toggleConEmail}
+                          onClick={() => setConEmail(filtros.conEmail === true ? true : false)}
                           className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
                         >
                           <X className="w-3 h-3" />
@@ -267,7 +296,19 @@ export function FiltrosUsuarios({
                       <Badge variant="secondary" className="flex items-center gap-1">
                         {obtenerTextoFiltroTelefono()}
                         <button
-                          onClick={toggleConTelefono}
+                          onClick={() => setConTelefono(filtros.conTelefono === true ? true : false)}
+                          className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    )}
+
+                    {filtros.enGrupo !== null && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        {obtenerTextoFiltroEnGrupo()}
+                        <button
+                          onClick={() => setEnGrupo(filtros.enGrupo === true ? true : false)}
                           className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
                         >
                           <X className="w-3 h-3" />
