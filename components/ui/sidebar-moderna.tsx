@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { LogoGlobalConnect } from '@/components/ui/logo-global-connect'
 import { 
   Users, 
   UserCheck, 
@@ -159,9 +160,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           {!isCollapsed && (
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">GC</span>
-              </div>
+              <LogoGlobalConnect tamaño="sm" />
               <span className="font-semibold text-gray-900">Global Connect</span>
             </div>
           )}
