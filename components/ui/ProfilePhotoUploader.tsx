@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { Camera, Upload, X, Trash2, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { uploadProfilePhoto, deleteProfilePhoto } from '@/lib/actions/photo.actions'
+import { uploadProfilePhoto, deleteProfilePhoto, uploadUserProfilePhoto, deleteUserProfilePhoto } from '@/lib/actions/photo.actions'
 import Image from 'next/image'
 
 interface ProfilePhotoUploaderProps {
@@ -11,13 +11,15 @@ interface ProfilePhotoUploaderProps {
   onPhotoChange?: (newPhotoUrl: string | null) => void
   className?: string
   size?: 'sm' | 'md' | 'lg'
+  userId?: string // ID del usuario cuya foto se está editando (opcional)
 }
 
 export function ProfilePhotoUploader({ 
   currentPhotoUrl, 
   onPhotoChange, 
   className = "",
-  size = 'md'
+  size = 'md',
+  userId
 }: ProfilePhotoUploaderProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -221,8 +223,10 @@ export function ProfilePhotoUploader({
       const formData = new FormData()
       formData.append('photo', fileToUpload)
 
-      // Subir foto
-      const result = await uploadProfilePhoto(formData)
+      // Subir foto - usar función específica si se proporciona userId
+      const result = userId 
+        ? await uploadUserProfilePhoto(formData, userId)
+        : await uploadProfilePhoto(formData)
 
       if (result.success && result.photoUrl) {
         setPreviewUrl(result.photoUrl)
@@ -586,7 +590,10 @@ export function ProfilePhotoUploader({
       setIsUploading(true)
       setError(null)
 
-      const result = await deleteProfilePhoto()
+      // Eliminar foto - usar función específica si se proporciona userId
+      const result = userId 
+        ? await deleteUserProfilePhoto(userId)
+        : await deleteProfilePhoto()
 
       if (result.success) {
         setPreviewUrl(null)

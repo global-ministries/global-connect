@@ -312,6 +312,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           <ProfilePhotoUploader
             currentPhotoUrl={usuario?.foto_perfil_url}
             size="lg"
+            userId={usuario?.id} // Pasar el ID del usuario que se está editando
             onPhotoChange={(newPhotoUrl) => {
               // La foto se actualiza automáticamente en la base de datos
               // Aquí podrías actualizar el estado local si es necesario
