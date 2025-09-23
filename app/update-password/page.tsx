@@ -1,6 +1,7 @@
 "use client"
 
 import { Globe, Eye, EyeOff, ArrowLeft } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
 import { z } from "zod"
@@ -56,7 +57,7 @@ export default function PaginaActualizarContraseña() {
           {/* Logo de Global Connect */}
           <div className="flex justify-center mb-6">
             <Image 
-              src="/logo.png" 
+              src={process.env.NEXT_PUBLIC_LOGO_URL || "https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/Logo%20global.jpg"}
               alt="Global Connect" 
               width={220}
               height={60}

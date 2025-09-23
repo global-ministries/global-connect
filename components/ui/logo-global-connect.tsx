@@ -15,7 +15,7 @@ export function LogoGlobalConnect({ tamaño = "md", className, alt = "Global Con
 
   return (
     <Image
-      src="/logo.png"
+      src={process.env.NEXT_PUBLIC_LOGO_URL || "https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/Logo%20global.jpg"}
       alt={alt}
       width={px[tamaño]}
       height={px[tamaño]}
