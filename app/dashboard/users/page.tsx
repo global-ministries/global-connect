@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
   Eye,
   Edit,
@@ -28,6 +28,8 @@ import {
   SkeletonSistema
 } from '@/components/ui/sistema-diseno'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { FiltrosUsuarios as FiltrosUsuariosUI } from '@/components/ui/filtros-usuarios'
+import type { FiltrosUsuarios as FiltrosUsuariosType } from '@/components/ui/filtros-usuarios'
 
 // Funciones auxiliares
 function obtenerVarianteBadgeRol(rol?: string): "default" | "success" | "warning" | "error" | "info" {
@@ -45,7 +47,7 @@ function obtenerVarianteBadgeRol(rol?: string): "default" | "success" | "warning
     case 'miembro':
       return 'default'
     default:
-      return 'default'
+  return 'default'
   }
 }
 
@@ -152,6 +154,25 @@ export default function PaginaUsuarios() {
   const limpiarFiltros = () => {
     limpiarFiltrosHook()
   }
+
+  // Roles disponibles para el componente de filtros (se cargan una vez)
+  const [rolesDisponibles, setRolesDisponibles] = useState<Array<{ nombre_interno: string; nombre_visible: string }>>([])
+  useEffect(() => {
+    let cancelado = false
+    const cargarRoles = async () => {
+      try {
+        const res = await fetch('/api/debug/roles')
+        if (!res.ok) return
+        const json = await res.json().catch(() => ({} as any))
+        if (!cancelado) setRolesDisponibles(json?.roles || [])
+      } catch (e) {
+        // silencioso para no interrumpir la página
+        console.debug('No se pudieron cargar roles para filtros:', e)
+      }
+    }
+    cargarRoles()
+    return () => { cancelado = true }
+  }, [])
 
 
   const estadisticasUsuarios = [
@@ -347,6 +368,28 @@ export default function PaginaUsuarios() {
             />
 
             <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
+              {/* Filtros avanzados */}
+              <div>
+                {(() => {
+                  const filtrosUI: FiltrosUsuariosType = {
+                    roles: filtros.roles,
+                    conEmail: filtros.con_email,
+                    conTelefono: filtros.con_telefono,
+                    enGrupo: filtros.en_grupo ?? null,
+                    estado: []
+                  }
+                  return (
+                    <FiltrosUsuariosUI
+                      filtros={filtrosUI}
+                      onFiltrosChange={(f) => {
+                        actualizarFiltros({ roles: f.roles, con_email: f.conEmail, con_telefono: f.conTelefono, en_grupo: f.enGrupo })
+                      }}
+                      rolesDisponibles={rolesDisponibles}
+                      onLimpiarFiltros={limpiarFiltros}
+                    />
+                  )
+                })()}
+              </div>
               {filtros.busqueda && (
                 <BotonSistema
                   variante="outline"

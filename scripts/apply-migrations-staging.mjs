@@ -80,7 +80,11 @@ async function main() {
     '20250910210000_listar_usuarios_con_permisos_fixed.sql',
     '20250910211000_estadisticas_usuarios_con_permisos_fixed.sql',
     // Permitir que líderes gestionen miembros de su grupo
-    '20250921120000_permitir_lider_gestion_miembros.sql'
+  '20250921120000_permitir_lider_gestion_miembros.sql',
+  // Agrega filtro por pertenencia a grupos en listar_usuarios_con_permisos
+  '20250923170000_listar_usuarios_con_permisos_add_en_grupo.sql',
+  // Extiende estadísticas para aceptar filtros
+  '20250923200000_obtener_estadisticas_usuarios_con_permisos_add_filtros.sql'
   ]
 
   for (const migrationFile of migrations) {
