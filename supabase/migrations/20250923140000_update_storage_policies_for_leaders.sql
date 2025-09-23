@@ -30,8 +30,8 @@ BEGIN
     -- Verificar si el usuario actual es líder de algún grupo donde el usuario objetivo es miembro
     SELECT EXISTS(
         SELECT 1
-        FROM public.grupos_miembros gm1
-        INNER JOIN public.grupos_miembros gm2 ON gm1.grupo_id = gm2.grupo_id
+        FROM public.grupo_miembros gm1
+        INNER JOIN public.grupo_miembros gm2 ON gm1.grupo_id = gm2.grupo_id
         WHERE gm1.usuario_id = current_user_id
         AND gm1.rol IN ('Líder', 'Colíder')
         AND gm2.usuario_id = target_user_id
