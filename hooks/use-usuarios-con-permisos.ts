@@ -54,14 +54,8 @@ interface UseUsuariosConPermisosReturn {
 const USUARIOS_POR_PAGINA = 20
 const CACHE_ESTADISTICAS_MS = 5 * 60 * 1000 // 5 minutos
 
-// Cache para estadísticas
-let cacheEstadisticas: {
-  datos: EstadisticasUsuarios | null
-  timestamp: number
-} = {
-  datos: null,
-  timestamp: 0
-}
+// Cache para estadísticas por clave de filtros
+const cacheEstadisticas: Record<string, { datos: EstadisticasUsuarios; timestamp: number }> = {}
 
 export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
@@ -123,6 +117,8 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
       }
 
       let { data, error: errorRPC } = await supabase.rpc('listar_usuarios_con_permisos', rpcParams)
+      // Flag para saber si el filtro en_grupo se aplicó en el servidor
+      let filtroGrupoAplicadoEnServidor = true
 
       // Fallback de compatibilidad si el RPC no acepta p_en_grupo (instancias viejas)
       if (errorRPC && filtros.en_grupo !== null) {
@@ -137,6 +133,7 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
         })
         data = data2 as any
         errorRPC = error2 as any
+        filtroGrupoAplicadoEnServidor = false
       }
 
       if (errorRPC) {
@@ -144,8 +141,39 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
       }
 
       if (data && data.length > 0) {
-        setUsuarios(data)
-        setTotalUsuarios(Number(data[0].total_count) || 0)
+        let lista = data as any[]
+
+        // Si el servidor no aplicó el filtro por grupo pero el usuario lo pidió, filtramos en cliente
+        if (filtros.en_grupo !== null && !filtroGrupoAplicadoEnServidor) {
+          try {
+            const ids = lista.map((u) => u.id).filter(Boolean)
+            if (ids.length > 0) {
+              const { data: miembros, error: errMiembros } = await supabase
+                .from('grupo_miembros')
+                .select('usuario_id')
+                .in('usuario_id', ids)
+                .is('fecha_salida', null)
+
+              if (!errMiembros) {
+                const setMiembros = new Set((miembros || []).map((m: any) => m.usuario_id))
+                if (filtros.en_grupo === true) {
+                  lista = lista.filter((u) => setMiembros.has(u.id))
+                } else {
+                  lista = lista.filter((u) => !setMiembros.has(u.id))
+                }
+              }
+            }
+          } catch (e) {
+            // Silenciar errores de fallback local; no interrumpir la carga principal
+          }
+        }
+
+        setUsuarios(lista as any)
+        // Si filtramos en cliente, el total del servidor ya no es confiable; usar el tamaño filtrado
+        const total = (filtros.en_grupo !== null && !filtroGrupoAplicadoEnServidor)
+          ? Number(lista.length)
+          : Number((data as any)[0].total_count) || 0
+        setTotalUsuarios(total)
       } else {
         setUsuarios([])
         setTotalUsuarios(0)
@@ -166,10 +194,20 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
 
   // Cargar estadísticas con caché
   const cargarEstadisticas = useCallback(async () => {
-    // Verificar caché
     const ahora = Date.now()
-    if (cacheEstadisticas.datos && (ahora - cacheEstadisticas.timestamp) < CACHE_ESTADISTICAS_MS) {
-      setEstadisticas(cacheEstadisticas.datos)
+    // Construir clave de filtros para cachear por combinación
+    const filtrosKey = JSON.stringify({
+      busqueda: busquedaDebounced || '',
+      roles: [...filtros.roles].sort(),
+      con_email: filtros.con_email,
+      con_telefono: filtros.con_telefono,
+      en_grupo: filtros.en_grupo,
+    })
+
+    // Verificar caché por clave
+    const entry = cacheEstadisticas[filtrosKey]
+    if (entry && (ahora - entry.timestamp) < CACHE_ESTADISTICAS_MS) {
+      setEstadisticas(entry.datos)
       return
     }
 
@@ -182,9 +220,24 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
         throw new Error('Usuario no autenticado')
       }
 
-      const { data, error: errorRPC } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
-        p_auth_id: user.id
+      // Intentar nueva firma con filtros
+      let { data, error: errorRPC } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
+        p_auth_id: user.id,
+        p_busqueda: busquedaDebounced || '',
+        p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : null,
+        p_con_email: filtros.con_email,
+        p_con_telefono: filtros.con_telefono,
+        ...(filtros.en_grupo !== null ? { p_en_grupo: filtros.en_grupo } : {}),
       })
+
+      // Fallback: si el RPC no acepta parámetros extra, usar la firma antigua (solo p_auth_id)
+      if (errorRPC) {
+        const { data: data2, error: error2 } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
+          p_auth_id: user.id
+        })
+        data = data2
+        errorRPC = error2 as any
+      }
 
       if (errorRPC) {
         throw errorRPC
@@ -197,10 +250,10 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
         registrados_hoy: 0
       }
 
-      // Actualizar caché
-      cacheEstadisticas = {
+      // Actualizar caché por clave
+      cacheEstadisticas[filtrosKey] = {
         datos: stats,
-        timestamp: ahora
+        timestamp: ahora,
       }
 
       setEstadisticas(stats)
@@ -212,7 +265,7 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
     } finally {
       setCargandoEstadisticas(false)
     }
-  }, [supabase])
+  }, [supabase, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo])
 
   // Efectos para cargar datos
   useEffect(() => {
@@ -238,8 +291,8 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
   }, [])
 
   const recargarDatos = useCallback(() => {
-    // Limpiar caché de estadísticas
-    cacheEstadisticas = { datos: null, timestamp: 0 }
+  // Limpiar caché de estadísticas (todas las claves)
+  for (const k of Object.keys(cacheEstadisticas)) delete cacheEstadisticas[k]
     cargarUsuarios()
     cargarEstadisticas()
   }, [cargarUsuarios, cargarEstadisticas])

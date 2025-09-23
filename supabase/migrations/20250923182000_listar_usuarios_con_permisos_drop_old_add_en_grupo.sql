@@ -1,5 +1,18 @@
--- Add optional group membership filter to listar_usuarios_con_permisos
+-- Ensure we replace old signature and add p_en_grupo filter
 
+DO $$
+BEGIN
+  -- Drop old function without p_en_grupo if it exists (uuid, text, text[], boolean, boolean, int, int)
+  IF EXISTS (
+    SELECT 1 FROM pg_proc 
+    WHERE proname = 'listar_usuarios_con_permisos'
+      AND oid = 'public.listar_usuarios_con_permisos(uuid, text, text[], boolean, boolean, integer, integer)'::regprocedure
+  ) THEN
+    DROP FUNCTION public.listar_usuarios_con_permisos(uuid, text, text[], boolean, boolean, integer, integer);
+  END IF;
+END $$;
+
+-- Recreate with new signature including p_en_grupo
 CREATE OR REPLACE FUNCTION public.listar_usuarios_con_permisos(
   p_auth_id uuid,
   p_busqueda text DEFAULT '',
@@ -34,7 +47,6 @@ DECLARE
   query_final text;
   total_registros bigint;
 BEGIN
-  -- Obtener el ID interno del usuario y su rol
   SELECT u.id, rs.nombre_interno
   INTO usuario_interno_id, usuario_rol
   FROM usuarios u
@@ -64,7 +76,6 @@ BEGIN
     LEFT JOIN roles_sistema rs ON ur.rol_id = rs.id
   ';
 
-  -- Scope por rol del usuario autenticado (igual que versión anterior)
   CASE usuario_rol
     WHEN 'admin', 'pastor', 'director-general' THEN
       query_where := ' WHERE 1=1 ';
@@ -111,7 +122,6 @@ BEGIN
       query_where := ' WHERE 1=0 ';
   END CASE;
 
-  -- Filtros adicionales existentes
   IF p_busqueda IS NOT NULL AND p_busqueda != '' THEN
     query_where := query_where || format('
       AND (
@@ -145,7 +155,6 @@ BEGIN
     END IF;
   END IF;
 
-  -- Nuevo filtro: pertenencia a grupos (miembro activo en cualquier grupo)
   IF p_en_grupo IS NOT NULL THEN
     IF p_en_grupo THEN
       query_where := query_where || ' AND EXISTS (SELECT 1 FROM grupo_miembros gm2 WHERE gm2.usuario_id = u.id AND gm2.fecha_salida IS NULL) ';
@@ -179,7 +188,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.listar_usuarios_con_permisos(uuid, text, text[], boolean, boolean, boolean, integer, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.listar_usuarios_con_permisos TO authenticated;
 
-COMMENT ON FUNCTION public.listar_usuarios_con_permisos(uuid, text, text[], boolean, boolean, boolean, integer, integer) IS 
+COMMENT ON FUNCTION public.listar_usuarios_con_permisos IS 
 'Lista usuarios según permisos y filtros (rol, email, teléfono, pertenencia a grupo).';

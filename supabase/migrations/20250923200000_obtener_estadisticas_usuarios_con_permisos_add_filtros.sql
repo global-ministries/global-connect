@@ -1,27 +1,18 @@
--- Add optional group membership filter to listar_usuarios_con_permisos
+-- Extiende estadísticas para aceptar filtros, alineadas con listar_usuarios_con_permisos
 
-CREATE OR REPLACE FUNCTION public.listar_usuarios_con_permisos(
+CREATE OR REPLACE FUNCTION public.obtener_estadisticas_usuarios_con_permisos(
   p_auth_id uuid,
   p_busqueda text DEFAULT '',
   p_roles_filtro text[] DEFAULT '{}',
   p_con_email boolean DEFAULT NULL,
   p_con_telefono boolean DEFAULT NULL,
-  p_en_grupo boolean DEFAULT NULL,
-  p_limite int DEFAULT 20,
-  p_offset int DEFAULT 0
+  p_en_grupo boolean DEFAULT NULL
 )
 RETURNS TABLE (
-  id uuid,
-  nombre text,
-  apellido text,
-  email text,
-  telefono text,
-  cedula text,
-  fecha_registro timestamptz,
-  rol_nombre_interno text,
-  rol_nombre_visible text,
-  total_count bigint,
-  puede_ver boolean
+  total_usuarios bigint,
+  con_email bigint,
+  con_telefono bigint,
+  registrados_hoy bigint
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -31,8 +22,6 @@ DECLARE
   usuario_interno_id uuid;
   query_base text;
   query_where text := '';
-  query_final text;
-  total_registros bigint;
 BEGIN
   -- Obtener el ID interno del usuario y su rol
   SELECT u.id, rs.nombre_interno
@@ -43,28 +32,21 @@ BEGIN
   WHERE u.auth_id = p_auth_id
   LIMIT 1;
 
+  -- Si no se encuentra el usuario, retornar ceros
   IF usuario_interno_id IS NULL THEN
+    RETURN QUERY SELECT 0::bigint, 0::bigint, 0::bigint, 0::bigint;
     RETURN;
   END IF;
 
+  -- Query base común (minimiza JOINs, solo los necesarios para scope por rol)
   query_base := '
-    SELECT DISTINCT
-      u.id,
-      u.nombre,
-      u.apellido,
-      u.email,
-      u.telefono,
-      u.cedula,
-      u.fecha_registro,
-      rs.nombre_interno as rol_nombre_interno,
-      rs.nombre_visible as rol_nombre_visible,
-      true as puede_ver
+    SELECT DISTINCT u.id, u.email, u.telefono, u.fecha_registro
     FROM usuarios u
     LEFT JOIN usuario_roles ur ON u.id = ur.usuario_id
     LEFT JOIN roles_sistema rs ON ur.rol_id = rs.id
   ';
 
-  -- Scope por rol del usuario autenticado (igual que versión anterior)
+  -- Construir WHERE según el rol del usuario (mismo criterio que listar_usuarios_con_permisos)
   CASE usuario_rol
     WHEN 'admin', 'pastor', 'director-general' THEN
       query_where := ' WHERE 1=1 ';
@@ -111,7 +93,7 @@ BEGIN
       query_where := ' WHERE 1=0 ';
   END CASE;
 
-  -- Filtros adicionales existentes
+  -- Filtros adicionales (idénticos a listar_usuarios_con_permisos)
   IF p_busqueda IS NOT NULL AND p_busqueda != '' THEN
     query_where := query_where || format('
       AND (
@@ -145,7 +127,6 @@ BEGIN
     END IF;
   END IF;
 
-  -- Nuevo filtro: pertenencia a grupos (miembro activo en cualquier grupo)
   IF p_en_grupo IS NOT NULL THEN
     IF p_en_grupo THEN
       query_where := query_where || ' AND EXISTS (SELECT 1 FROM grupo_miembros gm2 WHERE gm2.usuario_id = u.id AND gm2.fecha_salida IS NULL) ';
@@ -154,32 +135,20 @@ BEGIN
     END IF;
   END IF;
 
-  query_final := query_base || query_where || '
-    ORDER BY u.nombre, u.apellido
-    LIMIT ' || p_limite || ' OFFSET ' || p_offset;
-
-  EXECUTE 'SELECT COUNT(DISTINCT u.id) FROM (' || query_base || query_where || ') u' 
-  INTO total_registros;
-
+  -- Cálculo agregado
   RETURN QUERY EXECUTE format('
     SELECT 
-      sub.id,
-      sub.nombre,
-      sub.apellido,
-      sub.email,
-      sub.telefono,
-      sub.cedula,
-      sub.fecha_registro,
-      sub.rol_nombre_interno,
-      sub.rol_nombre_visible,
-      %L::bigint as total_count,
-      sub.puede_ver
-    FROM (%s) sub
-  ', total_registros, query_final);
+      COUNT(*)::bigint as total_usuarios,
+      COUNT(CASE WHEN email IS NOT NULL AND email != '''' THEN 1 END)::bigint as con_email,
+      COUNT(CASE WHEN telefono IS NOT NULL AND telefono != '''' THEN 1 END)::bigint as con_telefono,
+      COUNT(CASE WHEN DATE(fecha_registro) = CURRENT_DATE THEN 1 END)::bigint as registrados_hoy
+    FROM (%s %s) usuarios_permitidos
+  ', query_base, query_where);
+
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.listar_usuarios_con_permisos(uuid, text, text[], boolean, boolean, boolean, integer, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.obtener_estadisticas_usuarios_con_permisos(uuid, text, text[], boolean, boolean, boolean) TO authenticated;
 
-COMMENT ON FUNCTION public.listar_usuarios_con_permisos(uuid, text, text[], boolean, boolean, boolean, integer, integer) IS 
-'Lista usuarios según permisos y filtros (rol, email, teléfono, pertenencia a grupo).';
+COMMENT ON FUNCTION public.obtener_estadisticas_usuarios_con_permisos(uuid, text, text[], boolean, boolean, boolean) IS 
+'Estadísticas de usuarios según permisos y filtros (rol, email, teléfono, pertenencia a grupo).';
