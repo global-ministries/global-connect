@@ -8,6 +8,13 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'wcnqocyqtksxhthnquta.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
   },
   // Configuración para desarrollo con proxy
   allowedDevOrigins: [
