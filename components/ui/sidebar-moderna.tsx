@@ -157,11 +157,10 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         )}
       >
         {/* Header con logo y toggle */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-gray-200">
           {!isCollapsed && (
-            <div className="flex items-center gap-3">
-              <LogoGlobalConnect tamaño="sm" />
-              <span className="font-semibold text-gray-900">Global Connect</span>
+            <div className="flex items-center">
+              <LogoGlobalConnect tamaño="lg" className="w-[120px] h-auto" />
             </div>
           )}
           
@@ -178,7 +177,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         </div>
 
         {/* Perfil de usuario */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-gray-200">
           <div className="flex items-center gap-3">
             {loading ? (
               // Skeleton loading

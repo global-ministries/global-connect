@@ -72,8 +72,9 @@ export default function DashboardLayout({ children, activeMenuItem }: DashboardL
             <Card className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-4 lg:p-6 shadow-2xl h-full">
               {/* Logo */}
               <div className="flex items-center gap-3 mb-8">
-                <img src={process.env.NEXT_PUBLIC_LOGO_URL || "https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/Logo%20global.jpg"} alt="Global Connect" className="h-10 w-auto" />
-                <h1 className="text-lg lg:text-xl font-bold text-gray-800">Global Connect</h1>
+                <div className="rounded-2xl bg-white p-1.5 shadow-md ring-1 ring-orange-200/60">
+                  <img src={process.env.NEXT_PUBLIC_LOGO_URL || "https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/Logo%20global.jpg"} alt="Global Connect" className="h-12 w-auto rounded-xl" />
+                </div>
               </div>
 
               {/* Navigation Menu */}

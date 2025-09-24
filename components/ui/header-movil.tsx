@@ -11,9 +11,8 @@ export function HeaderMovil() {
     <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
       <div className="flex items-center justify-between px-4 py-3 safe-area-pt">
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <LogoGlobalConnect tamaño="sm" />
-          <span className="font-semibold text-gray-900">Global Connect</span>
+        <div className="flex items-center">
+          <LogoGlobalConnect tamaño="md" className="w-[90px] h-auto" />
         </div>
         
         {/* Botones de perfil y logout */}
