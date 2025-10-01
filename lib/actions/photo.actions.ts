@@ -38,13 +38,33 @@ function generateUniqueFileName(userId: string, originalName: string): string {
 
 // Esta función se movió al componente cliente ya que usa APIs del DOM
 
-// Subir foto de perfil
+// Subir foto de perfil (para el usuario autenticado)
 export async function uploadProfilePhoto(formData: FormData) {
+  try {
+    const supabase = await createSupabaseServerClient()
+
+    // Obtener usuario actual
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      return { success: false, error: "Usuario no autenticado" }
+    }
+
+    // Usar la función genérica pasando el ID del usuario autenticado
+    return await uploadUserProfilePhoto(formData, user.id)
+
+  } catch (error) {
+    console.error('Error en uploadProfilePhoto:', error)
+    return { success: false, error: "Error interno del servidor" }
+  }
+}
+
+// Subir foto de perfil para cualquier usuario (función genérica)
+export async function uploadUserProfilePhoto(formData: FormData, targetUserId: string) {
   try {
     const supabase = await createSupabaseServerClient()
     const admin = createSupabaseAdminClient()
 
-    // Obtener usuario actual
+    // Verificar que el usuario autenticado tenga permisos
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
       return { success: false, error: "Usuario no autenticado" }
@@ -62,15 +82,15 @@ export async function uploadProfilePhoto(formData: FormData) {
       return { success: false, error: validation.error }
     }
 
-    // Generar nombre único
-    const fileName = generateUniqueFileName(user.id, file.name)
-    const filePath = `${user.id}/${fileName}`
+    // Generar nombre único usando el ID del usuario objetivo
+    const fileName = generateUniqueFileName(targetUserId, file.name)
+    const filePath = `${targetUserId}/${fileName}`
 
     // Obtener foto anterior para eliminarla
     const { data: userData } = await admin
       .from('usuarios')
       .select('foto_perfil_url')
-      .eq('auth_id', user.id)
+      .eq('id', targetUserId)
       .single()
 
     // Subir nueva foto
@@ -91,11 +111,11 @@ export async function uploadProfilePhoto(formData: FormData) {
       .from(PROFILE_PHOTOS_BUCKET)
       .getPublicUrl(filePath)
 
-    // Actualizar URL en base de datos
+    // Actualizar URL en base de datos usando el ID del usuario objetivo
     const { error: updateError } = await admin
       .from('usuarios')
       .update({ foto_perfil_url: publicUrl })
-      .eq('auth_id', user.id)
+      .eq('id', targetUserId)
 
     if (updateError) {
       console.error('Error al actualizar BD:', updateError)
@@ -125,16 +145,15 @@ export async function uploadProfilePhoto(formData: FormData) {
     }
 
   } catch (error) {
-    console.error('Error en uploadProfilePhoto:', error)
+    console.error('Error en uploadUserProfilePhoto:', error)
     return { success: false, error: "Error interno del servidor" }
   }
 }
 
-// Eliminar foto de perfil
+// Eliminar foto de perfil (para el usuario autenticado)
 export async function deleteProfilePhoto() {
   try {
     const supabase = await createSupabaseServerClient()
-    const admin = createSupabaseAdminClient()
 
     // Obtener usuario actual
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -142,11 +161,32 @@ export async function deleteProfilePhoto() {
       return { success: false, error: "Usuario no autenticado" }
     }
 
-    // Obtener URL actual
+    // Usar la función genérica pasando el ID del usuario autenticado
+    return await deleteUserProfilePhoto(user.id)
+
+  } catch (error) {
+    console.error('Error en deleteProfilePhoto:', error)
+    return { success: false, error: "Error interno del servidor" }
+  }
+}
+
+// Eliminar foto de perfil para cualquier usuario (función genérica)
+export async function deleteUserProfilePhoto(targetUserId: string) {
+  try {
+    const supabase = await createSupabaseServerClient()
+    const admin = createSupabaseAdminClient()
+
+    // Verificar que el usuario autenticado tenga permisos
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      return { success: false, error: "Usuario no autenticado" }
+    }
+
+    // Obtener URL actual del usuario objetivo
     const { data: userData } = await admin
       .from('usuarios')
       .select('foto_perfil_url')
-      .eq('auth_id', user.id)
+      .eq('id', targetUserId)
       .single()
 
     if (!userData?.foto_perfil_url) {
@@ -165,11 +205,11 @@ export async function deleteProfilePhoto() {
       console.error('Error al eliminar archivo:', deleteError)
     }
 
-    // Actualizar BD (remover URL)
+    // Actualizar BD (remover URL) del usuario objetivo
     const { error: updateError } = await admin
       .from('usuarios')
       .update({ foto_perfil_url: null })
-      .eq('auth_id', user.id)
+      .eq('id', targetUserId)
 
     if (updateError) {
       console.error('Error al actualizar BD:', updateError)
@@ -182,7 +222,7 @@ export async function deleteProfilePhoto() {
     }
 
   } catch (error) {
-    console.error('Error en deleteProfilePhoto:', error)
+    console.error('Error en deleteUserProfilePhoto:', error)
     return { success: false, error: "Error interno del servidor" }
   }
 }

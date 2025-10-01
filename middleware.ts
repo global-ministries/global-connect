@@ -36,7 +36,53 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data: { user: authUser }, error } = await supabase.auth.getUser()
+    
+    // Si hay error de refresh token, limpiar cookies
+    if (error && (error.message?.includes('refresh_token_not_found') || error.code === 'refresh_token_not_found')) {
+      const response = NextResponse.next()
+      
+      // Limpiar todas las cookies de Supabase (nombres comunes)
+      const cookiesToClear = [
+        'sb-access-token', 
+        'sb-refresh-token', 
+        'supabase-auth-token',
+        'sb-localhost-auth-token',
+        'sb-127.0.0.1-auth-token'
+      ]
+      
+      // También limpiar cookies que empiecen con 'sb-'
+      request.cookies.getAll().forEach(cookie => {
+        if (cookie.name.startsWith('sb-') || cookie.name.includes('supabase')) {
+          response.cookies.delete(cookie.name)
+        }
+      })
+      
+      cookiesToClear.forEach(cookieName => {
+        response.cookies.delete(cookieName)
+      })
+      
+      // Si es ruta privada, redirigir al login
+      if (!isPublic) {
+        const redirectUrl = new URL('/', request.url)
+        redirectUrl.searchParams.set('redirect', path)
+        return NextResponse.redirect(redirectUrl)
+      }
+      return response
+    }
+    
+    user = authUser
+  } catch (error) {
+    console.log('Error en middleware auth:', error)
+    // En caso de error, limpiar cookies y continuar
+    if (!isPublic) {
+      const redirectUrl = new URL('/', request.url)
+      redirectUrl.searchParams.set('redirect', path)
+      return NextResponse.redirect(redirectUrl)
+    }
+  }
 
   // Si no autenticado y ruta privada -> redirigir al login
   if (!user && !isPublic) {

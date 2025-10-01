@@ -36,7 +36,7 @@ export default async function WelcomePage() {
   // 5. Pantalla de carga mientras se ejecuta la lógica
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-      <Image src="/logo.png" alt="Global Connect" width={120} height={120} className="mb-6" />
+      <Image src={process.env.NEXT_PUBLIC_LOGO_URL || "https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/Logo%20global.jpg"} alt="Global Connect" width={120} height={120} className="mb-6" />
       <p className="text-lg text-gray-700 font-semibold">Verificando tu cuenta, un momento...</p>
     </div>
 );

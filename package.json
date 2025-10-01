@@ -7,6 +7,8 @@
     "dev": "next dev -H 0.0.0.0",
     "lint": "next lint",
     "start": "next start",
+  "smoke:grupo": "node scripts/smoke-en-grupo.mjs",
+  "smoke:stats": "node scripts/smoke-stats.mjs",
     "gen:types": "supabase gen types typescript --project-id wcnqocyqtksxhthnquta > lib/supabase/database.types.ts",
     "db:push:staging": "supabase db push --project-ref wcnqocyqtksxhthnquta",
     "db:reset:staging": "supabase db reset --project-ref wcnqocyqtksxhthnquta",

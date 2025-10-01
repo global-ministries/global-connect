@@ -184,7 +184,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
           </div>
 
           {/* Información principal */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full md:w-auto">
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <BadgeSistema variante="default" tamaño="sm">
                 {grupo.dia_reunion || "Sin día"}
@@ -212,23 +212,23 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
               </div>
             )}
 
-            {/* Botones de acción - Grid responsive para alineación perfecta */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full">
-              {grupo.puede_editar_ui && (
-                <Link href={`/dashboard/grupos/${id}/asistencia`} className="col-span-2 sm:col-span-1">
-                  <BotonSistema variante="primario" className="w-full h-10 text-sm">
-                    <Users className="w-4 h-4" />
-                    <span className="ml-2">Asistencia</span>
-                  </BotonSistema>
-                </Link>
-              )}
-              
+            {/* Botón de Asistencia principal - Ancho completo en móvil */}
+            {grupo.puede_editar_ui && (
+              <Link href={`/dashboard/grupos/${id}/asistencia`} className="w-full mb-4">
+                <BotonSistema variante="primario" className="w-full h-12 text-sm">
+                  <Users className="w-4 h-4" />
+                  <span className="ml-2">Asistencia</span>
+                </BotonSistema>
+              </Link>
+            )}
+
+            {/* Botones secundarios - Grid 2x2 en móvil, fila en desktop */}
+            <div className="grid grid-cols-2 gap-3 w-full mt-4">
               {grupo.puede_editar_ui && (grupo.rol_en_grupo?.toLowerCase() !== 'miembro') && (
                 <Link href={`/dashboard/grupos/${id}/edit`}>
                   <BotonSistema variante="outline" className="w-full h-10 text-sm">
                     <Edit className="w-4 h-4" />
-                    <span className="ml-2 hidden sm:inline">Editar</span>
-                    <span className="ml-2 sm:hidden">Editar</span>
+                    <span className="ml-2">Editar</span>
                   </BotonSistema>
                 </Link>
               )}
@@ -237,8 +237,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 <Link href={`/dashboard/grupos/${id}/asistencia/historial`}>
                   <BotonSistema variante="outline" className="w-full h-10 text-sm">
                     <Calendar className="w-4 h-4" />
-                    <span className="ml-2 hidden sm:inline">Historial</span>
-                    <span className="ml-2 sm:hidden">Historial</span>
+                    <span className="ml-2">Historial</span>
                   </BotonSistema>
                 </Link>
               )}
@@ -249,8 +248,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 className="w-full h-10 text-sm"
               >
                 <MapPin className="w-4 h-4" />
-                <span className="ml-2 hidden sm:inline">Dirección</span>
-                <span className="ml-2 sm:hidden">Mapa</span>
+                <span className="ml-2">Mapa</span>
               </BotonSistema>
               
               {grupo.puede_gestionar_miembros && (
@@ -260,8 +258,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                   className="w-full h-10 text-sm"
                 >
                   <Users className="w-4 h-4" />
-                  <span className="ml-2 hidden sm:inline">Añadir</span>
-                  <span className="ml-2 sm:hidden">Añadir</span>
+                  <span className="ml-2">Añadir</span>
                 </BotonSistema>
               )}
             </div>
