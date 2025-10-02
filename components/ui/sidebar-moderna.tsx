@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LogoGlobalConnect } from '@/components/ui/logo-global-connect'
-import { 
-  Users, 
-  UserCheck, 
-  Settings, 
-  HelpCircle, 
+import {
+  Users,
+  UserCheck,
+  Settings,
+  HelpCircle,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +20,7 @@ import {
 import { BadgeSistema } from './sistema-diseno'
 import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { logout } from '@/lib/actions/auth.actions'
 
 interface SidebarModernaProps {
   className?: string
@@ -76,7 +77,9 @@ const menuItems: MenuItem[] = [
 export function SidebarModerna({ className }: SidebarModernaProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
   const { usuario, roles, loading } = useCurrentUser()
 
   // Formatear roles para mostrar
@@ -130,10 +133,19 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     }
   }
 
-  const isActive = (elemento: MenuItem) => {
-    const esActivo = pathname === elemento.href || 
-          (elemento.href !== "/dashboard" && pathname?.startsWith(elemento.href))
-    return esActivo
+  // Función para manejar logout
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Error durante logout:', error)
+      // Fallback: redirigir directamente
+      router.push('/')
+    }
+  }
+
+  const confirmLogout = () => {
+    setShowLogoutModal(true)
   }
 
   return (
@@ -316,6 +328,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
 
           {/* Cerrar Sesión */}
           <button
+            onClick={confirmLogout}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative w-full text-left",
               "text-gray-700 hover:bg-red-50 hover:text-red-700",
@@ -341,6 +354,34 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
           </button>
         </div>
       </div>
+
+      {/* Modal de confirmación de logout */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              ¿Estás seguro que deseas cerrar sesión?
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Se cerrará tu sesión actual y serás redirigido a la página de inicio.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   )
