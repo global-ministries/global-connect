@@ -148,6 +148,12 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     setShowLogoutModal(true)
   }
 
+  const isActive = (elemento: MenuItem) => {
+    const esActivo = pathname === elemento.href || 
+          (elemento.href !== "/dashboard" && pathname?.startsWith(elemento.href))
+    return esActivo
+  }
+
   return (
     <>
       {/* Overlay para móvil */}
