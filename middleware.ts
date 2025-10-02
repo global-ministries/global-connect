@@ -57,7 +57,15 @@ export async function middleware(request: NextRequest) {
       // Si el intercambio fue exitoso, redirigir a la página de cambio de contraseña
       if (data?.session) {
         console.log('Código procesado exitosamente, redirigiendo a /auth/reset-password')
-        return NextResponse.redirect(new URL('/auth/reset-password', request.url))
+        // Obtener los tokens de la sesión para pasarlos como parámetros
+        const accessToken = data.session.access_token
+        const refreshToken = data.session.refresh_token
+
+        const redirectUrl = new URL('/auth/reset-password', request.url)
+        redirectUrl.searchParams.set('access_token', accessToken)
+        redirectUrl.searchParams.set('refresh_token', refreshToken)
+
+        return NextResponse.redirect(redirectUrl)
       }
     } catch (error) {
       console.error('Error en middleware procesando código:', error)
