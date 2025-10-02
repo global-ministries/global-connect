@@ -27,7 +27,7 @@ export default function PaginaRestablecerContraseña() {
     
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/?type=recovery`
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/`
       })
 
       if (error) {
