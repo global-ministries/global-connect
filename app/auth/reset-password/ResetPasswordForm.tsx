@@ -32,6 +32,12 @@ export default function ResetPasswordForm() {
       supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken
+      }).then(() => {
+        // Limpiar los tokens de la URL por seguridad
+        const url = new URL(window.location.href)
+        url.searchParams.delete('access_token')
+        url.searchParams.delete('refresh_token')
+        window.history.replaceState({}, '', url.pathname + url.hash)
       })
     }
   }, [searchParams])
