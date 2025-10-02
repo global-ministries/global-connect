@@ -3,6 +3,7 @@
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
+import { supabase } from '@/lib/supabase/client'
 import {
   FondoAutenticacion,
   TarjetaSistema,
@@ -25,9 +26,15 @@ export default function PaginaRestablecerContraseña() {
     setError("")
     
     try {
-      // Simular llamada a la API
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      setEnviado(true)
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`
+      })
+
+      if (error) {
+        setError(error.message)
+      } else {
+        setEnviado(true)
+      }
     } catch (err) {
       setError("Error al enviar las instrucciones. Inténtalo de nuevo.")
     } finally {
