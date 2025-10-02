@@ -10,12 +10,61 @@ const PUBLIC_PATHS = new Set([
   '/verify-email',
   '/update-password',
   '/welcome',
-  '/auth/callback' // callback oauth
+  '/auth/callback', // callback oauth
+  '/auth/reset-password' // página de cambio de contraseña
 ])
 
 export async function middleware(request: NextRequest) {
   const url = new URL(request.url)
   const path = url.pathname
+  const code = url.searchParams.get('code')
+
+  // Si hay un código de recuperación, procesarlo primero
+  if (code && path === '/') {
+    const recoveryType = url.searchParams.get('type')
+
+    if (recoveryType === 'recovery') {
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            get: (name: string) => request.cookies.get(name)?.value ?? '',
+            set: (name: string, value: string, options: any) => {
+              request.cookies.set({ name, value, ...options })
+            },
+            remove: (name: string, options: any) => {
+              request.cookies.delete({ name, ...options })
+            }
+          }
+        }
+      )
+
+      try {
+        // Procesar el código de recuperación
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+
+        if (error) {
+          console.error('Error procesando código de recuperación:', error)
+          // Si hay error, limpiar cookies y continuar al login
+          const response = NextResponse.redirect(new URL('/', request.url))
+          const cookiesToClear = ['sb-access-token', 'sb-refresh-token', 'supabase-auth-token']
+          cookiesToClear.forEach(cookieName => {
+            response.cookies.delete(cookieName)
+          })
+          return response
+        }
+
+        // Si el intercambio fue exitoso, redirigir a la página de cambio de contraseña
+        if (data?.session) {
+          return NextResponse.redirect(new URL('/auth/reset-password', request.url))
+        }
+      } catch (error) {
+        console.error('Error en middleware procesando código:', error)
+        return NextResponse.redirect(new URL('/', request.url))
+      }
+    }
+  }
 
   // Si es una ruta pública, continuar (la sesión se refresca pero no se fuerza redirección)
   const isPublic = PUBLIC_PATHS.has(path)
@@ -39,31 +88,31 @@ export async function middleware(request: NextRequest) {
   let user = null
   try {
     const { data: { user: authUser }, error } = await supabase.auth.getUser()
-    
+
     // Si hay error de refresh token, limpiar cookies
     if (error && (error.message?.includes('refresh_token_not_found') || error.code === 'refresh_token_not_found')) {
       const response = NextResponse.next()
-      
+
       // Limpiar todas las cookies de Supabase (nombres comunes)
       const cookiesToClear = [
-        'sb-access-token', 
-        'sb-refresh-token', 
+        'sb-access-token',
+        'sb-refresh-token',
         'supabase-auth-token',
         'sb-localhost-auth-token',
         'sb-127.0.0.1-auth-token'
       ]
-      
+
       // También limpiar cookies que empiecen con 'sb-'
       request.cookies.getAll().forEach(cookie => {
         if (cookie.name.startsWith('sb-') || cookie.name.includes('supabase')) {
           response.cookies.delete(cookie.name)
         }
       })
-      
+
       cookiesToClear.forEach(cookieName => {
         response.cookies.delete(cookieName)
       })
-      
+
       // Si es ruta privada, redirigir al login
       if (!isPublic) {
         const redirectUrl = new URL('/', request.url)
@@ -72,7 +121,7 @@ export async function middleware(request: NextRequest) {
       }
       return response
     }
-    
+
     user = authUser
   } catch (error) {
     console.log('Error en middleware auth:', error)
@@ -99,7 +148,6 @@ export async function middleware(request: NextRequest) {
 
   return NextResponse.next()
 }
-
 export const config = {
   matcher: [
     "/((?!api|_next|static|favicon.ico|robots.txt|sitemap.xml).*)"
