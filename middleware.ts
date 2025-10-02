@@ -21,6 +21,8 @@ export async function middleware(request: NextRequest) {
 
   // Si hay un código de recuperación, procesarlo primero
   if (code && path === '/') {
+    console.log('Procesando código de recuperación:', code)
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -54,6 +56,7 @@ export async function middleware(request: NextRequest) {
 
       // Si el intercambio fue exitoso, redirigir a la página de cambio de contraseña
       if (data?.session) {
+        console.log('Código procesado exitosamente, redirigiendo a /auth/reset-password')
         return NextResponse.redirect(new URL('/auth/reset-password', request.url))
       }
     } catch (error) {
