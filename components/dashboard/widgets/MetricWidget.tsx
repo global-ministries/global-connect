@@ -43,7 +43,7 @@ export function MetricWidget({
           <TituloSistema nivel={2} className="text-3xl font-bold text-gray-900">
             {value}
           </TituloSistema>
-          <TextoSistema variante="sutil" tamaño="sm">
+          <TextoSistema variante="sutil" tamaño="sm" className="text-gray-600 line-clamp-2 whitespace-normal">
             {title}
           </TextoSistema>
         </div>
