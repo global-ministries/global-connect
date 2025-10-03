@@ -1,35 +1,64 @@
-## Qué incluye
+<!-- Template de Pull Request -->
 
-- Gestión de miembros de grupo con permisos en BD
-- Detalle de grupo: botón “Añadir miembro”, cambiar rol y quitar miembro
-- Endpoints API para buscar/agregar/actualizar/eliminar miembros
-- Migraciones SQL para RPCs seguras y fix de permisos en detalle
+# Título del PR
+> Usa formato tipo(scope): resumen en infinitivo (si aplica)
 
-## Migraciones a aplicar
+## Resumen
+Describe brevemente el problema y la solución. Incluye contexto o links a issues.
 
-- 20250906110000_permisos_gestion_miembros.sql
-- 20250906111510_grupo_detalle_y_miembros.sql
-- 20250906113000_miembros_update_delete.sql
-- 20250906114500_fix_obtener_detalle_grupo_auth.sql
+## Qué Incluye
+- Lista de cambios funcionales
+- Componentes / módulos afectados
+- Refactors relevantes
 
-Aplicar con:
+## Motivación / Por Qué
+¿Qué problema resuelve? ¿Qué mejora introduce? ¿Qué riesgo elimina?
 
+## Evidencia Visual (si aplica)
+| Antes | Después |
+|-------|---------|
+| (captura) | (captura) |
+
+## Migraciones / Base de Datos
+- [ ] No aplica
+- [ ] Sí (orden exacto):
 ```
-supabase db push
+AAAAMMDDHHMM__descripcion.sql
 ```
+Notas:
 
-## Checklist de verificación
+## Impacto y Riesgos
+- ¿Rompe compatibilidad?
+- ¿Requiere coordinación de despliegue?
+- ¿Afecta performance o seguridad?
 
-- [ ] Como admin, puedo ver el detalle del grupo
-- [ ] Puedo buscar personas y agregarlas como miembros
-- [ ] Puedo cambiar el rol del miembro (Líder/Colíder/Miembro)
-- [ ] Puedo quitar a un miembro, con confirmación
-- [ ] El botón “Añadir miembro” solo aparece si tengo permisos
+## Checklist Autor
+- [ ] Código formateado (Prettier/ESLint)
+- [ ] Sin `console.log` / debugger
+- [ ] Validaciones con zod para entradas nuevas
+- [ ] Estados loading/error/empty cubiertos
+- [ ] Tipos TypeScript correctos
+- [ ] Migraciones probadas local
+- [ ] Documentación actualizada (`docs/` o README)
+- [ ] Variables de entorno documentadas
+- [ ] Rebase con `main` limpio
 
-## Pruebas rápidas (opcional)
+## Checklist Revisor
+- [ ] Propósito claro
+- [ ] Nombres descriptivos
+- [ ] Sin lógica duplicada evidente
+- [ ] Manejo adecuado de errores
+- [ ] Cambios acotados al alcance
+- [ ] Sin secretos / datos sensibles
 
-Con la app corriendo y un GROUP_ID válido:
+## Pruebas Manuales Realizadas
+Lista breve de pasos verificados.
 
-```
-BASE_URL=http://localhost:3000 GROUP_ID=<uuid> node scripts/smoke-members-api.mjs
-```
+## Pendientes / Follow-up (opcional)
+Items que no se incluyen en este PR y podrían abordarse después.
+
+## Notas Adicionales
+Comentarios técnicos, decisiones o limitaciones temporales.
+
+---
+> Gracias por contribuir. Mantengamos el estándar alto. 💪
