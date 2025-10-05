@@ -195,3 +195,62 @@ feat/sistema-permisos-usuarios-estructura-real
 4. **Documentación actualizada:** Refleja implementación real
 
 **Sistema completamente funcional y listo para producción** 🚀
+
+---
+
+## 🔄 Extensión: Búsqueda para Relaciones Familiares (2025-10-05)
+
+Se añadió un nuevo flujo para unificar la búsqueda de usuarios al crear relaciones familiares reutilizando la RPC central `listar_usuarios_con_permisos`.
+
+### Nuevo Endpoint
+
+`GET /api/usuarios/buscar-para-relacion?q=<texto>`
+
+Características:
+
+- Usa `listar_usuarios_con_permisos` con el parámetro `p_contexto_relacion = true`.
+- Permite que un usuario con rol `Líder` vea todos los usuarios solo en este contexto (no amplía su alcance global en otros módulos).
+- Incluye el campo `foto_perfil_url` para avatares consistentes.
+- Devuelve también usuarios que ya son familiares del foco, marcados en frontend con badge (no se ocultan para evitar confusión UX).
+
+### Parámetro Contextual Nuevo
+
+```sql
+p_contexto_relacion boolean DEFAULT false
+```
+
+Lógica adicional aplicada cuando `true`:
+
+- La rama de visibilidad para `líder` se expande para comportarse como roles globales (admin/pastor/director-general) solo durante la búsqueda de relaciones.
+- No altera las reglas de paginación ni filtros existentes (hereda todo lo demás).
+
+### Razón del Diseño
+
+1. Evitar duplicación de lógica de permisos (pivot desde una RPC fallida específica).
+2. Minimizar superficie de riesgo: la ampliación de visibilidad es contextual y no permanente.
+3. Conservar la semántica de auditoría: se puede rastrear por el uso del flag.
+
+### Ejemplo de Uso en Backend
+
+```ts
+const { data, error } = await supabase
+  .rpc('listar_usuarios_con_permisos', {
+    p_query: q || '',
+    p_contexto_relacion: true
+  });
+```
+
+### Consideraciones de UX
+
+- Usuarios ya relacionados aparecen deshabilitados con badge "Ya es familiar".
+- Solo se excluye al usuario actual para impedir relación consigo mismo.
+- Se mantiene orden actual (pendiente: futura mejora de ranking por coincidencia parcial/inicial).
+
+### Futuras Mejores (Backlog)
+
+- Ordenamiento por similitud (ILIKE prioridad prefijo > substring).
+- Paginación para búsquedas > 50 resultados.
+- Mostrar tipo de relación existente directamente en la lista (ej. "Padre", "Hermano").
+- Endpoint POST para prevalidar creación antes de confirmar (optimista).
+
+---
