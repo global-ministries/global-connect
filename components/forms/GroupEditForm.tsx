@@ -47,6 +47,7 @@ interface GroupEditFormProps {
   estados: Array<{ id: string; nombre: string }>;
   municipios: Array<{ id: string; nombre: string }>;
   parroquias: Array<{ id: string; nombre: string }>;
+  readOnly?: boolean;
 }
 
 export default function GroupEditForm({
@@ -56,7 +57,8 @@ export default function GroupEditForm({
   paises,
   estados,
   municipios,
-  parroquias
+  parroquias,
+  readOnly = false
 }: GroupEditFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -116,6 +118,9 @@ export default function GroupEditForm({
   }
 
   const handleSubmit = async (data: GroupEditFormData) => {
+    if (readOnly) {
+      return; // No enviar en modo solo lectura
+    }
     setIsLoading(true);
     try {
       const result = await updateGroup(grupo.id, data);
@@ -150,7 +155,7 @@ export default function GroupEditForm({
                 <FormItem>
                   <FormLabel>Nombre del Grupo</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ingresa el nombre del grupo" {...field} />
+                    <Input placeholder="Ingresa el nombre del grupo" {...field} disabled={readOnly || isLoading} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -164,7 +169,7 @@ export default function GroupEditForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Temporada</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly || isLoading}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona una temporada" />
@@ -189,7 +194,7 @@ export default function GroupEditForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Segmento</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly || isLoading}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona un segmento" />
@@ -216,7 +221,7 @@ export default function GroupEditForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Día de Reunión</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={to12h(field.value) || undefined}>
+                    <Select onValueChange={field.onChange} defaultValue={to12h(field.value) || undefined} disabled={readOnly || isLoading}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona un día" />
@@ -239,7 +244,7 @@ export default function GroupEditForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Hora de Reunión</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={to12h(field.value) || undefined}>
+                    <Select onValueChange={field.onChange} defaultValue={to12h(field.value) || undefined} disabled={readOnly || isLoading}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona una hora" />
@@ -272,6 +277,7 @@ export default function GroupEditForm({
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
+                      disabled={readOnly || isLoading}
                     />
                   </FormControl>
                 </FormItem>
@@ -294,7 +300,7 @@ export default function GroupEditForm({
                   <FormItem>
                     <FormLabel>Calle</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ingresa la calle" {...field} />
+                      <Input placeholder="Ingresa la calle" {...field} disabled={readOnly || isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -308,7 +314,7 @@ export default function GroupEditForm({
                   <FormItem>
                     <FormLabel>Barrio</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ingresa el barrio" {...field} />
+                      <Input placeholder="Ingresa el barrio" {...field} disabled={readOnly || isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -324,7 +330,7 @@ export default function GroupEditForm({
                   <FormItem>
                     <FormLabel>Código Postal</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ingresa el código postal" {...field} />
+                      <Input placeholder="Ingresa el código postal" {...field} disabled={readOnly || isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -337,7 +343,7 @@ export default function GroupEditForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Parroquia</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly || isLoading}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona una parroquia" />
@@ -368,6 +374,7 @@ export default function GroupEditForm({
                       placeholder="Ingresa puntos de referencia"
                       className="resize-none"
                       {...field}
+                      disabled={readOnly || isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -418,6 +425,7 @@ export default function GroupEditForm({
                       placeholder="Ingresa notas privadas sobre el grupo"
                       className="resize-none"
                       {...field}
+                      disabled={readOnly || isLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -435,15 +443,17 @@ export default function GroupEditForm({
             onClick={() => router.push(`/dashboard/grupos/${grupo.id}`)}
             disabled={isLoading}
           >
-            Cancelar
+            {readOnly ? 'Volver' : 'Cancelar'}
           </Button>
-          <Button
-            type="submit"
-            className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
-            disabled={isLoading}
-          >
-            {isLoading ? "Guardando..." : "Guardar Cambios"}
-          </Button>
+          {!readOnly && (
+            <Button
+              type="submit"
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+              disabled={isLoading}
+            >
+              {isLoading ? "Guardando..." : "Guardar Cambios"}
+            </Button>
+          )}
         </div>
       </form>
     </Form>

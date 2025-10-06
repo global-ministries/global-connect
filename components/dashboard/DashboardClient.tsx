@@ -8,6 +8,7 @@ import { DonutWidget } from '@/components/dashboard/widgets/DonutWidget'
 import { ActivityWidget } from '@/components/dashboard/widgets/ActivityWidget'
 import { StatsWidget } from '@/components/dashboard/widgets/StatsWidget'
 import { QuickActionsWidget } from '@/components/dashboard/widgets/QuickActionsWidget'
+import KpisGruposPanel from '@/components/dashboard/widgets/KpisGruposPanel'
 
 interface DashboardClientProps {
   stats: {
@@ -143,6 +144,11 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
           icon={UserCheck}
           data={metricsData.lideres}
         />
+
+        {/* Panel de KPIs Granulares (grupos supervisados según rol) */}
+        <div className="col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-4 order-[-1] md:order-none">
+          <KpisGruposPanel />
+        </div>
 
         <DonutWidget
           id="segmentos"

@@ -55,9 +55,6 @@ export default async function EditGroupPage({ params }: PageProps) {
     p_auth_id: user.id,
     p_grupo_id: id,
   });
-  if (!puedeEditar) {
-    redirect(`/dashboard/grupos/${id}`);
-  }
 
   // Regla de Mapeo: Mapear latitud/longitud a lat/lng
   if (grupo.direccion) {
@@ -101,6 +98,11 @@ export default async function EditGroupPage({ params }: PageProps) {
       >
         {/* Formulario */}
         <TarjetaSistema className="p-6">
+          {!puedeEditar && (
+            <div className="mb-6 rounded-md border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-800">
+              Este grupo está en modo solo lectura para tu rol. No puedes editarlo porque no eres el director de etapa asignado ni tienes permisos superiores.
+            </div>
+          )}
           <GroupEditForm
             grupo={grupo}
             temporadas={temporadas || []}
@@ -109,6 +111,7 @@ export default async function EditGroupPage({ params }: PageProps) {
             estados={estados || []}
             municipios={municipios || []}
             parroquias={parroquias || []}
+            readOnly={!puedeEditar}
           />
         </TarjetaSistema>
       </ContenedorDashboard>

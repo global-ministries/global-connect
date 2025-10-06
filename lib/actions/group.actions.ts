@@ -168,22 +168,20 @@ export async function updateGroup(groupId: string, data: any) {
   }
 }
 
-export async function createGroup(data: { nombre: string; temporada_id: string; segmento_id: string; }) {
+export async function createGroup(data: { nombre: string; temporada_id: string; segmento_id: string; director_etapa_segmento_lider_id?: string | null; lider_usuario_id?: string | null; estado_aprobacion?: 'pendiente' | 'aprobado' | 'rechazado'; }) {
   // Validación de entrada
-  const parsed = createGroupSchema.safeParse(data)
+  const parsed = createGroupSchema.safeParse({ nombre: data.nombre, temporada_id: data.temporada_id, segmento_id: data.segmento_id })
   if (!parsed.success) {
     const msg = parsed.error.errors.map(e => e.message).join(" | ")
     return { success: false, error: msg }
   }
   try {
     const supabase = await createSupabaseServerClient();
-    // Verificar usuario
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return { success: false, error: "No autenticado" }
     }
 
-    // Chequear permiso para crear en el segmento elegido
     const { data: permitido, error: permisoError } = await supabase.rpc("puede_crear_grupo", {
       p_auth_id: user.id,
       p_segmento_id: parsed.data.segmento_id,
@@ -196,20 +194,52 @@ export async function createGroup(data: { nombre: string; temporada_id: string; 
       return { success: false, error: "No tienes permisos para crear grupos en este segmento" }
     }
 
-    // Insertar vía RPC con SECURITY DEFINER para salvar RLS
     const { data: newId, error } = await supabase.rpc('crear_grupo', {
       p_auth_id: user.id,
       p_nombre: parsed.data.nombre,
       p_temporada_id: parsed.data.temporada_id,
       p_segmento_id: parsed.data.segmento_id,
     })
-    if (error) {
-      return { success: false, error: error.message };
+    if (error || !newId) {
+      return { success: false, error: error?.message || 'Error creando grupo' };
     }
 
-    // Revalidar listado y devolver id
+    const grupoId = newId as unknown as string;
+
+    // Si se especificó estado_aprobacion distinto de default y es válido
+    if (data.estado_aprobacion && ['pendiente','aprobado','rechazado'].includes(data.estado_aprobacion)) {
+      const { error: estadoErr } = await supabase
+        .from('grupos')
+        .update({ estado_aprobacion: data.estado_aprobacion })
+        .eq('id', grupoId)
+      if (estadoErr) {
+        console.warn('[createGroup] No se pudo actualizar estado_aprobacion:', estadoErr.message)
+      }
+    }
+
+    // Asignar director de etapa inicial si viene param
+    if (data.director_etapa_segmento_lider_id) {
+      const { error: dirErr } = await supabase.rpc('asignar_director_etapa_a_grupo', {
+        p_auth_id: user.id,
+        p_grupo_id: grupoId,
+        p_segmento_lider_id: data.director_etapa_segmento_lider_id,
+        p_accion: 'agregar'
+      })
+      if (dirErr) {
+        console.warn('[createGroup] Falló asignar director etapa inicial:', dirErr.message)
+      }
+    }
+
+    // Asignar líder inicial si proporcionado
+    if (data.lider_usuario_id) {
+      const { error: liderErr } = await supabase.from('grupo_miembros').insert({ grupo_id: grupoId, usuario_id: data.lider_usuario_id, rol: 'Líder' })
+      if (liderErr) {
+        console.warn('[createGroup] Falló asignar líder inicial:', liderErr.message)
+      }
+    }
+
     revalidatePath('/dashboard/grupos')
-  return { success: true, newGroupId: newId as unknown as string };
+    return { success: true, newGroupId: grupoId };
   } catch (err: any) {
     console.error('[createGroup] Excepción:', err)
     return { success: false, error: err?.message || "Error al crear el grupo" }

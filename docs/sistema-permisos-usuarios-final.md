@@ -28,14 +28,14 @@ Se ha implementado exitosamente un sistema completo de permisos de usuarios basa
 
 ## 🔐 Matriz de Permisos Implementada
 
-| Rol | Usuarios Visibles | Implementación |
-|-----|------------------|----------------|
-| `admin` | **TODOS** | Sin restricciones |
-| `pastor` | **TODOS** | Sin restricciones |
-| `director-general` | **TODOS** | Sin restricciones |
-| `director-etapa` | **Sus etapas** | Via `segmento_lideres` + `tipo_lider = 'director_etapa'` |
-| `lider` | **Sus grupos** | Via `grupo_miembros` + `rol = 'Líder'` |
-| `miembro` | **Su familia** | Via `familias` + `relaciones_usuarios` |
+| Rol | Alcance Actual de Usuarios/Grupos | Implementación Base | Notas Recientes |
+|-----|-----------------------------------|---------------------|-----------------|
+| `admin` | **TODOS** | Sin restricciones | Acceso global |
+| `pastor` | **TODOS** | Sin restricciones | Acceso global |
+| `director-general` | **TODOS** | Sin restricciones | Acceso global |
+| `director-etapa` | **Sólo grupos asignados explícitamente** | Relación explícita via función `asignar_director_etapa_a_grupo` + flag en `obtener_grupos_para_usuario` | Ya NO ve toda la etapa completa. Campo `supervisado_por_mi` = true cuando está asignado. |
+| `lider` | **Sus grupos** | `grupo_miembros (rol = 'Líder')` | Puede ver usuarios extendidos en contexto relaciones (`p_contexto_relacion = true`). |
+| `miembro` | **Su familia** | `familias` + `relaciones_usuarios` | Sin cambios |
 
 ## 🏗️ Arquitectura Técnica
 
@@ -181,6 +181,57 @@ feat/sistema-permisos-usuarios-estructura-real
 
 ---
 
+## ✅ Resumen Final Fase 1 (2025-10-06)
+
+La Fase 1 se cierra con un sistema de permisos y supervisión granular operativo y alineado al modelo organizacional actual, reduciendo superficie de acceso y preparando la base para métricas evolutivas.
+
+### Entregables Clave Consolidando la Fase
+- Permisos usuario ↔ grupos y segmentos reestructurados (directores sólo sobre grupos asignados).
+- RPCs críticas endurecidas: `obtener_grupos_para_usuario`, `asignar_director_etapa_a_grupo`, `_puede_ver_segmento_lider`.
+- Política consolidada RLS sobre `segmento_lideres` con SECURITY DEFINER centralizado.
+- UI adaptada: badge "Dir. etapa", edición en modo read-only cuando no hay supervisión, selección global de líder mediante modal.
+- Indicadores base (KPIs) agregados: porcentaje con líder, aprobados, sin director, distribución de miembros.
+- Documentación actualizada reflejando el nuevo alcance y decisiones de diseño.
+
+### Beneficios Tangibles
+| Área | Situación Anterior | Estado Actual |
+|------|--------------------|---------------|
+| Visibilidad Director Etapa | Amplia (todos los grupos del segmento) | Focalizada (sólo asignados) |
+| Riesgo de edición indebida | Alto | Mitigado (read-only + validación servidor) |
+| Identificación de responsabilidad | Implícita | Explícita (flag + badge) |
+| Extensibilidad KPIs | Limitada | Vista base y función escalable |
+
+### Nuevo Ciclo de Métricas (Versión Inicial)
+Fuente: `obtener_kpis_grupos_para_usuario`
+- Total grupos supervisados
+- % con líder asignado
+- % aprobados
+- % sin director (para roles superiores / diagnóstico)
+- Promedio y desviación de miembros
+
+### Deuda / Backlog Propuesto
+1. Tests automáticos permisos grupos (director asignado vs no, líder, superior) – (Tarea abierta).
+2. Extender KPIs con asistencia (cuando tabla disponible) – (Planificado).
+3. Auditoría de asignaciones (endpoint listar directores por grupo) – recomendación.
+4. Mejorar endpoint de selección líder restringiendo visibilidad para directores según alcance granular (si aplica política adicional futura).
+5. Añadir `supervisado_por_mi` a `obtener_detalle_grupo` para coherencia en vistas aisladas.
+
+### Observabilidad Recomendada
+- Log de invocaciones rechazadas de `asignar_director_etapa_a_grupo` (permiso denegado) → detección de intentos fuera de alcance.
+- Métrica semanal: variación de % grupos sin director + tiempo medio hasta asignación.
+
+### Riesgos Residuales
+| Riesgo | Mitigación Actual | Próxima Acción |
+|--------|-------------------|----------------|
+| Director ve candidatos a líder fuera de alcance granular | Revisión puntual, no crítico (acción eventual de rol superior) | Ajustar fuente de datos si se requiere aislamiento total |
+| Falta de test regresión permisos | Validación manual actual | Implementar script (tarea pendiente) |
+| KPIs sin asistencia aún | No afecta decisiones inmediatas | Extensión cuando tabla esté lista |
+
+### Listo para Fase 2
+Se recomienda que la siguiente fase se enfoque en: (a) auditoría y observabilidad; (b) flujos de aprobación con `estado_aprobacion` completo; (c) expansión de métricas de impacto (asistencia, retención, participación por líder/director).
+
+---
+
 ## 📝 Notas Técnicas
 
 ### Correcciones Aplicadas
@@ -280,5 +331,113 @@ Impacto en Código:
 Testing:
 - Verificar que al agregar un miembro seleccionando "Aprendiz" el backend recibe `Colíder`.
 - Smoke UI: lista de grupos muestra badge de aprendices acorde al conteo.
+
+---
+
+## 🔄 Actualización Modelo Granular Director de Etapa (2025-10-06)
+
+Esta actualización refina el alcance de los directores de etapa para que sólo tengan visibilidad y permisos de edición sobre los grupos a los que han sido asignados explícitamente, en lugar de todos los grupos de la(s) etapa(s) que coordinan.
+
+### Objetivos
+1. Reducir exposición de datos (principio de mínimo privilegio).
+2. Permitir escenarios de co-dirección parcial o transición ordenada.
+3. Identificar con claridad (UI) qué grupos están bajo su supervisión directa.
+
+### Cambios Clave
+- NUEVA RPC: `asignar_director_etapa_a_grupo(p_auth_id, p_grupo_id, p_segmento_lider_id, p_accion)` (SEGURITY DEFINER) para agregar/quitar la relación.
+- MODIFICADA RPC: `obtener_grupos_para_usuario` ahora devuelve el campo boolean `supervisado_por_mi` y limita resultados para `director_etapa` a sólo grupos asignados.
+- NUEVO CAMPO (grupos): `estado_aprobacion` (ej. draft/pending/aprobado) soporta flujos de revisión (aún en adopción).
+- POLICY CONSOLIDADA sobre `segmento_lideres` usando función SECURITY DEFINER `_puede_ver_segmento_lider(sl_row)` → centraliza lógica de visibilidad (roles superiores, propietario). El director de etapa no recibe por esta policy visibilidad extra de otros directores.
+- UI Lista de Grupos: aparece badge "Dir. etapa" cuando `supervisado_por_mi = true`.
+- UI Edición de Grupo: si usuario es director de etapa pero NO está asignado al grupo, ve el formulario en modo sólo lectura (inputs deshabilitados + banner explicativo) en lugar de redirección disruptiva.
+
+### Flujo de Asignación
+1. Rol superior (admin/pastor/director-general) ejecuta acción (UI o backend) que llama a `asignar_director_etapa_a_grupo` con `p_accion = 'agregar'`.
+2. La relación queda registrada (tabla relacional intermedia — ver migración correspondiente).
+3. En siguientes cargas, `obtener_grupos_para_usuario` marca `supervisado_por_mi = true` para ese director y el grupo aparece en su listado.
+4. Para remover: misma RPC con `p_accion = 'remover'`.
+
+### Impacto en Permisos EXISTENTES
+| Área | Antes | Ahora |
+|------|-------|-------|
+| Visibilidad grupos (director_etapa) | Todos los grupos de sus etapas | Sólo grupos asignados |
+| Edición grupo | Cualquier grupo de su etapa | Sólo asignados (`puede_editar_grupo`) |
+| Buscar posibles líderes | Filtraba por etapa completa | (Pendiente de refinar) Actualmente debe alinearse a grupos asignados o roles superiores |
+| Auditoría | Difusa (alcance amplio) | Más precisa (acciones sólo en grupos supervisados) |
+
+### Elementos Técnicos Añadidos
+```sql
+-- Función de policy consolidada
+CREATE OR REPLACE FUNCTION public._puede_ver_segmento_lider(sl_row segmento_lideres) RETURNS boolean ... SECURITY DEFINER;
+
+-- Campo adicional expuesto
+-- obtener_grupos_para_usuario OUT supervisado_por_mi boolean
+
+-- RPC asignación granular
+SELECT asignar_director_etapa_a_grupo(p_auth_id, p_grupo_id, p_segmento_lider_id, 'agregar');
+```
+
+### UI / DX Considerations
+- Badge "Dir. etapa" ayuda a distinguir responsabilidad directa.
+- Read-only transparente evita frustración por redirecciones duras y mantiene contexto.
+- Mantener consistencia: cualquier vista de detalle que permita acción debe revisar `puede_editar_grupo` server-side (ya aplicado) + degradación a read-only client.
+
+### Próximos Ajustes Recomendados
+- Endpoint para listar/gestionar asignaciones actuales por grupo (auditoría rápida).
+- Extender `obtener_detalle_grupo` para incluir `supervisado_por_mi` (optimización futura; actualmente se infiere por list + permiso editar).
+- Tests automatizados (ver tarea pendiente) cubriendo: director asignado vs. no asignado, líder, roles superiores.
+- Ajustar búsqueda de posibles líderes para que un director no pueda ver fuera de su alcance granular.
+
+### Riesgos Mitigados
+- Acceso lateral a grupos no asignados (bloqueado por `puede_editar_grupo`).
+- Fugas de director viewing policy: centralizado en `_puede_ver_segmento_lider` con SECURITY DEFINER controlado.
+
+### Métrica Sugerida (Observabilidad)
+- KPI: porcentaje de grupos con director de etapa asignado (completitud supervisión).
+- KPI: acciones de edición rechazadas por falta de asignación (debería tender a ~0 tras adopción).
+
+---
+
+## 🔁 Actualización KPIs Grupos (Correcciones 2025-10-06)
+
+Se incorporó la función `obtener_kpis_grupos_para_usuario(p_auth_id uuid)` que entrega métricas agregadas del universo de grupos visible para el usuario según su rol y alcance real (directores sólo grupos asignados; líderes sus propios grupos; roles superiores todos).
+
+### Columnas Devueltas
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| total_grupos | integer | Número de grupos en su universo |
+| total_con_lider | integer | Grupos con al menos un líder (rol = 'Líder') |
+| pct_con_lider | numeric | Porcentaje con líder respecto al total |
+| total_aprobados | integer | Grupos con `estado_aprobacion = 'aprobado'` |
+| pct_aprobados | numeric | Porcentaje aprobados respecto al total |
+| promedio_miembros | numeric | Media de miembros por grupo |
+| desviacion_miembros | numeric | Desviación estándar de miembros |
+| total_sin_director | integer | Grupos sin director de etapa asignado |
+| pct_sin_director | numeric | Porcentaje sin director respecto al total |
+| fecha_ultima_actualizacion | timestamptz | Timestamp de generación |
+
+### Vista de Soporte
+`v_grupos_supervisiones` consolida: id de grupo, director asignado (usuario), líder principal (si existe) y total de miembros; facilita expansión futura (asistencia, crecimiento temporal) sin recalcular joins en cada llamada.
+
+### Correcciones Aplicadas Posteriores
+1. Desajuste de tipos COUNT(*) → se castearon a `::int` para alinear con la firma RETURNS TABLE.
+2. Mapeo erróneo de identidad → se comparaba `p_auth_id` directamente con `director_etapa_usuario_id` y `lider_usuario_id` (que guardan `usuarios.id` interno). Se añadió resolución previa: `SELECT u.id INTO v_usuario_id FROM usuarios u WHERE u.auth_id = p_auth_id` y se usan comparaciones con `v_usuario_id`.
+3. COALESCE aplicado a contadores para evitar división con null y garantizar porcentajes consistentes.
+
+### Ejemplo de Uso (RPC vía Supabase JS)
+```ts
+const { data, error } = await supabase.rpc('obtener_kpis_grupos_para_usuario', { p_auth_id: session.user.id });
+const kpis = data?.[0];
+```
+
+### Extensiones Planeadas (Backlog)
+- Métricas de asistencia (requiere fuente estable de eventos/asistencia por grupo).
+- Ratio liderazgo: líderes activos vs. grupos totales.
+- Tiempo medio hasta asignación de director y líder desde creación del grupo.
+
+### Consideraciones de Seguridad / Performance
+- SECURITY DEFINER controlado: sólo expone agregados, sin enumerar IDs de grupos no visibles.
+- Un único CTE con agregación, coste O(n) sobre el universo filtrado; n esperado pequeño para director / líder y moderado para roles superiores.
+- Fácil cacheado en frontend (intervalo actual 60s) evitando saturación.
 
 ---

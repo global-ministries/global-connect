@@ -26,6 +26,7 @@ type Grupo = {
   // opcionales del RPC futuro
   fecha_creacion?: string | null
   miembros_count?: number | null
+  supervisado_por_mi?: boolean | null
 }
 
 // Helper: color por segmento (misma lógica que en server, mantenida aquí para client)
@@ -285,7 +286,14 @@ export default function GruposListClient({
                         {/* Placeholder para imagen horizontal - más grande en desktop */}
                         <div className="w-16 h-10 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
                         <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
-                          <div className="font-medium text-gray-900 hover:underline cursor-pointer">{grupo.nombre}</div>
+                          <div className="flex items-center gap-2 font-medium text-gray-900 hover:underline cursor-pointer">
+                            <span>{grupo.nombre}</span>
+                            {grupo.supervisado_por_mi && (
+                              <span className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                                Dir. etapa
+                              </span>
+                            )}
+                          </div>
                         </Link>
                       </div>
                     </td>
@@ -363,7 +371,14 @@ export default function GruposListClient({
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
-                        <h3 className="font-semibold text-gray-900 truncate hover:underline cursor-pointer">{grupo.nombre}</h3>
+                        <h3 className="font-semibold text-gray-900 truncate hover:underline cursor-pointer flex items-center gap-2">
+                          <span className="truncate">{grupo.nombre}</span>
+                          {grupo.supervisado_por_mi && (
+                            <span className="inline-flex flex-shrink-0 items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                              Dir. etapa
+                            </span>
+                          )}
+                        </h3>
                       </Link>
                     </div>
                     <BadgeSistema 
