@@ -254,3 +254,31 @@ const { data, error } = await supabase
 - Endpoint POST para prevalidar creación antes de confirmar (optimista).
 
 ---
+
+## ➕ Actualización Roles de Grupo (2025-10-06)
+
+A partir de esta fecha la interfaz presenta el rol interno `Colíder` como `Aprendiz`.
+
+Motivación:
+- Clarificar que no posee los mismos permisos de gestión que un `Líder`.
+- Reflejar etapa formativa / acompañamiento.
+- Evitar confusión en listados donde solo se deben resaltar líderes principales.
+
+Detalles Técnicos:
+- Valor interno en BD permanece `Colíder` (tabla `grupo_miembros.rol`).
+- UI: Formularios y listados muestran "Aprendiz" (selects, badges, registro de asistencia, lista de grupos).
+- Lista de grupos: se muestran únicamente líderes (rol = `Líder`) y se agrega badge `+N aprendiz(es)` para el número de aprendices asociados.
+- No se otorgan permisos de gestión (agregar/quitar miembros) por ser Aprendiz.
+
+Impacto en Código:
+- No requiere migración de datos; cambio puramente de representación.
+- Si en el futuro se decide cambiar el valor de enumeración en BD deberá:
+  1. Crearse migración que haga UPDATE del valor antiguo al nuevo.
+  2. Ajustar cualquier índice / constraint dependiente.
+  3. Revisar RPCs (`obtener_grupos_para_usuario`) y validaciones de rol.
+
+Testing:
+- Verificar que al agregar un miembro seleccionando "Aprendiz" el backend recibe `Colíder`.
+- Smoke UI: lista de grupos muestra badge de aprendices acorde al conteo.
+
+---

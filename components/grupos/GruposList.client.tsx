@@ -22,7 +22,7 @@ type Grupo = {
   temporada_nombre?: string | null
   municipio_nombre?: string | null
   parroquia_nombre?: string | null
-  lideres?: Array<{ id: string; nombre_completo?: string | null }>
+  lideres?: Array<{ id: string; nombre_completo?: string | null; rol?: string | null }>
   // opcionales del RPC futuro
   fecha_creacion?: string | null
   miembros_count?: number | null
@@ -268,11 +268,26 @@ export default function GruposListClient({
                         </Link>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 
-                        ? grupo.lideres.map((l) => l.nombre_completo).filter(Boolean).join(", ")
-                        : "Sin líder asignado"
-                      }
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 align-top">
+                      {(() => {
+                        if (!Array.isArray(grupo.lideres) || grupo.lideres.length === 0) return 'Sin líder asignado'
+                        const leaders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'líder')
+                        if (leaders.length === 0) return 'Sin líder asignado'
+                        const coliders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'colíder')
+                        const leaderNames = leaders.map(l => l.nombre_completo).filter(Boolean)
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            {leaderNames.map((n, idx) => (
+                              <span key={idx}>{n}</span>
+                            ))}
+                            {coliders.length > 0 && (
+                              <span className="mt-0.5 inline-flex w-max items-center rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-medium border border-orange-200">
+                                +{coliders.length} {coliders.length === 1 ? 'aprendiz' : 'aprendices'}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <BadgeSistema 
@@ -343,10 +358,25 @@ export default function GruposListClient({
                     <div>
                       <span className="font-medium">Líder:</span>{" "}
                       <span>
-                        {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 
-                          ? grupo.lideres.map((l) => l.nombre_completo).filter(Boolean).join(", ")
-                          : "Sin líder asignado"
-                        }
+                        {(() => {
+                          if (!Array.isArray(grupo.lideres) || grupo.lideres.length === 0) return 'Sin líder asignado'
+                          const leaders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'líder')
+                          if (leaders.length === 0) return 'Sin líder asignado'
+                          const coliders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'colíder')
+                          const leaderNames = leaders.map(l => l.nombre_completo).filter(Boolean)
+                          return (
+                            <span className="inline-flex flex-col gap-0.5">
+                              {leaderNames.map((n, idx) => (
+                                <span key={idx}>{n}</span>
+                              ))}
+                              {coliders.length > 0 && (
+                                <span className="mt-0.5 inline-flex w-max items-center rounded-full bg-orange-100 text-orange-700 px-1.5 py-0.5 text-[10px] font-medium border border-orange-200">
+                                  +{coliders.length} {coliders.length === 1 ? 'aprendiz' : 'aprendices'}
+                                </span>
+                              )}
+                            </span>
+                          )
+                        })()}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
