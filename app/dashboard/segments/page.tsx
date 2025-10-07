@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { redirect } from "next/navigation"
-import { Layers, Edit, Trash2, Plus } from "lucide-react"
+import { Layers, Edit, Trash2, Plus, ArrowRight } from "lucide-react"
+import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
@@ -52,7 +53,7 @@ export default async function Page() {
               segmentos.map(segmento => (
                 <div key={segmento.id}>
                   {/* Versión Móvil - Lista Simple */}
-                  <div className="sm:hidden flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100">
+                  <Link href={`/dashboard/segments/${segmento.id}`} className="sm:hidden flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
                       <Layers className="w-5 h-5 text-white" />
                     </div>
@@ -61,41 +62,37 @@ export default async function Page() {
                         {segmento.nombre}
                       </div>
                     </div>
-                    <div className="flex gap-1">
-                      <BotonSistema variante="ghost" tamaño="sm">
-                        <Edit className="w-4 h-4" />
-                      </BotonSistema>
-                      <BotonSistema variante="ghost" tamaño="sm">
-                        <Trash2 className="w-4 h-4" />
-                      </BotonSistema>
-                    </div>
-                  </div>
+                    <ArrowRight className="w-4 h-4 text-gray-400" />
+                  </Link>
 
                   {/* Versión Desktop - Tarjeta Completa */}
-                  <TarjetaSistema className="hidden sm:block">
-                    <div className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Layers className="w-6 h-6 text-white" />
+                  <Link href={`/dashboard/segments/${segmento.id}`} className="hidden sm:block">
+                    <TarjetaSistema className="group hover:shadow-md transition-shadow">
+                      <div className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Layers className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <TituloSistema nivel={4} className="text-gray-900 flex items-center gap-3">
+                              {segmento.nombre}
+                              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Ver detalle →</span>
+                            </TituloSistema>
+                          </div>
                         </div>
-                        <div>
-                          <TituloSistema nivel={4} className="text-gray-900">
-                            {segmento.nombre}
-                          </TituloSistema>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <BotonSistema variante="outline" tamaño="sm">
+                            <Edit className="w-4 h-4 mr-2" />
+                            Editar
+                          </BotonSistema>
+                          <BotonSistema variante="outline" tamaño="sm">
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar
+                          </BotonSistema>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <BotonSistema variante="outline" tamaño="sm">
-                          <Edit className="w-4 h-4 mr-2" />
-                          Editar
-                        </BotonSistema>
-                        <BotonSistema variante="outline" tamaño="sm">
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Eliminar
-                        </BotonSistema>
-                      </div>
-                    </div>
-                  </TarjetaSistema>
+                    </TarjetaSistema>
+                  </Link>
                 </div>
               ))
             ) : (

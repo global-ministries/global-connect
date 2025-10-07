@@ -398,6 +398,124 @@ SELECT asignar_director_etapa_a_grupo(p_auth_id, p_grupo_id, p_segmento_lider_id
 
 ---
 
+## 🌍 Extensión: Ciudades / Ubicaciones de Segmento y Unicidad (2025-10-06)
+
+### Objetivo
+Limitar a exactamente UNA ciudad (ubicación lógica) por director de etapa dentro de un segmento y permitir que los grupos referencien una ubicación para futuras métricas territoriales.
+
+### Componentes Nuevos
+- Tabla `segmento_ubicaciones` (ciudades predefinidas por segmento, p.ej. `Barquisimeto`, `Cabudare`).
+- Tabla relacional `director_etapa_ubicaciones` (antes permitía N ciudades, ahora 1 por constraint único).
+- Columna `grupos.segmento_ubicacion_id` para asociar un grupo a una ubicación (opcional, `ON DELETE SET NULL`).
+- Vista `v_directores_etapa_segmento` agregando array de ciudades (ahora a lo sumo 1 elemento tras unicidad).
+- Migración de refactor: `20251006214500_enforce_unique_director_ciudad.sql`.
+
+### Cambio de Modelo (Unicidad)
+Anteriormente: constraint `UNIQUE(director_etapa_id, segmento_ubicacion_id)` → permitía múltiples ciudades por director.
+Ahora: constraint `UNIQUE(director_etapa_id)` → fuerza máximo 1 fila por director.
+
+### RPC Actualizada
+`asignar_director_etapa_a_ubicacion(p_auth_id, p_director_etapa_id, p_segmento_ubicacion_id, p_accion)`
+
+Comportamiento:
+1. `p_accion = 'agregar'`: UPSERT (si ya existe fila, actualiza `segmento_ubicacion_id`).
+2. `p_accion = 'quitar'`: DELETE de la fila del director.
+3. Retorna siempre el estado actual (0 o 1 fila) para el director.
+
+### Justificación del Upsert
+Evita lógica adicional en frontend (no requiere verificar si ya tenía otra ciudad). El cambio de ciudad es semánticamente un reemplazo, por lo que el `ON CONFLICT ... DO UPDATE` asegura atomicidad.
+
+### Flujo UI (Página Directores de Segmento)
+1. Se listan directores (`v_directores_etapa_segmento`).
+2. Cada fila muestra chips toggle para ciudades disponibles.
+3. Al activar una ciudad diferente, se reemplaza la anterior (refresco inmediato en el hook).
+4. Al desactivar (quitar) deja al director sin ciudad (array vacío / null en cliente).
+
+### Lógica de Cliente (Resumen)
+```tsx
+// (Simplificado) Al hacer click:
+await fetch(`/api/segmentos/${segmentoId}/directores-etapa/ubicaciones`, {
+  method: 'POST',
+  body: JSON.stringify({
+    director_etapa_segmento_lider_id: directorId,
+    segmento_ubicacion_id: ciudadId,
+    accion: checked ? 'agregar' : 'quitar'
+  })
+});
+```
+
+### Consideraciones de Permisos
+El RPC exige que el `p_auth_id` corresponda a rol superior (`admin`, `pastor`, `director-general`). El frontend debe restringir toggles para directores no autorizados (guard ya presente a nivel página). Futuro: permitir que un director-general delegue a otro rol específico.
+
+### Pruebas Automatizadas
+Script: `scripts/test-ciudades.mjs`
+
+Casos cubiertos:
+1. Segmento base presente (depende de semilla previa de permisos).
+2. Director de etapa existente.
+3. Ciudades base creadas o autogeneradas.
+4. Asignación inicial → exactamente 1 fila.
+5. Reemplazo de ciudad → sigue 1 fila, cambia el id.
+6. Reasignación idempotente (misma ciudad) → sin duplicados.
+7. Quitar ciudad → 0 filas restantes.
+8. Grupo: crear con ciudad A, actualizar a ciudad B y reflejar cambio.
+
+Salida ejemplo:
+```
+Total: 11/11 PASS
+```
+
+### Riesgos y Mitigaciones
+| Riesgo | Mitigación | Estado |
+|--------|-----------|--------|
+| Carrera de asignaciones simultáneas | Constraint UNIQUE + UPSERT atómico | OK |
+| Director sin ciudad visible como [] | UI interpreta array vacío (estado neutro) | OK |
+| Frontend antiguo intentando múltiple selección | Reemplazo silencioso, no rompe | Aceptado |
+
+### Próximos Pasos (Opcionales)
+1. Registrar timestamp de asignación (`created_at` + `updated_at`) en `director_etapa_ubicaciones` para auditoría.
+2. Añadir trigger que registre histórico en tabla `director_etapa_ubicaciones_hist`.
+3. Exponer en KPI conteo de grupos por ciudad y % supervisados.
+4. Restricción futura: validar que la ciudad pertenezca al mismo segmento que el director (ya implícito por claves externas, documentar en tests).
+
+### Ejemplo de Consulta de Vista
+```sql
+SELECT director_etapa_segmento_lider_id, nombre, ciudades
+FROM v_directores_etapa_segmento
+WHERE segmento_id = '...';
+```
+
+---
+
+## 🧪 Resumen Scripts de Pruebas Relacionados (Actualizado)
+
+| Script | Propósito | Foco Principal |
+|--------|-----------|----------------|
+| `test-grupos-permisos.mjs` | Validar permisos y asignaciones director ↔ grupo | Visibilidad y supervisión |
+| `test-segmentos.mjs` | Integridad de segmentos y joins director-grupo | Consistencia referencial |
+| `test-ciudades.mjs` | Unicidad ciudad por director y actualización de grupos | Territorialidad |
+
+Recomendación: Integrar estos scripts en pipeline CI secuencial (orden sugerido): `test-grupos-permisos` → `test-segmentos` → `test-ciudades`.
+
+---
+
+## 📘 Referencia Rápida (Cheat Sheet)
+
+```text
+Asignar director a grupo: asignar_director_etapa_a_grupo(p_auth_id, p_grupo_id, p_segmento_lider_id, 'agregar')
+Quitar director de grupo: asignar_director_etapa_a_grupo(..., 'remover')
+Asignar ciudad director: asignar_director_etapa_a_ubicacion(p_auth_id, p_director_etapa_id, p_segmento_ubicacion_id, 'agregar')
+Reemplazar ciudad: misma llamada con nueva ciudad (upsert)
+Quitar ciudad: asignar_director_etapa_a_ubicacion(..., 'quitar')
+Listar directores + ciudades: SELECT * FROM v_directores_etapa_segmento WHERE segmento_id = ?;
+```
+
+---
+
+## ✅ Estado Actual Post-Extensión
+El sistema ahora cubre asignaciones granulares de grupos y territorios (ciudad única) por director de etapa, con pruebas automatizadas asegurando unicidad e idempotencia. Preparado para métricas geográficas y auditoría futura.
+
+
 ## 🔁 Actualización KPIs Grupos (Correcciones 2025-10-06)
 
 Se incorporó la función `obtener_kpis_grupos_para_usuario(p_auth_id uuid)` que entrega métricas agregadas del universo de grupos visible para el usuario según su rol y alcance real (directores sólo grupos asignados; líderes sus propios grupos; roles superiores todos).
@@ -441,3 +559,125 @@ const kpis = data?.[0];
 - Fácil cacheado en frontend (intervalo actual 60s) evitando saturación.
 
 ---
+
+## 🧪 Suite Automática Permisos de Grupos (2025-10-06)
+
+Implementada para asegurar la nueva granularidad de visibilidad y edición tras la introducción de la relación explícita director↔grupos.
+
+### Archivo
+`scripts/test-grupos-permisos.mjs`
+
+### Objetivos Cubiertos
+1. Validar visibilidad restringida: director de etapa sólo ve grupos asignados.
+2. Confirmar flags: `supervisado_por_mi` = true únicamente en grupos asignados.
+3. Verificar alcance líder y miembro (sólo su propio grupo).
+4. Verificar que roles superiores (admin) ven el subset recién creado (sin depender de total global histórico).
+5. Asegurar funcionamiento (o fallback) de asignar / quitar director.
+6. KPIs coherentes: admin con `total_grupos >= 4`, director con KPIs accesibles.
+7. Manejar ausencia temporal de la RPC `asignar_director_etapa_a_grupo` sin romper la suite (marca SKIP controlado y usa inserción directa).
+
+### Estrategia de Datos
+- Genera prefijo aleatorio (`PTG_<hex>_`) y crea 4 grupos (G1..G4) aislados.
+- Crea usuarios vía Admin Auth API (evita FK huérfana): AdminGC, DirectorA, DirectorB, LiderL1, MiembroM1.
+- Crea `segmento_lideres` para A y B, asigna DirectorA a G1,G2, luego prueba agregar G3 y quitar G1.
+- Inserta líder y miembro en G1 con roles de `grupo_miembros` (Líder / Miembro).
+
+### Casos Principales
+| Caso | Descripción | Resultado Esperado |
+|------|-------------|--------------------|
+| Admin subset | Admin ve los 4 nuevos grupos | PASS subset |
+| DirectorA inicial | Sólo G1,G2 | 2 grupos + flags true |
+| DirectorA agrega G3 | Tras asignar: G1,G2,G3 | 3 grupos |
+| DirectorA quita G1 | Tras remover: G2,G3 | 2 grupos |
+| Líder | Sólo G1 | 1 grupo |
+| Miembro | Sólo G1 | 1 grupo |
+| Auto-asignación director | DirectorA no puede auto-asignarse | Error permiso |
+| Grupo inexistente | Falla asignar | Error |
+| KPIs admin | total_grupos >= 4 | OK |
+| KPIs director | Responde sin error | OK |
+
+### Fallbacks / Robustez
+- Si la RPC `asignar_director_etapa_a_grupo` no existe (entorno desfasado), la suite:
+  - Marca como SKIP casos de validación directa de la RPC.
+  - Inserta directamente en `director_etapa_grupos` para continuar validaciones de visibilidad.
+- Evita falsos FAIL por grupos preexistentes: ignora totales globales y se centra en subset creado.
+
+### Re-ejecución Segura (Idempotencia)
+- Prefijo nuevo cada ejecución evita colisiones de nombre único en `grupos`.
+- Segmento y temporada: si existen por nombre, se reutilizan; nuevos grupos no se mezclan porque cambian de nombre.
+
+### Integración CI Recomendada
+Agregar en `package.json`:
+```jsonc
+{
+  "scripts": {
+    "test:grupos-permisos": "node scripts/test-grupos-permisos.mjs"
+  }
+}
+```
+Pipeline puede ejecutar junto a otros smoke tests tras migraciones.
+
+### Extensiones Planeadas (Backlog)
+| Futuro | Descripción | Activación |
+|--------|------------|-----------|
+| Constraint director único / pareja | Validar rechazo segundo director no permitido | Tras migración constraint |
+| Estado aprobación | Incorporar cambios de visibilidad por `estado_aprobacion` | Tras workflow aprobación |
+| Auditoría | Verificar inserción en tabla historial asignaciones | Tras creación historial |
+| Asistencia KPIs | Métricas de asistencia por grupos visibles | Tras modelo asistencia |
+
+---
+
+## 🆕 Endpoints Añadidos (2025-10-07)
+
+### 1. Cambiar Rol de Usuarios en Lote
+`POST /api/usuarios/cambiar-rol`
+
+Body:
+```json
+{
+  "userIds": ["uuid-usuario-1", "uuid-usuario-2"],
+  "rol": "lider"
+}
+```
+Roles permitidos en `rol`: `miembro | lider | pastor | director-etapa | director-general | admin`.
+
+Requisitos:
+- Solicitante debe tener rol `admin`.
+- Se eliminan roles previos de ese set gestionado y se inserta el nuevo rol (reemplazo completo principal).
+
+Respuesta:
+```json
+{ "ok": true, "count": 2, "rol": "lider" }
+```
+Errores comunes:
+- 403 Permiso denegado (usuario sin rol admin).
+- 400 Rol inválido o lista vacía.
+
+### 2. Eliminar Director de Etapa del Segmento
+`DELETE /api/segmentos/:segmentoId/directores-etapa?directorId=:segmentoLiderId`
+
+Acción:
+- Borra en orden las relaciones: `director_etapa_ubicaciones`, `director_etapa_grupos` y luego el registro en `segmento_lideres` si `tipo_lider = 'director_etapa'`.
+
+Requisitos:
+- Solicitante con rol superior: `admin | pastor | director-general`.
+- Director debe pertenecer al segmento indicado.
+
+Respuesta éxito:
+```json
+{ "ok": true }
+```
+
+Códigos de error:
+- 404 Director no encontrado.
+- 403 No pertenece al segmento / rol insuficiente.
+- 400 Parametros faltantes.
+
+### Consideraciones de Seguridad
+- Ambos endpoints usan cliente admin (service role) sólo tras validar roles del solicitante con `getUserWithRoles()`.
+- No se expone información adicional en errores que pueda filtrar datos sensibles; sólo mensajes de contexto y `rolesActuales` cuando procede (403) para depuración UI.
+
+### Próximas Mejoras (Opcional)
+- Auditoría: registrar inserciones en tabla `auditoria_acciones` (pendiente) para cambios de rol y eliminación de directores.
+- Soft delete para `segmento_lideres` (campo `activo` boolean) si se requiere histórico.
+- Limitar cambio a rol `admin` solo si hay >= 1 admin residual (validación de continuidad).

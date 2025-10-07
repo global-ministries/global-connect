@@ -18,6 +18,8 @@
     "test:smoke:members": "node scripts/smoke-members-api.mjs",
     "test:smoke:audit": "node scripts/smoke-audit-members.mjs",
     "test:rpc:asistencia": "ts-node scripts/test-rpc-asistencia.ts"
+  ,"test:grupos-permisos": "node scripts/test-grupos-permisos.mjs"
+  ,"test:ciudades": "node scripts/test-ciudades.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

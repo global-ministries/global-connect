@@ -168,7 +168,7 @@ export async function updateGroup(groupId: string, data: any) {
   }
 }
 
-export async function createGroup(data: { nombre: string; temporada_id: string; segmento_id: string; director_etapa_segmento_lider_id?: string | null; lider_usuario_id?: string | null; estado_aprobacion?: 'pendiente' | 'aprobado' | 'rechazado'; }) {
+export async function createGroup(data: { nombre: string; temporada_id: string; segmento_id: string; segmento_ubicacion_id?: string | null; director_etapa_segmento_lider_id?: string | null; lider_usuario_id?: string | null; estado_aprobacion?: 'pendiente' | 'aprobado' | 'rechazado'; }) {
   // Validación de entrada
   const parsed = createGroupSchema.safeParse({ nombre: data.nombre, temporada_id: data.temporada_id, segmento_id: data.segmento_id })
   if (!parsed.success) {
@@ -206,15 +206,17 @@ export async function createGroup(data: { nombre: string; temporada_id: string; 
 
     const grupoId = newId as unknown as string;
 
-    // Si se especificó estado_aprobacion distinto de default y es válido
+    // Acumulamos updates posteriores (estado + ubicación) para minimizar roundtrips
+    const postUpdate: Record<string, any> = {};
     if (data.estado_aprobacion && ['pendiente','aprobado','rechazado'].includes(data.estado_aprobacion)) {
-      const { error: estadoErr } = await supabase
-        .from('grupos')
-        .update({ estado_aprobacion: data.estado_aprobacion })
-        .eq('id', grupoId)
-      if (estadoErr) {
-        console.warn('[createGroup] No se pudo actualizar estado_aprobacion:', estadoErr.message)
-      }
+      postUpdate.estado_aprobacion = data.estado_aprobacion;
+    }
+    if (data.segmento_ubicacion_id) {
+      postUpdate.segmento_ubicacion_id = data.segmento_ubicacion_id;
+    }
+    if (Object.keys(postUpdate).length) {
+      const { error: updErr } = await supabase.from('grupos').update(postUpdate).eq('id', grupoId);
+      if (updErr) console.warn('[createGroup] Actualización post-crear falló:', updErr.message)
     }
 
     // Asignar director de etapa inicial si viene param

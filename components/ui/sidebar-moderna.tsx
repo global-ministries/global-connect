@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Home,
   Calendar,
-  User
+  User,
+  Layers
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
 import { UserAvatar } from './UserAvatar'
@@ -41,6 +42,12 @@ const menuItems: MenuItem[] = [
     label: 'Dashboard',
     icon: Home,
     href: '/dashboard',
+  },
+  {
+    id: 'segmentos',
+    label: 'Segmentos',
+    icon: Layers,
+    href: '/dashboard/segments',
   },
   {
     id: 'usuarios',

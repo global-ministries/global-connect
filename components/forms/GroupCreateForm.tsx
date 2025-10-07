@@ -141,10 +141,25 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
     try {
       setIsLoading(true);
       setError(null);
+      // Mapear ubicacion textual a segmento_ubicacion_id
+      let segmentoUbicacionId: string | null = null;
+      if (data.segmento_id && data.ubicacion) {
+        try {
+          const res = await fetch(`/api/segmentos/${data.segmento_id}/ubicaciones`);
+          if (res.ok) {
+            const json = await res.json();
+            const match = (json.ubicaciones || []).find((u: any) => u.nombre === data.ubicacion);
+            if (match) segmentoUbicacionId = match.id;
+          }
+        } catch (e) {
+          // silencioso, no bloquea creación
+        }
+      }
       const result = await createGroup({
         nombre: data.nombre,
         temporada_id: data.temporada_id,
         segmento_id: data.segmento_id,
+        segmento_ubicacion_id: segmentoUbicacionId,
         director_etapa_segmento_lider_id: data.director_etapa_segmento_lider_id || null,
         lider_usuario_id: data.lider_usuario_id || null,
         estado_aprobacion: data.estado_aprobacion
