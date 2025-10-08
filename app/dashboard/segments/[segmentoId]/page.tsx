@@ -7,11 +7,11 @@ import { ContenedorDashboard, TituloSistema, TextoSistema, TarjetaSistema, Boton
 import { Layers, Users, ArrowLeft, ArrowRight } from "lucide-react"
 
 interface Props {
-	params: Promise<{ segmentoId: string }>
+	params: { segmentoId: string }
 }
 
 export default async function SegmentoDetallePage({ params }: Props) {
-	const { segmentoId } = await params;
+	const { segmentoId } = params;
 	console.log('[SEGMENTO_DETALLE] segmentoId param:', segmentoId)
 	const supabase = await createSupabaseServerClient()
 	const userData = await getUserWithRoles(supabase)

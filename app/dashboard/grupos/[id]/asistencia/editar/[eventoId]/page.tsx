@@ -12,8 +12,8 @@ type AsistenciaRow = {
   motivo_inasistencia: string | null
 }
 
-export default async function EditarAsistenciaPage({ params }: { params: Promise<{ id: string; eventoId: string }> }) {
-  const { id, eventoId } = await params
+export default async function EditarAsistenciaPage({ params }: { params: { id: string; eventoId: string } }) {
+  const { id, eventoId } = params
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return (

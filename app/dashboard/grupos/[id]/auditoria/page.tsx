@@ -3,10 +3,10 @@ import AuditViewer from "@/components/grupos/AuditViewer.client";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { ContenedorDashboard, BotonSistema, TituloSistema } from "@/components/ui/sistema-diseno";
+import { ContenedorDashboard, BotonSistema } from "@/components/ui/sistema-diseno";
 
-export default async function GrupoAuditPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function GrupoAuditPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -23,7 +23,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">No tienes acceso a esta auditoría.</p>
             <Link href={`/dashboard/grupos/${id}`}>
-              <BotonSistema variante="outline" tamaño="mediano">
+              <BotonSistema variante="outline" tamaño="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Volver al grupo
               </BotonSistema>
@@ -44,7 +44,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">No tienes permiso para ver la auditoría.</p>
             <Link href={`/dashboard/grupos/${id}`}>
-              <BotonSistema variante="outline" tamaño="mediano">
+              <BotonSistema variante="outline" tamaño="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Volver al grupo
               </BotonSistema>

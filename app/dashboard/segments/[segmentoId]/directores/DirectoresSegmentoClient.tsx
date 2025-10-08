@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react'
+import DirectorGroupsModal from './DirectorGroupsModal'
+import DirectorAssignedGroupsModal from './DirectorAssignedGroupsModal'
 import { useSegmentDirectors } from '@/hooks/useSegmentDirectors'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -41,6 +43,19 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
     await toggleCiudad({ directorId, segmentoId, segmentoUbicacionId: ubicacionId, accion: currentHas ? 'quitar' : 'agregar' })
   }
 
+  const [modalGruposOpen, setModalGruposOpen] = useState(false)
+  const [directorSeleccionado, setDirectorSeleccionado] = useState<{ id: string; nombre: string } | null>(null)
+  const [modalVerGruposOpen, setModalVerGruposOpen] = useState(false)
+
+  const abrirModalGrupos = (id: string, nombre: string) => {
+    setDirectorSeleccionado({ id, nombre })
+    setModalGruposOpen(true)
+  }
+  const abrirModalVerGrupos = (id: string, nombre: string) => {
+    setDirectorSeleccionado({ id, nombre })
+    setModalVerGruposOpen(true)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
@@ -77,7 +92,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
               <tr className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="text-left p-2 font-medium">Director</th>
                 <th className="text-left p-2 font-medium">Ciudad</th>
-                <th className="text-left p-2 font-medium w-40">Acciones</th>
+                <th className="text-left p-2 font-medium w-56">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -160,8 +175,17 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                         )}
                       </div>
                     </td>
-                    <td className="p-3 align-top space-x-2">
-                      <Button variant="secondary" size="sm" disabled>Grupos (próx)</Button>
+                    <td className="p-3 align-top space-x-2 whitespace-nowrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => abrirModalVerGrupos(d.id, d.nombre)}
+                      >Ver grupos</Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => abrirModalGrupos(d.id, d.nombre)}
+                      >Asignar grupos</Button>
                       {esSuperior && (
                         <Button
                           variant="destructive"
@@ -185,7 +209,25 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
           </table>
         </div>
       </TarjetaSistema>
-      <TextoSistema variante="sutil" className="text-[11px]">Pulsa una ciudad para asignar o quitar al director. Próximamente: asignación de grupos.</TextoSistema>
+      <TextoSistema variante="sutil" className="text-[11px]">Pulsa una ciudad para asignar o quitar al director. Usa “Asignar grupos” para gestionar sus grupos supervisados.</TextoSistema>
+      {modalGruposOpen && directorSeleccionado && (
+        <DirectorGroupsModal
+          open={modalGruposOpen}
+            onClose={() => { setModalGruposOpen(false); setDirectorSeleccionado(null); }}
+          segmentoId={segmentoId}
+          directorId={directorSeleccionado.id}
+          directorNombre={directorSeleccionado.nombre}
+        />
+      )}
+      {modalVerGruposOpen && directorSeleccionado && (
+        <DirectorAssignedGroupsModal
+          open={modalVerGruposOpen}
+          onClose={() => { setModalVerGruposOpen(false); setDirectorSeleccionado(null) }}
+          segmentoId={segmentoId}
+          directorId={directorSeleccionado.id}
+          directorNombre={directorSeleccionado.nombre}
+        />
+      )}
   {esSuperior && showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30">
           <div className="bg-white rounded shadow-lg w-full max-w-md p-4 space-y-4">

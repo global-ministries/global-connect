@@ -17,8 +17,8 @@ type AsistenciaRow = {
   rol: string | null
 }
 
-export default async function AsistenciaEventoPage({ params }: { params: Promise<{ id: string; eventoId: string }> }) {
-  const { id, eventoId } = await params
+export default async function AsistenciaEventoPage({ params }: { params: { id: string; eventoId: string } }) {
+  const { id, eventoId } = params
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return (
@@ -99,11 +99,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   return (
     <DashboardLayout>
       <ContenedorDashboard
-        titulo={
-          <span className="text-lg sm:text-2xl">
-            Asistencia del {formatearFecha(ev.fecha)}
-          </span>
-        }
+        titulo={`Asistencia del ${formatearFecha(ev.fecha)}`}
         descripcion={`${ev.hora ? `Hora: ${ev.hora} • ` : ''}Tema: ${ev.tema || '—'} • Notas: ${ev.notas || '—'}`}
         accionPrincipal={
           <div className="flex items-center gap-2">

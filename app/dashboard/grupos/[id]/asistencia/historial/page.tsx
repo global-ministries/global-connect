@@ -4,8 +4,8 @@ import { ArrowLeft, Plus, Eye, Edit } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
-export default async function HistorialAsistenciaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export default async function HistorialAsistenciaPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return (

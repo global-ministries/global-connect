@@ -7,11 +7,11 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno';
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 export default async function EditGroupPage({ params }: PageProps) {
-  const { id } = await params;
+  const { id } = params;
 
   const supabase = await createSupabaseServerClient();
 

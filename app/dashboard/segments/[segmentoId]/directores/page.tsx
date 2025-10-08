@@ -10,11 +10,11 @@ import { ArrowLeft, Users } from 'lucide-react'
 const DirectoresSegmentoClient = lazy(() => import('./DirectoresSegmentoClient'))
 
 interface Props {
-  params: Promise<{ segmentoId: string }>
+  params: { segmentoId: string }
 }
 
 export default async function DirectoresSegmentoPage({ params }: Props) {
-  const { segmentoId } = await params
+  const { segmentoId } = params
   const supabase = await createSupabaseServerClient()
   const userData = await getUserWithRoles(supabase)
   if (!userData) redirect('/login')
