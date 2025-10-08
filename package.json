@@ -17,9 +17,9 @@
     "migrate:staging": "node scripts/apply-migrations-staging.mjs",
     "test:smoke:members": "node scripts/smoke-members-api.mjs",
     "test:smoke:audit": "node scripts/smoke-audit-members.mjs",
-    "test:rpc:asistencia": "ts-node scripts/test-rpc-asistencia.ts"
-  ,"test:grupos-permisos": "node scripts/test-grupos-permisos.mjs"
-  ,"test:ciudades": "node scripts/test-ciudades.mjs"
+    "test:rpc:asistencia": "ts-node scripts/test-rpc-asistencia.ts",
+    "test:grupos-permisos": "node scripts/test-grupos-permisos.mjs",
+    "test:ciudades": "node scripts/test-ciudades.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -53,6 +53,7 @@
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.55.0",
+    "@vercel/analytics": "^1.5.0",
     "@vis.gl/react-google-maps": "^1.5.5",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",

@@ -4,6 +4,8 @@ _Fecha de generación:_ 2025-10-08
 _Rama:_ `feature/director-etapa-grupos-asignados`
 
 ## Novedad Clave: Papelera de Grupos
+- **Integración Observabilidad**: Se añadió `@vercel/analytics` y el componente `<Analytics />` en `app/layout.tsx` para métricas de tráfico básicas (Page Views, Visitors). No requiere configuración adicional en runtime; se habilita automáticamente en despliegues Vercel.
+
 Se implementó un sistema de eliminación reversible para `grupos`:
 - Nueva columna `eliminado` + índice parcial para consultas rápidas de activos.
 - Endpoint `DELETE /api/grupos/:id` ahora marca papelera (`eliminado=true, activo=false`).
