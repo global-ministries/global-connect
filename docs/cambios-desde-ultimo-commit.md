@@ -5,6 +5,7 @@ _Rama:_ `feature/director-etapa-grupos-asignados`
 
 ## Novedad Clave: Papelera de Grupos
 - **Integración Observabilidad**: Se añadió `@vercel/analytics` y el componente `<Analytics />` en `app/layout.tsx` para métricas de tráfico básicas (Page Views, Visitors). No requiere configuración adicional en runtime; se habilita automáticamente en despliegues Vercel.
+ - **Speed Insights**: Integrado `@vercel/speed-insights` añadiendo `<SpeedInsights />` al layout para recolectar métricas RUM (FCP, LCP, CLS, INP) directamente en el panel de Vercel. Sin configuración extra; útil para detectar regresiones de performance percibida.
 
 Se implementó un sistema de eliminación reversible para `grupos`:
 - Nueva columna `eliminado` + índice parcial para consultas rápidas de activos.
