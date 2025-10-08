@@ -3,6 +3,16 @@
 _Fecha de generación:_ 2025-10-08
 _Rama:_ `feature/director-etapa-grupos-asignados`
 
+## Novedad Clave: Papelera de Grupos
+Se implementó un sistema de eliminación reversible para `grupos`:
+- Nueva columna `eliminado` + índice parcial para consultas rápidas de activos.
+- Endpoint `DELETE /api/grupos/:id` ahora marca papelera (`eliminado=true, activo=false`).
+- Endpoint `POST /api/grupos/:id/restore` restaura (`eliminado=false, activo=true`).
+- Filtro UI y badge `Eliminado` agregados; acciones condicionadas a roles superiores.
+- RPC `obtener_grupos_para_usuario` extendida con parámetro `p_eliminado` y retorno de campo `eliminado`, corrigiendo además ambigüedad de columnas (42702) y tipo en counts (42804).
+- Documento detallado: `docs/papelera-grupos.md`.
+
+
 ## Resumen Ejecutivo
 Se realizaron ajustes amplios para estabilizar rutas dinámicas, mejorar la UX de asignación de grupos a directores de etapa y reforzar componentes críticos. Los cambios eliminan warnings de Next.js sobre `params` asíncronos, corrigen un uso inválido de tamaño de botón, añaden un hook reutilizable para asignaciones y robustecen el componente de selección de ubicación (mapa) con validaciones y fallbacks.
 

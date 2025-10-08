@@ -37,6 +37,41 @@ Se ha implementado exitosamente un sistema completo de permisos de usuarios basa
 | `lider` | **Sus grupos** | `grupo_miembros (rol = 'Líder')` | Puede ver usuarios extendidos en contexto relaciones (`p_contexto_relacion = true`). |
 | `miembro` | **Su familia** | `familias` + `relaciones_usuarios` | Sin cambios |
 
+### 📦 Papelera de Grupos (Eliminación Reversible)
+
+Se incorporó un flujo de eliminación reversible para `grupos` basado en la nueva columna `grupos.eliminado`.
+
+| Acción | Roles Permitidos (actual) | Implementación | Notas |
+|--------|---------------------------|----------------|-------|
+| Enviar a Papelera (`DELETE /api/grupos/:id`) | `admin`, `pastor`, `director-general` | Endpoint actualiza: `eliminado=true`, `activo=false` | Director de etapa NO puede eliminar. |
+| Restaurar (`POST /api/grupos/:id/restore`) | `admin`, `pastor`, `director-general` | Endpoint actualiza: `eliminado=false`, `activo=true` | Reactiva inmediatamente el grupo. |
+| Listar grupos eliminados | Mismos roles superiores (UI restringe) | RPC `obtener_grupos_para_usuario(p_eliminado=true)` | Param `p_eliminado` filtra en servidor. |
+| Ver un grupo eliminado específico | Sólo si ya tenía permiso sobre el grupo y es rol superior | Misma RPC, filtrado por id | No se expone vista directa en UI general. |
+
+Principios adoptados:
+1. Separación de intención: "eliminar" ahora es reversible → evita pérdida accidental.
+2. Simplicidad de índice: sólo se listan uno de los dos subconjuntos (activos vs papelera) para aprovechar índice parcial `WHERE eliminado=false`.
+3. Mínimo privilegio: directores de etapa y líderes no pueden manipular la papelera.
+
+Limitaciones actuales / próximas mejoras:
+- No existe todavía `deleted_at`; se evaluará para purga automática futura.
+- No hay endpoint de purga definitiva (hard delete) → pendiente de requerimiento.
+- Validación de rol para `p_eliminado=true` se aplica en UI; recomendable endurecer en la función o vía policy si se amplia uso.
+
+Ejemplos (SQL):
+```sql
+-- Listar activos
+select count(*) from public.obtener_grupos_para_usuario(<auth>, NULL,NULL,NULL,NULL,NULL,10,0,false);
+-- Listar papelera (solo roles superiores)
+select count(*) from public.obtener_grupos_para_usuario(<auth>, NULL,NULL,NULL,NULL,NULL,10,0,true);
+```
+
+Backlog sugerido relacionado a papelera:
+- Añadir `deleted_at` + job de purga > X días.
+- Auditar acciones (tabla `auditoria_eventos` con tipo `grupo_papelera` / `grupo_restore`).
+- Batch restore/delete (optimización UX si volumen crece).
+
+
 ## 🏗️ Arquitectura Técnica
 
 ### Base de Datos - Estructura Real Utilizada

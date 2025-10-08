@@ -36,6 +36,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
   const estado = Array.isArray(sp?.estado) ? sp?.estado[0] : sp?.estado
   const muni = Array.isArray(sp?.municipioId) ? sp?.municipioId[0] : sp?.municipioId
   const parr = Array.isArray(sp?.parroquiaId) ? sp?.parroquiaId[0] : sp?.parroquiaId
+  const esEliminado = estado === 'eliminado'
   const p_activo = estado === 'activo' ? true : estado === 'inactivo' ? false : null
   try {
     const { data, error } = await supabase.rpc('obtener_grupos_para_usuario', {
@@ -47,6 +48,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
       p_parroquia_id: parr || null,
       p_limit: pageSize,
       p_offset: offset,
+      p_eliminado: esEliminado,
     })
     if (error) {
       console.log('[GC] Error RPC obtener_grupos_para_usuario:', error)
@@ -69,6 +71,8 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
   const roles = userData.roles || []
   const canCreateSuperior = roles.some(r => ["admin","pastor","director-general","director-etapa"].includes(r))
   const canCreate = canCreateSuperior || roles.includes('lider')
+  const canDelete = canCreateSuperior // sólo roles superiores pueden enviar a papelera
+  const canRestore = roles.some(r => ["admin","pastor","director-general"].includes(r))
 
   return (
     <DashboardLayout>
@@ -92,6 +96,9 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
           totalCount={totalCount}
           pageSize={pageSize}
           canCreate={canCreate}
+          canDelete={canDelete}
+          canRestore={canRestore}
+          filtroEstado={estado as string | undefined}
         />
       </ContenedorDashboard>
     </DashboardLayout>
