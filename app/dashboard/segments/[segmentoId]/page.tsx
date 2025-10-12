@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ContenedorDashboard, TituloSistema, TextoSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
@@ -20,6 +21,10 @@ export default async function SegmentoDetallePage({ params }: Props) {
 	const rolesPermitidos = ["admin", "pastor", "director-general", "director-etapa", "lider"]
 	const autorizado = userData.roles.some(r => rolesPermitidos.includes(r))
 	if (!autorizado) redirect("/dashboard")
+	
+	// Determinar si puede ver perfiles de directores (roles superiores, no solo lider)
+	const rolesSuperiores = ["admin", "pastor", "director-general", "director-etapa"]
+	const puedeVerPerfiles = userData.roles.some(r => rolesSuperiores.includes(r))
 
 	// Usar limit(1) para detectar si RLS está bloqueando (data vacío sin error) vs inexistencia real
 		const { data: segRows, error } = await supabase
@@ -42,57 +47,63 @@ export default async function SegmentoDetallePage({ params }: Props) {
 	let directoresPreview: Array<{ id: string; usuario_id: string; nombre: string; apellido: string; email?: string | null; foto?: string | null }> = []
 	let directoresAgrupados: Array<{ usuarios: Array<{ usuario_id: string; nombre: string; apellido: string; email?: string | null; foto?: string | null }> }> = []
 	{
-		const { data: dataJoin, error: errorJoin } = await supabase
+		// Obtener IDs de directores del segmento
+		const { data: filasBase, error: baseErr } = await supabase
 			.from('segmento_lideres')
-			.select('id, usuario_id, usuario:usuario_id (nombre, apellido, email, foto_perfil_url)')
+			.select('id, usuario_id')
 			.eq('segmento_id', segmentoId)
 			.eq('tipo_lider', 'director_etapa')
-			// sin límite
-
-		if (errorJoin) {
-			console.warn('[SEGMENTO_DETALLE] errorJoin directores', errorJoin.message)
+		
+		if (baseErr) {
+			console.warn('[SEGMENTO_DETALLE] baseErr directores', baseErr.message)
 		}
 
-		let registros = dataJoin || []
-		if (registros.length === 0) {
-			// Fallback tolerante a RLS: obtener ids y luego usuarios
-			const { data: filasBase, error: baseErr } = await supabase
-				.from('segmento_lideres')
-				.select('id, usuario_id')
-				.eq('segmento_id', segmentoId)
-				.eq('tipo_lider', 'director_etapa')
-				// sin límite
-			if (baseErr) console.warn('[SEGMENTO_DETALLE] baseErr directores', baseErr.message)
-			if (filasBase && filasBase.length > 0) {
-				const usuarioIds = [...new Set(filasBase.map(f => f.usuario_id))]
-				let usuariosMap = new Map<string, { nombre: string; apellido: string; email?: string | null; foto_perfil_url?: string | null }>()
-				if (usuarioIds.length > 0) {
-					const { data: usuariosData, error: usuariosErr } = await supabase
-						.from('usuarios')
-						.select('id, nombre, apellido, email, foto_perfil_url')
-						.in('id', usuarioIds)
-						// sin límite (in restringe por ids)
-					if (usuariosErr) console.warn('[SEGMENTO_DETALLE] usuariosErr directores', usuariosErr.message)
-					for (const u of usuariosData || []) {
-						usuariosMap.set(u.id, { nombre: u.nombre || '', apellido: u.apellido || '', email: u.email || null, foto_perfil_url: (u as any).foto_perfil_url || null })
-					}
+		let registros: any[] = []
+		if (filasBase && filasBase.length > 0) {
+			const usuarioIds = [...new Set(filasBase.map(f => f.usuario_id))]
+			let usuariosMap = new Map<string, { nombre: string; apellido: string; email?: string | null; foto_perfil_url?: string | null }>()
+			
+			if (usuarioIds.length > 0) {
+				// Usar admin client para obtener datos de usuarios (bypass RLS para mostrar nombres)
+				const supabaseAdmin = createSupabaseAdminClient()
+				const { data: usuariosData, error: usuariosErr } = await supabaseAdmin
+					.from('usuarios')
+					.select('id, nombre, apellido, email, foto_perfil_url')
+					.in('id', usuarioIds)
+				
+				if (usuariosErr) {
+					console.warn('[SEGMENTO_DETALLE] usuariosErr directores', usuariosErr.message)
 				}
-				registros = filasBase.map(f => ({
-					id: f.id,
-					usuario_id: f.usuario_id,
-					usuario: usuariosMap.get(f.usuario_id) || { nombre: '', apellido: '', email: null, foto_perfil_url: null }
-				})) as any
+				
+				for (const u of usuariosData || []) {
+					usuariosMap.set(u.id, { 
+						nombre: u.nombre || '', 
+						apellido: u.apellido || '', 
+						email: u.email || null, 
+						foto_perfil_url: (u as any).foto_perfil_url || null 
+					})
+				}
 			}
+			
+			registros = filasBase.map(f => ({
+				id: f.id,
+				usuario_id: f.usuario_id,
+				usuario: usuariosMap.get(f.usuario_id) || { nombre: '', apellido: '', email: null, foto_perfil_url: null }
+			}))
 		}
 
-	directoresPreview = (registros as any[]).map(d => ({
-		id: d.id,
-		usuario_id: d.usuario_id,
-		nombre: d.usuario?.nombre || '',
-		apellido: d.usuario?.apellido || '',
-		email: d.usuario?.email || null,
-		foto: d.usuario?.foto_perfil_url || null,
-	}))
+	directoresPreview = (registros as any[]).map(d => {
+		const preview = {
+			id: d.id,
+			usuario_id: d.usuario_id,
+			nombre: d.usuario?.nombre || '',
+			apellido: d.usuario?.apellido || '',
+			email: d.usuario?.email || null,
+			foto: d.usuario?.foto_perfil_url || null,
+		}
+		console.log('[SEGMENTO_DETALLE] director preview:', preview)
+		return preview
+	})
 
 	// Agrupar cónyuges entre los directores
 	const idsDirectores = [...new Set(directoresPreview.map(d => d.usuario_id))]
@@ -175,9 +186,15 @@ export default async function SegmentoDetallePage({ params }: Props) {
 														<div key={u.usuario_id} className="flex items-center gap-3">
 															<UserAvatar photoUrl={u.foto || undefined} nombre={u.nombre} apellido={u.apellido} size="sm" />
 															<div className="min-w-0">
-																<Link href={`/dashboard/users/${u.usuario_id}`} className="font-medium text-gray-800 hover:text-orange-600 transition-colors block truncate">
-																	{`${u.nombre} ${u.apellido}`.trim() || u.email || 'Usuario'}
-																</Link>
+																{puedeVerPerfiles ? (
+																	<Link href={`/dashboard/users/${u.usuario_id}`} className="font-medium text-gray-800 hover:text-orange-600 transition-colors block truncate">
+																		{`${u.nombre} ${u.apellido}`.trim() || u.email || 'Usuario'}
+																	</Link>
+																) : (
+																	<span className="font-medium text-gray-800 block truncate">
+																		{`${u.nombre} ${u.apellido}`.trim() || u.email || 'Usuario'}
+																	</span>
+																)}
 																{u.email && (
 																	<p className="text-xs text-gray-500 truncate">{u.email}</p>
 																)}
