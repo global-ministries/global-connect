@@ -14,6 +14,7 @@ interface DashboardCardProps {
     text: string
     variant: 'default' | 'success' | 'warning' | 'error' | 'info'
   }
+  oneLineTitle?: boolean
 }
 
 export function DashboardCard({ 
@@ -22,7 +23,8 @@ export function DashboardCard({
   children, 
   className = "", 
   icon: Icon,
-  badge 
+  badge,
+  oneLineTitle = false
 }: DashboardCardProps) {
   return (
     <div data-swapy-slot={id}>
@@ -35,7 +37,10 @@ export function DashboardCard({
                   <Icon className="w-5 h-5 text-white" />
                 </div>
               )}
-              <TituloSistema nivel={3} className="text-gray-900 truncate">
+              <TituloSistema
+                nivel={3}
+                className={oneLineTitle ? 'text-gray-900 leading-snug max-w-full truncate' : 'text-gray-900 leading-snug max-w-[11rem] whitespace-normal line-clamp-2'}
+              >
                 {title}
               </TituloSistema>
             </div>

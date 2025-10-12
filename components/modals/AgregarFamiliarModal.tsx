@@ -1,4 +1,3 @@
-
 "use client"
 
 import type { Database } from '@/lib/supabase/database.types'
@@ -51,6 +50,8 @@ export function AgregarFamiliarModal({
   const [familiaresExistentes, setFamiliaresExistentes] = useState<string[]>([])
   // Modal crear miembro
   const [crearAbierto, setCrearAbierto] = useState(false)
+  // Estado para errores de depuración
+  // (Debug eliminado)
 
   // Usar el cliente supabase global importado
 
@@ -62,18 +63,17 @@ export function AgregarFamiliarModal({
     }
     setCreando(true)
     try {
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select('id, nombre, apellido, email, genero, cedula, foto_perfil_url')
-        .or(`nombre.ilike.%${terminoBusqueda}%,apellido.ilike.%${terminoBusqueda}%,cedula.ilike.%${terminoBusqueda}%,email.ilike.%${terminoBusqueda}%`)
-        .neq('id', usuarioActualId)
-        .limit(10)
-      if (error) {
-        setResultados([])
-      } else {
-        setResultados(data || [])
+  const excluir = usuarioActualId // Solo excluir al usuario actual; queremos ver familiares ya existentes
+  const url = `/api/usuarios/buscar-para-relacion?q=${encodeURIComponent(terminoBusqueda)}&excluir=${encodeURIComponent(excluir)}`
+      const res = await fetch(url, { cache: 'no-store' })
+      if (!res.ok) {
+        const txt = await res.text()
+        throw new Error(`HTTP ${res.status} ${txt}`)
       }
-    } catch {
+      const data = await res.json()
+      setResultados(Array.isArray(data) ? data : [])
+    } catch (err: any) {
+  // Silenciar error; podríamos agregar toast si se desea
       setResultados([])
     } finally {
       setCreando(false)
@@ -232,7 +232,15 @@ export function AgregarFamiliarModal({
                           </p>
                         </div>
                         {yaEsFamiliar && (
-                          <span className="ml-2 text-xs text-orange-500 font-semibold">Ya es familiar</span>
+                          <span
+                            className="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold px-2 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-200"
+                            aria-label="Este usuario ya está relacionado como familiar/miembro"
+                            title="Ya es miembro / familiar"
+                          >
+                            {/* Icono simple por accesibilidad (•) podría reemplazarse por un svg */}
+                            <span className="text-orange-500">●</span>
+                            Ya es familiar
+                          </span>
                         )}
                       </button>
                     )
@@ -280,13 +288,8 @@ export function AgregarFamiliarModal({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={creando}
-            >
+          <div className="flex items-center justify-end p-6 border-t bg-gray-50">
+            <Button type="button" variant="ghost" onClick={onClose}>
               Cancelar
             </Button>
             <Button
@@ -297,26 +300,29 @@ export function AgregarFamiliarModal({
               {creando ? 'Creando...' : 'Crear Relación'}
             </Button>
           </div>
+
         </form>
       </div>
-      {/* Modal crear miembro */}
-      <CrearMiembroModal
-        isOpen={crearAbierto}
-        onClose={() => setCrearAbierto(false)}
-        onCreated={(u: UsuarioMin) => {
-          // Al crear, seleccionarlo y pedir tipo de relación
-          setCrearAbierto(false)
-          setFamiliarSeleccionado({
-            id: u.id,
-            nombre: u.nombre,
-            apellido: u.apellido,
-            email: u.email || '',
-            genero: (u.genero as any) || 'Otro',
-            cedula: u.cedula || '',
-            foto_perfil_url: u.foto_perfil_url,
-          })
-        }}
-      />
+
+      {crearAbierto && (
+        <CrearMiembroModal
+          isOpen={crearAbierto}
+          onClose={() => setCrearAbierto(false)}
+          onCreated={(u: UsuarioMin) => {
+            // Al crear, seleccionarlo y pedir tipo de relación
+            setCrearAbierto(false)
+            setFamiliarSeleccionado({
+              id: u.id,
+              nombre: u.nombre,
+              apellido: u.apellido,
+              email: u.email || '',
+              genero: (u.genero as any) || 'Otro',
+              cedula: u.cedula || '',
+              foto_perfil_url: u.foto_perfil_url,
+            })
+          }}
+        />
+      )}
     </div>
   )
 }

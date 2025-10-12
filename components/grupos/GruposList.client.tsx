@@ -22,7 +22,7 @@ type Grupo = {
   temporada_nombre?: string | null
   municipio_nombre?: string | null
   parroquia_nombre?: string | null
-  lideres?: Array<{ id: string; nombre_completo?: string | null }>
+  lideres?: Array<{ id: string; nombre_completo?: string | null; rol?: string | null }>
   // opcionales del RPC futuro
   fecha_creacion?: string | null
   miembros_count?: number | null
@@ -109,19 +109,40 @@ export default function GruposListClient({
 
   // Sincronizar filtros con la URL
   useEffect(() => {
-  const params = new URLSearchParams(sp?.toString() || "")
+    // Sincroniza filtros en la URL pero SOLO toca 'page' si realmente cambió algún filtro
+    const current = new URLSearchParams(sp?.toString() || '')
+    const prevKey = JSON.stringify([
+      current.get('segmentoId'),
+      current.get('temporadaId'),
+      current.get('estado'),
+      current.get('municipioId'),
+      current.get('parroquiaId'),
+    ])
+    const next = new URLSearchParams(current.toString())
     const setOrDel = (k: string, v?: string) => {
-      if (v) params.set(k, v)
-      else params.delete(k)
+      if (v) next.set(k, v)
+      else next.delete(k)
     }
     setOrDel('segmentoId', filtros.segmentoId)
     setOrDel('temporadaId', filtros.temporadaId)
     setOrDel('estado', filtros.estado)
     setOrDel('municipioId', filtros.municipioId)
     setOrDel('parroquiaId', filtros.parroquiaId)
-    // reset page
-    params.delete('page')
-    router.replace(`${pathname}?${params.toString()}`)
+    const nextKey = JSON.stringify([
+      next.get('segmentoId'),
+      next.get('temporadaId'),
+      next.get('estado'),
+      next.get('municipioId'),
+      next.get('parroquiaId'),
+    ])
+    // Si los filtros cambiaron, resetear page a 1
+    if (prevKey !== nextKey) {
+      next.delete('page')
+    }
+    // Evitar navegación redundante
+    if (next.toString() !== current.toString()) {
+      router.replace(`${pathname}?${next.toString()}`)
+    }
   }, [filtros, router, pathname, sp])
 
   // Inicializar filtros desde URL al cargar
@@ -268,11 +289,26 @@ export default function GruposListClient({
                         </Link>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 
-                        ? grupo.lideres.map((l) => l.nombre_completo).filter(Boolean).join(", ")
-                        : "Sin líder asignado"
-                      }
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 align-top">
+                      {(() => {
+                        if (!Array.isArray(grupo.lideres) || grupo.lideres.length === 0) return 'Sin líder asignado'
+                        const leaders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'líder')
+                        if (leaders.length === 0) return 'Sin líder asignado'
+                        const coliders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'colíder')
+                        const leaderNames = leaders.map(l => l.nombre_completo).filter(Boolean)
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            {leaderNames.map((n, idx) => (
+                              <span key={idx}>{n}</span>
+                            ))}
+                            {coliders.length > 0 && (
+                              <span className="mt-0.5 inline-flex w-max items-center rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-medium border border-orange-200">
+                                +{coliders.length} {coliders.length === 1 ? 'aprendiz' : 'aprendices'}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <BadgeSistema 
@@ -343,10 +379,25 @@ export default function GruposListClient({
                     <div>
                       <span className="font-medium">Líder:</span>{" "}
                       <span>
-                        {Array.isArray(grupo.lideres) && grupo.lideres.length > 0 
-                          ? grupo.lideres.map((l) => l.nombre_completo).filter(Boolean).join(", ")
-                          : "Sin líder asignado"
-                        }
+                        {(() => {
+                          if (!Array.isArray(grupo.lideres) || grupo.lideres.length === 0) return 'Sin líder asignado'
+                          const leaders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'líder')
+                          if (leaders.length === 0) return 'Sin líder asignado'
+                          const coliders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'colíder')
+                          const leaderNames = leaders.map(l => l.nombre_completo).filter(Boolean)
+                          return (
+                            <span className="inline-flex flex-col gap-0.5">
+                              {leaderNames.map((n, idx) => (
+                                <span key={idx}>{n}</span>
+                              ))}
+                              {coliders.length > 0 && (
+                                <span className="mt-0.5 inline-flex w-max items-center rounded-full bg-orange-100 text-orange-700 px-1.5 py-0.5 text-[10px] font-medium border border-orange-200">
+                                  +{coliders.length} {coliders.length === 1 ? 'aprendiz' : 'aprendices'}
+                                </span>
+                              )}
+                            </span>
+                          )
+                        })()}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -388,12 +439,15 @@ export default function GruposListClient({
       </div>
 
       {/* Paginación y tamaño de página */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
-        <PageSizeSelector />
-        {totalCount > pageSize && (
+      {totalCount > 0 && (
+        <div className="pt-6 mt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <span className="text-sm text-gray-600 select-none">Página {Number(sp?.get('page')||'1')} de {Math.max(1, Math.ceil(totalCount / pageSize))}</span>
+            <PageSizeSelector />
+          </div>
           <PaginationControls totalCount={totalCount} pageSize={pageSize} />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -425,22 +479,31 @@ function PaginationControls({ totalCount, pageSize }: { totalCount: number; page
   const pathname = usePathname()
   const page = Number(sp?.get('page') || '1')
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
-  const setPage = (p: number) => {
-  const params = new URLSearchParams(sp?.toString() || "")
-    params.set('page', String(p))
+  // Si no hay más de una página, no renderizar controles
+  if (totalPages <= 1) return null
+  const updatePage = (next: number) => {
+    const n = Math.min(Math.max(1, next), totalPages)
+    if (n === page) return
+    const params = new URLSearchParams(sp?.toString() || '')
+    params.set('page', String(n))
     router.replace(`${pathname}?${params.toString()}`)
   }
-  return (
-    <div className="flex items-center justify-between mt-4">
-      <BotonSistema variante="outline" tamaño="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-        Anterior
-      </BotonSistema>
-      <div className="text-sm text-gray-600">Página {page} de {totalPages}</div>
-      <BotonSistema variante="outline" tamaño="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-        Siguiente
-      </BotonSistema>
+  return totalPages > 1 ? (
+    <div className="flex gap-2" aria-label="Controles de paginación">
+      <BotonSistema
+        variante="outline"
+        tamaño="sm"
+        onClick={() => updatePage(page - 1)}
+        disabled={page === 1}
+      >Anterior</BotonSistema>
+      <BotonSistema
+        variante="outline"
+        tamaño="sm"
+        onClick={() => updatePage(page + 1)}
+        disabled={page >= totalPages}
+      >Siguiente</BotonSistema>
     </div>
-  )
+  ) : null
 }
 
 function PageSizeSelector() {
@@ -455,9 +518,13 @@ function PageSizeSelector() {
     router.replace(`${pathname}?${params.toString()}`)
   }
   return (
-    <div className="flex items-center gap-2 text-sm text-gray-600">
-      <span>Items por página:</span>
-      <select className="border rounded-md px-2 py-1 bg-white/70" value={size} onChange={(e) => setSize(Number(e.target.value))}>
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-gray-600">Mostrar:</span>
+      <select
+        className="px-2 py-1 border border-gray-200 rounded text-sm bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+        value={size}
+        onChange={(e) => setSize(Number(e.target.value))}
+      >
         {[10, 20, 50, 100].map(n => (
           <option key={n} value={n}>{n}</option>
         ))}
