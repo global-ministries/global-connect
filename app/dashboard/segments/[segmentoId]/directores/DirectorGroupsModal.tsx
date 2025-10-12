@@ -238,7 +238,7 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                 </Button>
               )}
               <div className="ml-auto flex items-center gap-3">
-                <BadgeSistema variante="neutral" className="text-xs">Total: {gruposOrdenados.length}</BadgeSistema>
+                <BadgeSistema variante="default" className="text-xs">Total: {gruposOrdenados.length}</BadgeSistema>
                 <BadgeSistema variante="info" className="text-xs">Seleccionados: {seleccion.size}</BadgeSistema>
               </div>
             </div>
@@ -274,7 +274,7 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                           <h4 className="font-semibold text-gray-800 text-base truncate" title={g.nombre}>{g.nombre}</h4>
                           <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
                             {g.activo === false ? (
-                              <BadgeSistema variante="neutral">Inactivo</BadgeSistema>
+                              <BadgeSistema variante="default">Inactivo</BadgeSistema>
                             ) : (
                               <BadgeSistema variante="success">Activo</BadgeSistema>
                             )}

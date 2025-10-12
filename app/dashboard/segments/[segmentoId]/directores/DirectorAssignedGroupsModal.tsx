@@ -149,7 +149,7 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {g.activo === false ? (
-                          <BadgeSistema variante="neutral">Inactivo</BadgeSistema>
+                          <BadgeSistema variante="default">Inactivo</BadgeSistema>
                         ) : (
                           <BadgeSistema variante="success">Activo</BadgeSistema>
                         )}
