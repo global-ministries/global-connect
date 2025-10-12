@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import GrupoDetailClient from "./GrupoDetailClient";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 
-export default async function GrupoDetailServer({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function GrupoDetailServer({ params }: { params: { id: string } }) {
+  const { id } = params;
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: grupo, error } = await supabase.rpc("obtener_detalle_grupo", {

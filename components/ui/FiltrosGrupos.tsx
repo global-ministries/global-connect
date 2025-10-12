@@ -12,7 +12,7 @@ type Parroquia = { id: string; nombre: string; municipio_id: string }
 export type FiltrosGruposState = {
   segmentoId?: string
   temporadaId?: string
-  estado?: "activo" | "inactivo"
+  estado?: "activo" | "inactivo" | "eliminado"
   municipioId?: string
   parroquiaId?: string
 }
@@ -80,7 +80,7 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
           </Select>
         </div>
 
-        {/* Estado */}
+        {/* Estado / Eliminado */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">Filtrar por Estado</label>
           <Select value={filtros.estado ?? ""} onValueChange={(v) => handleChange({ estado: (v === "__all__" ? undefined : (v as FiltrosGruposState["estado"])) })}>
@@ -91,6 +91,7 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
               <SelectItem value="__all__">Todos</SelectItem>
               <SelectItem value="activo">Activo</SelectItem>
               <SelectItem value="inactivo">Inactivo</SelectItem>
+              <SelectItem value="eliminado">Eliminado</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno"
+import { useToast } from "@/hooks/use-toast"
 
 type Segmento = { id: string; nombre: string }
 type Temporada = { id: string; nombre: string }
@@ -18,6 +19,7 @@ type Grupo = {
   id: string
   nombre: string
   activo: boolean
+  eliminado?: boolean
   segmento_nombre?: string | null
   temporada_nombre?: string | null
   municipio_nombre?: string | null
@@ -26,6 +28,7 @@ type Grupo = {
   // opcionales del RPC futuro
   fecha_creacion?: string | null
   miembros_count?: number | null
+  supervisado_por_mi?: boolean | null
 }
 
 // Helper: color por segmento (misma lógica que en server, mantenida aquí para client)
@@ -74,6 +77,9 @@ export default function GruposListClient({
   totalCount = 0,
   pageSize = 20,
   canCreate = false,
+  canDelete = false,
+  canRestore = false,
+  filtroEstado,
 }: {
   grupos: Grupo[]
   segmentos: Segmento[]
@@ -83,6 +89,9 @@ export default function GruposListClient({
   totalCount?: number
   pageSize?: number
   canCreate?: boolean
+  canDelete?: boolean
+  canRestore?: boolean
+  filtroEstado?: string | undefined
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -103,7 +112,56 @@ export default function GruposListClient({
   }, [temporadas])
 
   // Los grupos ya vienen filtrados desde el servidor
-  const gruposFiltrados = grupos
+  const { toast } = useToast()
+  const [internalGrupos, setInternalGrupos] = useState<Grupo[]>(grupos)
+  useEffect(()=>{ setInternalGrupos(grupos) }, [grupos])
+
+  const eliminarGrupo = useCallback(async (id: string, nombre: string) => {
+    if (!canDelete) return
+    const confirmar = window.confirm(`¿Enviar a la papelera el grupo "${nombre}"? Podrás restaurarlo luego si tienes permisos.`)
+    if (!confirmar) return
+    try {
+      const res = await fetch(`/api/grupos/${id}`, { method: 'DELETE' })
+      const body = await res.json().catch(()=>({}))
+      if (!res.ok || !body.ok) {
+        toast({ title: 'Error al eliminar', description: body.error || `HTTP ${res.status}`, variant: 'destructive' })
+        return
+      }
+      // Si no estamos en vista 'eliminado' quitamos la fila inmediatamente; si estamos en 'eliminado' (raro) la dejamos actualizada
+      setInternalGrupos(prev => prev
+        .map(g => g.id === id ? { ...g, eliminado: true, activo: false } : g)
+        .filter(g => (filtroEstado === 'eliminado') || !g.eliminado ? true : (filtroEstado === 'eliminado'))
+      )
+      toast({ title: 'Enviado a papelera', description: `"${nombre}" ahora está en la papelera.` })
+    } catch (e:any) {
+      toast({ title: 'Excepción', description: e.message || 'Error desconocido', variant: 'destructive' })
+    }
+  }, [canDelete, toast, filtroEstado])
+
+  const restaurarGrupo = useCallback(async (id: string, nombre: string) => {
+    if (!canRestore) return
+    try {
+      const res = await fetch(`/api/grupos/${id}/restore`, { method: 'POST' })
+      const body = await res.json().catch(()=>({}))
+      if (!res.ok || !body.ok) {
+        toast({ title: 'Error al restaurar', description: body.error || `HTTP ${res.status}`, variant: 'destructive' })
+        return
+      }
+      setInternalGrupos(prev => prev
+        .map(g => g.id === id ? { ...g, eliminado: false, activo: true } : g)
+        // Si estamos viendo sólo eliminados, al restaurar lo removemos de la lista
+        .filter(g => filtroEstado === 'eliminado' ? g.eliminado : true)
+      )
+      toast({ title: 'Grupo restaurado', description: `"${nombre}" ha sido restaurado.` })
+    } catch (e:any) {
+      toast({ title: 'Excepción', description: e.message || 'Error desconocido', variant: 'destructive' })
+    }
+  }, [canRestore, toast, filtroEstado])
+
+  // Aplicar filtro estado 'eliminado' client-side adicionalmente (ya se filtró en server, pero refuerzo por seguridad si cambian props sin recarga)
+  const gruposFiltrados = useMemo(() => {
+    return internalGrupos
+  }, [internalGrupos])
 
   const onFiltrosChange = useCallback((f: FiltrosGruposState) => setFiltros(f), [])
 
@@ -274,6 +332,9 @@ export default function GruposListClient({
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmento</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temporada</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                {canDelete && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -285,7 +346,14 @@ export default function GruposListClient({
                         {/* Placeholder para imagen horizontal - más grande en desktop */}
                         <div className="w-16 h-10 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
                         <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
-                          <div className="font-medium text-gray-900 hover:underline cursor-pointer">{grupo.nombre}</div>
+                          <div className="flex items-center gap-2 font-medium text-gray-900 hover:underline cursor-pointer">
+                            <span>{grupo.nombre}</span>
+                            {grupo.supervisado_por_mi && (
+                              <span className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                                Dir. etapa
+                              </span>
+                            )}
+                          </div>
                         </Link>
                       </div>
                     </td>
@@ -323,13 +391,33 @@ export default function GruposListClient({
                       {grupo.temporada_nombre || "Sin temporada"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <BadgeSistema 
-                        variante={grupo.activo ? "success" : "default"}
-                        tamaño="sm"
-                      >
-                        {grupo.activo ? "Activo" : "Inactivo"}
-                      </BadgeSistema>
+                      {grupo.eliminado ? (
+                        <BadgeSistema variante="default" tamaño="sm" className="bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
+                      ) : grupo.activo ? (
+                        <BadgeSistema variante="success" tamaño="sm">Activo</BadgeSistema>
+                      ) : (
+                        <BadgeSistema variante="default" tamaño="sm">Inactivo</BadgeSistema>
+                      )}
                     </td>
+                    {canDelete && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {grupo.eliminado ? (
+                          canRestore && (
+                            <button
+                              onClick={() => restaurarGrupo(grupo.id, grupo.nombre)}
+                              className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium"
+                            >Restaurar</button>
+                          )
+                        ) : (
+                          <button
+                            onClick={() => eliminarGrupo(grupo.id, grupo.nombre)}
+                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-medium"
+                          >
+                            <Trash2 className="w-4 h-4" /> Papelera
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
@@ -363,16 +451,38 @@ export default function GruposListClient({
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
-                        <h3 className="font-semibold text-gray-900 truncate hover:underline cursor-pointer">{grupo.nombre}</h3>
+                        <h3 className="font-semibold text-gray-900 truncate hover:underline cursor-pointer flex items-center gap-2">
+                          <span className="truncate">{grupo.nombre}</span>
+                          {grupo.supervisado_por_mi && (
+                            <span className="inline-flex flex-shrink-0 items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                              Dir. etapa
+                            </span>
+                          )}
+                        </h3>
                       </Link>
                     </div>
-                    <BadgeSistema 
-                      variante={grupo.activo ? "success" : "default"}
-                      tamaño="sm"
-                      className="ml-2 flex-shrink-0"
-                    >
-                      {grupo.activo ? "Activo" : "Inactivo"}
-                    </BadgeSistema>
+                    {grupo.eliminado ? (
+                      <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0 bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
+                    ) : grupo.activo ? (
+                      <BadgeSistema variante="success" tamaño="sm" className="ml-2 flex-shrink-0">Activo</BadgeSistema>
+                    ) : (
+                      <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0">Inactivo</BadgeSistema>
+                    )}
+                    {canDelete && (
+                      grupo.eliminado ? (
+                        canRestore && (
+                          <button
+                            onClick={() => restaurarGrupo(grupo.id, grupo.nombre)}
+                            className="ml-2 text-[11px] text-emerald-600 hover:underline"
+                          >Restaurar</button>
+                        )
+                      ) : (
+                        <button
+                          onClick={() => eliminarGrupo(grupo.id, grupo.nombre)}
+                          className="ml-2 text-[11px] text-red-600 hover:underline"
+                        >Papelera</button>
+                      )
+                    )}
                   </div>
                   
                   <div className="space-y-1 text-sm text-gray-600">
@@ -410,13 +520,9 @@ export default function GruposListClient({
                         {grupo.segmento_nombre || "Sin segmento"}
                       </BadgeSistema>
                     </div>
-                    <div>
-                      <span className="font-medium">Temporada:</span>{" "}
-                      <span>{grupo.temporada_nombre || "Sin temporada"}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  </div>{/* cierre flex-1 */}
+                </div>{/* cierre flex items-start */}
+              </div>{/* cierre tarjeta inner wrapper */}
             </TarjetaSistema>
           ))
         ) : (

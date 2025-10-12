@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SelectLeaderModal from '@/components/modals/SelectLeaderModal';
+import { Button } from '@/components/ui/button';
 import { createGroup } from "@/lib/actions/group.actions";
 import { InputSistema, BotonSistema } from "@/components/ui/sistema-diseno";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,9 @@ const groupCreateSchema = z.object({
   temporada_id: z.string().min(1, "Debes seleccionar una temporada"),
   segmento_id: z.string().min(1, "Debes seleccionar un segmento"),
   ubicacion: z.enum(["Barquisimeto", "Cabudare"], { required_error: "Selecciona una ubicación" }),
+  director_etapa_segmento_lider_id: z.string().optional().nullable(),
+  lider_usuario_id: z.string().optional().nullable(),
+  estado_aprobacion: z.enum(['aprobado','pendiente','rechazado']).optional().default('aprobado')
 });
 
 type GroupCreateFormData = z.infer<typeof groupCreateSchema>;
@@ -30,6 +35,12 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sugerenciaCargando, setSugerenciaCargando] = useState(false);
+  const [directores, setDirectores] = useState<{ id: string; usuario_id: string; nombre: string }[]>([]);
+  const [cargandoDirectores, setCargandoDirectores] = useState(false);
+  const [directoresError, setDirectoresError] = useState<string | null>(null);
+  // Modal selección global de líder
+  const [showLeaderModal, setShowLeaderModal] = useState(false);
+  const [leaderResumen, setLeaderResumen] = useState<string | null>(null);
 
   const {
     register,
@@ -49,6 +60,9 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
   const ubicacion = watch("ubicacion");
   const temporadaId = watch("temporada_id");
   const segmentoId = watch("segmento_id");
+  const directorLiderId = watch('director_etapa_segmento_lider_id');
+  const liderUsuarioId = watch('lider_usuario_id');
+  const estadoAprobacion = watch('estado_aprobacion');
 
   // Sugerir nombre cuando se tengan ubicacion, temporada y segmento
   useEffect(() => {
@@ -72,15 +86,83 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
     sugerir();
   }, [ubicacion, temporadaId, segmentoId, setValue]);
 
+  // Reset selección de director si cambia el segmento
+  useEffect(() => {
+    setValue('director_etapa_segmento_lider_id', null);
+  }, [segmentoId, setValue]);
+
+  const abortDirectoresRef = useRef<AbortController | null>(null);
+
+  const fetchDirectores = useCallback(async (segId: string) => {
+    if (!segId) { setDirectores([]); return; }
+    abortDirectoresRef.current?.abort();
+    const controller = new AbortController();
+    abortDirectoresRef.current = controller;
+    setCargandoDirectores(true);
+    setDirectoresError(null);
+    try {
+      const res = await fetch(`/api/segmentos/${segId}/directores-etapa`, { cache: 'no-store', signal: controller.signal });
+      if (!res.ok) {
+        setDirectoresError(`Error ${res.status}`);
+        setDirectores([]);
+        return;
+      }
+      const data = await res.json();
+      setDirectores(data?.directores || []);
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        setDirectoresError('Fallo al cargar');
+        setDirectores([]);
+      }
+    } finally {
+      setCargandoDirectores(false);
+    }
+  }, []);
+
+  // Cargar directores al cambiar segmento
+  useEffect(() => {
+    if (segmentoId) {
+      fetchDirectores(segmentoId);
+    } else {
+      setDirectores([]);
+    }
+    return () => {
+      abortDirectoresRef.current?.abort();
+    };
+  }, [segmentoId, fetchDirectores]);
+
+  // Limpiar selección de líder al cambiar segmento para evitar inconsistencias
+  useEffect(() => {
+    setValue('lider_usuario_id', null);
+    setLeaderResumen(null);
+  }, [segmentoId, setValue]);
+
   const handleFormSubmit = async (data: GroupCreateFormData) => {
     try {
       setIsLoading(true);
       setError(null);
-
+      // Mapear ubicacion textual a segmento_ubicacion_id
+      let segmentoUbicacionId: string | null = null;
+      if (data.segmento_id && data.ubicacion) {
+        try {
+          const res = await fetch(`/api/segmentos/${data.segmento_id}/ubicaciones`);
+          if (res.ok) {
+            const json = await res.json();
+            const match = (json.ubicaciones || []).find((u: any) => u.nombre === data.ubicacion);
+            if (match) segmentoUbicacionId = match.id;
+          }
+        } catch (e) {
+          // silencioso, no bloquea creación
+        }
+      }
       const result = await createGroup({
         nombre: data.nombre,
         temporada_id: data.temporada_id,
         segmento_id: data.segmento_id,
+        segmento_ubicacion_id: segmentoUbicacionId,
+        director_etapa_segmento_lider_id: data.director_etapa_segmento_lider_id || null,
+        lider_usuario_id: data.lider_usuario_id || null,
+        estado_aprobacion: data.estado_aprobacion
       });
       if (!result?.success) {
         setError(result?.error || "No autorizado para crear el grupo");
@@ -180,7 +262,7 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
           )}
         </div>
 
-  {/* Campo Segmento */}
+        {/* Campo Segmento */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">Segmento</label>
           <Controller
@@ -212,10 +294,107 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
             <p className="text-sm text-red-600">{errors.segmento_id.message}</p>
           )}
         </div>
+
+        {/* Director de Etapa */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">Director de Etapa (opcional)</label>
+            {segmentoId && (
+              <button
+                type="button"
+                onClick={() => fetchDirectores(segmentoId)}
+                className="text-xs text-indigo-600 hover:underline disabled:opacity-40"
+                disabled={cargandoDirectores}
+              >
+                {cargandoDirectores ? 'Actualizando...' : 'Recargar'}
+              </button>
+            )}
+          </div>
+          <Controller name="director_etapa_segmento_lider_id" control={control} render={({ field }) => {
+            const placeholder = cargandoDirectores
+              ? 'Cargando...'
+              : directoresError
+                ? `Error: ${directoresError}`
+                : directores.length
+                  ? 'Selecciona un director'
+                  : 'Sin directores';
+            return (
+              <Select
+                onValueChange={field.onChange}
+                value={field.value || undefined}
+                disabled={!segmentoId || cargandoDirectores || !!directoresError || directores.length === 0}
+              >
+                <SelectTrigger className={cn("w-full py-3 px-3 border border-gray-200 rounded-lg bg-white", (!segmentoId) && "opacity-50")}> 
+                  <SelectValue placeholder={placeholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  {directores.map(d => (
+                    <SelectItem key={d.id} value={d.id}>{d.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            );
+          }} />
+          {directoresError && (
+            <p className="text-xs text-red-600">No se pudieron cargar los directores. Intenta recargar.</p>
+          )}
+        </div>
+
+        {/* Líder Inicial con modal global */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Líder Inicial (opcional)</label>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowLeaderModal(true)}
+              disabled={!segmentoId}
+              className="min-w-[180px]"
+            >
+              {leaderResumen ? 'Cambiar líder' : 'Seleccionar líder'}
+            </Button>
+            {leaderResumen && (
+              <div className="text-sm text-gray-700 truncate max-w-xs" title={leaderResumen}>
+                {leaderResumen}
+              </div>
+            )}
+            {!leaderResumen && (
+              <div className="text-xs text-gray-500">Opcional: puedes asignarlo después.</div>
+            )}
+          </div>
+          <SelectLeaderModal
+            open={showLeaderModal}
+            onClose={() => setShowLeaderModal(false)}
+            onSelect={(u) => {
+              setValue('lider_usuario_id', u.id, { shouldValidate: true });
+              setLeaderResumen(`${u.nombre} ${u.apellido}`.trim());
+            }}
+            title="Seleccionar Líder Inicial"
+            description="Busca entre todos los usuarios permitidos y asigna uno como líder inicial del grupo."
+          />
+        </div>
+
+        {/* Estado Aprobación */}
+        <div className="space-y-2 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">Estado Inicial</label>
+          <Controller name="estado_aprobacion" control={control} render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger className="w-full py-3 px-3 border border-gray-200 rounded-lg bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="aprobado">Aprobado</SelectItem>
+                <SelectItem value="pendiente">Pendiente</SelectItem>
+                <SelectItem value="rechazado">Rechazado</SelectItem>
+              </SelectContent>
+            </Select>
+          )} />
+          <p className="text-xs text-gray-500">Puedes dejarlo en Aprobado o marcar como Pendiente para revisión posterior.</p>
+        </div>
       </div>
 
       {/* Botón de envío */}
-  <div className="pt-2">
+      <div className="pt-2">
         <BotonSistema
           type="submit"
           variante="primario"
