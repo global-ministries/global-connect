@@ -2,6 +2,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useDirectorGroupAssignments } from '@/hooks/useDirectorGroupAssignments'
 import { createPortal } from 'react-dom'
+import { TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { X, RefreshCw, Users } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface Props {
   open: boolean
@@ -51,69 +54,131 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
 
   const ui = (
     <>
-      <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm" />
-      <div className="fixed inset-0 z-[310] flex flex-col bg-white dark:bg-neutral-900">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-900/90 backdrop-blur">
-          <h2 className="font-semibold text-lg">Grupos de {directorNombre || 'Director'}</h2>
-          <div className="flex items-center gap-2">
-            <button onClick={()=>refresh()} className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800">Refrescar</button>
-            <button onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800">Cerrar</button>
-          </div>
-        </div>
-        <div className="px-6 py-4 flex flex-col gap-4 overflow-hidden flex-1">
-          <div className="flex flex-wrap gap-2 items-end text-xs">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wide text-gray-500">Buscar</label>
-              <input value={buscar} onChange={e=>setBuscar(e.target.value)} placeholder="Nombre o líder" className="border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 text-xs bg-white dark:bg-neutral-800" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wide text-gray-500">Temporada</label>
-              <select value={filtroTemporada} onChange={e=>setFiltroTemporada(e.target.value)} className="border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 text-xs bg-white dark:bg-neutral-800 min-w-[140px]">
-                <option value="">Todas</option>
-                {temporadas.map(t=> <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase tracking-wide text-gray-500">Estado</label>
-              <select value={filtroActivo} onChange={e=>setFiltroActivo(e.target.value as any)} className="border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 text-xs bg-white dark:bg-neutral-800">
-                <option value="todos">Todos</option>
-                <option value="activos">Activos</option>
-                <option value="inactivos">Inactivos</option>
-              </select>
-            </div>
-            {(buscar||filtroTemporada||filtroActivo!=='todos') && (
-              <button onClick={()=>{setBuscar('');setFiltroTemporada('');setFiltroActivo('todos')}} className="h-7 mt-4 px-2 rounded text-xs bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700">Limpiar</button>
-            )}
-            <div className="ml-auto text-[11px] text-gray-500">Total: {lista.length}</div>
-          </div>
-          <div className="flex-1 overflow-auto rounded border border-gray-200 dark:border-neutral-800 divide-y divide-gray-100 dark:divide-neutral-800">
-            {loading && <div className="p-4 text-sm">Cargando...</div>}
-            {!loading && lista.length === 0 && <div className="p-4 text-sm text-gray-500">Sin grupos asignados.</div>}
-            {!loading && lista.map(g => (
-              <div key={g.id} className="p-3 space-y-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm truncate" title={g.nombre}>{g.nombre}</span>
-                  {g.activo === false ? (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-300 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">Inactivo</span>
-                  ) : (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-600/20 dark:text-emerald-300">Activo</span>
-                  )}
-                  {g.temporadaNombre && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-600/20 dark:text-indigo-300">{g.temporadaNombre}</span>
-                  )}
-                  {g.directoresCount && g.directoresCount > 1 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-600/20 dark:text-orange-300" title="Total directores asignados">{g.directoresCount} dir</span>
-                  )}
+      <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-[310] flex items-center justify-center p-4 pointer-events-none">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-gray-200">
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-br from-orange-50 to-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center text-white">
+                  <Users className="w-5 h-5" />
                 </div>
-                <div className="text-[11px] text-gray-600 dark:text-gray-400 flex flex-wrap gap-x-4 gap-y-1">
-                  <span>Miembros: {g.miembrosCount ?? 0}</span>
-                  <span>Líderes: {g.lideres && g.lideres.length ? g.lideres.join(', ') : '—'}</span>
-                  {g.directoresSample && g.directoresSample.length > 0 && (
-                    <span className="truncate max-w-[240px]" title={`Otros directores: ${g.directoresSample.join(', ')}`}>Otros dir: {g.directoresSample.join(', ')}</span>
-                  )}
+                <div>
+                  <TituloSistema nivel={3} className="mb-0">Grupos Asignados</TituloSistema>
+                  <TextoSistema variante="sutil" className="text-xs">{directorNombre || 'Director'}</TextoSistema>
                 </div>
               </div>
-            ))}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={()=>refresh()}>
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Refrescar
+                </Button>
+                <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                  <X className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Filtros */}
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex flex-col gap-1.5 flex-1 min-w-[180px]">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Buscar</label>
+                <input 
+                  value={buscar} 
+                  onChange={e=>setBuscar(e.target.value)} 
+                  placeholder="Nombre o líder" 
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Temporada</label>
+                <select 
+                  value={filtroTemporada} 
+                  onChange={e=>setFiltroTemporada(e.target.value)} 
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400/40 min-w-[140px]"
+                >
+                  <option value="">Todas</option>
+                  {temporadas.map(t=> <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Estado</label>
+                <select 
+                  value={filtroActivo} 
+                  onChange={e=>setFiltroActivo(e.target.value as any)} 
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="activos">Activos</option>
+                  <option value="inactivos">Inactivos</option>
+                </select>
+              </div>
+              {(buscar||filtroTemporada||filtroActivo!=='todos') && (
+                <Button variant="outline" size="sm" onClick={()=>{setBuscar('');setFiltroTemporada('');setFiltroActivo('todos')}}>
+                  Limpiar
+                </Button>
+              )}
+              <div className="ml-auto self-center">
+                <BadgeSistema variante="info" className="text-xs">Total: {lista.length}</BadgeSistema>
+              </div>
+            </div>
+          </div>
+
+          {/* Lista de grupos */}
+          <div className="flex-1 overflow-auto px-6 py-4">
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <TextoSistema variante="sutil">Cargando grupos...</TextoSistema>
+              </div>
+            )}
+            {!loading && lista.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <TextoSistema variante="sutil">Sin grupos asignados.</TextoSistema>
+              </div>
+            )}
+            {!loading && lista.length > 0 && (
+              <div className="space-y-3">
+                {lista.map(g => (
+                  <div key={g.id} className="bg-white/50 border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-800 text-base truncate" title={g.nombre}>{g.nombre}</h4>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {g.activo === false ? (
+                          <BadgeSistema variante="neutral">Inactivo</BadgeSistema>
+                        ) : (
+                          <BadgeSistema variante="success">Activo</BadgeSistema>
+                        )}
+                        {g.temporadaNombre && (
+                          <BadgeSistema variante="info">{g.temporadaNombre}</BadgeSistema>
+                        )}
+                        {g.directoresCount && g.directoresCount > 1 && (
+                          <BadgeSistema variante="warning" title="Total directores asignados">{g.directoresCount} dir</BadgeSistema>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-600 flex flex-wrap gap-x-4 gap-y-1">
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        <strong>Miembros:</strong> {g.miembrosCount ?? 0}
+                      </span>
+                      <span>
+                        <strong>Líderes:</strong> {g.lideres && g.lideres.length ? g.lideres.join(', ') : '—'}
+                      </span>
+                      {g.directoresSample && g.directoresSample.length > 0 && (
+                        <span className="truncate max-w-[280px]" title={`Otros directores: ${g.directoresSample.join(', ')}`}>
+                          <strong>Otros dir:</strong> {g.directoresSample.join(', ')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

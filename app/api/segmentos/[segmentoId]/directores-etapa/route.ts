@@ -20,7 +20,7 @@ export async function GET(req: Request, context: { params: Promise<{ segmentoId:
     // Intento primario: join anidado (puede fallar silenciosamente bajo RLS devolviendo 0 filas)
     const { data: dataJoin, error: errorJoin } = await supabase
       .from('segmento_lideres')
-      .select('id, usuario_id, usuario:usuario_id (nombre, apellido, email)')
+      .select('id, usuario_id, usuario:usuario_id (nombre, apellido, email, foto_perfil_url)')
       .eq('segmento_id', segmentoId)
       .eq('tipo_lider', 'director_etapa')
       .limit(100);
@@ -44,23 +44,23 @@ export async function GET(req: Request, context: { params: Promise<{ segmentoId:
       }
       if (filasBase && filasBase.length > 0) {
         const usuarioIds = [...new Set(filasBase.map(f => f.usuario_id))];
-        let usuariosMap = new Map<string, { nombre: string; apellido: string; email?: string | null }>();
+        let usuariosMap = new Map<string, { nombre: string; apellido: string; email?: string | null; foto_perfil_url?: string | null }>();
         if (usuarioIds.length > 0) {
           const { data: usuariosData, error: usuariosErr } = await supabase
             .from('usuarios')
-            .select('id, nombre, apellido, email')
+            .select('id, nombre, apellido, email, foto_perfil_url')
             .in('id', usuarioIds)
             .limit(200);
           if (usuariosErr) {
             console.warn('[directores-etapa] usuariosErr', usuariosErr.message);
           } else {
             for (const u of usuariosData || []) {
-              usuariosMap.set(u.id, { nombre: u.nombre || '', apellido: u.apellido || '', email: u.email || null });
+              usuariosMap.set(u.id, { nombre: u.nombre || '', apellido: u.apellido || '', email: u.email || null, foto_perfil_url: (u as any).foto_perfil_url || null });
             }
           }
         }
         registros = filasBase.map(f => {
-          const info = usuariosMap.get(f.usuario_id) || { nombre: '', apellido: '', email: null };
+          const info = usuariosMap.get(f.usuario_id) || { nombre: '', apellido: '', email: null, foto_perfil_url: null };
             return {
               id: f.id,
               usuario_id: f.usuario_id,
@@ -76,7 +76,8 @@ export async function GET(req: Request, context: { params: Promise<{ segmentoId:
       return {
         id: d.id,
         usuario_id: d.usuario_id,
-        nombre: baseNombre || fallback
+        nombre: baseNombre || fallback,
+        foto_perfil_url: d.usuario?.foto_perfil_url || null
       };
     });
 
@@ -116,6 +117,9 @@ export async function POST(req: Request, context: { params: Promise<{ segmentoId
   const supabaseAdmin = createSupabaseAdminClient();
   const userWithRoles = await getUserWithRoles(supabase);
   if (!userWithRoles) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
     let payload: any;
     try { payload = await req.json(); } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }

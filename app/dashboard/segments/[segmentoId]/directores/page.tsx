@@ -52,17 +52,15 @@ export default async function DirectoresSegmentoPage({ params }: Props) {
         </div>
 
         <div className="space-y-6">
-          <TarjetaSistema className="p-5">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center text-white">
-                <Users className="w-6 h-6" />
-              </div>
-              <div className="flex-1">
-                <TituloSistema nivel={3}>Asignaciones de Directores</TituloSistema>
-                <TextoSistema variante="sutil" className="mt-1">Asigna y visualiza directores por ciudad y (próximamente) por grupo.</TextoSistema>
-              </div>
-            </div>
-            <div className="mt-6">
+          <TarjetaSistema className="p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <Users className="w-5 h-5 text-orange-500" />
+              Asignaciones de Directores
+            </h3>
+            <TextoSistema variante="sutil" className="-mt-4 mb-4">Asigna y visualiza directores por ciudad y (próximamente) por grupo.</TextoSistema>
+
+            {/* Contenido con estilo tipo 'Miembros' */}
+            <div className="bg-white/50 border border-gray-200 rounded-xl p-4">
               <Suspense fallback={<div className="text-sm text-gray-500">Cargando módulo...</div>}>
                 <DirectoresSegmentoClient segmentoId={segmentoId} esSuperior={esSuperior} />
               </Suspense>

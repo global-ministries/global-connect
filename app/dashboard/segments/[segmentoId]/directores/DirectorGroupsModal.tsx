@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDirectorGroupAssignments } from '@/hooks/useDirectorGroupAssignments'
 import { useToast } from '@/hooks/use-toast'
+import { TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { X, Save, Users, AlertTriangle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface DirectorGroupsModalProps {
   open: boolean
@@ -145,144 +148,220 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
 
   const modalUi = (
     <>
-      <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm" />
-      <div className="fixed inset-0 z-[160] flex flex-col bg-white dark:bg-neutral-900">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-900/90 backdrop-blur">
-        <h2 className="font-semibold text-lg">Asignar Grupos a {directorNombre || 'Director'}</h2>
-        <div className="flex items-center gap-2">
-          <button onClick={onClose} className="px-3 py-1.5 text-sm rounded border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800">Cerrar</button>
-          <button disabled={cargandoGuardar} onClick={guardado} className="px-4 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60">
-            {cargandoGuardar ? 'Guardando...' : 'Guardar'}
-          </button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="px-6 py-4 space-y-4 overflow-auto">
-          {error && <div className="text-sm text-red-600">{error}</div>}
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-2 flex-1">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Selecciona los grupos. Elige cómo aplicar los cambios:</div>
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <div className="flex items-center gap-1 bg-gray-100 dark:bg-neutral-800 rounded p-1">
-                  <button
-                    type="button"
-                    onClick={()=> setModo('merge')}
-                    className={`px-2 py-1 rounded transition text-xs ${modo==='merge' ? 'bg-white dark:bg-neutral-700 shadow font-medium' : 'opacity-70 hover:opacity-100'}`}
-                    aria-pressed={modo==='merge'}
-                  >Cambios puntuales</button>
-                  <button
-                    type="button"
-                    onClick={()=> setModo('replace')}
-                    className={`px-2 py-1 rounded transition text-xs ${modo==='replace' ? 'bg-white dark:bg-neutral-700 shadow font-medium' : 'opacity-70 hover:opacity-100'}`}
-                    aria-pressed={modo==='replace'}
-                    title="Dejará asignados solamente los grupos seleccionados y quitará el resto"
-                  >Reemplazar todo</button>
+      <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-gray-200">
+          {/* Header */}
+          <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-br from-orange-50 to-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center text-white">
+                  <Users className="w-5 h-5" />
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <select value={filtroActivo} onChange={e=>setFiltroActivo(e.target.value as any)} className="border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 bg-white dark:bg-neutral-800">
-                    <option value="todos">Todos</option>
-                    <option value="activos">Activos</option>
-                    <option value="inactivos">Inactivos</option>
-                  </select>
-                  <select value={filtroTemporada} onChange={e=>setFiltroTemporada(e.target.value)} className="border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 bg-white dark:bg-neutral-800 min-w-[140px]">
-                    <option value="">Todas las temporadas</option>
-                    {temporadasUnicas.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <input
-                    type="text"
-                    value={buscarLider}
-                    onChange={e=>setBuscarLider(e.target.value)}
-                    placeholder="Buscar líder..."
-                    className="border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 bg-white dark:bg-neutral-800 placeholder:text-gray-400 dark:placeholder:text-neutral-500 w-40"
-                  />
-                  {(filtroActivo!=='todos' || filtroTemporada) && (
-                    <button onClick={()=>{setFiltroActivo('todos'); setFiltroTemporada('')}} className="text-xs text-blue-600 hover:underline">Limpiar filtros</button>
-                  )}
+                <div>
+                  <TituloSistema nivel={3} className="mb-0">Asignar Grupos</TituloSistema>
+                  <TextoSistema variante="sutil" className="text-xs">{directorNombre || 'Director'}</TextoSistema>
                 </div>
               </div>
-              <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                {modo==='merge' ? 'Solo añade o quita respecto a lo existente.' : 'Reemplazará la lista completa de asignaciones por la selección actual.'}
+              <div className="flex items-center gap-2">
+                <Button variant="default" size="sm" onClick={guardado} disabled={cargandoGuardar}>
+                  <Save className="w-4 h-4 mr-1" />
+                  {cargandoGuardar ? 'Guardando...' : 'Guardar'}
+                </Button>
+                <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                  <X className="w-5 h-5 text-gray-600" />
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-4 text-xs">
-              <div className="text-gray-500 dark:text-gray-400">Total grupos: {gruposOrdenados.length}</div>
-              <div className="text-gray-500 dark:text-gray-400">Seleccionados: {seleccion.size}</div>
+          </div>
+
+          {/* Controles y filtros */}
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 space-y-3">
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                <TextoSistema className="text-sm text-red-700">{error}</TextoSistema>
+              </div>
+            )}
+            
+            {/* Modo de guardado */}
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Modo de guardado</label>
+              <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200 w-fit">
+                <button
+                  type="button"
+                  onClick={()=> setModo('merge')}
+                  className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo==='merge' ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+                >Cambios puntuales</button>
+                <button
+                  type="button"
+                  onClick={()=> setModo('replace')}
+                  className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo==='replace' ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+                  title="Dejará asignados solamente los grupos seleccionados y quitará el resto"
+                >Reemplazar todo</button>
+              </div>
+              <TextoSistema variante="sutil" className="text-[11px]">
+                {modo==='merge' ? '✓ Solo añade o quita respecto a lo existente.' : '⚠️ Reemplazará la lista completa de asignaciones por la selección actual.'}
+              </TextoSistema>
+            </div>
+
+            {/* Filtros */}
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Buscar líder</label>
+                <input
+                  type="text"
+                  value={buscarLider}
+                  onChange={e=>setBuscarLider(e.target.value)}
+                  placeholder="Nombre del líder..."
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Estado</label>
+                <select value={filtroActivo} onChange={e=>setFiltroActivo(e.target.value as any)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400/40">
+                  <option value="todos">Todos</option>
+                  <option value="activos">Activos</option>
+                  <option value="inactivos">Inactivos</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Temporada</label>
+                <select value={filtroTemporada} onChange={e=>setFiltroTemporada(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400/40 min-w-[140px]">
+                  <option value="">Todas</option>
+                  {temporadasUnicas.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              {(filtroActivo!=='todos' || filtroTemporada || buscarLider) && (
+                <Button variant="outline" size="sm" onClick={()=>{setFiltroActivo('todos'); setFiltroTemporada(''); setBuscarLider('')}}>
+                  Limpiar
+                </Button>
+              )}
+              <div className="ml-auto flex items-center gap-3">
+                <BadgeSistema variante="neutral" className="text-xs">Total: {gruposOrdenados.length}</BadgeSistema>
+                <BadgeSistema variante="info" className="text-xs">Seleccionados: {seleccion.size}</BadgeSistema>
+              </div>
             </div>
           </div>
-          <div className="h-[calc(100vh-260px)] overflow-auto rounded border border-gray-200 dark:border-neutral-800 divide-y divide-gray-100 dark:divide-neutral-800">
-            {loading && <div className="p-4 text-sm">Cargando...</div>}
-            {!loading && gruposOrdenados.length === 0 && <div className="p-4 text-sm text-gray-500">No hay grupos.</div>}
-            {!loading && gruposOrdenados.map(g => {
-              const checked = seleccion.has(g.id)
-              const multi = g.directoresCount && g.directoresCount > 0
-              return (
-                <label key={g.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 dark:hover:bg-neutral-800 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    checked={checked}
-                    onChange={() => toggleGrupo(g.id, checked, (g.directoresCount||0) - (g.asignado?1:0), g.directoresSample || [])}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm truncate" title={g.nombre}>{g.nombre}</span>
-                      {g.activo === false
-                        ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">Inactivo</span>
-                        : <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-600/20 dark:text-emerald-300">Activo</span>
-                      }
-                      {g.asignado && <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-600/20 dark:text-emerald-300">Asignado</span>}
-                      {multi && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-600/20 dark:text-indigo-300" title="Total de directores en este grupo">
-                          {g.directoresCount} dir
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-gray-600 dark:text-gray-400 space-x-2 flex flex-wrap items-center">
-                      <span>Temporada: {g.temporadaNombre || '—'}</span>
-                      <span>Miembros: {g.miembrosCount ?? 0}</span>
-                      <span>Líderes: {g.lideres && g.lideres.length ? g.lideres.join(', ') : '—'}</span>
-                      {multi && g.directoresSample && g.directoresSample.length > 0 && (
-                        <span className="truncate max-w-[200px]" title={`Otros directores: ${g.directoresSample.join(', ')}`}>Otros dir: {g.directoresSample.join(', ')}</span>
-                      )}
-                    </div>
-                  </div>
-                </label>
-              )
-            })}
-          </div>
+
+          {/* Lista de grupos */}
+          <div className="flex-1 overflow-auto px-6 py-4">
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <TextoSistema variante="sutil">Cargando grupos...</TextoSistema>
+              </div>
+            )}
+            {!loading && gruposOrdenados.length === 0 && (
+              <div className="flex items-center justify-center py-12">
+                <TextoSistema variante="sutil">No hay grupos disponibles.</TextoSistema>
+              </div>
+            )}
+            {!loading && gruposOrdenados.length > 0 && (
+              <div className="space-y-3">
+                {gruposOrdenados.map(g => {
+                  const checked = seleccion.has(g.id)
+                  const multi = g.directoresCount && g.directoresCount > 0
+                  return (
+                    <label key={g.id} className="flex items-start gap-3 p-4 bg-white/50 border border-gray-200 rounded-xl hover:shadow-md transition-all cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-1 w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400/40"
+                        checked={checked}
+                        onChange={() => toggleGrupo(g.id, checked, (g.directoresCount||0) - (g.asignado?1:0), g.directoresSample || [])}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <h4 className="font-semibold text-gray-800 text-base truncate" title={g.nombre}>{g.nombre}</h4>
+                          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                            {g.activo === false ? (
+                              <BadgeSistema variante="neutral">Inactivo</BadgeSistema>
+                            ) : (
+                              <BadgeSistema variante="success">Activo</BadgeSistema>
+                            )}
+                            {g.asignado && <BadgeSistema variante="success">Asignado</BadgeSistema>}
+                            {multi && (
+                              <BadgeSistema variante="info" title="Total de directores en este grupo">{g.directoresCount} dir</BadgeSistema>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-600 flex flex-wrap gap-x-4 gap-y-1">
+                          <span><strong>Temporada:</strong> {g.temporadaNombre || '—'}</span>
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            <strong>Miembros:</strong> {g.miembrosCount ?? 0}
+                          </span>
+                          <span><strong>Líderes:</strong> {g.lideres && g.lideres.length ? g.lideres.join(', ') : '—'}</span>
+                          {multi && g.directoresSample && g.directoresSample.length > 0 && (
+                            <span className="truncate max-w-[280px]" title={`Otros directores: ${g.directoresSample.join(', ')}`}>
+                              <strong>Otros dir:</strong> {g.directoresSample.join(', ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {confirmData && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl p-5 space-y-4">
-            <h3 className="font-semibold text-base">Agregar otro director a este grupo</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Este grupo ya tiene {confirmData.nombres.length} director(es):</p>
-            <ul className="text-sm list-disc list-inside text-gray-700 dark:text-gray-200">
-              {confirmData.nombres.map(n => <li key={n}>{n}</li>)}
-            </ul>
-            <p className="text-sm text-gray-600 dark:text-gray-300">¿Confirmas añadir también a {directorNombre || 'este director'}?</p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setConfirmData(null)} className="px-3 py-1.5 text-sm rounded border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800">Cancelar</button>
-              <button onClick={confirmarAgregar} className="px-4 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">Confirmar</button>
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-gray-200 shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 bg-gradient-to-br from-orange-50 to-white border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center text-white flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <TituloSistema nivel={4} className="mb-0">Agregar otro director</TituloSistema>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <TextoSistema className="text-sm">Este grupo ya tiene {confirmData.nombres.length} director(es):</TextoSistema>
+              <ul className="space-y-1 pl-4">
+                {confirmData.nombres.map(n => (
+                  <li key={n} className="text-sm text-gray-700 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                    {n}
+                  </li>
+                ))}
+              </ul>
+              <TextoSistema className="text-sm">¿Confirmas añadir también a <strong>{directorNombre || 'este director'}</strong>?</TextoSistema>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setConfirmData(null)}>Cancelar</Button>
+                <Button variant="default" size="sm" onClick={confirmarAgregar}>Confirmar</Button>
+              </div>
             </div>
           </div>
         </div>
       )}
       {confirmReplace && (
-        <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-lg bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl p-5 space-y-4">
-            <h3 className="font-semibold text-base">Reemplazar asignaciones</h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300">Vas a dejar asignados únicamente los grupos marcados.</p>
-            <p className="text-sm text-gray-700 dark:text-gray-300">Se quitarán <strong>{confirmReplace.quitar}</strong> y quedarán <strong>{confirmReplace.agregar}</strong> seleccionados.</p>
-            <p className="text-xs text-amber-600 dark:text-amber-400">Esta acción no afecta a otros directores del mismo grupo.</p>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setConfirmReplace(null)} className="px-3 py-1.5 text-sm rounded border border-gray-300 dark:border-neutral-600 hover:bg-gray-50 dark:hover:bg-neutral-800">Cancelar</button>
-              <button
-                onClick={() => { guardado() }}
-                className="px-4 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700"
-              >Reemplazar</button>
+        <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white border border-gray-200 shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 bg-gradient-to-br from-red-50 to-white border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-white flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <TituloSistema nivel={4} className="mb-0">Reemplazar asignaciones</TituloSistema>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <TextoSistema className="text-sm">Vas a dejar asignados únicamente los grupos marcados.</TextoSistema>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <TextoSistema className="text-sm text-amber-900">
+                  Se quitarán <strong>{confirmReplace.quitar}</strong> y quedarán <strong>{confirmReplace.agregar}</strong> seleccionados.
+                </TextoSistema>
+              </div>
+              <TextoSistema variante="sutil" className="text-xs">
+                ℹ️ Esta acción no afecta a otros directores del mismo grupo.
+              </TextoSistema>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setConfirmReplace(null)}>Cancelar</Button>
+                <Button variant="destructive" size="sm" onClick={() => { guardado() }}>Reemplazar</Button>
+              </div>
             </div>
           </div>
         </div>

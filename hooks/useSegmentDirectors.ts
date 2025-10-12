@@ -4,6 +4,7 @@ interface DirectorEtapaEntry {
   id: string
   usuario_id: string
   nombre: string
+  foto_perfil_url?: string | null
   ciudades?: string[]
   asignaciones?: { grupo_id: string }[]
 }
