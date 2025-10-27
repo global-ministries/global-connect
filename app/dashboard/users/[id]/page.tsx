@@ -14,7 +14,8 @@ import {
   Heart,
   Shield,
   Clock,
-  Trash2
+  Trash2,
+  BarChart3
 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
@@ -318,12 +319,18 @@ export default function PaginaDetalleUsuario() {
                 </div>
               </div>
 
-              {/* Botón de editar compacto */}
-              <div className="flex-shrink-0">
+              {/* Botones de acción compactos */}
+              <div className="flex-shrink-0 flex gap-2">
+                <Link href={`/dashboard/users/${usuario.id}/asistencia`}>
+                  <BotonSistema variante="outline" tamaño="sm" className="gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Asistencia</span>
+                  </BotonSistema>
+                </Link>
                 <Link href={`/dashboard/users/${usuario.id}/edit`}>
                   <BotonSistema variante="primario" tamaño="sm" className="gap-2">
                     <Edit className="w-4 h-4" />
-                    <span className="hidden sm:inline">Editar Perfil</span>
+                    <span className="hidden sm:inline">Editar</span>
                   </BotonSistema>
                 </Link>
               </div>
