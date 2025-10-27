@@ -1,3 +1,12 @@
+### Comportamiento de `p_incluir_todos`
+
+Cuando `p_incluir_todos = true`:
+
+- **Porcentaje global**: promedio de porcentajes por grupo incluyendo 0% para grupos sin registros; cuando es `false`, se calcula sobre los eventos registrados (presentes/total).
+- **Reuniones y grupos con reunión**: se cuentan solo reuniones realmente registradas, pero se listan 0 para grupos sin reunión.
+- **Segmentos**: porcentaje por segmento incluye grupos sin reporte como 0%.
+- **Tendencia (8 semanas)**: el porcentaje de cada semana promedia por grupo incluyendo 0% cuando no hubo registros.
+- **Top en riesgo**: incluye grupos sin reporte (0%) en el orden ascendente.
 # API de Reportes
 
 Documentación de las funciones RPC relacionadas con reportes y análisis de datos en Global Connect.
@@ -35,7 +44,8 @@ Esta función proporciona una vista ejecutiva completa de la asistencia semanal 
 ```sql
 obtener_reporte_semanal_asistencia(
   p_auth_id uuid,
-  p_fecha_semana date DEFAULT NULL
+  p_fecha_semana date DEFAULT NULL,
+  p_incluir_todos boolean DEFAULT false
 ) RETURNS jsonb
 ```
 
@@ -45,6 +55,7 @@ obtener_reporte_semanal_asistencia(
 |-----------|------|-----------|-------------|
 | `p_auth_id` | `uuid` | Sí | UUID de autenticación del usuario solicitante (de `auth.users`) |
 | `p_fecha_semana` | `date` | No | Cualquier fecha dentro de la semana a analizar. Si es `NULL`, usa la semana actual. La función calcula automáticamente el rango domingo-sábado |
+| `p_incluir_todos` | `boolean` | No | Si es `true`, incluye a todos los grupos activos en los cálculos aunque no hayan reportado asistencia en la semana (se considera 0%). Por defecto `false`. |
 
 ### Sistema de Permisos
 
@@ -90,8 +101,8 @@ La función retorna un objeto JSON con la siguiente estructura:
 ```typescript
 {
   semana: {
-    inicio: string        // Fecha de inicio (domingo) en formato YYYY-MM-DD
-    fin: string          // Fecha de fin (sábado) en formato YYYY-MM-DD
+    inicio: string        // Fecha de inicio (lunes) en formato YYYY-MM-DD
+    fin: string          // Fecha de fin (domingo) en formato YYYY-MM-DD
     numero: number       // Número de semana del año (1-52)
   },
   kpis_globales: {
@@ -99,6 +110,7 @@ La función retorna un objeto JSON con la siguiente estructura:
     variacion_semana_anterior: number       // Diferencia vs semana anterior (+/-)
     total_reuniones_registradas: number     // Cantidad de eventos registrados
     total_grupos_con_reunion: number        // Cantidad de grupos que tuvieron reunión
+    total_grupos_activos: number            // Cantidad total de grupos activos (según permisos)
   },
   tendencia_asistencia_global: [
     {
@@ -152,7 +164,8 @@ export default async function ReportePage() {
     'obtener_reporte_semanal_asistencia',
     {
       p_auth_id: user.id,
-      p_fecha_semana: null  // null = semana actual
+      p_fecha_semana: null,  // null = semana actual
+      p_incluir_todos: true  // incluye todos los grupos activos
     }
   )
   
@@ -169,7 +182,8 @@ const { data: reporteSemanaAnterior } = await supabase.rpc(
   'obtener_reporte_semanal_asistencia',
   {
     p_auth_id: user.id,
-    p_fecha_semana: '2025-10-20'  // Cualquier día de esa semana
+    p_fecha_semana: '2025-10-20',  // Cualquier día de esa semana
+    p_incluir_todos: false
   }
 )
 ```
@@ -187,7 +201,8 @@ const { data: reporteSemanaAnterior } = await supabase.rpc(
     "porcentaje_asistencia_global": 88.5,
     "variacion_semana_anterior": 1.2,
     "total_reuniones_registradas": 75,
-    "total_grupos_con_reunion": 72
+    "total_grupos_con_reunion": 72,
+    "total_grupos_activos": 95
   },
   "tendencia_asistencia_global": [
     { "semana_inicio": "2025-09-07", "porcentaje": 85.0 },
@@ -246,14 +261,14 @@ const { data: reporteSemanaAnterior } = await supabase.rpc(
 
 #### Cálculo de Semanas
 
-La función utiliza el estándar domingo-sábado para definir semanas:
+La función utiliza el estándar ISO (lunes a domingo):
 
 ```sql
--- Inicio de semana (domingo)
-v_fecha_inicio := p_fecha_semana - (EXTRACT(DOW FROM p_fecha_semana)::int)
+-- Inicio de semana (lunes)
+v_fecha_inicio := p_fecha_semana - ((EXTRACT(ISODOW FROM p_fecha_semana)::int) - 1);
 
--- Fin de semana (sábado)
-v_fecha_fin := v_fecha_inicio + INTERVAL '6 days'
+-- Fin de semana (domingo)
+v_fecha_fin := v_fecha_inicio + INTERVAL '6 days';
 ```
 
 #### Manejo de Datos Vacíos
