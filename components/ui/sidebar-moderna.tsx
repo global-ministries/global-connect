@@ -14,9 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
-  Calendar,
   User,
-  Layers,
   BarChart3
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
@@ -45,12 +43,6 @@ const menuItems: MenuItem[] = [
     href: '/dashboard',
   },
   {
-    id: 'segmentos',
-    label: 'Segmentos',
-    icon: Layers,
-    href: '/dashboard/segments',
-  },
-  {
     id: 'usuarios',
     label: 'Usuarios',
     icon: Users,
@@ -63,12 +55,6 @@ const menuItems: MenuItem[] = [
     href: '/dashboard/grupos',
   },
   {
-    id: 'temporadas',
-    label: 'Temporadas',
-    icon: Calendar,
-    href: '/dashboard/temporadas',
-  },
-  {
     id: 'reportes',
     label: 'Reportes',
     icon: BarChart3,
@@ -78,7 +64,7 @@ const menuItems: MenuItem[] = [
     id: 'configuracion',
     label: 'Configuración',
     icon: Settings,
-    href: '/dashboard/settings',
+    href: '/dashboard/configuracion',
   },
   {
     id: 'ayuda',
@@ -263,42 +249,49 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         {/* Navegación */}
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon
-              const active = isActive(item)
-              
-              return (
-                <li key={item.id}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
-                      active 
-                        ? "bg-orange-50 text-orange-700 border border-orange-200" 
-                        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
-                      isCollapsed && "justify-center px-2"
-                    )}
-                  >
-                    <Icon className={cn(
-                      "flex-shrink-0 transition-colors",
-                      active ? "text-orange-600" : "text-gray-500 group-hover:text-gray-700",
-                      isCollapsed ? "w-6 h-6" : "w-5 h-5"
-                    )} />
+            {menuItems
+              .filter((it) => {
+                const ocultarReportes = roles.includes('lider') || roles.includes('miembro')
+                if (it.id === 'reportes' && ocultarReportes) return false
+                return true
+              })
+              .map((item) => {
+                const Icon = item.icon
+                const active = isActive(item)
+                
+                return (
+                  <li key={item.id}>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
+                        active 
+                          ? "bg-orange-50 text-orange-700 border border-orange-200" 
+                          : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
+                        isCollapsed && "justify-center px-2"
+                      )}
+                    >
+                      <Icon className={cn(
+                        "flex-shrink-0 transition-colors",
+                        active ? "text-orange-600" : "text-gray-500 group-hover:text-gray-700",
+                        isCollapsed ? "w-6 h-6" : "w-5 h-5"
+                      )} />
+                      
+                      {!isCollapsed && (
+                        <>
+                          <span className="font-medium truncate">{item.label}</span>
+                          {item.badge && (
+                            <BadgeSistema 
+                              variante={item.badgeVariant || 'default'} 
+                              tamaño="sm"
+                              className="ml-auto"
+                            >
+                              {item.badge}
+                            </BadgeSistema>
+                          )}
+                        </>
+                      )}
                     
-                    {!isCollapsed && (
-                      <>
-                        <span className="font-medium truncate">{item.label}</span>
-                        {item.badge && (
-                          <BadgeSistema 
-                            variante={item.badgeVariant || 'default'} 
-                            tamaño="sm"
-                            className="ml-auto"
-                          >
-                            {item.badge}
-                          </BadgeSistema>
-                        )}
-                      </>
-                    )}
 
                     {/* Tooltip para modo colapsado */}
                     {isCollapsed && (
@@ -310,7 +303,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                   </Link>
                 </li>
               )
-            })}
+              })}
           </ul>
         </nav>
 
