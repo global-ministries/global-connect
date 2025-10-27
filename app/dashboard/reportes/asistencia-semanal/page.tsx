@@ -5,7 +5,7 @@ import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import ReporteSemanal from '@/components/reportes/ReporteSemanal.client'
 
 type PageProps = {
-  searchParams: Promise<{ semana?: string }>
+  searchParams: Promise<{ semana?: string; todos?: string }>
 }
 
 export default async function ReporteSemanalPage({ searchParams }: PageProps) {
@@ -24,13 +24,17 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
   // Resolver searchParams (Next.js 15)
   const searchParamsResolved = await searchParams
   const fechaSemana = searchParamsResolved.semana || null
+  const incluirTodos =
+    (searchParamsResolved.todos || '').toLowerCase() === '1' ||
+    (searchParamsResolved.todos || '').toLowerCase() === 'true'
 
   // Obtener reporte semanal
   const { data: reporteData, error: reporteError } = await supabase.rpc(
     'obtener_reporte_semanal_asistencia',
     {
       p_auth_id: user.id,
-      p_fecha_semana: fechaSemana
+      p_fecha_semana: fechaSemana,
+      p_incluir_todos: incluirTodos
     }
   )
 
@@ -85,15 +89,17 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
         titulo="Reporte Semanal de Asistencia"
         descripcion={`Semana del ${new Date(reporteData.semana.inicio).toLocaleDateString('es-ES', { 
           day: 'numeric', 
-          month: 'long' 
+          month: 'long',
+          timeZone: 'UTC'
         })} al ${new Date(reporteData.semana.fin).toLocaleDateString('es-ES', { 
           day: 'numeric', 
           month: 'long', 
-          year: 'numeric' 
+          year: 'numeric',
+          timeZone: 'UTC'
         })}`}
         accionPrincipal={null}
       >
-        <ReporteSemanal reporte={reporteData} />
+        <ReporteSemanal reporte={reporteData} incluirTodosInicial={incluirTodos} />
       </ContenedorDashboard>
     </DashboardLayout>
   )

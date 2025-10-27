@@ -44,6 +44,9 @@ type KPIsGlobales = {
   variacion_semana_anterior: number
   total_reuniones_registradas: number
   total_grupos_con_reunion: number
+  total_grupos_activos: number
+  total_miembros_asistentes: number
+  total_miembros_en_grupos: number
 }
 
 type TendenciaItem = {
@@ -78,43 +81,70 @@ type ReporteSemanalData = {
   asistencia_por_segmento: SegmentoItem[]
   top_5_grupos_perfectos: GrupoPerfecto[]
   top_5_grupos_en_riesgo: GrupoRiesgo[]
+  grupos_en_riesgo_todos?: GrupoRiesgo[]
 }
 
 interface ReporteSemanalProps {
   reporte: ReporteSemanalData
+  incluirTodosInicial?: boolean
 }
 
-export default function ReporteSemanal({ reporte }: ReporteSemanalProps) {
+export default function ReporteSemanal({ reporte, incluirTodosInicial = false }: ReporteSemanalProps) {
   const router = useRouter()
   const [fechaSeleccionada, setFechaSeleccionada] = useState(reporte.semana.inicio)
+  const [incluirTodos, setIncluirTodos] = useState<boolean>(!!incluirTodosInicial)
+  const [mostrarTodosRiesgo, setMostrarTodosRiesgo] = useState<boolean>(false)
 
   // Formatear fecha para mostrar
+  const parsearFechaUTC = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number)
+    return new Date(Date.UTC(y, (m || 1) - 1, d || 1))
+  }
   const formatearFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-ES', {
+    return parsearFechaUTC(fecha).toLocaleDateString('es-ES', {
       day: 'numeric',
-      month: 'short'
+      month: 'short',
+      timeZone: 'UTC'
     })
   }
 
-  // Navegar a semana anterior
+  const construirUrl = (fecha?: string) => {
+    const params = new URLSearchParams()
+    if (fecha) params.set('semana', fecha)
+    if (incluirTodos) params.set('todos', '1')
+    const qs = params.toString()
+    return qs ? `/dashboard/reportes/asistencia-semanal?${qs}` : '/dashboard/reportes/asistencia-semanal'
+  }
+
   const irSemanaAnterior = () => {
-    const fechaInicio = new Date(reporte.semana.inicio)
-    fechaInicio.setDate(fechaInicio.getDate() - 7)
+    const fechaInicio = parsearFechaUTC(reporte.semana.inicio)
+    fechaInicio.setUTCDate(fechaInicio.getUTCDate() - 7)
     const nuevaFecha = fechaInicio.toISOString().split('T')[0]
-    router.push(`/dashboard/reportes/asistencia-semanal?semana=${nuevaFecha}`)
+    router.push(construirUrl(nuevaFecha))
   }
 
   // Navegar a semana siguiente
   const irSemanaSiguiente = () => {
-    const fechaInicio = new Date(reporte.semana.inicio)
-    fechaInicio.setDate(fechaInicio.getDate() + 7)
+    const fechaInicio = parsearFechaUTC(reporte.semana.inicio)
+    fechaInicio.setUTCDate(fechaInicio.getUTCDate() + 7)
     const nuevaFecha = fechaInicio.toISOString().split('T')[0]
-    router.push(`/dashboard/reportes/asistencia-semanal?semana=${nuevaFecha}`)
+    router.push(construirUrl(nuevaFecha))
   }
 
   // Navegar a semana actual
   const irSemanaActual = () => {
-    router.push('/dashboard/reportes/asistencia-semanal')
+    router.push(construirUrl())
+  }
+
+  const alternarIncluirTodos = () => {
+    setIncluirTodos(prev => {
+      const next = !prev
+      const params = new URLSearchParams()
+      params.set('semana', reporte.semana.inicio)
+      if (next) params.set('todos', '1')
+      router.push(`/dashboard/reportes/asistencia-semanal?${params.toString()}`)
+      return next
+    })
   }
 
   // Preparar datos para el gráfico de tendencia
@@ -173,6 +203,16 @@ export default function ReporteSemanal({ reporte }: ReporteSemanalProps) {
               <span className="hidden sm:inline">Siguiente</span>
               <ChevronRight className="w-4 h-4" />
             </BotonSistema>
+            <button
+              type="button"
+              onClick={alternarIncluirTodos}
+              className={`ml-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                incluirTodos ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-300'
+              }`}
+              aria-pressed={incluirTodos}
+            >
+              {incluirTodos ? 'Todos los grupos activos' : 'Solo grupos con reunión'}
+            </button>
           </div>
         </div>
       </TarjetaSistema>
@@ -226,24 +266,24 @@ export default function ReporteSemanal({ reporte }: ReporteSemanalProps) {
           </div>
         </TarjetaSistema>
 
-        {/* Total Reuniones */}
+        {/* Miembros Asistentes */}
         <TarjetaSistema className="p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex-shrink-0">
-              <Calendar className="w-6 h-6 text-white" />
+            <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex-shrink-0">
+              <CheckCircle2 className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
               <TextoSistema variante="sutil" tamaño="sm">
-                Reuniones Registradas
+                Miembros Asistentes
               </TextoSistema>
               <div className="text-3xl font-bold text-gray-900">
-                {reporte.kpis_globales.total_reuniones_registradas}
+                {reporte.kpis_globales.total_miembros_asistentes} / {reporte.kpis_globales.total_miembros_en_grupos}
               </div>
             </div>
           </div>
         </TarjetaSistema>
 
-        {/* Grupos Activos */}
+        {/* Grupos con Reunión / Activos */}
         <TarjetaSistema className="p-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex-shrink-0">
@@ -254,7 +294,7 @@ export default function ReporteSemanal({ reporte }: ReporteSemanalProps) {
                 Grupos con Reunión
               </TextoSistema>
               <div className="text-3xl font-bold text-gray-900">
-                {reporte.kpis_globales.total_grupos_con_reunion}
+                {reporte.kpis_globales.total_grupos_con_reunion} / {reporte.kpis_globales.total_grupos_activos}
               </div>
             </div>
           </div>
@@ -403,15 +443,26 @@ export default function ReporteSemanal({ reporte }: ReporteSemanalProps) {
 
         {/* Grupos en Riesgo */}
         <TarjetaSistema className="p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <AlertTriangle className="w-6 h-6 text-red-600" />
-            <TituloSistema nivel={3}>
-              Grupos que Necesitan Atención
-            </TituloSistema>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+              <TituloSistema nivel={3}>
+                Grupos que Necesitan Atención
+              </TituloSistema>
+            </div>
+            {reporte.grupos_en_riesgo_todos && reporte.grupos_en_riesgo_todos.length > 5 && (
+              <BotonSistema
+                variante="outline"
+                tamaño="sm"
+                onClick={() => setMostrarTodosRiesgo((v) => !v)}
+              >
+                {mostrarTodosRiesgo ? 'Ver menos' : 'Ver más'}
+              </BotonSistema>
+            )}
           </div>
-          {reporte.top_5_grupos_en_riesgo && reporte.top_5_grupos_en_riesgo.length > 0 ? (
+          {(mostrarTodosRiesgo ? reporte.grupos_en_riesgo_todos : reporte.top_5_grupos_en_riesgo) && (mostrarTodosRiesgo ? (reporte.grupos_en_riesgo_todos || []) : reporte.top_5_grupos_en_riesgo).length > 0 ? (
             <div className="space-y-3">
-              {reporte.top_5_grupos_en_riesgo.map((grupo) => (
+              {(mostrarTodosRiesgo ? (reporte.grupos_en_riesgo_todos || []) : reporte.top_5_grupos_en_riesgo).map((grupo) => (
                 <div 
                   key={grupo.id}
                   className="p-4 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
