@@ -1,8 +1,6 @@
 "use client"
 
 import { Users, UsersRound, Activity, UserCheck, Calendar, TrendingUp, MapPin } from 'lucide-react'
-import { useSwapy } from '@/hooks/useSwapy'
-import { TextoSistema } from '@/components/ui/sistema-diseno'
 import { MetricWidget } from '@/components/dashboard/widgets/MetricWidget'
 import { DonutWidget } from '@/components/dashboard/widgets/DonutWidget'
 import { ActivityWidget } from '@/components/dashboard/widgets/ActivityWidget'
@@ -21,11 +19,6 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ stats }: DashboardClientProps) {
-  const { containerRef, isMobile } = useSwapy({
-    onSwap: (event) => {
-      console.log('Tarjetas intercambiadas:', event)
-    }
-  })
 
   const formatNumber = (n: number | null): string => {
     if (n == null) return 'N/D'
@@ -84,15 +77,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
 
   return (
     <>
-      {isMobile && (
-        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-          <TextoSistema tamaño="sm" className="text-orange-700">
-            💡 En móvil puedes hacer scroll normalmente. El reordenamiento está disponible en desktop.
-          </TextoSistema>
-        </div>
-      )}
       <div
-        ref={containerRef}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
       >
         <MetricWidget

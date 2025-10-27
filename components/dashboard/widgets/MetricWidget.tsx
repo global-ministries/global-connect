@@ -1,9 +1,7 @@
 "use client"
 
 import React from 'react'
-import { DashboardCard } from '../DashboardCard'
-import { MetricChart } from '../charts/MetricChart'
-import { TituloSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { TarjetaSistema, TituloSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { LucideIcon } from 'lucide-react'
 
 interface MetricWidgetProps {
@@ -28,27 +26,22 @@ export function MetricWidget({
   icon,
   data 
 }: MetricWidgetProps) {
+  const Icono = icon
   return (
-    <DashboardCard
-      id={id}
-      title={title}
-      icon={icon}
-      badge={{
-        text: change,
-        variant: isPositive ? 'success' : 'error'
-      }}
-    >
-      <div className="space-y-4">
-        <div>
+    <TarjetaSistema className="p-6">
+      <div className="flex items-center gap-4">
+        <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex-shrink-0">
+          <Icono className="w-6 h-6 text-white" />
+        </div>
+        <div className="flex-1">
+          <TextoSistema variante="sutil" tamaño="sm">
+            {title}
+          </TextoSistema>
           <TituloSistema nivel={2} className="text-3xl font-bold text-gray-900">
             {value}
           </TituloSistema>
-          <TextoSistema variante="sutil" tamaño="sm" className="text-gray-600 line-clamp-2 whitespace-normal">
-            {title}
-          </TextoSistema>
         </div>
-        <MetricChart data={data} />
       </div>
-    </DashboardCard>
+    </TarjetaSistema>
   )
 }
