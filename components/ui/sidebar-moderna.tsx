@@ -16,7 +16,8 @@ import {
   Home,
   Calendar,
   User,
-  Layers
+  Layers,
+  BarChart3
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
 import { UserAvatar } from './UserAvatar'
@@ -66,6 +67,12 @@ const menuItems: MenuItem[] = [
     label: 'Temporadas',
     icon: Calendar,
     href: '/dashboard/temporadas',
+  },
+  {
+    id: 'reportes',
+    label: 'Reportes',
+    icon: BarChart3,
+    href: '/dashboard/reportes/asistencia-semanal',
   },
   {
     id: 'configuracion',
