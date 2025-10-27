@@ -14,7 +14,7 @@ export default async function EditSeasonPage({ params }: Props) {
   const { id } = await params
 
   // Obtener temporada
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
   const { data: temporada, error } = await supabase
     .from("temporadas")
     .select("*")
