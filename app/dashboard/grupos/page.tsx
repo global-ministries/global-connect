@@ -98,6 +98,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
           canCreate={canCreate}
           canDelete={canDelete}
           canRestore={canRestore}
+          userRoles={roles}
           filtroEstado={estado as string | undefined}
         />
       </ContenedorDashboard>
