@@ -3,6 +3,7 @@
 import { useMemo, useState, useCallback, useEffect } from "react"
 import Link from "next/link"
 import { Eye, Edit, Trash2, Plus, Users2, Sparkles, UserPlus, Filter, ChevronDown, ChevronUp } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import FiltrosGrupos, { type FiltrosGruposState } from "@/components/ui/FiltrosGrupos"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
@@ -79,6 +80,7 @@ export default function GruposListClient({
   canCreate = false,
   canDelete = false,
   canRestore = false,
+  userRoles = [],
   filtroEstado,
 }: {
   grupos: Grupo[]
@@ -91,6 +93,7 @@ export default function GruposListClient({
   canCreate?: boolean
   canDelete?: boolean
   canRestore?: boolean
+  userRoles?: string[]
   filtroEstado?: string | undefined
 }) {
   const router = useRouter()
@@ -98,6 +101,13 @@ export default function GruposListClient({
   const sp = useSearchParams()
   const [filtros, setFiltros] = useState<FiltrosGruposState>({})
   const [mostrarTodosKpis, setMostrarTodosKpis] = useState(false)
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
+  const [isUpdating, setIsUpdating] = useState(false)
+
+  const puedeGestionarEnLote = useMemo(() => 
+    (userRoles || []).some(role =>
+      ['admin', 'pastor', 'director-general'].includes(role)
+    ), [userRoles]);
 
   const segmentoNombreById = useMemo(() => {
     const m = new Map<string, string>()
@@ -114,7 +124,10 @@ export default function GruposListClient({
   // Los grupos ya vienen filtrados desde el servidor
   const { toast } = useToast()
   const [internalGrupos, setInternalGrupos] = useState<Grupo[]>(grupos)
-  useEffect(()=>{ setInternalGrupos(grupos) }, [grupos])
+  useEffect(()=>{ 
+    setInternalGrupos(grupos)
+    setSelectedGroups([]) // Limpiar selección si los datos de grupos cambian
+  }, [grupos])
 
   const eliminarGrupo = useCallback(async (id: string, nombre: string) => {
     if (!canDelete) return
@@ -164,6 +177,36 @@ export default function GruposListClient({
   }, [internalGrupos])
 
   const onFiltrosChange = useCallback((f: FiltrosGruposState) => setFiltros(f), [])
+
+  const handleUpdateStatus = async (status: boolean) => {
+    if (selectedGroups.length === 0 || isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      const res = await fetch('/api/grupos/bulk-update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupIds: selectedGroups, status }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al actualizar los grupos.');
+      }
+
+      toast({ title: 'Éxito', description: `${data.count} grupos han sido actualizados.` });
+      
+      // Forzar la recarga de datos desde el servidor para reflejar los cambios
+      router.refresh();
+      setSelectedGroups([]);
+
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   // Sincronizar filtros con la URL
   useEffect(() => {
@@ -245,6 +288,24 @@ export default function GruposListClient({
 
   return (
     <div className="space-y-6">
+      {puedeGestionarEnLote && selectedGroups.length > 0 && (
+        <TarjetaSistema className="p-4 bg-orange-50 border-orange-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
+            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{selectedGroups.length} seleccionados</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <BotonSistema onClick={() => handleUpdateStatus(true)} tamaño="sm" disabled={isUpdating}>
+                {isUpdating ? 'Activando...' : 'Activar'}
+              </BotonSistema>
+              <BotonSistema onClick={() => handleUpdateStatus(false)} tamaño="sm" variante="secundario" disabled={isUpdating}>
+                {isUpdating ? 'Desactivando...' : 'Desactivar'}
+              </BotonSistema>
+              <BotonSistema onClick={() => setSelectedGroups([])} tamaño="sm" variante="ghost" disabled={isUpdating}>
+                Cancelar
+              </BotonSistema>
+            </div>
+          </div>
+        </TarjetaSistema>
+      )}
       {/* KPIs responsivos - Móvil: solo total + botón, Desktop: todos */}
       <div className="md:hidden">
         <div className="grid grid-cols-1 gap-4">
@@ -327,6 +388,17 @@ export default function GruposListClient({
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
               <tr>
+                {puedeGestionarEnLote && (
+                  <th className="px-4 py-3">
+                    <Checkbox
+                      checked={gruposFiltrados.length > 0 && selectedGroups.length === gruposFiltrados.length}
+                      onCheckedChange={(checked) => {
+                        setSelectedGroups(checked ? gruposFiltrados.map(g => g.id) : [])
+                      }}
+                      aria-label="Seleccionar todos los grupos"
+                    />
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grupo</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Líder</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmento</th>
@@ -340,7 +412,22 @@ export default function GruposListClient({
             <tbody className="divide-y divide-gray-200">
               {gruposFiltrados && gruposFiltrados.length > 0 ? (
                 gruposFiltrados.map((grupo) => (
-                  <tr key={grupo.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={grupo.id} className={cn("hover:bg-gray-50/50 transition-colors", selectedGroups.includes(grupo.id) && 'bg-orange-50')}>
+                    {puedeGestionarEnLote && (
+                      <td className="px-4 py-4">
+                        <Checkbox
+                          checked={selectedGroups.includes(grupo.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedGroups(prev => 
+                              checked 
+                                ? [...prev, grupo.id] 
+                                : prev.filter(id => id !== grupo.id)
+                            )
+                          }}
+                          aria-label={`Seleccionar grupo ${grupo.nombre}`}
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         {/* Placeholder para imagen horizontal - más grande en desktop */}
@@ -422,7 +509,7 @@ export default function GruposListClient({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={puedeGestionarEnLote ? 6 : 5} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Users2 className="w-12 h-12 text-gray-300" />
                       <div>
@@ -442,7 +529,22 @@ export default function GruposListClient({
       <div className="md:hidden space-y-4">
         {gruposFiltrados && gruposFiltrados.length > 0 ? (
           gruposFiltrados.map((grupo) => (
-            <TarjetaSistema key={grupo.id} className="p-4">
+            <TarjetaSistema key={grupo.id} className={cn("p-4 relative", puedeGestionarEnLote && "pr-12", selectedGroups.includes(grupo.id) && 'bg-orange-50 border-orange-200')}>
+              {puedeGestionarEnLote && (
+                <div className="absolute top-3 right-3">
+                  <Checkbox
+                    checked={selectedGroups.includes(grupo.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedGroups(prev => 
+                        checked 
+                          ? [...prev, grupo.id] 
+                          : prev.filter(id => id !== grupo.id)
+                      )
+                    }}
+                    aria-label={`Seleccionar grupo ${grupo.nombre}`}
+                  />
+                </div>
+              )}
               <div className="flex items-start gap-3">
                 {/* Placeholder para imagen horizontal */}
                 <div className="w-12 h-8 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
