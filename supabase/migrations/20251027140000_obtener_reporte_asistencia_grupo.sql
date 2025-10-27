@@ -77,6 +77,7 @@ BEGIN
       -- Miembro más constante
       (
         SELECT jsonb_build_object(
+          'id', u.id,
           'nombre', u.nombre || ' ' || u.apellido,
           'asistencias', COUNT(a.id) FILTER (WHERE a.presente = true)
         )
@@ -90,6 +91,7 @@ BEGIN
       -- Miembro con más ausencias
       (
         SELECT jsonb_build_object(
+          'id', u.id,
           'nombre', u.nombre || ' ' || u.apellido,
           'ausencias', COUNT(a.id) FILTER (WHERE a.presente = false)
         )
@@ -105,8 +107,8 @@ BEGIN
   SELECT jsonb_build_object(
     'asistencia_promedio', asistencia_promedio,
     'total_reuniones', total_reuniones,
-    'miembro_mas_constante', COALESCE(miembro_mas_constante, jsonb_build_object('nombre', 'N/D', 'asistencias', 0)),
-    'miembro_mas_ausencias', COALESCE(miembro_mas_ausencias, jsonb_build_object('nombre', 'N/D', 'ausencias', 0))
+    'miembro_mas_constante', COALESCE(miembro_mas_constante, jsonb_build_object('id', null, 'nombre', 'N/D', 'asistencias', 0)),
+    'miembro_mas_ausencias', COALESCE(miembro_mas_ausencias, jsonb_build_object('id', null, 'nombre', 'N/D', 'ausencias', 0))
   )
   INTO v_kpis
   FROM kpis_calc;

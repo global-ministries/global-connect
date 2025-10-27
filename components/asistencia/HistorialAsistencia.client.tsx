@@ -11,10 +11,12 @@ type KPIs = {
   asistencia_promedio: number
   total_reuniones: number
   miembro_mas_constante: {
+    id: string | null
     nombre: string
     asistencias: number
   }
   miembro_mas_ausencias: {
+    id: string | null
     nombre: string
     ausencias: number
   }
@@ -181,13 +183,24 @@ export default function HistorialAsistenciaClient({
               <TextoSistema variante="sutil" tamaño="sm" className="mb-1">
                 Más Constante
               </TextoSistema>
-              <div 
-                className="text-sm font-semibold text-gray-900 truncate" 
-                title={reporte.kpis.miembro_mas_constante.nombre}
-              >
-                {reporte.kpis.miembro_mas_constante.nombre}
-              </div>
-              <TextoSistema variante="sutil" tamaño="xs" className="mt-0.5">
+              {reporte.kpis.miembro_mas_constante.id ? (
+                <Link href={`/dashboard/users/${reporte.kpis.miembro_mas_constante.id}/asistencia`}>
+                  <div 
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline" 
+                    title={reporte.kpis.miembro_mas_constante.nombre}
+                  >
+                    {reporte.kpis.miembro_mas_constante.nombre}
+                  </div>
+                </Link>
+              ) : (
+                <div 
+                  className="text-sm font-semibold text-gray-900 truncate" 
+                  title={reporte.kpis.miembro_mas_constante.nombre}
+                >
+                  {reporte.kpis.miembro_mas_constante.nombre}
+                </div>
+              )}
+              <TextoSistema variante="sutil" tamaño="sm" className="mt-0.5 text-xs">
                 {reporte.kpis.miembro_mas_constante.asistencias} asistencias
               </TextoSistema>
             </div>
@@ -204,13 +217,24 @@ export default function HistorialAsistenciaClient({
               <TextoSistema variante="sutil" tamaño="sm" className="mb-1">
                 Más Ausencias
               </TextoSistema>
-              <div 
-                className="text-sm font-semibold text-gray-900 truncate" 
-                title={reporte.kpis.miembro_mas_ausencias.nombre}
-              >
-                {reporte.kpis.miembro_mas_ausencias.nombre}
-              </div>
-              <TextoSistema variante="sutil" tamaño="xs" className="mt-0.5">
+              {reporte.kpis.miembro_mas_ausencias.id ? (
+                <Link href={`/dashboard/users/${reporte.kpis.miembro_mas_ausencias.id}/asistencia`}>
+                  <div 
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline" 
+                    title={reporte.kpis.miembro_mas_ausencias.nombre}
+                  >
+                    {reporte.kpis.miembro_mas_ausencias.nombre}
+                  </div>
+                </Link>
+              ) : (
+                <div 
+                  className="text-sm font-semibold text-gray-900 truncate" 
+                  title={reporte.kpis.miembro_mas_ausencias.nombre}
+                >
+                  {reporte.kpis.miembro_mas_ausencias.nombre}
+                </div>
+              )}
+              <TextoSistema variante="sutil" tamaño="sm" className="mt-0.5 text-xs">
                 {reporte.kpis.miembro_mas_ausencias.ausencias} ausencias
               </TextoSistema>
             </div>
