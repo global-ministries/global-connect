@@ -1,40 +1,49 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Eye, Edit } from 'lucide-react'
+import { ArrowLeft, Plus } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import HistorialAsistenciaClient from '@/components/asistencia/HistorialAsistencia.client'
 
-export default async function HistorialAsistenciaPage({ params }: { params: { id: string } }) {
+export default async function HistorialAsistenciaPage({ 
+  params,
+  searchParams 
+}: { 
+  params: { id: string }
+  searchParams: { fecha_inicio?: string; fecha_fin?: string }
+}) {
   const { id } = params
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="text-center">
-            <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
-            <p className="text-gray-600 mb-4">Debes iniciar sesión para acceder a esta página.</p>
-            <Link href="/login">
-              <BotonSistema variante="primario">
-                Iniciar Sesión
-              </BotonSistema>
-            </Link>
+  
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
+              <p className="text-gray-600 mb-4">Debes iniciar sesión para acceder a esta página.</p>
+              <Link href="/login">
+                <BotonSistema variante="primario">
+                  Iniciar Sesión
+                </BotonSistema>
+              </Link>
+            </div>
           </div>
-        </div>
-      </ContenedorDashboard>
-    </DashboardLayout>
-  )
+        </ContenedorDashboard>
+      </DashboardLayout>
+    )
+  }
 
-  const [grupoRes, puedeEditarRes, eventosRes] = await Promise.all([
+  // Obtener detalles del grupo y validar permisos
+  const [grupoRes, puedeEditarRes] = await Promise.all([
     supabase.rpc('obtener_detalle_grupo', { p_auth_id: user.id, p_grupo_id: id }),
-    supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id }),
-    supabase.rpc('listar_eventos_grupo', { p_auth_id: user.id, p_grupo_id: id, p_limit: 50, p_offset: 0 })
+    supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id })
   ])
+  
   const grupo = grupoRes.data
   const puedeEditar = puedeEditarRes.data
-  const eventos = eventosRes.data
-  // (log depuración removido)
 
   if (!puedeEditar || !grupo) {
     return (
@@ -57,23 +66,41 @@ export default async function HistorialAsistenciaPage({ params }: { params: { id
     )
   }
 
-  type Ev = { id: string; fecha: string; tema: string | null; total: number; presentes: number; porcentaje: number }
-  const rows: Ev[] = Array.isArray(eventos) ? (eventos as Ev[]) : []
+  // Obtener reporte de asistencia con filtros de fecha
+  const fechaInicio = searchParams.fecha_inicio || null
+  const fechaFin = searchParams.fecha_fin || null
 
-  // Formatear fecha a dd-mm-aaaa
-  const formatearFecha = (fecha: string) => {
-    const fechaObj = new Date(fecha)
-    const dia = String(fechaObj.getUTCDate()).padStart(2, '0')
-    const mes = String(fechaObj.getUTCMonth() + 1).padStart(2, '0')
-    const anio = fechaObj.getUTCFullYear()
-    return `${dia}-${mes}-${anio}`
+  const { data: reporteData, error: reporteError } = await supabase.rpc(
+    'obtener_reporte_asistencia_grupo',
+    {
+      p_grupo_id: id,
+      p_auth_id: user.id,
+      p_fecha_inicio: fechaInicio,
+      p_fecha_fin: fechaFin
+    }
+  )
+
+  if (reporteError) {
+    console.error('Error al obtener reporte:', reporteError)
+  }
+
+  // Estructura por defecto si hay error
+  const reporte = reporteData || {
+    kpis: {
+      asistencia_promedio: 0,
+      total_reuniones: 0,
+      miembro_mas_constante: { nombre: 'N/D', asistencias: 0 },
+      miembro_mas_ausencias: { nombre: 'N/D', ausencias: 0 }
+    },
+    series_temporales: [],
+    eventos_historial: []
   }
 
   return (
     <DashboardLayout>
       <ContenedorDashboard
         titulo={`Historial de Asistencia - ${grupo.nombre}`}
-        descripcion="Últimos eventos registrados"
+        descripcion="Análisis y eventos registrados"
         accionPrincipal={
           <div className="flex items-center gap-2">
             <Link href={`/dashboard/grupos/${id}/asistencia`}>
@@ -98,63 +125,12 @@ export default async function HistorialAsistenciaPage({ params }: { params: { id
           </div>
         }
       >
-        {/* Lista de eventos */}
-        <TarjetaSistema className="p-0">
-          <div className="divide-y">
-            {rows.map((ev) => (
-              <div key={ev.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 gap-3">
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900">
-                    {formatearFecha(ev.fecha)} — {ev.tema || 'Sin tema'}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Presentes {ev.presentes}/{ev.total} — {ev.porcentaje}%
-                  </div>
-                </div>
-                <div className="flex gap-2 sm:flex-shrink-0">
-                  <Link href={`/dashboard/grupos/${id}/asistencia/${ev.id}`}>
-                    <BotonSistema 
-                      variante="outline" 
-                      tamaño="sm"
-                      className="gap-2"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span className="sm:hidden">Ver</span>
-                      <span className="hidden sm:inline">Ver detalle</span>
-                    </BotonSistema>
-                  </Link>
-                  <Link href={`/dashboard/grupos/${id}/asistencia/editar/${ev.id}`}>
-                    <BotonSistema 
-                      variante="ghost" 
-                      tamaño="sm"
-                      className="gap-2"
-                    >
-                      <Edit className="w-4 h-4" />
-                      <span className="hidden sm:inline">Editar</span>
-                    </BotonSistema>
-                  </Link>
-                </div>
-              </div>
-            ))}
-            {rows.length === 0 && (
-              <div className="p-8 text-center">
-                <div className="text-gray-400 text-4xl mb-4">📅</div>
-                <TituloSistema nivel={3} className="text-gray-600 mb-2">
-                  No hay eventos registrados
-                </TituloSistema>
-                <TextoSistema variante="sutil" className="mb-4">
-                  Aún no se han registrado eventos de asistencia para este grupo.
-                </TextoSistema>
-                <Link href={`/dashboard/grupos/${id}/asistencia`}>
-                  <BotonSistema variante="primario" className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    Registrar primer evento
-                  </BotonSistema>
-                </Link>
-              </div>
-            )}
-          </div>
-        </TarjetaSistema>
+        <HistorialAsistenciaClient 
+          grupoId={id}
+          reporte={reporte}
+          fechaInicio={fechaInicio || undefined}
+          fechaFin={fechaFin || undefined}
+        />
       </ContenedorDashboard>
     </DashboardLayout>
   )
