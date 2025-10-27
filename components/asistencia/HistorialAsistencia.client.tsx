@@ -83,6 +83,16 @@ export default function HistorialAsistenciaClient({
     router.push(`/dashboard/grupos/${grupoId}/asistencia/historial`)
   }
 
+  // Serie para gráfico: usar fechas reales de eventos registrados
+  const serieEventos = (reporte.eventos_historial || [])
+    .slice()
+    .sort((a, b) => {
+      const da = new Date(String(a.fecha)).getTime()
+      const db = new Date(String(b.fecha)).getTime()
+      return da - db
+    })
+    .map(ev => ({ semana: ev.fecha, porcentaje: ev.porcentaje }))
+
   return (
     <div className="space-y-6">
       {/* Filtros de Fecha */}
@@ -242,8 +252,8 @@ export default function HistorialAsistenciaClient({
         </TarjetaSistema>
       </div>
 
-      {/* Gráfico de Tendencia */}
-      <GraficoTendencia data={reporte.series_temporales} />
+      {/* Gráfico de Tendencia (fechas reales de eventos) */}
+      <GraficoTendencia data={serieEventos} />
 
       {/* Separador */}
       <div className="border-t border-gray-200 my-8"></div>

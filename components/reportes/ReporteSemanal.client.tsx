@@ -96,16 +96,40 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
   const [mostrarTodosRiesgo, setMostrarTodosRiesgo] = useState<boolean>(false)
 
   // Formatear fecha para mostrar
+  const mesesCortos = ['ene','feb','mar','abr','may','jun','jul','ago','sept','oct','nov','dic']
   const parsearFechaUTC = (s: string) => {
-    const [y, m, d] = s.split('-').map(Number)
-    return new Date(Date.UTC(y, (m || 1) - 1, d || 1))
+    const base = (s || '').slice(0, 10) // YYYY-MM-DD
+    const [yStr, mStr, dStr] = base.split('-')
+    const y = Number(yStr)
+    const m = Number(mStr)
+    const d = Number(dStr)
+    return new Date(Date.UTC(isNaN(y) ? 1970 : y, isNaN(m) ? 0 : (m - 1), isNaN(d) ? 1 : d))
   }
   const formatearFecha = (fecha: string) => {
-    return parsearFechaUTC(fecha).toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'short',
-      timeZone: 'UTC'
-    })
+    const f = parsearFechaUTC(fecha)
+    return `${f.getUTCDate()} ${mesesCortos[f.getUTCMonth()]}`
+  }
+  const formatearRangoSemana = (inicioIso: string) => {
+    const ini = parsearFechaUTC(inicioIso)
+    const fin = new Date(ini)
+    fin.setUTCDate(ini.getUTCDate() + 6)
+    const iniTxt = `${ini.getUTCDate()} ${mesesCortos[ini.getUTCMonth()]}`
+    const finTxt = `${fin.getUTCDate()} ${mesesCortos[fin.getUTCMonth()]}`
+    return `${iniTxt} - ${finTxt}`
+  }
+
+  const inicioSemanaLunesUTC = (d: Date) => {
+    const dow = d.getUTCDay() // 0=dom, 1=lun, ...
+    const delta = (dow + 6) % 7 // 0 si es lunes
+    const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+    monday.setUTCDate(monday.getUTCDate() - delta)
+    return monday
+  }
+  const formatearFechaDesdeDateUTC = (d: Date) => `${d.getUTCDate()} ${mesesCortos[d.getUTCMonth()]}`
+  const rangoSemanaDesdeMonday = (monday: Date) => {
+    const fin = new Date(monday)
+    fin.setUTCDate(monday.getUTCDate() + 6)
+    return `${formatearFechaDesdeDateUTC(monday)} - ${formatearFechaDesdeDateUTC(fin)}`
   }
 
   const construirUrl = (fecha?: string) => {
@@ -148,11 +172,16 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
   }
 
   // Preparar datos para el gráfico de tendencia
-  const datosTendencia = reporte.tendencia_asistencia_global.map(item => ({
-    semana: formatearFecha(item.semana_inicio),
-    porcentaje: item.porcentaje,
-    fecha_original: item.semana_inicio
-  }))
+  const datosTendencia = reporte.tendencia_asistencia_global.map(item => {
+    const base = parsearFechaUTC(item.semana_inicio)
+    const monday = inicioSemanaLunesUTC(base)
+    const isoMonday = monday.toISOString().slice(0, 10)
+    return {
+      semana_inicio: isoMonday,
+      semana_label: formatearFechaDesdeDateUTC(monday),
+      porcentaje: item.porcentaje,
+    }
+  })
 
   // Preparar datos para el gráfico de segmentos
   const datosSegmentos = reporte.asistencia_por_segmento.map(item => ({
@@ -312,7 +341,10 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
             <LineChart data={datosTendencia}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis 
-                dataKey="semana" 
+                type="category"
+                dataKey="semana_label"
+                allowDuplicatedCategory={false}
+                interval={0}
                 stroke="#6b7280"
                 style={{ fontSize: '12px' }}
               />
@@ -330,6 +362,14 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
                   padding: '8px 12px'
                 }}
                 formatter={(value: number) => [`${value}%`, 'Asistencia']}
+                labelFormatter={(label: any, payload: any[]) => {
+                  const p = payload && payload[0] && payload[0].payload
+                  if (p && p.semana_inicio) return formatearRangoSemana(String(p.semana_inicio))
+                  // fallback: derivar desde monday normalizado si tenemos etiqueta
+                  const tryDate = parsearFechaUTC(String(label))
+                  const monday = inicioSemanaLunesUTC(tryDate)
+                  return rangoSemanaDesdeMonday(monday)
+                }}
               />
               <Line 
                 type="monotone" 
