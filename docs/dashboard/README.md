@@ -3,6 +3,67 @@
 ## Objetivo
 Construir un dashboard global inicial (baseline) reutilizando al 100% los RPC y tablas existentes, sin modificar lógica ni contratos actuales del sistema, y luego evolucionarlo de forma incremental hacia vistas diferenciadas por rol con cambios controlados y auditables.
 
+## Estado actual (Oct 2025)
+- Se implementó un dashboard para roles superiores (`admin`, `pastor`, `director-general`) con datos consolidados mediante la RPC `obtener_datos_dashboard` (SECURITY DEFINER).
+- KPI de "Asistencia Semanal" alineado con reportes: usa `obtener_reporte_semanal_asistencia(p_incluir_todos=true)` para considerar TODOS los grupos activos.
+- La tarjeta "Distribución por Segmentos" se rediseñó de donut a ranking con barras horizontales para mejorar legibilidad.
+- "Próximos Cumpleaños" muestra 5 elementos y permite desplegar el resto con "Ver más".
+- Se eliminó la tarjeta "Tendencia de Asistencia (8 semanas)" del dashboard admin (se mantiene disponible en reportes).
+
+## Arquitectura actual (Admin)
+- **Componente de rol**: `components/dashboard/roles/DashboardAdmin.tsx`.
+- **Widgets renderizados**:
+  - `MetricWidget` x4 (Total Miembros, Asistencia Semanal, Grupos Activos, Nuevos Miembros 30 días).
+  - `DonutWidget` → ahora "Ranking por Segmentos" (barras horizontales): `components/dashboard/widgets/DonutWidget.tsx`.
+  - `ActivityWidget`: `components/dashboard/widgets/ActivityWidget.tsx`.
+  - `BirthdayWidget` con "Ver más": `components/dashboard/widgets/BirthdayWidget.tsx`.
+  - `RiskGroupsWidget`: `components/dashboard/widgets/RiskGroupsWidget.tsx`.
+- **Obtención de datos**: `lib/dashboard/obtenerDatosDashboard.ts` (fallbacks) + RPC `obtener_datos_dashboard`.
+
+## Flujo de datos
+- `DashboardAdmin.tsx` recibe `data` ya consolidado desde server (RPC `obtener_datos_dashboard`).
+- Fallback de asistencia semanal en `lib/dashboard/obtenerDatosDashboard.ts` llama a `obtener_reporte_semanal_asistencia` con `p_incluir_todos=true`.
+- Los widgets leen de `data.widgets`: `kpis_globales`, `actividad_reciente`, `proximos_cumpleanos`, `grupos_en_riesgo`, `distribucion_segmentos`.
+
+## RPCs y migraciones relevantes
+- `supabase/migrations/20251027193000_actualizar_reporte_semanal_incluir_todos.sql`
+  - `obtener_reporte_semanal_asistencia(p_auth_id, p_fecha_semana, p_incluir_todos)`.
+  - Incluye grupos activos sin reporte (0%) para KPIs, tendencia y segmentos cuando `p_incluir_todos=true`.
+- `supabase/migrations/20251028122000_update_obtener_datos_dashboard_fix_columns.sql`
+  - `obtener_datos_dashboard` consume reporte semanal con `p_incluir_todos=true`.
+- `supabase/migrations/20251028140000_fix_obtener_datos_dashboard_actividad_order.sql`
+  - Corrige `actividad_reciente` usando subselect ordenado/limitado (evita 42803 por ORDER BY fuera de agregados).
+- `supabase/migrations/20251028142000_fix_dashboard_birthdays_and_activity.sql`
+  - Agrega cálculo de `proximos_cumpleanos` (14 días) para todos los usuarios; consolida fixes de actividad.
+- `supabase/migrations/20251028144000_fix_distribucion_no_nested_agg.sql`
+  - Corrige `distribucion_segmentos` evitando anidar agregados: subselect con `COUNT(DISTINCT gm.usuario_id)` y luego `jsonb_agg` ordenado por alias.
+
+## Decisiones de UI/UX
+- El donut se reemplazó por un ranking con barras para priorizar legibilidad y escalabilidad.
+- La leyenda del donut (cuando existía) se reestructuró vertical y luego se retiró al migrar a barras.
+- "Próximos Cumpleaños": muestra 5 y permite expandir/colapsar.
+- Se retiró "Tendencia de Asistencia" del dashboard; queda en la sección de reportes.
+- Alturas percibidas de tarjetas armonizadas usando contenedores con scroll cuando aplica (p.ej. ranking y actividad).
+
+## Cómo probar
+1. Aplicar migraciones de Supabase mencionadas arriba.
+2. Reiniciar servidor de desarrollo.
+3. Ingresar como usuario con rol superior (`/dashboard`).
+4. Validar:
+   - KPIs muestran números.
+   - "Distribución por Segmentos" como ranking ordenado por total.
+   - "Actividad Reciente" lista 5 eventos recientes.
+   - "Próximos Cumpleaños" muestra 5 primeros y botón "Ver más".
+   - "Grupos que Necesitan Atención" poblado si hay datos.
+
+## Archivos modificados clave
+- `components/dashboard/roles/DashboardAdmin.tsx` (quita tendencia, ensancha distribución, limpia compact).
+- `components/dashboard/widgets/DonutWidget.tsx` (ahora ranking con barras).
+- `components/dashboard/widgets/BirthdayWidget.tsx` (toggle "Ver más").
+- `components/dashboard/charts/DonutChart.tsx` (leyenda vertical; ya no se usa en el widget de distribución).
+- `lib/dashboard/obtenerDatosDashboard.ts` (fallback asistencia `p_incluir_todos=true`).
+- Migraciones en `supabase/migrations/` listadas arriba.
+
 ## Alcance (Baseline Fase 0)
 - Mostrar en una única vista (misma para todos los roles) un conjunto reducido de KPIs globales NO sensibles, derivables de RPC existentes:
 	- Total usuarios visibles según permiso (usando `listar_usuarios_con_permisos` + paginación mínima / conteo total)

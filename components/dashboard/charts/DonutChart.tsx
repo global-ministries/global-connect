@@ -22,7 +22,7 @@ export function DonutChart({ data, centerText }: DonutChartProps) {
   const formatPct = (v: number) => total === 0 ? '0%' : ((v / total) * 100).toFixed(1) + '%'
 
   return (
-  <div className="flex flex-col xl:flex-row gap-4 xl:items-center">
+  <div className="flex flex-col gap-4">
       <div className="relative mx-auto lg:mx-0" style={{ width: 220, height: 220 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -64,7 +64,7 @@ export function DonutChart({ data, centerText }: DonutChartProps) {
         )}
       </div>
       <div className="flex-1">
-        <div className="hidden xl:grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 min-w-[220px]">
+        <div className="mt-2 flex flex-col gap-3 min-w-[220px]">
           {isEmpty && (
             <div className="col-span-full text-sm text-gray-500 italic">
               No hay grupos en temporadas activas.
@@ -73,33 +73,15 @@ export function DonutChart({ data, centerText }: DonutChartProps) {
           {!isEmpty && data.map((item, index) => {
             const pct = formatPct(item.value)
             return (
-              <div key={index} className="flex items-center justify-between text-sm group">
+              <div key={index} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2 min-w-0">
                   <div
                     className="w-3 h-3 rounded-full ring-2 ring-white shadow"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-gray-600 truncate" title={item.name}>{item.name}</span>
+                  <span className="text-gray-700 break-words whitespace-normal" title={item.name}>{item.name}</span>
                 </div>
-                <span className="font-semibold text-gray-900 tabular-nums ml-2">{item.value} <span className="text-gray-500 font-normal">({pct})</span></span>
-              </div>
-            )
-          })}
-        </div>
-        {/* Leyenda de una sola línea scrollable (breakpoints < xl) */}
-        <div className="xl:hidden mt-4 flex items-center gap-6 overflow-x-auto scrollbar-thin pb-1">
-          {isEmpty && (
-            <span className="text-sm text-gray-500 italic">Sin datos</span>
-          )}
-          {!isEmpty && data.map((item, index) => {
-            const pct = formatPct(item.value)
-            return (
-              <div key={index} className="flex items-center gap-2 flex-shrink-0 text-sm">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
-                <span className="text-gray-700 whitespace-nowrap" title={item.name}>{item.name} <span className="font-semibold text-gray-900">{item.value}</span> <span className="text-gray-500">({pct})</span></span>
+                <span className="font-semibold text-gray-900 tabular-nums ml-2 whitespace-nowrap">{item.value} <span className="text-gray-500 font-normal">({pct})</span></span>
               </div>
             )
           })}
