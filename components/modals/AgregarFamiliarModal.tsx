@@ -13,6 +13,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { supabase } from '@/lib/supabase/client'
 import { addFamilyRelation } from "@/lib/actions/user.actions"
 import { CrearMiembroModal, type UsuarioMin } from '@/components/modals/CrearMiembroModal'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
 
 
 // Si necesitas el tipo Usuario, puedes importarlo desde donde lo tengas definido
@@ -54,6 +55,7 @@ export function AgregarFamiliarModal({
   // (Debug eliminado)
 
   // Usar el cliente supabase global importado
+  const toast = useNotificaciones()
 
   // Buscar usuarios (ahora incluye búsqueda por email)
   const buscarUsuarios = async () => {
@@ -93,6 +95,7 @@ export function AgregarFamiliarModal({
           tipo_relacion: tipoRelacion,
       })
       if (res.success) {
+        toast.success('Relación familiar creada correctamente')
         onRelacionCreada()
         onClose()
         setFamiliarSeleccionado(null)
@@ -100,10 +103,10 @@ export function AgregarFamiliarModal({
         setTerminoBusqueda('')
         setResultados([])
       } else {
-        alert(res.message || "Error al agregar relación")
+        toast.error(res.message || 'Error al agregar relación')
       }
     } catch (err) {
-      alert("Error inesperado al agregar relación")
+      toast.error('Error inesperado al agregar relación')
     } finally {
       setCreando(false)
     }

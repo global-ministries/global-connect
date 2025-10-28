@@ -3,7 +3,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
-import { toast } from 'sonner'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useRouter } from 'next/navigation'
 
 type Miembro = { id: string; nombre: string; apellido: string; rol?: string }
@@ -18,6 +18,7 @@ type InitialData = {
 
 export default function AttendanceRegister({ grupoId, miembros, initialData, isEdit }: { grupoId: string; miembros: Miembro[]; initialData?: InitialData; isEdit?: boolean }) {
   const router = useRouter()
+  const toast = useNotificaciones()
   const [fecha, setFecha] = useState<string>(() => initialData?.fecha || new Date().toISOString().slice(0,10))
   // Guardamos internamente hora en formato 24h (HH:MM) pero UI usa 12h + AM/PM
   const [hora, setHora] = useState<string>(() => (initialData?.hora ? initialData.hora.slice(0,5) : ''))

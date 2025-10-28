@@ -30,6 +30,7 @@ import { updateUser } from "@/lib/actions/user.actions"
 import { geocodeAddress } from "@/lib/actions/location.actions"
 import { ProfilePhotoUploader } from "@/components/ui/ProfilePhotoUploader"
 import type { Database } from '@/lib/supabase/database.types'
+import { useNotificaciones } from "@/hooks/use-notificaciones"
 
 type Usuario = Database["public"]["Tables"]["usuarios"]["Row"]
 type Direccion = Database["public"]["Tables"]["direcciones"]["Row"] & {
@@ -117,6 +118,7 @@ interface UserEditFormProps {
 export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estados, municipios, parroquias, esPerfil = false }: UserEditFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const toast = useNotificaciones()
 
   // Obtener los IDs correctos para los selects de direcci�n
   const parroquiaObj = usuario?.direccion?.parroquia
@@ -221,7 +223,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
       // Redirección condicional según el contexto
       if (esPerfil) {
         // En perfil, mostrar mensaje de éxito y redirigir al perfil
-        alert('Perfil actualizado exitosamente')
+        toast.success('Perfil actualizado exitosamente')
         window.location.href = '/dashboard/perfil'
       } else {
         // En edición de usuario, la Server Action se encarga de la redirección

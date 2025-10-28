@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import LocationPicker from "@/components/maps/LocationPicker.client";
 import { updateGroup } from "@/lib/actions/group.actions";
-import { toast } from "sonner";
+import { useNotificaciones } from "@/hooks/use-notificaciones";
 
 // Esquema de validación con Zod
 const groupEditSchema = z.object({
@@ -61,6 +61,7 @@ export default function GroupEditForm({
   readOnly = false
 }: GroupEditFormProps) {
   const router = useRouter();
+  const toast = useNotificaciones();
   const [isLoading, setIsLoading] = useState(false);
   const [mapCenter, setMapCenter] = useState({
     lat: grupo.direccion?.lat || 10.4681,
