@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { useNotificaciones } from "@/hooks/use-notificaciones";
 import { useRouter } from "next/navigation";
 
 type UserLite = {
@@ -36,6 +36,7 @@ export default function AddMemberModal({ isOpen, onClose, grupoId, segmentoNombr
   const [users, setUsers] = useState<UserLite[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserLite | null>(null);
   const router = useRouter();
+  const toast = useNotificaciones();
 
   let searchTimeout: ReturnType<typeof setTimeout> | null = null;
   const doSearch = async (q: string) => {

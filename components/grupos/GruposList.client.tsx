@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno"
-import { useToast } from "@/hooks/use-toast"
+import { useNotificaciones } from "@/hooks/use-notificaciones"
 
 type Segmento = { id: string; nombre: string }
 type Temporada = { id: string; nombre: string }
@@ -122,7 +122,7 @@ export default function GruposListClient({
   }, [temporadas])
 
   // Los grupos ya vienen filtrados desde el servidor
-  const { toast } = useToast()
+  const toast = useNotificaciones()
   const [internalGrupos, setInternalGrupos] = useState<Grupo[]>(grupos)
   useEffect(()=>{ 
     setInternalGrupos(grupos)
@@ -137,7 +137,7 @@ export default function GruposListClient({
       const res = await fetch(`/api/grupos/${id}`, { method: 'DELETE' })
       const body = await res.json().catch(()=>({}))
       if (!res.ok || !body.ok) {
-        toast({ title: 'Error al eliminar', description: body.error || `HTTP ${res.status}`, variant: 'destructive' })
+        toast.error(body.error || `Error al eliminar (HTTP ${res.status})`)
         return
       }
       // Si no estamos en vista 'eliminado' quitamos la fila inmediatamente; si estamos en 'eliminado' (raro) la dejamos actualizada
@@ -145,9 +145,9 @@ export default function GruposListClient({
         .map(g => g.id === id ? { ...g, eliminado: true, activo: false } : g)
         .filter(g => (filtroEstado === 'eliminado') || !g.eliminado ? true : (filtroEstado === 'eliminado'))
       )
-      toast({ title: 'Enviado a papelera', description: `"${nombre}" ahora está en la papelera.` })
+      toast.success(`"${nombre}" ahora está en la papelera.`)
     } catch (e:any) {
-      toast({ title: 'Excepción', description: e.message || 'Error desconocido', variant: 'destructive' })
+      toast.error(e.message || 'Error desconocido')
     }
   }, [canDelete, toast, filtroEstado])
 
@@ -157,7 +157,7 @@ export default function GruposListClient({
       const res = await fetch(`/api/grupos/${id}/restore`, { method: 'POST' })
       const body = await res.json().catch(()=>({}))
       if (!res.ok || !body.ok) {
-        toast({ title: 'Error al restaurar', description: body.error || `HTTP ${res.status}`, variant: 'destructive' })
+        toast.error(body.error || `Error al restaurar (HTTP ${res.status})`)
         return
       }
       setInternalGrupos(prev => prev
@@ -165,9 +165,9 @@ export default function GruposListClient({
         // Si estamos viendo sólo eliminados, al restaurar lo removemos de la lista
         .filter(g => filtroEstado === 'eliminado' ? g.eliminado : true)
       )
-      toast({ title: 'Grupo restaurado', description: `"${nombre}" ha sido restaurado.` })
+      toast.success(`"${nombre}" ha sido restaurado.`)
     } catch (e:any) {
-      toast({ title: 'Excepción', description: e.message || 'Error desconocido', variant: 'destructive' })
+      toast.error(e.message || 'Error desconocido')
     }
   }, [canRestore, toast, filtroEstado])
 
@@ -195,14 +195,14 @@ export default function GruposListClient({
         throw new Error(data.error || 'Error al actualizar los grupos.');
       }
 
-      toast({ title: 'Éxito', description: `${data.count} grupos han sido actualizados.` });
+      toast.success(`${data.count} grupos han sido actualizados.`);
       
       // Forzar la recarga de datos desde el servidor para reflejar los cambios
       router.refresh();
       setSelectedGroups([]);
 
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast.error(e.message || 'Error al actualizar los grupos.');
     } finally {
       setIsUpdating(false);
     }

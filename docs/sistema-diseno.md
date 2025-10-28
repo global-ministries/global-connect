@@ -168,7 +168,7 @@ Contenedor para páginas del dashboard con encabezado opcional.
 <SkeletonSistema ancho="200px" alto="20px" redondo />
 ```
 
-## 📱 Responsive Design
+## Responsive Design
 
 ### Breakpoints
 - **sm**: 640px+
@@ -182,7 +182,7 @@ Contenedor para páginas del dashboard con encabezado opcional.
 - Tipografía responsive: `text-sm sm:text-base`
 - Flex direccional: `flex-col sm:flex-row`
 
-## 🎯 Mejores Prácticas
+## Mejores Prácticas
 
 ### Estados de UI
 - **Siempre** manejar estados de carga
@@ -249,6 +249,41 @@ export default function NuevaPagina() {
     Enviar
   </BotonSistema>
 </form>
+```
+
+## 🔔 Notificaciones (Toasts)
+
+- **Librería oficial**: `sonner`.
+- **Toaster global**: renderizado una sola vez en `app/layout.tsx` usando `components/ui/sonner.tsx`.
+- **Hook estándar**: usar siempre `useNotificaciones()` en lugar de importar `toast` directamente.
+
+Ejemplo de uso:
+
+```tsx
+"use client"
+import { useNotificaciones } from '@/hooks/use-notificaciones'
+
+export function EjemploAccion() {
+  const toast = useNotificaciones()
+  const onClick = async () => {
+    try {
+      // ... acción
+      toast.success('Datos guardados correctamente.')
+    } catch (e: any) {
+      toast.error(e?.message || 'No se pudieron guardar los cambios. Inténtalo de nuevo.')
+    }
+  }
+  return <button onClick={onClick}>Guardar</button>
+}
+```
+
+Configuración del Toaster en `app/layout.tsx`:
+
+```tsx
+import { Toaster } from '@/components/ui/sonner'
+
+// Dentro del <body>
+<Toaster position="top-right" richColors closeButton />
 ```
 
 ## 🚀 Próximos Pasos

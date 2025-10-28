@@ -5,7 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import GroupAuditPreview from "@/components/grupos/GroupAuditPreview.client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { useNotificaciones } from "@/hooks/use-notificaciones";
 import { useRouter } from "next/navigation";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
@@ -72,6 +72,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingRemovalId, setPendingRemovalId] = useState<string | number | null>(null);
   const router = useRouter();
+  const toast = useNotificaciones();
 
 
   const obtenerColorRol = (rol: string | undefined) => {

@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno"
-import { useToast } from "@/hooks/use-toast"
+import { useNotificaciones } from "@/hooks/use-notificaciones"
 
 type Temporada = {
   id: string
@@ -25,7 +25,7 @@ export default function TemporadasListClient({
   userRoles?: string[]
 }) {
   const router = useRouter()
-  const { toast } = useToast()
+  const toast = useNotificaciones()
   const [selectedSeasons, setSelectedSeasons] = useState<string[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
 
@@ -51,14 +51,14 @@ export default function TemporadasListClient({
         throw new Error(data.error || 'Error al actualizar las temporadas.');
       }
 
-      toast({ title: 'Éxito', description: `${data.count} temporadas han sido actualizadas.` });
+      toast.success(`${data.count} temporadas han sido actualizadas.`);
       
       // Forzar la recarga de datos desde el servidor para reflejar los cambios
       router.refresh();
       setSelectedSeasons([]);
 
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast.error(e.message || 'Error al actualizar las temporadas.');
     } finally {
       setIsUpdating(false);
     }
