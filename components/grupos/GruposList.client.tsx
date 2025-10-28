@@ -103,6 +103,7 @@ export default function GruposListClient({
   const [mostrarTodosKpis, setMostrarTodosKpis] = useState(false)
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
+  const [updatingAction, setUpdatingAction] = useState<'activar' | 'desactivar' | null>(null)
 
   const puedeGestionarEnLote = useMemo(() => 
     (userRoles || []).some(role =>
@@ -181,6 +182,7 @@ export default function GruposListClient({
   const handleUpdateStatus = async (status: boolean) => {
     if (selectedGroups.length === 0 || isUpdating) return;
 
+    setUpdatingAction(status ? 'activar' : 'desactivar')
     setIsUpdating(true);
     try {
       const res = await fetch('/api/grupos/bulk-update-status', {
@@ -205,6 +207,7 @@ export default function GruposListClient({
       toast.error(e.message || 'Error al actualizar los grupos.');
     } finally {
       setIsUpdating(false);
+      setUpdatingAction(null)
     }
   };
 
@@ -293,11 +296,11 @@ export default function GruposListClient({
           <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
             <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{selectedGroups.length} seleccionados</span>
             <div className="flex items-center gap-2 flex-wrap">
-              <BotonSistema onClick={() => handleUpdateStatus(true)} tamaño="sm" disabled={isUpdating}>
-                {isUpdating ? 'Activando...' : 'Activar'}
+              <BotonSistema onClick={() => handleUpdateStatus(true)} tamaño="sm" cargando={isUpdating && updatingAction === 'activar'} disabled={isUpdating}>
+                {isUpdating && updatingAction === 'activar' ? 'Activando...' : 'Activar'}
               </BotonSistema>
-              <BotonSistema onClick={() => handleUpdateStatus(false)} tamaño="sm" variante="secundario" disabled={isUpdating}>
-                {isUpdating ? 'Desactivando...' : 'Desactivar'}
+              <BotonSistema onClick={() => handleUpdateStatus(false)} tamaño="sm" variante="secundario" cargando={isUpdating && updatingAction === 'desactivar'} disabled={isUpdating}>
+                {isUpdating && updatingAction === 'desactivar' ? 'Desactivando...' : 'Desactivar'}
               </BotonSistema>
               <BotonSistema onClick={() => setSelectedGroups([])} tamaño="sm" variante="ghost" disabled={isUpdating}>
                 Cancelar
