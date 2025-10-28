@@ -113,6 +113,36 @@ Además, se agregó la migración `20251028121000_ajuste_kpi_miembros_asistentes
 - Alturas y densidad visual alineadas con Admin (mismo sistema de diseño y paddings).
 - Todos los datos se filtran estrictamente al alcance del director.
 
+## Dashboard del Líder
+
+### Backend
+- Se extendió `public.obtener_datos_dashboard(p_auth_id uuid)` con un bloque `ELSIF v_rol_nombre = 'lider'`.
+- Alcance: `v_grupos_lider_ids` obtenido desde `grupo_miembros` filtrando por `gm.usuario_id = v_user_id` y `gm.rol = 'Líder'`.
+- Widgets devueltos (claves bajo `widgets`):
+  - `accion_requerida` (o `null`): si falta registrar asistencia esta semana para alguno de sus grupos, se retorna un objeto con `{ tipo, mensaje, grupo_id, grupo_nombre }` del primer grupo pendiente.
+  - `kpis_grupo`: `{ asistencia_ultima_reunion, total_miembros }`. La asistencia se calcula sobre el último `eventos_grupo` de cualquier grupo del líder; `total_miembros` es del grupo de ese último evento.
+  - `proximos_cumpleanos_grupo`: miembros de sus grupos con cumpleaños en los próximos 14 días.
+  - `miembros_ausentes_recientemente`: ausentes (presente=false) en las últimas 2 reuniones (cualquier grupo del líder), con fecha de la última ausencia.
+  - `nuevos_miembros_grupo`: miembros agregados en los últimos 30 días a cualquiera de sus grupos.
+- Migración: `supabase/migrations/20251028160000_dashboard_lider_vista.sql`.
+
+### Frontend
+- `app/dashboard/page.tsx` ya renderiza `DashboardLider` cuando `data.rol === 'lider'`.
+- `components/dashboard/roles/DashboardLider.tsx`:
+  - Banner superior condicional: `ActionRequiredWidget` con `widgets.accion_requerida`.
+  - KPIs: `MetricWidget` x2 (`asistencia_ultima_reunion`, `total_miembros`).
+  - Cumpleaños: `BirthdayWidget` con `proximos_cumpleanos_grupo`.
+  - Seguimiento de ausencias: `RecentAbsencesWidget` con `miembros_ausentes_recientemente`.
+  - Nuevos miembros: `NewMembersWidget` con `nuevos_miembros_grupo`.
+- Nuevos widgets:
+  - `components/dashboard/widgets/ActionRequiredWidget.tsx`: banner visible, botón “Registrar Asistencia” (link a `/dashboard/grupos/[grupo_id]/asistencia`).
+  - `components/dashboard/widgets/RecentAbsencesWidget.tsx`: lista con `UserAvatar`, nombre y fecha de última ausencia (link a `/dashboard/users/[id]/asistencia`).
+  - `components/dashboard/widgets/NewMembersWidget.tsx`: lista de nuevos miembros (link a `/dashboard/users/[id]`).
+
+### Notas de UX
+- Enfocado en acción inmediata (registrar asistencia) y cuidado pastoral (cumpleaños y ausencias recientes).
+- Consistencia visual con Admin/Director: `TarjetaSistema`, gradientes y grid responsivo.
+
 ## Diseño: tarjetas KPI del Dashboard (igual a Reportes)
 Las tarjetas KPI del dashboard replican el patrón visual de las tarjetas de Reportes.
 - Componente: `components/dashboard/widgets/MetricWidget.tsx`
