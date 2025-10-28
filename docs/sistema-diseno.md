@@ -286,6 +286,97 @@ import { Toaster } from '@/components/ui/sonner'
 <Toaster position="top-right" richColors closeButton />
 ```
 
+## Estados de Carga y Feedback al Usuario
+
+- **Navegación Global (Top Loader)**
+  - Librería: `nextjs-toploader`.
+  - Integración: en `app/layout.tsx` se incluye `NextTopLoader` con color de marca `#E96C20`.
+  - Efecto: muestra una barra superior de progreso al navegar entre rutas.
+
+```tsx
+import NextTopLoader from 'nextjs-toploader'
+
+<NextTopLoader
+  color="#E96C20"
+  initialPosition={0.08}
+  crawlSpeed={200}
+  height={3}
+  crawl
+  showSpinner={false}
+  easing="ease"
+  speed={200}
+/>
+```
+
+- **Acciones de Botones (Feedback inmediato)**
+  - Usar `BotonSistema` con la prop `cargando` y `disabled` durante mutaciones.
+  - Patrón recomendado:
+
+```tsx
+const [isLoading, setIsLoading] = useState(false)
+const onAction = async () => {
+  setIsLoading(true)
+  try {
+    await api()
+    toast.success('Listo')
+  } catch (e:any) {
+    toast.error(e?.message || 'Error')
+  } finally {
+    setIsLoading(false)
+  }
+}
+
+<BotonSistema onClick={onAction} cargando={isLoading} disabled={isLoading}>
+  Guardar Cambios
+</BotonSistema>
+```
+
+- **Carga de Páginas (Skeletons)**
+  - Usar archivos `loading.tsx` por ruta del App Router.
+  - Construir skeletons con `SkeletonSistema` replicando la estructura general.
+
+```tsx
+// app/dashboard/grupos/loading.tsx
+import { ContenedorDashboard, TarjetaSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
+
+export default function LoadingGrupos() {
+  return (
+    <ContenedorDashboard titulo="Grupos" descripcion="Cargando información...">
+      <div className="hidden md:grid md:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <TarjetaSistema key={i} className="p-6">
+            <div className="flex items-center gap-4">
+              <SkeletonSistema ancho="48px" alto="48px" redondo />
+              <div className="space-y-2 flex-1">
+                <SkeletonSistema ancho="100px" alto="18px" />
+                <SkeletonSistema ancho="140px" alto="14px" />
+              </div>
+            </div>
+          </TarjetaSistema>
+        ))}
+      </div>
+      <TarjetaSistema className="p-6">
+        <div className="space-y-4">
+          <SkeletonSistema ancho="180px" alto="20px" />
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4 border border-gray-100 rounded-lg">
+              <SkeletonSistema ancho="64px" alto="40px" />
+              <div className="flex-1 grid grid-cols-4 gap-4">
+                <SkeletonSistema ancho="100%" alto="16px" />
+                <SkeletonSistema ancho="80%" alto="16px" />
+                <SkeletonSistema ancho="60%" alto="16px" />
+                <SkeletonSistema ancho="40%" alto="16px" />
+              </div>
+              <SkeletonSistema ancho="100px" alto="32px" />
+            </div>
+          ))}
+        </div>
+      </TarjetaSistema>
+    </ContenedorDashboard>
+  )
+}
+```
+
 ## 🚀 Próximos Pasos
 
 - [ ] Implementar tema oscuro

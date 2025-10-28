@@ -5,6 +5,7 @@ import './globals.css'
 import { Toaster } from '@/components/ui/sonner'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import NextTopLoader from 'nextjs-toploader'
 
 export const metadata: Metadata = {
   title: 'Global Connect',
@@ -63,6 +64,16 @@ export default function RootLayout({
         <meta charSet="utf-8" />
       </head>
       <body className="font-sans antialiased">
+        <NextTopLoader
+          color="#E96C20"
+          initialPosition={0.08}
+          crawlSpeed={200}
+          height={3}
+          crawl={true}
+          showSpinner={false}
+          easing="ease"
+          speed={200}
+        />
         {children}
         <Toaster position="top-right" richColors closeButton />
         <Analytics />

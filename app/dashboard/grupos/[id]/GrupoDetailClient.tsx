@@ -389,6 +389,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                         tamaño="sm"
                         onClick={() => onRemoveMember(miembro.id)}
                         disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
+                        cargando={removingId === miembro.id}
                         className="text-red-600 border-red-200 hover:bg-red-50"
                       >
                         <Trash2 className={`w-4 h-4 ${removingId === miembro.id ? 'animate-pulse' : ''}`} />

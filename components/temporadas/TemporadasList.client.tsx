@@ -28,6 +28,7 @@ export default function TemporadasListClient({
   const toast = useNotificaciones()
   const [selectedSeasons, setSelectedSeasons] = useState<string[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
+  const [updatingAction, setUpdatingAction] = useState<'activar' | 'desactivar' | null>(null)
 
   const puedeGestionarEnLote = useMemo(() => 
     (userRoles || []).some(role =>
@@ -37,6 +38,7 @@ export default function TemporadasListClient({
   const handleUpdateStatus = async (status: boolean) => {
     if (selectedSeasons.length === 0 || isUpdating) return;
 
+    setUpdatingAction(status ? 'activar' : 'desactivar')
     setIsUpdating(true);
     try {
       const res = await fetch('/api/temporadas/bulk-update-status', {
@@ -61,6 +63,7 @@ export default function TemporadasListClient({
       toast.error(e.message || 'Error al actualizar las temporadas.');
     } finally {
       setIsUpdating(false);
+      setUpdatingAction(null)
     }
   };
 
@@ -71,11 +74,11 @@ export default function TemporadasListClient({
           <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
             <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{selectedSeasons.length} seleccionados</span>
             <div className="flex items-center gap-2 flex-wrap">
-              <BotonSistema onClick={() => handleUpdateStatus(true)} tamaño="sm" disabled={isUpdating}>
-                {isUpdating ? 'Activando...' : 'Activar'}
+              <BotonSistema onClick={() => handleUpdateStatus(true)} tamaño="sm" cargando={isUpdating && updatingAction === 'activar'} disabled={isUpdating}>
+                {isUpdating && updatingAction === 'activar' ? 'Activando...' : 'Activar'}
               </BotonSistema>
-              <BotonSistema onClick={() => handleUpdateStatus(false)} tamaño="sm" variante="secundario" disabled={isUpdating}>
-                {isUpdating ? 'Desactivando...' : 'Desactivar'}
+              <BotonSistema onClick={() => handleUpdateStatus(false)} tamaño="sm" variante="secundario" cargando={isUpdating && updatingAction === 'desactivar'} disabled={isUpdating}>
+                {isUpdating && updatingAction === 'desactivar' ? 'Desactivando...' : 'Desactivar'}
               </BotonSistema>
               <BotonSistema onClick={() => setSelectedSeasons([])} tamaño="sm" variante="ghost" disabled={isUpdating}>
                 Cancelar
