@@ -83,6 +83,36 @@ Notas:
 
 Además, se agregó la migración `20251028121000_ajuste_kpi_miembros_asistentes_distinct.sql` para que el KPI "Miembros Asistentes" en el reporte semanal cuente personas únicas (`COUNT(DISTINCT a.usuario_id)`).
 
+## Dashboard del Director de Etapa
+
+### Backend
+- Se extendió `public.obtener_datos_dashboard(p_auth_id uuid)` para soportar `director-etapa` con un bloque `ELSIF` que filtra por alcance.
+- Obtención de alcance: `director_etapa_grupos` + `segmento_lideres` para derivar `v_grupos_asignados_ids` del usuario (por `sl.usuario_id` y `sl.tipo_lider = 'director_etapa'`).
+- Widgets de retorno (claves bajo `widgets`):
+  - `kpis_alcance`: `{ total_miembros.valor, asistencia_semanal.valor, grupos_activos.valor, nuevos_miembros_mes.valor }`.
+  - `actividad_reciente_alcance`: eventos filtrados por grupos asignados (`USUARIO_A_GRUPO`, `NUEVO_GRUPO`, `REPORTE_ASISTENCIA`).
+  - `proximos_cumpleanos_alcance`: miembros de los grupos asignados, próximos 14 días.
+  - `grupos_en_riesgo_alcance`: tomado de `obtener_reporte_semanal_asistencia` (respeta permisos y alcance del director).
+  - `lideres_sin_reporte`: grupos asignados sin eventos en la semana actual + `STRING_AGG` de líderes (`grupo_miembros.rol = 'Líder'`).
+- Migración: `supabase/migrations/20251028150000_dashboard_director_vista.sql`.
+
+### Frontend
+- `app/dashboard/page.tsx` ya enruta a `DashboardDirector` cuando `data.rol === 'director-etapa'`.
+- `components/dashboard/roles/DashboardDirector.tsx` renderiza:
+  - `MetricWidget` x4 con `kpis_alcance`.
+  - `PendingLeadersWidget` (nuevo) con `lideres_sin_reporte`.
+  - `ActivityWidget` con `actividad_reciente_alcance`.
+  - `BirthdayWidget` con `proximos_cumpleanos_alcance` (incluye “Ver más”).
+  - `RiskGroupsWidget` con `grupos_en_riesgo_alcance`.
+- Nuevo widget: `components/dashboard/widgets/PendingLeadersWidget.tsx`.
+  - Muestra grupo (con link a `/dashboard/grupos/[id]`), líderes y botón “Contactar”.
+  - Scroll interno `max-h-64` para consistencia con otras tarjetas.
+
+### Notas de UX
+- Se reemplaza el ranking por segmentos por una tarjeta accionable: “Líderes Pendientes de Reporte”.
+- Alturas y densidad visual alineadas con Admin (mismo sistema de diseño y paddings).
+- Todos los datos se filtran estrictamente al alcance del director.
+
 ## Diseño: tarjetas KPI del Dashboard (igual a Reportes)
 Las tarjetas KPI del dashboard replican el patrón visual de las tarjetas de Reportes.
 - Componente: `components/dashboard/widgets/MetricWidget.tsx`
