@@ -66,6 +66,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
     { id: '2', title: 'Reunión programada', description: 'Grupo Adultos Centro - Domingo 10:00 AM', time: 'Hace 4 horas', type: 'info' as const },
     { id: '3', title: 'Baja asistencia detectada', description: 'Grupo Jóvenes Sur - Solo 60% de asistencia', time: 'Hace 6 horas', type: 'warning' as const }
   ]
+  const actividadItems = actividadesRecientes.map((a) => ({ tipo: 'NUEVO_MIEMBRO' as const, texto: `${a.title} — ${a.description}`, fecha: new Date().toISOString() }))
 
   const ubicacionesData = [
     { name: 'Norte', value: 8 },
@@ -154,7 +155,7 @@ export default function DashboardClient({ stats }: DashboardClientProps) {
             id="actividad"
             title="Actividad Reciente"
             icon={Calendar}
-            activities={actividadesRecientes}
+            items={actividadItems}
           />
         </div>
 

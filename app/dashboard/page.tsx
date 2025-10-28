@@ -25,7 +25,7 @@ export default async function PaginaTablero() {
     <DashboardLayout>
       <ContenedorDashboard titulo={titulo} descripcion={descripcion}>
         {data.rol === 'admin' || data.rol === 'pastor' || data.rol === 'director-general' ? (
-          <DashboardAdmin stats={data.statsAdmin ?? null} />
+          <DashboardAdmin data={data.widgets} />
         ) : data.rol === 'director-etapa' ? (
           <DashboardDirector data={data.widgets} />
         ) : data.rol === 'lider' ? (

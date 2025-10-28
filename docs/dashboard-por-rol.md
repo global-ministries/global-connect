@@ -43,6 +43,46 @@ Este documento describe la arquitectura, responsabilidades y guía de implementa
 ```
 - Nota: La implementación actual hace fallback a `obtenerBaselineStats()` para Admin/Pastor/Director General mientras se crea la RPC.
 
+## RPC implementada (rol admin)
+
+Función: `public.obtener_datos_dashboard(p_auth_id uuid) RETURNS jsonb`
+
+Para `admin/pastor/director-general` devuelve:
+
+```json
+{
+  "rol": "admin",
+  "widgets": {
+    "kpis_globales": {
+      "total_miembros": { "valor": 946, "variacion": 1.5 },
+      "asistencia_semanal": { "valor": 88.5 },
+      "grupos_activos": { "valor": 83 },
+      "nuevos_miembros_mes": { "valor": 25 }
+    },
+    "actividad_reciente": [
+      { "tipo": "NUEVO_MIEMBRO", "texto": "Isaac Páez se ha unido a la comunidad.", "fecha": "2025-10-27T14:00:00Z" },
+      { "tipo": "REPORTE_ASISTENCIA", "texto": "El grupo 'Cabudare Matrimonios 2' ha reportado su asistencia.", "fecha": "2025-10-27T13:20:00Z" }
+    ],
+    "proximos_cumpleanos": [
+      { "id": "uuid", "nombre_completo": "Isaac Páez", "foto_url": null, "fecha_nacimiento": "1990-10-30", "proximo": "2025-10-30" }
+    ],
+    "grupos_en_riesgo": [
+      { "id": "uuid-x", "nombre": "Barquisimeto Hombres 1", "porcentaje_asistencia": 55.0, "lideres": "Gabriel Salas" }
+    ],
+    "tendencia_asistencia": [ { "semana_inicio": "2025-10-05", "porcentaje": 87.5 } ],
+    "distribucion_segmentos": [ { "id": "seg-1", "nombre": "Matrimonios", "total_miembros": 320 } ]
+  }
+}
+```
+
+Notas:
+- La asistencia semanal se obtiene reutilizando `obtener_reporte_semanal_asistencia(p_incluir_todos=false)`.
+- La distribución por segmento usa `COUNT(DISTINCT gm.usuario_id)` por segmento activo.
+- Actividad reciente se arma con `UNION ALL` sobre `usuarios`, `grupos`, `grupo_miembros`, `eventos_grupo` (ordenado por `fecha` DESC, LIMIT 5).
+- Cumpleaños próximos normaliza año y filtra próximos 14 días (LIMIT 7).
+
+Además, se agregó la migración `20251028121000_ajuste_kpi_miembros_asistentes_distinct.sql` para que el KPI "Miembros Asistentes" en el reporte semanal cuente personas únicas (`COUNT(DISTINCT a.usuario_id)`).
+
 ## Diseño: tarjetas KPI del Dashboard (igual a Reportes)
 Las tarjetas KPI del dashboard replican el patrón visual de las tarjetas de Reportes.
 - Componente: `components/dashboard/widgets/MetricWidget.tsx`
@@ -77,6 +117,14 @@ Patrón usado en `MetricWidget`:
 - **Nuevos widgets**: Crear en `components/dashboard/widgets/` con “use client” y props tipadas. Mantener estilo con `TarjetaSistema`.
 - **Datos por rol**: Ampliar `obtener_datos_dashboard` en Supabase y parsear en `obtenerDatosDashboard()`.
 - **Colores por KPI**: Permitir prop opcional para gradiente; por ahora, naranja por defecto.
+
+## Widgets conectados (rol admin)
+- **MetricWidget**: Ahora acepta `varianteColor` (`naranja|azul|verde|purpura`) y `variacion` (badge positivo/negativo). Arch.: `components/dashboard/widgets/MetricWidget.tsx`.
+- **ActivityWidget**: Recibe `items` con `{ tipo, texto, fecha }` y muestra un ícono por tipo. Arch.: `components/dashboard/widgets/ActivityWidget.tsx`.
+- **BirthdayWidget**: Lista próximos cumpleaños con `UserAvatar`. Arch.: `components/dashboard/widgets/BirthdayWidget.tsx`.
+- **RiskGroupsWidget**: Lista grupos en riesgo con link a detalle. Arch.: `components/dashboard/widgets/RiskGroupsWidget.tsx`.
+- **TrendWidget**: Línea de tendencia de 8 semanas. Arch.: `components/dashboard/widgets/TrendWidget.tsx`.
+- **DonutWidget**: Conecta a `distribucion_segmentos` (miembros únicos por segmento) y centro dinámico.
 
 ## Pendientes recomendados
 - Implementar la RPC `obtener_datos_dashboard` con agregaciones reales por rol.
