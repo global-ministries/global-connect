@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno"
+import { TabsSistema, TabsList, TabsTrigger, TabsContent } from "@/components/ui/TabsSistema"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
 
 type Segmento = { id: string; nombre: string }
@@ -30,6 +31,7 @@ type Grupo = {
   fecha_creacion?: string | null
   miembros_count?: number | null
   supervisado_por_mi?: boolean | null
+  estado_temporal?: 'actual' | 'pasado' | 'futuro'
 }
 
 // Helper: color por segmento (misma lógica que en server, mantenida aquí para client)
@@ -104,6 +106,7 @@ export default function GruposListClient({
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
   const [updatingAction, setUpdatingAction] = useState<'activar' | 'desactivar' | null>(null)
+  const [pestanaActiva, setPestanaActiva] = useState<'actuales' | 'pasados' | 'futuros'>('actuales')
 
   const puedeGestionarEnLote = useMemo(() => 
     (userRoles || []).some(role =>
@@ -178,6 +181,271 @@ export default function GruposListClient({
   }, [internalGrupos])
 
   const onFiltrosChange = useCallback((f: FiltrosGruposState) => setFiltros(f), [])
+
+  const gruposActuales = useMemo(() => internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'actual'), [internalGrupos])
+  const gruposPasados = useMemo(() => internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'pasado'), [internalGrupos])
+  const gruposFuturos = useMemo(() => internalGrupos.filter(g => g.estado_temporal === 'futuro'), [internalGrupos])
+  const mostrarFuturos = useMemo(() => {
+    const esSuperior = (userRoles || []).some(r => ['admin','pastor','director-general'].includes(r))
+    return esSuperior && gruposFuturos.length > 0
+  }, [userRoles, gruposFuturos.length])
+
+  const listaMostrada = useMemo(() => {
+    if (pestanaActiva === 'actuales') return gruposActuales
+    if (pestanaActiva === 'pasados') return gruposPasados
+    return gruposFuturos
+  }, [pestanaActiva, gruposActuales, gruposPasados, gruposFuturos])
+
+  function Listado({ lista }: { lista: Grupo[] }) {
+    return (
+      <>
+        {/* Lista responsiva - Desktop: tabla, Móvil: tarjetas */}
+        <TarjetaSistema className="hidden md:block">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  {puedeGestionarEnLote && (
+                    <th className="px-4 py-3">
+                      <Checkbox
+                        checked={lista.length > 0 && selectedGroups.length === lista.length}
+                        onCheckedChange={(checked) => {
+                          setSelectedGroups(checked ? lista.map(g => g.id) : [])
+                        }}
+                        aria-label="Seleccionar todos los grupos"
+                      />
+                    </th>
+                  )}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grupo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Líder</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmento</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temporada</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                  {canDelete && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {lista && lista.length > 0 ? (
+                  lista.map((grupo) => (
+                    <tr key={grupo.id} className={cn("hover:bg-gray-50/50 transition-colors", selectedGroups.includes(grupo.id) && 'bg-orange-50')}>
+                      {puedeGestionarEnLote && (
+                        <td className="px-4 py-4">
+                          <Checkbox
+                            checked={selectedGroups.includes(grupo.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedGroups(prev => 
+                                checked 
+                                  ? [...prev, grupo.id] 
+                                  : prev.filter(id => id !== grupo.id)
+                              )
+                            }}
+                            aria-label={`Seleccionar grupo ${grupo.nombre}`}
+                          />
+                        </td>
+                      )}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-16 h-10 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
+                          <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
+                            <div className="flex items-center gap-2 font-medium text-gray-900 hover:underline cursor-pointer">
+                              <span>{grupo.nombre}</span>
+                              {grupo.supervisado_por_mi && (
+                                <span className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                                  Dir. etapa
+                                </span>
+                              )}
+                            </div>
+                          </Link>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 align-top">
+                        {(() => {
+                          if (!Array.isArray(grupo.lideres) || grupo.lideres.length === 0) return 'Sin líder asignado'
+                          const leaders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'líder')
+                          if (leaders.length === 0) return 'Sin líder asignado'
+                          const coliders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'colíder')
+                          const leaderNames = leaders.map(l => l.nombre_completo).filter(Boolean)
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              {leaderNames.map((n, idx) => (
+                                <span key={idx}>{n}</span>
+                              ))}
+                              {coliders.length > 0 && (
+                                <span className="mt-0.5 inline-flex w-max items-center rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-medium border border-orange-200">
+                                  +{coliders.length} {coliders.length === 1 ? 'aprendiz' : 'aprendices'}
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <BadgeSistema 
+                          variante="default" 
+                          tamaño="sm"
+                          className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}
+                        >
+                          {grupo.segmento_nombre || "Sin segmento"}
+                        </BadgeSistema>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {grupo.temporada_nombre || "Sin temporada"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {grupo.eliminado ? (
+                          <BadgeSistema variante="default" tamaño="sm" className="bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
+                        ) : grupo.activo ? (
+                          <BadgeSistema variante="success" tamaño="sm">Activo</BadgeSistema>
+                        ) : (
+                          <BadgeSistema variante="default" tamaño="sm">Inactivo</BadgeSistema>
+                        )}
+                      </td>
+                      {canDelete && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {grupo.eliminado ? (
+                            canRestore && (
+                              <button
+                                onClick={() => restaurarGrupo(grupo.id, grupo.nombre)}
+                                className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium"
+                              >Restaurar</button>
+                            )
+                          ) : (
+                            <button
+                              onClick={() => eliminarGrupo(grupo.id, grupo.nombre)}
+                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-medium"
+                            >
+                              <Trash2 className="w-4 h-4" /> Papelera
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={puedeGestionarEnLote ? 6 : 5} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <Users2 className="w-12 h-12 text-gray-300" />
+                        <div>
+                          <p className="text-gray-500 font-medium">No hay grupos registrados</p>
+                          <p className="text-gray-400 text-sm">No hay grupos que coincidan con los filtros</p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </TarjetaSistema>
+
+        {/* Vista móvil - Tarjetas */}
+        <div className="md:hidden space-y-4">
+          {lista && lista.length > 0 ? (
+            lista.map((grupo) => (
+              <TarjetaSistema key={grupo.id} className={cn("p-4 relative", puedeGestionarEnLote && "pr-12", selectedGroups.includes(grupo.id) && 'bg-orange-50 border-orange-200')}>
+                {puedeGestionarEnLote && (
+                  <div className="absolute top-3 right-3">
+                    <Checkbox
+                      checked={selectedGroups.includes(grupo.id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedGroups(prev => 
+                          checked 
+                            ? [...prev, grupo.id] 
+                            : prev.filter(id => id !== grupo.id)
+                        )
+                      }}
+                      aria-label={`Seleccionar grupo ${grupo.nombre}`}
+                    />
+                  </div>
+                )}
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-8 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
+                          <h3 className="font-semibold text-gray-900 truncate hover:underline cursor-pointer flex items-center gap-2">
+                            <span className="truncate">{grupo.nombre}</span>
+                            {grupo.supervisado_por_mi && (
+                              <span className="inline-flex flex-shrink-0 items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
+                                Dir. etapa
+                              </span>
+                            )}
+                          </h3>
+                        </Link>
+                      </div>
+                      {grupo.eliminado ? (
+                        <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0 bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
+                      ) : grupo.activo ? (
+                        <BadgeSistema variante="success" tamaño="sm" className="ml-2 flex-shrink-0">Activo</BadgeSistema>
+                      ) : (
+                        <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0">Inactivo</BadgeSistema>
+                      )}
+                    </div>
+                    <div className="space-y-1 text-sm text-gray-600">
+                      <div>
+                        <span className="font-medium">Líder:</span>{" "}
+                        <span>
+                          {(() => {
+                            if (!Array.isArray(grupo.lideres) || grupo.lideres.length === 0) return 'Sin líder asignado'
+                            const leaders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'líder')
+                            if (leaders.length === 0) return 'Sin líder asignado'
+                            const coliders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'colíder')
+                            const leaderNames = leaders.map(l => l.nombre_completo).filter(Boolean)
+                            return (
+                              <span className="inline-flex flex-col gap-0.5">
+                                {leaderNames.map((n, idx) => (
+                                  <span key={idx}>{n}</span>
+                                ))}
+                                {coliders.length > 0 && (
+                                  <span className="mt-0.5 inline-flex w-max items-center rounded-full bg-orange-100 text-orange-700 px-1.5 py-0.5 text-[10px] font-medium border border-orange-200">
+                                    +{coliders.length} {coliders.length === 1 ? 'aprendiz' : 'aprendices'}
+                                  </span>
+                                )}
+                              </span>
+                            )
+                          })()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">Segmento:</span>
+                        <BadgeSistema 
+                          variante="default" 
+                          tamaño="sm"
+                          className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}
+                        >
+                          {grupo.segmento_nombre || "Sin segmento"}
+                        </BadgeSistema>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </TarjetaSistema>
+            ))
+          ) : (
+            <TarjetaSistema className="p-8">
+              <div className="text-center">
+                <Users2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay grupos disponibles</h3>
+                <p className="text-gray-500 mb-6">No hay grupos que coincidan con los filtros seleccionados</p>
+                {canCreate && (
+                  <Link href="/dashboard/grupos/create">
+                    <BotonSistema variante="primario">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Crear Primer Grupo
+                    </BotonSistema>
+                  </Link>
+                )}
+              </div>
+            </TarjetaSistema>
+          )}
+        </div>
+      </>
+    )
+  }
 
   const handleUpdateStatus = async (status: boolean) => {
     if (selectedGroups.length === 0 || isUpdating) return;
@@ -263,21 +531,21 @@ export default function GruposListClient({
 
   // KPIs dinámicos según filtros
   const kpis = useMemo(() => {
-    const total = totalCount || gruposFiltrados.length
-    const activos = gruposFiltrados.filter(g => g.activo).length
+    const total = listaMostrada.length
+    const activos = listaMostrada.filter(g => g.activo).length
     // Nuevos este mes por fecha_creacion si existe; si no, 0
     const ahora = new Date()
     const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1)
     const finMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0)
-    const nuevosMes = gruposFiltrados.filter(g => {
+    const nuevosMes = listaMostrada.filter(g => {
       if (!g.fecha_creacion) return false
       const d = new Date(g.fecha_creacion)
       return d >= inicioMes && d <= finMes
     }).length
     // Total miembros si hay conteo; si no, estimado 0
-    const totalMiembros = gruposFiltrados.reduce((acc, g) => acc + (g.miembros_count ?? 0), 0)
+    const totalMiembros = listaMostrada.reduce((acc, g) => acc + (g.miembros_count ?? 0), 0)
     return { total, activos, nuevosMes, totalMiembros }
-  }, [gruposFiltrados, totalCount])
+  }, [listaMostrada])
 
   const filtrosActivos = useMemo(() => {
     let n = 0
@@ -385,269 +653,26 @@ export default function GruposListClient({
       </div>
 
 
-      {/* Lista responsiva - Desktop: tabla, Móvil: tarjetas */}
-      <TarjetaSistema className="hidden md:block">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                {puedeGestionarEnLote && (
-                  <th className="px-4 py-3">
-                    <Checkbox
-                      checked={gruposFiltrados.length > 0 && selectedGroups.length === gruposFiltrados.length}
-                      onCheckedChange={(checked) => {
-                        setSelectedGroups(checked ? gruposFiltrados.map(g => g.id) : [])
-                      }}
-                      aria-label="Seleccionar todos los grupos"
-                    />
-                  </th>
-                )}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grupo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Líder</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmento</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temporada</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                {canDelete && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {gruposFiltrados && gruposFiltrados.length > 0 ? (
-                gruposFiltrados.map((grupo) => (
-                  <tr key={grupo.id} className={cn("hover:bg-gray-50/50 transition-colors", selectedGroups.includes(grupo.id) && 'bg-orange-50')}>
-                    {puedeGestionarEnLote && (
-                      <td className="px-4 py-4">
-                        <Checkbox
-                          checked={selectedGroups.includes(grupo.id)}
-                          onCheckedChange={(checked) => {
-                            setSelectedGroups(prev => 
-                              checked 
-                                ? [...prev, grupo.id] 
-                                : prev.filter(id => id !== grupo.id)
-                            )
-                          }}
-                          aria-label={`Seleccionar grupo ${grupo.nombre}`}
-                        />
-                      </td>
-                    )}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        {/* Placeholder para imagen horizontal - más grande en desktop */}
-                        <div className="w-16 h-10 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
-                        <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
-                          <div className="flex items-center gap-2 font-medium text-gray-900 hover:underline cursor-pointer">
-                            <span>{grupo.nombre}</span>
-                            {grupo.supervisado_por_mi && (
-                              <span className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                                Dir. etapa
-                              </span>
-                            )}
-                          </div>
-                        </Link>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 align-top">
-                      {(() => {
-                        if (!Array.isArray(grupo.lideres) || grupo.lideres.length === 0) return 'Sin líder asignado'
-                        const leaders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'líder')
-                        if (leaders.length === 0) return 'Sin líder asignado'
-                        const coliders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'colíder')
-                        const leaderNames = leaders.map(l => l.nombre_completo).filter(Boolean)
-                        return (
-                          <div className="flex flex-col gap-0.5">
-                            {leaderNames.map((n, idx) => (
-                              <span key={idx}>{n}</span>
-                            ))}
-                            {coliders.length > 0 && (
-                              <span className="mt-0.5 inline-flex w-max items-center rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-medium border border-orange-200">
-                                +{coliders.length} {coliders.length === 1 ? 'aprendiz' : 'aprendices'}
-                              </span>
-                            )}
-                          </div>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <BadgeSistema 
-                        variante="default" 
-                        tamaño="sm"
-                        className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}
-                      >
-                        {grupo.segmento_nombre || "Sin segmento"}
-                      </BadgeSistema>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {grupo.temporada_nombre || "Sin temporada"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {grupo.eliminado ? (
-                        <BadgeSistema variante="default" tamaño="sm" className="bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
-                      ) : grupo.activo ? (
-                        <BadgeSistema variante="success" tamaño="sm">Activo</BadgeSistema>
-                      ) : (
-                        <BadgeSistema variante="default" tamaño="sm">Inactivo</BadgeSistema>
-                      )}
-                    </td>
-                    {canDelete && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {grupo.eliminado ? (
-                          canRestore && (
-                            <button
-                              onClick={() => restaurarGrupo(grupo.id, grupo.nombre)}
-                              className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium"
-                            >Restaurar</button>
-                          )
-                        ) : (
-                          <button
-                            onClick={() => eliminarGrupo(grupo.id, grupo.nombre)}
-                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-medium"
-                          >
-                            <Trash2 className="w-4 h-4" /> Papelera
-                          </button>
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={puedeGestionarEnLote ? 6 : 5} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <Users2 className="w-12 h-12 text-gray-300" />
-                      <div>
-                        <p className="text-gray-500 font-medium">No hay grupos registrados</p>
-                        <p className="text-gray-400 text-sm">No hay grupos que coincidan con los filtros</p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </TarjetaSistema>
+      {/* Pestañas */}
+      <TabsSistema defaultValue="actuales" onValueChange={(v) => setPestanaActiva(v as any)}>
+        <TabsList>
+          <TabsTrigger value="actuales">Grupos Actuales</TabsTrigger>
+          <TabsTrigger value="pasados">Grupos Pasados</TabsTrigger>
+          {mostrarFuturos && <TabsTrigger value="futuros">Grupos Futuros</TabsTrigger>}
+        </TabsList>
 
-      {/* Vista móvil - Tarjetas */}
-      <div className="md:hidden space-y-4">
-        {gruposFiltrados && gruposFiltrados.length > 0 ? (
-          gruposFiltrados.map((grupo) => (
-            <TarjetaSistema key={grupo.id} className={cn("p-4 relative", puedeGestionarEnLote && "pr-12", selectedGroups.includes(grupo.id) && 'bg-orange-50 border-orange-200')}>
-              {puedeGestionarEnLote && (
-                <div className="absolute top-3 right-3">
-                  <Checkbox
-                    checked={selectedGroups.includes(grupo.id)}
-                    onCheckedChange={(checked) => {
-                      setSelectedGroups(prev => 
-                        checked 
-                          ? [...prev, grupo.id] 
-                          : prev.filter(id => id !== grupo.id)
-                      )
-                    }}
-                    aria-label={`Seleccionar grupo ${grupo.nombre}`}
-                  />
-                </div>
-              )}
-              <div className="flex items-start gap-3">
-                {/* Placeholder para imagen horizontal */}
-                <div className="w-12 h-8 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
-                        <h3 className="font-semibold text-gray-900 truncate hover:underline cursor-pointer flex items-center gap-2">
-                          <span className="truncate">{grupo.nombre}</span>
-                          {grupo.supervisado_por_mi && (
-                            <span className="inline-flex flex-shrink-0 items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
-                              Dir. etapa
-                            </span>
-                          )}
-                        </h3>
-                      </Link>
-                    </div>
-                    {grupo.eliminado ? (
-                      <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0 bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
-                    ) : grupo.activo ? (
-                      <BadgeSistema variante="success" tamaño="sm" className="ml-2 flex-shrink-0">Activo</BadgeSistema>
-                    ) : (
-                      <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0">Inactivo</BadgeSistema>
-                    )}
-                    {canDelete && (
-                      grupo.eliminado ? (
-                        canRestore && (
-                          <button
-                            onClick={() => restaurarGrupo(grupo.id, grupo.nombre)}
-                            className="ml-2 text-[11px] text-emerald-600 hover:underline"
-                          >Restaurar</button>
-                        )
-                      ) : (
-                        <button
-                          onClick={() => eliminarGrupo(grupo.id, grupo.nombre)}
-                          className="ml-2 text-[11px] text-red-600 hover:underline"
-                        >Papelera</button>
-                      )
-                    )}
-                  </div>
-                  
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <div>
-                      <span className="font-medium">Líder:</span>{" "}
-                      <span>
-                        {(() => {
-                          if (!Array.isArray(grupo.lideres) || grupo.lideres.length === 0) return 'Sin líder asignado'
-                          const leaders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'líder')
-                          if (leaders.length === 0) return 'Sin líder asignado'
-                          const coliders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'colíder')
-                          const leaderNames = leaders.map(l => l.nombre_completo).filter(Boolean)
-                          return (
-                            <span className="inline-flex flex-col gap-0.5">
-                              {leaderNames.map((n, idx) => (
-                                <span key={idx}>{n}</span>
-                              ))}
-                              {coliders.length > 0 && (
-                                <span className="mt-0.5 inline-flex w-max items-center rounded-full bg-orange-100 text-orange-700 px-1.5 py-0.5 text-[10px] font-medium border border-orange-200">
-                                  +{coliders.length} {coliders.length === 1 ? 'aprendiz' : 'aprendices'}
-                                </span>
-                              )}
-                            </span>
-                          )
-                        })()}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">Segmento:</span>
-                      <BadgeSistema 
-                        variante="default" 
-                        tamaño="sm"
-                        className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}
-                      >
-                        {grupo.segmento_nombre || "Sin segmento"}
-                      </BadgeSistema>
-                    </div>
-                  </div>{/* cierre flex-1 */}
-                </div>{/* cierre flex items-start */}
-              </div>{/* cierre tarjeta inner wrapper */}
-            </TarjetaSistema>
-          ))
-        ) : (
-          <TarjetaSistema className="p-8">
-            <div className="text-center">
-              <Users2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay grupos disponibles</h3>
-              <p className="text-gray-500 mb-6">No hay grupos que coincidan con los filtros seleccionados</p>
-              {canCreate && (
-                <Link href="/dashboard/grupos/create">
-                  <BotonSistema variante="primario">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Crear Primer Grupo
-                  </BotonSistema>
-                </Link>
-              )}
-            </div>
-          </TarjetaSistema>
+        <TabsContent value="actuales">
+          <Listado lista={gruposActuales} />
+        </TabsContent>
+        <TabsContent value="pasados">
+          <Listado lista={gruposPasados} />
+        </TabsContent>
+        {mostrarFuturos && (
+          <TabsContent value="futuros">
+            <Listado lista={gruposFuturos} />
+          </TabsContent>
         )}
-      </div>
+      </TabsSistema>
 
       {/* Paginación y tamaño de página */}
       {totalCount > 0 && (
