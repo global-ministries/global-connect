@@ -31,6 +31,8 @@ type Grupo = {
   fecha_creacion?: string | null
   miembros_count?: number | null
   supervisado_por_mi?: boolean | null
+  soy_miembro?: boolean | null
+  soy_lider?: boolean | null
   estado_temporal?: 'actual' | 'pasado' | 'futuro'
 }
 
@@ -84,6 +86,15 @@ export default function GruposListClient({
   canRestore = false,
   userRoles = [],
   filtroEstado,
+  hayMisGrupos = false,
+  preActuales,
+  prePasados,
+  preMios,
+  preFuturos,
+  totalActuales,
+  totalPasados,
+  totalMios,
+  totalFuturos,
 }: {
   grupos: Grupo[]
   segmentos: Segmento[]
@@ -97,6 +108,15 @@ export default function GruposListClient({
   canRestore?: boolean
   userRoles?: string[]
   filtroEstado?: string | undefined
+  hayMisGrupos?: boolean
+  preActuales?: Grupo[]
+  prePasados?: Grupo[]
+  preMios?: Grupo[]
+  preFuturos?: Grupo[]
+  totalActuales?: number
+  totalPasados?: number
+  totalMios?: number
+  totalFuturos?: number
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -106,7 +126,8 @@ export default function GruposListClient({
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
   const [updatingAction, setUpdatingAction] = useState<'activar' | 'desactivar' | null>(null)
-  const [pestanaActiva, setPestanaActiva] = useState<'actuales' | 'pasados' | 'futuros'>('actuales')
+  const initialTab = (sp?.get('tab') as 'actuales' | 'pasados' | 'futuros' | 'mios' | null) || 'actuales'
+  const [pestanaActiva, setPestanaActiva] = useState<'actuales' | 'pasados' | 'futuros' | 'mios'>(initialTab)
 
   const puedeGestionarEnLote = useMemo(() => 
     (userRoles || []).some(role =>
@@ -117,7 +138,25 @@ export default function GruposListClient({
     const m = new Map<string, string>()
     segmentos.forEach(s => m.set(s.id, s.nombre))
     return m
-  }, [segmentos])
+  }, [])
+
+  const onTabChange = useCallback((v: string) => {
+    const next = (v as 'actuales' | 'pasados' | 'futuros' | 'mios')
+    setPestanaActiva(next)
+    const params = new URLSearchParams(sp?.toString() || '')
+    params.set('tab', next)
+    // reiniciar página de la pestaña activa
+    const paramName = next === 'actuales' ? 'page_actuales' : next === 'pasados' ? 'page_pasados' : next === 'mios' ? 'page_mios' : 'page_futuros'
+    params.set(paramName, '1')
+    // limpiar parámetro legacy
+    params.delete('page')
+    router.replace(`${pathname}?${params.toString()}`)
+  }, [pathname, router, sp])
+
+  useEffect(() => {
+    const t = (sp?.get('tab') as any) || 'actuales'
+    setPestanaActiva(t)
+  }, [sp])
 
   const temporadaNombreById = useMemo(() => {
     const m = new Map<string, string>()
@@ -182,19 +221,38 @@ export default function GruposListClient({
 
   const onFiltrosChange = useCallback((f: FiltrosGruposState) => setFiltros(f), [])
 
-  const gruposActuales = useMemo(() => internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'actual'), [internalGrupos])
-  const gruposPasados = useMemo(() => internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'pasado'), [internalGrupos])
-  const gruposFuturos = useMemo(() => internalGrupos.filter(g => g.estado_temporal === 'futuro'), [internalGrupos])
+  const gruposActuales = useMemo(() => (preActuales && preActuales.length > 0) ? preActuales : internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'actual'), [preActuales, internalGrupos])
+  const gruposPasados = useMemo(() => (prePasados && prePasados.length > 0) ? prePasados : internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'pasado'), [prePasados, internalGrupos])
+  const gruposFuturos = useMemo(() => (preFuturos && preFuturos.length > 0) ? preFuturos : internalGrupos.filter(g => g.estado_temporal === 'futuro'), [preFuturos, internalGrupos])
+  const gruposMios = useMemo(() => (preMios && preMios.length > 0) ? preMios : internalGrupos.filter(g => !!g.soy_miembro), [preMios, internalGrupos])
   const mostrarFuturos = useMemo(() => {
     const esSuperior = (userRoles || []).some(r => ['admin','pastor','director-general'].includes(r))
     return esSuperior && gruposFuturos.length > 0
   }, [userRoles, gruposFuturos.length])
 
+  const mostrarMisGrupos = useMemo(() => hayMisGrupos || gruposMios.length > 0, [hayMisGrupos, gruposMios.length])
+
   const listaMostrada = useMemo(() => {
     if (pestanaActiva === 'actuales') return gruposActuales
     if (pestanaActiva === 'pasados') return gruposPasados
-    return gruposFuturos
-  }, [pestanaActiva, gruposActuales, gruposPasados, gruposFuturos])
+    if (pestanaActiva === 'futuros') return gruposFuturos
+    return gruposMios
+  }, [pestanaActiva, gruposActuales, gruposPasados, gruposFuturos, gruposMios])
+
+  const totalPorPestana = useMemo(() => {
+    switch (pestanaActiva) {
+      case 'actuales': return totalActuales ?? totalCount
+      case 'pasados': return totalPasados ?? totalCount
+      case 'mios': return totalMios ?? totalCount
+      case 'futuros': return totalFuturos ?? totalCount
+    }
+  }, [pestanaActiva, totalActuales, totalPasados, totalMios, totalFuturos, totalCount])
+
+  const pageParam = useMemo(() => (
+    pestanaActiva === 'actuales' ? 'page_actuales' :
+    pestanaActiva === 'pasados' ? 'page_pasados' :
+    pestanaActiva === 'mios' ? 'page_mios' : 'page_futuros'
+  ), [pestanaActiva])
 
   function Listado({ lista }: { lista: Grupo[] }) {
     return (
@@ -248,16 +306,23 @@ export default function GruposListClient({
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="w-16 h-10 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
-                          <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
-                            <div className="flex items-center gap-2 font-medium text-gray-900 hover:underline cursor-pointer">
-                              <span>{grupo.nombre}</span>
-                              {grupo.supervisado_por_mi && (
-                                <span className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                                  Dir. etapa
-                                </span>
-                              )}
-                            </div>
-                          </Link>
+                          <div>
+                            <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
+                              <div className="flex items-center gap-2 font-medium text-gray-900 hover:underline cursor-pointer">
+                                <span>{grupo.nombre}</span>
+                                {grupo.supervisado_por_mi && (
+                                  <span className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                                    Dir. etapa
+                                  </span>
+                                )}
+                              </div>
+                            </Link>
+                            {(grupo.soy_lider || grupo.soy_miembro) && (
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {grupo.soy_lider ? 'Soy líder' : 'Soy miembro'}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 align-top">
@@ -376,6 +441,11 @@ export default function GruposListClient({
                             )}
                           </h3>
                         </Link>
+                        {(grupo.soy_lider || grupo.soy_miembro) && (
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {grupo.soy_lider ? 'Soy líder' : 'Soy miembro'}
+                          </div>
+                        )}
                       </div>
                       {grupo.eliminado ? (
                         <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0 bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
@@ -654,10 +724,11 @@ export default function GruposListClient({
 
 
       {/* Pestañas */}
-      <TabsSistema defaultValue="actuales" onValueChange={(v) => setPestanaActiva(v as any)}>
+      <TabsSistema value={pestanaActiva} onValueChange={onTabChange}>
         <TabsList>
           <TabsTrigger value="actuales">Grupos Actuales</TabsTrigger>
           <TabsTrigger value="pasados">Grupos Pasados</TabsTrigger>
+          {mostrarMisGrupos && <TabsTrigger value="mios">Mis Grupos</TabsTrigger>}
           {mostrarFuturos && <TabsTrigger value="futuros">Grupos Futuros</TabsTrigger>}
         </TabsList>
 
@@ -667,6 +738,11 @@ export default function GruposListClient({
         <TabsContent value="pasados">
           <Listado lista={gruposPasados} />
         </TabsContent>
+        {mostrarMisGrupos && (
+          <TabsContent value="mios">
+            <Listado lista={gruposMios} />
+          </TabsContent>
+        )}
         {mostrarFuturos && (
           <TabsContent value="futuros">
             <Listado lista={gruposFuturos} />
@@ -675,13 +751,13 @@ export default function GruposListClient({
       </TabsSistema>
 
       {/* Paginación y tamaño de página */}
-      {totalCount > 0 && (
+      {totalPorPestana && totalPorPestana > 0 && (
         <div className="pt-6 mt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-4">
-            <span className="text-sm text-gray-600 select-none">Página {Number(sp?.get('page')||'1')} de {Math.max(1, Math.ceil(totalCount / pageSize))}</span>
+            <span className="text-sm text-gray-600 select-none">Página {Number(sp?.get(pageParam)||'1')} de {Math.max(1, Math.ceil((totalPorPestana || 0) / pageSize))}</span>
             <PageSizeSelector />
           </div>
-          <PaginationControls totalCount={totalCount} pageSize={pageSize} />
+          <PaginationControls totalCount={totalPorPestana || 0} pageSize={pageSize} pageParam={pageParam} />
         </div>
       )}
     </div>
@@ -709,11 +785,11 @@ function KpiCard({ title, subtitle, value, gradient, Icon }: { title: string; su
   )
 }
 
-function PaginationControls({ totalCount, pageSize }: { totalCount: number; pageSize: number }) {
+function PaginationControls({ totalCount, pageSize, pageParam }: { totalCount: number; pageSize: number; pageParam: string }) {
   const sp = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-  const page = Number(sp?.get('page') || '1')
+  const page = Number(sp?.get(pageParam) || '1')
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
   // Si no hay más de una página, no renderizar controles
   if (totalPages <= 1) return null
@@ -721,7 +797,7 @@ function PaginationControls({ totalCount, pageSize }: { totalCount: number; page
     const n = Math.min(Math.max(1, next), totalPages)
     if (n === page) return
     const params = new URLSearchParams(sp?.toString() || '')
-    params.set('page', String(n))
+    params.set(pageParam, String(n))
     router.replace(`${pathname}?${params.toString()}`)
   }
   return totalPages > 1 ? (
@@ -750,7 +826,12 @@ function PageSizeSelector() {
   const setSize = (n: number) => {
   const params = new URLSearchParams(sp?.toString() || "")
     params.set('pageSize', String(n))
-    params.delete('page') // reset page
+    // reset de todas las páginas por pestaña
+    params.delete('page')
+    params.delete('page_actuales')
+    params.delete('page_pasados')
+    params.delete('page_mios')
+    params.delete('page_futuros')
     router.replace(`${pathname}?${params.toString()}`)
   }
   return (
