@@ -716,3 +716,20 @@ Códigos de error:
 - Auditoría: registrar inserciones en tabla `auditoria_acciones` (pendiente) para cambios de rol y eliminación de directores.
 - Soft delete para `segmento_lideres` (campo `activo` boolean) si se requiere histórico.
 - Limitar cambio a rol `admin` solo si hay >= 1 admin residual (validación de continuidad).
+
+### 3. Asignar Contraseña a Usuario (Sólo Admin)
+`POST /api/users/[id]/set-password`
+
+- Propósito: Permite que un administrador establezca una nueva contraseña para un usuario con cuenta de autenticación.
+- Permisos: únicamente `admin` (validado con `getUserWithRoles()` sobre el solicitante).
+- Path param: `id` = `auth_id` del usuario objetivo (UUID de Supabase Auth).
+- Body:
+```json
+{ "newPassword": "una_contraseña_segura_123" }
+```
+- Validación: `newPassword` mínimo 8 caracteres (Zod).
+- Implementación: `supabase.auth.admin.updateUserById(id, { password })` usando `createSupabaseAdminClient()`.
+- Respuestas:
+  - 200 `{ ok: true, message: "Contraseña actualizada correctamente" }`
+  - 400/401/403 según payload o permisos
+  - 5xx/502 en errores transitorios con reintentos y backoff
