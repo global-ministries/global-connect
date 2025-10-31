@@ -1,9 +1,12 @@
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { UserEditForm } from "@/components/forms/UserEditForm"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
+import { AdminAccionesAsignarContrasena } from '@/components/admin/AdminAccionesAsignarContrasena.client'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -136,6 +139,10 @@ export default async function EditUserPage({ params }: Props) {
     profesion: profesion || undefined
   }
 
+  // Verificar si el usuario actual es admin (para mostrar acciones de administrador)
+  const supabaseServer = await createSupabaseServerClient()
+  const current = await getUserWithRoles(supabaseServer)
+  const esAdmin = (current?.roles || []).includes('admin')
 
   // Obtener catálogos en paralelo
   const [
@@ -197,6 +204,9 @@ export default async function EditUserPage({ params }: Props) {
 
       {/* Contenido principal */}
       <div className="px-4 sm:px-6 lg:px-20 py-6">
+        {esAdmin && (
+          <AdminAccionesAsignarContrasena userAuthId={usuario.auth_id} />
+        )}
         <UserEditForm 
           usuario={usuarioCompleto}
           ocupaciones={ocupaciones || []}
