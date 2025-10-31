@@ -27,6 +27,28 @@ const coloresMarca = {
 
 ## 🧩 Componentes Disponibles
 
+### TabsSistema
+Componente de pestañas basado en Radix Tabs con estilos del sistema.
+
+```tsx
+import { TabsSistema, TabsList, TabsTrigger, TabsContent } from '@/components/ui/TabsSistema'
+
+<TabsSistema defaultValue="actuales">
+  <TabsList>
+    <TabsTrigger value="actuales">Actuales</TabsTrigger>
+    <TabsTrigger value="pasados">Pasados</TabsTrigger>
+  </TabsList>
+  <TabsContent value="actuales">
+    {/* Contenido pestaña Actuales */}
+  </TabsContent>
+  <TabsContent value="pasados">
+    {/* Contenido pestaña Pasados */}
+  </TabsContent>
+</TabsSistema>
+```
+
+Props principales: los mismos de Radix `Tabs.Root`, `Tabs.List`, `Tabs.Trigger` y `Tabs.Content`.
+
 ### InputSistema
 Input con iconos, labels y manejo de errores integrado.
 
