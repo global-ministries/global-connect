@@ -18,10 +18,19 @@ interface BirthdayWidgetProps {
   items: CumpleItem[]
 }
 
+// FIX: Parsear fechas manualmente para evitar conversión automática de zona horaria
+// Las fechas vienen en formato "YYYY-MM-DD" como TEXT desde el backend
 function formatearFechaLarga(fechaISO: string): string {
   try {
-    const d = new Date(fechaISO)
-    return d.toLocaleDateString('es-VE', { day: 'numeric', month: 'long' })
+    // Parsear manualmente la fecha para evitar conversión de zona horaria
+    const [year, month, day] = fechaISO.split('-').map(Number)
+    // Usar Date.UTC para crear fecha sin conversión de zona horaria
+    const d = new Date(Date.UTC(year, month - 1, day))
+    return d.toLocaleDateString('es-VE', { 
+      day: 'numeric', 
+      month: 'long',
+      timeZone: 'UTC'  // Forzar UTC para evitar ajuste de zona horaria
+    })
   } catch {
     return fechaISO
   }
