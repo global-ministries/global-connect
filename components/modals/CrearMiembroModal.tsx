@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createUser } from "@/lib/actions/user.actions"
+import { useNotificaciones } from "@/hooks/use-notificaciones"
 import { supabase } from "@/lib/supabase/client"
 
 export type UsuarioMin = {
@@ -28,6 +29,7 @@ interface CrearMiembroModalProps {
 export function CrearMiembroModal({ isOpen, onClose, onCreated }: CrearMiembroModalProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { success, error: errorToast } = useNotificaciones()
 
   const [nombre, setNombre] = useState("")
   const [apellido, setApellido] = useState("")
@@ -61,7 +63,7 @@ export function CrearMiembroModal({ isOpen, onClose, onCreated }: CrearMiembroMo
     }
     setSaving(true)
     try {
-      const newUserId = await createUser({
+      const res: any = await createUser({
         nombre,
         apellido,
         cedula: cedula || undefined,
@@ -71,8 +73,36 @@ export function CrearMiembroModal({ isOpen, onClose, onCreated }: CrearMiembroMo
         genero,
         estado_civil: estadoCivil,
       })
-      if (!newUserId) {
-        throw new Error("No se pudo crear el usuario")
+      
+      // Validar respuesta
+      if (!res || typeof res !== 'object') {
+        const msg = 'Respuesta inválida del servidor'
+        setError(msg)
+        errorToast(msg)
+        return
+      }
+      
+      if (res.ok === false || res.error) {
+        const msg = res.error || 'No se pudo crear el usuario'
+        setError(msg)
+        errorToast(msg)
+        return
+      }
+      
+      if (res.ok !== true) {
+        const msg = 'Respuesta sin estado de éxito'
+        setError(msg)
+        errorToast(msg)
+        return
+      }
+      
+      const newUserId = String(res.id || '').trim()
+      const esUUID = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+      if (!newUserId || !esUUID(newUserId)) {
+        const msg = 'No se pudo obtener el ID del usuario creado'
+        setError(msg)
+        errorToast(msg)
+        return
       }
       const { data, error: qErr } = await supabase
         .from('usuarios')
@@ -90,10 +120,13 @@ export function CrearMiembroModal({ isOpen, onClose, onCreated }: CrearMiembroMo
         cedula: data.cedula,
         foto_perfil_url: data.foto_perfil_url,
       })
+      success('Miembro creado correctamente')
       reset()
       onClose()
     } catch (err: any) {
-      setError(err?.message || 'Error al crear usuario')
+      const msg = err?.message || 'Error al crear usuario'
+      setError(msg)
+      errorToast(msg)
     } finally {
       setSaving(false)
     }

@@ -6,6 +6,7 @@ import { createUser } from "@/lib/actions/user.actions"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { InputSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
+import { useNotificaciones } from "@/hooks/use-notificaciones"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { User, Mail, Phone, Calendar, Users } from "lucide-react"
 
@@ -25,6 +26,7 @@ type UserCreateFormData = z.infer<typeof userCreateSchema>
 export default function UserCreateForm() {
 
   const router = useRouter();
+  const { success, error: errorToast } = useNotificaciones()
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError, control } = useForm<UserCreateFormData>({
     resolver: zodResolver(userCreateSchema),
     defaultValues: {
@@ -41,14 +43,51 @@ export default function UserCreateForm() {
 
   const onSubmit = async (data: UserCreateFormData) => {
     try {
-      const newUserId = await createUser(data);
-      if (!newUserId) {
-        setError("root", { message: "No se pudo crear el usuario. Intenta de nuevo." });
-        return;
+      const res: any = await createUser(data as any)
+      
+      // Validar que la respuesta tenga la estructura correcta
+      if (!res || typeof res !== 'object') {
+        const msg = 'Respuesta inválida del servidor. Intenta de nuevo.'
+        setError("root", { message: msg })
+        errorToast(msg)
+        return
       }
-      router.push(`/dashboard/users/${newUserId}/edit`);
+      
+      // Si hay error
+      if (res.ok === false || res.error) {
+        const msg = res.error || "No se pudo crear el usuario. Intenta de nuevo."
+        const lower = String(msg).toLowerCase()
+        if (lower.includes('email')) setError('email', { message: msg })
+        if (lower.includes('cédula') || lower.includes('cedula')) setError('cedula', { message: msg })
+        setError("root", { message: msg })
+        errorToast(msg)
+        return
+      }
+      
+      // Si fue exitoso, extraer y validar el ID
+      if (res.ok !== true) {
+        const msg = 'Respuesta del servidor sin estado de éxito. Intenta de nuevo.'
+        setError("root", { message: msg })
+        errorToast(msg)
+        return
+      }
+      
+      const idStr = String(res.id || '').trim()
+      const esUUID = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+      
+      if (!idStr || !esUUID(idStr)) {
+        const msg = 'No se pudo obtener el ID del nuevo usuario. Intenta nuevamente.'
+        setError('root', { message: msg })
+        errorToast(msg)
+        return
+      }
+      
+      success('Usuario creado correctamente')
+      router.push(`/dashboard/users/${idStr}/edit`)
     } catch (err: any) {
-      setError("root", { message: err?.message || "Error inesperado al crear usuario" });
+      const msg = err?.message || "Error inesperado al crear usuario"
+      setError("root", { message: msg });
+      errorToast(msg)
     }
   }
 
