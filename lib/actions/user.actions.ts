@@ -305,65 +305,79 @@ export async function createUser(data: {
 }) {
   const supabaseAdmin = createSupabaseAdminClient()
 
-  // 1. Crear el usuario
-  const { data: newUser, error: userError } = await supabaseAdmin
-    .from("usuarios")
-    .insert({
-      nombre: data.nombre,
-      apellido: data.apellido,
-      cedula: data.cedula,
-      email: data.email,
-      telefono: data.telefono,
-      fecha_nacimiento: data.fecha_nacimiento,
-      genero: data.genero,
-      estado_civil: data.estado_civil,
-    })
-    .select("id")
-    .single()
-
-  if (userError) {
-    console.error("Error al crear usuario:", userError)
-    throw new Error("Error al crear usuario: " + userError.message)
+  const mapearErrorBD = (e: any): string => {
+    const code = e?.code as string | undefined
+    const msg = (e?.message as string | undefined) || ""
+    const details = (e?.details as string | undefined) || ""
+    const texto = `${msg} ${details}`.toLowerCase()
+    if (code === '23505') {
+      if (texto.includes('usuarios_email') || texto.includes('email')) return 'El email ya se encuentra registrado.'
+      if (texto.includes('usuarios_cedula') || texto.includes('cedula') || texto.includes('cédula')) return 'La cédula ya se encuentra registrada.'
+      return 'Registro duplicado: ya existe un usuario con datos iguales.'
+    }
+    if (code === '23502') {
+      if (texto.includes('nombre')) return 'El nombre es obligatorio.'
+      if (texto.includes('apellido')) return 'El apellido es obligatorio.'
+      if (texto.includes('genero') || texto.includes('género')) return 'El género es obligatorio.'
+      if (texto.includes('estado_civil')) return 'El estado civil es obligatorio.'
+      return 'Faltan campos obligatorios.'
+    }
+    if (code === '22P02' || code === '22007') {
+      if (texto.includes('fecha') || texto.includes('date')) return 'La fecha tiene un formato inválido.'
+      return 'Alguno de los campos tiene un formato inválido.'
+    }
+    if (code === '23503') return 'Alguna referencia no es válida. Verifica la información ingresada.'
+    return msg || 'No se pudo crear el usuario. Intenta nuevamente.'
   }
 
-  if (!newUser) {
-    throw new Error("No se pudo crear el usuario.")
+  try {
+    const { data: newUser, error: userError } = await supabaseAdmin
+      .from("usuarios")
+      .insert({
+        nombre: data.nombre,
+        apellido: data.apellido,
+        cedula: (data.cedula || '').trim() === '' ? null : data.cedula,
+        email: (data.email || '').trim() === '' ? null : (data.email || undefined),
+        telefono: (data.telefono || '').trim() === '' ? null : data.telefono,
+        fecha_nacimiento: (data.fecha_nacimiento || '').trim() === '' ? null : data.fecha_nacimiento,
+        genero: data.genero,
+        estado_civil: data.estado_civil,
+      })
+      .select("id")
+      .single()
+
+    if (userError) {
+      return { ok: false, error: mapearErrorBD(userError) }
+    }
+    if (!newUser) {
+      return { ok: false, error: 'No se pudo crear el usuario.' }
+    }
+
+    const newUserId = String(newUser.id)
+
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from("roles_sistema")
+      .select("id")
+      .eq("nombre_interno", "miembro")
+      .single()
+    
+    if (roleError || !roleData) {
+      return { ok: false, error: 'No fue posible asignar el rol de miembro (rol no encontrado).' }
+    }
+    
+    const miembroRoleId = roleData.id
+    const { error: roleAssignmentError } = await supabaseAdmin
+      .from("usuario_roles")
+      .insert({ usuario_id: newUserId, rol_id: miembroRoleId })
+    
+    if (roleAssignmentError) {
+      return { ok: false, error: 'Se creó el usuario, pero no se pudo asignar el rol de miembro automáticamente. Puedes asignarlo manualmente.' }
+    }
+    
+    return { ok: true, id: newUserId }
+  } catch (e: any) {
+    return { ok: false, error: mapearErrorBD(e) }
   }
-
-  const newUserId = newUser.id
-
-  // 2. Obtener el ID del Rol "Miembro"
-  const { data: roleData, error: roleError } = await supabaseAdmin
-    .from("roles_sistema")
-    .select("id")
-    .eq("nombre_interno", "miembro")
-    .single()
-
-  if (roleError || !roleData) {
-    console.error("Error al buscar el rol 'miembro':", roleError)
-    throw new Error("El rol 'miembro' no fue encontrado en la base de datos.")
-  }
-
-  const miembroRoleId = roleData.id
-
-  // 3. Asignar el Rol
-  const { error: roleAssignmentError } = await supabaseAdmin
-    .from("usuario_roles")
-    .insert({
-      usuario_id: newUserId,
-      rol_id: miembroRoleId,
-    })
-
-  if (roleAssignmentError) {
-    console.error("Error al asignar rol al usuario:", roleAssignmentError)
-    throw new Error(
-      "Error al asignar el rol de miembro al nuevo usuario: " +
-        roleAssignmentError.message
-    )
-  }
-
-  // 4. Devolver el ID del nuevo usuario
-  return newUserId
 }
 
 //
