@@ -10,18 +10,18 @@ import { ArrowLeft, Users } from 'lucide-react'
 const DirectoresSegmentoClient = lazy(() => import('./DirectoresSegmentoClient'))
 
 interface Props {
-  params: { segmentoId: string }
+  params: Promise<{ segmentoId: string }>
 }
 
 export default async function DirectoresSegmentoPage({ params }: Props) {
-  const { segmentoId } = params
+  const { segmentoId } = await params
   const supabase = await createSupabaseServerClient()
   const userData = await getUserWithRoles(supabase)
   if (!userData) redirect('/login')
   console.log('[DIRECTORES_SEGMENTO] roles usuario:', userData.roles)
-  const puedeVer = userData.roles.some(r => ['admin','pastor','director-general','director-etapa'].includes(r))
+  const puedeVer = userData.roles.some(r => ['admin', 'pastor', 'director-general', 'director-etapa'].includes(r))
   if (!puedeVer) redirect('/dashboard')
-  const esSuperior = userData.roles.some(r => ['admin','pastor','director-general'].includes(r))
+  const esSuperior = userData.roles.some(r => ['admin', 'pastor', 'director-general'].includes(r))
 
   // Obtener nombre del segmento para el título/contexto
   const { data: segRows, error } = await supabase
