@@ -129,7 +129,7 @@ export default function GruposListClient({
   const initialTab = (sp?.get('tab') as 'actuales' | 'pasados' | 'futuros' | 'mios' | null) || 'actuales'
   const [pestanaActiva, setPestanaActiva] = useState<'actuales' | 'pasados' | 'futuros' | 'mios'>(initialTab)
 
-  const puedeGestionarEnLote = useMemo(() => 
+  const puedeGestionarEnLote = useMemo(() =>
     (userRoles || []).some(role =>
       ['admin', 'pastor', 'director-general'].includes(role)
     ), [userRoles]);
@@ -167,7 +167,7 @@ export default function GruposListClient({
   // Los grupos ya vienen filtrados desde el servidor
   const toast = useNotificaciones()
   const [internalGrupos, setInternalGrupos] = useState<Grupo[]>(grupos)
-  useEffect(()=>{ 
+  useEffect(() => {
     setInternalGrupos(grupos)
     setSelectedGroups([]) // Limpiar selección si los datos de grupos cambian
   }, [grupos])
@@ -178,7 +178,7 @@ export default function GruposListClient({
     if (!confirmar) return
     try {
       const res = await fetch(`/api/grupos/${id}`, { method: 'DELETE' })
-      const body = await res.json().catch(()=>({}))
+      const body = await res.json().catch(() => ({}))
       if (!res.ok || !body.ok) {
         toast.error(body.error || `Error al eliminar (HTTP ${res.status})`)
         return
@@ -189,7 +189,7 @@ export default function GruposListClient({
         .filter(g => (filtroEstado === 'eliminado') || !g.eliminado ? true : (filtroEstado === 'eliminado'))
       )
       toast.success(`"${nombre}" ahora está en la papelera.`)
-    } catch (e:any) {
+    } catch (e: any) {
       toast.error(e.message || 'Error desconocido')
     }
   }, [canDelete, toast, filtroEstado])
@@ -198,7 +198,7 @@ export default function GruposListClient({
     if (!canRestore) return
     try {
       const res = await fetch(`/api/grupos/${id}/restore`, { method: 'POST' })
-      const body = await res.json().catch(()=>({}))
+      const body = await res.json().catch(() => ({}))
       if (!res.ok || !body.ok) {
         toast.error(body.error || `Error al restaurar (HTTP ${res.status})`)
         return
@@ -209,7 +209,7 @@ export default function GruposListClient({
         .filter(g => filtroEstado === 'eliminado' ? g.eliminado : true)
       )
       toast.success(`"${nombre}" ha sido restaurado.`)
-    } catch (e:any) {
+    } catch (e: any) {
       toast.error(e.message || 'Error desconocido')
     }
   }, [canRestore, toast, filtroEstado])
@@ -226,7 +226,7 @@ export default function GruposListClient({
   const gruposFuturos = useMemo(() => (preFuturos && preFuturos.length > 0) ? preFuturos : internalGrupos.filter(g => g.estado_temporal === 'futuro'), [preFuturos, internalGrupos])
   const gruposMios = useMemo(() => (preMios && preMios.length > 0) ? preMios : internalGrupos.filter(g => !!g.soy_miembro), [preMios, internalGrupos])
   const mostrarFuturos = useMemo(() => {
-    const esSuperior = (userRoles || []).some(r => ['admin','pastor','director-general'].includes(r))
+    const esSuperior = (userRoles || []).some(r => ['admin', 'pastor', 'director-general', 'director-etapa'].includes(r))
     return esSuperior && gruposFuturos.length > 0
   }, [userRoles, gruposFuturos.length])
 
@@ -250,8 +250,8 @@ export default function GruposListClient({
 
   const pageParam = useMemo(() => (
     pestanaActiva === 'actuales' ? 'page_actuales' :
-    pestanaActiva === 'pasados' ? 'page_pasados' :
-    pestanaActiva === 'mios' ? 'page_mios' : 'page_futuros'
+      pestanaActiva === 'pasados' ? 'page_pasados' :
+        pestanaActiva === 'mios' ? 'page_mios' : 'page_futuros'
   ), [pestanaActiva])
 
   function Listado({ lista }: { lista: Grupo[] }) {
@@ -293,9 +293,9 @@ export default function GruposListClient({
                           <Checkbox
                             checked={selectedGroups.includes(grupo.id)}
                             onCheckedChange={(checked) => {
-                              setSelectedGroups(prev => 
-                                checked 
-                                  ? [...prev, grupo.id] 
+                              setSelectedGroups(prev =>
+                                checked
+                                  ? [...prev, grupo.id]
                                   : prev.filter(id => id !== grupo.id)
                               )
                             }}
@@ -347,8 +347,8 @@ export default function GruposListClient({
                         })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <BadgeSistema 
-                          variante="default" 
+                        <BadgeSistema
+                          variante="default"
                           tamaño="sm"
                           className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}
                         >
@@ -416,9 +416,9 @@ export default function GruposListClient({
                     <Checkbox
                       checked={selectedGroups.includes(grupo.id)}
                       onCheckedChange={(checked) => {
-                        setSelectedGroups(prev => 
-                          checked 
-                            ? [...prev, grupo.id] 
+                        setSelectedGroups(prev =>
+                          checked
+                            ? [...prev, grupo.id]
                             : prev.filter(id => id !== grupo.id)
                         )
                       }}
@@ -482,8 +482,8 @@ export default function GruposListClient({
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Segmento:</span>
-                        <BadgeSistema 
-                          variante="default" 
+                        <BadgeSistema
+                          variante="default"
                           tamaño="sm"
                           className={segmentoBadgeClass(grupo.segmento_nombre || undefined)}
                         >
@@ -536,7 +536,7 @@ export default function GruposListClient({
       }
 
       toast.success(`${data.count} grupos han sido actualizados.`);
-      
+
       // Forzar la recarga de datos desde el servidor para reflejar los cambios
       router.refresh();
       setSelectedGroups([]);
@@ -590,11 +590,11 @@ export default function GruposListClient({
   // Inicializar filtros desde URL al cargar
   useEffect(() => {
     setFiltros({
-  segmentoId: sp?.get('segmentoId') || undefined,
-  temporadaId: sp?.get('temporadaId') || undefined,
-  estado: (sp?.get('estado') as any) || undefined,
-  municipioId: sp?.get('municipioId') || undefined,
-  parroquiaId: sp?.get('parroquiaId') || undefined,
+      segmentoId: sp?.get('segmentoId') || undefined,
+      temporadaId: sp?.get('temporadaId') || undefined,
+      estado: (sp?.get('estado') as any) || undefined,
+      municipioId: sp?.get('municipioId') || undefined,
+      parroquiaId: sp?.get('parroquiaId') || undefined,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -658,8 +658,8 @@ export default function GruposListClient({
               <KpiCard title="Total Miembros" subtitle="En grupos" value={kpis.totalMiembros} gradient="from-purple-500 to-pink-500" Icon={Users2} />
             </>
           )}
-          <BotonSistema 
-            variante="outline" 
+          <BotonSistema
+            variante="outline"
             tamaño="sm"
             onClick={() => setMostrarTodosKpis(!mostrarTodosKpis)}
             className="w-full"
@@ -678,7 +678,7 @@ export default function GruposListClient({
           </BotonSistema>
         </div>
       </div>
-      
+
       {/* Desktop: mostrar todas las KPIs */}
       <div className="hidden md:grid md:grid-cols-4 gap-4">
         <KpiCard title="Total de Grupos" value={kpis.total} gradient="from-blue-500 to-cyan-500" Icon={Users2} />
@@ -690,17 +690,17 @@ export default function GruposListClient({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h3 className="text-lg lg:text-xl font-bold text-gray-800">Lista de Grupos</h3>
         <div className="flex items-center gap-2">
-            <Sheet>
+          <Sheet>
             <SheetTrigger asChild>
-                <BotonSistema variante="outline" tamaño="sm" className="relative min-w-0">
-                  <Filter className="w-4 h-4 flex-shrink-0" />
-                  <span className="hidden sm:inline ml-2">Filtros</span>
-                  {filtrosActivos > 0 && (
-                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-orange-600 text-white text-[10px] w-4 h-4 z-10">
-                      {filtrosActivos}
-                    </span>
-                  )}
-                </BotonSistema>
+              <BotonSistema variante="outline" tamaño="sm" className="relative min-w-0">
+                <Filter className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden sm:inline ml-2">Filtros</span>
+                {filtrosActivos > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-orange-600 text-white text-[10px] w-4 h-4 z-10">
+                    {filtrosActivos}
+                  </span>
+                )}
+              </BotonSistema>
             </SheetTrigger>
             <SheetContent side="right" className="w-full sm:max-w-md p-0">
               <SheetHeader className="px-6 py-4 border-b border-gray-200">
@@ -754,7 +754,7 @@ export default function GruposListClient({
       {totalPorPestana && totalPorPestana > 0 && (
         <div className="pt-6 mt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-4">
-            <span className="text-sm text-gray-600 select-none">Página {Number(sp?.get(pageParam)||'1')} de {Math.max(1, Math.ceil((totalPorPestana || 0) / pageSize))}</span>
+            <span className="text-sm text-gray-600 select-none">Página {Number(sp?.get(pageParam) || '1')} de {Math.max(1, Math.ceil((totalPorPestana || 0) / pageSize))}</span>
             <PageSizeSelector />
           </div>
           <PaginationControls totalCount={totalPorPestana || 0} pageSize={pageSize} pageParam={pageParam} />
@@ -824,7 +824,7 @@ function PageSizeSelector() {
   const pathname = usePathname()
   const size = Number(sp?.get('pageSize') || '20')
   const setSize = (n: number) => {
-  const params = new URLSearchParams(sp?.toString() || "")
+    const params = new URLSearchParams(sp?.toString() || "")
     params.set('pageSize', String(n))
     // reset de todas las páginas por pestaña
     params.delete('page')
