@@ -9,11 +9,11 @@ import { ArrowLeft, ArrowRight } from "lucide-react"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 
 interface Props {
-	params: { segmentoId: string }
+	params: Promise<{ segmentoId: string }>
 }
 
 export default async function SegmentoDetallePage({ params }: Props) {
-	const { segmentoId } = params;
+	const { segmentoId } = await params;
 	console.log('[SEGMENTO_DETALLE] segmentoId param:', segmentoId)
 	const supabase = await createSupabaseServerClient()
 	const userData = await getUserWithRoles(supabase)
@@ -21,15 +21,15 @@ export default async function SegmentoDetallePage({ params }: Props) {
 	const rolesPermitidos = ["admin", "pastor", "director-general", "director-etapa", "lider"]
 	const autorizado = userData.roles.some(r => rolesPermitidos.includes(r))
 	if (!autorizado) redirect("/dashboard")
-	
+
 	// Determinar si puede ver perfiles de directores (roles superiores, no solo lider)
 	const rolesSuperiores = ["admin", "pastor", "director-general", "director-etapa"]
 	const puedeVerPerfiles = userData.roles.some(r => rolesSuperiores.includes(r))
 
 	// Usar limit(1) para detectar si RLS está bloqueando (data vacío sin error) vs inexistencia real
-		const { data: segRows, error } = await supabase
-			.from('segmentos')
-			.select('id, nombre')
+	const { data: segRows, error } = await supabase
+		.from('segmentos')
+		.select('id, nombre')
 		.eq('id', segmentoId)
 		.limit(1)
 
@@ -38,10 +38,10 @@ export default async function SegmentoDetallePage({ params }: Props) {
 	}
 	const segmento = segRows && segRows.length > 0 ? segRows[0] : null
 	console.log('[SEGMENTO_DETALLE] fetched rows length:', segRows?.length ?? 0)
-		if (!segmento) {
-			console.warn('[SEGMENTO_DETALLE] segmento no visible. Posible RLS o id inexistente.')
-			notFound()
-		}
+	if (!segmento) {
+		console.warn('[SEGMENTO_DETALLE] segmento no visible. Posible RLS o id inexistente.')
+		notFound()
+	}
 
 	// Cargar preview de directores (sin límite) y agrupar cónyuges
 	let directoresPreview: Array<{ id: string; usuario_id: string; nombre: string; apellido: string; email?: string | null; foto?: string | null }> = []
@@ -53,7 +53,7 @@ export default async function SegmentoDetallePage({ params }: Props) {
 			.select('id, usuario_id')
 			.eq('segmento_id', segmentoId)
 			.eq('tipo_lider', 'director_etapa')
-		
+
 		if (baseErr) {
 			console.warn('[SEGMENTO_DETALLE] baseErr directores', baseErr.message)
 		}
@@ -62,7 +62,7 @@ export default async function SegmentoDetallePage({ params }: Props) {
 		if (filasBase && filasBase.length > 0) {
 			const usuarioIds = [...new Set(filasBase.map(f => f.usuario_id))]
 			let usuariosMap = new Map<string, { nombre: string; apellido: string; email?: string | null; foto_perfil_url?: string | null }>()
-			
+
 			if (usuarioIds.length > 0) {
 				// Usar admin client para obtener datos de usuarios (bypass RLS para mostrar nombres)
 				const supabaseAdmin = createSupabaseAdminClient()
@@ -70,21 +70,21 @@ export default async function SegmentoDetallePage({ params }: Props) {
 					.from('usuarios')
 					.select('id, nombre, apellido, email, foto_perfil_url')
 					.in('id', usuarioIds)
-				
+
 				if (usuariosErr) {
 					console.warn('[SEGMENTO_DETALLE] usuariosErr directores', usuariosErr.message)
 				}
-				
+
 				for (const u of usuariosData || []) {
-					usuariosMap.set(u.id, { 
-						nombre: u.nombre || '', 
-						apellido: u.apellido || '', 
-						email: u.email || null, 
-						foto_perfil_url: (u as any).foto_perfil_url || null 
+					usuariosMap.set(u.id, {
+						nombre: u.nombre || '',
+						apellido: u.apellido || '',
+						email: u.email || null,
+						foto_perfil_url: (u as any).foto_perfil_url || null
 					})
 				}
 			}
-			
+
 			registros = filasBase.map(f => ({
 				id: f.id,
 				usuario_id: f.usuario_id,
@@ -92,64 +92,64 @@ export default async function SegmentoDetallePage({ params }: Props) {
 			}))
 		}
 
-	directoresPreview = (registros as any[]).map(d => {
-		const preview = {
-			id: d.id,
-			usuario_id: d.usuario_id,
-			nombre: d.usuario?.nombre || '',
-			apellido: d.usuario?.apellido || '',
-			email: d.usuario?.email || null,
-			foto: d.usuario?.foto_perfil_url || null,
-		}
-		console.log('[SEGMENTO_DETALLE] director preview:', preview)
-		return preview
-	})
-
-	// Agrupar cónyuges entre los directores
-	const idsDirectores = [...new Set(directoresPreview.map(d => d.usuario_id))]
-	let parejas = new Map<string, string>()
-	if (idsDirectores.length > 0) {
-		try {
-			const idsCSV = idsDirectores.map(id => `"${id}"`).join(',')
-			const { data: conyRows, error: conyErr } = await supabase
-				.from('relaciones_usuarios')
-				.select('usuario1_id, usuario2_id')
-				.eq('tipo_relacion', 'conyuge')
-				.or(`usuario1_id.in.(${idsCSV}),usuario2_id.in.(${idsCSV})`)
-				.limit(10000)
-			if (conyErr) {
-				console.warn('[SEGMENTO_DETALLE] conyErr', conyErr.message)
+		directoresPreview = (registros as any[]).map(d => {
+			const preview = {
+				id: d.id,
+				usuario_id: d.usuario_id,
+				nombre: d.usuario?.nombre || '',
+				apellido: d.usuario?.apellido || '',
+				email: d.usuario?.email || null,
+				foto: d.usuario?.foto_perfil_url || null,
 			}
-			for (const r of conyRows || []) {
-				const a = r.usuario1_id as string
-				const b = r.usuario2_id as string
-				if (idsDirectores.includes(a) && idsDirectores.includes(b)) {
-					parejas.set(a, b)
-					parejas.set(b, a)
+			console.log('[SEGMENTO_DETALLE] director preview:', preview)
+			return preview
+		})
+
+		// Agrupar cónyuges entre los directores
+		const idsDirectores = [...new Set(directoresPreview.map(d => d.usuario_id))]
+		let parejas = new Map<string, string>()
+		if (idsDirectores.length > 0) {
+			try {
+				const idsCSV = idsDirectores.map(id => `"${id}"`).join(',')
+				const { data: conyRows, error: conyErr } = await supabase
+					.from('relaciones_usuarios')
+					.select('usuario1_id, usuario2_id')
+					.eq('tipo_relacion', 'conyuge')
+					.or(`usuario1_id.in.(${idsCSV}),usuario2_id.in.(${idsCSV})`)
+					.limit(10000)
+				if (conyErr) {
+					console.warn('[SEGMENTO_DETALLE] conyErr', conyErr.message)
 				}
+				for (const r of conyRows || []) {
+					const a = r.usuario1_id as string
+					const b = r.usuario2_id as string
+					if (idsDirectores.includes(a) && idsDirectores.includes(b)) {
+						parejas.set(a, b)
+						parejas.set(b, a)
+					}
+				}
+			} catch (e) {
+				console.warn('[SEGMENTO_DETALLE] excepción consultando cónyuges', (e as any)?.message)
 			}
-		} catch (e) {
-			console.warn('[SEGMENTO_DETALLE] excepción consultando cónyuges', (e as any)?.message)
 		}
-	}
 
-	const dirById = new Map<string, { usuario_id: string; nombre: string; apellido: string; email?: string | null; foto?: string | null }>()
-	for (const d of directoresPreview) dirById.set(d.usuario_id, d)
-	const visitados = new Set<string>()
-	for (const id of idsDirectores) {
-		if (visitados.has(id)) continue
-		const parejaId = parejas.get(id)
-		if (parejaId && !visitados.has(parejaId)) {
-			const a = dirById.get(id)!
-			const b = dirById.get(parejaId)!
-			directoresAgrupados.push({ usuarios: [a, b] })
-			visitados.add(id); visitados.add(parejaId)
-		} else {
-			const a = dirById.get(id)!
-			directoresAgrupados.push({ usuarios: [a] })
-			visitados.add(id)
+		const dirById = new Map<string, { usuario_id: string; nombre: string; apellido: string; email?: string | null; foto?: string | null }>()
+		for (const d of directoresPreview) dirById.set(d.usuario_id, d)
+		const visitados = new Set<string>()
+		for (const id of idsDirectores) {
+			if (visitados.has(id)) continue
+			const parejaId = parejas.get(id)
+			if (parejaId && !visitados.has(parejaId)) {
+				const a = dirById.get(id)!
+				const b = dirById.get(parejaId)!
+				directoresAgrupados.push({ usuarios: [a, b] })
+				visitados.add(id); visitados.add(parejaId)
+			} else {
+				const a = dirById.get(id)!
+				directoresAgrupados.push({ usuarios: [a] })
+				visitados.add(id)
+			}
 		}
-	}
 	}
 
 	return (

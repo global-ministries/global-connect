@@ -5,8 +5,8 @@ import { ArrowLeft } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 
-export default async function RegistrarAsistenciaPage({ params }: { params: { id: string } }) {
-  const { id } = params
+export default async function RegistrarAsistenciaPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -68,8 +68,8 @@ export default async function RegistrarAsistenciaPage({ params }: { params: { id
         descripcion="Marca presentes y guarda en un clic."
         accionPrincipal={
           <Link href={`/dashboard/grupos/${id}`}>
-            <BotonSistema 
-              variante="ghost" 
+            <BotonSistema
+              variante="ghost"
               tamaño="sm"
               className="p-2"
             >

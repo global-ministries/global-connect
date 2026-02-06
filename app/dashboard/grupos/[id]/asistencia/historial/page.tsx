@@ -5,17 +5,17 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import HistorialAsistenciaClient from '@/components/asistencia/HistorialAsistencia.client'
 
-export default async function HistorialAsistenciaPage({ 
+export default async function HistorialAsistenciaPage({
   params,
-  searchParams 
-}: { 
-  params: { id: string }
-  searchParams: { fecha_inicio?: string; fecha_fin?: string }
+  searchParams
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ fecha_inicio?: string; fecha_fin?: string }>
 }) {
-  const { id } = params
+  const { id } = await params
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) {
     return (
       <DashboardLayout>
@@ -41,7 +41,7 @@ export default async function HistorialAsistenciaPage({
     supabase.rpc('obtener_detalle_grupo', { p_auth_id: user.id, p_grupo_id: id }),
     supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id })
   ])
-  
+
   const grupo = grupoRes.data
   const puedeEditar = puedeEditarRes.data
 
@@ -67,8 +67,9 @@ export default async function HistorialAsistenciaPage({
   }
 
   // Obtener reporte de asistencia con filtros de fecha
-  const fechaInicio = searchParams.fecha_inicio || null
-  const fechaFin = searchParams.fecha_fin || null
+  const sp = await searchParams
+  const fechaInicio = sp.fecha_inicio || null
+  const fechaFin = sp.fecha_fin || null
 
   const { data: reporteData, error: reporteError } = await supabase.rpc(
     'obtener_reporte_asistencia_grupo',
@@ -104,8 +105,8 @@ export default async function HistorialAsistenciaPage({
         accionPrincipal={
           <div className="flex items-center gap-2">
             <Link href={`/dashboard/grupos/${id}/asistencia`}>
-              <BotonSistema 
-                variante="outline" 
+              <BotonSistema
+                variante="outline"
                 tamaño="sm"
                 className="gap-2"
               >
@@ -114,8 +115,8 @@ export default async function HistorialAsistenciaPage({
               </BotonSistema>
             </Link>
             <Link href={`/dashboard/grupos/${id}`}>
-              <BotonSistema 
-                variante="ghost" 
+              <BotonSistema
+                variante="ghost"
                 tamaño="sm"
                 className="p-2"
               >
@@ -125,7 +126,7 @@ export default async function HistorialAsistenciaPage({
           </div>
         }
       >
-        <HistorialAsistenciaClient 
+        <HistorialAsistenciaClient
           grupoId={id}
           reporte={reporte}
           fechaInicio={fechaInicio || undefined}

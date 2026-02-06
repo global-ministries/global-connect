@@ -7,11 +7,11 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno';
 
 interface PageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function EditGroupPage({ params }: PageProps) {
-  const { id } = params;
+  const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
 
@@ -86,8 +86,8 @@ export default async function EditGroupPage({ params }: PageProps) {
         descripcion={`Modifica la información del grupo "${grupo.nombre}"`}
         accionPrincipal={
           <Link href={`/dashboard/grupos/${id}`}>
-            <BotonSistema 
-              variante="ghost" 
+            <BotonSistema
+              variante="ghost"
               tamaño="sm"
               className="p-2"
             >
