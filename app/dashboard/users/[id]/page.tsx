@@ -1,15 +1,16 @@
 "use client"
 
-import { 
-  ArrowLeft, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Edit, 
-  Users, 
-  MapPin, 
-  User, 
-  Briefcase, 
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  PhoneCall,
+  Calendar,
+  Edit,
+  Users,
+  MapPin,
+  User,
+  Briefcase,
   GraduationCap,
   Heart,
   Shield,
@@ -29,15 +30,24 @@ import { toast } from "@/components/ui/use-toast"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { formatPhoneForCall } from '@/lib/utils'
 import dynamic from "next/dynamic"
+
+// Roles que pueden ver el botón de llamada
+const ROLES_CON_LLAMADA = ['admin', 'pastor', 'director-general', 'director-etapa']
 
 export default function PaginaDetalleUsuario() {
   const params = useParams()
   const id = params?.id as string
+  const { roles: rolesActuales } = useCurrentUser()
 
   const [usuario, setUsuario] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Verificar si el usuario actual puede llamar
+  const puedeVerLlamada = rolesActuales.some(r => ROLES_CON_LLAMADA.includes(r))
 
   // Estado para el modal de agregar familiar
   const [mostrarModalAgregar, setMostrarModalAgregar] = useState(false)
@@ -269,8 +279,8 @@ export default function PaginaDetalleUsuario() {
         descripcion=""
         accionPrincipal={
           <Link href="/dashboard/users">
-            <BotonSistema 
-              variante="ghost" 
+            <BotonSistema
+              variante="ghost"
               tamaño="sm"
               className="p-2"
             >
@@ -304,7 +314,7 @@ export default function PaginaDetalleUsuario() {
                 <p className="text-gray-600 text-sm truncate">
                   {formatearEmail(usuario.email)}
                 </p>
-                
+
                 {/* Badges compactos */}
                 <div className="flex flex-wrap gap-2 mt-2">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${obtenerColorRol(rolUsuario.nombre_interno)}`}>
@@ -338,280 +348,291 @@ export default function PaginaDetalleUsuario() {
           </TarjetaSistema>
 
 
-      {/* Información Básica */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <User className="w-5 h-5 text-orange-500" />
-          Información Básica
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <User className="w-5 h-5" /> Cédula
-            </span>
-            <span className="text-gray-800">{formatearCedula(usuario.cedula)}</span>
-          </div>
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <Clock className="w-5 h-5" /> Fecha de Registro
-            </span>
-            <span className="text-gray-800">{formatearFecha(usuario.fecha_registro)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Información General */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <User className="w-5 h-5 text-orange-500" />
-          Información General
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Email */}
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <Mail className="w-5 h-5" /> Email
-            </span>
-            <span className="text-gray-800 break-all">{formatearEmail(usuario.email)}</span>
-          </div>
-          {/* Teléfono */}
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <Phone className="w-5 h-5" /> Teléfono
-            </span>
-            <span className="text-gray-800">{formatearTelefono(usuario.telefono)}</span>
-          </div>
-          {/* Fecha de Nacimiento */}
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <Calendar className="w-5 h-5" /> Fecha de Nacimiento
-            </span>
-            <span className="text-gray-800">{formatearFechaNacimiento(usuario.fecha_nacimiento)}</span>
-          </div>
-          {/* Estado Civil */}
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <Heart className="w-5 h-5" /> Estado Civil
-            </span>
-            <span className="text-gray-800">{usuario.estado_civil}</span>
-          </div>
-          {/* Género */}
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <User className="w-5 h-5" /> Género
-            </span>
-            <span className="text-gray-800">{usuario.genero}</span>
-          </div>
-          {/* Ocupación */}
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <Briefcase className="w-5 h-5" /> Ocupación
-            </span>
-            <span className="text-gray-800">{usuario.ocupacion?.nombre || 'Sin ocupación'}</span>
-          </div>
-          {/* Profesión */}
-          <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-            <span className="flex items-center gap-2 text-gray-500 text-sm">
-              <GraduationCap className="w-5 h-5" /> Profesión
-            </span>
-            <span className="text-gray-800">{usuario.profesion?.nombre || 'Sin profesión'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Información de Ubicación */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-orange-500" />
-          Información de Ubicación
-        </h3>
-        {usuario.direccion ? (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          {/* Información Básica */}
+          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <User className="w-5 h-5 text-orange-500" />
+              Información Básica
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">País</span>
-                <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.estado?.pais?.nombre || 'Sin país'}</span>
+                <span className="flex items-center gap-2 text-gray-500 text-sm">
+                  <User className="w-5 h-5" /> Cédula
+                </span>
+                <span className="text-gray-800">{formatearCedula(usuario.cedula)}</span>
               </div>
               <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">Estado</span>
-                <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.estado?.nombre || 'Sin estado'}</span>
-              </div>
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">Municipio</span>
-                <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.nombre || 'Sin municipio'}</span>
-              </div>
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">Parroquia</span>
-                <span className="text-gray-800">{usuario.direccion?.parroquia?.nombre || 'Sin parroquia'}</span>
+                <span className="flex items-center gap-2 text-gray-500 text-sm">
+                  <Clock className="w-5 h-5" /> Fecha de Registro
+                </span>
+                <span className="text-gray-800">{formatearFecha(usuario.fecha_registro)}</span>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          </div>
+
+          {/* Información General */}
+          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <User className="w-5 h-5 text-orange-500" />
+              Información General
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Email */}
               <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">Calle</span>
-                <span className="text-gray-800">{usuario.direccion?.calle || 'Sin calle'}</span>
+                <span className="flex items-center gap-2 text-gray-500 text-sm">
+                  <Mail className="w-5 h-5" /> Email
+                </span>
+                <span className="text-gray-800 break-all">{formatearEmail(usuario.email)}</span>
               </div>
+              {/* Teléfono con botón de llamada */}
               <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">Barrio</span>
-                <span className="text-gray-800">{usuario.direccion?.barrio || 'Sin barrio'}</span>
-              </div>
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">Código Postal</span>
-                <span className="text-gray-800">{usuario.direccion?.codigo_postal || 'Sin código postal'}</span>
-              </div>
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">Referencia</span>
-                <span className="text-gray-800">{usuario.direccion?.referencia || 'Sin referencia'}</span>
-              </div>
-            </div>
-            {/* Mapa */}
-            <div className="mt-6">
-              {typeof usuario.direccion?.latitud === 'number' && typeof usuario.direccion?.longitud === 'number' ? (
-                <div className="rounded-xl overflow-hidden border border-gray-200">
-                  <LocationPicker
-                    lat={usuario.direccion.latitud}
-                    lng={usuario.direccion.longitud}
-                    center={{ lat: usuario.direccion.latitud, lng: usuario.direccion.longitud }}
-                    onLocationChange={() => {}}
-                  />
+                <span className="flex items-center gap-2 text-gray-500 text-sm">
+                  <Phone className="w-5 h-5" /> Teléfono
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-800">{formatearTelefono(usuario.telefono)}</span>
+                  {puedeVerLlamada && usuario.telefono && (
+                    <a
+                      href={`tel:${formatPhoneForCall(usuario.telefono)}`}
+                      className="inline-flex items-center justify-center p-2 bg-green-500 hover:bg-green-600 rounded-full text-white transition-colors shadow-md"
+                      title="Llamar"
+                    >
+                      <PhoneCall className="w-4 h-4" />
+                    </a>
+                  )}
                 </div>
-              ) : (
-                <div className="text-gray-500 text-center py-8">No hay coordenadas para mostrar el mapa.</div>
-              )}
+              </div>
+              {/* Fecha de Nacimiento */}
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">
+                  <Calendar className="w-5 h-5" /> Fecha de Nacimiento
+                </span>
+                <span className="text-gray-800">{formatearFechaNacimiento(usuario.fecha_nacimiento)}</span>
+              </div>
+              {/* Estado Civil */}
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">
+                  <Heart className="w-5 h-5" /> Estado Civil
+                </span>
+                <span className="text-gray-800">{usuario.estado_civil}</span>
+              </div>
+              {/* Género */}
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">
+                  <User className="w-5 h-5" /> Género
+                </span>
+                <span className="text-gray-800">{usuario.genero}</span>
+              </div>
+              {/* Ocupación */}
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">
+                  <Briefcase className="w-5 h-5" /> Ocupación
+                </span>
+                <span className="text-gray-800">{usuario.ocupacion?.nombre || 'Sin ocupación'}</span>
+              </div>
+              {/* Profesión */}
+              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-gray-500 text-sm">
+                  <GraduationCap className="w-5 h-5" /> Profesión
+                </span>
+                <span className="text-gray-800">{usuario.profesion?.nombre || 'Sin profesión'}</span>
+              </div>
             </div>
-          </>
-        ) : (
-          <div className="text-gray-500 text-center py-8">Este usuario no tiene dirección agregada.</div>
-        )}
-      </div>
+          </div>
 
-      {/* Relaciones Familiares */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Heart className="w-5 h-5 text-orange-500" />
-            Relaciones Familiares
-          </h3>
-          <button 
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl transition-all duration-200 text-white shadow-lg text-sm"
-            onClick={() => setMostrarModalAgregar(true)}
-          >
-            <Users className="w-4 h-4" />
-            Agregar Familiar
-          </button>
-        </div>
-        {usuario.relaciones && usuario.relaciones.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {usuario.relaciones.map((relacion: any) => {
-                // Determinar el tipo de relación a mostrar según el sentido
-                let tipoMostrar = relacion.tipo_relacion;
-                if (relacion.sentido === 'inverso') {
-                  // Si es inverso y no es reciproca, invertir
-                  const { invertirRelacion, esRelacionReciproca } = require('@/lib/config/relaciones-familiares');
-                  if (!esRelacionReciproca(relacion.tipo_relacion)) {
-                    tipoMostrar = invertirRelacion(relacion.tipo_relacion) || relacion.tipo_relacion;
-                  }
-                }
-                return (
-                  <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/70 rounded-xl min-h-[80px] group">
-                    <div className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-                      <UserAvatar
-                        photoUrl={relacion.familiar.foto_perfil_url}
-                        nombre={relacion.familiar.nombre}
-                        apellido={relacion.familiar.apellido}
-                        size="md"
+          {/* Información de Ubicación */}
+          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-orange-500" />
+              Información de Ubicación
+            </h3>
+            {usuario.direccion ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-gray-500 text-sm">País</span>
+                    <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.estado?.pais?.nombre || 'Sin país'}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-gray-500 text-sm">Estado</span>
+                    <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.estado?.nombre || 'Sin estado'}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-gray-500 text-sm">Municipio</span>
+                    <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.nombre || 'Sin municipio'}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-gray-500 text-sm">Parroquia</span>
+                    <span className="text-gray-800">{usuario.direccion?.parroquia?.nombre || 'Sin parroquia'}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-gray-500 text-sm">Calle</span>
+                    <span className="text-gray-800">{usuario.direccion?.calle || 'Sin calle'}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-gray-500 text-sm">Barrio</span>
+                    <span className="text-gray-800">{usuario.direccion?.barrio || 'Sin barrio'}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-gray-500 text-sm">Código Postal</span>
+                    <span className="text-gray-800">{usuario.direccion?.codigo_postal || 'Sin código postal'}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-gray-500 text-sm">Referencia</span>
+                    <span className="text-gray-800">{usuario.direccion?.referencia || 'Sin referencia'}</span>
+                  </div>
+                </div>
+                {/* Mapa */}
+                <div className="mt-6">
+                  {typeof usuario.direccion?.latitud === 'number' && typeof usuario.direccion?.longitud === 'number' ? (
+                    <div className="rounded-xl overflow-hidden border border-gray-200">
+                      <LocationPicker
+                        lat={usuario.direccion.latitud}
+                        lng={usuario.direccion.longitud}
+                        center={{ lat: usuario.direccion.latitud, lng: usuario.direccion.longitud }}
+                        onLocationChange={() => { }}
                       />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm text-gray-500 font-medium">
-                          {obtenerNombreRelacion(tipoMostrar, relacion.familiar)}
-                        </p>
-                        {relacion.es_principal && (
-                          <span className="inline-block px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full font-medium">
-                            Principal
-                          </span>
+                  ) : (
+                    <div className="text-gray-500 text-center py-8">No hay coordenadas para mostrar el mapa.</div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="text-gray-500 text-center py-8">Este usuario no tiene dirección agregada.</div>
+            )}
+          </div>
+
+          {/* Relaciones Familiares */}
+          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <Heart className="w-5 h-5 text-orange-500" />
+                Relaciones Familiares
+              </h3>
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl transition-all duration-200 text-white shadow-lg text-sm"
+                onClick={() => setMostrarModalAgregar(true)}
+              >
+                <Users className="w-4 h-4" />
+                Agregar Familiar
+              </button>
+            </div>
+            {usuario.relaciones && usuario.relaciones.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {usuario.relaciones.map((relacion: any) => {
+                  // Determinar el tipo de relación a mostrar según el sentido
+                  let tipoMostrar = relacion.tipo_relacion;
+                  if (relacion.sentido === 'inverso') {
+                    // Si es inverso y no es reciproca, invertir
+                    const { invertirRelacion, esRelacionReciproca } = require('@/lib/config/relaciones-familiares');
+                    if (!esRelacionReciproca(relacion.tipo_relacion)) {
+                      tipoMostrar = invertirRelacion(relacion.tipo_relacion) || relacion.tipo_relacion;
+                    }
+                  }
+                  return (
+                    <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/70 rounded-xl min-h-[80px] group">
+                      <div className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                        <UserAvatar
+                          photoUrl={relacion.familiar.foto_perfil_url}
+                          nombre={relacion.familiar.nombre}
+                          apellido={relacion.familiar.apellido}
+                          size="md"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm text-gray-500 font-medium">
+                            {obtenerNombreRelacion(tipoMostrar, relacion.familiar)}
+                          </p>
+                          {relacion.es_principal && (
+                            <span className="inline-block px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full font-medium">
+                              Principal
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-800">
+                            {relacion.familiar.nombre} {relacion.familiar.apellido}
+                          </p>
+                          <button
+                            type="button"
+                            className="ml-1 p-0 flex items-center"
+                            title="Eliminar familiar"
+                            onClick={() => handleOpenConfirmationModal(relacion.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-600 transition-colors" />
+                          </button>
+                        </div>
+                        {relacion.familiar.email && (
+                          <p className="text-xs text-gray-500 truncate">
+                            {relacion.familiar.email}
+                          </p>
+                        )}
+                        {relacion.familiar.telefono && (
+                          <p className="text-xs text-gray-500">
+                            {formatearTelefono(relacion.familiar.telefono)}
+                          </p>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-gray-800">
-                          {relacion.familiar.nombre} {relacion.familiar.apellido}
-                        </p>
-                        <button
-                          type="button"
-                          className="ml-1 p-0 flex items-center"
-                          title="Eliminar familiar"
-                          onClick={() => handleOpenConfirmationModal(relacion.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-600 transition-colors" />
-                        </button>
-                      </div>
-                      {relacion.familiar.email && (
-                        <p className="text-xs text-gray-500 truncate">
-                          {relacion.familiar.email}
-                        </p>
-                      )}
-                      {relacion.familiar.telefono && (
-                        <p className="text-xs text-gray-500">
-                          {formatearTelefono(relacion.familiar.telefono)}
-                        </p>
-                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg font-medium mb-2">No hay relaciones familiares registradas</p>
+                <p className="text-gray-400 text-sm">Este usuario no tiene relaciones familiares configuradas en el sistema.</p>
+                <p className="text-gray-400 text-sm mt-2">Haz clic en "Agregar Familiar" para comenzar a configurar las relaciones familiares.</p>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="text-center py-8">
-            <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg font-medium mb-2">No hay relaciones familiares registradas</p>
-            <p className="text-gray-400 text-sm">Este usuario no tiene relaciones familiares configuradas en el sistema.</p>
-            <p className="text-gray-400 text-sm mt-2">Haz clic en "Agregar Familiar" para comenzar a configurar las relaciones familiares.</p>
+
+          {/* Acciones Rápidas */}
+          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-800 mb-6">Acciones Rápidas</h3>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href={`/dashboard/users/${usuario.id}/edit`} className="flex-1">
+                <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
+                  <Edit className="w-6 h-6 mb-2" />
+                  <span className="block font-medium">Editar Perfil</span>
+                </button>
+              </Link>
+              <Link href={`/dashboard/users/${usuario.id}/familia`} className="flex-1">
+                <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
+                  <Users className="w-6 h-6 mb-2" />
+                  <span className="block font-medium">Ver Familia</span>
+                </button>
+              </Link>
+              <Link href={`/dashboard/users/${usuario.id}/ruta-crecimiento`} className="flex-1">
+                <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
+                  <Shield className="w-6 h-6 mb-2" />
+                  <span className="block font-medium">Ruta de Crecimiento</span>
+                </button>
+              </Link>
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* Acciones Rápidas */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6">Acciones Rápidas</h3>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href={`/dashboard/users/${usuario.id}/edit`} className="flex-1">
-            <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
-              <Edit className="w-6 h-6 mb-2" />
-              <span className="block font-medium">Editar Perfil</span>
-            </button>
-          </Link>
-          <Link href={`/dashboard/users/${usuario.id}/familia`} className="flex-1">
-            <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
-              <Users className="w-6 h-6 mb-2" />
-              <span className="block font-medium">Ver Familia</span>
-            </button>
-          </Link>
-          <Link href={`/dashboard/users/${usuario.id}/ruta-crecimiento`} className="flex-1">
-            <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
-              <Shield className="w-6 h-6 mb-2" />
-              <span className="block font-medium">Ruta de Crecimiento</span>
-            </button>
-          </Link>
-        </div>
-      </div>
+          {/* Modal para Agregar Familiar */}
+          <AgregarFamiliarModal
+            isOpen={mostrarModalAgregar}
+            onClose={() => setMostrarModalAgregar(false)}
+            usuarioActualId={id}
+            onRelacionCreada={recargar}
+          />
 
-      {/* Modal para Agregar Familiar */}
-      <AgregarFamiliarModal
-        isOpen={mostrarModalAgregar}
-        onClose={() => setMostrarModalAgregar(false)}
-        usuarioActualId={id}
-        onRelacionCreada={recargar}
-      />
-
-      {/* Modal de Confirmación para eliminar relación */}
-      <ConfirmationModal
-        isOpen={isModalOpen}
-        onClose={handleCloseConfirmationModal}
-        onConfirm={handleConfirmDelete}
-        title="Confirmar Eliminación"
-        message="¿Estás seguro de que deseas eliminar esta relación familiar? Esta acción no se puede deshacer."
-        isLoading={isDeleting}
-      />
+          {/* Modal de Confirmación para eliminar relación */}
+          <ConfirmationModal
+            isOpen={isModalOpen}
+            onClose={handleCloseConfirmationModal}
+            onConfirm={handleConfirmDelete}
+            title="Confirmar Eliminación"
+            message="¿Estás seguro de que deseas eliminar esta relación familiar? Esta acción no se puede deshacer."
+            isLoading={isDeleting}
+          />
         </div>
       </ContenedorDashboard>
     </DashboardLayout>

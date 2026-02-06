@@ -11,13 +11,17 @@ import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 
-const MapModal = dynamic(() => import("@/components/modals/MapModal"), { 
+const MapModal = dynamic(() => import("@/components/modals/MapModal"), {
   ssr: false,
   loading: () => <div>Cargando mapa...</div>
 });
-const AddMemberModal = dynamic(() => import("@/components/modals/AddMemberModal"), { 
+const AddMemberModal = dynamic(() => import("@/components/modals/AddMemberModal"), {
   ssr: false,
   loading: () => <div>Cargando...</div>
+});
+const GroupPDFExportButton = dynamic(() => import("@/components/grupos/GroupPDFExportButton"), {
+  ssr: false,
+  loading: () => <div className="w-full h-10 bg-gray-100 animate-pulse rounded-lg"></div>
 });
 
 import { ReactNode } from "react";
@@ -165,8 +169,8 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
       subtitulo={`${grupo.segmento_nombre} • ${grupo.temporada_nombre}`}
       accionPrincipal={
         <Link href="/dashboard/grupos">
-          <BotonSistema 
-            variante="ghost" 
+          <BotonSistema
+            variante="ghost"
             tamaño="sm"
             className="p-2"
           >
@@ -197,7 +201,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 {grupo.miembros?.length || 0} miembros
               </BadgeSistema>
             </div>
-            
+
             {/* Dirección */}
             {grupo.direccion && (grupo.direccion.calle || grupo.direccion.barrio) && (
               <div className="flex items-center gap-2 text-gray-600 mb-4">
@@ -233,7 +237,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                   </BotonSistema>
                 </Link>
               )}
-              
+
               {grupo.puede_editar_ui && (
                 <Link href={`/dashboard/grupos/${id}/asistencia/historial`}>
                   <BotonSistema variante="outline" className="w-full h-10 text-sm">
@@ -242,19 +246,22 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                   </BotonSistema>
                 </Link>
               )}
-              
-              <BotonSistema 
-                variante="outline" 
+
+              <BotonSistema
+                variante="outline"
                 onClick={() => setIsMapOpen(true)}
                 className="w-full h-10 text-sm"
               >
                 <MapPin className="w-4 h-4" />
                 <span className="ml-2">Mapa</span>
               </BotonSistema>
-              
+
+              {/* Botón Descargar PDF */}
+              <GroupPDFExportButton grupo={grupo} />
+
               {grupo.puede_gestionar_miembros && (
-                <BotonSistema 
-                  variante="outline" 
+                <BotonSistema
+                  variante="outline"
                   onClick={() => setIsAddModalOpen(true)}
                   className="w-full h-10 text-sm"
                 >
@@ -287,11 +294,11 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                     size="lg"
                     className="flex-shrink-0"
                   />
-                  
+
                   {/* Información en columnas alineadas */}
                   <div className="flex-1 grid grid-cols-3 gap-4 items-center">
                     <div>
-                      <Link 
+                      <Link
                         href={`/dashboard/users/${miembro.id}`}
                         className="font-semibold text-gray-800 text-lg hover:text-orange-600 transition-colors cursor-pointer"
                       >
@@ -305,7 +312,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                       {miembro.telefono || "Sin teléfono"}
                     </div>
                   </div>
-                  
+
                   {/* Controles */}
                   <div className="flex flex-shrink-0 items-center gap-2">
                     {grupo.puede_gestionar_miembros ? (
@@ -353,7 +360,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                     className="flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <Link 
+                    <Link
                       href={`/dashboard/users/${miembro.id}`}
                       className="font-semibold text-gray-800 text-lg hover:text-orange-600 transition-colors cursor-pointer block mb-1"
                     >
@@ -365,7 +372,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Móvil: controles debajo */}
                 <div className="lg:hidden mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
                   {grupo.puede_gestionar_miembros ? (
@@ -414,8 +421,8 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         </div>
       </TarjetaSistema>
 
-  {/* Auditoría: preview de últimos cambios (visible si no es rol "miembro") */}
-  {(grupo.rol_en_grupo == null || grupo.rol_en_grupo?.toLowerCase() !== 'miembro') && (
+      {/* Auditoría: preview de últimos cambios (visible si no es rol "miembro") */}
+      {(grupo.rol_en_grupo == null || grupo.rol_en_grupo?.toLowerCase() !== 'miembro') && (
         <TarjetaSistema>
           <GroupAuditPreview grupoId={String(id)} />
         </TarjetaSistema>
