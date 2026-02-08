@@ -103,40 +103,64 @@ export default function GroupPDFExportButton({ grupo }: GroupPDFExportButtonProp
       `;
 
       if (miembros.length > 0) {
-        if (esMatrimonio) {
-          // Para matrimonios: mostrar agrupados por pareja
-          const parejas = agruparEnParejas(miembros);
+        // Separar líderes/colíderes de miembros regulares
+        const lideres = miembros.filter(m => m.rol === "Líder" || m.rol === "Colíder");
+        const miembrosReg = miembros.filter(m => m.rol === "Miembro" || !m.rol);
+
+        // Mostrar líderes primero
+        if (lideres.length > 0) {
           html += `
-          <h2>Integrantes (${miembros.length})</h2>
+          <h2>Líderes (${lideres.length})</h2>
           <table>
-            <thead><tr><th>Pareja</th><th>Nombre</th><th>Teléfono</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Teléfono</th><th>Rol</th></tr></thead>
             <tbody>
-              ${parejas.map((pareja, idx) => pareja.map((m, i) => `
-                <tr class="${i === 0 ? 'pareja-row' : ''}">
-                  ${i === 0 ? `<td rowspan="${pareja.length}">Pareja ${idx + 1}</td>` : ''}
-                  <td>${m.nombre} ${m.apellido}</td>
-                  <td>${formatPhoneDisplay(m.telefono)}</td>
-                </tr>
-              `).join("")).join("")}
-            </tbody>
-          </table>
-        `;
-        } else {
-          // Para otros grupos: lista simple
-          html += `
-          <h2>Integrantes (${miembros.length})</h2>
-          <table>
-            <thead><tr><th>Nombre</th><th>Teléfono</th></tr></thead>
-            <tbody>
-              ${miembros.map(m => `
+              ${lideres.map(m => `
                 <tr>
                   <td>${m.nombre} ${m.apellido}</td>
                   <td>${formatPhoneDisplay(m.telefono)}</td>
+                  <td>${m.rol === 'Colíder' ? 'Aprendiz' : m.rol}</td>
                 </tr>
               `).join("")}
             </tbody>
           </table>
         `;
+        }
+
+        // Mostrar miembros (parejas si es matrimonio)
+        if (miembrosReg.length > 0) {
+          if (esMatrimonio) {
+            const parejas = agruparEnParejas(miembrosReg);
+            html += `
+            <h2>Parejas (${miembrosReg.length})</h2>
+            <table>
+              <thead><tr><th>Pareja</th><th>Nombre</th><th>Teléfono</th></tr></thead>
+              <tbody>
+                ${parejas.map((pareja, idx) => pareja.map((m, i) => `
+                  <tr class="${i === 0 ? 'pareja-row' : ''}">
+                    ${i === 0 ? `<td rowspan="${pareja.length}">Pareja ${idx + 1}</td>` : ''}
+                    <td>${m.nombre} ${m.apellido}</td>
+                    <td>${formatPhoneDisplay(m.telefono)}</td>
+                  </tr>
+                `).join("")).join("")}
+              </tbody>
+            </table>
+          `;
+          } else {
+            html += `
+            <h2>Miembros (${miembrosReg.length})</h2>
+            <table>
+              <thead><tr><th>Nombre</th><th>Teléfono</th></tr></thead>
+              <tbody>
+                ${miembrosReg.map(m => `
+                  <tr>
+                    <td>${m.nombre} ${m.apellido}</td>
+                    <td>${formatPhoneDisplay(m.telefono)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          `;
+          }
         }
       } else {
         html += `<p class="empty">No hay miembros en este grupo.</p>`;
