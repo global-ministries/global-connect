@@ -19,9 +19,9 @@ type InitialData = {
 export default function AttendanceRegister({ grupoId, miembros, initialData, isEdit }: { grupoId: string; miembros: Miembro[]; initialData?: InitialData; isEdit?: boolean }) {
   const router = useRouter()
   const toast = useNotificaciones()
-  const [fecha, setFecha] = useState<string>(() => initialData?.fecha || new Date().toISOString().slice(0,10))
+  const [fecha, setFecha] = useState<string>(() => initialData?.fecha || new Date().toISOString().slice(0, 10))
   // Guardamos internamente hora en formato 24h (HH:MM) pero UI usa 12h + AM/PM
-  const [hora, setHora] = useState<string>(() => (initialData?.hora ? initialData.hora.slice(0,5) : ''))
+  const [hora, setHora] = useState<string>(() => (initialData?.hora ? initialData.hora.slice(0, 5) : ''))
   const parseToUi = (h24: string): { h: string; m: string; ap: 'AM' | 'PM' } => {
     if (!h24) return { h: '', m: '', ap: 'AM' }
     const [HH, MM] = h24.split(':')
@@ -47,13 +47,13 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
 
   useEffect(() => {
     if (initialData) {
-      setFecha(initialData.fecha || new Date().toISOString().slice(0,10))
-      const hRaw = initialData.hora ? initialData.hora.slice(0,5) : ''
+      setFecha(initialData.fecha || new Date().toISOString().slice(0, 10))
+      const hRaw = initialData.hora ? initialData.hora.slice(0, 5) : ''
       setHora(hRaw)
       const ui = parseToUi(hRaw)
       setHora12(ui.h)
       setMinutos(ui.m)
-  setAmPm(ui.ap as 'AM' | 'PM')
+      setAmPm(ui.ap as 'AM' | 'PM')
       setTema(initialData.tema || '')
       setNotas(initialData.notas || '')
       if (initialData.estado) setEstado(initialData.estado)
@@ -102,7 +102,7 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
       const res = await fetch(`/api/grupos/${encodeURIComponent(grupoId)}/asistencia`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-	body: JSON.stringify({ fecha, hora: horaFinal, tema, notas, asistencias })
+        body: JSON.stringify({ fecha, hora: horaFinal, tema, notas, asistencias })
       })
       const json = await res.json()
       if (!res.ok || !json?.ok) throw new Error(json?.error || 'No se pudo registrar la asistencia')
@@ -167,11 +167,17 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
           <label className="block text-sm font-medium mb-1">Tema</label>
           <Input value={tema} onChange={e => setTema(e.target.value)} placeholder="Opcional" />
         </div>
-        <div>
+        <div className="md:col-span-2">
           <label className="block text-sm font-medium mb-1">Notas</label>
-          <Input value={notas} onChange={e => setNotas(e.target.value)} placeholder="Opcional" />
+          <textarea
+            value={notas}
+            onChange={e => setNotas(e.target.value)}
+            placeholder="Opcional"
+            rows={3}
+            className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y min-h-[80px]"
+          />
         </div>
-        <div className="flex items-end pb-1 text-xs text-muted-foreground">{hora12 && minutos ? `Hora seleccionada: ${hora12.padStart(2,'0')}:${minutos} ${amPm}` : 'Sin hora'}</div>
+        <div className="flex items-end pb-1 text-xs text-muted-foreground">{hora12 && minutos ? `Hora seleccionada: ${hora12.padStart(2, '0')}:${minutos} ${amPm}` : 'Sin hora'}</div>
       </div>
 
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
