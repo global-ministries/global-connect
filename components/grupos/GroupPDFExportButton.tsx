@@ -3,70 +3,62 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { BotonSistema } from "@/components/ui/sistema-diseno";
-import { formatPhoneForCall } from "@/lib/utils";
 
 interface Miembro {
-    id: string | number;
-    nombre: string;
-    apellido: string;
-    telefono?: string;
-    rol?: string;
+  id: string | number;
+  nombre: string;
+  apellido: string;
+  telefono?: string;
+  rol?: string;
 }
 
 interface Grupo {
-    nombre: string;
-    segmento_nombre?: string;
-    temporada_nombre?: string;
-    dia_reunion?: string;
-    hora_reunion?: string;
-    miembros?: Miembro[];
+  nombre: string;
+  segmento_nombre?: string;
+  temporada_nombre?: string;
+  dia_reunion?: string;
+  hora_reunion?: string;
+  miembros?: Miembro[];
 }
 
 interface GroupPDFExportButtonProps {
-    grupo: Grupo;
+  grupo: Grupo;
 }
 
 // Formatea teléfono para mostrar (limpio)
 function formatPhoneDisplay(phone: string | null | undefined): string {
-    if (!phone) return "Sin teléfono";
-    return phone;
+  if (!phone) return "Sin teléfono";
+  return phone;
 }
 
-// Agrupa miembros por cónyuge para grupos de matrimonio
-function agruparPorConyuge(miembros: Miembro[]): Miembro[][] {
-    // Por ahora, agrupamos de a dos basándonos en el orden (parejas consecutivas)
-    // En el futuro se puede mejorar usando relaciones_usuarios
-    const grupos: Miembro[][] = [];
-    const sorted = [...miembros].sort((a, b) => {
-        // Ordenar por apellido para agrupar parejas
-        return a.apellido.localeCompare(b.apellido);
-    });
+// Agrupa miembros consecutivos en parejas de 2
+// El ordenamiento ya viene de la BD: por rol, luego por pareja (cónyuges juntos), luego por género
+function agruparEnParejas(miembros: Miembro[]): Miembro[][] {
+  const grupos: Miembro[][] = [];
 
-    for (let i = 0; i < sorted.length; i += 2) {
-        if (i + 1 < sorted.length) {
-            grupos.push([sorted[i], sorted[i + 1]]);
-        } else {
-            grupos.push([sorted[i]]);
-        }
+  for (let i = 0; i < miembros.length; i += 2) {
+    if (i + 1 < miembros.length) {
+      grupos.push([miembros[i], miembros[i + 1]]);
+    } else {
+      grupos.push([miembros[i]]);
     }
-    return grupos;
+  }
+  return grupos;
 }
 
 export default function GroupPDFExportButton({ grupo }: GroupPDFExportButtonProps) {
-    const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-    const esMatrimonio = grupo.segmento_nombre?.toLowerCase().includes("matrimonio");
+  const esMatrimonio = grupo.segmento_nombre?.toLowerCase().includes("matrimonio");
 
-    const handleExport = async () => {
-        setExporting(true);
-        try {
-            // Separar por rol
-            const lideres = grupo.miembros?.filter(m => m.rol === "Líder") || [];
-            const aprendices = grupo.miembros?.filter(m => m.rol === "Colíder") || [];
-            const miembrosReg = grupo.miembros?.filter(m => m.rol === "Miembro" || !m.rol) || [];
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      // Usar el orden que viene de la base de datos (ya ordenado por parejas)
+      const miembros = grupo.miembros || [];
 
-            // Generar contenido HTML para imprimir
-            let html = `
+      // Generar contenido HTML para imprimir
+      let html = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -105,19 +97,38 @@ export default function GroupPDFExportButton({ grupo }: GroupPDFExportButtonProp
             </div>
             <div class="info-item">
               <div class="info-label">Total miembros</div>
-              <div class="info-value">${grupo.miembros?.length || 0}</div>
+              <div class="info-value">${miembros.length}</div>
             </div>
           </div>
       `;
 
-            // Sección de Líderes
-            if (lideres.length > 0) {
-                html += `
-          <h2>👑 Líderes (${lideres.length})</h2>
+      if (miembros.length > 0) {
+        if (esMatrimonio) {
+          // Para matrimonios: mostrar agrupados por pareja
+          const parejas = agruparEnParejas(miembros);
+          html += `
+          <h2>Integrantes (${miembros.length})</h2>
+          <table>
+            <thead><tr><th>Pareja</th><th>Nombre</th><th>Teléfono</th></tr></thead>
+            <tbody>
+              ${parejas.map((pareja, idx) => pareja.map((m, i) => `
+                <tr class="${i === 0 ? 'pareja-row' : ''}">
+                  ${i === 0 ? `<td rowspan="${pareja.length}">Pareja ${idx + 1}</td>` : ''}
+                  <td>${m.nombre} ${m.apellido}</td>
+                  <td>${formatPhoneDisplay(m.telefono)}</td>
+                </tr>
+              `).join("")).join("")}
+            </tbody>
+          </table>
+        `;
+        } else {
+          // Para otros grupos: lista simple
+          html += `
+          <h2>Integrantes (${miembros.length})</h2>
           <table>
             <thead><tr><th>Nombre</th><th>Teléfono</th></tr></thead>
             <tbody>
-              ${lideres.map(m => `
+              ${miembros.map(m => `
                 <tr>
                   <td>${m.nombre} ${m.apellido}</td>
                   <td>${formatPhoneDisplay(m.telefono)}</td>
@@ -126,68 +137,12 @@ export default function GroupPDFExportButton({ grupo }: GroupPDFExportButtonProp
             </tbody>
           </table>
         `;
-            }
+        }
+      } else {
+        html += `<p class="empty">No hay miembros en este grupo.</p>`;
+      }
 
-            // Sección de Aprendices
-            if (aprendices.length > 0) {
-                html += `
-          <h2>🎓 Aprendices (${aprendices.length})</h2>
-          <table>
-            <thead><tr><th>Nombre</th><th>Teléfono</th></tr></thead>
-            <tbody>
-              ${aprendices.map(m => `
-                <tr>
-                  <td>${m.nombre} ${m.apellido}</td>
-                  <td>${formatPhoneDisplay(m.telefono)}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        `;
-            }
-
-            // Sección de Miembros (agrupados por cónyuge si es matrimonio)
-            if (miembrosReg.length > 0) {
-                html += `<h2>👥 Miembros (${miembrosReg.length})</h2>`;
-
-                if (esMatrimonio) {
-                    const parejas = agruparPorConyuge(miembrosReg);
-                    html += `
-            <table>
-              <thead><tr><th>Pareja</th><th>Nombre</th><th>Teléfono</th></tr></thead>
-              <tbody>
-                ${parejas.map((pareja, idx) => pareja.map((m, i) => `
-                  <tr class="${i === 0 ? 'pareja-row' : ''}">
-                    ${i === 0 ? `<td rowspan="${pareja.length}">Pareja ${idx + 1}</td>` : ''}
-                    <td>${m.nombre} ${m.apellido}</td>
-                    <td>${formatPhoneDisplay(m.telefono)}</td>
-                  </tr>
-                `).join("")).join("")}
-              </tbody>
-            </table>
-          `;
-                } else {
-                    html += `
-            <table>
-              <thead><tr><th>Nombre</th><th>Teléfono</th></tr></thead>
-              <tbody>
-                ${miembrosReg.map(m => `
-                  <tr>
-                    <td>${m.nombre} ${m.apellido}</td>
-                    <td>${formatPhoneDisplay(m.telefono)}</td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
-          `;
-                }
-            }
-
-            if (!grupo.miembros?.length) {
-                html += `<p class="empty">No hay miembros en este grupo.</p>`;
-            }
-
-            html += `
+      html += `
           <p style="margin-top: 30px; font-size: 12px; color: #999; text-align: center;">
             Generado el ${new Date().toLocaleDateString('es-VE', { dateStyle: 'long' })}
           </p>
@@ -195,34 +150,34 @@ export default function GroupPDFExportButton({ grupo }: GroupPDFExportButtonProp
         </html>
       `;
 
-            // Abrir ventana de impresión/PDF
-            const printWindow = window.open("", "_blank");
-            if (printWindow) {
-                printWindow.document.write(html);
-                printWindow.document.close();
-                printWindow.focus();
-                // Pequeño delay para que cargue el contenido
-                setTimeout(() => {
-                    printWindow.print();
-                }, 250);
-            }
-        } catch (error) {
-            console.error("Error al exportar PDF:", error);
-        } finally {
-            setExporting(false);
-        }
-    };
+      // Abrir ventana de impresión/PDF
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        // Pequeño delay para que cargue el contenido
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      }
+    } catch (error) {
+      console.error("Error al exportar PDF:", error);
+    } finally {
+      setExporting(false);
+    }
+  };
 
-    return (
-        <BotonSistema
-            variante="outline"
-            onClick={handleExport}
-            disabled={exporting}
-            cargando={exporting}
-            className="w-full h-10 text-sm"
-        >
-            <Download className="w-4 h-4" />
-            <span className="ml-2">PDF</span>
-        </BotonSistema>
-    );
+  return (
+    <BotonSistema
+      variante="outline"
+      onClick={handleExport}
+      disabled={exporting}
+      cargando={exporting}
+      className="w-full h-10 text-sm"
+    >
+      <Download className="w-4 h-4" />
+      <span className="ml-2">PDF</span>
+    </BotonSistema>
+  );
 }
