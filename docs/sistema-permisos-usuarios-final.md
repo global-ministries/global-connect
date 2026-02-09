@@ -34,8 +34,20 @@ Se ha implementado exitosamente un sistema completo de permisos de usuarios basa
 | `pastor` | **TODOS** | Sin restricciones | Acceso global |
 | `director-general` | **TODOS** | Sin restricciones | Acceso global |
 | `director-etapa` | **Sólo grupos asignados explícitamente** | Relación explícita via función `asignar_director_etapa_a_grupo` + flag en `obtener_grupos_para_usuario` | Ya NO ve toda la etapa completa. Campo `supervisado_por_mi` = true cuando está asignado. |
-| `lider` | **Sus grupos** | `grupo_miembros (rol = 'Líder')` | Puede ver usuarios extendidos en contexto relaciones (`p_contexto_relacion = true`). |
+| `lider` | **Sus grupos (Pasados/Actuales)** | `grupo_miembros` + Filtro temporal | **NO ve grupos futuros** (salvo activos con temporada activa). |
 | `miembro` | **Su familia** | `familias` + `relaciones_usuarios` | Sin cambios |
+
+### 🕒 Restricción Temporal de Grupos
+
+Se ha implementado una restricción específica para la visibilidad de grupos según su temporada:
+
+| Rol | Grupos Futuros | Excepción |
+|-----|----------------|-----------|
+| `admin`, `pastor`, `director-general` | ✅ Visible | N/A |
+| `director-etapa` | ✅ Visible (si asignado) | N/A |
+| `lider`, `colider`, `miembro` | ❌ **Oculto** | Visible SOLO si `grupo.activo=true` Y `temporada.activa=true` |
+
+Esta lógica reside centralizada en la función SQL `public.puede_ver_grupo`.
 
 ### 📦 Papelera de Grupos (Eliminación Reversible)
 

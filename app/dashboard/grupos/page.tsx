@@ -50,6 +50,10 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     supabase.from("municipios").select("id, nombre").order("nombre"),
     supabase.from("parroquias").select("id, nombre, municipio_id").order("nombre"),
   ])
+  // Los líderes NO pueden ver grupos futuros, solo directores y roles superiores
+  const esSuperior = userData.roles.some(r => ['admin', 'pastor', 'director-general', 'director-etapa'].includes(r))
+  const esLider = userData.roles.includes('lider') && !esSuperior
+
   try {
     const [actResp, pasResp, miosResp, futResp] = await Promise.all([
       supabase.rpc('obtener_grupos_para_usuario', {
@@ -78,6 +82,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         p_estado_temporal: 'pasado',
         p_solo_mios: false,
       }),
+      // Para líderes, "Mis Grupos" también excluye futuros (se filtra en SQL por puede_ver_grupo)
       supabase.rpc('obtener_grupos_para_usuario', {
         p_auth_id: user?.id,
         p_segmento_id: seg || null,
@@ -91,19 +96,23 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         p_estado_temporal: null,
         p_solo_mios: true,
       }),
-      supabase.rpc('obtener_grupos_para_usuario', {
-        p_auth_id: user?.id,
-        p_segmento_id: seg || null,
-        p_temporada_id: temp || null,
-        p_activo,
-        p_municipio_id: muni || null,
-        p_parroquia_id: parr || null,
-        p_limit: pageSize,
-        p_offset: offsetFuturos,
-        p_eliminado: esEliminado,
-        p_estado_temporal: 'futuro',
-        p_solo_mios: false,
-      }),
+      // Solo hacer RPC de grupos futuros si el usuario es director o superior
+      // Para líderes, devolvemos un objeto vacío simulado
+      esSuperior
+        ? supabase.rpc('obtener_grupos_para_usuario', {
+          p_auth_id: user?.id,
+          p_segmento_id: seg || null,
+          p_temporada_id: temp || null,
+          p_activo,
+          p_municipio_id: muni || null,
+          p_parroquia_id: parr || null,
+          p_limit: pageSize,
+          p_offset: offsetFuturos,
+          p_eliminado: esEliminado,
+          p_estado_temporal: 'futuro',
+          p_solo_mios: false,
+        })
+        : Promise.resolve({ data: [], error: null }),
     ])
     const error = actResp.error || pasResp.error || miosResp.error || futResp.error
     if (error) {
@@ -125,10 +134,10 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     })
 
     const roles = userData.roles || []
-    const canCreateSuperior = roles.some(r => ["admin","pastor","director-general","director-etapa"].includes(r))
+    const canCreateSuperior = roles.some(r => ["admin", "pastor", "director-general", "director-etapa"].includes(r))
     const canCreate = canCreateSuperior || roles.includes('lider')
     const canDelete = canCreateSuperior
-    const canRestore = roles.some(r => ["admin","pastor","director-general"].includes(r))
+    const canRestore = roles.some(r => ["admin", "pastor", "director-general"].includes(r))
 
     return (
       <DashboardLayout>
