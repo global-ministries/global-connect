@@ -8,9 +8,9 @@ const schema = z.object({
   newPassword: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
 })
 
-export async function POST(req: Request, ctx: { params: { id: string } }) {
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const { params } = ctx
+    const params = await ctx.params
     const targetUserAuthId = params?.id
     if (!targetUserAuthId) {
       return NextResponse.json({ error: 'Falta el parámetro id de usuario' }, { status: 400 })
