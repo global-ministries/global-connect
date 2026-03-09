@@ -27,13 +27,12 @@ export function EmailLayout({ preview, children }: EmailLayoutProps) {
                     {/* Header */}
                     <Section style={styles.header}>
                         <Img
-                            src="https://connect.yosoyglobal.org/logo.png"
-                            width="40"
-                            height="40"
-                            alt="GlobalConnect"
+                            src="https://yosoyglobal.org/wp-content/uploads/2025/07/Global-Logo-obs-1.webp"
+                            width="160"
+                            height="auto"
+                            alt="Global"
                             style={styles.logo}
                         />
-                        <Text style={styles.brandName}>GlobalConnect</Text>
                     </Section>
 
                     {/* Content */}
@@ -44,7 +43,7 @@ export function EmailLayout({ preview, children }: EmailLayoutProps) {
                     {/* Footer */}
                     <Section style={styles.footer}>
                         <Text style={styles.footerText}>
-                            GlobalConnect · Global Barquisimeto
+                            Yo Soy Global · Campus Barquisimeto
                         </Text>
                         <Text style={styles.footerText}>
                             Este es un correo automático, por favor no respondas directamente.
@@ -83,20 +82,12 @@ const styles = {
     },
     header: {
         padding: '32px 40px 24px',
+        textAlign: 'center' as const,
         borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
     },
     logo: {
         display: 'inline-block' as const,
-        verticalAlign: 'middle' as const,
-        marginRight: '12px',
-    },
-    brandName: {
-        fontSize: '18px',
-        fontWeight: '600' as const,
-        color: '#ffffff',
-        margin: '0',
-        display: 'inline-block' as const,
-        verticalAlign: 'middle' as const,
+        margin: '0 auto',
     },
     content: {
         padding: '40px',

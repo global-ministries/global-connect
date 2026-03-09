@@ -1,4 +1,4 @@
-import { Button } from '@react-email/components'
+import { Button, Section } from '@react-email/components'
 
 interface EmailButtonProps {
     href: string
@@ -7,15 +7,17 @@ interface EmailButtonProps {
 
 export function EmailButton({ href, children }: EmailButtonProps) {
     return (
-        <Button style={styles.button} href={href}>
-            {children}
-        </Button>
+        <Section style={{ textAlign: 'center' as const, margin: '24px 0' }}>
+            <Button style={styles.button} href={href}>
+                {children}
+            </Button>
+        </Section>
     )
 }
 
 const styles = {
     button: {
-        backgroundColor: '#6366f1',
+        backgroundColor: '#D06D2D',
         color: '#ffffff',
         padding: '14px 28px',
         borderRadius: '10px',

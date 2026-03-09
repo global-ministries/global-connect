@@ -15,7 +15,7 @@ export function BienvenidaEmail({
         <EmailLayout preview={`¡Bienvenido a GlobalConnect, ${nombreUsuario}!`}>
             <Text style={styles.title}>¡Bienvenido, {nombreUsuario}!</Text>
             <Text style={styles.text}>
-                Tu cuenta en GlobalConnect ha sido creada exitosamente. Ahora eres parte
+                Tu cuenta en en sistema de miembros de Global ha sido creada exitosamente. Ahora eres parte
                 de nuestra comunidad.
             </Text>
             <Text style={styles.text}>
@@ -24,8 +24,8 @@ export function BienvenidaEmail({
             </Text>
             <EmailButton href={dashboardUrl}>Ir a mi dashboard</EmailButton>
             <Text style={styles.hint}>
-                Si tienes alguna pregunta, contacta a tu líder de grupo o al
-                administrador de tu iglesia.
+                Si tienes alguna pregunta, contacta a tu líder inmediato o al
+                departamento de tecnología de tu iglesia.
             </Text>
         </EmailLayout>
     )

@@ -89,6 +89,7 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@react-email/preview-server": "5.2.9",
     "@react-email/render": "^2.0.4",
     "@tailwindcss/postcss": "^4.1.9",
     "@testing-library/jest-dom": "^6.9.1",
