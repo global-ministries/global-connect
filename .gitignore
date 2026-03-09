@@ -32,3 +32,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+# Carpetas de otros agentes (solo Antigravity en .agent/)
+.agents/
+.claude/
+.kiro/
+.codex/
+.copilot/
