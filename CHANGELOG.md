@@ -7,6 +7,22 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
+## [1.2.0] - 2026-03-09
+
+### Agregado
+- SDK de Resend (`resend@6.9.3`) y React Email (`@react-email/components@1.0.8`)
+- Infraestructura de email: `lib/email/resend.ts` (singleton client) y `lib/email/send.ts` (helper genérico)
+- 4 templates React Email con design system dark GlobalConnect:
+  - `emails/bienvenida.tsx` — bienvenida post-registro
+  - `emails/verificacion-email.tsx` — verificación de email
+  - `emails/reset-password.tsx` — restablecimiento de contraseña
+  - `emails/invitacion-grupo.tsx` — invitación a grupo
+- Componentes compartidos: `EmailLayout.tsx` (layout base) y `EmailButton.tsx` (CTA)
+- Server Actions de email: `enviarEmailBienvenida()` y `enviarInvitacionGrupo()`
+- Script `email:dev` para preview de templates en `localhost:3001`
+
+---
+
 ## [1.1.0] - 2026-03-09
 
 ### Agregado
