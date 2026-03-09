@@ -3,7 +3,7 @@
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import {
   FondoAutenticacion,
   TarjetaSistema,
@@ -24,8 +24,9 @@ export default function PaginaRestablecerContraseña() {
     e.preventDefault()
     setCargando(true)
     setError("")
-    
+
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/`
       })

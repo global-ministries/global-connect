@@ -1,9 +1,9 @@
 "use client"
 
 import { CheckCircle } from "lucide-react"
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { supabase } from '@/lib/supabase/client'
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from '@/lib/supabase/client'
 import {
   FondoAutenticacion,
   TarjetaSistema,
@@ -20,27 +20,7 @@ export default function ResetPasswordForm() {
   const [error, setError] = useState("")
   const [exito, setExito] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
-
-  useEffect(() => {
-    // Verificar si hay token en la URL
-    const accessToken = searchParams?.get('access_token')
-    const refreshToken = searchParams?.get('refresh_token')
-
-    if (accessToken && refreshToken) {
-      // Establecer la sesión
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken
-      }).then(() => {
-        // Limpiar los tokens de la URL por seguridad
-        const url = new URL(window.location.href)
-        url.searchParams.delete('access_token')
-        url.searchParams.delete('refresh_token')
-        window.history.replaceState({}, '', url.pathname + url.hash)
-      })
-    }
-  }, [searchParams])
+  // La sesión ya está establecida via cookies por /auth/callback
 
   const manejarSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -60,6 +40,7 @@ export default function ResetPasswordForm() {
     }
 
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.updateUser({
         password: password
       })

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { addFamilyRelation } from "@/lib/actions/user.actions"
 import { CrearMiembroModal, type UsuarioMin } from '@/components/modals/CrearMiembroModal'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
@@ -36,11 +36,11 @@ interface AgregarFamiliarModalProps {
   onRelacionCreada: () => void
 }
 
-export function AgregarFamiliarModal({ 
-  isOpen, 
-  onClose, 
-  usuarioActualId, 
-  onRelacionCreada 
+export function AgregarFamiliarModal({
+  isOpen,
+  onClose,
+  usuarioActualId,
+  onRelacionCreada
 }: AgregarFamiliarModalProps) {
   const [terminoBusqueda, setTerminoBusqueda] = useState('')
   const [resultados, setResultados] = useState<Usuario[]>([])
@@ -65,8 +65,8 @@ export function AgregarFamiliarModal({
     }
     setCreando(true)
     try {
-  const excluir = usuarioActualId // Solo excluir al usuario actual; queremos ver familiares ya existentes
-  const url = `/api/usuarios/buscar-para-relacion?q=${encodeURIComponent(terminoBusqueda)}&excluir=${encodeURIComponent(excluir)}`
+      const excluir = usuarioActualId // Solo excluir al usuario actual; queremos ver familiares ya existentes
+      const url = `/api/usuarios/buscar-para-relacion?q=${encodeURIComponent(terminoBusqueda)}&excluir=${encodeURIComponent(excluir)}`
       const res = await fetch(url, { cache: 'no-store' })
       if (!res.ok) {
         const txt = await res.text()
@@ -75,7 +75,7 @@ export function AgregarFamiliarModal({
       const data = await res.json()
       setResultados(Array.isArray(data) ? data : [])
     } catch (err: any) {
-  // Silenciar error; podríamos agregar toast si se desea
+      // Silenciar error; podríamos agregar toast si se desea
       setResultados([])
     } finally {
       setCreando(false)
@@ -88,11 +88,11 @@ export function AgregarFamiliarModal({
     if (!familiarSeleccionado || !tipoRelacion) return
     setCreando(true)
     try {
-        // Guardar el tipo de relación tal como lo selecciona el usuario
+      // Guardar el tipo de relación tal como lo selecciona el usuario
       const res = await addFamilyRelation({
         usuario1_id: usuarioActualId,
         usuario2_id: familiarSeleccionado.id,
-          tipo_relacion: tipoRelacion,
+        tipo_relacion: tipoRelacion,
       })
       if (res.success) {
         toast.success('Relación familiar creada correctamente')
@@ -118,6 +118,7 @@ export function AgregarFamiliarModal({
       if (!isOpen) return
       try {
         // Buscar relaciones donde el usuario actual es usuario1_id o usuario2_id
+        const supabase = createClient()
         const { data, error } = await supabase
           .from('relaciones_usuarios')
           .select('usuario1_id, usuario2_id')
@@ -210,13 +211,12 @@ export function AgregarFamiliarModal({
                         type="button"
                         key={usuario.id}
                         onClick={() => !yaEsFamiliar && setFamiliarSeleccionado(usuario)}
-                        className={`w-full p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${
-                          familiarSeleccionado?.id === usuario.id
-                            ? 'border-orange-500 bg-orange-50'
-                            : yaEsFamiliar
-                              ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
-                              : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                        className={`w-full p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${familiarSeleccionado?.id === usuario.id
+                          ? 'border-orange-500 bg-orange-50'
+                          : yaEsFamiliar
+                            ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                            : 'border-gray-200 hover:border-gray-300'
+                          }`}
                         disabled={yaEsFamiliar}
                         title={yaEsFamiliar ? 'Este usuario ya es tu familiar' : ''}
                       >
@@ -279,11 +279,11 @@ export function AgregarFamiliarModal({
                 <p className="text-orange-700">
                   <strong>{familiarSeleccionado.nombre} {familiarSeleccionado.apellido}</strong> será tu{' '}
                   <strong>
-                    {tipoRelacion === 'hijo' ? 'hijo/hija' : 
-                     tipoRelacion === 'padre' ? 'padre/madre' : 
-                     tipoRelacion === 'conyuge' ? 'cónyuge' : 
-                     tipoRelacion === 'hermano' ? 'hermano/hermana' : 
-                     tipoRelacion === 'tutor' ? 'tutor' : 'otro familiar'}
+                    {tipoRelacion === 'hijo' ? 'hijo/hija' :
+                      tipoRelacion === 'padre' ? 'padre/madre' :
+                        tipoRelacion === 'conyuge' ? 'cónyuge' :
+                          tipoRelacion === 'hermano' ? 'hermano/hermana' :
+                            tipoRelacion === 'tutor' ? 'tutor' : 'otro familiar'}
                   </strong>
                 </p>
               </div>

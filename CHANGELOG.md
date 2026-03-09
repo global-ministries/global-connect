@@ -7,6 +7,26 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
+## [1.3.0] - 2026-03-09
+
+### Cambiado
+- Clientes Supabase migrados a patrón `getAll/setAll` (server, admin, client)
+- Genérico `Database` añadido a todos los clientes para type safety
+- Middleware reescrito: un solo cliente, sin code exchange, sin tokens en URL
+- Auth callback simplificado: detección de recovery por query param
+- `auth.actions.ts` simplificado: sin admin fallback, sin debug logs, tipos correctos
+- 9 archivos migrados del singleton `supabase` a `createClient()`
+- `ResetPasswordForm.tsx` ya no lee tokens de URL (security fix)
+
+### Eliminado
+- `lib/supabase/service-role.ts` (duplicado de `admin.ts`, 0 consumidores)
+- `lib/obtenerRolesUsuarioActual.ts` (0 importaciones)
+- Admin fallback en signup que creaba usuarios con `admin.auth.admin.createUser(email_confirm: true)`
+- Pasaje de tokens como parámetros de URL en middleware (vulnerabilidad de seguridad)
+- `console.log` de debug en middleware y auth actions
+
+---
+
 ## [1.2.0] - 2026-03-09
 
 ### Agregado

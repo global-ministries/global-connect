@@ -24,7 +24,7 @@ import { useState, useEffect } from "react"
 import { obtenerNombreRelacion, obtenerColorRelacion } from "@/lib/config/relaciones-familiares"
 import { AgregarFamiliarModal } from '@/components/modals/AgregarFamiliarModal'
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
-import { supabase } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 import { deleteFamilyRelation } from "@/lib/actions/user.actions"
 import { toast } from "@/components/ui/use-toast"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -62,6 +62,7 @@ export default function PaginaDetalleUsuario() {
     setError(null)
     try {
       // Llama a la función RPC para obtener el detalle del usuario
+      const supabase = createClient()
       const { data, error: errorUsuario } = await supabase
         .rpc('obtener_detalle_usuario', { p_user_id: id })
         .single()

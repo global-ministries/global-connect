@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 
 export function UserList() {
   const [usuarios, setUsuarios] = useState<any[]>([])
@@ -12,6 +12,7 @@ export function UserList() {
     let mounted = true
     setLoading(true)
     setError(null)
+    const supabase = createClient()
     supabase
       .from("usuarios")
       .select("*")

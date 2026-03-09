@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 
 export default function TopDebugBar() {
@@ -69,7 +69,7 @@ export default function TopDebugBar() {
     <div className="fixed top-0 left-0 right-0 z-40 bg-black/60 text-white transition-all duration-300 min-w-0">
       {/* Botón de toggle siempre visible - optimizado para pantallas muy angostas */}
       <div className="flex items-center px-1 py-1 min-w-0">
-        <button 
+        <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="bg-white/20 hover:bg-white/30 px-1 py-0.5 rounded text-[9px] transition-colors flex-shrink-0"
           title={isCollapsed ? "Mostrar barra de debug" : "Ocultar barra de debug"}
@@ -109,7 +109,7 @@ export default function TopDebugBar() {
                   <option key={r.nombre_interno} value={r.nombre_interno}>{r.nombre_interno}</option>
                 ))}
               </select>
-              <button 
+              <button
                 onClick={onChangeRole}
                 className="bg-white/20 hover:bg-white/30 px-1 py-0.5 rounded text-[8px] flex-shrink-0"
                 disabled={!selected}
@@ -129,7 +129,7 @@ export default function TopDebugBar() {
                 Rol: <span className="font-mono">{roles[0] || "sin rol"}</span>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 flex-shrink-0">
               <select
                 className="bg-white/10 border border-white/30 rounded px-2 py-1 text-xs"
@@ -141,9 +141,9 @@ export default function TopDebugBar() {
                   <option key={r.nombre_interno} value={r.nombre_interno}>{r.nombre_visible}</option>
                 ))}
               </select>
-              <Button 
-                size="sm" 
-                variant="secondary" 
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={onChangeRole}
                 className="text-xs px-3 py-1 h-auto"
               >
