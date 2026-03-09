@@ -38,3 +38,7 @@ yarn-error.log*
 .kiro/
 .codex/
 .copilot/
+
+# database backups
+/backups/
+*.bak

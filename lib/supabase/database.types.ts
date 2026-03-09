@@ -188,6 +188,13 @@ export type Database = {
             referencedRelation: "grupos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "dias_excepcion_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
         ]
       }
       direcciones: {
@@ -263,10 +270,64 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "director_etapa_grupos_director_etapa_id_fkey"
+            columns: ["director_etapa_id"]
+            isOneToOne: false
+            referencedRelation: "v_directores_etapa_segmento"
+            referencedColumns: ["director_etapa_segmento_lider_id"]
+          },
+          {
             foreignKeyName: "director_etapa_grupos_grupo_id_fkey"
             columns: ["grupo_id"]
             isOneToOne: false
             referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "director_etapa_grupos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+        ]
+      }
+      director_etapa_ubicaciones: {
+        Row: {
+          director_etapa_id: string
+          id: string
+          segmento_ubicacion_id: string
+        }
+        Insert: {
+          director_etapa_id: string
+          id?: string
+          segmento_ubicacion_id: string
+        }
+        Update: {
+          director_etapa_id?: string
+          id?: string
+          segmento_ubicacion_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "director_etapa_ubicaciones_director_etapa_id_fkey"
+            columns: ["director_etapa_id"]
+            isOneToOne: true
+            referencedRelation: "segmento_lideres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "director_etapa_ubicaciones_director_etapa_id_fkey"
+            columns: ["director_etapa_id"]
+            isOneToOne: true
+            referencedRelation: "v_directores_etapa_segmento"
+            referencedColumns: ["director_etapa_segmento_lider_id"]
+          },
+          {
+            foreignKeyName: "director_etapa_ubicaciones_segmento_ubicacion_id_fkey"
+            columns: ["segmento_ubicacion_id"]
+            isOneToOne: false
+            referencedRelation: "segmento_ubicaciones"
             referencedColumns: ["id"]
           },
         ]
@@ -338,11 +399,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "eventos_grupo_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
             foreignKeyName: "fk_grupo_evento_id"
             columns: ["grupo_id"]
             isOneToOne: false
             referencedRelation: "grupos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_grupo_evento_id"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
           },
         ]
       }
@@ -413,6 +488,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_grupo_id"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
             foreignKeyName: "fk_usuario_id"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -427,6 +509,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "grupo_miembros_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
             foreignKeyName: "grupo_miembros_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -438,42 +527,63 @@ export type Database = {
       grupos: {
         Row: {
           activo: boolean
+          aprobado_en: string | null
+          aprobado_por: string | null
           creado_por_usuario_id: string | null
+          created_at: string | null
           dia_reunion: Database["public"]["Enums"]["enum_dia_semana"] | null
           direccion_anfitrion_id: string | null
+          eliminado: boolean
+          estado_aprobacion: string
           fecha_creacion: string
           hora_reunion: string | null
           id: string
           nombre: string
           notas_privadas: string | null
           segmento_id: string
+          segmento_ubicacion_id: string | null
           temporada_id: string
+          updated_at: string | null
         }
         Insert: {
           activo?: boolean
+          aprobado_en?: string | null
+          aprobado_por?: string | null
           creado_por_usuario_id?: string | null
+          created_at?: string | null
           dia_reunion?: Database["public"]["Enums"]["enum_dia_semana"] | null
           direccion_anfitrion_id?: string | null
+          eliminado?: boolean
+          estado_aprobacion?: string
           fecha_creacion?: string
           hora_reunion?: string | null
           id?: string
           nombre: string
           notas_privadas?: string | null
           segmento_id: string
+          segmento_ubicacion_id?: string | null
           temporada_id: string
+          updated_at?: string | null
         }
         Update: {
           activo?: boolean
+          aprobado_en?: string | null
+          aprobado_por?: string | null
           creado_por_usuario_id?: string | null
+          created_at?: string | null
           dia_reunion?: Database["public"]["Enums"]["enum_dia_semana"] | null
           direccion_anfitrion_id?: string | null
+          eliminado?: boolean
+          estado_aprobacion?: string
           fecha_creacion?: string
           hora_reunion?: string | null
           id?: string
           nombre?: string
           notas_privadas?: string | null
           segmento_id?: string
+          segmento_ubicacion_id?: string | null
           temporada_id?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -488,6 +598,13 @@ export type Database = {
             columns: ["segmento_id"]
             isOneToOne: false
             referencedRelation: "segmentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
           {
@@ -509,6 +626,13 @@ export type Database = {
             columns: ["segmento_id"]
             isOneToOne: false
             referencedRelation: "segmentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_segmento_ubicacion_id_fkey"
+            columns: ["segmento_ubicacion_id"]
+            isOneToOne: false
+            referencedRelation: "segmento_ubicaciones"
             referencedColumns: ["id"]
           },
           {
@@ -738,6 +862,32 @@ export type Database = {
           },
         ]
       }
+      segmento_ubicaciones: {
+        Row: {
+          id: string
+          nombre: string
+          segmento_id: string
+        }
+        Insert: {
+          id?: string
+          nombre: string
+          segmento_id: string
+        }
+        Update: {
+          id?: string
+          nombre?: string
+          segmento_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "segmento_ubicaciones_segmento_id_fkey"
+            columns: ["segmento_id"]
+            isOneToOne: false
+            referencedRelation: "segmentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       segmentos: {
         Row: {
           id: string
@@ -845,6 +995,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "grupos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_reuniones_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
           },
           {
             foreignKeyName: "uno_a_uno_reuniones_lider_usuario_id_fkey"
@@ -1018,9 +1175,97 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_directores_etapa_segmento: {
+        Row: {
+          apellido: string | null
+          ciudades: string[] | null
+          director_etapa_segmento_lider_id: string | null
+          nombre: string | null
+          segmento_id: string | null
+          usuario_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "segmento_lideres_segmento_id_fkey"
+            columns: ["segmento_id"]
+            isOneToOne: false
+            referencedRelation: "segmentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_grupos_supervisiones: {
+        Row: {
+          created_at: string | null
+          director_etapa_id: string | null
+          director_etapa_usuario_id: string | null
+          estado_aprobacion: string | null
+          grupo_id: string | null
+          lider_usuario_id: string | null
+          segmento_id: string | null
+          temporada_id: string | null
+          total_miembros: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "director_etapa_grupos_director_etapa_id_fkey"
+            columns: ["director_etapa_id"]
+            isOneToOne: false
+            referencedRelation: "segmento_lideres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "director_etapa_grupos_director_etapa_id_fkey"
+            columns: ["director_etapa_id"]
+            isOneToOne: false
+            referencedRelation: "v_directores_etapa_segmento"
+            referencedColumns: ["director_etapa_segmento_lider_id"]
+          },
+          {
+            foreignKeyName: "fk_segmento_id"
+            columns: ["segmento_id"]
+            isOneToOne: false
+            referencedRelation: "segmentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_segmento_id_fkey"
+            columns: ["segmento_id"]
+            isOneToOne: false
+            referencedRelation: "segmentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_temporada_id_fkey"
+            columns: ["temporada_id"]
+            isOneToOne: false
+            referencedRelation: "temporadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["director_etapa_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      _puede_ver_segmento_lider: {
+        Args: {
+          sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]
+        }
+        Returns: boolean
+      }
       actualizar_rol_miembro: {
         Args: {
           p_auth_id: string
@@ -1071,6 +1316,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      asignar_director_etapa_a_ubicacion: {
+        Args: {
+          p_accion: string
+          p_auth_id: string
+          p_director_etapa_id: string
+          p_segmento_ubicacion_id: string
+        }
+        Returns: {
+          director_etapa_id: string
+          id: string
+          segmento_ubicacion_id: string
+        }[]
+      }
       buscar_usuarios_para_grupo: {
         Args: {
           p_auth_id: string
@@ -1120,14 +1378,9 @@ export type Database = {
         Args: { p_grupo_id: string; p_user_id: string }
         Returns: boolean
       }
-      get_my_internal_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      es_lider_usuario: { Args: { target_user_id: string }; Returns: boolean }
+      get_my_internal_id: { Args: never; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
       listar_eventos_grupo: {
         Args: {
           p_auth_id: string
@@ -1152,6 +1405,8 @@ export type Database = {
           p_busqueda?: string
           p_con_email?: boolean
           p_con_telefono?: boolean
+          p_contexto_relacion?: boolean
+          p_en_grupo?: boolean
           p_limite?: number
           p_offset?: number
           p_roles_filtro?: string[]
@@ -1161,6 +1416,7 @@ export type Database = {
           cedula: string
           email: string
           fecha_registro: string
+          foto_perfil_url: string
           id: string
           nombre: string
           puede_ver: boolean
@@ -1211,23 +1467,38 @@ export type Database = {
           usuario_nombre: string
         }[]
       }
+      obtener_datos_dashboard: { Args: { p_auth_id: string }; Returns: Json }
       obtener_detalle_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string }
         Returns: Json
       }
-      obtener_detalle_usuario: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      obtener_estadisticas_usuarios_con_permisos: {
-        Args: { p_auth_id: string }
-        Returns: {
-          con_email: number
-          con_telefono: number
-          registrados_hoy: number
-          total_usuarios: number
-        }[]
-      }
+      obtener_detalle_usuario: { Args: { p_user_id: string }; Returns: Json }
+      obtener_estadisticas_usuarios_con_permisos:
+        | {
+            Args: { p_auth_id: string }
+            Returns: {
+              con_email: number
+              con_telefono: number
+              registrados_hoy: number
+              total_usuarios: number
+            }[]
+          }
+        | {
+            Args: {
+              p_auth_id: string
+              p_busqueda?: string
+              p_con_email?: boolean
+              p_con_telefono?: boolean
+              p_en_grupo?: boolean
+              p_roles_filtro?: string[]
+            }
+            Returns: {
+              con_email: number
+              con_telefono: number
+              registrados_hoy: number
+              total_usuarios: number
+            }[]
+          }
       obtener_evento_grupo: {
         Args: { p_auth_id: string; p_evento_id: string }
         Returns: {
@@ -1243,16 +1514,22 @@ export type Database = {
         Args: {
           p_activo?: boolean
           p_auth_id: string
+          p_eliminado?: boolean
+          p_estado_temporal?: string
           p_limit?: number
           p_municipio_id?: string
           p_offset?: number
           p_parroquia_id?: string
           p_segmento_id?: string
+          p_solo_mios?: boolean
           p_temporada_id?: string
         }
         Returns: {
           activo: boolean
+          eliminado: boolean
+          estado_temporal: string
           fecha_creacion: string
+          hay_mis_grupos: boolean
           id: string
           lideres: Json
           miembros_count: number
@@ -1262,14 +1539,55 @@ export type Database = {
           parroquia_id: string
           parroquia_nombre: string
           segmento_nombre: string
+          soy_lider: boolean
+          soy_miembro: boolean
+          supervisado_por_mi: boolean
           temporada_nombre: string
           total_count: number
         }[]
       }
-      obtener_roles_usuario: {
+      obtener_kpis_grupos_para_usuario: {
         Args: { p_auth_id: string }
-        Returns: string[]
+        Returns: {
+          desviacion_miembros: number
+          fecha_ultima_actualizacion: string
+          pct_aprobados: number
+          pct_con_lider: number
+          pct_sin_director: number
+          promedio_miembros: number
+          total_aprobados: number
+          total_con_lider: number
+          total_grupos: number
+          total_sin_director: number
+        }[]
       }
+      obtener_reporte_asistencia_grupo: {
+        Args: {
+          p_auth_id: string
+          p_fecha_fin?: string
+          p_fecha_inicio?: string
+          p_grupo_id: string
+        }
+        Returns: Json
+      }
+      obtener_reporte_asistencia_usuario: {
+        Args: {
+          p_auth_id: string
+          p_fecha_fin?: string
+          p_fecha_inicio?: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      obtener_reporte_semanal_asistencia: {
+        Args: {
+          p_auth_id: string
+          p_fecha_semana?: string
+          p_incluir_todos?: boolean
+        }
+        Returns: Json
+      }
+      obtener_roles_usuario: { Args: { p_auth_id: string }; Returns: string[] }
       obtener_segmentos_para_director: {
         Args: { p_auth_id: string }
         Returns: {
@@ -1289,10 +1607,7 @@ export type Database = {
         Args: { p_auth_id: string; p_grupo_id: string }
         Returns: boolean
       }
-      puede_ver_debug_toolbar: {
-        Args: { p_auth_id: string }
-        Returns: boolean
-      }
+      puede_ver_debug_toolbar: { Args: { p_auth_id: string }; Returns: boolean }
       puede_ver_grupo: {
         Args: { p_grupo_id: string; p_user_id: string }
         Returns: boolean
@@ -1313,14 +1628,18 @@ export type Database = {
         }
         Returns: string
       }
-      resumen_dashboard_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
+      resumen_dashboard_admin: { Args: never; Returns: Json }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      sugerir_nombre_grupo: {
+        Args: {
+          p_segmento_id: string
+          p_temporada_id: string
+          p_ubicacion: string
+        }
+        Returns: string
       }
-      tiene_rol_de_liderazgo: {
-        Args: { p_auth_id: string }
-        Returns: boolean
-      }
+      tiene_rol_de_liderazgo: { Args: { p_auth_id: string }; Returns: boolean }
     }
     Enums: {
       enum_dia_semana:

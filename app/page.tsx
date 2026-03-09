@@ -13,7 +13,6 @@ import {
   TextoSistema,
   EnlaceSistema
 } from "@/components/ui/sistema-diseno"
-import { ClearAuthCookies } from "@/components/auth/ClearAuthCookies"
 
 export default function PaginaLogin() {
   const [mostrarContrasena, setMostrarContrasena] = useState(false)
@@ -26,7 +25,7 @@ export default function PaginaLogin() {
     e.preventDefault()
     setCargando(true)
     setError("")
-    
+
     try {
       const result = await login(new FormData(e.currentTarget))
       if (result?.error) {
@@ -38,7 +37,7 @@ export default function PaginaLogin() {
     } catch (err) {
       // Solo mostrar error si no es una redirección exitosa
       const errorMessage = err instanceof Error ? err.message : String(err)
-      
+
       // Si el error contiene "NEXT_REDIRECT", es una redirección exitosa
       if (!errorMessage.includes('NEXT_REDIRECT')) {
         setError("Error al iniciar sesión. Inténtalo de nuevo.")
@@ -148,10 +147,7 @@ export default function PaginaLogin() {
         </form>
       </TarjetaSistema>
 
-      {/* Herramientas de debug */}
-      <div className="text-center mt-6">
-        <ClearAuthCookies />
-      </div>
+
 
       {/* Pie de página */}
       <div className="text-center mt-8">
