@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 
+const supabase = createClient()
+
 export function AuthStatusDebug() {
   const [user, setUser] = useState<any>(null)
   const [roles, setRoles] = useState<string[]>([])

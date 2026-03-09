@@ -24,9 +24,9 @@ export async function GET(req: NextRequest) {
       p_auth_id: user.id,
       p_busqueda: q,
       p_roles_filtro: [],
-      p_con_email: null,
-      p_con_telefono: null,
-      p_en_grupo: null,
+      p_con_email: undefined,
+      p_con_telefono: undefined,
+      p_en_grupo: undefined,
       p_limite: limit,
       p_offset: 0,
       p_contexto_relacion: true

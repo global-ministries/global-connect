@@ -11,10 +11,11 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser();
 
   // Permitir admin o cualquiera que pueda ver el grupo (pero no rol 'miembro' en el grupo)
-  const { data: detalle } = await supabase.rpc("obtener_detalle_grupo", {
-    p_auth_id: user?.id,
+  const { data: detalleRaw } = await supabase.rpc("obtener_detalle_grupo", {
+    p_auth_id: user!.id,
     p_grupo_id: id
   });
+  const detalle = detalleRaw as any;
 
   if (!detalle) {
     return (

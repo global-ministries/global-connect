@@ -22,10 +22,11 @@ export default async function EditGroupPage({ params }: PageProps) {
   }
 
   // Obtener detalle del grupo usando RPC
-  const { data: grupo, error } = await supabase.rpc("obtener_detalle_grupo", {
+  const { data: grupoRaw, error } = await supabase.rpc("obtener_detalle_grupo", {
     p_auth_id: user.id,
     p_grupo_id: id
   });
+  const grupo = grupoRaw as any;
 
   if (error || !grupo) {
     return (
@@ -104,7 +105,7 @@ export default async function EditGroupPage({ params }: PageProps) {
             </div>
           )}
           <GroupEditForm
-            grupo={grupo}
+            grupo={grupo as any}
             temporadas={temporadas || []}
             segmentos={segmentos || []}
             paises={paises || []}

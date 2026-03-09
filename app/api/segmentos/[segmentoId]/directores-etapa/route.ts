@@ -133,7 +133,7 @@ export async function POST(req: Request, context: { params: Promise<{ segmentoId
 
     // Intentar RPC oficial
     let rpcError: any = null;
-    const { error: rpcErr } = await supabase.rpc('asignar_director_etapa_a_grupo', {
+    const { error: rpcErr } = await supabase.rpc('asignar_director_etapa_a_grupo' as any, {
       p_auth_id: user.id,
       p_grupo_id: grupo_id,
       p_segmento_lider_id: director_etapa_segmento_lider_id,

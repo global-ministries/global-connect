@@ -13,7 +13,7 @@ export default async function CreateGroupPage() {
     return null
   }
   const roles = userData.roles || []
-  const esAdminOPastorODG = roles.some(r => ["admin","pastor","director-general"].includes(r))
+  const esAdminOPastorODG = roles.some(r => ["admin", "pastor", "director-general"].includes(r))
   const esDirectorEtapa = roles.includes("director-etapa")
   const esLider = roles.includes("lider") // excepción temporal
 
@@ -50,7 +50,7 @@ export default async function CreateGroupPage() {
       }
       // director-etapa: sólo segmentos donde es líder de etapa
       const { data: authData } = await supabase.auth.getUser()
-      const { data: segs, error } = await supabase.rpc('obtener_segmentos_para_director', { p_auth_id: authData?.user?.id })
+      const { data: segs, error } = await supabase.rpc('obtener_segmentos_para_director', { p_auth_id: authData?.user?.id! })
       if (error) {
         console.error('[Create] obtener_segmentos_para_director error:', error)
         return { data: [], error }

@@ -5,10 +5,10 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import ReporteAsistenciaUsuarioClient from '@/components/asistencia/ReporteAsistenciaUsuario.client'
 
-export default async function AsistenciaUsuarioPage({ 
+export default async function AsistenciaUsuarioPage({
   params,
-  searchParams 
-}: { 
+  searchParams
+}: {
   params: Promise<{ id: string }>
   searchParams: Promise<{ fecha_inicio?: string; fecha_fin?: string }>
 }) {
@@ -16,7 +16,7 @@ export default async function AsistenciaUsuarioPage({
   const searchParamsResolved = await searchParams
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  
+
   if (!user) {
     return (
       <DashboardLayout>
@@ -38,7 +38,8 @@ export default async function AsistenciaUsuarioPage({
   }
 
   // Obtener información básica del usuario
-  const { data: usuarioData } = await supabase.rpc('obtener_detalle_usuario', { p_user_id: id })
+  const { data: usuarioDataRaw } = await supabase.rpc('obtener_detalle_usuario', { p_user_id: id })
+  const usuarioData = usuarioDataRaw as any
 
   if (!usuarioData) {
     return (
@@ -77,8 +78,8 @@ export default async function AsistenciaUsuarioPage({
     {
       p_usuario_id: id,
       p_auth_id: user.id,
-      p_fecha_inicio: fechaInicio,
-      p_fecha_fin: fechaFin
+      p_fecha_inicio: fechaInicio ?? undefined,
+      p_fecha_fin: fechaFin ?? undefined
     }
   )
 
@@ -86,7 +87,7 @@ export default async function AsistenciaUsuarioPage({
   console.log('reporteError:', reporteError)
 
   // Verificar si hay error de permisos
-  if (reporteError || (reporteData && reporteData.error)) {
+  if (reporteError || (reporteData && (reporteData as any).error)) {
     return (
       <DashboardLayout>
         <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
@@ -95,15 +96,15 @@ export default async function AsistenciaUsuarioPage({
               <div className="text-red-500 text-6xl mb-4">🔒</div>
               <TituloSistema nivel={2}>Sin permisos</TituloSistema>
               <p className="text-gray-600 mb-4">
-                {reporteData?.error || 'No tienes permiso para ver el reporte de asistencia de este usuario.'}
+                {(reporteData as any)?.error || 'No tienes permiso para ver el reporte de asistencia de este usuario.'}
               </p>
-              {reporteData?.debug && (
+              {(reporteData as any)?.debug && (
                 <div className="mt-4 p-4 bg-gray-100 rounded-lg text-left max-w-md mx-auto">
                   <p className="text-xs font-mono">
-                    <strong>Debug:</strong><br/>
-                    Auth User ID: {reporteData.debug.v_auth_user_id}<br/>
-                    Target User ID: {reporteData.debug.p_usuario_id}<br/>
-                    Is Admin: {reporteData.debug.v_es_admin ? 'true' : 'false'}
+                    <strong>Debug:</strong><br />
+                    Auth User ID: {(reporteData as any).debug.v_auth_user_id}<br />
+                    Target User ID: {(reporteData as any).debug.p_usuario_id}<br />
+                    Is Admin: {(reporteData as any).debug.v_es_admin ? 'true' : 'false'}
                   </p>
                 </div>
               )}
@@ -140,8 +141,8 @@ export default async function AsistenciaUsuarioPage({
         descripcion="Análisis detallado del historial de asistencia"
         accionPrincipal={
           <Link href={`/dashboard/users/${id}`}>
-            <BotonSistema 
-              variante="ghost" 
+            <BotonSistema
+              variante="ghost"
               tamaño="sm"
               className="p-2"
             >
@@ -150,9 +151,9 @@ export default async function AsistenciaUsuarioPage({
           </Link>
         }
       >
-        <ReporteAsistenciaUsuarioClient 
+        <ReporteAsistenciaUsuarioClient
           usuarioId={id}
-          reporte={reporte}
+          reporte={reporte as any}
           fechaInicio={fechaInicio || undefined}
           fechaFin={fechaFin || undefined}
         />

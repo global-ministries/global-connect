@@ -125,9 +125,9 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
         const { data: data2, error: error2 } = await supabase.rpc('listar_usuarios_con_permisos', {
           p_auth_id: user.id,
           p_busqueda: busquedaDebounced,
-          p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : null,
-          p_con_email: filtros.con_email,
-          p_con_telefono: filtros.con_telefono,
+          p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : undefined,
+          p_con_email: filtros.con_email ?? undefined,
+          p_con_telefono: filtros.con_telefono ?? undefined,
           p_limite: limite,
           p_offset: offset,
         })
@@ -224,9 +224,9 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
       let { data, error: errorRPC } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
         p_auth_id: user.id,
         p_busqueda: busquedaDebounced || '',
-        p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : null,
-        p_con_email: filtros.con_email,
-        p_con_telefono: filtros.con_telefono,
+        p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : undefined,
+        p_con_email: filtros.con_email ?? undefined,
+        p_con_telefono: filtros.con_telefono ?? undefined,
         ...(filtros.en_grupo !== null ? { p_en_grupo: filtros.en_grupo } : {}),
       })
 

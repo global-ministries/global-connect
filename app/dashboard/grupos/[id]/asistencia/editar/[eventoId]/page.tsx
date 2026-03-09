@@ -34,12 +34,13 @@ export default async function EditarAsistenciaPage({ params }: { params: { id: s
     </DashboardLayout>
   )
 
-  const [{ data: evento }, { data: lista }, { data: grupo }, { data: puedeEditar }] = await Promise.all([
+  const [{ data: evento }, { data: lista }, { data: grupoRaw }, { data: puedeEditar }] = await Promise.all([
     supabase.rpc('obtener_evento_grupo', { p_auth_id: user.id, p_evento_id: eventoId }),
     supabase.rpc('obtener_asistencia_evento', { p_auth_id: user.id, p_evento_id: eventoId }),
     supabase.rpc('obtener_detalle_grupo', { p_auth_id: user.id, p_grupo_id: id }),
     supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id }),
   ])
+  const grupo = grupoRaw as any
 
   const ev: Evento | undefined = Array.isArray(evento) ? (evento[0] as Evento) : undefined
   if (!ev || !puedeEditar || !grupo) {
@@ -89,8 +90,8 @@ export default async function EditarAsistenciaPage({ params }: { params: { id: s
         accionPrincipal={
           <div className="flex items-center gap-2">
             <Link href={`/dashboard/grupos/${id}/asistencia/${eventoId}`}>
-              <BotonSistema 
-                variante="outline" 
+              <BotonSistema
+                variante="outline"
                 tamaño="sm"
                 className="gap-2"
               >
@@ -99,8 +100,8 @@ export default async function EditarAsistenciaPage({ params }: { params: { id: s
               </BotonSistema>
             </Link>
             <Link href={`/dashboard/grupos/${id}/asistencia/historial`}>
-              <BotonSistema 
-                variante="outline" 
+              <BotonSistema
+                variante="outline"
                 tamaño="sm"
                 className="gap-2"
               >
@@ -109,8 +110,8 @@ export default async function EditarAsistenciaPage({ params }: { params: { id: s
               </BotonSistema>
             </Link>
             <Link href={`/dashboard/grupos/${id}`}>
-              <BotonSistema 
-                variante="ghost" 
+              <BotonSistema
+                variante="ghost"
                 tamaño="sm"
                 className="p-2"
               >

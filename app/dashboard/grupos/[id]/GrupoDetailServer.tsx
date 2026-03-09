@@ -7,10 +7,11 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const { data: grupo, error } = await supabase.rpc("obtener_detalle_grupo", {
-    p_auth_id: user?.id,
+  const { data: grupoRaw, error } = await supabase.rpc("obtener_detalle_grupo", {
+    p_auth_id: user!.id,
     p_grupo_id: id
   });
+  const grupo = grupoRaw as any;
 
   if (error || !grupo) {
     return (
@@ -52,7 +53,7 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
 
   return (
     <DashboardLayout>
-      <GrupoDetailClient grupo={grupo} id={id} />
+      <GrupoDetailClient grupo={grupo as any} id={id} />
     </DashboardLayout>
   );
 }

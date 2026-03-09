@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 
+const supabase = createClient();
+
 export default function TopDebugBar() {
   const [user, setUser] = useState<any>(null);
   const [roles, setRoles] = useState<string[]>([]);

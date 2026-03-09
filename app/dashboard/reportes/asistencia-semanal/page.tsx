@@ -33,7 +33,7 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
     'obtener_reporte_semanal_asistencia',
     {
       p_auth_id: user.id,
-      p_fecha_semana: fechaSemana,
+      p_fecha_semana: fechaSemana ?? undefined,
       p_incluir_todos: incluirTodos
     }
   )
@@ -87,19 +87,19 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
     <DashboardLayout>
       <ContenedorDashboard
         titulo="Reporte Semanal de Asistencia"
-        descripcion={`Semana del ${new Date(reporteData.semana.inicio).toLocaleDateString('es-ES', { 
-          day: 'numeric', 
+        descripcion={`Semana del ${new Date((reporteData as any).semana.inicio).toLocaleDateString('es-ES', {
+          day: 'numeric',
           month: 'long',
           timeZone: 'UTC'
-        })} al ${new Date(reporteData.semana.fin).toLocaleDateString('es-ES', { 
-          day: 'numeric', 
-          month: 'long', 
+        })} al ${new Date((reporteData as any).semana.fin).toLocaleDateString('es-ES', {
+          day: 'numeric',
+          month: 'long',
           year: 'numeric',
           timeZone: 'UTC'
         })}`}
         accionPrincipal={null}
       >
-        <ReporteSemanal reporte={reporteData} incluirTodosInicial={incluirTodos} />
+        <ReporteSemanal reporte={reporteData as any} incluirTodosInicial={incluirTodos} />
       </ContenedorDashboard>
     </DashboardLayout>
   )

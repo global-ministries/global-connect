@@ -17,7 +17,7 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
   const supabase = await createSupabaseServerClient()
   const userData = await getUserWithRoles(supabase)
   const { data: auth } = await supabase.auth.getUser()
-  const authId = auth?.user?.id || userData?.user?.id
+  const authId = auth?.user?.id || userData?.user?.id || ''
 
   let rolPrincipal = 'miembro'
   const roles = userData?.roles || []
@@ -31,8 +31,9 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
   try {
     const { data: rpcData, error } = await supabase.rpc('obtener_datos_dashboard', { p_auth_id: authId })
     if (!error && rpcData) {
-      const rolRpc = rpcData.rol || rolPrincipal
-      const widgets = rpcData.widgets || {}
+      const d = rpcData as any
+      const rolRpc = d.rol || rolPrincipal
+      const widgets = d.widgets || {}
 
       // Fallbacks mínimos si faltan datos
       if (!widgets.kpis_globales) widgets.kpis_globales = {}
@@ -72,11 +73,11 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
   try {
     const { data: rep } = await supabase.rpc('obtener_reporte_semanal_asistencia', {
       p_auth_id: authId,
-      p_fecha_semana: null,
+      p_fecha_semana: undefined,
       p_incluir_todos: true,
     })
-    if (rep && rep.kpis_globales && rep.kpis_globales.porcentaje_asistencia_global != null) {
-      asistenciaSemanalFB = Number(rep.kpis_globales.porcentaje_asistencia_global)
+    if (rep && (rep as any).kpis_globales && (rep as any).kpis_globales.porcentaje_asistencia_global != null) {
+      asistenciaSemanalFB = Number((rep as any).kpis_globales.porcentaje_asistencia_global)
     }
   } catch {}
 

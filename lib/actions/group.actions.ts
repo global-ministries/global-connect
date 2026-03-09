@@ -93,7 +93,7 @@ export async function updateGroup(groupId: string, data: any) {
         // Si hay datos de dirección, hacer upsert
     if (validatedData.direccion) {
       const direccionData = {
-        calle: validatedData.direccion.calle || null,
+        calle: validatedData.direccion.calle || '',
         barrio: validatedData.direccion.barrio || null,
         codigo_postal: validatedData.direccion.codigo_postal || null,
         referencia: validatedData.direccion.referencia || null,
@@ -221,7 +221,7 @@ export async function createGroup(data: { nombre: string; temporada_id: string; 
 
     // Asignar director de etapa inicial si viene param
     if (data.director_etapa_segmento_lider_id) {
-      const { error: dirErr } = await supabase.rpc('asignar_director_etapa_a_grupo', {
+      const { error: dirErr } = await supabase.rpc('asignar_director_etapa_a_grupo' as any, {
         p_auth_id: user.id,
         p_grupo_id: grupoId,
         p_segmento_lider_id: data.director_etapa_segmento_lider_id,

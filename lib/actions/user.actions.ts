@@ -14,8 +14,8 @@ export async function deleteFamilyRelation(relationId: string, userId: string) {
     if (error) {
       return { success: false, error: error.message };
     }
-    if (data && data.error) {
-      return { success: false, error: data.error };
+    if ((data as any) && (data as any).error) {
+      return { success: false, error: (data as any).error };
     }
     revalidatePath(`/dashboard/users/${userId}`);
     return { success: true };
@@ -275,7 +275,7 @@ export async function addFamilyRelation({
       .insert({
         usuario1_id,
         usuario2_id,
-        tipo_relacion,
+        tipo_relacion: tipo_relacion as any,
         es_principal: false,
       })
       .select()
@@ -340,9 +340,9 @@ export async function createUser(data: {
         email: (data.email || '').trim() === '' ? null : (data.email || undefined),
         telefono: (data.telefono || '').trim() === '' ? null : data.telefono,
         fecha_nacimiento: (data.fecha_nacimiento || '').trim() === '' ? null : data.fecha_nacimiento,
-        genero: data.genero,
-        estado_civil: data.estado_civil,
-      })
+        genero: data.genero as any,
+        estado_civil: data.estado_civil as any,
+      } as any)
       .select("id")
       .single()
 

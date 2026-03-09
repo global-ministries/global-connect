@@ -29,10 +29,11 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
     )
   }
 
-  const [{ data: grupo }, { data: puedeEditar }] = await Promise.all([
+  const [{ data: grupoRaw }, { data: puedeEditar }] = await Promise.all([
     supabase.rpc('obtener_detalle_grupo', { p_auth_id: user.id, p_grupo_id: id }),
     supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id })
   ])
+  const grupo = grupoRaw as any
 
   if (!grupo || !puedeEditar) {
     return (

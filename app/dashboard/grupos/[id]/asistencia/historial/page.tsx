@@ -42,7 +42,7 @@ export default async function HistorialAsistenciaPage({
     supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id })
   ])
 
-  const grupo = grupoRes.data
+  const grupo = grupoRes.data as any
   const puedeEditar = puedeEditarRes.data
 
   if (!puedeEditar || !grupo) {
@@ -76,8 +76,8 @@ export default async function HistorialAsistenciaPage({
     {
       p_grupo_id: id,
       p_auth_id: user.id,
-      p_fecha_inicio: fechaInicio,
-      p_fecha_fin: fechaFin
+      p_fecha_inicio: fechaInicio ?? undefined,
+      p_fecha_fin: fechaFin ?? undefined
     }
   )
 
@@ -128,7 +128,7 @@ export default async function HistorialAsistenciaPage({
       >
         <HistorialAsistenciaClient
           grupoId={id}
-          reporte={reporte}
+          reporte={reporte as any}
           fechaInicio={fechaInicio || undefined}
           fechaFin={fechaFin || undefined}
         />
