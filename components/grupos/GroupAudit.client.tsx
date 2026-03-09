@@ -95,7 +95,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
 
   function exportCsv() {
     const headers = [
-      "fecha","accion","actor","usuario","usuario_email","old_rol","new_rol"
+      "fecha", "accion", "actor", "usuario", "usuario_email", "old_rol", "new_rol"
     ];
     const rows = items.map((it) => [
       new Date(it.happened_at).toISOString(),
@@ -106,7 +106,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
       it.old_data?.rol ?? "",
       it.new_data?.rol ?? "",
     ]);
-    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
+    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -128,9 +128,9 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
         {/* Botones de acción - Responsive */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-4">
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            <BotonSistema 
-              onClick={() => exportCsv()} 
-              variante="outline" 
+            <BotonSistema
+              onClick={() => exportCsv()}
+              variante="outline"
               tamaño="md"
               className="w-full sm:w-auto"
             >
@@ -141,7 +141,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
               onClick={() => load(0)}
               variante="primario"
               tamaño="md"
-              deshabilitado={loading}
+              disabled={loading}
               className="w-full sm:w-auto"
             >
               <Filter className="w-4 h-4 mr-2" />
@@ -154,9 +154,9 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Acción</label>
-            <select 
-              value={action} 
-              onChange={(e) => setAction(e.target.value as any)} 
+            <select
+              value={action}
+              onChange={(e) => setAction(e.target.value as any)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             >
               <option value="">Todas las acciones</option>
@@ -167,7 +167,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Actor</label>
-            <input 
+            <input
               value={actor}
               onChange={(e) => setActor(e.target.value)}
               placeholder="Nombre del actor"
@@ -176,20 +176,20 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-            <input 
-              type="date" 
-              value={desde} 
-              onChange={(e) => setDesde(e.target.value)} 
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500" 
+            <input
+              type="date"
+              value={desde}
+              onChange={(e) => setDesde(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-            <input 
-              type="date" 
-              value={hasta} 
-              onChange={(e) => setHasta(e.target.value)} 
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500" 
+            <input
+              type="date"
+              value={hasta}
+              onChange={(e) => setHasta(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
           </div>
         </div>
@@ -199,13 +199,13 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
           <p className="text-sm text-red-600">{error}</p>
         </TarjetaSistema>
       )}
-      
+
       {items.length === 0 && !loading && !error && (
         <TarjetaSistema className="p-8 text-center">
           <p className="text-gray-500">No hay movimientos registrados.</p>
         </TarjetaSistema>
       )}
-      
+
       <div className="space-y-2 sm:space-y-3">
         {items.map((it) => {
           const date = new Date(it.happened_at);
@@ -268,7 +268,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
           );
         })}
       </div>
-      
+
       {/* Paginación - Responsive */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-100">
         <div className="order-2 sm:order-1">
@@ -281,7 +281,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
             onClick={() => load(page + 1)}
             variante={canLoadMore ? "primario" : "outline"}
             tamaño="md"
-            deshabilitado={loading || !canLoadMore}
+            disabled={loading || !canLoadMore}
             className="w-full sm:w-auto"
           >
             {loading ? "Cargando..." : canLoadMore ? "Cargar más" : "No hay más"}
