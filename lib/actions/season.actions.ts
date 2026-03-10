@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
+import { requireRole } from "@/lib/auth/requireAuth"
 
 export async function createSeason(data: {
   nombre: string
@@ -10,6 +11,7 @@ export async function createSeason(data: {
   fecha_fin: string
   activa: boolean
 }) {
+  await requireRole('admin')
   const supabase = createSupabaseAdminClient()
 
   const { data: insertData, error } = await supabase
@@ -42,6 +44,7 @@ export async function updateSeason(
     activa: boolean
   }
 ) {
+  await requireRole('admin')
   const supabase = createSupabaseAdminClient()
 
   const { error } = await supabase
@@ -61,3 +64,4 @@ export async function updateSeason(
   revalidatePath("/dashboard/temporadas")
   redirect("/dashboard/temporadas")
 }
+

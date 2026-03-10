@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
+import { requireAuth } from "@/lib/auth/requireAuth"
 import { redirect } from "next/navigation"
 
 // Configuración para fotos de perfil
@@ -68,6 +69,15 @@ export async function uploadUserProfilePhoto(formData: FormData, targetUserId: s
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
       return { success: false, error: "Usuario no autenticado" }
+    }
+
+    // Verificar permisos para editar este usuario
+    const { data: permitido } = await supabase.rpc('puede_editar_usuario' as any, {
+      p_auth_id: user.id,
+      p_target_user_id: targetUserId,
+    })
+    if (!permitido) {
+      return { success: false, error: "No tienes permisos para modificar la foto de este usuario" }
     }
 
     // Obtener archivo del FormData
@@ -180,6 +190,15 @@ export async function deleteUserProfilePhoto(targetUserId: string) {
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
       return { success: false, error: "Usuario no autenticado" }
+    }
+
+    // Verificar permisos para editar este usuario
+    const { data: permitido } = await supabase.rpc('puede_editar_usuario' as any, {
+      p_auth_id: user.id,
+      p_target_user_id: targetUserId,
+    })
+    if (!permitido) {
+      return { success: false, error: "No tienes permisos para eliminar la foto de este usuario" }
     }
 
     // Obtener URL actual del usuario objetivo

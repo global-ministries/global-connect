@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
+import { requireAuth } from "@/lib/auth/requireAuth"
 import type { Database } from "@/lib/supabase/database.types"
 
-// Elimina una relación familiar usando la función RPC y revalida la página de detalle
+// Elimina una relacion familiar usando la funcion RPC y revalida la pagina de detalle
 export async function deleteFamilyRelation(relationId: string, userId: string) {
+  await requireAuth()
   const supabase = createSupabaseAdminClient();
   try {
     const { data, error } = await supabase.rpc('eliminar_relacion_familiar', { p_relacion_id: relationId });
@@ -29,23 +31,23 @@ type Direccion = Database["public"]["Tables"]["direcciones"]["Row"]
 type Familia = Database["public"]["Tables"]["familias"]["Row"]
 
 interface UpdateUserData {
-  // InformaciÃ³n bÃ¡sica
+  // Informacion basica
   nombre: string
   apellido: string
   cedula?: string
   email?: string
   telefono?: string
   
-  // InformaciÃ³n personal
+  // Informacion personal
   fecha_nacimiento?: string
   estado_civil: "Soltero" | "Casado" | "Divorciado" | "Viudo"
   genero: "Masculino" | "Femenino" | "Otro"
   
-  // InformaciÃ³n profesional
+  // Informacion profesional
   ocupacion_id?: string
   profesion_id?: string
   
-  // InformaciÃ³n de ubicaciÃ³n
+  // Informacion de ubicacion
   direccion?: {
     calle: string
     barrio?: string
@@ -59,25 +61,32 @@ interface UpdateUserData {
     lng?: number
   }
   
-  // InformaciÃ³n familiar
+  // Informacion familiar
   familia?: {
     nombre: string
   }
 }
 
 export async function updateUser(userId: string, data: UpdateUserData, esPerfil: boolean = false) {
+  // Verificar autenticacion y permisos
+  const { authId } = await requireAuth()
+  const supabaseServer = await createSupabaseServerClient()
+  const { data: permitido } = await supabaseServer.rpc('puede_editar_usuario' as any, {
+    p_auth_id: authId,
+    p_target_user_id: userId,
+  })
+  if (!permitido) {
+    throw new Error('No tienes permisos para editar este usuario')
+  }
+
   const supabase = createSupabaseAdminClient();
   try {
-    // Saneamiento de claves foráneas
+    // Saneamiento de claves foraneas
     const datosSaneados = {
       ...data,
       ocupacion_id: (!data.ocupacion_id || data.ocupacion_id === "none") ? null : data.ocupacion_id,
       profesion_id: (!data.profesion_id || data.profesion_id === "none") ? null : data.profesion_id,
-      // familia_id no se recibe directamente en UpdateUserData, pero sí se puede usar en payloads internos
     };
-
-    // 1. Log de entrada
-    console.log('[updateUser] Datos recibidos:', datosSaneados);
 
     // 2. Actualizar tabla usuarios
     const { data: usuarioActualizado, error: errorUsuario } = await supabase
@@ -98,7 +107,7 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
       .select()
       .single();
 
-    console.log('[updateUser] Resultado update usuarios:', usuarioActualizado, errorUsuario);
+
 
     if (errorUsuario) {
       throw new Error(`Error al actualizar usuario: ${errorUsuario.message}`);
@@ -179,13 +188,10 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
               .eq('id', usuarioActual.familia_id)
 
             if (errorFamilia) {
-              console.error('âš ï¸� Error al actualizar familia (continuando):', errorFamilia)
               // No lanzar error, continuar con la actualizaciÃ³n del usuario
             } else {
-              console.log('âœ… Familia actualizada exitosamente')
             }
           } else {
-            console.log('â„¹ï¸� Nombre de familia sin cambios, omitiendo actualizaciÃ³n')
           }
         } else {
           // Crear nueva familia solo si no existe
@@ -198,7 +204,6 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
             .single()
 
           if (errorFamilia) {
-            console.error('âš ï¸� Error al crear familia (continuando):', errorFamilia)
             // No lanzar error, continuar con la actualizaciÃ³n del usuario
           } else {
             // Actualizar usuario con la nueva familia
@@ -208,24 +213,19 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
               .eq('id', userId)
 
             if (errorUpdateFamilia) {
-              console.error('âš ï¸� Error al asignar familia al usuario (continuando):', errorUpdateFamilia)
             } else {
-              console.log('âœ… Nueva familia creada y asignada al usuario')
             }
           }
         }
       } catch (error) {
-        console.error('âš ï¸� Error en manejo de familia (continuando):', error)
         // No lanzar error, continuar con la actualizaciÃ³n del usuario
       }
     }
 
-    console.log('ðŸŽ‰ Usuario actualizado completamente')
 
     // 5. Invalidar cachÃ© de las pÃ¡ginas relacionadas
     revalidatePath('/dashboard/users')
     revalidatePath(`/dashboard/users/${userId}`)
-    console.log('[updateUser] CachÃ© invalidado para usuarios y detalle del usuario')
 
     // 6. Redirigir condicionalmente
     if (!esPerfil) {
@@ -235,7 +235,6 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
     // Si es perfil, no redirigir - se maneja en el cliente
 
   } catch (error) {
-    console.error('Error en updateUser:', error);
     throw error;
   }
 }
@@ -248,6 +247,7 @@ export async function addFamilyRelation({
   usuario2_id: string
   tipo_relacion: string
 }) {
+  await requireAuth()
   const supabase = createSupabaseAdminClient()
   try {
 
@@ -303,6 +303,16 @@ export async function createUser(data: {
   genero?: string
   estado_civil?: string
 }) {
+  // Verificar autenticacion y permisos
+  const { authId } = await requireAuth()
+  const supabaseServer = await createSupabaseServerClient()
+  const { data: permitido } = await supabaseServer.rpc('puede_crear_usuario' as any, {
+    p_auth_id: authId,
+  })
+  if (!permitido) {
+    return { ok: false, error: 'No tienes permisos para crear usuarios' }
+  }
+
   const supabaseAdmin = createSupabaseAdminClient()
 
   const mapearErrorBD = (e: any): string => {
