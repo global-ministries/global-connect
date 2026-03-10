@@ -47,7 +47,7 @@ function obtenerVarianteBadgeRol(rol?: string): "default" | "success" | "warning
     case 'miembro':
       return 'default'
     default:
-  return 'default'
+      return 'default'
   }
 }
 
@@ -94,6 +94,7 @@ export default function PaginaUsuarios() {
 
   const { roles: rolesActual } = useCurrentUser()
   const esAdmin = useMemo(() => rolesActual.includes('admin'), [rolesActual])
+  const puedeCrear = useMemo(() => rolesActual.some(r => ['admin', 'pastor', 'director-general', 'director-etapa'].includes(r)), [rolesActual])
   const [mostrarMetricasAdicionales, setMostrarMetricasAdicionales] = useState(false)
 
   // Selección de usuarios
@@ -567,19 +568,21 @@ export default function PaginaUsuarios() {
             </div>
           )}
 
-          {/* Botón Agregar Miembro Fijo */}
-          <Link href="/dashboard/users/create">
-            <div className="fixed bottom-20 md:bottom-6 right-4 z-30">
-              <BotonSistema
-                variante="outline"
-                className="border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 px-4 py-2 rounded-lg shadow-lg bg-white"
-                tamaño="sm"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Agregar Miembro
-              </BotonSistema>
-            </div>
-          </Link>
+          {/* Botón Agregar Miembro Fijo — solo roles con permiso */}
+          {puedeCrear && (
+            <Link href="/dashboard/users/create">
+              <div className="fixed bottom-20 md:bottom-6 right-4 z-30">
+                <BotonSistema
+                  variante="outline"
+                  className="border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 px-4 py-2 rounded-lg shadow-lg bg-white"
+                  tamaño="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Agregar Miembro
+                </BotonSistema>
+              </div>
+            </Link>
+          )}
         </div>
       </ContenedorDashboard>
     </DashboardLayout>
