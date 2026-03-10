@@ -7,6 +7,31 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
+## [1.4.0] - 2026-03-10
+
+### Agregado
+- Helper `lib/auth/requireAuth.ts` con funciones `requireAuth()` y `requireRole(rol)` para Server Actions
+- RPCs de Supabase: `puede_editar_usuario(p_auth_id, p_target_user_id)` y `puede_crear_usuario(p_auth_id)`
+- Verificación server-side en `users/[id]/edit/page.tsx` (redirect si no tiene permiso)
+- Verificación server-side en `users/create/page.tsx` (redirect si no tiene permiso)
+
+### Seguridad
+- `updateUser` y `createUser` requieren `requireAuth()` + verificación de permisos vía RPC
+- `addFamilyRelation` y `deleteFamilyRelation` requieren `requireAuth()`
+- `createSeason` y `updateSeason` requieren `requireRole('admin')`
+- `uploadUserProfilePhoto` y `deleteUserProfilePhoto` verifican `puede_editar_usuario`
+- `geocodeAddress` requiere `requireAuth()`
+- Botón "Editar" y "Editar Perfil" ocultos para miembros en detalle de usuario
+- Botón "Agregar Miembro" oculto para roles sin permiso de creación
+- Botón "Crear Grupo" restringido a admin, pastor, director-general, director-etapa (líder removido)
+
+### Corregido
+- Encoding UTF-8 corrupto en `user.actions.ts`
+- Eliminado archivo `.backup` huérfano de `users/[id]/page.tsx`
+- Eliminados `console.log` de debug en `user.actions.ts`
+
+---
+
 ## [1.3.0] - 2026-03-09
 
 ### Cambiado

@@ -135,7 +135,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
 
     const roles = userData.roles || []
     const canCreateSuperior = roles.some(r => ["admin", "pastor", "director-general", "director-etapa"].includes(r))
-    const canCreate = canCreateSuperior || roles.includes('lider')
+    const canCreate = canCreateSuperior
     const canDelete = canCreateSuperior
     const canRestore = roles.some(r => ["admin", "pastor", "director-general"].includes(r))
 

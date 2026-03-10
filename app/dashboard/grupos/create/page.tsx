@@ -18,7 +18,7 @@ export default async function CreateGroupPage() {
   const esLider = roles.includes("lider") // excepción temporal
 
   // Si no es admin/pastor/director-general ni director-etapa, redirigir a listado
-  if (!esAdminOPastorODG && !esDirectorEtapa && !esLider) {
+  if (!esAdminOPastorODG && !esDirectorEtapa) {
     return (
       <DashboardLayout>
         <ContenedorDashboard
