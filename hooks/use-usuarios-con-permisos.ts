@@ -34,6 +34,10 @@ interface FiltrosUsuarios {
   limite?: number
 }
 
+interface UseUsuariosConPermisosOptions {
+  campusId?: string | null
+}
+
 interface UseUsuariosConPermisosReturn {
   usuarios: Usuario[]
   estadisticas: EstadisticasUsuarios | null
@@ -57,7 +61,8 @@ const CACHE_ESTADISTICAS_MS = 5 * 60 * 1000 // 5 minutos
 // Cache para estadísticas por clave de filtros
 const cacheEstadisticas: Record<string, { datos: EstadisticasUsuarios; timestamp: number }> = {}
 
-export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
+export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = {}): UseUsuariosConPermisosReturn {
+  const { campusId } = options
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [estadisticas, setEstadisticas] = useState<EstadisticasUsuarios | null>(null)
   const [cargando, setCargando] = useState(false)
@@ -114,6 +119,9 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
       }
       if (filtros.en_grupo !== null) {
         rpcParams.p_en_grupo = filtros.en_grupo
+      }
+      if (campusId) {
+        rpcParams.p_campus_id = campusId
       }
 
       let { data, error: errorRPC } = await supabase.rpc('listar_usuarios_con_permisos', rpcParams)
@@ -190,7 +198,7 @@ export function useUsuariosConPermisos(): UseUsuariosConPermisosReturn {
     } finally {
       setCargando(false)
     }
-  }, [supabase, paginaActual, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, toast])
+  }, [supabase, paginaActual, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId, toast])
 
   // Cargar estadísticas con caché
   const cargarEstadisticas = useCallback(async () => {

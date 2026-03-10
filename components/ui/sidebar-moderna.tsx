@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LogoGlobalConnect } from '@/components/ui/logo-global-connect'
+import { SelectorCampus } from '@/components/ui/selector-campus'
 import {
   Users,
   UserCheck,
@@ -85,7 +86,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   // Formatear roles para mostrar
   const formatearRoles = (roles: string[]): string => {
     if (!roles || roles.length === 0) return 'Usuario'
-    
+
     // Mapear roles internos a nombres amigables
     const rolesAmigables = roles.map(rol => {
       switch (rol) {
@@ -97,7 +98,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         default: return rol.charAt(0).toUpperCase() + rol.slice(1)
       }
     })
-    
+
     // Si tiene múltiples roles, mostrar el más importante o el primero
     return rolesAmigables[0]
   }
@@ -110,7 +111,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         setIsCollapsed(true)
       }
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -149,8 +150,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   }
 
   const isActive = (elemento: MenuItem) => {
-    const esActivo = pathname === elemento.href || 
-          (elemento.href !== "/dashboard" && pathname?.startsWith(elemento.href))
+    const esActivo = pathname === elemento.href ||
+      (elemento.href !== "/dashboard" && pathname?.startsWith(elemento.href))
     return esActivo
   }
 
@@ -158,7 +159,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     <>
       {/* Overlay para móvil */}
       {isMobile && !isCollapsed && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsCollapsed(true)}
         />
@@ -181,7 +182,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
               <LogoGlobalConnect tamaño="lg" className="w-[120px] h-auto" />
             </div>
           )}
-          
+
           <button
             onClick={toggleSidebar}
             className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
@@ -246,6 +247,13 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
           </div>
         </div>
 
+        {/* Selector de Campus (desktop) */}
+        {!isCollapsed && (
+          <div className="px-4 pb-3">
+            <SelectorCampus />
+          </div>
+        )}
+
         {/* Navegación */}
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
@@ -258,15 +266,15 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
               .map((item) => {
                 const Icon = item.icon
                 const active = isActive(item)
-                
+
                 return (
                   <li key={item.id}>
                     <Link
                       href={item.href}
                       className={cn(
                         "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative",
-                        active 
-                          ? "bg-orange-50 text-orange-700 border border-orange-200" 
+                        active
+                          ? "bg-orange-50 text-orange-700 border border-orange-200"
                           : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
                         isCollapsed && "justify-center px-2"
                       )}
@@ -276,13 +284,13 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                         active ? "text-orange-600" : "text-gray-500 group-hover:text-gray-700",
                         isCollapsed ? "w-6 h-6" : "w-5 h-5"
                       )} />
-                      
+
                       {!isCollapsed && (
                         <>
                           <span className="font-medium truncate">{item.label}</span>
                           {item.badge && (
-                            <BadgeSistema 
-                              variante={item.badgeVariant || 'default'} 
+                            <BadgeSistema
+                              variante={item.badgeVariant || 'default'}
                               tamaño="sm"
                               className="ml-auto"
                             >
@@ -291,18 +299,18 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                           )}
                         </>
                       )}
-                    
 
-                    {/* Tooltip para modo colapsado */}
-                    {isCollapsed && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
-                        {item.label}
-                        <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
-                      </div>
-                    )}
-                  </Link>
-                </li>
-              )
+
+                      {/* Tooltip para modo colapsado */}
+                      {isCollapsed && (
+                        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                          {item.label}
+                          <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                        </div>
+                      )}
+                    </Link>
+                  </li>
+                )
               })}
           </ul>
         </nav>
@@ -315,7 +323,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative w-full",
               pathname === '/dashboard/perfil'
-                ? "bg-orange-50 text-orange-700 border border-orange-200" 
+                ? "bg-orange-50 text-orange-700 border border-orange-200"
                 : "text-gray-700 hover:bg-gray-50 hover:text-gray-900",
               isCollapsed && "justify-center px-2"
             )}
@@ -325,7 +333,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
               pathname === '/dashboard/perfil' ? "text-orange-600" : "text-gray-500 group-hover:text-gray-700",
               isCollapsed ? "w-6 h-6" : "w-5 h-5"
             )} />
-            
+
             {!isCollapsed && (
               <span className="font-medium">Mi Perfil</span>
             )}
@@ -352,7 +360,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
               "flex-shrink-0 transition-colors text-gray-500 group-hover:text-red-600",
               isCollapsed ? "w-6 h-6" : "w-5 h-5"
             )} />
-            
+
             {!isCollapsed && (
               <span className="font-medium">Cerrar Sesión</span>
             )}
@@ -403,7 +411,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
 // Hook para usar el estado del sidebar
 export function useSidebarModerna() {
   const [isCollapsed, setIsCollapsed] = useState(false)
-  
+
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed')
     if (saved !== null) {

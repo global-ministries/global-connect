@@ -116,6 +116,99 @@ export type Database = {
         }
         Relationships: []
       }
+      campus: {
+        Row: {
+          activo: boolean
+          codigo: string
+          created_at: string
+          estado_id: string | null
+          id: string
+          nombre: string
+          pais_id: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          created_at?: string
+          estado_id?: string | null
+          id?: string
+          nombre: string
+          pais_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          created_at?: string
+          estado_id?: string | null
+          id?: string
+          nombre?: string
+          pais_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campus_estado_id_fkey"
+            columns: ["estado_id"]
+            isOneToOne: false
+            referencedRelation: "estados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campus_pais_id_fkey"
+            columns: ["pais_id"]
+            isOneToOne: false
+            referencedRelation: "paises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campus_localidades: {
+        Row: {
+          activo: boolean
+          campus_id: string
+          created_at: string
+          id: string
+          municipio_id: string | null
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          campus_id: string
+          created_at?: string
+          id?: string
+          municipio_id?: string | null
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          campus_id?: string
+          created_at?: string
+          id?: string
+          municipio_id?: string | null
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campus_localidades_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campus_localidades_municipio_id_fkey"
+            columns: ["municipio_id"]
+            isOneToOne: false
+            referencedRelation: "municipios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       debug_toolbar_whitelist: {
         Row: {
           created_at: string
@@ -332,6 +425,56 @@ export type Database = {
           },
         ]
       }
+      director_general_directores: {
+        Row: {
+          created_at: string
+          director_etapa_id: string
+          director_general_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          director_etapa_id: string
+          director_general_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          director_etapa_id?: string
+          director_general_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "director_general_directores_director_etapa_id_fkey"
+            columns: ["director_etapa_id"]
+            isOneToOne: false
+            referencedRelation: "segmento_lideres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "director_general_directores_director_etapa_id_fkey"
+            columns: ["director_etapa_id"]
+            isOneToOne: false
+            referencedRelation: "v_directores_etapa_segmento"
+            referencedColumns: ["director_etapa_segmento_lider_id"]
+          },
+          {
+            foreignKeyName: "director_general_directores_director_general_id_fkey"
+            columns: ["director_general_id"]
+            isOneToOne: false
+            referencedRelation: "segmento_lideres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "director_general_directores_director_general_id_fkey"
+            columns: ["director_general_id"]
+            isOneToOne: false
+            referencedRelation: "v_directores_etapa_segmento"
+            referencedColumns: ["director_etapa_segmento_lider_id"]
+          },
+        ]
+      }
       estados: {
         Row: {
           id: string
@@ -529,6 +672,7 @@ export type Database = {
           activo: boolean
           aprobado_en: string | null
           aprobado_por: string | null
+          campus_id: string | null
           creado_por_usuario_id: string | null
           created_at: string | null
           dia_reunion: Database["public"]["Enums"]["enum_dia_semana"] | null
@@ -538,6 +682,7 @@ export type Database = {
           fecha_creacion: string
           hora_reunion: string | null
           id: string
+          localidad_id: string | null
           nombre: string
           notas_privadas: string | null
           segmento_id: string
@@ -549,6 +694,7 @@ export type Database = {
           activo?: boolean
           aprobado_en?: string | null
           aprobado_por?: string | null
+          campus_id?: string | null
           creado_por_usuario_id?: string | null
           created_at?: string | null
           dia_reunion?: Database["public"]["Enums"]["enum_dia_semana"] | null
@@ -558,6 +704,7 @@ export type Database = {
           fecha_creacion?: string
           hora_reunion?: string | null
           id?: string
+          localidad_id?: string | null
           nombre: string
           notas_privadas?: string | null
           segmento_id: string
@@ -569,6 +716,7 @@ export type Database = {
           activo?: boolean
           aprobado_en?: string | null
           aprobado_por?: string | null
+          campus_id?: string | null
           creado_por_usuario_id?: string | null
           created_at?: string | null
           dia_reunion?: Database["public"]["Enums"]["enum_dia_semana"] | null
@@ -578,6 +726,7 @@ export type Database = {
           fecha_creacion?: string
           hora_reunion?: string | null
           id?: string
+          localidad_id?: string | null
           nombre?: string
           notas_privadas?: string | null
           segmento_id?: string
@@ -608,6 +757,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "grupos_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "grupos_creado_por_usuario_id_fkey"
             columns: ["creado_por_usuario_id"]
             isOneToOne: false
@@ -619,6 +775,13 @@ export type Database = {
             columns: ["direccion_anfitrion_id"]
             isOneToOne: false
             referencedRelation: "direcciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_localidad_id_fkey"
+            columns: ["localidad_id"]
+            isOneToOne: false
+            referencedRelation: "campus_localidades"
             referencedColumns: ["id"]
           },
           {
@@ -828,24 +991,34 @@ export type Database = {
       }
       segmento_lideres: {
         Row: {
+          campus_id: string | null
           id: string
           segmento_id: string
           tipo_lider: Database["public"]["Enums"]["enum_tipo_lider"]
           usuario_id: string
         }
         Insert: {
+          campus_id?: string | null
           id?: string
           segmento_id: string
           tipo_lider: Database["public"]["Enums"]["enum_tipo_lider"]
           usuario_id: string
         }
         Update: {
+          campus_id?: string | null
           id?: string
           segmento_id?: string
           tipo_lider?: Database["public"]["Enums"]["enum_tipo_lider"]
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "segmento_lideres_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "segmento_lideres_segmento_id_fkey"
             columns: ["segmento_id"]
@@ -890,18 +1063,29 @@ export type Database = {
       }
       segmentos: {
         Row: {
+          campus_id: string | null
           id: string
           nombre: string
         }
         Insert: {
+          campus_id?: string | null
           id?: string
           nombre: string
         }
         Update: {
+          campus_id?: string | null
           id?: string
           nombre?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "segmentos_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       temporadas: {
         Row: {
@@ -1006,6 +1190,45 @@ export type Database = {
           {
             foreignKeyName: "uno_a_uno_reuniones_lider_usuario_id_fkey"
             columns: ["lider_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usuario_campus: {
+        Row: {
+          campus_id: string
+          created_at: string
+          es_campus_principal: boolean
+          id: string
+          usuario_id: string
+        }
+        Insert: {
+          campus_id: string
+          created_at?: string
+          es_campus_principal?: boolean
+          id?: string
+          usuario_id: string
+        }
+        Update: {
+          campus_id?: string
+          created_at?: string
+          es_campus_principal?: boolean
+          id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_campus_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_campus_usuario_id_fkey"
+            columns: ["usuario_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
@@ -1354,14 +1577,6 @@ export type Database = {
         }
         Returns: string
       }
-      debug_cambiar_rol: {
-        Args: { p_auth_id: string; p_nuevo_rol: string }
-        Returns: boolean
-      }
-      debug_cambiar_rol_usuario: {
-        Args: { p_auth_id: string; p_nuevo_rol: string }
-        Returns: boolean
-      }
       eliminar_miembro_de_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string; p_usuario_id: string }
         Returns: Json
@@ -1379,6 +1594,7 @@ export type Database = {
         Returns: boolean
       }
       es_lider_usuario: { Args: { target_user_id: string }; Returns: boolean }
+      es_superadmin: { Args: { p_auth_uid: string }; Returns: boolean }
       get_my_internal_id: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       listar_eventos_grupo: {
@@ -1403,6 +1619,7 @@ export type Database = {
         Args: {
           p_auth_id: string
           p_busqueda?: string
+          p_campus_id?: string
           p_con_email?: boolean
           p_con_telefono?: boolean
           p_contexto_relacion?: boolean
@@ -1426,6 +1643,8 @@ export type Database = {
           total_count: number
         }[]
       }
+      mi_campus_principal: { Args: { p_auth_uid: string }; Returns: string }
+      mis_campus_ids: { Args: { p_auth_uid: string }; Returns: string[] }
       obtener_asistencia_evento: {
         Args: { p_auth_id: string; p_evento_id: string }
         Returns: {
@@ -1475,15 +1694,6 @@ export type Database = {
       obtener_detalle_usuario: { Args: { p_user_id: string }; Returns: Json }
       obtener_estadisticas_usuarios_con_permisos:
         | {
-            Args: { p_auth_id: string }
-            Returns: {
-              con_email: number
-              con_telefono: number
-              registrados_hoy: number
-              total_usuarios: number
-            }[]
-          }
-        | {
             Args: {
               p_auth_id: string
               p_busqueda?: string
@@ -1492,6 +1702,15 @@ export type Database = {
               p_en_grupo?: boolean
               p_roles_filtro?: string[]
             }
+            Returns: {
+              con_email: number
+              con_telefono: number
+              registrados_hoy: number
+              total_usuarios: number
+            }[]
+          }
+        | {
+            Args: { p_auth_id: string; p_campus_id?: string }
             Returns: {
               con_email: number
               con_telefono: number
@@ -1514,9 +1733,11 @@ export type Database = {
         Args: {
           p_activo?: boolean
           p_auth_id: string
+          p_campus_id?: string
           p_eliminado?: boolean
           p_estado_temporal?: string
           p_limit?: number
+          p_localidad_id?: string
           p_municipio_id?: string
           p_offset?: number
           p_parroquia_id?: string
@@ -1547,7 +1768,7 @@ export type Database = {
         }[]
       }
       obtener_kpis_grupos_para_usuario: {
-        Args: { p_auth_id: string }
+        Args: { p_auth_id: string; p_campus_id?: string }
         Returns: {
           desviacion_miembros: number
           fecha_ultima_actualizacion: string
@@ -1589,7 +1810,7 @@ export type Database = {
       }
       obtener_roles_usuario: { Args: { p_auth_id: string }; Returns: string[] }
       obtener_segmentos_para_director: {
-        Args: { p_auth_id: string }
+        Args: { p_auth_id: string; p_campus_id?: string }
         Returns: {
           id: string
           nombre: string
@@ -1599,8 +1820,13 @@ export type Database = {
         Args: { p_auth_id: string; p_segmento_id: string }
         Returns: boolean
       }
+      puede_crear_usuario: { Args: { p_auth_id: string }; Returns: boolean }
       puede_editar_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string }
+        Returns: boolean
+      }
+      puede_editar_usuario: {
+        Args: { p_auth_id: string; p_target_user_id: string }
         Returns: boolean
       }
       puede_gestionar_miembros: {
@@ -1628,7 +1854,7 @@ export type Database = {
         }
         Returns: string
       }
-      resumen_dashboard_admin: { Args: never; Returns: Json }
+      resumen_dashboard_admin: { Args: { p_campus_id?: string }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sugerir_nombre_grupo: {

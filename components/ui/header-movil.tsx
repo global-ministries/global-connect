@@ -3,6 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { LogoGlobalConnect } from '@/components/ui/logo-global-connect'
+import { SelectorCampus } from '@/components/ui/selector-campus'
 import { logout } from "@/lib/actions/auth.actions"
 import { LogOut, User } from 'lucide-react'
 
@@ -14,7 +15,10 @@ export function HeaderMovil() {
         <div className="flex items-center">
           <LogoGlobalConnect tamaño="md" className="w-[90px] h-auto" />
         </div>
-        
+
+        {/* Selector de Campus */}
+        <SelectorCampus />
+
         {/* Botones de perfil y logout */}
         <div className="flex items-center gap-2">
           {/* Botón de perfil */}
@@ -23,7 +27,7 @@ export function HeaderMovil() {
               <User className="w-5 h-5" />
             </button>
           </Link>
-          
+
           {/* Botón de logout */}
           <form action={logout}>
             <button

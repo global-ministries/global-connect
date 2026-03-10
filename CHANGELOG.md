@@ -7,6 +7,34 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
+## [1.5.0] - 2026-03-10
+
+### Agregado
+- Arquitectura multi-campus completa (schema, RLS, RPCs, frontend)
+- 4 tablas nuevas: `campus`, `campus_localidades`, `usuario_campus`, `director_general_directores`
+- 3 helpers SQL: `es_superadmin()`, `mis_campus_ids()`, `mi_campus_principal()`
+- 16 políticas RLS en tablas de campus
+- 6 RPCs actualizados con `p_campus_id` opcional (retrocompatibles)
+- RPC `resumen_dashboard_admin` con filtro por campus
+- Context provider `CampusProvider` con persistencia en localStorage (`hooks/useCampus.tsx`)
+- Selector de campus/localidad para desktop (`SidebarModerna`) y móvil (`HeaderMovil`)
+- Dashboard admin reactivo al cambio de campus (re-fetch automático de KPIs)
+- Documentación técnica completa en `docs/multi-campus.md`
+
+### Cambiado
+- `hooks/use-kpis-grupos.ts` acepta `campusId` opcional
+- `hooks/use-usuarios-con-permisos.ts` acepta `campusId` opcional
+- `app/api/grupos/kpis/route.ts` soporta query param `campus_id`
+- `DashboardAdmin` ahora re-fetches datos al cambiar campus
+- `database.types.ts` regenerado con tablas de campus
+
+### Migración de Datos
+- 171 grupos asignados al campus Barquisimeto (115 Barquisimeto, 56 Cabudare)
+- 1020 usuarios asignados al campus Barquisimeto
+- Columnas `campus_id` y `localidad_id` añadidas a `grupos`, `segmentos`, `segmento_lideres`
+
+---
+
 ## [1.4.0] - 2026-03-10
 
 ### Agregado
