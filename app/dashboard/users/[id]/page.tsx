@@ -49,6 +49,10 @@ export default function PaginaDetalleUsuario() {
   // Verificar si el usuario actual puede llamar
   const puedeVerLlamada = rolesActuales.some(r => ROLES_CON_LLAMADA.includes(r))
 
+  // Roles que pueden editar usuarios (admin, pastor)
+  const ROLES_CON_EDICION = ['admin', 'pastor']
+  const puedeEditar = rolesActuales.some(r => ROLES_CON_EDICION.includes(r))
+
   // Estado para el modal de agregar familiar
   const [mostrarModalAgregar, setMostrarModalAgregar] = useState(false)
 
@@ -338,12 +342,14 @@ export default function PaginaDetalleUsuario() {
                     <span className="hidden sm:inline">Asistencia</span>
                   </BotonSistema>
                 </Link>
-                <Link href={`/dashboard/users/${usuario.id}/edit`}>
-                  <BotonSistema variante="primario" tamaño="sm" className="gap-2">
-                    <Edit className="w-4 h-4" />
-                    <span className="hidden sm:inline">Editar</span>
-                  </BotonSistema>
-                </Link>
+                {puedeEditar && (
+                  <Link href={`/dashboard/users/${usuario.id}/edit`}>
+                    <BotonSistema variante="primario" tamaño="sm" className="gap-2">
+                      <Edit className="w-4 h-4" />
+                      <span className="hidden sm:inline">Editar</span>
+                    </BotonSistema>
+                  </Link>
+                )}
               </div>
             </div>
           </TarjetaSistema>
@@ -596,12 +602,14 @@ export default function PaginaDetalleUsuario() {
           <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
             <h3 className="text-xl font-bold text-gray-800 mb-6">Acciones Rápidas</h3>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href={`/dashboard/users/${usuario.id}/edit`} className="flex-1">
-                <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
-                  <Edit className="w-6 h-6 mb-2" />
-                  <span className="block font-medium">Editar Perfil</span>
-                </button>
-              </Link>
+              {puedeEditar && (
+                <Link href={`/dashboard/users/${usuario.id}/edit`} className="flex-1">
+                  <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
+                    <Edit className="w-6 h-6 mb-2" />
+                    <span className="block font-medium">Editar Perfil</span>
+                  </button>
+                </Link>
+              )}
               <Link href={`/dashboard/users/${usuario.id}/familia`} className="flex-1">
                 <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
                   <Users className="w-6 h-6 mb-2" />

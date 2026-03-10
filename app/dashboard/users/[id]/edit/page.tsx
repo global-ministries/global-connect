@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
@@ -14,6 +15,20 @@ interface Props {
 
 export default async function EditUserPage({ params }: Props) {
   const { id } = await params
+
+  // Verificar permisos antes de mostrar el formulario
+  const supabaseServer = await createSupabaseServerClient()
+  const { data: { user: authUser } } = await supabaseServer.auth.getUser()
+  if (!authUser) {
+    redirect('/')
+  }
+  const { data: permitido } = await supabaseServer.rpc('puede_editar_usuario' as any, {
+    p_auth_id: authUser.id,
+    p_target_user_id: id,
+  })
+  if (!permitido) {
+    redirect(`/dashboard/users/${id}`)
+  }
 
   // Usar admin client para bypass RLS
   const supabase = createSupabaseAdminClient()
@@ -130,9 +145,9 @@ export default async function EditUserPage({ params }: Props) {
     ...usuario,
     direccion: direccion
       ? {
-          ...direccion,
-          parroquia: direccion.parroquia === null ? undefined : direccion.parroquia,
-        }
+        ...direccion,
+        parroquia: direccion.parroquia === null ? undefined : direccion.parroquia,
+      }
       : undefined,
     familia: familia || undefined,
     ocupacion: ocupacion || undefined,
@@ -140,7 +155,6 @@ export default async function EditUserPage({ params }: Props) {
   }
 
   // Verificar si el usuario actual es admin (para mostrar acciones de administrador)
-  const supabaseServer = await createSupabaseServerClient()
   const current = await getUserWithRoles(supabaseServer)
   const esAdmin = (current?.roles || []).includes('admin')
 
@@ -169,8 +183,8 @@ export default async function EditUserPage({ params }: Props) {
             {/* Botón de regreso en móvil */}
             <div className="flex-shrink-0 sm:hidden">
               <Link href={`/dashboard/users/${id}`}>
-                <BotonSistema 
-                  variante="ghost" 
+                <BotonSistema
+                  variante="ghost"
                   tamaño="sm"
                   className="p-2"
                 >
@@ -190,8 +204,8 @@ export default async function EditUserPage({ params }: Props) {
           {/* Botón de regreso en desktop */}
           <div className="flex-shrink-0 hidden sm:block">
             <Link href={`/dashboard/users/${id}`}>
-              <BotonSistema 
-                variante="ghost" 
+              <BotonSistema
+                variante="ghost"
                 tamaño="sm"
                 className="p-2"
               >
@@ -207,7 +221,7 @@ export default async function EditUserPage({ params }: Props) {
         {esAdmin && (
           <AdminAccionesAsignarContrasena userAuthId={usuario.auth_id} />
         )}
-        <UserEditForm 
+        <UserEditForm
           usuario={usuarioCompleto}
           ocupaciones={ocupaciones || []}
           profesiones={profesiones || []}
