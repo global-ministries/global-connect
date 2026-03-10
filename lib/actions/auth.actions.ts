@@ -133,3 +133,12 @@ export async function logout() {
   await supabase.auth.signOut();
   redirect("/");
 }
+
+export async function updatePassword(newPassword: string) {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) {
+    return { error: "No se pudo actualizar la contraseña. Inténtalo de nuevo." };
+  }
+  redirect("/dashboard");
+}

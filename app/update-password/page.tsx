@@ -32,7 +32,6 @@ export default function PaginaActualizarContraseña() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true)
     setFormMessage(null)
-    // @ts-ignore
     const response = await import("@/lib/actions/auth.actions").then(mod => mod.updatePassword(data.password))
     if (response?.error) {
       setFormMessage({ type: "error", text: response.error })
@@ -45,20 +44,20 @@ export default function PaginaActualizarContraseña() {
       {/* Orbes flotantes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-orange-300/30 to-orange-400/30 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-40 right-32 w-24 h-24 bg-gradient-to-br from-gray-300/25 to-orange-300/25 rounded-full blur-lg animate-bounce" style={{animationDuration: '3s'}}></div>
-        <div className="absolute bottom-32 left-32 w-40 h-40 bg-gradient-to-br from-orange-200/20 to-gray-200/20 rounded-full blur-2xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-20 right-20 w-28 h-28 bg-gradient-to-br from-orange-400/30 to-orange-300/30 rounded-full blur-xl animate-bounce" style={{animationDuration: '4s', animationDelay: '0.5s'}}></div>
+        <div className="absolute top-40 right-32 w-24 h-24 bg-gradient-to-br from-gray-300/25 to-orange-300/25 rounded-full blur-lg animate-bounce" style={{ animationDuration: '3s' }}></div>
+        <div className="absolute bottom-32 left-32 w-40 h-40 bg-gradient-to-br from-orange-200/20 to-gray-200/20 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute bottom-20 right-20 w-28 h-28 bg-gradient-to-br from-orange-400/30 to-orange-300/30 rounded-full blur-xl animate-bounce" style={{ animationDuration: '4s', animationDelay: '0.5s' }}></div>
       </div>
-      
+
       {/* Contenido */}
       <div className="relative z-10 w-full max-w-md">
         {/* Tarjeta Principal */}
         <div className="backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 sm:p-8 shadow-2xl">
           {/* Logo de Global Connect */}
           <div className="flex justify-center mb-6">
-            <Image 
+            <Image
               src={process.env.NEXT_PUBLIC_LOGO_URL || "https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/Logo%20global.jpg"}
-              alt="Global Connect" 
+              alt="Global Connect"
               width={220}
               height={60}
               className="h-14 w-auto sm:h-16 sm:w-auto max-w-[280px]"

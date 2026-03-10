@@ -56,7 +56,6 @@ export default function SignupPage() {
       formData.append("password", data.password);
       formData.append("cedula", data.cedula);
 
-      // @ts-ignore
       const response = await import("@/lib/actions/auth.actions").then(mod => mod.signup(formData));
       if (response?.success) {
         router.push("/verify-email");
