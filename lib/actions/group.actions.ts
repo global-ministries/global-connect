@@ -153,7 +153,8 @@ export async function createGroup(data: {
 
     // Asignar director de etapa inicial
     if (data.director_etapa_segmento_lider_id) {
-      await supabase.rpc("asignar_director_etapa_a_grupo" as never, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await supabase.rpc("asignar_director_etapa_a_grupo" as any, {
         p_auth_id: user.id,
         p_grupo_id: grupoId,
         p_segmento_lider_id: data.director_etapa_segmento_lider_id,
