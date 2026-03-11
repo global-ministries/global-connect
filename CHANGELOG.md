@@ -7,7 +7,25 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
-## [1.5.0] - 2026-03-10
+## [1.6.0] - 2026-03-10
+
+### Agregado
+- Helper reutilizable `lib/helpers/direccion.helper.ts` — `upsertDireccion()` para grupos y usuarios
+
+### Cambiado
+- `group.actions.ts`: eliminado doble UPDATE en `updateGroup` (ahora 1 solo UPDATE atómico)
+- `group.actions.ts`: eliminados todos los `console.log` de debug (27 ocurrencias)
+- `group.actions.ts`: `createGroup` acepta `campus_id` opcional y lo asigna al grupo
+- `createGroupSchema` incluye `campus_id` como campo opcional validado
+- RPC `crear_grupo`: acepta `p_campus_id uuid DEFAULT NULL` — asigna campus en el INSERT
+
+### Seguridad
+- RLS habilitado en `audit_grupo_miembros` con policy por campus (`es_superadmin` o campus asignado)
+- RLS habilitado en `segmento_ubicaciones` — lectura para usuarios autenticados
+- RLS habilitado en `director_etapa_ubicaciones` — lectura para usuarios autenticados
+- Eliminadas 9 FK constraints duplicadas (legacy `fk_*`) en 5 tablas sin pérdida de datos
+
+---
 
 ### Agregado
 - Arquitectura multi-campus completa (schema, RLS, RPCs, frontend)
