@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import AttendanceRegister from '@/components/grupos/AttendanceRegister.client'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 
@@ -16,7 +16,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
-              <p className="text-gray-600 mb-4">Debes iniciar sesión para acceder a esta página.</p>
+              <p className="text-muted-foreground mb-4">Debes iniciar sesión para acceder a esta página.</p>
               <Link href="/login">
                 <BotonSistema variante="primario">
                   Iniciar Sesión
@@ -43,7 +43,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Sin permisos</TituloSistema>
-              <p className="text-gray-600 mb-4">No tienes permiso para registrar asistencia en este grupo.</p>
+              <p className="text-muted-foreground mb-4">No tienes permiso para registrar asistencia en este grupo.</p>
               <Link href={`/dashboard/grupos/${id}`}>
                 <BotonSistema variante="primario">
                   Volver al grupo
@@ -67,17 +67,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
       <ContenedorDashboard
         titulo={`Registrar Asistencia - ${grupo.nombre}`}
         descripcion="Marca presentes y guarda en un clic."
-        accionPrincipal={
-          <Link href={`/dashboard/grupos/${id}`}>
-            <BotonSistema
-              variante="ghost"
-              tamaño="sm"
-              className="p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </BotonSistema>
-          </Link>
-        }
+        botonRegreso={{ href: `/dashboard/grupos/${id}`, texto: 'Volver al grupo' }}
       >
         {/** Normalizamos miembros al shape esperado por el componente */}
         <AttendanceRegister

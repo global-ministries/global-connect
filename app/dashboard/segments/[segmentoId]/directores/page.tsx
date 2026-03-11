@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, TextoSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { ArrowLeft, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 
 const DirectoresSegmentoClient = lazy(() => import('./DirectoresSegmentoClient'))
 
@@ -44,24 +44,20 @@ export default async function DirectoresSegmentoPage({ params }: Props) {
       <ContenedorDashboard
         titulo={`Directores de Etapa`}
         subtitulo={`Gestión para el segmento: ${segmento.nombre}`}
+        botonRegreso={{ href: `/dashboard/segments/${segmento.id}`, texto: 'Volver al segmento' }}
       >
-        <div className="mb-4 flex items-center justify-between gap-4">
-          <Link href={`/dashboard/segments/${segmento.id}`} className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-            <ArrowLeft className="w-4 h-4 mr-1" /> Volver al segmento
-          </Link>
-        </div>
 
         <div className="space-y-6">
           <TarjetaSistema className="p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
               <Users className="w-5 h-5 text-orange-500" />
               Asignaciones de Directores
             </h3>
             <TextoSistema variante="sutil" className="-mt-4 mb-4">Asigna y visualiza directores por ciudad y (próximamente) por grupo.</TextoSistema>
 
             {/* Contenido con estilo tipo 'Miembros' */}
-            <div className="bg-white/50 border border-gray-200 rounded-xl p-4">
-              <Suspense fallback={<div className="text-sm text-gray-500">Cargando módulo...</div>}>
+            <div className="bg-card/50 border border-border rounded-xl p-4">
+              <Suspense fallback={<div className="text-sm text-muted-foreground">Cargando módulo...</div>}>
                 <DirectoresSegmentoClient segmentoId={segmentoId} esSuperior={esSuperior} />
               </Suspense>
             </div>

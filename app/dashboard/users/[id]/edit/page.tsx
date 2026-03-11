@@ -52,10 +52,10 @@ export default async function EditUserPage({ params }: Props) {
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Usuario no encontrado</TituloSistema>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 No se pudo cargar la información del usuario con ID: {id}
               </p>
-              <p className="text-gray-500 text-sm mb-4">
+              <p className="text-muted-foreground text-sm mb-4">
                 Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
               </p>
               <Link href="/dashboard/users">
@@ -177,7 +177,7 @@ export default async function EditUserPage({ params }: Props) {
   return (
     <DashboardLayout>
       {/* Header sticky como en ver usuario */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-20 py-4">
+      <div className="sticky top-0 z-10 bg-card border-b border-border px-4 sm:px-6 lg:px-20 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4 sm:block sm:space-y-1">
             {/* Botón de regreso en móvil */}
@@ -195,7 +195,7 @@ export default async function EditUserPage({ params }: Props) {
             {/* Título */}
             <div className="flex items-center gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                   {usuario.nombre} {usuario.apellido}
                 </h1>
               </div>

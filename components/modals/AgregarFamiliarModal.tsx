@@ -1,22 +1,16 @@
 "use client"
 
 import type { Database } from '@/lib/supabase/database.types'
-// Eliminar función vacía o remanente para corregir el error de sintaxis
 
 import { useState, useEffect } from 'react'
 import { X, Search, User, Users, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { InputSistema, SelectSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { createClient } from '@/lib/supabase/client'
 import { addFamilyRelation } from "@/lib/actions/user.actions"
 import { CrearMiembroModal, type UsuarioMin } from '@/components/modals/CrearMiembroModal'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 
-
-// Si necesitas el tipo Usuario, puedes importarlo desde donde lo tengas definido
 
 // Tipo para los resultados de búsqueda (solo los campos que necesitamos)
 export type Usuario = {
@@ -51,13 +45,10 @@ export function AgregarFamiliarModal({
   const [familiaresExistentes, setFamiliaresExistentes] = useState<string[]>([])
   // Modal crear miembro
   const [crearAbierto, setCrearAbierto] = useState(false)
-  // Estado para errores de depuración
-  // (Debug eliminado)
 
-  // Usar el cliente supabase global importado
   const toast = useNotificaciones()
 
-  // Buscar usuarios (ahora incluye búsqueda por email)
+  // Buscar usuarios
   const buscarUsuarios = async () => {
     if (!terminoBusqueda || terminoBusqueda.length < 2) {
       setResultados([])
@@ -65,7 +56,7 @@ export function AgregarFamiliarModal({
     }
     setCreando(true)
     try {
-      const excluir = usuarioActualId // Solo excluir al usuario actual; queremos ver familiares ya existentes
+      const excluir = usuarioActualId
       const url = `/api/usuarios/buscar-para-relacion?q=${encodeURIComponent(terminoBusqueda)}&excluir=${encodeURIComponent(excluir)}`
       const res = await fetch(url, { cache: 'no-store' })
       if (!res.ok) {
@@ -74,8 +65,7 @@ export function AgregarFamiliarModal({
       }
       const data = await res.json()
       setResultados(Array.isArray(data) ? data : [])
-    } catch (err: any) {
-      // Silenciar error; podríamos agregar toast si se desea
+    } catch (err: unknown) {
       setResultados([])
     } finally {
       setCreando(false)
@@ -88,7 +78,6 @@ export function AgregarFamiliarModal({
     if (!familiarSeleccionado || !tipoRelacion) return
     setCreando(true)
     try {
-      // Guardar el tipo de relación tal como lo selecciona el usuario
       const res = await addFamilyRelation({
         usuario1_id: usuarioActualId,
         usuario2_id: familiarSeleccionado.id,
@@ -117,15 +106,13 @@ export function AgregarFamiliarModal({
     const cargarFamiliares = async () => {
       if (!isOpen) return
       try {
-        // Buscar relaciones donde el usuario actual es usuario1_id o usuario2_id
         const supabase = createClient()
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('relaciones_usuarios')
           .select('usuario1_id, usuario2_id')
           .or(`usuario1_id.eq.${usuarioActualId},usuario2_id.eq.${usuarioActualId}`)
         if (data) {
-          // Extraer todos los IDs relacionados (el otro usuario en cada relación)
-          const ids = data.map((r: any) =>
+          const ids = data.map((r) =>
             r.usuario1_id === usuarioActualId ? r.usuario2_id : r.usuario1_id
           )
           setFamiliaresExistentes(ids)
@@ -139,7 +126,7 @@ export function AgregarFamiliarModal({
     cargarFamiliares()
   }, [isOpen, usuarioActualId])
 
-  // Buscar cuando cambie el tÃ©rmino
+  // Buscar cuando cambie el término
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       buscarUsuarios()
@@ -150,26 +137,34 @@ export function AgregarFamiliarModal({
 
   if (!isOpen) return null
 
+  const opcionesRelacion = [
+    { valor: "padre", etiqueta: "Padre/Madre" },
+    { valor: "hijo", etiqueta: "Hijo/Hija" },
+    { valor: "conyuge", etiqueta: "Cónyuge" },
+    { valor: "hermano", etiqueta: "Hermano/Hermana" },
+    { valor: "tutor", etiqueta: "Tutor" },
+    { valor: "otro_familiar", etiqueta: "Otro Familiar" },
+  ]
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-border">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-800">Agregar Familiar</h2>
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h2 className="text-2xl font-bold text-foreground">Agregar Familiar</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            className="p-2 hover:bg-muted rounded-xl transition-colors"
           >
-            <X className="w-6 h-6 text-gray-500" />
+            <X className="w-6 h-6 text-muted-foreground" />
           </button>
         </div>
 
         {/* Indicador de carga visible */}
         {creando && (
           <div className="flex items-center justify-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mr-2"></div>
-            <span className="text-orange-600 font-medium">Buscando...</span>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--brand-primary)] mr-2" />
+            <span className="text-[var(--brand-primary)] font-medium">Buscando...</span>
           </div>
         )}
 
@@ -178,11 +173,10 @@ export function AgregarFamiliarModal({
           <div className="p-6 space-y-6">
             {/* Búsqueda */}
             <div className="space-y-3">
-              <Label htmlFor="busqueda">Buscar Usuario</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
-                  id="busqueda"
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
+                <InputSistema
+                  label="Buscar Usuario"
                   placeholder="Buscar por nombre, apellido, cédula o correo..."
                   value={terminoBusqueda}
                   onChange={(e) => setTerminoBusqueda(e.target.value)}
@@ -194,15 +188,15 @@ export function AgregarFamiliarModal({
             {/* Resultados de búsqueda */}
             {terminoBusqueda.length >= 2 && !creando && resultados.length === 0 && (
               <div className="text-center py-6">
-                <p className="text-gray-500 mb-3">No se encontraron usuarios con ese criterio.</p>
-                <Button type="button" onClick={() => setCrearAbierto(true)} className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700">
+                <p className="text-muted-foreground mb-3">No se encontraron usuarios con ese criterio.</p>
+                <BotonSistema type="button" variante="primario" onClick={() => setCrearAbierto(true)} className="inline-flex items-center gap-2">
                   <Plus className="w-4 h-4" /> Crear nuevo miembro
-                </Button>
+                </BotonSistema>
               </div>
             )}
             {resultados.length > 0 && (
               <div className="space-y-2">
-                <Label>Usuarios encontrados:</Label>
+                <label className="text-sm font-medium text-foreground">Usuarios encontrados:</label>
                 <div className="max-h-40 overflow-y-auto space-y-2">
                   {resultados.map((usuario) => {
                     const yaEsFamiliar = familiaresExistentes.includes(usuario.id)
@@ -211,11 +205,11 @@ export function AgregarFamiliarModal({
                         type="button"
                         key={usuario.id}
                         onClick={() => !yaEsFamiliar && setFamiliarSeleccionado(usuario)}
-                        className={`w-full p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${familiarSeleccionado?.id === usuario.id
-                          ? 'border-orange-500 bg-orange-50'
+                        className={`w-full p-3 rounded-xl border-2 transition-colors flex items-center gap-3 ${familiarSeleccionado?.id === usuario.id
+                          ? 'border-[var(--brand-primary)] bg-accent'
                           : yaEsFamiliar
-                            ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-border bg-muted opacity-60 cursor-not-allowed'
+                            : 'border-border hover:border-muted-foreground'
                           }`}
                         disabled={yaEsFamiliar}
                         title={yaEsFamiliar ? 'Este usuario ya es tu familiar' : ''}
@@ -227,20 +221,19 @@ export function AgregarFamiliarModal({
                           size="md"
                         />
                         <div className="text-left flex-1">
-                          <p className="font-medium text-gray-800">
+                          <p className="font-medium text-foreground">
                             {usuario.nombre} {usuario.apellido}
                           </p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-muted-foreground">
                             {usuario.email} • {usuario.cedula}
                           </p>
                         </div>
                         {yaEsFamiliar && (
                           <span
-                            className="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold px-2 py-1 rounded-full bg-orange-100 text-orange-700 border border-orange-200"
+                            className="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-semibold px-2 py-1 rounded-full bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30"
                             aria-label="Este usuario ya está relacionado como familiar/miembro"
                             title="Ya es miembro / familiar"
                           >
-                            {/* Icono simple por accesibilidad (•) podría reemplazarse por un svg */}
                             <span className="text-orange-500">●</span>
                             Ya es familiar
                           </span>
@@ -254,29 +247,20 @@ export function AgregarFamiliarModal({
 
             {/* Tipo de relación */}
             {familiarSeleccionado && (
-              <div className="space-y-3">
-                <Label htmlFor="tipo-relacion">Tipo de Relación</Label>
-                <Select value={tipoRelacion} onValueChange={setTipoRelacion}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona el tipo de relación" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="padre">Padre/Madre</SelectItem>
-                    <SelectItem value="hijo">Hijo/Hija</SelectItem>
-                    <SelectItem value="conyuge">Cónyuge</SelectItem>
-                    <SelectItem value="hermano">Hermano/Hermana</SelectItem>
-                    <SelectItem value="tutor">Tutor</SelectItem>
-                    <SelectItem value="otro_familiar">Otro Familiar</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <SelectSistema
+                label="Tipo de Relación"
+                placeholder="Selecciona el tipo de relación"
+                value={tipoRelacion}
+                onValueChange={setTipoRelacion}
+                opciones={opcionesRelacion}
+              />
             )}
 
             {/* Resumen */}
             {familiarSeleccionado && tipoRelacion && (
-              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-                <h4 className="font-semibold text-orange-800 mb-2">Resumen de la Relación:</h4>
-                <p className="text-orange-700">
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+                <h4 className="font-semibold text-orange-800 dark:text-orange-400 mb-2">Resumen de la Relación:</h4>
+                <p className="text-orange-700 dark:text-orange-300">
                   <strong>{familiarSeleccionado.nombre} {familiarSeleccionado.apellido}</strong> será tu{' '}
                   <strong>
                     {tipoRelacion === 'hijo' ? 'hijo/hija' :
@@ -291,17 +275,18 @@ export function AgregarFamiliarModal({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end p-6 border-t bg-gray-50">
-            <Button type="button" variant="ghost" onClick={onClose}>
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
+            <BotonSistema type="button" variante="ghost" onClick={onClose}>
               Cancelar
-            </Button>
-            <Button
+            </BotonSistema>
+            <BotonSistema
               type="submit"
+              variante="primario"
               disabled={!familiarSeleccionado || !tipoRelacion || creando}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+              cargando={creando}
             >
-              {creando ? 'Creando...' : 'Crear Relación'}
-            </Button>
+              Crear Relación
+            </BotonSistema>
           </div>
 
         </form>
@@ -312,14 +297,13 @@ export function AgregarFamiliarModal({
           isOpen={crearAbierto}
           onClose={() => setCrearAbierto(false)}
           onCreated={(u: UsuarioMin) => {
-            // Al crear, seleccionarlo y pedir tipo de relación
             setCrearAbierto(false)
             setFamiliarSeleccionado({
               id: u.id,
               nombre: u.nombre,
               apellido: u.apellido,
               email: u.email || '',
-              genero: (u.genero as any) || 'Otro',
+              genero: u.genero || 'Otro',
               cedula: u.cedula || '',
               foto_perfil_url: u.foto_perfil_url,
             })

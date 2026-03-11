@@ -23,7 +23,7 @@ export default function LoadingGrupos() {
         <div className="space-y-4">
           <SkeletonSistema ancho="180px" alto="20px" />
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-4 border border-gray-100 rounded-lg">
+            <div key={i} className="flex items-center gap-4 p-4 border border-border rounded-lg">
               <SkeletonSistema ancho="64px" alto="40px" />
               <div className="flex-1 grid grid-cols-4 gap-4">
                 <SkeletonSistema ancho="100%" alto="16px" />

@@ -49,7 +49,7 @@ export const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({ value, onCha
       <select
         value={prefix}
         onChange={handlePrefixChange}
-        className="h-11 px-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 shrink-0"
+        className="h-11 px-3 border border-border rounded-xl focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] transition-[border-color,box-shadow] duration-200 bg-card/50 text-foreground shrink-0"
         style={{ width: 120 }}
       >
         {COUNTRY_OPTIONS.map((option) => (
@@ -63,7 +63,7 @@ export const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({ value, onCha
         value={number}
         onChange={handleNumberChange}
         placeholder="Número de teléfono"
-        className="flex-1 min-w-0 h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
+        className="flex-1 min-w-0 h-11 px-4 border border-border rounded-xl focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] transition-[border-color,box-shadow] duration-200 bg-card/50 text-foreground"
       />
     </div>
   );

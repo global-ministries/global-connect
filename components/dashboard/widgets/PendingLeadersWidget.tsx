@@ -20,9 +20,9 @@ interface PendingLeadersWidgetProps {
 
 export function PendingLeadersWidget({ id, title = 'Líderes Pendientes de Reporte', icon: HeaderIcon = BellRing, items }: PendingLeadersWidgetProps) {
   return (
-    <TarjetaSistema className="p-6">
+    <TarjetaSistema className="p-3 md:p-4 lg:p-6 h-full">
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg">
+        <div className="p-2 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg ring-1 ring-white/20 shadow-lg">
           <HeaderIcon className="w-5 h-5 text-white" />
         </div>
         <TituloSistema nivel={3}>{title}</TituloSistema>
@@ -32,11 +32,11 @@ export function PendingLeadersWidget({ id, title = 'Líderes Pendientes de Repor
           <TextoSistema variante="sutil">Todos los líderes han reportado esta semana 🎉</TextoSistema>
         </div>
       ) : (
-        <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-glass">
           {items.map((it) => (
-            <div key={it.grupo_id} className="flex items-start justify-between gap-3 p-3 bg-gray-50/50 rounded-lg hover:bg-gray-50 transition-colors">
+            <div key={it.grupo_id} className="flex items-start justify-between gap-3 p-3 bg-[var(--surface-secondary)]/50 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors">
               <div className="min-w-0">
-                <Link href={`/dashboard/grupos/${it.grupo_id}`} className="block text-sm font-semibold text-gray-900 truncate">
+                <Link href={`/dashboard/grupos/${it.grupo_id}`} className="block text-sm font-semibold text-foreground truncate">
                   {it.grupo_nombre}
                 </Link>
                 <TextoSistema variante="sutil" tamaño="sm" className="truncate">

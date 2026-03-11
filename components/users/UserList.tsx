@@ -32,7 +32,7 @@ export function UserList() {
   if (loading) {
     return (
       <div className="flex justify-center py-10">
-        <span className="text-gray-500">Cargando usuarios...</span>
+        <span className="text-muted-foreground">Cargando usuarios...</span>
       </div>
     )
   }
@@ -48,7 +48,7 @@ export function UserList() {
   if (!usuarios.length) {
     return (
       <div className="flex justify-center py-10">
-        <span className="text-gray-500">No hay usuarios para mostrar.</span>
+        <span className="text-muted-foreground">No hay usuarios para mostrar.</span>
       </div>
     )
   }
@@ -56,9 +56,9 @@ export function UserList() {
   return (
     <div className="space-y-2">
       {usuarios.map((usuario) => (
-        <div key={usuario.id} className="p-4 border rounded-xl bg-white shadow-sm">
+        <div key={usuario.id} className="p-4 border border-border rounded-xl bg-card shadow-sm">
           <div className="font-semibold">{usuario.nombre} {usuario.apellido}</div>
-          <div className="text-sm text-gray-500">{usuario.email}</div>
+          <div className="text-sm text-muted-foreground">{usuario.email}</div>
         </div>
       ))}
     </div>

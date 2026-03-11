@@ -20,7 +20,7 @@ export default function MapModal({ lat, lng, isOpen, onClose, calle, barrio }: M
           <DialogTitle>Ubicación en el mapa</DialogTitle>
         </DialogHeader>
         <div className="px-8 pb-4 flex flex-col gap-2">
-          <div className="flex flex-wrap gap-6 text-base text-gray-700">
+          <div className="flex flex-wrap gap-6 text-base text-foreground">
             <div><span className="font-semibold">Calle:</span> {calle || '-'}</div>
             <div><span className="font-semibold">Barrio:</span> {barrio || '-'}</div>
           </div>
@@ -30,7 +30,7 @@ export default function MapModal({ lat, lng, isOpen, onClose, calle, barrio }: M
             lat={lat}
             lng={lng}
             center={{ lat, lng }}
-            onLocationChange={() => {}}
+            onLocationChange={() => { }}
             draggable={false}
           />
         </div>

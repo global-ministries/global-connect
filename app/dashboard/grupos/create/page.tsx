@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ArrowLeft } from "lucide-react";
+
 import Link from "next/link";
 import GroupCreateForm from "@/components/forms/GroupCreateForm";
 import { getUserWithRoles } from "@/lib/getUserWithRoles";
@@ -24,14 +24,7 @@ export default async function CreateGroupPage() {
         <ContenedorDashboard
           titulo="Crear Grupo"
           descripcion="No tienes permisos para crear grupos"
-          accionPrincipal={
-            <Link href="/dashboard/grupos">
-              <BotonSistema variante="outline" tamaño="sm">
-                <ArrowLeft className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Volver</span>
-              </BotonSistema>
-            </Link>
-          }
+          botonRegreso={{ href: '/dashboard/grupos', texto: 'Volver a Grupos' }}
         >
           <TarjetaSistema>
             <div className="text-sm text-red-600">No Tienes permisos para crear grupos.</div>
@@ -75,14 +68,7 @@ export default async function CreateGroupPage() {
       <ContenedorDashboard
         titulo="Crear Grupo"
         descripcion="Ingresa los datos para crear un nuevo grupo"
-        accionPrincipal={
-          <Link href="/dashboard/grupos">
-            <BotonSistema variante="outline" tamaño="sm">
-              <ArrowLeft className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Volver</span>
-            </BotonSistema>
-          </Link>
-        }
+        botonRegreso={{ href: '/dashboard/grupos', texto: 'Volver a Grupos' }}
       >
         <TarjetaSistema>
           <GroupCreateForm temporadas={temporadas} segmentos={segmentos} />

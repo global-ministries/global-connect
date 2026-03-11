@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ArrowLeft, Edit, Users, MapPin, Clock, Calendar, Trash2 } from "lucide-react";
+import { Edit, Users, MapPin, Clock, Calendar, Trash2 } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import GroupAuditPreview from "@/components/grupos/GroupAuditPreview.client";
@@ -21,14 +21,14 @@ const AddMemberModal = dynamic(() => import("@/components/modals/AddMemberModal"
 });
 const GroupPDFExportButton = dynamic(() => import("@/components/grupos/GroupPDFExportButton"), {
   ssr: false,
-  loading: () => <div className="w-full h-10 bg-gray-100 animate-pulse rounded-lg"></div>
+  loading: () => <div className="w-full h-10 bg-muted animate-pulse rounded-lg"></div>
 });
 
 import { ReactNode } from "react";
 
 function GlassCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`backdrop-blur-2xl bg-white/30 border border-white/50 rounded-3xl p-6 lg:p-8 shadow-2xl ${className}`}>
+    <div className={`backdrop-blur-2xl bg-card/30 border border-border rounded-3xl p-6 lg:p-8 shadow-2xl ${className}`}>
       {children}
     </div>
   );
@@ -86,9 +86,9 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
       case 'colíder':
         return 'bg-blue-100 text-blue-700';
       case 'miembro':
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-muted text-muted-foreground';
       default:
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -167,17 +167,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
     <ContenedorDashboard
       titulo={grupo.nombre}
       subtitulo={`${grupo.segmento_nombre} • ${grupo.temporada_nombre}`}
-      accionPrincipal={
-        <Link href="/dashboard/grupos">
-          <BotonSistema
-            variante="ghost"
-            tamaño="sm"
-            className="p-2"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </BotonSistema>
-        </Link>
-      }
+      botonRegreso={{ href: '/dashboard/grupos', texto: 'Volver a Grupos' }}
     >
 
       {/* Tarjeta Principal del Grupo */}
@@ -204,7 +194,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
 
             {/* Dirección */}
             {grupo.direccion && (grupo.direccion.calle || grupo.direccion.barrio) && (
-              <div className="flex items-center gap-2 text-gray-600 mb-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-4">
                 <MapPin className="w-4 h-4 flex-shrink-0" />
                 <button
                   onClick={() => setIsMapOpen(true)}
@@ -277,14 +267,14 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
 
       {/* Líderes y Miembros */}
       <TarjetaSistema>
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
           <Users className="w-5 h-5 text-orange-500" />
           Líderes y Miembros
         </h3>
         <div className="space-y-4">
           {grupo.miembros && grupo.miembros.length > 0 ? (
             grupo.miembros.map((miembro) => (
-              <div key={miembro.id} className="bg-white/50 border border-gray-200 rounded-xl p-4">
+              <div key={miembro.id} className="bg-card/50 border border-border rounded-xl p-4">
                 {/* Desktop: layout horizontal alineado */}
                 <div className="hidden lg:flex items-center gap-4">
                   <UserAvatar
@@ -300,15 +290,15 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                     <div>
                       <Link
                         href={`/dashboard/users/${miembro.id}`}
-                        className="font-semibold text-gray-800 text-lg hover:text-orange-600 transition-colors cursor-pointer"
+                        className="font-semibold text-foreground text-lg hover:text-orange-600 transition-colors cursor-pointer"
                       >
                         {miembro.nombre} {miembro.apellido}
                       </Link>
                     </div>
-                    <div className="text-sm text-gray-500 truncate">
+                    <div className="text-sm text-muted-foreground truncate">
                       {miembro.email || "Sin email"}
                     </div>
-                    <div className="text-sm text-gray-500 truncate">
+                    <div className="text-sm text-muted-foreground truncate">
                       {miembro.telefono || "Sin teléfono"}
                     </div>
                   </div>
@@ -362,11 +352,11 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                   <div className="flex-1 min-w-0">
                     <Link
                       href={`/dashboard/users/${miembro.id}`}
-                      className="font-semibold text-gray-800 text-lg hover:text-orange-600 transition-colors cursor-pointer block mb-1"
+                      className="font-semibold text-foreground text-lg hover:text-orange-600 transition-colors cursor-pointer block mb-1"
                     >
                       {miembro.nombre} {miembro.apellido}
                     </Link>
-                    <div className="flex flex-col gap-1 text-sm text-gray-500">
+                    <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                       <span className="truncate">{miembro.email || "Sin email"}</span>
                       <span className="truncate">{miembro.telefono || "Sin teléfono"}</span>
                     </div>
@@ -374,7 +364,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                 </div>
 
                 {/* Móvil: controles debajo */}
-                <div className="lg:hidden mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+                <div className="lg:hidden mt-4 pt-4 border-t border-border flex items-center justify-between">
                   {grupo.puede_gestionar_miembros ? (
                     <>
                       <Select
@@ -412,10 +402,10 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
               </div>
             ))
           ) : (
-            <div className="bg-white/50 border border-gray-200 rounded-xl p-8 text-center">
-              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg font-medium mb-2">No hay miembros en este grupo</p>
-              <p className="text-gray-400 text-sm">Los miembros aparecerán aquí una vez que sean agregados al grupo.</p>
+            <div className="bg-card/50 border border-border rounded-xl p-8 text-center">
+              <Users className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg font-medium mb-2">No hay miembros en este grupo</p>
+              <p className="text-muted-foreground/50 text-sm">Los miembros aparecerán aquí una vez que sean agregados al grupo.</p>
             </div>
           )}
         </div>

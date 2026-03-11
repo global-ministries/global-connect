@@ -53,16 +53,16 @@ export default async function Page() {
               segmentos.map(segmento => (
                 <div key={segmento.id}>
                   {/* Versión Móvil - Lista Simple */}
-                  <Link href={`/dashboard/segments/${segmento.id}`} className="sm:hidden flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                  <Link href={`/dashboard/segments/${segmento.id}`} className="sm:hidden flex items-center gap-3 p-3 bg-card rounded-lg border border-border hover:bg-accent/50 transition-colors">
                     <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
                       <Layers className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 truncate">
+                      <div className="font-medium text-foreground truncate">
                         {segmento.nombre}
                       </div>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-gray-400" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/50" />
                   </Link>
 
                   {/* Versión Desktop - Tarjeta Completa */}
@@ -74,7 +74,7 @@ export default async function Page() {
                             <Layers className="w-6 h-6 text-white" />
                           </div>
                           <div>
-                            <TituloSistema nivel={4} className="text-gray-900 flex items-center gap-3">
+                            <TituloSistema nivel={4} className="text-foreground flex items-center gap-3">
                               {segmento.nombre}
                               <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">Ver detalle →</span>
                             </TituloSistema>
@@ -98,8 +98,8 @@ export default async function Page() {
             ) : (
               <TarjetaSistema className="p-8 text-center">
                 <div className="flex flex-col items-center gap-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                    <Layers className="w-8 h-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+                    <Layers className="w-8 h-8 text-muted-foreground/50" />
                   </div>
                   <div>
                     <TituloSistema nivel={3} variante="sutil" className="mb-2">

@@ -68,7 +68,7 @@ export default function ReporteAsistenciaUsuarioClient({
     const params = new URLSearchParams()
     if (fechaInicioLocal) params.set('fecha_inicio', fechaInicioLocal)
     if (fechaFinLocal) params.set('fecha_fin', fechaFinLocal)
-    
+
     router.push(`/dashboard/users/${usuarioId}/asistencia?${params.toString()}`)
   }
 
@@ -84,7 +84,7 @@ export default function ReporteAsistenciaUsuarioClient({
       <TarjetaSistema className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-gray-600" />
+            <Filter className="w-5 h-5 text-muted-foreground" />
             <TituloSistema nivel={3}>Filtros</TituloSistema>
           </div>
           <BotonSistema
@@ -144,7 +144,7 @@ export default function ReporteAsistenciaUsuarioClient({
               <TextoSistema variante="sutil" tamaño="sm">
                 Asistencia General
               </TextoSistema>
-              <TituloSistema nivel={2} className="text-gray-900">
+              <TituloSistema nivel={2} className="text-foreground">
                 {reporte.kpis.porcentaje_asistencia_general}%
               </TituloSistema>
             </div>
@@ -161,7 +161,7 @@ export default function ReporteAsistenciaUsuarioClient({
               <TextoSistema variante="sutil" tamaño="sm">
                 Grupos Activos
               </TextoSistema>
-              <TituloSistema nivel={2} className="text-gray-900">
+              <TituloSistema nivel={2} className="text-foreground">
                 {reporte.kpis.total_grupos_activos}
               </TituloSistema>
             </div>
@@ -180,15 +180,15 @@ export default function ReporteAsistenciaUsuarioClient({
               </TextoSistema>
               {reporte.kpis.grupo_mas_frecuente.id ? (
                 <Link href={`/dashboard/grupos/${reporte.kpis.grupo_mas_frecuente.id}`}>
-                  <div 
-                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer" 
+                  <div
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer"
                     title={reporte.kpis.grupo_mas_frecuente.nombre}
                   >
                     {reporte.kpis.grupo_mas_frecuente.nombre}
                   </div>
                 </Link>
               ) : (
-                <div className="text-sm font-semibold text-gray-900 truncate">
+                <div className="text-sm font-semibold text-foreground truncate">
                   {reporte.kpis.grupo_mas_frecuente.nombre}
                 </div>
               )}
@@ -206,8 +206,8 @@ export default function ReporteAsistenciaUsuarioClient({
               <TextoSistema variante="sutil" tamaño="sm">
                 Última Asistencia
               </TextoSistema>
-              <div className="text-sm font-semibold text-gray-900">
-                {reporte.kpis.ultima_asistencia_fecha 
+              <div className="text-sm font-semibold text-foreground">
+                {reporte.kpis.ultima_asistencia_fecha
                   ? formatearFecha(reporte.kpis.ultima_asistencia_fecha)
                   : 'N/D'
                 }
@@ -221,66 +221,66 @@ export default function ReporteAsistenciaUsuarioClient({
       <GraficoAsistenciaUsuario data={reporte.series_temporales} />
 
       {/* Separador */}
-      <div className="border-t border-gray-200 my-8"></div>
+      <div className="border-t border-border my-8"></div>
 
       {/* Historial de Eventos */}
       <div>
         <TituloSistema nivel={2} className="mb-4">
           Historial de Eventos
         </TituloSistema>
-        
+
         <TarjetaSistema className="p-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="overflow-hidden">
+            <table className="w-full divide-y divide-border">
+              <thead className="bg-muted">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Fecha
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Grupo
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">
                     Tema
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">
                     Acciones
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-card divide-y divide-border">
                 {reporte.historial_eventos.length > 0 ? (
                   reporte.historial_eventos.map((evento, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <tr key={index} className="hover:bg-muted transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                         {formatearFecha(evento.fecha)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Link 
+                        <Link
                           href={`/dashboard/grupos/${evento.grupo_id}`}
                           className="text-blue-600 hover:text-blue-800 hover:underline"
                         >
                           {evento.grupo_nombre}
                         </Link>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-muted-foreground hidden lg:table-cell">
                         {evento.tema}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <BadgeSistema 
+                        <BadgeSistema
                           variante={evento.estado === 'Presente' ? 'success' : 'error'}
                           tamaño="sm"
                         >
                           {evento.estado}
                         </BadgeSistema>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
                         <Link href={`/dashboard/grupos/${evento.grupo_id}/asistencia/historial`}>
-                          <BotonSistema 
-                            variante="ghost" 
+                          <BotonSistema
+                            variante="ghost"
                             tamaño="sm"
                             className="gap-2"
                           >
@@ -294,8 +294,8 @@ export default function ReporteAsistenciaUsuarioClient({
                 ) : (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center">
-                      <div className="text-gray-400 text-4xl mb-4">📅</div>
-                      <TituloSistema nivel={3} className="text-gray-600 mb-2">
+                      <div className="text-muted-foreground/50 text-4xl mb-4">📅</div>
+                      <TituloSistema nivel={3} className="text-muted-foreground mb-2">
                         No hay eventos en este período
                       </TituloSistema>
                       <TextoSistema variante="sutil">

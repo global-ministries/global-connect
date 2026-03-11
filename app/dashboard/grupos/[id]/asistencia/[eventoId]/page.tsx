@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import AttendanceList from "@/components/grupos/AttendanceList.client";
-import { ArrowLeft, Edit } from 'lucide-react'
+import { Edit } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
@@ -27,7 +27,7 @@ export default async function AsistenciaEventoPage({ params }: { params: { id: s
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
-            <p className="text-gray-600 mb-4">Debes iniciar sesión para acceder a esta página.</p>
+            <p className="text-muted-foreground mb-4">Debes iniciar sesión para acceder a esta página.</p>
             <Link href="/login">
               <BotonSistema variante="primario">
                 Iniciar Sesión
@@ -53,7 +53,7 @@ export default async function AsistenciaEventoPage({ params }: { params: { id: s
           <div className="text-center">
             <div className="text-red-500 text-6xl mb-4">⚠️</div>
             <TituloSistema nivel={2}>Evento no encontrado</TituloSistema>
-            <p className="text-gray-600 mb-4">No hay acceso o el evento no existe.</p>
+            <p className="text-muted-foreground mb-4">No hay acceso o el evento no existe.</p>
             <Link href={`/dashboard/grupos/${id}`}>
               <BotonSistema variante="primario">
                 Volver al grupo
@@ -74,13 +74,13 @@ export default async function AsistenciaEventoPage({ params }: { params: { id: s
 
   const asistentes = Array.isArray(asistenciaRes.data)
     ? asistenciaRes.data.map((r: any) => ({
-        id: r.usuario_id ?? r.id,
-        nombre: r.nombre ?? "",
-        apellido: r.apellido ?? "",
-        rol: r.rol ?? null,
-        presente: r.presente ?? false,
-        motivo: r.motivo_inasistencia ?? r.motivo ?? null,
-      }))
+      id: r.usuario_id ?? r.id,
+      nombre: r.nombre ?? "",
+      apellido: r.apellido ?? "",
+      rol: r.rol ?? null,
+      presente: r.presente ?? false,
+      motivo: r.motivo_inasistencia ?? r.motivo ?? null,
+    }))
     : [];
 
   const total = asistentes.length
@@ -101,30 +101,20 @@ export default async function AsistenciaEventoPage({ params }: { params: { id: s
       <ContenedorDashboard
         titulo={`Asistencia del ${formatearFecha(ev.fecha)}`}
         descripcion={`${ev.hora ? `Hora: ${ev.hora} • ` : ''}Tema: ${ev.tema || '—'} • Notas: ${ev.notas || '—'}`}
+        botonRegreso={{ href: `/dashboard/grupos/${id}`, texto: 'Volver al grupo' }}
         accionPrincipal={
-          <div className="flex items-center gap-2">
-            {puedeEditar && (
-              <Link href={`/dashboard/grupos/${id}/asistencia/editar/${eventoId}`}>
-                <BotonSistema 
-                  variante="outline" 
-                  tamaño="sm"
-                  className="gap-2"
-                >
-                  <Edit className="w-4 h-4" />
-                  <span className="hidden sm:inline">Editar</span>
-                </BotonSistema>
-              </Link>
-            )}
-            <Link href={`/dashboard/grupos/${id}`}>
-              <BotonSistema 
-                variante="ghost" 
+          puedeEditar ? (
+            <Link href={`/dashboard/grupos/${id}/asistencia/editar/${eventoId}`}>
+              <BotonSistema
+                variante="outline"
                 tamaño="sm"
-                className="p-2"
+                className="gap-2"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <Edit className="w-4 h-4" />
+                <span className="hidden sm:inline">Editar</span>
               </BotonSistema>
             </Link>
-          </div>
+          ) : null
         }
       >
         {/* KPIs */}

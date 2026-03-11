@@ -77,12 +77,12 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
     if (oldRol || newRol) {
       return (
         <div className="text-sm">
-          <span className="font-medium text-gray-700">Cambio de rol:</span>
+          <span className="font-medium text-foreground">Cambio de rol:</span>
           <div className="flex items-center gap-2 mt-1">
             <BadgeSistema variante={oldRol ? "info" : "default"}>
               {oldRol ?? "Sin rol"}
             </BadgeSistema>
-            <span className="text-gray-400">→</span>
+            <span className="text-muted-foreground">→</span>
             <BadgeSistema variante={newRol ? "success" : "default"}>
               {newRol ?? "Sin rol"}
             </BadgeSistema>
@@ -153,11 +153,11 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
         {/* Filtros - Grid Responsive */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Acción</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Acción</label>
             <select
               value={action}
               onChange={(e) => setAction(e.target.value as any)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             >
               <option value="">Todas las acciones</option>
               <option value="CREATE">Alta</option>
@@ -166,30 +166,30 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Actor</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Actor</label>
             <input
               value={actor}
               onChange={(e) => setActor(e.target.value)}
               placeholder="Nombre del actor"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Desde</label>
             <input
               type="date"
               value={desde}
               onChange={(e) => setDesde(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Hasta</label>
             <input
               type="date"
               value={hasta}
               onChange={(e) => setHasta(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
 
       {items.length === 0 && !loading && !error && (
         <TarjetaSistema className="p-8 text-center">
-          <p className="text-gray-500">No hay movimientos registrados.</p>
+          <p className="text-muted-foreground">No hay movimientos registrados.</p>
         </TarjetaSistema>
       )}
 
@@ -212,17 +212,17 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
           return (
             <div key={it.id}>
               {/* Versión Móvil - Lista Simple */}
-              <div className="sm:hidden flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100">
+              <div className="sm:hidden flex items-center gap-3 p-3 bg-card rounded-lg border border-border">
                 <div className="flex-shrink-0">
                   {it.action === "CREATE" && <BadgeAuditoria color="green">Alta</BadgeAuditoria>}
                   {it.action === "UPDATE" && <BadgeAuditoria color="yellow">Cambio</BadgeAuditoria>}
                   {it.action === "DELETE" && <BadgeAuditoria color="red">Baja</BadgeAuditoria>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-gray-900 text-sm truncate">
+                  <div className="font-medium text-foreground text-sm truncate">
                     {it.usuario_nombre || it.usuario_id}
                   </div>
-                  <div className="text-xs text-gray-500 truncate">
+                  <div className="text-xs text-muted-foreground truncate">
                     {it.actor_nombre || '—'} • {date.toLocaleDateString()}
                   </div>
                   {renderDiff(it) && (
@@ -241,24 +241,24 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
                       {it.action === "CREATE" && <BadgeAuditoria color="green">Alta</BadgeAuditoria>}
                       {it.action === "UPDATE" && <BadgeAuditoria color="yellow">Cambio</BadgeAuditoria>}
                       {it.action === "DELETE" && <BadgeAuditoria color="red">Baja</BadgeAuditoria>}
-                      <span className="text-sm text-gray-600 font-medium">{date.toLocaleString()}</span>
+                      <span className="text-sm text-muted-foreground font-medium">{date.toLocaleString()}</span>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="font-medium text-gray-700">Actor:</span>
-                      <span className="ml-2 text-gray-600">{it.actor_nombre || '—'}</span>
+                      <span className="font-medium text-foreground">Actor:</span>
+                      <span className="ml-2 text-muted-foreground">{it.actor_nombre || '—'}</span>
                     </div>
                     <div>
-                      <span className="font-medium text-gray-700">Usuario:</span>
-                      <span className="ml-2 text-gray-600">
+                      <span className="font-medium text-foreground">Usuario:</span>
+                      <span className="ml-2 text-muted-foreground">
                         {it.usuario_nombre || it.usuario_id}
-                        {it.usuario_email && <span className="text-gray-500"> ({it.usuario_email})</span>}
+                        {it.usuario_email && <span className="text-muted-foreground"> ({it.usuario_email})</span>}
                       </span>
                     </div>
                   </div>
                   {renderDiff(it) && (
-                    <div className="pt-2 border-t border-gray-200">
+                    <div className="pt-2 border-t border-border">
                       {renderDiff(it)}
                     </div>
                   )}
@@ -270,9 +270,9 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
       </div>
 
       {/* Paginación - Responsive */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-100">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border">
         <div className="order-2 sm:order-1">
-          <span className="text-sm text-gray-500 font-medium">
+          <span className="text-sm text-muted-foreground font-medium">
             Mostrando {items.length} de {total || 0} registros
           </span>
         </div>

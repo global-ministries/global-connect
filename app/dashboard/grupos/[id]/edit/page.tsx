@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+
 import Link from "next/link";
 import GroupEditForm from "@/components/forms/GroupEditForm";
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
@@ -36,7 +36,7 @@ export default async function EditGroupPage({ params }: PageProps) {
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Grupo no encontrado</TituloSistema>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 El grupo solicitado no existe o no tienes acceso para editarlo.
               </p>
               <Link href="/dashboard/grupos">
@@ -85,17 +85,7 @@ export default async function EditGroupPage({ params }: PageProps) {
       <ContenedorDashboard
         titulo="Editar Grupo"
         descripcion={`Modifica la información del grupo "${grupo.nombre}"`}
-        accionPrincipal={
-          <Link href={`/dashboard/grupos/${id}`}>
-            <BotonSistema
-              variante="ghost"
-              tamaño="sm"
-              className="p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </BotonSistema>
-          </Link>
-        }
+        botonRegreso={{ href: `/dashboard/grupos/${id}`, texto: 'Volver al grupo' }}
       >
         {/* Formulario */}
         <TarjetaSistema className="p-6">

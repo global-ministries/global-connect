@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import HistorialAsistenciaClient from '@/components/asistencia/HistorialAsistencia.client'
@@ -23,7 +23,7 @@ export default async function HistorialAsistenciaPage({
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
-              <p className="text-gray-600 mb-4">Debes iniciar sesión para acceder a esta página.</p>
+              <p className="text-muted-foreground mb-4">Debes iniciar sesión para acceder a esta página.</p>
               <Link href="/login">
                 <BotonSistema variante="primario">
                   Iniciar Sesión
@@ -53,7 +53,7 @@ export default async function HistorialAsistenciaPage({
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Sin permisos</TituloSistema>
-              <p className="text-gray-600 mb-4">No tienes permiso para ver el historial de este grupo.</p>
+              <p className="text-muted-foreground mb-4">No tienes permiso para ver el historial de este grupo.</p>
               <Link href={`/dashboard/grupos/${id}`}>
                 <BotonSistema variante="primario">
                   Volver al grupo
@@ -102,28 +102,18 @@ export default async function HistorialAsistenciaPage({
       <ContenedorDashboard
         titulo={`Historial de Asistencia - ${grupo.nombre}`}
         descripcion="Análisis y eventos registrados"
+        botonRegreso={{ href: `/dashboard/grupos/${id}`, texto: 'Volver al grupo' }}
         accionPrincipal={
-          <div className="flex items-center gap-2">
-            <Link href={`/dashboard/grupos/${id}/asistencia`}>
-              <BotonSistema
-                variante="outline"
-                tamaño="sm"
-                className="gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Registrar nuevo</span>
-              </BotonSistema>
-            </Link>
-            <Link href={`/dashboard/grupos/${id}`}>
-              <BotonSistema
-                variante="ghost"
-                tamaño="sm"
-                className="p-2"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </BotonSistema>
-            </Link>
-          </div>
+          <Link href={`/dashboard/grupos/${id}/asistencia`}>
+            <BotonSistema
+              variante="outline"
+              tamaño="sm"
+              className="gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Registrar nuevo</span>
+            </BotonSistema>
+          </Link>
         }
       >
         <HistorialAsistenciaClient

@@ -1,8 +1,12 @@
 "use client"
 import { useMemo, useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
+import {
+  BotonSistema,
+  InputSistema,
+  SelectSistema,
+  TextareaSistema,
+} from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useRouter } from 'next/navigation'
 
@@ -113,8 +117,8 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
         router.push(`/dashboard/grupos/${grupoId}`)
       }
       router.refresh()
-    } catch (e: any) {
-      toast.error(e?.message || 'Error registrando asistencia')
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Error registrando asistencia')
     } finally {
       setSaving(false)
     }
@@ -124,74 +128,67 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Fecha</label>
-          <Input type="date" value={fecha} onChange={e => setFecha(e.target.value)} disabled={!!isEdit} />
+          <label className="block text-sm font-medium text-foreground mb-1">Fecha</label>
+          <InputSistema type="date" value={fecha} onChange={e => setFecha(e.target.value)} disabled={!!isEdit} />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Hora</label>
+          <label className="block text-sm font-medium text-foreground mb-1">Hora</label>
           <div className="flex items-center gap-2">
-            <select
-              className="border rounded-md px-2 py-2 text-sm bg-background"
+            <SelectSistema
               value={hora12}
-              onChange={e => setHora12(e.target.value)}
-            >
-              <option value="">HH</option>
-              {Array.from({ length: 12 }).map((_, i) => {
-                const v = String(i + 1)
-                return <option key={v} value={v}>{v}</option>
-              })}
-            </select>
-            <span className="text-sm">:</span>
-            <select
-              className="border rounded-md px-2 py-2 text-sm bg-background"
+              onValueChange={setHora12}
+              opciones={[
+                { valor: '', etiqueta: 'HH' },
+                ...Array.from({ length: 12 }).map((_, i) => ({ valor: String(i + 1), etiqueta: String(i + 1) }))
+              ]}
+            />
+            <span className="text-sm text-muted-foreground">:</span>
+            <SelectSistema
               value={minutos}
-              onChange={e => setMinutos(e.target.value)}
-            >
-              <option value="">MM</option>
-              {Array.from({ length: 60 }).map((_, i) => {
-                const mm = String(i).padStart(2, '0')
-                return <option key={mm} value={mm}>{mm}</option>
-              })}
-            </select>
-            <select
-              className="border rounded-md px-2 py-2 text-sm bg-background"
+              onValueChange={setMinutos}
+              opciones={[
+                { valor: '', etiqueta: 'MM' },
+                ...Array.from({ length: 60 }).map((_, i) => ({ valor: String(i).padStart(2, '0'), etiqueta: String(i).padStart(2, '0') }))
+              ]}
+            />
+            <SelectSistema
               value={amPm}
-              onChange={e => setAmPm(e.target.value as 'AM' | 'PM')}
-            >
-              <option value="AM">AM</option>
-              <option value="PM">PM</option>
-            </select>
+              onValueChange={(v: string) => setAmPm(v as 'AM' | 'PM')}
+              opciones={[
+                { valor: 'AM', etiqueta: 'AM' },
+                { valor: 'PM', etiqueta: 'PM' },
+              ]}
+            />
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Tema</label>
-          <Input value={tema} onChange={e => setTema(e.target.value)} placeholder="Opcional" />
+          <label className="block text-sm font-medium text-foreground mb-1">Tema</label>
+          <InputSistema value={tema} onChange={e => setTema(e.target.value)} placeholder="Opcional" />
         </div>
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium mb-1">Notas</label>
-          <textarea
+          <label className="block text-sm font-medium text-foreground mb-1">Notas</label>
+          <TextareaSistema
             value={notas}
             onChange={e => setNotas(e.target.value)}
             placeholder="Opcional"
             rows={3}
-            className="w-full border rounded-md px-3 py-2 text-sm bg-background resize-y min-h-[80px]"
           />
         </div>
         <div className="flex items-end pb-1 text-xs text-muted-foreground">{hora12 && minutos ? `Hora seleccionada: ${hora12.padStart(2, '0')}:${minutos} ${amPm}` : 'Sin hora'}</div>
       </div>
 
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-        <Button type="button" variant="outline" onClick={() => marcarTodos(true)} className="flex-1 sm:flex-none">
+        <BotonSistema variante="outline" onClick={() => marcarTodos(true)} className="flex-1 sm:flex-none">
           <span className="sm:hidden">✓ Todos presentes</span>
           <span className="hidden sm:inline">Marcar todos presentes</span>
-        </Button>
-        <Button type="button" variant="outline" onClick={() => marcarTodos(false)} className="flex-1 sm:flex-none">
+        </BotonSistema>
+        <BotonSistema variante="outline" onClick={() => marcarTodos(false)} className="flex-1 sm:flex-none">
           <span className="sm:hidden">✗ Todos ausentes</span>
           <span className="hidden sm:inline">Marcar todos ausentes</span>
-        </Button>
+        </BotonSistema>
       </div>
 
-      <div className="border rounded-lg divide-y">
+      <div className="border border-border rounded-xl divide-y divide-border">
         {miembros.map(m => (
           <div key={m.id} className="p-3">
             <div className="flex items-center gap-3">
@@ -206,7 +203,7 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
             </div>
             {!estado[m.id]?.presente && (
               <div className="mt-3 ml-7">
-                <Input
+                <InputSistema
                   className="w-full"
                   placeholder="Motivo de inasistencia (opcional)"
                   value={estado[m.id]?.motivo || ''}
@@ -220,9 +217,9 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">Presentes: {totalPresentes} / {miembros.length}</div>
-        <Button onClick={guardar} className="bg-orange-600 hover:bg-orange-700" disabled={saving}>
+        <BotonSistema variante="primario" onClick={guardar} disabled={saving}>
           {saving ? 'Guardando…' : (isEdit ? 'Actualizar asistencia' : 'Guardar asistencia')}
-        </Button>
+        </BotonSistema>
       </div>
     </div>
   )

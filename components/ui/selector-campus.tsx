@@ -33,19 +33,19 @@ export function SelectorCampus() {
                     value={campusActivo?.id ?? ""}
                     onChange={(e) => seleccionarCampus(e.target.value || null)}
                     className="
-            appearance-none
-            pl-7 pr-6 py-1.5
-            text-xs font-medium
-            bg-white/60 backdrop-blur-lg
-            border border-white/40
-            rounded-xl
-            text-gray-700
-            hover:bg-white/80
-            focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-300/50
-            transition-all duration-200
-            cursor-pointer
-            min-w-[110px] w-full
-          "
+                        appearance-none
+                        pl-7 pr-6 py-1.5
+                        text-xs font-medium
+                        bg-[var(--surface-secondary)]
+                        border border-[var(--glass-border)]
+                        rounded-xl
+                        text-foreground
+                        hover:bg-[var(--brand-accent)]
+                        focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/40 focus:border-[var(--brand-primary)]/50
+                        transition-[background-color,border-color,box-shadow] duration-200 ease-expo
+                        cursor-pointer
+                        min-w-[110px] w-full
+                    "
                     aria-label="Seleccionar campus"
                 >
                     {esSuperadmin && <option value="">Todos los campus</option>}
@@ -55,8 +55,8 @@ export function SelectorCampus() {
                         </option>
                     ))}
                 </select>
-                <Building2 className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+                <Building2 className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
             </div>
 
             {/* Selector de Localidad (solo si hay localidades) */}
@@ -66,19 +66,19 @@ export function SelectorCampus() {
                         value={localidadActiva?.id ?? ""}
                         onChange={(e) => seleccionarLocalidad(e.target.value || null)}
                         className="
-              appearance-none
-              pl-7 pr-6 py-1.5
-              text-xs font-medium
-              bg-white/60 backdrop-blur-lg
-              border border-white/40
-              rounded-xl
-              text-gray-700
-              hover:bg-white/80
-              focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-300/50
-              transition-all duration-200
-              cursor-pointer
-              min-w-[100px] w-full
-            "
+                            appearance-none
+                            pl-7 pr-6 py-1.5
+                            text-xs font-medium
+                            bg-[var(--surface-secondary)]
+                            border border-[var(--glass-border)]
+                            rounded-xl
+                            text-foreground
+                            hover:bg-[var(--brand-accent)]
+                            focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/40 focus:border-[var(--brand-primary)]/50
+                            transition-[background-color,border-color,box-shadow] duration-200 ease-expo
+                            cursor-pointer
+                            min-w-[100px] w-full
+                        "
                         aria-label="Seleccionar localidad"
                     >
                         <option value="">Todas las localidades</option>
@@ -88,8 +88,8 @@ export function SelectorCampus() {
                             </option>
                         ))}
                     </select>
-                    <MapPin className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+                    <MapPin className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
                 </div>
             )}
         </div>

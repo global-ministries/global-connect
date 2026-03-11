@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import ReporteAsistenciaUsuarioClient from '@/components/asistencia/ReporteAsistenciaUsuario.client'
@@ -24,7 +24,7 @@ export default async function AsistenciaUsuarioPage({
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
-              <p className="text-gray-600 mb-4">Debes iniciar sesión para acceder a esta página.</p>
+              <p className="text-muted-foreground mb-4">Debes iniciar sesión para acceder a esta página.</p>
               <Link href="/login">
                 <BotonSistema variante="primario">
                   Iniciar Sesión
@@ -49,7 +49,7 @@ export default async function AsistenciaUsuarioPage({
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Usuario no encontrado</TituloSistema>
-              <p className="text-gray-600 mb-4">No se pudo encontrar el usuario solicitado.</p>
+              <p className="text-muted-foreground mb-4">No se pudo encontrar el usuario solicitado.</p>
               <Link href="/dashboard/users">
                 <BotonSistema variante="primario">
                   Volver a usuarios
@@ -95,11 +95,11 @@ export default async function AsistenciaUsuarioPage({
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">🔒</div>
               <TituloSistema nivel={2}>Sin permisos</TituloSistema>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 {(reporteData as any)?.error || 'No tienes permiso para ver el reporte de asistencia de este usuario.'}
               </p>
               {(reporteData as any)?.debug && (
-                <div className="mt-4 p-4 bg-gray-100 rounded-lg text-left max-w-md mx-auto">
+                <div className="mt-4 p-4 bg-muted rounded-lg text-left max-w-md mx-auto">
                   <p className="text-xs font-mono">
                     <strong>Debug:</strong><br />
                     Auth User ID: {(reporteData as any).debug.v_auth_user_id}<br />
@@ -139,17 +139,7 @@ export default async function AsistenciaUsuarioPage({
       <ContenedorDashboard
         titulo={`Reporte de Asistencia - ${nombreCompleto}`}
         descripcion="Análisis detallado del historial de asistencia"
-        accionPrincipal={
-          <Link href={`/dashboard/users/${id}`}>
-            <BotonSistema
-              variante="ghost"
-              tamaño="sm"
-              className="p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </BotonSistema>
-          </Link>
-        }
+        botonRegreso={{ href: `/dashboard/users/${id}`, texto: 'Volver al usuario' }}
       >
         <ReporteAsistenciaUsuarioClient
           usuarioId={id}

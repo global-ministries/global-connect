@@ -32,7 +32,7 @@ export function FiltrosUsuarios({
     const nuevosRoles = filtros.roles.includes(rolInterno)
       ? filtros.roles.filter(r => r !== rolInterno)
       : [...filtros.roles, rolInterno]
-    
+
     onFiltrosChange({ ...filtros, roles: nuevosRoles })
   }
 
@@ -55,16 +55,16 @@ export function FiltrosUsuarios({
     const nuevosEstados = filtros.estado.includes(estado)
       ? filtros.estado.filter(e => e !== estado)
       : [...filtros.estado, estado]
-    
+
     onFiltrosChange({ ...filtros, estado: nuevosEstados })
   }
 
   const tieneFiltrosActivos = () => {
-    return filtros.roles.length > 0 || 
-           filtros.conEmail !== null || 
-           filtros.conTelefono !== null || 
-           filtros.enGrupo !== null || 
-           filtros.estado.length > 0
+    return filtros.roles.length > 0 ||
+      filtros.conEmail !== null ||
+      filtros.conTelefono !== null ||
+      filtros.enGrupo !== null ||
+      filtros.estado.length > 0
   }
 
   const obtenerTextoFiltroEmail = () => {
@@ -118,19 +118,19 @@ export function FiltrosUsuarios({
           <div
             role="dialog"
             aria-modal="true"
-            className="relative z-10 w-full max-w-md md:max-w-lg bg-white border border-gray-200 rounded-2xl shadow-2xl"
+            className="relative z-10 w-full max-w-md md:max-w-lg bg-card border border-border rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-800">Filtros</h3>
+                <h3 className="font-semibold text-foreground">Filtros</h3>
                 <div className="flex items-center gap-2">
                   {tieneFiltrosActivos() && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={onLimpiarFiltros}
-                      className="text-gray-500 hover:text-gray-700"
+                      className="text-muted-foreground hover:text-foreground"
                     >
                       Limpiar
                     </Button>
@@ -148,7 +148,7 @@ export function FiltrosUsuarios({
 
               {/* Filtro por Roles */}
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Roles</h4>
+                <h4 className="text-sm font-medium text-foreground mb-2">Roles</h4>
                 <div className="flex flex-wrap gap-2">
                   {rolesDisponibles.map((rol) => (
                     <Button
@@ -166,7 +166,7 @@ export function FiltrosUsuarios({
 
               {/* Filtro por Email */}
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Estado del Email</h4>
+                <h4 className="text-sm font-medium text-foreground mb-2">Estado del Email</h4>
                 <div className="flex gap-2">
                   <Button
                     variant={filtros.conEmail === true ? 'default' : 'outline'}
@@ -189,7 +189,7 @@ export function FiltrosUsuarios({
 
               {/* Filtro por Teléfono */}
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Estado del Teléfono</h4>
+                <h4 className="text-sm font-medium text-foreground mb-2">Estado del Teléfono</h4>
                 <div className="flex gap-2">
                   <Button
                     variant={filtros.conTelefono === true ? 'default' : 'outline'}
@@ -212,7 +212,7 @@ export function FiltrosUsuarios({
 
               {/* Filtro por pertenencia a Grupos */}
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Pertenencia a Grupos</h4>
+                <h4 className="text-sm font-medium text-foreground mb-2">Pertenencia a Grupos</h4>
                 <div className="flex gap-2">
                   <Button
                     variant={filtros.enGrupo === true ? 'default' : 'outline'}
@@ -235,7 +235,7 @@ export function FiltrosUsuarios({
 
               {/* Filtro por Estado */}
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Estado del Usuario</h4>
+                <h4 className="text-sm font-medium text-foreground mb-2">Estado del Usuario</h4>
                 <div className="flex gap-2">
                   <Button
                     variant={filtros.estado.includes('activo') ? 'default' : 'outline'}
@@ -258,8 +258,8 @@ export function FiltrosUsuarios({
 
               {/* Filtros Activos */}
               {tieneFiltrosActivos() && (
-                <div className="pt-3 border-t border-gray-200">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Filtros Activos</h4>
+                <div className="pt-3 border-t border-border">
+                  <h4 className="text-sm font-medium text-foreground mb-2">Filtros Activos</h4>
                   <div className="flex flex-wrap gap-2">
                     {filtros.roles.map((rol) => {
                       const rolInfo = rolesDisponibles.find(r => r.nombre_interno === rol)
@@ -272,7 +272,7 @@ export function FiltrosUsuarios({
                           {rolInfo?.nombre_visible || rol}
                           <button
                             onClick={() => toggleRol(rol)}
-                            className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                            className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -285,7 +285,7 @@ export function FiltrosUsuarios({
                         {obtenerTextoFiltroEmail()}
                         <button
                           onClick={() => setConEmail(filtros.conEmail === true ? true : false)}
-                          className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -297,7 +297,7 @@ export function FiltrosUsuarios({
                         {obtenerTextoFiltroTelefono()}
                         <button
                           onClick={() => setConTelefono(filtros.conTelefono === true ? true : false)}
-                          className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -309,7 +309,7 @@ export function FiltrosUsuarios({
                         {obtenerTextoFiltroEnGrupo()}
                         <button
                           onClick={() => setEnGrupo(filtros.enGrupo === true ? true : false)}
-                          className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -325,7 +325,7 @@ export function FiltrosUsuarios({
                         {estado === 'activo' ? 'Activo' : 'Inactivo'}
                         <button
                           onClick={() => toggleEstado(estado)}
-                          className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
                         >
                           <X className="w-3 h-3" />
                         </button>

@@ -5,7 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ContenedorDashboard, TituloSistema, TextoSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
-import { ArrowLeft, ArrowRight } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 
 interface Props {
@@ -157,12 +157,8 @@ export default async function SegmentoDetallePage({ params }: Props) {
 			<ContenedorDashboard
 				titulo={`Segmento: ${segmento.nombre}`}
 				subtitulo="Información general y accesos rápidos"
+				botonRegreso={{ href: '/dashboard/segments', texto: 'Volver a Segmentos' }}
 			>
-				<div className="mb-4">
-					<Link href="/dashboard/segments" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-						<ArrowLeft className="w-4 h-4 mr-1" /> Volver a la lista
-					</Link>
-				</div>
 
 				<div className="grid gap-6 md:grid-cols-3">
 					<TarjetaSistema className="p-5 flex flex-col justify-between md:col-span-3">
@@ -174,29 +170,29 @@ export default async function SegmentoDetallePage({ params }: Props) {
 
 							{/* Preview de directores (agrupados por cónyuges) */}
 							<div className="mt-4">
-								<TextoSistema className="mb-2 text-gray-700 font-semibold">Directores en este segmento</TextoSistema>
+								<TextoSistema className="mb-2 text-foreground font-semibold">Directores en este segmento</TextoSistema>
 								{directoresAgrupados.length === 0 ? (
 									<TextoSistema variante="sutil" className="text-sm">Aún no hay directores asignados.</TextoSistema>
 								) : (
 									<div className="space-y-3">
 										{directoresAgrupados.map((grupo, idx) => (
-											<div key={idx} className="bg-white/50 border border-gray-200 rounded-xl p-4">
+											<div key={idx} className="bg-card/50 border border-border rounded-xl p-4">
 												<div className="space-y-2">
 													{grupo.usuarios.map((u) => (
 														<div key={u.usuario_id} className="flex items-center gap-3">
 															<UserAvatar photoUrl={u.foto || undefined} nombre={u.nombre} apellido={u.apellido} size="sm" />
 															<div className="min-w-0">
 																{puedeVerPerfiles ? (
-																	<Link href={`/dashboard/users/${u.usuario_id}`} className="font-medium text-gray-800 hover:text-orange-600 transition-colors block truncate">
+																	<Link href={`/dashboard/users/${u.usuario_id}`} className="font-medium text-foreground hover:text-orange-600 transition-colors block truncate">
 																		{`${u.nombre} ${u.apellido}`.trim() || u.email || 'Usuario'}
 																	</Link>
 																) : (
-																	<span className="font-medium text-gray-800 block truncate">
+																	<span className="font-medium text-foreground block truncate">
 																		{`${u.nombre} ${u.apellido}`.trim() || u.email || 'Usuario'}
 																	</span>
 																)}
 																{u.email && (
-																	<p className="text-xs text-gray-500 truncate">{u.email}</p>
+																	<p className="text-xs text-muted-foreground truncate">{u.email}</p>
 																)}
 															</div>
 														</div>

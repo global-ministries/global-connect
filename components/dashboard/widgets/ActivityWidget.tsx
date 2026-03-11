@@ -45,14 +45,14 @@ function formatearFechaHora(fechaISO: string): string {
 
 export function ActivityWidget({ id, title, icon: HeaderIcon, items }: ActivityWidgetProps) {
   return (
-    <TarjetaSistema className="p-6">
+    <TarjetaSistema className="p-3 md:p-4 lg:p-6 h-full">
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg">
+        <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg ring-1 ring-white/20 shadow-lg">
           <HeaderIcon className="w-5 h-5 text-white" />
         </div>
         <TituloSistema nivel={3}>{title}</TituloSistema>
       </div>
-      <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+      <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-glass">
         {items.length === 0 ? (
           <div className="text-center py-8">
             <TextoSistema variante="sutil">No hay actividad reciente</TextoSistema>
@@ -61,12 +61,12 @@ export function ActivityWidget({ id, title, icon: HeaderIcon, items }: ActivityW
           items.map((item, idx) => {
             const Icono = getIcono(item.tipo)
             return (
-              <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50/50 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="p-2 bg-gray-100 rounded-md">
-                  <Icono className="w-4 h-4 text-gray-700" />
+              <div key={idx} className="flex items-start gap-3 p-3 bg-[var(--surface-secondary)]/50 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors">
+                <div className="p-2 bg-muted rounded-lg">
+                  <Icono className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <TextoSistema tamaño="sm" className="text-gray-900">
+                  <TextoSistema tamaño="sm" className="text-foreground">
                     {item.texto}
                   </TextoSistema>
                   <TextoSistema variante="sutil" tamaño="sm" className="mt-1 text-xs">

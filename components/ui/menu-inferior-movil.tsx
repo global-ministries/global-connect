@@ -12,7 +12,7 @@ const elementosMenu = [
   { nombre: "Usuarios", icono: Users, enlace: "/dashboard/users", id: "users" },
   { nombre: "Grupos", icono: UsersRound, enlace: "/dashboard/grupos", id: "grupos" },
   { nombre: "Reportes", icono: BarChart3, enlace: "/dashboard/reportes/asistencia-semanal", id: "reportes" },
-  { nombre: "Configuración", icono: Settings, enlace: "/dashboard/configuracion", id: "configuracion" },
+  { nombre: "Config", icono: Settings, enlace: "/dashboard/configuracion", id: "configuracion" },
 ]
 
 export function MenuInferiorMovil() {
@@ -23,28 +23,32 @@ export function MenuInferiorMovil() {
   const elementosFiltrados = elementosMenu.filter((el) => !(el.id === 'reportes' && ocultarReportes))
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-gray-200/50 shadow-lg">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-t border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">
       <div className="flex items-center justify-around px-2 py-2 safe-area-pb">
         {elementosFiltrados.map((elemento) => {
           const Icono = elemento.icono
-          const esActivo = pathname === elemento.enlace || 
+          const esActivo = pathname === elemento.enlace ||
             (elemento.enlace !== "/dashboard" && pathname?.startsWith(elemento.enlace))
 
           return (
             <Link
               key={elemento.id}
               href={elemento.enlace}
+              aria-label={`Navegar a ${elemento.nombre}`}
+              aria-current={esActivo ? "page" : undefined}
               className={cn(
-                "flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-all duration-200 min-w-0 flex-1",
-                esActivo 
-                  ? "bg-orange-100/80 text-orange-600" 
-                  : "text-gray-600 hover:text-orange-500 hover:bg-orange-50/50"
+                "flex flex-col items-center justify-center px-3 py-2 rounded-xl min-w-0 flex-1 min-h-[44px]",
+                "transition-[background-color,color,transform] duration-200 ease-expo",
+                "press-scale focus-ring",
+                esActivo
+                  ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
+                  : "text-muted-foreground hover:text-[var(--brand-primary)] hover:bg-[var(--brand-accent)]"
               )}
             >
-              <Icono className={cn("w-5 h-5 mb-1", esActivo ? "text-orange-600" : "text-gray-500")} />
+              <Icono className={cn("w-5 h-5 mb-1", esActivo ? "text-[var(--brand-primary)]" : "text-muted-foreground")} />
               <span className={cn(
                 "text-xs font-medium truncate max-w-full",
-                esActivo ? "text-orange-600" : "text-gray-600"
+                esActivo ? "text-[var(--brand-primary)]" : "text-muted-foreground"
               )}>
                 {elemento.nombre}
               </span>

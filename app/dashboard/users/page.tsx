@@ -208,7 +208,7 @@ export default function PaginaUsuarios() {
             <div className="space-y-4">
               <SkeletonSistema ancho="200px" alto="24px" />
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 border border-gray-100 rounded-lg">
+                <div key={i} className="flex items-center gap-4 p-4 border border-border rounded-lg">
                   <SkeletonSistema ancho="48px" alto="48px" redondo />
                   <div className="space-y-2 flex-1">
                     <SkeletonSistema ancho="150px" alto="16px" />
@@ -234,7 +234,7 @@ export default function PaginaUsuarios() {
             <select
               value={rolNuevo}
               onChange={(e) => setRolNuevo(e.target.value as any)}
-              className="px-2 py-1 border border-gray-200 rounded text-sm bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+              className="px-2 py-1 border border-border rounded text-sm bg-card focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]"
             >
               <option value="miembro">Miembro</option>
               <option value="lider">Líder</option>
@@ -258,14 +258,14 @@ export default function PaginaUsuarios() {
           {/* Móvil: Solo Total Usuarios visible, resto colapsable */}
           <div className="md:hidden">
             {/* Tarjeta Principal - Total Usuarios */}
-            <TarjetaSistema className="p-4 hover:shadow-lg transition-all duration-200">
+            <TarjetaSistema className="p-4 hover:shadow-lg transition-shadow duration-200">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center flex-shrink-0">
                   <Users className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <TituloSistema nivel={3} className="text-gray-900 truncate">{estadisticas?.total_usuarios || 0}</TituloSistema>
+                    <TituloSistema nivel={3} className="text-foreground truncate">{estadisticas?.total_usuarios || 0}</TituloSistema>
                     <BadgeSistema variante="success" tamaño="sm">+12.5%</BadgeSistema>
                   </div>
                   <TextoSistema variante="sutil" tamaño="sm" className="truncate">Total Usuarios</TextoSistema>
@@ -276,7 +276,7 @@ export default function PaginaUsuarios() {
             {/* Botón para mostrar/ocultar métricas adicionales */}
             <button
               onClick={() => setMostrarMetricasAdicionales(!mostrarMetricasAdicionales)}
-              className="w-full mt-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center gap-2 text-gray-600"
+              className="w-full mt-3 p-3 bg-muted hover:bg-accent rounded-lg transition-colors flex items-center justify-center gap-2 text-muted-foreground"
             >
               <span className="text-sm font-medium">
                 {mostrarMetricasAdicionales ? 'Ocultar métricas' : 'Ver más métricas'}
@@ -304,7 +304,7 @@ export default function PaginaUsuarios() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <TituloSistema nivel={4} className="text-gray-900 truncate">{estadistica.valor}</TituloSistema>
+                            <TituloSistema nivel={4} className="text-foreground truncate">{estadistica.valor}</TituloSistema>
                             <BadgeSistema variante="success" tamaño="sm">
                               {estadistica.crecimiento}
                             </BadgeSistema>
@@ -326,14 +326,14 @@ export default function PaginaUsuarios() {
             {estadisticasUsuarios.map((estadistica, indice) => {
               const Icono = estadistica.icono
               return (
-                <TarjetaSistema key={indice} className="p-4 hover:shadow-lg transition-all duration-200">
+                <TarjetaSistema key={indice} className="p-4 hover:shadow-lg transition-shadow duration-200">
                   <div className="flex items-center gap-3">
                     <div className={`w-12 h-12 bg-gradient-to-br ${estadistica.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
                       <Icono className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <TituloSistema nivel={3} className="text-gray-900 truncate">{estadistica.valor}</TituloSistema>
+                        <TituloSistema nivel={3} className="text-foreground truncate">{estadistica.valor}</TituloSistema>
                         <BadgeSistema variante="success" tamaño="sm">
                           {estadistica.crecimiento}
                         </BadgeSistema>
@@ -423,7 +423,7 @@ export default function PaginaUsuarios() {
               usuarios.map((usuario) => (
                 <div key={usuario.id} className="block">
                   {/* Versión Móvil */}
-                  <div className="md:hidden flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                  <div className="md:hidden flex items-center gap-3 p-3 bg-card rounded-lg border border-border hover:bg-accent/50 transition-colors">
                     {esAdmin && (
                       <input
                         type="checkbox"
@@ -442,14 +442,14 @@ export default function PaginaUsuarios() {
                         className="flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 truncate">
+                        <div className="font-medium text-foreground truncate">
                           {usuario.nombre} {usuario.apellido}
                         </div>
-                        <div className="text-sm text-gray-500 truncate">
+                        <div className="text-sm text-muted-foreground truncate">
                           {formatearEmail(usuario.email)}
                         </div>
                       </div>
-                      <div className="text-gray-400">
+                      <div className="text-muted-foreground/50">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
@@ -458,7 +458,7 @@ export default function PaginaUsuarios() {
                   </div>
 
                   {/* Desktop */}
-                  <TarjetaSistema className="hidden md:block p-4 hover:shadow-md transition-all duration-200">
+                  <TarjetaSistema className="hidden md:block p-4 hover:shadow-md transition-shadow duration-200">
                     <div className="flex items-center gap-4">
                       {esAdmin && (
                         <input
@@ -511,7 +511,7 @@ export default function PaginaUsuarios() {
               ))
             ) : (
               <div className="text-center py-12">
-                <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <Users className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
                 <TituloSistema nivel={3} variante="sutil" className="mb-2">
                   {estadisticas?.total_usuarios === 0 ? 'No hay usuarios registrados' : 'No hay usuarios que coincidan con los filtros'}
                 </TituloSistema>
@@ -524,7 +524,7 @@ export default function PaginaUsuarios() {
 
           {/* Controles de Paginación */}
           {estadisticas?.total_usuarios && estadisticas.total_usuarios > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-gray-100">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-border">
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <TextoSistema tamaño="sm" variante="sutil">
                   Página {paginaActual} de {totalPaginas}
@@ -536,7 +536,7 @@ export default function PaginaUsuarios() {
                   <select
                     value={filtros.limite || 20}
                     onChange={(e) => actualizarFiltros({ limite: parseInt(e.target.value) })}
-                    className="px-2 py-1 border border-gray-200 rounded text-sm bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                    className="px-2 py-1 border border-border rounded text-sm bg-card focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]"
                   >
                     <option value={20}>20</option>
                     <option value={50}>50</option>
@@ -574,7 +574,7 @@ export default function PaginaUsuarios() {
               <div className="fixed bottom-20 md:bottom-6 right-4 z-30">
                 <BotonSistema
                   variante="outline"
-                  className="border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 px-4 py-2 rounded-lg shadow-lg bg-white"
+                  className="border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 px-4 py-2 rounded-lg shadow-lg bg-card"
                   tamaño="sm"
                 >
                   <Plus className="w-4 h-4 mr-2" />

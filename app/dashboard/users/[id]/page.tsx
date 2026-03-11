@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  ArrowLeft,
   Mail,
   Phone,
   PhoneCall,
@@ -152,9 +151,9 @@ export default function PaginaDetalleUsuario() {
       case 'lider':
         return 'bg-green-100 text-green-700'
       case 'miembro':
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-muted text-muted-foreground'
       default:
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-muted text-muted-foreground'
     }
   }
 
@@ -167,9 +166,9 @@ export default function PaginaDetalleUsuario() {
       case 'Divorciado':
         return 'bg-orange-100 text-orange-700'
       case 'Viudo':
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-muted text-muted-foreground'
       default:
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-muted text-muted-foreground'
     }
   }
 
@@ -182,7 +181,7 @@ export default function PaginaDetalleUsuario() {
       case 'Otro':
         return 'bg-purple-100 text-purple-700'
       default:
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-muted text-muted-foreground'
     }
   }
 
@@ -233,7 +232,7 @@ export default function PaginaDetalleUsuario() {
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Cargando datos del usuario...</p>
+              <p className="mt-4 text-muted-foreground">Cargando datos del usuario...</p>
             </div>
           </div>
         </ContenedorDashboard>
@@ -249,7 +248,7 @@ export default function PaginaDetalleUsuario() {
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Error al cargar datos</TituloSistema>
-              <p className="text-gray-600 mb-4">{error || 'Usuario no encontrado'}</p>
+              <p className="text-muted-foreground mb-4">{error || 'Usuario no encontrado'}</p>
               <div className="flex gap-3 justify-center">
                 <BotonSistema onClick={recargar} variante="primario">
                   Reintentar
@@ -281,18 +280,7 @@ export default function PaginaDetalleUsuario() {
     <DashboardLayout>
       <ContenedorDashboard
         titulo={`${usuario.nombre} ${usuario.apellido}`}
-        descripcion=""
-        accionPrincipal={
-          <Link href="/dashboard/users">
-            <BotonSistema
-              variante="ghost"
-              tamaño="sm"
-              className="p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </BotonSistema>
-          </Link>
-        }
+        botonRegreso={{ href: '/dashboard/users', texto: 'Volver a Usuarios' }}
       >
         <div className="space-y-6">
 
@@ -313,10 +301,10 @@ export default function PaginaDetalleUsuario() {
 
               {/* Información principal compacta */}
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-gray-800 truncate">
+                <h1 className="text-xl font-bold text-foreground truncate">
                   {usuario.nombre} {usuario.apellido}
                 </h1>
-                <p className="text-gray-600 text-sm truncate">
+                <p className="text-muted-foreground text-sm truncate">
                   {formatearEmail(usuario.email)}
                 </p>
 
@@ -356,48 +344,48 @@ export default function PaginaDetalleUsuario() {
 
 
           {/* Información Básica */}
-          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+          <div className="backdrop-blur-2xl bg-card/50 border border-border rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
               <User className="w-5 h-5 text-orange-500" />
               Información Básica
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-muted-foreground text-sm">
                   <User className="w-5 h-5" /> Cédula
                 </span>
-                <span className="text-gray-800">{formatearCedula(usuario.cedula)}</span>
+                <span className="text-foreground">{formatearCedula(usuario.cedula)}</span>
               </div>
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-muted-foreground text-sm">
                   <Clock className="w-5 h-5" /> Fecha de Registro
                 </span>
-                <span className="text-gray-800">{formatearFecha(usuario.fecha_registro)}</span>
+                <span className="text-foreground">{formatearFecha(usuario.fecha_registro)}</span>
               </div>
             </div>
           </div>
 
           {/* Información General */}
-          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+          <div className="backdrop-blur-2xl bg-card/50 border border-border rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
               <User className="w-5 h-5 text-orange-500" />
               Información General
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Email */}
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-muted-foreground text-sm">
                   <Mail className="w-5 h-5" /> Email
                 </span>
-                <span className="text-gray-800 break-all">{formatearEmail(usuario.email)}</span>
+                <span className="text-foreground break-all">{formatearEmail(usuario.email)}</span>
               </div>
               {/* Teléfono con botón de llamada */}
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-muted-foreground text-sm">
                   <Phone className="w-5 h-5" /> Teléfono
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-800">{formatearTelefono(usuario.telefono)}</span>
+                  <span className="text-foreground">{formatearTelefono(usuario.telefono)}</span>
                   {puedeVerLlamada && usuario.telefono && (
                     <a
                       href={`tel:${formatPhoneForCall(usuario.telefono)}`}
@@ -410,91 +398,91 @@ export default function PaginaDetalleUsuario() {
                 </div>
               </div>
               {/* Fecha de Nacimiento */}
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-muted-foreground text-sm">
                   <Calendar className="w-5 h-5" /> Fecha de Nacimiento
                 </span>
-                <span className="text-gray-800">{formatearFechaNacimiento(usuario.fecha_nacimiento)}</span>
+                <span className="text-foreground">{formatearFechaNacimiento(usuario.fecha_nacimiento)}</span>
               </div>
               {/* Estado Civil */}
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-muted-foreground text-sm">
                   <Heart className="w-5 h-5" /> Estado Civil
                 </span>
-                <span className="text-gray-800">{usuario.estado_civil}</span>
+                <span className="text-foreground">{usuario.estado_civil}</span>
               </div>
               {/* Género */}
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-muted-foreground text-sm">
                   <User className="w-5 h-5" /> Género
                 </span>
-                <span className="text-gray-800">{usuario.genero}</span>
+                <span className="text-foreground">{usuario.genero}</span>
               </div>
               {/* Ocupación */}
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-muted-foreground text-sm">
                   <Briefcase className="w-5 h-5" /> Ocupación
                 </span>
-                <span className="text-gray-800">{usuario.ocupacion?.nombre || 'Sin ocupación'}</span>
+                <span className="text-foreground">{usuario.ocupacion?.nombre || 'Sin ocupación'}</span>
               </div>
               {/* Profesión */}
-              <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                <span className="flex items-center gap-2 text-gray-500 text-sm">
+              <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                <span className="flex items-center gap-2 text-muted-foreground text-sm">
                   <GraduationCap className="w-5 h-5" /> Profesión
                 </span>
-                <span className="text-gray-800">{usuario.profesion?.nombre || 'Sin profesión'}</span>
+                <span className="text-foreground">{usuario.profesion?.nombre || 'Sin profesión'}</span>
               </div>
             </div>
           </div>
 
           {/* Información de Ubicación */}
-          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+          <div className="backdrop-blur-2xl bg-card/50 border border-border rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-orange-500" />
               Información de Ubicación
             </h3>
             {usuario.direccion ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                    <span className="flex items-center gap-2 text-gray-500 text-sm">País</span>
-                    <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.estado?.pais?.nombre || 'Sin país'}</span>
+                  <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-muted-foreground text-sm">País</span>
+                    <span className="text-foreground">{usuario.direccion?.parroquia?.municipio?.estado?.pais?.nombre || 'Sin país'}</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                    <span className="flex items-center gap-2 text-gray-500 text-sm">Estado</span>
-                    <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.estado?.nombre || 'Sin estado'}</span>
+                  <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-muted-foreground text-sm">Estado</span>
+                    <span className="text-foreground">{usuario.direccion?.parroquia?.municipio?.estado?.nombre || 'Sin estado'}</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                    <span className="flex items-center gap-2 text-gray-500 text-sm">Municipio</span>
-                    <span className="text-gray-800">{usuario.direccion?.parroquia?.municipio?.nombre || 'Sin municipio'}</span>
+                  <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-muted-foreground text-sm">Municipio</span>
+                    <span className="text-foreground">{usuario.direccion?.parroquia?.municipio?.nombre || 'Sin municipio'}</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                    <span className="flex items-center gap-2 text-gray-500 text-sm">Parroquia</span>
-                    <span className="text-gray-800">{usuario.direccion?.parroquia?.nombre || 'Sin parroquia'}</span>
+                  <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-muted-foreground text-sm">Parroquia</span>
+                    <span className="text-foreground">{usuario.direccion?.parroquia?.nombre || 'Sin parroquia'}</span>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                    <span className="flex items-center gap-2 text-gray-500 text-sm">Calle</span>
-                    <span className="text-gray-800">{usuario.direccion?.calle || 'Sin calle'}</span>
+                  <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-muted-foreground text-sm">Calle</span>
+                    <span className="text-foreground">{usuario.direccion?.calle || 'Sin calle'}</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                    <span className="flex items-center gap-2 text-gray-500 text-sm">Barrio</span>
-                    <span className="text-gray-800">{usuario.direccion?.barrio || 'Sin barrio'}</span>
+                  <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-muted-foreground text-sm">Barrio</span>
+                    <span className="text-foreground">{usuario.direccion?.barrio || 'Sin barrio'}</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                    <span className="flex items-center gap-2 text-gray-500 text-sm">Código Postal</span>
-                    <span className="text-gray-800">{usuario.direccion?.codigo_postal || 'Sin código postal'}</span>
+                  <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-muted-foreground text-sm">Código Postal</span>
+                    <span className="text-foreground">{usuario.direccion?.codigo_postal || 'Sin código postal'}</span>
                   </div>
-                  <div className="flex flex-col gap-1 p-4 bg-white/70 rounded-xl min-h-[80px]">
-                    <span className="flex items-center gap-2 text-gray-500 text-sm">Referencia</span>
-                    <span className="text-gray-800">{usuario.direccion?.referencia || 'Sin referencia'}</span>
+                  <div className="flex flex-col gap-1 p-4 bg-card/70 rounded-xl min-h-[80px]">
+                    <span className="flex items-center gap-2 text-muted-foreground text-sm">Referencia</span>
+                    <span className="text-foreground">{usuario.direccion?.referencia || 'Sin referencia'}</span>
                   </div>
                 </div>
                 {/* Mapa */}
                 <div className="mt-6">
                   {typeof usuario.direccion?.latitud === 'number' && typeof usuario.direccion?.longitud === 'number' ? (
-                    <div className="rounded-xl overflow-hidden border border-gray-200">
+                    <div className="rounded-xl overflow-hidden border border-border">
                       <LocationPicker
                         lat={usuario.direccion.latitud}
                         lng={usuario.direccion.longitud}
@@ -503,19 +491,19 @@ export default function PaginaDetalleUsuario() {
                       />
                     </div>
                   ) : (
-                    <div className="text-gray-500 text-center py-8">No hay coordenadas para mostrar el mapa.</div>
+                    <div className="text-muted-foreground text-center py-8">No hay coordenadas para mostrar el mapa.</div>
                   )}
                 </div>
               </>
             ) : (
-              <div className="text-gray-500 text-center py-8">Este usuario no tiene dirección agregada.</div>
+              <div className="text-muted-foreground text-center py-8">Este usuario no tiene dirección agregada.</div>
             )}
           </div>
 
           {/* Relaciones Familiares */}
-          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
+          <div className="backdrop-blur-2xl bg-card/50 border border-border rounded-3xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                 <Heart className="w-5 h-5 text-orange-500" />
                 Relaciones Familiares
               </h3>
@@ -540,7 +528,7 @@ export default function PaginaDetalleUsuario() {
                     }
                   }
                   return (
-                    <div key={relacion.id} className="flex items-center gap-3 p-4 bg-white/70 rounded-xl min-h-[80px] group">
+                    <div key={relacion.id} className="flex items-center gap-3 p-4 bg-card/70 rounded-xl min-h-[80px] group">
                       <div className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                         <UserAvatar
                           photoUrl={relacion.familiar.foto_perfil_url}
@@ -551,7 +539,7 @@ export default function PaginaDetalleUsuario() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm text-gray-500 font-medium">
+                          <p className="text-sm text-muted-foreground font-medium">
                             {obtenerNombreRelacion(tipoMostrar, relacion.familiar)}
                           </p>
                           {relacion.es_principal && (
@@ -561,7 +549,7 @@ export default function PaginaDetalleUsuario() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <p className="font-medium text-gray-800">
+                          <p className="font-medium text-foreground">
                             {relacion.familiar.nombre} {relacion.familiar.apellido}
                           </p>
                           <button
@@ -570,16 +558,16 @@ export default function PaginaDetalleUsuario() {
                             title="Eliminar familiar"
                             onClick={() => handleOpenConfirmationModal(relacion.id)}
                           >
-                            <Trash2 className="w-4 h-4 text-gray-500 hover:text-red-600 transition-colors" />
+                            <Trash2 className="w-4 h-4 text-muted-foreground hover:text-red-600 transition-colors" />
                           </button>
                         </div>
                         {relacion.familiar.email && (
-                          <p className="text-xs text-gray-500 truncate">
+                          <p className="text-xs text-muted-foreground truncate">
                             {relacion.familiar.email}
                           </p>
                         )}
                         {relacion.familiar.telefono && (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             {formatearTelefono(relacion.familiar.telefono)}
                           </p>
                         )}
@@ -590,17 +578,17 @@ export default function PaginaDetalleUsuario() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg font-medium mb-2">No hay relaciones familiares registradas</p>
-                <p className="text-gray-400 text-sm">Este usuario no tiene relaciones familiares configuradas en el sistema.</p>
-                <p className="text-gray-400 text-sm mt-2">Haz clic en "Agregar Familiar" para comenzar a configurar las relaciones familiares.</p>
+                <Heart className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+                <p className="text-muted-foreground text-lg font-medium mb-2">No hay relaciones familiares registradas</p>
+                <p className="text-muted-foreground/50 text-sm">Este usuario no tiene relaciones familiares configuradas en el sistema.</p>
+                <p className="text-muted-foreground/50 text-sm mt-2">Haz clic en "Agregar Familiar" para comenzar a configurar las relaciones familiares.</p>
               </div>
             )}
           </div>
 
           {/* Acciones Rápidas */}
-          <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-800 mb-6">Acciones Rápidas</h3>
+          <div className="backdrop-blur-2xl bg-card/50 border border-border rounded-3xl p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-foreground mb-6">Acciones Rápidas</h3>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               {puedeEditar && (
                 <Link href={`/dashboard/users/${usuario.id}/edit`} className="flex-1">

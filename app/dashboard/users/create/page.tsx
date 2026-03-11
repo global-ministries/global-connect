@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -23,25 +23,10 @@ export default async function CreateUserPage() {
   return (
     <DashboardLayout>
       <ContenedorDashboard
-        titulo=""
-        descripcion=""
-        accionPrincipal={null}
+        titulo="Agregar Miembro"
+        botonRegreso={{ href: '/dashboard/users', texto: 'Volver a Usuarios' }}
       >
         <div className="space-y-6">
-          {/* Header minimalista con botón de regreso */}
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard/users">
-              <BotonSistema
-                variante="ghost"
-                tamaño="sm"
-                className="p-2"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </BotonSistema>
-            </Link>
-            <TituloSistema nivel={2}>Agregar Miembro</TituloSistema>
-          </div>
-
           {/* Formulario de creación */}
           <UserCreateForm />
         </div>

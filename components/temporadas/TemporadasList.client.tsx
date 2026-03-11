@@ -30,7 +30,7 @@ export default function TemporadasListClient({
   const [isUpdating, setIsUpdating] = useState(false)
   const [updatingAction, setUpdatingAction] = useState<'activar' | 'desactivar' | null>(null)
 
-  const puedeGestionarEnLote = useMemo(() => 
+  const puedeGestionarEnLote = useMemo(() =>
     (userRoles || []).some(role =>
       ['admin', 'pastor', 'director-general'].includes(role)
     ), [userRoles]);
@@ -54,7 +54,7 @@ export default function TemporadasListClient({
       }
 
       toast.success(`${data.count} temporadas han sido actualizadas.`);
-      
+
       // Forzar la recarga de datos desde el servidor para reflejar los cambios
       router.refresh();
       setSelectedSeasons([]);
@@ -72,7 +72,7 @@ export default function TemporadasListClient({
       {puedeGestionarEnLote && selectedSeasons.length > 0 && (
         <TarjetaSistema className="p-4 bg-orange-50 border-orange-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
-            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{selectedSeasons.length} seleccionados</span>
+            <span className="text-sm font-medium text-foreground whitespace-nowrap">{selectedSeasons.length} seleccionados</span>
             <div className="flex items-center gap-2 flex-wrap">
               <BotonSistema onClick={() => handleUpdateStatus(true)} tamaño="sm" cargando={isUpdating && updatingAction === 'activar'} disabled={isUpdating}>
                 {isUpdating && updatingAction === 'activar' ? 'Activando...' : 'Activar'}
@@ -91,8 +91,8 @@ export default function TemporadasListClient({
       {/* Lista de Temporadas - Vista Desktop */}
       <div className="hidden md:block">
         <TarjetaSistema>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-hidden">
+            <table className="w-full divide-y divide-border">
               <thead>
                 <tr>
                   {puedeGestionarEnLote && (
@@ -106,25 +106,25 @@ export default function TemporadasListClient({
                       />
                     </th>
                   )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha de Inicio</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha de Fin</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Nombre</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Fecha de Inicio</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Fecha de Fin</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Estado</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-border">
                 {temporadas && temporadas.length > 0 ? (
                   temporadas.map(temporada => (
-                    <tr key={temporada.id} className={cn("hover:bg-gray-50/50 transition-colors", selectedSeasons.includes(temporada.id) && 'bg-orange-50')}>
+                    <tr key={temporada.id} className={cn("hover:bg-accent/50 transition-colors", selectedSeasons.includes(temporada.id) && 'bg-orange-50')}>
                       {puedeGestionarEnLote && (
                         <td className="px-4 py-4">
                           <Checkbox
                             checked={selectedSeasons.includes(temporada.id)}
                             onCheckedChange={(checked) => {
-                              setSelectedSeasons(prev => 
-                                checked 
-                                  ? [...prev, temporada.id] 
+                              setSelectedSeasons(prev =>
+                                checked
+                                  ? [...prev, temporada.id]
                                   : prev.filter(id => id !== temporada.id)
                               )
                             }}
@@ -133,16 +133,16 @@ export default function TemporadasListClient({
                         </td>
                       )}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">{temporada.nombre}</div>
+                        <div className="font-medium text-foreground">{temporada.nombre}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                         {new Date(temporada.fecha_inicio).toLocaleDateString('es-ES')}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground hidden lg:table-cell">
                         {new Date(temporada.fecha_fin).toLocaleDateString('es-ES')}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <BadgeSistema 
+                      <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
+                        <BadgeSistema
                           variante={temporada.activa ? "success" : "default"}
                           tamaño="sm"
                         >
@@ -162,10 +162,10 @@ export default function TemporadasListClient({
                   <tr>
                     <td colSpan={puedeGestionarEnLote ? 6 : 5} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
-                        <Calendar className="w-12 h-12 text-gray-300" />
+                        <Calendar className="w-12 h-12 text-muted-foreground/30" />
                         <div>
-                          <p className="text-gray-500 font-medium">No hay temporadas registradas</p>
-                          <p className="text-gray-400 text-sm">Crea tu primera temporada para comenzar</p>
+                          <p className="text-muted-foreground font-medium">No hay temporadas registradas</p>
+                          <p className="text-muted-foreground/50 text-sm">Crea tu primera temporada para comenzar</p>
                         </div>
                       </div>
                     </td>
@@ -187,9 +187,9 @@ export default function TemporadasListClient({
                   <Checkbox
                     checked={selectedSeasons.includes(temporada.id)}
                     onCheckedChange={(checked) => {
-                      setSelectedSeasons(prev => 
-                        checked 
-                          ? [...prev, temporada.id] 
+                      setSelectedSeasons(prev =>
+                        checked
+                          ? [...prev, temporada.id]
                           : prev.filter(id => id !== temporada.id)
                       )
                     }}
@@ -204,9 +204,9 @@ export default function TemporadasListClient({
                       <Calendar className="w-5 h-5 text-white" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-gray-900 truncate">{temporada.nombre}</h3>
+                      <h3 className="font-semibold text-foreground truncate">{temporada.nombre}</h3>
                       <div className="flex items-center gap-2 mt-1">
-                        <BadgeSistema 
+                        <BadgeSistema
                           variante={temporada.activa ? "success" : "default"}
                           tamaño="sm"
                         >
@@ -215,8 +215,8 @@ export default function TemporadasListClient({
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="space-y-1 text-sm text-gray-600">
+
+                  <div className="space-y-1 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">Inicio:</span>
                       <span>{new Date(temporada.fecha_inicio).toLocaleDateString('es-ES')}</span>
@@ -227,7 +227,7 @@ export default function TemporadasListClient({
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="ml-3">
                   <Link href={`/dashboard/temporadas/${temporada.id}/edit`}>
                     <BotonSistema variante="ghost" tamaño="sm">
@@ -241,9 +241,9 @@ export default function TemporadasListClient({
         ) : (
           <TarjetaSistema className="p-8">
             <div className="text-center">
-              <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay temporadas registradas</h3>
-              <p className="text-gray-500 mb-6">Crea tu primera temporada para comenzar a organizar los períodos de tu organización</p>
+              <Calendar className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No hay temporadas registradas</h3>
+              <p className="text-muted-foreground mb-6">Crea tu primera temporada para comenzar a organizar los períodos de tu organización</p>
             </div>
           </TarjetaSistema>
         )}

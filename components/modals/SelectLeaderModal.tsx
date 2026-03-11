@@ -1,9 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { InputSistema, BotonSistema } from '@/components/ui/sistema-diseno';
 
 interface UsuarioLite {
   id: string;
@@ -28,7 +26,7 @@ export default function SelectLeaderModal({ open, onClose, onSelect, initialQuer
   const [error, setError] = useState<string | null>(null);
   const [usuarios, setUsuarios] = useState<UsuarioLite[]>([]);
   const abortRef = useRef<AbortController | null>(null);
-  const timeoutRef = useRef<any>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const buscar = (q: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -48,8 +46,8 @@ export default function SelectLeaderModal({ open, onClose, onSelect, initialQuer
         }
         const data = await res.json();
         setUsuarios(Array.isArray(data) ? data : []);
-      } catch (e: any) {
-        if (e?.name !== 'AbortError') {
+      } catch (e: unknown) {
+        if (e instanceof Error && e.name !== 'AbortError') {
           setError('Fallo en la búsqueda');
         }
       } finally {
@@ -85,46 +83,46 @@ export default function SelectLeaderModal({ open, onClose, onSelect, initialQuer
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <Input
+          <InputSistema
             autoFocus
             placeholder="Buscar por nombre, apellido o email"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <div className={cn('border rounded-lg bg-white max-h-80 overflow-auto relative', loading && 'opacity-80')}> 
+          <div className={`border border-border rounded-xl bg-card/50 max-h-80 overflow-auto relative ${loading ? 'opacity-80' : ''}`}>
             {loading && usuarios.length === 0 && (
-              <div className="p-4 text-sm text-gray-500">Buscando…</div>
+              <div className="p-4 text-sm text-muted-foreground">Buscando…</div>
             )}
             {!loading && error && (
-              <div className="p-4 text-sm text-red-600">{error}</div>
+              <div className="p-4 text-sm text-red-600 dark:text-red-400">{error}</div>
             )}
             {!loading && !error && usuarios.length === 0 && (
-              <div className="p-4 text-sm text-gray-500">Sin resultados</div>
+              <div className="p-4 text-sm text-muted-foreground">Sin resultados</div>
             )}
             <ul>
               {usuarios.map(u => (
-                <li key={u.id} className="p-3 border-b last:border-b-0 cursor-pointer hover:bg-orange-50" onClick={() => { onSelect(u); onClose(); }}>
+                <li key={u.id} className="p-3 border-b border-border last:border-b-0 cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { onSelect(u); onClose(); }}>
                   <div className="flex items-center gap-3">
                     {u.foto_perfil_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={u.foto_perfil_url} alt={u.nombre} className="w-10 h-10 rounded-full object-cover" />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-200 to-pink-200 flex items-center justify-center text-xs font-semibold text-gray-700">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-200 to-pink-200 flex items-center justify-center text-xs font-semibold text-foreground">
                         {u.nombre?.[0]}{u.apellido?.[0]}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-800 truncate">{u.nombre} {u.apellido}</div>
-                      <div className="text-xs text-gray-500 truncate">{u.email || 'Sin email'}</div>
+                      <div className="font-medium text-foreground truncate">{u.nombre} {u.apellido}</div>
+                      <div className="text-xs text-muted-foreground truncate">{u.email || 'Sin email'}</div>
                     </div>
-                    <Button size="sm" variant="secondary" className="shrink-0">Elegir</Button>
+                    <BotonSistema tamaño="sm" variante="secundario" className="shrink-0">Elegir</BotonSistema>
                   </div>
                 </li>
               ))}
             </ul>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <BotonSistema variante="outline" onClick={onClose}>Cancelar</BotonSistema>
           </div>
         </div>
       </DialogContent>

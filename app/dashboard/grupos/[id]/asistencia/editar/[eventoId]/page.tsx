@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import AttendanceRegister from '@/components/grupos/AttendanceRegister.client'
-import { ArrowLeft, Eye, History } from 'lucide-react'
+import { Eye, History } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 
@@ -22,7 +22,7 @@ export default async function EditarAsistenciaPage({ params }: { params: { id: s
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
-            <p className="text-gray-600 mb-4">Debes iniciar sesión para acceder a esta página.</p>
+            <p className="text-muted-foreground mb-4">Debes iniciar sesión para acceder a esta página.</p>
             <Link href="/login">
               <BotonSistema variante="primario">
                 Iniciar Sesión
@@ -51,7 +51,7 @@ export default async function EditarAsistenciaPage({ params }: { params: { id: s
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Sin permisos o evento no encontrado</TituloSistema>
-              <p className="text-gray-600 mb-4">No tienes permiso para editar o el evento no existe.</p>
+              <p className="text-muted-foreground mb-4">No tienes permiso para editar o el evento no existe.</p>
               <Link href={`/dashboard/grupos/${id}`}>
                 <BotonSistema variante="primario">
                   Volver al grupo
@@ -87,6 +87,7 @@ export default async function EditarAsistenciaPage({ params }: { params: { id: s
       <ContenedorDashboard
         titulo={`Editar Asistencia - ${grupo.nombre}`}
         descripcion={`Fecha: ${formatearFecha(ev.fecha)}`}
+        botonRegreso={{ href: `/dashboard/grupos/${id}`, texto: 'Volver al grupo' }}
         accionPrincipal={
           <div className="flex items-center gap-2">
             <Link href={`/dashboard/grupos/${id}/asistencia/${eventoId}`}>
@@ -107,15 +108,6 @@ export default async function EditarAsistenciaPage({ params }: { params: { id: s
               >
                 <History className="w-4 h-4" />
                 <span className="hidden sm:inline">Historial</span>
-              </BotonSistema>
-            </Link>
-            <Link href={`/dashboard/grupos/${id}`}>
-              <BotonSistema
-                variante="ghost"
-                tamaño="sm"
-                className="p-2"
-              >
-                <ArrowLeft className="w-5 h-5" />
               </BotonSistema>
             </Link>
           </div>

@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react"
+
 import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
@@ -25,7 +25,7 @@ export default async function PerfilPage() {
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Error de autenticación</TituloSistema>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 No se pudo verificar tu sesión
               </p>
               <Link href="/auth/login">
@@ -42,7 +42,7 @@ export default async function PerfilPage() {
 
   // Usar admin client para bypass RLS y obtener datos del usuario
   const adminSupabase = createSupabaseAdminClient()
-  
+
   // Buscar usuario por auth_id usando admin client (bypass RLS)
   const { data: usuario, error: errorUsuario } = await adminSupabase
     .from('usuarios')
@@ -62,13 +62,13 @@ export default async function PerfilPage() {
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Perfil no encontrado</TituloSistema>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 No se pudo cargar tu información de perfil
               </p>
-              <p className="text-gray-500 text-sm mb-4">
+              <p className="text-muted-foreground text-sm mb-4">
                 Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
               </p>
-              <p className="text-gray-400 text-xs mb-4">
+              <p className="text-muted-foreground/70 text-xs mb-4">
                 Debug: Auth ID: {user.id} | Email: {user.email}
               </p>
               <Link href="/dashboard">
@@ -158,9 +158,9 @@ export default async function PerfilPage() {
     ...usuario,
     direccion: direccion
       ? {
-          ...direccion,
-          parroquia: direccion.parroquia === null ? undefined : direccion.parroquia,
-        }
+        ...direccion,
+        parroquia: direccion.parroquia === null ? undefined : direccion.parroquia,
+      }
       : undefined,
     familia: familia || undefined,
     ocupacion: ocupacion || undefined,
@@ -189,21 +189,11 @@ export default async function PerfilPage() {
       <ContenedorDashboard
         titulo={`${usuario.nombre} ${usuario.apellido}`}
         subtitulo="Gestiona tu información personal"
-        accionPrincipal={
-          <Link href="/dashboard">
-            <BotonSistema 
-              variante="ghost" 
-              tamaño="sm"
-              className="p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </BotonSistema>
-          </Link>
-        }
+        botonRegreso={{ href: '/dashboard', texto: 'Volver al Dashboard' }}
       >
         <div className="space-y-6">
           {/* Formulario de Edición */}
-          <UserEditForm 
+          <UserEditForm
             usuario={usuarioCompleto}
             ocupaciones={ocupaciones || []}
             profesiones={profesiones || []}

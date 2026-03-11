@@ -96,7 +96,7 @@ export default function DashboardAdmin({ data: initialData }: PropsDashboardAdmi
   const totalDistribucion = segmentosData.reduce((acc: number, it: any) => acc + (Number(it.value) || 0), 0)
 
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 transition-opacity duration-200 ${refrescando ? 'opacity-60' : ''}`}>
+    <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 transition-opacity duration-200 ${refrescando ? 'opacity-60' : ''}`}>
       <MetricWidget
         id="miembros"
         title="Total Miembros"
@@ -142,7 +142,7 @@ export default function DashboardAdmin({ data: initialData }: PropsDashboardAdmi
         varianteColor="purpura"
       />
 
-      <div className="md:col-span-2 lg:col-span-2 xl:col-span-2">
+      <div className="col-span-2">
         <DonutWidget
           id="segmentos"
           title="Distribución por Segmentos"
@@ -157,7 +157,7 @@ export default function DashboardAdmin({ data: initialData }: PropsDashboardAdmi
         />
       </div>
 
-      <div className="md:col-span-2 xl:col-span-2">
+      <div className="col-span-2">
         <ActivityWidget
           id="actividad"
           title="Actividad Reciente"
@@ -166,8 +166,7 @@ export default function DashboardAdmin({ data: initialData }: PropsDashboardAdmi
         />
       </div>
 
-
-      <div className="md:col-span-2 xl:col-span-2">
+      <div className="col-span-2">
         <BirthdayWidget
           id="cumpleanos"
           title="Próximos Cumpleaños"
@@ -175,7 +174,7 @@ export default function DashboardAdmin({ data: initialData }: PropsDashboardAdmi
         />
       </div>
 
-      <div className="md:col-span-2">
+      <div className="col-span-2">
         <RiskGroupsWidget
           id="riesgo"
           title="Grupos que Necesitan Atención"

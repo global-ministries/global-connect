@@ -3,31 +3,31 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  LineChart, 
-  Line, 
+import {
+  LineChart,
+  Line,
   BarChart,
   Bar,
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
-  Legend 
+  Legend
 } from 'recharts'
-import { 
-  TarjetaSistema, 
-  TituloSistema, 
-  TextoSistema, 
+import {
+  TarjetaSistema,
+  TituloSistema,
+  TextoSistema,
   BotonSistema,
-  BadgeSistema 
+  BadgeSistema
 } from '@/components/ui/sistema-diseno'
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Calendar, 
-  Users, 
-  CheckCircle2, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  Users,
+  CheckCircle2,
   AlertTriangle,
   ChevronLeft,
   ChevronRight
@@ -96,7 +96,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
   const [mostrarTodosRiesgo, setMostrarTodosRiesgo] = useState<boolean>(false)
 
   // Formatear fecha para mostrar
-  const mesesCortos = ['ene','feb','mar','abr','may','jun','jul','ago','sept','oct','nov','dic']
+  const mesesCortos = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic']
   const parsearFechaUTC = (s: string) => {
     const base = (s || '').slice(0, 10) // YYYY-MM-DD
     const [yStr, mStr, dStr] = base.split('-')
@@ -196,12 +196,12 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
       <TarjetaSistema className="p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-gray-500" />
+            <Calendar className="w-5 h-5 text-muted-foreground" />
             <div>
               <TextoSistema variante="sutil" tamaño="sm">
                 Semana seleccionada
               </TextoSistema>
-              <div className="text-lg font-semibold text-gray-900">
+              <div className="text-lg font-semibold text-foreground">
                 {formatearFecha(reporte.semana.inicio)} - {formatearFecha(reporte.semana.fin)}
               </div>
             </div>
@@ -235,9 +235,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
             <button
               type="button"
               onClick={alternarIncluirTodos}
-              className={`ml-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                incluirTodos ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-300'
-              }`}
+              className={`ml-2 px-3 py-2 rounded-lg border text-sm transition-colors ${incluirTodos ? 'bg-foreground text-background border-foreground' : 'bg-card text-foreground border-border'
+                }`}
               aria-pressed={incluirTodos}
             >
               {incluirTodos ? 'Todos los grupos activos' : 'Solo grupos con reunión'}
@@ -258,7 +257,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
               <TextoSistema variante="sutil" tamaño="sm">
                 Asistencia Global
               </TextoSistema>
-              <div className="text-3xl font-bold text-gray-900">
+              <div className="text-3xl font-bold text-foreground">
                 {reporte.kpis_globales.porcentaje_asistencia_global}%
               </div>
             </div>
@@ -268,11 +267,10 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
         {/* Variación vs Semana Anterior */}
         <TarjetaSistema className="p-6">
           <div className="flex items-center gap-4">
-            <div className={`p-3 rounded-xl flex-shrink-0 ${
-              reporte.kpis_globales.variacion_semana_anterior >= 0
+            <div className={`p-3 rounded-xl flex-shrink-0 ${reporte.kpis_globales.variacion_semana_anterior >= 0
                 ? 'bg-gradient-to-br from-green-500 to-emerald-500'
                 : 'bg-gradient-to-br from-red-500 to-rose-500'
-            }`}>
+              }`}>
               {reporte.kpis_globales.variacion_semana_anterior >= 0 ? (
                 <TrendingUp className="w-6 h-6 text-white" />
               ) : (
@@ -283,11 +281,10 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
               <TextoSistema variante="sutil" tamaño="sm">
                 vs. Semana Anterior
               </TextoSistema>
-              <div className={`text-3xl font-bold ${
-                reporte.kpis_globales.variacion_semana_anterior >= 0
+              <div className={`text-3xl font-bold ${reporte.kpis_globales.variacion_semana_anterior >= 0
                   ? 'text-green-600'
                   : 'text-red-600'
-              }`}>
+                }`}>
                 {reporte.kpis_globales.variacion_semana_anterior > 0 ? '+' : ''}
                 {reporte.kpis_globales.variacion_semana_anterior}%
               </div>
@@ -305,7 +302,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
               <TextoSistema variante="sutil" tamaño="sm">
                 Miembros Asistentes
               </TextoSistema>
-              <div className="text-3xl font-bold text-gray-900">
+              <div className="text-3xl font-bold text-foreground">
                 {reporte.kpis_globales.total_miembros_asistentes} / {reporte.kpis_globales.total_miembros_en_grupos}
               </div>
             </div>
@@ -322,7 +319,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
               <TextoSistema variante="sutil" tamaño="sm">
                 Grupos con Reunión
               </TextoSistema>
-              <div className="text-3xl font-bold text-gray-900">
+              <div className="text-3xl font-bold text-foreground">
                 {reporte.kpis_globales.total_grupos_con_reunion} / {reporte.kpis_globales.total_grupos_activos}
               </div>
             </div>
@@ -339,28 +336,30 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
           </TituloSistema>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={datosTendencia}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis 
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis
                 type="category"
                 dataKey="semana_label"
                 allowDuplicatedCategory={false}
                 interval={0}
-                stroke="#6b7280"
+                stroke="var(--muted-foreground)"
                 style={{ fontSize: '12px' }}
               />
-              <YAxis 
+              <YAxis
                 domain={[0, 100]}
-                stroke="#6b7280"
+                stroke="var(--muted-foreground)"
                 style={{ fontSize: '12px' }}
                 label={{ value: '%', position: 'insideLeft' }}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '8px 12px'
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '8px 12px',
+                  color: 'var(--foreground)',
                 }}
+                labelStyle={{ color: 'var(--foreground)', fontWeight: 600 }}
                 formatter={(value: number) => [`${value}%`, 'Asistencia']}
                 labelFormatter={(label: any, payload: any[]) => {
                   const p = payload && payload[0] && payload[0].payload
@@ -371,10 +370,10 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
                   return rangoSemanaDesdeMonday(monday)
                 }}
               />
-              <Line 
-                type="monotone" 
-                dataKey="porcentaje" 
-                stroke="#3b82f6" 
+              <Line
+                type="monotone"
+                dataKey="porcentaje"
+                stroke="#3b82f6"
                 strokeWidth={3}
                 dot={{ fill: '#3b82f6', r: 4 }}
                 activeDot={{ r: 6 }}
@@ -391,28 +390,30 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
           {datosSegmentos.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={datosSegmentos}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis 
-                  dataKey="nombre" 
-                  stroke="#6b7280"
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis
+                  dataKey="nombre"
+                  stroke="var(--muted-foreground)"
                   style={{ fontSize: '12px' }}
                   angle={-45}
                   textAnchor="end"
                   height={80}
                 />
-                <YAxis 
+                <YAxis
                   domain={[0, 100]}
-                  stroke="#6b7280"
+                  stroke="var(--muted-foreground)"
                   style={{ fontSize: '12px' }}
                   label={{ value: '%', position: 'insideLeft' }}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    padding: '8px 12px'
+                    backgroundColor: 'var(--card)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    padding: '8px 12px',
+                    color: 'var(--foreground)',
                   }}
+                  labelStyle={{ color: 'var(--foreground)', fontWeight: 600 }}
                   formatter={(value: number) => [`${value}%`, 'Asistencia']}
                   labelFormatter={(label, payload) => {
                     if (payload && payload[0]) {
@@ -421,8 +422,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
                     return label
                   }}
                 />
-                <Bar 
-                  dataKey="porcentaje" 
+                <Bar
+                  dataKey="porcentaje"
                   fill="#f97316"
                   radius={[8, 8, 0, 0]}
                 />
@@ -451,15 +452,15 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
           {reporte.top_5_grupos_perfectos && reporte.top_5_grupos_perfectos.length > 0 ? (
             <div className="space-y-3">
               {reporte.top_5_grupos_perfectos.map((grupo) => (
-                <div 
+                <div
                   key={grupo.id}
                   className="p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100 transition-colors"
                 >
-                  <Link 
+                  <Link
                     href={`/dashboard/grupos/${grupo.id}`}
                     className="block"
                   >
-                    <div className="font-semibold text-gray-900 hover:text-green-700 mb-1">
+                    <div className="font-semibold text-foreground hover:text-green-700 mb-1">
                       {grupo.nombre}
                     </div>
                     <div className="flex items-center gap-2">
@@ -473,7 +474,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
             </div>
           ) : (
             <div className="text-center py-8">
-              <div className="text-gray-400 text-4xl mb-2">🎯</div>
+              <div className="text-muted-foreground/50 text-4xl mb-2">🎯</div>
               <TextoSistema variante="sutil">
                 No hay grupos con 100% de asistencia esta semana
               </TextoSistema>
@@ -503,16 +504,16 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
           {(mostrarTodosRiesgo ? reporte.grupos_en_riesgo_todos : reporte.top_5_grupos_en_riesgo) && (mostrarTodosRiesgo ? (reporte.grupos_en_riesgo_todos || []) : reporte.top_5_grupos_en_riesgo).length > 0 ? (
             <div className="space-y-3">
               {(mostrarTodosRiesgo ? (reporte.grupos_en_riesgo_todos || []) : reporte.top_5_grupos_en_riesgo).map((grupo) => (
-                <div 
+                <div
                   key={grupo.id}
                   className="p-4 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
                 >
-                  <Link 
+                  <Link
                     href={`/dashboard/grupos/${grupo.id}`}
                     className="block"
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <div className="font-semibold text-gray-900 hover:text-red-700">
+                      <div className="font-semibold text-foreground hover:text-red-700">
                         {grupo.nombre}
                       </div>
                       <BadgeSistema variante="error" tamaño="sm">
@@ -530,7 +531,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
             </div>
           ) : (
             <div className="text-center py-8">
-              <div className="text-gray-400 text-4xl mb-2">✨</div>
+              <div className="text-muted-foreground/50 text-4xl mb-2">✨</div>
               <TextoSistema variante="sutil">
                 ¡Todos los grupos tienen buena asistencia!
               </TextoSistema>

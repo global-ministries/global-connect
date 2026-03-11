@@ -73,7 +73,7 @@ export default function HistorialAsistenciaClient({
     const params = new URLSearchParams()
     if (fechaInicioLocal) params.set('fecha_inicio', fechaInicioLocal)
     if (fechaFinLocal) params.set('fecha_fin', fechaFinLocal)
-    
+
     router.push(`/dashboard/grupos/${grupoId}/asistencia/historial?${params.toString()}`)
   }
 
@@ -99,7 +99,7 @@ export default function HistorialAsistenciaClient({
       <TarjetaSistema className="p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-gray-600" />
+            <Filter className="w-5 h-5 text-muted-foreground" />
             <TituloSistema nivel={3}>Filtros</TituloSistema>
           </div>
           <BotonSistema
@@ -159,7 +159,7 @@ export default function HistorialAsistenciaClient({
               <TextoSistema variante="sutil" tamaño="sm">
                 Asistencia Promedio
               </TextoSistema>
-              <TituloSistema nivel={2} className="text-gray-900">
+              <TituloSistema nivel={2} className="text-foreground">
                 {reporte.kpis.asistencia_promedio}%
               </TituloSistema>
             </div>
@@ -176,7 +176,7 @@ export default function HistorialAsistenciaClient({
               <TextoSistema variante="sutil" tamaño="sm">
                 Total de Reuniones
               </TextoSistema>
-              <TituloSistema nivel={2} className="text-gray-900">
+              <TituloSistema nivel={2} className="text-foreground">
                 {reporte.kpis.total_reuniones}
               </TituloSistema>
             </div>
@@ -195,16 +195,16 @@ export default function HistorialAsistenciaClient({
               </TextoSistema>
               {reporte.kpis.miembro_mas_constante.id ? (
                 <Link href={`/dashboard/users/${reporte.kpis.miembro_mas_constante.id}/asistencia`}>
-                  <div 
-                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline" 
+                  <div
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline"
                     title={reporte.kpis.miembro_mas_constante.nombre}
                   >
                     {reporte.kpis.miembro_mas_constante.nombre}
                   </div>
                 </Link>
               ) : (
-                <div 
-                  className="text-sm font-semibold text-gray-900 truncate" 
+                <div
+                  className="text-sm font-semibold text-foreground truncate"
                   title={reporte.kpis.miembro_mas_constante.nombre}
                 >
                   {reporte.kpis.miembro_mas_constante.nombre}
@@ -229,16 +229,16 @@ export default function HistorialAsistenciaClient({
               </TextoSistema>
               {reporte.kpis.miembro_mas_ausencias.id ? (
                 <Link href={`/dashboard/users/${reporte.kpis.miembro_mas_ausencias.id}/asistencia`}>
-                  <div 
-                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline" 
+                  <div
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline"
                     title={reporte.kpis.miembro_mas_ausencias.nombre}
                   >
                     {reporte.kpis.miembro_mas_ausencias.nombre}
                   </div>
                 </Link>
               ) : (
-                <div 
-                  className="text-sm font-semibold text-gray-900 truncate" 
+                <div
+                  className="text-sm font-semibold text-foreground truncate"
                   title={reporte.kpis.miembro_mas_ausencias.nombre}
                 >
                   {reporte.kpis.miembro_mas_ausencias.nombre}
@@ -256,34 +256,34 @@ export default function HistorialAsistenciaClient({
       <GraficoTendencia data={serieEventos} />
 
       {/* Separador */}
-      <div className="border-t border-gray-200 my-8"></div>
+      <div className="border-t border-border my-8"></div>
 
       {/* Lista de Eventos Históricos */}
       <div>
         <TituloSistema nivel={2} className="mb-4">
           Eventos Registrados
         </TituloSistema>
-        
+
         <TarjetaSistema className="p-0">
           <div className="divide-y">
             {reporte.eventos_historial.length > 0 ? (
               reporte.eventos_historial.map((evento) => (
-                <div 
-                  key={evento.id} 
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 gap-3 hover:bg-gray-50 transition-colors"
+                <div
+                  key={evento.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 gap-3 hover:bg-muted transition-colors"
                 >
                   <div className="flex-1">
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-foreground">
                       {formatearFecha(evento.fecha)} — {evento.tema}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-muted-foreground">
                       Presentes {evento.presentes}/{evento.total} — {evento.porcentaje}%
                     </div>
                   </div>
                   <div className="flex gap-2 sm:flex-shrink-0">
                     <Link href={`/dashboard/grupos/${grupoId}/asistencia/${evento.id}`}>
-                      <BotonSistema 
-                        variante="outline" 
+                      <BotonSistema
+                        variante="outline"
                         tamaño="sm"
                         className="gap-2"
                       >
@@ -293,8 +293,8 @@ export default function HistorialAsistenciaClient({
                       </BotonSistema>
                     </Link>
                     <Link href={`/dashboard/grupos/${grupoId}/asistencia/editar/${evento.id}`}>
-                      <BotonSistema 
-                        variante="ghost" 
+                      <BotonSistema
+                        variante="ghost"
                         tamaño="sm"
                         className="gap-2"
                       >
@@ -307,8 +307,8 @@ export default function HistorialAsistenciaClient({
               ))
             ) : (
               <div className="p-8 text-center">
-                <div className="text-gray-400 text-4xl mb-4">📅</div>
-                <TituloSistema nivel={3} className="text-gray-600 mb-2">
+                <div className="text-muted-foreground/50 text-4xl mb-4">📅</div>
+                <TituloSistema nivel={3} className="text-muted-foreground mb-2">
                   No hay eventos en este período
                 </TituloSistema>
                 <TextoSistema variante="sutil" className="mb-4">

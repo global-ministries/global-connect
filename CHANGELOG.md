@@ -7,6 +7,41 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
+## [1.7.0] - 2026-03-11
+
+### Agregado
+- `SelectSistema`: nuevo componente select con glassmorphism, dark mode y ARIA
+- `TextareaSistema`: nuevo componente textarea con glassmorphism, dark mode y auto-resize
+- `BadgeSistema`: componente de badges con variantes (success, warning, error, info)
+- `SeparadorSistema`: divisor horizontal consistente
+- `SkeletonSistema`: placeholder de carga con dimensiones y forma configurables
+- Header móvil con títulos dinámicos por ruta (`resolverTitulo`) — 18 rutas internas
+- Botón de regreso (`botonRegreso`) integrado en 15 páginas internas
+
+### Cambiado
+- `InputSistema`: añadido `min-h-[44px]`, `aria-invalid`, `aria-describedby`, ID automático para labels
+- `TabsSistema`: migrado de `bg-white/60` a `bg-card/60`, `text-gray-600` a `text-muted-foreground`
+- `ProfilePhotoUploader`: 15 reemplazos de `gray-*` y `bg-white` a tokens semánticos
+- Charts de Recharts: tooltips y ejes migrados de hexadecimales hardcoded a CSS variables (`var(--border)`, `var(--foreground)`)
+- `DonutChart`: `#f1f5f9` reemplazado con `var(--muted)` para estado vacío
+- Tablas responsivas: eliminado `overflow-x-auto` y `min-w-full` en favor de `overflow-hidden` con columnas colapsables
+- Botones migrados a variantes `ghost`/`outline` de `BotonSistema`
+- Purga global: 0 instancias de `gray-*`, `bg-white` o hexadecimales hardcoded en `components/`
+- `docs/sistema-diseno.md`: actualizado con dark mode, nuevos componentes y deprecaciones
+
+### Deprecado
+- `BotonGradiente` (`boton-gradiente.tsx`) → usar `BotonSistema variante="primario"`
+- `CampoInputConIcono` (`campo-input-con-icono.tsx`) → usar `InputSistema icono={...}`
+- `TarjetaEstadistica` (`tarjeta-estadistica.tsx`) → usar `TarjetaSistema` + `BadgeSistema`
+
+### Corregido
+- `TrendWidget`: hexadecimales hardcoded en ejes y tooltips reemplazados con CSS vars
+- `catch (e: any)` → `catch (e: unknown)` para type-safety estricta
+- `Record<string, any>` → `Record<string, unknown>` en tipos
+- `bg-white/60` → `bg-card/60` en componentes glass
+
+---
+
 ## [1.6.0] - 2026-03-10
 
 ### Agregado

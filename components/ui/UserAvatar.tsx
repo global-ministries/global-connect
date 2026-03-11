@@ -13,10 +13,10 @@ interface UserAvatarProps {
   showFallback?: boolean
 }
 
-export function UserAvatar({ 
-  photoUrl, 
-  nombre = '', 
-  apellido = '', 
+export function UserAvatar({
+  photoUrl,
+  nombre = '',
+  apellido = '',
   size = 'md',
   className = '',
   showFallback = true
@@ -56,12 +56,12 @@ export function UserAvatar({
       'bg-orange-500',
       'bg-cyan-500'
     ]
-    
+
     const nameString = (nombre + apellido).toLowerCase()
     const hash = nameString.split('').reduce((acc, char) => {
       return char.charCodeAt(0) + ((acc << 5) - acc)
     }, 0)
-    
+
     return colors[Math.abs(hash) % colors.length]
   }
 
@@ -71,7 +71,7 @@ export function UserAvatar({
   // Si hay foto y no hay error, mostrar imagen
   if (photoUrl && !imageError) {
     return (
-      <div className={`${config.container} rounded-full overflow-hidden bg-gray-200 flex-shrink-0 ${className}`}>
+      <div className={`${config.container} rounded-full overflow-hidden bg-muted flex-shrink-0 ${className}`}>
         <Image
           src={photoUrl}
           alt={`${nombre} ${apellido}`.trim() || 'Foto de perfil'}
@@ -98,7 +98,7 @@ export function UserAvatar({
 
     // Si no hay nombre, mostrar icono genérico
     return (
-      <div className={`${config.container} rounded-full bg-gray-400 flex items-center justify-center text-white flex-shrink-0 ${className}`}>
+      <div className={`${config.container} rounded-full bg-muted-foreground flex items-center justify-center text-white flex-shrink-0 ${className}`}>
         <User className={config.icon} />
       </div>
     )
@@ -141,12 +141,12 @@ export function UserAvatarWithInfo({
     )
   }
 
-  const containerClass = infoPosition === 'right' 
-    ? 'flex items-center gap-3' 
+  const containerClass = infoPosition === 'right'
+    ? 'flex items-center gap-3'
     : 'flex flex-col items-center gap-2'
 
-  const textAlignClass = infoPosition === 'right' 
-    ? 'text-left' 
+  const textAlignClass = infoPosition === 'right'
+    ? 'text-left'
     : 'text-center'
 
   return (
@@ -158,16 +158,16 @@ export function UserAvatarWithInfo({
         size={size}
         {...props}
       />
-      
+
       {showInfo && (
         <div className={`flex-1 min-w-0 ${textAlignClass}`}>
           {fullName && (
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-sm font-medium text-foreground truncate">
               {fullName}
             </p>
           )}
           {email && (
-            <p className="text-xs text-gray-500 truncate">
+            <p className="text-xs text-muted-foreground truncate">
               {email}
             </p>
           )}
@@ -180,10 +180,10 @@ export function UserAvatarWithInfo({
 // Hook para obtener URL de avatar con fallback
 export function useAvatarUrl(photoUrl?: string | null): string | null {
   const [imageError, setImageError] = useState(false)
-  
+
   if (photoUrl && !imageError) {
     return photoUrl
   }
-  
+
   return null
 }

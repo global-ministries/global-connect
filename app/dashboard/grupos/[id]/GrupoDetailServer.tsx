@@ -19,8 +19,8 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="text-red-500 text-6xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Grupo no encontrado</h2>
-            <p className="text-gray-600 mb-4">
+            <h2 className="text-2xl font-bold text-foreground mb-2">Grupo no encontrado</h2>
+            <p className="text-muted-foreground mb-4">
               El grupo solicitado no existe o no tienes acceso para verlo.
             </p>
             <a

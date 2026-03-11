@@ -3,7 +3,7 @@ import { useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ContenedorDashboard, TarjetaSistema, TituloSistema, BotonSistema, TextoSistema } from "@/components/ui/sistema-diseno"
 import Link from "next/link"
-import { ArrowLeft, Upload, Download } from "lucide-react"
+import { Upload, Download } from "lucide-react"
 
 export default function ImportarGruposPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -36,19 +36,12 @@ export default function ImportarGruposPage() {
       <ContenedorDashboard
         titulo="Importar Grupos por CSV"
         descripcion="Sube un archivo .csv para crear grupos y miembros automáticamente"
-        accionPrincipal={
-          <Link href="/dashboard/grupos">
-            <BotonSistema variante="outline" tamaño="sm">
-              <ArrowLeft className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Volver</span>
-            </BotonSistema>
-          </Link>
-        }
+        botonRegreso={{ href: '/dashboard/grupos', texto: 'Volver a Grupos' }}
       >
         <TarjetaSistema>
           <form onSubmit={onSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Archivo CSV</label>
+              <label className="block text-sm font-medium text-foreground">Archivo CSV</label>
               <input type="file" accept=".csv" onChange={e => setFile(e.target.files?.[0] || null)} />
               <div className="flex items-center gap-3">
                 <Link href="/plantillas/import-grupos.csv" target="_blank" download>
@@ -82,7 +75,7 @@ export default function ImportarGruposPage() {
               {resultado.resultados?.map((r: any, idx: number) => (
                 <div key={idx} className={r.ok ? 'text-green-700' : 'text-red-600'}>
                   Fila {r.fila}: {r.detalle}
-                  {r.grupoId && <span className="text-gray-500"> (ID: {r.grupoId})</span>}
+                  {r.grupoId && <span className="text-muted-foreground"> (ID: {r.grupoId})</span>}
                 </div>
               ))}
             </div>

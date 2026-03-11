@@ -10,7 +10,7 @@ interface PropiedadesLayoutTablero {
 export default function LayoutTablero({ children }: PropiedadesLayoutTablero) {
   return (
     <CampusProvider>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[var(--surface-primary)]">
         <HeaderMovil />
         <div className="pt-16 pb-20 md:pt-0 md:pb-0">
           {children}

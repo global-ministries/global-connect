@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar } from "lucide-react"
+import { Calendar } from "lucide-react"
 import Link from "next/link"
 import SeasonForm from "@/components/forms/SeasonForm"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
@@ -10,14 +10,7 @@ export default function CreateSeasonPage() {
       <ContenedorDashboard
         titulo="Crear Temporada"
         descripcion="Ingresa los datos para crear una nueva temporada"
-        accionPrincipal={
-          <Link href="/dashboard/temporadas">
-            <BotonSistema variante="outline" tamaño="sm">
-              <ArrowLeft className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Volver</span>
-            </BotonSistema>
-          </Link>
-        }
+        botonRegreso={{ href: '/dashboard/temporadas', texto: 'Volver a Temporadas' }}
       >
         <TarjetaSistema>
           <SeasonForm />

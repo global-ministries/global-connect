@@ -50,8 +50,8 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Error al cargar el reporte</h2>
-              <p className="text-gray-600 mb-4">
+              <h2 className="text-2xl font-bold text-foreground mb-2">Error al cargar el reporte</h2>
+              <p className="text-muted-foreground mb-4">
                 {reporteError.message || 'No se pudo obtener el reporte de asistencia semanal.'}
               </p>
             </div>
@@ -71,9 +71,9 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
         >
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-gray-400 text-6xl mb-4">📊</div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">No hay datos disponibles</h2>
-              <p className="text-gray-600">
+              <div className="text-muted-foreground/50 text-6xl mb-4">📊</div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">No hay datos disponibles</h2>
+              <p className="text-muted-foreground">
                 No se encontraron datos de asistencia para esta semana.
               </p>
             </div>

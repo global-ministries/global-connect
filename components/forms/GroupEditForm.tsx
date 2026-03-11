@@ -5,14 +5,9 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { InputSistema, SelectSistema, TextareaSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno";
 import LocationPicker from "@/components/maps/LocationPicker.client";
 import { updateGroup } from "@/lib/actions/group.actions";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
@@ -40,7 +35,25 @@ const groupEditSchema = z.object({
 type GroupEditFormData = z.infer<typeof groupEditSchema>;
 
 interface GroupEditFormProps {
-  grupo: any;
+  grupo: {
+    id: string;
+    nombre: string;
+    temporada_id: string;
+    segmento_id: string;
+    dia_reunion?: string | null;
+    hora_reunion?: string | null;
+    activo: boolean;
+    notas_privadas?: string | null;
+    direccion?: {
+      calle?: string;
+      barrio?: string;
+      codigo_postal?: string;
+      referencia?: string;
+      lat?: number;
+      lng?: number;
+      parroquia?: { id: string; nombre: string } | null;
+    } | null;
+  };
   temporadas: Array<{ id: string; nombre: string }>;
   segmentos: Array<{ id: string; nombre: string }>;
   paises: Array<{ id: string; nombre: string }>;
@@ -50,6 +63,12 @@ interface GroupEditFormProps {
   readOnly?: boolean;
 }
 
+/**
+ * Formulario de edición de grupo.
+ *
+ * Usa componentes del design system para consistencia visual y accesibilidad.
+ * Incluye mapa para selección de ubicación.
+ */
 export default function GroupEditForm({
   grupo,
   temporadas,
@@ -68,7 +87,14 @@ export default function GroupEditForm({
     lng: grupo.direccion?.lng || -66.8792
   });
 
-  const form = useForm<GroupEditFormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    control,
+  } = useForm<GroupEditFormData>({
     resolver: zodResolver(groupEditSchema),
     defaultValues: {
       nombre: grupo.nombre || "",
@@ -91,18 +117,18 @@ export default function GroupEditForm({
   });
 
   const dias = [
-    "Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"
+    "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
   ];
   const horas = [
-    "05:00 AM","05:30 AM","06:00 AM","06:30 AM","07:00 AM","07:30 AM",
-    "08:00 AM","08:30 AM","09:00 AM","09:30 AM","10:00 AM","10:30 AM",
-    "11:00 AM","11:30 AM","12:00 PM","12:30 PM","01:00 PM","01:30 PM",
-    "02:00 PM","02:30 PM","03:00 PM","03:30 PM","04:00 PM","04:30 PM",
-    "05:00 PM","05:30 PM","06:00 PM","06:30 PM","07:00 PM","07:30 PM",
-    "08:00 PM","08:30 PM","09:00 PM","09:30 PM"
+    "05:00 AM", "05:30 AM", "06:00 AM", "06:30 AM", "07:00 AM", "07:30 AM",
+    "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+    "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+    "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
+    "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM",
+    "08:00 PM", "08:30 PM", "09:00 PM", "09:30 PM"
   ];
 
-  function to12h(h?: string) {
+  function to12h(h?: string | null) {
     if (!h) return undefined;
     const trimmed = h.trim();
     const m = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i);
@@ -118,10 +144,8 @@ export default function GroupEditForm({
     return `${hour.toString().padStart(2, '0')}:${mm} ${ampm}`;
   }
 
-  const handleSubmit = async (data: GroupEditFormData) => {
-    if (readOnly) {
-      return; // No enviar en modo solo lectura
-    }
+  const onSubmit = async (data: GroupEditFormData) => {
+    if (readOnly) return;
     setIsLoading(true);
     try {
       const result = await updateGroup(grupo.id, data);
@@ -141,322 +165,221 @@ export default function GroupEditForm({
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-        {/* Información Básica */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Información Básica</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <FormField
-              control={form.control}
-              name="nombre"
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      {/* Información Básica */}
+      <TarjetaSistema>
+        <h3 className="text-xl font-bold text-foreground mb-6">Información Básica</h3>
+        <div className="space-y-6">
+          <InputSistema
+            label="Nombre del Grupo"
+            placeholder="Ingresa el nombre del grupo"
+            error={errors.nombre?.message}
+            disabled={readOnly || isLoading}
+            {...register("nombre")}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Controller
+              name="temporada_id"
+              control={control}
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre del Grupo</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ingresa el nombre del grupo" {...field} disabled={readOnly || isLoading} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                <SelectSistema
+                  label="Temporada"
+                  placeholder="Selecciona una temporada"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={readOnly || isLoading}
+                  error={errors.temporada_id?.message}
+                  opciones={temporadas.map((t) => ({ valor: t.id, etiqueta: t.nombre }))}
+                />
               )}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="temporada_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Temporada</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly || isLoading}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una temporada" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {temporadas.map((temporada) => (
-                          <SelectItem key={temporada.id} value={temporada.id}>
-                            {temporada.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <Controller
+              name="segmento_id"
+              control={control}
+              render={({ field }) => (
+                <SelectSistema
+                  label="Segmento"
+                  placeholder="Selecciona un segmento"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={readOnly || isLoading}
+                  error={errors.segmento_id?.message}
+                  opciones={segmentos.map((s) => ({ valor: s.id, etiqueta: s.nombre }))}
+                />
+              )}
+            />
+          </div>
 
-              <FormField
-                control={form.control}
-                name="segmento_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Segmento</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly || isLoading}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un segmento" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {segmentos.map((segmento) => (
-                          <SelectItem key={segmento.id} value={segmento.id}>
-                            {segmento.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Controller
+              name="dia_reunion"
+              control={control}
+              render={({ field }) => (
+                <SelectSistema
+                  label="Día de Reunión"
+                  placeholder="Selecciona un día"
+                  value={field.value || ""}
+                  onValueChange={field.onChange}
+                  disabled={readOnly || isLoading}
+                  error={errors.dia_reunion?.message}
+                  opciones={dias.map((d) => ({ valor: d, etiqueta: d }))}
+                />
+              )}
+            />
+
+            <Controller
+              name="hora_reunion"
+              control={control}
+              render={({ field }) => (
+                <SelectSistema
+                  label="Hora de Reunión"
+                  placeholder="Selecciona una hora"
+                  value={to12h(field.value) || ""}
+                  onValueChange={field.onChange}
+                  disabled={readOnly || isLoading}
+                  error={errors.hora_reunion?.message}
+                  opciones={horas.map((h) => ({ valor: h, etiqueta: h }))}
+                />
+              )}
+            />
+          </div>
+
+          <div className="flex flex-row items-center justify-between rounded-xl border border-border p-4">
+            <div className="space-y-0.5">
+              <Label className="text-base font-medium text-foreground">Grupo Activo</Label>
+              <p className="text-sm text-muted-foreground">
+                Indica si el grupo está activo y operativo
+              </p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="dia_reunion"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Día de Reunión</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={to12h(field.value) || undefined} disabled={readOnly || isLoading}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un día" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {dias.map((d) => (
-                          <SelectItem key={d} value={d}>{d}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="hora_reunion"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hora de Reunión</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={to12h(field.value) || undefined} disabled={readOnly || isLoading}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una hora" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="max-h-72">
-                        {horas.map((h) => (
-                          <SelectItem key={h} value={h}>{h}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
+            <Controller
               name="activo"
+              control={control}
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Grupo Activo</FormLabel>
-                    <div className="text-sm text-muted-foreground">
-                      Indica si el grupo está activo y operativo
-                    </div>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      disabled={readOnly || isLoading}
-                    />
-                  </FormControl>
-                </FormItem>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={readOnly || isLoading}
+                />
               )}
             />
-          </CardContent>
-        </Card>
-
-        {/* Dirección */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Dirección de Reunión</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="direccion.calle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Calle</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ingresa la calle" {...field} disabled={readOnly || isLoading} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="direccion.barrio"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Barrio</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ingresa el barrio" {...field} disabled={readOnly || isLoading} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="direccion.codigo_postal"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Código Postal</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ingresa el código postal" {...field} disabled={readOnly || isLoading} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="direccion.parroquia_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Parroquia</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={readOnly || isLoading}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una parroquia" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {parroquias.map((parroquia) => (
-                          <SelectItem key={parroquia.id} value={parroquia.id}>
-                            {parroquia.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="direccion.referencia"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Referencia</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Ingresa puntos de referencia"
-                      className="resize-none"
-                      {...field}
-                      disabled={readOnly || isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Mapa */}
-            <div className="space-y-2">
-              <Label>Ubicación en el mapa</Label>
-              <Controller
-                name="direccion"
-                control={form.control}
-                render={({ field }) => {
-                  const lat = field.value?.lat ?? mapCenter.lat;
-                  const lng = field.value?.lng ?? mapCenter.lng;
-                  return (
-                    <LocationPicker
-                      lat={lat}
-                      lng={lng}
-                      center={mapCenter}
-                      onLocationChange={({ lat, lng }) => {
-                        field.onChange({ ...field.value, lat, lng });
-                        setMapCenter({ lat, lng });
-                      }}
-                    />
-                  );
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notas Privadas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Notas Privadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="notas_privadas"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notas (solo para líderes)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Ingresa notas privadas sobre el grupo"
-                      className="resize-none"
-                      {...field}
-                      disabled={readOnly || isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Botones */}
-        <div className="flex gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push(`/dashboard/grupos/${grupo.id}`)}
-            disabled={isLoading}
-          >
-            {readOnly ? 'Volver' : 'Cancelar'}
-          </Button>
-          {!readOnly && (
-            <Button
-              type="submit"
-              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
-              disabled={isLoading}
-            >
-              {isLoading ? "Guardando..." : "Guardar Cambios"}
-            </Button>
-          )}
+          </div>
         </div>
-      </form>
-    </Form>
+      </TarjetaSistema>
+
+      {/* Dirección */}
+      <TarjetaSistema>
+        <h3 className="text-xl font-bold text-foreground mb-6">Dirección de Reunión</h3>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputSistema
+              label="Calle"
+              placeholder="Ingresa la calle"
+              disabled={readOnly || isLoading}
+              error={errors.direccion?.calle?.message}
+              {...register("direccion.calle")}
+            />
+
+            <InputSistema
+              label="Barrio"
+              placeholder="Ingresa el barrio"
+              disabled={readOnly || isLoading}
+              {...register("direccion.barrio")}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputSistema
+              label="Código Postal"
+              placeholder="Ingresa el código postal"
+              disabled={readOnly || isLoading}
+              {...register("direccion.codigo_postal")}
+            />
+
+            <Controller
+              name="direccion.parroquia_id"
+              control={control}
+              render={({ field }) => (
+                <SelectSistema
+                  label="Parroquia"
+                  placeholder="Selecciona una parroquia"
+                  value={field.value || ""}
+                  onValueChange={field.onChange}
+                  disabled={readOnly || isLoading}
+                  error={errors.direccion?.parroquia_id?.message}
+                  opciones={parroquias.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
+                />
+              )}
+            />
+          </div>
+
+          <TextareaSistema
+            label="Referencia"
+            placeholder="Ingresa puntos de referencia"
+            disabled={readOnly || isLoading}
+            error={errors.direccion?.referencia?.message}
+            {...register("direccion.referencia")}
+          />
+
+          {/* Mapa */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">Ubicación en el mapa</Label>
+            <Controller
+              name="direccion"
+              control={control}
+              render={({ field }) => {
+                const lat = field.value?.lat ?? mapCenter.lat;
+                const lng = field.value?.lng ?? mapCenter.lng;
+                return (
+                  <LocationPicker
+                    lat={lat}
+                    lng={lng}
+                    center={mapCenter}
+                    onLocationChange={({ lat, lng }) => {
+                      field.onChange({ ...field.value, lat, lng });
+                      setMapCenter({ lat, lng });
+                    }}
+                  />
+                );
+              }}
+            />
+          </div>
+        </div>
+      </TarjetaSistema>
+
+      {/* Notas Privadas */}
+      <TarjetaSistema>
+        <h3 className="text-xl font-bold text-foreground mb-6">Notas Privadas</h3>
+        <TextareaSistema
+          label="Notas (solo para líderes)"
+          placeholder="Ingresa notas privadas sobre el grupo"
+          disabled={readOnly || isLoading}
+          error={errors.notas_privadas?.message}
+          {...register("notas_privadas")}
+        />
+      </TarjetaSistema>
+
+      {/* Botones */}
+      <div className="flex gap-4">
+        <BotonSistema
+          type="button"
+          variante="outline"
+          onClick={() => router.push(`/dashboard/grupos/${grupo.id}`)}
+          disabled={isLoading}
+        >
+          {readOnly ? 'Volver' : 'Cancelar'}
+        </BotonSistema>
+        {!readOnly && (
+          <BotonSistema
+            type="submit"
+            variante="primario"
+            cargando={isLoading}
+          >
+            Guardar Cambios
+          </BotonSistema>
+        )}
+      </div>
+    </form>
   );
 }

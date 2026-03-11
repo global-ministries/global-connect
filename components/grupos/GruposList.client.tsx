@@ -51,7 +51,7 @@ const SEGMENTO_COLOR_MAP: Record<string, string> = {
 }
 
 function segmentoBadgeClass(nombre?: string | null) {
-  if (!nombre) return "bg-gray-100 text-gray-700 border-gray-200"
+  if (!nombre) return "bg-muted text-muted-foreground border-border"
   const exact = SEGMENTO_COLOR_MAP[nombre]
   if (exact) return exact
   const key = nombre
@@ -70,7 +70,7 @@ function segmentoBadgeClass(nombre?: string | null) {
   if (key.includes("mision")) return "bg-orange-100 text-orange-800 border-orange-200"
   if (key.includes("visit")) return "bg-slate-100 text-slate-800 border-slate-200"
   if (key.includes("nuevo")) return "bg-green-100 text-green-800 border-green-200"
-  return "bg-gray-100 text-gray-700 border-gray-200"
+  return "bg-muted text-muted-foreground border-border"
 }
 
 export default function GruposListClient({
@@ -259,8 +259,8 @@ export default function GruposListClient({
       <>
         {/* Lista responsiva - Desktop: tabla, Móvil: tarjetas */}
         <TarjetaSistema className="hidden md:block">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-hidden">
+            <table className="w-full divide-y divide-border">
               <thead>
                 <tr>
                   {puedeGestionarEnLote && (
@@ -274,20 +274,20 @@ export default function GruposListClient({
                       />
                     </th>
                   )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grupo</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Líder</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Segmento</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temporada</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Grupo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Líder</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Segmento</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Temporada</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Estado</th>
                   {canDelete && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Acciones</th>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-border">
                 {lista && lista.length > 0 ? (
                   lista.map((grupo) => (
-                    <tr key={grupo.id} className={cn("hover:bg-gray-50/50 transition-colors", selectedGroups.includes(grupo.id) && 'bg-orange-50')}>
+                    <tr key={grupo.id} className={cn("hover:bg-accent/50 transition-colors", selectedGroups.includes(grupo.id) && 'bg-orange-50')}>
                       {puedeGestionarEnLote && (
                         <td className="px-4 py-4">
                           <Checkbox
@@ -308,7 +308,7 @@ export default function GruposListClient({
                           <div className="w-16 h-10 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
                           <div>
                             <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
-                              <div className="flex items-center gap-2 font-medium text-gray-900 hover:underline cursor-pointer">
+                              <div className="flex items-center gap-2 font-medium text-foreground hover:underline cursor-pointer">
                                 <span>{grupo.nombre}</span>
                                 {grupo.supervisado_por_mi && (
                                   <span className="inline-flex items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
@@ -318,14 +318,14 @@ export default function GruposListClient({
                               </div>
                             </Link>
                             {(grupo.soy_lider || grupo.soy_miembro) && (
-                              <div className="text-xs text-gray-500 mt-0.5">
+                              <div className="text-xs text-muted-foreground mt-0.5">
                                 {grupo.soy_lider ? 'Soy líder' : 'Soy miembro'}
                               </div>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 align-top">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground align-top">
                         {(() => {
                           if (!Array.isArray(grupo.lideres) || grupo.lideres.length === 0) return 'Sin líder asignado'
                           const leaders = grupo.lideres.filter(l => (l.rol || '').toLowerCase() === 'líder')
@@ -355,10 +355,10 @@ export default function GruposListClient({
                           {grupo.segmento_nombre || "Sin segmento"}
                         </BadgeSistema>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground hidden lg:table-cell">
                         {grupo.temporada_nombre || "Sin temporada"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
                         {grupo.eliminado ? (
                           <BadgeSistema variante="default" tamaño="sm" className="bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
                         ) : grupo.activo ? (
@@ -392,10 +392,10 @@ export default function GruposListClient({
                   <tr>
                     <td colSpan={puedeGestionarEnLote ? 6 : 5} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
-                        <Users2 className="w-12 h-12 text-gray-300" />
+                        <Users2 className="w-12 h-12 text-muted-foreground/40" />
                         <div>
-                          <p className="text-gray-500 font-medium">No hay grupos registrados</p>
-                          <p className="text-gray-400 text-sm">No hay grupos que coincidan con los filtros</p>
+                          <p className="text-muted-foreground font-medium">No hay grupos registrados</p>
+                          <p className="text-muted-foreground/70 text-sm">No hay grupos que coincidan con los filtros</p>
                         </div>
                       </div>
                     </td>
@@ -432,7 +432,7 @@ export default function GruposListClient({
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
                         <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
-                          <h3 className="font-semibold text-gray-900 truncate hover:underline cursor-pointer flex items-center gap-2">
+                          <h3 className="font-semibold text-foreground truncate hover:underline cursor-pointer flex items-center gap-2">
                             <span className="truncate">{grupo.nombre}</span>
                             {grupo.supervisado_por_mi && (
                               <span className="inline-flex flex-shrink-0 items-center rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase">
@@ -442,7 +442,7 @@ export default function GruposListClient({
                           </h3>
                         </Link>
                         {(grupo.soy_lider || grupo.soy_miembro) && (
-                          <div className="text-xs text-gray-500 mt-0.5">
+                          <div className="text-xs text-muted-foreground mt-0.5">
                             {grupo.soy_lider ? 'Soy líder' : 'Soy miembro'}
                           </div>
                         )}
@@ -455,7 +455,7 @@ export default function GruposListClient({
                         <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0">Inactivo</BadgeSistema>
                       )}
                     </div>
-                    <div className="space-y-1 text-sm text-gray-600">
+                    <div className="space-y-1 text-sm text-muted-foreground">
                       <div>
                         <span className="font-medium">Líder:</span>{" "}
                         <span>
@@ -498,9 +498,9 @@ export default function GruposListClient({
           ) : (
             <TarjetaSistema className="p-8">
               <div className="text-center">
-                <Users2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay grupos disponibles</h3>
-                <p className="text-gray-500 mb-6">No hay grupos que coincidan con los filtros seleccionados</p>
+                <Users2 className="w-16 h-16 text-muted-foreground/40 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No hay grupos disponibles</h3>
+                <p className="text-muted-foreground mb-6">No hay grupos que coincidan con los filtros seleccionados</p>
                 {canCreate && (
                   <Link href="/dashboard/grupos/create">
                     <BotonSistema variante="primario">
@@ -632,7 +632,7 @@ export default function GruposListClient({
       {puedeGestionarEnLote && selectedGroups.length > 0 && (
         <TarjetaSistema className="p-4 bg-orange-50 border-orange-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
-            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">{selectedGroups.length} seleccionados</span>
+            <span className="text-sm font-medium text-foreground whitespace-nowrap">{selectedGroups.length} seleccionados</span>
             <div className="flex items-center gap-2 flex-wrap">
               <BotonSistema onClick={() => handleUpdateStatus(true)} tamaño="sm" cargando={isUpdating && updatingAction === 'activar'} disabled={isUpdating}>
                 {isUpdating && updatingAction === 'activar' ? 'Activando...' : 'Activar'}
@@ -688,7 +688,7 @@ export default function GruposListClient({
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h3 className="text-lg lg:text-xl font-bold text-gray-800">Lista de Grupos</h3>
+        <h3 className="text-lg lg:text-xl font-bold text-foreground">Lista de Grupos</h3>
         <div className="flex items-center gap-2">
           <Sheet>
             <SheetTrigger asChild>
@@ -703,8 +703,8 @@ export default function GruposListClient({
               </BotonSistema>
             </SheetTrigger>
             <SheetContent side="right" className="w-full sm:max-w-md p-0">
-              <SheetHeader className="px-6 py-4 border-b border-gray-200">
-                <SheetTitle className="text-lg font-semibold text-gray-900">Filtros de grupos</SheetTitle>
+              <SheetHeader className="px-6 py-4 border-b border-border">
+                <SheetTitle className="text-lg font-semibold text-foreground">Filtros de grupos</SheetTitle>
               </SheetHeader>
               <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
                 <FiltrosGrupos filtros={filtros} onFiltrosChange={onFiltrosChange} segmentos={segmentos} temporadas={temporadas} municipios={municipios || []} parroquias={parroquias || []} />
@@ -752,9 +752,9 @@ export default function GruposListClient({
 
       {/* Paginación y tamaño de página */}
       {totalPorPestana && totalPorPestana > 0 && (
-        <div className="pt-6 mt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="pt-6 mt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-4">
-            <span className="text-sm text-gray-600 select-none">Página {Number(sp?.get(pageParam) || '1')} de {Math.max(1, Math.ceil((totalPorPestana || 0) / pageSize))}</span>
+            <span className="text-sm text-muted-foreground select-none">Página {Number(sp?.get(pageParam) || '1')} de {Math.max(1, Math.ceil((totalPorPestana || 0) / pageSize))}</span>
             <PageSizeSelector />
           </div>
           <PaginationControls totalCount={totalPorPestana || 0} pageSize={pageSize} pageParam={pageParam} />
@@ -766,19 +766,19 @@ export default function GruposListClient({
 
 function KpiCard({ title, subtitle, value, gradient, Icon }: { title: string; subtitle?: string; value: number; gradient: string; Icon: React.ComponentType<any> }) {
   return (
-    <TarjetaSistema className="p-4 hover:scale-105 transition-all duration-200">
+    <TarjetaSistema className="p-4 hover:scale-105 transition-transform duration-200">
       <div className="flex items-center justify-between mb-3">
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white bg-gradient-to-br shadow-lg", gradient)}>
           <Icon className="w-5 h-5" />
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-gray-800">{value}</div>
+          <div className="text-2xl font-bold text-foreground">{value}</div>
         </div>
       </div>
       <div>
-        <div className="text-sm font-medium text-gray-800">{title}</div>
+        <div className="text-sm font-medium text-foreground">{title}</div>
         {subtitle && (
-          <div className="text-xs text-gray-500">{subtitle}</div>
+          <div className="text-xs text-muted-foreground">{subtitle}</div>
         )}
       </div>
     </TarjetaSistema>
@@ -836,9 +836,9 @@ function PageSizeSelector() {
   }
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-600">Mostrar:</span>
+      <span className="text-sm text-muted-foreground">Mostrar:</span>
       <select
-        className="px-2 py-1 border border-gray-200 rounded text-sm bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+        className="px-2 py-1 border border-border rounded text-sm bg-card/50 focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]"
         value={size}
         onChange={(e) => setSize(Number(e.target.value))}
       >

@@ -20,10 +20,10 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
   const { grupos, loading, error, actualizar, detectarOtrosDirectores, refresh } = useDirectorGroupAssignments(segmentoId, directorId)
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set())
   const [cargandoGuardar, setCargandoGuardar] = useState(false)
-  const [modo, setModo] = useState<'merge'|'replace'>('merge') // merge = cambios puntuales, replace = reemplazar todo
+  const [modo, setModo] = useState<'merge' | 'replace'>('merge') // merge = cambios puntuales, replace = reemplazar todo
   const [confirmData, setConfirmData] = useState<{ grupoId: string; nombres: string[] } | null>(null)
   const [confirmReplace, setConfirmReplace] = useState<{ quitar: number; agregar: number } | null>(null)
-  const [filtroActivo, setFiltroActivo] = useState<'todos'|'activos'|'inactivos'>('todos')
+  const [filtroActivo, setFiltroActivo] = useState<'todos' | 'activos' | 'inactivos'>('todos')
   const [filtroTemporada, setFiltroTemporada] = useState<string>('')
   const [buscarLider, setBuscarLider] = useState<string>('')
 
@@ -73,7 +73,7 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
   const temporadasUnicas = useMemo(() => {
     const set = new Set<string>()
     for (const g of grupos) if (g.temporadaNombre) set.add(g.temporadaNombre)
-    return [...set].sort((a,b)=>a.localeCompare(b,'es'))
+    return [...set].sort((a, b) => a.localeCompare(b, 'es'))
   }, [grupos])
 
   const gruposOrdenados = useMemo(() => {
@@ -88,15 +88,15 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
       const term = normalizeStr(buscarLider.trim())
       lista = lista.filter(g => {
         if (!g.lideres || g.lideres.length === 0) return false
-  return g.lideres.some(l => normalizeStr(l).includes(term))
+        return g.lideres.some(l => normalizeStr(l).includes(term))
       })
     }
-    lista.sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'))
+    lista.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
     return lista
   }, [grupos, filtroActivo, filtroTemporada, buscarLider])
 
-  function normalizeStr(s: string){
-    return s.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase()
+  function normalizeStr(s: string) {
+    return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
   }
 
   const guardado = async () => {
@@ -150,9 +150,9 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
     <>
       <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-gray-200">
+        <div className="bg-card rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-border">
           {/* Header */}
-          <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-br from-orange-50 to-white">
+          <div className="px-6 py-5 border-b border-border bg-gradient-to-br from-accent to-card">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center text-white">
@@ -168,72 +168,72 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                   <Save className="w-4 h-4 mr-1" />
                   {cargandoGuardar ? 'Guardando...' : 'Guardar'}
                 </Button>
-                <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                  <X className="w-5 h-5 text-gray-600" />
+                <button onClick={onClose} className="p-2 rounded-full hover:bg-accent transition-colors">
+                  <X className="w-5 h-5 text-muted-foreground" />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Controles y filtros */}
-          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 space-y-3">
+          <div className="px-6 py-4 bg-muted border-b border-border space-y-3">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                 <TextoSistema className="text-sm text-red-700">{error}</TextoSistema>
               </div>
             )}
-            
+
             {/* Modo de guardado */}
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Modo de guardado</label>
-              <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200 w-fit">
+              <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Modo de guardado</label>
+              <div className="flex items-center gap-2 bg-card rounded-lg p-1 border border-border w-fit">
                 <button
                   type="button"
-                  onClick={()=> setModo('merge')}
-                  className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo==='merge' ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+                  onClick={() => setModo('merge')}
+                  className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo === 'merge' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
                 >Cambios puntuales</button>
                 <button
                   type="button"
-                  onClick={()=> setModo('replace')}
-                  className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo==='replace' ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+                  onClick={() => setModo('replace')}
+                  className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo === 'replace' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
                   title="Dejará asignados solamente los grupos seleccionados y quitará el resto"
                 >Reemplazar todo</button>
               </div>
               <TextoSistema variante="sutil" className="text-[11px]">
-                {modo==='merge' ? '✓ Solo añade o quita respecto a lo existente.' : '⚠️ Reemplazará la lista completa de asignaciones por la selección actual.'}
+                {modo === 'merge' ? '✓ Solo añade o quita respecto a lo existente.' : '⚠️ Reemplazará la lista completa de asignaciones por la selección actual.'}
               </TextoSistema>
             </div>
 
             {/* Filtros */}
             <div className="flex flex-wrap gap-3 items-end">
               <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Buscar líder</label>
+                <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Buscar líder</label>
                 <input
                   type="text"
                   value={buscarLider}
-                  onChange={e=>setBuscarLider(e.target.value)}
+                  onChange={e => setBuscarLider(e.target.value)}
                   placeholder="Nombre del líder..."
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                  className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Estado</label>
-                <select value={filtroActivo} onChange={e=>setFiltroActivo(e.target.value as any)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400/40">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Estado</label>
+                <select value={filtroActivo} onChange={e => setFiltroActivo(e.target.value as any)} className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40">
                   <option value="todos">Todos</option>
                   <option value="activos">Activos</option>
                   <option value="inactivos">Inactivos</option>
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-gray-600">Temporada</label>
-                <select value={filtroTemporada} onChange={e=>setFiltroTemporada(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400/40 min-w-[140px]">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Temporada</label>
+                <select value={filtroTemporada} onChange={e => setFiltroTemporada(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40 min-w-[140px]">
                   <option value="">Todas</option>
                   {temporadasUnicas.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              {(filtroActivo!=='todos' || filtroTemporada || buscarLider) && (
-                <Button variant="outline" size="sm" onClick={()=>{setFiltroActivo('todos'); setFiltroTemporada(''); setBuscarLider('')}}>
+              {(filtroActivo !== 'todos' || filtroTemporada || buscarLider) && (
+                <Button variant="outline" size="sm" onClick={() => { setFiltroActivo('todos'); setFiltroTemporada(''); setBuscarLider('') }}>
                   Limpiar
                 </Button>
               )}
@@ -262,16 +262,16 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                   const checked = seleccion.has(g.id)
                   const multi = g.directoresCount && g.directoresCount > 0
                   return (
-                    <label key={g.id} className="flex items-start gap-3 p-4 bg-white/50 border border-gray-200 rounded-xl hover:shadow-md transition-all cursor-pointer">
+                    <label key={g.id} className="flex items-start gap-3 p-4 bg-card/50 border border-border rounded-xl hover:shadow-md transition-shadow cursor-pointer">
                       <input
                         type="checkbox"
-                        className="mt-1 w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400/40"
+                        className="mt-1 w-4 h-4 rounded border-border text-orange-500 focus:ring-orange-400/40"
                         checked={checked}
-                        onChange={() => toggleGrupo(g.id, checked, (g.directoresCount||0) - (g.asignado?1:0), g.directoresSample || [])}
+                        onChange={() => toggleGrupo(g.id, checked, (g.directoresCount || 0) - (g.asignado ? 1 : 0), g.directoresSample || [])}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3 mb-2">
-                          <h4 className="font-semibold text-gray-800 text-base truncate" title={g.nombre}>{g.nombre}</h4>
+                          <h4 className="font-semibold text-foreground text-base truncate" title={g.nombre}>{g.nombre}</h4>
                           <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
                             {g.activo === false ? (
                               <BadgeSistema variante="default">Inactivo</BadgeSistema>
@@ -284,7 +284,7 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                             )}
                           </div>
                         </div>
-                        <div className="text-xs text-gray-600 flex flex-wrap gap-x-4 gap-y-1">
+                        <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
                           <span><strong>Temporada:</strong> {g.temporadaNombre || '—'}</span>
                           <span className="flex items-center gap-1">
                             <Users className="w-3 h-3" />
@@ -309,8 +309,8 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
 
       {confirmData && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white border border-gray-200 shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 bg-gradient-to-br from-orange-50 to-white border-b border-gray-200">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 bg-gradient-to-br from-accent to-card border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center text-white flex-shrink-0">
                   <AlertTriangle className="w-5 h-5" />
@@ -322,7 +322,7 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
               <TextoSistema className="text-sm">Este grupo ya tiene {confirmData.nombres.length} director(es):</TextoSistema>
               <ul className="space-y-1 pl-4">
                 {confirmData.nombres.map(n => (
-                  <li key={n} className="text-sm text-gray-700 flex items-center gap-2">
+                  <li key={n} className="text-sm text-foreground flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                     {n}
                   </li>
@@ -339,8 +339,8 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
       )}
       {confirmReplace && (
         <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white border border-gray-200 shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 bg-gradient-to-br from-red-50 to-white border-b border-gray-200">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 bg-gradient-to-br from-red-500/5 to-card border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center text-white flex-shrink-0">
                   <AlertTriangle className="w-5 h-5" />
