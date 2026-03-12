@@ -7,6 +7,47 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
+## [1.9.1] - 2026-03-12
+
+### Agregado
+- Asistencia avanzada con 4 tipos de presencia: presente, ausente, tarde, justificado
+- Notas pastorales por reunión: descripción, puntos de oración, notas privadas del líder
+- Opción "No hubo reunión" con motivo obligatorio (el grupo no entra en reportes)
+- Conteo de visitantes configurables por módulo (desactivado por defecto)
+- Vista de salud de miembros (`v_salud_miembros_grupo`) con niveles de riesgo dinámicos
+- Dashboard de riesgo para directores: KPIs globales, top-5 grupos en riesgo, tendencia 4 semanas
+- RPC `registrar_asistencia` v2: backward compatible con formato v1 (`presente: bool`) y v2 (`tipo_presencia: text`)
+- RPCs de reportes: `obtener_reporte_retencion`, `obtener_reporte_crecimiento_neto`, `obtener_dashboard_riesgo`
+- 6 Server Actions en `asistencia-avanzada.actions.ts` con Zod runtime validation y JSDoc
+- Zod schemas compartidos en `lib/types/asistencia-avanzada.types.ts` (9 schemas)
+- Componentes: `RegistroAsistenciaAvanzado` (formulario completo), `VistaSaludMiembros` (KPIs + tabla riesgo)
+- Páginas: `/grupos-vida/[id]/asistencia` (registro v2), `/grupos-vida/[id]/salud`, `/grupos-vida/dashboard-riesgo`
+- Solicitudes de edición tardía: tipo `edicion_asistencia` con metadata jsonb
+- 11 columnas de configuración en `configuracion_grupos_vida`: ventana de edición, visitantes, umbrales, correo
+
+### Cambiado
+- `asistencia`: nueva columna `tipo_presencia` con CHECK constraint; datos existentes migrados (`presente=true→'presente'`, `presente=false→'ausente'`)
+- `eventos_grupo`: 8 columnas nuevas (tipo, descripción, puntos de oración, visitantes, no hubo reunión)
+- `configuracion_grupos_vida`: 11 columnas de configuración de asistencia con defaults
+- Navegación sidebar: enlace a Dashboard Riesgo para directores y admins
+
+### Seguridad
+- `es_superadmin`: parámetro estandarizado a `p_auth_id` (migración `20260312_fix_es_superadmin_param.sql`)
+- Role guard en dashboard-riesgo: solo `admin`, `pastor`, `director_etapa`, `director_general`
+- RPCs de reportes validan permisos internamente con `puede_editar_grupo` y `es_superadmin`
+- Solicitudes de edición tardía requieren motivo ≥10 caracteres
+
+### Corregido
+- Castings residuales de Fase 1 eliminados (`as any` en `group.actions.ts`, `as unknown as` en `casas-anfitrionas.actions.ts`)
+- `registrar_asistencia` v2 usa `ON CONFLICT DO UPDATE` para evitar duplicados
+
+### Migración de Datos
+- 9,547 registros de asistencia migrados: `presente=true → tipo_presencia='presente'`, `presente=false → tipo_presencia='ausente'`
+- 785 eventos existentes: `registrado_en` poblado con `fecha::timestamptz`
+- `motivo_inasistencia` existente preservado sin pérdida
+
+---
+
 ## [1.9.0] - 2026-03-12
 
 ### Agregado
