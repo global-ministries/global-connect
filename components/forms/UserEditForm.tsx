@@ -17,7 +17,8 @@ import {
   Heart,
   Hash,
   Save,
-  X
+  X,
+  Lightbulb
 } from "lucide-react"
 import { InputSistema, SelectSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput"
@@ -28,6 +29,7 @@ import { geocodeAddress } from "@/lib/actions/location.actions"
 import { ProfilePhotoUploader } from "@/components/ui/ProfilePhotoUploader"
 import type { Database } from '@/lib/supabase/database.types'
 import { useNotificaciones } from "@/hooks/use-notificaciones"
+import type { SugerenciaDireccionFamiliar } from "@/lib/actions/direccion-familiar.actions"
 
 type Usuario = Database["public"]["Tables"]["usuarios"]["Row"]
 type Direccion = Database["public"]["Tables"]["direcciones"]["Row"] & {
@@ -109,6 +111,7 @@ interface UserEditFormProps {
   estados: { id: string; nombre: string; pais_id: string }[]
   municipios: { id: string; nombre: string; estado_id: string }[]
   parroquias: { id: string; nombre: string; municipio_id: string }[]
+  sugerenciasDireccion?: SugerenciaDireccionFamiliar[]
   esPerfil?: boolean
 }
 
@@ -118,7 +121,7 @@ interface UserEditFormProps {
  * Usa componentes del design system (InputSistema, SelectSistema, BotonSistema,
  * TarjetaSistema) para consistencia visual, accesibilidad y dark mode.
  */
-export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estados, municipios, parroquias, esPerfil = false }: UserEditFormProps) {
+export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estados, municipios, parroquias, sugerenciasDireccion = [], esPerfil = false }: UserEditFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const toast = useNotificaciones()
@@ -419,6 +422,45 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           <MapPin className="w-5 h-5 text-[var(--brand-primary)]" />
           Información de Ubicación
         </h3>
+
+        {/* Sugerencias de dirección familiar */}
+        {sugerenciasDireccion.length > 0 && !usuario?.direccion?.calle && (
+          <TarjetaSistema variante="outlined" className="border-blue-500/30 bg-blue-500/5 p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <Lightbulb className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="font-medium text-foreground text-sm">
+                  Sugerencias de dirección
+                </p>
+                {sugerenciasDireccion.map((s) => (
+                  <button
+                    key={s.familiar_id}
+                    type="button"
+                    onClick={() => {
+                      setValue("direccion.calle", s.direccion.calle, { shouldDirty: true })
+                      if (s.direccion.barrio) setValue("direccion.barrio", s.direccion.barrio, { shouldDirty: true })
+                      if (s.direccion.codigo_postal) setValue("direccion.codigo_postal", s.direccion.codigo_postal, { shouldDirty: true })
+                      if (s.direccion.referencia) setValue("direccion.referencia", s.direccion.referencia, { shouldDirty: true })
+                      if (s.direccion.parroquia_id) setValue("direccion.parroquia_id", s.direccion.parroquia_id, { shouldDirty: true })
+                      if (s.direccion.lat != null && s.direccion.lng != null) {
+                        setValue("direccion.lat", s.direccion.lat, { shouldDirty: true })
+                        setValue("direccion.lng", s.direccion.lng, { shouldDirty: true })
+                        setMapCenter({ lat: s.direccion.lat, lng: s.direccion.lng })
+                      }
+                    }}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+                  >
+                    <span>Usar dirección de {s.relacion_label} ({s.familiar_nombre})</span>
+                    <span className="text-xs">📍 {s.direccion.calle}</span>
+                  </button>
+                ))}
+                <p className="text-xs text-muted-foreground">
+                  Si esta persona no vive en la misma dirección, ignora estas sugerencias.
+                </p>
+              </div>
+            </div>
+          </TarjetaSistema>
+        )}
         {/* Fila superior: Selectores */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <SelectSistema

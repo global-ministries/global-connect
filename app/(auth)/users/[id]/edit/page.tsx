@@ -8,6 +8,7 @@ import { UserEditForm } from "@/components/forms/UserEditForm"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { AdminAccionesAsignarContrasena } from '@/components/admin/AdminAccionesAsignarContrasena.client'
+import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -174,6 +175,10 @@ export default async function EditUserPage({ params }: Props) {
     supabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
     supabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
   ])
+
+  // Obtener sugerencias de dirección familiar
+  const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(id)
+
   return (
     <DashboardLayout>
       {/* Header sticky como en ver usuario */}
@@ -229,6 +234,7 @@ export default async function EditUserPage({ params }: Props) {
           estados={estados || []}
           municipios={municipios || []}
           parroquias={parroquias || []}
+          sugerenciasDireccion={sugerenciasDireccion}
         />
       </div>
     </DashboardLayout>

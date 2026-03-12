@@ -31,7 +31,7 @@ import { ContenedorDashboard, TituloSistema, BotonSistema, TarjetaSistema } from
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { formatPhoneForCall } from '@/lib/utils'
-import dynamic from "next/dynamic"
+import LocationPicker from "@/components/maps/LocationPicker.client"
 
 // Roles que pueden ver el botón de llamada
 const ROLES_CON_LLAMADA = ['admin', 'pastor', 'director-general', 'director-etapa']
@@ -217,12 +217,6 @@ export default function PaginaDetalleUsuario() {
     if (!cedula) return 'Sin cedula'
     return cedula
   }
-
-  // Importa LocationPicker de forma dinámica solo en cliente
-  const LocationPicker = dynamic(
-    () => import("@/components/maps/LocationPicker"),
-    { ssr: false }
-  );
 
   // Renderizado
   if (loading) {

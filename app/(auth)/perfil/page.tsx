@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { UserEditForm } from "@/components/forms/UserEditForm"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
+import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
 
 export default async function PerfilPage() {
   // Crear cliente Supabase correctamente
@@ -184,6 +185,9 @@ export default async function PerfilPage() {
     adminSupabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
   ])
 
+  // Obtener sugerencias de dirección familiar
+  const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(usuario.id)
+
   return (
     <DashboardLayout>
       <ContenedorDashboard
@@ -201,6 +205,7 @@ export default async function PerfilPage() {
             estados={estados || []}
             municipios={municipios || []}
             parroquias={parroquias || []}
+            sugerenciasDireccion={sugerenciasDireccion}
             esPerfil={true}
           />
         </div>
