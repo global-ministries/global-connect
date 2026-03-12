@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { CheckCircle2, XCircle, User, ArrowRight, Clock } from "lucide-react";
+import { useState, useTransition, useEffect, useCallback } from "react";
+import { CheckCircle2, XCircle, User, Clock } from "lucide-react";
 import {
     BadgeSistema,
     BotonSistema,
@@ -25,6 +25,7 @@ interface ModalProcesarSolicitudProps {
 /**
  * Modal para aprobar o rechazar una solicitud de grupo.
  * Muestra toda la información de la solicitud con opción de agregar notas.
+ * Incluye accesibilidad: Escape, overlay click, focus trap, ARIA.
  */
 export function ModalProcesarSolicitud({
     solicitud,
@@ -35,6 +36,20 @@ export function ModalProcesarSolicitud({
     const [notas, setNotas] = useState("");
     const [isPending, startTransition] = useTransition();
     const toast = useNotificaciones();
+
+    // COR-003: Cierre con Escape
+    const handleKeyDown = useCallback(
+        (e: KeyboardEvent) => {
+            if (e.key === "Escape" && !isPending) onClose();
+        },
+        [onClose, isPending]
+    );
+
+    useEffect(() => {
+        if (!isOpen) return;
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [isOpen, handleKeyDown]);
 
     if (!isOpen) return null;
 
@@ -59,6 +74,11 @@ export function ModalProcesarSolicitud({
         });
     };
 
+    // COR-003: Cierre al click en overlay
+    const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget && !isPending) onClose();
+    };
+
     const ETIQUETA_TIPO: Record<string, string> = {
         ingreso: "Ingreso a Grupo",
         traslado: "Traslado de Grupo",
@@ -68,12 +88,20 @@ export function ModalProcesarSolicitud({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-procesar-titulo"
+            onClick={handleOverlayClick}
+        >
             <div className="relative z-10 w-full max-w-lg">
                 <TarjetaSistema className="p-6 sm:p-8 flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
                     {/* Header */}
                     <div className="flex items-start justify-between">
-                        <TituloSistema nivel={3}>Revisar Solicitud</TituloSistema>
+                        <TituloSistema nivel={3} id="modal-procesar-titulo">
+                            Revisar Solicitud
+                        </TituloSistema>
                         <BadgeSistema variante="info">
                             {ETIQUETA_TIPO[solicitud.tipo] ?? solicitud.tipo}
                         </BadgeSistema>

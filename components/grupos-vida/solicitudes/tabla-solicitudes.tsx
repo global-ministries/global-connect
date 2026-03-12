@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { CheckCircle2, XCircle, Clock, User, ArrowRight, UserPlus, UserMinus, Shield, Loader2 } from "lucide-react";
 import { BadgeSistema, BotonSistema, TarjetaSistema, TextoSistema } from "@/components/ui/sistema-diseno";
 import { ModalProcesarSolicitud } from "./modal-procesar-solicitud";

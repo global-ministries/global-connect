@@ -17,22 +17,30 @@ import {
 } from "@/lib/actions/configuracion-grupos-vida.actions";
 import type { ConfiguracionGruposVida } from "@/lib/actions/configuracion-grupos-vida.actions";
 
+interface ConfiguracionPanelProps {
+    /** Datos pre-cargados desde Server Component (COR-006) */
+    configInicial?: ConfiguracionGruposVida | null;
+}
+
 /**
  * Panel de configuración del módulo de grupos de vida.
  * Solo accesible para superadmin (enforced por RLS).
+ * Acepta `configInicial` para evitar waterfall de useEffect.
  */
-export function ConfiguracionPanel() {
-    const [config, setConfig] = useState<ConfiguracionGruposVida | null>(null);
-    const [diasExpiracion, setDiasExpiracion] = useState("7");
-    const [maxMiembros, setMaxMiembros] = useState<string>("");
-    const [permitirLiderOtroGrupo, setPermitirLiderOtroGrupo] = useState("true");
-    const [requiereAprobacionPlanificacion, setRequiereAprobacionPlanificacion] = useState("false");
-    const [notificarLiderIngreso, setNotificarLiderIngreso] = useState("true");
-    const [isLoading, setIsLoading] = useState(true);
+export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
+    const [config, setConfig] = useState<ConfiguracionGruposVida | null>(configInicial ?? null);
+    const [diasExpiracion, setDiasExpiracion] = useState(configInicial ? String(configInicial.dias_expiracion_solicitud) : "7");
+    const [maxMiembros, setMaxMiembros] = useState<string>(configInicial?.max_miembros_por_grupo ? String(configInicial.max_miembros_por_grupo) : "");
+    const [permitirLiderOtroGrupo, setPermitirLiderOtroGrupo] = useState(configInicial ? String(configInicial.permitir_lider_en_otro_grupo) : "true");
+    const [requiereAprobacionPlanificacion, setRequiereAprobacionPlanificacion] = useState(configInicial ? String(configInicial.requiere_aprobacion_grupo_planificacion) : "false");
+    const [notificarLiderIngreso, setNotificarLiderIngreso] = useState(configInicial ? String(configInicial.notificar_lider_ingreso) : "true");
+    const [isLoading, setIsLoading] = useState(!configInicial);
     const [isPending, startTransition] = useTransition();
     const toast = useNotificaciones();
 
+    // Fallback: solo fetch si no se pasó configInicial
     useEffect(() => {
+        if (configInicial) return;
         const cargar = async () => {
             const resultado = await obtenerConfiguracionGrupos();
             if (resultado.success && resultado.data) {
@@ -47,7 +55,7 @@ export function ConfiguracionPanel() {
             setIsLoading(false);
         };
         cargar();
-    }, []);
+    }, [configInicial]);
 
     const handleGuardar = () => {
         if (!config) return;

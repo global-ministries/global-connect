@@ -5,6 +5,8 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ContenedorDashboard, TextoSistema, TarjetaSistema } from "@/components/ui/sistema-diseno";
 import { BadgeSistema } from "@/components/ui/sistema-diseno";
 import { Clock, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { obtenerMisSolicitudes } from "@/lib/actions/solicitudes-grupo.actions";
+import type { MiSolicitud } from "@/lib/actions/solicitudes-grupo.actions";
 
 const ICONO_ESTADO: Record<string, typeof Clock> = {
     pendiente: Clock,
@@ -33,30 +35,9 @@ export default async function MisSolicitudesPage() {
     const userData = await getUserWithRoles(supabase);
     if (!userData) redirect("/login");
 
-    // Obtener el ID interno del usuario
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) redirect("/login");
-
-    const { data: usuarioInterno } = await supabase
-        .from("usuarios")
-        .select("id")
-        .eq("auth_id", user.id)
-        .single();
-
-    if (!usuarioInterno) redirect("/grupos-vida");
-
-    // Obtener solicitudes creadas por este usuario
-    const { data: solicitudes } = await supabase
-        .from("solicitudes_grupo")
-        .select(`
-      id, tipo, estado, motivo, notas_director, creado_en, actualizado_en,
-      grupo:grupos!solicitudes_grupo_grupo_id_fkey(nombre),
-      grupo_origen:grupos!solicitudes_grupo_grupo_origen_id_fkey(nombre),
-      usuario:usuarios!solicitudes_grupo_usuario_id_fkey(nombre, apellido)
-    `)
-        .eq("solicitado_por", usuarioInterno.id)
-        .order("creado_en", { ascending: false })
-        .limit(50);
+    // COR-005: Usar Server Action en vez de query inline
+    const resultado = await obtenerMisSolicitudes();
+    const solicitudes: MiSolicitud[] = resultado.success ? (resultado.data ?? []) : [];
 
     return (
         <DashboardLayout>
@@ -65,7 +46,7 @@ export default async function MisSolicitudesPage() {
                 descripcion="Historial de solicitudes que has creado"
                 botonRegreso={{ href: "/grupos-vida", texto: "Grupos" }}
             >
-                {(!solicitudes || solicitudes.length === 0) ? (
+                {solicitudes.length === 0 ? (
                     <TarjetaSistema className="p-8 text-center">
                         <TextoSistema variante="muted" tamaño="lg">
                             No has creado solicitudes aún
@@ -75,9 +56,6 @@ export default async function MisSolicitudesPage() {
                     <div className="space-y-3">
                         {solicitudes.map((sol) => {
                             const IconoEstado = ICONO_ESTADO[sol.estado] ?? Clock;
-                            const grupo = sol.grupo as { nombre: string } | null;
-                            const grupoOrigen = sol.grupo_origen as { nombre: string } | null;
-                            const usuario = sol.usuario as { nombre: string; apellido: string } | null;
 
                             return (
                                 <TarjetaSistema key={sol.id} className="p-4">
@@ -97,15 +75,17 @@ export default async function MisSolicitudesPage() {
                                             </div>
 
                                             <div className="mt-2 space-y-1">
-                                                {usuario && (
+                                                {sol.usuario_nombre && (
                                                     <TextoSistema tamaño="sm">
-                                                        <span className="font-medium">{usuario.nombre} {usuario.apellido}</span>
+                                                        <span className="font-medium">
+                                                            {sol.usuario_nombre} {sol.usuario_apellido}
+                                                        </span>
                                                     </TextoSistema>
                                                 )}
-                                                {grupo && (
+                                                {sol.grupo_nombre && (
                                                     <TextoSistema tamaño="sm" variante="muted">
-                                                        Grupo: {grupo.nombre}
-                                                        {grupoOrigen && ` ← ${grupoOrigen.nombre}`}
+                                                        Grupo: {sol.grupo_nombre}
+                                                        {sol.grupo_origen_nombre && ` ← ${sol.grupo_origen_nombre}`}
                                                     </TextoSistema>
                                                 )}
                                                 {sol.motivo && (

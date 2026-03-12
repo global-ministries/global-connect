@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUserWithRoles } from "@/lib/getUserWithRoles";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { ContenedorDashboard, TextoSistema, TarjetaSistema } from "@/components/ui/sistema-diseno";
+import { ContenedorDashboard } from "@/components/ui/sistema-diseno";
 import { ConfiguracionPanel } from "@/components/grupos-vida/configuracion-panel";
+import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions";
 
 export default async function ConfiguracionPage() {
     const supabase = await createSupabaseServerClient();
@@ -19,6 +20,10 @@ export default async function ConfiguracionPage() {
         redirect("/grupos-vida");
     }
 
+    // COR-006: Pre-cargar config desde Server Component
+    const resultado = await obtenerConfiguracionGrupos();
+    const configInicial = resultado.success ? resultado.data ?? null : null;
+
     return (
         <DashboardLayout>
             <ContenedorDashboard
@@ -26,7 +31,7 @@ export default async function ConfiguracionPage() {
                 descripcion="Ajustes generales del módulo de grupos de vida"
                 botonRegreso={{ href: "/grupos-vida", texto: "Grupos" }}
             >
-                <ConfiguracionPanel />
+                <ConfiguracionPanel configInicial={configInicial} />
             </ContenedorDashboard>
         </DashboardLayout>
     );

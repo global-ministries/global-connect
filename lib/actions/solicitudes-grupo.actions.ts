@@ -51,20 +51,23 @@ export interface SolicitudPendiente {
   temporada_estado: string | null;
 }
 
-/** Resultado del RPC crear_solicitud_grupo */
-interface CrearSolicitudRpcResultado {
-  ok: boolean;
-  modo: "directo" | "solicitud";
-  tipo?: string;
-  solicitud_id?: string;
-}
+/** Schema Zod para validar el resultado del RPC crear_solicitud_grupo */
+const CrearSolicitudRpcSchema = z.object({
+  ok: z.boolean(),
+  modo: z.enum(["directo", "solicitud"]),
+  tipo: z.string().optional(),
+  solicitud_id: z.string().uuid().optional(),
+});
 
-/** Resultado del RPC procesar_solicitud_grupo */
-interface ProcesarSolicitudRpcResultado {
-  ok: boolean;
-  accion: string;
-  solicitud_id: string;
-}
+/** Schema Zod para validar el resultado del RPC procesar_solicitud_grupo */
+const ProcesarSolicitudRpcSchema = z.object({
+  ok: z.boolean(),
+  accion: z.string(),
+  solicitud_id: z.string().uuid(),
+});
+
+export type CrearSolicitudRpcResultado = z.infer<typeof CrearSolicitudRpcSchema>;
+export type ProcesarSolicitudRpcResultado = z.infer<typeof ProcesarSolicitudRpcSchema>;
 
 // ─── Schemas ─────────────────────────────────────────────────────────
 
@@ -125,7 +128,7 @@ export async function crearSolicitudGrupo(
   revalidatePath("/grupos-vida/solicitudes");
   revalidatePath("/grupos-vida");
 
-  const resultado = rpcData as unknown as CrearSolicitudRpcResultado;
+  const resultado = CrearSolicitudRpcSchema.parse(rpcData);
   return { success: true, data: resultado };
 }
 
@@ -167,7 +170,7 @@ export async function procesarSolicitudGrupo(
   revalidatePath("/grupos-vida/solicitudes");
   revalidatePath("/grupos-vida");
 
-  const resultado = rpcData as unknown as ProcesarSolicitudRpcResultado;
+  const resultado = ProcesarSolicitudRpcSchema.parse(rpcData);
   return { success: true, data: resultado };
 }
 
@@ -250,4 +253,157 @@ export async function obtenerHistorialMiembro(
 
   if (error) return { success: false, error: error.message };
   return { success: true, data: (data ?? []) as MovimientoHistorial[] };
+}
+
+// ─── COR-004: Acciones faltantes ─────────────────────────────────────
+
+/** Schema para cancelar una solicitud */
+const cancelarSolicitudSchema = z.object({
+  solicitud_id: z.string().uuid("ID de solicitud inválido"),
+});
+
+/**
+ * Cancela una solicitud pendiente. Solo el solicitante original puede cancelar.
+ *
+ * @param input - Objeto con `solicitud_id`
+ * @returns Resultado con éxito o error
+ */
+export async function cancelarSolicitud(
+  input: z.infer<typeof cancelarSolicitudSchema>
+): Promise<ResultadoAccion> {
+  const parsed = cancelarSolicitudSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
+
+  // Obtener ID interno del usuario
+  const { data: usuarioInterno } = await supabase
+    .from("usuarios")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+
+  if (!usuarioInterno) return { success: false, error: "Usuario no encontrado" };
+
+  // Solo el solicitante puede cancelar, y solo si está pendiente
+  const { error } = await supabase
+    .from("solicitudes_grupo")
+    .update({ estado: "cancelado" as string, actualizado_en: new Date().toISOString() })
+    .eq("id", parsed.data.solicitud_id)
+    .eq("solicitado_por", usuarioInterno.id)
+    .eq("estado", "pendiente");
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/grupos-vida/solicitudes");
+  return { success: true };
+}
+
+/** Solicitud propia con datos de relaciones */
+export interface MiSolicitud {
+  id: string;
+  tipo: string;
+  estado: string;
+  motivo: string | null;
+  notas_director: string | null;
+  creado_en: string;
+  actualizado_en: string;
+  grupo_nombre: string | null;
+  grupo_origen_nombre: string | null;
+  usuario_nombre: string | null;
+  usuario_apellido: string | null;
+}
+
+/**
+ * Obtiene las solicitudes creadas por el usuario actual.
+ * Mueve el query fuera de la página y normaliza las relaciones.
+ *
+ * @returns Lista de solicitudes propias con datos normalizados
+ */
+export async function obtenerMisSolicitudes(): Promise<ResultadoAccion<MiSolicitud[]>> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
+
+  const { data: usuarioInterno } = await supabase
+    .from("usuarios")
+    .select("id")
+    .eq("auth_id", user.id)
+    .single();
+
+  if (!usuarioInterno) return { success: false, error: "Usuario no encontrado" };
+
+  const { data, error } = await supabase
+    .from("solicitudes_grupo")
+    .select(`
+      id, tipo, estado, motivo, notas_director, creado_en, actualizado_en,
+      grupo:grupos!solicitudes_grupo_grupo_id_fkey(nombre),
+      grupo_origen:grupos!solicitudes_grupo_grupo_origen_id_fkey(nombre),
+      usuario:usuarios!solicitudes_grupo_usuario_id_fkey(nombre, apellido)
+    `)
+    .eq("solicitado_por", usuarioInterno.id)
+    .order("creado_en", { ascending: false })
+    .limit(50);
+
+  if (error) return { success: false, error: error.message };
+
+  // Normalizar relaciones con extraerRelacion para evitar castings inline
+  const { extraerRelacion } = await import("@/lib/supabase/helpers");
+
+  const solicitudes: MiSolicitud[] = (data ?? []).map((sol) => {
+    const grupo = extraerRelacion<{ nombre: string }>(sol.grupo);
+    const grupoOrigen = extraerRelacion<{ nombre: string }>(sol.grupo_origen);
+    const usuario = extraerRelacion<{ nombre: string; apellido: string }>(sol.usuario);
+
+    return {
+      id: sol.id,
+      tipo: sol.tipo,
+      estado: sol.estado,
+      motivo: sol.motivo,
+      notas_director: sol.notas_director,
+      creado_en: sol.creado_en,
+      actualizado_en: sol.actualizado_en,
+      grupo_nombre: grupo?.nombre ?? null,
+      grupo_origen_nombre: grupoOrigen?.nombre ?? null,
+      usuario_nombre: usuario?.nombre ?? null,
+      usuario_apellido: usuario?.apellido ?? null,
+    };
+  });
+
+  return { success: true, data: solicitudes };
+}
+
+/** Schema para agregar miembro directamente */
+const agregarMiembroDirectoSchema = z.object({
+  usuario_id: z.string().uuid("ID de usuario inválido"),
+  grupo_id: z.string().uuid("ID de grupo inválido"),
+  rol: z.string().optional(),
+});
+
+/**
+ * Wrapper para agregar un miembro directamente a un grupo.
+ * Usa la RPC `crear_solicitud_grupo` con tipo 'ingreso' — si el usuario
+ * es DG+ se ejecuta directo, si no crea solicitud.
+ *
+ * @param input - Objeto con `usuario_id`, `grupo_id`, y `rol` opcional
+ * @returns Resultado de la operación con modo directo o solicitud
+ */
+export async function agregarMiembroDirecto(
+  input: z.infer<typeof agregarMiembroDirectoSchema>
+): Promise<ResultadoAccion<CrearSolicitudRpcResultado>> {
+  const parsed = agregarMiembroDirectoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  }
+
+  return crearSolicitudGrupo({
+    tipo: "ingreso",
+    usuario_id: parsed.data.usuario_id,
+    grupo_id: parsed.data.grupo_id,
+    rol_solicitado: parsed.data.rol,
+  });
 }
