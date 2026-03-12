@@ -2,7 +2,7 @@
 
 import { Clock, ArrowRight, UserPlus, UserMinus, RefreshCw, Shield } from "lucide-react";
 import { TarjetaSistema, TextoSistema } from "@/components/ui/sistema-diseno";
-import type { MovimientoHistorial } from "@/lib/actions/solicitudes-grupo.actions";
+import type { MovimientoHistorial } from "@/lib/types/solicitudes-grupo.types";
 
 const ICONO_MOVIMIENTO: Record<string, typeof UserPlus> = {
     ingreso: UserPlus,

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sistema-diseno";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
 import { procesarSolicitudGrupo } from "@/lib/actions/solicitudes-grupo.actions";
-import type { SolicitudPendiente } from "@/lib/actions/solicitudes-grupo.actions";
+import type { SolicitudPendiente } from "@/lib/types/solicitudes-grupo.types";
 
 interface ModalProcesarSolicitudProps {
     solicitud: SolicitudPendiente;

@@ -1,14 +1,22 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import AttendanceRegister from '@/components/grupos/AttendanceRegister.client'
-import Link from 'next/link'
+import { createSupabaseServerClient } from "@/lib/supabase/server"
+import RegistroAsistenciaAvanzado from "@/components/grupos/RegistroAsistenciaAvanzado.client"
+import Link from "next/link"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { ContenedorDashboard, TituloSistema, BotonSistema } from "@/components/ui/sistema-diseno"
+import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions"
 
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
+/** Forma mínima del resultado de obtener_detalle_grupo relevante para asistencia */
+interface GrupoDetalle {
+  nombre: string
+  direccion?: { latitud?: number; longitud?: number; lat?: number; lng?: number } | null
+  miembros: Array<{ id: string; nombre: string; apellido: string; rol?: string | null }>
+}
 
 export default async function RegistrarAsistenciaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
+
   if (!user) {
     return (
       <DashboardLayout>
@@ -18,9 +26,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
               <p className="text-muted-foreground mb-4">Debes iniciar sesión para acceder a esta página.</p>
               <Link href="/login">
-                <BotonSistema variante="primario">
-                  Iniciar Sesión
-                </BotonSistema>
+                <BotonSistema variante="primario">Iniciar Sesión</BotonSistema>
               </Link>
             </div>
           </div>
@@ -29,11 +35,13 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
     )
   }
 
-  const [{ data: grupoRaw }, { data: puedeEditar }] = await Promise.all([
-    supabase.rpc('obtener_detalle_grupo', { p_auth_id: user.id, p_grupo_id: id }),
-    supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id })
+  const [{ data: grupoRaw }, { data: puedeEditar }, configResult] = await Promise.all([
+    supabase.rpc("obtener_detalle_grupo", { p_auth_id: user.id, p_grupo_id: id }),
+    supabase.rpc("puede_editar_grupo", { p_auth_id: user.id, p_grupo_id: id }),
+    obtenerConfiguracionGrupos(),
   ])
-  const grupo = grupoRaw as any
+
+  const grupo = grupoRaw as GrupoDetalle | null
 
   if (!grupo || !puedeEditar) {
     return (
@@ -45,9 +53,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
               <TituloSistema nivel={2}>Sin permisos</TituloSistema>
               <p className="text-muted-foreground mb-4">No tienes permiso para registrar asistencia en este grupo.</p>
               <Link href={`/grupos-vida/${id}`}>
-                <BotonSistema variante="primario">
-                  Volver al grupo
-                </BotonSistema>
+                <BotonSistema variante="primario">Volver al grupo</BotonSistema>
               </Link>
             </div>
           </div>
@@ -56,21 +62,28 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
     )
   }
 
-  // Normalizar lat/lng si existen (no requerido aquí, pero mantenemos el patrón de mapping)
+  // Normalizar lat/lng si existen
   if (grupo.direccion) {
     grupo.direccion.lat = grupo.direccion.latitud
     grupo.direccion.lng = grupo.direccion.longitud
   }
 
+  const configuracion = configResult.success && configResult.data
+    ? {
+      visitantes_habilitados: configResult.data.visitantes_habilitados,
+      puntos_oracion_compartidos: configResult.data.puntos_oracion_compartidos,
+      modo_cierre_asistencia: configResult.data.modo_cierre_asistencia,
+    }
+    : undefined
+
   return (
     <DashboardLayout>
       <ContenedorDashboard
         titulo={`Registrar Asistencia - ${grupo.nombre}`}
-        descripcion="Marca presentes y guarda en un clic."
-        botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
+        descripcion="Registra la asistencia y notas pastorales de la reunión."
+        botonRegreso={{ href: `/grupos-vida/${id}`, texto: "Volver al grupo" }}
       >
-        {/** Normalizamos miembros al shape esperado por el componente */}
-        <AttendanceRegister
+        <RegistroAsistenciaAvanzado
           grupoId={id}
           miembros={(grupo.miembros || []).map((m: { id: string; nombre: string; apellido: string; rol?: string | null }) => ({
             id: m.id,
@@ -78,6 +91,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
             apellido: m.apellido,
             rol: m.rol || undefined,
           }))}
+          configuracion={configuracion}
         />
       </ContenedorDashboard>
     </DashboardLayout>

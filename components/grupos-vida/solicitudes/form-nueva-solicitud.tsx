@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sistema-diseno";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
 import { crearSolicitudGrupo } from "@/lib/actions/solicitudes-grupo.actions";
-import type { TipoSolicitud } from "@/lib/actions/solicitudes-grupo.actions";
+import type { TipoSolicitud } from "@/lib/types/solicitudes-grupo.types";
 
 interface GrupoOption {
     id: string;

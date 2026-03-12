@@ -3,27 +3,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { modoCierreSchema } from "@/lib/types/asistencia-avanzada.types";
+import type { ConfiguracionGruposVida } from "@/lib/types/configuracion-grupos-vida.types";
 
-// ─── Types ───────────────────────────────────────────────────────────
-
-interface ResultadoAccion<T = void> {
-  success: boolean;
-  error?: string;
-  data?: T;
-}
-
-/** Configuración del módulo de grupos de vida */
-export interface ConfiguracionGruposVida {
-  id: string;
-  campus_id: string | null;
-  dias_expiracion_solicitud: number;
-  max_miembros_por_grupo: number | null;
-  permitir_lider_en_otro_grupo: boolean;
-  requiere_aprobacion_grupo_planificacion: boolean;
-  notificar_lider_ingreso: boolean;
-  creado_en: string;
-  actualizado_en: string;
-}
+type Res<T = void> = { success: boolean; error?: string; data?: T };
 
 // ─── Schemas ─────────────────────────────────────────────────────────
 
@@ -36,6 +19,18 @@ const actualizarConfigSchema = z.object({
   permitir_lider_en_otro_grupo: z.boolean().optional(),
   requiere_aprobacion_grupo_planificacion: z.boolean().optional(),
   notificar_lider_ingreso: z.boolean().optional(),
+  // Campos de asistencia avanzada (Fase 3)
+  modo_cierre_asistencia: modoCierreSchema.optional(),
+  dia_cierre_semanal: z.number().int().min(0).max(6).optional(),
+  hora_cierre: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  visitantes_habilitados: z.boolean().optional(),
+  puntos_oracion_compartidos: z.boolean().optional(),
+  umbral_atencion: z.number().int().min(1).max(12).optional(),
+  umbral_riesgo: z.number().int().min(1).max(24).optional(),
+  umbral_critico: z.number().int().min(1).max(52).optional(),
+  correo_semanal_habilitado: z.boolean().optional(),
+  dia_envio_correo: z.number().int().min(0).max(6).optional(),
+  hora_envio_correo: z.string().regex(/^\d{2}:\d{2}$/).optional(),
 });
 
 // ─── Actions ─────────────────────────────────────────────────────────
@@ -46,7 +41,7 @@ const actualizarConfigSchema = z.object({
  */
 export async function obtenerConfiguracionGrupos(
   campusId?: string
-): Promise<ResultadoAccion<ConfiguracionGruposVida>> {
+): Promise<Res<ConfiguracionGruposVida>> {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "No autenticado" };
@@ -75,7 +70,7 @@ export async function obtenerConfiguracionGrupos(
 export async function actualizarConfiguracionGrupos(
   configId: string,
   input: z.infer<typeof actualizarConfigSchema>
-): Promise<ResultadoAccion<ConfiguracionGruposVida>> {
+): Promise<Res<ConfiguracionGruposVida>> {
   if (!z.string().uuid().safeParse(configId).success) {
     return { success: false, error: "ID de configuración inválido" };
   }

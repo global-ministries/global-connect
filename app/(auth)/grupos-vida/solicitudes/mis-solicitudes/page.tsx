@@ -6,7 +6,7 @@ import { ContenedorDashboard, TextoSistema, TarjetaSistema } from "@/components/
 import { BadgeSistema } from "@/components/ui/sistema-diseno";
 import { Clock, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { obtenerMisSolicitudes } from "@/lib/actions/solicitudes-grupo.actions";
-import type { MiSolicitud } from "@/lib/actions/solicitudes-grupo.actions";
+import type { MiSolicitud } from "@/lib/types/solicitudes-grupo.types";
 
 const ICONO_ESTADO: Record<string, typeof Clock> = {
     pendiente: Clock,

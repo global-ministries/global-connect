@@ -302,8 +302,17 @@ export async function procesarAprobacionCasa(
 
   revalidatePath("/grupos-vida/casas-anfitrionas");
   revalidatePath(`/grupos-vida/casas-anfitrionas/${casaId}`);
-  // RPC retorna Json — casteamos al tipo esperado
-  return { success: true, data: data as unknown as AprobacionCasaResultado };
+
+  // Validar estructura del resultado JSON de la RPC con Zod
+  const aprobacionSchema = z.object({
+    ok: z.boolean(),
+    estado: z.string().optional(),
+  });
+  const parsed = aprobacionSchema.safeParse(data);
+  if (!parsed.success) {
+    return { success: false, error: "Respuesta inesperada del servidor" };
+  }
+  return { success: true, data: parsed.data };
 }
 
 /**

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { Settings, Save } from "lucide-react";
+import { Settings, Save, Clock, Eye, AlertTriangle, Mail } from "lucide-react";
 import {
     BotonSistema,
     TarjetaSistema,
@@ -15,7 +15,7 @@ import {
     obtenerConfiguracionGrupos,
     actualizarConfiguracionGrupos,
 } from "@/lib/actions/configuracion-grupos-vida.actions";
-import type { ConfiguracionGruposVida } from "@/lib/actions/configuracion-grupos-vida.actions";
+import type { ConfiguracionGruposVida } from "@/lib/types/configuracion-grupos-vida.types";
 
 interface ConfiguracionPanelProps {
     /** Datos pre-cargados desde Server Component (COR-006) */
@@ -34,6 +34,18 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
     const [permitirLiderOtroGrupo, setPermitirLiderOtroGrupo] = useState(configInicial ? String(configInicial.permitir_lider_en_otro_grupo) : "true");
     const [requiereAprobacionPlanificacion, setRequiereAprobacionPlanificacion] = useState(configInicial ? String(configInicial.requiere_aprobacion_grupo_planificacion) : "false");
     const [notificarLiderIngreso, setNotificarLiderIngreso] = useState(configInicial ? String(configInicial.notificar_lider_ingreso) : "true");
+    // Campos de asistencia avanzada (Fase 3)
+    const [modoCierre, setModoCierre] = useState(configInicial?.modo_cierre_asistencia ?? "semanal");
+    const [diaCierre, setDiaCierre] = useState(String(configInicial?.dia_cierre_semanal ?? 0));
+    const [horaCierre, setHoraCierre] = useState(configInicial?.hora_cierre ?? "23:59");
+    const [visitantesHabilitados, setVisitantesHabilitados] = useState(String(configInicial?.visitantes_habilitados ?? false));
+    const [puntosOracion, setPuntosOracion] = useState(String(configInicial?.puntos_oracion_compartidos ?? false));
+    const [umbralAtencion, setUmbralAtencion] = useState(String(configInicial?.umbral_atencion ?? 2));
+    const [umbralRiesgo, setUmbralRiesgo] = useState(String(configInicial?.umbral_riesgo ?? 4));
+    const [umbralCritico, setUmbralCritico] = useState(String(configInicial?.umbral_critico ?? 6));
+    const [correoSemanal, setCorreoSemanal] = useState(String(configInicial?.correo_semanal_habilitado ?? false));
+    const [diaCorreo, setDiaCorreo] = useState(String(configInicial?.dia_envio_correo ?? 1));
+    const [horaCorreo, setHoraCorreo] = useState(configInicial?.hora_envio_correo ?? "08:00");
     const [isLoading, setIsLoading] = useState(!configInicial);
     const [isPending, startTransition] = useTransition();
     const toast = useNotificaciones();
@@ -51,6 +63,17 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                 setPermitirLiderOtroGrupo(String(c.permitir_lider_en_otro_grupo));
                 setRequiereAprobacionPlanificacion(String(c.requiere_aprobacion_grupo_planificacion));
                 setNotificarLiderIngreso(String(c.notificar_lider_ingreso));
+                setModoCierre(c.modo_cierre_asistencia ?? "semanal");
+                setDiaCierre(String(c.dia_cierre_semanal ?? 0));
+                setHoraCierre(c.hora_cierre ?? "23:59");
+                setVisitantesHabilitados(String(c.visitantes_habilitados ?? false));
+                setPuntosOracion(String(c.puntos_oracion_compartidos ?? false));
+                setUmbralAtencion(String(c.umbral_atencion ?? 2));
+                setUmbralRiesgo(String(c.umbral_riesgo ?? 4));
+                setUmbralCritico(String(c.umbral_critico ?? 6));
+                setCorreoSemanal(String(c.correo_semanal_habilitado ?? false));
+                setDiaCorreo(String(c.dia_envio_correo ?? 1));
+                setHoraCorreo(c.hora_envio_correo ?? "08:00");
             }
             setIsLoading(false);
         };
@@ -67,6 +90,18 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                 permitir_lider_en_otro_grupo: permitirLiderOtroGrupo === "true",
                 requiere_aprobacion_grupo_planificacion: requiereAprobacionPlanificacion === "true",
                 notificar_lider_ingreso: notificarLiderIngreso === "true",
+                // Asistencia avanzada (Fase 3)
+                modo_cierre_asistencia: modoCierre as "semanal" | "libre" | "ultimas_2_semanas" | "ultimo_mes",
+                dia_cierre_semanal: Number(diaCierre),
+                hora_cierre: horaCierre,
+                visitantes_habilitados: visitantesHabilitados === "true",
+                puntos_oracion_compartidos: puntosOracion === "true",
+                umbral_atencion: Number(umbralAtencion),
+                umbral_riesgo: Number(umbralRiesgo),
+                umbral_critico: Number(umbralCritico),
+                correo_semanal_habilitado: correoSemanal === "true",
+                dia_envio_correo: Number(diaCorreo),
+                hora_envio_correo: horaCorreo,
             });
 
             if (resultado.success) {
@@ -201,6 +236,172 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
 
                 <SeparadorSistema />
 
+                {/* ── Sección Asistencia Avanzada ── */}
+                <div className="flex items-center gap-2 mt-4">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <TituloSistema nivel={4}>Asistencia Avanzada</TituloSistema>
+                </div>
+
+                <ConfigItem
+                    titulo="Ventana de edición"
+                    descripcion="Cuánto tiempo tiene el líder para registrar/editar asistencia"
+                >
+                    <SelectSistema
+                        opciones={[
+                            { valor: "semanal", etiqueta: "Hasta cierre semanal" },
+                            { valor: "libre", etiqueta: "Sin restricción" },
+                            { valor: "ultimas_2_semanas", etiqueta: "Últimas 2 semanas" },
+                            { valor: "ultimo_mes", etiqueta: "Último mes" },
+                        ]}
+                        value={modoCierre}
+                        onValueChange={setModoCierre}
+                    />
+                </ConfigItem>
+
+                {modoCierre === "semanal" && (
+                    <>
+                        <ConfigItem
+                            titulo="Día de cierre"
+                            descripcion="Día de la semana en que cierra la ventana"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "0", etiqueta: "Domingo" },
+                                    { valor: "1", etiqueta: "Lunes" },
+                                    { valor: "2", etiqueta: "Martes" },
+                                    { valor: "3", etiqueta: "Miércoles" },
+                                    { valor: "4", etiqueta: "Jueves" },
+                                    { valor: "5", etiqueta: "Viernes" },
+                                    { valor: "6", etiqueta: "Sábado" },
+                                ]}
+                                value={diaCierre}
+                                onValueChange={setDiaCierre}
+                            />
+                        </ConfigItem>
+                    </>
+                )}
+
+                <SeparadorSistema />
+
+                <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    <TituloSistema nivel={4}>Funciones opcionales</TituloSistema>
+                </div>
+
+                <ConfigItem
+                    titulo="Visitantes"
+                    descripcion="Permitir registro de visitantes no miembros"
+                >
+                    <SelectSistema
+                        opciones={[
+                            { valor: "true", etiqueta: "Habilitado" },
+                            { valor: "false", etiqueta: "Deshabilitado" },
+                        ]}
+                        value={visitantesHabilitados}
+                        onValueChange={setVisitantesHabilitados}
+                    />
+                </ConfigItem>
+
+                <ConfigItem
+                    titulo="Puntos de oración"
+                    descripcion="Compartir puntos de oración con miembros del grupo"
+                >
+                    <SelectSistema
+                        opciones={[
+                            { valor: "true", etiqueta: "Visibles" },
+                            { valor: "false", etiqueta: "Solo líder" },
+                        ]}
+                        value={puntosOracion}
+                        onValueChange={setPuntosOracion}
+                    />
+                </ConfigItem>
+
+                <SeparadorSistema />
+
+                <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                    <TituloSistema nivel={4}>Umbrales de riesgo</TituloSistema>
+                </div>
+
+                <ConfigItem
+                    titulo="Atención"
+                    descripcion={`Semanas ausente para marcar como "Atención"`}
+                >
+                    <SelectSistema
+                        opciones={[1, 2, 3, 4].map(n => ({ valor: String(n), etiqueta: `${n} semanas` }))}
+                        value={umbralAtencion}
+                        onValueChange={setUmbralAtencion}
+                    />
+                </ConfigItem>
+
+                <ConfigItem
+                    titulo="Riesgo"
+                    descripcion={`Semanas ausente para marcar como "Riesgo"`}
+                >
+                    <SelectSistema
+                        opciones={[2, 3, 4, 6, 8].map(n => ({ valor: String(n), etiqueta: `${n} semanas` }))}
+                        value={umbralRiesgo}
+                        onValueChange={setUmbralRiesgo}
+                    />
+                </ConfigItem>
+
+                <ConfigItem
+                    titulo="Crítico"
+                    descripcion={`Semanas ausente para marcar como "Crítico"`}
+                >
+                    <SelectSistema
+                        opciones={[4, 6, 8, 10, 12].map(n => ({ valor: String(n), etiqueta: `${n} semanas` }))}
+                        value={umbralCritico}
+                        onValueChange={setUmbralCritico}
+                    />
+                </ConfigItem>
+
+                <SeparadorSistema />
+
+                <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <TituloSistema nivel={4}>Correo semanal</TituloSistema>
+                </div>
+
+                <ConfigItem
+                    titulo="Enviar resumen semanal"
+                    descripcion="Envía un correo con el resumen de asistencia a los líderes"
+                >
+                    <SelectSistema
+                        opciones={[
+                            { valor: "true", etiqueta: "Habilitado" },
+                            { valor: "false", etiqueta: "Deshabilitado" },
+                        ]}
+                        value={correoSemanal}
+                        onValueChange={setCorreoSemanal}
+                    />
+                </ConfigItem>
+
+                {
+                    correoSemanal === "true" && (
+                        <ConfigItem
+                            titulo="Día de envío"
+                            descripcion="Día de la semana para enviar el resumen"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "0", etiqueta: "Domingo" },
+                                    { valor: "1", etiqueta: "Lunes" },
+                                    { valor: "2", etiqueta: "Martes" },
+                                    { valor: "3", etiqueta: "Miércoles" },
+                                    { valor: "4", etiqueta: "Jueves" },
+                                    { valor: "5", etiqueta: "Viernes" },
+                                    { valor: "6", etiqueta: "Sábado" },
+                                ]}
+                                value={diaCorreo}
+                                onValueChange={setDiaCorreo}
+                            />
+                        </ConfigItem>
+                    )
+                }
+
+                <SeparadorSistema />
+
                 {/* Guardar */}
                 <div className="flex justify-end">
                     <BotonSistema
@@ -213,8 +414,8 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                         Guardar cambios
                     </BotonSistema>
                 </div>
-            </div>
-        </TarjetaSistema>
+            </div >
+        </TarjetaSistema >
     );
 }
 

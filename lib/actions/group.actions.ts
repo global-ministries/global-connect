@@ -153,14 +153,19 @@ export async function createGroup(data: {
     }
 
     // Asignar director de etapa inicial
+    // La RPC existe en DB pero falta en tipos generados.
+    // Se resolverá al ejecutar `pnpm gen:types`
     if (data.director_etapa_segmento_lider_id) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await supabase.rpc("asignar_director_etapa_a_grupo" as any, {
+      // @ts-expect-error — RPC no tipada, se corrige con pnpm gen:types
+      const { error: dirError } = await supabase.rpc("asignar_director_etapa_a_grupo", {
         p_auth_id: user.id,
         p_grupo_id: grupoId,
         p_segmento_lider_id: data.director_etapa_segmento_lider_id,
         p_accion: "agregar",
       });
+      if (dirError) {
+        console.warn("Error al asignar director de etapa:", dirError.message);
+      }
     }
 
     // Asignar líder inicial

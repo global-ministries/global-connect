@@ -21,7 +21,8 @@ import {
   MapPin,
   Calendar,
   BarChart3,
-  House
+  House,
+  ShieldAlert
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
 import { UserAvatar } from './UserAvatar'
@@ -74,6 +75,7 @@ const menuItems: MenuItem[] = [
       { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar },
       { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin },
       { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3 },
+      { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert },
     ],
   },
   {
@@ -105,12 +107,21 @@ const footerItems: MenuItem[] = [
  */
 export function SidebarModerna({ className }: SidebarModernaProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set())
-  const pathname = usePathname()
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [tooltip, setTooltip] = useState<{ label: string; top: number } | null>(null)
   const router = useRouter()
+  const pathname = usePathname()
   const { usuario, roles, loading } = useCurrentUser()
+
+  // ─── Tooltip hover handlers (collapsed mode) ───
+  const showTooltip = (e: React.MouseEvent, label: string) => {
+    if (!isCollapsed) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    setTooltip({ label, top: rect.top + rect.height / 2 })
+  }
+  const hideTooltip = () => setTooltip(null)
 
   // Auto-expand submenus when a child route is active
   useEffect(() => {
@@ -248,13 +259,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     isCollapsed ? "w-6 h-6" : "w-5 h-5"
   )
 
-  // ─── Tooltip (collapsed mode) ───
-  const Tooltip = ({ label }: { label: string }) => (
-    <div className="absolute left-full ml-2 px-3 py-1.5 glass-panel-elevated text-foreground text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-[opacity,visibility] duration-200 ease-expo whitespace-nowrap z-50">
-      {label}
-      <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-[var(--glass-bg-elevated)] rotate-45 border-l border-b border-[var(--glass-border)]"></div>
-    </div>
-  )
+  // ─── Sidebar width for fixed tooltip positioning ───
+  const sidebarWidth = isCollapsed ? 64 : 256
 
   // ─── Active indicator pill ───
   const ActivePill = () => (
@@ -334,6 +340,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                             "flex-1",
                             !isCollapsed && "pr-1"
                           )}
+                          onMouseEnter={(e) => showTooltip(e, item.label)}
+                          onMouseLeave={hideTooltip}
                         >
                           {parentActive && <ActivePill />}
                           <Icon className={iconClasses(parentActive)} />
@@ -352,8 +360,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                               )}
                             </>
                           )}
-
-                          {isCollapsed && <Tooltip label={item.label} />}
                         </Link>
 
                         {/* Chevron button — only when expanded */}
@@ -416,6 +422,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                       href={item.href}
                       aria-current={parentActive ? "page" : undefined}
                       className={linkClasses(parentActive)}
+                      onMouseEnter={(e) => showTooltip(e, item.label)}
+                      onMouseLeave={hideTooltip}
                     >
                       {parentActive && <ActivePill />}
                       <Icon className={iconClasses(parentActive)} />
@@ -434,8 +442,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                           )}
                         </>
                       )}
-
-                      {isCollapsed && <Tooltip label={item.label} />}
                     </Link>
                   )}
                 </li>
@@ -456,13 +462,14 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={linkClasses(active)}
+                onMouseEnter={(e) => showTooltip(e, item.label)}
+                onMouseLeave={hideTooltip}
               >
                 {active && <ActivePill />}
                 <Icon className={iconClasses(active)} />
                 {!isCollapsed && (
                   <span className="font-medium truncate">{item.label}</span>
                 )}
-                {isCollapsed && <Tooltip label={item.label} />}
               </Link>
             )
           })}
@@ -475,6 +482,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
               "touch-manipulation cursor-pointer",
               isCollapsed && "justify-center px-2"
             )}
+            onMouseEnter={(e) => showTooltip(e, 'Tema')}
+            onMouseLeave={hideTooltip}
           >
             <ThemeToggle className={cn(
               "!min-h-0 !min-w-0 !p-0 !bg-transparent !border-0 !shadow-none !ring-0 !rounded-none flex-shrink-0",
@@ -483,7 +492,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
             {!isCollapsed && (
               <span className="font-medium pointer-events-none">Tema</span>
             )}
-            {isCollapsed && <Tooltip label="Tema" />}
           </div>
 
           {/* Mi Perfil */}
@@ -491,6 +499,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
             href="/perfil"
             aria-current={pathname === '/perfil' ? "page" : undefined}
             className={linkClasses(pathname === '/perfil')}
+            onMouseEnter={(e) => showTooltip(e, 'Mi Perfil')}
+            onMouseLeave={hideTooltip}
           >
             {pathname === '/perfil' && <ActivePill />}
 
@@ -503,8 +513,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
             {!isCollapsed && (
               <span className="font-medium">Mi Perfil</span>
             )}
-
-            {isCollapsed && <Tooltip label="Mi Perfil" />}
           </Link>
 
           {/* Cerrar Sesión */}
@@ -518,6 +526,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
               "text-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400",
               isCollapsed && "justify-center px-2"
             )}
+            onMouseEnter={(e) => showTooltip(e, 'Cerrar Sesión')}
+            onMouseLeave={hideTooltip}
           >
             <LogOut className={cn(
               "flex-shrink-0 transition-colors text-muted-foreground group-hover:text-red-600 dark:group-hover:text-red-400",
@@ -527,10 +537,19 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
             {!isCollapsed && (
               <span className="font-medium">Cerrar Sesión</span>
             )}
-
-            {isCollapsed && <Tooltip label="Cerrar Sesión" />}
           </button>
         </div>
+
+        {/* Fixed tooltip — renders outside scroll containers */}
+        {isCollapsed && tooltip && (
+          <div
+            className="fixed z-[9999] px-3 py-1.5 glass-panel-elevated text-foreground text-sm rounded-lg whitespace-nowrap pointer-events-none animate-fade-in"
+            style={{ top: tooltip.top, left: sidebarWidth + 8, transform: 'translateY(-50%)' }}
+          >
+            {tooltip.label}
+            <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-[var(--glass-bg-elevated)] rotate-45 border-l border-b border-[var(--glass-border)]" />
+          </div>
+        )}
       </div>
 
       {/* Modal de confirmación de logout — Liquid Glass */}

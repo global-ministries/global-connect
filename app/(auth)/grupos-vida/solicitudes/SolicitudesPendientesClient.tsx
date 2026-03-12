@@ -5,7 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { BotonSistema } from "@/components/ui/sistema-diseno";
 import { TablaSolicitudes } from "@/components/grupos-vida/solicitudes/tabla-solicitudes";
 import { listarSolicitudesPendientes } from "@/lib/actions/solicitudes-grupo.actions";
-import type { SolicitudPendiente } from "@/lib/actions/solicitudes-grupo.actions";
+import type { SolicitudPendiente } from "@/lib/types/solicitudes-grupo.types";
 
 interface SolicitudesPendientesClientProps {
     solicitudesIniciales: SolicitudPendiente[];

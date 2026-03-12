@@ -3,14 +3,19 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import type {
+  TipoSolicitud,
+  AccionSolicitud,
+  SolicitudPendiente,
+  CrearSolicitudRpcResultado,
+  ProcesarSolicitudRpcResultado,
+  MovimientoHistorial,
+  MiSolicitud,
+} from "@/lib/types/solicitudes-grupo.types";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-interface ResultadoAccion<T = void> {
-  success: boolean;
-  error?: string;
-  data?: T;
-}
+type Res<T = void> = { success: boolean; error?: string; data?: T };
 
 /** Tipo de solicitud para Zod validation */
 const tipoSolicitudEnum = z.enum([
@@ -22,34 +27,6 @@ const tipoSolicitudEnum = z.enum([
 ]);
 
 const accionSolicitudEnum = z.enum(["aprobar", "rechazar"]);
-
-export type TipoSolicitud = z.infer<typeof tipoSolicitudEnum>;
-export type AccionSolicitud = z.infer<typeof accionSolicitudEnum>;
-
-/** Solicitud pendiente enriquecida (de la vista v_solicitudes_pendientes) */
-export interface SolicitudPendiente {
-  id: string;
-  tipo: TipoSolicitud;
-  estado: string;
-  motivo: string | null;
-  creado_en: string;
-  expira_en: string | null;
-  grupo_id: string;
-  grupo_origen_id: string | null;
-  rol_solicitado: string | null;
-  temporada_id: string | null;
-  grupo_nombre: string;
-  segmento_nombre: string;
-  grupo_origen_nombre: string | null;
-  miembro_id: string | null;
-  miembro_nombre: string | null;
-  miembro_apellido: string | null;
-  miembro_foto: string | null;
-  solicitante_nombre: string;
-  solicitante_apellido: string;
-  temporada_nombre: string | null;
-  temporada_estado: string | null;
-}
 
 /** Schema Zod para validar el resultado del RPC crear_solicitud_grupo */
 const CrearSolicitudRpcSchema = z.object({
@@ -65,9 +42,6 @@ const ProcesarSolicitudRpcSchema = z.object({
   accion: z.string(),
   solicitud_id: z.string().uuid(),
 });
-
-export type CrearSolicitudRpcResultado = z.infer<typeof CrearSolicitudRpcSchema>;
-export type ProcesarSolicitudRpcResultado = z.infer<typeof ProcesarSolicitudRpcSchema>;
 
 // ─── Schemas ─────────────────────────────────────────────────────────
 
@@ -94,7 +68,7 @@ const procesarSolicitudSchema = z.object({
  */
 export async function crearSolicitudGrupo(
   input: z.infer<typeof crearSolicitudSchema>
-): Promise<ResultadoAccion<CrearSolicitudRpcResultado>> {
+): Promise<Res<CrearSolicitudRpcResultado>> {
   const parsed = crearSolicitudSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" };
@@ -138,7 +112,7 @@ export async function crearSolicitudGrupo(
  */
 export async function procesarSolicitudGrupo(
   input: z.infer<typeof procesarSolicitudSchema>
-): Promise<ResultadoAccion<ProcesarSolicitudRpcResultado>> {
+): Promise<Res<ProcesarSolicitudRpcResultado>> {
   const parsed = procesarSolicitudSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" };
@@ -179,7 +153,7 @@ export async function procesarSolicitudGrupo(
  * Usa la vista `v_solicitudes_pendientes` que ya tiene los datos enriquecidos.
  */
 export async function listarSolicitudesPendientes(): Promise<
-  ResultadoAccion<SolicitudPendiente[]>
+  Res<SolicitudPendiente[]>
 > {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -202,7 +176,7 @@ export async function listarSolicitudesPendientes(): Promise<
  * Obtener conteo de solicitudes pendientes para el badge del sidebar.
  * Usa la función `contar_solicitudes_pendientes` que es scoped por rol.
  */
-export async function contarSolicitudesPendientes(): Promise<ResultadoAccion<number>> {
+export async function contarSolicitudesPendientes(): Promise<Res<number>> {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "No autenticado" };
@@ -215,28 +189,9 @@ export async function contarSolicitudesPendientes(): Promise<ResultadoAccion<num
   return { success: true, data: data ?? 0 };
 }
 
-/**
- * Historial de movimientos de un miembro específico.
- * Usa la vista `v_historial_miembro`.
- */
-export interface MovimientoHistorial {
-  id: string;
-  usuario_id: string;
-  tipo_movimiento: string;
-  rol_anterior: string | null;
-  rol_nuevo: string | null;
-  motivo: string | null;
-  creado_en: string;
-  grupo_origen: string | null;
-  grupo_destino: string | null;
-  realizado_por_nombre: string | null;
-  realizado_por_apellido: string | null;
-  temporada: string | null;
-}
-
 export async function obtenerHistorialMiembro(
   usuarioId: string
-): Promise<ResultadoAccion<MovimientoHistorial[]>> {
+): Promise<Res<MovimientoHistorial[]>> {
   if (!z.string().uuid().safeParse(usuarioId).success) {
     return { success: false, error: "ID de usuario inválido" };
   }
@@ -270,7 +225,7 @@ const cancelarSolicitudSchema = z.object({
  */
 export async function cancelarSolicitud(
   input: z.infer<typeof cancelarSolicitudSchema>
-): Promise<ResultadoAccion> {
+): Promise<Res> {
   const parsed = cancelarSolicitudSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" };
@@ -303,28 +258,10 @@ export async function cancelarSolicitud(
   return { success: true };
 }
 
-/** Solicitud propia con datos de relaciones */
-export interface MiSolicitud {
-  id: string;
-  tipo: string;
-  estado: string;
-  motivo: string | null;
-  notas_director: string | null;
-  creado_en: string;
-  actualizado_en: string;
-  grupo_nombre: string | null;
-  grupo_origen_nombre: string | null;
-  usuario_nombre: string | null;
-  usuario_apellido: string | null;
-}
-
 /**
  * Obtiene las solicitudes creadas por el usuario actual.
- * Mueve el query fuera de la página y normaliza las relaciones.
- *
- * @returns Lista de solicitudes propias con datos normalizados
  */
-export async function obtenerMisSolicitudes(): Promise<ResultadoAccion<MiSolicitud[]>> {
+export async function obtenerMisSolicitudes(): Promise<Res<MiSolicitud[]>> {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "No autenticado" };
@@ -394,7 +331,7 @@ const agregarMiembroDirectoSchema = z.object({
  */
 export async function agregarMiembroDirecto(
   input: z.infer<typeof agregarMiembroDirectoSchema>
-): Promise<ResultadoAccion<CrearSolicitudRpcResultado>> {
+): Promise<Res<CrearSolicitudRpcResultado>> {
   const parsed = agregarMiembroDirectoSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" };
