@@ -1,8 +1,9 @@
 "use client";
 
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useMemo } from "react";
 import {
     InputSistema,
     TextareaSistema,
@@ -20,6 +21,8 @@ const schemaCasaAnfitriona = z.object({
     barrio: z.string().optional(),
     codigo_postal: z.string().optional(),
     referencia: z.string().optional(),
+    estado_id: z.string().uuid().optional(),
+    municipio_id: z.string().uuid().optional(),
     parroquia_id: z.string().uuid().optional(),
     notas_publicas: z.string().optional(),
     // Disponibilidad como JSON
@@ -34,14 +37,22 @@ const schemaCasaAnfitriona = z.object({
 
 type FormCasaData = z.infer<typeof schemaCasaAnfitriona>;
 
-interface Parroquia {
+/** Opción para selects de ubicación */
+interface UbicacionOption {
     value: string;
     label: string;
+    /** ID padre para filtrado en cascada */
+    parentId?: string;
 }
 
 interface FormCasaAnfitrionaProps {
     datosIniciales?: Partial<FormCasaData>;
-    parroquias: Parroquia[];
+    /** Catálogo de estados (provincias) */
+    estados: UbicacionOption[];
+    /** Catálogo de municipios con `parentId` = `estado_id` */
+    municipios: UbicacionOption[];
+    /** Catálogo de parroquias con `parentId` = `municipio_id` */
+    parroquias: UbicacionOption[];
     cargando?: boolean;
     onSubmit: (datos: FormCasaData) => Promise<void>;
     onCancelar: () => void;
@@ -59,11 +70,17 @@ const DIAS_SEMANA = [
 
 /**
  * Formulario para registrar o editar una casa anfitriona.
- * Incluye campos de información del lugar, dirección, disponibilidad semanal
+ *
+ * Incluye campos de información del lugar, dirección con selects
+ * en cascada (Estado → Municipio → Parroquia), disponibilidad semanal
  * y notas públicas. Usa react-hook-form con validación Zod.
+ *
+ * @param props - Datos iniciales, catálogos de ubicación, handlers.
  */
 export function FormCasaAnfitriona({
     datosIniciales,
+    estados,
+    municipios,
     parroquias,
     cargando = false,
     onSubmit,
@@ -73,6 +90,7 @@ export function FormCasaAnfitriona({
         register,
         control,
         handleSubmit,
+        setValue,
         formState: { errors },
     } = useForm<FormCasaData>({
         resolver: zodResolver(schemaCasaAnfitriona),
@@ -84,10 +102,48 @@ export function FormCasaAnfitriona({
             barrio: "",
             codigo_postal: "",
             referencia: "",
+            estado_id: undefined,
+            municipio_id: undefined,
+            parroquia_id: undefined,
             notas_publicas: "",
             ...datosIniciales,
         },
     });
+
+    // Observar valores para cascading
+    const estadoId = useWatch({ control, name: "estado_id" });
+    const municipioId = useWatch({ control, name: "municipio_id" });
+
+    /** Municipios filtrados por el estado seleccionado */
+    const municipiosFiltrados = useMemo(
+        () =>
+            estadoId
+                ? municipios.filter((m) => m.parentId === estadoId)
+                : [],
+        [estadoId, municipios]
+    );
+
+    /** Parroquias filtradas por el municipio seleccionado */
+    const parroquiasFiltradas = useMemo(
+        () =>
+            municipioId
+                ? parroquias.filter((p) => p.parentId === municipioId)
+                : [],
+        [municipioId, parroquias]
+    );
+
+    /** Resetea municipio y parroquia al cambiar de estado */
+    const handleEstadoChange = (val: string) => {
+        setValue("estado_id", val);
+        setValue("municipio_id", undefined);
+        setValue("parroquia_id", undefined);
+    };
+
+    /** Resetea parroquia al cambiar de municipio */
+    const handleMunicipioChange = (val: string) => {
+        setValue("municipio_id", val);
+        setValue("parroquia_id", undefined);
+    };
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -155,25 +211,72 @@ export function FormCasaAnfitriona({
                     {...register("referencia")}
                 />
 
-                {parroquias.length > 0 && (
+                {/* Selects en cascada: Estado → Municipio → Parroquia */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    {estados.length > 0 && (
+                        <Controller
+                            name="estado_id"
+                            control={control}
+                            render={({ field }) => (
+                                <SelectSistema
+                                    label="Estado"
+                                    opciones={estados.map((e) => ({
+                                        valor: e.value,
+                                        etiqueta: e.label,
+                                    }))}
+                                    placeholder="Seleccionar estado..."
+                                    onValueChange={handleEstadoChange}
+                                    value={field.value}
+                                    error={errors.estado_id?.message}
+                                />
+                            )}
+                        />
+                    )}
+
+                    <Controller
+                        name="municipio_id"
+                        control={control}
+                        render={({ field }) => (
+                            <SelectSistema
+                                label="Municipio"
+                                opciones={municipiosFiltrados.map((m) => ({
+                                    valor: m.value,
+                                    etiqueta: m.label,
+                                }))}
+                                placeholder={
+                                    estadoId
+                                        ? "Seleccionar municipio..."
+                                        : "Seleccione estado primero"
+                                }
+                                onValueChange={handleMunicipioChange}
+                                value={field.value}
+                                error={errors.municipio_id?.message}
+                            />
+                        )}
+                    />
+
                     <Controller
                         name="parroquia_id"
                         control={control}
                         render={({ field }) => (
                             <SelectSistema
                                 label="Parroquia"
-                                opciones={parroquias.map((p) => ({
+                                opciones={parroquiasFiltradas.map((p) => ({
                                     valor: p.value,
                                     etiqueta: p.label,
                                 }))}
-                                placeholder="Seleccionar parroquia..."
+                                placeholder={
+                                    municipioId
+                                        ? "Seleccionar parroquia..."
+                                        : "Seleccione municipio primero"
+                                }
                                 onValueChange={field.onChange}
                                 value={field.value}
                                 error={errors.parroquia_id?.message}
                             />
                         )}
                     />
-                )}
+                </div>
             </div>
 
             {/* Disponibilidad por día */}

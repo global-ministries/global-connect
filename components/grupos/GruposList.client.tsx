@@ -138,7 +138,7 @@ export default function GruposListClient({
     const m = new Map<string, string>()
     segmentos.forEach(s => m.set(s.id, s.nombre))
     return m
-  }, [])
+  }, [segmentos])
 
   const onTabChange = useCallback((v: string) => {
     const next = (v as 'actuales' | 'pasados' | 'futuros' | 'mios')
@@ -154,7 +154,7 @@ export default function GruposListClient({
   }, [pathname, router, sp])
 
   useEffect(() => {
-    const t = (sp?.get('tab') as any) || 'actuales'
+    const t = (sp?.get('tab') as 'actuales' | 'pasados' | 'futuros' | 'mios' | null) || 'actuales'
     setPestanaActiva(t)
   }, [sp])
 
@@ -189,8 +189,8 @@ export default function GruposListClient({
         .filter(g => (filtroEstado === 'eliminado') || !g.eliminado ? true : (filtroEstado === 'eliminado'))
       )
       toast.success(`"${nombre}" ahora está en la papelera.`)
-    } catch (e: any) {
-      toast.error(e.message || 'Error desconocido')
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Error desconocido')
     }
   }, [canDelete, toast, filtroEstado])
 
@@ -209,8 +209,8 @@ export default function GruposListClient({
         .filter(g => filtroEstado === 'eliminado' ? g.eliminado : true)
       )
       toast.success(`"${nombre}" ha sido restaurado.`)
-    } catch (e: any) {
-      toast.error(e.message || 'Error desconocido')
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Error desconocido')
     }
   }, [canRestore, toast, filtroEstado])
 
@@ -567,8 +567,8 @@ export default function GruposListClient({
       router.refresh();
       setSelectedGroups([]);
 
-    } catch (e: any) {
-      toast.error(e.message || 'Error al actualizar los grupos.');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Error al actualizar los grupos.');
     } finally {
       setIsUpdating(false);
       setUpdatingAction(null)
@@ -618,7 +618,7 @@ export default function GruposListClient({
     setFiltros({
       segmentoId: sp?.get('segmentoId') || undefined,
       temporadaId: sp?.get('temporadaId') || undefined,
-      estado: (sp?.get('estado') as any) || undefined,
+      estado: (sp?.get('estado') as 'activo' | 'inactivo' | 'eliminado' | undefined) || undefined,
       municipioId: sp?.get('municipioId') || undefined,
       parroquiaId: sp?.get('parroquiaId') || undefined,
     })

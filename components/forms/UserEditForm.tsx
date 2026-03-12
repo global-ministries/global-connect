@@ -280,8 +280,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             currentPhotoUrl={usuario?.foto_perfil_url}
             size="lg"
             userId={usuario?.id}
-            onPhotoChange={(newPhotoUrl) => {
-              console.log('Nueva foto:', newPhotoUrl)
+            onPhotoChange={() => {
+              // Foto actualizada vía ProfilePhotoUploader — no se requiere acción adicional
             }}
           />
         </div>

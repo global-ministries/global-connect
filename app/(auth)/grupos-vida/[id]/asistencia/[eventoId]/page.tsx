@@ -72,9 +72,21 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   });
   // (log depuración removido)
 
+  /** Forma de cada fila devuelta por la RPC `obtener_asistencia_evento`. */
+  interface AsistenciaRPCRow {
+    id?: string
+    usuario_id?: string
+    nombre?: string
+    apellido?: string
+    rol?: string | null
+    presente?: boolean
+    motivo_inasistencia?: string | null
+    motivo?: string | null
+  }
+
   const asistentes = Array.isArray(asistenciaRes.data)
-    ? asistenciaRes.data.map((r: any) => ({
-      id: r.usuario_id ?? r.id,
+    ? (asistenciaRes.data as AsistenciaRPCRow[]).map((r) => ({
+      id: r.usuario_id ?? r.id ?? '',
       nombre: r.nombre ?? "",
       apellido: r.apellido ?? "",
       rol: r.rol ?? null,

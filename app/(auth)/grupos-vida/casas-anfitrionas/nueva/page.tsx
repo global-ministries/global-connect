@@ -10,8 +10,9 @@ const ROLES_LIDERAZGO = ["admin", "pastor", "director-general", "director-etapa"
 
 /**
  * Página para registrar una nueva casa anfitriona.
+ *
  * - Verifica autenticación y roles de liderazgo.
- * - Carga el catálogo de parroquias para el formulario.
+ * - Carga catálogos de estados, municipios y parroquias para cascading.
  * - Renderiza FormCasaAnfitriona dentro de DashboardLayout + ContenedorDashboard.
  */
 export default async function NuevaCasaAnfitrionaPage() {
@@ -23,15 +24,28 @@ export default async function NuevaCasaAnfitrionaPage() {
     const tieneAcceso = userData.roles.some((r) => ROLES_LIDERAZGO.includes(r));
     if (!tieneAcceso) redirect("/grupos-vida/casas-anfitrionas");
 
-    // Cargar parroquias para el selector del formulario
-    const { data: parroquias } = await supabase
-        .from("parroquias")
-        .select("id, nombre")
-        .order("nombre");
+    // Cargar catálogos de ubicación para cascading
+    const [{ data: estados }, { data: municipios }, { data: parroquias }] = await Promise.all([
+        supabase.from("estados").select("id, nombre").order("nombre"),
+        supabase.from("municipios").select("id, nombre, estado_id").order("nombre"),
+        supabase.from("parroquias").select("id, nombre, municipio_id").order("nombre"),
+    ]);
+
+    const estadosOptions = (estados ?? []).map((e) => ({
+        value: e.id,
+        label: e.nombre,
+    }));
+
+    const municipiosOptions = (municipios ?? []).map((m) => ({
+        value: m.id,
+        label: m.nombre,
+        parentId: m.estado_id,
+    }));
 
     const parroquiasOptions = (parroquias ?? []).map((p) => ({
         value: p.id,
         label: p.nombre,
+        parentId: p.municipio_id,
     }));
 
     return (
@@ -41,7 +55,11 @@ export default async function NuevaCasaAnfitrionaPage() {
                 botonRegreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
             >
                 <TarjetaSistema className="p-4 sm:p-6">
-                    <NuevaCasaClient parroquias={parroquiasOptions} />
+                    <NuevaCasaClient
+                        estados={estadosOptions}
+                        municipios={municipiosOptions}
+                        parroquias={parroquiasOptions}
+                    />
                 </TarjetaSistema>
             </ContenedorDashboard>
         </DashboardLayout>

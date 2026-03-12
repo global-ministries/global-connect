@@ -14,19 +14,18 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
   const supabase = await createSupabaseServerClient()
   const userData = await getUserWithRoles(supabase)
   if (!userData) {
-    console.log("[GC] No hay usuario autenticado")
     redirect("/login")
   }
   // Acceso: cualquier usuario autenticado puede entrar; la RPC limitará visibilidad según permisos
 
   // Resolver searchParams (puede venir como Promise según tipos de Next)
-  const sp: Record<string, string | string[] | undefined> = typeof (searchParams as any)?.then === 'function'
-    ? await (searchParams as any)
-    : (searchParams as any) || {}
+  const sp: Record<string, string | string[] | undefined> = searchParams
+    ? await searchParams
+    : {}
 
   // Obtener grupos para el usuario actual usando la RPC con filtros de la URL
   const { data: { user } } = await supabase.auth.getUser()
-  const pageSize = Number(Array.isArray(sp?.pageSize) ? sp?.pageSize[0] : sp?.pageSize) || 20
+  const pageSize = Number(Array.isArray(sp?.pageSize) ? sp?.pageSize[0] : sp?.pageSize) || 100
   const pageActuales = Number(Array.isArray(sp?.page_actuales) ? sp?.page_actuales[0] : sp?.page_actuales) || 1
   const pagePasados = Number(Array.isArray(sp?.page_pasados) ? sp?.page_pasados[0] : sp?.page_pasados) || 1
   const pageMios = Number(Array.isArray(sp?.page_mios) ? sp?.page_mios[0] : sp?.page_mios) || 1
@@ -116,7 +115,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     ])
     const error = actResp.error || pasResp.error || miosResp.error || futResp.error
     if (error) {
-      console.log('[GC] Error RPC obtener_grupos_para_usuario:', error)
+      // Error silencioso: la UI mostrará estado vacío si no hay datos
     }
     const gruposActuales = (actResp.data as any[]) || []
     const gruposPasados = (pasResp.data as any[]) || []
@@ -126,12 +125,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     const totalPasados = gruposPasados?.[0]?.total_count ? Number(gruposPasados[0].total_count) : 0
     const totalMios = gruposMios?.[0]?.total_count ? Number(gruposMios[0].total_count) : 0
     const totalFuturos = gruposFuturos?.[0]?.total_count ? Number(gruposFuturos[0].total_count) : 0
-    console.log('[GC] RPC grupos pre-cargados:', {
-      actuales: gruposActuales.length,
-      pasados: gruposPasados.length,
-      mios: gruposMios.length,
-      futuros: gruposFuturos.length,
-    })
+
 
     const roles = userData.roles || []
     const canCreateSuperior = roles.some(r => ["admin", "pastor", "director-general", "director-etapa"].includes(r))
@@ -178,8 +172,8 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         </ContenedorDashboard>
       </DashboardLayout>
     )
-  } catch (e) {
-    console.log('[GC] Excepción RPC obtener_grupos_para_usuario:', e)
+  } catch {
+    // Error silencioso: se renderiza layout vacío de fallback
   }
   // En caso de excepción previa devuelve layout básico vacío
   return (

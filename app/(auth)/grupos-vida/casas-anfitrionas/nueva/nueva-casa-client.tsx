@@ -6,22 +6,27 @@ import { FormCasaAnfitriona } from "@/components/grupos-vida/form-casa-anfitrion
 import { crearCasaAnfitriona } from "@/lib/actions/casas-anfitrionas.actions";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
 
-/** Parroquia con valores para el select */
-interface ParroquiaOption {
+/** Opción para selects de ubicación */
+interface UbicacionOption {
     value: string;
     label: string;
+    parentId?: string;
 }
 
 /** Props del componente cliente para crear casa anfitriona */
 interface NuevaCasaClientProps {
-    parroquias: ParroquiaOption[];
+    estados: UbicacionOption[];
+    municipios: UbicacionOption[];
+    parroquias: UbicacionOption[];
 }
 
 /**
  * Wrapper client que conecta FormCasaAnfitriona con la server action crearCasaAnfitriona.
- * Maneja el state de carga, toast de éxito/error, y navegación post-creación.
+ *
+ * Maneja el estado de carga, toast de éxito/error, y navegación post-creación.
+ * Pasa los catálogos de ubicación al formulario para selects en cascada.
  */
-export function NuevaCasaClient({ parroquias }: NuevaCasaClientProps) {
+export function NuevaCasaClient({ estados, municipios, parroquias }: NuevaCasaClientProps) {
     const [cargando, setCargando] = useState(false);
     const router = useRouter();
     const toast = useNotificaciones();
@@ -47,6 +52,8 @@ export function NuevaCasaClient({ parroquias }: NuevaCasaClientProps) {
 
     return (
         <FormCasaAnfitriona
+            estados={estados}
+            municipios={municipios}
             parroquias={parroquias}
             cargando={cargando}
             onSubmit={handleSubmit}
