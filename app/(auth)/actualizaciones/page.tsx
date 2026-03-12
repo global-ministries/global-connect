@@ -2,97 +2,7 @@
 
 import { TarjetaSistema, TituloSistema, TextoSistema, BadgeSistema, ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { Calendar, Sparkles, Wrench, Shield, Package } from 'lucide-react'
-
-/* ── Data ── */
-
-export interface Actualizacion {
-    version: string
-    fecha: string
-    titulo: string
-    descripcion: string
-    tipo: 'feature' | 'mejora' | 'correccion' | 'seguridad'
-    modulo: string
-    detalles: string[]
-    impactoRoles?: string[]
-}
-
-const actualizaciones: Actualizacion[] = [
-    {
-        version: '1.7.0',
-        fecha: '2026-03-11',
-        titulo: 'Experiencia Visual Premium',
-        descripcion: 'El sistema ahora se siente como una app nativa con dark mode completo, mejores formularios y navegación inteligente.',
-        tipo: 'mejora',
-        modulo: 'sistema',
-        detalles: [
-            'Dark mode funciona correctamente en todas las pantallas',
-            'Los gráficos se ven bien en modo oscuro',
-            'El header móvil muestra el nombre de la página en la que estás',
-            'Botón de regreso disponible en todas las páginas internas',
-            'Las tablas se adaptan mejor a pantallas pequeñas',
-            'Nuevos campos de formulario más accesibles y modernos',
-        ],
-        impactoRoles: ['admin', 'pastor', 'director-general', 'director-etapa', 'líder', 'miembro'],
-    },
-    {
-        version: '1.6.0',
-        fecha: '2026-03-10',
-        titulo: 'Mejoras en Grupos y Seguridad',
-        descripcion: 'Grupos ahora se conectan con el sistema multi-campus y la seguridad se fortaleció en auditorías.',
-        tipo: 'feature',
-        modulo: 'grupos',
-        detalles: [
-            'Al crear un grupo puedes asignarle un campus',
-            'La auditoría de grupos es más segura — solo ves los de tu campus',
-            'Se corrigieron duplicados en la base de datos',
-        ],
-        impactoRoles: ['admin', 'pastor', 'director-general'],
-    },
-    {
-        version: '1.5.0',
-        fecha: '2026-03-10',
-        titulo: 'Multi-Campus',
-        descripcion: 'Ahora puedes gestionar múltiples campus desde un solo dashboard.',
-        tipo: 'feature',
-        modulo: 'dashboard',
-        detalles: [
-            'Selector de campus en el sidebar y header móvil',
-            'El dashboard se actualiza automáticamente al cambiar de campus',
-            'Los KPIs, grupos y usuarios se filtran por campus seleccionado',
-            '171 grupos y 1020 usuarios asignados al campus Barquisimeto',
-        ],
-        impactoRoles: ['admin', 'pastor', 'director-general'],
-    },
-    {
-        version: '1.4.0',
-        fecha: '2026-03-10',
-        titulo: 'Permisos Mejorados',
-        descripcion: 'Ahora los permisos se verifican en el servidor para mayor seguridad.',
-        tipo: 'seguridad',
-        modulo: 'usuarios',
-        detalles: [
-            'Solo usuarios con permiso pueden editar perfiles de otros',
-            'Solo usuarios con permiso pueden crear nuevos miembros',
-            'Los botones se ocultan automáticamente si no tienes acceso',
-        ],
-        impactoRoles: ['admin', 'pastor', 'director-general', 'director-etapa', 'líder'],
-    },
-    {
-        version: '1.2.0',
-        fecha: '2026-03-09',
-        titulo: 'Emails Transaccionales',
-        descripcion: 'El sistema ahora puede enviar emails de bienvenida, verificación e invitación a grupos.',
-        tipo: 'feature',
-        modulo: 'sistema',
-        detalles: [
-            'Email de bienvenida al registrarse',
-            'Email de verificación de cuenta',
-            'Email de restablecimiento de contraseña',
-            'Email de invitación a un grupo',
-        ],
-        impactoRoles: ['admin', 'pastor'],
-    },
-]
+import { actualizaciones } from '@/lib/data/actualizaciones'
 
 /* ── Helpers ── */
 
@@ -119,6 +29,11 @@ const labelTipo = {
 
 /* ── Page ── */
 
+/**
+ * Página de actualizaciones del sistema.
+ * Muestra el historial de cambios y mejoras para usuarios internos.
+ * Server Component — no requiere interactividad del lado del cliente.
+ */
 export default function ActualizacionesPage() {
     return (
         <ContenedorDashboard titulo="Actualizaciones" descripcion="Historial de cambios y mejoras del sistema">

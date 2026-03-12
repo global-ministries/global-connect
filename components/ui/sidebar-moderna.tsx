@@ -22,7 +22,8 @@ import {
   Calendar,
   BarChart3,
   House,
-  ShieldAlert
+  ShieldAlert,
+  ClipboardList
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
 import { UserAvatar } from './UserAvatar'
@@ -76,13 +77,9 @@ const menuItems: MenuItem[] = [
       { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin },
       { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3 },
       { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert },
+      { id: 'gv-solicitudes', label: 'Solicitudes', href: '/grupos-vida/solicitudes', icon: ClipboardList },
+      { id: 'gv-config', label: 'Configuración', href: '/grupos-vida/configuracion', icon: Settings },
     ],
-  },
-  {
-    id: 'configuracion',
-    label: 'Configuración',
-    icon: Settings,
-    href: '/configuracion',
   },
 ]
 

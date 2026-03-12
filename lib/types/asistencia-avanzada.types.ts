@@ -13,6 +13,20 @@ export const tipoPresenciaSchema = z.enum([
 ]);
 export type TipoPresencia = z.infer<typeof tipoPresenciaSchema>;
 
+/** Minutos de tardanza (opciones predefinidas) */
+export const tiempoTardanzaSchema = z.enum(["5", "10", "15", "20", "30", "45", "60"]);
+export type TiempoTardanza = z.infer<typeof tiempoTardanzaSchema>;
+
+/** Motivo de tardanza */
+export const motivoTardanzaSchema = z.enum([
+  "trafico",
+  "hijos",
+  "trabajo",
+  "sin_razon",
+  "otro",
+]);
+export type MotivoTardanza = z.infer<typeof motivoTardanzaSchema>;
+
 /** Registro individual de asistencia para la RPC v2 */
 export const registroAsistenciaSchema = z.object({
   usuario_id: z.string().uuid(),
@@ -20,6 +34,9 @@ export const registroAsistenciaSchema = z.object({
   presente: z.boolean().optional(), // backward compat v1
   motivo_inasistencia: z.string().max(500).optional(),
   nota: z.string().max(500).optional(),
+  tiempo_tardanza: tiempoTardanzaSchema.optional(),
+  motivo_tardanza: motivoTardanzaSchema.optional(),
+  motivo_tardanza_otro: z.string().max(500).optional(),
 });
 export type RegistroAsistencia = z.infer<typeof registroAsistenciaSchema>;
 

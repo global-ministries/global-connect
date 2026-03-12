@@ -13,8 +13,8 @@ import {
 import { useNotificaciones } from "@/hooks/use-notificaciones"
 import { useRouter } from "next/navigation"
 import { registrarAsistenciaV2 } from "@/lib/actions/asistencia-avanzada.actions"
-import type { TipoPresencia } from "@/lib/types/asistencia-avanzada.types"
-import { Users, UserPlus, BookOpen, Lock, AlertTriangle } from "lucide-react"
+import type { TipoPresencia, TiempoTardanza, MotivoTardanza } from "@/lib/types/asistencia-avanzada.types"
+import { Users, UserPlus, BookOpen, Lock } from "lucide-react"
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -29,6 +29,9 @@ interface EstadoMiembro {
     tipo_presencia: TipoPresencia
     motivo?: string
     nota?: string
+    tiempo_tardanza?: TiempoTardanza
+    motivo_tardanza?: MotivoTardanza
+    motivo_tardanza_otro?: string
 }
 
 interface ConfigAsistencia {
@@ -67,6 +70,24 @@ const OPCIONES_PRESENCIA: Array<{ valor: TipoPresencia; etiqueta: string }> = [
     { valor: "ausente", etiqueta: "Ausente" },
     { valor: "tarde", etiqueta: "Tarde" },
     { valor: "justificado", etiqueta: "Justificado" },
+]
+
+const OPCIONES_TIEMPO_TARDANZA: Array<{ valor: TiempoTardanza; etiqueta: string }> = [
+    { valor: "5", etiqueta: "5 min" },
+    { valor: "10", etiqueta: "10 min" },
+    { valor: "15", etiqueta: "15 min" },
+    { valor: "20", etiqueta: "20 min" },
+    { valor: "30", etiqueta: "30 min" },
+    { valor: "45", etiqueta: "45 min" },
+    { valor: "60", etiqueta: "+1 hora" },
+]
+
+const OPCIONES_MOTIVO_TARDANZA: Array<{ valor: MotivoTardanza; etiqueta: string }> = [
+    { valor: "trafico", etiqueta: "Tráfico" },
+    { valor: "hijos", etiqueta: "Hijos" },
+    { valor: "trabajo", etiqueta: "Trabajo" },
+    { valor: "sin_razon", etiqueta: "Sin razón" },
+    { valor: "otro", etiqueta: "Otro" },
 ]
 
 const DIAS_SEMANA = [
@@ -199,6 +220,15 @@ export default function RegistroAsistenciaAvanzado({
                     ? (estado[m.id]?.motivo || undefined)
                     : undefined,
                 nota: estado[m.id]?.nota || undefined,
+                tiempo_tardanza: estado[m.id]?.tipo_presencia === "tarde"
+                    ? (estado[m.id]?.tiempo_tardanza || undefined)
+                    : undefined,
+                motivo_tardanza: estado[m.id]?.tipo_presencia === "tarde"
+                    ? (estado[m.id]?.motivo_tardanza || undefined)
+                    : undefined,
+                motivo_tardanza_otro: estado[m.id]?.tipo_presencia === "tarde" && estado[m.id]?.motivo_tardanza === "otro"
+                    ? (estado[m.id]?.motivo_tardanza_otro || undefined)
+                    : undefined,
             }))
 
             const horaFinal = to24h(hora12, minutos, amPm)
@@ -468,20 +498,52 @@ export default function RegistroAsistenciaAvanzado({
                                     </div>
                                 )}
 
-                                {/* Nota individual */}
+                                {/* Detalle de tardanza */}
                                 {estado[m.id]?.tipo_presencia === "tarde" && (
-                                    <div className="mt-3 ml-2">
-                                        <InputSistema
-                                            className="w-full"
-                                            placeholder="Nota (ej: llegó 15 min tarde)"
-                                            value={estado[m.id]?.nota || ""}
-                                            onChange={e =>
-                                                setEstado(s => ({
-                                                    ...s,
-                                                    [m.id]: { ...s[m.id], nota: e.target.value },
-                                                }))
-                                            }
-                                        />
+                                    <div className="mt-3 ml-2 space-y-3">
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <SelectSistema
+                                                label="¿Cuánto tardó?"
+                                                value={estado[m.id]?.tiempo_tardanza || ""}
+                                                onValueChange={(v: string) =>
+                                                    setEstado(s => ({
+                                                        ...s,
+                                                        [m.id]: { ...s[m.id], tiempo_tardanza: v as TiempoTardanza },
+                                                    }))
+                                                }
+                                                opciones={[
+                                                    { valor: "", etiqueta: "Seleccionar" },
+                                                    ...OPCIONES_TIEMPO_TARDANZA.map(o => ({ valor: o.valor, etiqueta: o.etiqueta })),
+                                                ]}
+                                            />
+                                            <SelectSistema
+                                                label="Motivo"
+                                                value={estado[m.id]?.motivo_tardanza || ""}
+                                                onValueChange={(v: string) =>
+                                                    setEstado(s => ({
+                                                        ...s,
+                                                        [m.id]: { ...s[m.id], motivo_tardanza: v as MotivoTardanza },
+                                                    }))
+                                                }
+                                                opciones={[
+                                                    { valor: "", etiqueta: "Seleccionar" },
+                                                    ...OPCIONES_MOTIVO_TARDANZA.map(o => ({ valor: o.valor, etiqueta: o.etiqueta })),
+                                                ]}
+                                            />
+                                        </div>
+                                        {estado[m.id]?.motivo_tardanza === "otro" && (
+                                            <InputSistema
+                                                className="w-full"
+                                                placeholder="Especifica el motivo..."
+                                                value={estado[m.id]?.motivo_tardanza_otro || ""}
+                                                onChange={e =>
+                                                    setEstado(s => ({
+                                                        ...s,
+                                                        [m.id]: { ...s[m.id], motivo_tardanza_otro: e.target.value },
+                                                    }))
+                                                }
+                                            />
+                                        )}
                                     </div>
                                 )}
                             </div>

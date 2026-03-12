@@ -9,7 +9,8 @@ import { logout } from "@/lib/actions/auth.actions"
 import {
   LogOut, User, Menu, X, HelpCircle,
   Home, Users, UserCheck, Settings, Megaphone,
-  ChevronDown, House, Calendar, MapPin, BarChart3
+  ChevronDown, House, Calendar, MapPin, BarChart3,
+  ShieldAlert, ClipboardList
 } from 'lucide-react'
 import { ThemeToggle } from './theme-toggle'
 import { UserAvatar } from './UserAvatar'
@@ -47,9 +48,11 @@ const mainMenuItems: MobileMenuItem[] = [
       { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar },
       { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin },
       { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3 },
+      { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert },
+      { id: 'gv-solicitudes', label: 'Solicitudes', href: '/grupos-vida/solicitudes', icon: ClipboardList },
+      { id: 'gv-config', label: 'Configuración', href: '/grupos-vida/configuracion', icon: Settings },
     ],
   },
-  { id: 'configuracion', label: 'Configuración', icon: Settings, href: '/configuracion' },
 ]
 
 const footerMenuItems: MobileMenuItem[] = [
@@ -196,6 +199,9 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       [/\/users\/[^/]+\/edit/, 'Editar Usuario'],
       [/\/users\/create/, 'Crear Usuario'],
       [/\/users\/[^/]+/, 'Detalle del Usuario'],
+      ['/grupos-vida/dashboard-riesgo', 'Dashboard Riesgo'],
+      ['/grupos-vida/solicitudes', 'Solicitudes'],
+      ['/grupos-vida/configuracion', 'Configuración Grupos'],
       ['/configuracion', 'Configuración'],
       ['/actualizaciones', 'Actualizaciones'],
       ['/ayuda', 'Ayuda'],
