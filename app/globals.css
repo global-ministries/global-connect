@@ -79,6 +79,14 @@
   --duration-slower: 600ms;
   --stagger-delay: 40ms;
 
+  /* ─── Semantic Status Colors ─── */
+  --success: oklch(0.55 0.17 145);
+  --success-foreground: oklch(0.98 0 0);
+  --warning: oklch(0.75 0.18 80);
+  --warning-foreground: oklch(0.22 0.02 60);
+  --info: oklch(0.55 0.15 250);
+  --info-foreground: oklch(0.98 0 0);
+
   color-scheme: light;
 }
 
@@ -135,6 +143,14 @@
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
   --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.20);
   --glass-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.15), 0 1px 4px rgba(0, 0, 0, 0.10);
+
+  /* ─── Semantic Status Colors (dark) ─── */
+  --success: oklch(0.60 0.17 145);
+  --success-foreground: oklch(0.15 0 0);
+  --warning: oklch(0.70 0.16 80);
+  --warning-foreground: oklch(0.15 0 0);
+  --info: oklch(0.60 0.15 250);
+  --info-foreground: oklch(0.15 0 0);
 }
 
 @theme inline {
@@ -175,6 +191,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ─── Status Colors (Tailwind utilities) ─── */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
 
   /* ─── Extended animations ─── */
   --animate-glass-shimmer: glass-shimmer 2s ease-in-out infinite;

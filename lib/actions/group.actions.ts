@@ -136,7 +136,8 @@ export async function createGroup(data: {
     });
     if (error || !newId) return { success: false, error: error?.message || "Error creando grupo" };
 
-    const grupoId = newId as unknown as string;
+    // La RPC crear_grupo retorna uuid como text — validar tipo en runtime
+    const grupoId = typeof newId === 'string' ? newId : String(newId);
 
     // Post-create: campus_id, estado, ubicación — un solo UPDATE
     const postUpdate: Record<string, unknown> = {};

@@ -3,6 +3,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { extraerRelacion } from "@/lib/supabase/helpers";
 
 // ─── Schemas ─────────────────────────────────────────────────────────
 
@@ -27,6 +28,55 @@ interface ResultadoAccion<T = void> {
   success: boolean;
   error?: string;
   data?: T;
+}
+
+/** Resultado de la RPC de aprobación de casa anfitriona */
+interface AprobacionCasaResultado {
+  ok: boolean;
+  estado?: string;
+}
+
+/** Item de la lista de casas anfitrionas */
+interface CasaAnfitrionaListItem {
+  id: string;
+  nombre_lugar: string;
+  descripcion: string | null;
+  capacidad_maxima: number | null;
+  activa: boolean;
+  aprobada: boolean;
+  fotos_urls: string[] | null;
+  notas_publicas: string | null;
+  creado_en: string;
+  usuarios: {
+    id: string;
+    nombre: string;
+    apellido: string;
+    foto_perfil_url: string | null;
+  } | null;
+  direcciones: {
+    calle: string;
+    barrio: string | null;
+    latitud: number | null;
+    longitud: number | null;
+  } | null;
+}
+
+/** Datos para el mapa de grupos de vida (columnas de v_mapa_grupos_vida) */
+interface DatosMapaGrupoItem {
+  id: string;
+  nombre: string;
+  dia_reunion: string | null;
+  hora_reunion: string | null;
+  capacidad_maxima: number | null;
+  estado_ciclo: string | null;
+  segmento: string | null;
+  temporada: string | null;
+  lugar_reunion: string | null;
+  latitud: number | null;
+  longitud: number | null;
+  direccion: string | null;
+  total_miembros: number | null;
+  lideres: Array<{ nombre: string; foto: string | null }> | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -234,7 +284,7 @@ export async function procesarAprobacionCasa(
   casaId: string,
   accion: "aprobar" | "rechazar",
   notas?: string | null
-): Promise<ResultadoAccion<unknown>> {
+): Promise<ResultadoAccion<AprobacionCasaResultado>> {
   const { supabase, authId, error } = await validarAuthYPermisos(true);
   if (error) return { success: false, error };
 
@@ -252,7 +302,8 @@ export async function procesarAprobacionCasa(
 
   revalidatePath("/grupos-vida/casas-anfitrionas");
   revalidatePath(`/grupos-vida/casas-anfitrionas/${casaId}`);
-  return { success: true, data };
+  // RPC retorna Json — casteamos al tipo esperado
+  return { success: true, data: data as unknown as AprobacionCasaResultado };
 }
 
 /**
@@ -263,7 +314,7 @@ export async function listarCasasAnfitrionas(filtros?: {
   soloActivas?: boolean;
   limite?: number;
   offset?: number;
-}): Promise<ResultadoAccion<unknown>> {
+}): Promise<ResultadoAccion<CasaAnfitrionaListItem[]>> {
   const { supabase, error } = await validarAuthYPermisos();
   if (error) return { success: false, error };
 
@@ -293,7 +344,7 @@ export async function listarCasasAnfitrionas(filtros?: {
 /**
  * Obtiene datos del mapa de grupos usando la vista v_mapa_grupos_vida.
  */
-export async function obtenerDatosMapaGrupos(): Promise<ResultadoAccion<unknown>> {
+export async function obtenerDatosMapaGrupos(): Promise<ResultadoAccion<DatosMapaGrupoItem[]>> {
   const { supabase, error } = await validarAuthYPermisos();
   if (error) return { success: false, error };
 
@@ -304,5 +355,5 @@ export async function obtenerDatosMapaGrupos(): Promise<ResultadoAccion<unknown>
     .not("longitud", "is", null);
 
   if (queryError) return { success: false, error: queryError.message };
-  return { success: true, data };
+  return { success: true, data: data as DatosMapaGrupoItem[] };
 }

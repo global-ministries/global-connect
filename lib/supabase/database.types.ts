@@ -72,6 +72,13 @@ export type Database = {
             referencedColumns: ["pareja_id"]
           },
           {
+            foreignKeyName: "asistencia_registrado_por_usuario_id_fkey"
+            columns: ["registrado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "asistencia_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -91,6 +98,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "asistencia_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
         ]
       }
@@ -301,6 +315,13 @@ export type Database = {
             referencedColumns: ["pareja_id"]
           },
           {
+            foreignKeyName: "casas_anfitrionas_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "casas_anfitrionas_direccion_id_fkey"
             columns: ["direccion_id"]
             isOneToOne: false
@@ -327,6 +348,57 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "casas_anfitrionas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      configuracion_grupos_vida: {
+        Row: {
+          actualizado_en: string
+          campus_id: string | null
+          creado_en: string
+          dias_expiracion_solicitud: number
+          id: string
+          max_miembros_por_grupo: number | null
+          notificar_lider_ingreso: boolean
+          permitir_lider_en_otro_grupo: boolean
+          requiere_aprobacion_grupo_planificacion: boolean
+        }
+        Insert: {
+          actualizado_en?: string
+          campus_id?: string | null
+          creado_en?: string
+          dias_expiracion_solicitud?: number
+          id?: string
+          max_miembros_por_grupo?: number | null
+          notificar_lider_ingreso?: boolean
+          permitir_lider_en_otro_grupo?: boolean
+          requiere_aprobacion_grupo_planificacion?: boolean
+        }
+        Update: {
+          actualizado_en?: string
+          campus_id?: string | null
+          creado_en?: string
+          dias_expiracion_solicitud?: number
+          id?: string
+          max_miembros_por_grupo?: number | null
+          notificar_lider_ingreso?: boolean
+          permitir_lider_en_otro_grupo?: boolean
+          requiere_aprobacion_grupo_planificacion?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_grupos_vida_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: true
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -367,6 +439,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "debug_toolbar_whitelist_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
         ]
       }
@@ -422,6 +501,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "dias_excepcion_creado_por_usuario_id_fkey"
+            columns: ["creado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
           {
             foreignKeyName: "dias_excepcion_grupo_id_fkey"
@@ -631,6 +717,73 @@ export type Database = {
           },
         ]
       }
+      director_general_segmentos: {
+        Row: {
+          campus_id: string | null
+          creado_en: string
+          id: string
+          segmento_id: string
+          usuario_id: string
+        }
+        Insert: {
+          campus_id?: string | null
+          creado_en?: string
+          id?: string
+          segmento_id: string
+          usuario_id: string
+        }
+        Update: {
+          campus_id?: string | null
+          creado_en?: string
+          id?: string
+          segmento_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "director_general_segmentos_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "director_general_segmentos_segmento_id_fkey"
+            columns: ["segmento_id"]
+            isOneToOne: false
+            referencedRelation: "segmentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "director_general_segmentos_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "director_general_segmentos_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "director_general_segmentos_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "director_general_segmentos_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
       disponibilidad_liderazgo: {
         Row: {
           actualizado_en: string
@@ -686,6 +839,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "disponibilidad_liderazgo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
         ]
       }
@@ -872,6 +1032,13 @@ export type Database = {
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
           },
+          {
+            foreignKeyName: "grupo_miembros_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
         ]
       }
       grupos: {
@@ -979,6 +1146,13 @@ export type Database = {
             referencedColumns: ["pareja_id"]
           },
           {
+            foreignKeyName: "grupos_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "grupos_campus_id_fkey"
             columns: ["campus_id"]
             isOneToOne: false
@@ -1021,6 +1195,13 @@ export type Database = {
             referencedColumns: ["pareja_id"]
           },
           {
+            foreignKeyName: "grupos_creado_por_usuario_id_fkey"
+            columns: ["creado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "grupos_direccion_anfitrion_id_fkey"
             columns: ["direccion_anfitrion_id"]
             isOneToOne: false
@@ -1061,6 +1242,171 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tipos_grupo"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      historial_movimientos_grupo: {
+        Row: {
+          creado_en: string
+          grupo_destino_id: string | null
+          grupo_origen_id: string | null
+          id: string
+          motivo: string | null
+          realizado_por: string | null
+          rol_anterior: string | null
+          rol_nuevo: string | null
+          solicitud_id: string | null
+          temporada_id: string | null
+          tipo_movimiento: string
+          usuario_id: string
+        }
+        Insert: {
+          creado_en?: string
+          grupo_destino_id?: string | null
+          grupo_origen_id?: string | null
+          id?: string
+          motivo?: string | null
+          realizado_por?: string | null
+          rol_anterior?: string | null
+          rol_nuevo?: string | null
+          solicitud_id?: string | null
+          temporada_id?: string | null
+          tipo_movimiento: string
+          usuario_id: string
+        }
+        Update: {
+          creado_en?: string
+          grupo_destino_id?: string | null
+          grupo_origen_id?: string | null
+          id?: string
+          motivo?: string | null
+          realizado_por?: string | null
+          rol_anterior?: string | null
+          rol_nuevo?: string | null
+          solicitud_id?: string | null
+          temporada_id?: string | null
+          tipo_movimiento?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historial_movimientos_grupo_grupo_destino_id_fkey"
+            columns: ["grupo_destino_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_grupo_destino_id_fkey"
+            columns: ["grupo_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_grupo_destino_id_fkey"
+            columns: ["grupo_destino_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_grupo_origen_id_fkey"
+            columns: ["grupo_origen_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_grupo_origen_id_fkey"
+            columns: ["grupo_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_grupo_origen_id_fkey"
+            columns: ["grupo_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_realizado_por_fkey"
+            columns: ["realizado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_realizado_por_fkey"
+            columns: ["realizado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_realizado_por_fkey"
+            columns: ["realizado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_realizado_por_fkey"
+            columns: ["realizado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes_grupo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_temporada_id_fkey"
+            columns: ["temporada_id"]
+            isOneToOne: false
+            referencedRelation: "temporadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
         ]
       }
@@ -1220,6 +1566,13 @@ export type Database = {
             referencedColumns: ["pareja_id"]
           },
           {
+            foreignKeyName: "fk_usuario1_id"
+            columns: ["usuario1_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "fk_usuario2_id"
             columns: ["usuario2_id"]
             isOneToOne: false
@@ -1239,6 +1592,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "fk_usuario2_id"
+            columns: ["usuario2_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
           {
             foreignKeyName: "relaciones_usuarios_usuario1_id_fkey"
@@ -1262,6 +1622,13 @@ export type Database = {
             referencedColumns: ["pareja_id"]
           },
           {
+            foreignKeyName: "relaciones_usuarios_usuario1_id_fkey"
+            columns: ["usuario1_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "relaciones_usuarios_usuario2_id_fkey"
             columns: ["usuario2_id"]
             isOneToOne: false
@@ -1281,6 +1648,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "relaciones_usuarios_usuario2_id_fkey"
+            columns: ["usuario2_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
         ]
       }
@@ -1360,6 +1734,13 @@ export type Database = {
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
           },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
         ]
       }
       segmento_ubicaciones: {
@@ -1414,9 +1795,201 @@ export type Database = {
           },
         ]
       }
+      solicitudes_grupo: {
+        Row: {
+          actualizado_en: string
+          aprobado_por: string | null
+          creado_en: string
+          estado: string
+          expira_en: string | null
+          grupo_id: string
+          grupo_origen_id: string | null
+          id: string
+          motivo: string | null
+          notas_director: string | null
+          rol_actual: string | null
+          rol_solicitado: string | null
+          solicitado_por: string
+          temporada_id: string | null
+          tipo: string
+          usuario_id: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          aprobado_por?: string | null
+          creado_en?: string
+          estado?: string
+          expira_en?: string | null
+          grupo_id: string
+          grupo_origen_id?: string | null
+          id?: string
+          motivo?: string | null
+          notas_director?: string | null
+          rol_actual?: string | null
+          rol_solicitado?: string | null
+          solicitado_por: string
+          temporada_id?: string | null
+          tipo: string
+          usuario_id?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          aprobado_por?: string | null
+          creado_en?: string
+          estado?: string
+          expira_en?: string | null
+          grupo_id?: string
+          grupo_origen_id?: string | null
+          id?: string
+          motivo?: string | null
+          notas_director?: string | null
+          rol_actual?: string | null
+          rol_solicitado?: string | null
+          solicitado_por?: string
+          temporada_id?: string | null
+          tipo?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_grupo_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_origen_id_fkey"
+            columns: ["grupo_origen_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_origen_id_fkey"
+            columns: ["grupo_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_origen_id_fkey"
+            columns: ["grupo_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_temporada_id_fkey"
+            columns: ["temporada_id"]
+            isOneToOne: false
+            referencedRelation: "temporadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
       temporadas: {
         Row: {
           activa: boolean
+          estado: string
           fecha_fin: string
           fecha_inicio: string
           id: string
@@ -1424,6 +1997,7 @@ export type Database = {
         }
         Insert: {
           activa?: boolean
+          estado?: string
           fecha_fin: string
           fecha_inicio: string
           id?: string
@@ -1431,6 +2005,7 @@ export type Database = {
         }
         Update: {
           activa?: boolean
+          estado?: string
           fecha_fin?: string
           fecha_inicio?: string
           id?: string
@@ -1542,6 +2117,13 @@ export type Database = {
             referencedColumns: ["pareja_id"]
           },
           {
+            foreignKeyName: "uno_a_uno_participantes_miembro_usuario_id_fkey"
+            columns: ["miembro_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "uno_a_uno_participantes_reunion_id_fkey"
             columns: ["reunion_id"]
             isOneToOne: false
@@ -1621,6 +2203,13 @@ export type Database = {
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
           },
+          {
+            foreignKeyName: "uno_a_uno_reuniones_lider_usuario_id_fkey"
+            columns: ["lider_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
         ]
       }
       usuario_campus: {
@@ -1674,6 +2263,13 @@ export type Database = {
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
           },
+          {
+            foreignKeyName: "usuario_campus_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
         ]
       }
       usuario_roles: {
@@ -1722,6 +2318,13 @@ export type Database = {
             referencedColumns: ["pareja_id"]
           },
           {
+            foreignKeyName: "fk_usuario_roles_usuario_id"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "usuario_roles_rol_id_fkey"
             columns: ["rol_id"]
             isOneToOne: false
@@ -1748,6 +2351,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "usuario_roles_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
         ]
       }
@@ -1923,6 +2533,13 @@ export type Database = {
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
           },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
         ]
       }
       v_grupos_supervisiones: {
@@ -1987,6 +2604,59 @@ export type Database = {
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
           },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["director_etapa_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      v_historial_miembro: {
+        Row: {
+          creado_en: string | null
+          grupo_destino: string | null
+          grupo_origen: string | null
+          id: string | null
+          motivo: string | null
+          realizado_por_apellido: string | null
+          realizado_por_nombre: string | null
+          rol_anterior: string | null
+          rol_nuevo: string | null
+          temporada: string | null
+          tipo_movimiento: string | null
+          usuario_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historial_movimientos_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "historial_movimientos_grupo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
         ]
       }
       v_lideres_con_pareja: {
@@ -2047,6 +2717,13 @@ export type Database = {
             referencedRelation: "v_lideres_con_pareja"
             referencedColumns: ["pareja_id"]
           },
+          {
+            foreignKeyName: "grupo_miembros_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
         ]
       }
       v_mapa_grupos_vida: {
@@ -2067,6 +2744,82 @@ export type Database = {
           total_miembros: number | null
         }
         Relationships: []
+      }
+      v_solicitudes_pendientes: {
+        Row: {
+          creado_en: string | null
+          estado: string | null
+          expira_en: string | null
+          grupo_id: string | null
+          grupo_nombre: string | null
+          grupo_origen_id: string | null
+          grupo_origen_nombre: string | null
+          id: string | null
+          miembro_apellido: string | null
+          miembro_foto: string | null
+          miembro_id: string | null
+          miembro_nombre: string | null
+          motivo: string | null
+          rol_solicitado: string | null
+          segmento_nombre: string | null
+          solicitante_apellido: string | null
+          solicitante_nombre: string | null
+          temporada_estado: string | null
+          temporada_id: string | null
+          temporada_nombre: string | null
+          tipo: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_origen_id_fkey"
+            columns: ["grupo_origen_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_origen_id_fkey"
+            columns: ["grupo_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_grupo_origen_id_fkey"
+            columns: ["grupo_origen_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_grupo_temporada_id_fkey"
+            columns: ["temporada_id"]
+            isOneToOne: false
+            referencedRelation: "temporadas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
@@ -2164,6 +2917,10 @@ export type Database = {
           ya_es_miembro: boolean
         }[]
       }
+      contar_solicitudes_pendientes: {
+        Args: { p_auth_id: string }
+        Returns: number
+      }
       crear_grupo:
         | {
             Args: {
@@ -2184,6 +2941,18 @@ export type Database = {
             }
             Returns: string
           }
+      crear_solicitud_grupo: {
+        Args: {
+          p_auth_id: string
+          p_grupo_id: string
+          p_grupo_origen_id?: string
+          p_motivo?: string
+          p_rol_solicitado?: string
+          p_tipo: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       eliminar_miembro_de_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string; p_usuario_id: string }
         Returns: Json
@@ -2196,12 +2965,17 @@ export type Database = {
         Args: { p_grupo_id: string; p_user_id: string }
         Returns: boolean
       }
+      es_director_general_de_grupo: {
+        Args: { p_auth_id: string; p_grupo_id: string }
+        Returns: boolean
+      }
       es_lider_de_grupo: {
         Args: { p_grupo_id: string; p_user_id: string }
         Returns: boolean
       }
       es_lider_usuario: { Args: { target_user_id: string }; Returns: boolean }
       es_superadmin: { Args: { p_auth_uid: string }; Returns: boolean }
+      expirar_solicitudes_vencidas: { Args: never; Returns: number }
       get_my_internal_id: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       listar_eventos_grupo: {
@@ -2438,6 +3212,15 @@ export type Database = {
           p_auth_id: string
           p_casa_id: string
           p_notas?: string
+        }
+        Returns: Json
+      }
+      procesar_solicitud_grupo: {
+        Args: {
+          p_accion: string
+          p_auth_id: string
+          p_notas?: string
+          p_solicitud_id: string
         }
         Returns: Json
       }
