@@ -30,11 +30,13 @@ export async function getTotalGruposActivos(): Promise<number | null> {
     const temporadaIds = temporadasActivas.map(t => t.id).filter(Boolean)
     if (temporadaIds.length === 0) return 0
 
-    // 2. Contar grupos en esas temporadas
+    // 2. Contar grupos activos (no eliminados) en esas temporadas
     const { count, error: errorGrupos } = await supabase
       .from('grupos')
       .select('id', { count: 'exact', head: true })
       .in('temporada_id', temporadaIds)
+      .eq('activo', true)
+      .eq('eliminado', false)
 
     if (errorGrupos) {
       console.error('Error contando grupos activos:', errorGrupos)
