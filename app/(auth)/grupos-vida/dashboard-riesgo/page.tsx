@@ -56,8 +56,8 @@ export default async function DashboardRiesgoPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                     <TarjetaSistema variante="default" className="p-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-red-600/10">
-                                <ShieldAlert className="h-5 w-5 text-red-600" />
+                            <div className="p-2 rounded-lg bg-destructive/10">
+                                <ShieldAlert className="h-5 w-5 text-destructive" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-foreground">{d.miembros_criticos}</p>
@@ -68,8 +68,8 @@ export default async function DashboardRiesgoPage() {
 
                     <TarjetaSistema variante="default" className="p-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-orange-500/10">
-                                <TrendingDown className="h-5 w-5 text-orange-500" />
+                            <div className="p-2 rounded-lg bg-warning/10">
+                                <TrendingDown className="h-5 w-5 text-warning" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-foreground">{d.miembros_en_riesgo}</p>
@@ -80,8 +80,8 @@ export default async function DashboardRiesgoPage() {
 
                     <TarjetaSistema variante="default" className="p-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-amber-500/10">
-                                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                            <div className="p-2 rounded-lg bg-warning/10">
+                                <AlertTriangle className="h-5 w-5 text-warning" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-foreground">{d.miembros_en_atencion}</p>
@@ -92,8 +92,8 @@ export default async function DashboardRiesgoPage() {
 
                     <TarjetaSistema variante="default" className="p-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-blue-500/10">
-                                <Users className="h-5 w-5 text-blue-500" />
+                            <div className="p-2 rounded-lg bg-info/10">
+                                <Users className="h-5 w-5 text-info" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-foreground">{d.total_grupos}</p>
@@ -172,8 +172,8 @@ export default async function DashboardRiesgoPage() {
                             {d.tendencia_asistencia_4_semanas.map((t: DashboardRiesgo["tendencia_asistencia_4_semanas"][number], i: number) => (
                                 <TarjetaSistema key={i} variante="default" className="p-3 text-center">
                                     <p className="text-xs text-muted-foreground">{t.semana}</p>
-                                    <p className={`text-xl font-bold mt-1 ${t.pct >= 80 ? "text-emerald-500" :
-                                        t.pct >= 60 ? "text-amber-500" : "text-destructive"
+                                    <p className={`text-xl font-bold mt-1 ${t.pct >= 80 ? "text-success" :
+                                        t.pct >= 60 ? "text-warning" : "text-destructive"
                                         }`}>
                                         {t.pct}%
                                     </p>

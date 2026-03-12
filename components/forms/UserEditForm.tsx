@@ -467,7 +467,13 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             label="País"
             placeholder="Selecciona el país"
             value={watch("direccion.pais_id")}
-            onValueChange={(value) => setValue("direccion.pais_id", value)}
+            onValueChange={(value) => {
+              setValue("direccion.pais_id", value)
+              // Cascading reset: país cambia → limpiar estado, municipio, parroquia
+              setValue("direccion.estado_id", "")
+              setValue("direccion.municipio_id", "")
+              setValue("direccion.parroquia_id", "none")
+            }}
             error={errors.direccion?.pais_id?.message}
             opciones={paises.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
           />
@@ -476,7 +482,12 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             label="Estado"
             placeholder="Selecciona el estado"
             value={watch("direccion.estado_id")}
-            onValueChange={(value) => setValue("direccion.estado_id", value)}
+            onValueChange={(value) => {
+              setValue("direccion.estado_id", value)
+              // Cascading reset: estado cambia → limpiar municipio, parroquia
+              setValue("direccion.municipio_id", "")
+              setValue("direccion.parroquia_id", "none")
+            }}
             disabled={!watch("direccion.pais_id")}
             error={errors.direccion?.estado_id?.message}
             opciones={estados
@@ -488,7 +499,11 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             label="Municipio"
             placeholder="Selecciona el municipio"
             value={watch("direccion.municipio_id")}
-            onValueChange={(value) => setValue("direccion.municipio_id", value)}
+            onValueChange={(value) => {
+              setValue("direccion.municipio_id", value)
+              // Cascading reset: municipio cambia → limpiar parroquia
+              setValue("direccion.parroquia_id", "none")
+            }}
             disabled={!watch("direccion.estado_id")}
             error={errors.direccion?.municipio_id?.message}
             opciones={municipios

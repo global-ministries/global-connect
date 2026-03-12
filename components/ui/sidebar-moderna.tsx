@@ -40,6 +40,8 @@ interface SubItem {
   label: string
   href: string
   icon?: React.ComponentType<{ className?: string }>
+  /** Roles que pueden ver este sub-item. Si no se define, es visible para todos. */
+  roles?: string[]
 }
 
 interface MenuItem {
@@ -72,13 +74,13 @@ const menuItems: MenuItem[] = [
     href: '/grupos-vida',
     children: [
       { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House },
-      { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users },
-      { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar },
+      { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users, roles: ['admin', 'pastor', 'director-general'] },
+      { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar, roles: ['admin', 'pastor', 'director-general'] },
       { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin },
-      { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3 },
-      { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert },
-      { id: 'gv-solicitudes', label: 'Solicitudes', href: '/grupos-vida/solicitudes', icon: ClipboardList },
-      { id: 'gv-config', label: 'Configuración', href: '/grupos-vida/configuracion', icon: Settings },
+      { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
+      { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
+      { id: 'gv-solicitudes', label: 'Solicitudes', href: '/grupos-vida/solicitudes', icon: ClipboardList, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
+      { id: 'gv-config', label: 'Configuración', href: '/grupos-vida/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
     ],
   },
 ]
@@ -388,27 +390,29 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                           )}
                         >
                           <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
-                            {item.children!.map((child) => {
-                              const ChildIcon = child.icon
-                              const childActive = isActive(child.href)
-                              return (
-                                <li key={child.id}>
-                                  <Link
-                                    href={child.href}
-                                    aria-current={childActive ? "page" : undefined}
-                                    className={subLinkClasses(childActive)}
-                                  >
-                                    {ChildIcon && (
-                                      <ChildIcon className={cn(
-                                        "w-4 h-4 flex-shrink-0 transition-colors",
-                                        childActive ? "text-[var(--brand-primary)]" : "text-muted-foreground group-hover:text-foreground"
-                                      )} />
-                                    )}
-                                    <span className="truncate">{child.label}</span>
-                                  </Link>
-                                </li>
-                              )
-                            })}
+                            {item.children!
+                              .filter((child) => !child.roles || child.roles.some(r => roles.includes(r)))
+                              .map((child) => {
+                                const ChildIcon = child.icon
+                                const childActive = isActive(child.href)
+                                return (
+                                  <li key={child.id}>
+                                    <Link
+                                      href={child.href}
+                                      aria-current={childActive ? "page" : undefined}
+                                      className={subLinkClasses(childActive)}
+                                    >
+                                      {ChildIcon && (
+                                        <ChildIcon className={cn(
+                                          "w-4 h-4 flex-shrink-0 transition-colors",
+                                          childActive ? "text-[var(--brand-primary)]" : "text-muted-foreground group-hover:text-foreground"
+                                        )} />
+                                      )}
+                                      <span className="truncate">{child.label}</span>
+                                    </Link>
+                                  </li>
+                                )
+                              })}
                           </ul>
                         </div>
                       )}

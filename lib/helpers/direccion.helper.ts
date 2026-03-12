@@ -26,6 +26,9 @@ export async function upsertDireccion(
   currentDireccionId: string | null | undefined,
   data: DireccionInput
 ): Promise<string | null> {
+  // Solo campos que existen como columnas en la tabla `direcciones`.
+  // pais_id, estado_id, municipio_id se usan en el formulario para cascading
+  // pero NO se persisten — la relación geográfica se resuelve via parroquia_id.
   const direccionData = {
     calle: data.calle || null,
     barrio: data.barrio || null,
@@ -34,9 +37,6 @@ export async function upsertDireccion(
     latitud: data.lat ?? null,
     longitud: data.lng ?? null,
     parroquia_id: data.parroquia_id || null,
-    pais_id: data.pais_id || null,
-    estado_id: data.estado_id || null,
-    municipio_id: data.municipio_id || null,
   }
 
   if (currentDireccionId) {

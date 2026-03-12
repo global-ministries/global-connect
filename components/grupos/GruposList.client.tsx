@@ -80,7 +80,7 @@ export default function GruposListClient({
   municipios,
   parroquias,
   totalCount = 0,
-  pageSize = 20,
+  pageSize = 100,
   canCreate = false,
   canDelete = false,
   canRestore = false,
@@ -233,11 +233,37 @@ export default function GruposListClient({
   const mostrarMisGrupos = useMemo(() => hayMisGrupos || gruposMios.length > 0, [hayMisGrupos, gruposMios.length])
 
   const listaMostrada = useMemo(() => {
-    if (pestanaActiva === 'actuales') return gruposActuales
-    if (pestanaActiva === 'pasados') return gruposPasados
-    if (pestanaActiva === 'futuros') return gruposFuturos
-    return gruposMios
-  }, [pestanaActiva, gruposActuales, gruposPasados, gruposFuturos, gruposMios])
+    let base: Grupo[]
+    if (pestanaActiva === 'actuales') base = gruposActuales
+    else if (pestanaActiva === 'pasados') base = gruposPasados
+    else if (pestanaActiva === 'futuros') base = gruposFuturos
+    else base = gruposMios
+
+    // Aplicar filtros del panel de filtros
+    if (filtros.segmentoId) {
+      const segNombre = segmentoNombreById.get(filtros.segmentoId)
+      if (segNombre) base = base.filter(g => g.segmento_nombre === segNombre)
+    }
+    if (filtros.temporadaId) {
+      const tempNombre = temporadaNombreById.get(filtros.temporadaId)
+      if (tempNombre) base = base.filter(g => g.temporada_nombre === tempNombre)
+    }
+    if (filtros.estado) {
+      if (filtros.estado === 'activo') base = base.filter(g => g.activo && !g.eliminado)
+      else if (filtros.estado === 'inactivo') base = base.filter(g => !g.activo && !g.eliminado)
+      else if (filtros.estado === 'eliminado') base = base.filter(g => !!g.eliminado)
+    }
+    if (filtros.municipioId) {
+      const munNombre = municipios?.find(m => m.id === filtros.municipioId)?.nombre
+      if (munNombre) base = base.filter(g => g.municipio_nombre === munNombre)
+    }
+    if (filtros.parroquiaId) {
+      const parNombre = parroquias?.find(p => p.id === filtros.parroquiaId)?.nombre
+      if (parNombre) base = base.filter(g => g.parroquia_nombre === parNombre)
+    }
+
+    return base
+  }, [pestanaActiva, gruposActuales, gruposPasados, gruposFuturos, gruposMios, filtros, segmentoNombreById, temporadaNombreById, municipios, parroquias])
 
   const totalPorPestana = useMemo(() => {
     switch (pestanaActiva) {

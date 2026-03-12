@@ -57,9 +57,21 @@ export async function obtenerConfiguracionGrupos(
     query = query.is("campus_id", null);
   }
 
-  const { data, error } = await query.order("campus_id", { ascending: false }).limit(1).single();
+  const { data, error } = await query.order("campus_id", { ascending: false }).limit(1).maybeSingle();
 
   if (error) return { success: false, error: error.message };
+
+  // Si no existe configuración, crear una por defecto
+  if (!data) {
+    const { data: newConfig, error: insertError } = await supabase
+      .from("configuracion_grupos_vida")
+      .insert({ campus_id: campusId ?? null })
+      .select()
+      .single();
+    if (insertError) return { success: false, error: insertError.message };
+    return { success: true, data: newConfig as ConfiguracionGruposVida };
+  }
+
   return { success: true, data: data as ConfiguracionGruposVida };
 }
 

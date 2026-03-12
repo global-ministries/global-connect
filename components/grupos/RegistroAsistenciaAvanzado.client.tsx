@@ -115,7 +115,7 @@ function to24h(h: string, m: string, ap: "AM" | "PM"): string | null {
     } else {
         if (hh !== 12) hh += 12
     }
-    return `${String(hh).padStart(2, "0")}:${m.padStart(2, "0")}`
+    return `${String(hh).padStart(2, "0")}:${m.padStart(2, "0")}:00`
 }
 
 function badgeVariante(tipo: TipoPresencia) {
@@ -450,31 +450,31 @@ export default function RegistroAsistenciaAvanzado({
                     <div className="border border-border rounded-xl divide-y divide-border">
                         {miembros.map(m => (
                             <div key={m.id} className="p-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium text-foreground">
-                                                {m.nombre} {m.apellido}
-                                            </span>
-                                            <BadgeSistema
-                                                variante={badgeVariante(estado[m.id]?.tipo_presencia ?? "presente")}
-                                                tamaño="sm"
-                                            >
-                                                {OPCIONES_PRESENCIA.find(o => o.valor === (estado[m.id]?.tipo_presencia ?? "presente"))?.etiqueta}
-                                            </BadgeSistema>
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">{rolLabel(m.rol)}</div>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <span className="font-medium text-foreground truncate">
+                                            {m.nombre} {m.apellido}
+                                        </span>
+                                        <BadgeSistema
+                                            variante={badgeVariante(estado[m.id]?.tipo_presencia ?? "presente")}
+                                            tamaño="sm"
+                                        >
+                                            {OPCIONES_PRESENCIA.find(o => o.valor === (estado[m.id]?.tipo_presencia ?? "presente"))?.etiqueta}
+                                        </BadgeSistema>
+                                        <span className="text-xs text-muted-foreground">{rolLabel(m.rol)}</span>
                                     </div>
-                                    <SelectSistema
-                                        value={estado[m.id]?.tipo_presencia ?? "presente"}
-                                        onValueChange={(v: string) =>
-                                            setEstado(s => ({
-                                                ...s,
-                                                [m.id]: { ...s[m.id], tipo_presencia: v as TipoPresencia },
-                                            }))
-                                        }
-                                        opciones={OPCIONES_PRESENCIA.map(o => ({ valor: o.valor, etiqueta: o.etiqueta }))}
-                                    />
+                                    <div className="w-full sm:w-auto sm:flex-shrink-0">
+                                        <SelectSistema
+                                            value={estado[m.id]?.tipo_presencia ?? "presente"}
+                                            onValueChange={(v: string) =>
+                                                setEstado(s => ({
+                                                    ...s,
+                                                    [m.id]: { ...s[m.id], tipo_presencia: v as TipoPresencia },
+                                                }))
+                                            }
+                                            opciones={OPCIONES_PRESENCIA.map(o => ({ valor: o.valor, etiqueta: o.etiqueta }))}
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Motivo de inasistencia */}

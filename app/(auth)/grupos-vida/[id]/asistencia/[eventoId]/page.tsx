@@ -17,8 +17,8 @@ type AsistenciaRow = {
   rol: string | null
 }
 
-export default async function AsistenciaEventoPage({ params }: { params: { id: string; eventoId: string } }) {
-  const { id, eventoId } = params
+export default async function AsistenciaEventoPage({ params }: { params: Promise<{ id: string; eventoId: string }> }) {
+  const { id, eventoId } = await params
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return (
@@ -121,7 +121,7 @@ export default async function AsistenciaEventoPage({ params }: { params: { id: s
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <TarjetaSistema className="p-6">
             <TextoSistema variante="sutil" tamaño="sm">Presentes</TextoSistema>
-            <TituloSistema nivel={2} className="text-green-600">{presentes}</TituloSistema>
+            <TituloSistema nivel={2} className="text-[hsl(var(--chart-2))]">{presentes}</TituloSistema>
           </TarjetaSistema>
           <TarjetaSistema className="p-6">
             <TextoSistema variante="sutil" tamaño="sm">Total</TextoSistema>
@@ -129,7 +129,7 @@ export default async function AsistenciaEventoPage({ params }: { params: { id: s
           </TarjetaSistema>
           <TarjetaSistema className="p-6">
             <TextoSistema variante="sutil" tamaño="sm">% Asistencia</TextoSistema>
-            <TituloSistema nivel={2} className="text-orange-600">{porcentaje}%</TituloSistema>
+            <TituloSistema nivel={2} className="text-[hsl(var(--chart-4))]">{porcentaje}%</TituloSistema>
           </TarjetaSistema>
         </div>
 

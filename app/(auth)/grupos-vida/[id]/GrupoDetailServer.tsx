@@ -2,6 +2,38 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import GrupoDetailClient from "./GrupoDetailClient";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
+import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
+
+/** Tipo para el resultado del RPC obtener_detalle_grupo */
+interface GrupoRPCResult {
+  nombre: string;
+  segmento_nombre?: string;
+  temporada_nombre?: string;
+  dia_reunion?: string;
+  hora_reunion?: string;
+  direccion?: {
+    calle?: string;
+    barrio?: string;
+    latitud?: number;
+    longitud?: number;
+    lat?: number;
+    lng?: number;
+  };
+  miembros?: Array<{
+    id: string | number;
+    nombre: string;
+    apellido: string;
+    email?: string;
+    telefono?: string;
+    rol?: string;
+    foto_perfil_url?: string | null;
+  }>;
+  puede_gestionar_miembros?: boolean;
+  rol_en_grupo?: string | null;
+  puede_editar_ui?: boolean;
+}
 
 export default async function GrupoDetailServer({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,26 +43,30 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
     p_auth_id: user!.id,
     p_grupo_id: id
   });
-  const grupo = grupoRaw as any;
+  const grupo = grupoRaw as GrupoRPCResult | null;
 
   if (error || !grupo) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="text-red-500 text-6xl mb-4">⚠️</div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Grupo no encontrado</h2>
-            <p className="text-muted-foreground mb-4">
+        <ContenedorDashboard
+          titulo="Grupo no encontrado"
+          botonRegreso={{ href: "/grupos-vida", texto: "Volver a Grupos" }}
+        >
+          <TarjetaSistema variante="outlined" className="py-12 text-center">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-lg font-semibold text-foreground mb-2">
+              Grupo no encontrado
+            </p>
+            <p className="text-muted-foreground mb-6">
               El grupo solicitado no existe o no tienes acceso para verlo.
             </p>
-            <a
-              href="/grupos-vida"
-              className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-            >
-              Volver a Grupos
-            </a>
-          </div>
-        </div>
+            <Link href="/grupos-vida">
+              <BotonSistema variante="primario">
+                Volver a Grupos
+              </BotonSistema>
+            </Link>
+          </TarjetaSistema>
+        </ContenedorDashboard>
       </DashboardLayout>
     );
   }
@@ -46,14 +82,14 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
       p_auth_id: user.id,
       p_grupo_id: id,
     });
-    (grupo as any).puede_editar_ui = !!permitido;
+    grupo.puede_editar_ui = !!permitido;
   } else {
-    (grupo as any).puede_editar_ui = false;
+    grupo.puede_editar_ui = false;
   }
 
   return (
     <DashboardLayout>
-      <GrupoDetailClient grupo={grupo as any} id={id} />
+      <GrupoDetailClient grupo={grupo} id={id} />
     </DashboardLayout>
   );
 }
