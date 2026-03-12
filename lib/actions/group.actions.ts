@@ -20,6 +20,7 @@ const groupEditSchema = z.object({
   hora_reunion: z.string().optional(),
   activo: z.boolean(),
   notas_privadas: z.string().optional(),
+  casa_anfitriona_id: z.string().uuid().nullable().optional(),
   direccion: z.object({
     calle: z.string().optional(),
     barrio: z.string().optional(),
@@ -57,6 +58,7 @@ export async function updateGroup(groupId: string, data: unknown) {
       hora_reunion: validatedData.hora_reunion || null,
       activo: validatedData.activo,
       notas_privadas: validatedData.notas_privadas || null,
+      casa_anfitriona_id: validatedData.casa_anfitriona_id ?? null,
       updated_at: new Date().toISOString(),
     };
 
@@ -156,7 +158,6 @@ export async function createGroup(data: {
     // La RPC existe en DB pero falta en tipos generados.
     // Se resolverá al ejecutar `pnpm gen:types`
     if (data.director_etapa_segmento_lider_id) {
-      // @ts-expect-error — RPC no tipada, se corrige con pnpm gen:types
       const { error: dirError } = await supabase.rpc("asignar_director_etapa_a_grupo", {
         p_auth_id: user.id,
         p_grupo_id: grupoId,

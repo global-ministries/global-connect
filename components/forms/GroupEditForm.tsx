@@ -21,6 +21,7 @@ const groupEditSchema = z.object({
   hora_reunion: z.string().optional(),
   activo: z.boolean(),
   notas_privadas: z.string().optional(),
+  casa_anfitriona_id: z.string().uuid().nullable().optional(),
   direccion: z.object({
     calle: z.string().optional(),
     barrio: z.string().optional(),
@@ -34,6 +35,15 @@ const groupEditSchema = z.object({
 
 type GroupEditFormData = z.infer<typeof groupEditSchema>;
 
+/** Casa anfitriona disponible para seleccionar en el formulario */
+interface CasaAnfitrionaOpcion {
+  id: string;
+  nombre_lugar: string;
+  anfitrion_nombre: string;
+  lat?: number | null;
+  lng?: number | null;
+}
+
 interface GroupEditFormProps {
   grupo: {
     id: string;
@@ -44,6 +54,7 @@ interface GroupEditFormProps {
     hora_reunion?: string | null;
     activo: boolean;
     notas_privadas?: string | null;
+    casa_anfitriona_id?: string | null;
     direccion?: {
       calle?: string;
       barrio?: string;
@@ -60,6 +71,7 @@ interface GroupEditFormProps {
   estados: Array<{ id: string; nombre: string }>;
   municipios: Array<{ id: string; nombre: string }>;
   parroquias: Array<{ id: string; nombre: string }>;
+  casasDisponibles?: CasaAnfitrionaOpcion[];
   readOnly?: boolean;
 }
 
@@ -77,6 +89,7 @@ export default function GroupEditForm({
   estados,
   municipios,
   parroquias,
+  casasDisponibles = [],
   readOnly = false
 }: GroupEditFormProps) {
   const router = useRouter();
@@ -104,6 +117,7 @@ export default function GroupEditForm({
       hora_reunion: grupo.hora_reunion || "",
       activo: grupo.activo ?? true,
       notas_privadas: grupo.notas_privadas || "",
+      casa_anfitriona_id: grupo.casa_anfitriona_id || null,
       direccion: {
         calle: grupo.direccion?.calle || "",
         barrio: grupo.direccion?.barrio || "",
@@ -267,6 +281,45 @@ export default function GroupEditForm({
           </div>
         </div>
       </TarjetaSistema>
+
+      {/* Casa Anfitriona */}
+      {casasDisponibles.length > 0 && (
+        <TarjetaSistema>
+          <h3 className="text-xl font-bold text-foreground mb-6">Casa Anfitriona</h3>
+          <Controller
+            name="casa_anfitriona_id"
+            control={control}
+            render={({ field }) => (
+              <SelectSistema
+                label="Casa anfitriona registrada"
+                placeholder="Sin casa (dirección manual)"
+                value={field.value || ""}
+                onValueChange={(val) => {
+                  const casaId = val || null;
+                  field.onChange(casaId);
+                  // Auto-centrar mapa si la casa tiene coordenadas
+                  if (casaId) {
+                    const casa = casasDisponibles.find(c => c.id === casaId);
+                    if (casa?.lat != null && casa?.lng != null) {
+                      setMapCenter({ lat: casa.lat, lng: casa.lng });
+                      setValue("direccion.lat", casa.lat);
+                      setValue("direccion.lng", casa.lng);
+                    }
+                  }
+                }}
+                disabled={readOnly || isLoading}
+                opciones={casasDisponibles.map(c => ({
+                  valor: c.id,
+                  etiqueta: `${c.nombre_lugar} — ${c.anfitrion_nombre}`
+                }))}
+              />
+            )}
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            Selecciona una casa anfitriona aprobada. Si no aparece ninguna, usa dirección manual.
+          </p>
+        </TarjetaSistema>
+      )}
 
       {/* Dirección */}
       <TarjetaSistema>

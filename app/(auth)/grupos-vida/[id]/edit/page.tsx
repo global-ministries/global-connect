@@ -52,10 +52,22 @@ export default async function EditGroupPage({ params }: PageProps) {
   }
 
   // Chequear permiso explícito para editar; si no tiene, redirigir al detalle
-  const { data: puedeEditar } = await supabase.rpc("puede_editar_grupo", {
-    p_auth_id: user.id,
-    p_grupo_id: id,
-  });
+  const [{ data: puedeEditar }, { data: grupoExtra }] = await Promise.all([
+    supabase.rpc("puede_editar_grupo", {
+      p_auth_id: user.id,
+      p_grupo_id: id,
+    }),
+    supabase
+      .from("grupos")
+      .select("casa_anfitriona_id")
+      .eq("id", id)
+      .single()
+  ]);
+
+  // Inyectar casa_anfitriona_id (no viene en la RPC obtener_detalle_grupo)
+  if (grupoExtra?.casa_anfitriona_id) {
+    grupo.casa_anfitriona_id = grupoExtra.casa_anfitriona_id;
+  }
 
   // Regla de Mapeo: Mapear latitud/longitud a lat/lng
   if (grupo.direccion) {
@@ -70,15 +82,36 @@ export default async function EditGroupPage({ params }: PageProps) {
     { data: paises },
     { data: estados },
     { data: municipios },
-    { data: parroquias }
+    { data: parroquias },
+    { data: casasRaw }
   ] = await Promise.all([
     supabase.from("temporadas").select("id, nombre"),
     supabase.from("segmentos").select("id, nombre"),
     supabase.from("paises").select("id, nombre"),
     supabase.from("estados").select("id, nombre"),
     supabase.from("municipios").select("id, nombre"),
-    supabase.from("parroquias").select("id, nombre")
+    supabase.from("parroquias").select("id, nombre"),
+    supabase
+      .from("casas_anfitrionas")
+      .select("id, nombre_lugar, usuario_id, usuarios!casas_anfitrionas_usuario_id_fkey(nombre, apellido), direcciones!casas_anfitrionas_direccion_id_fkey(latitud, longitud)")
+      .eq("activa", true)
+      .eq("aprobada", true)
   ]);
+
+  // Mapear casas anfitrionas a formato simple para el componente
+  const casasDisponibles = (casasRaw ?? []).map((c: Record<string, unknown>) => {
+    const usuario = c.usuarios as Record<string, unknown> | null;
+    const direccion = c.direcciones as Record<string, unknown> | null;
+    return {
+      id: c.id as string,
+      nombre_lugar: c.nombre_lugar as string,
+      anfitrion_nombre: usuario
+        ? `${usuario.nombre ?? ''} ${usuario.apellido ?? ''}`.trim()
+        : 'Sin anfitrión',
+      lat: (direccion?.latitud as number) ?? null,
+      lng: (direccion?.longitud as number) ?? null,
+    };
+  });
 
   return (
     <DashboardLayout>
@@ -102,6 +135,7 @@ export default async function EditGroupPage({ params }: PageProps) {
             estados={estados || []}
             municipios={municipios || []}
             parroquias={parroquias || []}
+            casasDisponibles={casasDisponibles}
             readOnly={!puedeEditar}
           />
         </TarjetaSistema>
