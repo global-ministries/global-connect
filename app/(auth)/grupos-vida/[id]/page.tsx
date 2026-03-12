@@ -1,8 +1,14 @@
-
 import GrupoDetailServer from "./GrupoDetailServer";
 
-import { GetServerSidePropsContext } from "next";
+/** Props tipados para la ruta dinámica [id] de Grupos de Vida */
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-export default function Page(props: any) {
-  return <GrupoDetailServer {...props} />;
+/**
+ * Página de detalle de un grupo de vida.
+ * Delega la lógica server-side a GrupoDetailServer.
+ */
+export default function Page({ params }: PageProps) {
+  return <GrupoDetailServer params={params} />;
 }

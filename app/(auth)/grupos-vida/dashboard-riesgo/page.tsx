@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 
 /** Roles permitidos para acceder al dashboard de riesgo */
-const ROLES_PERMITIDOS = ["admin", "pastor", "director_etapa", "director_general"]
+const ROLES_PERMITIDOS = ["admin", "pastor", "director-etapa", "director-general"]
 
 export default async function DashboardRiesgoPage() {
     const supabase = await createSupabaseServerClient()
