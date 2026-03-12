@@ -30,6 +30,6 @@ export async function addMemberToGroup(params: { grupoId: string; usuarioId: str
     p_rol: params.rol
   });
   if (error) throw new Error(error.message);
-  revalidatePath(`/dashboard/grupos/${params.grupoId}`);
+  revalidatePath(`/grupos-vida/${params.grupoId}`);
   return { ok: true } as const;
 }

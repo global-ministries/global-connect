@@ -152,7 +152,7 @@ export default function GroupEditForm({
 
       if (result.success) {
         toast.success("Grupo actualizado exitosamente");
-        router.push(`/dashboard/grupos/${grupo.id}`);
+        router.push(`/grupos-vida/${grupo.id}`);
       } else {
         toast.error(result.error || "Error al actualizar el grupo");
       }
@@ -365,7 +365,7 @@ export default function GroupEditForm({
         <BotonSistema
           type="button"
           variante="outline"
-          onClick={() => router.push(`/dashboard/grupos/${grupo.id}`)}
+          onClick={() => router.push(`/grupos-vida/${grupo.id}`)}
           disabled={isLoading}
         >
           {readOnly ? 'Volver' : 'Cancelar'}

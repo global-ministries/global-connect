@@ -58,6 +58,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "asistencia_registrado_por_usuario_id_fkey"
+            columns: ["registrado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "asistencia_registrado_por_usuario_id_fkey"
+            columns: ["registrado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
             foreignKeyName: "asistencia_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
@@ -65,18 +79,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "fk_evento_grupo_id"
-            columns: ["evento_grupo_id"]
-            isOneToOne: false
-            referencedRelation: "eventos_grupo"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_usuario_asistencia_id"
+            foreignKeyName: "asistencia_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "asistencia_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
         ]
       }
@@ -209,6 +223,113 @@ export type Database = {
           },
         ]
       }
+      casas_anfitrionas: {
+        Row: {
+          activa: boolean
+          actualizado_en: string
+          aprobada: boolean
+          aprobada_en: string | null
+          aprobada_por: string | null
+          capacidad_maxima: number | null
+          creado_en: string
+          descripcion: string | null
+          direccion_id: string | null
+          disponibilidad: Json
+          fotos_urls: string[]
+          id: string
+          nombre_lugar: string
+          notas_privadas: string | null
+          notas_publicas: string | null
+          usuario_id: string
+        }
+        Insert: {
+          activa?: boolean
+          actualizado_en?: string
+          aprobada?: boolean
+          aprobada_en?: string | null
+          aprobada_por?: string | null
+          capacidad_maxima?: number | null
+          creado_en?: string
+          descripcion?: string | null
+          direccion_id?: string | null
+          disponibilidad?: Json
+          fotos_urls?: string[]
+          id?: string
+          nombre_lugar: string
+          notas_privadas?: string | null
+          notas_publicas?: string | null
+          usuario_id: string
+        }
+        Update: {
+          activa?: boolean
+          actualizado_en?: string
+          aprobada?: boolean
+          aprobada_en?: string | null
+          aprobada_por?: string | null
+          capacidad_maxima?: number | null
+          creado_en?: string
+          descripcion?: string | null
+          direccion_id?: string | null
+          disponibilidad?: Json
+          fotos_urls?: string[]
+          id?: string
+          nombre_lugar?: string
+          notas_privadas?: string | null
+          notas_publicas?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "casas_anfitrionas_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casas_anfitrionas_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "casas_anfitrionas_aprobada_por_fkey"
+            columns: ["aprobada_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "casas_anfitrionas_direccion_id_fkey"
+            columns: ["direccion_id"]
+            isOneToOne: false
+            referencedRelation: "direcciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casas_anfitrionas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casas_anfitrionas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "casas_anfitrionas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+        ]
+      }
       debug_toolbar_whitelist: {
         Row: {
           created_at: string
@@ -232,6 +353,20 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debug_toolbar_whitelist_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "debug_toolbar_whitelist_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
         ]
       }
@@ -275,6 +410,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "dias_excepcion_creado_por_usuario_id_fkey"
+            columns: ["creado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "dias_excepcion_creado_por_usuario_id_fkey"
+            columns: ["creado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
             foreignKeyName: "dias_excepcion_grupo_id_fkey"
             columns: ["grupo_id"]
             isOneToOne: false
@@ -287,6 +436,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_grupos_supervisiones"
             referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "dias_excepcion_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -324,13 +480,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "direcciones_parroquia_id_fkey"
-            columns: ["parroquia_id"]
-            isOneToOne: false
-            referencedRelation: "parroquias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_parroquia_id"
             columns: ["parroquia_id"]
             isOneToOne: false
             referencedRelation: "parroquias"
@@ -382,6 +531,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_grupos_supervisiones"
             referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "director_etapa_grupos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -475,6 +631,64 @@ export type Database = {
           },
         ]
       }
+      disponibilidad_liderazgo: {
+        Row: {
+          actualizado_en: string
+          dias_disponibles: string[]
+          disponible_como_anfitrion: boolean
+          disponible_como_lider: boolean
+          disponible_como_voluntario: boolean
+          horario_preferido: string | null
+          id: string
+          notas: string | null
+          usuario_id: string
+        }
+        Insert: {
+          actualizado_en?: string
+          dias_disponibles?: string[]
+          disponible_como_anfitrion?: boolean
+          disponible_como_lider?: boolean
+          disponible_como_voluntario?: boolean
+          horario_preferido?: string | null
+          id?: string
+          notas?: string | null
+          usuario_id: string
+        }
+        Update: {
+          actualizado_en?: string
+          dias_disponibles?: string[]
+          disponible_como_anfitrion?: boolean
+          disponible_como_lider?: boolean
+          disponible_como_voluntario?: boolean
+          horario_preferido?: string | null
+          id?: string
+          notas?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disponibilidad_liderazgo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disponibilidad_liderazgo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "disponibilidad_liderazgo_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+        ]
+      }
       estados: {
         Row: {
           id: string
@@ -549,18 +763,11 @@ export type Database = {
             referencedColumns: ["grupo_id"]
           },
           {
-            foreignKeyName: "fk_grupo_evento_id"
+            foreignKeyName: "eventos_grupo_grupo_id_fkey"
             columns: ["grupo_id"]
             isOneToOne: false
-            referencedRelation: "grupos"
+            referencedRelation: "v_mapa_grupos_vida"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_grupo_evento_id"
-            columns: ["grupo_id"]
-            isOneToOne: false
-            referencedRelation: "v_grupos_supervisiones"
-            referencedColumns: ["grupo_id"]
           },
         ]
       }
@@ -624,27 +831,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_grupo_id"
-            columns: ["grupo_id"]
-            isOneToOne: false
-            referencedRelation: "grupos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_grupo_id"
-            columns: ["grupo_id"]
-            isOneToOne: false
-            referencedRelation: "v_grupos_supervisiones"
-            referencedColumns: ["grupo_id"]
-          },
-          {
-            foreignKeyName: "fk_usuario_id"
-            columns: ["usuario_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "grupo_miembros_grupo_id_fkey"
             columns: ["grupo_id"]
             isOneToOne: false
@@ -657,6 +843,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_grupos_supervisiones"
             referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "grupo_miembros_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "grupo_miembros_usuario_id_fkey"
@@ -664,6 +857,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupo_miembros_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "grupo_miembros_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
         ]
       }
@@ -673,12 +880,16 @@ export type Database = {
           aprobado_en: string | null
           aprobado_por: string | null
           campus_id: string | null
+          capacidad_maxima: number | null
+          casa_anfitriona_id: string | null
           creado_por_usuario_id: string | null
           created_at: string | null
           dia_reunion: Database["public"]["Enums"]["enum_dia_semana"] | null
           direccion_anfitrion_id: string | null
           eliminado: boolean
+          es_publico: boolean
           estado_aprobacion: string
+          estado_ciclo: string
           fecha_creacion: string
           hora_reunion: string | null
           id: string
@@ -688,6 +899,7 @@ export type Database = {
           segmento_id: string
           segmento_ubicacion_id: string | null
           temporada_id: string
+          tipo_grupo_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -695,12 +907,16 @@ export type Database = {
           aprobado_en?: string | null
           aprobado_por?: string | null
           campus_id?: string | null
+          capacidad_maxima?: number | null
+          casa_anfitriona_id?: string | null
           creado_por_usuario_id?: string | null
           created_at?: string | null
           dia_reunion?: Database["public"]["Enums"]["enum_dia_semana"] | null
           direccion_anfitrion_id?: string | null
           eliminado?: boolean
+          es_publico?: boolean
           estado_aprobacion?: string
+          estado_ciclo?: string
           fecha_creacion?: string
           hora_reunion?: string | null
           id?: string
@@ -710,6 +926,7 @@ export type Database = {
           segmento_id: string
           segmento_ubicacion_id?: string | null
           temporada_id: string
+          tipo_grupo_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -717,12 +934,16 @@ export type Database = {
           aprobado_en?: string | null
           aprobado_por?: string | null
           campus_id?: string | null
+          capacidad_maxima?: number | null
+          casa_anfitriona_id?: string | null
           creado_por_usuario_id?: string | null
           created_at?: string | null
           dia_reunion?: Database["public"]["Enums"]["enum_dia_semana"] | null
           direccion_anfitrion_id?: string | null
           eliminado?: boolean
+          es_publico?: boolean
           estado_aprobacion?: string
+          estado_ciclo?: string
           fecha_creacion?: string
           hora_reunion?: string | null
           id?: string
@@ -732,29 +953,30 @@ export type Database = {
           segmento_id?: string
           segmento_ubicacion_id?: string | null
           temporada_id?: string
+          tipo_grupo_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_direccion_anfitrion_id"
-            columns: ["direccion_anfitrion_id"]
-            isOneToOne: false
-            referencedRelation: "direcciones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_segmento_id"
-            columns: ["segmento_id"]
-            isOneToOne: false
-            referencedRelation: "segmentos"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "grupos_aprobado_por_fkey"
             columns: ["aprobado_por"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "grupos_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
           {
             foreignKeyName: "grupos_campus_id_fkey"
@@ -764,11 +986,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "grupos_casa_anfitriona_id_fkey"
+            columns: ["casa_anfitriona_id"]
+            isOneToOne: false
+            referencedRelation: "casas_anfitrionas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_casa_anfitriona_id_fkey"
+            columns: ["casa_anfitriona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "grupos_creado_por_usuario_id_fkey"
             columns: ["creado_por_usuario_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_creado_por_usuario_id_fkey"
+            columns: ["creado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "grupos_creado_por_usuario_id_fkey"
+            columns: ["creado_por_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
           {
             foreignKeyName: "grupos_direccion_anfitrion_id_fkey"
@@ -803,6 +1053,13 @@ export type Database = {
             columns: ["temporada_id"]
             isOneToOne: false
             referencedRelation: "temporadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupos_tipo_grupo_id_fkey"
+            columns: ["tipo_grupo_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_grupo"
             referencedColumns: ["id"]
           },
         ]
@@ -949,11 +1206,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_usuario1_id"
+            columns: ["usuario1_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "fk_usuario1_id"
+            columns: ["usuario1_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
             foreignKeyName: "fk_usuario2_id"
             columns: ["usuario2_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_usuario2_id"
+            columns: ["usuario2_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "fk_usuario2_id"
+            columns: ["usuario2_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
           {
             foreignKeyName: "relaciones_usuarios_usuario1_id_fkey"
@@ -963,11 +1248,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "relaciones_usuarios_usuario1_id_fkey"
+            columns: ["usuario1_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "relaciones_usuarios_usuario1_id_fkey"
+            columns: ["usuario1_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
             foreignKeyName: "relaciones_usuarios_usuario2_id_fkey"
             columns: ["usuario2_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relaciones_usuarios_usuario2_id_fkey"
+            columns: ["usuario2_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "relaciones_usuarios_usuario2_id_fkey"
+            columns: ["usuario2_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
         ]
       }
@@ -1032,6 +1345,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
         ]
       }
@@ -1111,6 +1438,71 @@ export type Database = {
         }
         Relationships: []
       }
+      tipos_grupo: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          campus_id: string | null
+          color_hex: string | null
+          creado_en: string
+          descripcion: string | null
+          es_confidencial: boolean
+          icono: string | null
+          id: string
+          nombre: string
+          requiere_aprobacion_ingreso: boolean
+          requiere_ruta_previa: boolean
+          slug: string
+          usa_casa_anfitriona: boolean
+          usa_grupos_matrimonio: boolean
+          usa_temporadas: boolean
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          campus_id?: string | null
+          color_hex?: string | null
+          creado_en?: string
+          descripcion?: string | null
+          es_confidencial?: boolean
+          icono?: string | null
+          id?: string
+          nombre: string
+          requiere_aprobacion_ingreso?: boolean
+          requiere_ruta_previa?: boolean
+          slug: string
+          usa_casa_anfitriona?: boolean
+          usa_grupos_matrimonio?: boolean
+          usa_temporadas?: boolean
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          campus_id?: string | null
+          color_hex?: string | null
+          creado_en?: string
+          descripcion?: string | null
+          es_confidencial?: boolean
+          icono?: string | null
+          id?: string
+          nombre?: string
+          requiere_aprobacion_ingreso?: boolean
+          requiere_ruta_previa?: boolean
+          slug?: string
+          usa_casa_anfitriona?: boolean
+          usa_grupos_matrimonio?: boolean
+          usa_temporadas?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tipos_grupo_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       uno_a_uno_participantes: {
         Row: {
           id: string
@@ -1134,6 +1526,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_participantes_miembro_usuario_id_fkey"
+            columns: ["miembro_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_participantes_miembro_usuario_id_fkey"
+            columns: ["miembro_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
           {
             foreignKeyName: "uno_a_uno_participantes_reunion_id_fkey"
@@ -1188,11 +1594,32 @@ export type Database = {
             referencedColumns: ["grupo_id"]
           },
           {
+            foreignKeyName: "uno_a_uno_reuniones_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "uno_a_uno_reuniones_lider_usuario_id_fkey"
             columns: ["lider_usuario_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_reuniones_lider_usuario_id_fkey"
+            columns: ["lider_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_reuniones_lider_usuario_id_fkey"
+            columns: ["lider_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
         ]
       }
@@ -1233,6 +1660,20 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "usuario_campus_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "usuario_campus_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
         ]
       }
       usuario_roles: {
@@ -1267,6 +1708,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_usuario_roles_usuario_id"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "fk_usuario_roles_usuario_id"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
             foreignKeyName: "usuario_roles_rol_id_fkey"
             columns: ["rol_id"]
             isOneToOne: false
@@ -1279,6 +1734,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_roles_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "usuario_roles_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
         ]
       }
@@ -1398,6 +1867,24 @@ export type Database = {
       }
     }
     Views: {
+      v_casas_anfitrionas_disponibles: {
+        Row: {
+          anfitrion_id: string | null
+          anfitrion_nombre: string | null
+          anfitrion_pareja_nombre: string | null
+          barrio: string | null
+          calle: string | null
+          capacidad_maxima: number | null
+          disponibilidad: Json | null
+          fotos_urls: string[] | null
+          grupos_usando: number | null
+          id: string | null
+          latitud: number | null
+          longitud: number | null
+          nombre_lugar: string | null
+        }
+        Relationships: []
+      }
       v_directores_etapa_segmento: {
         Row: {
           apellido: string | null
@@ -1421,6 +1908,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
           },
         ]
       }
@@ -1452,13 +1953,6 @@ export type Database = {
             referencedColumns: ["director_etapa_segmento_lider_id"]
           },
           {
-            foreignKeyName: "fk_segmento_id"
-            columns: ["segmento_id"]
-            isOneToOne: false
-            referencedRelation: "segmentos"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "grupos_segmento_id_fkey"
             columns: ["segmento_id"]
             isOneToOne: false
@@ -1479,7 +1973,100 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["director_etapa_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "segmento_lideres_usuario_id_fkey"
+            columns: ["director_etapa_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
         ]
+      }
+      v_lideres_con_pareja: {
+        Row: {
+          apellido: string | null
+          estado_civil: Database["public"]["Enums"]["enum_estado_civil"] | null
+          fecha_asignacion: string | null
+          foto_perfil_url: string | null
+          grupo_id: string | null
+          nombre: string | null
+          pareja_apellido: string | null
+          pareja_en_grupo: boolean | null
+          pareja_id: string | null
+          pareja_nombre: string | null
+          rol: Database["public"]["Enums"]["enum_rol_grupo"] | null
+          usuario_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupo_miembros_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupo_miembros_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "grupo_miembros_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupo_miembros_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupo_miembros_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "grupo_miembros_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+        ]
+      }
+      v_mapa_grupos_vida: {
+        Row: {
+          capacidad_maxima: number | null
+          dia_reunion: Database["public"]["Enums"]["enum_dia_semana"] | null
+          direccion: string | null
+          estado_ciclo: string | null
+          hora_reunion: string | null
+          id: string | null
+          latitud: number | null
+          lideres: Json | null
+          longitud: number | null
+          lugar_reunion: string | null
+          nombre: string | null
+          segmento: string | null
+          temporada: string | null
+          total_miembros: number | null
+        }
+        Relationships: []
       }
     }
     Functions: {
@@ -1552,6 +2139,15 @@ export type Database = {
           segmento_ubicacion_id: string
         }[]
       }
+      asignar_lider_matrimonio: {
+        Args: {
+          p_auth_id: string
+          p_grupo_id: string
+          p_incluir_conyugue?: boolean
+          p_lider_id: string
+        }
+        Returns: Json
+      }
       buscar_usuarios_para_grupo: {
         Args: {
           p_auth_id: string
@@ -1568,15 +2164,26 @@ export type Database = {
           ya_es_miembro: boolean
         }[]
       }
-      crear_grupo: {
-        Args: {
-          p_auth_id: string
-          p_nombre: string
-          p_segmento_id: string
-          p_temporada_id: string
-        }
-        Returns: string
-      }
+      crear_grupo:
+        | {
+            Args: {
+              p_auth_id: string
+              p_nombre: string
+              p_segmento_id: string
+              p_temporada_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_auth_id: string
+              p_campus_id?: string
+              p_nombre: string
+              p_segmento_id: string
+              p_temporada_id: string
+            }
+            Returns: string
+          }
       eliminar_miembro_de_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string; p_usuario_id: string }
         Returns: Json
@@ -1684,6 +2291,15 @@ export type Database = {
           usuario_email: string
           usuario_id: string
           usuario_nombre: string
+        }[]
+      }
+      obtener_conyugue: {
+        Args: { p_usuario_id: string }
+        Returns: {
+          apellido: string
+          foto_perfil_url: string
+          id: string
+          nombre: string
         }[]
       }
       obtener_datos_dashboard: { Args: { p_auth_id: string }; Returns: Json }
@@ -1816,6 +2432,15 @@ export type Database = {
           nombre: string
         }[]
       }
+      procesar_aprobacion_casa_anfitriona: {
+        Args: {
+          p_accion: string
+          p_auth_id: string
+          p_casa_id: string
+          p_notas?: string
+        }
+        Returns: Json
+      }
       puede_crear_grupo: {
         Args: { p_auth_id: string; p_segmento_id: string }
         Returns: boolean
@@ -1829,6 +2454,7 @@ export type Database = {
         Args: { p_auth_id: string; p_target_user_id: string }
         Returns: boolean
       }
+      puede_gestionar_casas: { Args: { p_auth_id: string }; Returns: boolean }
       puede_gestionar_miembros: {
         Args: { p_auth_id: string; p_grupo_id: string }
         Returns: boolean

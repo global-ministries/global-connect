@@ -69,13 +69,13 @@ export default function ReporteAsistenciaUsuarioClient({
     if (fechaInicioLocal) params.set('fecha_inicio', fechaInicioLocal)
     if (fechaFinLocal) params.set('fecha_fin', fechaFinLocal)
 
-    router.push(`/dashboard/users/${usuarioId}/asistencia?${params.toString()}`)
+    router.push(`/users/${usuarioId}/asistencia?${params.toString()}`)
   }
 
   const limpiarFiltros = () => {
     setFechaInicioLocal('')
     setFechaFinLocal('')
-    router.push(`/dashboard/users/${usuarioId}/asistencia`)
+    router.push(`/users/${usuarioId}/asistencia`)
   }
 
   return (
@@ -179,7 +179,7 @@ export default function ReporteAsistenciaUsuarioClient({
                 Grupo Más Frecuente
               </TextoSistema>
               {reporte.kpis.grupo_mas_frecuente.id ? (
-                <Link href={`/dashboard/grupos/${reporte.kpis.grupo_mas_frecuente.id}`}>
+                <Link href={`/grupos-vida/${reporte.kpis.grupo_mas_frecuente.id}`}>
                   <div
                     className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer"
                     title={reporte.kpis.grupo_mas_frecuente.nombre}
@@ -260,7 +260,7 @@ export default function ReporteAsistenciaUsuarioClient({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <Link
-                          href={`/dashboard/grupos/${evento.grupo_id}`}
+                          href={`/grupos-vida/${evento.grupo_id}`}
                           className="text-blue-600 hover:text-blue-800 hover:underline"
                         >
                           {evento.grupo_nombre}
@@ -278,7 +278,7 @@ export default function ReporteAsistenciaUsuarioClient({
                         </BadgeSistema>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
-                        <Link href={`/dashboard/grupos/${evento.grupo_id}/asistencia/historial`}>
+                        <Link href={`/grupos-vida/${evento.grupo_id}/asistencia/historial`}>
                           <BotonSistema
                             variante="ghost"
                             tamaño="sm"

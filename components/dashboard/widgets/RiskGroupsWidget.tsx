@@ -26,7 +26,7 @@ export function RiskGroupsWidget({ id, title, items }: RiskGroupsWidgetProps) {
       ) : (
         <div className="space-y-3">
           {items.map((g) => (
-            <Link key={g.id} href={`/dashboard/grupos/${g.id}`} className="block">
+            <Link key={g.id} href={`/grupos-vida/${g.id}`} className="block">
               <div className="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors">
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-foreground truncate">{g.nombre}</div>

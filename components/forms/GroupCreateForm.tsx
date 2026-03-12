@@ -166,7 +166,7 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
         return;
       }
       if (result.newGroupId) {
-        router.push(`/dashboard/grupos/${result.newGroupId}/edit`);
+        router.push(`/grupos-vida/${result.newGroupId}/edit`);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error al crear el grupo");

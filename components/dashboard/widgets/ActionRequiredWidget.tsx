@@ -28,7 +28,7 @@ export function ActionRequiredWidget({ accion }: ActionRequiredWidgetProps) {
           <TextoSistema className="mt-2 text-orange-800 dark:text-orange-300">{accion.mensaje}</TextoSistema>
         </div>
         <div className="flex-shrink-0">
-          <Link href={`/dashboard/grupos/${accion.grupo_id}/asistencia`}>
+          <Link href={`/grupos-vida/${accion.grupo_id}/asistencia`}>
             <BotonSistema tamaño="lg" variante="primario">Registrar Asistencia</BotonSistema>
           </Link>
         </div>

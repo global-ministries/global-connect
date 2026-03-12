@@ -3,24 +3,19 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, UsersRound, Settings, BarChart3 } from 'lucide-react'
+import { LayoutDashboard, Users, UsersRound, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 const elementosMenu = [
   { nombre: "Dashboard", icono: LayoutDashboard, enlace: "/dashboard", id: "dashboard" },
-  { nombre: "Usuarios", icono: Users, enlace: "/dashboard/users", id: "users" },
-  { nombre: "Grupos", icono: UsersRound, enlace: "/dashboard/grupos", id: "grupos" },
-  { nombre: "Reportes", icono: BarChart3, enlace: "/dashboard/reportes/asistencia-semanal", id: "reportes" },
-  { nombre: "Config", icono: Settings, enlace: "/dashboard/configuracion", id: "configuracion" },
+  { nombre: "Usuarios", icono: Users, enlace: "/users", id: "users" },
+  { nombre: "Grupos de Vida", icono: UsersRound, enlace: "/grupos-vida", id: "grupos-vida" },
+  { nombre: "Config", icono: Settings, enlace: "/configuracion", id: "configuracion" },
 ]
 
 export function MenuInferiorMovil() {
   const pathname = usePathname()
-  const { roles } = useCurrentUser()
-
-  const ocultarReportes = roles.includes('lider') || roles.includes('miembro')
-  const elementosFiltrados = elementosMenu.filter((el) => !(el.id === 'reportes' && ocultarReportes))
+  const elementosFiltrados = elementosMenu
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-t border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">

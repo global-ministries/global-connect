@@ -85,7 +85,7 @@ export async function updateGroup(groupId: string, data: unknown) {
 
     if (updateError) throw new Error("Error al actualizar el grupo");
 
-    revalidatePath(`/dashboard/grupos/${groupId}`);
+    revalidatePath(`/grupos-vida/${groupId}`);
     return { success: true };
   } catch (error) {
     return {
@@ -169,7 +169,7 @@ export async function createGroup(data: {
         .insert({ grupo_id: grupoId, usuario_id: data.lider_usuario_id, rol: "Líder" });
     }
 
-    revalidatePath("/dashboard/grupos");
+    revalidatePath("/grupos-vida");
     return { success: true, newGroupId: grupoId };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error al crear el grupo";

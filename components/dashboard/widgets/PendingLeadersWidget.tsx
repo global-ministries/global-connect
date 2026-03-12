@@ -36,7 +36,7 @@ export function PendingLeadersWidget({ id, title = 'Líderes Pendientes de Repor
           {items.map((it) => (
             <div key={it.grupo_id} className="flex items-start justify-between gap-3 p-3 bg-[var(--surface-secondary)]/50 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors">
               <div className="min-w-0">
-                <Link href={`/dashboard/grupos/${it.grupo_id}`} className="block text-sm font-semibold text-foreground truncate">
+                <Link href={`/grupos-vida/${it.grupo_id}`} className="block text-sm font-semibold text-foreground truncate">
                   {it.grupo_nombre}
                 </Link>
                 <TextoSistema variante="sutil" tamaño="sm" className="truncate">

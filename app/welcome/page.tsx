@@ -28,7 +28,7 @@ export default async function WelcomePage() {
   const ahora = new Date();
   const cincoMin = 5 * 60 * 1000;
   if (ahora.getTime() - fechaRegistro.getTime() < cincoMin) {
-    redirect(`/dashboard/users/${user.id}/edit`);
+    redirect(`/users/${user.id}/edit`);
   } else {
     redirect("/dashboard");
   }

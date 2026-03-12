@@ -150,7 +150,7 @@ export default function TemporadasListClient({
                         </BadgeSistema>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Link href={`/dashboard/temporadas/${temporada.id}/edit`}>
+                        <Link href={`/grupos-vida/temporadas/${temporada.id}/edit`}>
                           <BotonSistema variante="ghost" tamaño="sm">
                             <Edit className="w-4 h-4" />
                           </BotonSistema>
@@ -229,7 +229,7 @@ export default function TemporadasListClient({
                 </div>
 
                 <div className="ml-3">
-                  <Link href={`/dashboard/temporadas/${temporada.id}/edit`}>
+                  <Link href={`/grupos-vida/temporadas/${temporada.id}/edit`}>
                     <BotonSistema variante="ghost" tamaño="sm">
                       <Edit className="w-4 h-4" />
                     </BotonSistema>

@@ -137,7 +137,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
     if (fecha) params.set('semana', fecha)
     if (incluirTodos) params.set('todos', '1')
     const qs = params.toString()
-    return qs ? `/dashboard/reportes/asistencia-semanal?${qs}` : '/dashboard/reportes/asistencia-semanal'
+    return qs ? `/grupos-vida/reportes/asistencia-semanal?${qs}` : '/grupos-vida/reportes/asistencia-semanal'
   }
 
   const irSemanaAnterior = () => {
@@ -166,7 +166,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
       const params = new URLSearchParams()
       params.set('semana', reporte.semana.inicio)
       if (next) params.set('todos', '1')
-      router.push(`/dashboard/reportes/asistencia-semanal?${params.toString()}`)
+      router.push(`/grupos-vida/reportes/asistencia-semanal?${params.toString()}`)
       return next
     })
   }
@@ -457,7 +457,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
                   className="p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100 transition-colors"
                 >
                   <Link
-                    href={`/dashboard/grupos/${grupo.id}`}
+                    href={`/grupos-vida/${grupo.id}`}
                     className="block"
                   >
                     <div className="font-semibold text-foreground hover:text-green-700 mb-1">
@@ -509,7 +509,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
                   className="p-4 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
                 >
                   <Link
-                    href={`/dashboard/grupos/${grupo.id}`}
+                    href={`/grupos-vida/${grupo.id}`}
                     className="block"
                   >
                     <div className="flex items-center justify-between mb-1">

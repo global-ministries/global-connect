@@ -204,7 +204,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
 
       if (esPerfil) {
         toast.success('Perfil actualizado exitosamente')
-        window.location.href = '/dashboard/perfil'
+        window.location.href = '/perfil'
       }
 
     } catch (err: unknown) {

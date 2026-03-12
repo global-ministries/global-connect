@@ -82,7 +82,7 @@ export default function UserCreateForm() {
       }
 
       success('Usuario creado correctamente')
-      router.push(`/dashboard/users/${idStr}/edit`)
+      router.push(`/users/${idStr}/edit`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error inesperado al crear usuario"
       setError("root", { message: msg });

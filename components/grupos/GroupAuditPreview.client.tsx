@@ -68,7 +68,7 @@ export default function GroupAuditPreview({ grupoId }: { grupoId: string }) {
       <div className="flex items-center justify-between">
         <h3 className="text-lg lg:text-xl font-bold text-foreground">Últimos cambios</h3>
         <Link
-          href={`/dashboard/grupos/${encodeURIComponent(grupoId)}/auditoria`}
+          href={`/grupos-vida/${encodeURIComponent(grupoId)}/auditoria`}
           className="text-sm text-blue-600 hover:underline"
         >
           Ver más

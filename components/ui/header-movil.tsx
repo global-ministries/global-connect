@@ -8,22 +8,50 @@ import { SelectorCampus } from '@/components/ui/selector-campus'
 import { logout } from "@/lib/actions/auth.actions"
 import {
   LogOut, User, Menu, X, HelpCircle,
-  Home, Users, UserCheck, BarChart3, Settings, Megaphone
+  Home, Users, UserCheck, Settings, Megaphone,
+  ChevronDown, House, Calendar, MapPin, BarChart3
 } from 'lucide-react'
 import { ThemeToggle } from './theme-toggle'
 import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { cn } from '@/lib/utils'
 
-// ── Menu items (mirror of sidebar) ──
-const menuItems = [
+// ── SubItem type ──
+interface SubItem {
+  id: string
+  label: string
+  href: string
+  icon?: React.ComponentType<{ className?: string }>
+}
+
+// ── Menu items with optional children (mirror of sidebar) ──
+interface MobileMenuItem {
+  id: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  href: string
+  children?: SubItem[]
+}
+
+const menuItems: MobileMenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
-  { id: 'usuarios', label: 'Usuarios', icon: Users, href: '/dashboard/users' },
-  { id: 'grupos', label: 'Grupos', icon: UserCheck, href: '/dashboard/grupos' },
-  { id: 'reportes', label: 'Reportes', icon: BarChart3, href: '/dashboard/reportes/asistencia-semanal' },
-  { id: 'configuracion', label: 'Configuración', icon: Settings, href: '/dashboard/configuracion' },
-  { id: 'actualizaciones', label: 'Actualizaciones', icon: Megaphone, href: '/dashboard/actualizaciones' },
-  { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, href: '/dashboard/help' },
+  { id: 'usuarios', label: 'Usuarios', icon: Users, href: '/users' },
+  {
+    id: 'grupos-vida',
+    label: 'Grupos de Vida',
+    icon: UserCheck,
+    href: '/grupos-vida',
+    children: [
+      { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House },
+      { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users },
+      { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar },
+      { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin },
+      { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3 },
+    ],
+  },
+  { id: 'configuracion', label: 'Configuración', icon: Settings, href: '/configuracion' },
+  { id: 'actualizaciones', label: 'Actualizaciones', icon: Megaphone, href: '/actualizaciones' },
+  { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, href: '/ayuda' },
 ]
 
 function formatearRol(roles: string[]): string {
@@ -50,12 +78,42 @@ interface HeaderMovilProps {
 export function HeaderMovil({ titulo }: HeaderMovilProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set())
   const pathname = usePathname()
   const { usuario, roles, loading } = useCurrentUser()
   const userMenuRef = useRef<HTMLDivElement>(null)
 
-  const ocultarReportes = roles.includes('lider') || roles.includes('miembro')
-  const menuFiltrado = menuItems.filter(it => !(it.id === 'reportes' && ocultarReportes))
+  // Auto-expand submenus when a child route is active
+  useEffect(() => {
+    const newOpen = new Set<string>()
+    for (const item of menuItems) {
+      if (item.children) {
+        const isChildActive = item.children.some(child =>
+          pathname === child.href || pathname?.startsWith(child.href + '/')
+        )
+        if (isChildActive) {
+          newOpen.add(item.id)
+        }
+      }
+    }
+    setOpenSubmenus(prev => {
+      const merged = new Set(prev)
+      newOpen.forEach(id => merged.add(id))
+      return merged
+    })
+  }, [pathname])
+
+  const toggleSubmenu = (id: string) => {
+    setOpenSubmenus(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
 
   // Close on route change
   useEffect(() => {
@@ -98,30 +156,44 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
 
+  const isActive = (href: string): boolean => {
+    return pathname === href ||
+      (href !== "/dashboard" && !!pathname?.startsWith(href + '/'))
+  }
+
   // ── Título inteligente por ruta ──
   const resolverTitulo = (path: string | null): string | null => {
     if (!path || path === '/dashboard') return null // → mostrar logo
 
     // Sub-páginas específicas (orden: más específico primero)
     const rutasInternas: [RegExp | string, string][] = [
-      [/\/dashboard\/grupos\/[^/]+\/asistencia\/registrar/, 'Registrar Asistencia'],
-      [/\/dashboard\/grupos\/[^/]+\/asistencia\/[^/]+\/editar/, 'Editar Asistencia'],
-      [/\/dashboard\/grupos\/[^/]+\/asistencia\/[^/]+/, 'Detalle Asistencia'],
-      [/\/dashboard\/grupos\/[^/]+\/asistencia/, 'Asistencia del Grupo'],
-      [/\/dashboard\/grupos\/[^/]+\/miembros/, 'Miembros del Grupo'],
-      [/\/dashboard\/grupos\/[^/]+\/auditoria/, 'Auditoría del Grupo'],
-      [/\/dashboard\/grupos\/[^/]+\/editar/, 'Editar Grupo'],
-      [/\/dashboard\/grupos\/crear/, 'Crear Grupo'],
-      [/\/dashboard\/grupos\/create/, 'Crear Grupo'],
-      [/\/dashboard\/grupos\/[^/]+/, 'Detalle del Grupo'],
-      [/\/dashboard\/users\/[^/]+\/asistencia/, 'Asistencia del Usuario'],
-      [/\/dashboard\/users\/[^/]+/, 'Detalle del Usuario'],
-      [/\/dashboard\/temporadas\/[^/]+\/edit/, 'Editar Temporada'],
-      [/\/dashboard\/temporadas\/crear/, 'Crear Temporada'],
-      [/\/dashboard\/reportes/, 'Reportes'],
-      ['/dashboard/configuracion', 'Configuración'],
-      ['/dashboard/help', 'Ayuda'],
-      ['/dashboard/perfil', 'Mi Perfil'],
+      [/\/grupos-vida\/[^/]+\/asistencia\/registrar/, 'Registrar Asistencia'],
+      [/\/grupos-vida\/[^/]+\/asistencia\/[^/]+\/editar/, 'Editar Asistencia'],
+      [/\/grupos-vida\/[^/]+\/asistencia\/[^/]+/, 'Detalle Asistencia'],
+      [/\/grupos-vida\/[^/]+\/asistencia/, 'Asistencia del Grupo'],
+      [/\/grupos-vida\/[^/]+\/auditoria/, 'Auditoría del Grupo'],
+      [/\/grupos-vida\/[^/]+\/edit/, 'Editar Grupo'],
+      [/\/grupos-vida\/crear/, 'Crear Grupo'],
+      [/\/grupos-vida\/casas-anfitrionas\/[^/]+/, 'Detalle Casa Anfitriona'],
+      ['/grupos-vida/casas-anfitrionas', 'Casas Anfitrionas'],
+      [/\/grupos-vida\/segmentos\/[^/]+\/directores/, 'Directores del Segmento'],
+      [/\/grupos-vida\/segmentos\/[^/]+/, 'Detalle del Segmento'],
+      ['/grupos-vida/segmentos', 'Segmentos'],
+      [/\/grupos-vida\/temporadas\/[^/]+\/edit/, 'Editar Temporada'],
+      ['/grupos-vida/temporadas/crear', 'Crear Temporada'],
+      ['/grupos-vida/temporadas', 'Temporadas'],
+      ['/grupos-vida/mapa', 'Mapa de Grupos'],
+      [/\/grupos-vida\/reportes/, 'Reportes'],
+      [/\/grupos-vida\/importar/, 'Importar Grupos'],
+      [/\/grupos-vida\/[^/]+/, 'Detalle del Grupo'],
+      [/\/users\/[^/]+\/asistencia/, 'Asistencia del Usuario'],
+      [/\/users\/[^/]+\/edit/, 'Editar Usuario'],
+      [/\/users\/create/, 'Crear Usuario'],
+      [/\/users\/[^/]+/, 'Detalle del Usuario'],
+      ['/configuracion', 'Configuración'],
+      ['/actualizaciones', 'Actualizaciones'],
+      ['/ayuda', 'Ayuda'],
+      ['/perfil', 'Mi Perfil'],
     ]
 
     for (const [pattern, label] of rutasInternas) {
@@ -216,7 +288,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                 {/* Actions */}
                 <div className="py-1">
                   <Link
-                    href="/dashboard/perfil"
+                    href="/perfil"
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
                   >
                     <User className="w-4 h-4 text-muted-foreground" />
@@ -255,7 +327,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
         />
       )}
 
-      {/* ── Nav Drawer (full menu) ── */}
+      {/* ── Nav Drawer (full menu with submenus) ── */}
       <div
         className={cn(
           "md:hidden fixed top-0 left-0 bottom-0 z-[70] w-[280px]",
@@ -314,35 +386,116 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           <SelectorCampus />
         </div>
 
-        {/* ── Full Navigation ── */}
+        {/* ── Full Navigation with Submenus ── */}
         <nav className="flex-1 overflow-y-auto px-3 py-1">
           <ul className="space-y-0.5">
-            {menuFiltrado.map(item => {
+            {menuItems.map(item => {
               const Icon = item.icon
-              const active = item.href === '/dashboard'
-                ? pathname === '/dashboard'
-                : pathname?.startsWith(item.href)
+              const hasChildren = item.children && item.children.length > 0
+              const active = isActive(item.href)
+              const isOpen = openSubmenus.has(item.id)
 
               return (
                 <li key={item.id}>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
-                      "transition-[background-color,color,transform] duration-200 ease-expo",
-                      "press-scale focus-ring touch-manipulation",
-                      active
-                        ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
-                        : "text-foreground hover:bg-[var(--brand-accent)]"
-                    )}
-                  >
-                    <Icon className={cn(
-                      "w-5 h-5 flex-shrink-0",
-                      active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                    )} />
-                    <span className="font-medium text-sm">{item.label}</span>
-                  </Link>
+                  {hasChildren ? (
+                    <>
+                      {/* Parent item with expandable children */}
+                      <div className="flex items-center">
+                        <Link
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={cn(
+                            "flex-1 flex items-center gap-3 px-3 py-2.5 rounded-l-xl min-h-[44px]",
+                            "transition-[background-color,color,transform] duration-200 ease-expo",
+                            "press-scale focus-ring touch-manipulation",
+                            active
+                              ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
+                              : "text-foreground hover:bg-[var(--brand-accent)]"
+                          )}
+                        >
+                          <Icon className={cn(
+                            "w-5 h-5 flex-shrink-0",
+                            active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+                          )} />
+                          <span className="font-medium text-sm">{item.label}</span>
+                        </Link>
+                        <button
+                          onClick={() => toggleSubmenu(item.id)}
+                          aria-label={isOpen ? `Cerrar ${item.label}` : `Abrir ${item.label}`}
+                          aria-expanded={isOpen}
+                          className={cn(
+                            "p-2.5 rounded-r-xl min-h-[44px] flex items-center transition-colors duration-200 touch-manipulation",
+                            "hover:bg-[var(--brand-accent)]",
+                            active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+                          )}
+                        >
+                          <ChevronDown className={cn(
+                            "w-4 h-4 transition-transform duration-200",
+                            isOpen && "rotate-180"
+                          )} />
+                        </button>
+                      </div>
+
+                      {/* Sub-items */}
+                      <div
+                        className={cn(
+                          "overflow-hidden transition-[max-height,opacity] duration-300 ease-expo",
+                          isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                        )}
+                      >
+                        <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
+                          {item.children!.map(child => {
+                            const ChildIcon = child.icon
+                            const childActive = isActive(child.href)
+                            return (
+                              <li key={child.id}>
+                                <Link
+                                  href={child.href}
+                                  aria-current={childActive ? "page" : undefined}
+                                  className={cn(
+                                    "flex items-center gap-3 px-3 py-2 rounded-lg min-h-[36px] text-sm",
+                                    "transition-[background-color,color] duration-200 ease-expo",
+                                    "focus-ring touch-manipulation",
+                                    childActive
+                                      ? "bg-[var(--brand-accent)] text-[var(--brand-primary)] font-medium"
+                                      : "text-muted-foreground hover:bg-[var(--brand-accent)] hover:text-foreground"
+                                  )}
+                                >
+                                  {ChildIcon && (
+                                    <ChildIcon className={cn(
+                                      "w-4 h-4 flex-shrink-0",
+                                      childActive ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+                                    )} />
+                                  )}
+                                  <span className="truncate">{child.label}</span>
+                                </Link>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    </>
+                  ) : (
+                    /* Simple item */
+                    <Link
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
+                        "transition-[background-color,color,transform] duration-200 ease-expo",
+                        "press-scale focus-ring touch-manipulation",
+                        active
+                          ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
+                          : "text-foreground hover:bg-[var(--brand-accent)]"
+                      )}
+                    >
+                      <Icon className={cn(
+                        "w-5 h-5 flex-shrink-0",
+                        active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+                      )} />
+                      <span className="font-medium text-sm">{item.label}</span>
+                    </Link>
+                  )}
                 </li>
               )
             })}
@@ -350,20 +503,20 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
             {/* Perfil link */}
             <li>
               <Link
-                href="/dashboard/perfil"
-                aria-current={pathname === '/dashboard/perfil' ? "page" : undefined}
+                href="/perfil"
+                aria-current={pathname === '/perfil' ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
                   "transition-[background-color,color,transform] duration-200 ease-expo",
                   "press-scale focus-ring touch-manipulation",
-                  pathname === '/dashboard/perfil'
+                  pathname === '/perfil'
                     ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
                     : "text-foreground hover:bg-[var(--brand-accent)]"
                 )}
               >
                 <User className={cn(
                   "w-5 h-5 flex-shrink-0",
-                  pathname === '/dashboard/perfil' ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+                  pathname === '/perfil' ? "text-[var(--brand-primary)]" : "text-muted-foreground"
                 )} />
                 <span className="font-medium text-sm">Mi Perfil</span>
               </Link>

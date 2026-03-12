@@ -31,8 +31,8 @@ export async function createSeason(data: {
     throw new Error("Error al crear temporada: " + error.message)
   }
 
-  revalidatePath("/dashboard/temporadas")
-  redirect("/dashboard/temporadas")
+  revalidatePath("/grupos-vida/temporadas")
+  redirect("/grupos-vida/temporadas")
 }
 
 export async function updateSeason(
@@ -61,7 +61,7 @@ export async function updateSeason(
     throw new Error("Error al actualizar temporada: " + error.message)
   }
 
-  revalidatePath("/dashboard/temporadas")
-  redirect("/dashboard/temporadas")
+  revalidatePath("/grupos-vida/temporadas")
+  redirect("/grupos-vida/temporadas")
 }
 

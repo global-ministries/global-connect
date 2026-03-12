@@ -19,7 +19,7 @@ export async function deleteFamilyRelation(relationId: string, userId: string) {
     if ((data as any) && (data as any).error) {
       return { success: false, error: (data as any).error };
     }
-    revalidatePath(`/dashboard/users/${userId}`);
+    revalidatePath(`/users/${userId}`);
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Error inesperado' };
@@ -224,13 +224,13 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
 
 
     // 5. Invalidar cachÃ© de las pÃ¡ginas relacionadas
-    revalidatePath('/dashboard/users')
-    revalidatePath(`/dashboard/users/${userId}`)
+    revalidatePath('/users')
+    revalidatePath(`/users/${userId}`)
 
     // 6. Redirigir condicionalmente
     if (!esPerfil) {
       // Solo redirigir si NO es perfil (edición de usuario normal)
-      redirect(`/dashboard/users/${userId}`)
+      redirect(`/users/${userId}`)
     }
     // Si es perfil, no redirigir - se maneja en el cliente
 
@@ -285,7 +285,7 @@ export async function addFamilyRelation({
       return { success: false, message: errorInsert.message }
     }
 
-    revalidatePath(`/dashboard/users/${usuario1_id}`)
+    revalidatePath(`/users/${usuario1_id}`)
     return { success: true }
   } catch (err: any) {
     return { success: false, message: err?.message || "Error inesperado" }

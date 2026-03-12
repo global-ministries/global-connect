@@ -112,9 +112,9 @@ export default function AttendanceRegister({ grupoId, miembros, initialData, isE
       if (!res.ok || !json?.ok) throw new Error(json?.error || 'No se pudo registrar la asistencia')
       toast.success(isEdit ? 'Asistencia actualizada' : 'Asistencia registrada')
       if (json.eventoId) {
-        router.push(`/dashboard/grupos/${grupoId}/asistencia/${json.eventoId}`)
+        router.push(`/grupos-vida/${grupoId}/asistencia/${json.eventoId}`)
       } else {
-        router.push(`/dashboard/grupos/${grupoId}`)
+        router.push(`/grupos-vida/${grupoId}`)
       }
       router.refresh()
     } catch (e: unknown) {

@@ -307,7 +307,7 @@ export default function GruposListClient({
                         <div className="flex items-center gap-3">
                           <div className="w-16 h-10 bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg flex-shrink-0"></div>
                           <div>
-                            <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
+                            <Link href={`/grupos-vida/${grupo.id}`} className="hover:text-orange-600 transition-colors">
                               <div className="flex items-center gap-2 font-medium text-foreground hover:underline cursor-pointer">
                                 <span>{grupo.nombre}</span>
                                 {grupo.supervisado_por_mi && (
@@ -431,7 +431,7 @@ export default function GruposListClient({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
-                        <Link href={`/dashboard/grupos/${grupo.id}`} className="hover:text-orange-600 transition-colors">
+                        <Link href={`/grupos-vida/${grupo.id}`} className="hover:text-orange-600 transition-colors">
                           <h3 className="font-semibold text-foreground truncate hover:underline cursor-pointer flex items-center gap-2">
                             <span className="truncate">{grupo.nombre}</span>
                             {grupo.supervisado_por_mi && (
@@ -502,7 +502,7 @@ export default function GruposListClient({
                 <h3 className="text-lg font-medium text-foreground mb-2">No hay grupos disponibles</h3>
                 <p className="text-muted-foreground mb-6">No hay grupos que coincidan con los filtros seleccionados</p>
                 {canCreate && (
-                  <Link href="/dashboard/grupos/create">
+                  <Link href="/grupos-vida/crear">
                     <BotonSistema variante="primario">
                       <Plus className="w-4 h-4 mr-2" />
                       Crear Primer Grupo
@@ -712,7 +712,7 @@ export default function GruposListClient({
             </SheetContent>
           </Sheet>
           {canCreate && (
-            <Link href="/dashboard/grupos/create">
+            <Link href="/grupos-vida/crear">
               <BotonSistema variante="primario" tamaño="sm" className="min-w-0">
                 <Plus className="w-4 h-4 flex-shrink-0" />
                 <span className="hidden sm:inline ml-2">Crear Grupo</span>

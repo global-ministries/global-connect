@@ -74,13 +74,13 @@ export default function HistorialAsistenciaClient({
     if (fechaInicioLocal) params.set('fecha_inicio', fechaInicioLocal)
     if (fechaFinLocal) params.set('fecha_fin', fechaFinLocal)
 
-    router.push(`/dashboard/grupos/${grupoId}/asistencia/historial?${params.toString()}`)
+    router.push(`/grupos-vida/${grupoId}/asistencia/historial?${params.toString()}`)
   }
 
   const limpiarFiltros = () => {
     setFechaInicioLocal('')
     setFechaFinLocal('')
-    router.push(`/dashboard/grupos/${grupoId}/asistencia/historial`)
+    router.push(`/grupos-vida/${grupoId}/asistencia/historial`)
   }
 
   // Serie para gráfico: usar fechas reales de eventos registrados
@@ -194,7 +194,7 @@ export default function HistorialAsistenciaClient({
                 Más Constante
               </TextoSistema>
               {reporte.kpis.miembro_mas_constante.id ? (
-                <Link href={`/dashboard/users/${reporte.kpis.miembro_mas_constante.id}/asistencia`}>
+                <Link href={`/users/${reporte.kpis.miembro_mas_constante.id}/asistencia`}>
                   <div
                     className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline"
                     title={reporte.kpis.miembro_mas_constante.nombre}
@@ -228,7 +228,7 @@ export default function HistorialAsistenciaClient({
                 Más Ausencias
               </TextoSistema>
               {reporte.kpis.miembro_mas_ausencias.id ? (
-                <Link href={`/dashboard/users/${reporte.kpis.miembro_mas_ausencias.id}/asistencia`}>
+                <Link href={`/users/${reporte.kpis.miembro_mas_ausencias.id}/asistencia`}>
                   <div
                     className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline"
                     title={reporte.kpis.miembro_mas_ausencias.nombre}
@@ -281,7 +281,7 @@ export default function HistorialAsistenciaClient({
                     </div>
                   </div>
                   <div className="flex gap-2 sm:flex-shrink-0">
-                    <Link href={`/dashboard/grupos/${grupoId}/asistencia/${evento.id}`}>
+                    <Link href={`/grupos-vida/${grupoId}/asistencia/${evento.id}`}>
                       <BotonSistema
                         variante="outline"
                         tamaño="sm"
@@ -292,7 +292,7 @@ export default function HistorialAsistenciaClient({
                         <span className="hidden sm:inline">Ver detalle</span>
                       </BotonSistema>
                     </Link>
-                    <Link href={`/dashboard/grupos/${grupoId}/asistencia/editar/${evento.id}`}>
+                    <Link href={`/grupos-vida/${grupoId}/asistencia/editar/${evento.id}`}>
                       <BotonSistema
                         variante="ghost"
                         tamaño="sm"

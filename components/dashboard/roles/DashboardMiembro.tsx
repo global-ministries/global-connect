@@ -17,7 +17,7 @@ export default function DashboardMiembro({ data }: PropsDashboardMiembro) {
             Aquí verás información de tu grupo: nombre, día/hora de reunión y datos de contacto del líder.
           </TextoSistema>
           <div className="mt-4">
-            <Link href="/dashboard/perfil">
+            <Link href="/perfil">
               <BotonSistema variante="primario" tamaño="sm">Actualizar mi información</BotonSistema>
             </Link>
           </div>

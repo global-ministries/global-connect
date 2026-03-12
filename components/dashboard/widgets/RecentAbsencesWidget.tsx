@@ -38,7 +38,7 @@ export function RecentAbsencesWidget({ id, title = 'Seguimiento de Ausencias', i
             const [nombre, ...resto] = p.nombre_completo.split(' ')
             const apellido = resto.join(' ')
             return (
-              <Link key={p.id} href={`/dashboard/users/${p.id}/asistencia`} className="block">
+              <Link key={p.id} href={`/users/${p.id}/asistencia`} className="block">
                 <div className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors">
                   <div className="flex items-center gap-3 min-w-0">
                     <UserAvatar photoUrl={p.foto_url || undefined} nombre={nombre} apellido={apellido} size="sm" />
