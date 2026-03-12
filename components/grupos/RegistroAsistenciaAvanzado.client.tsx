@@ -90,10 +90,6 @@ const OPCIONES_MOTIVO_TARDANZA: Array<{ valor: MotivoTardanza; etiqueta: string 
     { valor: "otro", etiqueta: "Otro" },
 ]
 
-const DIAS_SEMANA = [
-    "Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado",
-]
-
 function rolLabel(rol?: string): string {
     if (!rol) return "Miembro"
     if (rol === "Colíder" || rol === "Colider") return "Aprendiz"

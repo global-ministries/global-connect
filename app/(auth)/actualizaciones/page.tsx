@@ -32,7 +32,7 @@ const labelTipo = {
 /**
  * Página de actualizaciones del sistema.
  * Muestra el historial de cambios y mejoras para usuarios internos.
- * Server Component — no requiere interactividad del lado del cliente.
+ * Client Component — requerido por ContenedorDashboard que usa React.lazy internamente.
  */
 export default function ActualizacionesPage() {
     return (
@@ -44,8 +44,8 @@ export default function ActualizacionesPage() {
                         <TarjetaSistema key={act.version} className="p-6">
                             <div className="flex items-start gap-4">
                                 {/* Icono */}
-                                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                                    <Icono className="w-5 h-5 text-orange-600" />
+                                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-[var(--brand-accent)] flex items-center justify-center">
+                                    <Icono className="w-5 h-5 text-[var(--brand-primary)]" />
                                 </div>
 
                                 {/* Contenido */}
@@ -75,7 +75,7 @@ export default function ActualizacionesPage() {
                                     <ul className="space-y-1.5">
                                         {act.detalles.map((d, i) => (
                                             <li key={i} className="flex items-start gap-2">
-                                                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+                                                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] flex-shrink-0" />
                                                 <TextoSistema tamaño="sm">{d}</TextoSistema>
                                             </li>
                                         ))}
