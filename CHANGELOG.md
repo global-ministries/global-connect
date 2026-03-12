@@ -7,6 +7,60 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
+## [1.9.0] - 2026-03-12
+
+### Agregado
+- Sistema de solicitudes de grupo: ingresos, traslados, egresos, cambios de rol y activación
+- 4 tablas nuevas: `solicitudes_grupo`, `historial_movimientos_grupo`, `director_general_segmentos`, `configuracion_grupos_vida`
+- RPCs: `crear_solicitud_grupo`, `procesar_solicitud_grupo`, `expirar_solicitudes_vencidas`, `contar_solicitudes_pendientes`
+- Función helper `es_director_general_de_grupo` para aprobaciones scoped por segmento
+- Vista `v_solicitudes_pendientes` con datos enriquecidos de miembro, grupo y temporada
+- 8 Server Actions en `solicitudes-grupo.actions.ts` con Zod runtime validation
+- Componentes: `TablaSolicitudes`, `ModalProcesarSolicitud`, `FormNuevaSolicitud`, `BadgeSolicitudes`, `HistorialMovimientos`, `ConfiguracionPanel`
+- Páginas: `/grupos-vida/solicitudes`, `/grupos-vida/solicitudes/mis-solicitudes`, `/grupos-vida/configuracion`
+- Campo `estado` en temporadas (`planificacion`, `activa`, `finalizada`) con migración de datos
+- Configuración de expiración de solicitudes (días configurables por módulo)
+- Columna `expira_en` en solicitudes con EXCLUDE constraint para evitar duplicados
+- Extensión `btree_gist` habilitada para EXCLUDE constraints
+
+### Cambiado
+- `temporadas`: nueva columna `estado` con CHECK constraint; datos existentes migrados según campo `activa`
+- Director General ahora tiene scope configurable por segmentos (tabla `director_general_segmentos`)
+
+### Seguridad
+- RLS habilitado en 4 tablas nuevas con 9 policies
+- `es_director_general_de_grupo` resuelve `auth_id → usuario_id` antes de validar scope
+- Aprobaciones scoped: DG solo puede aprobar solicitudes de sus segmentos asignados
+- Admin/Pastor tienen bypass global
+
+### Corregido
+- `es_superadmin` en `es_director_general_de_grupo` ahora recibe `v_user_id` correcto (no `auth.uid()`)
+- Modal de procesar solicitud con accesibilidad: Escape, overlay click, ARIA
+
+---
+
+## [1.8.0] - 2026-03-12
+
+### Agregado
+- Módulo Grupos de Vida reestructurado bajo `app/(auth)/grupos-vida/`
+- Submódulo Casas Anfitrionas: CRUD completo, mapa con geocodificación, asignación a grupos
+- 6 migraciones SQL: casas anfitrionas, geocodificación, dirección extendida, segmento-ubicaciones
+- Helper `extraerRelacion<T>` para casting type-safe de relaciones Supabase
+- 6 componentes: `TablaCasasAnfitrionas`, `FormCasaAnfitriona`, `MapaCasas`, `DetalleCasa`, `SeleccionGrupo`, `EstadisticasCasas`
+- Tipo genérico `ResultadoAccion<T>` para server actions tipados
+
+### Cambiado
+- Rutas migradas: `app/dashboard/*` → `app/(auth)/*` (86 archivos, +3933 -360)
+- Links actualizados en componentes, server actions y sidebar
+- Sidebar con submenús colapsables para Grupos de Vida
+
+### Corregido
+- 3 server actions con `ResultadoAccion<unknown>` tipadas con interfaces explícitas
+- `as unknown as` eliminado en `group.actions.ts` — usa `extraerRelacion<T>`
+- CSS variables `--color-success` y `--color-warning` definidas en `globals.css`
+
+---
+
 ## [1.7.0] - 2026-03-11
 
 ### Agregado
