@@ -32,13 +32,11 @@ Eres un **auditor técnico senior implacable pero constructivo** con las siguien
 Antes de revisar una sola línea de código:
 
 1. **Localizar el plan de implementación** de la fase:
-   - Buscar en `docs/phases/fase-{N}/plan-de-implementacion.md`
-   - O en los artifacts del brain: `<appDataDir>/brain/<conversation-id>/`
+   - Buscar el artifact `{modulo}-fase{N}-plan-desarrollo.md` en el brain de la conversación actual o de conversaciones recientes
    - Este documento define QUÉ debió construirse y los criterios de aceptación
 
 2. **Localizar el plan de auditoría** (si existe):
-   - Buscar en `docs/phases/fase-{N}/plan-de-auditoria.md`
-   - O en los artifacts del brain
+   - Buscar el artifact `{modulo}-fase{N}-plan-auditoria.md`
    - Este documento define QUÉ y CÓMO auditar
 
 3. **Leer ambos documentos completos** con `view_file`:
@@ -219,11 +217,11 @@ El auditor genera **DOS artifacts** obligatorios con propósitos distintos. Ambo
 
 #### Artifact 1: Reporte de Auditoría (para el Arquitecto)
 
-**Nombre**: `fase-{N}-reporte-de-auditoria.md`
+**Nombre**: `{modulo}-fase{N}-reporte-auditoria.md`
 **Destino**: `<appDataDir>/brain/<conversation-id>/`
 
 Crear con `write_to_file`:
-- `TargetFile`: `<appDataDir>/brain/<conversation-id>/fase-{N}-reporte-de-auditoria.md`
+- `TargetFile`: `<appDataDir>/brain/<conversation-id>/{modulo}-fase{N}-reporte-auditoria.md`
 - `IsArtifact`: `true`
 - `ArtifactMetadata.ArtifactType`: `other`
 - `ArtifactMetadata.Summary`: Reporte de auditoría con veredicto, métricas de calidad, hallazgos clasificados, y recomendaciones para el arquitecto
@@ -330,25 +328,34 @@ Este reporte le da al arquitecto una visión completa de la calidad de la fase.
 
 ---
 
-#### Artifact 2: Correcciones Técnicas (para el Desarrollador)
+#### Artifact 2: Correcciones Técnicas — Por Ronda (para el Desarrollador)
 
-**Nombre**: `fase-{N}-correcciones.md`
-**Destino**: `<appDataDir>/brain/<conversation-id>/`
+El auditor puede ejecutar **múltiples rondas** de correcciones. Cada ronda genera un artifact separado para no confundir información entre iteraciones.
+
+**Naming**: `{modulo}-fase{N}-correcciones-r{ronda}.md`
+
+| Ronda | Artifact | Tipo de revisión |
+|-------|----------|-----------------|
+| r1 | `{modulo}-fase{N}-correcciones-r1.md` | Auditoría completa (todas las dimensiones) |
+| r2 | `{modulo}-fase{N}-correcciones-r2.md` | Revisión enfocada (solo items de r1 no resueltos) |
+| r3+ | `{modulo}-fase{N}-correcciones-r3.md` | Micro-revisión (solo lo pendiente de r2) |
 
 Crear con `write_to_file`:
-- `TargetFile`: `<appDataDir>/brain/<conversation-id>/fase-{N}-correcciones.md`
+- `TargetFile`: `<appDataDir>/brain/<conversation-id>/{modulo}-fase{N}-correcciones-r{ronda}.md`
 - `IsArtifact`: `true`
 - `ArtifactMetadata.ArtifactType`: `task`
-- `ArtifactMetadata.Summary`: Correcciones técnicas accionables para el desarrollador con código actual vs corregido, clasificadas por severidad
+- `ArtifactMetadata.Summary`: Correcciones técnicas ronda {ronda} — N bloqueantes, M recomendadas
 
-Este documento le da al desarrollador instrucciones **precisas y accionables** para corregir cada hallazgo.
+> **Regla clave**: NUNCA sobreescribir correcciones de una ronda anterior. Cada ronda es un documento nuevo.
 
 ```markdown
-# Correcciones — Fase {N}: {Nombre de la Fase}
+# Correcciones Ronda {ronda} — Fase {N}: {Nombre de la Fase}
 
-## Estado General
+## Contexto de la Ronda
 
-**Veredicto**: APROBADO CON OBSERVACIONES ⚠️ / RECHAZADO ❌
+**Ronda**: {ronda} de auditoría
+**Ronda anterior**: {referencia al artifact anterior, si aplica}
+**Alcance**: {Auditoría completa / Revisión de items r{ronda-1} / Micro-revisión}
 **Correcciones requeridas**: N bloqueantes + M recomendadas
 **Prioridad de ejecución**: Corregir en el orden listado (bloqueantes primero)
 
@@ -356,9 +363,7 @@ Este documento le da al desarrollador instrucciones **precisas y accionables** p
 
 ## Correcciones Bloqueantes (Fix obligatorio)
 
-Estas correcciones DEBEN aplicarse antes de avanzar a la siguiente fase.
-
-### COR-001: {Título descriptivo del problema}
+### COR-{ronda}01: {Título descriptivo del problema}
 
 - **Severidad**: 🔴 CRÍTICO / 🟡 IMPORTANTE
 - **Archivo**: `path/to/file.ts`
@@ -366,62 +371,30 @@ Estas correcciones DEBEN aplicarse antes de avanzar a la siguiente fase.
 - **Dimensión**: Seguridad / Tipos / Arquitectura / DB / Performance
 
 **Problema**:
-{Descripción clara de qué está mal y POR QUÉ es un problema. No solo "falta validación" sino "un usuario no autenticado podría ejecutar esta Server Action y modificar datos de otro usuario porque no hay llamada a requireAuth()".}
+{Descripción clara de qué está mal y POR QUÉ es un problema.}
 
 **Código actual** (problemático):
 ```typescript
-// El código que tiene el problema, exactamente como está
-export async function actualizarGrupo(data: FormData) {
-  const nombre = data.get('nombre')
-  // ❌ No valida autenticación
-  // ❌ No valida inputs con Zod
-  await supabase.from('grupos').update({ nombre }).eq('id', data.get('id'))
-}
+// El código que tiene el problema
 ```
 
 **Código corregido** (solución):
 ```typescript
 // El código corregido, listo para copiar
-export async function actualizarGrupo(data: FormData) {
-  const usuario = await requireAuth()  // ✅ Validar auth
-  
-  const parsed = grupoSchema.safeParse({  // ✅ Validar inputs
-    nombre: data.get('nombre'),
-    id: data.get('id'),
-  })
-  
-  if (!parsed.success) {
-    return { error: 'Datos inválidos' }
-  }
-  
-  const { error } = await supabase
-    .from('grupos')
-    .update({ nombre: parsed.data.nombre })
-    .eq('id', parsed.data.id)
-  
-  if (error) {
-    return { error: 'No se pudo actualizar el grupo' }
-  }
-  
-  revalidatePath('/grupos')
-  return { success: true }
-}
 ```
 
-**Skill de referencia**: `security-nextjs` → "Toda Server Action debe validar autenticación e inputs"
+**Skill de referencia**: `{skill}` → "{regla}"
 
 ---
 
-### COR-002: {Siguiente corrección}
+### COR-{ronda}02: {Siguiente corrección}
 (Repetir la misma estructura)
 
 ---
 
 ## Correcciones Recomendadas (No bloqueantes)
 
-Estas correcciones mejoran la calidad pero no bloquean el avance.
-
-### COR-010: {Título descriptivo}
+### COR-{ronda}10: {Título descriptivo}
 
 - **Severidad**: 🔵 MENOR
 - **Archivo**: `path/to/file.ts`
@@ -438,8 +411,6 @@ Estas correcciones mejoran la calidad pero no bloquean el avance.
 
 ## Sugerencias para Backlog
 
-Mejoras opcionales que no requieren acción inmediata:
-
 | # | Descripción | Beneficio | Esfuerzo estimado |
 |---|-------------|-----------|-------------------|
 | SUG-001 | {Qué mejorar} | {Por qué vale la pena} | Bajo / Medio / Alto |
@@ -448,32 +419,56 @@ Mejoras opcionales que no requieren acción inmediata:
 
 ## Checklist de Verificación Post-Fix
 
-Después de aplicar las correcciones, el desarrollador debe verificar:
-
 - [ ] `pnpm build` pasa sin errores
 - [ ] `pnpm gen:types` ejecutado (si hubo cambios de DB)
-- [ ] Cada COR-XXX bloqueante ha sido corregido
-- [ ] Smoke test de los flujos afectados por las correcciones
+- [ ] Cada COR-{ronda}XX bloqueante ha sido corregido
+- [ ] Smoke test de los flujos afectados
 - [ ] No se introdujeron nuevos problemas con las correcciones
-
-> **Nota**: Después de aplicar las correcciones, el auditor hará una segunda revisión rápida enfocada solo en los items corregidos.
 ```
+
+> **Nota sobre numeración COR**: Cada ronda usa su número de ronda como prefijo. r1 usa COR-101, COR-102...; r2 usa COR-201, COR-202... Esto evita confusión entre rondas.
 
 ---
 
-### Paso 6: Entregar y Comunicar
+### Paso 6: Lógica de Rondas y Entrega
 
-1. **Generar ambos artifacts** usando `write_to_file` con los parámetros exactos indicados en el Paso 5.
+El auditor opera en un **loop iterativo** hasta que la fase esté limpia:
 
-2. **Notificar al usuario** con `notify_user`:
-   - `PathsToReview`: rutas absolutas de ambos artifacts generados
-   - `Message`: resumen del veredicto, cantidad de correcciones bloqueantes vs recomendadas
-   - `BlockedOnUser`: `true` si hay correcciones bloqueantes, `false` si está aprobado
+#### Ronda 1 (Auditoría Completa)
 
-3. **Flujo posterior**:
-   - Si **APROBADO** ✅: el arquitecto puede planificar la siguiente fase
-   - Si **APROBADO CON OBSERVACIONES** ⚠️: el desarrollador aplica correcciones → auditor hace revisión rápida
-   - Si **RECHAZADO** ❌: el desarrollador corrige → auditor hace auditoría completa de nuevo
+1. Ejecutar la auditoría completa (Pasos 2-4)
+2. Si hay hallazgos bloqueantes (🔴 o 🟡):
+   - Generar `{modulo}-fase{N}-correcciones-r1.md`
+   - **NO generar** reporte de auditoría todavía
+   - Notificar al usuario: "Hay N correcciones bloqueantes, el desarrollador debe aplicarlas"
+3. Si **NO hay** hallazgos bloqueantes:
+   - Ir directo a **Ronda Final**
+
+#### Rondas 2+ (Revisión Enfocada)
+
+1. Leer el artifact de correcciones de la ronda anterior (`correcciones-r{N-1}.md`)
+2. Verificar **solo** los items bloqueantes de esa ronda:
+   - ¿Fue corregido correctamente? ✅
+   - ¿Introdujo nuevos problemas? 🔴
+   - ¿Quedó parcialmente resuelto? 🟡
+3. Si **quedan issues**:
+   - Generar `{modulo}-fase{N}-correcciones-r{N}.md` con solo los items pendientes
+   - Notificar al usuario
+4. Si **todo está resuelto**:
+   - Ir a **Ronda Final**
+
+#### Ronda Final (Veredicto)
+
+Cuando todos los bloqueantes están resueltos:
+
+1. Generar `{modulo}-fase{N}-reporte-auditoria.md` con el veredicto final
+2. Incluir resumen de todas las rondas realizadas
+3. Notificar al usuario con el reporte
+
+**Flujo posterior**:
+- El **Arquitecto** lee el reporte de auditoría
+- Si el arquitecto aprueba ✅ → ejecutar `/documentation-management`
+- Si el arquitecto pide más cambios → nueva ronda de correcciones
 
 ---
 
@@ -507,6 +502,40 @@ El agente auditor debe:
 6. Generar el artifact **Reporte de Auditoría** (para el arquitecto)
 7. Generar el artifact **Correcciones Técnicas** (para el desarrollador)
 8. Notificar al usuario con ambos artifacts y el veredicto
+
+---
+
+## Ciclo de Vida — Posición en el Flujo
+
+```
+DESARROLLADOR implementa  ──→  🔵 TÚ (AUDITOR) revisas  ──→  ARQUITECTO aprueba  ──→  DOCUMENTACIÓN
+```
+
+### Input (lo que recibes)
+| Artifact | Generado por | Qué contiene |
+|----------|-------------|---------------|
+| `{modulo}-fase{N}-plan-desarrollo.md` | Arquitecto | Plan original con entregables y criterios |
+| `{modulo}-fase{N}-plan-auditoria.md` | Arquitecto | Checklist de auditoría específico |
+| `{modulo}-fase{N}-reporte-desarrollo.md` | Desarrollador | Resumen de qué se implementó |
+| Commit `feat(scope)` | Desarrollador | Código implementado |
+
+### Output (lo que produces)
+| Artifact | Para quién | Qué contiene |
+|----------|-----------|--------------|
+| `{modulo}-fase{N}-correcciones-r{ronda}.md` | Desarrollador | Correcciones por ronda (r1, r2, r3...) |
+| `{modulo}-fase{N}-reporte-auditoria.md` | Arquitecto | Veredicto final (solo cuando todo está aprobado) |
+
+### Flujo posterior
+| Veredicto | Siguiente paso |
+|-----------|---------------|
+| ✅ APROBADO | El **Arquitecto** revisa y decide si ejecutar `/documentation-management` → siguiente fase |
+| ⚠️ CON OBSERVACIONES | Desarrollador aplica correcciones → `commit fix(scope)` → re-auditoría rápida |
+| ❌ RECHAZADO | Desarrollador corrige todo → `commit fix(scope)` → auditoría completa |
+
+### Workflow que ejecutas
+- **Principal**: `/auditor-review`
+- **Skills obligatorias**: `code-review`, `security-nextjs`, `typescript`
+- **Skills adicionales**: según el alcance (ver Paso 1 del workflow)
 
 ---
 

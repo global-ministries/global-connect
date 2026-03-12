@@ -153,6 +153,50 @@ Cuando realices cualquiera de estas acciones, **SIEMPRE** invoca el skill corres
 
 ---
 
+## Auto-invoke Workflows
+
+Cuando el agente opere en un **rol específico** o en un **flujo por fases**, DEBE ejecutar el workflow correspondiente.
+
+### Ciclo de Vida por Fase
+
+```
+ARQUITECTO  →  DESARROLLADOR  →  AUDITOR  →  ARQUITECTO  →  DOCUMENTACIÓN  →  SIGUIENTE FASE
+   plan           feat(scope)      review      aprueba         docs(scope)
+```
+
+| Paso | Rol | Workflow | Skills principales | Commit |
+|------|-----|----------|--------------------|--------|
+| 1 | Arquitecto | `/architect-phase-planning` | Todas las del módulo | — |
+| 2 | Desarrollador | `/developer-execution` | `typescript`, `nextjs-app-router-fundamentals`, `security-nextjs`, + las del plan | `feat(scope)` |
+| 3 | Auditor | `/auditor-review` | `code-review`, `security-nextjs`, `typescript`, + las del alcance | — |
+| 3b | Desarrollador (fix) | `/developer-execution` | Las mismas del paso 2 | `fix(scope)` |
+| 4 | Arquitecto (aprobación) | `/architect-phase-planning` | — | — |
+| 5 | Documentación | `/documentation-management` | `technical-writer`, `conventional-commit`, `git-commit` | `docs(scope)` |
+
+### Naming de Artifacts
+
+Todos los artifacts siguen el patrón: `{modulo}-fase{N}-{tipo}.md`
+
+| Tipo | Generado por | Ejemplo |
+|------|-------------|---------|
+| `plan-desarrollo` | Arquitecto | `grupos-fase1-plan-desarrollo.md` |
+| `plan-auditoria` | Arquitecto | `grupos-fase1-plan-auditoria.md` |
+| `reporte-desarrollo` | Desarrollador | `grupos-fase1-reporte-desarrollo.md` |
+| `walkthrough` | Desarrollador | `grupos-fase1-walkthrough.md` |
+| `correcciones-r{N}` | Auditor | `grupos-fase1-correcciones-r1.md` |
+| `reporte-auditoria` | Auditor | `grupos-fase1-reporte-auditoria.md` |
+
+### Cuándo Ejecutar Cada Workflow
+
+| Acción / Trigger | Workflow |
+|------------------|----------|
+| Planificar una fase, diseñar arquitectura de módulo | `/architect-phase-planning` |
+| Implementar código, ejecutar un plan de desarrollo | `/developer-execution` |
+| Auditar, revisar código, hacer code review de fase | `/auditor-review` |
+| Actualizar docs, changelog, página de actualizaciones | `/documentation-management` |
+
+---
+
 ## Project Overview
 
 **GlobalConnect** es una aplicación web de gestión para una organización eclesiástica.

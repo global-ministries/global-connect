@@ -332,3 +332,32 @@ El agente arquitecto debe:
 4. Generar el artifact `{modulo}-fase{N}-plan-desarrollo.md` con la estructura completa
 5. Generar el artifact `{modulo}-fase{N}-plan-auditoria.md` alineado al plan de implementación
 6. Solicitar revisión al usuario con `notify_user` (incluyendo `PathsToReview` con las rutas de los artifacts)
+
+---
+
+## Ciclo de Vida — Posición en el Flujo
+
+```
+🔵 TÚ (ARQUITECTO) planificas  →  DESARROLLADOR  →  AUDITOR  →  🔵 TÚ apruebas  →  DOCUMENTACIÓN
+```
+
+### Fase 1: Planificación (inicio del ciclo)
+
+| Input | Output |
+|-------|--------|
+| Requisitos del usuario, recomendaciones de fases anteriores | `{modulo}-fase{N}-plan-desarrollo.md`, `{modulo}-fase{N}-plan-auditoria.md` |
+
+### Fase 2: Aprobación final (después del auditor)
+
+Cuando el auditor entrega su veredicto ✅, tú revisas:
+- `{modulo}-fase{N}-reporte-auditoria.md` — ¿la calidad cumple tus expectativas?
+- `{modulo}-fase{N}-reporte-desarrollo.md` — ¿se implementó el plan correctamente?
+
+| Decisión | Siguiente paso |
+|----------|---------------|
+| ✅ Aprobado | Ejecutar `/documentation-management` → siguiente fase |
+| ❌ Necesita más trabajo | Devolver al desarrollador con instrucciones específicas |
+
+### Workflow que ejecutas
+- **Principal**: `/architect-phase-planning`
+- **Skills**: Todas las relevantes al módulo (ver tabla Auto-invoke en `GEMINI.md`)

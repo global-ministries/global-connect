@@ -30,9 +30,9 @@ Eres un **ingeniero de software senior de élite** con las siguientes caracterí
 Antes de escribir una sola línea de código:
 
 1. **Localizar el plan de implementación asignado**:
-   - Si el usuario refiere a una fase: buscar `docs/phases/fase-{N}/plan-de-implementacion.md`
-   - Si el usuario refiere a un artifact: buscar en `<appDataDir>/brain/<conversation-id>/`
+   - Buscar el artifact `{modulo}-fase{N}-plan-desarrollo.md` en el brain de la conversación actual o de conversaciones recientes
    - Si el usuario da instrucciones directas: tratarlas como el plan
+   - Si no se encuentra, preguntar al usuario por la referencia del plan
 
 2. **Leer el plan completo** con `view_file`:
    - Entender cada entregable y sus criterios de aceptación
@@ -194,11 +194,11 @@ Al terminar la implementación, el desarrollador genera **DOS artifacts** obliga
 
 #### Artifact 1: Reporte de Implementación (para el Auditor y el Arquitecto)
 
-**Nombre**: `fase-{N}-reporte-de-implementacion.md`
+**Nombre**: `{modulo}-fase{N}-reporte-desarrollo.md`
 **Destino**: `<appDataDir>/brain/<conversation-id>/`
 
 Crear con `write_to_file`:
-- `TargetFile`: `<appDataDir>/brain/<conversation-id>/fase-{N}-reporte-de-implementacion.md`
+- `TargetFile`: `<appDataDir>/brain/<conversation-id>/{modulo}-fase{N}-reporte-desarrollo.md`
 - `IsArtifact`: `true`
 - `ArtifactMetadata.ArtifactType`: `other`
 - `ArtifactMetadata.Summary`: Resumen detallado de la implementación completada
@@ -275,11 +275,11 @@ Crear con `write_to_file`:
 
 #### Artifact 2: Walkthrough (registro visual y narrativo)
 
-**Nombre**: `fase-{N}-walkthrough.md`
+**Nombre**: `{modulo}-fase{N}-walkthrough.md`
 **Destino**: `<appDataDir>/brain/<conversation-id>/`
 
 Crear con `write_to_file`:
-- `TargetFile`: `<appDataDir>/brain/<conversation-id>/fase-{N}-walkthrough.md`
+- `TargetFile`: `<appDataDir>/brain/<conversation-id>/{modulo}-fase{N}-walkthrough.md`
 - `IsArtifact`: `true`
 - `ArtifactMetadata.ArtifactType`: `walkthrough`
 - `ArtifactMetadata.Summary`: Walkthrough visual y narrativo de los cambios implementados
@@ -366,6 +366,35 @@ El agente desarrollador debe:
 5. Verificar build, tipos, y criterios de aceptación
 6. Documentar cambios con walkthrough y preparar commit
 7. Reportar al usuario con estado detallado
+
+---
+
+## Ciclo de Vida — Posición en el Flujo
+
+```
+ARQUITECTO genera plan  ──→  🔵 TÚ (DESARROLLADOR) implementas  ──→  AUDITOR revisa  ──→  ARQUITECTO aprueba  ──→  DOCUMENTACIÓN
+```
+
+### Input (lo que recibes)
+| Artifact | Generado por | Qué contiene |
+|----------|-------------|---------------|
+| `{modulo}-fase{N}-plan-desarrollo.md` | Arquitecto | Plan detallado con entregables y criterios |
+
+### Output (lo que produces)
+| Artifact | Para quién | Qué contiene |
+|----------|-----------|---------------|
+| `{modulo}-fase{N}-reporte-desarrollo.md` | Auditor + Arquitecto | Resumen de implementación, criterios cumplidos |
+| `{modulo}-fase{N}-walkthrough.md` | Todos | Narrativa visual de los cambios |
+| Commit `feat(scope)` / `fix(scope)` | Repositorio | Código implementado |
+
+### Siguiente paso
+- El **Auditor** recibe tu reporte y ejecuta `/auditor-review`
+- Si el auditor encuentra correcciones bloqueantes: tú las corriges → `commit fix(scope)` → re-auditoría
+- Si aprobado: el **Arquitecto** hace la revisión final y decide si ejecutar `/documentation-management`
+
+### Workflow que ejecutas
+- **Principal**: `/developer-execution`
+- **Skills**: Las indicadas en el plan + las de la tabla Auto-invoke de `GEMINI.md`
 
 ---
 

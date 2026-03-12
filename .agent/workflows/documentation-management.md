@@ -430,3 +430,35 @@ El agente debe:
 6. Crear commit de documentación (Paso 5)
 7. Solicitar revisión al usuario
 
+---
+
+## Ciclo de Vida — Posición en el Flujo
+
+```
+ARQUITECTO → DESARROLLADOR → AUDITOR → ARQUITECTO aprueba → 🔵 TÚ (DOCUMENTACIÓN) actualizas → SIGUIENTE FASE
+```
+
+### Input (lo que recibes)
+| Fuente | Qué contiene |
+|--------|--------------|
+| `{modulo}-fase{N}-plan-desarrollo.md` | Qué se construyó (entregables, specs) |
+| `{modulo}-fase{N}-reporte-desarrollo.md` | Qué implementó el desarrollador |
+| `{modulo}-fase{N}-reporte-auditoria.md` | Veredicto del auditor, hallazgos |
+| Commits `feat(scope)` + `fix(scope)` | Código final en el repositorio |
+
+### Output (lo que produces)
+| Entregable | Ubicación | Para quién |
+|-----------|-----------|------------|
+| Guías de usuario | `docs/usuario/` | Usuarios finales |
+| Docs técnicas | `docs/` + `docs/api/` | Desarrolladores y agentes |
+| Changelog | `CHANGELOG.md` | Registro formal |
+| Página interna | `lib/data/actualizaciones.ts` | Usuarios de la app |
+| Commit `docs(scope)` | Repositorio | Historial |
+
+### Siguiente paso
+- Documentación completada → la fase está **cerrada**
+- El **Arquitecto** puede planificar la siguiente fase con `/architect-phase-planning`
+
+### Workflow que ejecutas
+- **Principal**: `/documentation-management`
+- **Skills**: `technical-writer`, `conventional-commit`, `git-commit`
