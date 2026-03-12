@@ -11,6 +11,21 @@ Workflow que gobierna **toda la documentación** del proyecto tras cada fase, fe
 3. **Changelog profesional** — `CHANGELOG.md` con formato Keep a Changelog
 4. **Página interna de actualizaciones** — Página dentro de la app para ver cambios
 
+> [!CAUTION]
+> ## REGLAS INVIOLABLES — LEE ESTO PRIMERO
+>
+> Las siguientes reglas son **absolutas e innegociables**. Si no las cumples, tu documentación será **incompleta**. No hay excepciones.
+>
+> 1. **NUNCA documentes sin auditar los docs existentes** — DEBES ejecutar Paso 0 (inventario de documentación) ANTES de crear o editar cualquier documento. Si no sabes qué existe, crearás duplicados o inconsistencias. Sin auditoría = documentación rechazada.
+>
+> 2. **NUNCA documentes sin leer la skill `technical-writer`** — DEBES ejecutar `view_file` en `.agent/skills/technical-writer/SKILL.md` ANTES de escribir. Sin lectura de skill = documentación rechazada.
+>
+> 3. **NUNCA entregues sin las 4 áreas cubiertas** — DEBES verificar que cada área aplicable (usuario, técnica, changelog, página interna) fue actualizada según la tabla de "Cuándo Ejecutar". Áreas faltantes = documentación rechazada.
+>
+> 4. **NUNCA saltees el GATE DE CUMPLIMIENTO** — Antes de entregar, DEBES completar la auto-auditoría. Si algún item es ❌, DEBES completarlo. Entrega con items ❌ = documentación rechazada.
+>
+> **Si descubres que te saltaste un paso, NO entregues. Retrocede y complétalo.**
+
 ---
 
 ## Cuándo Ejecutar Este Workflow
@@ -429,6 +444,29 @@ El agente debe:
 5. Marcar cada item del checklist
 6. Crear commit de documentación (Paso 5)
 7. Solicitar revisión al usuario
+
+---
+
+## ⛔ GATE DE CUMPLIMIENTO — Paso Final Obligatorio
+
+> [!CAUTION]
+> **NO PUEDES ENTREGAR sin completar esta tabla.** Si algún item es ❌, DEBES retroceder y completarlo ANTES de entregar. Entrega con items ❌ = RECHAZADA.
+
+Antes de llamar a `notify_user` para entregar, el agente documentador DEBE verificar:
+
+```markdown
+## Auto-Auditoría de Cumplimiento de Documentación
+
+| Paso | Requisito | Estado | Evidencia |
+|------|-----------|--------|-----------|
+| 0 | Auditoría de docs existentes completada (Paso 0) | ✅/❌ | Archivos inventariados |
+| 0b | Leí la skill `technical-writer` con `view_file` | ✅/❌ | Ruta de la skill leída |
+| 1 | Docs de usuario actualizados (si aplica) | ✅/❌/N/A | Archivos creados/editados |
+| 2 | Docs técnicos actualizados (si aplica) | ✅/❌/N/A | Archivos creados/editados |
+| 3 | CHANGELOG.md actualizado | ✅/❌ | Versión agregada |
+| 4 | Página interna actualizada (si aplica) | ✅/❌/N/A | Datos actualizados |
+| 5 | Commit `docs(scope)` preparado | ✅/❌ | Mensaje del commit |
+```
 
 ---
 

@@ -8,6 +8,21 @@ Workflow para generar dos documentos clave por cada fase del proyecto:
 1. **Plan de Implementación** — para el agente desarrollador
 2. **Plan de Auditoría** — para el agente auditor
 
+> [!CAUTION]
+> ## REGLAS INVIOLABLES — LEE ESTO PRIMERO
+>
+> Las siguientes reglas son **absolutas e innegociables**. Si no las cumples, tus planes serán **defectuosos**. No hay excepciones.
+>
+> 1. **NUNCA planifiques sin leer las skills** — DEBES ejecutar `view_file` en cada `SKILL.md` relevante ANTES de escribir el plan. Si no conoces las reglas y patrones del proyecto, tu plan guiará al desarrollador por el camino equivocado. Sin evidencia de lectura = plan rechazado.
+>
+> 2. **NUNCA planifiques sin auditar el estado actual** — DEBES revisar el schema de DB, código existente, y documentación ANTES de planificar. Planificar sin contexto = plan rechazado.
+>
+> 3. **NUNCA entregues planes incompletos** — Cada entregable DEBE tener: descripción, archivos, especificaciones técnicas, criterios de aceptación, y código de referencia. Entregable sin criterios de aceptación = plan rechazado.
+>
+> 4. **NUNCA saltees el GATE DE CUMPLIMIENTO** — Antes de entregar, DEBES completar la auto-auditoría. Si algún item es ❌, DEBES completarlo. Entrega con items ❌ = plan rechazado.
+>
+> **Si descubres que te saltaste un paso, NO entregues. Retrocede y complétalo.**
+
 ---
 
 ## Prerrequisitos
@@ -99,6 +114,35 @@ Incluir patrones específicos de las skills relevantes.
 
 ### Entregable 2: {Nombre}
 (Repetir la misma estructura)
+
+---
+
+## Navegación y Visibilidad por Roles
+
+> **Nota**: Solo incluir esta sección si la fase crea páginas nuevas accesibles por el usuario.
+
+Para cada página nueva creada en esta fase, definir:
+
+| Página | Ruta | Menú | Ubicación | Roles permitidos | Icono |
+|--------|------|------|-----------|-----------------|-------|
+| {Nombre} | `/ruta` | Sidebar + Móvil / Solo Sidebar / Solo Móvil | Principal / Submenú de {padre} / Footer | `admin`, `lider`, `coordinador` | `LucideIconName` |
+
+### Criterios de decisión
+
+- **Menú principal**: Módulos top-level que todos (o la mayoría) usan frecuentemente
+- **Submenú**: Páginas secundarias dentro de un módulo (ej: "Casas Anfitrionas" dentro de "Grupos de Vida")
+- **Footer**: Páginas utilitarias (ayuda, actualizaciones, configuración)
+- **Oculta del menú**: Páginas accesibles solo por enlace directo (ej: `/grupos-vida/[id]/editar`)
+
+### Roles del sistema
+
+| Rol | Descripción |
+|-----|-------------|
+| `admin` | Acceso completo |
+| `coordinador` | Gestión de módulos asignados |
+| `lider` | Gestión de su grupo/equipo |
+| `voluntario` | Acciones limitadas |
+| `miembro` | Solo lectura |
 
 ---
 
@@ -332,6 +376,29 @@ El agente arquitecto debe:
 4. Generar el artifact `{modulo}-fase{N}-plan-desarrollo.md` con la estructura completa
 5. Generar el artifact `{modulo}-fase{N}-plan-auditoria.md` alineado al plan de implementación
 6. Solicitar revisión al usuario con `notify_user` (incluyendo `PathsToReview` con las rutas de los artifacts)
+
+---
+
+## ⛔ GATE DE CUMPLIMIENTO — Paso Final Obligatorio
+
+> [!CAUTION]
+> **NO PUEDES ENTREGAR sin completar esta tabla.** Si algún item es ❌, DEBES retroceder y completarlo ANTES de entregar. Entrega con items ❌ = RECHAZADA.
+
+Antes de llamar a `notify_user` para entregar, el agente arquitecto DEBE verificar:
+
+```markdown
+## Auto-Auditoría de Cumplimiento del Arquitecto
+
+| Paso | Requisito | Estado | Evidencia |
+|------|-----------|--------|-----------|
+| 1a | Leí TODAS las skills relevantes con `view_file` | ✅/❌ | Lista de skills leídas |
+| 1b | Audité el estado actual de DB y código | ✅/❌ | Tablas y archivos revisados |
+| 2a | Plan de implementación tiene TODOS los entregables con criterios de aceptación | ✅/❌ | Cantidad de entregables |
+| 2b | Cada entregable tiene: descripción, archivos, specs técnicas, código de referencia | ✅/❌ | Entregables verificados |
+| 2c | Sección de navegación + roles completada (si aplica) | ✅/❌/N/A | Páginas definidas |
+| 3 | Plan de auditoría generado y alineado al plan de implementación | ✅/❌ | Ruta del artifact |
+| 4 | Ambos artifacts generados con nombres correctos | ✅/❌ | Rutas de artifacts |
+```
 
 ---
 

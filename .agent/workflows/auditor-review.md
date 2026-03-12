@@ -10,6 +10,21 @@ Workflow que define cómo debe operar el agente auditor al revisar el código pr
 1. **Reporte de Auditoría** → para el arquitecto (visión estratégica y de calidad)
 2. **Correcciones Técnicas** → para el desarrollador (instrucciones precisas de fix)
 
+> [!CAUTION]
+> ## REGLAS INVIOLABLES — LEE ESTO PRIMERO
+>
+> Las siguientes reglas son **absolutas e innegociables**. Si no las cumples, tu auditoría será **inválida**. No hay excepciones.
+>
+> 1. **NUNCA audites sin leer las skills** — DEBES ejecutar `view_file` en cada `SKILL.md` relevante ANTES de auditar. Si no conoces las reglas del proyecto, no puedes verificar si se cumplen. Sin evidencia de lectura = auditoría inválida.
+>
+> 2. **NUNCA audites parcialmente** — DEBES revisar TODAS las dimensiones del checklist (Seguridad, Tipos, Arquitectura, DB, UI/UX, Performance, Documentación). Si omites una dimensión, podrías dejar pasar vulnerabilidades. Auditoría parcial = auditoría inválida.
+>
+> 3. **NUNCA entregues sin artifacts completos** — DEBES generar `correcciones-r{N}.md` (si hay hallazgos) y/o `reporte-auditoria.md` (si es ronda final) con el template completo. Sin artifacts = auditoría inválida.
+>
+> 4. **NUNCA saltees el GATE DE CUMPLIMIENTO** — Antes de entregar, DEBES completar la auto-auditoría. Si algún item es ❌, DEBES completarlo. Entrega con items ❌ = auditoría inválida.
+>
+> **Si descubres que te saltaste un paso, NO entregues. Retrocede y complétalo.**
+
 ---
 
 ## Identidad del Agente
@@ -127,6 +142,9 @@ Aplicar TODAS estas dimensiones a cada archivo relevante:
 - [ ] Estados vacíos implementados
 - [ ] Accesibilidad: labels, ARIA roles, contraste
 - [ ] Consistencia con el design system existente
+- [ ] Páginas nuevas registradas en sidebar (`sidebar-moderna.tsx`) y menú móvil (`menu-inferior-movil.tsx`)
+- [ ] Visibilidad por roles correcta: páginas restringidas no aparecen para roles sin acceso
+- [ ] Consistencia de items entre sidebar desktop y menú móvil
 
 **⚡ Performance**
 - [ ] Sin N+1 queries
@@ -469,6 +487,29 @@ Cuando todos los bloqueantes están resueltos:
 - El **Arquitecto** lee el reporte de auditoría
 - Si el arquitecto aprueba ✅ → ejecutar `/documentation-management`
 - Si el arquitecto pide más cambios → nueva ronda de correcciones
+
+---
+
+## ⛔ GATE DE CUMPLIMIENTO — Paso Final Obligatorio
+
+> [!CAUTION]
+> **NO PUEDES ENTREGAR sin completar esta tabla.** Si algún item es ❌, DEBES retroceder y completarlo ANTES de entregar. Entrega con items ❌ = RECHAZADA.
+
+Antes de llamar a `notify_user` para entregar, el agente auditor DEBE completar esta auto-auditoría **en el reporte o correcciones**:
+
+```markdown
+## Auto-Auditoría de Cumplimiento del Auditor
+
+| Paso | Requisito | Estado | Evidencia |
+|------|-----------|--------|-----------|
+| 0 | Leí el plan de implementación y auditoría | ✅/❌ | Nombres de los planes leídos |
+| 1 | Leí TODAS las skills relevantes con `view_file` | ✅/❌ | Lista de skills leídas |
+| 2 | Revisé TODAS las dimensiones del checklist | ✅/❌ | Dimensiones cubiertas |
+| 2b | Verificación de navegación + roles (si aplica) | ✅/❌/N/A | Items verificados |
+| 3 | Ejecuté `pnpm build` para verificación técnica | ✅/❌ | Output del build |
+| 4 | Cada hallazgo tiene código actual + corregido | ✅/❌ | Cantidad de COR-XXX |
+| 5 | Artifact(s) generado(s) con template completo | ✅/❌ | Rutas de artifacts |
+```
 
 ---
 

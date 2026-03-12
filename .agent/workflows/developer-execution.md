@@ -8,6 +8,23 @@ description: Workflow para que el agente desarrollador ejecute tareas de impleme
 
 Workflow que define cómo debe operar el agente desarrollador al ejecutar cualquier tarea de implementación. El agente actúa como un **programador experto de clase mundial** que produce código perfecto, documentado, seguro y mantenible.
 
+> [!CAUTION]
+> ## REGLAS INVIOLABLES — LEE ESTO PRIMERO
+>
+> Las siguientes reglas son **absolutas e innegociables**. Si no las cumples, tu entrega será **rechazada**. No hay excepciones.
+>
+> 1. **NUNCA escribas código sin haber leído las skills** — DEBES ejecutar `view_file` en cada `SKILL.md` relevante ANTES de escribir la primera línea. Si no lo haces, tu código será incorrecto. Sin evidencia de lectura = entrega rechazada.
+>
+> 2. **NUNCA entregues sin artifacts completos** — DEBES generar el `{modulo}-fase{N}-reporte-desarrollo.md` y el `{modulo}-fase{N}-walkthrough.md` con el template completo. Entrega sin artifacts = entrega rechazada.
+>
+> 3. **NUNCA entregues sin JSDoc** — TODA función, tipo, componente y hook exportado DEBE tener JSDoc en español. Sin JSDoc = entrega rechazada.
+>
+> 4. **NUNCA entregues sin commit preparado** — DEBES preparar un commit convencional (`feat(scope)` / `fix(scope)`) siguiendo las skills `conventional-commit` y `git-commit`. Sin commit = entrega rechazada.
+>
+> 5. **NUNCA saltees el GATE DE CUMPLIMIENTO** — Antes de entregar, DEBES completar la auto-auditoría del Gate de Cumplimiento (Paso Final). Si algún item es ❌, DEBES completarlo antes de entregar. Entrega con items ❌ = entrega rechazada.
+>
+> **Si descubres que te saltaste un paso, NO entregues. Retrocede y complétalo.**
+
 ---
 
 ## Identidad del Agente
@@ -332,21 +349,39 @@ Usar `notify_user` con:
 
 ---
 
-## Checklist Rápido del Desarrollador Experto
+## ⛔ GATE DE CUMPLIMIENTO — Paso Final Obligatorio
 
-Antes de cada entrega, pasar esta lista mentalmente:
+> [!CAUTION]
+> **NO PUEDES ENTREGAR sin completar esta tabla.** Si algún item es ❌, DEBES retroceder y completarlo ANTES de entregar. Entrega con items ❌ = RECHAZADA.
 
-- [ ] ¿Leí el plan de implementación completo?
-- [ ] ¿Revisé TODAS las skills relevantes?
-- [ ] ¿Mi código tiene cero `any`?
-- [ ] ¿Cada función exportada tiene JSDoc?
-- [ ] ¿Las Server Actions validan auth e inputs?
-- [ ] ¿Las tablas nuevas tienen RLS habilitado?
-- [ ] ¿El build pasa sin errores?
-- [ ] ¿Los tipos están actualizados?
-- [ ] ¿Los criterios de aceptación se cumplen?
-- [ ] ¿Documenté las decisiones no obvias?
-- [ ] ¿Mi código es tan bueno que me enorgullece?
+Antes de llamar a `notify_user` para entregar, el agente DEBE completar esta auto-auditoría **en el reporte de desarrollo**:
+
+```markdown
+## Auto-Auditoría de Cumplimiento
+
+| Paso | Requisito | Estado | Evidencia |
+|------|-----------|--------|-----------|
+| 0 | Leí el plan de implementación completo | ✅/❌ | Nombre del plan leído |
+| 1 | Leí TODAS las skills relevantes con `view_file` | ✅/❌ | Lista de skills leídas |
+| 2 | Audité el estado actual del código y DB | ✅/❌ | Archivos y tablas revisados |
+| 3a | Zero `any` en todo el código nuevo | ✅/❌ | Resultado de búsqueda de `any` |
+| 3b | JSDoc en TODA función/tipo/componente exportado | ✅/❌ | Lista de funciones documentadas |
+| 3c | Server Actions validan auth e inputs | ✅/❌ | Lista de actions validadas |
+| 3d | Tablas nuevas tienen RLS habilitado | ✅/❌ | Lista de tablas con RLS (o N/A) |
+| 4 | `pnpm build` pasa sin errores | ✅/❌ | Output del build |
+| 5a | Artifact `{modulo}-fase{N}-reporte-desarrollo.md` generado | ✅/❌ | Ruta del artifact |
+| 5b | Artifact `{modulo}-fase{N}-walkthrough.md` generado | ✅/❌ | Ruta del artifact |
+| 6 | Commit convencional preparado | ✅/❌ | Mensaje del commit |
+| Nav | Páginas nuevas en sidebar + menú móvil (si aplica) | ✅/❌/N/A | Items agregados |
+| Nav | Roles de visibilidad definidos (si aplica) | ✅/❌/N/A | Roles asignados |
+```
+
+### Reglas del Gate
+
+1. **Todo debe ser ✅ o N/A** — si hay un solo ❌, NO entregues
+2. **Si descubres un ❌**: retrocede al paso correspondiente, complétalo, y actualiza la tabla
+3. **La evidencia es obligatoria** — no basta con poner ✅, debes demostrar que lo hiciste
+4. **Esta tabla se incluye** en el `{modulo}-fase{N}-reporte-desarrollo.md`
 
 ---
 
