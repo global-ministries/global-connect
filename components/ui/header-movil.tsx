@@ -33,7 +33,7 @@ interface MobileMenuItem {
   children?: SubItem[]
 }
 
-const menuItems: MobileMenuItem[] = [
+const mainMenuItems: MobileMenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
   { id: 'usuarios', label: 'Usuarios', icon: Users, href: '/users' },
   {
@@ -50,9 +50,15 @@ const menuItems: MobileMenuItem[] = [
     ],
   },
   { id: 'configuracion', label: 'Configuración', icon: Settings, href: '/configuracion' },
+]
+
+const footerMenuItems: MobileMenuItem[] = [
   { id: 'actualizaciones', label: 'Actualizaciones', icon: Megaphone, href: '/actualizaciones' },
   { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, href: '/ayuda' },
 ]
+
+// All items combined for title resolution
+const allMenuItems: MobileMenuItem[] = [...mainMenuItems, ...footerMenuItems]
 
 function formatearRol(roles: string[]): string {
   if (!roles || roles.length === 0) return 'Usuario'
@@ -86,7 +92,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   // Auto-expand submenus when a child route is active
   useEffect(() => {
     const newOpen = new Set<string>()
-    for (const item of menuItems) {
+    for (const item of allMenuItems) {
       if (item.children) {
         const isChildActive = item.children.some(child =>
           pathname === child.href || pathname?.startsWith(child.href + '/')
@@ -203,7 +209,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
     }
 
     // Fallback: top-level menu items
-    return menuItems.find(it => path.startsWith(it.href) && it.href !== '/dashboard')?.label ?? 'Global'
+    return allMenuItems.find(it => path.startsWith(it.href) && it.href !== '/dashboard')?.label ?? 'Global'
   }
 
   return (
@@ -386,10 +392,10 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           <SelectorCampus />
         </div>
 
-        {/* ── Full Navigation with Submenus ── */}
+        {/* ── Main Navigation with Submenus ── */}
         <nav className="flex-1 overflow-y-auto px-3 py-1">
           <ul className="space-y-0.5">
-            {menuItems.map(item => {
+            {mainMenuItems.map(item => {
               const Icon = item.icon
               const hasChildren = item.children && item.children.length > 0
               const active = isActive(item.href)
@@ -499,38 +505,63 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                 </li>
               )
             })}
+          </ul>
+        </nav>
 
-            {/* Perfil link */}
-            <li>
+        {/* ── Drawer Footer (mirrors desktop sidebar bottom) ── */}
+        <div className="p-3 border-t border-[var(--glass-border)] space-y-0.5 safe-area-pb">
+          {/* Footer nav items: Actualizaciones, Ayuda */}
+          {footerMenuItems.map(item => {
+            const Icon = item.icon
+            const active = isActive(item.href)
+            return (
               <Link
-                href="/perfil"
-                aria-current={pathname === '/perfil' ? "page" : undefined}
+                key={item.id}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
                   "transition-[background-color,color,transform] duration-200 ease-expo",
                   "press-scale focus-ring touch-manipulation",
-                  pathname === '/perfil'
+                  active
                     ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
                     : "text-foreground hover:bg-[var(--brand-accent)]"
                 )}
               >
-                <User className={cn(
+                <Icon className={cn(
                   "w-5 h-5 flex-shrink-0",
-                  pathname === '/perfil' ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+                  active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
                 )} />
-                <span className="font-medium text-sm">Mi Perfil</span>
+                <span className="font-medium text-sm">{item.label}</span>
               </Link>
-            </li>
-          </ul>
-        </nav>
+            )
+          })}
 
-        {/* ── Drawer Footer ── */}
-        <div className="p-3 border-t border-[var(--glass-border)] space-y-0.5 safe-area-pb">
           {/* Theme Toggle */}
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]">
             <ThemeToggle className="!min-h-0 !min-w-0 !w-8 !h-8" />
             <span className="text-sm font-medium text-muted-foreground">Tema</span>
           </div>
+
+          {/* Mi Perfil */}
+          <Link
+            href="/perfil"
+            aria-current={pathname === '/perfil' ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
+              "transition-[background-color,color,transform] duration-200 ease-expo",
+              "press-scale focus-ring touch-manipulation",
+              pathname === '/perfil'
+                ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
+                : "text-foreground hover:bg-[var(--brand-accent)]"
+            )}
+          >
+            <User className={cn(
+              "w-5 h-5 flex-shrink-0",
+              pathname === '/perfil' ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+            )} />
+            <span className="font-medium text-sm">Mi Perfil</span>
+          </Link>
 
           {/* Logout */}
           <form action={logout}>
