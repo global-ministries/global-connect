@@ -148,37 +148,38 @@ export function SolicitudesPendientesClient({
             <div className="flex items-center justify-between gap-4 flex-wrap">
                 {/* Filtro de tipo */}
                 <FiltroTipo tipos={FILTROS_TIPO} filtro={filtroTipo} onChange={setFiltroTipo} />
-
-                <BotonSistema
-                    variante="ghost"
-                    tamaño="sm"
-                    icono={RefreshCw}
-                    onClick={recargar}
-                    cargando={isPending}
-                >
-                    Actualizar
-                </BotonSistema>
             </div>
 
             <TabsSistema defaultValue="pendientes">
-                <TabsList className="mb-4">
-                    <TabsTrigger value="pendientes">
-                        Pendientes
-                        {pendientes.length > 0 && (
-                            <span className="ml-1.5 text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded-full">
-                                {pendientes.length}
-                            </span>
-                        )}
-                    </TabsTrigger>
-                    <TabsTrigger value="completadas">
-                        Completadas
-                        {completadas.length > 0 && (
-                            <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
-                                {completadas.length}
-                            </span>
-                        )}
-                    </TabsTrigger>
-                </TabsList>
+                <div className="flex items-center justify-between gap-2 mb-4">
+                    <TabsList>
+                        <TabsTrigger value="pendientes">
+                            Pendientes
+                            {pendientes.length > 0 && (
+                                <span className="ml-1.5 text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded-full">
+                                    {pendientes.length}
+                                </span>
+                            )}
+                        </TabsTrigger>
+                        <TabsTrigger value="completadas">
+                            Completadas
+                            {completadas.length > 0 && (
+                                <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                                    {completadas.length}
+                                </span>
+                            )}
+                        </TabsTrigger>
+                    </TabsList>
+                    <BotonSistema
+                        variante="ghost"
+                        tamaño="sm"
+                        icono={RefreshCw}
+                        onClick={recargar}
+                        cargando={isPending}
+                    >
+                        Actualizar
+                    </BotonSistema>
+                </div>
 
                 <TabsContent value="pendientes">
                     <TablaSolicitudes solicitudes={pendientes} onProcesada={recargar} />

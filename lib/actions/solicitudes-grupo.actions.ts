@@ -576,7 +576,7 @@ export async function agregarMiembroDirecto(
 
 /**
  * Cancela una solicitud de activación de grupo.
- * Elimina la solicitud y soft-deletes el grupo pendiente asociado.
+ * Elimina la solicitud y hard-deletes el grupo pendiente asociado.
  * Solo el creador de la solicitud puede cancelarla.
  */
 export async function cancelarSolicitudActivacion(solicitudId: string): Promise<Res> {
@@ -606,21 +606,21 @@ export async function cancelarSolicitudActivacion(solicitudId: string): Promise<
   if (solicitud.estado !== "pendiente") return { success: false, error: "Solo se pueden cancelar solicitudes pendientes" };
   if (solicitud.tipo !== "activacion_grupo") return { success: false, error: "Solo se pueden cancelar solicitudes de activación" };
 
-  // Eliminar la solicitud
+  // Eliminar la solicitud primero (FK: solicitudes_grupo.grupo_id → grupos.id ON DELETE CASCADE)
   const { error: delErr } = await adminDb
     .from("solicitudes_grupo")
     .delete()
     .eq("id", solicitudId);
   if (delErr) return { success: false, error: `Error al eliminar solicitud: ${delErr.message}` };
 
-  // Soft-delete del grupo pendiente
-  const { error: updErr } = await adminDb
+  // Hard-delete del grupo pendiente
+  const { error: delGrupoErr } = await adminDb
     .from("grupos")
-    .update({ eliminado: true })
+    .delete()
     .eq("id", solicitud.grupo_id)
     .eq("estado_aprobacion", "pendiente");
-  if (updErr) {
-    console.error("[cancelarSolicitudActivacion] Error soft-deleting grupo:", updErr.message);
+  if (delGrupoErr) {
+    console.error("[cancelarSolicitudActivacion] Error eliminando grupo:", delGrupoErr.message);
   }
 
   revalidatePath("/grupos-vida");
