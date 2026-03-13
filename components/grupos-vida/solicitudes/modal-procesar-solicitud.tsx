@@ -169,6 +169,31 @@ export function ModalProcesarSolicitud({
                                 </BadgeSistema>
                             )}
                         </div>
+
+                        {solicitud.campus_nombre && (
+                            <div className="rounded-xl bg-muted/50 p-3">
+                                <TextoSistema variante="muted" tamaño="sm">Campus</TextoSistema>
+                                <TextoSistema className="font-medium">{solicitud.campus_nombre}</TextoSistema>
+                            </div>
+                        )}
+
+                        {(solicitud.lider_nombre || solicitud.lider_apellido) && (
+                            <div className="rounded-xl bg-muted/50 p-3">
+                                <TextoSistema variante="muted" tamaño="sm">Líder asignado</TextoSistema>
+                                <TextoSistema className="font-medium">
+                                    {`${solicitud.lider_nombre ?? ""} ${solicitud.lider_apellido ?? ""}`.trim()}
+                                </TextoSistema>
+                            </div>
+                        )}
+
+                        {(solicitud.director_nombre || solicitud.director_apellido) && (
+                            <div className="rounded-xl bg-muted/50 p-3">
+                                <TextoSistema variante="muted" tamaño="sm">Director de Etapa</TextoSistema>
+                                <TextoSistema className="font-medium">
+                                    {`${solicitud.director_nombre ?? ""} ${solicitud.director_apellido ?? ""}`.trim()}
+                                </TextoSistema>
+                            </div>
+                        )}
                     </div>
 
                     {/* Motivo del solicitante */}

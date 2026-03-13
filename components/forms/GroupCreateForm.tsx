@@ -17,7 +17,6 @@ const groupCreateSchema = z.object({
   ubicacion: z.enum(["Barquisimeto", "Cabudare"], { required_error: "Selecciona una ubicación" }),
   director_etapa_segmento_lider_id: z.string().optional().nullable(),
   lider_usuario_id: z.string().optional().nullable(),
-  estado_aprobacion: z.enum(['aprobado', 'pendiente', 'rechazado']).optional().default('aprobado')
 });
 
 type GroupCreateFormData = z.infer<typeof groupCreateSchema>;
@@ -25,9 +24,10 @@ type GroupCreateFormData = z.infer<typeof groupCreateSchema>;
 interface GroupCreateFormProps {
   temporadas: { id: string; nombre: string }[];
   segmentos: { id: string; nombre: string }[];
+  userRoles?: string[];
 }
 
-export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFormProps) {
+export default function GroupCreateForm({ temporadas, segmentos, userRoles = [] }: GroupCreateFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +38,8 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
   // Modal selección global de líder
   const [showLeaderModal, setShowLeaderModal] = useState(false);
   const [leaderResumen, setLeaderResumen] = useState<string | null>(null);
+
+  const esDirectorEtapa = userRoles.includes('director-etapa') && !userRoles.some(r => ['admin', 'pastor', 'director-general'].includes(r));
 
   const {
     register,
@@ -57,9 +59,21 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
   const ubicacion = watch("ubicacion");
   const temporadaId = watch("temporada_id");
   const segmentoId = watch("segmento_id");
-  const directorLiderId = watch('director_etapa_segmento_lider_id');
-  const liderUsuarioId = watch('lider_usuario_id');
-  const estadoAprobacion = watch('estado_aprobacion');
+
+  // Auto-seleccionar cuando sólo hay una opción disponible
+  // Esto arregla el caso donde el <select> nativo muestra visualmente una opción
+  // pero React Hook Form no tiene el valor registrado internamente
+  useEffect(() => {
+    if (segmentos.length === 1 && !segmentoId) {
+      setValue('segmento_id', segmentos[0].id, { shouldValidate: true });
+    }
+  }, [segmentos, segmentoId, setValue]);
+
+  useEffect(() => {
+    if (temporadas.length === 1 && !temporadaId) {
+      setValue('temporada_id', temporadas[0].id, { shouldValidate: true });
+    }
+  }, [temporadas, temporadaId, setValue]);
 
   // Sugerir nombre cuando se tengan ubicacion, temporada y segmento
   useEffect(() => {
@@ -157,15 +171,18 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
         temporada_id: data.temporada_id,
         segmento_id: data.segmento_id,
         segmento_ubicacion_id: segmentoUbicacionId,
+        ubicacion_nombre: data.ubicacion,
         director_etapa_segmento_lider_id: data.director_etapa_segmento_lider_id || null,
         lider_usuario_id: data.lider_usuario_id || null,
-        estado_aprobacion: data.estado_aprobacion
       });
       if (!result?.success) {
         setError(result?.error || "No autorizado para crear el grupo");
         return;
       }
-      if (result.newGroupId) {
+      if (result.pendiente) {
+        // Grupo pendiente de aprobación — redirigir a mis solicitudes
+        router.push("/grupos-vida/solicitudes/mis-solicitudes");
+      } else if (result.newGroupId) {
         router.push(`/grupos-vida/${result.newGroupId}/edit`);
       }
     } catch (err: unknown) {
@@ -180,6 +197,13 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+      {esDirectorEtapa && (
+        <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+          <p className="text-sm text-orange-700 dark:text-orange-400">
+            <strong>Nota:</strong> Como director de etapa, el grupo que crees quedará en estado <strong>pendiente de aprobación</strong>. Un administrador o pastor deberá aprobarlo para activarlo.
+          </p>
         </div>
       )}
       {/* Campos en grid para consistencia visual */}
@@ -316,30 +340,14 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
           <SelectLeaderModal
             open={showLeaderModal}
             onClose={() => setShowLeaderModal(false)}
+            segmentoId={segmentoId}
             onSelect={(u) => {
               setValue('lider_usuario_id', u.id, { shouldValidate: true });
               setLeaderResumen(`${u.nombre} ${u.apellido}`.trim());
             }}
             title="Seleccionar Líder Inicial"
-            description="Busca entre todos los usuarios permitidos y asigna uno como líder inicial del grupo."
+            description="Busca entre los líderes disponibles. Los que no lideran grupo activo aparecen primero."
           />
-        </div>
-
-        {/* Estado Aprobación */}
-        <div className="space-y-2 md:col-span-2">
-          <Controller name="estado_aprobacion" control={control} render={({ field }) => (
-            <SelectSistema
-              label="Estado Inicial"
-              value={field.value}
-              onValueChange={field.onChange}
-              opciones={[
-                { valor: "aprobado", etiqueta: "Aprobado" },
-                { valor: "pendiente", etiqueta: "Pendiente" },
-                { valor: "rechazado", etiqueta: "Rechazado" },
-              ]}
-            />
-          )} />
-          <p className="text-xs text-muted-foreground">Puedes dejarlo en Aprobado o marcar como Pendiente para revisión posterior.</p>
         </div>
       </div>
 

@@ -1,6 +1,8 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getUserWithRoles } from "@/lib/getUserWithRoles";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { modoCierreSchema } from "@/lib/types/asistencia-avanzada.types";
@@ -19,6 +21,7 @@ const actualizarConfigSchema = z.object({
   permitir_lider_en_otro_grupo: z.boolean().optional(),
   requiere_aprobacion_grupo_planificacion: z.boolean().optional(),
   notificar_lider_ingreso: z.boolean().optional(),
+  creacion_grupos_habilitada: z.boolean().optional(),
   // Campos de asistencia avanzada (Fase 3)
   modo_cierre_asistencia: modoCierreSchema.optional(),
   dia_cierre_semanal: z.number().int().min(0).max(6).optional(),
@@ -93,10 +96,18 @@ export async function actualizarConfiguracionGrupos(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "No autenticado" };
+  const userData = await getUserWithRoles(supabase);
+  if (!userData) return { success: false, error: "No autenticado" };
 
-  const { data, error } = await supabase
+  // Solo admin o pastor pueden modificar la configuración
+  const esSuperadmin = userData.roles.some(r => ["admin", "pastor"].includes(r));
+  if (!esSuperadmin) {
+    return { success: false, error: "No tienes permisos para modificar la configuración" };
+  }
+
+  // Usar admin client para bypass de RLS (ya validamos rol arriba)
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
     .from("configuracion_grupos_vida")
     .update({
       ...parsed.data,
@@ -113,6 +124,11 @@ export async function actualizarConfiguracionGrupos(
     return { success: false, error: error.message };
   }
 
+  if (!data) {
+    return { success: false, error: "No tienes permisos para modificar la configuración" };
+  }
+
   revalidatePath("/grupos-vida/configuracion");
+  revalidatePath("/grupos-vida");
   return { success: true, data: data as ConfiguracionGruposVida };
 }

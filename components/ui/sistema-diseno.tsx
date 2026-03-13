@@ -137,7 +137,7 @@ export const SelectSistema = React.forwardRef<HTMLSelectElement, SelectSistemaPr
           <select
             id={id}
             ref={ref}
-            value={value}
+            value={value ?? ''}
             onChange={handleChange}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? idError : undefined}

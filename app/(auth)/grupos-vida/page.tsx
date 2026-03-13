@@ -6,6 +6,7 @@ import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import GruposListClient from "@/components/grupos/GruposList.client"
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, BotonSistema } from '@/components/ui/sistema-diseno'
+import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions"
 
 // (El color por segmento ahora se maneja dentro del componente cliente)
 
@@ -129,7 +130,10 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
 
     const roles = userData.roles || []
     const canCreateSuperior = roles.some(r => ["admin", "pastor", "director-general", "director-etapa"].includes(r))
-    const canCreate = canCreateSuperior
+    // Solo permitir creación si la configuración global lo habilita
+    const configRes = await obtenerConfiguracionGrupos()
+    const creacionHabilitada = configRes.success && configRes.data ? configRes.data.creacion_grupos_habilitada : true
+    const canCreate = canCreateSuperior && creacionHabilitada
     const canDelete = canCreateSuperior
     const canRestore = roles.some(r => ["admin", "pastor", "director-general"].includes(r))
 

@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno"
+import { BotonFlotante } from "@/components/ui/BotonFlotante"
 import { TabsSistema, TabsList, TabsTrigger, TabsContent } from "@/components/ui/TabsSistema"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
 
@@ -736,50 +737,49 @@ export default function GruposListClient({
         <KpiCard title="Total Miembros" subtitle="En grupos" value={kpis.totalMiembros} gradient="from-purple-500 to-pink-500" Icon={Users2} />
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h3 className="text-lg lg:text-xl font-bold text-foreground">Lista de Grupos</h3>
-        <div className="flex items-center gap-2">
-          <Sheet>
-            <SheetTrigger asChild>
-              <BotonSistema variante="outline" tamaño="sm" className="relative min-w-0">
-                <Filter className="w-4 h-4 flex-shrink-0" />
-                <span className="hidden sm:inline ml-2">Filtros</span>
-                {filtrosActivos > 0 && (
-                  <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-orange-600 text-white text-[10px] w-4 h-4 z-10">
-                    {filtrosActivos}
-                  </span>
-                )}
-              </BotonSistema>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:max-w-md p-0">
-              <SheetHeader className="px-6 py-4 border-b border-border">
-                <SheetTitle className="text-lg font-semibold text-foreground">Filtros de grupos</SheetTitle>
-              </SheetHeader>
-              <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
-                <FiltrosGrupos filtros={filtros} onFiltrosChange={onFiltrosChange} segmentos={segmentos} temporadas={temporadas} municipios={municipios || []} parroquias={parroquias || []} />
-              </div>
-            </SheetContent>
-          </Sheet>
-          {canCreate && (
-            <Link href="/grupos-vida/crear">
-              <BotonSistema variante="primario" tamaño="sm" className="min-w-0">
-                <Plus className="w-4 h-4 flex-shrink-0" />
-                <span className="hidden sm:inline ml-2">Crear Grupo</span>
-              </BotonSistema>
-            </Link>
-          )}
-        </div>
-      </div>
+      <h3 className="text-lg lg:text-xl font-bold text-foreground">Lista de Grupos</h3>
 
-
-      {/* Pestañas */}
+      {/* Pestañas + filtros en la misma fila */}
       <TabsSistema value={pestanaActiva} onValueChange={onTabChange}>
-        <TabsList>
-          <TabsTrigger value="actuales">Grupos Actuales</TabsTrigger>
-          <TabsTrigger value="pasados">Grupos Pasados</TabsTrigger>
-          {mostrarMisGrupos && <TabsTrigger value="mios">Mis Grupos</TabsTrigger>}
-          {mostrarFuturos && <TabsTrigger value="futuros">Grupos Futuros</TabsTrigger>}
-        </TabsList>
+        <div className="flex items-center justify-between gap-2">
+          <TabsList>
+            <TabsTrigger value="actuales">Grupos Actuales</TabsTrigger>
+            <TabsTrigger value="pasados">Grupos Pasados</TabsTrigger>
+            {mostrarMisGrupos && <TabsTrigger value="mios">Mis Grupos</TabsTrigger>}
+            {mostrarFuturos && <TabsTrigger value="futuros">Grupos Futuros</TabsTrigger>}
+          </TabsList>
+          <div className="flex items-center gap-2 shrink-0">
+            <Sheet>
+              <SheetTrigger asChild>
+                <BotonSistema variante="outline" tamaño="sm" className="relative min-w-0">
+                  <Filter className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline ml-2">Filtros</span>
+                  {filtrosActivos > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-orange-600 text-white text-[10px] w-4 h-4 z-10">
+                      {filtrosActivos}
+                    </span>
+                  )}
+                </BotonSistema>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-md p-0">
+                <SheetHeader className="px-6 py-4 border-b border-border">
+                  <SheetTitle className="text-lg font-semibold text-foreground">Filtros de grupos</SheetTitle>
+                </SheetHeader>
+                <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
+                  <FiltrosGrupos filtros={filtros} onFiltrosChange={onFiltrosChange} segmentos={segmentos} temporadas={temporadas} municipios={municipios || []} parroquias={parroquias || []} />
+                </div>
+              </SheetContent>
+            </Sheet>
+            {canCreate && (
+              <Link href="/grupos-vida/crear" className="hidden md:block">
+                <BotonSistema variante="primario" tamaño="sm">
+                  <Plus className="w-4 h-4 flex-shrink-0" />
+                  <span className="ml-2">Crear Grupo</span>
+                </BotonSistema>
+              </Link>
+            )}
+          </div>
+        </div>
 
         <TabsContent value="actuales">
           <Listado lista={listaMostrada} />
@@ -807,6 +807,11 @@ export default function GruposListClient({
           </div>
           <PaginationControls totalCount={totalPorPestana || 0} pageSize={pageSize} pageParam={pageParam} />
         </div>
+      )}
+
+      {/* FAB móvil para crear grupo */}
+      {canCreate && (
+        <BotonFlotante href="/grupos-vida/crear" label="Crear grupo" />
       )}
     </div>
   )

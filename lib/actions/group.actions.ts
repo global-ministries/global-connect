@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getUserWithRoles } from "@/lib/getUserWithRoles";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { upsertDireccion } from "@/lib/helpers/direccion.helper";
@@ -104,9 +105,9 @@ export async function createGroup(data: {
   segmento_id: string;
   campus_id?: string | null;
   segmento_ubicacion_id?: string | null;
+  ubicacion_nombre?: string | null;
   director_etapa_segmento_lider_id?: string | null;
   lider_usuario_id?: string | null;
-  estado_aprobacion?: "pendiente" | "aprobado" | "rechazado";
 }) {
   const parsed = createGroupSchema.safeParse({
     nombre: data.nombre,
@@ -121,8 +122,14 @@ export async function createGroup(data: {
 
   try {
     const supabase = await createSupabaseServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return { success: false, error: "No autenticado" };
+    const userData = await getUserWithRoles(supabase);
+    if (!userData) return { success: false, error: "No autenticado" };
+    const user = userData.user;
+
+    // Auto-determinar estado de aprobación según rol del creador
+    const roles = userData.roles || [];
+    const esSuperior = roles.some(r => ["admin", "pastor", "director-general"].includes(r));
+    const estadoAprobacion = esSuperior ? "aprobado" : "pendiente";
 
     const { data: permitido, error: permisoError } = await supabase.rpc("puede_crear_grupo", {
       p_auth_id: user.id,
@@ -142,43 +149,107 @@ export async function createGroup(data: {
     // La RPC crear_grupo retorna uuid como text — validar tipo en runtime
     const grupoId = typeof newId === 'string' ? newId : String(newId);
 
-    // Post-create: campus_id, estado, ubicación — un solo UPDATE
-    const postUpdate: Record<string, unknown> = {};
-    if (parsed.data.campus_id) postUpdate.campus_id = parsed.data.campus_id;
-    if (data.estado_aprobacion && ["pendiente", "aprobado", "rechazado"].includes(data.estado_aprobacion)) {
-      postUpdate.estado_aprobacion = data.estado_aprobacion;
+    // ─── Usar admin client para todas las operaciones post-creación ─────
+    // El usuario (director de etapa) puede no tener permisos RLS para UPDATE/INSERT
+    // en tablas del grupo recién creado, especialmente si es pendiente.
+    const adminDb = (await import("@/lib/supabase/admin")).createSupabaseAdminClient();
+
+    // ─── Auto-derivar campus_id, localidad_id y tipo_grupo_id ─────
+    // El formulario envía ubicacion_nombre (ej. "Barquisimeto", "Cabudare")
+    // que corresponde a una localidad dentro de un campus.
+    let campusId = parsed.data.campus_id ?? null;
+    let localidadId: string | null = null;
+
+    if (data.ubicacion_nombre) {
+      const { data: localidad } = await adminDb
+        .from("campus_localidades")
+        .select("id, campus_id")
+        .ilike("nombre", data.ubicacion_nombre)
+        .limit(1)
+        .single();
+
+      if (localidad) {
+        localidadId = localidad.id;
+        if (!campusId) campusId = localidad.campus_id;
+      }
     }
+
+    // tipo_grupo_id: usar el tipo por defecto "Grupos de Vida"
+    let tipoGrupoId: string | null = null;
+    const { data: tipoDefault } = await adminDb
+      .from("tipos_grupo")
+      .select("id")
+      .limit(1)
+      .single();
+    if (tipoDefault) tipoGrupoId = tipoDefault.id;
+
+    // Post-create: campus_id, localidad_id, tipo_grupo_id, estado, ubicación — un solo UPDATE con admin
+    const postUpdate: Record<string, unknown> = {};
+    if (campusId) postUpdate.campus_id = campusId;
+    if (localidadId) postUpdate.localidad_id = localidadId;
+    if (tipoGrupoId) postUpdate.tipo_grupo_id = tipoGrupoId;
+    postUpdate.estado_aprobacion = estadoAprobacion;
     if (data.segmento_ubicacion_id) postUpdate.segmento_ubicacion_id = data.segmento_ubicacion_id;
+    // Si es pendiente, el grupo inicia inactivo hasta que se apruebe
+    if (estadoAprobacion === "pendiente") postUpdate.activo = false;
 
     if (Object.keys(postUpdate).length) {
-      const { error: updErr } = await supabase.from("grupos").update(postUpdate).eq("id", grupoId);
+      const { error: updErr } = await adminDb.from("grupos").update(postUpdate).eq("id", grupoId);
       if (updErr) return { success: false, error: `Error al configurar el grupo: ${updErr.message}` };
     }
 
-    // Asignar director de etapa inicial
-    // La RPC existe en DB pero falta en tipos generados.
-    // Se resolverá al ejecutar `pnpm gen:types`
+    // Asignar director de etapa (columna: director_etapa_id, valor: segmento_lider_id)
     if (data.director_etapa_segmento_lider_id) {
-      const { error: dirError } = await supabase.rpc("asignar_director_etapa_a_grupo", {
-        p_auth_id: user.id,
-        p_grupo_id: grupoId,
-        p_segmento_lider_id: data.director_etapa_segmento_lider_id,
-        p_accion: "agregar",
-      });
+      const { error: dirError } = await adminDb
+        .from("director_etapa_grupos")
+        .insert({
+          grupo_id: grupoId,
+          director_etapa_id: data.director_etapa_segmento_lider_id,
+        });
       if (dirError) {
-        console.warn("Error al asignar director de etapa:", dirError.message);
+        console.error("[createGroup] Error al asignar director de etapa:", dirError.message);
       }
     }
 
     // Asignar líder inicial
     if (data.lider_usuario_id) {
-      await supabase
+      const { error: liderError } = await adminDb
         .from("grupo_miembros")
         .insert({ grupo_id: grupoId, usuario_id: data.lider_usuario_id, rol: "Líder" });
+      if (liderError) {
+        console.error("[createGroup] Error al asignar líder:", liderError.message);
+      }
+    }
+
+    // Si el grupo queda pendiente, crear solicitud de activación
+    if (estadoAprobacion === "pendiente") {
+      // Obtener ID interno del usuario (usuarios.id, no auth.uid)
+      const { data: usuarioInterno } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("auth_id", user.id)
+        .single();
+
+      if (usuarioInterno) {
+        const { error: solErr } = await adminDb
+          .from("solicitudes_grupo")
+          .insert({
+            tipo: "activacion_grupo",
+            estado: "pendiente",
+            solicitado_por: usuarioInterno.id,
+            grupo_id: grupoId,
+            motivo: `Solicitud de creación de grupo "${parsed.data.nombre}" por director de etapa`,
+            temporada_id: parsed.data.temporada_id,
+          });
+        if (solErr) {
+          console.error("[createGroup] Error creando solicitud:", solErr.message);
+        }
+      }
     }
 
     revalidatePath("/grupos-vida");
-    return { success: true, newGroupId: grupoId };
+    revalidatePath("/grupos-vida/solicitudes");
+    return { success: true, newGroupId: grupoId, pendiente: estadoAprobacion === "pendiente" };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error al crear el grupo";
     return { success: false, error: message };

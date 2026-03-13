@@ -71,7 +71,7 @@ export default async function CreateGroupPage() {
         botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
       >
         <TarjetaSistema>
-          <GroupCreateForm temporadas={temporadas} segmentos={segmentos} />
+          <GroupCreateForm temporadas={temporadas} segmentos={segmentos} userRoles={roles} />
         </TarjetaSistema>
       </ContenedorDashboard>
     </DashboardLayout>

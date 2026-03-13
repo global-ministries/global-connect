@@ -35,6 +35,7 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
     const [permitirLiderOtroGrupo, setPermitirLiderOtroGrupo] = useState(configInicial ? String(configInicial.permitir_lider_en_otro_grupo) : "true");
     const [requiereAprobacionPlanificacion, setRequiereAprobacionPlanificacion] = useState(configInicial ? String(configInicial.requiere_aprobacion_grupo_planificacion) : "false");
     const [notificarLiderIngreso, setNotificarLiderIngreso] = useState(configInicial ? String(configInicial.notificar_lider_ingreso) : "true");
+    const [creacionGruposHabilitada, setCreacionGruposHabilitada] = useState(configInicial ? String(configInicial.creacion_grupos_habilitada) : "true");
     // Campos de asistencia avanzada (Fase 3)
     const [modoCierre, setModoCierre] = useState(configInicial?.modo_cierre_asistencia ?? "semanal");
     const [diaCierre, setDiaCierre] = useState(String(configInicial?.dia_cierre_semanal ?? 0));
@@ -77,6 +78,7 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                 setPermitirLiderOtroGrupo(String(c.permitir_lider_en_otro_grupo));
                 setRequiereAprobacionPlanificacion(String(c.requiere_aprobacion_grupo_planificacion));
                 setNotificarLiderIngreso(String(c.notificar_lider_ingreso));
+                setCreacionGruposHabilitada(String(c.creacion_grupos_habilitada ?? true));
                 setModoCierre(c.modo_cierre_asistencia ?? "semanal");
                 setDiaCierre(String(c.dia_cierre_semanal ?? 0));
                 setHoraCierre(c.hora_cierre ?? "23:59");
@@ -104,6 +106,7 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                 permitir_lider_en_otro_grupo: permitirLiderOtroGrupo === "true",
                 requiere_aprobacion_grupo_planificacion: requiereAprobacionPlanificacion === "true",
                 notificar_lider_ingreso: notificarLiderIngreso === "true",
+                creacion_grupos_habilitada: creacionGruposHabilitada === "true",
                 // Asistencia avanzada (Fase 3)
                 modo_cierre_asistencia: modoCierre as "semanal" | "libre" | "ultimas_2_semanas" | "ultimo_mes",
                 dia_cierre_semanal: Number(diaCierre),
@@ -158,6 +161,23 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
             </div>
 
             <div className="space-y-5">
+                {/* Creación de grupos */}
+                <ConfigItem
+                    titulo="Creación de grupos"
+                    descripcion="Habilita o deshabilita la opción para crear nuevos grupos de vida en todo el sistema"
+                >
+                    <SelectSistema
+                        opciones={[
+                            { valor: "true", etiqueta: "Habilitada" },
+                            { valor: "false", etiqueta: "Deshabilitada" },
+                        ]}
+                        value={creacionGruposHabilitada}
+                        onValueChange={setCreacionGruposHabilitada}
+                    />
+                </ConfigItem>
+
+                <SeparadorSistema />
+
                 {/* Expiración de solicitudes */}
                 <ConfigItem
                     titulo="Días de expiración"

@@ -7,6 +7,7 @@ export interface ConfiguracionGruposVida {
   permitir_lider_en_otro_grupo: boolean;
   requiere_aprobacion_grupo_planificacion: boolean;
   notificar_lider_ingreso: boolean;
+  creacion_grupos_habilitada: boolean;
   // Campos de asistencia avanzada (Fase 3)
   modo_cierre_asistencia: string;
   dia_cierre_semanal: number;

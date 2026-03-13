@@ -36,6 +36,12 @@ export interface SolicitudPendiente {
   solicitante_apellido: string;
   temporada_nombre: string | null;
   temporada_estado: string | null;
+  /** Detalles enriquecidos del grupo */
+  campus_nombre: string | null;
+  lider_nombre: string | null;
+  lider_apellido: string | null;
+  director_nombre: string | null;
+  director_apellido: string | null;
 }
 
 /** Resultado de crear solicitud via RPC */
@@ -49,7 +55,7 @@ export interface CrearSolicitudRpcResultado {
 /** Resultado de procesar solicitud via RPC */
 export interface ProcesarSolicitudRpcResultado {
   ok: boolean;
-  accion: string;
+  modo: string;
   solicitud_id: string;
 }
 
@@ -77,6 +83,7 @@ export interface MiSolicitud {
   id: string;
   tipo: string;
   estado: string;
+  grupo_id: string;
   motivo: string | null;
   notas_director: string | null;
   creado_en: string;
@@ -85,4 +92,13 @@ export interface MiSolicitud {
   grupo_origen_nombre: string | null;
   usuario_nombre: string | null;
   usuario_apellido: string | null;
+  /** Detalles enriquecidos del grupo (para solicitudes de activacion_grupo) */
+  segmento_id: string | null;
+  segmento_nombre: string | null;
+  temporada_nombre: string | null;
+  campus_nombre: string | null;
+  lider_nombre: string | null;
+  lider_apellido: string | null;
+  director_nombre: string | null;
+  director_apellido: string | null;
 }

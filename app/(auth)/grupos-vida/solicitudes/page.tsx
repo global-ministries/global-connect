@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUserWithRoles } from "@/lib/getUserWithRoles";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ContenedorDashboard } from "@/components/ui/sistema-diseno";
-import { listarSolicitudesPendientes } from "@/lib/actions/solicitudes-grupo.actions";
+import { listarSolicitudesPendientes, listarSolicitudesCompletadas } from "@/lib/actions/solicitudes-grupo.actions";
 import { SolicitudesPendientesClient } from "./SolicitudesPendientesClient";
 
 export default async function SolicitudesPage() {
@@ -20,17 +20,21 @@ export default async function SolicitudesPage() {
         redirect("/grupos-vida/solicitudes/mis-solicitudes");
     }
 
-    const resultado = await listarSolicitudesPendientes();
+    const [pendientesRes, completadasRes] = await Promise.all([
+        listarSolicitudesPendientes(),
+        listarSolicitudesCompletadas(),
+    ]);
 
     return (
         <DashboardLayout>
             <ContenedorDashboard
-                titulo="Solicitudes Pendientes"
-                descripcion="Aprueba o rechaza solicitudes de gestión de grupos"
+                titulo="Solicitudes"
+                descripcion="Gestiona las solicitudes de grupos de vida"
                 botonRegreso={{ href: "/grupos-vida", texto: "Grupos" }}
             >
                 <SolicitudesPendientesClient
-                    solicitudesIniciales={resultado.success ? (resultado.data ?? []) : []}
+                    solicitudesIniciales={pendientesRes.success ? (pendientesRes.data ?? []) : []}
+                    solicitudesCompletadas={completadasRes.success ? (completadasRes.data ?? []) : []}
                 />
             </ContenedorDashboard>
         </DashboardLayout>
