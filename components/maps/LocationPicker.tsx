@@ -51,7 +51,7 @@ function MapSync({
       prevCenter.current.lat !== center.lat ||
       prevCenter.current.lng !== center.lng
     ) {
-      map.panTo([center.lat, center.lng]);
+      map.flyTo([center.lat, center.lng], map.getZoom(), { duration: 1.2 });
       prevCenter.current = center;
     }
   }, [center.lat, center.lng, map]);

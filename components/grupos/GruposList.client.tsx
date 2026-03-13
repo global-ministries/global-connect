@@ -234,10 +234,27 @@ export default function GruposListClient({
 
   const listaMostrada = useMemo(() => {
     let base: Grupo[]
-    if (pestanaActiva === 'actuales') base = gruposActuales
-    else if (pestanaActiva === 'pasados') base = gruposPasados
-    else if (pestanaActiva === 'futuros') base = gruposFuturos
-    else base = gruposMios
+    if (filtros.temporadaId) {
+      // Cuando se filtra por temporada, combinar TODAS las tabs para buscar en todos los grupos
+      // ya que cada tab solo tiene su subset (actuales, pasados, futuros)
+      const seen = new Set<string>()
+      const all: Grupo[] = []
+      for (const g of [...gruposActuales, ...gruposPasados, ...gruposFuturos, ...gruposMios]) {
+        if (!seen.has(g.id)) {
+          seen.add(g.id)
+          all.push(g)
+        }
+      }
+      base = all
+    } else if (pestanaActiva === 'actuales') {
+      base = gruposActuales
+    } else if (pestanaActiva === 'pasados') {
+      base = gruposPasados
+    } else if (pestanaActiva === 'futuros') {
+      base = gruposFuturos
+    } else {
+      base = gruposMios
+    }
 
     // Aplicar filtros del panel de filtros
     if (filtros.segmentoId) {
@@ -626,22 +643,28 @@ export default function GruposListClient({
   }, [])
 
   // KPIs dinámicos según filtros
+  // KPIs siempre muestran totales de la pestaña actual (temporada), sin filtros del panel
+  const baseKpi = useMemo(() => {
+    if (pestanaActiva === 'actuales') return gruposActuales
+    if (pestanaActiva === 'pasados') return gruposPasados
+    if (pestanaActiva === 'futuros') return gruposFuturos
+    return gruposMios
+  }, [pestanaActiva, gruposActuales, gruposPasados, gruposFuturos, gruposMios])
+
   const kpis = useMemo(() => {
-    const total = listaMostrada.length
-    const activos = listaMostrada.filter(g => g.activo).length
-    // Nuevos este mes por fecha_creacion si existe; si no, 0
+    const total = baseKpi.length
+    const activos = baseKpi.filter(g => g.activo).length
     const ahora = new Date()
     const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1)
     const finMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0)
-    const nuevosMes = listaMostrada.filter(g => {
+    const nuevosMes = baseKpi.filter(g => {
       if (!g.fecha_creacion) return false
       const d = new Date(g.fecha_creacion)
       return d >= inicioMes && d <= finMes
     }).length
-    // Total miembros si hay conteo; si no, estimado 0
-    const totalMiembros = listaMostrada.reduce((acc, g) => acc + (g.miembros_count ?? 0), 0)
+    const totalMiembros = baseKpi.reduce((acc, g) => acc + (g.miembros_count ?? 0), 0)
     return { total, activos, nuevosMes, totalMiembros }
-  }, [listaMostrada])
+  }, [baseKpi])
 
   const filtrosActivos = useMemo(() => {
     let n = 0
@@ -759,19 +782,19 @@ export default function GruposListClient({
         </TabsList>
 
         <TabsContent value="actuales">
-          <Listado lista={gruposActuales} />
+          <Listado lista={listaMostrada} />
         </TabsContent>
         <TabsContent value="pasados">
-          <Listado lista={gruposPasados} />
+          <Listado lista={listaMostrada} />
         </TabsContent>
         {mostrarMisGrupos && (
           <TabsContent value="mios">
-            <Listado lista={gruposMios} />
+            <Listado lista={listaMostrada} />
           </TabsContent>
         )}
         {mostrarFuturos && (
           <TabsContent value="futuros">
-            <Listado lista={gruposFuturos} />
+            <Listado lista={listaMostrada} />
           </TabsContent>
         )}
       </TabsSistema>
@@ -781,7 +804,6 @@ export default function GruposListClient({
         <div className="pt-6 mt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <span className="text-sm text-muted-foreground select-none">Página {Number(sp?.get(pageParam) || '1')} de {Math.max(1, Math.ceil((totalPorPestana || 0) / pageSize))}</span>
-            <PageSizeSelector />
           </div>
           <PaginationControls totalCount={totalPorPestana || 0} pageSize={pageSize} pageParam={pageParam} />
         </div>
@@ -844,34 +866,3 @@ function PaginationControls({ totalCount, pageSize, pageParam }: { totalCount: n
   ) : null
 }
 
-function PageSizeSelector() {
-  const sp = useSearchParams()
-  const router = useRouter()
-  const pathname = usePathname()
-  const size = Number(sp?.get('pageSize') || '20')
-  const setSize = (n: number) => {
-    const params = new URLSearchParams(sp?.toString() || "")
-    params.set('pageSize', String(n))
-    // reset de todas las páginas por pestaña
-    params.delete('page')
-    params.delete('page_actuales')
-    params.delete('page_pasados')
-    params.delete('page_mios')
-    params.delete('page_futuros')
-    router.replace(`${pathname}?${params.toString()}`)
-  }
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground">Mostrar:</span>
-      <select
-        className="px-2 py-1 border border-border rounded text-sm bg-card/50 focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]"
-        value={size}
-        onChange={(e) => setSize(Number(e.target.value))}
-      >
-        {[10, 20, 50, 100].map(n => (
-          <option key={n} value={n}>{n}</option>
-        ))}
-      </select>
-    </div>
-  )
-}

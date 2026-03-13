@@ -3,7 +3,9 @@
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { obtenerDireccionUsuario } from "@/lib/actions/casas-anfitrionas.actions";
+import { useNotificaciones } from "@/hooks/use-notificaciones";
 import {
     InputSistema,
     TextareaSistema,
@@ -11,7 +13,9 @@ import {
     BotonSistema,
     TituloSistema,
 } from "@/components/ui/sistema-diseno";
-import { Home, MapPin, Hash, Save, Loader2 } from "lucide-react";
+import { Home, MapPin, Hash, Save, Loader2, User } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import LocationPicker from "@/components/maps/LocationPicker.client";
 
 const schemaCasaAnfitriona = z.object({
     nombre_lugar: z.string().min(2, "Nombre del lugar es requerido"),
@@ -24,7 +28,10 @@ const schemaCasaAnfitriona = z.object({
     estado_id: z.string().uuid().optional(),
     municipio_id: z.string().uuid().optional(),
     parroquia_id: z.string().uuid().optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
     notas_publicas: z.string().optional(),
+    usuario_id: z.string().uuid().optional(),
     // Disponibilidad como JSON
     disponibilidad_lunes: z.boolean().optional(),
     disponibilidad_martes: z.boolean().optional(),
@@ -45,6 +52,12 @@ interface UbicacionOption {
     parentId?: string;
 }
 
+/** Opción de usuario para el selector */
+interface UsuarioOption {
+    value: string;
+    label: string;
+}
+
 interface FormCasaAnfitrionaProps {
     datosIniciales?: Partial<FormCasaData>;
     /** Catálogo de estados (provincias) */
@@ -53,6 +66,10 @@ interface FormCasaAnfitrionaProps {
     municipios: UbicacionOption[];
     /** Catálogo de parroquias con `parentId` = `municipio_id` */
     parroquias: UbicacionOption[];
+    /** Lista de usuarios disponibles (solo para admin/líder) */
+    usuarios?: UsuarioOption[];
+    /** Si true, muestra selector de usuario (admin/líder) */
+    mostrarSelectorUsuario?: boolean;
     cargando?: boolean;
     onSubmit: (datos: FormCasaData) => Promise<void>;
     onCancelar: () => void;
@@ -82,10 +99,17 @@ export function FormCasaAnfitriona({
     estados,
     municipios,
     parroquias,
+    usuarios = [],
+    mostrarSelectorUsuario = false,
     cargando = false,
     onSubmit,
     onCancelar,
 }: FormCasaAnfitrionaProps) {
+    const [mapCenter, setMapCenter] = useState({
+        lat: datosIniciales?.lat ?? 10.4681,
+        lng: datosIniciales?.lng ?? -66.8792,
+    });
+
     const {
         register,
         control,
@@ -102,17 +126,29 @@ export function FormCasaAnfitriona({
             barrio: "",
             codigo_postal: "",
             referencia: "",
-            estado_id: undefined,
-            municipio_id: undefined,
-            parroquia_id: undefined,
+            estado_id: "",
+            municipio_id: "",
+            parroquia_id: "",
+            lat: undefined,
+            lng: undefined,
             notas_publicas: "",
+            usuario_id: undefined,
             ...datosIniciales,
         },
     });
 
+    const [geocodificando, setGeocodificando] = useState(false);
+    const geocodeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    /** Evita que el geocoding sobreescriba coords guardadas al montar */
+    const isInitialMount = useRef(true);
+    /** Evita que el geocoding sobreescriba coords cargadas del perfil del usuario */
+    const skipNextGeocode = useRef(false);
+
     // Observar valores para cascading
     const estadoId = useWatch({ control, name: "estado_id" });
     const municipioId = useWatch({ control, name: "municipio_id" });
+    const calleValue = useWatch({ control, name: "calle" });
+    const barrioValue = useWatch({ control, name: "barrio" });
 
     /** Municipios filtrados por el estado seleccionado */
     const municipiosFiltrados = useMemo(
@@ -132,21 +168,204 @@ export function FormCasaAnfitriona({
         [municipioId, parroquias]
     );
 
+    /** Obtener etiqueta de una opción por su value */
+    const getLabelById = useCallback(
+        (id: string | undefined, lista: UbicacionOption[]) =>
+            lista.find((o) => o.value === id)?.label ?? "",
+        []
+    );
+
+    /** Auto-geocodificación: busca coordenadas cuando cambian estado+municipio+calle */
+    useEffect(() => {
+        // Necesitamos al menos estado + municipio para geocodificar
+        if (!estadoId || !municipioId) return;
+
+        // Saltar el primer render si ya hay coordenadas guardadas (modo edición)
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            if (datosIniciales?.lat && datosIniciales?.lng) return;
+        }
+
+        // Saltar si las coords se cargaron desde perfil del usuario
+        if (skipNextGeocode.current) {
+            skipNextGeocode.current = false;
+            return;
+        }
+
+        clearTimeout(geocodeTimerRef.current);
+
+        geocodeTimerRef.current = setTimeout(async () => {
+            const estadoNombre = getLabelById(estadoId, estados);
+            const municipioNombre = getLabelById(municipioId, municipios);
+
+            if (!estadoNombre || !municipioNombre) return;
+
+            // Usar búsqueda estructurada de Nominatim para mayor precisión
+            const params = new URLSearchParams({
+                format: "json",
+                country: "Venezuela",
+                state: estadoNombre,
+                county: municipioNombre,
+                limit: "1",
+            });
+
+            // Agregar calle si está disponible para mayor precisión
+            const calle = calleValue?.trim();
+            if (calle) {
+                params.set("street", calle);
+            }
+
+            try {
+                setGeocodificando(true);
+                const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+                const res = await fetch(url, {
+                    headers: { "Accept-Language": "es" },
+                });
+                const data = await res.json();
+
+                if (data?.[0]) {
+                    const lat = parseFloat(data[0].lat);
+                    const lng = parseFloat(data[0].lon);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        setMapCenter({ lat, lng });
+                        setValue("lat", lat);
+                        setValue("lng", lng);
+                    }
+                }
+            } catch {
+                // Silenciar errores de geocodificación — no es crítico
+            } finally {
+                setGeocodificando(false);
+            }
+        }, 800); // Debounce de 800ms
+
+        return () => clearTimeout(geocodeTimerRef.current);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [estadoId, municipioId, calleValue, barrioValue, estados, municipios, getLabelById, setValue]);
+
     /** Resetea municipio y parroquia al cambiar de estado */
     const handleEstadoChange = (val: string) => {
         setValue("estado_id", val);
-        setValue("municipio_id", undefined);
-        setValue("parroquia_id", undefined);
+        setValue("municipio_id", "");
+        setValue("parroquia_id", "");
     };
 
     /** Resetea parroquia al cambiar de municipio */
     const handleMunicipioChange = (val: string) => {
         setValue("municipio_id", val);
-        setValue("parroquia_id", undefined);
+        setValue("parroquia_id", "");
+    };
+
+    // Auto-rellenar dirección al seleccionar un usuario
+    const toast = useNotificaciones();
+    const [cargandoDireccion, startTransition] = useTransition();
+
+    const handleUsuarioChange = (usuarioId: string) => {
+        setValue("usuario_id", usuarioId);
+        if (!usuarioId) return;
+
+        startTransition(async () => {
+            const result = await obtenerDireccionUsuario(usuarioId);
+            if (result.success && result.data) {
+                const d = result.data;
+                // Señalar que no se debe geocodificar tras auto-rellenar
+                skipNextGeocode.current = true;
+                // Rellenar ubicación cascading primero
+                if (d.estado_id) setValue("estado_id", d.estado_id);
+                if (d.municipio_id) setValue("municipio_id", d.municipio_id);
+                if (d.parroquia_id) setValue("parroquia_id", d.parroquia_id);
+                // Rellenar campos de dirección
+                if (d.calle) setValue("calle", d.calle);
+                if (d.barrio) setValue("barrio", d.barrio);
+                if (d.codigo_postal) setValue("codigo_postal", d.codigo_postal);
+                if (d.referencia) setValue("referencia", d.referencia);
+                // Actualizar mapa
+                if (d.lat && d.lng) {
+                    setValue("lat", d.lat);
+                    setValue("lng", d.lng);
+                    setMapCenter({ lat: d.lat, lng: d.lng });
+                }
+                toast.success("Dirección cargada del perfil del miembro");
+            } else if (result.error) {
+                toast.error(result.error);
+            }
+        });
+    };
+
+    /** Transforma datos del formulario al formato esperado por la server action */
+    const processSubmit = (datos: FormCasaData) => {
+        // Convertir checkboxes de disponibilidad a array de días activos
+        const DIAS_MAP: Record<string, string> = {
+            disponibilidad_lunes: "Lunes",
+            disponibilidad_martes: "Martes",
+            disponibilidad_miercoles: "Miércoles",
+            disponibilidad_jueves: "Jueves",
+            disponibilidad_viernes: "Viernes",
+            disponibilidad_sabado: "Sábado",
+            disponibilidad_domingo: "Domingo",
+        };
+
+        const disponibilidad = Object.entries(DIAS_MAP)
+            .filter(([key]) => datos[key as keyof FormCasaData])
+            .map(([, label]) => label);
+
+        // Construir datos transformados para la server action
+        const datosTransformados = {
+            nombre_lugar: datos.nombre_lugar,
+            descripcion: datos.descripcion,
+            capacidad_maxima: datos.capacidad_maxima ? Number(datos.capacidad_maxima) : undefined,
+            calle: datos.calle,
+            barrio: datos.barrio,
+            codigo_postal: datos.codigo_postal,
+            referencia: datos.referencia,
+            parroquia_id: datos.parroquia_id,
+            lat: datos.lat,
+            lng: datos.lng,
+            notas_publicas: datos.notas_publicas,
+            usuario_id: datos.usuario_id,
+            disponibilidad,
+        };
+
+        return onSubmit(datosTransformados as unknown as FormCasaData);
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(processSubmit)} className="space-y-6">
+            {/* Selector de usuario (solo admin/líder) */}
+            {mostrarSelectorUsuario && usuarios.length > 0 && (
+                <div className="space-y-4">
+                    <TituloSistema nivel={4}>Propietario de la casa</TituloSistema>
+                    <Controller
+                        name="usuario_id"
+                        control={control}
+                        render={({ field }) => (
+                            <SelectSistema
+                                label="¿A quién pertenece esta casa?"
+                                placeholder="Seleccionar miembro..."
+                                onValueChange={(val) => {
+                                    field.onChange(val);
+                                    handleUsuarioChange(val);
+                                }}
+                                value={field.value}
+                                opciones={usuarios.map((u) => ({
+                                    valor: u.value,
+                                    etiqueta: u.label,
+                                }))}
+                            />
+                        )}
+                    />
+                    {cargandoDireccion && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Cargando dirección del miembro...
+                        </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                        Al seleccionar un miembro, su dirección se carga automáticamente.
+                    </p>
+                </div>
+            )}
+
             {/* Información del lugar */}
             <div className="space-y-4">
                 <TituloSistema nivel={4}>Información del lugar</TituloSistema>
@@ -181,37 +400,7 @@ export function FormCasaAnfitriona({
             <div className="space-y-4">
                 <TituloSistema nivel={4}>Dirección</TituloSistema>
 
-                <InputSistema
-                    label="Calle / Avenida"
-                    icono={MapPin}
-                    placeholder="Ej: Carrera 31 con calle 24"
-                    error={errors.calle?.message}
-                    {...register("calle")}
-                />
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <InputSistema
-                        label="Barrio / Urbanización"
-                        placeholder="Ej: Urb. Las Acacias"
-                        error={errors.barrio?.message}
-                        {...register("barrio")}
-                    />
-                    <InputSistema
-                        label="Código postal"
-                        placeholder="Ej: 3001"
-                        error={errors.codigo_postal?.message}
-                        {...register("codigo_postal")}
-                    />
-                </div>
-
-                <InputSistema
-                    label="Referencia"
-                    placeholder="Ej: Frente a la plaza"
-                    error={errors.referencia?.message}
-                    {...register("referencia")}
-                />
-
-                {/* Selects en cascada: Estado → Municipio → Parroquia */}
+                {/* Selects en cascada PRIMERO: Estado → Municipio → Parroquia */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     {estados.length > 0 && (
                         <Controller
@@ -277,6 +466,63 @@ export function FormCasaAnfitriona({
                         )}
                     />
                 </div>
+
+                {/* Campos de dirección específica */}
+                <InputSistema
+                    label="Calle / Avenida"
+                    icono={MapPin}
+                    placeholder="Ej: Carrera 31 con calle 24"
+                    error={errors.calle?.message}
+                    {...register("calle")}
+                />
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <InputSistema
+                        label="Barrio / Urbanización"
+                        placeholder="Ej: Urb. Las Acacias"
+                        error={errors.barrio?.message}
+                        {...register("barrio")}
+                    />
+                    <InputSistema
+                        label="Código postal"
+                        placeholder="Ej: 3001"
+                        error={errors.codigo_postal?.message}
+                        {...register("codigo_postal")}
+                    />
+                </div>
+
+                <InputSistema
+                    label="Referencia"
+                    placeholder="Ej: Frente a la plaza"
+                    error={errors.referencia?.message}
+                    {...register("referencia")}
+                />
+            </div>
+
+            {/* Mapa de geolocalización */}
+            <div className="space-y-4">
+                <TituloSistema nivel={4}>Ubicación en el mapa</TituloSistema>
+                <p className="text-sm text-muted-foreground">
+                    {geocodificando
+                        ? "🔍 Buscando ubicación..."
+                        : "El mapa se centra automáticamente al llenar la dirección. Ajusta el pin para mayor precisión."}
+                </p>
+                <Controller
+                    name="lat"
+                    control={control}
+                    render={() => (
+                        <LocationPicker
+                            lat={mapCenter.lat}
+                            lng={mapCenter.lng}
+                            center={mapCenter}
+                            onLocationChange={({ lat, lng }) => {
+                                setValue("lat", lat);
+                                setValue("lng", lng);
+                                setMapCenter({ lat, lng });
+                            }}
+                        />
+                    )}
+                />
             </div>
 
             {/* Disponibilidad por día */}

@@ -29,7 +29,7 @@ const groupEditSchema = z.object({
     referencia: z.string().optional(),
     lat: z.number().optional(),
     lng: z.number().optional(),
-    parroquia_id: z.string().uuid().optional(),
+    parroquia_id: z.string().uuid().or(z.literal("")).optional(),
   }).optional(),
 });
 
@@ -179,7 +179,9 @@ export default function GroupEditForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <form onSubmit={handleSubmit(onSubmit, (formErrors) => {
+      console.error("Errores de validación del formulario:", formErrors);
+    })} className="space-y-8">
       {/* Información Básica */}
       <TarjetaSistema>
         <h3 className="text-xl font-bold text-foreground mb-6">Información Básica</h3>
@@ -308,98 +310,109 @@ export default function GroupEditForm({
                   }
                 }}
                 disabled={readOnly || isLoading}
-                opciones={casasDisponibles.map(c => ({
-                  valor: c.id,
-                  etiqueta: `${c.nombre_lugar} — ${c.anfitrion_nombre}`
-                }))}
+                opciones={[
+                  { valor: "", etiqueta: "Sin casa (dirección manual)" },
+                  ...casasDisponibles.map(c => ({
+                    valor: c.id,
+                    etiqueta: `${c.nombre_lugar} — ${c.anfitrion_nombre}`
+                  }))
+                ]}
               />
             )}
           />
-          <p className="text-xs text-muted-foreground mt-2">
-            Selecciona una casa anfitriona aprobada. Si no aparece ninguna, usa dirección manual.
-          </p>
+          {watch("casa_anfitriona_id") ? (
+            <p className="text-sm text-muted-foreground mt-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+              📍 La dirección y ubicación del grupo se tomarán automáticamente de la casa anfitriona seleccionada.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-2">
+              Selecciona una casa anfitriona de un miembro del grupo, o usa dirección manual abajo.
+            </p>
+          )}
         </TarjetaSistema>
       )}
 
-      {/* Dirección */}
-      <TarjetaSistema>
-        <h3 className="text-xl font-bold text-foreground mb-6">Dirección de Reunión</h3>
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputSistema
-              label="Calle"
-              placeholder="Ingresa la calle"
-              disabled={readOnly || isLoading}
-              error={errors.direccion?.calle?.message}
-              {...register("direccion.calle")}
-            />
+      {/* Dirección — solo visible si NO hay casa anfitriona seleccionada */}
+      {!watch("casa_anfitriona_id") && (
+        <TarjetaSistema>
+          <h3 className="text-xl font-bold text-foreground mb-6">Dirección de Reunión</h3>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputSistema
+                label="Calle"
+                placeholder="Ingresa la calle"
+                disabled={readOnly || isLoading}
+                error={errors.direccion?.calle?.message}
+                {...register("direccion.calle")}
+              />
 
-            <InputSistema
-              label="Barrio"
-              placeholder="Ingresa el barrio"
-              disabled={readOnly || isLoading}
-              {...register("direccion.barrio")}
-            />
-          </div>
+              <InputSistema
+                label="Barrio"
+                placeholder="Ingresa el barrio"
+                disabled={readOnly || isLoading}
+                {...register("direccion.barrio")}
+              />
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputSistema
-              label="Código Postal"
-              placeholder="Ingresa el código postal"
-              disabled={readOnly || isLoading}
-              {...register("direccion.codigo_postal")}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InputSistema
+                label="Código Postal"
+                placeholder="Ingresa el código postal"
+                disabled={readOnly || isLoading}
+                {...register("direccion.codigo_postal")}
+              />
 
-            <Controller
-              name="direccion.parroquia_id"
-              control={control}
-              render={({ field }) => (
-                <SelectSistema
-                  label="Parroquia"
-                  placeholder="Selecciona una parroquia"
-                  value={field.value || ""}
-                  onValueChange={field.onChange}
-                  disabled={readOnly || isLoading}
-                  error={errors.direccion?.parroquia_id?.message}
-                  opciones={parroquias.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
-                />
-              )}
-            />
-          </div>
-
-          <TextareaSistema
-            label="Referencia"
-            placeholder="Ingresa puntos de referencia"
-            disabled={readOnly || isLoading}
-            error={errors.direccion?.referencia?.message}
-            {...register("direccion.referencia")}
-          />
-
-          {/* Mapa */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">Ubicación en el mapa</Label>
-            <Controller
-              name="direccion"
-              control={control}
-              render={({ field }) => {
-                const lat = field.value?.lat ?? mapCenter.lat;
-                const lng = field.value?.lng ?? mapCenter.lng;
-                return (
-                  <LocationPicker
-                    lat={lat}
-                    lng={lng}
-                    center={mapCenter}
-                    onLocationChange={({ lat, lng }) => {
-                      field.onChange({ ...field.value, lat, lng });
-                      setMapCenter({ lat, lng });
-                    }}
+              <Controller
+                name="direccion.parroquia_id"
+                control={control}
+                render={({ field }) => (
+                  <SelectSistema
+                    label="Parroquia"
+                    placeholder="Selecciona una parroquia"
+                    value={field.value || ""}
+                    onValueChange={field.onChange}
+                    disabled={readOnly || isLoading}
+                    error={errors.direccion?.parroquia_id?.message}
+                    opciones={parroquias.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
                   />
-                );
-              }}
+                )}
+              />
+            </div>
+
+            <TextareaSistema
+              label="Referencia"
+              placeholder="Ingresa puntos de referencia"
+              disabled={readOnly || isLoading}
+              error={errors.direccion?.referencia?.message}
+              {...register("direccion.referencia")}
             />
+
+            {/* Mapa */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Ubicación en el mapa</Label>
+              <Controller
+                name="direccion"
+                control={control}
+                render={({ field }) => {
+                  const lat = field.value?.lat ?? mapCenter.lat;
+                  const lng = field.value?.lng ?? mapCenter.lng;
+                  return (
+                    <LocationPicker
+                      lat={lat}
+                      lng={lng}
+                      center={mapCenter}
+                      onLocationChange={({ lat, lng }) => {
+                        field.onChange({ ...field.value, lat, lng });
+                        setMapCenter({ lat, lng });
+                      }}
+                    />
+                  );
+                }}
+              />
+            </div>
           </div>
-        </div>
-      </TarjetaSistema>
+        </TarjetaSistema>
+      )}
 
       {/* Notas Privadas */}
       <TarjetaSistema>

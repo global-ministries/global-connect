@@ -1,7 +1,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { extraerRelacion } from "@/lib/supabase/helpers";
 import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
 import { z } from "zod";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import {
     ContenedorDashboard,
     TarjetaSistema,
@@ -11,8 +14,10 @@ import {
     BotonSistema,
     SeparadorSistema,
 } from "@/components/ui/sistema-diseno";
-import { BadgeEstadoCiclo } from "@/components/grupos-vida/badge-estado-ciclo";
-import { Home, MapPin, Users, Calendar, CheckCircle, XCircle } from "lucide-react";
+import {
+    Home, MapPin, Users, Calendar, CheckCircle, XCircle,
+    Pencil, Phone, Mail, FileText, Clock, Info
+} from "lucide-react";
 import { AprobacionCasaClient } from "./aprobacion-client";
 
 interface PageProps {
@@ -22,10 +27,12 @@ interface PageProps {
 export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
     const { id } = await params;
     const supabase = await createSupabaseServerClient();
+    const adminDb = createSupabaseAdminClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    const { data: casa } = await supabase
+    // Usar admin para leer los datos completos sin restricciones RLS en joins
+    const { data: casa } = await adminDb
         .from("casas_anfitrionas")
         .select(`
       *,
@@ -46,13 +53,30 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
 
     if (!casa) notFound();
 
-    // Verificar permisos de gestión
+    // Verificar permisos de gestión (admin/pastor/director)
     const { data: puedeGestionar } = await supabase.rpc("puede_gestionar_casas", {
         p_auth_id: user.id,
     });
 
+    // Obtener roles del usuario para determinar si puede aprobar
+    const { data: rolesUsuario } = await supabase.rpc("obtener_roles_usuario", {
+        p_auth_id: user.id,
+    });
+    // obtener_roles_usuario retorna text[] directamente
+    const roles: string[] = Array.isArray(rolesUsuario) ? rolesUsuario : [];
+    const puedeAprobar = roles.some((r) => ["admin", "pastor", "director-general"].includes(r));
+
+    // Verificar si es dueño de la casa
+    const { data: currentUser } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("auth_id", user.id)
+        .single();
+    const esDueno = currentUser?.id === casa.usuario_id;
+    const puedeEditar = esDueno || puedeGestionar;
+
     // Contar grupos usando esta casa
-    const { count: gruposUsando } = await supabase
+    const { count: gruposUsando } = await adminDb
         .from("grupos")
         .select("*", { count: "exact", head: true })
         .eq("casa_anfitriona_id", id)
@@ -62,6 +86,7 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
     const usuario = extraerRelacion<{
         id: string; nombre: string; apellido: string;
         email: string | null; telefono: string | null;
+        foto_perfil_url: string | null;
     }>(casa.usuarios);
 
     const direccion = extraerRelacion<{
@@ -80,83 +105,110 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
     const disponibilidad = disponibilidadSchema.parse(casa.disponibilidad);
     const diasDisponibles = disponibilidad.filter((d) => d.disponible).map((d) => d.dia);
 
+    // Formato de fecha
+    const fechaCreacion = casa.creado_en
+        ? new Date(casa.creado_en).toLocaleDateString("es-VE", { day: "numeric", month: "long", year: "numeric" })
+        : null;
+
     return (
-        <ContenedorDashboard
-            titulo={casa.nombre_lugar}
-            botonRegreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
-        >
-            <div className="grid gap-6 lg:grid-cols-3">
-                {/* Info principal */}
-                <div className="space-y-4 lg:col-span-2">
-                    <TarjetaSistema>
-                        <div className="space-y-4">
-                            {/* Estado */}
-                            <div className="flex items-center gap-3">
-                                <BadgeSistema
-                                    variante={casa.aprobada && casa.activa ? "success" : casa.aprobada ? "warning" : "error"}
-                                    tamaño="md"
-                                >
-                                    {casa.aprobada && casa.activa ? (
-                                        <><CheckCircle className="mr-1 h-3.5 w-3.5" /> Aprobada y activa</>
-                                    ) : casa.aprobada ? (
-                                        "Inactiva"
-                                    ) : (
-                                        <><XCircle className="mr-1 h-3.5 w-3.5" /> Pendiente de aprobación</>
-                                    )}
+        <DashboardLayout>
+            <ContenedorDashboard
+                titulo={casa.nombre_lugar}
+                botonRegreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
+                accionPrincipal={puedeEditar ? (
+                    <Link href={`/grupos-vida/casas-anfitrionas/${id}/editar`}>
+                        <BotonSistema variante="outline" icono={Pencil} tamaño="sm">
+                            Editar
+                        </BotonSistema>
+                    </Link>
+                ) : undefined}
+            >
+                <div className="grid gap-6 lg:grid-cols-3">
+                    {/* ─── Contenido principal ─── */}
+                    <div className="space-y-6 lg:col-span-2">
+                        {/* Badges de estado */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            {casa.aprobada && casa.activa ? (
+                                <BadgeSistema variante="success" tamaño="md">
+                                    <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+                                    Aprobada y activa
                                 </BadgeSistema>
-                                {gruposUsando !== null && gruposUsando > 0 && (
-                                    <BadgeSistema variante="info" tamaño="sm">
-                                        {gruposUsando} grupo{gruposUsando !== 1 && "s"}
-                                    </BadgeSistema>
-                                )}
-                            </div>
-
-                            {/* Descripción */}
-                            {casa.descripcion && (
-                                <TextoSistema>{casa.descripcion}</TextoSistema>
+                            ) : casa.aprobada ? (
+                                <BadgeSistema variante="default" tamaño="md">Inactiva</BadgeSistema>
+                            ) : (
+                                <BadgeSistema variante="warning" tamaño="md">
+                                    <Clock className="mr-1.5 h-3.5 w-3.5" />
+                                    Pendiente de aprobación
+                                </BadgeSistema>
                             )}
+                            {gruposUsando !== null && gruposUsando > 0 && (
+                                <BadgeSistema variante="info" tamaño="sm">
+                                    <Users className="mr-1 h-3 w-3" />
+                                    {gruposUsando} grupo{gruposUsando !== 1 && "s"} asignado{gruposUsando !== 1 && "s"}
+                                </BadgeSistema>
+                            )}
+                        </div>
 
-                            <SeparadorSistema />
+                        {/* Descripción */}
+                        {casa.descripcion && (
+                            <TarjetaSistema>
+                                <TextoSistema>{casa.descripcion}</TextoSistema>
+                            </TarjetaSistema>
+                        )}
 
-                            {/* Dirección */}
-                            <div className="space-y-2">
+                        {/* Tarjeta de Dirección */}
+                        <TarjetaSistema>
+                            <div className="space-y-3">
                                 <TituloSistema nivel={4} className="flex items-center gap-2">
-                                    <MapPin className="h-4 w-4" /> Dirección
+                                    <MapPin className="h-4 w-4 text-orange-500" />
+                                    Dirección
                                 </TituloSistema>
-                                <TextoSistema>
-                                    {direccion?.calle}
-                                    {direccion?.barrio && `, ${direccion.barrio}`}
-                                </TextoSistema>
-                                {direccion?.referencia && (
-                                    <TextoSistema variante="muted" tamaño="sm">
-                                        Ref: {direccion.referencia}
+                                <div className="pl-6 space-y-1">
+                                    <TextoSistema className="font-medium">
+                                        {direccion?.calle ?? "Sin dirección"}
+                                        {direccion?.barrio && `, ${direccion.barrio}`}
                                     </TextoSistema>
-                                )}
-                                {direccion?.parroquias && (
-                                    <TextoSistema variante="muted" tamaño="sm">
-                                        {direccion.parroquias.nombre}, {direccion.parroquias.municipios.nombre},{" "}
-                                        {direccion.parroquias.municipios.estados.nombre}
-                                    </TextoSistema>
-                                )}
-                            </div>
-
-                            <SeparadorSistema />
-
-                            {/* Capacidad y disponibilidad */}
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div>
-                                    <TituloSistema nivel={4} className="flex items-center gap-2">
-                                        <Users className="h-4 w-4" /> Capacidad
-                                    </TituloSistema>
-                                    <TextoSistema className="mt-1">
-                                        {casa.capacidad_maxima ? `${casa.capacidad_maxima} personas` : "No especificada"}
-                                    </TextoSistema>
+                                    {direccion?.referencia && (
+                                        <TextoSistema variante="muted" tamaño="sm">
+                                            Ref: {direccion.referencia}
+                                        </TextoSistema>
+                                    )}
+                                    {direccion?.parroquias && (
+                                        <TextoSistema variante="muted" tamaño="sm">
+                                            {direccion.parroquias.nombre}, {direccion.parroquias.municipios.nombre},{" "}
+                                            {direccion.parroquias.municipios.estados.nombre}
+                                        </TextoSistema>
+                                    )}
                                 </div>
-                                <div>
+                            </div>
+                        </TarjetaSistema>
+
+                        {/* Capacidad y disponibilidad */}
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <TarjetaSistema>
+                                <div className="space-y-2">
                                     <TituloSistema nivel={4} className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4" /> Disponibilidad
+                                        <Users className="h-4 w-4 text-orange-500" />
+                                        Capacidad
                                     </TituloSistema>
-                                    <div className="mt-1 flex flex-wrap gap-1">
+                                    <div className="pl-6">
+                                        <TextoSistema className="text-2xl font-bold">
+                                            {casa.capacidad_maxima ?? "—"}
+                                        </TextoSistema>
+                                        <TextoSistema variante="muted" tamaño="sm">
+                                            {casa.capacidad_maxima ? "personas máximo" : "No especificada"}
+                                        </TextoSistema>
+                                    </div>
+                                </div>
+                            </TarjetaSistema>
+
+                            <TarjetaSistema>
+                                <div className="space-y-2">
+                                    <TituloSistema nivel={4} className="flex items-center gap-2">
+                                        <Calendar className="h-4 w-4 text-orange-500" />
+                                        Disponibilidad
+                                    </TituloSistema>
+                                    <div className="pl-6 flex flex-wrap gap-1.5">
                                         {diasDisponibles.length > 0 ? (
                                             diasDisponibles.map((dia) => (
                                                 <BadgeSistema key={dia} variante="default" tamaño="sm">
@@ -168,52 +220,110 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
                                         )}
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Notas públicas */}
-                            {casa.notas_publicas && (
-                                <>
-                                    <SeparadorSistema />
-                                    <div>
-                                        <TituloSistema nivel={4}>Notas</TituloSistema>
-                                        <TextoSistema variante="muted" className="mt-1">
-                                            {casa.notas_publicas}
-                                        </TextoSistema>
-                                    </div>
-                                </>
-                            )}
+                            </TarjetaSistema>
                         </div>
-                    </TarjetaSistema>
-                </div>
 
-                {/* Sidebar: anfitrión + acciones */}
-                <div className="space-y-4">
-                    {/* Anfitrión */}
-                    <TarjetaSistema>
-                        <TituloSistema nivel={4} className="flex items-center gap-2 mb-3">
-                            <Home className="h-4 w-4" /> Anfitrión
-                        </TituloSistema>
-                        {usuario && (
-                            <div className="space-y-1">
-                                <TextoSistema className="font-medium">
-                                    {usuario.nombre} {usuario.apellido}
-                                </TextoSistema>
-                                {usuario.email && (
-                                    <TextoSistema variante="muted" tamaño="sm">{usuario.email}</TextoSistema>
-                                )}
-                                {usuario.telefono && (
-                                    <TextoSistema variante="muted" tamaño="sm">{usuario.telefono}</TextoSistema>
+                        {/* Notas públicas */}
+                        {casa.notas_publicas && (
+                            <TarjetaSistema>
+                                <div className="space-y-2">
+                                    <TituloSistema nivel={4} className="flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-orange-500" />
+                                        Notas
+                                    </TituloSistema>
+                                    <TextoSistema variante="muted" className="pl-6">
+                                        {casa.notas_publicas}
+                                    </TextoSistema>
+                                </div>
+                            </TarjetaSistema>
+                        )}
+                    </div>
+
+                    {/* ─── Sidebar derecho ─── */}
+                    <div className="space-y-4">
+                        {/* Anfitrión */}
+                        <TarjetaSistema>
+                            <div className="space-y-4">
+                                <TituloSistema nivel={4} className="flex items-center gap-2">
+                                    <Home className="h-4 w-4 text-orange-500" />
+                                    Anfitrión
+                                </TituloSistema>
+                                {usuario ? (
+                                    <div className="flex items-start gap-3">
+                                        {usuario.foto_perfil_url ? (
+                                            <img
+                                                src={usuario.foto_perfil_url}
+                                                alt={`${usuario.nombre} ${usuario.apellido}`}
+                                                className="w-12 h-12 rounded-full object-cover border-2 border-border flex-shrink-0"
+                                            />
+                                        ) : (
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center flex-shrink-0">
+                                                <span className="text-white font-bold text-lg">
+                                                    {usuario.nombre.charAt(0)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div className="space-y-1 min-w-0">
+                                            <TextoSistema className="font-semibold">
+                                                {usuario.nombre} {usuario.apellido}
+                                            </TextoSistema>
+                                            {usuario.email && (
+                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                    <Mail className="h-3.5 w-3.5 flex-shrink-0" />
+                                                    <span className="truncate">{usuario.email}</span>
+                                                </div>
+                                            )}
+                                            {usuario.telefono && (
+                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                    <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                                                    <span>{usuario.telefono}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <TextoSistema variante="muted">Sin anfitrión asignado</TextoSistema>
                                 )}
                             </div>
-                        )}
-                    </TarjetaSistema>
+                        </TarjetaSistema>
 
-                    {/* Acciones de aprobación */}
-                    {puedeGestionar && !casa.aprobada && (
-                        <AprobacionCasaClient casaId={casa.id} />
-                    )}
+                        {/* Info de la casa */}
+                        <TarjetaSistema>
+                            <div className="space-y-3">
+                                <TituloSistema nivel={4} className="flex items-center gap-2">
+                                    <Info className="h-4 w-4 text-orange-500" />
+                                    Información
+                                </TituloSistema>
+                                <div className="space-y-2 text-sm">
+                                    {fechaCreacion && (
+                                        <div className="flex justify-between">
+                                            <TextoSistema variante="muted" tamaño="sm">Registrada</TextoSistema>
+                                            <TextoSistema tamaño="sm">{fechaCreacion}</TextoSistema>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between">
+                                        <TextoSistema variante="muted" tamaño="sm">Grupos</TextoSistema>
+                                        <TextoSistema tamaño="sm">{gruposUsando ?? 0}</TextoSistema>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <TextoSistema variante="muted" tamaño="sm">Aprobada</TextoSistema>
+                                        <TextoSistema tamaño="sm">{casa.aprobada ? "Sí" : "No"}</TextoSistema>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <TextoSistema variante="muted" tamaño="sm">Activa</TextoSistema>
+                                        <TextoSistema tamaño="sm">{casa.activa ? "Sí" : "No"}</TextoSistema>
+                                    </div>
+                                </div>
+                            </div>
+                        </TarjetaSistema>
+
+                        {/* Aprobación — solo admin/pastor/director (NO líderes) */}
+                        {puedeAprobar && !casa.aprobada && (
+                            <AprobacionCasaClient casaId={casa.id} />
+                        )}
+                    </div>
                 </div>
-            </div>
-        </ContenedorDashboard>
+            </ContenedorDashboard>
+        </DashboardLayout>
     );
 }

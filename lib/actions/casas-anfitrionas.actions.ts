@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { extraerRelacion } from "@/lib/supabase/helpers";
@@ -16,8 +17,11 @@ const crearCasaSchema = z.object({
   codigo_postal: z.string().optional(),
   referencia: z.string().optional(),
   parroquia_id: z.string().uuid().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
   notas_publicas: z.string().optional(),
   disponibilidad: z.array(z.string()).optional(),
+  usuario_id: z.string().uuid().optional(),
 });
 
 const actualizarCasaSchema = crearCasaSchema.partial();
@@ -137,6 +141,85 @@ async function validarAuthYPermisos(requiereGestion = false): Promise<{
 
 // ─── Actions ─────────────────────────────────────────────────────────
 
+/** Datos de dirección de un usuario para auto-rellenar formularios */
+export interface DireccionUsuario {
+  calle: string;
+  barrio: string | null;
+  codigo_postal: string | null;
+  referencia: string | null;
+  lat: number | null;
+  lng: number | null;
+  parroquia_id: string | null;
+  municipio_id: string | null;
+  estado_id: string | null;
+}
+
+/**
+ * Obtiene la dirección completa de un usuario.
+ * Se usa para auto-rellenar el formulario de casa anfitriona
+ * al seleccionar un miembro.
+ */
+export async function obtenerDireccionUsuario(
+  usuarioId: string
+): Promise<ResultadoAccion<DireccionUsuario>> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "No autenticado" };
+
+    // Usar admin para bypasear RLS (el rol ya fue validado al cargar la página)
+    const admin = createSupabaseAdminClient();
+    const { data: usuario } = await admin
+      .from("usuarios")
+      .select(`
+        direccion_id,
+        direcciones!usuarios_direccion_id_fkey (
+          calle, barrio, codigo_postal, referencia, latitud, longitud,
+          parroquia_id,
+          parroquias!direcciones_parroquia_id_fkey (
+            id, municipio_id,
+            municipios!parroquias_municipio_id_fkey (
+              id, estado_id
+            )
+          )
+        )
+      `)
+      .eq("id", usuarioId)
+      .single();
+
+    if (!usuario) return { success: false, error: "Usuario no encontrado" };
+
+    const dir = extraerRelacion<{
+      calle: string; barrio: string | null; codigo_postal: string | null;
+      referencia: string | null; latitud: number | null; longitud: number | null;
+      parroquia_id: string | null;
+      parroquias: {
+        id: string; municipio_id: string;
+        municipios: { id: string; estado_id: string };
+      } | null;
+    }>(usuario.direcciones);
+
+    if (!dir) return { success: false, error: "El usuario no tiene dirección registrada" };
+
+    return {
+      success: true,
+      data: {
+        calle: dir.calle,
+        barrio: dir.barrio,
+        codigo_postal: dir.codigo_postal,
+        referencia: dir.referencia,
+        lat: dir.latitud,
+        lng: dir.longitud,
+        parroquia_id: dir.parroquia_id,
+        municipio_id: dir.parroquias?.municipio_id ?? null,
+        estado_id: dir.parroquias?.municipios?.estado_id ?? null,
+      },
+    };
+  } catch {
+    return { success: false, error: "Error al obtener la dirección del usuario" };
+  }
+}
+
 /**
  * Crea una nueva casa anfitriona y su dirección asociada.
  */
@@ -145,11 +228,27 @@ export async function crearCasaAnfitriona(
 ): Promise<ResultadoAccion<{ id: string }>> {
   try {
     const parsed = crearCasaSchema.parse(datos);
-    const { supabase, userId, error } = await validarAuthYPermisos();
+    const { supabase, userId, authId, error } = await validarAuthYPermisos();
     if (error) return { success: false, error };
 
-    // 1. Crear dirección
-    const { data: direccion, error: dirError } = await supabase
+    // Determinar el propietario: si se pasa usuario_id y el creador tiene rol de gestión, usar ese
+    let propietarioId = userId;
+    let puedeGestionar = false;
+    if (parsed.usuario_id && parsed.usuario_id !== userId) {
+      const { data: puede } = await supabase.rpc("puede_gestionar_casas", {
+        p_auth_id: authId,
+      });
+      if (puede) {
+        propietarioId = parsed.usuario_id;
+        puedeGestionar = true;
+      }
+    }
+
+    // Usar admin client si se asigna a otro usuario (RLS solo permite insertar para sí mismo)
+    const dbInsert = puedeGestionar ? createSupabaseAdminClient() : supabase;
+
+    // 1. Crear dirección con lat/lng
+    const { data: direccion, error: dirError } = await dbInsert
       .from("direcciones")
       .insert({
         calle: parsed.calle,
@@ -157,6 +256,8 @@ export async function crearCasaAnfitriona(
         codigo_postal: parsed.codigo_postal || null,
         referencia: parsed.referencia || null,
         parroquia_id: parsed.parroquia_id || null,
+        latitud: parsed.lat || null,
+        longitud: parsed.lng || null,
       })
       .select("id")
       .single();
@@ -169,10 +270,10 @@ export async function crearCasaAnfitriona(
       disponible: true,
     }));
 
-    const { data: casa, error: casaError } = await supabase
+    const { data: casa, error: casaError } = await dbInsert
       .from("casas_anfitrionas")
       .insert({
-        usuario_id: userId,
+        usuario_id: propietarioId,
         nombre_lugar: parsed.nombre_lugar,
         descripcion: parsed.descripcion || null,
         capacidad_maxima: parsed.capacidad_maxima || null,
@@ -229,13 +330,15 @@ export async function actualizarCasaAnfitriona(
     }
 
     // Actualizar dirección si hay cambios
-    if (casa.direccion_id && (parsed.calle || parsed.barrio || parsed.codigo_postal || parsed.referencia || parsed.parroquia_id)) {
+    if (casa.direccion_id && (parsed.calle || parsed.barrio || parsed.codigo_postal || parsed.referencia || parsed.parroquia_id || parsed.lat !== undefined || parsed.lng !== undefined)) {
       const dirUpdate: Record<string, unknown> = {};
       if (parsed.calle !== undefined) dirUpdate.calle = parsed.calle;
       if (parsed.barrio !== undefined) dirUpdate.barrio = parsed.barrio || null;
       if (parsed.codigo_postal !== undefined) dirUpdate.codigo_postal = parsed.codigo_postal || null;
       if (parsed.referencia !== undefined) dirUpdate.referencia = parsed.referencia || null;
       if (parsed.parroquia_id !== undefined) dirUpdate.parroquia_id = parsed.parroquia_id || null;
+      if (parsed.lat !== undefined) dirUpdate.latitud = parsed.lat;
+      if (parsed.lng !== undefined) dirUpdate.longitud = parsed.lng;
 
       if (Object.keys(dirUpdate).length > 0) {
         await supabase.from("direcciones").update(dirUpdate).eq("id", casa.direccion_id);

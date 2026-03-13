@@ -15,13 +15,14 @@ interface CardCasaAnfitrionaProps {
     aprobada: boolean;
     activa: boolean;
     gruposUsando: number;
+    /** URLs de fotos de perfil de los propietarios (anfitrión + cónyuge) */
     fotosUrls: string[];
     onClick?: (id: string) => void;
 }
 
 /**
  * Tarjeta que muestra la información resumida de una casa anfitriona.
- * Incluye foto, nombre, anfitrión, dirección, estado y capacidad.
+ * Incluye avatares de propietarios, nombre, dirección, estado y capacidad.
  */
 export function CardCasaAnfitriona({
     id,
@@ -52,19 +53,29 @@ export function CardCasaAnfitriona({
             onClick={() => onClick?.(id)}
         >
             <div className="flex gap-4">
-                {/* Foto o placeholder */}
-                <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-muted">
+                {/* Avatares de propietarios */}
+                <div className="flex-shrink-0">
                     {fotosUrls.length > 0 ? (
-                        <Image
-                            src={fotosUrls[0]}
-                            alt={nombreLugar}
-                            fill
-                            className="object-cover"
-                            sizes="80px"
-                        />
+                        <div className="flex -space-x-3">
+                            {fotosUrls.slice(0, 2).map((url, i) => (
+                                <div
+                                    key={i}
+                                    className="relative h-12 w-12 overflow-hidden rounded-full border-2 border-card"
+                                    style={{ zIndex: fotosUrls.length - i }}
+                                >
+                                    <Image
+                                        src={url}
+                                        alt={i === 0 ? anfitrionNombre : (anfitrionParejaNombre ?? "Cónyuge")}
+                                        fill
+                                        className="object-cover"
+                                        sizes="48px"
+                                    />
+                                </div>
+                            ))}
+                        </div>
                     ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                            <Home className="h-8 w-8 text-muted-foreground" />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                            <Home className="h-6 w-6 text-muted-foreground" />
                         </div>
                     )}
                 </div>

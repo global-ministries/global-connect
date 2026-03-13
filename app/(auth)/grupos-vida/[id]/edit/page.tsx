@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 
 import Link from "next/link";
@@ -14,6 +15,7 @@ export default async function EditGroupPage({ params }: PageProps) {
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
+  const adminDb = createSupabaseAdminClient();
 
   // Obtener usuario autenticado
   const { data: { user } } = await supabase.auth.getUser();
@@ -76,6 +78,7 @@ export default async function EditGroupPage({ params }: PageProps) {
   }
 
   // Cargar listas de catálogo en paralelo
+  // Usar adminDb para casas para evitar que RLS en usuarios oculte los joins
   const [
     { data: temporadas },
     { data: segmentos },
@@ -83,7 +86,8 @@ export default async function EditGroupPage({ params }: PageProps) {
     { data: estados },
     { data: municipios },
     { data: parroquias },
-    { data: casasRaw }
+    { data: casasRaw },
+    { data: miembrosGrupo },
   ] = await Promise.all([
     supabase.from("temporadas").select("id, nombre"),
     supabase.from("segmentos").select("id, nombre"),
@@ -91,27 +95,34 @@ export default async function EditGroupPage({ params }: PageProps) {
     supabase.from("estados").select("id, nombre"),
     supabase.from("municipios").select("id, nombre"),
     supabase.from("parroquias").select("id, nombre"),
-    supabase
+    adminDb
       .from("casas_anfitrionas")
       .select("id, nombre_lugar, usuario_id, usuarios!casas_anfitrionas_usuario_id_fkey(nombre, apellido), direcciones!casas_anfitrionas_direccion_id_fkey(latitud, longitud)")
       .eq("activa", true)
-      .eq("aprobada", true)
+      .eq("aprobada", true),
+    adminDb
+      .from("grupo_miembros")
+      .select("usuario_id")
+      .eq("grupo_id", id),
   ]);
 
-  // Mapear casas anfitrionas a formato simple para el componente
-  const casasDisponibles = (casasRaw ?? []).map((c: Record<string, unknown>) => {
-    const usuario = c.usuarios as Record<string, unknown> | null;
-    const direccion = c.direcciones as Record<string, unknown> | null;
-    return {
-      id: c.id as string,
-      nombre_lugar: c.nombre_lugar as string,
-      anfitrion_nombre: usuario
-        ? `${usuario.nombre ?? ''} ${usuario.apellido ?? ''}`.trim()
-        : 'Sin anfitrión',
-      lat: (direccion?.latitud as number) ?? null,
-      lng: (direccion?.longitud as number) ?? null,
-    };
-  });
+  // Solo casas aprobadas que pertenezcan a miembros/líderes del grupo
+  const miembroIds = new Set((miembrosGrupo ?? []).map((m) => m.usuario_id));
+  const casasDisponibles = (casasRaw ?? [])
+    .filter((c: Record<string, unknown>) => miembroIds.has(c.usuario_id as string))
+    .map((c: Record<string, unknown>) => {
+      const usuario = c.usuarios as Record<string, unknown> | null;
+      const direccion = c.direcciones as Record<string, unknown> | null;
+      return {
+        id: c.id as string,
+        nombre_lugar: c.nombre_lugar as string,
+        anfitrion_nombre: usuario
+          ? `${usuario.nombre ?? ''} ${usuario.apellido ?? ''}`.trim()
+          : 'Sin anfitrión',
+        lat: (direccion?.latitud as number) ?? null,
+        lng: (direccion?.longitud as number) ?? null,
+      };
+    });
 
   return (
     <DashboardLayout>

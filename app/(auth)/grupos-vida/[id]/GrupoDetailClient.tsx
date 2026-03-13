@@ -129,11 +129,19 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rol: newRole })
       });
-      if (!res.ok) throw new Error(await res.text());
-      toast.success('Rol actualizado');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Error' }));
+        throw new Error(data.error || 'No se pudo actualizar el rol');
+      }
+      const data = await res.json();
+      if (data.modo === 'solicitud') {
+        toast.success('Solicitud de cambio de rol creada — pendiente de aprobación');
+      } else {
+        toast.success('Rol actualizado');
+      }
       router.refresh();
-    } catch (e: any) {
-      toast.error(e?.message || 'No se pudo actualizar el rol');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo actualizar el rol');
     } finally {
       setRoleUpdatingId(null);
     }
@@ -151,13 +159,21 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
       const res = await fetch(`/api/grupos/${encodeURIComponent(String(id))}/miembros/${encodeURIComponent(String(pendingRemovalId))}`, {
         method: 'DELETE'
       });
-      if (!res.ok) throw new Error(await res.text());
-      toast.success('Miembro eliminado');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Error' }));
+        throw new Error(data.error || 'No se pudo eliminar el miembro');
+      }
+      const data = await res.json();
+      if (data.modo === 'solicitud') {
+        toast.success('Solicitud de egreso creada — pendiente de aprobación');
+      } else {
+        toast.success('Miembro eliminado');
+      }
       setConfirmOpen(false);
       setPendingRemovalId(null);
       router.refresh();
-    } catch (e: any) {
-      toast.error(e?.message || 'No se pudo eliminar el miembro');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar el miembro');
     } finally {
       setRemovingId(null);
     }

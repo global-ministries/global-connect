@@ -83,9 +83,17 @@ export default function AddMemberModal({ isOpen, onClose, grupoId, segmentoNombr
           incluirConyuge: esSegmentoMatrimonio
         })
       });
-      if (!res.ok) throw new Error(await res.text());
 
-      if (esSegmentoMatrimonio) {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Error al agregar" }));
+        throw new Error(data.error || "No se pudo agregar al miembro");
+      }
+
+      const data = await res.json();
+
+      if (data.modo === "solicitud") {
+        toast.success("Solicitud creada — pendiente de aprobación por un director");
+      } else if (esSegmentoMatrimonio) {
         toast.success("Miembro y cónyuge agregados correctamente al grupo");
       } else {
         toast.success("Miembro agregado correctamente");

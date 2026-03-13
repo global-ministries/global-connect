@@ -28,7 +28,7 @@ const groupEditSchema = z.object({
     referencia: z.string().optional(),
     lat: z.number().optional(),
     lng: z.number().optional(),
-    parroquia_id: z.string().uuid().optional(),
+    parroquia_id: z.string().uuid().or(z.literal("")).optional(),
   }).optional(),
 });
 
@@ -62,8 +62,9 @@ export async function updateGroup(groupId: string, data: unknown) {
       updated_at: new Date().toISOString(),
     };
 
-    // Resolver dirección (upsert helper) antes del UPDATE del grupo
-    if (validatedData.direccion) {
+    // Resolver dirección SOLO si NO hay casa anfitriona seleccionada
+    // Cuando hay casa, el grupo usa la dirección de la casa automáticamente
+    if (!validatedData.casa_anfitriona_id && validatedData.direccion) {
       // Obtener ID de dirección actual (si existe)
       const { data: grupoActual } = await supabase
         .from("grupos")

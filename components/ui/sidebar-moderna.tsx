@@ -83,6 +83,12 @@ const menuItems: MenuItem[] = [
       { id: 'gv-config', label: 'Configuración', href: '/grupos-vida/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
     ],
   },
+  {
+    id: 'configuracion-global',
+    label: 'Configuración',
+    icon: Settings,
+    href: '/configuracion',
+  },
 ]
 
 const footerItems: MenuItem[] = [

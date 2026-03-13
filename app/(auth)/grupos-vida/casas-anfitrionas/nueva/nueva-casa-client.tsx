@@ -13,20 +13,34 @@ interface UbicacionOption {
     parentId?: string;
 }
 
+/** Opción de usuario */
+interface UsuarioOption {
+    value: string;
+    label: string;
+}
+
 /** Props del componente cliente para crear casa anfitriona */
 interface NuevaCasaClientProps {
     estados: UbicacionOption[];
     municipios: UbicacionOption[];
     parroquias: UbicacionOption[];
+    usuarios?: UsuarioOption[];
+    mostrarSelectorUsuario?: boolean;
 }
 
 /**
  * Wrapper client que conecta FormCasaAnfitriona con la server action crearCasaAnfitriona.
  *
  * Maneja el estado de carga, toast de éxito/error, y navegación post-creación.
- * Pasa los catálogos de ubicación al formulario para selects en cascada.
+ * Pasa los catálogos de ubicación y la lista de usuarios al formulario.
  */
-export function NuevaCasaClient({ estados, municipios, parroquias }: NuevaCasaClientProps) {
+export function NuevaCasaClient({
+    estados,
+    municipios,
+    parroquias,
+    usuarios = [],
+    mostrarSelectorUsuario = false,
+}: NuevaCasaClientProps) {
     const [cargando, setCargando] = useState(false);
     const router = useRouter();
     const toast = useNotificaciones();
@@ -55,6 +69,8 @@ export function NuevaCasaClient({ estados, municipios, parroquias }: NuevaCasaCl
             estados={estados}
             municipios={municipios}
             parroquias={parroquias}
+            usuarios={usuarios}
+            mostrarSelectorUsuario={mostrarSelectorUsuario}
             cargando={cargando}
             onSubmit={handleSubmit}
             onCancelar={() => router.push("/grupos-vida/casas-anfitrionas")}
