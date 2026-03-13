@@ -88,7 +88,7 @@ BEGIN
       conteo_visitantes, registrado_en, no_hubo_reunion, motivo_no_reunion
     )
     VALUES (
-      gen_random_uuid(), p_grupo_id, p_fecha, p_hora, p_tema, p_notas,
+      gen_random_uuid(), p_grupo_id, p_fecha, p_hora::time, p_tema, p_notas,
       'regular', p_descripcion, p_puntos_oracion, p_notas_privadas_lider,
       COALESCE(p_conteo_visitantes, 0), now(), p_no_hubo_reunion, p_motivo_no_reunion
     )
@@ -96,7 +96,7 @@ BEGIN
   ELSE
     UPDATE public.eventos_grupo
     SET
-      hora = COALESCE(p_hora, hora),
+      hora = COALESCE(p_hora::time, hora),
       tema = COALESCE(p_tema, tema),
       notas = COALESCE(p_notas, notas),
       descripcion = COALESCE(p_descripcion, descripcion),

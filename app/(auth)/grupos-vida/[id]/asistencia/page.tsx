@@ -8,6 +8,7 @@ import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-v
 /** Forma mínima del resultado de obtener_detalle_grupo relevante para asistencia */
 interface GrupoDetalle {
   nombre: string
+  hora_reunion?: string | null
   direccion?: { latitud?: number; longitud?: number; lat?: number; lng?: number } | null
   miembros: Array<{ id: string; nombre: string; apellido: string; rol?: string | null }>
 }
@@ -92,6 +93,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
             rol: m.rol || undefined,
           }))}
           configuracion={configuracion}
+          initialData={grupo.hora_reunion ? { hora: grupo.hora_reunion } : undefined}
         />
       </ContenedorDashboard>
     </DashboardLayout>

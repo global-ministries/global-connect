@@ -308,61 +308,65 @@ export default function RegistroAsistenciaAvanzado({
             {!noHuboReunion && (
                 <>
                     {/* Metadatos del evento */}
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1">Fecha</label>
-                            <InputSistema
-                                type="date"
-                                value={fecha}
-                                onChange={e => setFecha(e.target.value)}
-                                disabled={!!isEdit || ventanaCerrada}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1">Hora</label>
-                            <div className="flex items-center gap-2">
-                                <SelectSistema
-                                    value={hora12}
-                                    onValueChange={setHora12}
-                                    opciones={[
-                                        { valor: "", etiqueta: "HH" },
-                                        ...Array.from({ length: 12 }).map((_, i) => ({
-                                            valor: String(i + 1),
-                                            etiqueta: String(i + 1),
-                                        })),
-                                    ]}
-                                />
-                                <span className="text-sm text-muted-foreground">:</span>
-                                <SelectSistema
-                                    value={minutos}
-                                    onValueChange={setMinutos}
-                                    opciones={[
-                                        { valor: "", etiqueta: "MM" },
-                                        ...Array.from({ length: 60 }).map((_, i) => ({
-                                            valor: String(i).padStart(2, "0"),
-                                            etiqueta: String(i).padStart(2, "0"),
-                                        })),
-                                    ]}
-                                />
-                                <SelectSistema
-                                    value={amPm}
-                                    onValueChange={(v: string) => setAmPm(v as "AM" | "PM")}
-                                    opciones={[
-                                        { valor: "AM", etiqueta: "AM" },
-                                        { valor: "PM", etiqueta: "PM" },
-                                    ]}
+                    <div className="space-y-4">
+                        {/* Fila 1: Fecha + Hora */}
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <div className="sm:w-[200px] shrink-0">
+                                <label className="block text-sm font-medium text-foreground mb-1">Fecha</label>
+                                <InputSistema
+                                    type="date"
+                                    value={fecha}
+                                    onChange={e => setFecha(e.target.value)}
+                                    disabled={!!isEdit || ventanaCerrada}
                                 />
                             </div>
+                            <div className="shrink-0">
+                                <label className="block text-sm font-medium text-foreground mb-1">Hora</label>
+                                <div className="flex items-center gap-2">
+                                    <SelectSistema
+                                        value={hora12}
+                                        onValueChange={setHora12}
+                                        opciones={[
+                                            { valor: "", etiqueta: "HH" },
+                                            ...Array.from({ length: 12 }).map((_, i) => ({
+                                                valor: String(i + 1),
+                                                etiqueta: String(i + 1),
+                                            })),
+                                        ]}
+                                    />
+                                    <span className="text-base font-medium text-muted-foreground">:</span>
+                                    <SelectSistema
+                                        value={minutos}
+                                        onValueChange={setMinutos}
+                                        opciones={[
+                                            { valor: "", etiqueta: "MM" },
+                                            ...Array.from({ length: 12 }).map((_, i) => ({
+                                                valor: String(i * 5).padStart(2, "0"),
+                                                etiqueta: String(i * 5).padStart(2, "0"),
+                                            })),
+                                        ]}
+                                    />
+                                    <SelectSistema
+                                        value={amPm}
+                                        onValueChange={(v: string) => setAmPm(v as "AM" | "PM")}
+                                        opciones={[
+                                            { valor: "AM", etiqueta: "AM" },
+                                            { valor: "PM", etiqueta: "PM" },
+                                        ]}
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <InputSistema
+
+                        {/* Fila 2: Tema + Notas */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <TextareaSistema
                                 label="Tema"
                                 value={tema}
                                 onChange={e => setTema(e.target.value)}
                                 placeholder="Opcional"
+                                filas={2}
                             />
-                        </div>
-                        <div className="md:col-span-2">
                             <TextareaSistema
                                 label="Notas"
                                 value={notas}

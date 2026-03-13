@@ -1,6 +1,6 @@
 "use client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { BadgeSistema, TextoSistema, SeparadorSistema } from "@/components/ui/sistema-diseno";
+import { TextoSistema, SeparadorSistema } from "@/components/ui/sistema-diseno";
 import { MapPin, Home, Users } from "lucide-react";
 import LocationPicker from "@/components/maps/LocationPicker.client";
 
@@ -23,61 +23,62 @@ export default function MapModal({ lat, lng, isOpen, onClose, calle, barrio, cas
   const tieneUbicacion = lat !== 0 || lng !== 0;
   const tieneDireccion = calle || barrio;
   const tieneCasa = casaAnfitriona?.nombre_lugar;
+  const tieneInfo = tieneDireccion || tieneCasa;
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open ? onClose() : undefined}>
-      <DialogContent className="max-w-4xl w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-6 sm:px-8 sm:pt-8">
-          <DialogTitle>Ubicación en el mapa</DialogTitle>
+      <DialogContent className="max-w-4xl w-full p-0 overflow-hidden max-h-[90dvh] flex flex-col">
+        {/* Header */}
+        <DialogHeader className="px-4 pt-4 pb-0 sm:px-6 sm:pt-6">
+          <DialogTitle className="text-base sm:text-lg">Ubicación en el mapa</DialogTitle>
         </DialogHeader>
 
-        <div className="px-6 pb-3 sm:px-8 space-y-3">
-          {/* Dirección */}
+        {/* Info compacta */}
+        <div className="px-4 pb-2 sm:px-6 sm:pb-3 space-y-1.5 sm:space-y-2.5">
           {tieneDireccion && (
-            <div className="flex items-start gap-2 text-sm">
-              <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5 text-orange-500" />
-              <div>
+            <div className="flex items-start gap-2 text-xs sm:text-sm">
+              <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5 text-orange-500" />
+              <p className="leading-snug">
                 <span className="font-medium text-foreground">Dirección:</span>{" "}
                 <span className="text-muted-foreground">
                   {[calle, barrio].filter(Boolean).join(", ")}
                 </span>
-              </div>
+              </p>
             </div>
           )}
 
-          {/* Casa anfitriona */}
           {tieneCasa && (
-            <div className="flex items-start gap-2 text-sm">
-              <Home className="h-4 w-4 flex-shrink-0 mt-0.5 text-orange-500" />
-              <div>
+            <div className="flex items-start gap-2 text-xs sm:text-sm">
+              <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5 text-orange-500" />
+              <p className="leading-snug">
                 <span className="font-medium text-foreground">Casa anfitriona:</span>{" "}
                 <span className="text-muted-foreground">{casaAnfitriona.nombre_lugar}</span>
-              </div>
+              </p>
             </div>
           )}
 
-          {/* Anfitriones */}
           {casaAnfitriona?.anfitrion_nombre && (
-            <div className="flex items-start gap-2 text-sm">
-              <Users className="h-4 w-4 flex-shrink-0 mt-0.5 text-orange-500" />
-              <div>
+            <div className="flex items-start gap-2 text-xs sm:text-sm">
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5 text-orange-500" />
+              <p className="leading-snug">
                 <span className="font-medium text-foreground">Anfitriones:</span>{" "}
                 <span className="text-muted-foreground">
                   {casaAnfitriona.anfitrion_nombre}
                   {casaAnfitriona.co_anfitrion_nombre && `, ${casaAnfitriona.co_anfitrion_nombre}`}
                 </span>
-              </div>
+              </p>
             </div>
           )}
 
-          {!tieneDireccion && !tieneCasa && (
+          {!tieneInfo && (
             <TextoSistema variante="muted" tamaño="sm">Sin información de dirección disponible</TextoSistema>
           )}
 
-          {(tieneDireccion || tieneCasa) && <SeparadorSistema />}
+          {tieneInfo && <SeparadorSistema />}
         </div>
 
-        <div className="h-[400px] sm:h-[500px] w-full px-6 pb-6 sm:px-8 sm:pb-8">
+        {/* Mapa — flex-1 para llenar el espacio restante */}
+        <div className="flex-1 min-h-[250px] sm:min-h-[400px] max-h-[50dvh] sm:max-h-[500px] w-full px-4 pb-4 sm:px-6 sm:pb-6">
           {tieneUbicacion ? (
             <LocationPicker
               lat={lat}
