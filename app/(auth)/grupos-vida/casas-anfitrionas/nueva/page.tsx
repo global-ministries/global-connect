@@ -42,11 +42,15 @@ export default async function NuevaCasaAnfitrionaPage() {
     let usuariosOptions: { value: string; label: string }[] = [];
 
     if (puedeGestionar) {
-        // 1. Obtener IDs de usuarios que ya tienen casa anfitriona
+        // 1. Obtener IDs de usuarios que ya tienen casa anfitriona (como principal o co-anfitrión)
         const { data: casasExistentes } = await supabase
             .from("casas_anfitrionas")
-            .select("usuario_id");
-        const idsConCasa = new Set((casasExistentes ?? []).map((c) => c.usuario_id));
+            .select("usuario_id, co_anfitrion_id");
+        const idsConCasa = new Set(
+            (casasExistentes ?? []).flatMap((c) =>
+                [c.usuario_id, c.co_anfitrion_id].filter(Boolean) as string[]
+            )
+        );
 
         if (esAdmin) {
             // Admin/pastor/director-general: todos los usuarios sin casa

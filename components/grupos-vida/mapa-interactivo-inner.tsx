@@ -6,7 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { TextoSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 import { BadgeEstadoCiclo } from "./badge-estado-ciclo";
-import { Users, Clock, MapPin } from "lucide-react";
+import { Users, Clock, MapPin, Home } from "lucide-react";
 
 // Fix Leaflet default icons issue with Next.js/Webpack
 const iconDefault = L.icon({
@@ -35,6 +35,8 @@ export interface GrupoMapa {
     total_miembros: number;
     capacidad_maxima: number | null;
     lideres: Array<{ nombre: string; foto: string | null }> | null;
+    anfitrion_nombre: string | null;
+    co_anfitrion_nombre: string | null;
 }
 
 interface MapaInteractivoInnerProps {
@@ -136,6 +138,20 @@ export function MapaInteractivoInner({
                                             <span className="font-medium text-foreground">Líderes:</span>{" "}
                                             <span className="text-muted-foreground">
                                                 {grupo.lideres.map((l) => l.nombre).join(", ")}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Anfitriones */}
+                                {grupo.anfitrion_nombre && (
+                                    <div className="flex items-start gap-1.5 text-xs">
+                                        <Home className="h-3 w-3 flex-shrink-0 mt-0.5 text-orange-500" />
+                                        <div>
+                                            <span className="font-medium text-foreground">Anfitriones:</span>{" "}
+                                            <span className="text-muted-foreground">
+                                                {grupo.anfitrion_nombre}
+                                                {grupo.co_anfitrion_nombre && `, ${grupo.co_anfitrion_nombre}`}
                                             </span>
                                         </div>
                                     </div>

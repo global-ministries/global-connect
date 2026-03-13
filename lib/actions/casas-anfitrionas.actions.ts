@@ -22,6 +22,7 @@ const crearCasaSchema = z.object({
   notas_publicas: z.string().optional(),
   disponibilidad: z.array(z.string()).optional(),
   usuario_id: z.string().uuid().optional(),
+  co_anfitrion_id: z.string().uuid().optional(),
 });
 
 const actualizarCasaSchema = crearCasaSchema.partial();
@@ -140,6 +141,74 @@ async function validarAuthYPermisos(requiereGestion = false): Promise<{
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────
+
+/** Familiar del usuario con su relación */
+interface FamiliarRelacion {
+    id: string;
+    nombre: string;
+    apellido: string;
+    foto_perfil_url: string | null;
+    tipo_relacion: string;
+}
+
+/**
+ * Obtiene las relaciones familiares de un usuario.
+ * Consulta la tabla relaciones_usuarios y retorna nombre, foto y tipo de relación.
+ * Se usa para ofrecer co-anfitriones al crear una casa anfitriona.
+ */
+export async function obtenerRelacionesFamiliares(
+    usuarioId: string
+): Promise<ResultadoAccion<FamiliarRelacion[]>> {
+    try {
+        const adminDb = createSupabaseAdminClient();
+
+        const { data, error } = await adminDb
+            .from("relaciones_usuarios")
+            .select(`
+                tipo_relacion,
+                usuario1_id,
+                usuario2_id
+            `)
+            .or(`usuario1_id.eq.${usuarioId},usuario2_id.eq.${usuarioId}`);
+
+        if (error) return { success: false, error: error.message };
+        if (!data || data.length === 0) return { success: true, data: [] };
+
+        // Extraer IDs de los familiares (el otro usuario en cada relación)
+        const familiarIds = data.map((r) =>
+            r.usuario1_id === usuarioId ? r.usuario2_id : r.usuario1_id
+        );
+
+        // Obtener datos de los familiares
+        const { data: familiares, error: fetchError } = await adminDb
+            .from("usuarios")
+            .select("id, nombre, apellido, foto_perfil_url")
+            .in("id", familiarIds);
+
+        if (fetchError) return { success: false, error: fetchError.message };
+
+        // Mapear con tipo de relación
+        const resultado: FamiliarRelacion[] = (familiares ?? []).map((f) => {
+            const relacion = data.find(
+                (r) => r.usuario1_id === f.id || r.usuario2_id === f.id
+            );
+            return {
+                id: f.id,
+                nombre: f.nombre,
+                apellido: f.apellido,
+                foto_perfil_url: f.foto_perfil_url,
+                tipo_relacion: relacion?.tipo_relacion ?? "familiar",
+            };
+        });
+
+        return { success: true, data: resultado };
+    } catch (err) {
+        return {
+            success: false,
+            error: err instanceof Error ? err.message : "Error desconocido",
+        };
+    }
+}
 
 /** Datos de dirección de un usuario para auto-rellenar formularios */
 export interface DireccionUsuario {
@@ -274,6 +343,7 @@ export async function crearCasaAnfitriona(
       .from("casas_anfitrionas")
       .insert({
         usuario_id: propietarioId,
+        co_anfitrion_id: parsed.co_anfitrion_id || null,
         nombre_lugar: parsed.nombre_lugar,
         descripcion: parsed.descripcion || null,
         capacidad_maxima: parsed.capacidad_maxima || null,
@@ -351,6 +421,7 @@ export async function actualizarCasaAnfitriona(
     if (parsed.descripcion !== undefined) casaUpdate.descripcion = parsed.descripcion || null;
     if (parsed.capacidad_maxima !== undefined) casaUpdate.capacidad_maxima = parsed.capacidad_maxima || null;
     if (parsed.notas_publicas !== undefined) casaUpdate.notas_publicas = parsed.notas_publicas || null;
+    if (parsed.co_anfitrion_id !== undefined) casaUpdate.co_anfitrion_id = parsed.co_anfitrion_id || null;
     if (parsed.disponibilidad !== undefined) {
       casaUpdate.disponibilidad = parsed.disponibilidad.map((dia) => ({
         dia,

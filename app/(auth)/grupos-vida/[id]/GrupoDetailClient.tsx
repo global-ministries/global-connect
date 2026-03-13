@@ -61,6 +61,15 @@ interface Grupo {
   miembros?: Miembro[];
   puede_gestionar_miembros?: boolean;
   rol_en_grupo?: string | null;
+  casa_anfitriona_info?: {
+    nombre_lugar?: string;
+    anfitrion_nombre?: string;
+    co_anfitrion_nombre?: string;
+    calle?: string;
+    barrio?: string;
+    latitud?: number;
+    longitud?: number;
+  } | null;
 }
 
 interface GrupoDetailClientProps {
@@ -448,10 +457,11 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
       <MapModal
         isOpen={isMapOpen}
         onClose={() => setIsMapOpen(false)}
-        lat={grupo.direccion?.lat || 0}
-        lng={grupo.direccion?.lng || 0}
-        calle={grupo.direccion?.calle}
-        barrio={grupo.direccion?.barrio}
+        lat={grupo.direccion?.lat || grupo.casa_anfitriona_info?.latitud || 0}
+        lng={grupo.direccion?.lng || grupo.casa_anfitriona_info?.longitud || 0}
+        calle={grupo.direccion?.calle || grupo.casa_anfitriona_info?.calle}
+        barrio={grupo.direccion?.barrio || grupo.casa_anfitriona_info?.barrio}
+        casaAnfitriona={grupo.casa_anfitriona_info}
       />
 
       {/* Confirmación de borrado */}

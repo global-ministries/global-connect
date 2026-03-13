@@ -4,7 +4,7 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { obtenerDireccionUsuario } from "@/lib/actions/casas-anfitrionas.actions";
+import { obtenerDireccionUsuario, obtenerRelacionesFamiliares } from "@/lib/actions/casas-anfitrionas.actions";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
 import {
     InputSistema,
@@ -13,7 +13,7 @@ import {
     BotonSistema,
     TituloSistema,
 } from "@/components/ui/sistema-diseno";
-import { Home, MapPin, Hash, Save, Loader2, User } from "lucide-react";
+import { Home, MapPin, Hash, Save, Loader2, User, Users, Check, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import LocationPicker from "@/components/maps/LocationPicker.client";
 
@@ -40,6 +40,7 @@ const schemaCasaAnfitriona = z.object({
     disponibilidad_viernes: z.boolean().optional(),
     disponibilidad_sabado: z.boolean().optional(),
     disponibilidad_domingo: z.boolean().optional(),
+    co_anfitrion_id: z.string().uuid().optional(),
 });
 
 type FormCasaData = z.infer<typeof schemaCasaAnfitriona>;
@@ -260,26 +261,38 @@ export function FormCasaAnfitriona({
     const toast = useNotificaciones();
     const [cargandoDireccion, startTransition] = useTransition();
 
+    /** Familiares del usuario seleccionado (para co-anfitrión) */
+    interface Familiar {
+        id: string;
+        nombre: string;
+        apellido: string;
+        foto_perfil_url: string | null;
+        tipo_relacion: string;
+    }
+    const [familiares, setFamiliares] = useState<Familiar[]>([]);
+    const [coAnfitrionId, setCoAnfitrionId] = useState<string | null>(null);
+
     const handleUsuarioChange = (usuarioId: string) => {
         setValue("usuario_id", usuarioId);
+        // Reset co-anfitrión al cambiar de usuario
+        setFamiliares([]);
+        setCoAnfitrionId(null);
+        setValue("co_anfitrion_id", undefined);
         if (!usuarioId) return;
 
         startTransition(async () => {
+            // 1. Cargar dirección
             const result = await obtenerDireccionUsuario(usuarioId);
             if (result.success && result.data) {
                 const d = result.data;
-                // Señalar que no se debe geocodificar tras auto-rellenar
                 skipNextGeocode.current = true;
-                // Rellenar ubicación cascading primero
                 if (d.estado_id) setValue("estado_id", d.estado_id);
                 if (d.municipio_id) setValue("municipio_id", d.municipio_id);
                 if (d.parroquia_id) setValue("parroquia_id", d.parroquia_id);
-                // Rellenar campos de dirección
                 if (d.calle) setValue("calle", d.calle);
                 if (d.barrio) setValue("barrio", d.barrio);
                 if (d.codigo_postal) setValue("codigo_postal", d.codigo_postal);
                 if (d.referencia) setValue("referencia", d.referencia);
-                // Actualizar mapa
                 if (d.lat && d.lng) {
                     setValue("lat", d.lat);
                     setValue("lng", d.lng);
@@ -289,12 +302,17 @@ export function FormCasaAnfitriona({
             } else if (result.error) {
                 toast.error(result.error);
             }
+
+            // 2. Buscar relaciones familiares para ofrecer co-anfitrión
+            const relResult = await obtenerRelacionesFamiliares(usuarioId);
+            if (relResult.success && relResult.data && relResult.data.length > 0) {
+                setFamiliares(relResult.data);
+            }
         });
     };
 
     /** Transforma datos del formulario al formato esperado por la server action */
     const processSubmit = (datos: FormCasaData) => {
-        // Convertir checkboxes de disponibilidad a array de días activos
         const DIAS_MAP: Record<string, string> = {
             disponibilidad_lunes: "Lunes",
             disponibilidad_martes: "Martes",
@@ -309,7 +327,6 @@ export function FormCasaAnfitriona({
             .filter(([key]) => datos[key as keyof FormCasaData])
             .map(([, label]) => label);
 
-        // Construir datos transformados para la server action
         const datosTransformados = {
             nombre_lugar: datos.nombre_lugar,
             descripcion: datos.descripcion,
@@ -323,6 +340,7 @@ export function FormCasaAnfitriona({
             lng: datos.lng,
             notas_publicas: datos.notas_publicas,
             usuario_id: datos.usuario_id,
+            co_anfitrion_id: coAnfitrionId ?? undefined,
             disponibilidad,
         };
 
@@ -363,6 +381,81 @@ export function FormCasaAnfitriona({
                     <p className="text-xs text-muted-foreground">
                         Al seleccionar un miembro, su dirección se carga automáticamente.
                     </p>
+                </div>
+            )}
+
+            {/* Co-anfitrión familiar */}
+            {familiares.length > 0 && (
+                <div className="space-y-3 rounded-2xl border border-border/50 bg-muted/30 p-4">
+                    <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-orange-500" />
+                        <TituloSistema nivel={4} className="!mb-0">
+                            ¿Alguien más es anfitrión(a) en esta casa?
+                        </TituloSistema>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Si un familiar vive en la misma casa, puedes marcarlo como co-anfitrión para evitar registros duplicados.
+                    </p>
+                    <div className="space-y-2">
+                        {familiares.map((fam) => {
+                            const isSelected = coAnfitrionId === fam.id;
+                            const tipoLabel = fam.tipo_relacion === "conyuge" ? "Cónyuge" : fam.tipo_relacion;
+                            return (
+                                <button
+                                    key={fam.id}
+                                    type="button"
+                                    onClick={() => {
+                                        if (isSelected) {
+                                            setCoAnfitrionId(null);
+                                            setValue("co_anfitrion_id", undefined);
+                                        } else {
+                                            setCoAnfitrionId(fam.id);
+                                            setValue("co_anfitrion_id", fam.id);
+                                        }
+                                    }}
+                                    className={`w-full flex items-center gap-3 rounded-xl p-3 border transition-colors duration-200 text-left ${isSelected
+                                            ? "border-orange-500 bg-orange-500/10"
+                                            : "border-border/50 bg-card hover:border-orange-300"
+                                        }`}
+                                >
+                                    {/* Foto */}
+                                    <div className="relative h-10 w-10 flex-shrink-0 rounded-full bg-muted overflow-hidden">
+                                        {fam.foto_perfil_url ? (
+                                            <img
+                                                src={fam.foto_perfil_url}
+                                                alt={`${fam.nombre} ${fam.apellido}`}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center">
+                                                <User className="h-5 w-5 text-muted-foreground" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* Info */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">
+                                            {fam.nombre} {fam.apellido}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">{tipoLabel}</p>
+                                    </div>
+                                    {/* Indicador */}
+                                    <div className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center ${isSelected
+                                            ? "bg-orange-500 text-white"
+                                            : "border border-border"
+                                        }`}>
+                                        {isSelected && <Check className="h-3.5 w-3.5" />}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {coAnfitrionId && (
+                        <p className="text-xs text-orange-600 flex items-center gap-1">
+                            <Check className="h-3 w-3" />
+                            Co-anfitrión seleccionado. Ambos aparecerán como anfitriones de esta casa.
+                        </p>
+                    )}
                 </div>
             )}
 

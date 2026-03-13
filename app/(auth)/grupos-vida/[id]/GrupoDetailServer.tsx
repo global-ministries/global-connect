@@ -33,6 +33,16 @@ interface GrupoRPCResult {
   puede_gestionar_miembros?: boolean;
   rol_en_grupo?: string | null;
   puede_editar_ui?: boolean;
+  casa_anfitriona_id?: string | null;
+  casa_anfitriona_info?: {
+    nombre_lugar?: string;
+    anfitrion_nombre?: string;
+    co_anfitrion_nombre?: string;
+    calle?: string;
+    barrio?: string;
+    latitud?: number;
+    longitud?: number;
+  } | null;
 }
 
 export default async function GrupoDetailServer({ params }: { params: Promise<{ id: string }> }) {
@@ -85,6 +95,41 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
     grupo.puede_editar_ui = !!permitido;
   } else {
     grupo.puede_editar_ui = false;
+  }
+
+  // Obtener info de casa anfitriona si el grupo tiene una
+  const { data: grupoRow } = await supabase
+    .from("grupos")
+    .select("casa_anfitriona_id")
+    .eq("id", id)
+    .single();
+
+  if (grupoRow?.casa_anfitriona_id) {
+    const { data: casaData } = await supabase
+      .from("casas_anfitrionas")
+      .select(`
+        nombre_lugar,
+        usuarios!casas_anfitrionas_usuario_id_fkey ( nombre, apellido ),
+        co_anfitrion:usuarios!casas_anfitrionas_co_anfitrion_id_fkey ( nombre, apellido ),
+        direcciones!casas_anfitrionas_direccion_id_fkey ( calle, barrio, latitud, longitud )
+      `)
+      .eq("id", grupoRow.casa_anfitriona_id)
+      .single();
+
+    if (casaData) {
+      const anfitrionUser = casaData.usuarios as unknown as { nombre: string; apellido: string } | null;
+      const coAnfitrionUser = casaData.co_anfitrion as unknown as { nombre: string; apellido: string } | null;
+      const casaDireccion = casaData.direcciones as unknown as { calle: string | null; barrio: string | null; latitud: number | null; longitud: number | null } | null;
+      grupo.casa_anfitriona_info = {
+        nombre_lugar: casaData.nombre_lugar ?? undefined,
+        anfitrion_nombre: anfitrionUser ? `${anfitrionUser.nombre} ${anfitrionUser.apellido}` : undefined,
+        co_anfitrion_nombre: coAnfitrionUser ? `${coAnfitrionUser.nombre} ${coAnfitrionUser.apellido}` : undefined,
+        calle: casaDireccion?.calle ?? undefined,
+        barrio: casaDireccion?.barrio ?? undefined,
+        latitud: casaDireccion?.latitud ?? undefined,
+        longitud: casaDireccion?.longitud ?? undefined,
+      };
+    }
   }
 
   return (

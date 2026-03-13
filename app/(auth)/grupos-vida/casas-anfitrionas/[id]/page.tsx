@@ -37,6 +37,7 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
         .select(`
       *,
       usuarios!casas_anfitrionas_usuario_id_fkey ( id, nombre, apellido, email, telefono, foto_perfil_url ),
+      co_anfitrion:usuarios!casas_anfitrionas_co_anfitrion_id_fkey ( id, nombre, apellido, foto_perfil_url ),
       direcciones!casas_anfitrionas_direccion_id_fkey (
         calle, barrio, codigo_postal, referencia, latitud, longitud,
         parroquias!direcciones_parroquia_id_fkey (
@@ -97,6 +98,11 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
             municipios: { nombre: string; estados: { nombre: string } };
         } | null;
     }>(casa.direcciones);
+
+    const coAnfitrion = extraerRelacion<{
+        id: string; nombre: string; apellido: string;
+        foto_perfil_url: string | null;
+    }>(casa.co_anfitrion);
 
     const disponibilidadSchema = z.array(z.object({
         dia: z.string(),
@@ -246,40 +252,68 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
                             <div className="space-y-4">
                                 <TituloSistema nivel={4} className="flex items-center gap-2">
                                     <Home className="h-4 w-4 text-orange-500" />
-                                    Anfitrión
+                                    {coAnfitrion ? "Anfitriones" : "Anfitrión"}
                                 </TituloSistema>
                                 {usuario ? (
-                                    <div className="flex items-start gap-3">
-                                        {usuario.foto_perfil_url ? (
-                                            <img
-                                                src={usuario.foto_perfil_url}
-                                                alt={`${usuario.nombre} ${usuario.apellido}`}
-                                                className="w-12 h-12 rounded-full object-cover border-2 border-border flex-shrink-0"
-                                            />
-                                        ) : (
-                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center flex-shrink-0">
-                                                <span className="text-white font-bold text-lg">
-                                                    {usuario.nombre.charAt(0)}
-                                                </span>
+                                    <div className="space-y-3">
+                                        <div className="flex items-start gap-3">
+                                            {usuario.foto_perfil_url ? (
+                                                <img
+                                                    src={usuario.foto_perfil_url}
+                                                    alt={`${usuario.nombre} ${usuario.apellido}`}
+                                                    className="w-12 h-12 rounded-full object-cover border-2 border-border flex-shrink-0"
+                                                />
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-white font-bold text-lg">
+                                                        {usuario.nombre.charAt(0)}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="space-y-1 min-w-0">
+                                                <TextoSistema className="font-semibold">
+                                                    {usuario.nombre} {usuario.apellido}
+                                                </TextoSistema>
+                                                {usuario.email && (
+                                                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                        <Mail className="h-3.5 w-3.5 flex-shrink-0" />
+                                                        <span className="truncate">{usuario.email}</span>
+                                                    </div>
+                                                )}
+                                                {usuario.telefono && (
+                                                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                        <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                                                        <span>{usuario.telefono}</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                        <div className="space-y-1 min-w-0">
-                                            <TextoSistema className="font-semibold">
-                                                {usuario.nombre} {usuario.apellido}
-                                            </TextoSistema>
-                                            {usuario.email && (
-                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                    <Mail className="h-3.5 w-3.5 flex-shrink-0" />
-                                                    <span className="truncate">{usuario.email}</span>
-                                                </div>
-                                            )}
-                                            {usuario.telefono && (
-                                                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                                    <Phone className="h-3.5 w-3.5 flex-shrink-0" />
-                                                    <span>{usuario.telefono}</span>
-                                                </div>
-                                            )}
                                         </div>
+                                        {coAnfitrion && (
+                                            <>
+                                                <SeparadorSistema />
+                                                <div className="flex items-start gap-3">
+                                                    {coAnfitrion.foto_perfil_url ? (
+                                                        <img
+                                                            src={coAnfitrion.foto_perfil_url}
+                                                            alt={`${coAnfitrion.nombre} ${coAnfitrion.apellido}`}
+                                                            className="w-10 h-10 rounded-full object-cover border-2 border-border flex-shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-300 to-orange-400 flex items-center justify-center flex-shrink-0">
+                                                            <span className="text-white font-bold">
+                                                                {coAnfitrion.nombre.charAt(0)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    <div className="space-y-0.5 min-w-0">
+                                                        <TextoSistema className="font-medium">
+                                                            {coAnfitrion.nombre} {coAnfitrion.apellido}
+                                                        </TextoSistema>
+                                                        <BadgeSistema variante="info" tamaño="sm">Co-anfitrión</BadgeSistema>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 ) : (
                                     <TextoSistema variante="muted">Sin anfitrión asignado</TextoSistema>

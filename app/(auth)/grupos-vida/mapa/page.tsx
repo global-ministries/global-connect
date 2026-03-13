@@ -34,6 +34,8 @@ export default async function MapaGruposPage() {
         total_miembros: g.total_miembros ?? 0,
         capacidad_maxima: g.capacidad_maxima ?? null,
         lideres: Array.isArray(g.lideres) ? g.lideres : null,
+        anfitrion_nombre: g.anfitrion_nombre ?? null,
+        co_anfitrion_nombre: g.co_anfitrion_nombre ?? null,
     }));
 
     const totalGrupos = grupos.length;
