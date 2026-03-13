@@ -19,19 +19,19 @@ export function ActionRequiredWidget({ accion }: ActionRequiredWidgetProps) {
   if (!accion) return null
   return (
     <TarjetaSistema className="p-3 md:p-4 lg:p-6 h-full bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/30">
-      <div className="flex items-start gap-4">
-        <div className="p-3 bg-orange-500 rounded-xl flex-shrink-0">
-          <AlertTriangle className="w-6 h-6 text-white" />
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="p-2.5 sm:p-3 bg-orange-500 rounded-xl flex-shrink-0">
+          <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <TituloSistema nivel={3} className="text-orange-900 dark:text-orange-200">¡Acción requerida!</TituloSistema>
-          <TextoSistema className="mt-2 text-orange-800 dark:text-orange-300">{accion.mensaje}</TextoSistema>
+          <TituloSistema nivel={3} className="text-orange-900 dark:text-orange-200 text-sm sm:text-base">¡Acción requerida!</TituloSistema>
+          <TextoSistema className="mt-1 sm:mt-2 text-orange-800 dark:text-orange-300 text-xs sm:text-sm">{accion.mensaje}</TextoSistema>
         </div>
-        <div className="flex-shrink-0">
-          <Link href={`/grupos-vida/${accion.grupo_id}/asistencia`}>
-            <BotonSistema tamaño="lg" variante="primario">Registrar Asistencia</BotonSistema>
-          </Link>
-        </div>
+      </div>
+      <div className="mt-3">
+        <Link href={`/grupos-vida/${accion.grupo_id}/asistencia`}>
+          <BotonSistema tamaño="lg" variante="primario" className="w-full sm:w-auto">Registrar Asistencia</BotonSistema>
+        </Link>
       </div>
     </TarjetaSistema>
   )

@@ -82,7 +82,7 @@ export default function DashboardDirector({ data }: PropsDashboardDirector) {
       <div className="col-span-2">
         <PendingLeadersWidget
           id="pendientes-reporte"
-          title="Líderes Pendientes de Reporte"
+          title="Líderes Pendientes de Reporte de Asistencia"
           items={lideresPendientes}
         />
       </div>

@@ -6,6 +6,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 import { Plus, Home } from "lucide-react";
 import Link from "next/link";
+import { BotonFlotante } from "@/components/ui/BotonFlotante";
 
 /**
  * Página de listado de casas anfitrionas.
@@ -20,16 +21,26 @@ export default async function CasasAnfitrionasPage() {
     // Usar admin client para que el join a usuarios funcione sin importar el rol del usuario
     const adminDb = createSupabaseAdminClient();
 
-    // Obtener casas con datos del anfitrión, dirección y foto
-    const { data: casas } = await adminDb
-        .from("casas_anfitrionas")
-        .select(`
+    // Obtener IDs de casas visibles según el rol del usuario
+    const { data: casasVisiblesIds } = await supabase.rpc("obtener_casas_visibles_ids", {
+        p_auth_id: user.id,
+    });
+
+    const idsVisibles: string[] = casasVisiblesIds ?? [];
+
+    // Obtener casas filtradas por visibilidad con datos del anfitrión, dirección y foto
+    const { data: casas } = idsVisibles.length > 0
+        ? await adminDb
+            .from("casas_anfitrionas")
+            .select(`
       id, nombre_lugar, capacidad_maxima, activa, aprobada,
       fotos_urls, creado_en, usuario_id,
       usuarios!casas_anfitrionas_usuario_id_fkey ( id, nombre, apellido, foto_perfil_url, direccion_id ),
       direcciones!casas_anfitrionas_direccion_id_fkey ( calle, barrio )
     `)
-        .order("creado_en", { ascending: false });
+            .in("id", idsVisibles)
+            .order("creado_en", { ascending: false })
+        : { data: [] as never[] };
 
     // Contar cuántos grupos usan cada casa anfitriona (G-07)
     const { data: conteoGrupos } = await adminDb
@@ -242,7 +253,7 @@ export default async function CasasAnfitrionasPage() {
                         </TarjetaSistema>
 
                         {/* Móvil: tarjetas */}
-                        <div className="md:hidden space-y-3">
+                        <div className="md:hidden flex flex-col gap-4">
                             {casas.map((casa) => {
                                 const usuario = extraerRelacion<{ id: string; nombre: string; apellido: string; foto_perfil_url: string | null }>(casa.usuarios);
                                 const direccion = extraerRelacion<{ calle: string; barrio: string | null }>(casa.direcciones);
@@ -310,6 +321,14 @@ export default async function CasasAnfitrionasPage() {
                     </TarjetaSistema>
                 )}
             </ContenedorDashboard>
+
+            {/* FAB móvil para registrar casa */}
+            {puedeGestionar && (
+                <BotonFlotante
+                    href="/grupos-vida/casas-anfitrionas/nueva"
+                    label="Registrar casa anfitriona"
+                />
+            )}
         </DashboardLayout>
     );
 }

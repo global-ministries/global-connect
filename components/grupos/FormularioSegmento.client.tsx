@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useTransition, useCallback, type FormEvent } from "react"
-import { Plus, Edit, Trash2, X, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, X } from "lucide-react"
 import { crearSegmento, editarSegmento, eliminarSegmento } from "@/lib/actions/segmentos.actions"
 import {
     TarjetaSistema, BotonSistema, InputSistema, TextareaSistema,
     TituloSistema, TextoSistema,
 } from "@/components/ui/sistema-diseno"
+import { BotonFlotante } from "@/components/ui/BotonFlotante"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
 
 // ---------- Types ----------
@@ -16,15 +17,20 @@ type ModalMode = "crear" | "editar" | "eliminar" | null
 
 interface Props {
     segmentos: Segmento[]
+    /** Modo de render: "boton" = botón crear en header, "editar" = botón editar inline, "fab" = FAB móvil */
+    trigger: "boton" | "editar" | "fab"
+    /** Segmento a editar (solo para trigger="editar") */
+    segmentoEditar?: Segmento
 }
 
 /**
  * Componente client-side para gestión CRUD de segmentos.
- * Permite crear, editar y eliminar segmentos con modales inline.
- *
- * @param segmentos - Lista inicial de segmentos cargados desde el servidor
+ * Se usa en 3 modos:
+ * - trigger="boton": renderiza el botón "Crear Segmento" + modales
+ * - trigger="editar": renderiza botones editar/eliminar para un segmento + modales
+ * - trigger="fab": renderiza el FAB móvil + modales
  */
-export default function GestionSegmentos({ segmentos }: Props) {
+export default function GestionSegmentosModales({ segmentos, trigger, segmentoEditar }: Props) {
     const toast = useNotificaciones()
     const [isPending, startTransition] = useTransition()
     const [modalMode, setModalMode] = useState<ModalMode>(null)
@@ -96,75 +102,54 @@ export default function GestionSegmentos({ segmentos }: Props) {
         })
     }, [selectedSegmento, toast, closeModal])
 
-    return (
-        <>
-            {/* Header con botón crear */}
-            <div className="flex items-center justify-between">
-                <TituloSistema nivel={2}>Lista de Segmentos</TituloSistema>
-                <BotonSistema variante="primario" tamaño="md" onClick={openCrear}>
+    // ─── Render trigger ───
+    const renderTrigger = () => {
+        if (trigger === "boton") {
+            return (
+                <BotonSistema variante="primario" tamaño="sm" onClick={openCrear}>
                     <Plus className="w-4 h-4 mr-2" />
                     Crear Segmento
                 </BotonSistema>
-            </div>
+            )
+        }
 
-            {/* Lista de segmentos */}
-            <div className="space-y-2 sm:space-y-3">
-                {segmentos.length > 0 ? (
-                    segmentos.map((seg) => (
-                        <TarjetaSistema key={seg.id} className="group hover:shadow-md transition-shadow">
-                            <div className="p-4 flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                    <TituloSistema nivel={4} className="text-foreground truncate">
-                                        {seg.nombre}
-                                    </TituloSistema>
-                                    {seg.descripcion && (
-                                        <TextoSistema variante="sutil" tamaño="sm" className="mt-1 truncate">
-                                            {seg.descripcion}
-                                        </TextoSistema>
-                                    )}
-                                </div>
-                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <BotonSistema
-                                        variante="outline"
-                                        tamaño="sm"
-                                        onClick={(e) => { e.preventDefault(); openEditar(seg) }}
-                                    >
-                                        <Edit className="w-4 h-4 mr-1" />
-                                        <span className="hidden sm:inline">Editar</span>
-                                    </BotonSistema>
-                                    <BotonSistema
-                                        variante="outline"
-                                        tamaño="sm"
-                                        onClick={(e) => { e.preventDefault(); openEliminar(seg) }}
-                                    >
-                                        <Trash2 className="w-4 h-4 mr-1" />
-                                        <span className="hidden sm:inline">Eliminar</span>
-                                    </BotonSistema>
-                                </div>
-                            </div>
-                        </TarjetaSistema>
-                    ))
-                ) : (
-                    <TarjetaSistema className="p-8 text-center">
-                        <div className="flex flex-col items-center gap-4">
-                            <TituloSistema nivel={3} variante="sutil" className="mb-2">
-                                No hay segmentos registrados
-                            </TituloSistema>
-                            <TextoSistema variante="sutil">
-                                Comienza creando el primer segmento para organizar tus grupos
-                            </TextoSistema>
-                            <BotonSistema variante="primario" tamaño="md" onClick={openCrear}>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Crear Primer Segmento
-                            </BotonSistema>
-                        </div>
-                    </TarjetaSistema>
-                )}
-            </div>
+        if (trigger === "editar" && segmentoEditar) {
+            return (
+                <div className="flex gap-2">
+                    <BotonSistema
+                        variante="outline"
+                        tamaño="sm"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditar(segmentoEditar) }}
+                    >
+                        <Edit className="w-3.5 h-3.5 mr-1" />
+                        Editar
+                    </BotonSistema>
+                    <BotonSistema
+                        variante="outline"
+                        tamaño="sm"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEliminar(segmentoEditar) }}
+                    >
+                        <Trash2 className="w-3.5 h-3.5 mr-1" />
+                        Eliminar
+                    </BotonSistema>
+                </div>
+            )
+        }
+
+        if (trigger === "fab") {
+            return <BotonFlotante onClick={openCrear} label="Crear segmento" />
+        }
+
+        return null
+    }
+
+    return (
+        <>
+            {renderTrigger()}
 
             {/* Modal overlay */}
             {modalMode && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <TarjetaSistema variante="elevated" className="w-full max-w-md">
                         <div className="p-6">
                             {/* Header */}

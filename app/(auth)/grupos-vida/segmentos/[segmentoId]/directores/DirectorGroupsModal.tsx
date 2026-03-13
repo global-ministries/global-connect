@@ -12,10 +12,11 @@ interface DirectorGroupsModalProps {
   segmentoId: string
   directorId: string
   directorNombre?: string
+  soloNuevos?: boolean
 }
 
 // UI mínima basada en tu sistema (asumiendo tailwind + componentes shadcn-like ya usados en el proyecto)
-export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, onClose, segmentoId, directorId, directorNombre }) => {
+export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, onClose, segmentoId, directorId, directorNombre, soloNuevos = false }) => {
   const { toast } = useToast()
   const { grupos, loading, error, actualizar, detectarOtrosDirectores, refresh } = useDirectorGroupAssignments(segmentoId, directorId)
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set())
@@ -78,6 +79,8 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
 
   const gruposOrdenados = useMemo(() => {
     let lista = [...grupos]
+    // Si soloNuevos, ocultar grupos ya asignados
+    if (soloNuevos) lista = lista.filter(g => !g.asignado)
     if (filtroActivo !== 'todos') {
       lista = lista.filter(g => filtroActivo === 'activos' ? g.activo !== false : g.activo === false)
     }
@@ -93,7 +96,7 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
     }
     lista.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
     return lista
-  }, [grupos, filtroActivo, filtroTemporada, buscarLider])
+  }, [grupos, filtroActivo, filtroTemporada, buscarLider, soloNuevos])
 
   function normalizeStr(s: string) {
     return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
@@ -149,22 +152,22 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
   const modalUi = (
     <>
       <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-card rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-border">
+      <div className="fixed inset-0 z-[160] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
+        <div className="bg-card rounded-t-2xl sm:rounded-3xl shadow-2xl w-full sm:max-w-5xl max-h-[92vh] sm:max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-border">
           {/* Header */}
-          <div className="px-6 py-5 border-b border-border bg-gradient-to-br from-accent to-card">
+          <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border bg-gradient-to-br from-accent to-card">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center text-white">
-                  <Users className="w-5 h-5" />
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-orange-500 to-pink-500 flex items-center justify-center text-white flex-shrink-0">
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <div>
-                  <TituloSistema nivel={3} className="mb-0">Asignar Grupos</TituloSistema>
-                  <TextoSistema variante="sutil" className="text-xs">{directorNombre || 'Director'}</TextoSistema>
+                <div className="min-w-0">
+                  <TituloSistema nivel={3} className="mb-0 text-base sm:text-lg">{soloNuevos ? 'Agregar Grupos' : 'Asignar Grupos'}</TituloSistema>
+                  <TextoSistema variante="sutil" className="text-xs truncate">{directorNombre || 'Director'}</TextoSistema>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="default" size="sm" onClick={guardado} disabled={cargandoGuardar}>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button variant="default" size="sm" onClick={guardado} disabled={cargandoGuardar} className="hidden sm:flex">
                   <Save className="w-4 h-4 mr-1" />
                   {cargandoGuardar ? 'Guardando...' : 'Guardar'}
                 </Button>
@@ -176,7 +179,7 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
           </div>
 
           {/* Controles y filtros */}
-          <div className="px-6 py-4 bg-muted border-b border-border space-y-3">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 bg-muted border-b border-border space-y-3">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
@@ -184,68 +187,72 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
               </div>
             )}
 
-            {/* Modo de guardado */}
-            <div className="flex flex-col gap-2">
-              <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Modo de guardado</label>
-              <div className="flex items-center gap-2 bg-card rounded-lg p-1 border border-border w-fit">
-                <button
-                  type="button"
-                  onClick={() => setModo('merge')}
-                  className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo === 'merge' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
-                >Cambios puntuales</button>
-                <button
-                  type="button"
-                  onClick={() => setModo('replace')}
-                  className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo === 'replace' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
-                  title="Dejará asignados solamente los grupos seleccionados y quitará el resto"
-                >Reemplazar todo</button>
+            {/* Modo de guardado — ocultar en soloNuevos (siempre merge) */}
+            {!soloNuevos && (
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Modo de guardado</label>
+                <div className="flex items-center gap-1 bg-card rounded-lg p-1 border border-border w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setModo('merge')}
+                    className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo === 'merge' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
+                  >Cambios puntuales</button>
+                  <button
+                    type="button"
+                    onClick={() => setModo('replace')}
+                    className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo === 'replace' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
+                    title="Dejará asignados solamente los grupos seleccionados y quitará el resto"
+                  >Reemplazar todo</button>
+                </div>
+                <TextoSistema variante="sutil" className="text-[11px]">
+                  {modo === 'merge' ? '✓ Solo añade o quita respecto a lo existente.' : '⚠️ Reemplazará la lista completa de asignaciones por la selección actual.'}
+                </TextoSistema>
               </div>
-              <TextoSistema variante="sutil" className="text-[11px]">
-                {modo === 'merge' ? '✓ Solo añade o quita respecto a lo existente.' : '⚠️ Reemplazará la lista completa de asignaciones por la selección actual.'}
-              </TextoSistema>
-            </div>
+            )}
 
             {/* Filtros */}
-            <div className="flex flex-wrap gap-3 items-end">
-              <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 sm:gap-3 items-end">
+              <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Buscar líder</label>
                 <input
                   type="text"
                   value={buscarLider}
                   onChange={e => setBuscarLider(e.target.value)}
                   placeholder="Nombre del líder..."
-                  className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                  className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Estado</label>
-                <select value={filtroActivo} onChange={e => setFiltroActivo(e.target.value as any)} className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40">
-                  <option value="todos">Todos</option>
-                  <option value="activos">Activos</option>
-                  <option value="inactivos">Inactivos</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Temporada</label>
-                <select value={filtroTemporada} onChange={e => setFiltroTemporada(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40 min-w-[140px]">
-                  <option value="">Todas</option>
-                  {temporadasUnicas.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+              <div className="grid grid-cols-2 sm:flex gap-2">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Estado</label>
+                  <select value={filtroActivo} onChange={e => setFiltroActivo(e.target.value as any)} className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40">
+                    <option value="todos">Todos</option>
+                    <option value="activos">Activos</option>
+                    <option value="inactivos">Inactivos</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Temporada</label>
+                  <select value={filtroTemporada} onChange={e => setFiltroTemporada(e.target.value)} className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40">
+                    <option value="">Todas</option>
+                    {temporadasUnicas.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
               </div>
               {(filtroActivo !== 'todos' || filtroTemporada || buscarLider) && (
-                <Button variant="outline" size="sm" onClick={() => { setFiltroActivo('todos'); setFiltroTemporada(''); setBuscarLider('') }}>
+                <Button variant="outline" size="sm" className="self-end" onClick={() => { setFiltroActivo('todos'); setFiltroTemporada(''); setBuscarLider('') }}>
                   Limpiar
                 </Button>
               )}
-              <div className="ml-auto flex items-center gap-3">
-                <BadgeSistema variante="default" className="text-xs">Total: {gruposOrdenados.length}</BadgeSistema>
-                <BadgeSistema variante="info" className="text-xs">Seleccionados: {seleccion.size}</BadgeSistema>
-              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <BadgeSistema variante="default" className="text-xs">Total: {gruposOrdenados.length}</BadgeSistema>
+              <BadgeSistema variante="info" className="text-xs">Seleccionados: {seleccion.size}</BadgeSistema>
             </div>
           </div>
 
           {/* Lista de grupos */}
-          <div className="flex-1 overflow-auto px-6 py-4">
+          <div className="flex-1 overflow-auto px-4 sm:px-6 py-3 sm:py-4">
             {loading && (
               <div className="flex items-center justify-center py-12">
                 <TextoSistema variante="sutil">Cargando grupos...</TextoSistema>
@@ -253,49 +260,44 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
             )}
             {!loading && gruposOrdenados.length === 0 && (
               <div className="flex items-center justify-center py-12">
-                <TextoSistema variante="sutil">No hay grupos disponibles.</TextoSistema>
+                <TextoSistema variante="sutil">{soloNuevos ? 'No hay grupos nuevos por asignar.' : 'No hay grupos disponibles.'}</TextoSistema>
               </div>
             )}
             {!loading && gruposOrdenados.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {gruposOrdenados.map(g => {
                   const checked = seleccion.has(g.id)
                   const multi = g.directoresCount && g.directoresCount > 0
                   return (
-                    <label key={g.id} className="flex items-start gap-3 p-4 bg-card/50 border border-border rounded-xl hover:shadow-md transition-shadow cursor-pointer">
+                    <label key={g.id} className="flex items-start gap-3 p-3 sm:p-4 border-b border-border sm:border sm:rounded-xl sm:bg-card/50 hover:bg-muted/30 transition-colors cursor-pointer">
                       <input
                         type="checkbox"
-                        className="mt-1 w-4 h-4 rounded border-border text-orange-500 focus:ring-orange-400/40"
+                        className="mt-0.5 w-5 h-5 sm:w-4 sm:h-4 rounded border-border text-orange-500 focus:ring-orange-400/40 flex-shrink-0"
                         checked={checked}
                         onChange={() => toggleGrupo(g.id, checked, (g.directoresCount || 0) - (g.asignado ? 1 : 0), g.directoresSample || [])}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <h4 className="font-semibold text-foreground text-base truncate" title={g.nombre}>{g.nombre}</h4>
-                          <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h4 className="font-semibold text-foreground text-sm sm:text-base truncate" title={g.nombre}>{g.nombre}</h4>
+                          <div className="flex items-center gap-1 sm:gap-2 flex-wrap flex-shrink-0">
                             {g.activo === false ? (
-                              <BadgeSistema variante="default">Inactivo</BadgeSistema>
+                              <BadgeSistema variante="default" tamaño="sm">Inactivo</BadgeSistema>
                             ) : (
-                              <BadgeSistema variante="success">Activo</BadgeSistema>
+                              <BadgeSistema variante="success" tamaño="sm">Activo</BadgeSistema>
                             )}
-                            {g.asignado && <BadgeSistema variante="success">Asignado</BadgeSistema>}
+                            {!soloNuevos && g.asignado && <BadgeSistema variante="success" tamaño="sm">Asignado</BadgeSistema>}
                             {multi && (
-                              <BadgeSistema variante="info" title="Total de directores en este grupo">{g.directoresCount} dir</BadgeSistema>
+                              <BadgeSistema variante="info" tamaño="sm" title="Total de directores en este grupo">{g.directoresCount} dir</BadgeSistema>
                             )}
                           </div>
                         </div>
-                        <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-                          <span><strong>Temporada:</strong> {g.temporadaNombre || '—'}</span>
+                        <div className="text-[11px] sm:text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+                          <span><strong>Temp:</strong> {g.temporadaNombre || '—'}</span>
                           <span className="flex items-center gap-1">
                             <Users className="w-3 h-3" />
-                            <strong>Miembros:</strong> {g.miembrosCount ?? 0}
+                            {g.miembrosCount ?? 0}
                           </span>
-                          <span><strong>Líderes:</strong> {g.lideres && g.lideres.length ? g.lideres.join(', ') : '—'}</span>
-                          {multi && g.directoresSample && g.directoresSample.length > 0 && (
-                            <span className="truncate max-w-[280px]" title={`Otros directores: ${g.directoresSample.join(', ')}`}>
-                              <strong>Otros dir:</strong> {g.directoresSample.join(', ')}
-                            </span>
-                          )}
+                          <span><strong>Líd:</strong> {g.lideres && g.lideres.length ? g.lideres.join(', ') : '—'}</span>
                         </div>
                       </div>
                     </label>
@@ -303,6 +305,14 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                 })}
               </div>
             )}
+          </div>
+
+          {/* Botón fijo en móvil */}
+          <div className="sm:hidden px-4 py-3 border-t border-border bg-card">
+            <Button variant="default" className="w-full" onClick={guardado} disabled={cargandoGuardar}>
+              <Save className="w-4 h-4 mr-2" />
+              {cargandoGuardar ? 'Guardando...' : `Guardar (${seleccion.size})`}
+            </Button>
           </div>
         </div>
       </div>

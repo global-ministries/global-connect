@@ -16,11 +16,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ segmentoId: str
     if (!userWithRoles) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     const roles = userWithRoles.roles || []
     const esSuperior = roles.some(r => ['admin','pastor','director-general'].includes(r))
+    const esDE = roles.includes('director-etapa')
 
     // Verificar director pertenece al segmento (podemos usar admin para evitar RLS si es superior)
-    const { data: dirRow, error: dirErr } = await (esSuperior ? supabaseAdmin : supabase)
+    const { data: dirRow, error: dirErr } = await ((esSuperior || esDE) ? supabaseAdmin : supabase)
       .from('segmento_lideres')
-      .select('id, segmento_id, tipo_lider')
+      .select('id, segmento_id, tipo_lider, usuario_id')
       .eq('id', directorId)
       .maybeSingle()
     if (dirErr) return NextResponse.json({ error: dirErr.message }, { status: 400 })
@@ -28,12 +29,24 @@ export async function GET(req: Request, ctx: { params: Promise<{ segmentoId: str
     if (dirRow.segmento_id !== segmentoId) return NextResponse.json({ error: 'Director no pertenece al segmento' }, { status: 403 })
     if (dirRow.tipo_lider !== 'director_etapa') return NextResponse.json({ error: 'No es director_etapa' }, { status: 400 })
 
-    // Si no es superior y es el propio director: sólo ver grupos asignados
+    // Verificar si el director-etapa está consultando su propio registro
+    let esSuPropioRegistro = false
+    if (esDE && !esSuperior) {
+      const { data: usuarioData } = await supabaseAdmin
+        .from('usuarios')
+        .select('id')
+        .eq('auth_id', userWithRoles.user.id)
+        .single()
+      esSuPropioRegistro = usuarioData?.id === dirRow.usuario_id
+    }
+
+    // Director-etapa puede ver todos los grupos de su segmento (para poder auto-asignarse)
+    // Otros roles no superiores solo ven asignados
     let soloAsignados = false
-    if (!esSuperior) soloAsignados = true
+    if (!esSuperior && !esSuPropioRegistro) soloAsignados = true
 
     // Obtener asignaciones del director
-    const { data: asignaciones, error: asignErr } = await (esSuperior ? supabaseAdmin : supabase)
+    const { data: asignaciones, error: asignErr } = await ((esSuperior || esDE) ? supabaseAdmin : supabase)
       .from('director_etapa_grupos')
       .select('grupo_id')
       .eq('director_etapa_id', directorId)
@@ -42,7 +55,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ segmentoId: str
     const asignadosSet = new Set((asignaciones||[]).map(a => a.grupo_id))
 
     // Obtener grupos del segmento con temporada y estado activo
-    const clientLectura = esSuperior ? supabaseAdmin : supabase
+    const clientLectura = (esSuperior || esDE) ? supabaseAdmin : supabase
     let query = clientLectura.from('grupos')
       .select('id, nombre, segmento_id, segmento_ubicacion_id, activo, temporada:temporada_id (nombre)')
       .eq('segmento_id', segmentoId)
@@ -192,18 +205,32 @@ export async function POST(req: Request, ctx: { params: Promise<{ segmentoId: st
     if (!userWithRoles) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     const roles = userWithRoles.roles || []
     const esSuperior = roles.some(r => ['admin','pastor','director-general'].includes(r))
-    if (!esSuperior) return NextResponse.json({ error: 'Permiso denegado', rolesActuales: roles }, { status: 403 })
+    const esDE = roles.includes('director-etapa')
+    // Director-etapa puede auto-asignarse grupos; superiores pueden asignar a cualquier director
+    if (!esSuperior && !esDE) return NextResponse.json({ error: 'Permiso denegado', rolesActuales: roles }, { status: 403 })
 
     // Verificar director
     const { data: dirRow, error: dirErr } = await supabaseAdmin
       .from('segmento_lideres')
-      .select('id, segmento_id, tipo_lider')
+      .select('id, segmento_id, tipo_lider, usuario_id')
       .eq('id', directorId)
       .maybeSingle()
     if (dirErr) return NextResponse.json({ error: dirErr.message }, { status: 400 })
     if (!dirRow) return NextResponse.json({ error: 'Director no encontrado' }, { status: 404 })
     if (dirRow.segmento_id !== segmentoId) return NextResponse.json({ error: 'No pertenece al segmento' }, { status: 403 })
     if (dirRow.tipo_lider !== 'director_etapa') return NextResponse.json({ error: 'No es director_etapa' }, { status: 400 })
+
+    // Si es director-etapa (no superior), solo puede modificar su propio registro
+    if (esDE && !esSuperior) {
+      const { data: usuarioData } = await supabaseAdmin
+        .from('usuarios')
+        .select('id')
+        .eq('auth_id', userWithRoles.user.id)
+        .single()
+      if (usuarioData?.id !== dirRow.usuario_id) {
+        return NextResponse.json({ error: 'Solo puedes modificar tus propias asignaciones' }, { status: 403 })
+      }
+    }
 
     let body: any
     try { body = await req.json() } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }

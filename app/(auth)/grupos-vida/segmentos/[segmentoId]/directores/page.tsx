@@ -4,8 +4,7 @@ import { Suspense, lazy } from 'react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { ContenedorDashboard, TituloSistema, TextoSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { Users } from 'lucide-react'
+import { ContenedorDashboard, TextoSistema } from '@/components/ui/sistema-diseno'
 
 const DirectoresSegmentoClient = lazy(() => import('./DirectoresSegmentoClient'))
 
@@ -42,30 +41,19 @@ export default async function DirectoresSegmentoPage({ params }: Props) {
   return (
     <DashboardLayout>
       <ContenedorDashboard
-        titulo={`Directores de Etapa`}
-        subtitulo={`Gestión para el segmento: ${segmento.nombre}`}
-        botonRegreso={{ href: `/grupos-vida/segmentos/${segmento.id}`, texto: 'Volver al segmento' }}
+        titulo="Directores del Segmento"
+        subtitulo={segmento.nombre}
+        botonRegreso={{ href: `/grupos-vida/segmentos/${segmento.id}`, texto: 'Volver' }}
       >
+        <div className="space-y-4">
+          <Suspense fallback={<div className="text-sm text-muted-foreground">Cargando módulo...</div>}>
+            <DirectoresSegmentoClient segmentoId={segmentoId} esSuperior={esSuperior} />
+          </Suspense>
 
-        <div className="space-y-6">
-          <TarjetaSistema className="p-6">
-            <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-              <Users className="w-5 h-5 text-orange-500" />
-              Asignaciones de Directores
-            </h3>
-            <TextoSistema variante="sutil" className="-mt-4 mb-4">Asigna y visualiza directores por ciudad y (próximamente) por grupo.</TextoSistema>
-
-            {/* Contenido con estilo tipo 'Miembros' */}
-            <div className="bg-card/50 border border-border rounded-xl p-4">
-              <Suspense fallback={<div className="text-sm text-muted-foreground">Cargando módulo...</div>}>
-                <DirectoresSegmentoClient segmentoId={segmentoId} esSuperior={esSuperior} />
-              </Suspense>
-            </div>
-          </TarjetaSistema>
           {!esSuperior && (
-            <div className="text-[11px] text-muted-foreground">
+            <TextoSistema variante="sutil" className="text-[11px]">
               Solo roles superiores (admin/pastor/director-general) pueden agregar nuevos directores. Puedes ver tus asignaciones existentes.
-            </div>
+            </TextoSistema>
           )}
         </div>
       </ContenedorDashboard>

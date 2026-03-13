@@ -74,7 +74,7 @@ const menuItems: MenuItem[] = [
     href: '/grupos-vida',
     children: [
       { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House },
-      { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users, roles: ['admin', 'pastor', 'director-general'] },
+      { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
       { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar, roles: ['admin', 'pastor', 'director-general'] },
       { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin },
       { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },

@@ -46,7 +46,7 @@ export function MetricWidget({
           <Icono className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <TextoSistema variante="sutil" tamaño="sm" className="text-[11px] md:text-xs lg:text-sm leading-tight truncate">
+          <TextoSistema variante="sutil" tamaño="sm" className="text-[11px] md:text-xs lg:text-sm leading-tight">
             {title}
           </TextoSistema>
           <div className="flex items-baseline gap-1 lg:gap-2">
