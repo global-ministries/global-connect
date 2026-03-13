@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { Settings, Save, Clock, Eye, AlertTriangle, Mail } from "lucide-react";
+import { Settings, Save, Clock, Eye, AlertTriangle, Mail, MapPin } from "lucide-react";
 import {
     BotonSistema,
     TarjetaSistema,
@@ -16,6 +16,7 @@ import {
     actualizarConfiguracionGrupos,
 } from "@/lib/actions/configuracion-grupos-vida.actions";
 import type { ConfiguracionGruposVida } from "@/lib/types/configuracion-grupos-vida.types";
+import { geocodificarDireccionesMasivo, obtenerEstadisticasGeocoding } from "@/lib/actions/geocodificar.actions";
 
 interface ConfiguracionPanelProps {
     /** Datos pre-cargados desde Server Component (COR-006) */
@@ -49,6 +50,19 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
     const [isLoading, setIsLoading] = useState(!configInicial);
     const [isPending, startTransition] = useTransition();
     const toast = useNotificaciones();
+
+    // Geocodificación masiva
+    const [geoStats, setGeoStats] = useState<{ total: number; conCoordenadas: number; sinCoordenadas: number; porcentaje: number } | null>(null);
+    const [geoProcesando, setGeoProcesando] = useState(false);
+
+    // Cargar stats de geocodificación
+    useEffect(() => {
+        const cargarGeoStats = async () => {
+            const res = await obtenerEstadisticasGeocoding();
+            if (res.success) setGeoStats({ total: res.total, conCoordenadas: res.conCoordenadas, sinCoordenadas: res.sinCoordenadas, porcentaje: res.porcentaje });
+        };
+        cargarGeoStats();
+    }, []);
 
     // Fallback: solo fetch si no se pasó configInicial
     useEffect(() => {
@@ -399,6 +413,71 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                         </ConfigItem>
                     )
                 }
+
+                <SeparadorSistema />
+
+                {/* ── Geocodificación Masiva ── */}
+                <div className="flex items-center gap-2 mt-4">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <TituloSistema nivel={4}>Geocodificación masiva</TituloSistema>
+                </div>
+
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+                    {geoStats ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                            <div>
+                                <TextoSistema className="text-lg font-bold">{geoStats.total}</TextoSistema>
+                                <TextoSistema variante="muted" tamaño="sm">Direcciones</TextoSistema>
+                            </div>
+                            <div>
+                                <TextoSistema className="text-lg font-bold text-green-600">{geoStats.conCoordenadas}</TextoSistema>
+                                <TextoSistema variante="muted" tamaño="sm">Con coordenadas</TextoSistema>
+                            </div>
+                            <div>
+                                <TextoSistema className="text-lg font-bold text-orange-500">{geoStats.sinCoordenadas}</TextoSistema>
+                                <TextoSistema variante="muted" tamaño="sm">Sin coordenadas</TextoSistema>
+                            </div>
+                            <div>
+                                <TextoSistema className="text-lg font-bold">{geoStats.porcentaje}%</TextoSistema>
+                                <TextoSistema variante="muted" tamaño="sm">Cobertura</TextoSistema>
+                            </div>
+                        </div>
+                    ) : (
+                        <TextoSistema variante="muted" tamaño="sm">Cargando estadísticas...</TextoSistema>
+                    )}
+
+                    <TextoSistema variante="muted" tamaño="sm">
+                        Geocodifica las direcciones sin coordenadas usando OpenStreetMap (Nominatim).
+                        Proceso: ~1 dirección por segundo.
+                    </TextoSistema>
+
+                    <BotonSistema
+                        variante="outline"
+                        icono={MapPin}
+                        cargando={geoProcesando}
+                        disabled={geoProcesando || (geoStats?.sinCoordenadas === 0)}
+                        onClick={async () => {
+                            setGeoProcesando(true);
+                            try {
+                                const res = await geocodificarDireccionesMasivo(50);
+                                if (res.success) {
+                                    toast.success(`Geocodificadas: ${res.totalGeocodificadas} de ${res.totalProcesadas}`);
+                                    // Refrescar stats
+                                    const stats = await obtenerEstadisticasGeocoding();
+                                    if (stats.success) setGeoStats({ total: stats.total, conCoordenadas: stats.conCoordenadas, sinCoordenadas: stats.sinCoordenadas, porcentaje: stats.porcentaje });
+                                } else {
+                                    toast.error(res.error ?? 'Error en geocodificación');
+                                }
+                            } catch {
+                                toast.error('Error inesperado');
+                            } finally {
+                                setGeoProcesando(false);
+                            }
+                        }}
+                    >
+                        {geoProcesando ? 'Procesando...' : geoStats?.sinCoordenadas === 0 ? 'Todas geocodificadas' : `Geocodificar (${geoStats?.sinCoordenadas ?? '?'} pendientes)`}
+                    </BotonSistema>
+                </div>
 
                 <SeparadorSistema />
 

@@ -103,20 +103,43 @@ export function MapaInteractivoInner({
                             click: () => onGrupoClick?.(grupo.id),
                         }}
                     >
-                        <Popup minWidth={220} maxWidth={300}>
+                        <Popup minWidth={240} maxWidth={320}>
                             <div className="space-y-2 p-1">
                                 {/* Nombre + estado */}
                                 <div className="flex items-center justify-between gap-2">
-                                    <span className="text-sm font-semibold text-foreground">
+                                    <a
+                                        href={`/grupos-vida/${grupo.id}`}
+                                        className="text-sm font-semibold text-foreground hover:text-orange-600 transition-colors underline-offset-2 hover:underline"
+                                    >
                                         {grupo.nombre}
-                                    </span>
+                                    </a>
                                     <BadgeEstadoCiclo estado={grupo.estado_ciclo} tamaño="sm" />
                                 </div>
 
-                                {/* Segmento */}
-                                <BadgeSistema variante="info" tamaño="sm">
-                                    {grupo.segmento}
-                                </BadgeSistema>
+                                {/* Segmento + Temporada */}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <BadgeSistema variante="info" tamaño="sm">
+                                        {grupo.segmento}
+                                    </BadgeSistema>
+                                    {grupo.temporada && (
+                                        <BadgeSistema variante="default" tamaño="sm">
+                                            {grupo.temporada}
+                                        </BadgeSistema>
+                                    )}
+                                </div>
+
+                                {/* Líderes */}
+                                {grupo.lideres && grupo.lideres.length > 0 && (
+                                    <div className="flex items-start gap-1.5 text-xs">
+                                        <Users className="h-3 w-3 flex-shrink-0 mt-0.5 text-orange-500" />
+                                        <div>
+                                            <span className="font-medium text-foreground">Líderes:</span>{" "}
+                                            <span className="text-muted-foreground">
+                                                {grupo.lideres.map((l) => l.nombre).join(", ")}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Dirección */}
                                 <TextoSistema
@@ -154,13 +177,15 @@ export function MapaInteractivoInner({
                                         ` / ${grupo.capacidad_maxima} cap.`}
                                 </TextoSistema>
 
-                                {/* Líderes */}
-                                {grupo.lideres && grupo.lideres.length > 0 && (
-                                    <div className="pt-1 text-xs text-muted-foreground">
-                                        <span className="font-medium">Líderes:</span>{" "}
-                                        {grupo.lideres.map((l) => l.nombre).join(", ")}
-                                    </div>
-                                )}
+                                {/* Link al grupo */}
+                                <div className="pt-1 border-t border-border/50">
+                                    <a
+                                        href={`/grupos-vida/${grupo.id}`}
+                                        className="text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors"
+                                    >
+                                        Ver detalle del grupo →
+                                    </a>
+                                </div>
                             </div>
                         </Popup>
                     </Marker>

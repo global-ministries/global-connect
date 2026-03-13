@@ -11,15 +11,16 @@ export default async function MapaGruposPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    // Obtener datos del mapa usando la vista
+    // Obtener solo grupos activos de temporadas activas
     const { data: datosVista } = await supabase
         .from("v_mapa_grupos_vida")
         .select("*")
+        .eq("estado_ciclo", "activo")
         .not("latitud", "is", null)
         .not("longitud", "is", null);
 
     const grupos: GrupoMapa[] = (datosVista ?? []).map((g) => ({
-        id: g.grupo_id ?? "",
+        id: g.id ?? g.grupo_id ?? "",
         nombre: g.nombre ?? "",
         latitud: g.latitud ?? 0,
         longitud: g.longitud ?? 0,
@@ -32,7 +33,7 @@ export default async function MapaGruposPage() {
         temporada: g.temporada ?? "",
         total_miembros: g.total_miembros ?? 0,
         capacidad_maxima: g.capacidad_maxima ?? null,
-        lideres: null,
+        lideres: Array.isArray(g.lideres) ? g.lideres : null,
     }));
 
     const totalGrupos = grupos.length;
