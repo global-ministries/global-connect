@@ -26,10 +26,10 @@ export default async function PaginaConfiguracion() {
     redirect("/dashboard")
   }
 
-  // Obtener datos de la organización (primer campus como referencia)
-  const { data: campus } = await supabase
-    .from("campus")
-    .select("id, nombre, direccion, telefono, email, created_at")
+  // Obtener configuración de la plataforma (org data + branding)
+  const { data: config } = await supabase
+    .from("configuracion_plataforma")
+    .select("*")
     .limit(1)
     .single()
 
@@ -40,14 +40,22 @@ export default async function PaginaConfiguracion() {
         botonRegreso={{ href: "/dashboard", texto: "Dashboard" }}
       >
         <ConfiguracionGlobalClient
-          datosOrganizacion={campus ? {
-            nombre: campus.nombre || "",
-            direccion: campus.direccion || "",
-            telefono: campus.telefono || "",
-            email: campus.email || "",
+          datosOrganizacion={config ? {
+            nombre: config.nombre_organizacion || "",
+            direccion: config.direccion || "",
+            telefono: config.telefono || "",
+            email: config.email_contacto || "",
+          } : undefined}
+          datosBranding={config ? {
+            logoLightUrl: config.logo_light_url,
+            logoDarkUrl: config.logo_dark_url,
+            faviconUrl: config.favicon_url,
+            colorPrimario: config.color_primario || "#E96C20",
+            colorSecundario: config.color_secundario || "#F59E0B",
           } : undefined}
         />
       </ContenedorDashboard>
     </DashboardLayout>
   )
 }
+

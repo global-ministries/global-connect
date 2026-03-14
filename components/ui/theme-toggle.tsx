@@ -19,7 +19,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         return (
             <div
                 className={cn(
-                    "w-9 h-9 rounded-xl bg-[var(--surface-secondary)] animate-pulse",
+                    "w-9 h-9 rounded-xl animate-pulse",
                     className
                 )}
             />
@@ -48,15 +48,14 @@ export function ThemeToggle({ className }: { className?: string }) {
             title={label}
             className={cn(
                 "relative flex items-center justify-center rounded-xl",
-                "w-9 h-9 min-h-[44px] min-w-[44px]",
-                "bg-[var(--surface-secondary)] hover:bg-[var(--brand-accent)]",
-                "border border-[var(--glass-border)]",
-                "transition-[background-color,border-color,transform] duration-200 ease-expo",
+                "w-9 h-9",
+                "hover:bg-[var(--brand-accent)]",
+                "transition-[background-color,transform] duration-200 ease-expo",
                 "press-scale focus-ring touch-manipulation",
                 className
             )}
         >
-            <Icon className="w-full h-full text-foreground transition-transform duration-300 ease-expo" />
+            <Icon className="w-5 h-5 text-muted-foreground transition-transform duration-300 ease-expo" />
         </button>
     )
 }

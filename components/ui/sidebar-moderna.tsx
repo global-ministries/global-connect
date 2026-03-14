@@ -30,6 +30,7 @@ import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { logout } from '@/lib/actions/auth.actions'
 import { ThemeToggle } from './theme-toggle'
+import { useBranding } from '@/hooks/useBranding'
 
 interface SidebarModernaProps {
   className?: string
@@ -124,6 +125,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { usuario, roles, loading } = useCurrentUser()
+  const branding = useBranding()
 
 
   // ─── Tooltip hover handlers (collapsed mode) ───
@@ -303,7 +305,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         <div className="flex items-center justify-between p-3">
           {!isCollapsed && (
             <div className="flex items-center">
-              <LogoGlobalConnect tamaño="md" className="w-[96px] h-auto" />
+              <LogoGlobalConnect tamaño="md" className="w-[96px] h-auto" logoLightUrl={branding.logoLightUrl} logoDarkUrl={branding.logoDarkUrl} />
             </div>
           )}
 

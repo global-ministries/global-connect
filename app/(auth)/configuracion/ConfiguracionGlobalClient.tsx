@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useCallback } from "react"
 import Image from "next/image"
+import { guardarConfiguracionBranding, guardarDatosOrganizacion } from "@/lib/actions/branding.actions"
 import {
     TarjetaSistema,
     TituloSistema,
@@ -43,8 +44,17 @@ interface DatosOrganizacion {
     email: string
 }
 
+interface DatosBranding {
+    logoLightUrl: string | null
+    logoDarkUrl: string | null
+    faviconUrl: string | null
+    colorPrimario: string
+    colorSecundario: string
+}
+
 interface ConfiguracionGlobalClientProps {
     datosOrganizacion?: DatosOrganizacion
+    datosBranding?: DatosBranding
 }
 
 interface SeccionConfig {
@@ -129,7 +139,7 @@ const modulosIniciales: ModuloSistema[] = [
     },
 ]
 
-export function ConfiguracionGlobalClient({ datosOrganizacion }: ConfiguracionGlobalClientProps) {
+export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: ConfiguracionGlobalClientProps) {
     const toast = useNotificaciones()
     const [seccionAbierta, setSeccionAbierta] = useState<string>("organizacion")
     const [guardando, setGuardando] = useState(false)
@@ -140,15 +150,25 @@ export function ConfiguracionGlobalClient({ datosOrganizacion }: ConfiguracionGl
     const [orgTelefono, setOrgTelefono] = useState(datosOrganizacion?.telefono ?? "")
     const [orgEmail, setOrgEmail] = useState(datosOrganizacion?.email ?? "")
 
-    // Estado de branding
-    const [logoLightPreview, setLogoLightPreview] = useState<string | null>(null)
-    const [logoDarkPreview, setLogoDarkPreview] = useState<string | null>(null)
-    const [faviconPreview, setFaviconPreview] = useState<string | null>(null)
-    const [brandColor, setBrandColor] = useState("#E96C20")
-    const [brandColorLight, setBrandColorLight] = useState("#F59E0B")
+    // Estado de branding — inicializar desde datos del servidor
+    const [logoLightPreview, setLogoLightPreview] = useState<string | null>(datosBranding?.logoLightUrl ?? null)
+    const [logoDarkPreview, setLogoDarkPreview] = useState<string | null>(datosBranding?.logoDarkUrl ?? null)
+    const [faviconPreview, setFaviconPreview] = useState<string | null>(datosBranding?.faviconUrl ?? null)
+    const [brandColor, setBrandColor] = useState(datosBranding?.colorPrimario ?? "#E96C20")
+    const [brandColorLight, setBrandColorLight] = useState(datosBranding?.colorSecundario ?? "#F59E0B")
     const fileInputLightRef = useRef<HTMLInputElement>(null)
     const fileInputDarkRef = useRef<HTMLInputElement>(null)
     const fileInputFaviconRef = useRef<HTMLInputElement>(null)
+
+    // Archivos seleccionados para subir
+    const [logoLightFile, setLogoLightFile] = useState<File | null>(null)
+    const [logoDarkFile, setLogoDarkFile] = useState<File | null>(null)
+    const [faviconFile, setFaviconFile] = useState<File | null>(null)
+
+    // Flags para marcar logos eliminados
+    const [eliminarLogoLight, setEliminarLogoLight] = useState(false)
+    const [eliminarLogoDark, setEliminarLogoDark] = useState(false)
+    const [eliminarFavicon, setEliminarFavicon] = useState(false)
 
     // Estado de módulos
     const [modulos, setModulos] = useState<ModuloSistema[]>(modulosIniciales)
@@ -168,9 +188,18 @@ export function ConfiguracionGlobalClient({ datosOrganizacion }: ConfiguracionGl
     const guardarOrganizacion = async () => {
         setGuardando(true)
         try {
-            // TODO: Implementar server action para guardar datos
-            await new Promise(resolve => setTimeout(resolve, 800))
-            toast.success("Datos de la organización actualizados")
+            const resultado = await guardarDatosOrganizacion({
+                nombre: orgNombre,
+                email: orgEmail,
+                direccion: orgDireccion,
+                telefono: orgTelefono,
+            })
+
+            if (resultado.success) {
+                toast.success(resultado.message || "Datos de la organización actualizados")
+            } else {
+                toast.error(resultado.error || "Error al guardar los datos")
+            }
         } catch {
             toast.error("Error al guardar los datos")
         } finally {
@@ -191,21 +220,99 @@ export function ConfiguracionGlobalClient({ datosOrganizacion }: ConfiguracionGl
         }
     }
 
-    const handleFileSelect = (type: 'light' | 'dark' | 'favicon') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileSelect = useCallback((type: 'light' | 'dark' | 'favicon') => (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
+
+        // Validar tamaño (max 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error("El archivo es demasiado grande (máximo 2MB)")
+            return
+        }
+
+        // Validar tipo
+        const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
+        if (type === 'favicon') allowed.push('image/x-icon', 'image/vnd.microsoft.icon')
+        if (!allowed.includes(file.type)) {
+            toast.error("Tipo de archivo no permitido. Usa PNG, JPG, WebP o SVG.")
+            return
+        }
+
         const url = URL.createObjectURL(file)
-        if (type === 'light') setLogoLightPreview(url)
-        else if (type === 'dark') setLogoDarkPreview(url)
-        else setFaviconPreview(url)
-    }
+        if (type === 'light') {
+            setLogoLightPreview(url)
+            setLogoLightFile(file)
+            setEliminarLogoLight(false)
+        } else if (type === 'dark') {
+            setLogoDarkPreview(url)
+            setLogoDarkFile(file)
+            setEliminarLogoDark(false)
+        } else {
+            setFaviconPreview(url)
+            setFaviconFile(file)
+            setEliminarFavicon(false)
+        }
+    }, [toast])
+
+    const handleRemoveLogo = useCallback((type: 'light' | 'dark' | 'favicon') => {
+        if (type === 'light') {
+            setLogoLightPreview(null)
+            setLogoLightFile(null)
+            setEliminarLogoLight(true)
+            if (fileInputLightRef.current) fileInputLightRef.current.value = ''
+        } else if (type === 'dark') {
+            setLogoDarkPreview(null)
+            setLogoDarkFile(null)
+            setEliminarLogoDark(true)
+            if (fileInputDarkRef.current) fileInputDarkRef.current.value = ''
+        } else {
+            setFaviconPreview(null)
+            setFaviconFile(null)
+            setEliminarFavicon(true)
+            if (fileInputFaviconRef.current) fileInputFaviconRef.current.value = ''
+        }
+    }, [])
 
     const guardarBranding = async () => {
         setGuardando(true)
         try {
-            // TODO: Subir logos a Supabase Storage y guardar colores en DB
-            await new Promise(resolve => setTimeout(resolve, 800))
-            toast.success("Configuración de branding actualizada")
+            const formData = new FormData()
+
+            // Adjuntar archivos si fueron seleccionados
+            if (logoLightFile) formData.append('logo_light', logoLightFile)
+            if (logoDarkFile) formData.append('logo_dark', logoDarkFile)
+            if (faviconFile) formData.append('favicon', faviconFile)
+
+            // Colores
+            formData.append('color_primario', brandColor)
+            formData.append('color_secundario', brandColorLight)
+
+            // Flags de eliminación
+            if (eliminarLogoLight) formData.append('eliminar_logo_light', 'true')
+            if (eliminarLogoDark) formData.append('eliminar_logo_dark', 'true')
+            if (eliminarFavicon) formData.append('eliminar_favicon', 'true')
+
+            const resultado = await guardarConfiguracionBranding(formData)
+
+            if (resultado.success) {
+                toast.success(resultado.message || "Branding actualizado")
+                // Limpiar files después de guardar exitoso
+                setLogoLightFile(null)
+                setLogoDarkFile(null)
+                setFaviconFile(null)
+                setEliminarLogoLight(false)
+                setEliminarLogoDark(false)
+                setEliminarFavicon(false)
+
+                // Actualizar previews con las URLs reales del servidor
+                if (resultado.data) {
+                    setLogoLightPreview(resultado.data.logo_light_url)
+                    setLogoDarkPreview(resultado.data.logo_dark_url)
+                    setFaviconPreview(resultado.data.favicon_url)
+                }
+            } else {
+                toast.error(resultado.error || "Error al guardar el branding")
+            }
         } catch {
             toast.error("Error al guardar el branding")
         } finally {
@@ -345,7 +452,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion }: ConfiguracionGl
                                                                 <Image src={logoLightPreview} alt="Logo claro" fill className="object-contain p-3" />
                                                                 <button
                                                                     type="button"
-                                                                    onClick={(e) => { e.stopPropagation(); setLogoLightPreview(null) }}
+                                                                    onClick={(e) => { e.stopPropagation(); handleRemoveLogo('light') }}
                                                                     className="absolute top-2 right-2 p-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
                                                                 >
                                                                     <Trash2 className="h-3.5 w-3.5" />
@@ -377,7 +484,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion }: ConfiguracionGl
                                                                 <Image src={logoDarkPreview} alt="Logo oscuro" fill className="object-contain p-3" />
                                                                 <button
                                                                     type="button"
-                                                                    onClick={(e) => { e.stopPropagation(); setLogoDarkPreview(null) }}
+                                                                    onClick={(e) => { e.stopPropagation(); handleRemoveLogo('dark') }}
                                                                     className="absolute top-2 right-2 p-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
                                                                 >
                                                                     <Trash2 className="h-3.5 w-3.5" />

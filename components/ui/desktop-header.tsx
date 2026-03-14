@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LogOut, User, ArrowLeft } from 'lucide-react'
+import { LogOut, User, ArrowLeft, Bell } from 'lucide-react'
 import { logout } from "@/lib/actions/auth.actions"
 import { ThemeToggle } from './theme-toggle'
 import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { cn } from '@/lib/utils'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
 
 function formatearRol(roles: string[]): string {
     if (!roles || roles.length === 0) return 'Usuario'
@@ -35,6 +36,7 @@ export function DesktopHeader({ titulo, accionPrincipal, breadcrumbs, botonRegre
     const [scrolled, setScrolled] = useState(false)
     const [userMenuOpen, setUserMenuOpen] = useState(false)
     const { usuario, roles, loading } = useCurrentUser()
+    const toast = useNotificaciones()
     const userMenuRef = useRef<HTMLDivElement>(null)
     const pathname = usePathname()
     const headerRef = useRef<HTMLDivElement>(null)
@@ -113,7 +115,16 @@ export function DesktopHeader({ titulo, accionPrincipal, breadcrumbs, botonRegre
 
                 {/* Right: theme toggle + user avatar popover */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                    <ThemeToggle className="!min-h-0 !min-w-0 !w-8 !h-8" />
+                    <ThemeToggle />
+
+                    {/* Notification bell */}
+                    <button
+                        onClick={() => toast.info('Próximamente')}
+                        aria-label="Notificaciones"
+                        className="relative flex items-center justify-center rounded-xl w-9 h-9 hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
+                    >
+                        <Bell className="w-5 h-5 text-muted-foreground" />
+                    </button>
 
                     {/* User section */}
                     <div className="relative" ref={userMenuRef}>

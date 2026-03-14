@@ -10,12 +10,14 @@ import {
   LogOut, User, Menu, X, HelpCircle,
   Home, Users, UserCheck, Settings, Megaphone,
   ChevronDown, House, Calendar, MapPin, BarChart3,
-  ShieldAlert, ClipboardList
+  ShieldAlert, ClipboardList, Bell, Sun, Moon, Monitor
 } from 'lucide-react'
-import { ThemeToggle } from './theme-toggle'
+import { useTheme } from 'next-themes'
 import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { cn } from '@/lib/utils'
+import { useBranding } from '@/hooks/useBranding'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
 
 // ── SubItem type ──
 interface SubItem {
@@ -90,6 +92,9 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set())
   const pathname = usePathname()
   const { usuario, roles, loading } = useCurrentUser()
+  const branding = useBranding()
+  const toast = useNotificaciones()
+  const { theme, setTheme } = useTheme()
   const userMenuRef = useRef<HTMLDivElement>(null)
 
   // Auto-expand submenus when a child route is active
@@ -240,7 +245,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           {(() => {
             const tituloResuelto = resolverTitulo(pathname)
             return tituloResuelto === null ? (
-              <LogoGlobalConnect tamaño="sm" className={cn(
+              <LogoGlobalConnect tamaño="sm" logoLightUrl={branding.logoLightUrl} logoDarkUrl={branding.logoDarkUrl} className={cn(
                 "h-auto transition-[width] duration-300 ease-expo",
                 scrolled ? "w-[72px]" : "w-[80px]"
               )} />
@@ -255,77 +260,95 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
             )
           })()}
 
-          {/* Right: User Avatar */}
-          <div className="relative" ref={userMenuRef}>
+          {/* Right: Bell + User Avatar */}
+          <div className="flex items-center gap-1">
+            {/* Notification bell */}
             <button
-              onClick={() => setUserMenuOpen(prev => !prev)}
-              aria-label="Menú de usuario"
-              aria-expanded={userMenuOpen}
-              className="press-scale focus-ring touch-manipulation rounded-full"
+              onClick={() => toast.info('Próximamente')}
+              aria-label="Notificaciones"
+              className="p-2 rounded-xl hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring"
             >
-              {loading ? (
-                <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
-              ) : usuario ? (
-                <UserAvatar
-                  photoUrl={usuario.foto_perfil_url}
-                  nombre={usuario.nombre}
-                  apellido={usuario.apellido}
-                  size="sm"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <User className="w-4 h-4 text-muted-foreground" />
-                </div>
-              )}
+              <Bell className="w-[18px] h-[18px] text-muted-foreground" />
             </button>
 
-            {/* User Popover */}
-            {userMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-[220px] glass-panel-elevated rounded-2xl border border-[var(--glass-border)] shadow-xl overflow-hidden animate-slide-down-fade z-50">
-                {/* User info */}
-                <div className="px-4 py-3 border-b border-[var(--glass-border)]">
-                  <p className="font-semibold text-sm text-foreground truncate">
-                    {usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Usuario'}
-                  </p>
-                  <p className="text-xs text-[var(--brand-primary)] font-medium mt-0.5">
-                    {formatearRol(roles)}
-                  </p>
-                  {usuario?.email && (
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {usuario.email}
-                    </p>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="py-1">
-                  <Link
-                    href="/perfil"
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
-                  >
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setUserMenuOpen(prev => !prev)}
+                aria-label="Menú de usuario"
+                aria-expanded={userMenuOpen}
+                className="press-scale focus-ring touch-manipulation rounded-full"
+              >
+                {loading ? (
+                  <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+                ) : usuario ? (
+                  <UserAvatar
+                    photoUrl={usuario.foto_perfil_url}
+                    nombre={usuario.nombre}
+                    apellido={usuario.apellido}
+                    size="sm"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                     <User className="w-4 h-4 text-muted-foreground" />
-                    Mi Perfil
-                  </Link>
+                  </div>
+                )}
+              </button>
 
-                  <div className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-[var(--brand-accent)] transition-[background-color] duration-150 touch-manipulation">
-                    <ThemeToggle className="!min-h-0 !min-w-0 !w-7 !h-7" />
-                    <span className="text-sm text-foreground">Tema</span>
+              {/* User Popover */}
+              {userMenuOpen && (
+                <div className="absolute top-full right-0 mt-2 w-[220px] glass-panel-elevated rounded-2xl border border-[var(--glass-border)] shadow-xl overflow-hidden animate-slide-down-fade z-50">
+                  {/* User info */}
+                  <div className="px-4 py-3 border-b border-[var(--glass-border)]">
+                    <p className="font-semibold text-sm text-foreground truncate">
+                      {usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Usuario'}
+                    </p>
+                    <p className="text-xs text-[var(--brand-primary)] font-medium mt-0.5">
+                      {formatearRol(roles)}
+                    </p>
+                    {usuario?.email && (
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {usuario.email}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="mx-3 border-t border-[var(--glass-border)]" />
-
-                  <form action={logout}>
-                    <button
-                      type="submit"
-                      className="flex items-center gap-3 px-4 py-2.5 w-full text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
+                  {/* Actions */}
+                  <div className="py-1">
+                    <Link
+                      href="/perfil"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
                     >
-                      <LogOut className="w-4 h-4" />
-                      Cerrar Sesión
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      Mi Perfil
+                    </Link>
+
+                    <button
+                      onClick={() => {
+                        if (theme === 'light') setTheme('dark')
+                        else if (theme === 'dark') setTheme('system')
+                        else setTheme('light')
+                      }}
+                      className="flex items-center gap-3 px-4 py-2.5 w-full text-left text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
+                    >
+                      {theme === 'light' ? <Sun className="w-4 h-4 text-muted-foreground" /> : theme === 'dark' ? <Moon className="w-4 h-4 text-muted-foreground" /> : <Monitor className="w-4 h-4 text-muted-foreground" />}
+                      Tema
                     </button>
-                  </form>
+
+                    <div className="mx-3 border-t border-[var(--glass-border)]" />
+
+                    <form action={logout}>
+                      <button
+                        type="submit"
+                        className="flex items-center gap-3 px-4 py-2.5 w-full text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Cerrar Sesión
+                      </button>
+                    </form>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -354,7 +377,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       >
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 safe-area-pt border-b border-[var(--glass-border)]">
-          <LogoGlobalConnect tamaño="sm" className="w-[80px] h-auto" />
+          <LogoGlobalConnect tamaño="sm" className="w-[80px] h-auto" logoLightUrl={branding.logoLightUrl} logoDarkUrl={branding.logoDarkUrl} />
           <button
             onClick={closeDrawer}
             aria-label="Cerrar menú"
@@ -544,10 +567,22 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           })}
 
           {/* Theme Toggle */}
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]">
-            <ThemeToggle className="!min-h-0 !min-w-0 !w-8 !h-8" />
-            <span className="text-sm font-medium text-muted-foreground">Tema</span>
-          </div>
+          <button
+            onClick={() => {
+              if (theme === 'light') setTheme('dark')
+              else if (theme === 'dark') setTheme('system')
+              else setTheme('light')
+            }}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px] w-full text-left",
+              "transition-[background-color,color,transform] duration-200 ease-expo",
+              "press-scale focus-ring touch-manipulation",
+              "text-foreground hover:bg-[var(--brand-accent)]"
+            )}
+          >
+            {theme === 'light' ? <Sun className="w-5 h-5 flex-shrink-0 text-muted-foreground" /> : theme === 'dark' ? <Moon className="w-5 h-5 flex-shrink-0 text-muted-foreground" /> : <Monitor className="w-5 h-5 flex-shrink-0 text-muted-foreground" />}
+            <span className="font-medium text-sm">Tema</span>
+          </button>
 
           {/* Mi Perfil */}
           <Link
