@@ -268,8 +268,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
         <TarjetaSistema className="p-6">
           <div className="flex items-center gap-4">
             <div className={`p-3 rounded-xl flex-shrink-0 ${reporte.kpis_globales.variacion_semana_anterior >= 0
-                ? 'bg-gradient-to-br from-green-500 to-emerald-500'
-                : 'bg-gradient-to-br from-red-500 to-rose-500'
+              ? 'bg-gradient-to-br from-green-500 to-emerald-500'
+              : 'bg-gradient-to-br from-red-500 to-rose-500'
               }`}>
               {reporte.kpis_globales.variacion_semana_anterior >= 0 ? (
                 <TrendingUp className="w-6 h-6 text-white" />
@@ -282,8 +282,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
                 vs. Semana Anterior
               </TextoSistema>
               <div className={`text-3xl font-bold ${reporte.kpis_globales.variacion_semana_anterior >= 0
-                  ? 'text-green-600'
-                  : 'text-red-600'
+                ? 'text-green-600'
+                : 'text-red-600'
                 }`}>
                 {reporte.kpis_globales.variacion_semana_anterior > 0 ? '+' : ''}
                 {reporte.kpis_globales.variacion_semana_anterior}%
@@ -442,34 +442,36 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
       {/* Listas de Grupos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Grupos Perfectos */}
-        <TarjetaSistema className="p-6">
+        <TarjetaSistema className="p-4 sm:p-6 h-full">
           <div className="flex items-center gap-3 mb-4">
-            <CheckCircle2 className="w-6 h-6 text-green-600" />
+            <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg ring-1 ring-white/20 shadow-lg">
+              <CheckCircle2 className="w-4 h-4 text-white" />
+            </div>
             <TituloSistema nivel={3}>
               Grupos con 100% de Asistencia
             </TituloSistema>
           </div>
           {reporte.top_5_grupos_perfectos && reporte.top_5_grupos_perfectos.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-1.5 max-h-72 overflow-y-auto scrollbar-glass">
               {reporte.top_5_grupos_perfectos.map((grupo) => (
-                <div
+                <Link
                   key={grupo.id}
-                  className="p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100 transition-colors"
+                  href={`/grupos-vida/${grupo.id}`}
+                  className="flex items-center gap-3 p-3 bg-[var(--surface-secondary)]/50 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
                 >
-                  <Link
-                    href={`/grupos-vida/${grupo.id}`}
-                    className="block"
-                  >
-                    <div className="font-semibold text-foreground hover:text-green-700 mb-1">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm text-foreground truncate">
                       {grupo.nombre}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <TextoSistema variante="sutil" tamaño="sm">
-                        Líderes: {grupo.lideres}
-                      </TextoSistema>
-                    </div>
-                  </Link>
-                </div>
+                    <TextoSistema variante="sutil" tamaño="sm" className="truncate">
+                      {grupo.lideres}
+                    </TextoSistema>
+                  </div>
+                  <BadgeSistema variante="success" tamaño="sm">100%</BadgeSistema>
+                </Link>
               ))}
             </div>
           ) : (
@@ -482,18 +484,20 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
           )}
         </TarjetaSistema>
 
-        {/* Grupos en Riesgo */}
-        <TarjetaSistema className="p-6">
+        {/* Grupos en Riesgo (< 75%) */}
+        <TarjetaSistema className="p-4 sm:p-6 h-full">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
+              <div className="p-2 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg ring-1 ring-white/20 shadow-lg">
+                <AlertTriangle className="w-4 h-4 text-white" />
+              </div>
               <TituloSistema nivel={3}>
                 Grupos que Necesitan Atención
               </TituloSistema>
             </div>
             {reporte.grupos_en_riesgo_todos && reporte.grupos_en_riesgo_todos.length > 5 && (
               <BotonSistema
-                variante="outline"
+                variante="ghost"
                 tamaño="sm"
                 onClick={() => setMostrarTodosRiesgo((v) => !v)}
               >
@@ -501,42 +505,44 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
               </BotonSistema>
             )}
           </div>
-          {(mostrarTodosRiesgo ? reporte.grupos_en_riesgo_todos : reporte.top_5_grupos_en_riesgo) && (mostrarTodosRiesgo ? (reporte.grupos_en_riesgo_todos || []) : reporte.top_5_grupos_en_riesgo).length > 0 ? (
-            <div className="space-y-3">
-              {(mostrarTodosRiesgo ? (reporte.grupos_en_riesgo_todos || []) : reporte.top_5_grupos_en_riesgo).map((grupo) => (
-                <div
-                  key={grupo.id}
-                  className="p-4 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
-                >
+          {(() => {
+            const lista = mostrarTodosRiesgo
+              ? (reporte.grupos_en_riesgo_todos || [])
+              : reporte.top_5_grupos_en_riesgo
+            return lista && lista.length > 0 ? (
+              <div className="space-y-1.5 max-h-72 overflow-y-auto scrollbar-glass">
+                {lista.map((grupo) => (
                   <Link
+                    key={grupo.id}
                     href={`/grupos-vida/${grupo.id}`}
-                    className="block"
+                    className="flex items-center gap-3 p-3 bg-[var(--surface-secondary)]/50 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="font-semibold text-foreground hover:text-red-700">
+                    <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="w-4 h-4 text-red-500" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm text-foreground truncate">
                         {grupo.nombre}
                       </div>
-                      <BadgeSistema variante="error" tamaño="sm">
-                        {grupo.porcentaje_asistencia}%
-                      </BadgeSistema>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <TextoSistema variante="sutil" tamaño="sm">
-                        Líderes: {grupo.lideres}
+                      <TextoSistema variante="sutil" tamaño="sm" className="truncate">
+                        {grupo.lideres}
                       </TextoSistema>
                     </div>
+                    <BadgeSistema variante="error" tamaño="sm">
+                      {grupo.porcentaje_asistencia}%
+                    </BadgeSistema>
                   </Link>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="text-muted-foreground/50 text-4xl mb-2">✨</div>
-              <TextoSistema variante="sutil">
-                ¡Todos los grupos tienen buena asistencia!
-              </TextoSistema>
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-muted-foreground/50 text-4xl mb-2">✨</div>
+                <TextoSistema variante="sutil">
+                  ¡Todos los grupos tienen buena asistencia!
+                </TextoSistema>
+              </div>
+            )
+          })()}
         </TarjetaSistema>
       </div>
     </div>
