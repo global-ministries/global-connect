@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, Edit, TrendingUp, Calendar, Users, UserCheck, UserX, Filter } from 'lucide-react'
+import { Eye, Edit, TrendingUp, Calendar, Users, UserCheck, UserX, Filter, ChevronRight } from 'lucide-react'
 import { TarjetaSistema, BotonSistema, TituloSistema, TextoSistema, InputSistema } from '@/components/ui/sistema-diseno'
 import GraficoTendencia from './GraficoTendencia.client'
 
@@ -184,72 +184,56 @@ export default function HistorialAsistenciaClient({
         </TarjetaSistema>
 
         {/* Miembro más constante */}
-        <TarjetaSistema className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex-shrink-0">
-              <UserCheck className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <TextoSistema variante="sutil" tamaño="sm" className="mb-1">
-                Más Constante
-              </TextoSistema>
-              {reporte.kpis.miembro_mas_constante.id ? (
-                <Link href={`/users/${reporte.kpis.miembro_mas_constante.id}/asistencia`}>
-                  <div
-                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline"
-                    title={reporte.kpis.miembro_mas_constante.nombre}
-                  >
-                    {reporte.kpis.miembro_mas_constante.nombre}
-                  </div>
-                </Link>
-              ) : (
+        <Link href={`/grupos-vida/${grupoId}/asistencia/historial/mas-constantes`}>
+          <TarjetaSistema className="p-6 hover:bg-muted/30 transition-colors duration-200 cursor-pointer group">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex-shrink-0">
+                <UserCheck className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <TextoSistema variante="sutil" tamaño="sm" className="mb-1">
+                  Más Constante
+                </TextoSistema>
                 <div
                   className="text-sm font-semibold text-foreground truncate"
                   title={reporte.kpis.miembro_mas_constante.nombre}
                 >
                   {reporte.kpis.miembro_mas_constante.nombre}
                 </div>
-              )}
-              <TextoSistema variante="sutil" tamaño="sm" className="mt-0.5 text-xs">
-                {reporte.kpis.miembro_mas_constante.asistencias} asistencias
-              </TextoSistema>
+                <TextoSistema variante="sutil" tamaño="sm" className="mt-0.5 text-xs">
+                  {reporte.kpis.miembro_mas_constante.asistencias} asistencias
+                </TextoSistema>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
             </div>
-          </div>
-        </TarjetaSistema>
+          </TarjetaSistema>
+        </Link>
 
         {/* Miembro con más ausencias */}
-        <TarjetaSistema className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex-shrink-0">
-              <UserX className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <TextoSistema variante="sutil" tamaño="sm" className="mb-1">
-                Más Ausencias
-              </TextoSistema>
-              {reporte.kpis.miembro_mas_ausencias.id ? (
-                <Link href={`/users/${reporte.kpis.miembro_mas_ausencias.id}/asistencia`}>
-                  <div
-                    className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate cursor-pointer hover:underline"
-                    title={reporte.kpis.miembro_mas_ausencias.nombre}
-                  >
-                    {reporte.kpis.miembro_mas_ausencias.nombre}
-                  </div>
-                </Link>
-              ) : (
+        <Link href={`/grupos-vida/${grupoId}/asistencia/historial/mas-ausencias`}>
+          <TarjetaSistema className="p-6 hover:bg-muted/30 transition-colors duration-200 cursor-pointer group">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex-shrink-0">
+                <UserX className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <TextoSistema variante="sutil" tamaño="sm" className="mb-1">
+                  Más Ausencias
+                </TextoSistema>
                 <div
                   className="text-sm font-semibold text-foreground truncate"
                   title={reporte.kpis.miembro_mas_ausencias.nombre}
                 >
                   {reporte.kpis.miembro_mas_ausencias.nombre}
                 </div>
-              )}
-              <TextoSistema variante="sutil" tamaño="sm" className="mt-0.5 text-xs">
-                {reporte.kpis.miembro_mas_ausencias.ausencias} ausencias
-              </TextoSistema>
+                <TextoSistema variante="sutil" tamaño="sm" className="mt-0.5 text-xs">
+                  {reporte.kpis.miembro_mas_ausencias.ausencias} ausencias
+                </TextoSistema>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
             </div>
-          </div>
-        </TarjetaSistema>
+          </TarjetaSistema>
+        </Link>
       </div>
 
       {/* Gráfico de Tendencia (fechas reales de eventos) */}
@@ -264,42 +248,97 @@ export default function HistorialAsistenciaClient({
           Eventos Registrados
         </TituloSistema>
 
-        <TarjetaSistema className="p-0">
-          <div className="divide-y">
+        <TarjetaSistema className="p-0 overflow-hidden">
+          {/* Header — solo desktop */}
+          <div className="hidden sm:grid sm:grid-cols-[7rem_1fr_6rem_5rem_7rem] gap-3 px-4 py-3 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <span>Fecha</span>
+            <span>Tema</span>
+            <span className="text-center">Presentes</span>
+            <span className="text-center">%</span>
+            <span className="text-center">Acciones</span>
+          </div>
+
+          <div className="divide-y divide-border">
             {reporte.eventos_historial.length > 0 ? (
               reporte.eventos_historial.map((evento) => (
                 <div
                   key={evento.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 gap-3 hover:bg-muted transition-colors"
+                  className="sm:grid sm:grid-cols-[7rem_1fr_6rem_5rem_7rem] sm:gap-3 px-4 py-3 sm:items-center hover:bg-muted/30 transition-colors duration-200"
                 >
-                  <div className="flex-1">
-                    <div className="font-medium text-foreground">
-                      {formatearFecha(evento.fecha)} — {evento.tema}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Presentes {evento.presentes}/{evento.total} — {evento.porcentaje}%
+                  {/* Móvil: card compacto */}
+                  <div className="sm:hidden">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        {/* Fecha + tema */}
+                        <div className="text-sm font-medium text-foreground">
+                          {evento.tema}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {formatearFecha(evento.fecha)}
+                        </div>
+                        {/* Barra de progreso */}
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${evento.porcentaje >= 80 ? 'bg-green-500' :
+                                  evento.porcentaje >= 60 ? 'bg-amber-500' :
+                                    evento.porcentaje >= 40 ? 'bg-orange-500' : 'bg-red-500'
+                                }`}
+                              style={{ width: `${evento.porcentaje}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-semibold text-foreground flex-shrink-0">
+                            {evento.porcentaje}%
+                          </span>
+                        </div>
+                        {/* Stats */}
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {evento.presentes}/{evento.total} presentes
+                        </div>
+                      </div>
+                      {/* Acciones móvil */}
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <Link href={`/grupos-vida/${grupoId}/asistencia/${evento.id}`}>
+                          <BotonSistema variante="outline" tamaño="sm" className="px-2">
+                            <Eye className="w-4 h-4" />
+                          </BotonSistema>
+                        </Link>
+                        <Link href={`/grupos-vida/${grupoId}/asistencia/editar/${evento.id}`}>
+                          <BotonSistema variante="ghost" tamaño="sm" className="px-2">
+                            <Edit className="w-4 h-4" />
+                          </BotonSistema>
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 sm:flex-shrink-0">
+
+                  {/* Desktop: columnas */}
+                  <div className="hidden sm:block text-sm text-muted-foreground">
+                    {formatearFecha(evento.fecha)}
+                  </div>
+                  <div className="hidden sm:block text-sm font-medium text-foreground truncate">
+                    {evento.tema}
+                  </div>
+                  <div className="hidden sm:block text-sm text-center text-muted-foreground">
+                    {evento.presentes}/{evento.total}
+                  </div>
+                  <div className="hidden sm:flex items-center justify-center">
+                    <span className={`text-sm font-semibold ${evento.porcentaje >= 80 ? 'text-green-500' :
+                        evento.porcentaje >= 60 ? 'text-amber-500' : 'text-red-500'
+                      }`}>
+                      {evento.porcentaje}%
+                    </span>
+                  </div>
+                  <div className="hidden sm:flex items-center justify-center gap-1.5">
                     <Link href={`/grupos-vida/${grupoId}/asistencia/${evento.id}`}>
-                      <BotonSistema
-                        variante="outline"
-                        tamaño="sm"
-                        className="gap-2"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span className="sm:hidden">Ver</span>
-                        <span className="hidden sm:inline">Ver detalle</span>
+                      <BotonSistema variante="outline" tamaño="sm" className="gap-1.5">
+                        <Eye className="w-3.5 h-3.5" />
+                        Ver
                       </BotonSistema>
                     </Link>
                     <Link href={`/grupos-vida/${grupoId}/asistencia/editar/${evento.id}`}>
-                      <BotonSistema
-                        variante="ghost"
-                        tamaño="sm"
-                        className="gap-2"
-                      >
-                        <Edit className="w-4 h-4" />
-                        <span className="hidden sm:inline">Editar</span>
+                      <BotonSistema variante="ghost" tamaño="sm" className="px-2">
+                        <Edit className="w-3.5 h-3.5" />
                       </BotonSistema>
                     </Link>
                   </div>
