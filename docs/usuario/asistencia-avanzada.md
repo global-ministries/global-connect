@@ -70,13 +70,29 @@ Si necesitas editar fuera de la ventana:
 
 1. Ir a **Grupos de Vida > Dashboard Riesgo** (en el menú lateral)
 2. Verás:
-   - Cantidad de miembros críticos, en riesgo y en atención
-   - Grupos activos totales
-   - Grupos sin reunión esta semana
-   - Solicitudes pendientes
-   - Visitantes del mes
-   - Los 5 grupos con mayor riesgo (haciendo clic vas a la vista de salud)
-   - Tendencia de asistencia de las últimas 4 semanas
+   - **Gráfico de distribución**: cuántos miembros están en cada nivel de salud (donut chart)
+   - **Tendencia de 4 semanas**: evolución de la salud del módulo (gráfico de área)
+   - **Miembros críticos**: tabla con los miembros que necesitan atención urgente
+   - **Riesgo por segmento**: barras comparativas (Matrimonios, Jóvenes, etc.)
+   - **Grupos sin reunión**: lista de grupos que no se han reunido recientemente
+3. Hacer clic en **Ver listado completo** para ir a la página de **Miembros en Riesgo**
+   - Filtra por nivel: crítico, riesgo, atención
+   - Busca por nombre o grupo
+   - Haz clic en "Ver grupo" para ir directo al detalle
+
+> 💡 En grupos de **Matrimonios**, la asistencia agrupa automáticamente a las parejas de cónyuges juntas con un divisor visual.
+
+### Ranking de asistencia
+
+1. Ir al historial de asistencia de un grupo
+2. Ver los enlaces a **Más constantes** y **Más ausencias**
+3. Cada ranking muestra una tabla con el porcentaje de asistencia de cada miembro
+
+### Notas de líderes
+
+Los directores y admins pueden ver todas las notas pastorales desde:
+1. **Widget** en el dashboard principal (últimas notas recientes)
+2. **Página completa** en **Notas de Líderes** (menú lateral, sección Informes)
 
 ## Preguntas Frecuentes
 

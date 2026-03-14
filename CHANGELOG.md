@@ -7,6 +7,59 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
+## [1.9.3] - 2026-03-14
+
+### Agregado
+- Co-anfitriones en casas anfitrionas: selector de co-anfitrión (cónyuge) con columna `co_anfitrion_id`
+- Eliminación configurable de miembros: selector de rol mínimo para eliminar directo vs solicitud de egreso
+- Dashboard de riesgo v2: donut chart distribución, area trend 4 semanas, tabla miembros críticos, barras por segmento
+- Página de miembros en riesgo (`/grupos-vida/miembros-riesgo`) con filtros por nivel y búsqueda por nombre
+- Widget de notas de líderes en dashboard + página de listado (`/notas-lideres`)
+- Ranking de asistencia por miembros: más constantes y más ausencias (`/asistencia/historial/mas-constantes`, `mas-ausencias`)
+- Agrupación por cónyuges en asistencia de grupos tipo Matrimonios
+- Página de configuración global (`/configuracion`) con branding, datos de organización, umbrales
+- Solicitudes rediseñadas con tabs (Pendientes/Completadas), filtros por tipo, tabla responsive
+- Botón flotante `BotonFlotante.tsx` para acciones principales en móvil
+- RPC `obtener_roles_sistema_usuario` (SECURITY DEFINER) para control de permisos
+- RPC `rpc_casas_visibles_por_rol` para filtrar casas según rol del usuario
+- Icono de notificaciones (Bell) en headers desktop y móvil
+- Subida de logos personalizados con redimensionado en configuración global
+- Hook `useBranding` para consumir logos de la organización
+- Tabla `configuracion_plataforma` para branding global
+
+### Cambiado
+- API routes de miembros (`POST /api/grupos/[id]/miembros`, `PATCH/DELETE .../[usuarioId]`) ahora usan `crear_solicitud_grupo` en vez de RPCs directas
+- Filtros de temporada combinan todas las tabs deduplicadas por ID
+- KPIs se calculan desde `baseKpi` (sin filtros de búsqueda) para mostrar totales reales
+- Paginación fija a 100 items (selector de pageSize eliminado)
+- Mapa de grupos envuelto con `DashboardLayout` para mostrar sidebar en desktop
+- Umbral de riesgo cambiado de < 100% a < 70%
+- FK `director_etapa_grupos.grupo_id` cambiada a `ON DELETE CASCADE`
+- Egreso de miembros cambiado de soft-delete (`SET fecha_salida`) a hard-delete
+- Rechazo de solicitud de activación ahora hace hard-delete del grupo
+- CHECK constraint de solicitudes expandido para incluir `egreso` y `traslado`
+- RPC `obtener_detalle_grupo` filtra `fecha_salida IS NULL`
+- Vista `config_efectiva` CTE para resolver `NULL = NULL` en join de configuración global
+
+### Seguridad
+- Aprobación de casas restringida a admin, pastor, director_general (líderes excluidos con check `puedeAprobar` separado)
+- Queries de casas usan `adminDb` para bypass de RLS en joins de `usuarios`
+- `catch (e: any)` → `catch (e: unknown)` con type narrowing en API routes
+- Validación Zod de `parroquia_id` acepta string vacío: `z.string().uuid().or(z.literal("")).optional()`
+
+### Corregido
+- `upsertDireccion` ya no envía `estado_id`, `municipio_id`, `pais_id` (columnas que no existen en `direcciones`)
+- `to24h()` devuelve `HH:MM:SS` (por requerimiento de PostgreSQL `time` type)
+- Configuración de grupos usa `.maybeSingle()` en vez de `.single()` (soporta 0 filas)
+- Selector de casas aprobadas en edición de grupo funcional (adminDb + filtro miembros)
+- "Guardar Cambios" silencioso resuelto: Zod validaba `""` como UUID inválido
+- Detalle de evento: permisos de edición corregidos por rol
+- `NULL = NULL` en SQL: CTE `config_efectiva` resuelve join con `campus_id IS NULL`
+- `FormularioSegmento`: botón "Crear Segmento" ahora funcional con handler + modal
+- Selector de hora en asistencia con mejor spacing mobile
+
+---
+
 ## [1.9.1] - 2026-03-12
 
 ### Agregado
