@@ -94,6 +94,8 @@ export const dashboardRiesgoSchema = z.object({
   miembros_criticos: z.coerce.number(),
   miembros_en_riesgo: z.coerce.number(),
   miembros_en_atencion: z.coerce.number(),
+  miembros_sanos: z.coerce.number(),
+  total_miembros: z.coerce.number(),
   solicitudes_pendientes: z.coerce.number(),
   visitantes_del_mes: z.coerce.number(),
   top_5_grupos_riesgo: z.array(z.object({
@@ -106,6 +108,33 @@ export const dashboardRiesgoSchema = z.object({
   tendencia_asistencia_4_semanas: z.array(z.object({
     semana: z.string(),
     pct: z.coerce.number(),
+  })),
+  distribucion_riesgo: z.array(z.object({
+    nivel: z.string(),
+    cantidad: z.coerce.number(),
+    porcentaje: z.coerce.number(),
+  })),
+  miembros_criticos_detalle: z.array(z.object({
+    usuario_id: z.string(),
+    nombre: z.string(),
+    grupo_nombre: z.string(),
+    grupo_id: z.string(),
+    semanas_ausente: z.coerce.number(),
+    pct_asistencia: z.coerce.number(),
+    nivel_riesgo: z.string(),
+  })),
+  segmentos_riesgo: z.array(z.object({
+    segmento_nombre: z.string(),
+    criticos: z.coerce.number(),
+    riesgo: z.coerce.number(),
+    atencion: z.coerce.number(),
+    normal: z.coerce.number(),
+    total: z.coerce.number(),
+  })),
+  grupos_sin_reunion_detalle: z.array(z.object({
+    grupo_id: z.string(),
+    grupo_nombre: z.string(),
+    lider_nombre: z.string(),
   })),
 });
 export type DashboardRiesgo = z.infer<typeof dashboardRiesgoSchema>;
