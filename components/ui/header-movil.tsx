@@ -539,32 +539,38 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
 
         {/* ── Drawer Footer (mirrors desktop sidebar bottom) ── */}
         <div className="p-3 border-t border-[var(--glass-border)] space-y-0.5 safe-area-pb">
-          {/* Footer nav items: Actualizaciones, Ayuda */}
-          {footerMenuItems.map(item => {
-            const Icon = item.icon
-            const active = isActive(item.href)
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
-                  "transition-[background-color,color,transform] duration-200 ease-expo",
-                  "press-scale focus-ring touch-manipulation",
-                  active
-                    ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
-                    : "text-foreground hover:bg-[var(--brand-accent)]"
-                )}
-              >
-                <Icon className={cn(
-                  "w-5 h-5 flex-shrink-0",
-                  active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                )} />
-                <span className="font-medium text-sm">{item.label}</span>
-              </Link>
-            )
-          })}
+          {/* Actualizaciones */}
+          <Link
+            href="/actualizaciones"
+            aria-current={isActive('/actualizaciones') ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
+              "transition-[background-color,color,transform] duration-200 ease-expo",
+              "press-scale focus-ring touch-manipulation",
+              isActive('/actualizaciones')
+                ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
+                : "text-foreground hover:bg-[var(--brand-accent)]"
+            )}
+          >
+            <Megaphone className={cn(
+              "w-5 h-5 flex-shrink-0",
+              isActive('/actualizaciones') ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+            )} />
+            <span className="font-medium text-sm">Actualizaciones</span>
+          </Link>
+          {/* Ayuda — toast */}
+          <button
+            onClick={() => toast.info('Próximamente')}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px] w-full text-left",
+              "transition-[background-color,color,transform] duration-200 ease-expo",
+              "press-scale focus-ring touch-manipulation",
+              "text-foreground hover:bg-[var(--brand-accent)]"
+            )}
+          >
+            <HelpCircle className="w-5 h-5 flex-shrink-0 text-muted-foreground" />
+            <span className="font-medium text-sm">Ayuda</span>
+          </button>
 
           {/* Theme Toggle */}
           <button

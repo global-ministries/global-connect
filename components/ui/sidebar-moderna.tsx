@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LogoGlobalConnect } from '@/components/ui/logo-global-connect'
 import { SelectorCampus } from '@/components/ui/selector-campus'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
 import {
   Users,
   UserCheck,
@@ -104,12 +105,6 @@ const footerItems: MenuItem[] = [
     icon: Megaphone,
     href: '/actualizaciones',
   },
-  {
-    id: 'ayuda',
-    label: 'Ayuda',
-    icon: HelpCircle,
-    href: '/ayuda',
-  },
 ]
 
 /**
@@ -126,6 +121,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const pathname = usePathname()
   const { usuario, roles, loading } = useCurrentUser()
   const branding = useBranding()
+  const toast = useNotificaciones()
 
 
   // ─── Tooltip hover handlers (collapsed mode) ───
@@ -493,6 +489,27 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
               </Link>
             )
           })}
+          {/* Ayuda — toast */}
+          <button
+            onClick={() => toast.info('Próximamente')}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded-xl group relative w-full min-h-[44px]",
+              "transition-[background-color,color,transform] duration-200 ease-expo",
+              "text-foreground hover:bg-[var(--brand-accent)] hover:text-foreground",
+              "touch-manipulation cursor-pointer",
+              isCollapsed && "justify-center px-2"
+            )}
+            onMouseEnter={(e) => showTooltip(e, 'Ayuda')}
+            onMouseLeave={hideTooltip}
+          >
+            <HelpCircle className={cn(
+              "flex-shrink-0 transition-colors text-muted-foreground group-hover:text-foreground",
+              isCollapsed ? "w-6 h-6" : "w-5 h-5"
+            )} />
+            {!isCollapsed && (
+              <span className="font-medium truncate">Ayuda</span>
+            )}
+          </button>
           {/* Theme Toggle — same layout as other footer items */}
           <div
             className={cn(
