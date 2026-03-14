@@ -56,11 +56,33 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
     </DashboardLayout>
   )
 
-  const [{ data: evento }, { data: puedeEditar }, asistenciaRes] = await Promise.all([
+  const [{ data: evento }, { data: puedeEditar }, asistenciaRes, { data: grupoData }] = await Promise.all([
     supabase.rpc('obtener_evento_grupo', { p_auth_id: user.id, p_evento_id: eventoId }),
     supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id }),
     supabase.rpc('obtener_asistencia_evento', { p_auth_id: user.id, p_evento_id: eventoId }),
+    supabase.from('grupos').select('segmento_id, segmentos(nombre)').eq('id', id).single(),
   ])
+
+  const segmentoNombre = (grupoData as any)?.segmentos?.nombre ?? ''
+  const esMatrimonios = segmentoNombre.toLowerCase().includes('matrimonio')
+
+  // Obtener relaciones de cónyuges para grupos de matrimonios
+  let conyugeMap: Record<string, string> = {}
+  if (esMatrimonios) {
+    const miembroIds = (Array.isArray(asistenciaRes.data) ? asistenciaRes.data as AsistenciaRPCRow[] : []).map(r => r.usuario_id ?? r.id ?? '')
+    const { data: relaciones } = await supabase
+      .from('relaciones_usuarios')
+      .select('usuario1_id, usuario2_id')
+      .eq('tipo_relacion', 'conyuge')
+      .or(`usuario1_id.in.(${miembroIds.join(',')}),usuario2_id.in.(${miembroIds.join(',')})`)
+
+    if (relaciones) {
+      for (const rel of relaciones) {
+        conyugeMap[rel.usuario1_id] = rel.usuario2_id
+        conyugeMap[rel.usuario2_id] = rel.usuario1_id
+      }
+    }
+  }
 
   const ev: EventoGrupo | undefined = Array.isArray(evento) ? (evento[0] as EventoGrupo) : undefined
   if (!ev) return (
@@ -257,7 +279,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
               <TituloSistema nivel={3}>Listado de Asistencia</TituloSistema>
               <TextoSistema variante="sutil">Detalle de asistencia de cada miembro</TextoSistema>
             </div>
-            <AttendanceList attendees={asistentes} />
+            <AttendanceList attendees={asistentes} esMatrimonios={esMatrimonios} conyugeMap={conyugeMap} />
           </TarjetaSistema>
         )}
 
