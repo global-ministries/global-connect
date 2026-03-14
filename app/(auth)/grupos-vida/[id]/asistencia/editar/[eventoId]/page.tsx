@@ -115,7 +115,7 @@ export default async function EditarAsistenciaPage({
       tipo_presencia: tp,
       motivo: r.motivo_inasistencia || undefined,
       nota: r.nota || undefined,
-      tiempo_tardanza: (r.tiempo_tardanza as TiempoTardanza) || undefined,
+      tiempo_tardanza: (r.tiempo_tardanza != null ? String(r.tiempo_tardanza) as TiempoTardanza : undefined),
       motivo_tardanza: (r.motivo_tardanza as MotivoTardanza) || undefined,
       motivo_tardanza_otro: r.motivo_tardanza_otro || undefined,
     }

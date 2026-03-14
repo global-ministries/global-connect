@@ -277,7 +277,6 @@ export async function solicitarEdicionTardia(
 
   if (!usuario) return { success: false, error: "Usuario no encontrado" };
 
-  // @ts-expect-error — Columnas nuevas (tipo_solicitud, metadata_edicion) no están en tipos generados
   const { error } = await supabase.from("solicitudes_grupo").insert({
     grupo_id: parsed.data.grupo_id,
     tipo_solicitud: "edicion_asistencia",
