@@ -129,10 +129,10 @@ export async function obtenerMiembrosEnRiesgo(): Promise<Res<SaludMiembro[]>> {
   // Supabase JS no soporta != directo en views.
   // Traemos critico, riesgo, atencion con queries separadas y combinamos.
   const { data, error } = await supabase
-    .from("v_salud_miembros_grupo" as "grupo_miembros")
+    .from("v_salud_miembros_grupo")
     .select("*")
-    .neq("nivel_riesgo" as "rol", "normal")
-    .order("semanas_ausente" as "rol", { ascending: false })
+    .not("nivel_riesgo", "eq", "normal")
+    .order("semanas_ausente", { ascending: false })
     .limit(200);
 
   if (error) return { success: false, error: error.message };
@@ -279,8 +279,8 @@ export async function solicitarEdicionTardia(
 
   const { error } = await supabase.from("solicitudes_grupo").insert({
     grupo_id: parsed.data.grupo_id,
-    tipo_solicitud: "edicion_asistencia",
-    solicitante_id: usuario.id,
+    tipo: "edicion_asistencia",
+    solicitado_por: usuario.id,
     estado: "pendiente",
     motivo: parsed.data.motivo,
     metadata_edicion: {

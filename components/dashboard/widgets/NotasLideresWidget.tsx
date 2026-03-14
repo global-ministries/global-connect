@@ -40,7 +40,7 @@ export function NotasLideresWidget({ id, title }: NotasLideresWidgetProps) {
             })
 
             if (!error && data) {
-                setEventos(Array.isArray(data) ? data : [])
+                setEventos(Array.isArray(data) ? (data as unknown as EventoConNotas[]) : [])
             }
             setLoading(false)
         }

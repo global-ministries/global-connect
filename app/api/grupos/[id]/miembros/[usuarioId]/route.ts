@@ -37,9 +37,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    const res = resultado as Record<string, unknown> | null;
     return NextResponse.json({
       ok: true,
-      modo: resultado?.modo ?? "solicitud",
+      modo: (res?.modo as string) ?? "solicitud",
     });
   } catch (e: unknown) {
     return NextResponse.json(
@@ -81,9 +82,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
+    const res = resultado as Record<string, unknown> | null;
     return NextResponse.json({
       ok: true,
-      modo: resultado?.modo ?? "solicitud",
+      modo: (res?.modo as string) ?? "solicitud",
     });
   } catch (e: unknown) {
     return NextResponse.json(

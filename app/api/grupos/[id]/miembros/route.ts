@@ -58,7 +58,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
 
-    const modo = resultado?.modo ?? "solicitud";
+    const res = resultado as Record<string, unknown> | null;
+    const modo = (res?.modo as string) ?? "solicitud";
 
     // ─── Si fue directo y debe incluir cónyuge, también agregar cónyuge ───
     if (incluirConyuge && modo === "directo") {
