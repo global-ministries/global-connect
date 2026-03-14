@@ -342,14 +342,26 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                             </Link>
                         ))}
                     </div>
+
+                    {/* Botón ver listado completo */}
+                    <div className="mt-4 pt-3 border-t border-border flex justify-center">
+                        <Link
+                            href="/grupos-vida/miembros-riesgo"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-blue-500 hover:text-blue-400 hover:bg-muted/50 transition-colors duration-200"
+                        >
+                            <Users className="h-4 w-4" />
+                            Ver listado completo
+                            <ChevronRight className="h-4 w-4" />
+                        </Link>
+                    </div>
                 </TarjetaSistema>
             )}
 
             {/* ─── Dos columns: Top Riesgo + Sin Reunión ─── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
                 {/* Grupos con mayor riesgo */}
                 {d.top_5_grupos_riesgo.length > 0 && (
-                    <TarjetaSistema variante="default" className="p-4 sm:p-5">
+                    <TarjetaSistema variante="default" className="p-4 sm:p-5 flex flex-col">
                         <div className="flex items-center gap-2 mb-3">
                             <div className="p-1.5 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20">
                                 <ShieldAlert className="h-4 w-4 text-orange-500" />
@@ -359,7 +371,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                         <TextoSistema variante="muted" tamaño="sm" className="mb-3">
                             Grupos con más miembros en estado crítico o de riesgo.
                         </TextoSistema>
-                        <div className="divide-y divide-border">
+                        <div className="divide-y divide-border flex-1 overflow-y-auto max-h-[320px]">
                             {d.top_5_grupos_riesgo.map((g, i) => (
                                 <Link
                                     key={g.grupo_id}
@@ -391,7 +403,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                 )}
 
                 {/* Grupos sin reunión */}
-                <TarjetaSistema variante="default" className="p-4 sm:p-5">
+                <TarjetaSistema variante="default" className="p-4 sm:p-5 flex flex-col">
                     <div className="flex items-center gap-2 mb-3">
                         <div className="p-1.5 rounded-lg bg-gradient-to-br from-slate-500/20 to-gray-500/20">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -407,7 +419,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                         Grupos que no han registrado asistencia en los últimos 7 días.
                     </TextoSistema>
                     {d.grupos_sin_reunion_detalle.length > 0 ? (
-                        <div className="divide-y divide-border">
+                        <div className="divide-y divide-border flex-1 overflow-y-auto max-h-[320px]">
                             {d.grupos_sin_reunion_detalle.map((g) => (
                                 <Link
                                     key={g.grupo_id}

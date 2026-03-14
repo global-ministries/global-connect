@@ -117,6 +117,33 @@ export async function obtenerSaludMiembrosGrupo(
   return { success: true, data: parsed.data };
 }
 
+/**
+ * Obtiene todos los miembros que NO están en nivel 'normal'.
+ * Ordenados por semanas_ausente DESC. Para la página de listado completo.
+ */
+export async function obtenerMiembrosEnRiesgo(): Promise<Res<SaludMiembro[]>> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
+
+  // Supabase JS no soporta != directo en views.
+  // Traemos critico, riesgo, atencion con queries separadas y combinamos.
+  const { data, error } = await supabase
+    .from("v_salud_miembros_grupo" as "grupo_miembros")
+    .select("*")
+    .neq("nivel_riesgo" as "rol", "normal")
+    .order("semanas_ausente" as "rol", { ascending: false })
+    .limit(200);
+
+  if (error) return { success: false, error: error.message };
+
+  const parsed = z.array(saludMiembroSchema).safeParse(data ?? []);
+  if (!parsed.success) {
+    return { success: false, error: "Datos con formato inesperado" };
+  }
+  return { success: true, data: parsed.data };
+}
+
 // ─── Dashboard de Riesgo ─────────────────────────────────────────────
 
 /**
