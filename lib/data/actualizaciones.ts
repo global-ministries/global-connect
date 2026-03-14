@@ -8,7 +8,28 @@ export interface Actualizacion {
   tipo: "feature" | "mejora" | "correccion" | "seguridad"
   modulo: string
   detalles: string[]
+  /** Detalles específicos por rol. Cada clave es un rol del sistema. */
+  detallesPorRol?: Partial<Record<RolSistema, string[]>>
   impactoRoles?: string[]
+}
+
+/** Roles del sistema usados para filtrar actualizaciones. */
+export type RolSistema =
+  | "admin"
+  | "pastor"
+  | "director_general"
+  | "director_etapa"
+  | "lider"
+  | "miembro"
+
+/** Etiquetas legibles por cada rol. */
+export const etiquetasRol: Record<RolSistema, string> = {
+  admin: "Administrador",
+  pastor: "Pastor",
+  director_general: "Director General",
+  director_etapa: "Director de Etapa",
+  lider: "Líder",
+  miembro: "Miembro",
 }
 
 /**
@@ -17,6 +38,76 @@ export interface Actualizacion {
  * Ordenar por fecha descendente (más reciente primero).
  */
 export const actualizaciones: Actualizacion[] = [
+  {
+    version: "1.9.3",
+    fecha: "2026-03-14",
+    titulo: "Fixes Finales, Dashboard Mejorado y Nuevas Funcionalidades",
+    descripcion:
+      "Correcciones críticas, co-anfitriones en casas, dashboard de riesgo rediseñado, solicitudes con filtros, y configuración global del sistema.",
+    tipo: "feature",
+    modulo: "grupos",
+    detalles: [
+      "Ahora puedes asignar un co-anfitrión (cónyuge) a cada casa anfitriona",
+      "Dashboard de riesgo con gráficas de distribución, tendencia y barras por segmento",
+      "Nueva página de miembros en riesgo con filtros por nivel (crítico, riesgo, atención)",
+      "Solicitudes rediseñadas con pestañas Pendientes/Completadas y filtros por tipo",
+      "Widget de notas de líderes en el dashboard principal",
+      "Ranking de asistencia: miembros más constantes y con más ausencias",
+      "Los grupos de matrimonios agrupan a las parejas juntas en la asistencia",
+      "Configuración global del sistema: nombre, logos, datos de contacto",
+      "Al eliminar un miembro, ahora se crea una solicitud de egreso según la configuración",
+      "Corregidos problemas al guardar grupos con casa anfitriona seleccionada",
+      "Los filtros de temporada ahora funcionan correctamente al buscar en todas las pestañas",
+    ],
+    detallesPorRol: {
+      admin: [
+        "Nueva página de configuración global: personaliza nombre, logos y datos de contacto de tu organización",
+        "Configura desde qué rol se pueden eliminar miembros directamente (sin solicitud de egreso)",
+        "Dashboard de riesgo rediseñado con gráficas de distribución por nivel, tendencia y barras por segmento",
+        "Nueva página de miembros en riesgo con filtros por nivel y búsqueda",
+        "Solicitudes rediseñadas: pestañas Pendientes/Completadas con filtros por tipo",
+        "Widget de notas de líderes visible en el dashboard",
+      ],
+      pastor: [
+        "Dashboard de riesgo rediseñado con gráficas de distribución por nivel, tendencia y barras por segmento",
+        "Nueva página de miembros en riesgo con filtros por nivel y búsqueda",
+        "Solicitudes rediseñadas: pestañas Pendientes/Completadas con filtros por tipo",
+        "Widget de notas de líderes visible en el dashboard",
+      ],
+      director_general: [
+        "Dashboard de riesgo rediseñado con gráficas y tendencia de tus segmentos",
+        "Nueva página de miembros en riesgo filtrada a tus segmentos asignados",
+        "Solicitudes rediseñadas con pestañas y filtros por tipo",
+        "Widget de notas de líderes de tus grupos asignados",
+        "Al aprobar/rechazar solicitudes de activación, el grupo se activa o elimina automáticamente",
+      ],
+      director_etapa: [
+        "Dashboard de riesgo con datos de tus grupos asignados",
+        "Al intentar eliminar un miembro, se crea una solicitud de egreso que aprueba tu director",
+        "Ranking de asistencia: ve quiénes son los más constantes y quiénes tienen más ausencias en tus grupos",
+        "Widget de notas de líderes de tus grupos",
+      ],
+      lider: [
+        "Los grupos de matrimonios agrupan a las parejas juntas en la asistencia",
+        "Al eliminar un miembro de tu grupo, se crea una solicitud de egreso automáticamente",
+        "Puedes asignar un co-anfitrión (cónyuge) a la casa de tu grupo",
+        "El ranking muestra quiénes asisten más y quiénes faltan más en tu grupo",
+        "Mejoras en el formulario de asistencia: el selector de hora tiene mejor espaciado en móvil",
+        "Corregidos problemas al guardar grupos con casa anfitriona seleccionada",
+      ],
+      miembro: [
+        "Puedes ver las actualizaciones recientes del sistema",
+        "Los filtros de temporada funcionan mejor al buscar grupos",
+      ],
+    },
+    impactoRoles: [
+      "admin",
+      "pastor",
+      "director_general",
+      "director_etapa",
+      "lider",
+    ],
+  },
   {
     version: "1.9.2",
     fecha: "2026-03-16",
@@ -32,6 +123,27 @@ export const actualizaciones: Actualizacion[] = [
       "Si un familiar tiene dirección registrada, el sistema te sugiere usarla al editar tu perfil",
       "El mapa ahora usa Leaflet + OpenStreetMap — sin costo de API",
     ],
+    detallesPorRol: {
+      admin: [
+        "Nuevos subitems en el menú: Solicitudes, Configuración y Dashboard Riesgo",
+        "El mapa ahora usa Leaflet + OpenStreetMap — sin costo de API",
+      ],
+      pastor: [
+        "Nuevos subitems en el menú: Solicitudes y Dashboard Riesgo",
+      ],
+      director_general: [
+        "Nuevos subitems en el menú: Solicitudes y Dashboard Riesgo",
+      ],
+      director_etapa: [
+        "Selector de casa anfitriona al editar un grupo — el mapa se centra automáticamente",
+        "Al marcar 'Tarde', ahora puedes indicar cuánto tardó y por qué",
+      ],
+      lider: [
+        "Al marcar a alguien como 'Tarde', puedes indicar cuánto tardó y por qué",
+        "Si un familiar tiene dirección registrada, el sistema te sugiere usarla",
+        "Selector de casa anfitriona al editar tu grupo",
+      ],
+    },
     impactoRoles: [
       "admin",
       "pastor",
@@ -56,6 +168,32 @@ export const actualizaciones: Actualizacion[] = [
       "Vista de salud por grupo con niveles de riesgo (normal, atención, riesgo, crítico)",
       "Si la ventana de edición se cerró, puedes solicitar permiso a tu director para editar",
     ],
+    detallesPorRol: {
+      admin: [
+        "Configura la ventana de edición de asistencia y umbrales de salud",
+        "Nuevo Dashboard de Riesgo con KPIs globales y top 5 grupos en riesgo",
+        "Vista de salud de miembros por grupo",
+      ],
+      pastor: [
+        "Nuevo Dashboard de Riesgo con KPIs y top 5 grupos en riesgo",
+        "Vista de salud de miembros por grupo",
+      ],
+      director_general: [
+        "Dashboard de Riesgo filtrado a tus segmentos",
+        "Aprueba o rechaza solicitudes de edición tardía de asistencia",
+      ],
+      director_etapa: [
+        "Aprueba o rechaza solicitudes de edición tardía de asistencia",
+        "Vista de salud de los miembros de tus grupos",
+      ],
+      lider: [
+        "Marca a tus miembros como presente, ausente, tarde o justificado",
+        "Agrega notas pastorales: descripción, puntos de oración y notas privadas",
+        "Marca 'No hubo reunión' con un motivo para no penalizar al grupo",
+        "Si no editaste a tiempo, solicita permiso a tu director",
+        "Vista de salud: ve qué miembros necesitan atención",
+      ],
+    },
     impactoRoles: [
       "admin",
       "pastor",
@@ -79,6 +217,22 @@ export const actualizaciones: Actualizacion[] = [
       "Panel de configuración para ajustar días de expiración de solicitudes",
       "Badge de solicitudes pendientes en el menú lateral",
     ],
+    detallesPorRol: {
+      admin: [
+        "Configura los días de expiración de solicitudes",
+        "Aprueba o rechaza cualquier tipo de solicitud",
+        "Historial completo de movimientos de miembros",
+      ],
+      director_general: [
+        "Aprueba o rechaza solicitudes de tus segmentos",
+        "Badge de solicitudes pendientes visible en el menú",
+      ],
+      director_etapa: [
+        "Crea solicitudes de ingreso, traslado y egreso para tus grupos",
+        "Ve el estado de tus solicitudes en 'Mis Solicitudes'",
+        "Badge de solicitudes pendientes visible en el menú",
+      ],
+    },
     impactoRoles: ["admin", "pastor", "director_general", "director_etapa"],
   },
   {

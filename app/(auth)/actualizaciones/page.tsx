@@ -1,83 +1,46 @@
-'use client'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getUserWithRoles } from '@/lib/getUserWithRoles'
+import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import ActualizacionesClient from './ActualizacionesClient'
+import type { RolSistema } from '@/lib/data/actualizaciones'
 
-import { TarjetaSistema, TituloSistema, TextoSistema, BadgeSistema, ContenedorDashboard } from '@/components/ui/sistema-diseno'
-import { Calendar, Sparkles, Wrench, Shield, Package } from 'lucide-react'
-import { actualizaciones } from '@/lib/data/actualizaciones'
+/**
+ * Mapea roles del sistema (con guiones) a roles de actualizaciones (con underscores).
+ * Devuelve el rol más alto del usuario para filtrar actualizaciones.
+ */
+function mapearRolPrincipal(roles: string[]): RolSistema {
+    const jerarquia: { db: string; act: RolSistema }[] = [
+        { db: 'admin', act: 'admin' },
+        { db: 'pastor', act: 'pastor' },
+        { db: 'director-general', act: 'director_general' },
+        { db: 'director-etapa', act: 'director_etapa' },
+        { db: 'lider', act: 'lider' },
+        { db: 'miembro', act: 'miembro' },
+    ]
 
-/* ── Helpers ── */
+    for (const { db, act } of jerarquia) {
+        if (roles.includes(db)) return act
+    }
 
-const iconoTipo = {
-    feature: Sparkles,
-    mejora: Package,
-    correccion: Wrench,
-    seguridad: Shield,
-} as const
-
-const colorTipo = {
-    feature: 'success' as const,
-    mejora: 'info' as const,
-    correccion: 'warning' as const,
-    seguridad: 'error' as const,
+    return 'miembro'
 }
-
-const labelTipo = {
-    feature: 'Nueva función',
-    mejora: 'Mejora',
-    correccion: 'Corrección',
-    seguridad: 'Seguridad',
-}
-
-/* ── Page ── */
 
 /**
  * Página de actualizaciones del sistema.
- * Muestra el historial de cambios y mejoras para usuarios internos.
- * Client Component — requerido por ContenedorDashboard que usa React.lazy internamente.
+ * Server Component que resuelve el rol del usuario y pasa los datos al client.
+ * - Miembros: ven solo detalles de su rol, sin filtros.
+ * - Líderes y superiores: ven todo con opción de filtrar por rol.
  */
-export default function ActualizacionesPage() {
+export default async function ActualizacionesPage() {
+    const supabase = await createSupabaseServerClient()
+    const userData = await getUserWithRoles(supabase)
+    const roles = userData?.roles || []
+    const rolMapeado = mapearRolPrincipal(roles)
+    const puedeVerTodo = rolMapeado !== 'miembro'
+
     return (
         <ContenedorDashboard titulo="Actualizaciones" descripcion="Historial de cambios y mejoras del sistema">
-            <div className="space-y-6">
-                {actualizaciones.map((act) => {
-                    const Icono = iconoTipo[act.tipo]
-                    return (
-                        <TarjetaSistema key={act.version} className="p-5 sm:p-6">
-                            {/* Header */}
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                                <TituloSistema nivel={3}>{act.titulo}</TituloSistema>
-                                <BadgeSistema variante={colorTipo[act.tipo]} tamaño="sm">
-                                    <Icono className="w-3 h-3" />
-                                    {labelTipo[act.tipo]}
-                                </BadgeSistema>
-                            </div>
-
-                            <div className="flex items-center gap-2 mb-3">
-                                <TextoSistema variante="muted" tamaño="sm">
-                                    v{act.version}
-                                </TextoSistema>
-                                <span className="text-muted-foreground/40">•</span>
-                                <div className="flex items-center gap-1 text-muted-foreground">
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    <TextoSistema variante="muted" tamaño="sm">
-                                        {new Date(act.fecha + 'T12:00:00').toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })}
-                                    </TextoSistema>
-                                </div>
-                            </div>
-
-                            <TextoSistema className="mb-3">{act.descripcion}</TextoSistema>
-
-                            <ul className="space-y-1.5">
-                                {act.detalles.map((d, i) => (
-                                    <li key={i} className="flex items-start gap-2">
-                                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] flex-shrink-0" />
-                                        <TextoSistema tamaño="sm">{d}</TextoSistema>
-                                    </li>
-                                ))}
-                            </ul>
-                        </TarjetaSistema>
-                    )
-                })}
-            </div>
+            <ActualizacionesClient puedeVerTodo={puedeVerTodo} rolUsuario={rolMapeado} />
         </ContenedorDashboard>
     )
 }
