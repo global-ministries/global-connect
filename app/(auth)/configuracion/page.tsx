@@ -20,8 +20,9 @@ export default async function PaginaConfiguracion() {
 
   const roles = userData.roles || []
   const esAdmin = roles.includes("admin")
+  const esPastor = roles.includes("pastor")
 
-  if (!esAdmin) {
+  if (!esAdmin && !esPastor) {
     redirect("/dashboard")
   }
 
