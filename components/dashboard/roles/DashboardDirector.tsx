@@ -5,6 +5,7 @@ import { ActivityWidget } from '@/components/dashboard/widgets/ActivityWidget'
 import { BirthdayWidget } from '@/components/dashboard/widgets/BirthdayWidget'
 import { RiskGroupsWidget } from '@/components/dashboard/widgets/RiskGroupsWidget'
 import { PendingLeadersWidget } from '@/components/dashboard/widgets/PendingLeadersWidget'
+import { NotasLideresWidget } from '@/components/dashboard/widgets/NotasLideresWidget'
 import { Users, UsersRound, Activity } from 'lucide-react'
 
 interface PropsDashboardDirector {
@@ -84,6 +85,13 @@ export default function DashboardDirector({ data }: PropsDashboardDirector) {
           id="pendientes-reporte"
           title="Líderes Pendientes de Reporte de Asistencia"
           items={lideresPendientes}
+        />
+      </div>
+
+      <div className="col-span-2">
+        <NotasLideresWidget
+          id="notas-lideres"
+          title="Notas de Líderes (mi etapa)"
         />
       </div>
 

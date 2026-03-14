@@ -52,6 +52,9 @@ interface MenuItem {
   badge?: string | number
   badgeVariant?: 'default' | 'success' | 'warning' | 'error' | 'info'
   children?: SubItem[]
+  className?: string
+  /** Roles que pueden ver este item. Si no se define, es visible para todos. */
+  roles?: string[]
 }
 
 const menuItems: MenuItem[] = [
@@ -66,6 +69,7 @@ const menuItems: MenuItem[] = [
     label: 'Usuarios',
     icon: Users,
     href: '/users',
+    roles: ['admin', 'pastor', 'director-general', 'director-etapa', 'lider'],
   },
   {
     id: 'grupos-vida',
@@ -73,10 +77,10 @@ const menuItems: MenuItem[] = [
     icon: UserCheck,
     href: '/grupos-vida',
     children: [
-      { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House },
+      { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
       { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
       { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar, roles: ['admin', 'pastor', 'director-general'] },
-      { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin },
+      { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
       { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
       { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
       { id: 'gv-solicitudes', label: 'Solicitudes', href: '/grupos-vida/solicitudes', icon: ClipboardList, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
@@ -88,6 +92,7 @@ const menuItems: MenuItem[] = [
     label: 'Configuración',
     icon: Settings,
     href: '/configuracion',
+    roles: ['admin', 'pastor'],
   },
 ]
 
@@ -119,6 +124,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { usuario, roles, loading } = useCurrentUser()
+
 
   // ─── Tooltip hover handlers (collapsed mode) ───
   const showTooltip = (e: React.MouseEvent, label: string) => {
@@ -324,136 +330,141 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         {/* Navegación */}
         <nav className="flex-1 px-3 py-2 overflow-y-auto">
           <ul className="space-y-0.5">
-            {menuItems.map((item) => {
-              const Icon = item.icon
-              const hasChildren = item.children && item.children.length > 0
-              const parentActive = isParentActive(item)
-              const isOpen = openSubmenus.has(item.id)
-              const exactActive = pathname === item.href
+            {menuItems
+              .filter((item) => !item.roles || item.roles.some(r => roles.includes(r)))
+              .map((item) => {
+                const Icon = item.icon
+                // Filter children by role — if none are visible, treat as simple link
+                const visibleChildren = item.children?.filter(
+                  (child) => !child.roles || child.roles.some(r => roles.includes(r))
+                ) ?? []
+                const hasChildren = visibleChildren.length > 0
+                const parentActive = isParentActive(item)
+                const isOpen = openSubmenus.has(item.id)
+                const exactActive = pathname === item.href
 
-              return (
-                <li key={item.id}>
-                  {hasChildren ? (
-                    <>
-                      {/* Parent item with chevron toggle */}
-                      <div className="flex items-center">
-                        <Link
-                          href={item.href}
-                          aria-current={exactActive ? "page" : undefined}
-                          className={cn(
-                            linkClasses(parentActive),
-                            "flex-1",
-                            !isCollapsed && "pr-1"
-                          )}
-                          onMouseEnter={(e) => showTooltip(e, item.label)}
-                          onMouseLeave={hideTooltip}
-                        >
-                          {parentActive && <ActivePill />}
-                          <Icon className={iconClasses(parentActive)} />
-
-                          {!isCollapsed && (
-                            <>
-                              <span className="font-medium truncate flex-1">{item.label}</span>
-                              {item.badge && (
-                                <BadgeSistema
-                                  variante={item.badgeVariant || 'default'}
-                                  tamaño="sm"
-                                  className="ml-auto"
-                                >
-                                  {item.badge}
-                                </BadgeSistema>
-                              )}
-                            </>
-                          )}
-                        </Link>
-
-                        {/* Chevron button — only when expanded */}
-                        {!isCollapsed && (
-                          <button
-                            onClick={() => toggleSubmenu(item.id)}
-                            aria-label={isOpen ? `Cerrar submenú de ${item.label}` : `Abrir submenú de ${item.label}`}
-                            aria-expanded={isOpen}
+                return (
+                  <li key={item.id}>
+                    {hasChildren ? (
+                      <>
+                        {/* Parent item with chevron toggle */}
+                        <div className="flex items-center">
+                          <Link
+                            href={item.href}
+                            aria-current={exactActive ? "page" : undefined}
                             className={cn(
-                              "p-1.5 rounded-lg transition-colors duration-200 touch-manipulation",
-                              "hover:bg-[var(--brand-accent)]",
-                              parentActive ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+                              linkClasses(parentActive),
+                              "flex-1",
+                              !isCollapsed && "pr-1"
+                            )}
+                            onMouseEnter={(e) => showTooltip(e, item.label)}
+                            onMouseLeave={hideTooltip}
+                          >
+                            {parentActive && <ActivePill />}
+                            <Icon className={iconClasses(parentActive)} />
+
+                            {!isCollapsed && (
+                              <>
+                                <span className="font-medium truncate flex-1">{item.label}</span>
+                                {item.badge && (
+                                  <BadgeSistema
+                                    variante={item.badgeVariant || 'default'}
+                                    tamaño="sm"
+                                    className="ml-auto"
+                                  >
+                                    {item.badge}
+                                  </BadgeSistema>
+                                )}
+                              </>
+                            )}
+                          </Link>
+
+                          {/* Chevron button — only when expanded */}
+                          {!isCollapsed && (
+                            <button
+                              onClick={() => toggleSubmenu(item.id)}
+                              aria-label={isOpen ? `Cerrar submenú de ${item.label}` : `Abrir submenú de ${item.label}`}
+                              aria-expanded={isOpen}
+                              className={cn(
+                                "p-1.5 rounded-lg transition-colors duration-200 touch-manipulation",
+                                "hover:bg-[var(--brand-accent)]",
+                                parentActive ? "text-[var(--brand-primary)]" : "text-muted-foreground"
+                              )}
+                            >
+                              <ChevronDown className={cn(
+                                "w-4 h-4 transition-transform duration-200",
+                                isOpen && "rotate-180"
+                              )} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Submenu items */}
+                        {!isCollapsed && (
+                          <div
+                            className={cn(
+                              "overflow-hidden transition-[max-height,opacity] duration-300 ease-expo",
+                              isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
                             )}
                           >
-                            <ChevronDown className={cn(
-                              "w-4 h-4 transition-transform duration-200",
-                              isOpen && "rotate-180"
-                            )} />
-                          </button>
+                            <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
+                              {visibleChildren
+                                .map((child) => {
+                                  const ChildIcon = child.icon
+                                  const childActive = isActive(child.href)
+                                  return (
+                                    <li key={child.id}>
+                                      <Link
+                                        href={child.href}
+                                        aria-current={childActive ? "page" : undefined}
+                                        className={subLinkClasses(childActive)}
+                                      >
+                                        {ChildIcon && (
+                                          <ChildIcon className={cn(
+                                            "w-4 h-4 flex-shrink-0 transition-colors",
+                                            childActive ? "text-[var(--brand-primary)]" : "text-muted-foreground group-hover:text-foreground"
+                                          )} />
+                                        )}
+                                        <span className="truncate">{child.label}</span>
+                                      </Link>
+                                    </li>
+                                  )
+                                })}
+                            </ul>
+                          </div>
                         )}
-                      </div>
+                      </>
+                    ) : (
+                      /* Simple item (no children) */
+                      <Link
+                        href={item.href}
+                        aria-current={parentActive ? "page" : undefined}
+                        className={linkClasses(parentActive)}
+                        onMouseEnter={(e) => showTooltip(e, item.label)}
+                        onMouseLeave={hideTooltip}
+                      >
+                        {parentActive && <ActivePill />}
+                        <Icon className={iconClasses(parentActive)} />
 
-                      {/* Submenu items */}
-                      {!isCollapsed && (
-                        <div
-                          className={cn(
-                            "overflow-hidden transition-[max-height,opacity] duration-300 ease-expo",
-                            isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
-                          )}
-                        >
-                          <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
-                            {item.children!
-                              .filter((child) => !child.roles || child.roles.some(r => roles.includes(r)))
-                              .map((child) => {
-                                const ChildIcon = child.icon
-                                const childActive = isActive(child.href)
-                                return (
-                                  <li key={child.id}>
-                                    <Link
-                                      href={child.href}
-                                      aria-current={childActive ? "page" : undefined}
-                                      className={subLinkClasses(childActive)}
-                                    >
-                                      {ChildIcon && (
-                                        <ChildIcon className={cn(
-                                          "w-4 h-4 flex-shrink-0 transition-colors",
-                                          childActive ? "text-[var(--brand-primary)]" : "text-muted-foreground group-hover:text-foreground"
-                                        )} />
-                                      )}
-                                      <span className="truncate">{child.label}</span>
-                                    </Link>
-                                  </li>
-                                )
-                              })}
-                          </ul>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    /* Simple item (no children) */
-                    <Link
-                      href={item.href}
-                      aria-current={parentActive ? "page" : undefined}
-                      className={linkClasses(parentActive)}
-                      onMouseEnter={(e) => showTooltip(e, item.label)}
-                      onMouseLeave={hideTooltip}
-                    >
-                      {parentActive && <ActivePill />}
-                      <Icon className={iconClasses(parentActive)} />
-
-                      {!isCollapsed && (
-                        <>
-                          <span className="font-medium truncate">{item.label}</span>
-                          {item.badge && (
-                            <BadgeSistema
-                              variante={item.badgeVariant || 'default'}
-                              tamaño="sm"
-                              className="ml-auto"
-                            >
-                              {item.badge}
-                            </BadgeSistema>
-                          )}
-                        </>
-                      )}
-                    </Link>
-                  )}
-                </li>
-              )
-            })}
+                        {!isCollapsed && (
+                          <>
+                            <span className="font-medium truncate">{item.label}</span>
+                            {item.badge && (
+                              <BadgeSistema
+                                variante={item.badgeVariant || 'default'}
+                                tamaño="sm"
+                                className="ml-auto"
+                              >
+                                {item.badge}
+                              </BadgeSistema>
+                            )}
+                          </>
+                        )}
+                      </Link>
+                    )}
+                  </li>
+                )
+              })}
           </ul>
         </nav>
 

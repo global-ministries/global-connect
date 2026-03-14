@@ -6,6 +6,7 @@ import { DonutWidget } from '@/components/dashboard/widgets/DonutWidget'
 import { ActivityWidget } from '@/components/dashboard/widgets/ActivityWidget'
 import { BirthdayWidget } from '@/components/dashboard/widgets/BirthdayWidget'
 import { RiskGroupsWidget } from '@/components/dashboard/widgets/RiskGroupsWidget'
+import { NotasLideresWidget } from '@/components/dashboard/widgets/NotasLideresWidget'
 import { Users, UsersRound, Activity, TrendingUp, Calendar } from 'lucide-react'
 import { useCampus } from '@/hooks/useCampus'
 import { createClient } from '@/lib/supabase/client'
@@ -154,6 +155,13 @@ export default function DashboardAdmin({ data: initialData }: PropsDashboardAdmi
             value: formatoNumero(totalDistribucion),
             label: 'Miembros en grupos'
           }}
+        />
+      </div>
+
+      <div className="col-span-2">
+        <NotasLideresWidget
+          id="notas-lideres"
+          title="Notas de Líderes"
         />
       </div>
 
