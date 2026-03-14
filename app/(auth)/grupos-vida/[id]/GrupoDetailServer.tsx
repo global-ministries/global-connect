@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions";
 
 /** Tipo para el resultado del RPC obtener_detalle_grupo */
 interface GrupoRPCResult {
@@ -43,6 +44,9 @@ interface GrupoRPCResult {
     latitud?: number;
     longitud?: number;
   } | null;
+  // Permisos de eliminación de miembros
+  rol_minimo_eliminar_miembro?: string;
+  roles_sistema_usuario?: string[];
 }
 
 export default async function GrupoDetailServer({ params }: { params: Promise<{ id: string }> }) {
@@ -95,6 +99,18 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
     grupo.puede_editar_ui = !!permitido;
   } else {
     grupo.puede_editar_ui = false;
+  }
+
+  // Obtener config de gestión de miembros y roles del usuario
+  const configResult = await obtenerConfiguracionGrupos();
+  if (configResult.success && configResult.data) {
+    grupo.rol_minimo_eliminar_miembro = configResult.data.rol_minimo_eliminar_miembro;
+  }
+  if (user?.id) {
+    const { data: rolesArr } = await supabase.rpc("obtener_roles_sistema_usuario", {
+      p_auth_id: user.id
+    });
+    grupo.roles_sistema_usuario = (rolesArr as string[] | null) ?? [];
   }
 
   // Obtener info de casa anfitriona si el grupo tiene una

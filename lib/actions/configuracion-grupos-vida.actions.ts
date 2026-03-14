@@ -34,6 +34,7 @@ const actualizarConfigSchema = z.object({
   correo_semanal_habilitado: z.boolean().optional(),
   dia_envio_correo: z.number().int().min(0).max(6).optional(),
   hora_envio_correo: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  rol_minimo_eliminar_miembro: z.enum(['director-etapa', 'director-general', 'pastor', 'admin']).optional(),
 });
 
 // ─── Actions ─────────────────────────────────────────────────────────

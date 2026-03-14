@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { Settings, Save, Clock, Eye, AlertTriangle, Mail, MapPin } from "lucide-react";
+import { Settings, Save, Clock, Eye, AlertTriangle, Mail, MapPin, UserCog } from "lucide-react";
 import {
     BotonSistema,
     TarjetaSistema,
@@ -36,6 +36,7 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
     const [requiereAprobacionPlanificacion, setRequiereAprobacionPlanificacion] = useState(configInicial ? String(configInicial.requiere_aprobacion_grupo_planificacion) : "false");
     const [notificarLiderIngreso, setNotificarLiderIngreso] = useState(configInicial ? String(configInicial.notificar_lider_ingreso) : "true");
     const [creacionGruposHabilitada, setCreacionGruposHabilitada] = useState(configInicial ? String(configInicial.creacion_grupos_habilitada) : "true");
+    const [rolMinimoEliminar, setRolMinimoEliminar] = useState(configInicial?.rol_minimo_eliminar_miembro ?? "director-etapa");
     // Campos de asistencia avanzada (Fase 3)
     const [modoCierre, setModoCierre] = useState(configInicial?.modo_cierre_asistencia ?? "semanal");
     const [diaCierre, setDiaCierre] = useState(String(configInicial?.dia_cierre_semanal ?? 0));
@@ -89,6 +90,7 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                 setUmbralCritico(String(c.umbral_critico ?? 6));
                 setCorreoSemanal(String(c.correo_semanal_habilitado ?? false));
                 setDiaCorreo(String(c.dia_envio_correo ?? 1));
+                setRolMinimoEliminar(c.rol_minimo_eliminar_miembro ?? "director-etapa");
                 setHoraCorreo(c.hora_envio_correo ?? "08:00");
             }
             setIsLoading(false);
@@ -119,6 +121,7 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                 correo_semanal_habilitado: correoSemanal === "true",
                 dia_envio_correo: Number(diaCorreo),
                 hora_envio_correo: horaCorreo,
+                rol_minimo_eliminar_miembro: rolMinimoEliminar as 'director-etapa' | 'director-general' | 'pastor' | 'admin',
             });
 
             if (resultado.success) {
@@ -265,6 +268,30 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                         ]}
                         value={notificarLiderIngreso}
                         onValueChange={setNotificarLiderIngreso}
+                    />
+                </ConfigItem>
+
+                <SeparadorSistema />
+
+                {/* ── Sección Permisos de Miembros ── */}
+                <div className="flex items-center gap-2 mt-4">
+                    <UserCog className="h-4 w-4 text-muted-foreground" />
+                    <TituloSistema nivel={4}>Permisos de gestión de miembros</TituloSistema>
+                </div>
+
+                <ConfigItem
+                    titulo="Eliminar miembro de grupo de vida"
+                    descripcion="Define desde qué rol se puede eliminar un miembro del grupo directamente. Roles inferiores enviarán una solicitud a un superior para aprobación"
+                >
+                    <SelectSistema
+                        opciones={[
+                            { valor: "director-etapa", etiqueta: "Director de Etapa" },
+                            { valor: "director-general", etiqueta: "Director General" },
+                            { valor: "pastor", etiqueta: "Pastor" },
+                            { valor: "admin", etiqueta: "Administrador" },
+                        ]}
+                        value={rolMinimoEliminar}
+                        onValueChange={setRolMinimoEliminar}
                     />
                 </ConfigItem>
 

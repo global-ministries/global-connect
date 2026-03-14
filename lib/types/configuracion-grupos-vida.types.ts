@@ -20,6 +20,8 @@ export interface ConfiguracionGruposVida {
   correo_semanal_habilitado: boolean;
   dia_envio_correo: number;
   hora_envio_correo: string;
+  // Permisos de gestión de miembros
+  rol_minimo_eliminar_miembro: string;
   creado_en: string;
   actualizado_en: string;
 }

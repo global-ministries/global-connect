@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
-import { Edit, Users, MapPin, Clock, Calendar, Trash2 } from "lucide-react";
+import { Edit, Users, MapPin, Trash2, Camera, History, UserPlus, Navigation } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import GroupAuditPreview from "@/components/grupos/GroupAuditPreview.client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
+import { crearSolicitudGrupo } from "@/lib/actions/solicitudes-grupo.actions";
 import { useRouter } from "next/navigation";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
@@ -70,6 +71,9 @@ interface Grupo {
     latitud?: number;
     longitud?: number;
   } | null;
+  // Permisos de eliminación de miembros
+  rol_minimo_eliminar_miembro?: string;
+  roles_sistema_usuario?: string[];
 }
 
 interface GrupoDetailClientProps {
@@ -84,10 +88,27 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   const [removingId, setRemovingId] = useState<string | number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingRemovalId, setPendingRemovalId] = useState<string | number | null>(null);
+  const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
+  const [pendingRequestId, setPendingRequestId] = useState<string | number | null>(null);
+  const [pendingRequestName, setPendingRequestName] = useState('');
+  const [requestingId, setRequestingId] = useState<string | number | null>(null);
   const router = useRouter();
   const toast = useNotificaciones();
 
-
+  // Jerarquía de roles del sistema (mayor índice = más privilegios)
+  const JERARQUIA_ROLES: Record<string, number> = {
+    'miembro': 0, 'lider': 1, 'director-etapa': 2,
+    'director-general': 3, 'pastor': 4, 'admin': 5,
+  };
+  const rolMinimoConfig = grupo.rol_minimo_eliminar_miembro ?? 'director-etapa';
+  const nivelMinimo = JERARQUIA_ROLES[rolMinimoConfig] ?? 2;
+  const nivelUsuario = Math.max(
+    ...(grupo.roles_sistema_usuario ?? []).map(r => JERARQUIA_ROLES[r] ?? 0), 0
+  );
+  /** true si el usuario puede eliminar directamente (sin solicitud) */
+  const puedeEliminarDirecto = nivelUsuario >= nivelMinimo;
+  /** true si puede al menos enviar solicitud (es director pero no alcanza el nivel) */
+  const puedeEnviarSolicitud = !puedeEliminarDirecto && nivelUsuario >= JERARQUIA_ROLES['director-etapa'];
   const obtenerColorRol = (rol: string | undefined) => {
     switch (rol?.toLowerCase()) {
       case 'líder':
@@ -191,97 +212,112 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   return (
     <ContenedorDashboard
       titulo={grupo.nombre}
-      subtitulo={`${grupo.segmento_nombre} • ${grupo.temporada_nombre}`}
-      botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
+      subtitulo={`${grupo.segmento_nombre || ''} ${grupo.temporada_nombre ? `• ${grupo.temporada_nombre}` : ''}`}
+      botonRegreso={{ href: '/grupos-vida', texto: 'Volver' }}
     >
 
-      {/* Tarjeta Principal del Grupo */}
-      <TarjetaSistema className="p-6">
-        <div className="flex flex-col md:flex-row items-start gap-6">
-          {/* Imagen horizontal placeholder */}
-          <div className="w-full md:w-48 h-32 bg-gradient-to-r from-orange-400 to-orange-500 rounded-xl flex-shrink-0 flex items-center justify-center">
-            <Users className="w-12 h-12 text-white" />
+      {/* Tarjeta Principal — Header del Grupo */}
+      <TarjetaSistema className="p-0 overflow-hidden">
+        <div className="flex flex-col sm:flex-row">
+          {/* Foto del grupo / Upload zone */}
+          <div className="relative w-full sm:w-72 md:w-80 lg:w-96 h-44 sm:h-auto sm:min-h-[200px] flex-shrink-0 bg-gradient-to-br from-orange-400 to-orange-500 group cursor-pointer">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/80 group-hover:text-white transition-colors">
+              <Camera className="w-8 h-8" />
+              <span className="text-xs font-medium">Subir foto del grupo</span>
+            </div>
           </div>
 
-          {/* Información principal */}
-          <div className="flex-1 min-w-0 w-full md:w-auto">
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <BadgeSistema variante="default" tamaño="sm">
-                {grupo.dia_reunion || "Sin día"}
-              </BadgeSistema>
-              <BadgeSistema variante="default" tamaño="sm">
-                {formatHora12(grupo.hora_reunion) || "Sin hora"}
-              </BadgeSistema>
-              <BadgeSistema variante="success" tamaño="sm">
-                {grupo.miembros?.length || 0} miembros
-              </BadgeSistema>
-            </div>
+          {/* Información + Acciones */}
+          <div className="flex-1 p-5 sm:p-6 flex flex-col justify-between gap-4">
+            {/* Info superior */}
+            <div className="space-y-3">
+              {/* Badges de info */}
+              <div className="flex flex-wrap items-center gap-2">
+                <BadgeSistema variante="default" tamaño="sm">
+                  {grupo.dia_reunion || "Sin día"}
+                </BadgeSistema>
+                <BadgeSistema variante="default" tamaño="sm">
+                  {formatHora12(grupo.hora_reunion) || "Sin hora"}
+                </BadgeSistema>
+                <BadgeSistema variante="success" tamaño="sm">
+                  {grupo.miembros?.length || 0} miembros
+                </BadgeSistema>
+              </div>
 
-            {/* Dirección */}
-            {grupo.direccion && (grupo.direccion.calle || grupo.direccion.barrio) && (
-              <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                <MapPin className="w-4 h-4 flex-shrink-0" />
+              {/* Dirección */}
+              {grupo.direccion && (grupo.direccion.calle || grupo.direccion.barrio) && (
                 <button
                   onClick={() => setIsMapOpen(true)}
-                  className="text-sm hover:text-orange-600 transition-colors underline"
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {grupo.direccion.calle && grupo.direccion.barrio
-                    ? `${grupo.direccion.calle}, ${grupo.direccion.barrio}`
-                    : grupo.direccion.calle || grupo.direccion.barrio}
+                  <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="text-left">
+                    {grupo.direccion.calle && grupo.direccion.barrio
+                      ? `${grupo.direccion.calle}, ${grupo.direccion.barrio}`
+                      : grupo.direccion.calle || grupo.direccion.barrio}
+                  </span>
                 </button>
-              </div>
-            )}
+              )}
 
-            {/* Botón de Asistencia principal - Ancho completo en móvil */}
-            {grupo.puede_editar_ui && (
-              <Link href={`/grupos-vida/${id}/asistencia`} className="w-full mb-4">
-                <BotonSistema variante="primario" className="w-full h-12 text-sm">
-                  <Users className="w-4 h-4" />
-                  <span className="ml-2">Asistencia</span>
-                </BotonSistema>
-              </Link>
-            )}
+              {/* Casa anfitriona */}
+              {grupo.casa_anfitriona_info?.nombre_lugar && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Navigation className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Casa: {grupo.casa_anfitriona_info.nombre_lugar}</span>
+                  {grupo.casa_anfitriona_info.anfitrion_nombre && (
+                    <span className="text-muted-foreground/60">— {grupo.casa_anfitriona_info.anfitrion_nombre}</span>
+                  )}
+                </div>
+              )}
+            </div>
 
-            {/* Botones secundarios - Grid 2x2 en móvil, fila en desktop */}
-            <div className="grid grid-cols-2 gap-3 w-full mt-4">
+            {/* Acciones — fila compacta */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {grupo.puede_editar_ui && (
+                <Link href={`/grupos-vida/${id}/asistencia`}>
+                  <BotonSistema variante="primario" tamaño="sm" icono={Users}>
+                    Asistencia
+                  </BotonSistema>
+                </Link>
+              )}
+
               {grupo.puede_editar_ui && (grupo.rol_en_grupo?.toLowerCase() !== 'miembro') && (
                 <Link href={`/grupos-vida/${id}/edit`}>
-                  <BotonSistema variante="outline" className="w-full h-10 text-sm">
-                    <Edit className="w-4 h-4" />
-                    <span className="ml-2">Editar</span>
+                  <BotonSistema variante="outline" tamaño="sm" icono={Edit}>
+                    <span className="hidden sm:inline">Editar</span>
                   </BotonSistema>
                 </Link>
               )}
 
               {grupo.puede_editar_ui && (
                 <Link href={`/grupos-vida/${id}/asistencia/historial`}>
-                  <BotonSistema variante="outline" className="w-full h-10 text-sm">
-                    <Calendar className="w-4 h-4" />
-                    <span className="ml-2">Historial</span>
+                  <BotonSistema variante="outline" tamaño="sm" icono={History}>
+                    <span className="hidden sm:inline">Historial</span>
                   </BotonSistema>
                 </Link>
               )}
 
               <BotonSistema
                 variante="outline"
+                tamaño="sm"
+                icono={MapPin}
                 onClick={() => setIsMapOpen(true)}
-                className="w-full h-10 text-sm"
               >
-                <MapPin className="w-4 h-4" />
-                <span className="ml-2">Mapa</span>
+                <span className="hidden sm:inline">Mapa</span>
               </BotonSistema>
 
-              {/* Botón Descargar PDF */}
-              <GroupPDFExportButton grupo={grupo} />
+              {grupo.puede_editar_ui && (
+                <GroupPDFExportButton grupo={grupo} compact />
+              )}
 
-              {grupo.puede_gestionar_miembros && (
+              {grupo.puede_gestionar_miembros && nivelUsuario >= JERARQUIA_ROLES['director-etapa'] && (
                 <BotonSistema
                   variante="outline"
+                  tamaño="sm"
+                  icono={UserPlus}
                   onClick={() => setIsAddModalOpen(true)}
-                  className="w-full h-10 text-sm"
                 >
-                  <Users className="w-4 h-4" />
-                  <span className="ml-2">Añadir</span>
+                  <span className="hidden sm:inline">Añadir</span>
                 </BotonSistema>
               )}
             </div>
@@ -292,52 +328,38 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
 
       {/* Líderes y Miembros */}
       <TarjetaSistema>
-        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+        <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
           <Users className="w-5 h-5 text-orange-500" />
           Líderes y Miembros
         </h3>
-        <div className="space-y-4">
-          {grupo.miembros && grupo.miembros.length > 0 ? (
-            grupo.miembros.map((miembro) => (
-              <div key={miembro.id} className="bg-card/50 border border-border rounded-xl p-4">
-                {/* Desktop: layout horizontal alineado */}
-                <div className="hidden lg:flex items-center gap-4">
-                  <UserAvatar
-                    photoUrl={miembro.foto_perfil_url}
-                    nombre={miembro.nombre}
-                    apellido={miembro.apellido}
-                    size="lg"
-                    className="flex-shrink-0"
-                  />
 
-                  {/* Información en columnas alineadas */}
-                  <div className="flex-1 grid grid-cols-3 gap-4 items-center">
-                    <div>
-                      <Link
-                        href={`/users/${miembro.id}`}
-                        className="font-semibold text-foreground text-lg hover:text-orange-600 transition-colors cursor-pointer"
-                      >
-                        {miembro.nombre} {miembro.apellido}
-                      </Link>
-                    </div>
-                    <div className="text-sm text-muted-foreground truncate">
-                      {miembro.email || "Sin email"}
-                    </div>
-                    <div className="text-sm text-muted-foreground truncate">
-                      {miembro.telefono || "Sin teléfono"}
-                    </div>
-                  </div>
+        {grupo.miembros && grupo.miembros.length > 0 ? (() => {
+          // Permisos por nivel
+          const ROLES_DIRECTORES = ['admin', 'pastor', 'director-general', 'director-etapa'];
+          const rolesUsuario = grupo.roles_sistema_usuario ?? [];
+          // Director: tiene al menos un rol de sistema de nivel director
+          const esDirector = rolesUsuario.some(r => ROLES_DIRECTORES.includes(r));
+          // Líder simple: es líder del grupo pero NO tiene roles de director
+          const esLider = grupo.rol_en_grupo === 'Líder' && !esDirector;
 
-                  {/* Controles */}
-                  <div className="flex flex-shrink-0 items-center gap-2">
-                    {grupo.puede_gestionar_miembros ? (
+          return (
+            <div className="divide-y divide-border">
+              {grupo.miembros.map((miembro) => {
+                // Para el líder: solo puede cambiar rol a Colíder para miembros (no para otros líderes)
+                const puedeAsignarColider = esLider && miembro.rol !== 'Líder';
+
+                // Render de controles según rol
+                const renderControles = () => {
+                  // DIRECTOR: selector completo + eliminar
+                  if (esDirector) {
+                    return (
                       <>
                         <Select
-                          defaultValue={(miembro.rol as any) || 'Miembro'}
-                          onValueChange={(v) => onChangeRole(miembro.id, v as any)}
+                          defaultValue={(miembro.rol as string) || 'Miembro'}
+                          onValueChange={(v) => onChangeRole(miembro.id, v as "Líder" | "Colíder" | "Miembro")}
                           disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
                         >
-                          <SelectTrigger className="w-[130px]">
+                          <SelectTrigger className="w-[100px] sm:w-[120px] h-8 text-xs sm:text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -346,94 +368,124 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                             <SelectItem value="Miembro">Miembro</SelectItem>
                           </SelectContent>
                         </Select>
-                        <button
-                          type="button"
-                          aria-label="Quitar miembro"
-                          className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                          onClick={() => onRemoveMember(miembro.id)}
-                          disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
-                          title="Quitar del grupo"
-                        >
-                          <Trash2 className={`w-4 h-4 ${removingId === miembro.id ? 'animate-pulse' : ''}`} />
-                        </button>
+                        {puedeEliminarDirecto ? (
+                          <button
+                            type="button"
+                            aria-label="Quitar miembro del grupo"
+                            title="Eliminar del grupo"
+                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
+                            onClick={() => onRemoveMember(miembro.id)}
+                            disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
+                          >
+                            <Trash2 className={`w-4 h-4 ${removingId === miembro.id ? 'animate-pulse' : ''}`} />
+                          </button>
+                        ) : puedeEnviarSolicitud ? (
+                          <button
+                            type="button"
+                            aria-label="Solicitar eliminación del miembro"
+                            title="Solicitar eliminación"
+                            className="p-1.5 rounded-lg hover:bg-orange-500/10 text-orange-500 transition-colors"
+                            onClick={() => {
+                              setPendingRequestId(miembro.id);
+                              setPendingRequestName(`${miembro.nombre} ${miembro.apellido}`);
+                              setConfirmRequestOpen(true);
+                            }}
+                            disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        ) : null}
                       </>
-                    ) : (
-                      <BadgeSistema variante="default" tamaño="sm">
-                        {miembro.rol === 'Colíder' ? 'Aprendiz' : miembro.rol}
-                      </BadgeSistema>
-                    )}
-                  </div>
-                </div>
+                    );
+                  }
 
-                {/* Móvil: layout vertical como estaba */}
-                <div className="lg:hidden flex items-center gap-4">
-                  <UserAvatar
-                    photoUrl={miembro.foto_perfil_url}
-                    nombre={miembro.nombre}
-                    apellido={miembro.apellido}
-                    size="lg"
-                    className="flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <Link
-                      href={`/users/${miembro.id}`}
-                      className="font-semibold text-foreground text-lg hover:text-orange-600 transition-colors cursor-pointer block mb-1"
-                    >
-                      {miembro.nombre} {miembro.apellido}
-                    </Link>
-                    <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                      <span className="truncate">{miembro.email || "Sin email"}</span>
-                      <span className="truncate">{miembro.telefono || "Sin teléfono"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Móvil: controles debajo */}
-                <div className="lg:hidden mt-4 pt-4 border-t border-border flex items-center justify-between">
-                  {grupo.puede_gestionar_miembros ? (
-                    <>
+                  // LÍDER: puede asignar Colíder a miembros
+                  if (puedeAsignarColider) {
+                    return (
                       <Select
-                        defaultValue={(miembro.rol as any) || 'Miembro'}
-                        onValueChange={(v) => onChangeRole(miembro.id, v as any)}
-                        disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
+                        defaultValue={(miembro.rol as string) || 'Miembro'}
+                        onValueChange={(v) => onChangeRole(miembro.id, v as "Líder" | "Colíder" | "Miembro")}
+                        disabled={roleUpdatingId === miembro.id}
                       >
-                        <SelectTrigger className="w-[120px]">
+                        <SelectTrigger className="w-[100px] sm:w-[120px] h-8 text-xs sm:text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Líder">Líder</SelectItem>
                           <SelectItem value="Colíder">Aprendiz</SelectItem>
                           <SelectItem value="Miembro">Miembro</SelectItem>
                         </SelectContent>
                       </Select>
-                      <BotonSistema
-                        variante="outline"
-                        tamaño="sm"
-                        onClick={() => onRemoveMember(miembro.id)}
-                        disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
-                        cargando={removingId === miembro.id}
-                        className="text-red-600 border-red-200 hover:bg-red-50"
-                      >
-                        <Trash2 className={`w-4 h-4 ${removingId === miembro.id ? 'animate-pulse' : ''}`} />
-                        <span className="ml-1">Quitar</span>
-                      </BotonSistema>
-                    </>
-                  ) : (
-                    <BadgeSistema variante="default" tamaño="sm">
+                    );
+                  }
+
+                  // MIEMBRO o LÍDER viendo otro Líder: solo badge
+                  return (
+                    <BadgeSistema
+                      variante={miembro.rol === 'Líder' ? 'warning' : miembro.rol === 'Colíder' ? 'info' : 'default'}
+                      tamaño="sm"
+                    >
                       {miembro.rol === 'Colíder' ? 'Aprendiz' : miembro.rol}
                     </BadgeSistema>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="bg-card/50 border border-border rounded-xl p-8 text-center">
-              <Users className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground text-lg font-medium mb-2">No hay miembros en este grupo</p>
-              <p className="text-muted-foreground/50 text-sm">Los miembros aparecerán aquí una vez que sean agregados al grupo.</p>
+                  );
+                };
+
+                return (
+                  <div key={miembro.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center gap-3">
+                      <UserAvatar
+                        photoUrl={miembro.foto_perfil_url}
+                        nombre={miembro.nombre}
+                        apellido={miembro.apellido}
+                        size="md"
+                        className="flex-shrink-0"
+                      />
+
+                      {/* Nombre + datos */}
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          href={`/users/${miembro.id}`}
+                          className="font-semibold text-foreground text-sm sm:text-base hover:text-orange-600 transition-colors sm:line-clamp-1"
+                        >
+                          {miembro.nombre} {miembro.apellido}
+                        </Link>
+                        <div className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:truncate">
+                          {miembro.telefono || miembro.email || "Sin contacto"}
+                          <span className="hidden sm:inline">
+                            {miembro.telefono && miembro.email ? ` · ${miembro.email}` : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Desktop: controles inline */}
+                      <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
+                        {renderControles()}
+                      </div>
+
+                      {/* Móvil: badge si no tiene selector */}
+                      {!esDirector && !puedeAsignarColider && (
+                        <div className="sm:hidden flex-shrink-0">
+                          {renderControles()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Móvil: controles en segunda fila si tiene selector */}
+                    {(esDirector || puedeAsignarColider) && (
+                      <div className="sm:hidden flex items-center gap-2 mt-2 pl-11">
+                        {renderControles()}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </div>
+          );
+        })() : (
+          <div className="py-8 text-center">
+            <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">No hay miembros en este grupo</p>
+          </div>
+        )}
       </TarjetaSistema>
 
       {/* Auditoría: preview de últimos cambios (visible si no es rol "miembro") */}
@@ -469,9 +521,42 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         isOpen={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={confirmRemove}
-        title="Quitar miembro"
-        message="Esta acción removerá a la persona del grupo. ¿Deseas continuar?"
+        title="Quitar miembro del grupo de vida"
+        message="Esta acción removerá a la persona del grupo de vida. ¿Deseas continuar?"
         isLoading={removingId != null}
+      />
+
+      {/* Confirmación de solicitud de eliminación */}
+      <ConfirmationModal
+        isOpen={confirmRequestOpen}
+        onClose={() => { setConfirmRequestOpen(false); setPendingRequestId(null); setPendingRequestName(''); }}
+        onConfirm={async () => {
+          if (!pendingRequestId) return;
+          setRequestingId(pendingRequestId);
+          try {
+            const result = await crearSolicitudGrupo({
+              tipo: 'egreso',
+              usuario_id: String(pendingRequestId),
+              grupo_id: String(id),
+              motivo: 'Solicitud de eliminación de miembro del grupo de vida',
+            });
+            if (result.success) {
+              toast.success('Solicitud de eliminación enviada correctamente');
+            } else {
+              toast.error(result.error ?? 'Error al enviar la solicitud');
+            }
+          } catch {
+            toast.error('Error inesperado al enviar la solicitud');
+          } finally {
+            setRequestingId(null);
+            setConfirmRequestOpen(false);
+            setPendingRequestId(null);
+            setPendingRequestName('');
+          }
+        }}
+        title="Solicitar eliminación de miembro"
+        message={`Se enviará una solicitud para eliminar a ${pendingRequestName} del grupo de vida. Un superior revisará y aprobará la solicitud. ¿Deseas continuar?`}
+        isLoading={requestingId != null}
       />
     </ContenedorDashboard>
   );
