@@ -1,0 +1,300 @@
+<!--
+  ============================================================
+  SUPABASE DASHBOARD — EMAIL TEMPLATES
+  ============================================================
+  
+  Instrucciones:
+  1. Ve a Supabase Dashboard → Authentication → Email Templates
+  2. Copia el HTML correspondiente en cada template
+  3. Guarda los cambios
+  
+  Templates incluidos:
+  - Confirm signup (confirmación de registro)
+  - Reset password (restablecimiento de contraseña)
+  - Magic link (enlace mágico)
+  - Change email (cambio de email)
+  - Invite user (invitación de usuario)
+  
+  Variables disponibles de Supabase:
+  {{ .ConfirmationURL }} — URL completa de confirmación
+  {{ .SiteURL }}         — URL del sitio (NEXT_PUBLIC_SITE_URL)
+  {{ .Token }}           — Token OTP (6 dígitos)
+  {{ .TokenHash }}       — Hash del token
+  {{ .RedirectTo }}      — URL de redirect
+  ============================================================
+-->
+
+
+<!-- ========================================================
+     TEMPLATE 1: CONFIRM SIGNUP
+     Dashboard → Email Templates → Confirm signup
+     ======================================================== -->
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f0f13;padding:40px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <tr>
+    <td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background-color:#1a1a24;border-radius:16px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+        <!-- Header -->
+        <tr>
+          <td align="center" style="padding:32px 40px 24px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <img src="https://yosoyglobal.org/wp-content/uploads/2025/07/Global-Logo-obs-1.webp" width="160" alt="Global" style="display:block;" />
+          </td>
+        </tr>
+        <!-- Content -->
+        <tr>
+          <td style="padding:40px;">
+            <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0 0 16px;">¡Confirma tu correo electrónico!</h1>
+            <p style="color:#9ca3af;font-size:15px;line-height:1.6;margin:0 0 12px;">
+              Gracias por registrarte. Para activar tu cuenta, haz clic en el botón de abajo.
+            </p>
+            <p style="color:#9ca3af;font-size:15px;line-height:1.6;margin:0 0 28px;">
+              Si no creaste esta cuenta, puedes ignorar este correo.
+            </p>
+            <!-- Button -->
+            <table cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td align="center">
+                  <a href="{{ .ConfirmationURL }}" style="background-color:#D06D2D;color:#ffffff;padding:14px 28px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;display:inline-block;">Confirmar mi cuenta</a>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:24px 0 0;">
+              Si el botón no funciona, copia y pega este enlace en tu navegador:
+            </p>
+            <p style="color:#6b7280;font-size:12px;line-height:1.5;margin:4px 0 0;word-break:break-all;">
+              {{ .ConfirmationURL }}
+            </p>
+          </td>
+        </tr>
+        <!-- Divider -->
+        <tr>
+          <td style="border-top:1px solid rgba(255,255,255,0.06);"></td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:24px 40px;">
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0 0 4px;line-height:1.5;">Yo Soy Global · Campus Barquisimeto</p>
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0;line-height:1.5;">Este es un correo automático, por favor no respondas directamente.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+
+<!-- ========================================================
+     TEMPLATE 2: RESET PASSWORD
+     Dashboard → Email Templates → Reset password
+     ======================================================== -->
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f0f13;padding:40px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <tr>
+    <td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background-color:#1a1a24;border-radius:16px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+        <!-- Header -->
+        <tr>
+          <td align="center" style="padding:32px 40px 24px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <img src="https://yosoyglobal.org/wp-content/uploads/2025/07/Global-Logo-obs-1.webp" width="160" alt="Global" style="display:block;" />
+          </td>
+        </tr>
+        <!-- Content -->
+        <tr>
+          <td style="padding:40px;">
+            <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0 0 16px;">Restablece tu contraseña</h1>
+            <p style="color:#9ca3af;font-size:15px;line-height:1.6;margin:0 0 12px;">
+              Recibimos una solicitud para restablecer la contraseña de tu cuenta.
+            </p>
+            <p style="color:#9ca3af;font-size:15px;line-height:1.6;margin:0 0 28px;">
+              Haz clic en el botón para crear una nueva contraseña. Si no solicitaste esto, ignora este correo.
+            </p>
+            <!-- Button -->
+            <table cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td align="center">
+                  <a href="{{ .ConfirmationURL }}" style="background-color:#D06D2D;color:#ffffff;padding:14px 28px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;display:inline-block;">Restablecer contraseña</a>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:24px 0 0;">
+              Si el botón no funciona, copia y pega este enlace en tu navegador:
+            </p>
+            <p style="color:#6b7280;font-size:12px;line-height:1.5;margin:4px 0 0;word-break:break-all;">
+              {{ .ConfirmationURL }}
+            </p>
+          </td>
+        </tr>
+        <!-- Divider -->
+        <tr>
+          <td style="border-top:1px solid rgba(255,255,255,0.06);"></td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:24px 40px;">
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0 0 4px;line-height:1.5;">Yo Soy Global · Campus Barquisimeto</p>
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0;line-height:1.5;">Este es un correo automático, por favor no respondas directamente.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+
+<!-- ========================================================
+     TEMPLATE 3: MAGIC LINK
+     Dashboard → Email Templates → Magic link
+     ======================================================== -->
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f0f13;padding:40px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <tr>
+    <td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background-color:#1a1a24;border-radius:16px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+        <!-- Header -->
+        <tr>
+          <td align="center" style="padding:32px 40px 24px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <img src="https://yosoyglobal.org/wp-content/uploads/2025/07/Global-Logo-obs-1.webp" width="160" alt="Global" style="display:block;" />
+          </td>
+        </tr>
+        <!-- Content -->
+        <tr>
+          <td style="padding:40px;">
+            <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0 0 16px;">Tu enlace de acceso</h1>
+            <p style="color:#9ca3af;font-size:15px;line-height:1.6;margin:0 0 28px;">
+              Haz clic en el botón para iniciar sesión directamente. Este enlace expira en 24 horas.
+            </p>
+            <!-- Button -->
+            <table cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td align="center">
+                  <a href="{{ .ConfirmationURL }}" style="background-color:#D06D2D;color:#ffffff;padding:14px 28px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;display:inline-block;">Iniciar sesión</a>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:24px 0 0;">
+              Si el botón no funciona, copia y pega este enlace en tu navegador:
+            </p>
+            <p style="color:#6b7280;font-size:12px;line-height:1.5;margin:4px 0 0;word-break:break-all;">
+              {{ .ConfirmationURL }}
+            </p>
+          </td>
+        </tr>
+        <!-- Divider -->
+        <tr>
+          <td style="border-top:1px solid rgba(255,255,255,0.06);"></td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:24px 40px;">
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0 0 4px;line-height:1.5;">Yo Soy Global · Campus Barquisimeto</p>
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0;line-height:1.5;">Este es un correo automático, por favor no respondas directamente.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+
+<!-- ========================================================
+     TEMPLATE 4: CHANGE EMAIL
+     Dashboard → Email Templates → Change email address
+     ======================================================== -->
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f0f13;padding:40px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <tr>
+    <td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background-color:#1a1a24;border-radius:16px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+        <!-- Header -->
+        <tr>
+          <td align="center" style="padding:32px 40px 24px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <img src="https://yosoyglobal.org/wp-content/uploads/2025/07/Global-Logo-obs-1.webp" width="160" alt="Global" style="display:block;" />
+          </td>
+        </tr>
+        <!-- Content -->
+        <tr>
+          <td style="padding:40px;">
+            <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0 0 16px;">Confirma tu nuevo email</h1>
+            <p style="color:#9ca3af;font-size:15px;line-height:1.6;margin:0 0 28px;">
+              Recibimos una solicitud para cambiar tu correo electrónico. Haz clic en el botón para confirmar el cambio.
+            </p>
+            <!-- Button -->
+            <table cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td align="center">
+                  <a href="{{ .ConfirmationURL }}" style="background-color:#D06D2D;color:#ffffff;padding:14px 28px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;display:inline-block;">Confirmar nuevo email</a>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:24px 0 0;">
+              Si no solicitaste este cambio, ignora este correo o contacta al administrador.
+            </p>
+          </td>
+        </tr>
+        <!-- Divider -->
+        <tr>
+          <td style="border-top:1px solid rgba(255,255,255,0.06);"></td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:24px 40px;">
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0 0 4px;line-height:1.5;">Yo Soy Global · Campus Barquisimeto</p>
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0;line-height:1.5;">Este es un correo automático, por favor no respondas directamente.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+
+<!-- ========================================================
+     TEMPLATE 5: INVITE USER
+     Dashboard → Email Templates → Invite user
+     ======================================================== -->
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0f0f13;padding:40px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <tr>
+    <td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background-color:#1a1a24;border-radius:16px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+        <!-- Header -->
+        <tr>
+          <td align="center" style="padding:32px 40px 24px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <img src="https://yosoyglobal.org/wp-content/uploads/2025/07/Global-Logo-obs-1.webp" width="160" alt="Global" style="display:block;" />
+          </td>
+        </tr>
+        <!-- Content -->
+        <tr>
+          <td style="padding:40px;">
+            <h1 style="color:#ffffff;font-size:22px;font-weight:700;margin:0 0 16px;">Has sido invitado</h1>
+            <p style="color:#9ca3af;font-size:15px;line-height:1.6;margin:0 0 28px;">
+              Alguien de tu iglesia te ha invitado a unirte a la plataforma. Haz clic en el botón para aceptar la invitación y crear tu cuenta.
+            </p>
+            <!-- Button -->
+            <table cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td align="center">
+                  <a href="{{ .ConfirmationURL }}" style="background-color:#D06D2D;color:#ffffff;padding:14px 28px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;display:inline-block;">Aceptar invitación</a>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:24px 0 0;">
+              Si no esperabas esta invitación, puedes ignorar este correo.
+            </p>
+          </td>
+        </tr>
+        <!-- Divider -->
+        <tr>
+          <td style="border-top:1px solid rgba(255,255,255,0.06);"></td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:24px 40px;">
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0 0 4px;line-height:1.5;">Yo Soy Global · Campus Barquisimeto</p>
+            <p style="color:#4b5563;font-size:12px;text-align:center;margin:0;line-height:1.5;">Este es un correo automático, por favor no respondas directamente.</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

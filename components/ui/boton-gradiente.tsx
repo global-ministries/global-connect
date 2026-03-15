@@ -1,7 +1,11 @@
 import { Button } from "@/components/ui/button"
 import { ReactNode } from "react"
 
-
+/**
+ * @deprecated Usa `BotonSistema` de `@/components/ui/sistema-diseno` en su lugar.
+ * Para gradientes, aplica `className="bg-gradient-to-r from-purple-500 to-pink-500"` sobre BotonSistema.
+ * Se eliminará en la próxima versión mayor.
+ */
 interface BotonGradienteProps {
   children: ReactNode;
   tipo?: "submit" | "button" | "reset";

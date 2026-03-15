@@ -28,7 +28,7 @@ function formatearFecha(fechaISO: string): string {
 
 export function NewMembersWidget({ id, title = 'Nuevos Miembros en tu Grupo', items }: NewMembersWidgetProps) {
   return (
-    <TarjetaSistema className="p-6">
+    <TarjetaSistema className="p-3 md:p-4 lg:p-6 h-full">
       <TituloSistema nivel={3} className="mb-4">{title}</TituloSistema>
       {items.length === 0 ? (
         <TextoSistema variante="sutil">No hay nuevos miembros en los últimos 30 días</TextoSistema>
@@ -38,12 +38,12 @@ export function NewMembersWidget({ id, title = 'Nuevos Miembros en tu Grupo', it
             const [nombre, ...resto] = p.nombre_completo.split(' ')
             const apellido = resto.join(' ')
             return (
-              <Link key={p.id} href={`/dashboard/users/${p.id}`} className="block">
-                <div className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+              <Link key={p.id} href={`/users/${p.id}`} className="block">
+                <div className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors">
                   <div className="flex items-center gap-3 min-w-0">
                     <UserAvatar photoUrl={p.foto_url || undefined} nombre={nombre} apellido={apellido} size="sm" />
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">{p.nombre_completo}</div>
+                      <div className="text-sm font-medium text-foreground truncate">{p.nombre_completo}</div>
                       <TextoSistema variante="sutil" tamaño="sm">Ingreso: {formatearFecha(p.fecha_ingreso)}</TextoSistema>
                     </div>
                   </div>

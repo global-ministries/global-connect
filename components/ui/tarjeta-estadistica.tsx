@@ -1,6 +1,11 @@
 import { TarjetaGlassmorphism } from "@/components/ui/tarjeta-glassmorphism"
 import { TrendingUp, TrendingDown, LucideIcon } from "lucide-react"
 
+/**
+ * @deprecated Usa `TarjetaSistema` de `@/components/ui/sistema-diseno` junto con `BadgeSistema` para indicadores.
+ * Se eliminará en la próxima versión mayor.
+ */
+
 interface TarjetaEstadisticaProps {
   titulo: string
   valor: string
@@ -25,9 +30,8 @@ export function TarjetaEstadistica({
           <Icono className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
         </div>
         <div
-          className={`flex items-center gap-1 text-xs lg:text-sm font-medium ${
-            esPositivo ? "text-green-600" : "text-red-500"
-          }`}
+          className={`flex items-center gap-1 text-xs lg:text-sm font-medium ${esPositivo ? "text-green-600" : "text-red-500"
+            }`}
         >
           {esPositivo ? (
             <TrendingUp className="w-3 h-3 lg:w-4 lg:h-4" />
@@ -39,8 +43,8 @@ export function TarjetaEstadistica({
       </div>
 
       <div>
-        <h3 className="text-xl lg:text-2xl font-bold text-gray-800 mb-1">{valor}</h3>
-        <p className="text-gray-600 text-xs lg:text-sm">{titulo}</p>
+        <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-1">{valor}</h3>
+        <p className="text-muted-foreground text-xs lg:text-sm">{titulo}</p>
       </div>
     </TarjetaGlassmorphism>
   )

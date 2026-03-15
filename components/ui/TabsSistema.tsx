@@ -18,7 +18,7 @@ export function TabsList({
   return (
     <Tabs.List
       className={cn(
-        'inline-flex items-center gap-1 rounded-2xl bg-white/60 border border-white/30 p-1 shadow-sm backdrop-blur',
+        'inline-flex items-center gap-1 rounded-2xl bg-card/60 border border-border/30 p-1 shadow-sm backdrop-blur',
         className
       )}
       {...props}
@@ -33,9 +33,9 @@ export function TabsTrigger({
   return (
     <Tabs.Trigger
       className={cn(
-        'px-3.5 py-2 text-sm font-medium rounded-xl text-gray-600 transition-colors',
+        'px-3.5 py-2 text-sm font-medium rounded-xl text-muted-foreground transition-colors',
         'data-[state=active]:bg-orange-500 data-[state=active]:text-white',
-        'hover:bg-orange-50',
+        'hover:bg-muted',
         className
       )}
       {...props}

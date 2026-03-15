@@ -745,3 +745,62 @@ Códigos de error:
   - 200 `{ ok: true, message: "Contraseña actualizada correctamente" }`
   - 400/401/403 según payload o permisos
   - 5xx/502 en errores transitorios con reintentos y backoff
+
+---
+
+## 🔒 Fase 2: Autorización en Server Actions (2026-03-10)
+
+### Objetivo
+Agregar verificación de autenticación y permisos en **todos** los Server Actions que modifican datos sensibles, implementando un modelo de 3 capas: UI → Ruta → Action.
+
+### Helper Centralizado
+
+`lib/auth/requireAuth.ts` expone dos funciones reutilizables:
+
+| Función | Uso | Lanza error si |
+|---------|-----|----------------|
+| `requireAuth()` | Verifica sesión activa | No hay usuario autenticado |
+| `requireRole(rol)` | Verifica sesión + rol específico | No tiene el rol requerido |
+
+### RPCs de Permisos (SECURITY DEFINER)
+
+| RPC | Parámetros | Retorna `true` si |
+|-----|-----------|-------------------|
+| `puede_editar_usuario` | `p_auth_id`, `p_target_user_id` | Es admin, pastor, o el propio usuario |
+| `puede_crear_usuario` | `p_auth_id` | Es admin, pastor, director-general, director-etapa |
+
+### Matriz de Protección por Action
+
+| Action | Funciones | Protección |
+|--------|-----------|------------|
+| `user.actions.ts` | `updateUser`, `createUser` | `requireAuth()` + RPC permisos |
+| `user.actions.ts` | `addFamilyRelation`, `deleteFamilyRelation` | `requireAuth()` |
+| `season.actions.ts` | `createSeason`, `updateSeason` | `requireRole('admin')` |
+| `photo.actions.ts` | `uploadUserProfilePhoto`, `deleteUserProfilePhoto` | `requireAuth()` + `puede_editar_usuario` |
+| `location.actions.ts` | `geocodeAddress` | `requireAuth()` |
+
+### Protección de Rutas (Server-Side Redirect)
+
+| Ruta | Verificación | Redirect si no autorizado |
+|------|-------------|--------------------------|
+| `/dashboard/users/[id]/edit` | `puede_editar_usuario` RPC | → `/dashboard/users/[id]` |
+| `/dashboard/users/create` | `puede_crear_usuario` RPC | → `/dashboard/users` |
+| `/dashboard/grupos/create` | Roles: admin, pastor, director-general, director-etapa | → Página de error con botón volver |
+
+### Botones Ocultos por Rol
+
+| Página | Elemento | Visible para |
+|--------|----------|-------------|
+| Detalle usuario | "Editar" + "Editar Perfil" | admin, pastor |
+| Lista usuarios | "Agregar Miembro" | admin, pastor, director-general, director-etapa |
+| Lista grupos | "Crear Grupo" | admin, pastor, director-general, director-etapa |
+
+> **Nota:** El rol `líder` fue removido del permiso de creación de grupos (2026-03-10).
+
+### Cambio: Líder ya NO puede crear grupos
+
+| Antes | Ahora |
+|-------|-------|
+| admin, pastor, director-general, director-etapa, **líder** | admin, pastor, director-general, director-etapa |
+
+Razón: Alinear la creación de grupos con la jerarquía de supervisión. Los líderes gestionan sus grupos existentes pero no crean nuevos.

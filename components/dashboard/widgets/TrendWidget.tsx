@@ -34,11 +34,12 @@ export function TrendWidget({ id, title, data }: TrendWidgetProps) {
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="name" stroke="#6b7280" tick={{ fontSize: 12 }} />
-            <YAxis domain={[0, 100]} stroke="#6b7280" tick={{ fontSize: 12 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis dataKey="name" stroke="var(--muted-foreground)" tick={{ fontSize: 12 }} />
+            <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" tick={{ fontSize: 12 }} />
             <Tooltip
-              contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', border: '1px solid #e5e7eb', borderRadius: 8 }}
+              contentStyle={{ backgroundColor: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 12 }}
+              labelStyle={{ color: 'var(--foreground)', fontWeight: 600 }}
               formatter={(value: number) => [`${value}%`, 'Asistencia']}
             />
             <Line type="monotone" dataKey="porcentaje" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 4 }} />

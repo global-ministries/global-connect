@@ -1,0 +1,242 @@
+import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
+import { redirect } from "next/navigation"
+import { createSupabaseAdminClient } from "@/lib/supabase/admin"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { getUserWithRoles } from "@/lib/getUserWithRoles"
+import { UserEditForm } from "@/components/forms/UserEditForm"
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
+import { AdminAccionesAsignarContrasena } from '@/components/admin/AdminAccionesAsignarContrasena.client'
+import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
+
+interface Props {
+  params: Promise<{ id: string }>
+}
+
+export default async function EditUserPage({ params }: Props) {
+  const { id } = await params
+
+  // Verificar permisos antes de mostrar el formulario
+  const supabaseServer = await createSupabaseServerClient()
+  const { data: { user: authUser } } = await supabaseServer.auth.getUser()
+  if (!authUser) {
+    redirect('/')
+  }
+  const { data: permitido } = await supabaseServer.rpc('puede_editar_usuario' as any, {
+    p_auth_id: authUser.id,
+    p_target_user_id: id,
+  })
+  if (!permitido) {
+    redirect(`/users/${id}`)
+  }
+
+  // Usar admin client para bypass RLS
+  const supabase = createSupabaseAdminClient()
+
+  // Obtener datos del usuario básico
+  const { data: usuario, error: errorUsuario } = await supabase
+    .from('usuarios')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle() // Permite cero o un resultado, evita error si no existe
+
+  if (errorUsuario || !usuario) {
+    return (
+      <DashboardLayout>
+        <ContenedorDashboard
+          titulo=""
+          descripcion=""
+          accionPrincipal={null}
+        >
+          <div className="flex items-center justify-center min-h-[50vh]">
+            <div className="text-center">
+              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <TituloSistema nivel={2}>Usuario no encontrado</TituloSistema>
+              <p className="text-muted-foreground mb-4">
+                No se pudo cargar la información del usuario con ID: {id}
+              </p>
+              <p className="text-muted-foreground text-sm mb-4">
+                Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
+              </p>
+              <Link href="/users">
+                <BotonSistema variante="primario">
+                  Volver a Usuarios
+                </BotonSistema>
+              </Link>
+            </div>
+          </div>
+        </ContenedorDashboard>
+      </DashboardLayout>
+    )
+  }
+
+  // Obtener dirección si existe
+  let direccion = null
+  if (usuario.direccion_id) {
+    const { data: dirData } = await supabase
+      .from('direcciones')
+      .select(`
+        *,
+        parroquia: parroquias!direcciones_parroquia_id_fkey (
+          id,
+          nombre,
+          municipio: municipios!parroquias_municipio_id_fkey (
+            id,
+            nombre,
+            estado: estados!municipios_estado_id_fkey (
+              id,
+              nombre,
+              pais: paises!estados_pais_id_fkey (
+                id,
+                nombre
+              )
+            )
+          )
+        )
+      `)
+      .eq('id', usuario.direccion_id)
+      .maybeSingle()
+    if (dirData) {
+      direccion = dirData
+    }
+  }
+
+  // Obtener familia si existe
+  let familia = null
+  if (usuario.familia_id) {
+    const { data: famData } = await supabase
+      .from('familias')
+      .select('*')
+      .eq('id', usuario.familia_id)
+      .maybeSingle()
+    if (famData) {
+      familia = famData
+    }
+  }
+
+  // Obtener ocupación si existe
+  let ocupacion = null
+  if (usuario.ocupacion_id) {
+    const { data: ocData } = await supabase
+      .from('ocupaciones')
+      .select('*')
+      .eq('id', usuario.ocupacion_id)
+      .maybeSingle()
+    if (ocData) {
+      ocupacion = ocData
+    }
+  }
+
+  // Obtener profesión si existe
+  let profesion = null
+  if (usuario.profesion_id) {
+    const { data: profData } = await supabase
+      .from('profesiones')
+      .select('*')
+      .eq('id', usuario.profesion_id)
+      .maybeSingle()
+    if (profData) {
+      profesion = profData
+    }
+  }
+
+  // Construir el objeto completo del usuario
+  const usuarioCompleto = {
+    ...usuario,
+    direccion: direccion
+      ? {
+        ...direccion,
+        parroquia: direccion.parroquia === null ? undefined : direccion.parroquia,
+      }
+      : undefined,
+    familia: familia || undefined,
+    ocupacion: ocupacion || undefined,
+    profesion: profesion || undefined
+  }
+
+  // Verificar si el usuario actual es admin (para mostrar acciones de administrador)
+  const current = await getUserWithRoles(supabaseServer)
+  const esAdmin = (current?.roles || []).includes('admin')
+
+  // Obtener catálogos en paralelo
+  const [
+    { data: ocupaciones },
+    { data: profesiones },
+    { data: paises },
+    { data: estados },
+    { data: municipios },
+    { data: parroquias }
+  ] = await Promise.all([
+    supabase.from('ocupaciones').select('id, nombre').order('nombre'),
+    supabase.from('profesiones').select('id, nombre').order('nombre'),
+    supabase.from('paises').select('id, nombre').order('nombre'),
+    supabase.from('estados').select('id, nombre, pais_id').order('nombre'),
+    supabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
+    supabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
+  ])
+
+  // Obtener sugerencias de dirección familiar
+  const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(id)
+
+  return (
+    <DashboardLayout>
+      {/* Header sticky como en ver usuario */}
+      <div className="sticky top-0 z-10 bg-card border-b border-border px-4 sm:px-6 lg:px-20 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4 sm:block sm:space-y-1">
+            {/* Botón de regreso en móvil */}
+            <div className="flex-shrink-0 sm:hidden">
+              <Link href={`/users/${id}`}>
+                <BotonSistema
+                  variante="ghost"
+                  tamaño="sm"
+                  className="p-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </BotonSistema>
+              </Link>
+            </div>
+            {/* Título */}
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                  {usuario.nombre} {usuario.apellido}
+                </h1>
+              </div>
+            </div>
+          </div>
+          {/* Botón de regreso en desktop */}
+          <div className="flex-shrink-0 hidden sm:block">
+            <Link href={`/users/${id}`}>
+              <BotonSistema
+                variante="ghost"
+                tamaño="sm"
+                className="p-2"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </BotonSistema>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Contenido principal */}
+      <div className="px-4 sm:px-6 lg:px-20 py-6">
+        {esAdmin && (
+          <AdminAccionesAsignarContrasena userAuthId={usuario.auth_id} />
+        )}
+        <UserEditForm
+          usuario={usuarioCompleto}
+          ocupaciones={ocupaciones || []}
+          profesiones={profesiones || []}
+          paises={paises || []}
+          estados={estados || []}
+          municipios={municipios || []}
+          parroquias={parroquias || []}
+          sugerenciasDireccion={sugerenciasDireccion}
+        />
+      </div>
+    </DashboardLayout>
+  )
+}

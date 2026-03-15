@@ -11,7 +11,7 @@ export function AdminAccionesAsignarContrasena({ userAuthId }: { userAuthId: str
 
   return (
     <TarjetaSistema className="p-6 mb-6">
-      <h3 className="text-xl font-bold text-gray-800 mb-2">Acciones de Administrador</h3>
+      <h3 className="text-xl font-bold text-foreground mb-2">Acciones de Administrador</h3>
       <TextoSistema variante="sutil" tamaño="sm" className="mb-4">
         Asignar una nueva contraseña al usuario seleccionado. Esta acción es irreversible y debe comunicarse de forma segura.
       </TextoSistema>

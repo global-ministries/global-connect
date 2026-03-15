@@ -1,21 +1,32 @@
 # Sistema de Diseño GlobalConnect
 
-## 🎨 Colores de Marca
+## 🎨 Colores y Tokens
 
+### Colores de Marca
 ```typescript
 const coloresMarca = {
   grisOscuro: '#363D45',    // Color principal de marca
   naranja: '#E96C20',       // Color de acento
   negro: '#000000',
   blanco: '#FFFFFF',
-  grisClaro: '#F8F9FA',
-  grisTexto: '#6B7280',
-  grisTextoClaro: '#9CA3AF',
-  error: '#EF4444',
-  exito: '#10B981',
-  advertencia: '#F59E0B',
 }
 ```
+
+### Tokens Semánticos (Dark Mode Ready) ✅
+
+Desde la Fase 3 (Marzo 2026), GlobalConnect usa **exclusivamente tokens semánticos** CSS que se adaptan automáticamente a light/dark mode.
+
+| Token CSS | Uso | Light | Dark |
+|-----------|-----|-------|------|
+| `--foreground` | Texto principal | `#000` | `#fff` |
+| `--muted-foreground` | Texto secundario | `#6b7280` | `#9ca3af` |
+| `--card` | Fondo de tarjetas | `#fff` | `#1c1c1e` |
+| `--muted` | Fondos terciarios | `#f1f5f9` | `#27272a` |
+| `--border` | Bordes | `#e2e8f0` | `#3f3f46` |
+| `--destructive` | Errores | `#ef4444` | `#ef4444` |
+
+> ⚠️ **NUNCA usar colores hardcoded** como `gray-500`, `bg-white`, o `#6b7280` en componentes.
+> Siempre usar: `text-foreground`, `text-muted-foreground`, `bg-card`, `bg-muted`, `border-border`.
 
 ## 📐 Especificaciones de Diseño
 
@@ -50,7 +61,7 @@ import { TabsSistema, TabsList, TabsTrigger, TabsContent } from '@/components/ui
 Props principales: los mismos de Radix `Tabs.Root`, `Tabs.List`, `Tabs.Trigger` y `Tabs.Content`.
 
 ### InputSistema
-Input con iconos, labels y manejo de errores integrado.
+Input con iconos, labels, ARIA y manejo de errores integrado.
 
 ```tsx
 <InputSistema
@@ -65,9 +76,40 @@ Input con iconos, labels y manejo de errores integrado.
 
 **Props:**
 - `icono?: LucideIcon` - Icono a mostrar (izquierda)
-- `error?: string` - Mensaje de error
-- `label?: string` - Etiqueta del campo
+- `error?: string` - Mensaje de error (auto-genera `aria-describedby`)
+- `label?: string` - Etiqueta del campo (auto-genera `htmlFor`)
+- `min-h-[44px]` — Touch target WCAG
 - Todas las props de `HTMLInputElement`
+
+### SelectSistema
+Select nativo con glassmorphism, dark mode y accesibilidad.
+
+```tsx
+<SelectSistema
+  label="País"
+  error={errors.pais?.message}
+  required
+>
+  <option value="">Seleccionar...</option>
+  <option value="VE">Venezuela</option>
+</SelectSistema>
+```
+
+**Props:** Mismas que `InputSistema` + `children` para `<option>`.
+
+### TextareaSistema
+Textarea con glassmorphism, dark mode y auto-resize opcional.
+
+```tsx
+<TextareaSistema
+  label="Notas"
+  rows={4}
+  placeholder="Escribe aquí..."
+  error={errors.notas?.message}
+/>
+```
+
+**Props:** Mismas que `InputSistema` + `rows?: number`.
 
 ### BotonSistema
 Botón con múltiples variantes y estados de carga.
@@ -220,8 +262,23 @@ Contenedor para páginas del dashboard con encabezado opcional.
 
 ### Performance
 - Componentes optimizados con `React.forwardRef`
-- Animaciones suaves con `transition-all duration-200`
+- Animaciones específicas: `transition-colors`, `transition-opacity` (evitar `transition-all`)
 - Lazy loading cuando sea apropiado
+
+### Dark Mode
+- **Nunca** usar `gray-*`, `bg-white`, o hexadecimales hardcoded
+- **Siempre** usar tokens: `text-foreground`, `text-muted-foreground`, `bg-card`, `bg-muted`
+- Charts (Recharts): usar `var(--border)`, `var(--foreground)` en tooltips y ejes
+
+### Componentes Deprecados
+
+| Componente | Reemplazo | Archivo |
+|-----------|-----------|--------|
+| `BotonGradiente` | `BotonSistema variante="primario"` | `boton-gradiente.tsx` |
+| `CampoInputConIcono` | `InputSistema icono={...}` | `campo-input-con-icono.tsx` |
+| `TarjetaEstadistica` | `TarjetaSistema` + `BadgeSistema` | `tarjeta-estadistica.tsx` |
+
+> Estos componentes tienen `@deprecated` en su JSDoc. No usarlos en código nuevo.
 
 ## 🔄 Uso en Nuevas Páginas
 
@@ -399,15 +456,20 @@ export default function LoadingGrupos() {
 }
 ```
 
-## 🚀 Próximos Pasos
+## 🚀 Historial de Evolución
 
-- [ ] Implementar tema oscuro
-- [ ] Agregar más variantes de componentes
-- [ ] Crear componentes de navegación
-- [ ] Optimizar animaciones
-- [ ] Agregar más utilidades de layout
+- [x] ~~Implementar tema oscuro~~ — ✅ Completado Fase 3 (Marzo 2026)
+- [x] ~~Agregar más variantes~~ — ✅ `SelectSistema`, `TextareaSistema`, `BadgeSistema`
+- [x] ~~Crear componentes de navegación~~ — ✅ `HeaderMovil` con títulos dinámicos + botón regreso
+- [x] ~~Optimizar animaciones~~ — ✅ Purga de `transition-all`
+- [x] ~~Purga global de anti-patterns~~ — ✅ 0 `gray-*`, 0 `bg-white`, 0 hex hardcoded
+
+### Próximos Pasos
+- [ ] Eliminar componentes `@deprecated` cuando no tengan consumidores
+- [ ] Agregar más variantes de `BotonSistema` (gradient custom)
+- [ ] Componente `TablaSistema` con sorting y paginación integrada
 
 ---
 
 **Ubicación del código:** `/components/ui/sistema-diseno.tsx`
-**Última actualización:** Septiembre 2025
+**Última actualización:** Marzo 2026

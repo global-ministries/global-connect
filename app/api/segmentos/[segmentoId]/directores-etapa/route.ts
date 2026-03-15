@@ -17,57 +17,40 @@ export async function GET(req: Request, context: { params: Promise<{ segmentoId:
     const url = new URL(req.url);
     const debug = url.searchParams.get('debug') === '1';
 
-    // Intento primario: join anidado (puede fallar silenciosamente bajo RLS devolviendo 0 filas)
-    const { data: dataJoin, error: errorJoin } = await supabase
+    // Usar admin client para evitar restricciones de RLS en la consulta de datos
+    const supabaseAdmin = createSupabaseAdminClient();
+
+    // Query directa sin join para evitar problemas de RLS
+    const { data: filasBase, error: baseErr } = await supabaseAdmin
       .from('segmento_lideres')
-      .select('id, usuario_id, usuario:usuario_id (nombre, apellido, email, foto_perfil_url)')
+      .select('id, usuario_id')
       .eq('segmento_id', segmentoId)
       .eq('tipo_lider', 'director_etapa')
       .limit(100);
 
-    if (errorJoin) {
-      console.warn('[directores-etapa] errorJoin', errorJoin.message);
+    if (baseErr) {
+      console.warn('[directores-etapa] baseErr', baseErr.message);
+      return NextResponse.json({ directores: [], total: 0, error: baseErr.message });
     }
 
-    let registros = dataJoin || [];
+    let registros: any[] = [];
+    if (filasBase && filasBase.length > 0) {
+      const usuarioIds = [...new Set(filasBase.map(f => f.usuario_id))];
+      const { data: usuariosData } = await supabaseAdmin
+        .from('usuarios')
+        .select('id, nombre, apellido, email, foto_perfil_url')
+        .in('id', usuarioIds)
+        .limit(200);
 
-    // Fallback: si vacío, intentar obtener ids y luego fetch usuarios en dos pasos (más tolerante a RLS)
-    if (registros.length === 0) {
-      const { data: filasBase, error: baseErr } = await supabase
-        .from('segmento_lideres')
-        .select('id, usuario_id')
-        .eq('segmento_id', segmentoId)
-        .eq('tipo_lider', 'director_etapa')
-        .limit(100);
-      if (baseErr) {
-        console.warn('[directores-etapa] baseErr', baseErr.message);
+      const usuariosMap = new Map<string, { nombre: string; apellido: string; email?: string | null; foto_perfil_url?: string | null }>();
+      for (const u of usuariosData || []) {
+        usuariosMap.set(u.id, { nombre: u.nombre || '', apellido: u.apellido || '', email: u.email || null, foto_perfil_url: (u as any).foto_perfil_url || null });
       }
-      if (filasBase && filasBase.length > 0) {
-        const usuarioIds = [...new Set(filasBase.map(f => f.usuario_id))];
-        let usuariosMap = new Map<string, { nombre: string; apellido: string; email?: string | null; foto_perfil_url?: string | null }>();
-        if (usuarioIds.length > 0) {
-          const { data: usuariosData, error: usuariosErr } = await supabase
-            .from('usuarios')
-            .select('id, nombre, apellido, email, foto_perfil_url')
-            .in('id', usuarioIds)
-            .limit(200);
-          if (usuariosErr) {
-            console.warn('[directores-etapa] usuariosErr', usuariosErr.message);
-          } else {
-            for (const u of usuariosData || []) {
-              usuariosMap.set(u.id, { nombre: u.nombre || '', apellido: u.apellido || '', email: u.email || null, foto_perfil_url: (u as any).foto_perfil_url || null });
-            }
-          }
-        }
-        registros = filasBase.map(f => {
-          const info = usuariosMap.get(f.usuario_id) || { nombre: '', apellido: '', email: null, foto_perfil_url: null };
-            return {
-              id: f.id,
-              usuario_id: f.usuario_id,
-              usuario: info
-            } as any;
-        });
-      }
+
+      registros = filasBase.map(f => {
+        const info = usuariosMap.get(f.usuario_id) || { nombre: '', apellido: '', email: null, foto_perfil_url: null };
+        return { id: f.id, usuario_id: f.usuario_id, usuario: info };
+      });
     }
 
     const directores = registros.map((d: any) => {
@@ -82,21 +65,11 @@ export async function GET(req: Request, context: { params: Promise<{ segmentoId:
     });
 
     if (debug) {
-      // Consulta adicional sin filtros (solo limit) para ver cuántas filas se pueden ver en total bajo RLS
-      const { data: allVisible, error: allVisibleErr } = await supabase
-        .from('segmento_lideres')
-        .select('id, segmento_id, usuario_id, tipo_lider')
-        .limit(50);
       return NextResponse.json({
         debug: true,
         total: directores.length,
         directores,
-        dataJoinCount: (dataJoin || []).length,
-        fallbackApplied: (dataJoin || []).length === 0,
-        allVisibleCount: (allVisible || []).length,
-        sampleAllVisible: allVisible,
-        joinError: errorJoin?.message,
-        allVisibleErr: allVisibleErr?.message
+        registrosCount: registros.length,
       });
     }
 
@@ -133,7 +106,7 @@ export async function POST(req: Request, context: { params: Promise<{ segmentoId
 
     // Intentar RPC oficial
     let rpcError: any = null;
-    const { error: rpcErr } = await supabase.rpc('asignar_director_etapa_a_grupo', {
+    const { error: rpcErr } = await supabase.rpc('asignar_director_etapa_a_grupo' as any, {
       p_auth_id: user.id,
       p_grupo_id: grupo_id,
       p_segmento_lider_id: director_etapa_segmento_lider_id,

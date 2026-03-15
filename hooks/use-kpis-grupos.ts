@@ -13,8 +13,13 @@ interface KpisGrupos {
   fecha_ultima_actualizacion: string;
 }
 
-export function useKpisGrupos(options: { refreshIntervalMs?: number } = {}) {
-  const { refreshIntervalMs = 60000 } = options;
+interface UseKpisGruposOptions {
+  refreshIntervalMs?: number;
+  campusId?: string | null;
+}
+
+export function useKpisGrupos(options: UseKpisGruposOptions = {}) {
+  const { refreshIntervalMs = 60000, campusId } = options;
   const [data, setData] = useState<KpisGrupos | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +28,10 @@ export function useKpisGrupos(options: { refreshIntervalMs?: number } = {}) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/grupos/kpis', { cache: 'no-store' });
+      const params = new URLSearchParams();
+      if (campusId) params.set('campus_id', campusId);
+      const url = `/api/grupos/kpis${params.toString() ? `?${params}` : ''}`;
+      const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) throw new Error(await res.text());
       const json = await res.json();
       if (json?.kpis) {
@@ -36,7 +44,7 @@ export function useKpisGrupos(options: { refreshIntervalMs?: number } = {}) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [campusId]);
 
   useEffect(() => {
     fetchData();
@@ -48,3 +56,4 @@ export function useKpisGrupos(options: { refreshIntervalMs?: number } = {}) {
 
   return { kpis: data, loading, error, refetch: fetchData };
 }
+

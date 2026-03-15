@@ -16,20 +16,20 @@ export function BarChart({ data, color = "#E96C20" }: BarChartProps) {
     <div className="h-48">
       <ResponsiveContainer width="100%" height="100%">
         <RechartsBarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis 
-            dataKey="name" 
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <XAxis
+            dataKey="name"
             axisLine={false}
             tickLine={false}
-            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
           />
-          <YAxis 
+          <YAxis
             axisLine={false}
             tickLine={false}
-            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
           />
-          <Bar 
-            dataKey="value" 
+          <Bar
+            dataKey="value"
             fill={color}
             radius={[4, 4, 0, 0]}
           />

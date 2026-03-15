@@ -22,12 +22,12 @@ export function DonutChart({ data, centerText }: DonutChartProps) {
   const formatPct = (v: number) => total === 0 ? '0%' : ((v / total) * 100).toFixed(1) + '%'
 
   return (
-  <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="relative mx-auto lg:mx-0" style={{ width: 220, height: 220 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={isEmpty ? [{ name: 'empty', value: 1, color: '#f1f5f9' }] : data}
+              data={isEmpty ? [{ name: 'empty', value: 1, color: 'var(--muted)' }] : data}
               cx="50%"
               cy="50%"
               innerRadius={70}
@@ -36,7 +36,7 @@ export function DonutChart({ data, centerText }: DonutChartProps) {
               dataKey="value"
               isAnimationActive={!isEmpty}
             >
-              {(isEmpty ? [{ color: '#f1f5f9' }] : data).map((entry, index) => (
+              {(isEmpty ? [{ color: 'var(--muted)' }] : data).map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={(entry as any).color} />
               ))}
             </Pie>
@@ -53,10 +53,10 @@ export function DonutChart({ data, centerText }: DonutChartProps) {
         {centerText && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900 tracking-tight">
+              <div className="text-3xl font-bold text-foreground tracking-tight tabular-nums">
                 {centerText.value}
               </div>
-              <div className="text-xs font-medium text-gray-500 mt-1 px-2">
+              <div className="text-xs font-medium text-muted-foreground mt-1 px-2">
                 {centerText.label}
               </div>
             </div>
@@ -66,7 +66,7 @@ export function DonutChart({ data, centerText }: DonutChartProps) {
       <div className="flex-1">
         <div className="mt-2 flex flex-col gap-3 min-w-[220px]">
           {isEmpty && (
-            <div className="col-span-full text-sm text-gray-500 italic">
+            <div className="col-span-full text-sm text-muted-foreground italic">
               No hay grupos en temporadas activas.
             </div>
           )}
@@ -76,12 +76,12 @@ export function DonutChart({ data, centerText }: DonutChartProps) {
               <div key={index} className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2 min-w-0">
                   <div
-                    className="w-3 h-3 rounded-full ring-2 ring-white shadow"
+                    className="w-3 h-3 rounded-full ring-2 ring-card shadow"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-gray-700 break-words whitespace-normal" title={item.name}>{item.name}</span>
+                  <span className="text-foreground break-words whitespace-normal" title={item.name}>{item.name}</span>
                 </div>
-                <span className="font-semibold text-gray-900 tabular-nums ml-2 whitespace-nowrap">{item.value} <span className="text-gray-500 font-normal">({pct})</span></span>
+                <span className="font-semibold text-foreground tabular-nums ml-2 whitespace-nowrap">{item.value} <span className="text-muted-foreground font-normal">({pct})</span></span>
               </div>
             )
           })}

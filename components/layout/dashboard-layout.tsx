@@ -13,15 +13,15 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
   const { isCollapsed } = useSidebarModerna()
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[var(--surface-primary)]">
       {/* Sidebar */}
       <SidebarModerna />
-      
+
       {/* Contenido principal */}
-      <main 
+      <main
         className={cn(
-          "flex-1 overflow-auto transition-all duration-300 ease-in-out",
-          "md:ml-0", // En móvil no hay margen porque el sidebar es overlay
+          "flex-1 overflow-auto transition-[margin] duration-300 ease-in-out scrollbar-glass",
+          "md:ml-0",
           className
         )}
       >

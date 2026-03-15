@@ -38,3 +38,14 @@ yarn-error.log*
 .kiro/
 .codex/
 .copilot/
+
+# database backups
+/backups/
+*.bak
+
+# Build artifacts
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Sentry Config File
+.env.sentry-build-plugin

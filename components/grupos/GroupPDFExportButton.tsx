@@ -23,6 +23,7 @@ interface Grupo {
 
 interface GroupPDFExportButtonProps {
   grupo: Grupo;
+  compact?: boolean;
 }
 
 // Formatea teléfono para mostrar (limpio)
@@ -46,7 +47,7 @@ function agruparEnParejas(miembros: Miembro[]): Miembro[][] {
   return grupos;
 }
 
-export default function GroupPDFExportButton({ grupo }: GroupPDFExportButtonProps) {
+export default function GroupPDFExportButton({ grupo, compact }: GroupPDFExportButtonProps) {
   const [exporting, setExporting] = useState(false);
 
   const esMatrimonio = grupo.segmento_nombre?.toLowerCase().includes("matrimonio");
@@ -191,6 +192,21 @@ export default function GroupPDFExportButton({ grupo }: GroupPDFExportButtonProp
       setExporting(false);
     }
   };
+
+  if (compact) {
+    return (
+      <BotonSistema
+        variante="outline"
+        tamaño="sm"
+        icono={Download}
+        onClick={handleExport}
+        disabled={exporting}
+        cargando={exporting}
+      >
+        <span className="hidden sm:inline">PDF</span>
+      </BotonSistema>
+    );
+  }
 
   return (
     <BotonSistema

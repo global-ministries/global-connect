@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
-import { supabase } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 
 export function useUsuarioDetalle(id: string) {
   const [usuario, setUsuario] = useState<any>(null)
@@ -10,6 +10,7 @@ export function useUsuarioDetalle(id: string) {
     setLoading(true)
     setError(null)
     try {
+      const supabase = createClient()
       // Traer relaciones donde el usuario es usuario1_id
       const { data: usuarioData, error: errorUsuario } = await supabase
         .from("usuarios")

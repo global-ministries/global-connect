@@ -1,11 +1,22 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import './globals.css'
+import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import NextTopLoader from 'nextjs-toploader'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FAFAF8' },
+    { media: '(prefers-color-scheme: dark)', color: '#0E0E12' },
+  ],
+}
 
 export const metadata: Metadata = {
   title: 'Global Connect',
@@ -16,14 +27,14 @@ export const metadata: Metadata = {
       {
         url: 'https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/favicon%20global.webp',
         type: 'image/webp',
-  sizes: '512x512',
+        sizes: '512x512',
       },
     ],
     shortcut: [
       {
         url: 'https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/favicon%20global.webp',
         type: 'image/webp',
-  sizes: '512x512',
+        sizes: '512x512',
       },
     ],
     apple: [
@@ -59,23 +70,31 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="es" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
       </head>
       <body className="font-sans antialiased">
-        <NextTopLoader
-          color="#E96C20"
-          initialPosition={0.08}
-          crawlSpeed={200}
-          height={3}
-          crawl={true}
-          showSpinner={false}
-          easing="ease"
-          speed={200}
-        />
-        {children}
-        <Toaster position="top-right" richColors closeButton />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {/* Skip to content — accessibility */}
+          <a href="#main-content" className="skip-to-content focus-ring">
+            Saltar al contenido principal
+          </a>
+          <NextTopLoader
+            color="#E96C20"
+            initialPosition={0.08}
+            crawlSpeed={200}
+            height={3}
+            crawl={true}
+            showSpinner={false}
+            easing="ease"
+            speed={200}
+          />
+          <div id="main-content">
+            {children}
+          </div>
+          <Toaster position="top-right" richColors closeButton />
+        </ThemeProvider>
         <Analytics />
         <SpeedInsights />
       </body>

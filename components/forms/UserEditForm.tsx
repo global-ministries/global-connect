@@ -2,35 +2,34 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  MapPin, 
-  Users, 
-  Briefcase, 
+import {
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  MapPin,
+  Users,
+  Briefcase,
   GraduationCap,
   Heart,
   Hash,
   Save,
-  X
+  X,
+  Lightbulb
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { InputSistema, SelectSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput"
 import LocationPicker from "@/components/maps/LocationPicker.client"
-import { Controller } from "react-hook-form"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { updateUser } from "@/lib/actions/user.actions"
 import { geocodeAddress } from "@/lib/actions/location.actions"
 import { ProfilePhotoUploader } from "@/components/ui/ProfilePhotoUploader"
 import type { Database } from '@/lib/supabase/database.types'
 import { useNotificaciones } from "@/hooks/use-notificaciones"
+import type { SugerenciaDireccionFamiliar } from "@/lib/actions/direccion-familiar.actions"
 
 type Usuario = Database["public"]["Tables"]["usuarios"]["Row"]
 type Direccion = Database["public"]["Tables"]["direcciones"]["Row"] & {
@@ -70,16 +69,16 @@ const userEditSchema = z.object({
   cedula: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   telefono: z.string().optional(),
-  
+
   // Información personal
   fecha_nacimiento: z.string().optional(),
   estado_civil: z.enum(["Soltero", "Casado", "Divorciado", "Viudo"]),
   genero: z.enum(["Masculino", "Femenino"]),
-  
+
   // Información profesional
   ocupacion_id: z.string().optional().or(z.literal("none")),
   profesion_id: z.string().optional().or(z.literal("none")),
-  
+
   // Información de ubicación
   direccion_id: z.string().optional(),
   direccion: z.object({
@@ -94,8 +93,8 @@ const userEditSchema = z.object({
     lat: z.number().optional(),
     lng: z.number().optional(),
   }).optional(),
-  
-  // Información familiar (eliminada, no requerida)
+
+  // Información familiar
   familia_id: z.string().optional(),
   familia: z.object({
     nombre: z.string().optional(),
@@ -105,32 +104,33 @@ const userEditSchema = z.object({
 type UserEditFormData = z.infer<typeof userEditSchema>
 
 interface UserEditFormProps {
-  usuario?: UsuarioDetallado // <-- debe ser opcional
+  usuario?: UsuarioDetallado
   ocupaciones: { id: string; nombre: string }[]
   profesiones: { id: string; nombre: string }[]
   paises: { id: string; nombre: string }[]
   estados: { id: string; nombre: string; pais_id: string }[]
   municipios: { id: string; nombre: string; estado_id: string }[]
   parroquias: { id: string; nombre: string; municipio_id: string }[]
-  esPerfil?: boolean // Nueva prop para indicar si es página de perfil
+  sugerenciasDireccion?: SugerenciaDireccionFamiliar[]
+  esPerfil?: boolean
 }
 
-export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estados, municipios, parroquias, esPerfil = false }: UserEditFormProps) {
+/**
+ * Formulario completo de edición de usuario.
+ *
+ * Usa componentes del design system (InputSistema, SelectSistema, BotonSistema,
+ * TarjetaSistema) para consistencia visual, accesibilidad y dark mode.
+ */
+export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estados, municipios, parroquias, sugerenciasDireccion = [], esPerfil = false }: UserEditFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const toast = useNotificaciones()
 
-  // Obtener los IDs correctos para los selects de direcci�n
+  // Obtener los IDs correctos para los selects de dirección
   const parroquiaObj = usuario?.direccion?.parroquia
   const municipioObj = parroquiaObj?.municipio
   const estadoObj = municipioObj?.estado
   const paisObj = estadoObj?.pais
-
-  // Obtener los IDs actuales para selects (soportando undefined)
-  const parroquia_id = parroquiaObj?.id || ""
-  const municipio_id = municipioObj?.id || ""
-  const estado_id = estadoObj?.id || ""
-  const pais_id = paisObj?.id || ""
 
   const {
     register,
@@ -176,7 +176,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         lat: undefined,
         lng: undefined,
       },
-  // familia_id y familia ya no son requeridos ni usados
     }
   })
 
@@ -184,10 +183,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
     try {
       setLoading(true)
       setError(null)
-
-      console.log('🚀 Iniciando envío del formulario...')
-      console.log('📋 Datos del formulario:', data)
-      console.log('✅ Validación del formulario exitosa')
 
       // Convertir "none" a undefined para campos opcionales
       const datosProcesados = {
@@ -206,67 +201,39 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           : undefined,
       }
 
-      console.log('📝 Datos procesados para enviar:', datosProcesados)
-      console.log('🆔 ID del usuario:', usuario?.id)
-
-      // Llamar a la Server Action
-      console.log('📡 Llamando a updateUser...')
       if (usuario) {
         await updateUser(usuario.id, datosProcesados, esPerfil)
-      } else {
-        // Aquí debes llamar a la función para crear un usuario nuevo
-        // await createUser(datosProcesados)
       }
 
-      console.log('✅ updateUser completado exitosamente')
-      // Si llegamos aquí, la actualización fue exitosa
-      // Redirección condicional según el contexto
       if (esPerfil) {
-        // En perfil, mostrar mensaje de éxito y redirigir al perfil
         toast.success('Perfil actualizado exitosamente')
-        window.location.href = '/dashboard/perfil'
-      } else {
-        // En edición de usuario, la Server Action se encarga de la redirección
+        window.location.href = '/perfil'
       }
-      
-    } catch (err) {
-      console.error('? Error al enviar formulario:', err)
-      // Elimina el log de tipo de error para evitar confusi�n
-      // Mostrar el error como JSON si no es instancia de Error
-      if (!(err instanceof Error)) {
-        try {
-          console.error('? Error (JSON):', JSON.stringify(err))
-        } catch {
-          console.error('? Error (no serializable):', err)
-        }
-      }
-      console.error('? Error completo:', err)
+
+    } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message)
       } else if (typeof err === 'object' && err !== null && 'message' in err) {
-        setError((err as any).message)
+        setError(String((err as { message: unknown }).message))
       } else {
         setError('Error desconocido al enviar el formulario')
       }
     } finally {
       setLoading(false)
-      console.log('🝝 onSubmit completado')
     }
   }
 
   // Coordenadas iniciales para el mapa
-  const latitudGuardada = usuario?.direccion?.latitud;
-  const longitudGuardada = usuario?.direccion?.longitud;
-  const initialLat = typeof latitudGuardada === "number" ? latitudGuardada : 10.4681;
-  const initialLng = typeof longitudGuardada === "number" ? longitudGuardada : -66.8792;
-  const [mapCenter, setMapCenter] = useState({ lat: initialLat, lng: initialLng });
+  const latitudGuardada = usuario?.direccion?.latitud
+  const longitudGuardada = usuario?.direccion?.longitud
+  const initialLat = typeof latitudGuardada === "number" ? latitudGuardada : 10.4681
+  const initialLng = typeof longitudGuardada === "number" ? longitudGuardada : -66.8792
+  const [mapCenter, setMapCenter] = useState({ lat: initialLat, lng: initialLng })
 
-  // Actualizar el centro del mapa cuando cambian país, estado o municipio,
-  // pero solo si NO hay lat/lng guardados en la base de datos
+  // Actualizar el centro del mapa cuando cambian país, estado o municipio
   useEffect(() => {
     if (typeof latitudGuardada === "number" && typeof longitudGuardada === "number") {
-      // Si hay coordenadas guardadas, no actualizar el centro por selects
-      return;
+      return
     }
     const paisId = watch("direccion.pais_id")
     const estadoId = watch("direccion.estado_id")
@@ -276,7 +243,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
     const estadoNombre = estados.find(e => e.id === estadoId)?.nombre
     const municipioNombre = municipios.find(m => m.id === municipioId)?.nombre
 
-    // Coordenadas específicas para municipio Iribarren
     if (municipioNombre?.toLowerCase() === 'iribarren') {
       const iribarrenLat = 10.078726345593038
       const iribarrenLng = -69.28487917698043
@@ -286,7 +252,6 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
       return
     }
 
-    // Construir dirección solo si hay al menos municipio, estado o país
     const partes = [municipioNombre, estadoNombre, paisNombre].filter(Boolean)
     const direccionStr = partes.join(", ")
 
@@ -305,143 +270,102 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Foto de Perfil */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <User className="w-5 h-5 text-orange-500" />
+      <TarjetaSistema>
+        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+          <User className="w-5 h-5 text-[var(--brand-primary)]" />
           Foto de Perfil
         </h3>
         <div className="flex justify-center">
           <ProfilePhotoUploader
             currentPhotoUrl={usuario?.foto_perfil_url}
             size="lg"
-            userId={usuario?.id} // Pasar el ID del usuario que se está editando
-            onPhotoChange={(newPhotoUrl) => {
-              // La foto se actualiza automáticamente en la base de datos
-              // Aquí podrías actualizar el estado local si es necesario
-              console.log('Nueva foto:', newPhotoUrl)
+            userId={usuario?.id}
+            onPhotoChange={() => {
+              // Foto actualizada vía ProfilePhotoUploader — no se requiere acción adicional
             }}
           />
         </div>
-      </div>
+      </TarjetaSistema>
 
       {/* Información Básica */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <User className="w-5 h-5 text-orange-500" />
+      <TarjetaSistema>
+        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+          <User className="w-5 h-5 text-[var(--brand-primary)]" />
           Información Básica
         </h3>
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="nombre" className="text-sm font-medium text-gray-700">Nombre *</Label>
-            <Input
-              id="nombre"
-              {...register("nombre")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa el nombre"
-            />
-            {errors.nombre && (
-              <p className="text-red-500 text-sm">{errors.nombre.message}</p>
-            )}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <InputSistema
+            label="Nombre *"
+            placeholder="Ingresa el nombre"
+            error={errors.nombre?.message}
+            {...register("nombre")}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="apellido" className="text-sm font-medium text-gray-700">Apellido *</Label>
-            <Input
-              id="apellido"
-              {...register("apellido")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa el apellido"
-            />
-            {errors.apellido && (
-              <p className="text-red-500 text-sm">{errors.apellido.message}</p>
-            )}
-          </div>
+          <InputSistema
+            label="Apellido *"
+            placeholder="Ingresa el apellido"
+            error={errors.apellido?.message}
+            {...register("apellido")}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="cedula" className="text-sm font-medium text-gray-700">Cédula</Label>
-            <Input
-              id="cedula"
-              {...register("cedula")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa la cédula"
-            />
-            {errors.cedula && (
-              <p className="text-red-500 text-sm">{errors.cedula.message}</p>
-            )}
-          </div>
+          <InputSistema
+            label="Cédula"
+            placeholder="Ingresa la cédula"
+            error={errors.cedula?.message}
+            {...register("cedula")}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="fecha_nacimiento" className="text-sm font-medium text-gray-700">Fecha de Nacimiento</Label>
-            <Input
-              id="fecha_nacimiento"
-              type="date"
-              {...register("fecha_nacimiento")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-            />
-            {errors.fecha_nacimiento && (
-              <p className="text-red-500 text-sm">{errors.fecha_nacimiento.message}</p>
-            )}
-          </div>
+          <InputSistema
+            label="Fecha de Nacimiento"
+            type="date"
+            error={errors.fecha_nacimiento?.message}
+            {...register("fecha_nacimiento")}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="genero" className="text-sm font-medium text-gray-700">Género</Label>
-            <Select onValueChange={(value) => setValue("genero", value as "Masculino" | "Femenino")} defaultValue={watch("genero")}>
-              <SelectTrigger className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200">
-                <SelectValue placeholder="Selecciona el género" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Masculino">Masculino</SelectItem>
-                <SelectItem value="Femenino">Femenino</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.genero && (
-              <p className="text-red-500 text-sm">{errors.genero.message}</p>
-            )}
-          </div>
+          <SelectSistema
+            label="Género"
+            value={watch("genero")}
+            onValueChange={(value) => setValue("genero", value as "Masculino" | "Femenino")}
+            error={errors.genero?.message}
+            opciones={[
+              { valor: "Masculino", etiqueta: "Masculino" },
+              { valor: "Femenino", etiqueta: "Femenino" },
+            ]}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="estado_civil" className="text-sm font-medium text-gray-700">Estado Civil</Label>
-            <Select onValueChange={(value) => setValue("estado_civil", value as "Soltero" | "Casado" | "Divorciado" | "Viudo")} defaultValue={watch("estado_civil")}>
-              <SelectTrigger className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200">
-                <SelectValue placeholder="Selecciona el estado civil" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Soltero">Soltero</SelectItem>
-                <SelectItem value="Casado">Casado</SelectItem>
-                <SelectItem value="Divorciado">Divorciado</SelectItem>
-                <SelectItem value="Viudo">Viudo</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.estado_civil && (
-              <p className="text-red-500 text-sm">{errors.estado_civil.message}</p>
-            )}
-          </div>
+          <SelectSistema
+            label="Estado Civil"
+            value={watch("estado_civil")}
+            onValueChange={(value) => setValue("estado_civil", value as "Soltero" | "Casado" | "Divorciado" | "Viudo")}
+            error={errors.estado_civil?.message}
+            opciones={[
+              { valor: "Soltero", etiqueta: "Soltero" },
+              { valor: "Casado", etiqueta: "Casado" },
+              { valor: "Divorciado", etiqueta: "Divorciado" },
+              { valor: "Viudo", etiqueta: "Viudo" },
+            ]}
+          />
         </div>
-      </div>
+      </TarjetaSistema>
 
       {/* Información de Contacto */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <Mail className="w-5 h-5 text-orange-500" />
+      <TarjetaSistema>
+        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+          <Mail className="w-5 h-5 text-[var(--brand-primary)]" />
           Información de Contacto
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              {...register("email")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa el email"
-            />
-            {errors.email && (
-              <p className="text-red-500 text-sm">{errors.email.message}</p>
-            )}
-          </div>
+          <InputSistema
+            label="Email"
+            type="email"
+            placeholder="Ingresa el email"
+            icono={Mail}
+            error={errors.email?.message}
+            {...register("email")}
+          />
 
           <div className="space-y-2">
-            <Label htmlFor="telefono" className="text-sm font-medium text-gray-700">Teléfono</Label>
+            <Label htmlFor="telefono" className="text-sm font-medium text-foreground">Teléfono</Label>
             <Controller
               name="telefono"
               control={control}
@@ -453,203 +377,184 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               )}
             />
             {errors.telefono && (
-              <p className="text-red-500 text-sm">{errors.telefono.message}</p>
+              <p role="alert" className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.telefono.message}</p>
             )}
           </div>
         </div>
-      </div>
+      </TarjetaSistema>
 
       {/* Información Profesional */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <Briefcase className="w-5 h-5 text-orange-500" />
+      <TarjetaSistema>
+        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+          <Briefcase className="w-5 h-5 text-[var(--brand-primary)]" />
           Información Profesional
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="ocupacion_id" className="text-sm font-medium text-gray-700">Ocupación</Label>
-            <Select onValueChange={(value) => setValue("ocupacion_id", value)} defaultValue={watch("ocupacion_id")}>
-              <SelectTrigger className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200">
-                <SelectValue placeholder="Selecciona la ocupación" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sin ocupación</SelectItem>
-                {ocupaciones.map((ocupacion) => (
-                  <SelectItem key={ocupacion.id} value={ocupacion.id}>
-                    {ocupacion.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.ocupacion_id && (
-              <p className="text-red-500 text-sm">{errors.ocupacion_id.message}</p>
-            )}
-          </div>
+          <SelectSistema
+            label="Ocupación"
+            placeholder="Selecciona la ocupación"
+            value={watch("ocupacion_id")}
+            onValueChange={(value) => setValue("ocupacion_id", value)}
+            error={errors.ocupacion_id?.message}
+            opciones={[
+              { valor: "none", etiqueta: "Sin ocupación" },
+              ...ocupaciones.map((o) => ({ valor: o.id, etiqueta: o.nombre })),
+            ]}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="profesion_id" className="text-sm font-medium text-gray-700">Profesión</Label>
-            <Select onValueChange={(value) => setValue("profesion_id", value)} defaultValue={watch("profesion_id")}>
-              <SelectTrigger className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200">
-                <SelectValue placeholder="Selecciona la profesión" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sin profesión</SelectItem>
-                {profesiones.map((profesion) => (
-                  <SelectItem key={profesion.id} value={profesion.id}>
-                    {profesion.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.profesion_id && (
-              <p className="text-red-500 text-sm">{errors.profesion_id.message}</p>
-            )}
-          </div>
+          <SelectSistema
+            label="Profesión"
+            placeholder="Selecciona la profesión"
+            value={watch("profesion_id")}
+            onValueChange={(value) => setValue("profesion_id", value)}
+            error={errors.profesion_id?.message}
+            opciones={[
+              { valor: "none", etiqueta: "Sin profesión" },
+              ...profesiones.map((p) => ({ valor: p.id, etiqueta: p.nombre })),
+            ]}
+          />
         </div>
-      </div>
+      </TarjetaSistema>
 
       {/* Información de Ubicación */}
-      <div className="backdrop-blur-2xl bg-white/50 border border-white/30 rounded-3xl p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-orange-500" />
+      <TarjetaSistema>
+        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+          <MapPin className="w-5 h-5 text-[var(--brand-primary)]" />
           Información de Ubicación
         </h3>
+
+        {/* Sugerencias de dirección familiar */}
+        {sugerenciasDireccion.length > 0 && !usuario?.direccion?.calle && (
+          <TarjetaSistema variante="outlined" className="border-blue-500/30 bg-blue-500/5 p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <Lightbulb className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="font-medium text-foreground text-sm">
+                  Sugerencias de dirección
+                </p>
+                {sugerenciasDireccion.map((s) => (
+                  <button
+                    key={s.familiar_id}
+                    type="button"
+                    onClick={() => {
+                      setValue("direccion.calle", s.direccion.calle, { shouldDirty: true })
+                      if (s.direccion.barrio) setValue("direccion.barrio", s.direccion.barrio, { shouldDirty: true })
+                      if (s.direccion.codigo_postal) setValue("direccion.codigo_postal", s.direccion.codigo_postal, { shouldDirty: true })
+                      if (s.direccion.referencia) setValue("direccion.referencia", s.direccion.referencia, { shouldDirty: true })
+                      if (s.direccion.parroquia_id) setValue("direccion.parroquia_id", s.direccion.parroquia_id, { shouldDirty: true })
+                      if (s.direccion.lat != null && s.direccion.lng != null) {
+                        setValue("direccion.lat", s.direccion.lat, { shouldDirty: true })
+                        setValue("direccion.lng", s.direccion.lng, { shouldDirty: true })
+                        setMapCenter({ lat: s.direccion.lat, lng: s.direccion.lng })
+                      }
+                    }}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+                  >
+                    <span>Usar dirección de {s.relacion_label} ({s.familiar_nombre})</span>
+                    <span className="text-xs">📍 {s.direccion.calle}</span>
+                  </button>
+                ))}
+                <p className="text-xs text-muted-foreground">
+                  Si esta persona no vive en la misma dirección, ignora estas sugerencias.
+                </p>
+              </div>
+            </div>
+          </TarjetaSistema>
+        )}
         {/* Fila superior: Selectores */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="pais_id" className="text-sm font-medium text-gray-700">País</Label>
-            <Select onValueChange={(value) => setValue("direccion.pais_id", value)} defaultValue={watch("direccion.pais_id")}>
-              <SelectTrigger className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200">
-                <SelectValue placeholder="Selecciona el país" />
-              </SelectTrigger>
-              <SelectContent>
-                {paises.map((pais) => (
-                  <SelectItem key={pais.id} value={pais.id}>
-                    {pais.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.direccion?.pais_id && (
-              <p className="text-red-500 text-sm">{errors.direccion.pais_id.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="estado_id" className="text-sm font-medium text-gray-700">Estado</Label>
-            <Select 
-              onValueChange={(value) => setValue("direccion.estado_id", value)} 
-              defaultValue={watch("direccion.estado_id")}
-              disabled={!watch("direccion.pais_id")}
-            >
-              <SelectTrigger className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 disabled:opacity-50">
-                <SelectValue placeholder="Selecciona el estado" />
-              </SelectTrigger>
-              <SelectContent>
-                {estados
-                  .filter(estado => !watch("direccion.pais_id") || estado.pais_id === watch("direccion.pais_id"))
-                  .map((estado) => (
-                    <SelectItem key={estado.id} value={estado.id}>
-                      {estado.nombre}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            {errors.direccion?.estado_id && (
-              <p className="text-red-500 text-sm">{errors.direccion.estado_id.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="municipio_id" className="text-sm font-medium text-gray-700">Municipio</Label>
-            <Select 
-              onValueChange={(value) => setValue("direccion.municipio_id", value)} 
-              defaultValue={watch("direccion.municipio_id")}
-              disabled={!watch("direccion.estado_id")}
-            >
-              <SelectTrigger className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 disabled:opacity-50">
-                <SelectValue placeholder="Selecciona el municipio" />
-              </SelectTrigger>
-              <SelectContent>
-                {municipios
-                  .filter(municipio => !watch("direccion.estado_id") || municipio.estado_id === watch("direccion.estado_id"))
-                  .map((municipio) => (
-                    <SelectItem key={municipio.id} value={municipio.id}>
-                      {municipio.nombre}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            {errors.direccion?.municipio_id && (
-              <p className="text-red-500 text-sm">{errors.direccion.municipio_id.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="parroquia_id" className="text-sm font-medium text-gray-700">Parroquia</Label>
-            <Select 
-              onValueChange={(value) => setValue("direccion.parroquia_id", value)} 
-              defaultValue={watch("direccion.parroquia_id")}
-              disabled={!watch("direccion.municipio_id")}
-            >
-              <SelectTrigger className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 disabled:opacity-50">
-                <SelectValue placeholder="Selecciona la parroquia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sin parroquia</SelectItem>
-                {parroquias
-                  .filter(parroquia => !watch("direccion.municipio_id") || parroquia.municipio_id === watch("direccion.municipio_id"))
-                  .map((parroquia) => (
-                    <SelectItem key={parroquia.id} value={parroquia.id}>
-                      {parroquia.nombre}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            {errors.direccion?.parroquia_id && (
-              <p className="text-red-500 text-sm">{errors.direccion.parroquia_id.message}</p>
-            )}
-          </div>
+          <SelectSistema
+            label="País"
+            placeholder="Selecciona el país"
+            value={watch("direccion.pais_id")}
+            onValueChange={(value) => {
+              setValue("direccion.pais_id", value)
+              // Cascading reset: país cambia → limpiar estado, municipio, parroquia
+              setValue("direccion.estado_id", "")
+              setValue("direccion.municipio_id", "")
+              setValue("direccion.parroquia_id", "none")
+            }}
+            error={errors.direccion?.pais_id?.message}
+            opciones={paises.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
+          />
+
+          <SelectSistema
+            label="Estado"
+            placeholder="Selecciona el estado"
+            value={watch("direccion.estado_id")}
+            onValueChange={(value) => {
+              setValue("direccion.estado_id", value)
+              // Cascading reset: estado cambia → limpiar municipio, parroquia
+              setValue("direccion.municipio_id", "")
+              setValue("direccion.parroquia_id", "none")
+            }}
+            disabled={!watch("direccion.pais_id")}
+            error={errors.direccion?.estado_id?.message}
+            opciones={estados
+              .filter(e => !watch("direccion.pais_id") || e.pais_id === watch("direccion.pais_id"))
+              .map((e) => ({ valor: e.id, etiqueta: e.nombre }))}
+          />
+
+          <SelectSistema
+            label="Municipio"
+            placeholder="Selecciona el municipio"
+            value={watch("direccion.municipio_id")}
+            onValueChange={(value) => {
+              setValue("direccion.municipio_id", value)
+              // Cascading reset: municipio cambia → limpiar parroquia
+              setValue("direccion.parroquia_id", "none")
+            }}
+            disabled={!watch("direccion.estado_id")}
+            error={errors.direccion?.municipio_id?.message}
+            opciones={municipios
+              .filter(m => !watch("direccion.estado_id") || m.estado_id === watch("direccion.estado_id"))
+              .map((m) => ({ valor: m.id, etiqueta: m.nombre }))}
+          />
+
+          <SelectSistema
+            label="Parroquia"
+            placeholder="Selecciona la parroquia"
+            value={watch("direccion.parroquia_id")}
+            onValueChange={(value) => setValue("direccion.parroquia_id", value)}
+            disabled={!watch("direccion.municipio_id")}
+            error={errors.direccion?.parroquia_id?.message}
+            opciones={[
+              { valor: "none", etiqueta: "Sin parroquia" },
+              ...parroquias
+                .filter(p => !watch("direccion.municipio_id") || p.municipio_id === watch("direccion.municipio_id"))
+                .map((p) => ({ valor: p.id, etiqueta: p.nombre })),
+            ]}
+          />
         </div>
+
         {/* Sección central: Detalles de dirección */}
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="calle" className="text-sm font-medium text-gray-700">Calle *</Label>
-            <Input
-              id="calle"
-              {...register("direccion.calle")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa la calle"
-            />
-            {errors.direccion?.calle && (
-              <p className="text-red-500 text-sm">{errors.direccion.calle.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="barrio" className="text-sm font-medium text-gray-700">Barrio</Label>
-            <Input
-              id="barrio"
-              {...register("direccion.barrio")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa el barrio"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="codigo_postal" className="text-sm font-medium text-gray-700">Código Postal</Label>
-            <Input
-              id="codigo_postal"
-              {...register("direccion.codigo_postal")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa el código postal"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="referencia" className="text-sm font-medium text-gray-700">Referencia</Label>
-            <Input
-              id="referencia"
-              {...register("direccion.referencia")}
-              className="w-full h-11 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-              placeholder="Ingresa puntos de referencia"
-            />
-          </div>
+          <InputSistema
+            label="Calle *"
+            placeholder="Ingresa la calle"
+            error={errors.direccion?.calle?.message}
+            {...register("direccion.calle")}
+          />
+
+          <InputSistema
+            label="Barrio"
+            placeholder="Ingresa el barrio"
+            {...register("direccion.barrio")}
+          />
+
+          <InputSistema
+            label="Código Postal"
+            placeholder="Ingresa el código postal"
+            {...register("direccion.codigo_postal")}
+          />
+
+          <InputSistema
+            label="Referencia"
+            placeholder="Ingresa puntos de referencia"
+            {...register("direccion.referencia")}
+          />
         </div>
+
         {/* Fila inferior: Mapa y coordenadas */}
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           <div className="lg:col-span-2">
@@ -657,77 +562,68 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               name="direccion"
               control={control}
               render={({ field }) => {
-                const lat = field.value?.lat ?? initialLat;
-                const lng = field.value?.lng ?? initialLng;
+                const lat = field.value?.lat ?? initialLat
+                const lng = field.value?.lng ?? initialLng
                 return (
                   <LocationPicker
                     lat={lat}
                     lng={lng}
                     center={mapCenter}
                     onLocationChange={({ lat, lng }) => {
-                      field.onChange({ ...field.value, lat, lng });
-                      setValue("direccion.lat", lat, { shouldValidate: true, shouldDirty: true });
-                      setValue("direccion.lng", lng, { shouldValidate: true, shouldDirty: true });
-                      setMapCenter({ lat, lng });
+                      field.onChange({ ...field.value, lat, lng })
+                      setValue("direccion.lat", lat, { shouldValidate: true, shouldDirty: true })
+                      setValue("direccion.lng", lng, { shouldValidate: true, shouldDirty: true })
+                      setMapCenter({ lat, lng })
                     }}
                   />
-                );
+                )
               }}
             />
           </div>
           <div className="flex flex-col gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Latitud</Label>
-              <Input
-                type="text"
-                value={watch("direccion")?.lat ?? ''}
-                disabled
-                className="w-full h-11 px-4 border border-gray-300 rounded-xl bg-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Longitud</Label>
-              <Input
-                type="text"
-                value={watch("direccion")?.lng ?? ''}
-                disabled
-                className="w-full h-11 px-4 border border-gray-300 rounded-xl bg-gray-100"
-              />
-            </div>
+            <InputSistema
+              label="Latitud"
+              type="text"
+              value={String(watch("direccion")?.lat ?? '')}
+              disabled
+            />
+            <InputSistema
+              label="Longitud"
+              type="text"
+              value={String(watch("direccion")?.lng ?? '')}
+              disabled
+            />
           </div>
         </div>
-      </div>
-
-
+      </TarjetaSistema>
 
       {/* Mensaje de Error */}
       {error && (
-        <div className="backdrop-blur-2xl bg-red-50 border border-red-200 rounded-3xl p-4 shadow-2xl">
-          <p className="text-red-600 text-center font-medium">{error}</p>
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+          <p className="text-red-600 dark:text-red-400 text-center font-medium">{error}</p>
         </div>
       )}
 
       {/* Botones de Acción */}
       <div className="flex flex-col sm:flex-row gap-4 justify-end pt-6">
-        <Button
+        <BotonSistema
           type="button"
-          variant="outline"
+          variante="outline"
           onClick={() => window.history.back()}
-          className="px-8 py-3 h-12 border-2 border-gray-300 hover:border-gray-400 rounded-xl transition-all duration-200 font-medium"
           disabled={loading}
         >
           <X className="w-4 h-4 mr-2" />
           Cancelar
-        </Button>
-        
-        <Button
+        </BotonSistema>
+
+        <BotonSistema
           type="submit"
-          className="px-8 py-3 h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
-          disabled={loading}
+          variante="primario"
+          cargando={loading}
         >
           <Save className="w-4 h-4 mr-2" />
-          {loading ? 'Guardando...' : 'Guardar Cambios'}
-        </Button>
+          Guardar Cambios
+        </BotonSistema>
       </div>
     </form>
   )

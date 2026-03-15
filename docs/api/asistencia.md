@@ -3,6 +3,13 @@
 ## Tabla de Contenidos
 1. [Obtener Reporte Analítico de Asistencia de Grupo](#obtener-reporte-analítico-de-asistencia-de-grupo)
 2. [Obtener Reporte Analítico de Asistencia de Usuario](#obtener-reporte-analítico-de-asistencia-de-usuario)
+3. [Registrar Asistencia v2](#registrar-asistencia-v2)
+4. [Vista de Salud de Miembros](#vista-de-salud-de-miembros)
+5. [Dashboard de Riesgo](#dashboard-de-riesgo)
+6. [Reporte de Retención](#reporte-de-retención)
+7. [Reporte de Crecimiento Neto](#reporte-de-crecimiento-neto)
+8. [Server Actions](#server-actions)
+9. [Tipos y Schemas Zod](#tipos-y-schemas-zod)
 
 ---
 
@@ -308,3 +315,239 @@ console.log('Grupo favorito:', reporteData.kpis.grupo_mas_frecuente.nombre)
 - Los eventos se ordenan por fecha descendente (más recientes primero)
 - Si no hay datos, se devuelven arrays vacíos y valores por defecto (0, 'N/D', null)
 - El período por defecto es de 12 meses (vs 6 meses en el reporte de grupo)
+
+---
+
+## Registrar Asistencia v2
+
+Registra asistencia con soporte para tipos granulares de presencia, notas pastorales, visitantes y validación de ventana de edición. **Backward compatible** con el formato v1.
+
+- **Función RPC:** `registrar_asistencia`
+- **Archivo migración:** `20260315_010_registrar_asistencia_v2.sql`
+- **Permisos:** Líder, co-líder del grupo, o superadmin
+
+### Parámetros
+
+```sql
+registrar_asistencia(
+  p_auth_id uuid,
+  p_grupo_id uuid,
+  p_fecha date,
+  p_hora text DEFAULT NULL,
+  p_tema text DEFAULT NULL,
+  p_notas text DEFAULT NULL,
+  p_asistencias jsonb DEFAULT NULL,
+  -- Nuevos parámetros v2
+  p_descripcion text DEFAULT NULL,
+  p_puntos_oracion text DEFAULT NULL,
+  p_notas_privadas_lider text DEFAULT NULL,
+  p_conteo_visitantes integer DEFAULT 0,
+  p_no_hubo_reunion boolean DEFAULT false,
+  p_motivo_no_reunion text DEFAULT NULL,
+  p_forzar_edicion boolean DEFAULT false
+)
+```
+
+### Formato de `p_asistencias`
+
+**v1 (legacy, sigue funcionando):**
+```json
+[{"usuario_id": "uuid", "presente": true}]
+```
+
+**v2 (recomendado):**
+```json
+[{"usuario_id": "uuid", "tipo_presencia": "presente", "motivo_inasistencia": null, "nota": "Llegó puntual"}]
+```
+
+Valores de `tipo_presencia`: `presente`, `ausente`, `tarde`, `justificado`
+
+### Validación de Ventana de Edición
+
+El RPC valida la ventana de edición según `configuracion_grupos_vida.modo_cierre_asistencia`:
+
+| Modo | Comportamiento |
+|------|---------------|
+| `libre` | Sin restricción, siempre permite editar |
+| `semanal` | Delegado al frontend (backend no enforce) |
+| `ultimas_2_semanas` | Rechaza fechas anteriores a 14 días |
+| `ultimo_mes` | Rechaza fechas anteriores a 30 días |
+
+Si `p_forzar_edicion = true`, se salta la validación (requiere solicitud aprobada).
+
+### Retorno
+
+```json
+{"ok": true, "evento_id": "uuid"}
+```
+
+Si no hubo reunión:
+```json
+{"ok": true, "evento_id": "uuid", "no_hubo_reunion": true}
+```
+
+---
+
+## Vista de Salud de Miembros
+
+Vista materializada que calcula el nivel de riesgo pastoral de cada miembro activo.
+
+- **Vista:** `v_salud_miembros_grupo`
+- **Migración:** `20260315_004_vista_salud_miembros.sql`
+
+### Columnas
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `usuario_id` | uuid | ID del miembro |
+| `grupo_id` | uuid | ID del grupo |
+| `rol` | text | Rol en el grupo (líder, miembro, etc.) |
+| `nombre_completo` | text | Nombre y apellido |
+| `ultima_vez_presente` | timestamptz | Última asistencia registrada |
+| `total_presencias` | integer | Veces presente o tarde |
+| `total_ausencias` | integer | Veces ausente |
+| `total_eventos` | integer | Total de eventos regulares (sin "no hubo reunión") |
+| `pct_asistencia` | numeric | Porcentaje de asistencia (0-100) |
+| `semanas_ausente` | integer | Semanas desde la última asistencia (99 si nunca) |
+| `nivel_riesgo` | text | `normal`, `atencion`, `riesgo`, `critico` |
+
+### Umbrales de Riesgo (configurables)
+
+Los umbrales se leen de `configuracion_grupos_vida` por campus:
+
+| Nivel | Default | Significado |
+|-------|---------|-------------|
+| `normal` | < 2 semanas | Asistencia regular |
+| `atencion` | ≥ 2 semanas | Requiere seguimiento |
+| `riesgo` | ≥ 4 semanas | Situación preocupante |
+| `critico` | ≥ 6 semanas | Intervención urgente |
+
+---
+
+## Dashboard de Riesgo
+
+KPIs globales para que directores y administradores monitoreen la salud pastoral de todos los grupos.
+
+- **Función RPC:** `obtener_dashboard_riesgo`
+- **Migración:** `20260315_009_rpc_dashboard_riesgo.sql`
+- **Permisos:** Admin, pastor, director general, director de etapa
+
+### Retorno
+
+```json
+{
+  "total_grupos": 45,
+  "grupos_sin_reunion_esta_semana": 3,
+  "miembros_criticos": 12,
+  "miembros_en_riesgo": 28,
+  "miembros_en_atencion": 41,
+  "solicitudes_pendientes": 5,
+  "visitantes_del_mes": 18,
+  "top_5_grupos_riesgo": [
+    {"grupo_id": "uuid", "grupo_nombre": "Grupo Norte", "criticos": 3, "riesgo_total": 7, "total_miembros": 15}
+  ],
+  "tendencia_asistencia_4_semanas": [
+    {"semana": "2026-03-04", "pct": 78.5}
+  ]
+}
+```
+
+---
+
+## Reporte de Retención
+
+Compara miembros entre dos temporadas para medir retención, renovación y egresos.
+
+- **Función RPC:** `obtener_reporte_retencion`
+- **Migración:** `20260315_007_rpc_reporte_retencion.sql`
+
+### Parámetros
+
+| Nombre | Tipo | Requerido | Descripción |
+|--------|------|-----------|-------------|
+| `p_auth_id` | uuid | ✅ | Auth ID del solicitante |
+| `p_temporada_actual_id` | uuid | ✅ | Temporada a comparar |
+| `p_temporada_anterior_id` | uuid | ❌ | Temporada base (auto-detecta si omitido) |
+| `p_campus_id` | uuid | ❌ | Filtro de campus |
+
+### Retorno
+
+```json
+{
+  "miembros_que_continuaron": 120,
+  "miembros_anteriores": 150,
+  "miembros_nuevos": 35,
+  "miembros_no_renovaron": 30,
+  "pct_retencion": 80.0,
+  "detalle_no_renovaron": [
+    {"usuario_id": "uuid", "nombre": "Juan Pérez"}
+  ]
+}
+```
+
+---
+
+## Reporte de Crecimiento Neto
+
+Timeline de ingresos y egresos de miembros por mes para analizar tendencias de crecimiento.
+
+- **Función RPC:** `obtener_reporte_crecimiento_neto`
+- **Migración:** `20260315_008_rpc_reporte_crecimiento.sql`
+
+### Parámetros
+
+| Nombre | Tipo | Requerido | Descripción |
+|--------|------|-----------|-------------|
+| `p_auth_id` | uuid | ✅ | Auth ID del solicitante |
+| `p_grupo_id` | uuid | ❌ | Filtro por grupo |
+| `p_campus_id` | uuid | ❌ | Filtro por campus |
+| `p_meses` | integer | ❌ | Período en meses (default: 6) |
+
+### Retorno
+
+```json
+{
+  "timeline": [
+    {"mes": "2026-01-01", "etiqueta": "Ene 2026", "ingresos": 12, "egresos": 3, "neto": 9}
+  ]
+}
+```
+
+---
+
+## Server Actions
+
+Archivo: `lib/actions/asistencia-avanzada.actions.ts`
+
+| Action | Descripción | Permisos |
+|--------|-------------|----------|
+| `registrarAsistenciaV2` | Registra asistencia con campos v2 | Líder/co-líder del grupo |
+| `obtenerSaludMiembrosGrupo` | Obtiene salud de miembros desde la vista | Líder/co-líder del grupo |
+| `obtenerDashboardRiesgo` | Obtiene KPIs globales de riesgo | Admin, pastor, director |
+| `obtenerReporteRetencion` | Compara retención entre temporadas | Admin, pastor, director |
+| `obtenerReporteCrecimientoNeto` | Timeline de crecimiento neto | Admin, pastor, director |
+| `solicitarEdicionTardia` | Solicita permiso para editar asistencia cerrada | Líder/co-líder del grupo |
+
+Todas las actions usan:
+- `createSupabaseServerClient()` + `auth.getUser()` para autenticación
+- Zod schemas para validación de inputs
+- Tipo genérico `Res<T>` para retorno uniforme
+
+---
+
+## Tipos y Schemas Zod
+
+Archivo: `lib/types/asistencia-avanzada.types.ts`
+
+| Schema | Tipo | Descripción |
+|--------|------|-------------|
+| `tipoPresenciaSchema` | enum | `presente`, `ausente`, `tarde`, `justificado` |
+| `registroAsistenciaSchema` | object | Registro individual (backward compat v1/v2) |
+| `registrarAsistenciaPayloadSchema` | object | Payload completo del formulario |
+| `resultadoAsistenciaSchema` | object | Respuesta del RPC |
+| `saludMiembroSchema` | object | Fila de `v_salud_miembros_grupo` |
+| `dashboardRiesgoSchema` | object | KPIs del dashboard de riesgo |
+| `reporteRetencionSchema` | object | Datos de retención entre temporadas |
+| `reporteCrecimientoNetoSchema` | object | Timeline de crecimiento neto |
+| `modoCierreSchema` | enum | `semanal`, `libre`, `ultimas_2_semanas`, `ultimo_mes` |
+| `configAsistenciaSchema` | object | Sub-set de configuración de asistencia |

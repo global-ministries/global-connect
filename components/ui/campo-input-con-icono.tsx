@@ -5,6 +5,10 @@ import { Label } from "@/components/ui/label"
 import { LucideIcon } from "lucide-react"
 import { ReactNode } from "react"
 
+/**
+ * @deprecated Usa `InputSistema` de `@/components/ui/sistema-diseno` con la prop `icono` en su lugar.
+ * Se eliminará en la próxima versión mayor.
+ */
 interface CampoInputConIconoProps {
   id: string
   etiqueta: string
@@ -30,11 +34,11 @@ export function CampoInputConIcono({
 }: CampoInputConIconoProps) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className="text-gray-700 font-medium text-sm sm:text-base">
+      <Label htmlFor={id} className="text-foreground font-medium text-sm sm:text-base">
         {etiqueta}
       </Label>
       <div className="relative">
-        <Icono className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <Icono className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         <Input
           id={id}
           type={tipo}

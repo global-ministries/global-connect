@@ -6,8 +6,8 @@ type AuditItem = {
   id: string;
   happened_at: string;
   action: "CREATE" | "UPDATE" | "DELETE";
-  old_data: any | null;
-  new_data: any | null;
+  old_data: Record<string, unknown> | null;
+  new_data: Record<string, unknown> | null;
 };
 
 function Badge({ children, color }: { children: React.ReactNode; color: "green" | "yellow" | "red" }) {
@@ -15,8 +15,8 @@ function Badge({ children, color }: { children: React.ReactNode; color: "green" 
     color === "green"
       ? "bg-green-100 text-green-700"
       : color === "yellow"
-      ? "bg-yellow-100 text-yellow-700"
-      : "bg-red-100 text-red-700";
+        ? "bg-yellow-100 text-yellow-700"
+        : "bg-red-100 text-red-700";
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{children}</span>;
 }
 
@@ -42,8 +42,8 @@ export default function GroupAuditPreview({ grupoId }: { grupoId: string }) {
           const data = (await res.json()) as AuditItem[];
           setItems(data);
         }
-      } catch (e: any) {
-        setError(e?.message || "Error al cargar auditoría");
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Error al cargar auditoría");
       } finally {
         setLoading(false);
       }
@@ -51,11 +51,11 @@ export default function GroupAuditPreview({ grupoId }: { grupoId: string }) {
   }, [grupoId]);
 
   const renderDiff = (it: AuditItem) => {
-    const oldRol = it.old_data?.rol ?? null;
-    const newRol = it.new_data?.rol ?? null;
+    const oldRol = (it.old_data?.rol as string) ?? null;
+    const newRol = (it.new_data?.rol as string) ?? null;
     if (oldRol || newRol) {
       return (
-        <div className="text-xs text-gray-600">
+        <div className="text-xs text-muted-foreground">
           Rol: <span className="font-medium">{oldRol ?? "-"}</span> → <span className="font-medium">{newRol ?? "-"}</span>
         </div>
       );
@@ -66,28 +66,28 @@ export default function GroupAuditPreview({ grupoId }: { grupoId: string }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg lg:text-xl font-bold text-gray-800">Últimos cambios</h3>
+        <h3 className="text-lg lg:text-xl font-bold text-foreground">Últimos cambios</h3>
         <Link
-          href={`/dashboard/grupos/${encodeURIComponent(grupoId)}/auditoria`}
+          href={`/grupos-vida/${encodeURIComponent(grupoId)}/auditoria`}
           className="text-sm text-blue-600 hover:underline"
         >
           Ver más
         </Link>
       </div>
-      {loading && <p className="text-sm text-gray-500">Cargando...</p>}
+      {loading && <p className="text-sm text-muted-foreground">Cargando...</p>}
       {error && <div className="text-sm text-red-600">{error}</div>}
       {!loading && !error && items.length === 0 && (
-        <p className="text-gray-500 text-sm">Sin movimientos recientes.</p>
+        <p className="text-muted-foreground text-sm">Sin movimientos recientes.</p>
       )}
       <ul className="space-y-2">
         {items.map((it) => {
           const date = new Date(it.happened_at);
           return (
-            <li key={it.id} className="p-3 bg-white/60 rounded-md flex items-start gap-3">
+            <li key={it.id} className="p-3 bg-card/60 rounded-md flex items-start gap-3">
               {it.action === "CREATE" && <Badge color="green">Alta</Badge>}
               {it.action === "UPDATE" && <Badge color="yellow">Cambio</Badge>}
               {it.action === "DELETE" && <Badge color="red">Baja</Badge>}
-              <div className="text-xs text-gray-500">{date.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground">{date.toLocaleString()}</div>
               <div className="flex-1">{renderDiff(it)}</div>
             </li>
           );

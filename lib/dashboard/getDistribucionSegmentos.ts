@@ -36,6 +36,8 @@ export async function getDistribucionSegmentos(): Promise<SegmentoDistribucionIt
       .from('grupos')
       .select('id, segmento_id, temporada_id')
       .in('temporada_id', temporadaIds)
+      .eq('activo', true)
+      .eq('eliminado', false)
 
     if (errorGrupos) {
       console.error('Error listando grupos para distribución:', errorGrupos)

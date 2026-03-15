@@ -5,6 +5,7 @@ import { ActivityWidget } from '@/components/dashboard/widgets/ActivityWidget'
 import { BirthdayWidget } from '@/components/dashboard/widgets/BirthdayWidget'
 import { RiskGroupsWidget } from '@/components/dashboard/widgets/RiskGroupsWidget'
 import { PendingLeadersWidget } from '@/components/dashboard/widgets/PendingLeadersWidget'
+import { NotasLideresWidget } from '@/components/dashboard/widgets/NotasLideresWidget'
 import { Users, UsersRound, Activity } from 'lucide-react'
 
 interface PropsDashboardDirector {
@@ -34,7 +35,7 @@ export default function DashboardDirector({ data }: PropsDashboardDirector) {
   const lideresPendientes = data?.lideres_sin_reporte || []
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
       <MetricWidget
         id="miembros"
         title="Miembros de mi etapa"
@@ -79,15 +80,22 @@ export default function DashboardDirector({ data }: PropsDashboardDirector) {
         varianteColor="purpura"
       />
 
-      <div className="md:col-span-2 xl:col-span-2">
+      <div className="col-span-2">
         <PendingLeadersWidget
           id="pendientes-reporte"
-          title="Líderes Pendientes de Reporte"
+          title="Líderes Pendientes de Reporte de Asistencia"
           items={lideresPendientes}
         />
       </div>
 
-      <div className="md:col-span-2 xl:col-span-2">
+      <div className="col-span-2">
+        <NotasLideresWidget
+          id="notas-lideres"
+          title="Notas de Líderes (mi etapa)"
+        />
+      </div>
+
+      <div className="col-span-2">
         <ActivityWidget
           id="actividad"
           title="Actividad Reciente (mi etapa)"
@@ -96,7 +104,7 @@ export default function DashboardDirector({ data }: PropsDashboardDirector) {
         />
       </div>
 
-      <div className="md:col-span-2 xl:col-span-2">
+      <div className="col-span-2">
         <BirthdayWidget
           id="cumpleanos"
           title="Próximos Cumpleaños (mi etapa)"
@@ -104,7 +112,7 @@ export default function DashboardDirector({ data }: PropsDashboardDirector) {
         />
       </div>
 
-      <div className="md:col-span-2">
+      <div className="col-span-2">
         <RiskGroupsWidget
           id="riesgo"
           title="Grupos que Necesitan Atención (mi etapa)"

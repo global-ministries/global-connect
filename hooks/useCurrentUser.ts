@@ -59,7 +59,7 @@ export function useCurrentUser(): CurrentUserData {
         if (!rolesError && rolesData) {
           // rolesData puede ser array de strings o de objetos
           userRoles = Array.isArray(rolesData)
-            ? rolesData.map(r => typeof r === "string" ? r : r.nombre_interno).filter(Boolean)
+            ? (rolesData as any[]).map(r => typeof r === "string" ? r : r?.nombre_interno).filter(Boolean)
             : []
         }
 

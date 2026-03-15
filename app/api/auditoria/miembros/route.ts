@@ -19,14 +19,14 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabase.rpc("obtener_auditoria_miembros", {
       p_auth_id: user.id,
-      p_grupo_id: grupoId,
-      p_usuario_id: usuarioId,
-      p_action: action,
-      p_desde: desde ? new Date(desde).toISOString() : null,
-      p_hasta: hasta ? new Date(hasta).toISOString() : null,
+      p_grupo_id: grupoId ?? undefined,
+      p_usuario_id: usuarioId ?? undefined,
+      p_action: action ?? undefined,
+      p_desde: desde ? new Date(desde).toISOString() : undefined,
+      p_hasta: hasta ? new Date(hasta).toISOString() : undefined,
       p_limit: limit,
-  p_offset: offset,
-  p_actor_query: actor || null,
+      p_offset: offset,
+      p_actor_query: actor ?? undefined,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(data ?? []);

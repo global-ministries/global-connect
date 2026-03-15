@@ -5,12 +5,9 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SelectLeaderModal from '@/components/modals/SelectLeaderModal';
-import { Button } from '@/components/ui/button';
 import { createGroup } from "@/lib/actions/group.actions";
-import { InputSistema, BotonSistema } from "@/components/ui/sistema-diseno";
-import { cn } from "@/lib/utils";
+import { InputSistema, SelectSistema, BotonSistema } from "@/components/ui/sistema-diseno";
 
 // Esquema de validación con Zod
 const groupCreateSchema = z.object({
@@ -20,7 +17,6 @@ const groupCreateSchema = z.object({
   ubicacion: z.enum(["Barquisimeto", "Cabudare"], { required_error: "Selecciona una ubicación" }),
   director_etapa_segmento_lider_id: z.string().optional().nullable(),
   lider_usuario_id: z.string().optional().nullable(),
-  estado_aprobacion: z.enum(['aprobado','pendiente','rechazado']).optional().default('aprobado')
 });
 
 type GroupCreateFormData = z.infer<typeof groupCreateSchema>;
@@ -28,9 +24,10 @@ type GroupCreateFormData = z.infer<typeof groupCreateSchema>;
 interface GroupCreateFormProps {
   temporadas: { id: string; nombre: string }[];
   segmentos: { id: string; nombre: string }[];
+  userRoles?: string[];
 }
 
-export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFormProps) {
+export default function GroupCreateForm({ temporadas, segmentos, userRoles = [] }: GroupCreateFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +38,8 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
   // Modal selección global de líder
   const [showLeaderModal, setShowLeaderModal] = useState(false);
   const [leaderResumen, setLeaderResumen] = useState<string | null>(null);
+
+  const esDirectorEtapa = userRoles.includes('director-etapa') && !userRoles.some(r => ['admin', 'pastor', 'director-general'].includes(r));
 
   const {
     register,
@@ -53,16 +52,28 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
     resolver: zodResolver(groupCreateSchema),
     defaultValues: {
       nombre: "",
-      ubicacion: undefined as any,
+      ubicacion: undefined,
     }
   });
 
   const ubicacion = watch("ubicacion");
   const temporadaId = watch("temporada_id");
   const segmentoId = watch("segmento_id");
-  const directorLiderId = watch('director_etapa_segmento_lider_id');
-  const liderUsuarioId = watch('lider_usuario_id');
-  const estadoAprobacion = watch('estado_aprobacion');
+
+  // Auto-seleccionar cuando sólo hay una opción disponible
+  // Esto arregla el caso donde el <select> nativo muestra visualmente una opción
+  // pero React Hook Form no tiene el valor registrado internamente
+  useEffect(() => {
+    if (segmentos.length === 1 && !segmentoId) {
+      setValue('segmento_id', segmentos[0].id, { shouldValidate: true });
+    }
+  }, [segmentos, segmentoId, setValue]);
+
+  useEffect(() => {
+    if (temporadas.length === 1 && !temporadaId) {
+      setValue('temporada_id', temporadas[0].id, { shouldValidate: true });
+    }
+  }, [temporadas, temporadaId, setValue]);
 
   // Sugerir nombre cuando se tengan ubicacion, temporada y segmento
   useEffect(() => {
@@ -109,8 +120,8 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
       }
       const data = await res.json();
       setDirectores(data?.directores || []);
-    } catch (e: any) {
-      if (e?.name !== 'AbortError') {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name !== 'AbortError') {
         setDirectoresError('Fallo al cargar');
         setDirectores([]);
       }
@@ -148,7 +159,7 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
           const res = await fetch(`/api/segmentos/${data.segmento_id}/ubicaciones`);
           if (res.ok) {
             const json = await res.json();
-            const match = (json.ubicaciones || []).find((u: any) => u.nombre === data.ubicacion);
+            const match = (json.ubicaciones || []).find((u: { id: string; nombre: string }) => u.nombre === data.ubicacion);
             if (match) segmentoUbicacionId = match.id;
           }
         } catch (e) {
@@ -160,19 +171,22 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
         temporada_id: data.temporada_id,
         segmento_id: data.segmento_id,
         segmento_ubicacion_id: segmentoUbicacionId,
+        ubicacion_nombre: data.ubicacion,
         director_etapa_segmento_lider_id: data.director_etapa_segmento_lider_id || null,
         lider_usuario_id: data.lider_usuario_id || null,
-        estado_aprobacion: data.estado_aprobacion
       });
       if (!result?.success) {
         setError(result?.error || "No autorizado para crear el grupo");
         return;
       }
-      if (result.newGroupId) {
-        router.push(`/dashboard/grupos/${result.newGroupId}/edit`);
+      if (result.pendiente) {
+        // Grupo pendiente de aprobación — redirigir a mis solicitudes
+        router.push("/grupos-vida/solicitudes/mis-solicitudes");
+      } else if (result.newGroupId) {
+        router.push(`/grupos-vida/${result.newGroupId}/edit`);
       }
-    } catch (err: any) {
-      setError(err.message || "Error al crear el grupo");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error al crear el grupo");
     } finally {
       setIsLoading(false);
     }
@@ -181,8 +195,15 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+      {esDirectorEtapa && (
+        <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+          <p className="text-sm text-orange-700 dark:text-orange-400">
+            <strong>Nota:</strong> Como director de etapa, el grupo que crees quedará en estado <strong>pendiente de aprobación</strong>. Un administrador o pastor deberá aprobarlo para activarlo.
+          </p>
         </div>
       )}
       {/* Campos en grid para consistencia visual */}
@@ -201,109 +222,70 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
 
         {/* Campo Ubicación */}
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Ubicación</label>
           <Controller
             name="ubicacion"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger
-                  className={cn(
-                    "w-full py-3 px-3 border border-gray-200 rounded-lg bg-white",
-                    "focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200",
-                    errors.ubicacion && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                  )}
-                  aria-invalid={!!errors.ubicacion}
-                >
-                  <SelectValue placeholder="Selecciona ubicación" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Barquisimeto">Barquisimeto</SelectItem>
-                  <SelectItem value="Cabudare">Cabudare</SelectItem>
-                </SelectContent>
-              </Select>
+              <SelectSistema
+                label="Ubicación"
+                placeholder="Selecciona ubicación"
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.ubicacion?.message as string}
+                opciones={[
+                  { valor: "Barquisimeto", etiqueta: "Barquisimeto" },
+                  { valor: "Cabudare", etiqueta: "Cabudare" },
+                ]}
+              />
             )}
           />
-          {errors.ubicacion && (
-            <p className="text-sm text-red-600">{errors.ubicacion.message as string}</p>
-          )}
         </div>
 
         {/* Campo Temporada */}
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Temporada</label>
           <Controller
             name="temporada_id"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger
-                  className={cn(
-                    "w-full py-3 px-3 border border-gray-200 rounded-lg bg-white",
-                    "focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200",
-                    errors.temporada_id && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                  )}
-                  aria-invalid={!!errors.temporada_id}
-                >
-                  <SelectValue placeholder="Selecciona una temporada" />
-                </SelectTrigger>
-                <SelectContent>
-                  {temporadas.map((temporada) => (
-                    <SelectItem key={temporada.id} value={temporada.id}>
-                      {temporada.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SelectSistema
+                label="Temporada"
+                placeholder="Selecciona una temporada"
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.temporada_id?.message}
+                opciones={temporadas.map((t) => ({ valor: t.id, etiqueta: t.nombre }))}
+              />
             )}
           />
-          {errors.temporada_id && (
-            <p className="text-sm text-red-600">{errors.temporada_id.message}</p>
-          )}
         </div>
 
         {/* Campo Segmento */}
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Segmento</label>
           <Controller
             name="segmento_id"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger
-                  className={cn(
-                    "w-full py-3 px-3 border border-gray-200 rounded-lg bg-white",
-                    "focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200",
-                    errors.segmento_id && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-                  )}
-                  aria-invalid={!!errors.segmento_id}
-                >
-                  <SelectValue placeholder="Selecciona un segmento" />
-                </SelectTrigger>
-                <SelectContent>
-                  {segmentos.map((segmento) => (
-                    <SelectItem key={segmento.id} value={segmento.id}>
-                      {segmento.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SelectSistema
+                label="Segmento"
+                placeholder="Selecciona un segmento"
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.segmento_id?.message}
+                opciones={segmentos.map((s) => ({ valor: s.id, etiqueta: s.nombre }))}
+              />
             )}
           />
-          {errors.segmento_id && (
-            <p className="text-sm text-red-600">{errors.segmento_id.message}</p>
-          )}
         </div>
 
         {/* Director de Etapa */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-sm font-medium text-gray-700">Director de Etapa (opcional)</label>
+            <label className="block text-sm font-medium text-foreground">Director de Etapa (opcional)</label>
             {segmentoId && (
               <button
                 type="button"
                 onClick={() => fetchDirectores(segmentoId)}
-                className="text-xs text-indigo-600 hover:underline disabled:opacity-40"
+                className="text-xs text-[var(--brand-primary)] hover:underline disabled:opacity-40"
                 disabled={cargandoDirectores}
               >
                 {cargandoDirectores ? 'Actualizando...' : 'Recargar'}
@@ -319,77 +301,53 @@ export default function GroupCreateForm({ temporadas, segmentos }: GroupCreateFo
                   ? 'Selecciona un director'
                   : 'Sin directores';
             return (
-              <Select
-                onValueChange={field.onChange}
+              <SelectSistema
+                placeholder={placeholder}
                 value={field.value || undefined}
+                onValueChange={field.onChange}
                 disabled={!segmentoId || cargandoDirectores || !!directoresError || directores.length === 0}
-              >
-                <SelectTrigger className={cn("w-full py-3 px-3 border border-gray-200 rounded-lg bg-white", (!segmentoId) && "opacity-50")}> 
-                  <SelectValue placeholder={placeholder} />
-                </SelectTrigger>
-                <SelectContent>
-                  {directores.map(d => (
-                    <SelectItem key={d.id} value={d.id}>{d.nombre}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                opciones={directores.map(d => ({ valor: d.id, etiqueta: d.nombre }))}
+              />
             );
           }} />
           {directoresError && (
-            <p className="text-xs text-red-600">No se pudieron cargar los directores. Intenta recargar.</p>
+            <p className="text-xs text-red-600 dark:text-red-400">No se pudieron cargar los directores. Intenta recargar.</p>
           )}
         </div>
 
         {/* Líder Inicial con modal global */}
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Líder Inicial (opcional)</label>
+          <label className="block text-sm font-medium text-foreground">Líder Inicial (opcional)</label>
           <div className="flex items-center gap-3">
-            <Button
+            <BotonSistema
               type="button"
-              variant="outline"
+              variante="outline"
               onClick={() => setShowLeaderModal(true)}
               disabled={!segmentoId}
               className="min-w-[180px]"
             >
               {leaderResumen ? 'Cambiar líder' : 'Seleccionar líder'}
-            </Button>
+            </BotonSistema>
             {leaderResumen && (
-              <div className="text-sm text-gray-700 truncate max-w-xs" title={leaderResumen}>
+              <div className="text-sm text-foreground truncate max-w-xs" title={leaderResumen}>
                 {leaderResumen}
               </div>
             )}
             {!leaderResumen && (
-              <div className="text-xs text-gray-500">Opcional: puedes asignarlo después.</div>
+              <div className="text-xs text-muted-foreground">Opcional: puedes asignarlo después.</div>
             )}
           </div>
           <SelectLeaderModal
             open={showLeaderModal}
             onClose={() => setShowLeaderModal(false)}
+            segmentoId={segmentoId}
             onSelect={(u) => {
               setValue('lider_usuario_id', u.id, { shouldValidate: true });
               setLeaderResumen(`${u.nombre} ${u.apellido}`.trim());
             }}
             title="Seleccionar Líder Inicial"
-            description="Busca entre todos los usuarios permitidos y asigna uno como líder inicial del grupo."
+            description="Busca entre los líderes disponibles. Los que no lideran grupo activo aparecen primero."
           />
-        </div>
-
-        {/* Estado Aprobación */}
-        <div className="space-y-2 md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700">Estado Inicial</label>
-          <Controller name="estado_aprobacion" control={control} render={({ field }) => (
-            <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger className="w-full py-3 px-3 border border-gray-200 rounded-lg bg-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="aprobado">Aprobado</SelectItem>
-                <SelectItem value="pendiente">Pendiente</SelectItem>
-                <SelectItem value="rechazado">Rechazado</SelectItem>
-              </SelectContent>
-            </Select>
-          )} />
-          <p className="text-xs text-gray-500">Puedes dejarlo en Aprobado o marcar como Pendiente para revisión posterior.</p>
         </div>
       </div>
 

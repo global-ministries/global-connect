@@ -3,10 +3,9 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { InputSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 import { createSeason, updateSeason } from "@/lib/actions/season.actions"
 
 const seasonSchema = z.object({
@@ -28,6 +27,12 @@ interface SeasonFormProps {
   }
 }
 
+/**
+ * Formulario para crear o editar una temporada.
+ *
+ * Usa InputSistema y BotonSistema del design system para consistencia visual
+ * y accesibilidad (touch targets, ARIA, dark mode).
+ */
 export default function SeasonForm({ initialData }: SeasonFormProps) {
   const isEditMode = !!initialData
 
@@ -57,7 +62,6 @@ export default function SeasonForm({ initialData }: SeasonFormProps) {
       }
     } catch (error) {
       console.error("Error al guardar temporada:", error)
-      // Aquí podrías manejar el error, por ejemplo, mostrando un toast
     }
   }
 
@@ -65,37 +69,28 @@ export default function SeasonForm({ initialData }: SeasonFormProps) {
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Nombre */}
-        <div className="space-y-2">
-          <Label htmlFor="nombre">Nombre de la Temporada *</Label>
-          <Input
-            id="nombre"
-            {...register("nombre")}
-            placeholder="Ej: Temporada 2025"
-          />
-          {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre.message}</p>}
-        </div>
+        <InputSistema
+          label="Nombre de la Temporada *"
+          placeholder="Ej: Temporada 2025"
+          error={errors.nombre?.message}
+          {...register("nombre")}
+        />
 
         {/* Fecha de Inicio */}
-        <div className="space-y-2">
-          <Label htmlFor="fecha_inicio">Fecha de Inicio *</Label>
-          <Input
-            id="fecha_inicio"
-            type="date"
-            {...register("fecha_inicio")}
-          />
-          {errors.fecha_inicio && <p className="text-red-500 text-sm">{errors.fecha_inicio.message}</p>}
-        </div>
+        <InputSistema
+          label="Fecha de Inicio *"
+          type="date"
+          error={errors.fecha_inicio?.message}
+          {...register("fecha_inicio")}
+        />
 
         {/* Fecha de Fin */}
-        <div className="space-y-2">
-          <Label htmlFor="fecha_fin">Fecha de Fin *</Label>
-          <Input
-            id="fecha_fin"
-            type="date"
-            {...register("fecha_fin")}
-          />
-          {errors.fecha_fin && <p className="text-red-500 text-sm">{errors.fecha_fin.message}</p>}
-        </div>
+        <InputSistema
+          label="Fecha de Fin *"
+          type="date"
+          error={errors.fecha_fin?.message}
+          {...register("fecha_fin")}
+        />
 
         {/* Activa */}
         <div className="space-y-2">
@@ -106,7 +101,7 @@ export default function SeasonForm({ initialData }: SeasonFormProps) {
               checked={activaValue}
               onCheckedChange={(checked) => setValue("activa", checked)}
             />
-            <Label htmlFor="activa" className="text-sm text-gray-600">
+            <Label htmlFor="activa" className="text-sm text-muted-foreground">
               {activaValue ? "Sí" : "No"}
             </Label>
           </div>
@@ -115,13 +110,13 @@ export default function SeasonForm({ initialData }: SeasonFormProps) {
 
       {/* Botón de envío */}
       <div className="flex justify-end">
-        <Button
+        <BotonSistema
           type="submit"
-          disabled={isSubmitting}
-          className="px-6 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+          variante="primario"
+          cargando={isSubmitting}
         >
-          {isSubmitting ? "Guardando..." : isEditMode ? "Guardar Cambios" : "Crear Temporada"}
-        </Button>
+          {isEditMode ? "Guardar Cambios" : "Crear Temporada"}
+        </BotonSistema>
       </div>
     </form>
   )

@@ -56,7 +56,6 @@ export default function SignupPage() {
       formData.append("password", data.password);
       formData.append("cedula", data.cedula);
 
-      // @ts-ignore
       const response = await import("@/lib/actions/auth.actions").then(mod => mod.signup(formData));
       if (response?.success) {
         router.push("/verify-email");
@@ -135,66 +134,66 @@ export default function SignupPage() {
 
           {/* Contraseña */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-foreground">
               Contraseña
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
+                <Lock className="h-5 w-5 text-muted-foreground" />
               </div>
               <input
                 type={mostrarContrasena ? "text" : "password"}
                 placeholder="Mínimo 8 caracteres"
-                className="block w-full py-3 pl-10 pr-12 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-400 disabled:bg-gray-50 disabled:text-gray-500"
+                className="block w-full py-3 pl-10 pr-12 border border-border rounded-xl bg-card focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] transition-colors duration-200 text-foreground placeholder-muted-foreground disabled:opacity-50"
                 disabled={isLoading}
                 {...register("password")}
               />
               <button
                 type="button"
                 onClick={() => setMostrarContrasena(!mostrarContrasena)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
               >
                 {mostrarContrasena ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
             {errors.password && (
-              <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+              <p className="text-destructive text-sm mt-1">{errors.password.message}</p>
             )}
           </div>
 
           {/* Confirmar Contraseña */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-foreground">
               Confirmar Contraseña
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
+                <Lock className="h-5 w-5 text-muted-foreground" />
               </div>
               <input
                 type={mostrarConfirmarContrasena ? "text" : "password"}
                 placeholder="Repite tu contraseña"
-                className="block w-full py-3 pl-10 pr-12 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-400 disabled:bg-gray-50 disabled:text-gray-500"
+                className="block w-full py-3 pl-10 pr-12 border border-border rounded-xl bg-card focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] transition-colors duration-200 text-foreground placeholder-muted-foreground disabled:opacity-50"
                 disabled={isLoading}
                 {...register("confirmPassword")}
               />
               <button
                 type="button"
                 onClick={() => setMostrarConfirmarContrasena(!mostrarConfirmarContrasena)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
               >
                 {mostrarConfirmarContrasena ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
             {errors.confirmPassword && (
-              <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+              <p className="text-destructive text-sm mt-1">{errors.confirmPassword.message}</p>
             )}
           </div>
 
           {/* Mensaje de error */}
           {errorMessage && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <TextoSistema variante="default" tamaño="sm" className="text-red-700">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-3">
+              <TextoSistema variante="default" tamaño="sm" className="text-destructive">
                 {errorMessage}
               </TextoSistema>
             </div>
@@ -229,7 +228,7 @@ export default function SignupPage() {
       {/* Pie de página */}
       <div className="text-center mt-8">
         <TextoSistema variante="muted" tamaño="sm">
-          © 2025 Global Barquisimeto. Todos los derechos reservados.
+          © {new Date().getFullYear()} Global Barquisimeto. Todos los derechos reservados.
         </TextoSistema>
       </div>
     </FondoAutenticacion>

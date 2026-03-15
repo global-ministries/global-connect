@@ -1,6 +1,9 @@
 "use server"
 
+import { requireAuth } from "@/lib/auth/requireAuth"
+
 export async function geocodeAddress(address: string) {
+  await requireAuth()
   const apiKey = process.env.GOOGLE_MAPS_API_KEY_SERVER;
   if (!apiKey) {
     throw new Error('Clave de API de Google Maps no configurada');

@@ -153,6 +153,50 @@ Cuando realices cualquiera de estas acciones, **SIEMPRE** invoca el skill corres
 
 ---
 
+## Auto-invoke Workflows
+
+Cuando el agente opere en un **rol específico** o en un **flujo por fases**, DEBE ejecutar el workflow correspondiente.
+
+### Ciclo de Vida por Fase
+
+```
+ARQUITECTO  →  DESARROLLADOR  →  AUDITOR  →  ARQUITECTO  →  DOCUMENTACIÓN  →  SIGUIENTE FASE
+   plan           feat(scope)      review      aprueba         docs(scope)
+```
+
+| Paso | Rol | Workflow | Skills principales | Commit |
+|------|-----|----------|--------------------|--------|
+| 1 | Arquitecto | `/architect-phase-planning` | Todas las del módulo | — |
+| 2 | Desarrollador | `/developer-execution` | `typescript`, `nextjs-app-router-fundamentals`, `security-nextjs`, + las del plan | `feat(scope)` |
+| 3 | Auditor | `/auditor-review` | `code-review`, `security-nextjs`, `typescript`, + las del alcance | — |
+| 3b | Desarrollador (fix) | `/developer-execution` | Las mismas del paso 2 | `fix(scope)` |
+| 4 | Arquitecto (aprobación) | `/architect-phase-planning` | — | — |
+| 5 | Documentación | `/documentation-management` | `technical-writer`, `conventional-commit`, `git-commit` | `docs(scope)` |
+
+### Naming de Artifacts
+
+Todos los artifacts siguen el patrón: `{modulo}-fase{N}-{tipo}.md`
+
+| Tipo | Generado por | Ejemplo |
+|------|-------------|---------|
+| `plan-desarrollo` | Arquitecto | `grupos-fase1-plan-desarrollo.md` |
+| `plan-auditoria` | Arquitecto | `grupos-fase1-plan-auditoria.md` |
+| `reporte-desarrollo` | Desarrollador | `grupos-fase1-reporte-desarrollo.md` |
+| `walkthrough` | Desarrollador | `grupos-fase1-walkthrough.md` |
+| `correcciones-r{N}` | Auditor | `grupos-fase1-correcciones-r1.md` |
+| `reporte-auditoria` | Auditor | `grupos-fase1-reporte-auditoria.md` |
+
+### Cuándo Ejecutar Cada Workflow
+
+| Acción / Trigger | Workflow |
+|------------------|----------|
+| Planificar una fase, diseñar arquitectura de módulo | `/architect-phase-planning` |
+| Implementar código, ejecutar un plan de desarrollo | `/developer-execution` |
+| Auditar, revisar código, hacer code review de fase | `/auditor-review` |
+| Actualizar docs, changelog, página de actualizaciones | `/documentation-management` |
+
+---
+
 ## Project Overview
 
 **GlobalConnect** es una aplicación web de gestión para una organización eclesiástica.
@@ -199,6 +243,127 @@ Cuando realices cualquiera de estas acciones, **SIEMPRE** invoca el skill corres
 - **Permisos** — `getUserWithRoles()` / `obtenerRolesUsuarioActual()` en el servidor
 - **Idioma** — Español en código, UI y docs
 - **Paginación** — Server-side, 20 elementos/página, debounce 400ms
+
+---
+
+## 🎨 Design System Rules (OBLIGATORIO para toda UI)
+
+**Archivo fuente:** `components/ui/sistema-diseno.tsx`
+**Estilo visual:** Liquid Glass / VisionOS — blur, transparencias, bordes `rounded-2xl`
+**Dark mode:** 100% funcional — usar SOLO tokens semánticos
+
+### IMPORT ÚNICO
+
+```tsx
+import {
+  ContenedorDashboard, ContenedorPrincipal,
+  TarjetaSistema, BotonSistema, InputSistema, SelectSistema, TextareaSistema,
+  TituloSistema, TextoSistema, EnlaceSistema,
+  BadgeSistema, SeparadorSistema, SkeletonSistema, FondoAutenticacion
+} from "@/components/ui/sistema-diseno"
+```
+
+### Tokens semánticos (NUNCA hardcodear colores)
+
+| Tailwind class | Uso |
+|---------------|-----|
+| `text-foreground` | Texto principal |
+| `text-muted-foreground` | Texto secundario/sutil |
+| `bg-card` | Fondo de tarjetas/modales |
+| `bg-muted` | Fondos terciarios/hover |
+| `border-border` | Bordes |
+| `bg-destructive` | Errores |
+
+**PROHIBIDO:** `gray-*`, `bg-white`, `#hex`, `backgroundColor: 'white'`, `slate-*`, `zinc-*`
+
+### CSS Classes Glass
+
+| Clase | Uso |
+|-------|-----|
+| `glass-panel` | Tarjeta estándar (blur + transparencia) |
+| `glass-panel-elevated` | Tarjeta con más elevación |
+| `glass-panel-subtle` | Fondo sutil |
+
+### Componentes — API rápida
+
+#### Layout
+
+| Componente | Props clave | Cuándo usarlo |
+|-----------|------------|---------------|
+| `ContenedorDashboard` | `titulo`, `accionPrincipal`, `botonRegreso={href, texto}`, `breadcrumbs` | Páginas del dashboard (incluye header desktop sticky) |
+| `ContenedorPrincipal` | `titulo`, `descripcion`, `accionPrincipal` | Páginas sin header desktop (auth, landing) |
+| `TarjetaSistema` | `variante="default\|elevated\|outlined"` | Cualquier contenedor glass |
+| `FondoAutenticacion` | `children` | Fondo con orbes animados para login/signup |
+
+#### Formularios
+
+| Componente | Props clave | Notas |
+|-----------|------------|-------|
+| `InputSistema` | `label`, `icono={LucideIcon}`, `error` | `min-h-[44px]`, ARIA automático, `forwardRef` |
+| `SelectSistema` | `label`, `opciones={[{valor, etiqueta}]}`, `error`, `placeholder`, `onValueChange` | Select nativo con glass |
+| `TextareaSistema` | `label`, `filas`, `error` | Mismos patrones que Input |
+
+#### Acciones
+
+| Componente | Props clave | Notas |
+|-----------|------------|-------|
+| `BotonSistema` | `variante="primario\|secundario\|outline\|ghost"`, `tamaño="sm\|md\|lg"`, `cargando`, `icono`, `iconoPosicion` | Siempre usar `cargando` durante mutaciones |
+
+#### Tipografía
+
+| Componente | Props clave |
+|-----------|------------|
+| `TituloSistema` | `nivel={1\|2\|3\|4}`, `variante="default\|sutil"` |
+| `TextoSistema` | `variante="default\|sutil\|muted"`, `tamaño="sm\|base\|lg"` |
+| `EnlaceSistema` | `variante="default\|marca\|sutil"`, `href`, `comoSpan` |
+
+#### Utilidades
+
+| Componente | Props clave |
+|-----------|------------|
+| `BadgeSistema` | `variante="default\|success\|warning\|error\|info"`, `tamaño="sm\|md\|lg"` |
+| `SeparadorSistema` | — (línea horizontal `bg-border`) |
+| `SkeletonSistema` | `ancho`, `alto`, `redondo` |
+
+#### Tabs (archivo separado)
+```tsx
+import { TabsSistema, TabsList, TabsTrigger, TabsContent } from '@/components/ui/TabsSistema'
+```
+
+### Componentes DEPRECADOS (NO usar en código nuevo)
+
+| ❌ No usar | ✅ Usar en su lugar |
+|-----------|-------------------|
+| `BotonGradiente` | `BotonSistema variante="primario"` |
+| `CampoInputConIcono` | `InputSistema icono={...}` |
+| `TarjetaEstadistica` | `TarjetaSistema` + `BadgeSistema` |
+| `Button` (shadcn raw) | `BotonSistema` |
+| `Input` (shadcn raw) | `InputSistema` |
+
+### Patrones responsive obligatorios
+
+```
+Grids:     grid-cols-1 sm:grid-cols-2 lg:grid-cols-4
+Spacing:   p-4 sm:p-6 lg:p-8
+Typography: text-sm sm:text-base
+Direction:  flex-col sm:flex-row
+Tablas:    overflow-hidden (NO overflow-x-auto), columnas colapsables en móvil
+```
+
+### Notificaciones
+
+```tsx
+import { useNotificaciones } from '@/hooks/use-notificaciones'
+const toast = useNotificaciones()
+toast.success('Guardado')
+toast.error('Error al guardar')
+```
+
+### Transiciones
+
+- ✅ `transition-colors duration-200`
+- ✅ `transition-opacity duration-200`
+- ❌ `transition-all` (demasiado pesado)
 
 ---
 
