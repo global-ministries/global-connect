@@ -26,6 +26,7 @@ export function ProfilePhotoUploader({
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentPhotoUrl || null)
   const [showCamera, setShowCamera] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -691,18 +692,42 @@ export function ProfilePhotoUploader({
         </Button>
 
 
-        {previewUrl && (
+        {previewUrl && !confirmingDelete && (
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleDeletePhoto}
+            onClick={() => setConfirmingDelete(true)}
             disabled={isUploading}
             className="flex items-center gap-2 text-red-600 hover:text-red-700"
           >
             <Trash2 className="w-4 h-4" />
             Eliminar
           </Button>
+        )}
+        {confirmingDelete && (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => { setConfirmingDelete(false); handleDeletePhoto(); }}
+              disabled={isUploading}
+              className="flex items-center gap-2 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Confirmar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmingDelete(false)}
+              disabled={isUploading}
+              className="flex items-center gap-2"
+            >
+              Cancelar
+            </Button>
+          </>
         )}
       </div>
 

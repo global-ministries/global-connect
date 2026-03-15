@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useToast } from '@/hooks/use-toast'
+import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
 
 interface Props { segmentoId: string; esSuperior?: boolean }
 
@@ -21,6 +22,26 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState<string>('')
   const [ubicaciones, setUbicaciones] = useState<{ id: string; nombre: string }[]>([])
   const [loadingUbic, setLoadingUbic] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteId) return
+    setIsDeleting(true)
+    try {
+      const ok = await eliminarDirector(pendingDeleteId)
+      if (ok) {
+        toast({ title: 'Director eliminado' })
+      } else {
+        toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' as any })
+      }
+    } finally {
+      setIsDeleting(false)
+      setConfirmDeleteOpen(false)
+      setPendingDeleteId(null)
+    }
+  }
 
   useEffect(() => {
     const fetchUbic = async () => {
@@ -170,10 +191,9 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={async () => {
-                          if (!confirm('¿Eliminar director? Esta acción quitará su ciudad y asignaciones.')) return
-                          const ok = await eliminarDirector(d.id)
-                          if (ok) toast({ title: 'Director eliminado' }); else toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' as any })
+                        onClick={() => {
+                          setPendingDeleteId(d.id)
+                          setConfirmDeleteOpen(true)
                         }}
                       >Eliminar</Button>
                     )}
@@ -246,10 +266,9 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={async () => {
-                          if (!confirm('¿Eliminar director? Esta acción quitará su ciudad y asignaciones.')) return
-                          const ok = await eliminarDirector(d.id)
-                          if (ok) toast({ title: 'Director eliminado' }); else toast({ title: 'Error', description: 'No se pudo eliminar', variant: 'destructive' as any })
+                        onClick={() => {
+                          setPendingDeleteId(d.id)
+                          setConfirmDeleteOpen(true)
                         }}
                       >Eliminar</Button>
                     )}
@@ -367,6 +386,16 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
           </div>
         </div>
       )}
+
+      {/* Confirmación de borrado de director */}
+      <ConfirmationModal
+        isOpen={confirmDeleteOpen}
+        onClose={() => { setConfirmDeleteOpen(false); setPendingDeleteId(null); }}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar director"
+        message="¿Eliminar director? Esta acción quitará su ciudad y asignaciones."
+        isLoading={isDeleting}
+      />
     </div>
   )
 }
