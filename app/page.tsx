@@ -2,8 +2,10 @@
 
 import { Lock, Mail, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { login } from "@/lib/actions/auth.actions"
+import { createClient } from "@/lib/supabase/client"
+import { LogoGlobalConnect } from "@/components/ui/logo-global-connect"
 import {
   FondoAutenticacion,
   TarjetaSistema,
@@ -20,6 +22,24 @@ export default function PaginaLogin() {
   const [contrasena, setContrasena] = useState("")
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState("")
+  const [logoLight, setLogoLight] = useState<string | null>(null)
+  const [logoDark, setLogoDark] = useState<string | null>(null)
+
+  // Cargar logos de branding
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('configuracion_plataforma')
+      .select('logo_light_url, logo_dark_url')
+      .limit(1)
+      .single()
+      .then(({ data }: { data: { logo_light_url: string | null; logo_dark_url: string | null } | null }) => {
+        if (data) {
+          setLogoLight(data.logo_light_url)
+          setLogoDark(data.logo_dark_url)
+        }
+      })
+  }, [])
 
   const manejarSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -51,13 +71,16 @@ export default function PaginaLogin() {
     <FondoAutenticacion>
       <TarjetaSistema variante="elevated" className="space-y-8">
         {/* Encabezado */}
-        <div className="text-center space-y-2">
-          <TituloSistema nivel={1} className="mb-2">
-            Bienvenido
-          </TituloSistema>
-          <TextoSistema variante="sutil" tamaño="base">
-            Accede a tu cuenta de Global Connect
-          </TextoSistema>
+        <div className="text-center space-y-4">
+          <LogoGlobalConnect tamaño="md" className="mx-auto w-[120px] h-auto" logoLightUrl={logoLight} logoDarkUrl={logoDark} />
+          <div className="space-y-1">
+            <TituloSistema nivel={1}>
+              Bienvenido
+            </TituloSistema>
+            <TextoSistema variante="sutil" tamaño="base">
+              Accede a tu cuenta de Global Connect
+            </TextoSistema>
+          </div>
         </div>
 
         {/* Formulario de Login */}
@@ -76,12 +99,12 @@ export default function PaginaLogin() {
 
           {/* Campo Contraseña */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-foreground">
               Contraseña
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-gray-400" />
+                <Lock className="h-5 w-5 text-muted-foreground" />
               </div>
               <input
                 name="password"
@@ -89,13 +112,13 @@ export default function PaginaLogin() {
                 value={contrasena}
                 onChange={(e) => setContrasena(e.target.value)}
                 placeholder="Ingresa tu contraseña"
-                className="block w-full py-3 pl-10 pr-12 border border-gray-200 rounded-lg bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-400"
+                className="block w-full py-3 pl-10 pr-12 border border-border rounded-xl bg-card focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] transition-colors duration-200 text-foreground placeholder-muted-foreground"
                 required
               />
               <button
                 type="button"
                 onClick={() => setMostrarContrasena(!mostrarContrasena)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
               >
                 {mostrarContrasena ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -104,8 +127,8 @@ export default function PaginaLogin() {
 
           {/* Mensaje de error */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <TextoSistema variante="default" tamaño="sm" className="text-red-700">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-3">
+              <TextoSistema variante="default" tamaño="sm" className="text-destructive">
                 {error}
               </TextoSistema>
             </div>
@@ -152,7 +175,7 @@ export default function PaginaLogin() {
       {/* Pie de página */}
       <div className="text-center mt-8">
         <TextoSistema variante="muted" tamaño="sm">
-          © 2025 Global Barquisimeto. Todos los derechos reservados.
+          © {new Date().getFullYear()} Global Barquisimeto. Todos los derechos reservados.
         </TextoSistema>
       </div>
     </FondoAutenticacion>

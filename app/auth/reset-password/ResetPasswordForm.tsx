@@ -65,12 +65,12 @@ export default function ResetPasswordForm() {
       <FondoAutenticacion>
         <TarjetaSistema variante="elevated" className="space-y-8 text-center">
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 bg-green-500/15 dark:bg-green-500/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
           </div>
           <div className="space-y-4">
-            <TituloSistema nivel={1} className="text-green-800">
+            <TituloSistema nivel={1} className="text-green-700 dark:text-green-400">
               ¡Contraseña Actualizada!
             </TituloSistema>
             <TextoSistema variante="sutil" tamaño="base">

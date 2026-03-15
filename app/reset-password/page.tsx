@@ -49,19 +49,19 @@ export default function PaginaRestablecerContraseña() {
         <TarjetaSistema variante="elevated" className="space-y-8 text-center">
           {/* Icono de éxito */}
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 bg-green-500/15 dark:bg-green-500/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
           </div>
 
           {/* Mensaje de éxito */}
           <div className="space-y-4">
-            <TituloSistema nivel={1} className="text-green-800">
+            <TituloSistema nivel={1} className="text-green-700 dark:text-green-400">
               ¡Correo Enviado!
             </TituloSistema>
             <TextoSistema variante="sutil" tamaño="base">
               Hemos enviado las instrucciones para restablecer tu contraseña a{" "}
-              <span className="font-medium text-gray-800">{email}</span>
+              <span className="font-medium text-foreground">{email}</span>
             </TextoSistema>
             <TextoSistema variante="muted" tamaño="sm">
               Revisa tu bandeja de entrada y sigue las instrucciones del correo.
@@ -80,7 +80,7 @@ export default function PaginaRestablecerContraseña() {
         {/* Pie de página */}
         <div className="text-center mt-8">
           <TextoSistema variante="muted" tamaño="sm">
-            © 2025 Global Barquisimeto. Todos los derechos reservados.
+            © {new Date().getFullYear()} Global Barquisimeto. Todos los derechos reservados.
           </TextoSistema>
         </div>
       </FondoAutenticacion>
@@ -141,7 +141,7 @@ export default function PaginaRestablecerContraseña() {
       {/* Pie de página */}
       <div className="text-center mt-8">
         <TextoSistema variante="muted" tamaño="sm">
-          © 2025 Global Barquisimeto. Todos los derechos reservados.
+          © {new Date().getFullYear()} Global Barquisimeto. Todos los derechos reservados.
         </TextoSistema>
       </div>
     </FondoAutenticacion>
