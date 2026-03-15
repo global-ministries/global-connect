@@ -1,6 +1,6 @@
 # Grupos de Vida — Guía de Usuario
 
-> Última actualización: 2026-03-14
+> Versión: 2.0.0 | Última actualización: 2026-03-14
 
 ## ¿Qué es?
 

@@ -7,6 +7,50 @@ y este proyecto adhiere a [Conventional Commits](https://www.conventionalcommits
 
 ---
 
+## [2.0.0] - 2026-03-14
+
+**Hito principal: Módulo Grupos de Vida completo.**
+
+Esta versión consolida todo el desarrollo desde v1.0.0: Grupos de Vida con CRUD, aprobaciones, asistencia avanzada v2, seguimiento pastoral, casas anfitrionas, solicitudes, segmentos, configuración global, dashboard de riesgo, ranking de miembros, notas de líderes, y página de actualizaciones filtrada por rol.
+
+### Agregado
+- Módulo Grupos de Vida completo: 14 tablas DB con RLS, 13 server actions, 13 componentes, 9 RPCs
+- Sistema de solicitudes: ingreso, egreso, traslado, activación, cambio de rol
+- Asistencia avanzada v2: tipo de presencia, notas pastorales, visitantes, motivo de inasistencia
+- Casas anfitrionas: CRUD, co-anfitrión, mapa, geocodificación, aprobación
+- Dashboard de riesgo v2: distribución, tendencia 4 semanas, miembros críticos, segmentos, sin reunión
+- Página de miembros en riesgo con filtros por nivel (crítico, riesgo, atención)
+- Ranking de asistencia: miembros más constantes y con más ausencias
+- Notas de líderes con widget en dashboard y página de listado
+- Configuración global: nombre organización, logos, umbrales, permisos de gestión de miembros
+- Segmentos y temporadas con estado y directores de etapa
+- Página de actualizaciones filtrada por rol (miembros ven solo lo suyo)
+- Multi-campus con RLS, selector y dashboard reactivo
+- Integración Sentry SDK para error tracking y performance monitoring
+- Sistema de email con Resend: 4 templates React Email + server actions
+- Design system VisionOS/Glassmorphism con 100% dark mode funcional
+- CI pipeline: lint, type-check, build en GitHub Actions
+- Documentación técnica y de usuario completa para Grupos de Vida
+
+### Cambiado
+- Autenticación migrada a patrón SSR con cookies httpOnly (PKCE)
+- Navegación filtrada por rol: cada usuario solo ve las opciones de su rol
+- Egreso de miembros cambiado de soft-delete a hard-delete con historial
+- Paginación estandarizada a 100 items por página
+- Selector de ubicación cascading mejorado (país → estado → municipio → parroquia)
+- `ConfirmationModal` reemplaza `confirm()` nativo en acciones destructivas
+- Dark mode completo en páginas de autenticación (login, signup, reset password)
+
+### Seguridad
+- RLS habilitado en todas las tablas del módulo (14 tablas, 40+ policies)
+- RPCs con validación interna de permisos (SECURITY DEFINER donde necesario)
+- Aprobaciones scoped: directores generales solo aprueban sus segmentos
+- `catch (e: unknown)` con type narrowing en todo el codebase
+- Validación Zod runtime en todos los server actions
+- Headers de seguridad y middleware de autenticación actualizado
+
+---
+
 ## [1.9.3] - 2026-03-14
 
 ### Agregado

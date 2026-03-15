@@ -1,6 +1,6 @@
 # Módulo Grupos de Vida — Documentación Técnica
 
-> Última actualización: 2026-03-14
+> Versión: 2.0.0 | Última actualización: 2026-03-14
 
 ## Descripción
 
