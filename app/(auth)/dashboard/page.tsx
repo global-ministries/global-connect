@@ -13,8 +13,10 @@ export default async function PaginaTablero() {
 
   const titulo = 'Dashboard'
   const descripcion =
-    data.rol === 'admin' || data.rol === 'pastor' || data.rol === 'director-general'
+    data.rol === 'admin' || data.rol === 'pastor'
       ? 'Visión estratégica global de la organización'
+      : data.rol === 'director-general'
+      ? 'Visión de tus segmentos asignados'
       : data.rol === 'director-etapa'
       ? 'Supervisión y gestión de tu etapa'
       : data.rol === 'lider'
@@ -25,7 +27,7 @@ export default async function PaginaTablero() {
     <DashboardLayout>
       <ContenedorDashboard titulo={titulo} descripcion={descripcion}>
         {data.rol === 'admin' || data.rol === 'pastor' || data.rol === 'director-general' ? (
-          <DashboardAdmin data={data.widgets} />
+          <DashboardAdmin data={data.widgets} rol={data.rol} />
         ) : data.rol === 'director-etapa' ? (
           <DashboardDirector data={data.widgets} />
         ) : data.rol === 'lider' ? (

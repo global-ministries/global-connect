@@ -13,9 +13,10 @@ import { createClient } from '@/lib/supabase/client'
 
 interface PropsDashboardAdmin {
   data: any
+  rol?: string
 }
 
-export default function DashboardAdmin({ data: initialData }: PropsDashboardAdmin) {
+export default function DashboardAdmin({ data: initialData, rol }: PropsDashboardAdmin) {
   const { campusId, loading: loadingCampus } = useCampus()
   const [data, setData] = useState(initialData)
   const [refrescando, setRefrescando] = useState(false)
@@ -30,9 +31,10 @@ export default function DashboardAdmin({ data: initialData }: PropsDashboardAdmi
     return new Intl.NumberFormat('es-VE').format(num ?? 0)
   }
 
-  // Re-fetch when campus changes
+  // Re-fetch when campus changes (skip for DG — their data is already scoped by the server RPC)
+  const esDG = rol === 'director-general'
   const refrescarDatos = useCallback(async () => {
-    if (loadingCampus) return
+    if (loadingCampus || esDG) return
     setRefrescando(true)
     try {
       const supabase = createClient()
@@ -66,7 +68,7 @@ export default function DashboardAdmin({ data: initialData }: PropsDashboardAdmi
     } finally {
       setRefrescando(false)
     }
-  }, [campusId, loadingCampus])
+  }, [campusId, loadingCampus, esDG])
 
   useEffect(() => {
     // Only re-fetch when campus changes (not on initial load)

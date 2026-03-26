@@ -89,7 +89,7 @@ interface ReporteSemanalProps {
   incluirTodosInicial?: boolean
 }
 
-export default function ReporteSemanal({ reporte, incluirTodosInicial = false }: ReporteSemanalProps) {
+export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: ReporteSemanalProps) {
   const router = useRouter()
   const [fechaSeleccionada, setFechaSeleccionada] = useState(reporte.semana.inicio)
   const [incluirTodos, setIncluirTodos] = useState<boolean>(!!incluirTodosInicial)
@@ -135,7 +135,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
   const construirUrl = (fecha?: string) => {
     const params = new URLSearchParams()
     if (fecha) params.set('semana', fecha)
-    if (incluirTodos) params.set('todos', '1')
+    if (!incluirTodos) params.set('todos', '0')
     const qs = params.toString()
     return qs ? `/grupos-vida/reportes/asistencia-semanal?${qs}` : '/grupos-vida/reportes/asistencia-semanal'
   }
@@ -165,7 +165,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = false }:
       const next = !prev
       const params = new URLSearchParams()
       params.set('semana', reporte.semana.inicio)
-      if (next) params.set('todos', '1')
+      if (!next) params.set('todos', '0')
       router.push(`/grupos-vida/reportes/asistencia-semanal?${params.toString()}`)
       return next
     })

@@ -35,20 +35,22 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
       const rolRpc = d.rol || rolPrincipal
       const widgets = d.widgets || {}
 
-      // Fallbacks mínimos si faltan datos
-      if (!widgets.kpis_globales) widgets.kpis_globales = {}
-      if (widgets.kpis_globales.total_miembros == null) {
-        const total = await getTotalUsuarios()
-        if (total != null) widgets.kpis_globales.total_miembros = { valor: total }
-      }
-      if (widgets.kpis_globales.grupos_activos == null) {
-        const totalGrupos = await getTotalGruposActivos()
-        if (totalGrupos != null) widgets.kpis_globales.grupos_activos = { valor: totalGrupos }
-      }
-      if (!Array.isArray(widgets.distribucion_segmentos) || widgets.distribucion_segmentos.length === 0) {
-        const dist = await getDistribucionSegmentos()
-        if (Array.isArray(dist)) {
-          widgets.distribucion_segmentos = dist.map((d) => ({ id: d.id, nombre: d.nombre, total_miembros: d.grupos }))
+      // Fallbacks mínimos si faltan datos (skip for DG, their data is already scoped)
+      if (rolRpc !== 'director-general') {
+        if (!widgets.kpis_globales) widgets.kpis_globales = {}
+        if (widgets.kpis_globales.total_miembros == null) {
+          const total = await getTotalUsuarios()
+          if (total != null) widgets.kpis_globales.total_miembros = { valor: total }
+        }
+        if (widgets.kpis_globales.grupos_activos == null) {
+          const totalGrupos = await getTotalGruposActivos()
+          if (totalGrupos != null) widgets.kpis_globales.grupos_activos = { valor: totalGrupos }
+        }
+        if (!Array.isArray(widgets.distribucion_segmentos) || widgets.distribucion_segmentos.length === 0) {
+          const dist = await getDistribucionSegmentos()
+          if (Array.isArray(dist)) {
+            widgets.distribucion_segmentos = dist.map((d) => ({ id: d.id, nombre: d.nombre, total_miembros: d.grupos }))
+          }
         }
       }
 

@@ -627,6 +627,77 @@ export type Database = {
           },
         ]
       }
+      dg_directores_etapa: {
+        Row: {
+          creado_en: string
+          dg_usuario_id: string
+          id: string
+          segmento_lider_id: string
+        }
+        Insert: {
+          creado_en?: string
+          dg_usuario_id: string
+          id?: string
+          segmento_lider_id: string
+        }
+        Update: {
+          creado_en?: string
+          dg_usuario_id?: string
+          id?: string
+          segmento_lider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dg_directores_etapa_dg_usuario_id_fkey"
+            columns: ["dg_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dg_directores_etapa_dg_usuario_id_fkey"
+            columns: ["dg_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "dg_directores_etapa_dg_usuario_id_fkey"
+            columns: ["dg_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "dg_directores_etapa_dg_usuario_id_fkey"
+            columns: ["dg_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "dg_directores_etapa_dg_usuario_id_fkey"
+            columns: ["dg_usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "dg_directores_etapa_segmento_lider_id_fkey"
+            columns: ["segmento_lider_id"]
+            isOneToOne: false
+            referencedRelation: "segmento_lideres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dg_directores_etapa_segmento_lider_id_fkey"
+            columns: ["segmento_lider_id"]
+            isOneToOne: false
+            referencedRelation: "v_directores_etapa_segmento"
+            referencedColumns: ["director_etapa_segmento_lider_id"]
+          },
+        ]
+      }
       dias_excepcion: {
         Row: {
           creado_por_usuario_id: string | null

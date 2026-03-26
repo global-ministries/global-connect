@@ -32,7 +32,7 @@ Se ha implementado exitosamente un sistema completo de permisos de usuarios basa
 |-----|-----------------------------------|---------------------|-----------------|
 | `admin` | **TODOS** | Sin restricciones | Acceso global |
 | `pastor` | **TODOS** | Sin restricciones | Acceso global |
-| `director-general` | **TODOS** | Sin restricciones | Acceso global |
+| `director-general` | **Segmentos asignados** | Filtro por `director_general_segmentos` | ⚠️ Cambio 2026-03-26: Ya NO tiene acceso global. Solo ve grupos/usuarios/KPIs/reportes de los segmentos en `director_general_segmentos`. |
 | `director-etapa` | **Sólo grupos asignados explícitamente** | Relación explícita via función `asignar_director_etapa_a_grupo` + flag en `obtener_grupos_para_usuario` | Ya NO ve toda la etapa completa. Campo `supervisado_por_mi` = true cuando está asignado. |
 | `lider` | **Sus grupos (Pasados/Actuales)** | `grupo_miembros` + Filtro temporal | **NO ve grupos futuros** (salvo activos con temporada activa). |
 | `miembro` | **Su familia** | `familias` + `relaciones_usuarios` | Sin cambios |
@@ -43,11 +43,65 @@ Se ha implementado una restricción específica para la visibilidad de grupos se
 
 | Rol | Grupos Futuros | Excepción |
 |-----|----------------|-----------|
-| `admin`, `pastor`, `director-general` | ✅ Visible | N/A |
+| `admin`, `pastor` | ✅ Visible | N/A |
+| `director-general` | ✅ Visible (si en sus segmentos) | Solo segmentos de `director_general_segmentos` |
 | `director-etapa` | ✅ Visible (si asignado) | N/A |
 | `lider`, `colider`, `miembro` | ❌ **Oculto** | Visible SOLO si `grupo.activo=true` Y `temporada.activa=true` |
 
 Esta lógica reside centralizada en la función SQL `public.puede_ver_grupo`.
+
+### 🔒 Scoping DG por Segmentos (2026-03-26)
+
+> [!IMPORTANT]
+> El Director General ya NO tiene acceso global. Todas las RPCs y server actions filtran por `director_general_segmentos`.
+
+#### RPCs Afectadas
+
+| RPC | Método de filtrado |
+|-----|-------------------|
+| `puede_ver_grupo` | `g.segmento_id ∈ director_general_segmentos` |
+| `obtener_grupos_para_usuario` | `g.segmento_id ∈ director_general_segmentos` |
+| `obtener_kpis_grupos_para_usuario` | Inline subquery por segmentos |
+| `obtener_datos_dashboard` | Rama DG dedicada con todos los widgets filtrados |
+| `listar_usuarios_con_permisos` | JOIN `grupo_miembros` con grupos de segmentos |
+| `obtener_estadisticas_usuarios_con_permisos` | Mismo patrón |
+| `obtener_dashboard_riesgo` | `g.segmento_id ∈ director_general_segmentos` |
+| `obtener_reporte_semanal_asistencia` | Nueva rama `v_es_director_general` |
+
+#### Server Actions Afectadas
+
+| Action | Método de filtrado |
+|--------|-------------------|
+| `listarSolicitudesPendientes` | `grupoIdsPermitidos` de segmentos → `.in("grupo_id", ...)` |
+| `listarSolicitudesCompletadas` | Mismo patrón |
+
+#### Client-Side Protection
+
+| Componente | Protección |
+|-----------|------------|
+| `DashboardAdmin.tsx` | Prop `rol`: skip `resumen_dashboard_admin` para DG |
+| `obtenerDatosDashboard.ts` | Fallbacks no sobrescriben datos scoped |
+
+#### Patrón SQL Reutilizable
+```sql
+-- Usar en CTEs de grupos_visibles para cualquier nueva RPC:
+(v_rol = 'director-general' AND g.segmento_id IN (
+  SELECT dgs.segmento_id 
+  FROM director_general_segmentos dgs 
+  WHERE dgs.usuario_id = v_user_id
+))
+```
+
+#### Tabla Fuente
+```sql
+director_general_segmentos (
+  id uuid PRIMARY KEY,
+  usuario_id uuid REFERENCES usuarios(id),  -- El DG
+  segmento_id uuid REFERENCES segmentos(id), -- Segmento asignado
+  asignado_por uuid REFERENCES usuarios(id), -- Quién hizo la asignación
+  created_at timestamptz
+)
+```
 
 ### 📦 Papelera de Grupos (Eliminación Reversible)
 

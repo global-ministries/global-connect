@@ -28,13 +28,39 @@ export default async function Page() {
 
   let lista: { id: string; nombre: string; campus_id: string | null }[] = []
 
-  if (esAdmin || esPastor || esDG) {
-    // Admin, pastor y DG ven todos los segmentos
+  if (esAdmin || esPastor) {
+    // Admin y pastor ven todos los segmentos
     const { data: segmentos } = await supabase
       .from("segmentos")
       .select("id, nombre, campus_id")
       .order("nombre", { ascending: true })
     lista = segmentos ?? []
+  } else if (esDG) {
+    // DG ve solo sus segmentos asignados via director_general_segmentos
+    const adminDb = createSupabaseAdminClient()
+    const { data: usuarioData } = await adminDb
+      .from("usuarios")
+      .select("id")
+      .eq("auth_id", userData.user.id)
+      .single()
+
+    if (usuarioData) {
+      const { data: asignaciones } = await adminDb
+        .from("director_general_segmentos")
+        .select("segmento_id")
+        .eq("usuario_id", usuarioData.id)
+
+      const segmentoIds = asignaciones?.map((a) => a.segmento_id).filter(Boolean) ?? []
+
+      if (segmentoIds.length > 0) {
+        const { data: segmentos } = await supabase
+          .from("segmentos")
+          .select("id, nombre, campus_id")
+          .in("id", segmentoIds)
+          .order("nombre", { ascending: true })
+        lista = segmentos ?? []
+      }
+    }
   } else if (esDE) {
     // Director de etapa ve solo sus segmentos asignados via segmento_lideres
     const adminDb = createSupabaseAdminClient()
@@ -144,9 +170,14 @@ export default async function Page() {
         ) : (
           <TarjetaSistema variante="outlined" className="py-12 text-center">
             <Layers className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
-            <TextoSistema variante="muted">
-              No hay segmentos asignados.
+            <TextoSistema variante="muted" className="font-medium">
+              {esDG ? "No tienes segmentos asignados" : "No hay segmentos registrados."}
             </TextoSistema>
+            {esDG && (
+              <TextoSistema variante="muted" tamaño="sm" className="mt-1">
+                Contacta al administrador para que te asigne segmentos.
+              </TextoSistema>
+            )}
           </TarjetaSistema>
         )}
       </ContenedorDashboard>

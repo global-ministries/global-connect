@@ -7,6 +7,7 @@ import type {
   TipoSolicitud,
   AccionSolicitud,
   SolicitudPendiente,
+  SolicitudCompletada,
   CrearSolicitudRpcResultado,
   ProcesarSolicitudRpcResultado,
   MovimientoHistorial,
@@ -162,10 +163,44 @@ export async function listarSolicitudesPendientes(): Promise<
   // Primero expiramos las vencidas
   await supabase.rpc("expirar_solicitudes_vencidas");
 
-  const { data, error } = await supabase
+  // Check DG scoping: get user roles and filter by segments if DG
+  const { getUserWithRoles } = await import("@/lib/getUserWithRoles");
+  const userData = await getUserWithRoles(supabase);
+  const esAdmin = userData?.roles?.some((r: string) => ['admin', 'pastor'].includes(r));
+  const esDG = !esAdmin && userData?.roles?.some((r: string) => r === 'director-general');
+
+  let grupoIdsPermitidos: string[] | null = null;
+  if (esDG && userData?.user?.id) {
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const adminDb = createSupabaseAdminClient();
+    // Get DG's segment IDs
+    const { data: segmentos } = await adminDb
+      .from("director_general_segmentos")
+      .select("segmento_id")
+      .eq("usuario_id", userData.user.id);
+    const segmentoIds = (segmentos ?? []).map(s => s.segmento_id);
+    if (segmentoIds.length === 0) return { success: true, data: [] };
+    // Get group IDs in those segments
+    const { data: grupos } = await adminDb
+      .from("grupos")
+      .select("id")
+      .in("segmento_id", segmentoIds)
+      .eq("activo", true);
+    grupoIdsPermitidos = (grupos ?? []).map(g => g.id);
+    if (grupoIdsPermitidos.length === 0) return { success: true, data: [] };
+  }
+
+  let query = supabase
     .from("v_solicitudes_pendientes")
     .select("*")
     .order("creado_en", { ascending: false });
+
+  // Filter by DG segments
+  if (grupoIdsPermitidos) {
+    query = query.in("grupo_id", grupoIdsPermitidos);
+  }
+
+  const { data, error } = await query;
 
   if (error) return { success: false, error: error.message };
 
@@ -237,7 +272,7 @@ export async function listarSolicitudesPendientes(): Promise<
  * para roles DG+ con los mismos datos enriquecidos.
  */
 export async function listarSolicitudesCompletadas(): Promise<
-  Res<SolicitudPendiente[]>
+  Res<SolicitudCompletada[]>
 > {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -247,20 +282,51 @@ export async function listarSolicitudesCompletadas(): Promise<
   const { extraerRelacion } = await import("@/lib/supabase/helpers");
   const adminDb = createSupabaseAdminClient();
 
-  const { data, error } = await adminDb
+  // Check DG scoping
+  const { getUserWithRoles } = await import("@/lib/getUserWithRoles");
+  const userData = await getUserWithRoles(supabase);
+  const esAdmin = userData?.roles?.some((r: string) => ['admin', 'pastor'].includes(r));
+  const esDG = !esAdmin && userData?.roles?.some((r: string) => r === 'director-general');
+
+  let grupoIdsPermitidos: string[] | null = null;
+  if (esDG && userData?.user?.id) {
+    const { data: segmentos } = await adminDb
+      .from("director_general_segmentos")
+      .select("segmento_id")
+      .eq("usuario_id", userData.user.id);
+    const segmentoIds = (segmentos ?? []).map(s => s.segmento_id);
+    if (segmentoIds.length === 0) return { success: true, data: [] };
+    const { data: grupos } = await adminDb
+      .from("grupos")
+      .select("id")
+      .in("segmento_id", segmentoIds)
+      .eq("activo", true);
+    grupoIdsPermitidos = (grupos ?? []).map(g => g.id);
+    if (grupoIdsPermitidos.length === 0) return { success: true, data: [] };
+  }
+
+  let query = adminDb
     .from("solicitudes_grupo")
     .select(`
-      id, tipo, estado, motivo, creado_en, expira_en,
+      id, tipo, estado, motivo, notas_director, creado_en, actualizado_en, expira_en,
       grupo_id, grupo_origen_id, rol_solicitado, temporada_id,
       grupo:grupos!solicitudes_grupo_grupo_id_fkey(nombre, segmento:segmentos!grupos_segmento_id_fkey(nombre)),
       grupo_origen:grupos!solicitudes_grupo_grupo_origen_id_fkey(nombre),
       usuario:usuarios!solicitudes_grupo_usuario_id_fkey(id, nombre, apellido, foto_perfil_url),
       solicitante:usuarios!solicitudes_grupo_solicitado_por_fkey(nombre, apellido),
+      aprobador:usuarios!solicitudes_grupo_aprobado_por_fkey(nombre, apellido),
       temporada:temporadas!solicitudes_grupo_temporada_id_fkey(nombre, estado)
     `)
     .neq("estado", "pendiente")
     .order("actualizado_en", { ascending: false })
     .limit(50);
+
+  // Filter by DG segments
+  if (grupoIdsPermitidos) {
+    query = query.in("grupo_id", grupoIdsPermitidos);
+  }
+
+  const { data, error } = await query;
 
   if (error) return { success: false, error: error.message };
 
@@ -289,11 +355,12 @@ export async function listarSolicitudesCompletadas(): Promise<
     }
   }
 
-  const solicitudes: SolicitudPendiente[] = (data ?? []).map((sol) => {
+  const solicitudes: SolicitudCompletada[] = (data ?? []).map((sol) => {
     const grupo = extraerRelacion<{ nombre: string; segmento: { nombre: string } | null }>(sol.grupo);
     const grupoOrigen = extraerRelacion<{ nombre: string }>(sol.grupo_origen);
     const usuario = extraerRelacion<{ id: string; nombre: string; apellido: string; foto_perfil_url: string | null }>(sol.usuario);
     const solicitante = extraerRelacion<{ nombre: string; apellido: string }>(sol.solicitante);
+    const aprobador = extraerRelacion<{ nombre: string; apellido: string }>(sol.aprobador);
     const temporada = extraerRelacion<{ nombre: string; estado: string }>(sol.temporada);
 
     const segmento = grupo?.segmento ? extraerRelacion<{ nombre: string }>(grupo.segmento) : null;
@@ -311,7 +378,9 @@ export async function listarSolicitudesCompletadas(): Promise<
       tipo: sol.tipo as SolicitudPendiente["tipo"],
       estado: sol.estado,
       motivo: sol.motivo,
+      notas_director: sol.notas_director,
       creado_en: sol.creado_en,
+      actualizado_en: sol.actualizado_en,
       expira_en: sol.expira_en,
       grupo_id: sol.grupo_id,
       grupo_origen_id: sol.grupo_origen_id,
@@ -326,6 +395,8 @@ export async function listarSolicitudesCompletadas(): Promise<
       miembro_foto: usuario?.foto_perfil_url ?? null,
       solicitante_nombre: solicitante?.nombre ?? "",
       solicitante_apellido: solicitante?.apellido ?? "",
+      aprobado_por_nombre: aprobador?.nombre ?? null,
+      aprobado_por_apellido: aprobador?.apellido ?? null,
       temporada_nombre: temporada?.nombre ?? null,
       temporada_estado: temporada?.estado ?? null,
       campus_nombre: campusData?.nombre ?? null,
@@ -420,6 +491,54 @@ export async function cancelarSolicitud(
     .eq("estado", "pendiente");
 
   if (error) return { success: false, error: error.message };
+
+  revalidatePath("/grupos-vida/solicitudes");
+  return { success: true };
+}
+
+/** Schema para reenviar una solicitud expirada */
+const reenviarSolicitudSchema = z.object({
+  solicitud_id: z.string().uuid("ID de solicitud inválido"),
+});
+
+/**
+ * Reenvía una solicitud expirada: la regresa a estado "pendiente"
+ * con una nueva ventana de expiración de 7 días.
+ * Solo usuarios con rol DG+ pueden reenviar.
+ */
+export async function reenviarSolicitud(
+  input: z.infer<typeof reenviarSolicitudSchema>
+): Promise<Res> {
+  const parsed = reenviarSolicitudSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "No autenticado" };
+
+  // Nueva expiración: 7 días desde ahora
+  const nuevaExpiracion = new Date();
+  nuevaExpiracion.setDate(nuevaExpiracion.getDate() + 7);
+
+  const { data, error } = await supabase
+    .from("solicitudes_grupo")
+    .update({
+      estado: "pendiente" as string,
+      aprobado_por: null,
+      notas_director: null,
+      actualizado_en: new Date().toISOString(),
+      expira_en: nuevaExpiracion.toISOString(),
+    })
+    .eq("id", parsed.data.solicitud_id)
+    .eq("estado", "expirado")
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return { success: false, error: "No se pudo reenviar la solicitud. Verifica que esté expirada." };
+  }
 
   revalidatePath("/grupos-vida/solicitudes");
   return { success: true };
