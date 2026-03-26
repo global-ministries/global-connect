@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition, useCallback, useMemo } from "react";
-import { RefreshCw, CheckCircle2, Clock, XCircle, AlertTriangle, User, UserPlus, ArrowRight, UserMinus, Shield } from "lucide-react";
+import { RefreshCw, CheckCircle2, Clock, XCircle, AlertTriangle, User, UserPlus, ArrowRight, UserMinus, Shield, RotateCcw } from "lucide-react";
 import { BotonSistema, BadgeSistema, TarjetaSistema, TextoSistema } from "@/components/ui/sistema-diseno";
 import { TabsSistema, TabsList, TabsTrigger, TabsContent } from "@/components/ui/TabsSistema";
 import { TablaSolicitudes } from "@/components/grupos-vida/solicitudes/tabla-solicitudes";
-import { listarSolicitudesPendientes, listarSolicitudesCompletadas } from "@/lib/actions/solicitudes-grupo.actions";
-import type { SolicitudPendiente } from "@/lib/types/solicitudes-grupo.types";
+import { ModalDetalleSolicitud } from "@/components/grupos-vida/solicitudes/modal-detalle-solicitud";
+import { listarSolicitudesPendientes, listarSolicitudesCompletadas, reenviarSolicitud } from "@/lib/actions/solicitudes-grupo.actions";
+import { useNotificaciones } from "@/hooks/use-notificaciones";
+import type { SolicitudPendiente, SolicitudCompletada } from "@/lib/types/solicitudes-grupo.types";
 
 // ─── Config ─────────────────────────────────────────────────────────
 
@@ -96,7 +98,7 @@ function FiltroTipo({
 
 interface SolicitudesPendientesClientProps {
     solicitudesIniciales: SolicitudPendiente[];
-    solicitudesCompletadas: SolicitudPendiente[];
+    solicitudesCompletadas: SolicitudCompletada[];
 }
 
 /**
@@ -111,14 +113,24 @@ export function SolicitudesPendientesClient({
     const [completadasBase, setCompletadasBase] = useState(completadasIniciales);
     const [filtroTipo, setFiltroTipo] = useState("todas");
     const [isPending, startTransition] = useTransition();
+    const [solicitudDetalle, setSolicitudDetalle] = useState<SolicitudCompletada | null>(null);
+    const [reenviando, setReenviando] = useState<string | null>(null);
+    const toast = useNotificaciones();
 
     // Filtrar según tipo seleccionado
     const pendientes = useMemo(() => {
         return filtroTipo === "todas" ? pendientesBase : pendientesBase.filter((s) => s.tipo === filtroTipo);
     }, [pendientesBase, filtroTipo]);
 
+    // Separar completadas de expiradas
     const completadas = useMemo(() => {
-        return filtroTipo === "todas" ? completadasBase : completadasBase.filter((s) => s.tipo === filtroTipo);
+        const base = completadasBase.filter((s) => s.estado !== "expirado");
+        return filtroTipo === "todas" ? base : base.filter((s) => s.tipo === filtroTipo);
+    }, [completadasBase, filtroTipo]);
+
+    const expiradas = useMemo(() => {
+        const base = completadasBase.filter((s) => s.estado === "expirado");
+        return filtroTipo === "todas" ? base : base.filter((s) => s.tipo === filtroTipo);
     }, [completadasBase, filtroTipo]);
 
     // Detectar qué tipos existen para mostrar solo filtros relevantes
@@ -143,6 +155,18 @@ export function SolicitudesPendientesClient({
         });
     }, []);
 
+    const handleReenviar = async (solicitudId: string) => {
+        setReenviando(solicitudId);
+        const result = await reenviarSolicitud({ solicitud_id: solicitudId });
+        if (result.success) {
+            toast.success("Solicitud reenviada exitosamente");
+            recargar();
+        } else {
+            toast.error(result.error ?? "Error al reenviar");
+        }
+        setReenviando(null);
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -166,6 +190,14 @@ export function SolicitudesPendientesClient({
                             {completadas.length > 0 && (
                                 <span className="ml-1.5 text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
                                     {completadas.length}
+                                </span>
+                            )}
+                        </TabsTrigger>
+                        <TabsTrigger value="expiradas">
+                            Expiradas
+                            {expiradas.length > 0 && (
+                                <span className="ml-1.5 text-xs bg-destructive/20 text-destructive px-1.5 py-0.5 rounded-full">
+                                    {expiradas.length}
                                 </span>
                             )}
                         </TabsTrigger>
@@ -204,7 +236,7 @@ export function SolicitudesPendientesClient({
                                                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Miembro</th>
                                                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Grupo</th>
                                                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Estado</th>
-                                                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Solicitante</th>
+                                                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Procesado por</th>
                                                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Fecha</th>
                                             </tr>
                                         </thead>
@@ -214,7 +246,11 @@ export function SolicitudesPendientesClient({
                                                 const IconoEstado = ICONO_ESTADO[sol.estado] ?? Clock;
 
                                                 return (
-                                                    <tr key={sol.id} className="hover:bg-muted/50 transition-colors duration-200">
+                                                    <tr
+                                                        key={sol.id}
+                                                        className="hover:bg-muted/50 transition-colors duration-200 cursor-pointer"
+                                                        onClick={() => setSolicitudDetalle(sol)}
+                                                    >
                                                         <td className="px-4 py-3">
                                                             <div className="flex items-center gap-2">
                                                                 <Icono className="h-4 w-4 text-muted-foreground" />
@@ -250,7 +286,10 @@ export function SolicitudesPendientesClient({
                                                             </BadgeSistema>
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-muted-foreground">
-                                                            {sol.solicitante_nombre} {sol.solicitante_apellido}
+                                                            {sol.aprobado_por_nombre
+                                                                ? `${sol.aprobado_por_nombre} ${sol.aprobado_por_apellido ?? ""}`.trim()
+                                                                : <span className="text-muted-foreground/50">—</span>
+                                                            }
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-muted-foreground">
                                                             {formatFechaCorta(sol.creado_en)}
@@ -270,7 +309,11 @@ export function SolicitudesPendientesClient({
                                     const IconoEstado = ICONO_ESTADO[sol.estado] ?? Clock;
 
                                     return (
-                                        <TarjetaSistema key={sol.id} className="p-4">
+                                        <TarjetaSistema
+                                            key={sol.id}
+                                            className="p-4 cursor-pointer hover:bg-muted/30 transition-colors duration-200"
+                                            onClick={() => setSolicitudDetalle(sol)}
+                                        >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     {sol.miembro_foto ? (
@@ -309,7 +352,166 @@ export function SolicitudesPendientesClient({
                         </>
                     )}
                 </TabsContent>
+
+                {/* Tab: Expiradas */}
+                <TabsContent value="expiradas">
+                    {expiradas.length === 0 ? (
+                        <TarjetaSistema className="p-8 text-center">
+                            <TextoSistema variante="muted" tamaño="lg">
+                                No hay solicitudes expiradas
+                            </TextoSistema>
+                        </TarjetaSistema>
+                    ) : (
+                        <>
+                            {/* Desktop */}
+                            <div className="hidden sm:block overflow-hidden">
+                                <TarjetaSistema>
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className="border-b border-border text-left">
+                                                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Tipo</th>
+                                                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Miembro</th>
+                                                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Grupo</th>
+                                                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Solicitante</th>
+                                                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Fecha</th>
+                                                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border">
+                                            {expiradas.map((sol) => {
+                                                const Icono = ICONO_TIPO[sol.tipo] ?? Clock;
+
+                                                return (
+                                                    <tr
+                                                        key={sol.id}
+                                                        className="hover:bg-muted/50 transition-colors duration-200 cursor-pointer"
+                                                        onClick={() => setSolicitudDetalle(sol)}
+                                                    >
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <Icono className="h-4 w-4 text-muted-foreground" />
+                                                                <BadgeSistema variante="info" tamaño="sm">
+                                                                    {ETIQUETA_TIPO[sol.tipo] ?? sol.tipo}
+                                                                </BadgeSistema>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex items-center gap-2">
+                                                                {sol.miembro_foto ? (
+                                                                    <img src={sol.miembro_foto} alt="" className="h-7 w-7 rounded-full object-cover" />
+                                                                ) : (
+                                                                    <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center">
+                                                                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                    </div>
+                                                                )}
+                                                                <span className="text-sm text-foreground font-medium truncate max-w-[140px]">
+                                                                    {sol.miembro_nombre} {sol.miembro_apellido}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="text-sm">
+                                                                <span className="text-foreground">{sol.grupo_nombre}</span>
+                                                                <span className="text-xs text-muted-foreground block">{sol.segmento_nombre}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                                                            {sol.solicitante_nombre} {sol.solicitante_apellido}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                                                            {formatFechaCorta(sol.creado_en)}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right">
+                                                            <BotonSistema
+                                                                variante="primario"
+                                                                tamaño="sm"
+                                                                icono={RotateCcw}
+                                                                cargando={reenviando === sol.id}
+                                                                disabled={reenviando !== null}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleReenviar(sol.id);
+                                                                }}
+                                                            >
+                                                                Reenviar
+                                                            </BotonSistema>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </TarjetaSistema>
+                            </div>
+
+                            {/* Móvil */}
+                            <div className="sm:hidden space-y-3">
+                                {expiradas.map((sol) => {
+                                    const Icono = ICONO_TIPO[sol.tipo] ?? Clock;
+
+                                    return (
+                                        <TarjetaSistema
+                                            key={sol.id}
+                                            className="p-4 cursor-pointer hover:bg-muted/30 transition-colors duration-200"
+                                            onClick={() => setSolicitudDetalle(sol)}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    {sol.miembro_foto ? (
+                                                        <img src={sol.miembro_foto} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
+                                                    ) : (
+                                                        <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                                            <User className="h-4 w-4 text-muted-foreground" />
+                                                        </div>
+                                                    )}
+                                                    <div className="min-w-0">
+                                                        <span className="text-sm font-medium text-foreground block truncate">
+                                                            {sol.miembro_nombre} {sol.miembro_apellido}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">{sol.grupo_nombre}</span>
+                                                    </div>
+                                                </div>
+                                                <BadgeSistema variante="info" tamaño="sm">
+                                                    <Icono className="h-3 w-3 mr-1" />
+                                                    {ETIQUETA_TIPO[sol.tipo] ?? sol.tipo}
+                                                </BadgeSistema>
+                                            </div>
+                                            <div className="mt-3 flex items-center justify-between">
+                                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                    <Clock className="h-3 w-3" />
+                                                    <span>{formatFechaCorta(sol.creado_en)}</span>
+                                                </div>
+                                                <BotonSistema
+                                                    variante="primario"
+                                                    tamaño="sm"
+                                                    icono={RotateCcw}
+                                                    cargando={reenviando === sol.id}
+                                                    disabled={reenviando !== null}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleReenviar(sol.id);
+                                                    }}
+                                                >
+                                                    Reenviar
+                                                </BotonSistema>
+                                            </div>
+                                        </TarjetaSistema>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
+                </TabsContent>
             </TabsSistema>
+
+            {/* Modal de detalle para solicitudes completadas/expiradas */}
+            {solicitudDetalle && (
+                <ModalDetalleSolicitud
+                    solicitud={solicitudDetalle}
+                    isOpen={!!solicitudDetalle}
+                    onClose={() => setSolicitudDetalle(null)}
+                />
+            )}
         </div>
     );
 }

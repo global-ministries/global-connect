@@ -78,6 +78,14 @@ export interface MovimientoHistorial {
   temporada: string | null;
 }
 
+/** Solicitud completada con datos del aprobador */
+export interface SolicitudCompletada extends SolicitudPendiente {
+  aprobado_por_nombre: string | null;
+  aprobado_por_apellido: string | null;
+  notas_director: string | null;
+  actualizado_en: string;
+}
+
 /** Solicitud propia con datos de relaciones */
 export interface MiSolicitud {
   id: string;

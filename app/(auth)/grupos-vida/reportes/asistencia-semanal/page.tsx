@@ -24,9 +24,10 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
   // Resolver searchParams (Next.js 15)
   const searchParamsResolved = await searchParams
   const fechaSemana = searchParamsResolved.semana || null
-  const incluirTodos =
-    (searchParamsResolved.todos || '').toLowerCase() === '1' ||
-    (searchParamsResolved.todos || '').toLowerCase() === 'true'
+  // Default: incluir todos los grupos activos (incluso sin reunión)
+  // Solo se desactiva con ?todos=0
+  const todosParam = (searchParamsResolved.todos || '').toLowerCase()
+  const incluirTodos = todosParam === '0' || todosParam === 'false' ? false : true
 
   // Obtener reporte semanal
   const { data: reporteData, error: reporteError } = await supabase.rpc(
