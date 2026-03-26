@@ -94,7 +94,11 @@ const menuItems: MenuItem[] = [
     label: 'Configuración',
     icon: Settings,
     href: '/configuracion',
-    roles: ['admin', 'pastor'],
+    roles: ['admin', 'pastor', 'director-general'],
+    children: [
+      { id: 'config-general', label: 'General', href: '/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
+      { id: 'config-dg', label: 'Directores Generales', href: '/configuracion/directores-generales', icon: Users, roles: ['admin', 'pastor', 'director-general'] },
+    ],
   },
 ]
 
