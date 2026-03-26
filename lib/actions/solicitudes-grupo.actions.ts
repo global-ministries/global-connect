@@ -173,11 +173,18 @@ export async function listarSolicitudesPendientes(): Promise<
   if (esDG && userData?.user?.id) {
     const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
     const adminDb = createSupabaseAdminClient();
-    // Get DG's segment IDs
+    // Resolve auth_id → internal usuarios.id
+    const { data: usuarioInterno } = await adminDb
+      .from("usuarios")
+      .select("id")
+      .eq("auth_id", userData.user.id)
+      .single();
+    if (!usuarioInterno) return { success: true, data: [] };
+    // Get DG's segment IDs using internal usuario_id
     const { data: segmentos } = await adminDb
       .from("director_general_segmentos")
       .select("segmento_id")
-      .eq("usuario_id", userData.user.id);
+      .eq("usuario_id", usuarioInterno.id);
     const segmentoIds = (segmentos ?? []).map(s => s.segmento_id);
     if (segmentoIds.length === 0) return { success: true, data: [] };
     // Get group IDs in those segments
@@ -290,10 +297,18 @@ export async function listarSolicitudesCompletadas(): Promise<
 
   let grupoIdsPermitidos: string[] | null = null;
   if (esDG && userData?.user?.id) {
+    // Resolve auth_id → internal usuarios.id
+    const { data: usuarioInterno } = await adminDb
+      .from("usuarios")
+      .select("id")
+      .eq("auth_id", userData.user.id)
+      .single();
+    if (!usuarioInterno) return { success: true, data: [] };
+    // Get DG's segment IDs using internal usuario_id
     const { data: segmentos } = await adminDb
       .from("director_general_segmentos")
       .select("segmento_id")
-      .eq("usuario_id", userData.user.id);
+      .eq("usuario_id", usuarioInterno.id);
     const segmentoIds = (segmentos ?? []).map(s => s.segmento_id);
     if (segmentoIds.length === 0) return { success: true, data: [] };
     const { data: grupos } = await adminDb
