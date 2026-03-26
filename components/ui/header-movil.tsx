@@ -25,6 +25,7 @@ interface SubItem {
   label: string
   href: string
   icon?: React.ComponentType<{ className?: string }>
+  roles?: string[]
 }
 
 // ── Menu items with optional children (mirror of sidebar) ──
@@ -34,25 +35,37 @@ interface MobileMenuItem {
   icon: React.ComponentType<{ className?: string }>
   href: string
   children?: SubItem[]
+  roles?: string[]
 }
 
 const mainMenuItems: MobileMenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
-  { id: 'usuarios', label: 'Usuarios', icon: Users, href: '/users' },
+  { id: 'usuarios', label: 'Usuarios', icon: Users, href: '/users', roles: ['admin', 'pastor', 'director-general', 'director-etapa', 'lider'] },
   {
     id: 'grupos-vida',
     label: 'Grupos de Vida',
     icon: UserCheck,
     href: '/grupos-vida',
     children: [
-      { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House },
-      { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users },
-      { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar },
-      { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin },
-      { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3 },
-      { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert },
-      { id: 'gv-solicitudes', label: 'Solicitudes', href: '/grupos-vida/solicitudes', icon: ClipboardList },
-      { id: 'gv-config', label: 'Configuración', href: '/grupos-vida/configuracion', icon: Settings },
+      { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
+      { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
+      { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar, roles: ['admin', 'pastor', 'director-general'] },
+      { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
+      { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
+      { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
+      { id: 'gv-solicitudes', label: 'Solicitudes', href: '/grupos-vida/solicitudes', icon: ClipboardList, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
+      { id: 'gv-config', label: 'Configuración', href: '/grupos-vida/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
+    ],
+  },
+  {
+    id: 'configuracion-global',
+    label: 'Configuración',
+    icon: Settings,
+    href: '/configuracion',
+    roles: ['admin', 'pastor', 'director-general'],
+    children: [
+      { id: 'config-general', label: 'General', href: '/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
+      { id: 'config-dg', label: 'Directores Generales', href: '/configuracion/directores-generales', icon: Users, roles: ['admin', 'pastor', 'director-general'] },
     ],
   },
 ]
@@ -207,6 +220,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       ['/grupos-vida/dashboard-riesgo', 'Dashboard Riesgo'],
       ['/grupos-vida/solicitudes', 'Solicitudes'],
       ['/grupos-vida/configuracion', 'Configuración Grupos'],
+      ['/configuracion/directores-generales', 'Directores Generales'],
       ['/configuracion', 'Configuración'],
       ['/actualizaciones', 'Actualizaciones'],
       ['/ayuda', 'Ayuda'],
@@ -424,9 +438,14 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
         {/* ── Main Navigation with Submenus ── */}
         <nav className="flex-1 overflow-y-auto px-3 py-1">
           <ul className="space-y-0.5">
-            {mainMenuItems.map(item => {
+            {mainMenuItems
+              .filter(item => !item.roles || item.roles.some(r => roles.includes(r)))
+              .map(item => {
               const Icon = item.icon
-              const hasChildren = item.children && item.children.length > 0
+              const visibleChildren = item.children?.filter(
+                child => !child.roles || child.roles.some(r => roles.includes(r))
+              ) ?? []
+              const hasChildren = visibleChildren.length > 0
               const active = isActive(item.href)
               const isOpen = openSubmenus.has(item.id)
 
@@ -479,7 +498,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                         )}
                       >
                         <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
-                          {item.children!.map(child => {
+                          {visibleChildren.map(child => {
                             const ChildIcon = child.icon
                             const childActive = isActive(child.href)
                             return (
