@@ -43,11 +43,13 @@ Este documento describe la arquitectura, responsabilidades y guía de implementa
 ```
 - Nota: La implementación actual hace fallback a `obtenerBaselineStats()` para Admin/Pastor/Director General mientras se crea la RPC.
 
-## RPC implementada (rol admin)
+## RPC implementada (roles superiores)
 
 Función: `public.obtener_datos_dashboard(p_auth_id uuid) RETURNS jsonb`
 
-Para `admin/pastor/director-general` devuelve:
+### Admin / Pastor (acceso global)
+
+Para `admin/pastor` devuelve datos **globales** (todos los grupos, miembros, actividad):
 
 ```json
 {
@@ -59,21 +61,57 @@ Para `admin/pastor/director-general` devuelve:
       "grupos_activos": { "valor": 83 },
       "nuevos_miembros_mes": { "valor": 25 }
     },
-    "actividad_reciente": [
-      { "tipo": "NUEVO_MIEMBRO", "texto": "Isaac Páez se ha unido a la comunidad.", "fecha": "2025-10-27T14:00:00Z" },
-      { "tipo": "REPORTE_ASISTENCIA", "texto": "El grupo 'Cabudare Matrimonios 2' ha reportado su asistencia.", "fecha": "2025-10-27T13:20:00Z" }
-    ],
-    "proximos_cumpleanos": [
-      { "id": "uuid", "nombre_completo": "Isaac Páez", "foto_url": null, "fecha_nacimiento": "1990-10-30", "proximo": "2025-10-30" }
-    ],
-    "grupos_en_riesgo": [
-      { "id": "uuid-x", "nombre": "Barquisimeto Hombres 1", "porcentaje_asistencia": 55.0, "lideres": "Gabriel Salas" }
-    ],
-    "tendencia_asistencia": [ { "semana_inicio": "2025-10-05", "porcentaje": 87.5 } ],
-    "distribucion_segmentos": [ { "id": "seg-1", "nombre": "Matrimonios", "total_miembros": 320 } ]
+    "actividad_reciente": [ /* global */ ],
+    "proximos_cumpleanos": [ /* global */ ],
+    "grupos_en_riesgo": [ /* global */ ],
+    "tendencia_asistencia": [ /* global */ ],
+    "distribucion_segmentos": [ /* global */ ]
   }
 }
 ```
+
+### Director General (scoped por `director_general_segmentos`)
+
+> [!IMPORTANT]
+> **Cambio 2026-03-26:** El DG ya NO se trata como admin. Tiene una rama **dedicada** que filtra todos los widgets por sus segmentos asignados en `director_general_segmentos`.
+
+Para `director-general` devuelve datos **scoped** (solo segmentos asignados):
+
+```json
+{
+  "rol": "director-general",
+  "widgets": {
+    "kpis_globales": {
+      "total_miembros": { "valor": 43 },
+      "grupos_activos": { "valor": 5 }
+    },
+    "actividad_reciente": [ /* solo de sus grupos */ ],
+    "proximos_cumpleanos": [ /* solo miembros de sus grupos */ ],
+    "grupos_en_riesgo": [ /* solo de sus segmentos */ ],
+    "tendencia_asistencia": [ /* solo de sus grupos */ ],
+    "distribucion_segmentos": [ /* solo sus segmentos */ ]
+  }
+}
+```
+
+**Patrón de filtrado DG** (usado en todos los CTEs):
+```sql
+WHERE g.segmento_id IN (
+  SELECT dgs.segmento_id 
+  FROM director_general_segmentos dgs 
+  WHERE dgs.usuario_id = v_user_id
+)
+```
+
+**RPCs adicionales scoped para DG:**
+| RPC | Scoping |
+|-----|---------|
+| `obtener_dashboard_riesgo` | Segmentos asignados |
+| `obtener_reporte_semanal_asistencia` | Rama `v_es_director_general` dedicada |
+| `listar_usuarios_con_permisos` | Solo miembros de sus grupos |
+| `obtener_estadisticas_usuarios_con_permisos` | Solo miembros de sus grupos |
+
+**Client-side protection**: `DashboardAdmin.tsx` recibe prop `rol` y salta la llamada a `resumen_dashboard_admin` cuando es DG, evitando que datos globales sobrescriban los scoped.
 
 Notas:
 - La asistencia semanal se obtiene reutilizando `obtener_reporte_semanal_asistencia(p_incluir_todos=false)`.
