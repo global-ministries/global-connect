@@ -23,7 +23,7 @@ export function ConfirmationModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="relative z-10 w-full max-w-md mx-auto px-4">
         <TarjetaSistema className="p-8 flex flex-col items-center gap-6">
           <AlertTriangle className="w-12 h-12 text-orange-500 mb-2" />

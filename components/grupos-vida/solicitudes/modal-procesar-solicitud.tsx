@@ -89,14 +89,14 @@ export function ModalProcesarSolicitud({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-procesar-titulo"
             onClick={handleOverlayClick}
         >
             <div className="relative z-10 w-full max-w-lg">
-                <TarjetaSistema className="p-6 sm:p-8 flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
+                <TarjetaSistema className="p-6 sm:p-8 flex flex-col gap-5 max-h-[80vh] md:max-h-[90vh] overflow-y-auto pb-24 md:pb-8">
                     {/* Header */}
                     <div className="flex items-start justify-between">
                         <TituloSistema nivel={3} id="modal-procesar-titulo">
