@@ -232,10 +232,10 @@ export function ModalProcesarSolicitud({
                     />
 
                     {/* Acciones */}
-                    <div className="flex gap-3">
+                    <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
                         <BotonSistema
                             variante="outline"
-                            className="flex-1"
+                            className="w-full sm:flex-1"
                             onClick={onClose}
                             disabled={isPending}
                         >
@@ -243,7 +243,7 @@ export function ModalProcesarSolicitud({
                         </BotonSistema>
                         <BotonSistema
                             variante="outline"
-                            className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
+                            className="w-full sm:flex-1 border-destructive text-destructive hover:bg-destructive/10"
                             onClick={() => handleProcesar("rechazar")}
                             disabled={isPending}
                             cargando={isPending}
@@ -253,7 +253,7 @@ export function ModalProcesarSolicitud({
                         </BotonSistema>
                         <BotonSistema
                             variante="primario"
-                            className="flex-1"
+                            className="w-full sm:flex-1"
                             onClick={() => handleProcesar("aprobar")}
                             disabled={isPending}
                             cargando={isPending}
