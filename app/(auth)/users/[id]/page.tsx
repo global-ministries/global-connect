@@ -32,6 +32,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { formatPhoneForCall } from '@/lib/utils'
 import LocationPicker from "@/components/maps/LocationPicker.client"
+import { shouldShowEditAction, toPermissionRpcValue } from "./user-edit-permission"
 
 // Roles que pueden ver el botón de llamada
 const ROLES_CON_LLAMADA = ['admin', 'pastor', 'director-general', 'director-etapa']
@@ -44,13 +45,10 @@ export default function PaginaDetalleUsuario() {
   const [usuario, setUsuario] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [puedeEditar, setPuedeEditar] = useState(false)
 
   // Verificar si el usuario actual puede llamar
   const puedeVerLlamada = rolesActuales.some(r => ROLES_CON_LLAMADA.includes(r))
-
-  // Roles que pueden editar usuarios (admin, pastor)
-  const ROLES_CON_EDICION = ['admin', 'pastor']
-  const puedeEditar = rolesActuales.some(r => ROLES_CON_EDICION.includes(r))
 
   // Estado para el modal de agregar familiar
   const [mostrarModalAgregar, setMostrarModalAgregar] = useState(false)
@@ -63,12 +61,30 @@ export default function PaginaDetalleUsuario() {
   const recargar = async () => {
     setLoading(true)
     setError(null)
+    setPuedeEditar(false)
     try {
       // Llama a la función RPC para obtener el detalle del usuario
       const supabase = createClient()
-      const { data, error: errorUsuario } = await supabase
-        .rpc('obtener_detalle_usuario', { p_user_id: id })
-        .single()
+
+      const [{ data: userData }, { data, error: errorUsuario }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase
+          .rpc('obtener_detalle_usuario', { p_user_id: id })
+          .single(),
+      ])
+
+      const authUserId = userData?.user?.id
+      if (authUserId) {
+        const { data: permitido, error: permisoError } = await supabase.rpc('puede_editar_usuario', {
+          p_auth_id: authUserId,
+          p_target_user_id: id,
+        })
+        if (permisoError) {
+          console.error('Error verificando permisos de edición:', permisoError)
+        } else {
+          setPuedeEditar(shouldShowEditAction(toPermissionRpcValue(permitido)))
+        }
+      }
 
       if (errorUsuario) {
         setError("Error al cargar usuario: " + errorUsuario.message)
