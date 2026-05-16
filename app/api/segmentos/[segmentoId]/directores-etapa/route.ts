@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getUserWithRoles } from '@/lib/getUserWithRoles';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 
+const ROLES_SUPERIORES = ['admin', 'pastor', 'director-general'];
+
 // Nota: manejar params potencialmente como Promise (Next.js >= 15 msg sync-dynamic-apis)
 export async function GET(req: Request, context: { params: Promise<{ segmentoId: string }> | { segmentoId: string } }) {
   try {
@@ -10,9 +12,12 @@ export async function GET(req: Request, context: { params: Promise<{ segmentoId:
     const { segmentoId } = awaitedParams;
     if (!segmentoId) return NextResponse.json({ error: 'segmentoId requerido' }, { status: 400 });
     const supabase = await createSupabaseServerClient();
+    const userWithRoles = await getUserWithRoles(supabase);
+    if (!userWithRoles) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    const roles = userWithRoles.roles || [];
+    const esSuperior = roles.some((rol: string) => ROLES_SUPERIORES.includes(rol));
+    if (!esSuperior) return NextResponse.json({ error: 'Permiso denegado', rolesActuales: roles }, { status: 403 });
 
     const url = new URL(req.url);
     const debug = url.searchParams.get('debug') === '1';
@@ -154,7 +159,7 @@ export async function DELETE(req: Request, context: { params: Promise<{ segmento
     const userData = await getUserWithRoles(supabase);
     if (!userData) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     const roles = userData.roles || [];
-    const esSuperior = roles.some(r => ['admin','pastor','director-general'].includes(r));
+    const esSuperior = roles.some(r => ROLES_SUPERIORES.includes(r));
     if (!esSuperior) return NextResponse.json({ error: 'Permiso denegado', rolesActuales: roles }, { status: 403 });
 
     const url = new URL(req.url);

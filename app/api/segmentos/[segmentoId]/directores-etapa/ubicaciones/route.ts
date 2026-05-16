@@ -3,12 +3,23 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
 
+const ROLES_SUPERIORES = ['admin', 'pastor', 'director-general']
+
 // GET: lista ciudades asignadas por director (vista) y todas las ciudades del segmento
 export async function GET(_req: Request, context: { params: Promise<{ segmentoId: string }> | { segmentoId: string } }) {
   try {
     const awaitedParams = 'then' in context.params ? await context.params : context.params
     const { segmentoId } = awaitedParams
     if (!segmentoId) return NextResponse.json({ error: 'segmentoId requerido'}, { status: 400 })
+
+    const supabaseServer = await createSupabaseServerClient()
+    const userWithRoles = await getUserWithRoles(supabaseServer)
+    if (!userWithRoles) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+    const roles = userWithRoles.roles || []
+    const esSuperior = roles.some((rol: string) => ROLES_SUPERIORES.includes(rol))
+    if (!esSuperior) return NextResponse.json({ error: 'Permiso denegado', rolesActuales: roles }, { status: 403 })
+
     const supabaseAdmin = createSupabaseAdminClient()
     const { data: ciudades, error: eC } = await supabaseAdmin.from('segmento_ubicaciones').select('id,nombre').eq('segmento_id', segmentoId)
     if (eC) return NextResponse.json({ error: eC.message }, { status: 500 })
@@ -47,7 +58,7 @@ export async function POST(req: Request, context: { params: Promise<{ segmentoId
     const userWithRoles = await getUserWithRoles(supabaseServer)
     if (!userWithRoles) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     const rolesList = userWithRoles.roles || []
-    const esSuperior = rolesList.some((r: string) => ['admin','pastor','director-general'].includes(r))
+    const esSuperior = rolesList.some((r: string) => ROLES_SUPERIORES.includes(r))
     if (!esSuperior) return NextResponse.json({ error: 'Permiso denegado' }, { status: 403 })
 
     // Validar que el id corresponde a un director_etapa del segmento
