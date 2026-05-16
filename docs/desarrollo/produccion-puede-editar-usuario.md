@@ -25,6 +25,7 @@ Este documento define cómo aplicar el ajuste de permisos de edición de usuario
    - `public.es_director_general_de_grupo(uuid, uuid)`.
 5. Revisar la migración y confirmar que contiene solamente:
    - `CREATE OR REPLACE FUNCTION`
+   - `REVOKE EXECUTE ON FUNCTION ... FROM anon`
    - `REVOKE ALL ON FUNCTION`
    - `GRANT EXECUTE ON FUNCTION`
 
@@ -67,3 +68,4 @@ La aplicación se considera segura cuando:
 - [ ] Los smoke tests devuelven los `true/false` esperados.
 - [ ] El formulario de edición aparece solo para usuarios autorizados.
 - [ ] Las acciones de edición siguen bloqueando usuarios no autorizados.
+- [ ] `anon` no tiene permiso `EXECUTE` sobre `public.puede_editar_usuario(uuid, uuid)`.

@@ -45,6 +45,7 @@ from current_function;
 --
 -- Permitido en esta migración:
 -- - CREATE OR REPLACE FUNCTION public.puede_editar_usuario(...)
+-- - REVOKE EXECUTE ON FUNCTION public.puede_editar_usuario(uuid, uuid) FROM anon
 -- - REVOKE ALL ON FUNCTION public.puede_editar_usuario(uuid, uuid) FROM PUBLIC
 -- - GRANT EXECUTE ON FUNCTION public.puede_editar_usuario(uuid, uuid) TO authenticated
 --
