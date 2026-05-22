@@ -55,7 +55,7 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
             <SelectTrigger className="h-11 bg-card/50 border-border focus:border-[var(--brand-primary)] focus:ring-[var(--brand-primary)]/20">
               <SelectValue placeholder="Todos los segmentos" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[70]">
               <SelectItem value="__all__">Todos</SelectItem>
               {segmentos.map(s => (
                 <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
@@ -71,7 +71,7 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
             <SelectTrigger className="h-11 bg-card/50 border-border focus:border-[var(--brand-primary)] focus:ring-[var(--brand-primary)]/20">
               <SelectValue placeholder="Todas las temporadas" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[70]">
               <SelectItem value="__all__">Todas</SelectItem>
               {temporadas.map(t => (
                 <SelectItem key={t.id} value={t.id}>{t.nombre}</SelectItem>
@@ -87,7 +87,7 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
             <SelectTrigger className="h-11 bg-card/50 border-border focus:border-[var(--brand-primary)] focus:ring-[var(--brand-primary)]/20">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[70]">
               <SelectItem value="__all__">Todos</SelectItem>
               <SelectItem value="activo">Activo</SelectItem>
               <SelectItem value="inactivo">Inactivo</SelectItem>
@@ -103,7 +103,7 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
             <SelectTrigger className="h-11 bg-card/50 border-border focus:border-[var(--brand-primary)] focus:ring-[var(--brand-primary)]/20">
               <SelectValue placeholder="Todos los municipios" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[70]">
               <SelectItem value="__all__">Todos</SelectItem>
               {municipios.map(m => (
                 <SelectItem key={m.id} value={m.id}>{m.nombre}</SelectItem>
@@ -119,7 +119,7 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
             <SelectTrigger className="h-11 bg-card/50 border-border focus:border-[var(--brand-primary)] focus:ring-[var(--brand-primary)]/20">
               <SelectValue placeholder="Todas las parroquias" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[70]">
               <SelectItem value="__all__">Todas</SelectItem>
               {parroquiasFiltradas.map(p => (
                 <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
