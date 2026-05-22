@@ -37,6 +37,23 @@ type Grupo = {
   estado_temporal?: 'actual' | 'pasado' | 'futuro'
 }
 
+type SearchParamsLike = Pick<URLSearchParams, 'get'>
+
+function getEstadoFiltro(value: string | null): FiltrosGruposState['estado'] {
+  if (value === 'activo' || value === 'inactivo' || value === 'eliminado') return value
+  return undefined
+}
+
+function getFiltrosFromSearchParams(sp: SearchParamsLike | null): FiltrosGruposState {
+  return {
+    segmentoId: sp?.get('segmentoId') || undefined,
+    temporadaId: sp?.get('temporadaId') || undefined,
+    estado: getEstadoFiltro(sp?.get('estado') || null),
+    municipioId: sp?.get('municipioId') || undefined,
+    parroquiaId: sp?.get('parroquiaId') || undefined,
+  }
+}
+
 // Helper: color por segmento (misma lógica que en server, mantenida aquí para client)
 const SEGMENTO_COLOR_MAP: Record<string, string> = {
   WaumbaLand: "bg-amber-100 text-amber-800 border-amber-200",
@@ -122,7 +139,7 @@ export default function GruposListClient({
   const router = useRouter()
   const pathname = usePathname()
   const sp = useSearchParams()
-  const [filtros, setFiltros] = useState<FiltrosGruposState>({})
+  const filtros = useMemo(() => getFiltrosFromSearchParams(sp), [sp])
   const [mostrarTodosKpis, setMostrarTodosKpis] = useState(false)
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
@@ -220,8 +237,6 @@ export default function GruposListClient({
     return internalGrupos
   }, [internalGrupos])
 
-  const onFiltrosChange = useCallback((f: FiltrosGruposState) => setFiltros(f), [])
-
   const gruposActuales = useMemo(() => (preActuales && preActuales.length > 0) ? preActuales : internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'actual'), [preActuales, internalGrupos])
   const gruposPasados = useMemo(() => (prePasados && prePasados.length > 0) ? prePasados : internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'pasado'), [prePasados, internalGrupos])
   const gruposFuturos = useMemo(() => (preFuturos && preFuturos.length > 0) ? preFuturos : internalGrupos.filter(g => g.estado_temporal === 'futuro'), [preFuturos, internalGrupos])
@@ -297,6 +312,27 @@ export default function GruposListClient({
       pestanaActiva === 'pasados' ? 'page_pasados' :
         pestanaActiva === 'mios' ? 'page_mios' : 'page_futuros'
   ), [pestanaActiva])
+
+  const onFiltrosChange = useCallback((f: FiltrosGruposState) => {
+    const current = new URLSearchParams(sp?.toString() || '')
+    const next = new URLSearchParams(current.toString())
+    const setOrDel = (k: string, v?: string) => {
+      if (v) next.set(k, v)
+      else next.delete(k)
+    }
+
+    setOrDel('segmentoId', f.segmentoId)
+    setOrDel('temporadaId', f.temporadaId)
+    setOrDel('estado', f.estado)
+    setOrDel('municipioId', f.municipioId)
+    setOrDel('parroquiaId', f.parroquiaId)
+    next.delete('page')
+    next.set(pageParam, '1')
+
+    if (next.toString() !== current.toString()) {
+      router.replace(`${pathname}?${next.toString()}`)
+    }
+  }, [pageParam, pathname, router, sp])
 
   function Listado({ lista }: { lista: Grupo[] }) {
     return (
@@ -593,56 +629,6 @@ export default function GruposListClient({
     }
   };
 
-  // Sincronizar filtros con la URL
-  useEffect(() => {
-    // Sincroniza filtros en la URL pero SOLO toca 'page' si realmente cambió algún filtro
-    const current = new URLSearchParams(sp?.toString() || '')
-    const prevKey = JSON.stringify([
-      current.get('segmentoId'),
-      current.get('temporadaId'),
-      current.get('estado'),
-      current.get('municipioId'),
-      current.get('parroquiaId'),
-    ])
-    const next = new URLSearchParams(current.toString())
-    const setOrDel = (k: string, v?: string) => {
-      if (v) next.set(k, v)
-      else next.delete(k)
-    }
-    setOrDel('segmentoId', filtros.segmentoId)
-    setOrDel('temporadaId', filtros.temporadaId)
-    setOrDel('estado', filtros.estado)
-    setOrDel('municipioId', filtros.municipioId)
-    setOrDel('parroquiaId', filtros.parroquiaId)
-    const nextKey = JSON.stringify([
-      next.get('segmentoId'),
-      next.get('temporadaId'),
-      next.get('estado'),
-      next.get('municipioId'),
-      next.get('parroquiaId'),
-    ])
-    // Si los filtros cambiaron, resetear page a 1
-    if (prevKey !== nextKey) {
-      next.delete('page')
-    }
-    // Evitar navegación redundante
-    if (next.toString() !== current.toString()) {
-      router.replace(`${pathname}?${next.toString()}`)
-    }
-  }, [filtros, router, pathname, sp])
-
-  // Inicializar filtros desde URL al cargar
-  useEffect(() => {
-    setFiltros({
-      segmentoId: sp?.get('segmentoId') || undefined,
-      temporadaId: sp?.get('temporadaId') || undefined,
-      estado: (sp?.get('estado') as 'activo' | 'inactivo' | 'eliminado' | undefined) || undefined,
-      municipioId: sp?.get('municipioId') || undefined,
-      parroquiaId: sp?.get('parroquiaId') || undefined,
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   // KPIs dinámicos según filtros
   // KPIs siempre muestran totales de la pestaña actual (temporada), sin filtros del panel
   const baseKpi = useMemo(() => {
@@ -870,4 +856,3 @@ function PaginationControls({ totalCount, pageSize, pageParam }: { totalCount: n
     </div>
   ) : null
 }
-
