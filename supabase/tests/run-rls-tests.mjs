@@ -26,10 +26,19 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABAS
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const RLS_TEST_TAG = process.env.RLS_TEST_TAG || null
+const RLS_ENV = process.env.RLS_ENV || 'unknown'
+const ALLOW_MUTATING_RLS_TESTS = process.env.ALLOW_MUTATING_RLS_TESTS === 'true'
+const TEST_RUN_ID = process.env.GITHUB_RUN_ID || `local-${Date.now()}`
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
   console.error('❌ Missing required environment variables:')
   console.error('   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  process.exit(1)
+}
+
+if (RLS_ENV !== 'staging') {
+  console.error('❌ RLS tests are blocked outside staging environment.')
+  console.error(`   Current RLS_ENV='${RLS_ENV}'. Set RLS_ENV=staging to run.`)
   process.exit(1)
 }
 
@@ -53,6 +62,9 @@ export function createTestContext() {
     createClient: (url, key) => createClient(url, key),
     serviceRoleKey: SERVICE_ROLE_KEY,
     anonKey: ANON_KEY,
+    rlsEnv: RLS_ENV,
+    allowMutating: ALLOW_MUTATING_RLS_TESTS,
+    testRunId: TEST_RUN_ID,
   }
 }
 

@@ -4,7 +4,15 @@
  * Tests that Row Level Security policies correctly restrict
  * data access based on user roles (anon, authenticated, admin).
  */
-import { describe, expect, createTestContext } from './run-rls-tests.mjs'
+import { describe, expect } from './run-rls-tests.mjs'
+
+function requireMutatingEnabled(ctx, testName) {
+  if (!ctx.allowMutating) {
+    console.log(`      ⏭️  Skipped mutating test '${testName}' (ALLOW_MUTATING_RLS_TESTS=false)`)
+    return false
+  }
+  return true
+}
 
 // ─── grupos / tipos_grupo ─────────────────────────────────────────────────
 
@@ -12,20 +20,24 @@ describe('RLS: tipos_grupo', ({ it, before, after }) => {
   const TEST_TABLE = 'tipos_grupo'
 
   it('anon user cannot insert into tipos_grupo', async (ctx) => {
+    if (!requireMutatingEnabled(ctx, 'anon user cannot insert into tipos_grupo')) return
+    const marker = `rls-${ctx.testRunId}`
     const { error } = await ctx.anon
       .from(TEST_TABLE)
-      .insert({ nombre: 'rls-test-tipo', activo: true })
+      .insert({ nombre: marker, activo: true })
     if (!error) {
-      // Cleanup if accidentally inserted
-      await ctx.admin.from(TEST_TABLE).delete({ nombre: 'rls-test-tipo' })
+      // Cleanup if accidentally inserted (STRICTLY FILTERED)
+      await ctx.admin.from(TEST_TABLE).delete({ count: 'exact' }).eq('nombre', marker)
       throw new Error('Expected insert to be denied by RLS, but it succeeded')
     }
   }, ['grupos', 'write'])
 
   it('anon user cannot delete from tipos_grupo', async (ctx) => {
+    if (!requireMutatingEnabled(ctx, 'anon user cannot delete from tipos_grupo')) return
     const { error, count } = await ctx.anon
       .from(TEST_TABLE)
-      .delete({ nombre: 'rls-test-nonexistent' })
+      .delete({ count: 'exact' })
+      .eq('nombre', `rls-nonexistent-${ctx.testRunId}`)
     // RLS may return success with 0 rows deleted instead of error
     // Either way, the key check is that no actual data was deleted
     if (error) {
@@ -69,11 +81,13 @@ describe('RLS: casas_anfitrionas', ({ it, before, after }) => {
   }, ['casas', 'read'])
 
   it('anon user cannot insert into casas_anfitrionas', async (ctx) => {
+    if (!requireMutatingEnabled(ctx, 'anon user cannot insert into casas_anfitrionas')) return
+    const marker = `rls-${ctx.testRunId}`
     const { error } = await ctx.anon
       .from(TEST_TABLE)
-      .insert({ nombre: 'rls-test-casa', direccion: 'test' })
+      .insert({ nombre: marker, direccion: 'test' })
     if (!error) {
-      await ctx.admin.from(TEST_TABLE).delete({ nombre: 'rls-test-casa' })
+      await ctx.admin.from(TEST_TABLE).delete({ count: 'exact' }).eq('nombre', marker)
       throw new Error('Expected insert to be denied by RLS, but it succeeded')
     }
   }, ['casas', 'write'])
@@ -85,6 +99,7 @@ describe('RLS: configuracion_plataforma', ({ it, before, after }) => {
   const TEST_TABLE = 'configuracion_plataforma'
 
   it('anon user cannot update configuracion_plataforma', async (ctx) => {
+    if (!requireMutatingEnabled(ctx, 'anon user cannot update configuracion_plataforma')) return
     const { error } = await ctx.anon
       .from('configuracion_plataforma')
       .update({ valor: 'rls-test-hacked' })
@@ -95,9 +110,11 @@ describe('RLS: configuracion_plataforma', ({ it, before, after }) => {
   }, ['config', 'write'])
 
   it('anon user cannot delete from configuracion_plataforma', async (ctx) => {
+    if (!requireMutatingEnabled(ctx, 'anon user cannot delete from configuracion_plataforma')) return
     const { error } = await ctx.anon
       .from('configuracion_plataforma')
-      .delete({ clave: 'nonexistent' })
+      .delete({ count: 'exact' })
+      .eq('clave', `rls-nonexistent-${ctx.testRunId}`)
     if (!error) {
       throw new Error('Expected delete to be denied by RLS, but it succeeded')
     }
@@ -110,20 +127,24 @@ describe('RLS: dg_directores_etapa', ({ it, before, after }) => {
   const TEST_TABLE = 'dg_directores_etapa'
 
   it('anon user cannot insert into dg_directores_etapa', async (ctx) => {
+    if (!requireMutatingEnabled(ctx, 'anon user cannot insert into dg_directores_etapa')) return
     const { error } = await ctx.anon
       .from('dg_directores_etapa')
       .insert({ usuario_id: '00000000-0000-0000-0000-000000000000', segmento_id: '00000000-0000-0000-0000-000000000000' })
     if (!error) {
       await ctx.admin.from('dg_directores_etapa')
-        .delete({ usuario_id: '00000000-0000-0000-0000-000000000000' })
+        .delete({ count: 'exact' })
+        .eq('usuario_id', '00000000-0000-0000-0000-000000000000')
       throw new Error('Expected insert to be denied by RLS, but it succeeded')
     }
   }, ['directores', 'write'])
 
   it('anon user cannot delete from dg_directores_etapa', async (ctx) => {
+    if (!requireMutatingEnabled(ctx, 'anon user cannot delete from dg_directores_etapa')) return
     const { error, count } = await ctx.anon
       .from('dg_directores_etapa')
-      .delete({ usuario_id: '00000000-0000-0000-0000-000000000000' })
+      .delete({ count: 'exact' })
+      .eq('usuario_id', '00000000-0000-0000-0000-000000000000')
     if (error) {
       // RLS blocked entirely — good
     } else if (count === 0) {
@@ -140,12 +161,14 @@ describe('RLS: solicitudes_grupo', ({ it, before, after }) => {
   const TEST_TABLE = 'solicitudes_grupo'
 
   it('anon user cannot insert solicitudes_grupo', async (ctx) => {
+    if (!requireMutatingEnabled(ctx, 'anon user cannot insert solicitudes_grupo')) return
     const { error } = await ctx.anon
       .from('solicitudes_grupo')
       .insert({ grupo_id: '00000000-0000-0000-0000-000000000000', usuario_id: '00000000-0000-0000-0000-000000000000' })
     if (!error) {
       await ctx.admin.from('solicitudes_grupo')
-        .delete({ grupo_id: '00000000-0000-0000-0000-000000000000' })
+        .delete({ count: 'exact' })
+        .eq('grupo_id', '00000000-0000-0000-0000-000000000000')
       throw new Error('Expected insert to be denied by RLS, but it succeeded')
     }
   }, ['solicitudes', 'write'])
