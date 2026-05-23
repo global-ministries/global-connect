@@ -56,7 +56,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ segmentoId: str
 
     // Obtener grupos del segmento con temporada y estado activo
     const clientLectura = (esSuperior || esDE) ? supabaseAdmin : supabase
-    let query = clientLectura.from('grupos')
+    const query = clientLectura.from('grupos')
       .select('id, nombre, segmento_id, segmento_ubicacion_id, activo, temporada:temporada_id (nombre)')
       .eq('segmento_id', segmentoId)
       .limit(500)
@@ -67,7 +67,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ segmentoId: str
     if (gruposErr) return NextResponse.json({ error: gruposErr.message }, { status: 400 })
   const baseGrupos = (gruposData||[]).filter(g => !soloAsignados || asignadosSet.has(g.id))
   const grupoIds = baseGrupos.map(g => g.id)
-  let countsMap = new Map<string, { count: number; sample: string[] }>()
+  const countsMap = new Map<string, { count: number; sample: string[] }>()
   if (grupoIds.length) {
       // Obtener conteo de directores por grupo (hasta 3 nombres de muestra) usando una sola consulta agregada
       const { data: rels, error: relsErr } = await clientLectura
@@ -77,7 +77,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ segmentoId: str
         .limit(2000)
       if (!relsErr && rels) {
         const dirIds = [...new Set(rels.map(r => r.director_etapa_id))]
-        let nombresMap = new Map<string, string>()
+        const nombresMap = new Map<string, string>()
         if (dirIds.length) {
           const { data: dirsData } = await clientLectura
             .from('segmento_lideres')
@@ -106,7 +106,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ segmentoId: str
     // grupoIds ya declarado anteriormente
 
     // Obtener miembros (para contar y detectar líderes) en lote
-  let miembrosMap = new Map<string, { miembros: number; lideres: string[] }>()
+  const miembrosMap = new Map<string, { miembros: number; lideres: string[] }>()
   if (grupoIds.length) {
       // Paso 1: obtener filas base sin embed para evitar ambigüedad
       const { data: miembrosBase, error: miembrosErr } = await supabaseAdmin
@@ -136,7 +136,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ segmentoId: str
         }
         // Fetch solo usuarios líderes
         const liderIds = [...liderIdsSet]
-        let nombresMap = new Map<string, string>()
+        const nombresMap = new Map<string, string>()
         if (liderIds.length) {
           const chunkSize = 500
           for (let i=0; i<liderIds.length; i+=chunkSize) {

@@ -29,7 +29,7 @@ serve(async (req) => {
     );
 
     // 3. Buscar usuario preexistente por email o cÃ©dula (si la cÃ©dula no estÃ¡ vacÃ­a)
-    let query = supabase
+    const query = supabase
       .from("usuarios")
       .select("id")
       .or(

@@ -111,20 +111,20 @@ async function run() {
   await clearDirectorAsignaciones(director.id);
   // Asignar primera
   await assignCiudad(director.id, ciudadA.id);
-  let { data: afterA } = await admin.from('director_etapa_ubicaciones').select('*').eq('director_etapa_id', director.id);
+  const { data: afterA } = await admin.from('director_etapa_ubicaciones').select('*').eq('director_etapa_id', director.id);
   record('Asignación inicial única', afterA?.length===1 && afterA[0].segmento_ubicacion_id===ciudadA.id, afterA?.length+' filas');
   // Reasignar a segunda (debe reemplazar, no duplicar)
   await assignCiudad(director.id, ciudadB.id);
-  let { data: afterB } = await admin.from('director_etapa_ubicaciones').select('*').eq('director_etapa_id', director.id);
+  const { data: afterB } = await admin.from('director_etapa_ubicaciones').select('*').eq('director_etapa_id', director.id);
   record('Reemplazo ciudad (sin duplicados)', afterB?.length===1 && afterB[0].segmento_ubicacion_id===ciudadB.id, afterB?.length+' filas');
   // Reasignar misma segunda (idempotencia)
   await assignCiudad(director.id, ciudadB.id);
-  let { data: afterB2 } = await admin.from('director_etapa_ubicaciones').select('*').eq('director_etapa_id', director.id);
+  const { data: afterB2 } = await admin.from('director_etapa_ubicaciones').select('*').eq('director_etapa_id', director.id);
   record('Idempotencia re-asignación misma ciudad', afterB2?.length===1 && afterB2[0].segmento_ubicacion_id===ciudadB.id);
   // Quitar
   const { error: delErr } = await admin.from('director_etapa_ubicaciones').delete().eq('director_etapa_id', director.id);
   record('Quitar ciudad deja cero filas', !delErr);
-  let { data: afterDel } = await admin.from('director_etapa_ubicaciones').select('*').eq('director_etapa_id', director.id);
+  const { data: afterDel } = await admin.from('director_etapa_ubicaciones').select('*').eq('director_etapa_id', director.id);
   record('Validar cero filas tras quitar', afterDel?.length===0, afterDel?.length+' filas');
 
   // Grupo sólo una ciudad (columna única): creamos grupo temporal

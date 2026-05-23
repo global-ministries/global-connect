@@ -124,7 +124,7 @@ async function seed() {
 
   // Segmento
   const segmentoNombre = 'Segmento Test Permisos';
-  let { data: segExists, error: segSelErr } = await admin.from('segmentos').select('id').eq('nombre', segmentoNombre).limit(1);
+  const { data: segExists, error: segSelErr } = await admin.from('segmentos').select('id').eq('nombre', segmentoNombre).limit(1);
   if (segSelErr) throw new Error('Error buscando segmento: ' + segSelErr.message);
   if (segExists && segExists.length) {
     state.segmento = segExists[0].id;
@@ -136,7 +136,7 @@ async function seed() {
 
   // Temporada activa mínima
   const temporadaNombre = 'Temp Test';
-  let { data: tempExists, error: tempSelErr } = await admin.from('temporadas').select('id').eq('nombre', temporadaNombre).limit(1);
+  const { data: tempExists, error: tempSelErr } = await admin.from('temporadas').select('id').eq('nombre', temporadaNombre).limit(1);
   if (tempSelErr) throw new Error('Error buscando temporada: '+ tempSelErr.message);
   if (tempExists && tempExists.length) {
     state.temporada = tempExists[0].id;

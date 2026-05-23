@@ -348,7 +348,7 @@ export async function listarSolicitudesCompletadas(): Promise<
   // Enriquecer con líder, director y campus
   const grupoIds = (data ?? []).map(s => s.grupo_id).filter(Boolean);
 
-  let grupoMap = new Map<string, {
+  const grupoMap = new Map<string, {
     campus: { nombre: string } | null;
     grupo_miembros: Array<{ rol: string; usuario: { nombre: string; apellido: string } | null }>;
     director_etapa_grupos: Array<{ segmento_lideres: { usuario: { nombre: string; apellido: string } | null } | null }>;
@@ -609,7 +609,7 @@ export async function obtenerMisSolicitudes(): Promise<Res<MiSolicitud[]>> {
     director_etapa_grupos: Array<{ segmento_lideres: { usuario: { nombre: string; apellido: string } | null } | null }>;
   };
 
-  let grupoDetalles: Map<string, GrupoDetalle> = new Map();
+  const grupoDetalles: Map<string, GrupoDetalle> = new Map();
   
   if (grupoIds.length > 0) {
     const { data: grupos } = await adminDb

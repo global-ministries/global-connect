@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
         const apellido = partes.length > 1 ? partes.pop()! : ''
         const nombre = partes.join(' ') || apellido
         const rolCsv = (rolRaw || 'Miembro').toLowerCase()
-        let rol: 'Líder' | 'Miembro' = rolCsv.startsWith('lider') ? 'Líder' : 'Miembro'
+        const rol: 'Líder' | 'Miembro' = rolCsv.startsWith('lider') ? 'Líder' : 'Miembro'
 
         // Buscar usuario por cédula primero, luego por nombre+apellido
         let usuarioId: string | null = null

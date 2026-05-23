@@ -36,7 +36,7 @@ export function useSegmentDirectors(segmentoId: string | null): UseSegmentDirect
 
       // Ciudades + directores (vista extendida)
       const resCities = await fetch(`/api/segmentos/${segmentoId}/directores-etapa/ubicaciones`)
-      let mapCiudades: Record<string, string[] | undefined> = {}
+      const mapCiudades: Record<string, string[] | undefined> = {}
       if (resCities.ok) {
         const jsonCities = await resCities.json()
         for (const d of jsonCities.directores || []) {

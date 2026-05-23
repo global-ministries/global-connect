@@ -45,7 +45,7 @@ export default async function SegmentoDetallePage({ params }: Props) {
 
 	// Cargar preview de directores (sin límite) y agrupar cónyuges
 	let directoresPreview: Array<{ id: string; usuario_id: string; nombre: string; apellido: string; email?: string | null; foto?: string | null }> = []
-	let directoresAgrupados: Array<{ usuarios: Array<{ usuario_id: string; nombre: string; apellido: string; email?: string | null; foto?: string | null }> }> = []
+	const directoresAgrupados: Array<{ usuarios: Array<{ usuario_id: string; nombre: string; apellido: string; email?: string | null; foto?: string | null }> }> = []
 	{
 		// Obtener IDs de directores del segmento
 		const { data: filasBase, error: baseErr } = await supabase
@@ -61,7 +61,7 @@ export default async function SegmentoDetallePage({ params }: Props) {
 		let registros: any[] = []
 		if (filasBase && filasBase.length > 0) {
 			const usuarioIds = [...new Set(filasBase.map(f => f.usuario_id))]
-			let usuariosMap = new Map<string, { nombre: string; apellido: string; email?: string | null; foto_perfil_url?: string | null }>()
+			const usuariosMap = new Map<string, { nombre: string; apellido: string; email?: string | null; foto_perfil_url?: string | null }>()
 
 			if (usuarioIds.length > 0) {
 				// Usar admin client para obtener datos de usuarios (bypass RLS para mostrar nombres)
@@ -107,7 +107,7 @@ export default async function SegmentoDetallePage({ params }: Props) {
 
 		// Agrupar cónyuges entre los directores
 		const idsDirectores = [...new Set(directoresPreview.map(d => d.usuario_id))]
-		let parejas = new Map<string, string>()
+		const parejas = new Map<string, string>()
 		if (idsDirectores.length > 0) {
 			try {
 				const idsCSV = idsDirectores.map(id => `"${id}"`).join(',')

@@ -67,7 +67,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   const esMatrimonios = segmentoNombre.toLowerCase().includes('matrimonio')
 
   // Obtener relaciones de cónyuges para grupos de matrimonios
-  let conyugeMap: Record<string, string> = {}
+  const conyugeMap: Record<string, string> = {}
   if (esMatrimonios) {
     const miembroIds = (Array.isArray(asistenciaRes.data) ? asistenciaRes.data as AsistenciaRPCRow[] : []).map(r => r.usuario_id ?? r.id ?? '')
     const { data: relaciones } = await supabase

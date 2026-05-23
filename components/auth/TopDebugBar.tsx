@@ -14,6 +14,22 @@ export default function TopDebugBar() {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const isAdminOrPastor = useMemo(() => roles.some(r => ["admin", "pastor"].includes(r)), [roles]);
 
+  async function fetchRoles(authId?: string | null) {
+    const id = authId ?? (await supabase.auth.getUser()).data.user?.id;
+    if (!id) return setRoles([]);
+    const { data, error } = await supabase.rpc("obtener_roles_usuario", { p_auth_id: id });
+    if (error) return setRoles([]);
+    const parsed: string[] = Array.isArray(data) ? data.map((r: any) => (typeof r === "string" ? r : r?.nombre_interno)).filter(Boolean) : [];
+    setRoles(parsed);
+  }
+
+  async function fetchAllRoles() {
+    const res = await fetch("/api/debug/roles", { cache: "no-store" });
+    if (!res.ok) return;
+    const json = await res.json();
+    setAllRoles(json.roles || []);
+  }
+
   useEffect(() => {
     let mounted = true;
     supabase.auth.getUser().then(({ data }) => {
@@ -31,24 +47,7 @@ export default function TopDebugBar() {
       mounted = false;
       sub?.subscription.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function fetchRoles(authId?: string | null) {
-    const id = authId ?? (await supabase.auth.getUser()).data.user?.id;
-    if (!id) return setRoles([]);
-    const { data, error } = await supabase.rpc("obtener_roles_usuario", { p_auth_id: id });
-    if (error) return setRoles([]);
-    const parsed: string[] = Array.isArray(data) ? data.map((r: any) => (typeof r === "string" ? r : r?.nombre_interno)).filter(Boolean) : [];
-    setRoles(parsed);
-  }
-
-  async function fetchAllRoles() {
-    const res = await fetch("/api/debug/roles", { cache: "no-store" });
-    if (!res.ok) return;
-    const json = await res.json();
-    setAllRoles(json.roles || []);
-  }
 
   async function onChangeRole() {
     if (!selected) return;

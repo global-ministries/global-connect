@@ -7,11 +7,11 @@
  */
 // Ejecutar con: pnpm run test:rpc:asistencia
 // Usamos CommonJS para evitar problemas de ESM al invocar ts-node.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const { createClient } = require('@supabase/supabase-js')
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const { z } = require('zod')
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+ 
 const fs = require('fs')
 const path = require('path')
 
@@ -78,7 +78,7 @@ const listaEventoSchema = z.object({
 
 async function main() {
   // Detectar un grupo y un miembro existente
-  let miembroRes = await supabase.from('grupo_miembros').select('usuario_id, grupo_id, usuarios:usuario_id(auth_id)').limit(1)
+  const miembroRes = await supabase.from('grupo_miembros').select('usuario_id, grupo_id, usuarios:usuario_id(auth_id)').limit(1)
   let usuarioId: string
   let grupoId: string
   let authId: string

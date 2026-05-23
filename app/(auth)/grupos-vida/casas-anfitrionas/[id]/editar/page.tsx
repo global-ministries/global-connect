@@ -139,7 +139,7 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
     const tieneRolGestion = roles.some((r) => ROLES_GESTION.includes(r));
 
     // Cargar miembros si tiene rol de gestión
-    let usuariosOptions: { value: string; label: string }[] = [];
+    const usuariosOptions: { value: string; label: string }[] = [];
     if (tieneRolGestion && currentUser) {
         const admin = createSupabaseAdminClient();
         const esAdmin = roles.some((r: string) => ["admin", "pastor", "director-general", "director-etapa"].includes(r));

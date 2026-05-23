@@ -10,7 +10,7 @@ export async function getUserWithRoles(supabase: SupabaseClient) {
   if (errorRoles || !rolesData) return { user, roles: [] };
 
   // rolesData puede ser array de strings o de objetos
-  let roles = Array.isArray(rolesData)
+  const roles = Array.isArray(rolesData)
     ? rolesData.map(r => typeof r === "string" ? r : r.nombre_interno).filter(Boolean)
     : [];
 
