@@ -10,7 +10,7 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
-  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '<rootDir>/supabase/'],
   collectCoverageFrom: [
     'lib/actions/**/*.ts',
     'lib/supabase/**/*.ts',
@@ -18,6 +18,16 @@ const config: Config = {
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
+  // Coverage thresholds — baseline from current coverage.
+  // TODO: increase these as more tests are written. Target: 60%+ on all metrics.
+  coverageThreshold: {
+    global: {
+      statements: 0.1,
+      branches: 3,
+      functions: 1,
+      lines: 0.1,
+    },
+  },
 }
 
 export default createJestConfig(config)

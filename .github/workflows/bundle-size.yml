@@ -1,0 +1,52 @@
+name: Bundle Size
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  bundle-size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+        run: pnpm build
+
+      - name: Analyze bundle size
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "❌ Build did not produce .next directory"
+            exit 1
+          fi
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Bundle Size Report"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          du -sh .next/static/ 2>/dev/null || echo "Could not measure .next/static"
+          du -sh .next/server/ 2>/dev/null || echo "Could not measure .next/server"
+          echo ""
+          echo "🔍 Largest JS chunks (>50KB):"
+          find .next/static/chunks -name "*.js" -size +50k 2>/dev/null | \
+            while read f; do
+              size=$(du -h "$f" | cut -f1)
+              echo "   $size  $(basename "$f")"
+            done | sort -rh || echo "No large chunks found"
+          echo ""
+          echo "🔍 Largest CSS files (>20KB):"
+          find .next/static/css -name "*.css" -size +20k 2>/dev/null | \
+            while read f; do
+              size=$(du -h "$f" | cut -f1)
+              echo "   $size  $(basename "$f")"
+            done | sort -rh || echo "No large CSS found"

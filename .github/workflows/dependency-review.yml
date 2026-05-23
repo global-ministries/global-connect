@@ -1,0 +1,23 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          # Fail on high or critical vulnerabilities in new dependencies
+          fail-on-severity: high
+          # Deny copyleft licenses — these require source disclosure
+          deny-licenses: |
+            GPL-3.0
+            AGPL-3.0
+            SSPL-1.0

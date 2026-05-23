@@ -46,6 +46,14 @@ yarn-error.log*
 # Build artifacts
 tsconfig.tsbuildinfo
 next-env.d.ts
+build-output.txt
+
+# Lighthouse CI
+.lighthouseci/
+
+# Agent directories
+.atl/
+.engram/
 
 # Sentry Config File
 .env.sentry-build-plugin

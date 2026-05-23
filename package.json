@@ -24,6 +24,9 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --forceExit",
+    "test:rls": "node supabase/tests/run-rls-tests.mjs",
+    "lint:migrations": "node supabase/tests/lint-migrations.mjs",
+    "lint:edge-functions": "for dir in supabase/functions/*/; do func=$(basename \"$dir\"); echo \"Checking: $func\" && deno check \"$dir/index.ts\"; done",
     "email:dev": "npx react-email dev --dir emails --port 3001"
   },
   "dependencies": {
@@ -91,6 +94,8 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@eslint/eslintrc": "^3.3.5",
     "@react-email/preview-server": "5.2.9",
     "@react-email/render": "^2.0.8",
@@ -105,8 +110,10 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.35.0",
     "eslint-config-next": "16.2.6",
+    "eslint-plugin-security": "^4.0.0",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
+    "license-checker": "^25.0.1",
     "postcss": "^8.5.14",
     "supabase": "^2.34.3",
     "tailwindcss": "^4.3.0",

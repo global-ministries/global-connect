@@ -3,16 +3,18 @@ name: Deploy Supabase Edge Function
 on:
   push:
     branches:
-      - main  # Se activa solo cuando subes cambios a la rama 'main'
+      - main
     paths:
-      - 'supabase/functions/handle-new-user/**' # Se activa solo si hay cambios en la función
+      - 'supabase/functions/handle-new-user/**'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Require the CI workflow to have passed on this commit before deploying
+    environment: production
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1

@@ -1,0 +1,32 @@
+# Gitleaks configuration for global-connect
+# https://gitleaks.io/docs/configuration
+
+title = "Gitleaks config for global-connect"
+
+# Extend the default ruleset so we don't lose built-in detectors
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Global allowlist for false positives"
+  paths = [
+    # Test files use mock/fake credentials
+    '''__tests__\/.*$''',
+    # CI workflow files use placeholder values
+    '''\.github\/workflows\/.*$''',
+  ]
+  regexes = [
+    # Placeholder values in CI workflows and .env.example
+    '''placeholder-anon-key''',
+    '''placeholder\.supabase\.co''',
+    # Test mock values
+    '''test-anon-key''',
+    '''test-service-role-key''',
+    '''https://test\.supabase\.co''',
+  ]
+
+[[rules]]
+  id = "supabase-service-role-key"
+  description = "Supabase Service Role Key"
+  regex = '''sb_service_role_[a-zA-Z0-9]{40,}'''
+  tags = ["key", "supabase"]

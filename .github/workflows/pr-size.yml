@@ -1,0 +1,79 @@
+name: PR Size Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  size-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check PR size and comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: diff } = await github.rest.repos.compareCommitsWithBasehead({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              basehead: `${{ github.base_ref }}...${{ github.head_ref }}`
+            });
+
+            const total = (diff.files || []).reduce((sum, f) => sum + f.changes, 0);
+
+            let emoji, label, action;
+            if (total > 800) {
+              emoji = '❌'; label = 'Too large'; action = 'fail';
+            } else if (total > 400) {
+              emoji = '🟠'; label = 'Large'; action = 'warn';
+            } else if (total > 200) {
+              emoji = '🟡'; label = 'Medium'; action = 'pass';
+            } else {
+              emoji = '✅'; label = 'Small'; action = 'pass';
+            }
+
+            const body = [
+              `${emoji} **PR Size: ${label}** (${total} changed lines)`,
+              '',
+              total > 400 ? '⚠️ Consider splitting this PR into smaller, focused changes.' : '',
+              '',
+              '📏 Size guide:',
+              '  • 0–200 lines ✅ Small',
+              '  • 200–400 lines 🟡 Medium',
+              '  • 400–800 lines 🟠 Large',
+              '  • 800+ lines ❌ Too large — split into chained PRs',
+            ].filter(Boolean).join('\n');
+
+            // Find and update existing comment, or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes('**PR Size:'));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+
+            // Fail the check if too large
+            if (total > 800) {
+              core.setFailed(`PR has ${total} changed lines. Maximum recommended is 800. Split into chained PRs.`);
+            }

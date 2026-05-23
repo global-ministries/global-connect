@@ -1,0 +1,53 @@
+name: Edge Function Check
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'supabase/functions/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'supabase/functions/**'
+  workflow_dispatch:
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Edge Functions
+        run: |
+          echo "🔍 Type-checking Supabase Edge Functions..."
+          found_errors=false
+          for dir in supabase/functions/*/; do
+            func_name=$(basename "$dir")
+            echo ""
+            echo "📄 Checking: $func_name"
+            if deno check "$dir/index.ts" 2>&1; then
+              echo "  ✅ $func_name passed"
+            else
+              echo "  ❌ $func_name has type errors"
+              found_errors=true
+            fi
+          done
+          if [ "$found_errors" = true ]; then
+            echo ""
+            echo "❌ Edge function type check failed. Fix the errors above."
+            exit 1
+          fi
+          echo ""
+          echo "✅ All edge functions passed type checking."
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Lint Edge Functions
+        run: deno lint supabase/functions/
