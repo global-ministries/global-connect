@@ -20,11 +20,6 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-// ─── Import test suites ──────────────────────────────────────────────────────
-// Each test file calls describe() at module load time, registering suites.
-// They must be imported BEFORE run() executes.
-import './rls-policies.test.mjs'
-
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
@@ -61,6 +56,10 @@ export function createTestContext() {
   }
 }
 
+// ─── Test registry ─────────────────────────────────────────────────────────────
+
+export const testSuites = []
+
 /**
  * Register a test suite
  */
@@ -76,8 +75,6 @@ export function describe(name, fn) {
   fn(testFns)
   testSuites.push(suite)
 }
-
-export const testSuites = []
 
 /**
  * Assertion helpers
@@ -132,6 +129,9 @@ export function expect(result) {
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
 async function run() {
+  // Import test files dynamically so describe/testSuites are already defined
+  await import('./rls-policies.test.mjs')
+
   console.log('\n🔒 RLS Policy Tests\n')
   console.log('━'.repeat(50))
 
