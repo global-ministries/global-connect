@@ -1,12 +1,7 @@
 name: RLS Tests
 
 on:
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - 'supabase/migrations/**'
-      - 'supabase/tests/**'
-  # Manual trigger for controlled staging validation
+  # Manual trigger only for controlled staging validation
   workflow_dispatch:
 
 jobs:
