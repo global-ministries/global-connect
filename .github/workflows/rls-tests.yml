@@ -1,22 +1,21 @@
 name: RLS Tests
 
 on:
-  push:
-    branches: [main, develop]
-    paths:
-      - 'supabase/migrations/**'
-      - 'supabase/tests/**'
   pull_request:
     branches: [main, develop]
     paths:
       - 'supabase/migrations/**'
       - 'supabase/tests/**'
-  # Allow manual trigger for full validation
+  # Manual trigger for controlled staging validation
   workflow_dispatch:
 
 jobs:
   rls-tests:
     runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: rls-tests-staging
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -30,7 +29,7 @@ jobs:
 
       - name: Run RLS Policy Tests
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL_STAGING }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY_STAGING }}
         run: node supabase/tests/run-rls-tests.mjs
