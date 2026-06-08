@@ -56,5 +56,9 @@ build-output.txt
 .engram/
 .pi/
 
+# Local commercial artifacts
+generate_proposal.py
+Propuesta_Comercial_GlobalConnect.docx
+
 # Sentry Config File
 .env.sentry-build-plugin
