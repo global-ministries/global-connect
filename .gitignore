@@ -56,6 +56,9 @@ build-output.txt
 .engram/
 .pi/
 
+# Local agent config
+opencode.json
+
 # Local commercial artifacts
 generate_proposal.py
 Propuesta_Comercial_GlobalConnect.docx
