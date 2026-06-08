@@ -17,7 +17,4 @@ jobs:
           # Fail on high or critical vulnerabilities in new dependencies
           fail-on-severity: high
           # Deny copyleft licenses — these require source disclosure
-          deny-licenses: |
-            GPL-3.0
-            AGPL-3.0
-            SSPL-1.0
+          deny-licenses: GPL-3.0, AGPL-3.0, SSPL-1.0
