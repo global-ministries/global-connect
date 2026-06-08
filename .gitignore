@@ -54,6 +54,7 @@ build-output.txt
 # Agent directories
 .atl/
 .engram/
+.pi/
 
 # Sentry Config File
 .env.sentry-build-plugin
