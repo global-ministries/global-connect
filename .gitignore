@@ -43,6 +43,9 @@ yarn-error.log*
 /backups/
 *.bak
 
+# Generated local review/apply artifacts
+/tmp/
+
 # Build artifacts
 tsconfig.tsbuildinfo
 next-env.d.ts
