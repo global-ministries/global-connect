@@ -43,10 +43,10 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: Reporter Ticket Flow
 
-- [ ] 3.1 Create `lib/actions/support*.ts` for authenticated ticket create/list/detail/message with Zod validation and safe evidence fields.
-- [ ] 3.2 Build `app/(auth)/ayuda/**` home, report form, history, and detail with UI components.
-- [ ] 3.3 Replace Ayuda toasts in `sidebar-moderna.tsx`, `header-movil.tsx`, `menu-inferior-movil.tsx`, and `desktop-header`.
-- [ ] 3.4 Verify submit, anonymous rejection, reporter view/reply, and mobile `/ayuda` navigation.
+- [x] 3.1 Create `lib/actions/support*.ts` for authenticated ticket create/list/detail/message with Zod validation and safe evidence fields.
+- [x] 3.2 Build `app/(auth)/ayuda/**` home, report form, history, and detail with UI components.
+- [x] 3.3 Replace Ayuda toasts in `sidebar-moderna.tsx`, `header-movil.tsx`, `menu-inferior-movil.tsx`, and `desktop-header`.
+- [x] 3.4 Verify submit, anonymous rejection, reporter view/reply, and mobile `/ayuda` navigation.
 
 ## Phase 4: Support Console
 
