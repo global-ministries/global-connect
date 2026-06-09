@@ -205,6 +205,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     const ahora = Date.now()
     // Construir clave de filtros para cachear por combinación
     const filtrosKey = JSON.stringify({
+      campusId: campusId || null,
       busqueda: busquedaDebounced || '',
       roles: [...filtros.roles].sort(),
       con_email: filtros.con_email,
@@ -236,10 +237,11 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
         p_con_email: filtros.con_email ?? undefined,
         p_con_telefono: filtros.con_telefono ?? undefined,
         ...(filtros.en_grupo !== null ? { p_en_grupo: filtros.en_grupo } : {}),
+        ...(campusId ? { p_campus_id: campusId } : {}),
       })
 
       // Fallback: si el RPC no acepta parámetros extra, usar la firma antigua (solo p_auth_id)
-      if (errorRPC) {
+      if (errorRPC && !campusId) {
         const { data: data2, error: error2 } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
           p_auth_id: user.id
         })
@@ -273,7 +275,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     } finally {
       setCargandoEstadisticas(false)
     }
-  }, [supabase, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo])
+  }, [supabase, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
 
   // Efectos para cargar datos
   useEffect(() => {
@@ -287,7 +289,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setPaginaActual(1)
-  }, [busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo])
+  }, [busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
 
   // Funciones de control
   const actualizarFiltros = useCallback((nuevosFiltros: Partial<FiltrosUsuarios>) => {

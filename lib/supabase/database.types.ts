@@ -3623,32 +3623,23 @@ export type Database = {
         Returns: Json
       }
       obtener_detalle_usuario: { Args: { p_user_id: string }; Returns: Json }
-      obtener_estadisticas_usuarios_con_permisos:
-        | {
-            Args: {
-              p_auth_id: string
-              p_busqueda?: string
-              p_con_email?: boolean
-              p_con_telefono?: boolean
-              p_en_grupo?: boolean
-              p_roles_filtro?: string[]
-            }
-            Returns: {
-              con_email: number
-              con_telefono: number
-              registrados_hoy: number
-              total_usuarios: number
-            }[]
-          }
-        | {
-            Args: { p_auth_id: string; p_campus_id?: string }
-            Returns: {
-              con_email: number
-              con_telefono: number
-              registrados_hoy: number
-              total_usuarios: number
-            }[]
-          }
+      obtener_estadisticas_usuarios_con_permisos: {
+        Args: {
+          p_auth_id: string
+          p_busqueda?: string
+          p_campus_id?: string
+          p_con_email?: boolean
+          p_con_telefono?: boolean
+          p_en_grupo?: boolean
+          p_roles_filtro?: string[]
+        }
+        Returns: {
+          con_email: number
+          con_telefono: number
+          registrados_hoy: number
+          total_usuarios: number
+        }[]
+      }
       obtener_evento_grupo: {
         Args: { p_auth_id: string; p_evento_id: string }
         Returns: {

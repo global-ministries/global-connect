@@ -30,6 +30,7 @@ import {
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { FiltrosUsuarios as FiltrosUsuariosUI } from '@/components/ui/filtros-usuarios'
 import type { FiltrosUsuarios as FiltrosUsuariosType } from '@/components/ui/filtros-usuarios'
+import { useCampus } from '@/hooks/useCampus'
 
 // Funciones auxiliares
 function obtenerVarianteBadgeRol(rol?: string): "default" | "success" | "warning" | "error" | "info" {
@@ -79,6 +80,7 @@ function getRolLabel(rolInterno: string): string {
 }
 
 export default function PaginaUsuarios() {
+  const { campusId } = useCampus()
   const {
     usuarios,
     estadisticas,
@@ -90,7 +92,7 @@ export default function PaginaUsuarios() {
     recargarDatos,
     limpiarFiltros: limpiarFiltrosHook,
     cambiarPagina
-  } = useUsuariosConPermisos()
+  } = useUsuariosConPermisos({ campusId })
 
   const { roles: rolesActual } = useCurrentUser()
   const esAdmin = useMemo(() => rolesActual.includes('admin'), [rolesActual])
