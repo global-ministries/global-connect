@@ -2,7 +2,7 @@ name: PR Size Guard
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, labeled, unlabeled]
 
 jobs:
   size-check:
@@ -25,6 +25,10 @@ jobs:
             });
 
             const total = (diff.files || []).reduce((sum, f) => sum + f.changes, 0);
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            const hasSizeException = labels.includes('size:exception');
+            const isTrackerPr = context.payload.pull_request.head.ref.endsWith('-tracker');
+            const shouldFailForSize = total > 800 && !hasSizeException && !isTrackerPr;
 
             let emoji, label, action;
             if (total > 800) {
@@ -41,6 +45,8 @@ jobs:
               `${emoji} **PR Size: ${label}** (${total} changed lines)`,
               '',
               total > 400 ? '⚠️ Consider splitting this PR into smaller, focused changes.' : '',
+              hasSizeException ? '✅ `size:exception` label present — size failure is bypassed intentionally.' : '',
+              isTrackerPr ? '✅ Tracker PR detected — aggregate diff is allowed after child PR review.' : '',
               '',
               '📏 Size guide:',
               '  • 0–200 lines ✅ Small',
@@ -74,6 +80,6 @@ jobs:
             }
 
             // Fail the check if too large
-            if (total > 800) {
+            if (shouldFailForSize) {
               core.setFailed(`PR has ${total} changed lines. Maximum recommended is 800. Split into chained PRs.`);
             }
