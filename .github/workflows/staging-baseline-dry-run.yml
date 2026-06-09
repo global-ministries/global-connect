@@ -1,0 +1,30 @@
+name: Staging Repo Delta Dry Run
+
+# Post-baseline only: reviews repository migration deltas after the schema baseline exists.
+# Do not use this workflow to review or bootstrap an empty staging baseline.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+    env:
+      SUPABASE_PROJECT_REF: ebwtdjtajclzciwipevw
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_STAGING }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.34.3
+      - name: Guard staging project ref
+        run: |
+          test "$SUPABASE_PROJECT_REF" = "ebwtdjtajclzciwipevw"
+      - name: Link staging project in runner
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      - name: Show post-baseline repo migration deltas without applying them
+        run: supabase db push --dry-run
