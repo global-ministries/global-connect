@@ -10,7 +10,12 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
-  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '<rootDir>/supabase/'],
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/.next/',
+    '<rootDir>/supabase/',
+    '<rootDir>/scripts/.*\\.test\\.mjs$',
+  ],
   collectCoverageFrom: [
     'lib/actions/**/*.ts',
     'lib/supabase/**/*.ts',
