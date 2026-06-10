@@ -5,9 +5,9 @@
 - Mode: Strict TDD
 - Delivery: force-chained
 - Chain strategy: feature-branch-chain
-- Current slice: Phase 6 task 6.1 completed with repo-local Sentry privacy contract tests and no live Sentry calls. Client replay remains available only as masked/blocked integration wiring, but default session and on-error replay sampling are set to zero.
-- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 6.1
-- Latest update: Phase 6.1 hardened `instrumentation-client.ts`, `sentry.server.config.ts`, and `sentry.edge.config.ts` with shared `createSentryPrivacyOptions()` defaults: `sendDefaultPii: false`, consistent `beforeSend`/`beforeSendTransaction` scrubbing, no default replay sampling, replay text masking, media blocking, support context allowlisting to Sentry references only, request body filtering, URL query/hash stripping, sensitive header removal, user PII removal except internal user id, and `extra` dropping to avoid raw diagnostics/evidence/attachments/R2 keys/Sentry payloads/GitHub details. No live Sentry call or credential was required.
+- Current slice: Phase 6 task 6.2 completed with a non-mutating support operations runbook covering R2/Inngest/Resend envs, Sentry/support privacy, rollback, retention open questions, future sanitized GitHub boundaries, operator verification, and explicit production migration review requirements.
+- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 6.1, 6.2
+- Latest update: Phase 6.2 added `docs/support-operations.md` as the quick operational path for support release/rollback, with server-only R2 credentials, private bucket expectations, Inngest ID-only event boundary, Resend sender/link requirements, Sentry privacy confirmations, non-destructive rollback guidance, unresolved retention decisions, and a strict future GitHub sync boundary. No production Supabase mutation, live provider call, or credential access was performed.
 
 ## TDD Cycle Evidence
 
@@ -36,6 +36,7 @@
 | 5.2 | `__tests__/lib/support/inngest.test.ts` | Unit/event contract + mocked email helpers | `pnpm test -- __tests__/lib/email/support.test.tsx --runInBand` passed with 1 suite and 5 tests before edits | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` failed because `@/lib/support/inngest` did not exist | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 4 tests; focused notification regression passed with 2 suites and 9 tests; `pnpm exec tsc --noEmit` passed | 4 cases cover ID-only event payloads, Inngest deduplication IDs, normalized event-recipient email idempotency keys, safe routing to Phase 5.1 helpers, and no attachment-finalized email send in the MVP | Refined the unsafe-payload assertion to avoid falsely matching valid `support/ticket.*` event names; implementation stays dependency-free because no existing Inngest convention or `inngest` package is present in this repo |
 | 5.3 | `__tests__/lib/support/inngest.test.ts`, `__tests__/lib/email/support.test.tsx` | Unit/event contract + mocked email helpers/templates | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 4 tests before edits | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` failed because `sendSupportNotificationEmails` did not exist | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 6 tests; focused notification regression passed with 2 suites and 11 tests; `pnpm exec tsc --noEmit` passed | 2 new cases cover one email per event/normalized recipient and noisy payload stripping for evidence, attachments, R2 keys, raw Sentry, diagnostics, GitHub details, message bodies, descriptions, and long user text | Added a minimal batch helper that deduplicates normalized recipients before delegating to the single-recipient sender; no live Inngest/Resend calls were made |
 | 6.1 | `__tests__/lib/support/sentry-privacy.test.ts` | Unit/static config contract + pure scrubber behavior | Existing Sentry config had `sendDefaultPii: true`, default client replay sampling, and no privacy scrubber coverage | `pnpm test -- __tests__/lib/support/sentry-privacy.test.ts --runInBand` failed because `@/lib/support/sentry-privacy` did not exist | `pnpm test -- __tests__/lib/support/sentry-privacy.test.ts --runInBand` passed with 1 suite and 5 tests; `pnpm exec tsc --noEmit` passed | 5 cases cover config-file defaults, client replay privacy options, consistent server/edge privacy options including transaction scrubbing, absolute support URL/body/header/context/user scrubbing, and relative URL/mixed-case header/user-PII scrubbing | Extracted shared `lib/support/sentry-privacy.ts`; typed Sentry hooks generically because browser/server/edge error and transaction hooks accept narrower event subtypes |
+| 6.2 | `docs/support-operations.md` | Documentation/static operations runbook | OpenSpec task 6.2 and existing `docs/supabase-staging-baseline.md` patterns | Docs gap existed for support provider envs, rollback, retention, and GitHub boundary | `git diff --check` passed | Checklist covers R2, Inngest, Resend, Sentry/privacy, production migration review, non-destructive rollback, retention open questions, and future sanitized GitHub sync boundary | Kept this slice documentation-only; no live provider calls, production Supabase mutation, or final 6.3 verification was performed |
 
 ## Completed Tasks
 
@@ -57,6 +58,7 @@
 - [x] 5.2 Added `lib/support/inngest.ts` support event factories and notification dispatch helpers with ID-only Inngest payloads plus event-recipient email idempotency keys.
 - [x] 5.3 Verified support notification safety with repo-local mocked tests: one email per event/normalized recipient, deterministic idempotency keys, no evidence/attachments/R2 keys/raw Sentry/diagnostics/GitHub details/message bodies/long user text in queued payloads, and no attachment-finalized email in MVP.
 - [x] 6.1 Hardened Sentry client/server/edge defaults with no default PII, no default raw replay, masked/blocked replay integration options, shared `beforeSend`/`beforeSendTransaction` scrubbing, and focused static/unit coverage for support-related URL/header/body/context/user data redaction.
+- [x] 6.2 Added `docs/support-operations.md` documenting the support operations quick path, R2/Inngest/Resend environment checklist, Sentry/support privacy checks, non-destructive rollback guidance, retention open questions, future sanitized GitHub sync boundary, and operator/reviewer verification checklist.
 
 ## Staging Baseline Setup
 
@@ -152,6 +154,8 @@
 - Phase 6.1 type verification: `pnpm exec tsc --noEmit` passed.
 - Phase 6.1 diff whitespace verification: `git diff --check` passed.
 - Phase 6.1 live provider verification gap: no live Sentry call was made, no Sentry credentials were required, and replay/error delivery was verified only by local config/static/unit contracts.
+- Phase 6.2 docs/static verification: `git diff --check` passed.
+- Phase 6.2 live provider verification gap: no live Supabase, R2, Inngest, Resend, Sentry, or GitHub service call was made; this slice intentionally avoided final 6.3 verification.
 
 ## Production Safety
 
@@ -170,10 +174,10 @@
 - Phase 5.2 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Resend calls, and no live Inngest calls. Email helpers were mocked in tests, and the new Inngest contract module has no credential requirements.
 - Phase 5.3 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Resend calls, no live Inngest calls, and no real email sends. Email helpers/templates were mocked or rendered locally in tests.
 - Phase 6.1 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Sentry calls, and no Sentry credential access. Sentry behavior was validated through local config/static/unit tests only.
+- Phase 6.2 performed no Supabase production/staging mutations, no SQL execution, no live Supabase/R2/Inngest/Resend/Sentry/GitHub calls, and no credential access. Documentation states production migration application remains an explicit reviewed operation.
 - No GitHub issue sync was implemented.
 - Staging baseline docs/scripts target project ref `ebwtdjtajclzciwipevw`; old package scripts for `wcnqocyqtksxhthnquta` were blocked or replaced with staging-safe commands.
 
 ## Remaining Tasks
 
-- [ ] 6.2 Document R2/Inngest/Resend envs, rollback, retention question, and future sanitized GitHub boundary.
 - [ ] 6.3 Run `pnpm test:rls`, unit/integration suites, build/typecheck, and manual reporter/staff flows.
