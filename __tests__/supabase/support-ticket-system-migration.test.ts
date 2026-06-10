@@ -11,7 +11,12 @@ function readSupportTicketSql(): string {
   return [
     readSupportTicketMigration(),
     readMigrationBySuffix('_add_support_staff_action_rpcs.sql'),
+    readSupportStaffDirectMutationMigration(),
   ].join('\n')
+}
+
+function readSupportStaffDirectMutationMigration(): string {
+  return readMigrationBySuffix('_restrict_support_staff_direct_mutations.sql')
 }
 
 function readMigrationBySuffix(suffix: string): string {
@@ -204,5 +209,25 @@ describe('support ticket system migration', () => {
       expect(sql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC`)
       expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`)
     }
+  })
+
+  it('closes direct staff ticket updates so audited fields require RPCs', () => {
+    const sql = readSupportStaffDirectMutationMigration()
+
+    expect(sql).toContain('REVOKE UPDATE ON public.support_tickets FROM authenticated')
+    expect(sql).toContain('DROP POLICY IF EXISTS support_tickets_update ON public.support_tickets')
+    expect(sql).not.toMatch(/CREATE POLICY\s+support_tickets_update\s+ON\s+public\.support_tickets[\s\S]*support_private\.has_capability\('support\.manage'\)/i)
+    expect(sql).not.toMatch(/GRANT\s+[^;]*\bUPDATE\b[^;]*ON\s+public\.support_tickets\s+TO\s+authenticated/i)
+  })
+
+  it('keeps direct message inserts reporter-only so staff replies require the audited RPC', () => {
+    const sql = readSupportStaffDirectMutationMigration()
+    const insertPolicy = policySql(sql, 'support_messages_insert')
+
+    expect(sql).toContain('DROP POLICY IF EXISTS support_messages_insert ON public.support_ticket_messages')
+    expect(insertPolicy).toContain('author_usuario_id = support_private.current_usuario_id()')
+    expect(insertPolicy).toContain('is_internal = false')
+    expect(insertPolicy).toContain('st.reporter_usuario_id = support_private.current_usuario_id()')
+    expect(insertPolicy).not.toContain("support_private.has_capability('support.reply')")
   })
 })
