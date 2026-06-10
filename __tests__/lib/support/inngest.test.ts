@@ -5,6 +5,7 @@ import {
   createSupportTicketCreatedEvent,
   createSupportTicketMessageCreatedEvent,
   createSupportTicketStatusChangedEvent,
+  sendSupportNotificationEmails,
   sendSupportNotificationEmail,
 } from '@/lib/support/inngest'
 import {
@@ -115,6 +116,81 @@ describe('support Inngest events', () => {
     expect(createdEmailMock).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'email:event-created:reporter@example.com' }))
     expect(messageEmailMock).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'email:event-message:reporter@example.com' }))
     expect(statusEmailMock).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'email:event-status:reporter@example.com' }))
+  })
+
+  it('sends one email per support event and normalized recipient', async () => {
+    createdEmailMock.mockResolvedValue({ success: true, id: 'email-created' })
+
+    const result = await sendSupportNotificationEmails(
+      createSupportTicketCreatedEvent({ eventId: 'event-created', ticketId: 'ticket-1' }),
+      [
+        {
+          recipientEmail: 'Reporter@Example.COM',
+          recipientName: 'Isaac',
+          ticketId: 'ticket-1',
+          ticketNumber: 42,
+          title: 'Cannot open group map',
+          status: 'received',
+        },
+        {
+          recipientEmail: ' reporter@example.com ',
+          recipientName: 'Duplicate reporter',
+          ticketId: 'ticket-1',
+          ticketNumber: 42,
+          title: 'Cannot open group map',
+          status: 'received',
+        },
+        {
+          recipientEmail: 'staff@example.com',
+          ticketId: 'ticket-1',
+          ticketNumber: 42,
+          title: 'Cannot open group map',
+          status: 'received',
+        },
+      ]
+    )
+
+    expect(result).toHaveLength(2)
+    expect(createdEmailMock).toHaveBeenCalledTimes(2)
+    expect(createdEmailMock).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      recipientEmail: 'Reporter@Example.COM',
+      idempotencyKey: 'email:event-created:reporter@example.com',
+    }))
+    expect(createdEmailMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      recipientEmail: 'staff@example.com',
+      idempotencyKey: 'email:event-created:staff@example.com',
+    }))
+  })
+
+  it('drops unsafe evidence, attachment, Sentry, GitHub, and long user text from queued payloads', () => {
+    const longMessageBody = 'The user wrote private troubleshooting context. '.repeat(20)
+    const noisyCreated = createSupportTicketCreatedEvent({
+      eventId: 'event-created-noisy',
+      ticketId: 'ticket-1',
+      actorUserId: 'user-1',
+      evidence: { route: '/ayuda?token=secret', browser: 'Chrome' },
+      attachments: [{ objectKey: 'support/ticket-1/attachment-1/private.png' }],
+      rawSentryPayload: { exception: { values: [{ value: 'token=secret' }] } },
+      sentryEventId: 'sentry-event-1',
+      githubIssue: { url: 'https://github.com/org/repo/issues/1', body: 'private issue details' },
+      messageBody: longMessageBody,
+      description: longMessageBody,
+    } as Parameters<typeof createSupportTicketCreatedEvent>[0])
+
+    const noisyMessage = createSupportTicketMessageCreatedEvent({
+      eventId: 'event-message-noisy',
+      ticketId: 'ticket-1',
+      messageId: 'message-1',
+      actorUserId: 'user-2',
+      body: longMessageBody,
+      diagnostics: { viewport: '1920x1080' },
+    } as Parameters<typeof createSupportTicketMessageCreatedEvent>[0])
+
+    const queuedPayload = JSON.stringify([noisyCreated, noisyMessage])
+
+    expect(noisyCreated.data).toEqual({ eventId: 'event-created-noisy', ticketId: 'ticket-1', actorUserId: 'user-1' })
+    expect(noisyMessage.data).toEqual({ eventId: 'event-message-noisy', ticketId: 'ticket-1', messageId: 'message-1', actorUserId: 'user-2' })
+    expect(queuedPayload).not.toMatch(/evidence|attachment|objectKey|support\/ticket-1|rawSentry|sentry-event|github|private issue|messageBody|description|diagnostics|token=secret|Chrome|1920x1080|private troubleshooting/i)
   })
 
   it('does not send email for attachment-finalized events in the MVP notification slice', async () => {

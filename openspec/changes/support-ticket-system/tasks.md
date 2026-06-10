@@ -58,7 +58,7 @@ Chain strategy: feature-branch-chain
 
 - [x] 5.1 Add `emails/support-*.tsx` templates and `lib/email/**` calls with safe authenticated links only.
 - [x] 5.2 Add `lib/support/inngest*.ts` events with ID-only payloads and idempotency keys.
-- [ ] 5.3 Verify one email per event/recipient and no evidence, attachments, raw Sentry, or GitHub issues.
+- [x] 5.3 Verify one email per event/recipient and no evidence, attachments, raw Sentry, or GitHub issues.
 
 ## Phase 6: Hardening and Documentation
 
