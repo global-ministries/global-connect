@@ -5,9 +5,9 @@
 - Mode: Strict TDD
 - Delivery: force-chained
 - Chain strategy: feature-branch-chain
-- Current slice: Phase 4 task 4.2 completed with staff reply, assignment, and status transition server actions plus audit event writes; broader 4.3 verification remains pending.
+- Current slice: Phase 4 task 4.2 delivery blocker fixed by moving staff reply, assignment, and status transition RPCs out of the already-applied support migration and into a follow-up migration; broader 4.3 verification remains pending.
 - Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2
-- Latest update: Staff actions are implemented under the Phase 4 review boundary. `createStaffSupportTicketReply`, `assignSupportTicket`, and `updateSupportTicketStatus` use the authenticated server client for user identity, explicitly precheck `support.reply` or `support.manage`, then call Postgres RPCs that perform the staff mutation and `support_ticket_events` insert in one database transaction. Status saves validate the existing lifecycle statuses before the RPC call, assignment accepts a UUID assignee or `null`, and the actions revalidate ticket detail plus staff queue paths.
+- Latest update: Staff actions are implemented under the Phase 4 review boundary. `createStaffSupportTicketReply`, `assignSupportTicket`, and `updateSupportTicketStatus` use the authenticated server client for user identity, explicitly precheck `support.reply` or `support.manage`, then call Postgres RPCs that perform the staff mutation and `support_ticket_events` insert in one database transaction. The RPCs now ship in `supabase/migrations/20260610134000_add_support_staff_action_rpcs.sql` because `supabase/migrations/20260609130000_support_ticket_system.sql` is already applied to staging/main and must remain identical to `origin/main` for migration delivery correctness.
 
 ## TDD Cycle Evidence
 
@@ -30,6 +30,7 @@
 | 4.1 | `__tests__/lib/actions/support.actions.test.ts`, `__tests__/app/support-pages.test.tsx` | Unit/server action + App Router page rendering | `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/app/support-pages.test.tsx --runInBand` passed with 12/12 existing tests before changes | RED failed because `listStaffSupportTickets` was missing and `/ayuda/admin/page` did not exist | Focused GREEN passed with 2 suites and 16 tests; support regression suite passed with 6 suites and 33 tests; `pnpm exec tsc --noEmit` passed | 4 new cases cover unauthorized `support.view` denial, FTS plus status/category/campus/assignee filter construction, user-safe staff queue Supabase error mapping, and staff queue page rendering/search controls | Fixed the admin status filter to use controlled `SelectSistema value` instead of `defaultValue`, matching the design-system component contract |
 | 4.2 | `__tests__/lib/actions/support.actions.test.ts` | Unit/server action with mocked Supabase RPC client | `pnpm test -- __tests__/lib/actions/support.actions.test.ts --runInBand` passed with 11/11 existing tests before changes | RED failed because `createStaffSupportTicketReply`, `assignSupportTicket`, and `updateSupportTicketStatus` were not exported | Focused GREEN passed with 1 suite and 16 tests; support regression suite passed with 6 suites and 39 tests; `pnpm exec tsc --noEmit` passed | 5 new cases cover staff reply audit, assignment audit, invalid status rejection before update, status audit, and stable denial mapping for rejected status saves | Final review fix moved staff mutation plus audit insert into Postgres RPCs so committed staff actions have transaction-scoped immutable audit rows |
 | 4.2 review fix | `__tests__/lib/actions/support.actions.test.ts`, `__tests__/supabase/support-ticket-system-migration.test.ts` | Unit/server action + static migration contract | Fresh review verdict reported staff reply capability bypass and non-atomic mutation/audit blockers | Review blocker proved the previous split write design could allow reporter-owned ticket replies through RLS and leave mutations without audit if audit insertion failed | `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/supabase/support-ticket-system-migration.test.ts --runInBand` passed with 2 suites and 28 tests; `pnpm exec tsc --noEmit` passed | Coverage now denies direct staff replies without `support.reply` before RPC invocation, verifies staff actions call atomic RPCs, and statically asserts RPC capability gates plus audit writes | Added repo-only migration SQL; no live Supabase migration was applied |
+| 4.2 delivery blocker fix | `__tests__/supabase/support-ticket-system-migration.test.ts` | Static migration delivery contract | Fresh review verdict reported RPCs were added by editing `20260609130000_support_ticket_system.sql`, a migration already in `origin/main` and applied to staging | Supabase records migration versions, so staging/prod-like databases would not replay edits to `20260609130000`; `git diff --exit-code origin/main -- supabase/migrations/20260609130000_support_ticket_system.sql` proved the restored base migration now matches main | `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/supabase/support-ticket-system-migration.test.ts --runInBand` passed with 2 suites and 29 tests; support regression, typecheck, migration lint, and diff whitespace checks passed | Static tests now assert the base migration stays free of post-staging RPCs while the effective support SQL across migrations contains hardened atomic staff RPCs with fixed `search_path`, capability checks, audit writes, and authenticated-only grants | Added follow-up migration `20260610134000_add_support_staff_action_rpcs.sql`; no live Supabase migration was applied |
 
 ## Completed Tasks
 
@@ -45,7 +46,7 @@
 - [x] 3.3 Replaced Ayuda “Próximamente” toast buttons with real `/ayuda` navigation in sidebar, mobile drawer, mobile bottom menu, and desktop header.
 - [x] 3.4 Verified submit, anonymous rejection, reporter view/reply, and mobile `/ayuda` navigation through focused tests plus full CI test execution.
 - [x] 4.1 Built `/ayuda/admin` staff queue with `support.view` authorization, server-side filters, Postgres FTS query construction, and focused page/action coverage.
-- [x] 4.2 Added staff reply, assignment, and status transition server actions with append-only support audit event writes and focused action coverage.
+- [x] 4.2 Added staff reply, assignment, and status transition server actions with append-only support audit event writes, focused action coverage, and follow-up migration delivery for atomic staff RPCs.
 
 ## Staging Baseline Setup
 
@@ -105,19 +106,25 @@
 - Phase 4.2 support regression verification: `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/app/support-pages.test.tsx __tests__/components/support-navigation.test.tsx __tests__/app/support-attachments-route.test.ts __tests__/lib/support/r2.test.ts __tests__/lib/support/capabilities.test.ts --runInBand` passed with 6 suites and 39 tests. React emitted existing non-failing Suspense/act warnings from page tests.
 - Phase 4.2 review fix verification: `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/supabase/support-ticket-system-migration.test.ts --runInBand` passed with 2 suites and 28 tests.
 - Phase 4.2 review fix type verification: `pnpm exec tsc --noEmit` passed.
+- Phase 4.2 delivery blocker base migration verification: `git diff --exit-code origin/main -- supabase/migrations/20260609130000_support_ticket_system.sql` passed, proving the already-applied migration matches `origin/main` again.
+- Phase 4.2 delivery blocker focused verification: `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/supabase/support-ticket-system-migration.test.ts --runInBand` passed with 2 suites and 29 tests.
+- Phase 4.2 delivery blocker support regression verification: `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/app/support-pages.test.tsx __tests__/components/support-navigation.test.tsx __tests__/app/support-attachments-route.test.ts __tests__/lib/support/r2.test.ts __tests__/lib/support/capabilities.test.ts --runInBand` passed with 6 suites and 40 tests. React emitted existing non-failing Suspense/act warnings from page tests.
+- Phase 4.2 delivery blocker type verification: `pnpm exec tsc --noEmit` passed.
+- Phase 4.2 delivery blocker migration lint verification: `pnpm lint:migrations` passed with 0 errors; repo-wide historical warnings remain, and the new RPC migration only emits the expected informational `SECURITY DEFINER` notice after the function-body `INSERT INTO` false positive was suppressed with `-- noqa: insert-into`.
+- Phase 4.2 delivery blocker diff whitespace verification: `git diff --check origin/main` passed.
 
 ## Production Safety
 
 - No SQL was executed against Supabase production.
 - Migration is additive only: creates schema/functions/tables/indexes/policies/triggers/grants.
 - No `DROP`, `TRUNCATE`, `DELETE FROM`, or production data backfill/mass update was introduced.
-- Review fix edited only the not-yet-applied migration contract: no production SQL execution and no destructive command was run.
+- Review fix now preserves the already-applied base migration and delivers post-staging RPCs through a new follow-up migration: no production/staging SQL execution and no destructive command was run.
 - Task 1.2 type generation used Supabase staging; no production SQL or schema mutation was executed.
 - Phase 2 performed no Supabase production mutations and no live R2 calls during tests; R2 interactions are signed server-side and mocked in unit coverage.
 - Phase 3 performed no Supabase production mutations and no live R2 calls; Supabase access was mocked in tests and implementation uses the authenticated server client so RLS remains the authorization boundary.
 - Phase 3 privacy review fix performed no Supabase production mutations, no SQL execution, and no live Supabase calls; Supabase access remained mocked in tests.
 - Phase 4.1 performed no Supabase production mutations, no SQL execution, no migrations, and no live Supabase calls; Supabase access remained mocked in focused tests and implementation uses authenticated server clients plus RLS-protected tables.
-- Phase 4.2 performed no Supabase production mutations, no SQL execution, and no live Supabase calls; repo-only migration SQL now defines atomic staff mutation RPCs, and tests mock Supabase access rather than applying those functions live.
+- Phase 4.2 performed no Supabase production/staging mutations, no SQL execution, and no live Supabase calls; repo-only follow-up migration SQL now defines atomic staff mutation RPCs, and tests mock Supabase access rather than applying those functions live.
 - No GitHub issue sync was implemented.
 - Staging baseline docs/scripts target project ref `ebwtdjtajclzciwipevw`; old package scripts for `wcnqocyqtksxhthnquta` were blocked or replaced with staging-safe commands.
 
