@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { listStaffSupportTickets } from '@/lib/actions/support.actions'
+import { formatSupportCategory, formatSupportSeverity, formatSupportStatus } from '@/lib/support/support-labels'
 import { BadgeSistema, BotonSistema, ContenedorDashboard, InputSistema, SelectSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
 type SupportAdminPageProps = {
@@ -14,12 +15,12 @@ type SupportAdminPageProps = {
 }
 
 const STATUS_OPTIONS = [
-  { valor: '', etiqueta: 'All statuses' },
-  { valor: 'received', etiqueta: 'Received' },
-  { valor: 'in_review', etiqueta: 'In review' },
-  { valor: 'in_progress', etiqueta: 'In progress' },
-  { valor: 'resolved', etiqueta: 'Resolved' },
-  { valor: 'closed', etiqueta: 'Closed' },
+  { valor: '', etiqueta: 'Todos los estados' },
+  { valor: 'received', etiqueta: 'Recibido' },
+  { valor: 'in_review', etiqueta: 'En revision' },
+  { valor: 'in_progress', etiqueta: 'En progreso' },
+  { valor: 'resolved', etiqueta: 'Resuelto' },
+  { valor: 'closed', etiqueta: 'Cerrado' },
 ]
 
 export default async function SupportAdminPage({ searchParams }: SupportAdminPageProps) {
@@ -35,20 +36,20 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
   const tickets = result.success ? result.tickets : []
 
   return (
-    <ContenedorDashboard titulo="Support queue" descripcion="Search and triage authorized support tickets without exposing reporter-only views.">
+    <ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
       <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]" action="/ayuda/admin">
-        <InputSistema label="Search tickets" name="search" type="search" role="searchbox" defaultValue={filters.search ?? ''} placeholder="Ticket number, title, description" />
-        <SelectSistema label="Status" name="status" value={filters.status ?? ''} opciones={STATUS_OPTIONS} />
-        <InputSistema label="Category" name="category" defaultValue={filters.category ?? ''} placeholder="bug, access, billing" />
+        <InputSistema label="Buscar tickets" name="search" type="search" role="searchbox" defaultValue={filters.search ?? ''} placeholder="Numero de ticket, titulo, descripcion" />
+        <SelectSistema label="Estado" name="status" defaultValue={filters.status ?? ''} opciones={STATUS_OPTIONS} />
+        <InputSistema label="Categoria" name="category" defaultValue={filters.category ?? ''} placeholder="bug, access, billing" />
         <div className="flex items-end">
-          <BotonSistema type="submit" className="w-full">Filter</BotonSistema>
+          <BotonSistema type="submit" className="w-full">Filtrar</BotonSistema>
         </div>
       </form>
 
       {!result.success ? (
         <TarjetaSistema><TextoSistema variante="sutil">{result.error}</TextoSistema></TarjetaSistema>
       ) : tickets.length === 0 ? (
-        <TarjetaSistema><TextoSistema variante="sutil">No support tickets match these filters.</TextoSistema></TarjetaSistema>
+        <TarjetaSistema><TextoSistema variante="sutil">Ningun ticket de soporte coincide con estos filtros.</TextoSistema></TarjetaSistema>
       ) : (
         <div className="space-y-3">
           {tickets.map((ticket) => (
@@ -56,9 +57,9 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
               <TarjetaSistema className="flex items-center justify-between gap-4">
                 <div>
                   <p className="font-semibold text-foreground">#{ticket.ticketNumber} {ticket.title}</p>
-                  <TextoSistema variante="sutil" tamaño="sm">{ticket.category} · {ticket.severity}</TextoSistema>
+                  <TextoSistema variante="sutil" tamaño="sm">{formatSupportCategory(ticket.category)} · {formatSupportSeverity(ticket.severity)}</TextoSistema>
                 </div>
-                <BadgeSistema variante="info">{ticket.status.replaceAll('_', ' ')}</BadgeSistema>
+                <BadgeSistema variante="info">{formatSupportStatus(ticket.status)}</BadgeSistema>
               </TarjetaSistema>
             </Link>
           ))}

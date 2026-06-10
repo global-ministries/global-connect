@@ -34,14 +34,14 @@ const staffQueueFilterSchema = z.object({
   assigneeId: z.string().trim().max(120).optional(),
 })
 
-const SUPPORT_TICKET_CREATE_ERROR = 'Unable to create support ticket'
-const SUPPORT_TICKET_LIST_ERROR = 'Unable to load support tickets'
-const SUPPORT_TICKET_DETAIL_ERROR = 'Unable to load support ticket'
-const SUPPORT_TICKET_MESSAGE_ERROR = 'Unable to send support reply'
-const SUPPORT_STAFF_QUEUE_ERROR = 'Unable to load support queue'
-const SUPPORT_STAFF_REPLY_ERROR = 'Unable to send staff support reply'
-const SUPPORT_STAFF_ASSIGNMENT_ERROR = 'Unable to assign support ticket'
-const SUPPORT_STAFF_STATUS_ERROR = 'Unable to update support ticket status'
+const SUPPORT_TICKET_CREATE_ERROR = 'No se pudo crear el ticket de soporte'
+const SUPPORT_TICKET_LIST_ERROR = 'No se pudieron cargar los tickets de soporte'
+const SUPPORT_TICKET_DETAIL_ERROR = 'No se pudo cargar el ticket de soporte'
+const SUPPORT_TICKET_MESSAGE_ERROR = 'No se pudo enviar la respuesta de soporte'
+const SUPPORT_STAFF_QUEUE_ERROR = 'No se pudo cargar la cola de soporte'
+const SUPPORT_STAFF_REPLY_ERROR = 'No se pudo enviar la respuesta de soporte del equipo'
+const SUPPORT_STAFF_ASSIGNMENT_ERROR = 'No se pudo asignar el ticket de soporte'
+const SUPPORT_STAFF_STATUS_ERROR = 'No se pudo actualizar el estado del ticket de soporte'
 type SupportCapability = 'support.view' | 'support.reply' | 'support.manage'
 
 type SupportTicketRow = {
@@ -72,7 +72,7 @@ type StaffSupportTicketRow = Pick<SupportTicketRow, 'id' | 'ticket_number' | 'ti
 
 export async function createSupportTicket(formData: FormData) {
   const parsed = supportTicketSchema.safeParse(Object.fromEntries(formData))
-  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Invalid support ticket' }
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Ticket de soporte invalido' }
 
   const supabase = await createSupabaseServerClient()
   const actor = await getActorUsuarioId(supabase)
@@ -96,7 +96,7 @@ export async function createSupportTicket(formData: FormData) {
 export async function listSupportTickets() {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated', tickets: [] }
+  if (!user) return { success: false, error: 'No autenticado', tickets: [] }
 
   const { data, error } = await supabase
     .from('support_tickets')
@@ -109,7 +109,7 @@ export async function listSupportTickets() {
 
 export async function listStaffSupportTickets(filters: unknown) {
   const parsed = staffQueueFilterSchema.safeParse(filters)
-  if (!parsed.success) return { success: false, error: 'Invalid support queue filters', tickets: [] }
+  if (!parsed.success) return { success: false, error: 'Filtros de cola de soporte invalidos', tickets: [] }
 
   const supabase = await createSupabaseServerClient()
   const actor = await getActorUsuarioId(supabase)
@@ -137,7 +137,7 @@ export async function listStaffSupportTickets(filters: unknown) {
 
 export async function createStaffSupportTicketReply(ticketId: string, formData: FormData) {
   const parsed = messageSchema.safeParse(Object.fromEntries(formData))
-  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Invalid reply' }
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Respuesta invalida' }
 
   const supabase = await createSupabaseServerClient()
   const actor = await getActorUsuarioId(supabase)
@@ -155,7 +155,7 @@ export async function createStaffSupportTicketReply(ticketId: string, formData: 
 
 export async function assignSupportTicket(ticketId: string, assigneeUsuarioId: string | null) {
   const parsed = assigneeUsuarioIdSchema.safeParse(assigneeUsuarioId)
-  if (!parsed.success) return { success: false, error: 'Invalid support ticket assignee' }
+  if (!parsed.success) return { success: false, error: 'Responsable de ticket de soporte invalido' }
 
   const supabase = await createSupabaseServerClient()
   const actor = await getActorUsuarioId(supabase)
@@ -173,7 +173,7 @@ export async function assignSupportTicket(ticketId: string, assigneeUsuarioId: s
 
 export async function updateSupportTicketStatus(ticketId: string, status: string) {
   const parsed = supportTicketStatusSchema.safeParse(status)
-  if (!parsed.success) return { success: false, error: 'Invalid support ticket status' }
+  if (!parsed.success) return { success: false, error: 'Estado de ticket de soporte invalido' }
 
   const supabase = await createSupabaseServerClient()
   const actor = await getActorUsuarioId(supabase)
@@ -192,7 +192,7 @@ export async function updateSupportTicketStatus(ticketId: string, status: string
 export async function getSupportTicketDetail(ticketId: string) {
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  if (!user) return { success: false, error: 'No autenticado' }
 
   const { data: ticket, error } = await supabase
     .from('support_tickets')
@@ -201,7 +201,7 @@ export async function getSupportTicketDetail(ticketId: string) {
     .maybeSingle()
 
   if (error) return { success: false, error: SUPPORT_TICKET_DETAIL_ERROR }
-  if (!ticket) return { success: false, error: 'Ticket not found' }
+  if (!ticket) return { success: false, error: 'Ticket no encontrado' }
 
   const { data: messages, error: messagesError } = await supabase
     .from('support_ticket_messages')
@@ -216,7 +216,7 @@ export async function getSupportTicketDetail(ticketId: string) {
 
 export async function createSupportTicketMessage(ticketId: string, formData: FormData) {
   const parsed = messageSchema.safeParse(Object.fromEntries(formData))
-  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Invalid reply' }
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Respuesta invalida' }
 
   const supabase = await createSupabaseServerClient()
   const actor = await getActorUsuarioId(supabase)
@@ -236,9 +236,9 @@ export async function createSupportTicketMessage(ticketId: string, formData: For
 
 async function getActorUsuarioId(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false as const, error: 'Not authenticated' }
+  if (!user) return { success: false as const, error: 'No autenticado' }
   const { data, error } = await supabase.from('usuarios').select('id').eq('auth_id', user.id).maybeSingle()
-  if (error || !data?.id) return { success: false as const, error: 'User profile not found' }
+  if (error || !data?.id) return { success: false as const, error: 'Perfil de usuario no encontrado' }
   return { success: true as const, usuarioId: data.id }
 }
 
@@ -251,7 +251,7 @@ async function requireSupportCapability(supabase: Awaited<ReturnType<typeof crea
     .is('revoked_at', null)
     .maybeSingle()
 
-  if (error || !data) return { success: false as const, error: 'Not authorized' }
+  if (error || !data) return { success: false as const, error: 'No autorizado' }
   return { success: true as const }
 }
 

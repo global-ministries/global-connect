@@ -74,7 +74,7 @@ describe('support reporter actions', () => {
 
     const result = await createSupportTicket(createTicketFormData())
 
-    expect(result).toEqual({ success: false, error: 'Not authenticated' })
+    expect(result).toEqual({ success: false, error: 'No autenticado' })
     expect(insert).not.toHaveBeenCalled()
   })
 
@@ -132,7 +132,7 @@ describe('support reporter actions', () => {
       from: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ order: jest.fn().mockResolvedValue({ data: null, error: { message: 'relation support_tickets does not exist' } }) }) }),
     })
 
-    await expect(listSupportTickets()).resolves.toEqual({ success: false, error: 'Unable to load support tickets', tickets: [] })
+    await expect(listSupportTickets()).resolves.toEqual({ success: false, error: 'No se pudieron cargar los tickets de soporte', tickets: [] })
   })
 
   it('adds reporter public replies only', async () => {
@@ -158,7 +158,7 @@ describe('support reporter actions', () => {
 
     const result = await listStaffSupportTickets({})
 
-    expect(result).toEqual({ success: false, error: 'Not authorized', tickets: [] })
+    expect(result).toEqual({ success: false, error: 'No autorizado', tickets: [] })
     expect(supportTicketsQuery.select).not.toHaveBeenCalled()
   })
 
@@ -188,7 +188,7 @@ describe('support reporter actions', () => {
       from: createStaffFromMock({ usuarioId: 'usuario-1', hasCapability: true, supportTicketsQuery }),
     })
 
-    await expect(listStaffSupportTickets({})).resolves.toEqual({ success: false, error: 'Unable to load support queue', tickets: [] })
+    await expect(listStaffSupportTickets({})).resolves.toEqual({ success: false, error: 'No se pudo cargar la cola de soporte', tickets: [] })
   })
 
   it('denies direct staff replies without support.reply before invoking the atomic RPC', async () => {
@@ -201,7 +201,7 @@ describe('support reporter actions', () => {
 
     const result = await createStaffSupportTicketReply('ticket-1', createMessageFormData())
 
-    expect(result).toEqual({ success: false, error: 'Not authorized' })
+    expect(result).toEqual({ success: false, error: 'No autorizado' })
     expect(rpc).not.toHaveBeenCalled()
   })
 
@@ -245,7 +245,7 @@ describe('support reporter actions', () => {
 
     const result = await updateSupportTicketStatus('ticket-1', 'invalid')
 
-    expect(result).toEqual({ success: false, error: 'Invalid support ticket status' })
+    expect(result).toEqual({ success: false, error: 'Estado de ticket de soporte invalido' })
     expect(rpc).not.toHaveBeenCalled()
   })
 
@@ -273,7 +273,7 @@ describe('support reporter actions', () => {
 
     const result = await updateSupportTicketStatus('ticket-1', 'closed')
 
-    expect(result).toEqual({ success: false, error: 'Unable to update support ticket status' })
+    expect(result).toEqual({ success: false, error: 'No se pudo actualizar el estado del ticket de soporte' })
   })
 })
 
