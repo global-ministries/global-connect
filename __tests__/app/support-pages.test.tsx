@@ -42,15 +42,15 @@ describe('reporter support pages', () => {
   it('renders the /ayuda home with report and history links', async () => {
     render(await AyudaPage())
 
-    expect(screen.getByRole('link', { name: /Report a problem/i })).toHaveAttribute('href', '/ayuda/reportar')
-    expect(screen.getByRole('link', { name: /View my tickets/i })).toHaveAttribute('href', '/ayuda/tickets')
+    expect(screen.getByRole('link', { name: /Reportar un problema/i })).toHaveAttribute('href', '/ayuda/reportar')
+    expect(screen.getByRole('link', { name: /Ver mis tickets/i })).toHaveAttribute('href', '/ayuda/tickets')
   })
 
   it('renders the report form with safe evidence fields', async () => {
     render(await ReportarPage())
 
-    expect(screen.getByLabelText(/Title/i)).toHaveAttribute('name', 'title')
-    expect(screen.getByLabelText(/Allow safe diagnostics/i)).toHaveAttribute('name', 'diagnosticsConsent')
+    expect(screen.getByLabelText(/Titulo/i)).toHaveAttribute('name', 'title')
+    expect(screen.getByLabelText(/Permitir diagnosticos seguros/i)).toHaveAttribute('name', 'diagnosticsConsent')
     expect(document.querySelector('[name="cookies"]')).not.toBeInTheDocument()
   })
 
@@ -65,15 +65,16 @@ describe('reporter support pages', () => {
 
     expect(screen.getByText('The group map does not load.')).toBeInTheDocument()
     expect(screen.getByText('Public reply')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Reply/i)).toHaveAttribute('name', 'body')
+    expect(screen.getByLabelText(/Respuesta/i)).toHaveAttribute('name', 'body')
   })
 
   it('renders the staff queue with search and filter controls', async () => {
     render(await SupportAdminPage({ searchParams: Promise.resolve({ search: 'attendance', status: 'in_progress', category: 'bug' }) }))
 
     expect(listStaffSupportTickets).toHaveBeenCalledWith({ search: 'attendance', status: 'in_progress', category: 'bug', campusId: undefined, assigneeId: undefined })
-    expect(screen.getByRole('searchbox', { name: /Search tickets/i })).toHaveValue('attendance')
-    expect(screen.getByLabelText(/Status/i)).toHaveValue('in_progress')
+    expect(screen.getByRole('searchbox', { name: /Buscar tickets/i })).toHaveValue('attendance')
+    expect(screen.getByLabelText(/Estado/i)).toHaveValue('in_progress')
     expect(screen.getByRole('link', { name: /#43 Cannot submit attendance/i })).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
+    expect(screen.getAllByText('En progreso')).toHaveLength(2)
   })
 })

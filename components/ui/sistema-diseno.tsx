@@ -1,7 +1,6 @@
 import React, { useId } from 'react'
 import { cn } from '@/lib/utils'
-import { LucideIcon, ArrowLeft, ChevronDown } from 'lucide-react'
-import Link from 'next/link'
+import { LucideIcon, ChevronDown } from 'lucide-react'
 
 // Lazy load DesktopHeader (client component) to keep this file server-compatible
 const DesktopHeader = React.lazy(() => import('./desktop-header').then(m => ({ default: m.DesktopHeader })))
@@ -116,10 +115,12 @@ interface SelectSistemaProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
 }
 
 export const SelectSistema = React.forwardRef<HTMLSelectElement, SelectSistemaProps>(
-  ({ className, label, error, opciones, placeholder, value, onValueChange, onChange, id: idProp, ...props }, ref) => {
+  ({ className, label, error, opciones, placeholder, value, defaultValue, onValueChange, onChange, id: idProp, ...props }, ref) => {
     const idGenerado = useId()
     const id = idProp ?? idGenerado
     const idError = `${id}-error`
+    const tieneManejadorCambio = Boolean(onChange || onValueChange)
+    const valorVisual = value ?? defaultValue ?? ''
 
     const handleChange: React.ChangeEventHandler<HTMLSelectElement> = (e) => {
       onChange?.(e)
@@ -137,8 +138,9 @@ export const SelectSistema = React.forwardRef<HTMLSelectElement, SelectSistemaPr
           <select
             id={id}
             ref={ref}
-            value={value ?? ''}
-            onChange={handleChange}
+            value={tieneManejadorCambio && value !== undefined ? value : undefined}
+            defaultValue={!tieneManejadorCambio || value === undefined ? valorVisual : undefined}
+            onChange={tieneManejadorCambio ? handleChange : undefined}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? idError : undefined}
             className={cn(
@@ -148,7 +150,7 @@ export const SelectSistema = React.forwardRef<HTMLSelectElement, SelectSistemaPr
               "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
               "appearance-none cursor-pointer",
               error && "border-red-300 dark:border-red-500/50 focus:border-red-500 focus:ring-red-500/20",
-              !value && "text-muted-foreground",
+              !valorVisual && "text-muted-foreground",
               className
             )}
             {...props}
