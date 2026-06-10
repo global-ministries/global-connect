@@ -5,6 +5,8 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+import { createSentryPrivacyOptions } from "@/lib/support/sentry-privacy";
+
 Sentry.init({
   dsn: "https://abe0497e47210b36f1dd9f50d3aa301b@o4511016277573632.ingest.us.sentry.io/4511016278753280",
 
@@ -14,7 +16,5 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
-  // Enable sending user PII (Personally Identifiable Information)
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
+  ...createSentryPrivacyOptions(),
 });

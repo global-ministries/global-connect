@@ -5,9 +5,9 @@
 - Mode: Strict TDD
 - Delivery: force-chained
 - Chain strategy: feature-branch-chain
-- Current slice: Phase 5 task 5.3 completed with repo-local mocked notification verification. Batch email dispatch now deduplicates normalized recipients per event while preserving deterministic event-recipient idempotency keys.
-- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3
-- Latest update: Phase 5.3 verified one email per support event/recipient, deterministic `email:{eventId}:{recipient}` keys, ID-only queued payloads, no evidence, attachments, R2 object keys, raw Sentry/diagnostics, GitHub issue details, message bodies, or long user-provided text in queued payloads, and no email sends for attachment-finalized events in the MVP. Live Inngest/Resend verification was intentionally not run because this slice must not call external providers or require credentials.
+- Current slice: Phase 6 task 6.1 completed with repo-local Sentry privacy contract tests and no live Sentry calls. Client replay remains available only as masked/blocked integration wiring, but default session and on-error replay sampling are set to zero.
+- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 6.1
+- Latest update: Phase 6.1 hardened `instrumentation-client.ts`, `sentry.server.config.ts`, and `sentry.edge.config.ts` with shared `createSentryPrivacyOptions()` defaults: `sendDefaultPii: false`, consistent `beforeSend`/`beforeSendTransaction` scrubbing, no default replay sampling, replay text masking, media blocking, support context allowlisting to Sentry references only, request body filtering, URL query/hash stripping, sensitive header removal, user PII removal except internal user id, and `extra` dropping to avoid raw diagnostics/evidence/attachments/R2 keys/Sentry payloads/GitHub details. No live Sentry call or credential was required.
 
 ## TDD Cycle Evidence
 
@@ -35,6 +35,7 @@
 | 5.1 | `__tests__/lib/email/support.test.tsx` | Unit/template rendering + mocked email send | N/A (new files) | `pnpm test -- __tests__/lib/email/support.test.tsx --runInBand` failed because `@/emails/support-ticket` and `@/lib/email/support` did not exist | `pnpm test -- __tests__/lib/email/support.test.tsx --runInBand` passed with 1 suite and 5 tests | 5 cases cover creation acknowledgement, encoded special-character ticket IDs in authenticated app links, new message notification without message body/diagnostics, status change labels, and unsafe evidence/attachment/R2/GitHub exclusion across templates | Switched tests from `@react-email/render` to `react-dom/server` because the React Email renderer requires `--experimental-vm-modules` in this Jest setup; production still uses the existing `sendEmail` React Email renderer |
 | 5.2 | `__tests__/lib/support/inngest.test.ts` | Unit/event contract + mocked email helpers | `pnpm test -- __tests__/lib/email/support.test.tsx --runInBand` passed with 1 suite and 5 tests before edits | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` failed because `@/lib/support/inngest` did not exist | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 4 tests; focused notification regression passed with 2 suites and 9 tests; `pnpm exec tsc --noEmit` passed | 4 cases cover ID-only event payloads, Inngest deduplication IDs, normalized event-recipient email idempotency keys, safe routing to Phase 5.1 helpers, and no attachment-finalized email send in the MVP | Refined the unsafe-payload assertion to avoid falsely matching valid `support/ticket.*` event names; implementation stays dependency-free because no existing Inngest convention or `inngest` package is present in this repo |
 | 5.3 | `__tests__/lib/support/inngest.test.ts`, `__tests__/lib/email/support.test.tsx` | Unit/event contract + mocked email helpers/templates | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 4 tests before edits | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` failed because `sendSupportNotificationEmails` did not exist | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 6 tests; focused notification regression passed with 2 suites and 11 tests; `pnpm exec tsc --noEmit` passed | 2 new cases cover one email per event/normalized recipient and noisy payload stripping for evidence, attachments, R2 keys, raw Sentry, diagnostics, GitHub details, message bodies, descriptions, and long user text | Added a minimal batch helper that deduplicates normalized recipients before delegating to the single-recipient sender; no live Inngest/Resend calls were made |
+| 6.1 | `__tests__/lib/support/sentry-privacy.test.ts` | Unit/static config contract + pure scrubber behavior | Existing Sentry config had `sendDefaultPii: true`, default client replay sampling, and no privacy scrubber coverage | `pnpm test -- __tests__/lib/support/sentry-privacy.test.ts --runInBand` failed because `@/lib/support/sentry-privacy` did not exist | `pnpm test -- __tests__/lib/support/sentry-privacy.test.ts --runInBand` passed with 1 suite and 5 tests; `pnpm exec tsc --noEmit` passed | 5 cases cover config-file defaults, client replay privacy options, consistent server/edge privacy options including transaction scrubbing, absolute support URL/body/header/context/user scrubbing, and relative URL/mixed-case header/user-PII scrubbing | Extracted shared `lib/support/sentry-privacy.ts`; typed Sentry hooks generically because browser/server/edge error and transaction hooks accept narrower event subtypes |
 
 ## Completed Tasks
 
@@ -55,6 +56,7 @@
 - [x] 5.1 Added support ticket email templates and `lib/email/support.ts` helpers for creation, message, and status notifications with safe authenticated app links only.
 - [x] 5.2 Added `lib/support/inngest.ts` support event factories and notification dispatch helpers with ID-only Inngest payloads plus event-recipient email idempotency keys.
 - [x] 5.3 Verified support notification safety with repo-local mocked tests: one email per event/normalized recipient, deterministic idempotency keys, no evidence/attachments/R2 keys/raw Sentry/diagnostics/GitHub details/message bodies/long user text in queued payloads, and no attachment-finalized email in MVP.
+- [x] 6.1 Hardened Sentry client/server/edge defaults with no default PII, no default raw replay, masked/blocked replay integration options, shared `beforeSend`/`beforeSendTransaction` scrubbing, and focused static/unit coverage for support-related URL/header/body/context/user data redaction.
 
 ## Staging Baseline Setup
 
@@ -145,6 +147,11 @@
 - Phase 5.3 focused notification regression: `pnpm test -- __tests__/lib/support/inngest.test.ts __tests__/lib/email/support.test.tsx --runInBand` passed with 2 suites and 11 tests.
 - Phase 5.3 type verification: `pnpm exec tsc --noEmit` passed.
 - Phase 5.3 live provider verification gap: live Inngest/Resend verification was not run because this slice must not call external providers, send real email, or require credentials. Coverage is repo-local with mocked email helpers/templates.
+- Phase 6.1 RED: `pnpm test -- __tests__/lib/support/sentry-privacy.test.ts --runInBand` failed because `@/lib/support/sentry-privacy` did not exist.
+- Phase 6.1 focused GREEN: `pnpm test -- __tests__/lib/support/sentry-privacy.test.ts --runInBand` passed with 1 suite and 5 tests.
+- Phase 6.1 type verification: `pnpm exec tsc --noEmit` passed.
+- Phase 6.1 diff whitespace verification: `git diff --check` passed.
+- Phase 6.1 live provider verification gap: no live Sentry call was made, no Sentry credentials were required, and replay/error delivery was verified only by local config/static/unit contracts.
 
 ## Production Safety
 
@@ -162,11 +169,11 @@
 - Phase 5.1 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Resend calls, and no Inngest event wiring. `sendEmail` was mocked in tests.
 - Phase 5.2 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Resend calls, and no live Inngest calls. Email helpers were mocked in tests, and the new Inngest contract module has no credential requirements.
 - Phase 5.3 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Resend calls, no live Inngest calls, and no real email sends. Email helpers/templates were mocked or rendered locally in tests.
+- Phase 6.1 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Sentry calls, and no Sentry credential access. Sentry behavior was validated through local config/static/unit tests only.
 - No GitHub issue sync was implemented.
 - Staging baseline docs/scripts target project ref `ebwtdjtajclzciwipevw`; old package scripts for `wcnqocyqtksxhthnquta` were blocked or replaced with staging-safe commands.
 
 ## Remaining Tasks
 
-- [ ] 6.1 Harden `instrumentation-client.ts`, `sentry.server.config.ts`, and `sentry.edge.config.ts` for no default PII/raw replay.
 - [ ] 6.2 Document R2/Inngest/Resend envs, rollback, retention question, and future sanitized GitHub boundary.
 - [ ] 6.3 Run `pnpm test:rls`, unit/integration suites, build/typecheck, and manual reporter/staff flows.
