@@ -5,9 +5,9 @@
 - Mode: Strict TDD
 - Delivery: force-chained
 - Chain strategy: feature-branch-chain
-- Current slice: Phase 5 task 5.1 completed with support email templates and helper calls that build authenticated `/ayuda/tickets/:id` links only. Inngest event wiring remains pending for 5.2.
-- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 5.1
-- Latest update: Phase 5.1 added React Email templates for ticket creation, new public message, and status changes plus `lib/email/support.ts` helpers that delegate to existing `sendEmail` with optional idempotency keys. Email bodies include only recipient name, ticket number, title, status label, and an authenticated app link; they exclude evidence, attachments, raw Sentry, R2 object keys, and GitHub issue details.
+- Current slice: Phase 5 task 5.2 completed with `lib/support/inngest.ts` event factories and notification dispatch helpers. Payloads are allowlisted to IDs and minimal event metadata only; email idempotency keys are deterministic per event and normalized recipient.
+- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 5.1, 5.2
+- Latest update: Phase 5.2 added support Inngest event names/factories for ticket created, message created, status changed, and attachment finalized events. Event objects use Inngest-compatible `name`, deduplication `id`, and ID-only `data`; unsafe text, evidence, raw Sentry, R2 object keys, attachment details, GitHub issue details, message bodies, and status labels are not copied into queued payloads. Email dispatch delegates to Phase 5.1 helpers with `email:{eventId}:{recipient}` idempotency keys and skips attachment-finalized email sends for the MVP.
 
 ## TDD Cycle Evidence
 
@@ -33,6 +33,7 @@
 | 4.2 delivery blocker fix | `__tests__/supabase/support-ticket-system-migration.test.ts` | Static migration delivery contract | Fresh review verdict reported RPCs were added by editing `20260609130000_support_ticket_system.sql`, a migration already in `origin/main` and applied to staging | Supabase records migration versions, so staging/prod-like databases would not replay edits to `20260609130000`; `git diff --exit-code origin/main -- supabase/migrations/20260609130000_support_ticket_system.sql` proved the restored base migration now matches main | `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/supabase/support-ticket-system-migration.test.ts --runInBand` passed with 2 suites and 29 tests; support regression, typecheck, migration lint, and diff whitespace checks passed | Static tests now assert the base migration stays free of post-staging RPCs while the effective support SQL across migrations contains hardened atomic staff RPCs with fixed `search_path`, capability checks, audit writes, and authenticated-only grants | Added follow-up migration `20260610134000_add_support_staff_action_rpcs.sql`; no live Supabase migration was applied |
 | 4.3 | `__tests__/lib/actions/support.actions.test.ts`, `__tests__/supabase/support-ticket-system-migration.test.ts` | Unit/server action + static migration contract | `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/supabase/support-ticket-system-migration.test.ts --runInBand` passed with 2 suites and 31 tests before edits | RED failed because the staff reply RPC did not reject blank direct `p_body` values before inserting a message/audit row | `pnpm test -- __tests__/supabase/support-ticket-system-migration.test.ts --runInBand` passed with 15 tests; support regression passed with 7 suites and 55 tests | Existing action tests cover `support.view` queue denial, FTS/filter query construction, `support.reply` and `support.manage` denial, status validation, audited RPC calls, and stable denial mapping; static coverage now reads the latest effective RPC definition across follow-up migrations and verifies direct RPC blank replies are rejected before mutation/audit | Restored already-applied migration `20260610134000_add_support_staff_action_rpcs.sql` to `origin/main` and added follow-up migration `20260610161000_harden_staff_reply_rpc_body.sql`; live/staging RLS was not run because Supabase credentials are unavailable |
 | 5.1 | `__tests__/lib/email/support.test.tsx` | Unit/template rendering + mocked email send | N/A (new files) | `pnpm test -- __tests__/lib/email/support.test.tsx --runInBand` failed because `@/emails/support-ticket` and `@/lib/email/support` did not exist | `pnpm test -- __tests__/lib/email/support.test.tsx --runInBand` passed with 1 suite and 5 tests | 5 cases cover creation acknowledgement, encoded special-character ticket IDs in authenticated app links, new message notification without message body/diagnostics, status change labels, and unsafe evidence/attachment/R2/GitHub exclusion across templates | Switched tests from `@react-email/render` to `react-dom/server` because the React Email renderer requires `--experimental-vm-modules` in this Jest setup; production still uses the existing `sendEmail` React Email renderer |
+| 5.2 | `__tests__/lib/support/inngest.test.ts` | Unit/event contract + mocked email helpers | `pnpm test -- __tests__/lib/email/support.test.tsx --runInBand` passed with 1 suite and 5 tests before edits | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` failed because `@/lib/support/inngest` did not exist | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 4 tests; focused notification regression passed with 2 suites and 9 tests; `pnpm exec tsc --noEmit` passed | 4 cases cover ID-only event payloads, Inngest deduplication IDs, normalized event-recipient email idempotency keys, safe routing to Phase 5.1 helpers, and no attachment-finalized email send in the MVP | Refined the unsafe-payload assertion to avoid falsely matching valid `support/ticket.*` event names; implementation stays dependency-free because no existing Inngest convention or `inngest` package is present in this repo |
 
 ## Completed Tasks
 
@@ -51,6 +52,7 @@
 - [x] 4.2 Added staff reply, assignment, and status transition server actions with append-only support audit event writes, focused action coverage, and follow-up migration delivery for atomic staff RPCs.
 - [x] 4.3 Verified support staff capabilities, unauthorized denial, search/filter behavior, audited status saves, and direct staff table bypass closure through focused Jest/static migration coverage; live/staging RLS was not executed because required credentials are unavailable.
 - [x] 5.1 Added support ticket email templates and `lib/email/support.ts` helpers for creation, message, and status notifications with safe authenticated app links only.
+- [x] 5.2 Added `lib/support/inngest.ts` support event factories and notification dispatch helpers with ID-only Inngest payloads plus event-recipient email idempotency keys.
 
 ## Staging Baseline Setup
 
@@ -130,6 +132,11 @@
 - Phase 5.1 focused GREEN: `pnpm test -- __tests__/lib/email/support.test.tsx --runInBand` passed with 1 suite and 5 tests, including special-character `ticketId` link encoding.
 - Phase 5.1 type verification: `pnpm exec tsc --noEmit` passed.
 - Phase 5.1 support regression verification: `pnpm test -- __tests__/lib/email/support.test.tsx __tests__/lib/actions/support.actions.test.ts __tests__/app/support-pages.test.tsx __tests__/components/support-navigation.test.tsx __tests__/app/support-attachments-route.test.ts __tests__/lib/support/r2.test.ts __tests__/lib/support/capabilities.test.ts --runInBand` passed with 7 suites and 44 tests. React emitted existing non-failing Suspense/act warnings from page tests.
+- Phase 5.2 safety net: `pnpm test -- __tests__/lib/email/support.test.tsx --runInBand` passed with 1 suite and 5 tests before edits.
+- Phase 5.2 RED: `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` failed because `@/lib/support/inngest` did not exist.
+- Phase 5.2 focused GREEN: `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 4 tests after adding event factories and email dispatch helpers.
+- Phase 5.2 focused notification regression: `pnpm test -- __tests__/lib/support/inngest.test.ts __tests__/lib/email/support.test.tsx --runInBand` passed with 2 suites and 9 tests.
+- Phase 5.2 type verification: `pnpm exec tsc --noEmit` passed.
 
 ## Production Safety
 
@@ -145,12 +152,12 @@
 - Phase 4.2 performed no Supabase production/staging mutations, no SQL execution, and no live Supabase calls; repo-only follow-up migration SQL now defines atomic staff mutation RPCs, and tests mock Supabase access rather than applying those functions live.
 - Phase 4.3 performed no Supabase production/staging mutations, no SQL execution, no live migrations, and no live Supabase calls; the hardened staff reply RPC ships only as a repo migration file because credentials for `pnpm test:rls` are unavailable.
 - Phase 5.1 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Resend calls, and no Inngest event wiring. `sendEmail` was mocked in tests.
+- Phase 5.2 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Resend calls, and no live Inngest calls. Email helpers were mocked in tests, and the new Inngest contract module has no credential requirements.
 - No GitHub issue sync was implemented.
 - Staging baseline docs/scripts target project ref `ebwtdjtajclzciwipevw`; old package scripts for `wcnqocyqtksxhthnquta` were blocked or replaced with staging-safe commands.
 
 ## Remaining Tasks
 
-- [ ] 5.2 Add `lib/support/inngest*.ts` events with ID-only payloads and idempotency keys.
 - [ ] 5.3 Verify one email per event/recipient and no evidence, attachments, raw Sentry, or GitHub issues.
 - [ ] 6.1 Harden `instrumentation-client.ts`, `sentry.server.config.ts`, and `sentry.edge.config.ts` for no default PII/raw replay.
 - [ ] 6.2 Document R2/Inngest/Resend envs, rollback, retention question, and future sanitized GitHub boundary.
