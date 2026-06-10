@@ -12,6 +12,7 @@ function readSupportTicketSql(): string {
     readSupportTicketMigration(),
     readMigrationBySuffix('_add_support_staff_action_rpcs.sql'),
     readSupportStaffDirectMutationMigration(),
+    readMigrationBySuffix('_harden_staff_reply_rpc_body.sql'),
   ].join('\n')
 }
 
@@ -53,8 +54,8 @@ function functionSql(sql: string, functionName: string): string {
   return compactSql(match[0])
 }
 
-function functionSqlByPrefix(sql: string, functionPrefix: string): string {
-  const start = sql.indexOf(`CREATE OR REPLACE FUNCTION ${functionPrefix}`)
+function latestFunctionSqlByPrefix(sql: string, functionPrefix: string): string {
+  const start = sql.lastIndexOf(`CREATE OR REPLACE FUNCTION ${functionPrefix}`)
 
   if (start === -1) {
     throw new Error(`Missing function ${functionPrefix}`)
@@ -173,9 +174,9 @@ describe('support ticket system migration', () => {
 
   it('adds atomic staff mutation RPCs with explicit capability gates and audit writes', () => {
     const sql = readSupportTicketSql()
-    const staffReplyRpc = functionSqlByPrefix(sql, 'public.create_staff_support_ticket_reply(p_ticket_id uuid, p_body text)')
-    const assignmentRpc = functionSqlByPrefix(sql, 'public.assign_support_ticket(p_ticket_id uuid, p_assignee_usuario_id uuid)')
-    const statusRpc = functionSqlByPrefix(sql, 'public.update_support_ticket_status(p_ticket_id uuid, p_status text)')
+    const staffReplyRpc = latestFunctionSqlByPrefix(sql, 'public.create_staff_support_ticket_reply(p_ticket_id uuid, p_body text)')
+    const assignmentRpc = latestFunctionSqlByPrefix(sql, 'public.assign_support_ticket(p_ticket_id uuid, p_assignee_usuario_id uuid)')
+    const statusRpc = latestFunctionSqlByPrefix(sql, 'public.update_support_ticket_status(p_ticket_id uuid, p_status text)')
 
     expect(staffReplyRpc).toContain('SECURITY DEFINER')
     expect(staffReplyRpc).toContain("SET search_path TO 'public', 'support_private'")
@@ -196,6 +197,16 @@ describe('support ticket system migration', () => {
     expect(statusRpc).toContain('UPDATE public.support_tickets')
     expect(statusRpc).toContain('INSERT INTO public.support_ticket_events')
     expect(statusRpc).not.toMatch(/\bEXECUTE\b/i)
+  })
+
+  it('rejects blank staff RPC replies before message and audit insertion', () => {
+    const sql = readSupportTicketSql()
+    const staffReplyRpc = latestFunctionSqlByPrefix(sql, 'public.create_staff_support_ticket_reply(p_ticket_id uuid, p_body text)')
+
+    expect(staffReplyRpc).toContain("nullif(btrim(p_body), '') IS NULL")
+    expect(staffReplyRpc.indexOf("RAISE EXCEPTION 'invalid support ticket reply'")).toBeGreaterThan(staffReplyRpc.indexOf("nullif(btrim(p_body), '') IS NULL"))
+    expect(staffReplyRpc.indexOf('INSERT INTO public.support_ticket_messages')).toBeGreaterThan(staffReplyRpc.indexOf("RAISE EXCEPTION 'invalid support ticket reply'"))
+    expect(staffReplyRpc.indexOf('INSERT INTO public.support_ticket_events')).toBeGreaterThan(staffReplyRpc.indexOf('INSERT INTO public.support_ticket_messages'))
   })
 
   it('keeps staff mutation RPC execution limited to authenticated callers', () => {
