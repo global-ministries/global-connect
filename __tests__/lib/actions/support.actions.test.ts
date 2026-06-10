@@ -2,6 +2,7 @@ import {
   createSupportTicket,
   createSupportTicketMessage,
   getSupportTicketDetail,
+  listStaffSupportTickets,
   listSupportTickets,
 } from '@/lib/actions/support.actions'
 import { sanitizeSupportEvidence } from '@/lib/support/support-evidence'
@@ -144,6 +145,48 @@ describe('support reporter actions', () => {
     expect(insert).toHaveBeenCalledWith({ ticket_id: 'ticket-1', author_usuario_id: 'usuario-1', body: 'I can reproduce it on mobile.', is_internal: false })
     expect(revalidatePath).toHaveBeenCalledWith('/ayuda/tickets/ticket-1')
   })
+
+  it('denies staff queue access without support.view', async () => {
+    const supportTicketsQuery = createStaffTicketQuery([])
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffFromMock({ usuarioId: 'usuario-1', hasCapability: false, supportTicketsQuery }),
+    })
+
+    const result = await listStaffSupportTickets({})
+
+    expect(result).toEqual({ success: false, error: 'Not authorized', tickets: [] })
+    expect(supportTicketsQuery.select).not.toHaveBeenCalled()
+  })
+
+  it('builds a staff queue query with FTS and filters', async () => {
+    const supportTicketsQuery = createStaffTicketQuery([{ id: 'ticket-2', ticket_number: 43, title: 'Cannot submit attendance', status: 'in_progress', category: 'bug', severity: 'high', assignee_usuario_id: 'assignee-1', campus_id: 'campus-1', created_at: '2026-06-10T00:00:00Z', updated_at: '2026-06-10T00:05:00Z' }])
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffFromMock({ usuarioId: 'usuario-1', hasCapability: true, supportTicketsQuery }),
+    })
+
+    const result = await listStaffSupportTickets({ search: 'attendance', status: 'in_progress', category: 'bug', campusId: 'campus-1', assigneeId: 'assignee-1' })
+
+    expect(result).toEqual({ success: true, tickets: [{ id: 'ticket-2', ticketNumber: 43, title: 'Cannot submit attendance', status: 'in_progress', category: 'bug', severity: 'high', assigneeUsuarioId: 'assignee-1', campusId: 'campus-1', createdAt: '2026-06-10T00:00:00Z', updatedAt: '2026-06-10T00:05:00Z' }] })
+    expect(supportTicketsQuery.textSearch).toHaveBeenCalledWith('search_vector', 'attendance', { type: 'plain', config: 'simple' })
+    expect(supportTicketsQuery.eq).toHaveBeenCalledWith('status', 'in_progress')
+    expect(supportTicketsQuery.eq).toHaveBeenCalledWith('category', 'bug')
+    expect(supportTicketsQuery.eq).toHaveBeenCalledWith('campus_id', 'campus-1')
+    expect(supportTicketsQuery.eq).toHaveBeenCalledWith('assignee_usuario_id', 'assignee-1')
+    expect(supportTicketsQuery.order).toHaveBeenCalledWith('created_at', { ascending: false })
+    expect(supportTicketsQuery.limit).toHaveBeenCalledWith(50)
+  })
+
+  it('maps Supabase staff queue errors to a stable user-safe message', async () => {
+    const supportTicketsQuery = createStaffTicketQuery([], { message: 'permission denied for table support_tickets' })
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffFromMock({ usuarioId: 'usuario-1', hasCapability: true, supportTicketsQuery }),
+    })
+
+    await expect(listStaffSupportTickets({})).resolves.toEqual({ success: false, error: 'Unable to load support queue', tickets: [] })
+  })
 })
 
 function createTicketFormData() {
@@ -175,4 +218,27 @@ function createFromMock(input: { usuarioId: string; insert: jest.Mock }) {
     if (table === 'usuarios') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: input.usuarioId }, error: null }) }) }) }
     return { insert: input.insert }
   })
+}
+
+function createStaffFromMock(input: { usuarioId: string; hasCapability: boolean; supportTicketsQuery: ReturnType<typeof createStaffTicketQuery> }) {
+  return jest.fn((table) => {
+    if (table === 'usuarios') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: input.usuarioId }, error: null }) }) }) }
+    if (table === 'support_user_capabilities') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ is: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: input.hasCapability ? { capability: 'support.view' } : null, error: null }) }) }) }) }) }
+    return input.supportTicketsQuery
+  })
+}
+
+function createStaffTicketQuery(rows: Array<Record<string, string | number | null>>, error: { message: string } | null = null) {
+  const query = {
+    select: jest.fn(),
+    eq: jest.fn(),
+    textSearch: jest.fn(),
+    order: jest.fn(),
+    limit: jest.fn().mockResolvedValue({ data: error ? null : rows, error }),
+  }
+  query.select.mockReturnValue(query)
+  query.eq.mockReturnValue(query)
+  query.textSearch.mockReturnValue(query)
+  query.order.mockReturnValue(query)
+  return query
 }
