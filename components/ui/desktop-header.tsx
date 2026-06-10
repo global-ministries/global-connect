@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LogOut, User, ArrowLeft, Bell } from 'lucide-react'
+import { LogOut, User, ArrowLeft, Bell, HelpCircle } from 'lucide-react'
 import { logout } from "@/lib/actions/auth.actions"
 import { ThemeToggle } from './theme-toggle'
 import { UserAvatar } from './UserAvatar'
@@ -116,6 +116,14 @@ export function DesktopHeader({ titulo, accionPrincipal, breadcrumbs, botonRegre
                 {/* Right: theme toggle + user avatar popover */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                     <ThemeToggle />
+
+                    <Link
+                        href="/ayuda"
+                        aria-label="Ayuda"
+                        className="relative flex items-center justify-center rounded-xl w-9 h-9 hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
+                    >
+                        <HelpCircle className="w-5 h-5 text-muted-foreground" />
+                    </Link>
 
                     {/* Notification bell */}
                     <button
