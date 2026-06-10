@@ -1,9 +1,12 @@
 import { render, screen } from '@testing-library/react'
 
 import AyudaPage from '@/app/(auth)/ayuda/page'
+import SupportAdminPage from '@/app/(auth)/ayuda/admin/page'
 import ReportarPage from '@/app/(auth)/ayuda/reportar/page'
 import TicketsPage from '@/app/(auth)/ayuda/tickets/page'
 import TicketDetailPage from '@/app/(auth)/ayuda/tickets/[id]/page'
+
+const listStaffSupportTickets = jest.fn().mockResolvedValue({ success: true, tickets: [{ id: 'ticket-2', ticketNumber: 43, title: 'Cannot submit attendance', status: 'in_progress', category: 'bug', severity: 'high', assigneeUsuarioId: 'assignee-1', campusId: 'campus-1', createdAt: '2026-06-10T00:00:00Z', updatedAt: '2026-06-10T00:05:00Z' }] })
 
 jest.mock('@/lib/actions/support.actions', () => ({
   createSupportTicket: jest.fn(),
@@ -24,6 +27,7 @@ jest.mock('@/lib/actions/support.actions', () => ({
       messages: [{ id: 'message-1', body: 'Public reply', createdAt: '2026-06-09T00:01:00Z' }],
     },
   }),
+  listStaffSupportTickets: (filters: Record<string, string | undefined>) => listStaffSupportTickets(filters),
   listSupportTickets: jest.fn().mockResolvedValue({ success: true, tickets: [{ id: 'ticket-1', ticketNumber: 42, title: 'Map bug', status: 'received', category: 'bug', severity: 'normal', createdAt: '2026-06-09T00:00:00Z', updatedAt: '2026-06-09T00:00:00Z' }] }),
 }))
 jest.mock('@/hooks/useCurrentUser', () => ({ useCurrentUser: () => ({ usuario: null, roles: ['miembro'], loading: false }) }))
@@ -31,6 +35,10 @@ jest.mock('@/hooks/useBranding', () => ({ useBranding: () => ({ logoLightUrl: nu
 jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => ({ info: jest.fn() }) }))
 
 describe('reporter support pages', () => {
+  beforeEach(() => {
+    listStaffSupportTickets.mockClear()
+  })
+
   it('renders the /ayuda home with report and history links', async () => {
     render(await AyudaPage())
 
@@ -58,5 +66,14 @@ describe('reporter support pages', () => {
     expect(screen.getByText('The group map does not load.')).toBeInTheDocument()
     expect(screen.getByText('Public reply')).toBeInTheDocument()
     expect(screen.getByLabelText(/Reply/i)).toHaveAttribute('name', 'body')
+  })
+
+  it('renders the staff queue with search and filter controls', async () => {
+    render(await SupportAdminPage({ searchParams: Promise.resolve({ search: 'attendance', status: 'in_progress', category: 'bug' }) }))
+
+    expect(listStaffSupportTickets).toHaveBeenCalledWith({ search: 'attendance', status: 'in_progress', category: 'bug', campusId: undefined, assigneeId: undefined })
+    expect(screen.getByRole('searchbox', { name: /Search tickets/i })).toHaveValue('attendance')
+    expect(screen.getByLabelText(/Status/i)).toHaveValue('in_progress')
+    expect(screen.getByRole('link', { name: /#43 Cannot submit attendance/i })).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
   })
 })

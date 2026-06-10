@@ -22,10 +22,19 @@ const supportTicketSchema = z.object({
 
 const messageSchema = z.object({ body: z.string().trim().min(1).max(8000) })
 
+const staffQueueFilterSchema = z.object({
+  search: z.string().trim().max(120).optional(),
+  status: z.enum(['received', 'in_review', 'in_progress', 'resolved', 'closed']).optional(),
+  category: z.string().trim().max(80).optional(),
+  campusId: z.string().trim().max(120).optional(),
+  assigneeId: z.string().trim().max(120).optional(),
+})
+
 const SUPPORT_TICKET_CREATE_ERROR = 'Unable to create support ticket'
 const SUPPORT_TICKET_LIST_ERROR = 'Unable to load support tickets'
 const SUPPORT_TICKET_DETAIL_ERROR = 'Unable to load support ticket'
 const SUPPORT_TICKET_MESSAGE_ERROR = 'Unable to send support reply'
+const SUPPORT_STAFF_QUEUE_ERROR = 'Unable to load support queue'
 
 type SupportTicketRow = {
   id: string
@@ -47,6 +56,11 @@ type SupportTicketRow = {
 }
 
 type SupportMessageRow = { id: string; body: string; created_at: string }
+
+type StaffSupportTicketRow = Pick<SupportTicketRow, 'id' | 'ticket_number' | 'title' | 'status' | 'category' | 'severity' | 'created_at' | 'updated_at'> & {
+  assignee_usuario_id: string | null
+  campus_id: string | null
+}
 
 export async function createSupportTicket(formData: FormData) {
   const parsed = supportTicketSchema.safeParse(Object.fromEntries(formData))
@@ -83,6 +97,42 @@ export async function listSupportTickets() {
 
   if (error) return { success: false, error: SUPPORT_TICKET_LIST_ERROR, tickets: [] }
   return { success: true, tickets: (data ?? []).map(toTicketSummary) }
+}
+
+export async function listStaffSupportTickets(filters: unknown) {
+  const parsed = staffQueueFilterSchema.safeParse(filters)
+  if (!parsed.success) return { success: false, error: 'Invalid support queue filters', tickets: [] }
+
+  const supabase = await createSupabaseServerClient()
+  const actor = await getActorUsuarioId(supabase)
+  if (!actor.success) return { ...actor, tickets: [] }
+
+  // This is only a fast app-level precheck; RLS remains the authoritative global-admin/support.view gate.
+  const capability = await supabase
+    .from('support_user_capabilities')
+    .select('capability')
+    .eq('usuario_id', actor.usuarioId)
+    .eq('capability', 'support.view')
+    .is('revoked_at', null)
+    .maybeSingle()
+
+  if (capability.error || !capability.data) return { success: false, error: 'Not authorized', tickets: [] }
+
+  const { search, status, category, campusId, assigneeId } = parsed.data
+  let query = supabase
+    .from('support_tickets')
+    .select('id,ticket_number,title,status,category,severity,assignee_usuario_id,campus_id,created_at,updated_at')
+
+  if (search) query = query.textSearch('search_vector', search, { type: 'plain', config: 'simple' })
+  if (status) query = query.eq('status', status)
+  if (category) query = query.eq('category', category)
+  if (campusId) query = query.eq('campus_id', campusId)
+  if (assigneeId) query = query.eq('assignee_usuario_id', assigneeId)
+
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(50)
+
+  if (error) return { success: false, error: SUPPORT_STAFF_QUEUE_ERROR, tickets: [] }
+  return { success: true, tickets: (data ?? []).map(toStaffTicketSummary) }
 }
 
 export async function getSupportTicketDetail(ticketId: string) {
@@ -149,4 +199,8 @@ function toTicketDetail(ticket: SupportTicketRow, messages: SupportMessageRow[])
     evidence: { currentRoute: ticket.current_route, browserName: ticket.browser_name, osName: ticket.os_name, viewport: ticket.viewport, appBuildVersion: ticket.app_build_version, sentryEventId: ticket.sentry_event_id, diagnosticsConsent: ticket.diagnostics_consent },
     messages: messages.map((message) => ({ id: message.id, body: message.body, createdAt: message.created_at })),
   }
+}
+
+function toStaffTicketSummary(ticket: StaffSupportTicketRow) {
+  return { ...toTicketSummary(ticket), assigneeUsuarioId: ticket.assignee_usuario_id, campusId: ticket.campus_id }
 }
