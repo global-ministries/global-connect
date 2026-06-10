@@ -112,6 +112,27 @@ export async function sendSupportNotificationEmail(
   } satisfies SkippedSupportNotificationEmailResult
 }
 
+export async function sendSupportNotificationEmails(
+  event: SupportNotificationEvent,
+  recipients: SupportNotificationEmailData[]
+) {
+  const sentRecipientKeys = new Set<string>()
+  const results = []
+
+  for (const recipient of recipients) {
+    const recipientKey = recipient.recipientEmail.trim().toLowerCase()
+
+    if (sentRecipientKeys.has(recipientKey)) {
+      continue
+    }
+
+    sentRecipientKeys.add(recipientKey)
+    results.push(await sendSupportNotificationEmail(event, recipient))
+  }
+
+  return results
+}
+
 function createSupportEvent<Name extends SupportInngestEventName, Payload extends SupportBaseEventPayload>(
   name: Name,
   data: Payload
