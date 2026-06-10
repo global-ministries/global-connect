@@ -577,19 +577,19 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
             )} />
             <span className="font-medium text-sm">Actualizaciones</span>
           </Link>
-          {/* Ayuda — toast */}
-          <button
-            onClick={() => toast.info('Próximamente')}
+          <Link
+            href="/ayuda"
+            aria-current={isActive('/ayuda') ? "page" : undefined}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px] w-full text-left",
               "transition-[background-color,color,transform] duration-200 ease-expo",
               "press-scale focus-ring touch-manipulation",
-              "text-foreground hover:bg-[var(--brand-accent)]"
+              isActive('/ayuda') ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]" : "text-foreground hover:bg-[var(--brand-accent)]"
             )}
           >
-            <HelpCircle className="w-5 h-5 flex-shrink-0 text-muted-foreground" />
+            <HelpCircle className={cn("w-5 h-5 flex-shrink-0", isActive('/ayuda') ? "text-[var(--brand-primary)]" : "text-muted-foreground")} />
             <span className="font-medium text-sm">Ayuda</span>
-          </button>
+          </Link>
 
           {/* Theme Toggle */}
           <button
