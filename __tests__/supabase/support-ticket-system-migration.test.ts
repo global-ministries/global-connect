@@ -4,12 +4,26 @@ import { join } from 'node:path'
 const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
 
 function readSupportTicketMigration(): string {
-  const migration = readdirSync(migrationsDir).find((file) =>
-    file.endsWith('_support_ticket_system.sql')
-  )
+  return readMigrationBySuffix('_support_ticket_system.sql')
+}
+
+function readSupportTicketSql(): string {
+  return [
+    readSupportTicketMigration(),
+    readMigrationBySuffix('_add_support_staff_action_rpcs.sql'),
+    readSupportStaffDirectMutationMigration(),
+  ].join('\n')
+}
+
+function readSupportStaffDirectMutationMigration(): string {
+  return readMigrationBySuffix('_restrict_support_staff_direct_mutations.sql')
+}
+
+function readMigrationBySuffix(suffix: string): string {
+  const migration = readdirSync(migrationsDir).find((file) => file.endsWith(suffix))
 
   if (!migration) {
-    throw new Error('Missing support_ticket_system migration')
+    throw new Error(`Missing migration ${suffix}`)
   }
 
   return readFileSync(join(migrationsDir, migration), 'utf8')
@@ -37,6 +51,17 @@ function functionSql(sql: string, functionName: string): string {
   }
 
   return compactSql(match[0])
+}
+
+function functionSqlByPrefix(sql: string, functionPrefix: string): string {
+  const start = sql.indexOf(`CREATE OR REPLACE FUNCTION ${functionPrefix}`)
+
+  if (start === -1) {
+    throw new Error(`Missing function ${functionPrefix}`)
+  }
+
+  const end = sql.indexOf('\n$$;', start)
+  return compactSql(sql.slice(start, end + '\n$$;'.length))
 }
 
 describe('support ticket system migration', () => {
@@ -92,6 +117,14 @@ describe('support ticket system migration', () => {
     expect(sql).not.toMatch(/GRANT\s+[^;]*\bDELETE\b[^;]*ON\s+public\.support_ticket_events\s+TO\s+authenticated/i)
   })
 
+  it('keeps post-staging staff RPCs out of the already-applied base migration', () => {
+    const sql = readSupportTicketMigration()
+
+    expect(sql).not.toContain('CREATE OR REPLACE FUNCTION public.create_staff_support_ticket_reply')
+    expect(sql).not.toContain('CREATE OR REPLACE FUNCTION public.assign_support_ticket')
+    expect(sql).not.toContain('CREATE OR REPLACE FUNCTION public.update_support_ticket_status')
+  })
+
   it('filters internal messages away from ticket reporters', () => {
     const sql = readSupportTicketMigration()
     const selectPolicy = policySql(sql, 'support_messages_select')
@@ -136,5 +169,65 @@ describe('support ticket system migration', () => {
     expect(capabilityHelper).toContain('suc.capability = required_capability')
     expect(capabilityHelper).toContain('suc.revoked_at IS NULL')
     expect(capabilityHelper).not.toMatch(/\)\s+OR\s+EXISTS/i)
+  })
+
+  it('adds atomic staff mutation RPCs with explicit capability gates and audit writes', () => {
+    const sql = readSupportTicketSql()
+    const staffReplyRpc = functionSqlByPrefix(sql, 'public.create_staff_support_ticket_reply(p_ticket_id uuid, p_body text)')
+    const assignmentRpc = functionSqlByPrefix(sql, 'public.assign_support_ticket(p_ticket_id uuid, p_assignee_usuario_id uuid)')
+    const statusRpc = functionSqlByPrefix(sql, 'public.update_support_ticket_status(p_ticket_id uuid, p_status text)')
+
+    expect(staffReplyRpc).toContain('SECURITY DEFINER')
+    expect(staffReplyRpc).toContain("SET search_path TO 'public', 'support_private'")
+    expect(staffReplyRpc).toContain("support_private.has_capability('support.reply')")
+    expect(staffReplyRpc).toContain('INSERT INTO public.support_ticket_messages')
+    expect(staffReplyRpc).toContain('INSERT INTO public.support_ticket_events')
+    expect(staffReplyRpc).not.toMatch(/\bEXECUTE\b/i)
+
+    expect(assignmentRpc).toContain("support_private.has_capability('support.manage')")
+    expect(assignmentRpc).toContain("SET search_path TO 'public', 'support_private'")
+    expect(assignmentRpc).toContain('UPDATE public.support_tickets')
+    expect(assignmentRpc).toContain('INSERT INTO public.support_ticket_events')
+    expect(assignmentRpc).not.toMatch(/\bEXECUTE\b/i)
+
+    expect(statusRpc).toContain("support_private.has_capability('support.manage')")
+    expect(statusRpc).toContain("SET search_path TO 'public', 'support_private'")
+    expect(statusRpc).toContain("p_status NOT IN ('received', 'in_review', 'in_progress', 'resolved', 'closed')")
+    expect(statusRpc).toContain('UPDATE public.support_tickets')
+    expect(statusRpc).toContain('INSERT INTO public.support_ticket_events')
+    expect(statusRpc).not.toMatch(/\bEXECUTE\b/i)
+  })
+
+  it('keeps staff mutation RPC execution limited to authenticated callers', () => {
+    const sql = readSupportTicketSql()
+
+    for (const signature of [
+      'public.create_staff_support_ticket_reply(uuid, text)',
+      'public.assign_support_ticket(uuid, uuid)',
+      'public.update_support_ticket_status(uuid, text)',
+    ]) {
+      expect(sql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC`)
+      expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`)
+    }
+  })
+
+  it('closes direct staff ticket updates so audited fields require RPCs', () => {
+    const sql = readSupportStaffDirectMutationMigration()
+
+    expect(sql).toContain('REVOKE UPDATE ON public.support_tickets FROM authenticated')
+    expect(sql).toContain('DROP POLICY IF EXISTS support_tickets_update ON public.support_tickets')
+    expect(sql).not.toMatch(/CREATE POLICY\s+support_tickets_update\s+ON\s+public\.support_tickets[\s\S]*support_private\.has_capability\('support\.manage'\)/i)
+    expect(sql).not.toMatch(/GRANT\s+[^;]*\bUPDATE\b[^;]*ON\s+public\.support_tickets\s+TO\s+authenticated/i)
+  })
+
+  it('keeps direct message inserts reporter-only so staff replies require the audited RPC', () => {
+    const sql = readSupportStaffDirectMutationMigration()
+    const insertPolicy = policySql(sql, 'support_messages_insert')
+
+    expect(sql).toContain('DROP POLICY IF EXISTS support_messages_insert ON public.support_ticket_messages')
+    expect(insertPolicy).toContain('author_usuario_id = support_private.current_usuario_id()')
+    expect(insertPolicy).toContain('is_internal = false')
+    expect(insertPolicy).toContain('st.reporter_usuario_id = support_private.current_usuario_id()')
+    expect(insertPolicy).not.toContain("support_private.has_capability('support.reply')")
   })
 })
