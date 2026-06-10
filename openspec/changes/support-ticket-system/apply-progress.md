@@ -5,9 +5,9 @@
 - Mode: Strict TDD
 - Delivery: force-chained
 - Chain strategy: feature-branch-chain
-- Current slice: Phase 6 task 6.2 completed with a non-mutating support operations runbook covering R2/Inngest/Resend envs, Sentry/support privacy, rollback, retention open questions, future sanitized GitHub boundaries, operator verification, and explicit production migration review requirements.
-- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 6.1, 6.2
-- Latest update: Phase 6.2 added `docs/support-operations.md` as the quick operational path for support release/rollback, with server-only R2 credentials, private bucket expectations, Inngest ID-only event boundary, Resend sender/link requirements, Sentry privacy confirmations, non-destructive rollback guidance, unresolved retention decisions, and a strict future GitHub sync boundary. No production Supabase mutation, live provider call, or credential access was performed.
+- Current slice: Phase 6 task 6.3 completed after final repo-local checks, staging RLS validation, Preview manual reporter/staff validation, and the merged support admin bugfix in PR #145.
+- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 6.1, 6.2, 6.3
+- Latest update: Final Phase 6.3 validation passed with repo-local CI/build/typecheck/whitespace checks, staging RLS (`RLS_ENV=staging pnpm test:rls` passed with 12 passed, 0 failed, 0 skipped), and Preview manual reporter/staff flows. `/ayuda/admin` initially failed with 500, then PR #145 fixed the support admin action client bug and was merged to main at `1a3a86a642a5808adf9492f85efc6b5fe91f809d` with all PR checks passing.
 
 ## TDD Cycle Evidence
 
@@ -37,6 +37,7 @@
 | 5.3 | `__tests__/lib/support/inngest.test.ts`, `__tests__/lib/email/support.test.tsx` | Unit/event contract + mocked email helpers/templates | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 4 tests before edits | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` failed because `sendSupportNotificationEmails` did not exist | `pnpm test -- __tests__/lib/support/inngest.test.ts --runInBand` passed with 1 suite and 6 tests; focused notification regression passed with 2 suites and 11 tests; `pnpm exec tsc --noEmit` passed | 2 new cases cover one email per event/normalized recipient and noisy payload stripping for evidence, attachments, R2 keys, raw Sentry, diagnostics, GitHub details, message bodies, descriptions, and long user text | Added a minimal batch helper that deduplicates normalized recipients before delegating to the single-recipient sender; no live Inngest/Resend calls were made |
 | 6.1 | `__tests__/lib/support/sentry-privacy.test.ts` | Unit/static config contract + pure scrubber behavior | Existing Sentry config had `sendDefaultPii: true`, default client replay sampling, and no privacy scrubber coverage | `pnpm test -- __tests__/lib/support/sentry-privacy.test.ts --runInBand` failed because `@/lib/support/sentry-privacy` did not exist | `pnpm test -- __tests__/lib/support/sentry-privacy.test.ts --runInBand` passed with 1 suite and 5 tests; `pnpm exec tsc --noEmit` passed | 5 cases cover config-file defaults, client replay privacy options, consistent server/edge privacy options including transaction scrubbing, absolute support URL/body/header/context/user scrubbing, and relative URL/mixed-case header/user-PII scrubbing | Extracted shared `lib/support/sentry-privacy.ts`; typed Sentry hooks generically because browser/server/edge error and transaction hooks accept narrower event subtypes |
 | 6.2 | `docs/support-operations.md` | Documentation/static operations runbook | OpenSpec task 6.2 and existing `docs/supabase-staging-baseline.md` patterns | Docs gap existed for support provider envs, rollback, retention, and GitHub boundary | `git diff --check` passed | Checklist covers R2, Inngest, Resend, Sentry/privacy, production migration review, non-destructive rollback, retention open questions, and future sanitized GitHub sync boundary | Kept this slice documentation-only; no live provider calls, production Supabase mutation, or final 6.3 verification was performed |
+| 6.3 | Final validation artifacts | Repo-local CI/build/typecheck, staging RLS, and Preview manual flows | Prior Phase 6.2 artifact explicitly left final 6.3 verification pending | `/ayuda/admin` initially failed with 500 during Preview validation | PR #145 fixed the support admin client path and merged to main at `1a3a86a642a5808adf9492f85efc6b5fe91f809d`; all PR checks passed | Final evidence covers `pnpm test:ci`, `pnpm build`, `pnpm exec tsc --noEmit`, `git diff --check`, staging `pnpm test:rls`, reporter create/detail/list, staff queue/reply, and reporter public reply/status visibility | Assignment/status controls were not available in the current UI, so they were not manually UI-tested; attachment privacy was not validated with an actual R2 upload when no attachment was uploaded |
 
 ## Completed Tasks
 
@@ -59,6 +60,7 @@
 - [x] 5.3 Verified support notification safety with repo-local mocked tests: one email per event/normalized recipient, deterministic idempotency keys, no evidence/attachments/R2 keys/raw Sentry/diagnostics/GitHub details/message bodies/long user text in queued payloads, and no attachment-finalized email in MVP.
 - [x] 6.1 Hardened Sentry client/server/edge defaults with no default PII, no default raw replay, masked/blocked replay integration options, shared `beforeSend`/`beforeSendTransaction` scrubbing, and focused static/unit coverage for support-related URL/header/body/context/user data redaction.
 - [x] 6.2 Added `docs/support-operations.md` documenting the support operations quick path, R2/Inngest/Resend environment checklist, Sentry/support privacy checks, non-destructive rollback guidance, retention open questions, future sanitized GitHub sync boundary, and operator/reviewer verification checklist.
+- [x] 6.3 Completed final validation evidence: repo-local CI/build/typecheck/whitespace checks passed, staging RLS passed, Preview reporter/staff flows passed after PR #145 fixed the `/ayuda/admin` 500, and known limitations/warnings are recorded below.
 
 ## Staging Baseline Setup
 
@@ -156,6 +158,19 @@
 - Phase 6.1 live provider verification gap: no live Sentry call was made, no Sentry credentials were required, and replay/error delivery was verified only by local config/static/unit contracts.
 - Phase 6.2 docs/static verification: `git diff --check` passed.
 - Phase 6.2 live provider verification gap: no live Supabase, R2, Inngest, Resend, Sentry, or GitHub service call was made; this slice intentionally avoided final 6.3 verification.
+- Phase 6.3 repo-local verification: delegated validation reported `pnpm test:ci` passed before the later fix with 13 Jest suites/91 tests and 17 Node tests; the fix branch later passed `pnpm test:ci` with 108 tests total.
+- Phase 6.3 repo-local verification: `pnpm build` passed after staging-compatible placeholder environment values were supplied.
+- Phase 6.3 repo-local verification: `pnpm exec tsc --noEmit` passed after build.
+- Phase 6.3 repo-local verification: `git diff --check` passed.
+- Phase 6.3 staging RLS verification: `.env.staging.local` was verified ignored by git, and `RLS_ENV=staging pnpm test:rls` passed with 12 passed, 0 failed, 0 skipped.
+- Phase 6.3 Preview environment: Preview branch `fix/support-admin-validation` had staging Supabase and Resend variables configured for manual validation.
+- Phase 6.3 Preview manual reporter validation: reporter ticket creation passed; reporter detail/list passed; no raw errors surfaced; no internal/private leakage was observed.
+- Phase 6.3 Preview manual staff validation: `/ayuda/admin` initially failed with 500, then PR #145 fixed the support admin action client issue; after the fix, staff queue loading passed, staff reply passed, and the reporter saw the public reply/status.
+- Phase 6.3 bugfix evidence: issue #144 was approved and closed; PR #145 merged into main at `1a3a86a642a5808adf9492f85efc6b5fe91f809d`; all PR checks passed.
+- Phase 6.3 limitation: staff assignment/status controls were not available in the current UI, so assignment/status control behavior was not manually testable through UI.
+- Phase 6.3 limitation: attachment privacy was not validated with an actual R2 upload when no attachment was uploaded; do not treat final validation as proof of live attachment upload privacy.
+- Phase 6.3 warning: Zod validation failures may still surface default English messages in edge validation cases; fresh review classified this as a warning, not a blocker.
+- Phase 6.3 warning: some support technical strings outside the requested UI/action surface may remain English.
 
 ## Production Safety
 
@@ -175,9 +190,10 @@
 - Phase 5.3 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Resend calls, no live Inngest calls, and no real email sends. Email helpers/templates were mocked or rendered locally in tests.
 - Phase 6.1 performed no Supabase production/staging mutations, no SQL execution, no live Supabase calls, no live Sentry calls, and no Sentry credential access. Sentry behavior was validated through local config/static/unit tests only.
 - Phase 6.2 performed no Supabase production/staging mutations, no SQL execution, no live Supabase/R2/Inngest/Resend/Sentry/GitHub calls, and no credential access. Documentation states production migration application remains an explicit reviewed operation.
+- Phase 6.3 artifact update performed no Supabase, Vercel, R2, Resend, production, or staging mutation and read no secrets; it records already-completed validation evidence only.
 - No GitHub issue sync was implemented.
 - Staging baseline docs/scripts target project ref `ebwtdjtajclzciwipevw`; old package scripts for `wcnqocyqtksxhthnquta` were blocked or replaced with staging-safe commands.
 
 ## Remaining Tasks
 
-- [ ] 6.3 Run `pnpm test:rls`, unit/integration suites, build/typecheck, and manual reporter/staff flows.
+- None. Phase 6.3 is complete; the change is ready for SDD verify/archive consideration with the limitations and warnings above carried forward.

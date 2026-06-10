@@ -64,4 +64,4 @@ Chain strategy: feature-branch-chain
 
 - [x] 6.1 Harden `instrumentation-client.ts`, `sentry.server.config.ts`, and `sentry.edge.config.ts` for no default PII/raw replay.
 - [x] 6.2 Document R2/Inngest/Resend envs, rollback, retention question, and future sanitized GitHub boundary.
-- [ ] 6.3 Run `pnpm test:rls`, unit/integration suites, build/typecheck, and manual reporter/staff flows.
+- [x] 6.3 Run `pnpm test:rls`, unit/integration suites, build/typecheck, and manual reporter/staff flows.
