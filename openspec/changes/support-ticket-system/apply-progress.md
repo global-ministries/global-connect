@@ -5,9 +5,9 @@
 - Mode: Strict TDD
 - Delivery: force-chained
 - Chain strategy: feature-branch-chain
-- Current slice: Phase 4 task 4.1 completed with a staff-only `/ayuda/admin` queue, server-side filters, and Postgres FTS query construction; staff replies, assignment, status transitions, and audited saves remain pending for the next slice.
-- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1
-- Latest update: Staff queue/list/search/filter is implemented under the Phase 4 review boundary. `listStaffSupportTickets` requires an authenticated usuario profile plus active `support.view` capability before querying the RLS-protected ticket queue, applies status/category/campus/assignee filters, applies Postgres FTS through `textSearch('search_vector', ..., { type: 'plain', config: 'simple' })`, and limits the queue to 50 newest matches. `/ayuda/admin` renders a server-side App Router queue with existing design-system controls and links to existing ticket detail pages.
+- Current slice: Phase 4 task 4.2 completed with staff reply, assignment, and status transition server actions plus audit event writes; broader 4.3 verification remains pending.
+- Completed tasks: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2
+- Latest update: Staff actions are implemented under the Phase 4 review boundary. `createStaffSupportTicketReply`, `assignSupportTicket`, and `updateSupportTicketStatus` use the authenticated server client for user identity, explicitly precheck `support.reply` or `support.manage`, then call Postgres RPCs that perform the staff mutation and `support_ticket_events` insert in one database transaction. Status saves validate the existing lifecycle statuses before the RPC call, assignment accepts a UUID assignee or `null`, and the actions revalidate ticket detail plus staff queue paths.
 
 ## TDD Cycle Evidence
 
@@ -28,6 +28,8 @@
 | 3.4 | `__tests__/lib/actions/support.actions.test.ts`, `__tests__/components/support-navigation.test.tsx`, `__tests__/app/support-pages.test.tsx` | Unit + component/page integration | Phase 1/2 support suites included in full CI | Verification was pending until reporter actions, pages, and nav existed | `pnpm test:ci` passed with Jest 10 suites/54 tests and Node Test Runner 17 tests; `pnpm exec tsc --noEmit` passed | Submit, anonymous rejection, reporter list/detail/reply, and mobile `/ayuda` navigation are covered by focused tests; manual browser execution was not run | `pnpm lint` blocked by missing `eslint-plugin-security` in the current install, not by Phase 3 code |
 | 3.4 privacy review fix | `__tests__/lib/actions/support.actions.test.ts` | Unit/server action with mocked Supabase RLS client | Fresh Phase 3 review reported `needs_fix` privacy blocker | Existing evidence test expected `/dashboard?token=secret`, proving route query persistence; diagnostics were stored even when consent was false | `npm test -- __tests__/lib/actions/support.actions.test.ts --runInBand` passed with 8/8 tests; `npm test -- __tests__/lib/actions/support.actions.test.ts __tests__/components/support-navigation.test.tsx __tests__/app/support-pages.test.tsx --runInBand` passed with 3 suites and 14 tests; `npx tsc --noEmit` passed | Coverage now proves route query/hash redaction, diagnostics consent gating including string `"false"`, explicit public/non-internal message filtering, and stable user-safe list error mapping | Kept the fix inside `lib/actions/support.actions.ts`; no Supabase production mutation or SQL execution was performed |
 | 4.1 | `__tests__/lib/actions/support.actions.test.ts`, `__tests__/app/support-pages.test.tsx` | Unit/server action + App Router page rendering | `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/app/support-pages.test.tsx --runInBand` passed with 12/12 existing tests before changes | RED failed because `listStaffSupportTickets` was missing and `/ayuda/admin/page` did not exist | Focused GREEN passed with 2 suites and 16 tests; support regression suite passed with 6 suites and 33 tests; `pnpm exec tsc --noEmit` passed | 4 new cases cover unauthorized `support.view` denial, FTS plus status/category/campus/assignee filter construction, user-safe staff queue Supabase error mapping, and staff queue page rendering/search controls | Fixed the admin status filter to use controlled `SelectSistema value` instead of `defaultValue`, matching the design-system component contract |
+| 4.2 | `__tests__/lib/actions/support.actions.test.ts` | Unit/server action with mocked Supabase RPC client | `pnpm test -- __tests__/lib/actions/support.actions.test.ts --runInBand` passed with 11/11 existing tests before changes | RED failed because `createStaffSupportTicketReply`, `assignSupportTicket`, and `updateSupportTicketStatus` were not exported | Focused GREEN passed with 1 suite and 16 tests; support regression suite passed with 6 suites and 39 tests; `pnpm exec tsc --noEmit` passed | 5 new cases cover staff reply audit, assignment audit, invalid status rejection before update, status audit, and stable denial mapping for rejected status saves | Final review fix moved staff mutation plus audit insert into Postgres RPCs so committed staff actions have transaction-scoped immutable audit rows |
+| 4.2 review fix | `__tests__/lib/actions/support.actions.test.ts`, `__tests__/supabase/support-ticket-system-migration.test.ts` | Unit/server action + static migration contract | Fresh review verdict reported staff reply capability bypass and non-atomic mutation/audit blockers | Review blocker proved the previous split write design could allow reporter-owned ticket replies through RLS and leave mutations without audit if audit insertion failed | `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/supabase/support-ticket-system-migration.test.ts --runInBand` passed with 2 suites and 28 tests; `pnpm exec tsc --noEmit` passed | Coverage now denies direct staff replies without `support.reply` before RPC invocation, verifies staff actions call atomic RPCs, and statically asserts RPC capability gates plus audit writes | Added repo-only migration SQL; no live Supabase migration was applied |
 
 ## Completed Tasks
 
@@ -43,6 +45,7 @@
 - [x] 3.3 Replaced Ayuda “Próximamente” toast buttons with real `/ayuda` navigation in sidebar, mobile drawer, mobile bottom menu, and desktop header.
 - [x] 3.4 Verified submit, anonymous rejection, reporter view/reply, and mobile `/ayuda` navigation through focused tests plus full CI test execution.
 - [x] 4.1 Built `/ayuda/admin` staff queue with `support.view` authorization, server-side filters, Postgres FTS query construction, and focused page/action coverage.
+- [x] 4.2 Added staff reply, assignment, and status transition server actions with append-only support audit event writes and focused action coverage.
 
 ## Staging Baseline Setup
 
@@ -95,6 +98,13 @@
 - Phase 4.1 type verification: `pnpm exec tsc --noEmit` passed.
 - Phase 4.1 support regression verification: `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/app/support-pages.test.tsx __tests__/components/support-navigation.test.tsx __tests__/app/support-attachments-route.test.ts __tests__/lib/support/r2.test.ts __tests__/lib/support/capabilities.test.ts --runInBand` passed with 6 suites and 33 tests. React emitted existing non-failing Suspense/act warnings from page tests.
 - Phase 4.1 lint verification: `pnpm lint` failed before linting because `eslint-plugin-security` could not be resolved from the current local install.
+- Phase 4.2 safety net: `pnpm test -- __tests__/lib/actions/support.actions.test.ts --runInBand` passed with 1 suite and 11 tests before production edits.
+- Phase 4.2 RED: `pnpm test -- __tests__/lib/actions/support.actions.test.ts --runInBand` failed because `createStaffSupportTicketReply`, `assignSupportTicket`, and `updateSupportTicketStatus` were not implemented.
+- Phase 4.2 focused GREEN: `pnpm test -- __tests__/lib/actions/support.actions.test.ts --runInBand` passed with 1 suite and 16 tests.
+- Phase 4.2 type verification: `pnpm exec tsc --noEmit` passed.
+- Phase 4.2 support regression verification: `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/app/support-pages.test.tsx __tests__/components/support-navigation.test.tsx __tests__/app/support-attachments-route.test.ts __tests__/lib/support/r2.test.ts __tests__/lib/support/capabilities.test.ts --runInBand` passed with 6 suites and 39 tests. React emitted existing non-failing Suspense/act warnings from page tests.
+- Phase 4.2 review fix verification: `pnpm test -- __tests__/lib/actions/support.actions.test.ts __tests__/supabase/support-ticket-system-migration.test.ts --runInBand` passed with 2 suites and 28 tests.
+- Phase 4.2 review fix type verification: `pnpm exec tsc --noEmit` passed.
 
 ## Production Safety
 
@@ -107,12 +117,12 @@
 - Phase 3 performed no Supabase production mutations and no live R2 calls; Supabase access was mocked in tests and implementation uses the authenticated server client so RLS remains the authorization boundary.
 - Phase 3 privacy review fix performed no Supabase production mutations, no SQL execution, and no live Supabase calls; Supabase access remained mocked in tests.
 - Phase 4.1 performed no Supabase production mutations, no SQL execution, no migrations, and no live Supabase calls; Supabase access remained mocked in focused tests and implementation uses authenticated server clients plus RLS-protected tables.
+- Phase 4.2 performed no Supabase production mutations, no SQL execution, and no live Supabase calls; repo-only migration SQL now defines atomic staff mutation RPCs, and tests mock Supabase access rather than applying those functions live.
 - No GitHub issue sync was implemented.
 - Staging baseline docs/scripts target project ref `ebwtdjtajclzciwipevw`; old package scripts for `wcnqocyqtksxhthnquta` were blocked or replaced with staging-safe commands.
 
 ## Remaining Tasks
 
-- [ ] 4.2 Add staff reply, assignment, and status transition actions in `lib/actions/support*.ts` with audit events.
 - [ ] 4.3 Verify capabilities, unauthorized denial, search/filter, and audited status saves.
 - [ ] 5.1 Add `emails/support-*.tsx` templates and `lib/email/**` calls with safe authenticated links only.
 - [ ] 5.2 Add `lib/support/inngest*.ts` events with ID-only payloads and idempotency keys.

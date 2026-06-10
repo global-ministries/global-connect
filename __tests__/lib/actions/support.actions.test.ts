@@ -1,9 +1,12 @@
 import {
+  assignSupportTicket,
   createSupportTicket,
   createSupportTicketMessage,
+  createStaffSupportTicketReply,
   getSupportTicketDetail,
   listStaffSupportTickets,
   listSupportTickets,
+  updateSupportTicketStatus,
 } from '@/lib/actions/support.actions'
 import { sanitizeSupportEvidence } from '@/lib/support/support-evidence'
 
@@ -187,6 +190,91 @@ describe('support reporter actions', () => {
 
     await expect(listStaffSupportTickets({})).resolves.toEqual({ success: false, error: 'Unable to load support queue', tickets: [] })
   })
+
+  it('denies direct staff replies without support.reply before invoking the atomic RPC', async () => {
+    const rpc = jest.fn()
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffActionFromMock({ usuarioId: 'usuario-1', hasCapability: false }),
+      rpc,
+    })
+
+    const result = await createStaffSupportTicketReply('ticket-1', createMessageFormData())
+
+    expect(result).toEqual({ success: false, error: 'Not authorized' })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('adds a staff reply through the atomic audit RPC', async () => {
+    const rpc = jest.fn().mockResolvedValue({ error: null })
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffActionFromMock({ usuarioId: 'usuario-1', hasCapability: true, capability: 'support.reply' }),
+      rpc,
+    })
+
+    const result = await createStaffSupportTicketReply('ticket-1', createMessageFormData())
+
+    expect(result).toEqual({ success: true })
+    expect(rpc).toHaveBeenCalledWith('create_staff_support_ticket_reply', { p_ticket_id: 'ticket-1', p_body: 'I can reproduce it on mobile.' })
+    expect(revalidatePath).toHaveBeenCalledWith('/ayuda/tickets/ticket-1')
+    expect(revalidatePath).toHaveBeenCalledWith('/ayuda/admin')
+  })
+
+  it('assigns a support ticket through the atomic audit RPC', async () => {
+    const rpc = jest.fn().mockResolvedValue({ error: null })
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffActionFromMock({ usuarioId: 'usuario-1', hasCapability: true, capability: 'support.manage' }),
+      rpc,
+    })
+
+    const result = await assignSupportTicket('ticket-1', '11111111-1111-4111-8111-111111111111')
+
+    expect(result).toEqual({ success: true })
+    expect(rpc).toHaveBeenCalledWith('assign_support_ticket', { p_ticket_id: 'ticket-1', p_assignee_usuario_id: '11111111-1111-4111-8111-111111111111' })
+  })
+
+  it('validates staff status transitions before updating', async () => {
+    const rpc = jest.fn()
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffActionFromMock({ usuarioId: 'usuario-1', hasCapability: true, capability: 'support.manage' }),
+      rpc,
+    })
+
+    const result = await updateSupportTicketStatus('ticket-1', 'invalid')
+
+    expect(result).toEqual({ success: false, error: 'Invalid support ticket status' })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('updates a support ticket status through the atomic audit RPC', async () => {
+    const rpc = jest.fn().mockResolvedValue({ error: null })
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffActionFromMock({ usuarioId: 'usuario-1', hasCapability: true, capability: 'support.manage' }),
+      rpc,
+    })
+
+    const result = await updateSupportTicketStatus('ticket-1', 'resolved')
+
+    expect(result).toEqual({ success: true })
+    expect(rpc).toHaveBeenCalledWith('update_support_ticket_status', { p_ticket_id: 'ticket-1', p_status: 'resolved' })
+  })
+
+  it('maps denied staff status saves to a stable user-safe message', async () => {
+    const rpc = jest.fn().mockResolvedValue({ error: { message: 'not authorized' } })
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffActionFromMock({ usuarioId: 'usuario-1', hasCapability: true, capability: 'support.manage' }),
+      rpc,
+    })
+
+    const result = await updateSupportTicketStatus('ticket-1', 'closed')
+
+    expect(result).toEqual({ success: false, error: 'Unable to update support ticket status' })
+  })
 })
 
 function createTicketFormData() {
@@ -241,4 +329,12 @@ function createStaffTicketQuery(rows: Array<Record<string, string | number | nul
   query.textSearch.mockReturnValue(query)
   query.order.mockReturnValue(query)
   return query
+}
+
+function createStaffActionFromMock(input: { usuarioId: string; hasCapability: boolean; capability?: string }) {
+  return jest.fn((table) => {
+    if (table === 'usuarios') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: input.usuarioId }, error: null }) }) }) }
+    if (table === 'support_user_capabilities') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ is: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: input.hasCapability ? { capability: input.capability } : null, error: null }) }) }) }) }) }
+    throw new Error(`Unexpected table ${table}`)
+  })
 }

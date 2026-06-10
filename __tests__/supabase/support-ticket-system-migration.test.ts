@@ -39,6 +39,17 @@ function functionSql(sql: string, functionName: string): string {
   return compactSql(match[0])
 }
 
+function functionSqlByPrefix(sql: string, functionPrefix: string): string {
+  const start = sql.indexOf(`CREATE OR REPLACE FUNCTION ${functionPrefix}`)
+
+  if (start === -1) {
+    throw new Error(`Missing function ${functionPrefix}`)
+  }
+
+  const end = sql.indexOf('\n$$;', start)
+  return compactSql(sql.slice(start, end + '\n$$;'.length))
+}
+
 describe('support ticket system migration', () => {
   it('creates the support ticket domain tables with RLS enabled', () => {
     const sql = readSupportTicketMigration()
@@ -136,5 +147,39 @@ describe('support ticket system migration', () => {
     expect(capabilityHelper).toContain('suc.capability = required_capability')
     expect(capabilityHelper).toContain('suc.revoked_at IS NULL')
     expect(capabilityHelper).not.toMatch(/\)\s+OR\s+EXISTS/i)
+  })
+
+  it('adds atomic staff mutation RPCs with explicit capability gates and audit writes', () => {
+    const sql = readSupportTicketMigration()
+    const staffReplyRpc = functionSqlByPrefix(sql, 'public.create_staff_support_ticket_reply(p_ticket_id uuid, p_body text)')
+    const assignmentRpc = functionSqlByPrefix(sql, 'public.assign_support_ticket(p_ticket_id uuid, p_assignee_usuario_id uuid)')
+    const statusRpc = functionSqlByPrefix(sql, 'public.update_support_ticket_status(p_ticket_id uuid, p_status text)')
+
+    expect(staffReplyRpc).toContain('SECURITY DEFINER')
+    expect(staffReplyRpc).toContain("support_private.has_capability('support.reply')")
+    expect(staffReplyRpc).toContain('INSERT INTO public.support_ticket_messages')
+    expect(staffReplyRpc).toContain('INSERT INTO public.support_ticket_events')
+
+    expect(assignmentRpc).toContain("support_private.has_capability('support.manage')")
+    expect(assignmentRpc).toContain('UPDATE public.support_tickets')
+    expect(assignmentRpc).toContain('INSERT INTO public.support_ticket_events')
+
+    expect(statusRpc).toContain("support_private.has_capability('support.manage')")
+    expect(statusRpc).toContain("p_status NOT IN ('received', 'in_review', 'in_progress', 'resolved', 'closed')")
+    expect(statusRpc).toContain('UPDATE public.support_tickets')
+    expect(statusRpc).toContain('INSERT INTO public.support_ticket_events')
+  })
+
+  it('keeps staff mutation RPC execution limited to authenticated callers', () => {
+    const sql = readSupportTicketMigration()
+
+    for (const signature of [
+      'public.create_staff_support_ticket_reply(uuid, text)',
+      'public.assign_support_ticket(uuid, uuid)',
+      'public.update_support_ticket_status(uuid, text)',
+    ]) {
+      expect(sql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC`)
+      expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`)
+    }
   })
 })

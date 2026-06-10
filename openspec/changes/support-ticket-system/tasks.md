@@ -51,7 +51,7 @@ Chain strategy: feature-branch-chain
 ## Phase 4: Support Console
 
 - [x] 4.1 Build `app/(auth)/ayuda/admin` queue with filters and Postgres FTS.
-- [ ] 4.2 Add staff reply, assignment, and status transition actions in `lib/actions/support*.ts` with audit events.
+- [x] 4.2 Add staff reply, assignment, and status transition actions in `lib/actions/support*.ts` with audit events.
 - [ ] 4.3 Verify capabilities, unauthorized denial, search/filter, and audited status saves.
 
 ## Phase 5: Notifications and Audit

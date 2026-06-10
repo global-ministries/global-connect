@@ -6,6 +6,8 @@ import { z } from 'zod'
 import { diagnosticsConsentSchema, sanitizeSupportEvidence } from '@/lib/support/support-evidence'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
+const SUPPORT_TICKET_STATUSES = ['received', 'in_review', 'in_progress', 'resolved', 'closed'] as const
+
 const supportTicketSchema = z.object({
   title: z.string().trim().min(5).max(160),
   description: z.string().trim().min(10).max(8000),
@@ -21,10 +23,12 @@ const supportTicketSchema = z.object({
 })
 
 const messageSchema = z.object({ body: z.string().trim().min(1).max(8000) })
+const supportTicketStatusSchema = z.enum(SUPPORT_TICKET_STATUSES)
+const assigneeUsuarioIdSchema = z.string().uuid().nullable()
 
 const staffQueueFilterSchema = z.object({
   search: z.string().trim().max(120).optional(),
-  status: z.enum(['received', 'in_review', 'in_progress', 'resolved', 'closed']).optional(),
+  status: supportTicketStatusSchema.optional(),
   category: z.string().trim().max(80).optional(),
   campusId: z.string().trim().max(120).optional(),
   assigneeId: z.string().trim().max(120).optional(),
@@ -35,6 +39,10 @@ const SUPPORT_TICKET_LIST_ERROR = 'Unable to load support tickets'
 const SUPPORT_TICKET_DETAIL_ERROR = 'Unable to load support ticket'
 const SUPPORT_TICKET_MESSAGE_ERROR = 'Unable to send support reply'
 const SUPPORT_STAFF_QUEUE_ERROR = 'Unable to load support queue'
+const SUPPORT_STAFF_REPLY_ERROR = 'Unable to send staff support reply'
+const SUPPORT_STAFF_ASSIGNMENT_ERROR = 'Unable to assign support ticket'
+const SUPPORT_STAFF_STATUS_ERROR = 'Unable to update support ticket status'
+type SupportCapability = 'support.view' | 'support.reply' | 'support.manage'
 
 type SupportTicketRow = {
   id: string
@@ -107,16 +115,8 @@ export async function listStaffSupportTickets(filters: unknown) {
   const actor = await getActorUsuarioId(supabase)
   if (!actor.success) return { ...actor, tickets: [] }
 
-  // This is only a fast app-level precheck; RLS remains the authoritative global-admin/support.view gate.
-  const capability = await supabase
-    .from('support_user_capabilities')
-    .select('capability')
-    .eq('usuario_id', actor.usuarioId)
-    .eq('capability', 'support.view')
-    .is('revoked_at', null)
-    .maybeSingle()
-
-  if (capability.error || !capability.data) return { success: false, error: 'Not authorized', tickets: [] }
+  const capability = await requireSupportCapability(supabase, actor.usuarioId, 'support.view')
+  if (!capability.success) return { ...capability, tickets: [] }
 
   const { search, status, category, campusId, assigneeId } = parsed.data
   let query = supabase
@@ -133,6 +133,60 @@ export async function listStaffSupportTickets(filters: unknown) {
 
   if (error) return { success: false, error: SUPPORT_STAFF_QUEUE_ERROR, tickets: [] }
   return { success: true, tickets: (data ?? []).map(toStaffTicketSummary) }
+}
+
+export async function createStaffSupportTicketReply(ticketId: string, formData: FormData) {
+  const parsed = messageSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Invalid reply' }
+
+  const supabase = await createSupabaseServerClient()
+  const actor = await getActorUsuarioId(supabase)
+  if (!actor.success) return actor
+  const capability = await requireSupportCapability(supabase, actor.usuarioId, 'support.reply')
+  if (!capability.success) return capability
+
+  const { error } = await supabase.rpc('create_staff_support_ticket_reply' as never, { p_ticket_id: ticketId, p_body: parsed.data.body } as never)
+  if (error) return { success: false, error: SUPPORT_STAFF_REPLY_ERROR }
+
+  revalidatePath(`/ayuda/tickets/${ticketId}`)
+  revalidatePath('/ayuda/admin')
+  return { success: true }
+}
+
+export async function assignSupportTicket(ticketId: string, assigneeUsuarioId: string | null) {
+  const parsed = assigneeUsuarioIdSchema.safeParse(assigneeUsuarioId)
+  if (!parsed.success) return { success: false, error: 'Invalid support ticket assignee' }
+
+  const supabase = await createSupabaseServerClient()
+  const actor = await getActorUsuarioId(supabase)
+  if (!actor.success) return actor
+  const capability = await requireSupportCapability(supabase, actor.usuarioId, 'support.manage')
+  if (!capability.success) return capability
+
+  const { error } = await supabase.rpc('assign_support_ticket' as never, { p_ticket_id: ticketId, p_assignee_usuario_id: parsed.data } as never)
+  if (error) return { success: false, error: SUPPORT_STAFF_ASSIGNMENT_ERROR }
+
+  revalidatePath(`/ayuda/tickets/${ticketId}`)
+  revalidatePath('/ayuda/admin')
+  return { success: true }
+}
+
+export async function updateSupportTicketStatus(ticketId: string, status: string) {
+  const parsed = supportTicketStatusSchema.safeParse(status)
+  if (!parsed.success) return { success: false, error: 'Invalid support ticket status' }
+
+  const supabase = await createSupabaseServerClient()
+  const actor = await getActorUsuarioId(supabase)
+  if (!actor.success) return actor
+  const capability = await requireSupportCapability(supabase, actor.usuarioId, 'support.manage')
+  if (!capability.success) return capability
+
+  const { error } = await supabase.rpc('update_support_ticket_status' as never, { p_ticket_id: ticketId, p_status: parsed.data } as never)
+  if (error) return { success: false, error: SUPPORT_STAFF_STATUS_ERROR }
+
+  revalidatePath(`/ayuda/tickets/${ticketId}`)
+  revalidatePath('/ayuda/admin')
+  return { success: true }
 }
 
 export async function getSupportTicketDetail(ticketId: string) {
@@ -186,6 +240,19 @@ async function getActorUsuarioId(supabase: Awaited<ReturnType<typeof createSupab
   const { data, error } = await supabase.from('usuarios').select('id').eq('auth_id', user.id).maybeSingle()
   if (error || !data?.id) return { success: false as const, error: 'User profile not found' }
   return { success: true as const, usuarioId: data.id }
+}
+
+async function requireSupportCapability(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, usuarioId: string, capability: SupportCapability) {
+  const { data, error } = await supabase
+    .from('support_user_capabilities')
+    .select('capability')
+    .eq('usuario_id', usuarioId)
+    .eq('capability', capability)
+    .is('revoked_at', null)
+    .maybeSingle()
+
+  if (error || !data) return { success: false as const, error: 'Not authorized' }
+  return { success: true as const }
 }
 
 function toTicketSummary(ticket: Omit<SupportTicketRow, 'description' | 'current_route' | 'browser_name' | 'os_name' | 'viewport' | 'app_build_version' | 'sentry_event_id' | 'diagnostics_consent'>) {
