@@ -3,8 +3,8 @@ import {
   createSupportTicketMessage,
   getSupportTicketDetail,
   listSupportTickets,
-  sanitizeSupportEvidence,
 } from '@/lib/actions/support.actions'
+import { sanitizeSupportEvidence } from '@/lib/support/support-evidence'
 
 const createSupabaseServerClient = jest.fn()
 const revalidatePath = jest.fn()
