@@ -3,9 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
+import { diagnosticsConsentSchema, sanitizeSupportEvidence } from '@/lib/support/support-evidence'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-
-const diagnosticsConsentSchema = z.preprocess((value) => value === true || value === 'true' || value === 'on' || value === '1', z.boolean())
 
 const supportTicketSchema = z.object({
   title: z.string().trim().min(5).max(160),
@@ -48,20 +47,6 @@ type SupportTicketRow = {
 }
 
 type SupportMessageRow = { id: string; body: string; created_at: string }
-
-export function sanitizeSupportEvidence(input: Record<string, unknown>) {
-  const parsed = supportTicketSchema.partial().parse(input)
-  const diagnosticsConsent = parsed.diagnosticsConsent ?? false
-  return {
-    current_route: sanitizeRouteEvidence(parsed.currentRoute),
-    browser_name: diagnosticsConsent ? parsed.browserName || null : null,
-    os_name: diagnosticsConsent ? parsed.osName || null : null,
-    viewport: diagnosticsConsent ? parsed.viewport || null : null,
-    app_build_version: diagnosticsConsent ? parsed.appBuildVersion || null : null,
-    sentry_event_id: diagnosticsConsent ? parsed.sentryEventId || null : null,
-    diagnostics_consent: diagnosticsConsent,
-  }
-}
 
 export async function createSupportTicket(formData: FormData) {
   const parsed = supportTicketSchema.safeParse(Object.fromEntries(formData))
@@ -151,12 +136,6 @@ async function getActorUsuarioId(supabase: Awaited<ReturnType<typeof createSupab
   const { data, error } = await supabase.from('usuarios').select('id').eq('auth_id', user.id).maybeSingle()
   if (error || !data?.id) return { success: false as const, error: 'User profile not found' }
   return { success: true as const, usuarioId: data.id }
-}
-
-function sanitizeRouteEvidence(route: string | undefined) {
-  const [withoutHash] = (route ?? '').split('#', 1)
-  const [withoutQuery] = withoutHash.split('?', 1)
-  return withoutQuery || null
 }
 
 function toTicketSummary(ticket: Omit<SupportTicketRow, 'description' | 'current_route' | 'browser_name' | 'os_name' | 'viewport' | 'app_build_version' | 'sentry_event_id' | 'diagnostics_consent'>) {
