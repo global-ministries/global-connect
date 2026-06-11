@@ -13,7 +13,14 @@ function readSupportTicketSql(): string {
     readMigrationBySuffix('_add_support_staff_action_rpcs.sql'),
     readSupportStaffDirectMutationMigration(),
     readMigrationBySuffix('_harden_staff_reply_rpc_body.sql'),
+    readMigrationBySuffix('_add_support_capability_admin_rpcs.sql'),
+    readMigrationBySuffix('_add_support_external_inbound_rpc.sql'),
+    readMigrationBySuffix('_align_support_capability_hierarchy.sql'),
   ].join('\n')
+}
+
+function readDatabaseTypes(): string {
+  return readFileSync(join(process.cwd(), 'lib', 'supabase', 'database.types.ts'), 'utf8')
 }
 
 function readSupportStaffDirectMutationMigration(): string {
@@ -42,6 +49,17 @@ function policySql(sql: string, policyName: string): string {
   }
 
   return compactSql(match[0])
+}
+
+function latestPolicySqlByName(sql: string, policyName: string): string {
+  const start = sql.lastIndexOf(`CREATE POLICY ${policyName} ON`)
+
+  if (start === -1) {
+    throw new Error(`Missing policy ${policyName}`)
+  }
+
+  const end = sql.indexOf(';', start)
+  return compactSql(sql.slice(start, end + 1))
 }
 
 function functionSql(sql: string, functionName: string): string {
@@ -159,7 +177,7 @@ describe('support ticket system migration', () => {
     expect(insertPolicy).toContain('retention_expires_at IS NULL')
   })
 
-  it('requires global admin role plus explicit support capability', () => {
+  it('keeps the applied base helper unchanged before additive authorization fixes', () => {
     const sql = readSupportTicketMigration()
     const capabilityHelper = functionSql(sql, 'support_private.has_capability\\(required_capability text\\)')
 
@@ -170,6 +188,31 @@ describe('support ticket system migration', () => {
     expect(capabilityHelper).toContain('suc.capability = required_capability')
     expect(capabilityHelper).toContain('suc.revoked_at IS NULL')
     expect(capabilityHelper).not.toMatch(/\)\s+OR\s+EXISTS/i)
+  })
+
+  it('aligns the latest support capability helper with reply and manage hierarchy', () => {
+    const sql = readSupportTicketSql()
+    const capabilityHelper = latestFunctionSqlByPrefix(sql, 'support_private.has_capability(required_capability text)')
+
+    expect(capabilityHelper).toContain("suc.capability = 'support.manage'")
+    expect(capabilityHelper).toContain("required_capability IN ('support.view', 'support.reply', 'support.manage')")
+    expect(capabilityHelper).toContain("suc.capability = 'support.reply'")
+    expect(capabilityHelper).toContain("required_capability IN ('support.view', 'support.reply')")
+    expect(capabilityHelper).toContain('suc.capability = required_capability')
+    expect(capabilityHelper).not.toContain("rs.nombre_interno = 'admin'")
+    expect(capabilityHelper).not.toContain('JOIN public.roles_sistema')
+  })
+
+  it('keeps support capability configuration data gated by higher role plus support.manage', () => {
+    const sql = readSupportTicketSql()
+    const configHelper = latestFunctionSqlByPrefix(sql, 'support_private.has_support_configuration_access()')
+    const capabilityPolicy = latestPolicySqlByName(sql, 'support_capabilities_select')
+
+    expect(configHelper).toContain("support_private.has_capability('support.manage')")
+    expect(configHelper).toContain("rs.nombre_interno IN ('admin', 'pastor', 'director-general')")
+    expect(capabilityPolicy).toContain('usuario_id = support_private.current_usuario_id()')
+    expect(capabilityPolicy).toContain('support_private.has_support_configuration_access()')
+    expect(capabilityPolicy).not.toContain("support_private.has_capability('support.manage')")
   })
 
   it('adds atomic staff mutation RPCs with explicit capability gates and audit writes', () => {
@@ -220,6 +263,80 @@ describe('support ticket system migration', () => {
       expect(sql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC`)
       expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`)
     }
+  })
+
+  it('adds audited support capability admin RPCs with allowlist, higher-role, and support.manage gates', () => {
+    const sql = readSupportTicketSql()
+    const grantRpc = latestFunctionSqlByPrefix(sql, 'public.grant_support_capability(p_target_usuario_id uuid, p_capability text)')
+    const revokeRpc = latestFunctionSqlByPrefix(sql, 'public.revoke_support_capability(p_target_usuario_id uuid, p_capability text)')
+
+    expect(grantRpc).toContain('SECURITY DEFINER')
+    expect(grantRpc).toContain("SET search_path TO 'public', 'support_private'")
+    expect(grantRpc).toContain("support_private.has_capability('support.manage')")
+    expect(grantRpc).toContain("rs.nombre_interno IN ('admin', 'pastor', 'director-general')")
+    expect(grantRpc).toContain("p_capability NOT IN ('support.view', 'support.reply', 'support.manage')")
+    expect(grantRpc).toContain('INSERT INTO public.support_user_capabilities')
+    expect(grantRpc).toContain('INSERT INTO public.support_ticket_events')
+    expect(grantRpc).not.toMatch(/\bEXECUTE\b/i)
+
+    expect(revokeRpc).toContain("support_private.has_capability('support.manage')")
+    expect(revokeRpc).toContain("rs.nombre_interno IN ('admin', 'pastor', 'director-general')")
+    expect(revokeRpc).toContain("p_capability NOT IN ('support.view', 'support.reply', 'support.manage')")
+    expect(revokeRpc).toContain('UPDATE public.support_user_capabilities')
+    expect(revokeRpc).toContain('INSERT INTO public.support_ticket_events')
+    expect(revokeRpc).not.toMatch(/\bEXECUTE\b/i)
+  })
+
+  it('keeps nullable support capability audit events readable only to higher-role support managers', () => {
+    const sql = readSupportTicketSql()
+    const selectPolicy = latestPolicySqlByName(sql, 'support_events_select')
+
+    expect(sql).toContain('ALTER COLUMN ticket_id DROP NOT NULL')
+    expect(selectPolicy).toContain('ticket_id IS NULL')
+    expect(selectPolicy).toContain("target_type = 'support_user_capability'")
+    expect(selectPolicy).toContain('support_private.has_support_configuration_access()')
+    expect(selectPolicy).toContain('st.id = ticket_id')
+    expect(selectPolicy).toContain("support_private.has_capability('support.view')")
+  })
+
+  it('keeps support capability admin RPC execution limited to authenticated callers', () => {
+    const sql = readSupportTicketSql()
+
+    for (const signature of [
+      'public.grant_support_capability(uuid, text)',
+      'public.revoke_support_capability(uuid, text)',
+    ]) {
+      expect(sql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC`)
+      expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`)
+    }
+  })
+
+  it('adds an atomic service-role RPC for external inbound audit and message persistence', () => {
+    const sql = readSupportTicketSql()
+    const inboundRpc = latestFunctionSqlByPrefix(sql, 'public.record_support_external_inbound_update(')
+
+    expect(inboundRpc).toContain('SECURITY DEFINER')
+    expect(inboundRpc).toContain("SET search_path TO 'public', 'support_private'")
+    expect(inboundRpc).toContain('INSERT INTO public.support_ticket_events')
+    expect(inboundRpc).toContain('ON CONFLICT (idempotency_key) DO NOTHING')
+    expect(inboundRpc).toContain('ste.ticket_id = p_ticket_id')
+    expect(inboundRpc).toContain("ste.action = 'external.update.received'")
+    expect(inboundRpc).toContain("ste.target_type = 'support_external_update'")
+    expect(inboundRpc).toContain('INSERT INTO public.support_ticket_messages')
+    expect(inboundRpc.indexOf('INSERT INTO public.support_ticket_events')).toBeLessThan(inboundRpc.indexOf('INSERT INTO public.support_ticket_messages'))
+    expect(inboundRpc).not.toMatch(/\bEXECUTE\b/i)
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text) FROM PUBLIC')
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text) TO service_role')
+  })
+
+  it('keeps generated support ticket event types consistent with nullable ticket_id', () => {
+    const types = readDatabaseTypes()
+    const supportEventsStart = types.indexOf('support_ticket_events: {')
+    const supportMessagesStart = types.indexOf('support_ticket_messages: {')
+    const supportEventsTypes = types.slice(supportEventsStart, supportMessagesStart)
+
+    expect(supportEventsTypes).toContain('ticket_id: string | null')
+    expect(supportEventsTypes).toContain('ticket_id?: string | null')
   })
 
   it('closes direct staff ticket updates so audited fields require RPCs', () => {

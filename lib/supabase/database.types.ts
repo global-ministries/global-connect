@@ -2490,7 +2490,7 @@ export type Database = {
           metadata: Json
           target_id: string | null
           target_type: string
-          ticket_id: string
+          ticket_id: string | null
         }
         Insert: {
           action: string
@@ -2501,7 +2501,7 @@ export type Database = {
           metadata?: Json
           target_id?: string | null
           target_type: string
-          ticket_id: string
+          ticket_id?: string | null
         }
         Update: {
           action?: string
@@ -2512,7 +2512,7 @@ export type Database = {
           metadata?: Json
           target_id?: string | null
           target_type?: string
-          ticket_id?: string
+          ticket_id?: string | null
         }
         Relationships: [
           {
@@ -3860,6 +3860,19 @@ export type Database = {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]
         }
         Returns: boolean
+      }
+      record_support_external_inbound_update: {
+        Args: {
+          p_author_usuario_id: string
+          p_idempotency_key: string
+          p_message_body: string
+          p_ticket_id: string
+        }
+        Returns: {
+          duplicate: boolean
+          event_id: string
+          message_id: string | null
+        }[]
       }
       actualizar_rol_miembro: {
         Args: {
