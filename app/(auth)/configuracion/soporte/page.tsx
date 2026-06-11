@@ -2,6 +2,7 @@ import { grantSupportCapability, revokeSupportCapability } from '@/lib/actions/s
 import { SUPPORT_CAPABILITIES, SUPPORT_CAPABILITY_LABELS } from '@/lib/support/capabilities'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { BotonSistema, ContenedorDashboard, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { redirect } from 'next/navigation'
 
@@ -20,7 +21,18 @@ export default async function SupportCapabilitiesPage() {
 
   const hasHigherRole = userData.roles.some((role: string) => SUPPORT_CONFIGURATION_ROLES.includes(role))
   const hasSupportManage = await hasSupportManageCapability(supabase, userData.user.id)
-  if (!hasHigherRole || !hasSupportManage) redirect('/dashboard')
+  if (!hasHigherRole || !hasSupportManage) {
+    return (
+      <DashboardLayout>
+        <ContenedorDashboard titulo="Configuracion de soporte" botonRegreso={{ href: '/dashboard', texto: 'Dashboard' }}>
+          <TarjetaSistema className="space-y-3">
+            <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
+            <TextoSistema variante="sutil">Esta configuracion requiere un rol de administracion alto y la capacidad support.manage. Si necesitas administrar soporte, solicita acceso a un administrador autorizado.</TextoSistema>
+          </TarjetaSistema>
+        </ContenedorDashboard>
+      </DashboardLayout>
+    )
+  }
 
   async function grantAction(formData: FormData) {
     'use server'
@@ -33,24 +45,26 @@ export default async function SupportCapabilitiesPage() {
   }
 
   return (
-    <ContenedorDashboard titulo="Configuracion de soporte" descripcion="Administra capacidades de soporte con cambios auditados y limitados al conjunto permitido.">
-      <TarjetaSistema className="space-y-4">
-        <TituloSistema nivel={2}>Capacidades permitidas</TituloSistema>
-        <TextoSistema variante="sutil">Solo se pueden administrar support.view, support.reply y support.manage para usuarios staff o admin.</TextoSistema>
-        <div className="grid gap-4 md:grid-cols-2">
-          <form action={grantAction} className="space-y-3">
-            <InputSistema label="Usuario destino" name="usuarioId" required placeholder="UUID del usuario" />
-            <SelectSistema label="Capacidad" name="capability" opciones={CAPABILITY_OPTIONS} defaultValue="support.view" />
-            <BotonSistema type="submit">Otorgar capacidad</BotonSistema>
-          </form>
-          <form action={revokeAction} className="space-y-3">
-            <InputSistema label="Usuario destino" name="usuarioId" required placeholder="UUID del usuario" />
-            <SelectSistema label="Capacidad" name="capability" opciones={CAPABILITY_OPTIONS} defaultValue="support.view" />
-            <BotonSistema type="submit" variante="outline">Revocar capacidad</BotonSistema>
-          </form>
-        </div>
-      </TarjetaSistema>
-    </ContenedorDashboard>
+    <DashboardLayout>
+      <ContenedorDashboard titulo="Configuracion de soporte" descripcion="Administra capacidades de soporte con cambios auditados y limitados al conjunto permitido.">
+        <TarjetaSistema className="space-y-4">
+          <TituloSistema nivel={2}>Capacidades permitidas</TituloSistema>
+          <TextoSistema variante="sutil">Solo se pueden administrar support.view, support.reply y support.manage para usuarios staff o admin.</TextoSistema>
+          <div className="grid gap-4 md:grid-cols-2">
+            <form action={grantAction} className="space-y-3">
+              <InputSistema label="Usuario destino" name="usuarioId" required placeholder="UUID del usuario" />
+              <SelectSistema label="Capacidad" name="capability" opciones={CAPABILITY_OPTIONS} defaultValue="support.view" />
+              <BotonSistema type="submit">Otorgar capacidad</BotonSistema>
+            </form>
+            <form action={revokeAction} className="space-y-3">
+              <InputSistema label="Usuario destino" name="usuarioId" required placeholder="UUID del usuario" />
+              <SelectSistema label="Capacidad" name="capability" opciones={CAPABILITY_OPTIONS} defaultValue="support.view" />
+              <BotonSistema type="submit" variante="outline">Revocar capacidad</BotonSistema>
+            </form>
+          </div>
+        </TarjetaSistema>
+      </ContenedorDashboard>
+    </DashboardLayout>
   )
 }
 

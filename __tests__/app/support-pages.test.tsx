@@ -45,11 +45,11 @@ jest.mock('@/lib/actions/support.actions', () => ({
 }))
 jest.mock('@/hooks/useCurrentUser', () => ({ useCurrentUser: () => ({ usuario: null, roles: ['miembro'], loading: false }) }))
 jest.mock('@/hooks/useBranding', () => ({ useBranding: () => ({ logoLightUrl: null, logoDarkUrl: null }) }))
-jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => ({ info: jest.fn() }) }))
+jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => ({ error: jest.fn(), info: jest.fn(), success: jest.fn() }) }))
 jest.mock('@/lib/actions/support-capabilities.actions', () => ({ grantSupportCapability: jest.fn(), revokeSupportCapability: jest.fn() }))
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: () => createSupabaseServerClient() }))
 jest.mock('@/lib/getUserWithRoles', () => ({ getUserWithRoles: (...args: unknown[]) => getUserWithRoles(...args) }))
-jest.mock('next/navigation', () => ({ redirect: (path: string) => redirect(path), usePathname: () => '/ayuda' }))
+jest.mock('next/navigation', () => ({ redirect: (path: string) => redirect(path), usePathname: () => '/ayuda', useRouter: () => ({ push: jest.fn() }) }))
 
 describe('reporter support pages', () => {
   beforeEach(() => {
@@ -164,7 +164,7 @@ describe('reporter support pages', () => {
     expect(screen.getByRole('button', { name: /Enviar respuesta del equipo/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/Nuevo estado/i)).toHaveValue('in_review')
     expect(screen.getByRole('button', { name: /Actualizar estado/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/Responsable/i)).toHaveAttribute('name', 'assigneeUsuarioId')
+    expect(screen.queryByLabelText(/Responsable/i)).not.toBeInTheDocument()
   })
 
   it('renders staff reply and lifecycle controls for pure support managers on ticket detail', async () => {
@@ -194,7 +194,7 @@ describe('reporter support pages', () => {
     expect(screen.getByRole('button', { name: /Enviar respuesta del equipo/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/Nuevo estado/i)).toHaveValue('in_progress')
     expect(screen.getByRole('button', { name: /Actualizar estado/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/Responsable/i)).toHaveAttribute('name', 'assigneeUsuarioId')
+    expect(screen.queryByLabelText(/Responsable/i)).not.toBeInTheDocument()
   })
 
   it('keeps ticket detail staff reply and lifecycle controls hidden for view-only staff', async () => {
@@ -253,18 +253,21 @@ describe('reporter support pages', () => {
 
     expect(screen.getByLabelText(/Nuevo estado para #43/i)).toHaveValue('in_progress')
     expect(screen.getByRole('button', { name: /Actualizar estado de #43/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/Responsable para #43/i)).toHaveValue('assignee-1')
-    expect(screen.getByRole('button', { name: /Asignar #43/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Responsable para #43/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Asignar #43/i })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Responder #43/i })).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
   })
 
-  it('redirects pure support.manage staff away from support capability configuration', async () => {
+  it('explains the required access for denied support capability configuration', async () => {
     const supabase = createSupportCapabilitiesPageSupabase(true)
     createSupabaseServerClient.mockResolvedValue(supabase)
     getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['miembro'] })
 
-    await expect(SupportCapabilitiesPage()).rejects.toThrow('NEXT_REDIRECT:/dashboard')
-    expect(redirect).toHaveBeenCalledWith('/dashboard')
+    render(await SupportCapabilitiesPage())
+
+    expect(screen.getByRole('heading', { name: /Acceso requerido/i })).toBeInTheDocument()
+    expect(screen.getByText(/requiere un rol de administracion alto y la capacidad support.manage/i)).toBeInTheDocument()
+    expect(redirect).not.toHaveBeenCalledWith('/dashboard')
   })
 
   it('renders support capability configuration for higher-role support managers', async () => {

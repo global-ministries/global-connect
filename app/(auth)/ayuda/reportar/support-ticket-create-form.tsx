@@ -1,9 +1,10 @@
 'use client'
 
-import { useActionState, useEffect, useRef, useState } from 'react'
+import { useActionState, useCallback, useEffect, useRef, useState } from 'react'
 
 import { createSupportTicketFromForm } from '@/lib/actions/support.actions'
 import { BotonSistema, InputSistema, TextareaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { SupportTicketDiagnosticsFields } from './support-ticket-diagnostics-fields'
 
 type UploadStatus = 'idle' | 'uploading' | 'finalizing' | 'uploaded' | 'failed'
@@ -11,27 +12,17 @@ type AttachmentUpload = { clientId: string; name: string; status: UploadStatus; 
 type IntentAttachment = { id: string; uploadUrl: string }
 
 export function SupportTicketCreateForm({ appBuildVersion }: { appBuildVersion: string }) {
+  const toast = useNotificaciones()
   const [state, formAction, isPending] = useActionState(createSupportTicketFromForm, null)
   const [files, setFiles] = useState<File[]>([])
   const [uploads, setUploads] = useState<AttachmentUpload[]>([])
   const uploadStartedFor = useRef<string | null>(null)
 
-  useEffect(() => {
-    if (!state?.success || uploadStartedFor.current === state.ticketId) return
-    uploadStartedFor.current = state.ticketId
-    if (files.length === 0) return
-    void uploadFiles(state.ticketId, files)
-  }, [files, state])
+  const updateUpload = useCallback((clientId: string, patch: Partial<AttachmentUpload>) => {
+    setUploads((currentUploads) => currentUploads.map((upload) => upload.clientId === clientId ? { ...upload, ...patch } : upload))
+  }, [])
 
-  const uploadFiles = async (ticketId: string, selectedFiles: File[]) => {
-    for (const [index, file] of selectedFiles.entries()) {
-      const upload = uploads[index]
-      if (!upload) continue
-      await uploadFile(ticketId, file, upload)
-    }
-  }
-
-  const uploadFile = async (ticketId: string, file: File, upload: AttachmentUpload) => {
+  const uploadFile = useCallback(async (ticketId: string, file: File, upload: AttachmentUpload) => {
     try {
       const intent = await createAttachmentIntent(ticketId, file, upload.attachmentId)
       updateUpload(upload.clientId, { status: 'uploading', progress: 0, error: undefined, attachmentId: intent.id, uploadUrl: intent.uploadUrl })
@@ -42,7 +33,31 @@ export function SupportTicketCreateForm({ appBuildVersion }: { appBuildVersion: 
     } catch (error) {
       updateUpload(upload.clientId, { status: 'failed', error: error instanceof Error ? error.message : 'No se pudo subir el adjunto' })
     }
-  }
+  }, [updateUpload])
+
+  const uploadFiles = useCallback(async (ticketId: string, selectedFiles: File[]) => {
+    for (const [index, file] of selectedFiles.entries()) {
+      const upload = uploads[index]
+      if (!upload) continue
+      await uploadFile(ticketId, file, upload)
+    }
+  }, [uploadFile, uploads])
+
+  useEffect(() => {
+    if (!state?.success || uploadStartedFor.current === state.ticketId) return
+    uploadStartedFor.current = state.ticketId
+    toast.success(`Ticket #${state.ticketNumber} creado`)
+    if (files.length === 0) return
+    queueMicrotask(() => { void uploadFiles(state.ticketId, files) })
+  }, [files, state, toast, uploadFiles])
+
+  useEffect(() => {
+    if (isPending) toast.info('Enviando ticket de soporte...')
+  }, [isPending, toast])
+
+  useEffect(() => {
+    if (state && !state.success) toast.error(state.error)
+  }, [state, toast])
 
   const retryUpload = (clientId: string) => {
     if (!state?.success) return
@@ -93,9 +108,6 @@ export function SupportTicketCreateForm({ appBuildVersion }: { appBuildVersion: 
     </form>
   )
 
-  function updateUpload(clientId: string, patch: Partial<AttachmentUpload>) {
-    setUploads((currentUploads) => currentUploads.map((upload) => upload.clientId === clientId ? { ...upload, ...patch } : upload))
-  }
 }
 
 export function createAttachmentUploadItems(files: File[]): AttachmentUpload[] {

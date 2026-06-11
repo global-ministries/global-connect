@@ -1,8 +1,10 @@
 import Link from 'next/link'
 
-import { assignSupportTicket, listStaffSupportTickets, updateSupportTicketStatus } from '@/lib/actions/support.actions'
+import { listStaffSupportTickets, updateSupportTicketStatus } from '@/lib/actions/support.actions'
 import { formatSupportCategory, formatSupportSeverity, formatSupportStatus } from '@/lib/support/support-labels'
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { BadgeSistema, BotonSistema, ContenedorDashboard, InputSistema, SelectSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { SupportTicketQueueStatusForm } from './support-ticket-admin-actions'
 
 type SupportAdminPageProps = {
   searchParams: Promise<{
@@ -39,17 +41,12 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
 
   async function statusAction(formData: FormData) {
     'use server'
-    await updateSupportTicketStatus(String(formData.get('ticketId') ?? ''), String(formData.get('status') ?? ''))
-  }
-
-  async function assignmentAction(formData: FormData) {
-    'use server'
-    const assigneeUsuarioId = String(formData.get('assigneeUsuarioId') ?? '').trim() || null
-    await assignSupportTicket(String(formData.get('ticketId') ?? ''), assigneeUsuarioId)
+    return updateSupportTicketStatus(String(formData.get('ticketId') ?? ''), String(formData.get('status') ?? ''))
   }
 
   return (
-    <ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
+    <DashboardLayout>
+      <ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
       <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]" action="/ayuda/admin">
         <InputSistema label="Buscar tickets" name="search" type="search" role="searchbox" defaultValue={filters.search ?? ''} placeholder="Numero de ticket, titulo, descripcion" />
         <SelectSistema label="Estado" name="status" defaultValue={filters.status ?? ''} opciones={STATUS_OPTIONS} />
@@ -74,20 +71,9 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
                 </div>
                 <BadgeSistema variante="info">{formatSupportStatus(ticket.status)}</BadgeSistema>
               </div>
-              <div className={canManage ? "grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" : "flex justify-end"}>
+              <div className={canManage ? "grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]" : "flex justify-end"}>
                 {canManage && (
-                  <>
-                    <form action={statusAction} className="space-y-2">
-                      <input type="hidden" name="ticketId" value={ticket.id} />
-                      <SelectSistema label={`Nuevo estado para #${ticket.ticketNumber}`} name="status" defaultValue={ticket.status} opciones={STATUS_OPTIONS.filter((option) => option.valor)} />
-                      <BotonSistema type="submit" tamaño="sm">Actualizar estado de #{ticket.ticketNumber}</BotonSistema>
-                    </form>
-                    <form action={assignmentAction} className="space-y-2">
-                      <input type="hidden" name="ticketId" value={ticket.id} />
-                      <InputSistema label={`Responsable para #${ticket.ticketNumber}`} name="assigneeUsuarioId" defaultValue={ticket.assigneeUsuarioId ?? ''} placeholder="UUID del responsable" />
-                      <BotonSistema type="submit" tamaño="sm" variante="outline">Asignar #{ticket.ticketNumber}</BotonSistema>
-                    </form>
-                  </>
+                  <SupportTicketQueueStatusForm action={statusAction} ticketId={ticket.id} ticketNumber={ticket.ticketNumber} currentStatus={ticket.status} options={STATUS_OPTIONS.filter((option) => option.valor)} />
                 )}
                 <div className="flex items-end">
                   <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex min-h-[44px] items-center rounded-xl px-4 py-2 text-sm font-medium text-[var(--brand-primary)] hover:bg-[var(--brand-accent)] focus-ring">Responder #{ticket.ticketNumber}</Link>
@@ -97,7 +83,8 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
           ))}
         </div>
       )}
-    </ContenedorDashboard>
+      </ContenedorDashboard>
+    </DashboardLayout>
   )
 }
 

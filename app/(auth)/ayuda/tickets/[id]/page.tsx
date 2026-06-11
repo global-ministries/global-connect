@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
 
-import { assignSupportTicket, createStaffSupportTicketReply, createSupportTicketMessage, getSupportTicketDetail, updateSupportTicketStatus } from '@/lib/actions/support.actions'
+import { createStaffSupportTicketReply, createSupportTicketMessage, getSupportTicketDetail, updateSupportTicketStatus } from '@/lib/actions/support.actions'
 import { formatSupportStatus } from '@/lib/support/support-labels'
-import { BadgeSistema, BotonSistema, ContenedorDashboard, InputSistema, SelectSistema, TarjetaSistema, TextareaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { BadgeSistema, ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { SupportTicketReplyComposer, SupportTicketStatusForm } from './support-ticket-detail-actions'
 
 const STATUS_OPTIONS = [
   { valor: 'received', etiqueta: 'Recibido' },
@@ -20,30 +22,25 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
   async function replyAction(formData: FormData) {
     'use server'
-    await createSupportTicketMessage(ticket.id, formData)
+    return createSupportTicketMessage(ticket.id, formData)
   }
 
   async function staffReplyAction(formData: FormData) {
     'use server'
-    await createStaffSupportTicketReply(ticket.id, formData)
+    return createStaffSupportTicketReply(ticket.id, formData)
   }
 
   async function statusAction(formData: FormData) {
     'use server'
-    await updateSupportTicketStatus(ticket.id, String(formData.get('status') ?? ''))
-  }
-
-  async function assignmentAction(formData: FormData) {
-    'use server'
-    const assigneeUsuarioId = String(formData.get('assigneeUsuarioId') ?? '').trim() || null
-    await assignSupportTicket(ticket.id, assigneeUsuarioId)
+    return updateSupportTicketStatus(ticket.id, String(formData.get('status') ?? ''))
   }
 
   const canManage = ticket.supportCapabilities.includes('support.manage')
   const canStaffReply = canManage || ticket.supportCapabilities.includes('support.reply')
 
   return (
-    <ContenedorDashboard titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
+    <DashboardLayout>
+      <ContenedorDashboard titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
       <TarjetaSistema className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
@@ -72,41 +69,31 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
       <TarjetaSistema className="space-y-4">
         <TituloSistema nivel={2}>Conversacion</TituloSistema>
-        {ticket.messages.length === 0 ? <TextoSistema variante="sutil">Aun no hay respuestas.</TextoSistema> : ticket.messages.map((message) => (
-          <div key={message.id} className="rounded-xl border border-border bg-card/50 p-3">
-            <TextoSistema>{message.body}</TextoSistema>
+        {ticket.messages.length === 0 ? <TextoSistema variante="sutil">Aun no hay respuestas.</TextoSistema> : (
+          <div className="space-y-4 border-l border-border pl-4">
+            {ticket.messages.map((message) => (
+              <article key={message.id} className="relative rounded-2xl border border-border bg-card/70 p-4 shadow-sm">
+                <span className="absolute -left-[23px] top-5 h-3 w-3 rounded-full border-2 border-card bg-[var(--brand-primary)]" aria-hidden="true" />
+                <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm font-semibold text-foreground">Actualizacion</p>
+                  <time className="text-xs text-muted-foreground" dateTime={message.createdAt}>{formatMessageTimestamp(message.createdAt)}</time>
+                </div>
+                <TextoSistema>{message.body}</TextoSistema>
+              </article>
+            ))}
           </div>
-        ))}
-        <form action={replyAction} className="space-y-3">
-          <TextareaSistema name="body" label="Respuesta" filas={4} required />
-          <BotonSistema type="submit">Enviar respuesta</BotonSistema>
-        </form>
+        )}
+        <SupportTicketReplyComposer action={canStaffReply ? staffReplyAction : replyAction} isStaffReply={canStaffReply} />
       </TarjetaSistema>
 
-      {(canStaffReply || canManage) && (
+      {canManage && (
         <TarjetaSistema className="space-y-4">
-          <TituloSistema nivel={2}>Operacion del equipo</TituloSistema>
-          {canStaffReply && (
-            <form action={staffReplyAction} className="space-y-3">
-              <TextareaSistema name="body" label="Respuesta del equipo" filas={4} required />
-              <BotonSistema type="submit">Enviar respuesta del equipo</BotonSistema>
-            </form>
-          )}
-          {canManage && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <form action={statusAction} className="space-y-3">
-                <SelectSistema label="Nuevo estado" name="status" defaultValue={ticket.status} opciones={STATUS_OPTIONS} />
-                <BotonSistema type="submit">Actualizar estado</BotonSistema>
-              </form>
-              <form action={assignmentAction} className="space-y-3">
-                <InputSistema label="Responsable" name="assigneeUsuarioId" defaultValue={ticket.assigneeUsuarioId ?? ''} placeholder="UUID del usuario responsable" />
-                <BotonSistema type="submit">Actualizar responsable</BotonSistema>
-              </form>
-            </div>
-          )}
+          <TituloSistema nivel={2}>Estado del ticket</TituloSistema>
+          <SupportTicketStatusForm action={statusAction} currentStatus={ticket.status} options={STATUS_OPTIONS} />
         </TarjetaSistema>
       )}
-    </ContenedorDashboard>
+      </ContenedorDashboard>
+    </DashboardLayout>
   )
 }
 
@@ -117,4 +104,8 @@ function formatAttachmentKind(kind: string) {
 function formatBytes(byteSize: number) {
   if (byteSize >= 1024 * 1024) return `${Math.round(byteSize / 1024 / 1024)} MB`
   return `${Math.max(1, Math.round(byteSize / 1024))} KB`
+}
+
+function formatMessageTimestamp(value: string) {
+  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
