@@ -4,15 +4,16 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { diagnosticsConsentSchema, sanitizeSupportEvidence } from '@/lib/support/support-evidence'
+import { createSupportTicketCreatedEvent, dispatchSupportInngestEvent } from '@/lib/support/inngest'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 const SUPPORT_TICKET_STATUSES = ['received', 'in_review', 'in_progress', 'resolved', 'closed'] as const
+const SUPPORT_TICKET_CAPABILITIES = ['support.view', 'support.reply', 'support.manage'] as const
 
 const supportTicketSchema = z.object({
-  title: z.string().trim().min(5).max(160),
+  subject: z.string().trim().min(5).max(160),
   description: z.string().trim().min(10).max(8000),
   category: z.string().trim().min(2).max(80),
-  severity: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
   currentRoute: z.string().trim().max(500).optional(),
   browserName: z.string().trim().max(120).optional(),
   osName: z.string().trim().max(120).optional(),
@@ -42,7 +43,9 @@ const SUPPORT_STAFF_QUEUE_ERROR = 'No se pudo cargar la cola de soporte'
 const SUPPORT_STAFF_REPLY_ERROR = 'No se pudo enviar la respuesta de soporte del equipo'
 const SUPPORT_STAFF_ASSIGNMENT_ERROR = 'No se pudo asignar el ticket de soporte'
 const SUPPORT_STAFF_STATUS_ERROR = 'No se pudo actualizar el estado del ticket de soporte'
+const DEFAULT_REPORTER_SEVERITY = 'normal'
 type SupportCapability = 'support.view' | 'support.reply' | 'support.manage'
+type SupportActionResult<T extends Record<string, unknown> = Record<string, never>> = ({ success: true } & T) | { success: false; error: string }
 
 type SupportTicketRow = {
   id: string
@@ -52,6 +55,7 @@ type SupportTicketRow = {
   status: string
   category: string
   severity: string
+  assignee_usuario_id: string | null
   current_route: string | null
   browser_name: string | null
   os_name: string | null
@@ -64,13 +68,16 @@ type SupportTicketRow = {
 }
 
 type SupportMessageRow = { id: string; body: string; created_at: string }
+type SupportAttachmentRow = { id: string; original_filename: string; kind: string; content_type: string; byte_size: number; status: string }
 
 type StaffSupportTicketRow = Pick<SupportTicketRow, 'id' | 'ticket_number' | 'title' | 'status' | 'category' | 'severity' | 'created_at' | 'updated_at'> & {
   assignee_usuario_id: string | null
   campus_id: string | null
 }
 
-export async function createSupportTicket(formData: FormData) {
+type SupportCapabilityRow = { capability: string }
+
+export async function createSupportTicket(formData: FormData): Promise<SupportActionResult<{ ticketId: string; ticketNumber: number }>> {
   const parsed = supportTicketSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Ticket de soporte invalido' }
 
@@ -81,16 +88,32 @@ export async function createSupportTicket(formData: FormData) {
   const { data, error } = await supabase.from('support_tickets').insert({
     reporter_usuario_id: actor.usuarioId,
     status: 'received',
-    title: parsed.data.title,
+    title: parsed.data.subject,
     description: parsed.data.description,
     category: parsed.data.category,
-    severity: parsed.data.severity,
+    severity: DEFAULT_REPORTER_SEVERITY,
     ...sanitizeSupportEvidence(parsed.data),
   }).select('id,ticket_number').single()
 
   if (error || !data) return { success: false, error: SUPPORT_TICKET_CREATE_ERROR }
+
+  const audit = await appendSupportTicketEvent(supabase, {
+    ticketId: data.id,
+    actorUsuarioId: actor.usuarioId,
+    action: 'support.ticket.created',
+    targetType: 'support_ticket',
+    targetId: data.id,
+    metadata: { source: 'reporter' },
+  })
+  if (!audit.success) return { success: false, error: SUPPORT_TICKET_CREATE_ERROR }
+
+  await dispatchSupportInngestEvent(createSupportTicketCreatedEvent({ eventId: audit.eventId, ticketId: data.id, actorUserId: actor.usuarioId }))
   revalidatePath('/ayuda/tickets')
   return { success: true, ticketId: data.id, ticketNumber: data.ticket_number }
+}
+
+export async function createSupportTicketFromForm(_previousState: SupportActionResult<{ ticketId: string; ticketNumber: number }> | null, formData: FormData): Promise<SupportActionResult<{ ticketId: string; ticketNumber: number }>> {
+  return createSupportTicket(formData)
 }
 
 export async function listSupportTickets() {
@@ -115,8 +138,8 @@ export async function listStaffSupportTickets(filters: unknown) {
   const actor = await getActorUsuarioId(supabase)
   if (!actor.success) return { ...actor, tickets: [] }
 
-  const capability = await requireSupportCapability(supabase, actor.usuarioId, 'support.view')
-  if (!capability.success) return { ...capability, tickets: [] }
+  const supportCapabilities = await listActorSupportCapabilities(supabase, actor.usuarioId)
+  if (!hasSupportCapability(supportCapabilities, 'support.view')) return { success: false, error: 'No autorizado', tickets: [] }
 
   const { search, status, category, campusId, assigneeId } = parsed.data
   let query = supabase
@@ -132,7 +155,7 @@ export async function listStaffSupportTickets(filters: unknown) {
   const { data, error } = await query.order('created_at', { ascending: false }).limit(50)
 
   if (error) return { success: false, error: SUPPORT_STAFF_QUEUE_ERROR, tickets: [] }
-  return { success: true, tickets: (data ?? []).map(toStaffTicketSummary) }
+  return { success: true, supportCapabilities, tickets: (data ?? []).map(toStaffTicketSummary) }
 }
 
 export async function createStaffSupportTicketReply(ticketId: string, formData: FormData) {
@@ -191,12 +214,12 @@ export async function updateSupportTicketStatus(ticketId: string, status: string
 
 export async function getSupportTicketDetail(ticketId: string) {
   const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'No autenticado' }
+  const actor = await getActorUsuarioId(supabase)
+  if (!actor.success) return actor
 
   const { data: ticket, error } = await supabase
     .from('support_tickets')
-    .select('id,ticket_number,title,description,status,category,severity,current_route,browser_name,os_name,viewport,app_build_version,sentry_event_id,diagnostics_consent,created_at,updated_at')
+    .select('id,ticket_number,title,description,status,category,severity,assignee_usuario_id,current_route,browser_name,os_name,viewport,app_build_version,sentry_event_id,diagnostics_consent,created_at,updated_at')
     .eq('id', ticketId)
     .maybeSingle()
 
@@ -211,7 +234,16 @@ export async function getSupportTicketDetail(ticketId: string) {
     .order('created_at', { ascending: true })
 
   if (messagesError) return { success: false, error: SUPPORT_TICKET_DETAIL_ERROR }
-  return { success: true, ticket: toTicketDetail(ticket as SupportTicketRow, messages ?? []) }
+
+  const { data: attachments, error: attachmentsError } = await supabase
+    .from('support_ticket_attachments')
+    .select('id,original_filename,kind,content_type,byte_size,status')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true })
+
+  if (attachmentsError) return { success: false, error: SUPPORT_TICKET_DETAIL_ERROR }
+  const supportCapabilities = await listActorSupportCapabilities(supabase, actor.usuarioId)
+  return { success: true, ticket: toTicketDetail(ticket as SupportTicketRow, messages ?? [], attachments ?? [], supportCapabilities) }
 }
 
 export async function createSupportTicketMessage(ticketId: string, formData: FormData) {
@@ -222,16 +254,79 @@ export async function createSupportTicketMessage(ticketId: string, formData: For
   const actor = await getActorUsuarioId(supabase)
   if (!actor.success) return actor
 
-  const { error } = await supabase.from('support_ticket_messages').insert({
+  const messageInsertResult = supabase.from('support_ticket_messages').insert({
     ticket_id: ticketId,
     author_usuario_id: actor.usuarioId,
     body: parsed.data.body,
     is_internal: false,
   })
+  const message = await resolveInsertWithOptionalSingle(messageInsertResult)
 
-  if (error) return { success: false, error: SUPPORT_TICKET_MESSAGE_ERROR }
+  if (message.error) return { success: false, error: SUPPORT_TICKET_MESSAGE_ERROR }
+
+  const audit = await appendSupportTicketEvent(supabase, {
+    ticketId,
+    actorUsuarioId: actor.usuarioId,
+    action: 'support.reporter_message.created',
+    targetType: 'support_ticket_message',
+    targetId: message.id ?? null,
+    metadata: { source: 'reporter' },
+  })
+  if (!audit.success) return { success: false, error: SUPPORT_TICKET_MESSAGE_ERROR }
+
   revalidatePath(`/ayuda/tickets/${ticketId}`)
   return { success: true }
+}
+
+async function appendSupportTicketEvent(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  input: {
+    ticketId: string
+    actorUsuarioId: string
+    action: string
+    targetType: string
+    targetId: string | null
+    metadata: Record<string, string>
+  }
+) {
+  const insertResult = supabase.from('support_ticket_events').insert({
+    ticket_id: input.ticketId,
+    actor_usuario_id: input.actorUsuarioId,
+    action: input.action,
+    target_type: input.targetType,
+    target_id: input.targetId,
+    metadata: input.metadata,
+  })
+  const event = await resolveInsertWithOptionalSingle(insertResult)
+
+  if (event.error) return { success: false as const }
+  return { success: true as const, eventId: event.id ?? `${input.action}:${input.ticketId}` }
+}
+
+async function resolveInsertWithOptionalSingle(insertResult: unknown): Promise<{ id: string | null; error: unknown }> {
+  if (hasSelect(insertResult)) {
+    const selected = insertResult.select('id')
+    if (hasSingle(selected)) {
+      const { data, error } = await selected.single()
+      return { id: readInsertedId(data), error }
+    }
+  }
+
+  const result = await insertResult as { error?: unknown }
+  return { id: null, error: result?.error ?? null }
+}
+
+function hasSelect(value: unknown): value is { select: (columns: string) => unknown } {
+  return typeof value === 'object' && value !== null && 'select' in value && typeof value.select === 'function'
+}
+
+function hasSingle(value: unknown): value is { single: () => Promise<{ data: unknown; error: unknown }> } {
+  return typeof value === 'object' && value !== null && 'single' in value && typeof value.single === 'function'
+}
+
+function readInsertedId(value: unknown) {
+  if (typeof value !== 'object' || value === null || !('id' in value) || typeof value.id !== 'string') return null
+  return value.id
 }
 
 async function getActorUsuarioId(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
@@ -243,28 +338,45 @@ async function getActorUsuarioId(supabase: Awaited<ReturnType<typeof createSupab
 }
 
 async function requireSupportCapability(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, usuarioId: string, capability: SupportCapability) {
+  const supportCapabilities = await listActorSupportCapabilities(supabase, usuarioId)
+  if (!hasSupportCapability(supportCapabilities, capability)) return { success: false as const, error: 'No autorizado' }
+  return { success: true as const }
+}
+
+async function listActorSupportCapabilities(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, usuarioId: string): Promise<SupportCapability[]> {
   const { data, error } = await supabase
     .from('support_user_capabilities')
     .select('capability')
     .eq('usuario_id', usuarioId)
-    .eq('capability', capability)
     .is('revoked_at', null)
-    .maybeSingle()
 
-  if (error || !data) return { success: false as const, error: 'No autorizado' }
-  return { success: true as const }
+  if (error) return []
+  return (data ?? [])
+    .map((row: SupportCapabilityRow) => row.capability)
+    .filter((capability): capability is SupportCapability => SUPPORT_TICKET_CAPABILITIES.includes(capability as SupportCapability))
 }
 
-function toTicketSummary(ticket: Omit<SupportTicketRow, 'description' | 'current_route' | 'browser_name' | 'os_name' | 'viewport' | 'app_build_version' | 'sentry_event_id' | 'diagnostics_consent'>) {
+function hasSupportCapability(supportCapabilities: SupportCapability[], requiredCapability: SupportCapability) {
+  return supportCapabilities.some((capability) => {
+    if (capability === requiredCapability) return true
+    if (capability === 'support.manage') return true
+    return capability === 'support.reply' && requiredCapability === 'support.view'
+  })
+}
+
+function toTicketSummary(ticket: Omit<SupportTicketRow, 'description' | 'assignee_usuario_id' | 'current_route' | 'browser_name' | 'os_name' | 'viewport' | 'app_build_version' | 'sentry_event_id' | 'diagnostics_consent'>) {
   return { id: ticket.id, ticketNumber: ticket.ticket_number, title: ticket.title, status: ticket.status, category: ticket.category, severity: ticket.severity, createdAt: ticket.created_at, updatedAt: ticket.updated_at }
 }
 
-function toTicketDetail(ticket: SupportTicketRow, messages: SupportMessageRow[]) {
+function toTicketDetail(ticket: SupportTicketRow, messages: SupportMessageRow[], attachments: SupportAttachmentRow[], supportCapabilities: SupportCapability[]) {
   return {
     ...toTicketSummary(ticket),
     description: ticket.description,
+    assigneeUsuarioId: ticket.assignee_usuario_id,
     evidence: { currentRoute: ticket.current_route, browserName: ticket.browser_name, osName: ticket.os_name, viewport: ticket.viewport, appBuildVersion: ticket.app_build_version, sentryEventId: ticket.sentry_event_id, diagnosticsConsent: ticket.diagnostics_consent },
     messages: messages.map((message) => ({ id: message.id, body: message.body, createdAt: message.created_at })),
+    attachments: attachments.map((attachment) => ({ id: attachment.id, filename: attachment.original_filename, kind: attachment.kind, contentType: attachment.content_type, byteSize: attachment.byte_size, status: attachment.status })),
+    supportCapabilities,
   }
 }
 

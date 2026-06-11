@@ -18,7 +18,7 @@ const SENSITIVE_HEADER_NAMES = new Set([
 
 const SUPPORT_CONTEXT_ALLOWLIST = new Set(['sentryEventId'])
 
-const SENSITIVE_BREADCRUMB_DATA_KEY = /(?:diagnostics?|evidence|attachments?|r2|sentry|github|request|headers?|cookies?|env|query_string)/i
+const SENSITIVE_BREADCRUMB_DATA_KEY = /(?:diagnostics?|evidence|attachments?|r2|sentry|github|request|headers?|cookies?|env|query_string|signed|object[_-]?key)/i
 const ABSOLUTE_URL_PATTERN = /https?:\/\/[^\s)'"<>]+/gi
 const SUPPORT_PATH_PATTERN = /\/(?:ayuda|support)(?:\/[^\s)'"<>?#]*)?(?:\?[^\s)'"<>#]*)?(?:#[^\s)'"<>]*)?/gi
 

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { listStaffSupportTickets } from '@/lib/actions/support.actions'
+import { assignSupportTicket, listStaffSupportTickets, updateSupportTicketStatus } from '@/lib/actions/support.actions'
 import { formatSupportCategory, formatSupportSeverity, formatSupportStatus } from '@/lib/support/support-labels'
 import { BadgeSistema, BotonSistema, ContenedorDashboard, InputSistema, SelectSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
@@ -34,6 +34,19 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
   }
   const result = await listStaffSupportTickets(filters)
   const tickets = result.success ? result.tickets : []
+  const supportCapabilities = result.success ? result.supportCapabilities ?? [] : []
+  const canManage = supportCapabilities.includes('support.manage')
+
+  async function statusAction(formData: FormData) {
+    'use server'
+    await updateSupportTicketStatus(String(formData.get('ticketId') ?? ''), String(formData.get('status') ?? ''))
+  }
+
+  async function assignmentAction(formData: FormData) {
+    'use server'
+    const assigneeUsuarioId = String(formData.get('assigneeUsuarioId') ?? '').trim() || null
+    await assignSupportTicket(String(formData.get('ticketId') ?? ''), assigneeUsuarioId)
+  }
 
   return (
     <ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
@@ -53,15 +66,34 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
       ) : (
         <div className="space-y-3">
           {tickets.map((ticket) => (
-            <Link key={ticket.id} href={`/ayuda/tickets/${ticket.id}`} className="block focus-ring rounded-2xl">
-              <TarjetaSistema className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="font-semibold text-foreground">#{ticket.ticketNumber} {ticket.title}</p>
+            <TarjetaSistema key={ticket.id} className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <Link href={`/ayuda/tickets/${ticket.id}`} className="font-semibold text-foreground hover:text-[var(--brand-primary)] focus-ring rounded-md">#{ticket.ticketNumber} {ticket.title}</Link>
                   <TextoSistema variante="sutil" tamaño="sm">{formatSupportCategory(ticket.category)} · {formatSupportSeverity(ticket.severity)}</TextoSistema>
                 </div>
                 <BadgeSistema variante="info">{formatSupportStatus(ticket.status)}</BadgeSistema>
-              </TarjetaSistema>
-            </Link>
+              </div>
+              <div className={canManage ? "grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]" : "flex justify-end"}>
+                {canManage && (
+                  <>
+                    <form action={statusAction} className="space-y-2">
+                      <input type="hidden" name="ticketId" value={ticket.id} />
+                      <SelectSistema label={`Nuevo estado para #${ticket.ticketNumber}`} name="status" defaultValue={ticket.status} opciones={STATUS_OPTIONS.filter((option) => option.valor)} />
+                      <BotonSistema type="submit" tamaño="sm">Actualizar estado de #{ticket.ticketNumber}</BotonSistema>
+                    </form>
+                    <form action={assignmentAction} className="space-y-2">
+                      <input type="hidden" name="ticketId" value={ticket.id} />
+                      <InputSistema label={`Responsable para #${ticket.ticketNumber}`} name="assigneeUsuarioId" defaultValue={ticket.assigneeUsuarioId ?? ''} placeholder="UUID del responsable" />
+                      <BotonSistema type="submit" tamaño="sm" variante="outline">Asignar #{ticket.ticketNumber}</BotonSistema>
+                    </form>
+                  </>
+                )}
+                <div className="flex items-end">
+                  <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex min-h-[44px] items-center rounded-xl px-4 py-2 text-sm font-medium text-[var(--brand-primary)] hover:bg-[var(--brand-accent)] focus-ring">Responder #{ticket.ticketNumber}</Link>
+                </div>
+              </div>
+            </TarjetaSistema>
           ))}
         </div>
       )}

@@ -9,13 +9,18 @@ type Usuario = Database['public']['Tables']['usuarios']['Row']
 interface CurrentUserData {
   usuario: Usuario | null
   roles: string[]
+  supportCapabilities: string[]
   loading: boolean
   error: string | null
 }
 
+const SUPPORT_CAPABILITIES = ['support.view', 'support.reply', 'support.manage'] as const
+type SupportCapability = (typeof SUPPORT_CAPABILITIES)[number]
+
 export function useCurrentUser(): CurrentUserData {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [roles, setRoles] = useState<string[]>([])
+  const [supportCapabilities, setSupportCapabilities] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,6 +42,7 @@ export function useCurrentUser(): CurrentUserData {
         if (!user) {
           setUsuario(null)
           setRoles([])
+          setSupportCapabilities([])
           return
         }
 
@@ -59,17 +65,34 @@ export function useCurrentUser(): CurrentUserData {
         if (!rolesError && rolesData) {
           // rolesData puede ser array de strings o de objetos
           userRoles = Array.isArray(rolesData)
-            ? (rolesData as any[]).map(r => typeof r === "string" ? r : r?.nombre_interno).filter(Boolean)
+            ? rolesData.map((role: unknown) => typeof role === "string" ? role : getRoleName(role)).filter((role): role is string => Boolean(role))
             : []
+        }
+
+        let userSupportCapabilities: string[] = []
+        if (userData?.id) {
+          const { data: capabilitiesData, error: capabilitiesError } = await supabase
+            .from('support_user_capabilities')
+            .select('capability')
+            .eq('usuario_id', userData.id)
+            .is('revoked_at', null)
+
+          if (!capabilitiesError && capabilitiesData) {
+            userSupportCapabilities = capabilitiesData
+              .map((row: { capability: string }) => row.capability)
+              .filter((capability): capability is SupportCapability => SUPPORT_CAPABILITIES.includes(capability as SupportCapability))
+          }
         }
 
         setUsuario(userData)
         setRoles(userRoles)
+        setSupportCapabilities(userSupportCapabilities)
       } catch (err) {
         console.error('Error en useCurrentUser:', err)
         setError(err instanceof Error ? err.message : 'Error desconocido')
         setUsuario(null)
         setRoles([])
+        setSupportCapabilities([])
       } finally {
         setLoading(false)
       }
@@ -83,6 +106,7 @@ export function useCurrentUser(): CurrentUserData {
       if (event === 'SIGNED_OUT') {
         setUsuario(null)
         setRoles([])
+        setSupportCapabilities([])
         setLoading(false)
       } else if (event === 'SIGNED_IN' && session) {
         fetchCurrentUser()
@@ -94,5 +118,11 @@ export function useCurrentUser(): CurrentUserData {
     }
   }, [])
 
-  return { usuario, roles, loading, error }
+  return { usuario, roles, supportCapabilities, loading, error }
+}
+
+function getRoleName(role: unknown) {
+  if (typeof role !== 'object' || role === null || !('nombre_interno' in role)) return undefined
+  const roleName = role.nombre_interno
+  return typeof roleName === 'string' ? roleName : undefined
 }

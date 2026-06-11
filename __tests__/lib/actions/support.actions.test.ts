@@ -9,16 +9,28 @@ import {
   updateSupportTicketStatus,
 } from '@/lib/actions/support.actions'
 import { sanitizeSupportEvidence } from '@/lib/support/support-evidence'
+import { dispatchSupportInngestEvent } from '@/lib/support/inngest'
 
 const createSupabaseServerClient = jest.fn()
 const revalidatePath = jest.fn()
 
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: () => createSupabaseServerClient() }))
 jest.mock('next/cache', () => ({ revalidatePath: (path: string) => revalidatePath(path) }))
+jest.mock('@/lib/support/inngest', () => ({
+  createSupportTicketCreatedEvent: (payload: { eventId: string; ticketId: string; actorUserId?: string }) => ({
+    name: 'support/ticket.created',
+    id: `support:${payload.eventId}`,
+    data: payload,
+  }),
+  dispatchSupportInngestEvent: jest.fn(),
+}))
+
+const dispatchSupportInngestEventMock = jest.mocked(dispatchSupportInngestEvent)
 
 describe('support reporter actions', () => {
   beforeEach(() => {
     createSupabaseServerClient.mockReset()
+    dispatchSupportInngestEventMock.mockReset()
     revalidatePath.mockReset()
   })
 
@@ -65,6 +77,25 @@ describe('support reporter actions', () => {
     })
   })
 
+  it('captures safe diagnostics by default', () => {
+    expect(sanitizeSupportEvidence({
+      currentRoute: '/dashboard?token=secret#section',
+      browserName: 'Chrome',
+      osName: 'macOS',
+      viewport: '1440x900',
+      appBuildVersion: 'build-123',
+      sentryEventId: 'event-1',
+    })).toEqual({
+      current_route: '/dashboard',
+      browser_name: 'Chrome',
+      os_name: 'macOS',
+      viewport: '1440x900',
+      app_build_version: 'build-123',
+      sentry_event_id: 'event-1',
+      diagnostics_consent: true,
+    })
+  })
+
   it('rejects anonymous ticket creation before inserting', async () => {
     const insert = jest.fn()
     createSupabaseServerClient.mockResolvedValue({
@@ -92,10 +123,38 @@ describe('support reporter actions', () => {
       reporter_usuario_id: 'usuario-1',
       status: 'received',
       title: 'Cannot open group map',
+      severity: 'normal',
       diagnostics_consent: true,
     }))
     expect(insert.mock.calls[0][0]).not.toHaveProperty('cookies')
     expect(revalidatePath).toHaveBeenCalledWith('/ayuda/tickets')
+  })
+
+  it('audits reporter ticket creation and dispatches an ID-only ticket-created event after commit', async () => {
+    dispatchSupportInngestEventMock.mockResolvedValue({ success: true, skipped: true, reason: 'Provider not configured' })
+    const ticketInsert = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: { id: 'ticket-1', ticket_number: 42 }, error: null }) }) })
+    const eventInsert = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: { id: 'event-1' }, error: null }) }) })
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createReporterMutationFromMock({ usuarioId: 'usuario-1', ticketInsert, eventInsert }),
+    })
+
+    const result = await createSupportTicket(createTicketFormData())
+
+    expect(result).toEqual({ success: true, ticketId: 'ticket-1', ticketNumber: 42 })
+    expect(eventInsert).toHaveBeenCalledWith({
+      ticket_id: 'ticket-1',
+      actor_usuario_id: 'usuario-1',
+      action: 'support.ticket.created',
+      target_type: 'support_ticket',
+      target_id: 'ticket-1',
+      metadata: { source: 'reporter' },
+    })
+    expect(dispatchSupportInngestEventMock).toHaveBeenCalledWith({
+      name: 'support/ticket.created',
+      id: 'support:event-1',
+      data: { eventId: 'event-1', ticketId: 'ticket-1', actorUserId: 'usuario-1' },
+    })
   })
 
   it('lists only public reporter fields from RLS-filtered tickets', async () => {
@@ -107,23 +166,42 @@ describe('support reporter actions', () => {
     await expect(listSupportTickets()).resolves.toEqual({ success: true, tickets: [{ id: 'ticket-1', ticketNumber: 42, title: 'Map bug', status: 'received', category: 'bug', severity: 'normal', createdAt: '2026-06-09T00:00:00Z', updatedAt: '2026-06-09T00:00:00Z' }] })
   })
 
-  it('returns ticket detail with public messages and no internal evidence', async () => {
-    const ticketQuery = { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: 'ticket-1', ticket_number: 42, title: 'Map bug', description: 'Steps', status: 'received', category: 'bug', severity: 'normal', current_route: '/dashboard', browser_name: 'Chrome', os_name: 'macOS', viewport: '1440x900', app_build_version: 'build-123', sentry_event_id: 'event-1', diagnostics_consent: true, created_at: '2026-06-09T00:00:00Z', updated_at: '2026-06-09T00:00:00Z' }, error: null }) }) }) }
+  it('returns ticket detail with public messages, safe attachments, and no internal evidence', async () => {
+    const ticketQuery = { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: 'ticket-1', ticket_number: 42, title: 'Map bug', description: 'Steps', status: 'received', category: 'bug', severity: 'normal', assignee_usuario_id: null, current_route: '/dashboard', browser_name: 'Chrome', os_name: 'macOS', viewport: '1440x900', app_build_version: 'build-123', sentry_event_id: 'event-1', diagnostics_consent: true, created_at: '2026-06-09T00:00:00Z', updated_at: '2026-06-09T00:00:00Z' }, error: null }) }) }) }
     const messagesFilter = { eq: jest.fn(), order: jest.fn().mockResolvedValue({ data: [{ id: 'message-1', body: 'Public reply', is_internal: false, created_at: '2026-06-09T00:01:00Z' }], error: null }) }
     messagesFilter.eq.mockReturnValue(messagesFilter)
     const messagesQuery = { select: jest.fn().mockReturnValue(messagesFilter) }
+    const attachmentsFilter = { eq: jest.fn(), order: jest.fn().mockResolvedValue({ data: [{ id: 'attachment-1', original_filename: 'map-error.webp', kind: 'screenshot', content_type: 'image/webp', byte_size: 2048, status: 'uploaded', object_key: 'support/ticket-1/attachment-1/map-error.webp' }], error: null }) }
+    attachmentsFilter.eq.mockReturnValue(attachmentsFilter)
+    const attachmentsQuery = { select: jest.fn().mockReturnValue(attachmentsFilter) }
+    const capabilitiesFilter = { eq: jest.fn(), is: jest.fn().mockResolvedValue({ data: [], error: null }) }
+    capabilitiesFilter.eq.mockReturnValue(capabilitiesFilter)
+    const capabilitiesQuery = { select: jest.fn().mockReturnValue(capabilitiesFilter) }
     createSupabaseServerClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
-      from: jest.fn((table) => table === 'support_tickets' ? ticketQuery : messagesQuery),
+      from: jest.fn((table) => {
+        if (table === 'usuarios') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: 'usuario-1' }, error: null }) }) }) }
+        if (table === 'support_tickets') return ticketQuery
+        if (table === 'support_ticket_messages') return messagesQuery
+        if (table === 'support_user_capabilities') return capabilitiesQuery
+        return attachmentsQuery
+      }),
     })
 
     const result = await getSupportTicketDetail('ticket-1')
 
     expect(result.success).toBe(true)
     expect(result.ticket?.messages).toEqual([{ id: 'message-1', body: 'Public reply', createdAt: '2026-06-09T00:01:00Z' }])
+    expect(result.ticket?.attachments).toEqual([{ id: 'attachment-1', filename: 'map-error.webp', kind: 'screenshot', contentType: 'image/webp', byteSize: 2048, status: 'uploaded' }])
+    expect(result.ticket?.assigneeUsuarioId).toBeNull()
+    expect(result.ticket?.supportCapabilities).toEqual([])
+    expect(result.ticket?.attachments[0]).not.toHaveProperty('objectKey')
+    expect(result.ticket?.attachments[0]).not.toHaveProperty('downloadUrl')
     expect(result.ticket).not.toHaveProperty('rawSentryPayload')
     expect(messagesFilter.eq).toHaveBeenCalledWith('ticket_id', 'ticket-1')
     expect(messagesFilter.eq).toHaveBeenCalledWith('is_internal', false)
+    expect(attachmentsQuery.select).toHaveBeenCalledWith('id,original_filename,kind,content_type,byte_size,status')
+    expect(attachmentsFilter.eq).toHaveBeenCalledWith('ticket_id', 'ticket-1')
   })
 
   it('maps Supabase list errors to a stable user-safe message', async () => {
@@ -149,11 +227,32 @@ describe('support reporter actions', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/ayuda/tickets/ticket-1')
   })
 
-  it('denies staff queue access without support.view', async () => {
+  it('audits reporter public replies after the message commit', async () => {
+    const messageInsert = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: { id: 'message-1' }, error: null }) }) })
+    const eventInsert = jest.fn().mockResolvedValue({ error: null })
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createReporterMutationFromMock({ usuarioId: 'usuario-1', messageInsert, eventInsert }),
+    })
+
+    const result = await createSupportTicketMessage('ticket-1', createMessageFormData())
+
+    expect(result).toEqual({ success: true })
+    expect(eventInsert).toHaveBeenCalledWith({
+      ticket_id: 'ticket-1',
+      actor_usuario_id: 'usuario-1',
+      action: 'support.reporter_message.created',
+      target_type: 'support_ticket_message',
+      target_id: 'message-1',
+      metadata: { source: 'reporter' },
+    })
+  })
+
+  it('denies staff queue access without support.view-equivalent capability', async () => {
     const supportTicketsQuery = createStaffTicketQuery([])
     createSupabaseServerClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
-      from: createStaffFromMock({ usuarioId: 'usuario-1', hasCapability: false, supportTicketsQuery }),
+      from: createStaffFromMock({ usuarioId: 'usuario-1', supportCapabilities: [], supportTicketsQuery }),
     })
 
     const result = await listStaffSupportTickets({})
@@ -166,12 +265,12 @@ describe('support reporter actions', () => {
     const supportTicketsQuery = createStaffTicketQuery([{ id: 'ticket-2', ticket_number: 43, title: 'Cannot submit attendance', status: 'in_progress', category: 'bug', severity: 'high', assignee_usuario_id: 'assignee-1', campus_id: 'campus-1', created_at: '2026-06-10T00:00:00Z', updated_at: '2026-06-10T00:05:00Z' }])
     createSupabaseServerClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
-      from: createStaffFromMock({ usuarioId: 'usuario-1', hasCapability: true, supportTicketsQuery }),
+      from: createStaffFromMock({ usuarioId: 'usuario-1', supportCapabilities: ['support.view'], supportTicketsQuery }),
     })
 
     const result = await listStaffSupportTickets({ search: 'attendance', status: 'in_progress', category: 'bug', campusId: 'campus-1', assigneeId: 'assignee-1' })
 
-    expect(result).toEqual({ success: true, tickets: [{ id: 'ticket-2', ticketNumber: 43, title: 'Cannot submit attendance', status: 'in_progress', category: 'bug', severity: 'high', assigneeUsuarioId: 'assignee-1', campusId: 'campus-1', createdAt: '2026-06-10T00:00:00Z', updatedAt: '2026-06-10T00:05:00Z' }] })
+    expect(result).toEqual({ success: true, supportCapabilities: ['support.view'], tickets: [{ id: 'ticket-2', ticketNumber: 43, title: 'Cannot submit attendance', status: 'in_progress', category: 'bug', severity: 'high', assigneeUsuarioId: 'assignee-1', campusId: 'campus-1', createdAt: '2026-06-10T00:00:00Z', updatedAt: '2026-06-10T00:05:00Z' }] })
     expect(supportTicketsQuery.textSearch).toHaveBeenCalledWith('search_vector', 'attendance', { type: 'plain', config: 'simple' })
     expect(supportTicketsQuery.eq).toHaveBeenCalledWith('status', 'in_progress')
     expect(supportTicketsQuery.eq).toHaveBeenCalledWith('category', 'bug')
@@ -185,10 +284,36 @@ describe('support reporter actions', () => {
     const supportTicketsQuery = createStaffTicketQuery([], { message: 'permission denied for table support_tickets' })
     createSupabaseServerClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
-      from: createStaffFromMock({ usuarioId: 'usuario-1', hasCapability: true, supportTicketsQuery }),
+      from: createStaffFromMock({ usuarioId: 'usuario-1', supportCapabilities: ['support.view'], supportTicketsQuery }),
     })
 
     await expect(listStaffSupportTickets({})).resolves.toEqual({ success: false, error: 'No se pudo cargar la cola de soporte', tickets: [] })
+  })
+
+  it('allows pure support.reply staff to load the staff queue', async () => {
+    const supportTicketsQuery = createStaffTicketQuery([{ id: 'ticket-2', ticket_number: 43, title: 'Cannot submit attendance', status: 'in_progress', category: 'bug', severity: 'high', assignee_usuario_id: null, campus_id: null, created_at: '2026-06-10T00:00:00Z', updated_at: '2026-06-10T00:05:00Z' }])
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffFromMock({ usuarioId: 'usuario-1', supportCapabilities: ['support.reply'], supportTicketsQuery }),
+    })
+
+    const result = await listStaffSupportTickets({})
+
+    expect(result).toEqual({ success: true, supportCapabilities: ['support.reply'], tickets: [{ id: 'ticket-2', ticketNumber: 43, title: 'Cannot submit attendance', status: 'in_progress', category: 'bug', severity: 'high', assigneeUsuarioId: null, campusId: null, createdAt: '2026-06-10T00:00:00Z', updatedAt: '2026-06-10T00:05:00Z' }] })
+    expect(supportTicketsQuery.select).toHaveBeenCalled()
+  })
+
+  it('allows pure support.manage staff to load and manage the staff queue', async () => {
+    const supportTicketsQuery = createStaffTicketQuery([{ id: 'ticket-3', ticket_number: 44, title: 'Cannot access admin queue', status: 'received', category: 'access', severity: 'normal', assignee_usuario_id: null, campus_id: null, created_at: '2026-06-10T01:00:00Z', updated_at: '2026-06-10T01:05:00Z' }])
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffFromMock({ usuarioId: 'usuario-1', supportCapabilities: ['support.manage'], supportTicketsQuery }),
+    })
+
+    const result = await listStaffSupportTickets({})
+
+    expect(result).toEqual({ success: true, supportCapabilities: ['support.manage'], tickets: [{ id: 'ticket-3', ticketNumber: 44, title: 'Cannot access admin queue', status: 'received', category: 'access', severity: 'normal', assigneeUsuarioId: null, campusId: null, createdAt: '2026-06-10T01:00:00Z', updatedAt: '2026-06-10T01:05:00Z' }] })
+    expect(supportTicketsQuery.select).toHaveBeenCalled()
   })
 
   it('denies direct staff replies without support.reply before invoking the atomic RPC', async () => {
@@ -279,10 +404,9 @@ describe('support reporter actions', () => {
 
 function createTicketFormData() {
   const formData = new FormData()
-  formData.set('title', 'Cannot open group map')
+  formData.set('subject', 'Cannot open group map')
   formData.set('description', 'The map stays blank after I open the dashboard.')
   formData.set('category', 'bug')
-  formData.set('severity', 'normal')
   formData.set('currentRoute', '/dashboard')
   formData.set('browserName', 'Chrome')
   formData.set('osName', 'macOS')
@@ -308,12 +432,42 @@ function createFromMock(input: { usuarioId: string; insert: jest.Mock }) {
   })
 }
 
-function createStaffFromMock(input: { usuarioId: string; hasCapability: boolean; supportTicketsQuery: ReturnType<typeof createStaffTicketQuery> }) {
+function createReporterMutationFromMock(input: { usuarioId: string; ticketInsert?: jest.Mock; messageInsert?: jest.Mock; eventInsert: jest.Mock }) {
   return jest.fn((table) => {
     if (table === 'usuarios') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: input.usuarioId }, error: null }) }) }) }
-    if (table === 'support_user_capabilities') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ is: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: input.hasCapability ? { capability: 'support.view' } : null, error: null }) }) }) }) }) }
+    if (table === 'support_tickets') return { insert: input.ticketInsert }
+    if (table === 'support_ticket_messages') return { insert: input.messageInsert }
+    if (table === 'support_ticket_events') return { insert: input.eventInsert }
+    throw new Error(`Unexpected table ${table}`)
+  })
+}
+
+function createStaffFromMock(input: { usuarioId: string; supportCapabilities: string[]; supportTicketsQuery: ReturnType<typeof createStaffTicketQuery> }) {
+  return jest.fn((table) => {
+    if (table === 'usuarios') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: input.usuarioId }, error: null }) }) }) }
+    if (table === 'support_user_capabilities') return createSupportCapabilityQuery(input.supportCapabilities)
     return input.supportTicketsQuery
   })
+}
+
+function createSupportCapabilityQuery(supportCapabilities: string[]) {
+  let requestedCapability: string | null = null
+  const query = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockImplementation((column: string, value: string) => {
+      if (column === 'capability') requestedCapability = value
+      return query
+    }),
+    is: jest.fn().mockImplementation(() => {
+      if (requestedCapability) {
+        return { maybeSingle: jest.fn().mockResolvedValue({ data: supportCapabilities.includes(requestedCapability) ? { capability: requestedCapability } : null, error: null }) }
+      }
+
+      return Promise.resolve({ data: supportCapabilities.map((capability) => ({ capability })), error: null })
+    }),
+  }
+
+  return query
 }
 
 function createStaffTicketQuery(rows: Array<Record<string, string | number | null>>, error: { message: string } | null = null) {
@@ -334,7 +488,7 @@ function createStaffTicketQuery(rows: Array<Record<string, string | number | nul
 function createStaffActionFromMock(input: { usuarioId: string; hasCapability: boolean; capability?: string }) {
   return jest.fn((table) => {
     if (table === 'usuarios') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: input.usuarioId }, error: null }) }) }) }
-    if (table === 'support_user_capabilities') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ is: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: input.hasCapability ? { capability: input.capability } : null, error: null }) }) }) }) }) }
+    if (table === 'support_user_capabilities') return createSupportCapabilityQuery(input.hasCapability ? [input.capability ?? 'support.view'] : [])
     throw new Error(`Unexpected table ${table}`)
   })
 }
