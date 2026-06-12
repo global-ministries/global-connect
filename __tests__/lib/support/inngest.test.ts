@@ -261,7 +261,7 @@ describe('support Inngest events', () => {
     })
   })
 
-  it('loads all active support staff recipients and sends one safe ticket-created notification to each recipient', async () => {
+  it('sends ticket-created receipts only to the ticket reporter', async () => {
     createdEmailMock.mockResolvedValue({ success: true, id: 'email-created' })
     const supabase = createSupportNotificationSupabaseMock()
 
@@ -270,28 +270,46 @@ describe('support Inngest events', () => {
       supabase
     )
 
-    expect(result).toEqual([{ success: true, id: 'email-created' }, { success: true, id: 'email-created' }])
-    expect(createdEmailMock).toHaveBeenCalledTimes(2)
-    expect(createdEmailMock).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      recipientEmail: 'staff-view@example.com',
-      recipientName: 'View Staff',
+    expect(result).toEqual([{ success: true, id: 'email-created' }])
+    expect(createdEmailMock).toHaveBeenCalledTimes(1)
+    expect(createdEmailMock).toHaveBeenCalledWith(expect.objectContaining({
+      recipientEmail: 'reporter@example.com',
+      recipientName: 'Ticket Reporter',
       ticketId: 'ticket-1',
       ticketNumber: 42,
       title: 'Cannot open group map',
       status: 'received',
-      idempotencyKey: 'email:event-created:staff-view@example.com',
-    }))
-    expect(createdEmailMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      recipientEmail: 'staff-reply@example.com',
-      recipientName: 'Reply Staff',
-      idempotencyKey: 'email:event-created:staff-reply@example.com',
+      idempotencyKey: 'email:event-created:reporter@example.com',
     }))
     expect(JSON.stringify(createdEmailMock.mock.calls)).not.toMatch(/rawSentry|evidence|attachment|object_key|support\/ticket-1/i)
+  })
+
+  it('keeps message notifications on the active support staff recipient path', async () => {
+    messageEmailMock.mockResolvedValue({ success: true, id: 'email-message' })
+    const supabase = createSupportNotificationSupabaseMock()
+
+    const result = await deliverSupportNotificationEvent(
+      createSupportTicketMessageCreatedEvent({ eventId: 'event-message', ticketId: 'ticket-1', messageId: 'message-1', actorUserId: 'reporter-1' }),
+      supabase
+    )
+
+    expect(result).toEqual([{ success: true, id: 'email-message' }, { success: true, id: 'email-message' }])
+    expect(messageEmailMock).toHaveBeenCalledTimes(2)
+    expect(messageEmailMock).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      recipientEmail: 'staff-view@example.com',
+      recipientName: 'View Staff',
+      idempotencyKey: 'email:event-message:staff-view@example.com',
+    }))
+    expect(messageEmailMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      recipientEmail: 'staff-reply@example.com',
+      recipientName: 'Reply Staff',
+      idempotencyKey: 'email:event-message:staff-reply@example.com',
+    }))
   })
 })
 
 function createSupportNotificationSupabaseMock() {
-  const ticketQuery = { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: { id: 'ticket-1', ticket_number: 42, title: 'Cannot open group map', status: 'received' }, error: null }) }) }) }
+  const ticketQuery = { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: { id: 'ticket-1', ticket_number: 42, title: 'Cannot open group map', status: 'received', reporter: { id: 'reporter-1', nombre: 'Ticket', apellido: 'Reporter', email: 'reporter@example.com' } }, error: null }) }) }) }
   const capabilityQuery = {
     select: jest.fn().mockReturnValue({
       is: jest.fn().mockResolvedValue({

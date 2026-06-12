@@ -217,6 +217,7 @@ export async function updateSupportTicketStatus(ticketId: string, status: string
 
   const { error } = await supabase.rpc('update_support_ticket_status' as never, { p_ticket_id: ticketId, p_status: parsed.data } as never)
   if (error) return { success: false, error: SUPPORT_STAFF_STATUS_ERROR }
+  await supabase.rpc('auto_assign_support_ticket_if_unassigned' as never, { p_ticket_id: ticketId } as never)
 
   revalidatePath(`/ayuda/tickets/${ticketId}`)
   revalidatePath('/ayuda/admin')
