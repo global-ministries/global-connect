@@ -128,7 +128,25 @@ describe('reporter support pages', () => {
   it('renders the reporter ticket history', async () => {
     render(await TicketsPage())
 
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getByText('Historial de tickets de soporte enviados por ti.')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Ticket/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Categoria/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Severidad/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Estado/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Fecha/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /#42 Map bug/i })).toHaveAttribute('href', '/ayuda/tickets/ticket-1')
+  })
+
+  it('renders the reporter ticket history empty state', async () => {
+    const { listSupportTickets } = jest.requireMock('@/lib/actions/support.actions') as { listSupportTickets: jest.Mock }
+    listSupportTickets.mockResolvedValueOnce({ success: true, tickets: [] })
+
+    render(await TicketsPage())
+
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getByText('Todavia no has enviado tickets de soporte.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /#/ })).not.toBeInTheDocument()
   })
 
   it('renders reporter-visible ticket details and reply form', async () => {
