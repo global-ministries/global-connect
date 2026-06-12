@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { diagnosticsConsentSchema, sanitizeSupportEvidence } from '@/lib/support/support-evidence'
 import { createSupportTicketCreatedEvent, dispatchSupportInngestEvent } from '@/lib/support/inngest'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 const SUPPORT_TICKET_STATUSES = ['received', 'in_review', 'in_progress', 'resolved', 'closed'] as const
@@ -256,7 +257,8 @@ export async function getSupportTicketDetail(ticketId: string) {
 
   if (attachmentsError) return { success: false, error: SUPPORT_TICKET_DETAIL_ERROR }
   const supportCapabilities = await listActorSupportCapabilities(supabase, actor.usuarioId)
-  return { success: true, ticket: toTicketDetail(ticket as SupportTicketRow, messages ?? [], attachments ?? [], supportCapabilities) }
+  const profiles = await fetchVisibleSupportProfiles(ticket as SupportTicketRow, messages ?? [])
+  return { success: true, ticket: toTicketDetail(ticket as SupportTicketRow, messages ?? [], attachments ?? [], supportCapabilities, profiles) }
 }
 
 export async function createSupportTicketMessage(ticketId: string, formData: FormData) {
@@ -381,18 +383,49 @@ function toTicketSummary(ticket: Omit<SupportTicketRow, 'description' | 'reporte
   return { id: ticket.id, ticketNumber: ticket.ticket_number, title: ticket.title, status: ticket.status, category: ticket.category, severity: ticket.severity, createdAt: ticket.created_at, updatedAt: ticket.updated_at }
 }
 
-function toTicketDetail(ticket: SupportTicketRow, messages: SupportMessageRow[], attachments: SupportAttachmentRow[], supportCapabilities: SupportCapability[]) {
+function toTicketDetail(ticket: SupportTicketRow, messages: SupportMessageRow[], attachments: SupportAttachmentRow[], supportCapabilities: SupportCapability[], profiles: Map<string, UsuarioProfileRow> = new Map()) {
   return {
     ...toTicketSummary(ticket),
     description: ticket.description,
     reporterUsuarioId: ticket.reporter_usuario_id,
     assigneeUsuarioId: ticket.assignee_usuario_id,
-    reporter: toSafeUsuarioProfile(ticket.reporter),
-    assignee: toSafeUsuarioProfile(ticket.assignee),
+    reporter: toSafeUsuarioProfile(ticket.reporter ?? profiles.get(ticket.reporter_usuario_id)),
+    assignee: toSafeUsuarioProfile(ticket.assignee ?? (ticket.assignee_usuario_id ? profiles.get(ticket.assignee_usuario_id) : null)),
     evidence: { currentRoute: ticket.current_route, browserName: ticket.browser_name, osName: ticket.os_name, viewport: ticket.viewport, appBuildVersion: ticket.app_build_version, sentryEventId: ticket.sentry_event_id, diagnosticsConsent: ticket.diagnostics_consent },
-    messages: messages.map((message) => ({ id: message.id, body: message.body, authorUsuarioId: message.author_usuario_id, author: toSafeUsuarioProfile(message.author), createdAt: message.created_at })),
+    messages: messages.map((message) => ({ id: message.id, body: message.body, authorUsuarioId: message.author_usuario_id, author: toSafeUsuarioProfile(message.author ?? profiles.get(message.author_usuario_id)), createdAt: message.created_at })),
     attachments: attachments.map((attachment) => ({ id: attachment.id, filename: attachment.original_filename, kind: attachment.kind, contentType: attachment.content_type, byteSize: attachment.byte_size, status: attachment.status })),
     supportCapabilities,
+  }
+}
+
+async function fetchVisibleSupportProfiles(ticket: SupportTicketRow, messages: SupportMessageRow[]) {
+  const profileIds = new Set<string>([ticket.reporter_usuario_id])
+  const profiles = new Map<string, UsuarioProfileRow>()
+  if (ticket.reporter) profiles.set(ticket.reporter.id, ticket.reporter)
+  if (ticket.assignee) profiles.set(ticket.assignee.id, ticket.assignee)
+
+  if (ticket.assignee_usuario_id) profileIds.add(ticket.assignee_usuario_id)
+  for (const message of messages) {
+    profileIds.add(message.author_usuario_id)
+    if (message.author) profiles.set(message.author.id, message.author)
+  }
+
+  const missingProfileIds = [...profileIds].filter((id) => !profiles.has(id))
+
+  if (missingProfileIds.length === 0) return profiles
+
+  try {
+    const admin = createSupabaseAdminClient()
+    const { data, error } = await admin
+      .from('usuarios')
+      .select('id,nombre,apellido,foto_perfil_url')
+      .in('id', missingProfileIds)
+
+    if (error) return profiles
+    for (const profile of data ?? []) profiles.set(profile.id, profile as UsuarioProfileRow)
+    return profiles
+  } catch {
+    return profiles
   }
 }
 

@@ -100,20 +100,25 @@ export async function supportAttachmentFinalizeRoute(request: Request) {
   return NextResponse.json(result.body, { status: result.status })
 }
 
-export async function supportAttachmentDownloadRoute(_request: Request, attachmentId: string) {
+export async function supportAttachmentDownloadRoute(request: Request, attachmentId: string) {
   const { NextResponse } = await import('next/server')
   const result = await getAttachmentDownloadResult(attachmentId)
   if (result.status !== 200) return NextResponse.json(result.body, { status: result.status })
   const downloadUrl = typeof result.body.downloadUrl === 'string' ? result.body.downloadUrl : null
   if (!downloadUrl) return NextResponse.json({ error: 'Attachment not available' }, { status: 403 })
-  const response = await fetch(downloadUrl)
+  const range = request.headers?.get('range')
+  const response = await fetch(downloadUrl, range ? { headers: { range } } : undefined)
   if (!response.ok) return NextResponse.json({ error: 'Attachment download failed' }, { status: 502 })
   return new Response(response.body ?? await response.arrayBuffer(), {
-    status: 200,
+    status: response.status === 206 ? 206 : 200,
     headers: {
       'content-type': response.headers.get('content-type') ?? 'application/octet-stream',
-      'content-disposition': 'attachment',
+      'content-disposition': 'inline',
       'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+      'accept-ranges': response.headers.get('accept-ranges') ?? 'bytes',
+      ...(response.headers.get('content-range') ? { 'content-range': response.headers.get('content-range') ?? '' } : {}),
+      ...(response.headers.get('content-length') ? { 'content-length': response.headers.get('content-length') ?? '' } : {}),
     },
   })
 }

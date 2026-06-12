@@ -62,14 +62,16 @@ Operational limits from code and spec:
 - Total active attachments per ticket: max 150 MB.
 - Object keys follow `support/{ticket_id}/{attachment_id}/{safe_filename}`; object keys are not authorization proof.
 
-### Inngest
+### Support event webhook (`/api/inngest`)
+
+The current app does **not** use the official Inngest SDK or real Inngest function registry. `package.json` has no `inngest` dependency. `/api/inngest` is a custom authenticated bearer webhook that accepts the support event shape below and then invokes local notification delivery helpers. Do not report provider dashboard run counts as application truth unless this is later replaced with a real Inngest SDK integration.
 
 | Setting | Required | Notes |
 |---------|----------|-------|
 | Event names | Yes | `support/ticket.created`, `support/ticket.message.created`, `support/ticket.status.changed`, `support/attachment.finalized`, `support/external.update.received`. |
 | Payload shape | Yes | IDs only: `eventId`, `ticketId`, optional `actorUserId`, and relevant message or attachment IDs. |
 | Idempotency | Yes | Email keys use `email:{eventId}:{recipient}`. Preserve this shape in any worker integration. |
-| Provider credentials | Future wiring | The current support module defines event contracts and email dispatch helpers; provider-specific live Inngest client wiring must be reviewed before enabling. |
+| Provider credentials | Custom webhook only | `SUPPORT_INNGEST_EVENT_URL` and `SUPPORT_INNGEST_WEBHOOK_SECRET` post to the app route. Official Inngest app/function credentials are not wired. |
 
 Workers must fetch ticket data server-side, avoid long user text in events, and never include evidence, attachment URLs, R2 keys, raw Sentry payloads, diagnostics, cookies, tokens, emails beyond the intended recipient, phone numbers, church/member details, or database internals in queued payloads.
 
@@ -118,7 +120,7 @@ Required environment keys, without values:
 |-------|---------------|-------------------|
 | Global guard | `RLS_ENV=staging` | Script refuses non-staging execution before provider calls. |
 | Protected Vercel preview routes | `VERCEL_AUTOMATION_BYPASS_SECRET` when `SUPPORT_SMOKE_BASE_URL` is behind Vercel Deployment Protection | The route smoke requests include `x-vercel-protection-bypass` so Vercel allows the request to reach app auth. Do not use this key for direct provider checks. |
-| Inngest route | `SUPPORT_SMOKE_BASE_URL`, `SUPPORT_INNGEST_WEBHOOK_SECRET` | `/api/inngest` rejects missing/invalid auth and accepts a signed ID-only support event with HTTP 202. |
+| Support event webhook | `SUPPORT_SMOKE_BASE_URL`, `SUPPORT_INNGEST_WEBHOOK_SECRET` | `/api/inngest` rejects missing/invalid auth and accepts a signed ID-only support event with HTTP 202; this is not an official Inngest SDK run. |
 | External bridge | `SUPPORT_SMOKE_BASE_URL`, `SUPPORT_EXTERNAL_BRIDGE_TOKEN`, `SUPPORT_EXTERNAL_BRIDGE_AUTHOR_USUARIO_ID`, `SUPPORT_SMOKE_TICKET_ID` | `/api/support/external/inbound` rejects invalid auth, accepts one sanitized staging update, and treats the duplicate idempotency key as duplicate. |
 | R2 direct provider | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Private support bucket accepts one smoke PUT, returns matching bytes on GET, and deletes the smoke object in cleanup. |
 | Resend | `RESEND_API_KEY`, `SUPPORT_SMOKE_EMAIL_TO`, optional `RESEND_FROM_NAME`, `RESEND_FROM_EMAIL` | Resend accepts a staging-safe notification email with no evidence, attachments, diagnostics, secrets, object keys, or user PII. |

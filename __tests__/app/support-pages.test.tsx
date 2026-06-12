@@ -31,16 +31,19 @@ jest.mock('@/lib/actions/support.actions', () => ({
       category: 'bug',
       severity: 'normal',
       reporterUsuarioId: 'reporter-1',
-      assigneeUsuarioId: null,
+      assigneeUsuarioId: 'staff-1',
       reporter: { id: 'reporter-1', nombre: 'Ana', apellido: 'Pérez', photoUrl: null },
-      assignee: null,
+      assignee: { id: 'staff-1', nombre: 'Soporte', apellido: 'Central', photoUrl: 'https://cdn.example/staff.webp' },
       createdAt: '2026-06-09T00:00:00Z',
       updatedAt: '2026-06-09T00:00:00Z',
       evidence: { currentRoute: '/dashboard', browserName: 'Chrome', osName: 'macOS', viewport: '1440x900', appBuildVersion: null, sentryEventId: null, diagnosticsConsent: true },
-      attachments: [{ id: 'attachment-1', filename: 'map-error.webp', kind: 'screenshot', contentType: 'image/webp', byteSize: 2048, status: 'uploaded' }],
+      attachments: [
+        { id: 'attachment-1', filename: 'map-error.webp', kind: 'screenshot', contentType: 'image/webp', byteSize: 2048, status: 'uploaded' },
+        { id: 'attachment-2', filename: 'screen-recording.mp4', kind: 'video', contentType: 'video/mp4', byteSize: 4096, status: 'uploaded' },
+      ],
       messages: [
         { id: 'message-1', body: 'Public reply', authorUsuarioId: 'reporter-1', author: { id: 'reporter-1', nombre: 'Ana', apellido: 'Pérez', photoUrl: null }, createdAt: '2026-06-09T00:01:00Z' },
-        { id: 'message-2', body: 'Support reply', authorUsuarioId: 'staff-1', author: { id: 'staff-1', nombre: 'Soporte', apellido: 'Central', photoUrl: null }, createdAt: '2026-06-09T00:02:00Z' },
+        { id: 'message-2', body: 'Support reply', authorUsuarioId: 'staff-1', author: { id: 'staff-1', nombre: 'Soporte', apellido: 'Central', photoUrl: 'https://cdn.example/staff.webp' }, createdAt: '2026-06-09T00:02:00Z' },
       ],
       supportCapabilities: [],
     },
@@ -159,13 +162,18 @@ describe('reporter support pages', () => {
     expect(screen.getByRole('heading', { name: /Adjuntos/i })).toBeInTheDocument()
     expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
     expect(screen.getByText('map-error.webp')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Descargar map-error\.webp/i })).toHaveAttribute('href', '/api/support/attachments/attachment-1/download')
+    expect(screen.getAllByText('Responsable').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Soporte Central').length).toBeGreaterThan(0)
+    expect(screen.getByRole('img', { name: /Vista previa de map-error\.webp/i })).toHaveAttribute('src', '/api/support/attachments/attachment-1/download')
+    expect(screen.getByLabelText(/Vista previa de screen-recording\.mp4/i)).toHaveAttribute('src', '/api/support/attachments/attachment-2/download')
+    expect(screen.getByRole('link', { name: /Abrir map-error\.webp/i })).toHaveAttribute('href', '/api/support/attachments/attachment-1/download')
     expect(screen.queryByText(/support\/ticket-1\/attachment-1/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/X-Amz-Signature/i)).not.toBeInTheDocument()
     expect(screen.getByText('Public reply')).toBeInTheDocument()
     expect(screen.getByText('Support reply')).toBeInTheDocument()
-    expect(screen.getByText('Soporte Central')).toBeInTheDocument()
-    expect(screen.getByText('Equipo de soporte')).toBeInTheDocument()
+    expect(screen.getAllByText('Soporte Central').length).toBeGreaterThan(0)
+    expect(screen.getByText('Soporte')).toBeInTheDocument()
+    expect(screen.queryByText('Equipo de soporte')).not.toBeInTheDocument()
     expect(screen.getByLabelText(/Respuesta/i)).toHaveAttribute('name', 'body')
     expect(screen.queryByLabelText(/Respuesta del equipo/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Nuevo estado/i)).not.toBeInTheDocument()

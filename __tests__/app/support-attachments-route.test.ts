@@ -222,9 +222,29 @@ describe('support attachment route handlers', () => {
 
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('image/png')
-    expect(response.headers.get('content-disposition')).toBe('attachment')
+    expect(response.headers.get('content-disposition')).toBe('inline')
+    expect(response.headers.get('accept-ranges')).toBe('bytes')
     expect(response.headers.get('location')).toBeNull()
     await expect(response.text()).resolves.toBe('file')
+  })
+
+  it('forwards range requests so authorized video previews can stream through the app route', async () => {
+    const actorQuery = createMaybeSingleQuery({ id: 'usuario-1' })
+    const attachmentQuery = createMaybeSingleQuery({ ...pendingAttachment, status: 'uploaded', content_type: 'video/mp4' })
+    const fetchMock = jest.fn().mockResolvedValue(createR2Response({ ok: true, status: 206, headers: { 'content-type': 'video/mp4', 'content-range': 'bytes 0-31/4096', 'content-length': '32', 'accept-ranges': 'bytes' }, body: new Uint8Array([1, 2, 3]) }))
+    createSupabaseServerClient
+      .mockResolvedValueOnce({ auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) } })
+      .mockResolvedValueOnce({ from: jest.fn().mockReturnValue(attachmentQuery) })
+    createSupabaseAdminClient.mockReturnValueOnce({ from: jest.fn().mockReturnValue(actorQuery) })
+    Object.defineProperty(globalThis, 'fetch', { value: fetchMock, writable: true })
+
+    const response = await supportAttachmentDownloadRoute({ headers: { get: (name: string) => name === 'range' ? 'bytes=0-31' : null } } as Request, 'attachment-1')
+
+    expect(response.status).toBe(206)
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('attachment-1'), { headers: { range: 'bytes=0-31' } })
+    expect(response.headers.get('content-type')).toBe('video/mp4')
+    expect(response.headers.get('content-range')).toBe('bytes 0-31/4096')
+    expect(response.headers.get('content-length')).toBe('32')
   })
 
   it('returns 401 from the download route when the user is not authenticated', async () => {

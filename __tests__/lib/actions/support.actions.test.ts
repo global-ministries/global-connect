@@ -12,9 +12,11 @@ import { sanitizeSupportEvidence } from '@/lib/support/support-evidence'
 import { dispatchSupportInngestEvent } from '@/lib/support/inngest'
 
 const createSupabaseServerClient = jest.fn()
+const createSupabaseAdminClient = jest.fn()
 const revalidatePath = jest.fn()
 
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: () => createSupabaseServerClient() }))
+jest.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: () => createSupabaseAdminClient() }))
 jest.mock('next/cache', () => ({ revalidatePath: (path: string) => revalidatePath(path) }))
 jest.mock('@/lib/support/inngest', () => ({
   createSupportTicketCreatedEvent: (payload: { eventId: string; ticketId: string; actorUserId?: string }) => ({
@@ -30,6 +32,7 @@ const dispatchSupportInngestEventMock = jest.mocked(dispatchSupportInngestEvent)
 describe('support reporter actions', () => {
   beforeEach(() => {
     createSupabaseServerClient.mockReset()
+    createSupabaseAdminClient.mockReset()
     dispatchSupportInngestEventMock.mockReset()
     revalidatePath.mockReset()
   })
@@ -204,6 +207,35 @@ describe('support reporter actions', () => {
     expect(attachmentsQuery.select).toHaveBeenCalledWith('id,original_filename,kind,content_type,byte_size,status')
     expect(attachmentsFilter.eq).toHaveBeenCalledWith('ticket_id', 'ticket-1')
     expect(attachmentsFilter.eq).toHaveBeenCalledWith('status', 'uploaded')
+  })
+
+  it('hydrates assigned staff and staff message profiles when reporter RLS omits embedded usuarios', async () => {
+    const ticketQuery = { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: 'ticket-1', ticket_number: 42, title: 'Map bug', description: 'Steps', status: 'in_progress', category: 'bug', severity: 'normal', reporter_usuario_id: 'usuario-1', assignee_usuario_id: 'staff-1', reporter: { id: 'usuario-1', nombre: 'Ana', apellido: 'Pérez', foto_perfil_url: null }, assignee: null, current_route: '/dashboard', browser_name: 'Chrome', os_name: 'macOS', viewport: '1440x900', app_build_version: 'build-123', sentry_event_id: 'event-1', diagnostics_consent: true, created_at: '2026-06-09T00:00:00Z', updated_at: '2026-06-09T00:00:00Z' }, error: null }) }) }) }
+    const messagesFilter = { eq: jest.fn(), order: jest.fn().mockResolvedValue({ data: [{ id: 'message-1', body: 'Support reply', author_usuario_id: 'staff-1', author: null, is_internal: false, created_at: '2026-06-09T00:01:00Z' }], error: null }) }
+    messagesFilter.eq.mockReturnValue(messagesFilter)
+    const attachmentsFilter = { eq: jest.fn(), order: jest.fn().mockResolvedValue({ data: [], error: null }) }
+    attachmentsFilter.eq.mockReturnValue(attachmentsFilter)
+    const capabilitiesFilter = { eq: jest.fn(), is: jest.fn().mockResolvedValue({ data: [], error: null }) }
+    capabilitiesFilter.eq.mockReturnValue(capabilitiesFilter)
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: jest.fn((table) => {
+        if (table === 'usuarios') return { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: 'usuario-1' }, error: null }) }) }) }
+        if (table === 'support_tickets') return ticketQuery
+        if (table === 'support_ticket_messages') return { select: jest.fn().mockReturnValue(messagesFilter) }
+        if (table === 'support_user_capabilities') return { select: jest.fn().mockReturnValue(capabilitiesFilter) }
+        return { select: jest.fn().mockReturnValue(attachmentsFilter) }
+      }),
+    })
+    const adminIn = jest.fn().mockResolvedValue({ data: [{ id: 'staff-1', nombre: 'Sofia', apellido: 'Soporte', foto_perfil_url: 'https://cdn.example/staff.webp' }], error: null })
+    createSupabaseAdminClient.mockReturnValue({ from: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ in: adminIn }) }) })
+
+    const result = await getSupportTicketDetail('ticket-1')
+
+    expect(result.success).toBe(true)
+    expect(result.ticket?.assignee).toEqual({ id: 'staff-1', nombre: 'Sofia', apellido: 'Soporte', photoUrl: 'https://cdn.example/staff.webp' })
+    expect(result.ticket?.messages[0].author).toEqual({ id: 'staff-1', nombre: 'Sofia', apellido: 'Soporte', photoUrl: 'https://cdn.example/staff.webp' })
+    expect(adminIn).toHaveBeenCalledWith('id', ['staff-1'])
   })
 
   it('maps Supabase list errors to a stable user-safe message', async () => {
