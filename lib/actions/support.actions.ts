@@ -55,6 +55,7 @@ type SupportTicketRow = {
   status: string
   category: string
   severity: string
+  reporter_usuario_id: string
   assignee_usuario_id: string | null
   current_route: string | null
   browser_name: string | null
@@ -65,9 +66,12 @@ type SupportTicketRow = {
   diagnostics_consent: boolean
   created_at: string
   updated_at: string
+  reporter?: UsuarioProfileRow | null
+  assignee?: UsuarioProfileRow | null
 }
 
-type SupportMessageRow = { id: string; body: string; created_at: string }
+type UsuarioProfileRow = { id: string; nombre: string | null; apellido: string | null; foto_perfil_url: string | null }
+type SupportMessageRow = { id: string; body: string; author_usuario_id: string; created_at: string; author?: UsuarioProfileRow | null }
 type SupportAttachmentRow = { id: string; original_filename: string; kind: string; content_type: string; byte_size: number; status: string }
 
 type StaffSupportTicketRow = Pick<SupportTicketRow, 'id' | 'ticket_number' | 'title' | 'status' | 'category' | 'severity' | 'created_at' | 'updated_at'> & {
@@ -219,7 +223,7 @@ export async function getSupportTicketDetail(ticketId: string) {
 
   const { data: ticket, error } = await supabase
     .from('support_tickets')
-    .select('id,ticket_number,title,description,status,category,severity,assignee_usuario_id,current_route,browser_name,os_name,viewport,app_build_version,sentry_event_id,diagnostics_consent,created_at,updated_at')
+    .select('id,ticket_number,title,description,status,category,severity,reporter_usuario_id,assignee_usuario_id,current_route,browser_name,os_name,viewport,app_build_version,sentry_event_id,diagnostics_consent,created_at,updated_at,reporter:usuarios!support_tickets_reporter_usuario_id_fkey(id,nombre,apellido,foto_perfil_url),assignee:usuarios!support_tickets_assignee_usuario_id_fkey(id,nombre,apellido,foto_perfil_url)')
     .eq('id', ticketId)
     .maybeSingle()
 
@@ -228,7 +232,7 @@ export async function getSupportTicketDetail(ticketId: string) {
 
   const { data: messages, error: messagesError } = await supabase
     .from('support_ticket_messages')
-    .select('id,body,created_at')
+    .select('id,body,author_usuario_id,created_at,author:usuarios!support_ticket_messages_author_usuario_id_fkey(id,nombre,apellido,foto_perfil_url)')
     .eq('ticket_id', ticketId)
     .eq('is_internal', false)
     .order('created_at', { ascending: true })
@@ -239,6 +243,7 @@ export async function getSupportTicketDetail(ticketId: string) {
     .from('support_ticket_attachments')
     .select('id,original_filename,kind,content_type,byte_size,status')
     .eq('ticket_id', ticketId)
+    .eq('status', 'uploaded')
     .order('created_at', { ascending: true })
 
   if (attachmentsError) return { success: false, error: SUPPORT_TICKET_DETAIL_ERROR }
@@ -364,7 +369,7 @@ function hasSupportCapability(supportCapabilities: SupportCapability[], required
   })
 }
 
-function toTicketSummary(ticket: Omit<SupportTicketRow, 'description' | 'assignee_usuario_id' | 'current_route' | 'browser_name' | 'os_name' | 'viewport' | 'app_build_version' | 'sentry_event_id' | 'diagnostics_consent'>) {
+function toTicketSummary(ticket: Omit<SupportTicketRow, 'description' | 'reporter_usuario_id' | 'assignee_usuario_id' | 'current_route' | 'browser_name' | 'os_name' | 'viewport' | 'app_build_version' | 'sentry_event_id' | 'diagnostics_consent' | 'reporter' | 'assignee'>) {
   return { id: ticket.id, ticketNumber: ticket.ticket_number, title: ticket.title, status: ticket.status, category: ticket.category, severity: ticket.severity, createdAt: ticket.created_at, updatedAt: ticket.updated_at }
 }
 
@@ -372,12 +377,20 @@ function toTicketDetail(ticket: SupportTicketRow, messages: SupportMessageRow[],
   return {
     ...toTicketSummary(ticket),
     description: ticket.description,
+    reporterUsuarioId: ticket.reporter_usuario_id,
     assigneeUsuarioId: ticket.assignee_usuario_id,
+    reporter: toSafeUsuarioProfile(ticket.reporter),
+    assignee: toSafeUsuarioProfile(ticket.assignee),
     evidence: { currentRoute: ticket.current_route, browserName: ticket.browser_name, osName: ticket.os_name, viewport: ticket.viewport, appBuildVersion: ticket.app_build_version, sentryEventId: ticket.sentry_event_id, diagnosticsConsent: ticket.diagnostics_consent },
-    messages: messages.map((message) => ({ id: message.id, body: message.body, createdAt: message.created_at })),
+    messages: messages.map((message) => ({ id: message.id, body: message.body, authorUsuarioId: message.author_usuario_id, author: toSafeUsuarioProfile(message.author), createdAt: message.created_at })),
     attachments: attachments.map((attachment) => ({ id: attachment.id, filename: attachment.original_filename, kind: attachment.kind, contentType: attachment.content_type, byteSize: attachment.byte_size, status: attachment.status })),
     supportCapabilities,
   }
+}
+
+function toSafeUsuarioProfile(profile: UsuarioProfileRow | null | undefined) {
+  if (!profile) return null
+  return { id: profile.id, nombre: profile.nombre, apellido: profile.apellido, photoUrl: profile.foto_perfil_url }
 }
 
 function toStaffTicketSummary(ticket: StaffSupportTicketRow) {

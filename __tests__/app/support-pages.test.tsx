@@ -30,11 +30,15 @@ jest.mock('@/lib/actions/support.actions', () => ({
       status: 'received',
       category: 'bug',
       severity: 'normal',
+      reporterUsuarioId: 'reporter-1',
+      assigneeUsuarioId: null,
+      reporter: { id: 'reporter-1', nombre: 'Ana', apellido: 'Pérez', photoUrl: null },
+      assignee: null,
       createdAt: '2026-06-09T00:00:00Z',
       updatedAt: '2026-06-09T00:00:00Z',
       evidence: { currentRoute: '/dashboard', browserName: 'Chrome', osName: 'macOS', viewport: '1440x900', appBuildVersion: null, sentryEventId: null, diagnosticsConsent: true },
       attachments: [{ id: 'attachment-1', filename: 'map-error.webp', kind: 'screenshot', contentType: 'image/webp', byteSize: 2048, status: 'uploaded' }],
-      messages: [{ id: 'message-1', body: 'Public reply', createdAt: '2026-06-09T00:01:00Z' }],
+      messages: [{ id: 'message-1', body: 'Public reply', authorUsuarioId: 'reporter-1', author: { id: 'reporter-1', nombre: 'Ana', apellido: 'Pérez', photoUrl: null }, createdAt: '2026-06-09T00:01:00Z' }],
       supportCapabilities: [],
     },
   }),
@@ -128,6 +132,11 @@ describe('reporter support pages', () => {
     render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-1' }) }))
 
     expect(screen.getByText('The group map does not load.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Solicitante/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Conversación/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Adjuntos/i })).toBeInTheDocument()
+    expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
+    expect(screen.getByText('map-error.webp')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Descargar map-error\.webp/i })).toHaveAttribute('href', '/api/support/attachments/attachment-1/download')
     expect(screen.queryByText(/support\/ticket-1\/attachment-1/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/X-Amz-Signature/i)).not.toBeInTheDocument()
@@ -149,6 +158,10 @@ describe('reporter support pages', () => {
         status: 'in_review',
         category: 'bug',
         severity: 'high',
+        reporterUsuarioId: 'reporter-2',
+        assigneeUsuarioId: 'staff-1',
+        reporter: { id: 'reporter-2', nombre: 'Luis', apellido: 'Ramos', photoUrl: null },
+        assignee: { id: 'staff-1', nombre: 'Soporte', apellido: 'Central', photoUrl: null },
         createdAt: '2026-06-10T00:00:00Z',
         updatedAt: '2026-06-10T00:05:00Z',
         evidence: { currentRoute: '/dashboard', browserName: 'Chrome', osName: 'macOS', viewport: '1440x900', appBuildVersion: null, sentryEventId: null, diagnosticsConsent: true },
@@ -179,6 +192,10 @@ describe('reporter support pages', () => {
         status: 'in_progress',
         category: 'access',
         severity: 'normal',
+        reporterUsuarioId: 'reporter-3',
+        assigneeUsuarioId: null,
+        reporter: { id: 'reporter-3', nombre: 'Marta', apellido: 'Núñez', photoUrl: null },
+        assignee: null,
         createdAt: '2026-06-10T01:00:00Z',
         updatedAt: '2026-06-10T01:05:00Z',
         evidence: { currentRoute: '/ayuda/admin', browserName: 'Chrome', osName: 'macOS', viewport: '1440x900', appBuildVersion: null, sentryEventId: null, diagnosticsConsent: true },
@@ -209,6 +226,10 @@ describe('reporter support pages', () => {
         status: 'received',
         category: 'other',
         severity: 'normal',
+        reporterUsuarioId: 'reporter-4',
+        assigneeUsuarioId: null,
+        reporter: { id: 'reporter-4', nombre: 'Diego', apellido: 'Soto', photoUrl: null },
+        assignee: null,
         createdAt: '2026-06-10T02:00:00Z',
         updatedAt: '2026-06-10T02:05:00Z',
         evidence: { currentRoute: '/ayuda/admin', browserName: 'Chrome', osName: 'macOS', viewport: '1440x900', appBuildVersion: null, sentryEventId: null, diagnosticsConsent: true },
