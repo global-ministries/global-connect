@@ -113,7 +113,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                     <div className="space-y-3">
                       {ticket.messages.map((message) => {
                         const isReporter = isReporterMessage(message.authorUsuarioId, ticket.reporterUsuarioId)
-                        const roleLabel = isReporter ? 'Solicitante' : 'Equipo de soporte'
+                        const roleLabel = isReporter ? 'Solicitante' : 'Soporte'
                         const participant = createParticipant(message.author, roleLabel)
 
                         return <MessageBubble key={message.id} message={message} participant={participant} roleLabel={roleLabel} isReporter={isReporter} />
@@ -146,14 +146,15 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                     <TextoSistema variante="sutil">No hay adjuntos finalizados.</TextoSistema>
                   ) : ticket.attachments.map((attachment) => (
                     <div key={attachment.id} className="rounded-2xl border border-border bg-muted/20 p-3">
+                      <AttachmentPreview attachment={attachment} />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-foreground">{attachment.filename}</p>
                         <TextoSistema variante="muted" tamaño="sm">{formatAttachmentKind(attachment.kind)} · {formatBytes(attachment.byteSize)}</TextoSistema>
                         <TextoSistema variante="muted" tamaño="sm">{attachment.contentType} · {formatAttachmentStatus(attachment.status)}</TextoSistema>
                       </div>
                       {attachment.status === 'uploaded' && (
-                        <a href={`/api/support/attachments/${attachment.id}/download`} aria-label={`Descargar ${attachment.filename}`} className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-border px-3 text-sm font-medium text-[var(--brand-primary)] transition-colors hover:bg-card">
-                          Descargar archivo
+                        <a href={getAttachmentRoute(attachment.id)} aria-label={`Abrir ${attachment.filename}`} className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-border px-3 text-sm font-medium text-[var(--brand-primary)] transition-colors hover:bg-card">
+                          Abrir archivo
                         </a>
                       )}
                     </div>
@@ -221,6 +222,34 @@ type TicketMessage = {
   createdAt: string
 }
 
+type TicketAttachment = {
+  id: string
+  filename: string
+  kind: string
+  contentType: string
+  byteSize: number
+  status: string
+}
+
+function AttachmentPreview({ attachment }: { attachment: TicketAttachment }) {
+  if (attachment.status !== 'uploaded') return null
+
+  const route = getAttachmentRoute(attachment.id)
+  if (isPreviewableImage(attachment.contentType)) {
+    return <img src={route} alt={`Vista previa de ${attachment.filename}`} className="mb-3 aspect-video w-full rounded-xl border border-border bg-card object-contain" loading="lazy" />
+  }
+
+  if (isPreviewableVideo(attachment.contentType)) {
+    return <video src={route} aria-label={`Vista previa de ${attachment.filename}`} className="mb-3 aspect-video w-full rounded-xl border border-border bg-black" controls preload="metadata" />
+  }
+
+  return null
+}
+
+function getAttachmentRoute(attachmentId: string) {
+  return `/api/support/attachments/${attachmentId}/download`
+}
+
 function MessageBubble({ message, participant, roleLabel, isReporter }: { message: TicketMessage; participant: Participant; roleLabel: string; isReporter: boolean }) {
   return (
     <article className={`flex gap-2.5 ${isReporter ? 'justify-start' : 'justify-end'}`}>
@@ -267,6 +296,14 @@ function formatAttachmentStatus(status: string) {
 
 function formatAttachmentKind(kind: string) {
   return kind === 'video' ? 'Video' : 'Captura'
+}
+
+function isPreviewableImage(contentType: string) {
+  return ['image/png', 'image/jpeg', 'image/webp'].includes(contentType)
+}
+
+function isPreviewableVideo(contentType: string) {
+  return ['video/mp4', 'video/webm', 'video/quicktime'].includes(contentType)
 }
 
 function formatBytes(byteSize: number) {

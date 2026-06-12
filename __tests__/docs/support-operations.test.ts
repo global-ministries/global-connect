@@ -24,4 +24,10 @@ describe('support operations runbook', () => {
   it('documents the external inbound support event name', () => {
     expect(runbook).toContain('support/external.update.received')
   })
+
+  it('documents that /api/inngest is a custom webhook, not official Inngest SDK runs', () => {
+    expect(runbook).toContain('does **not** use the official Inngest SDK')
+    expect(runbook).toContain('/api/inngest')
+    expect(runbook).toContain('not an official Inngest SDK run')
+  })
 })
