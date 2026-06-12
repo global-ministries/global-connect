@@ -38,7 +38,10 @@ jest.mock('@/lib/actions/support.actions', () => ({
       updatedAt: '2026-06-09T00:00:00Z',
       evidence: { currentRoute: '/dashboard', browserName: 'Chrome', osName: 'macOS', viewport: '1440x900', appBuildVersion: null, sentryEventId: null, diagnosticsConsent: true },
       attachments: [{ id: 'attachment-1', filename: 'map-error.webp', kind: 'screenshot', contentType: 'image/webp', byteSize: 2048, status: 'uploaded' }],
-      messages: [{ id: 'message-1', body: 'Public reply', authorUsuarioId: 'reporter-1', author: { id: 'reporter-1', nombre: 'Ana', apellido: 'Pérez', photoUrl: null }, createdAt: '2026-06-09T00:01:00Z' }],
+      messages: [
+        { id: 'message-1', body: 'Public reply', authorUsuarioId: 'reporter-1', author: { id: 'reporter-1', nombre: 'Ana', apellido: 'Pérez', photoUrl: null }, createdAt: '2026-06-09T00:01:00Z' },
+        { id: 'message-2', body: 'Support reply', authorUsuarioId: 'staff-1', author: { id: 'staff-1', nombre: 'Soporte', apellido: 'Central', photoUrl: null }, createdAt: '2026-06-09T00:02:00Z' },
+      ],
       supportCapabilities: [],
     },
   }),
@@ -141,6 +144,9 @@ describe('reporter support pages', () => {
     expect(screen.queryByText(/support\/ticket-1\/attachment-1/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/X-Amz-Signature/i)).not.toBeInTheDocument()
     expect(screen.getByText('Public reply')).toBeInTheDocument()
+    expect(screen.getByText('Support reply')).toBeInTheDocument()
+    expect(screen.getByText('Soporte Central')).toBeInTheDocument()
+    expect(screen.getByText('Equipo de soporte')).toBeInTheDocument()
     expect(screen.getByLabelText(/Respuesta/i)).toHaveAttribute('name', 'body')
     expect(screen.queryByLabelText(/Respuesta del equipo/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Nuevo estado/i)).not.toBeInTheDocument()
@@ -173,8 +179,8 @@ describe('reporter support pages', () => {
 
     render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-2' }) }))
 
-    expect(screen.getByLabelText(/Respuesta del equipo/i)).toHaveAttribute('name', 'body')
-    expect(screen.getByRole('button', { name: /Enviar respuesta del equipo/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/Respuesta de soporte/i)).toHaveAttribute('name', 'body')
+    expect(screen.getByRole('button', { name: /Enviar respuesta al solicitante/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/Nuevo estado/i)).toHaveValue('in_review')
     expect(screen.getByRole('button', { name: /Actualizar estado/i })).toBeInTheDocument()
     expect(screen.queryByLabelText(/Responsable/i)).not.toBeInTheDocument()
@@ -207,8 +213,8 @@ describe('reporter support pages', () => {
 
     render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-3' }) }))
 
-    expect(screen.getByLabelText(/Respuesta del equipo/i)).toHaveAttribute('name', 'body')
-    expect(screen.getByRole('button', { name: /Enviar respuesta del equipo/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/Respuesta de soporte/i)).toHaveAttribute('name', 'body')
+    expect(screen.getByRole('button', { name: /Enviar respuesta al solicitante/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/Nuevo estado/i)).toHaveValue('in_progress')
     expect(screen.getByRole('button', { name: /Actualizar estado/i })).toBeInTheDocument()
     expect(screen.queryByLabelText(/Responsable/i)).not.toBeInTheDocument()
@@ -241,8 +247,8 @@ describe('reporter support pages', () => {
 
     render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-4' }) }))
 
-    expect(screen.queryByLabelText(/Respuesta del equipo/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Enviar respuesta del equipo/i })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Respuesta de soporte/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Enviar respuesta al solicitante/i })).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Nuevo estado/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Responsable/i)).not.toBeInTheDocument()
   })

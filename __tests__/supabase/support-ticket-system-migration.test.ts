@@ -16,6 +16,7 @@ function readSupportTicketSql(): string {
     readMigrationBySuffix('_add_support_capability_admin_rpcs.sql'),
     readMigrationBySuffix('_add_support_external_inbound_rpc.sql'),
     readMigrationBySuffix('_align_support_capability_hierarchy.sql'),
+    readMigrationBySuffix('_add_safe_support_ticket_auto_assignment_rpc.sql'),
   ].join('\n')
 }
 
@@ -219,6 +220,7 @@ describe('support ticket system migration', () => {
     const sql = readSupportTicketSql()
     const staffReplyRpc = latestFunctionSqlByPrefix(sql, 'public.create_staff_support_ticket_reply(p_ticket_id uuid, p_body text)')
     const assignmentRpc = latestFunctionSqlByPrefix(sql, 'public.assign_support_ticket(p_ticket_id uuid, p_assignee_usuario_id uuid)')
+    const autoAssignmentRpc = latestFunctionSqlByPrefix(sql, 'public.auto_assign_support_ticket_if_unassigned(p_ticket_id uuid)')
     const statusRpc = latestFunctionSqlByPrefix(sql, 'public.update_support_ticket_status(p_ticket_id uuid, p_status text)')
 
     expect(staffReplyRpc).toContain('SECURITY DEFINER')
@@ -233,6 +235,15 @@ describe('support ticket system migration', () => {
     expect(assignmentRpc).toContain('UPDATE public.support_tickets')
     expect(assignmentRpc).toContain('INSERT INTO public.support_ticket_events')
     expect(assignmentRpc).not.toMatch(/\bEXECUTE\b/i)
+
+    expect(autoAssignmentRpc).toContain('SECURITY DEFINER')
+    expect(autoAssignmentRpc).toContain("support_private.has_capability('support.manage')")
+    expect(autoAssignmentRpc).toContain("SET search_path TO 'public', 'support_private'")
+    expect(autoAssignmentRpc).toContain('WHERE id = p_ticket_id AND assignee_usuario_id IS NULL')
+    expect(autoAssignmentRpc).not.toMatch(/SET\s+assignee_usuario_id\s*=\s*v_actor_usuario_id[\s\S]*WHERE\s+id\s*=\s*p_ticket_id\s*;/i)
+    expect(autoAssignmentRpc).toContain('GET DIAGNOSTICS v_updated_count = ROW_COUNT')
+    expect(autoAssignmentRpc).toContain('IF v_updated_count > 0 THEN INSERT INTO public.support_ticket_events')
+    expect(autoAssignmentRpc).not.toMatch(/\bEXECUTE\b/i)
 
     expect(statusRpc).toContain("support_private.has_capability('support.manage')")
     expect(statusRpc).toContain("SET search_path TO 'public', 'support_private'")
@@ -258,6 +269,7 @@ describe('support ticket system migration', () => {
     for (const signature of [
       'public.create_staff_support_ticket_reply(uuid, text)',
       'public.assign_support_ticket(uuid, uuid)',
+      'public.auto_assign_support_ticket_if_unassigned(uuid)',
       'public.update_support_ticket_status(uuid, text)',
     ]) {
       expect(sql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC`)

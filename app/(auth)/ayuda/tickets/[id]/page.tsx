@@ -28,7 +28,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
   async function staffReplyAction(formData: FormData) {
     'use server'
-    return createStaffSupportTicketReply(ticket.id, formData)
+    return createStaffSupportTicketReply(ticket.id, formData, { autoAssignIfUnassigned: canManage && ticket.assigneeUsuarioId === null })
   }
 
   async function statusAction(formData: FormData) {
@@ -45,16 +45,16 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     <DashboardLayout>
       <ContenedorDashboard titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
         <TarjetaSistema className="overflow-hidden border-border/70 p-0">
-          <div className="border-b border-border bg-muted/20 p-5 sm:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          <div className="border-b border-border bg-muted/20 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   <span>Ticket #{ticket.ticketNumber}</span>
                   <span aria-hidden="true">/</span>
                   <span>{formatCategory(ticket.category)}</span>
                 </div>
-                <TituloSistema nivel={2} className="text-balance">{ticket.title}</TituloSistema>
-                <TextoSistema className="max-w-3xl">{ticket.description}</TextoSistema>
+                <TituloSistema nivel={2} className="text-balance leading-tight">{ticket.title}</TituloSistema>
+                <TextoSistema tamaño="sm" className="max-w-3xl">{ticket.description}</TextoSistema>
               </div>
               <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                 <BadgeSistema variante="info">{formatSupportStatus(ticket.status)}</BadgeSistema>
@@ -63,7 +63,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             </div>
           </div>
 
-          <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:p-5">
+          <div className="grid gap-3 p-3 sm:grid-cols-3 sm:p-4">
             <TicketStat label="Creado" value={formatMessageTimestamp(ticket.createdAt)} />
             <TicketStat label="Actualizado" value={formatMessageTimestamp(ticket.updatedAt)} />
             <TicketStat label="Responsable" value={assignee.fullName} />
@@ -71,26 +71,21 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
         </TarjetaSistema>
 
         <div className="grid items-start gap-5 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-          <aside className="order-2 space-y-5 xl:order-1">
-            <TarjetaSistema className="space-y-4">
+          <aside className="order-2 space-y-4 xl:order-1">
+            <TarjetaSistema className="space-y-3">
               <SectionHeader eyebrow="Contexto" title="Solicitante" />
               <ParticipantSummary participant={reporter} role="Solicitante" />
-              <div className="grid gap-3 border-t border-border pt-4 text-sm">
+              <div className="grid gap-2 border-t border-border pt-3 text-sm">
                 <MetadataRow label="Categoría" value={formatCategory(ticket.category)} />
                 <MetadataRow label="Prioridad" value={formatSeverity(ticket.severity)} />
                 <MetadataRow label="Estado" value={formatSupportStatus(ticket.status)} />
+                <MetadataRow label="Responsable" value={assignee.fullName} />
               </div>
-            </TarjetaSistema>
-
-            <TarjetaSistema className="space-y-4">
-              <SectionHeader eyebrow="Asignación" title="Equipo de soporte" />
-              <ParticipantSummary participant={assignee} role={ticket.assigneeUsuarioId ? 'Responsable' : 'Pendiente'} muted={!ticket.assigneeUsuarioId} />
-              <TextoSistema variante="muted" tamaño="sm">Los controles de ciclo de vida se mantienen separados de la respuesta para evitar cambios accidentales.</TextoSistema>
             </TarjetaSistema>
           </aside>
 
-          <section className="order-1 space-y-5 xl:order-2">
-            <TarjetaSistema className="space-y-5">
+          <section className="order-1 space-y-4 xl:order-2">
+            <TarjetaSistema className="space-y-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <SectionHeader eyebrow="Actividad" title="Conversación" />
                 <TextoSistema variante="muted" tamaño="sm">{ticket.messages.length} {ticket.messages.length === 1 ? 'respuesta pública' : 'respuestas públicas'}</TextoSistema>
@@ -101,33 +96,18 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                   <TextoSistema variante="sutil">Aún no hay respuestas públicas.</TextoSistema>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {ticket.messages.map((message) => {
-                    const roleLabel = getMessageRoleLabel(message.authorUsuarioId, ticket.reporterUsuarioId)
+                    const isReporter = isReporterMessage(message.authorUsuarioId, ticket.reporterUsuarioId)
+                    const roleLabel = isReporter ? 'Solicitante' : 'Equipo de soporte'
                     const participant = createParticipant(message.author, roleLabel)
 
-                    return (
-                      <article key={message.id} className="rounded-3xl border border-border bg-card/75 p-4 shadow-sm sm:p-5">
-                        <div className="flex gap-3 sm:gap-4">
-                          <UserAvatar photoUrl={participant.photoUrl} nombre={participant.nombre} apellido={participant.apellido} size="md" className="ring-2 ring-background" />
-                          <div className="min-w-0 flex-1 space-y-3">
-                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-foreground">{participant.fullName}</p>
-                                <p className="text-xs font-medium text-muted-foreground">{roleLabel}</p>
-                              </div>
-                              <time className="text-xs text-muted-foreground" dateTime={message.createdAt}>{formatMessageTimestamp(message.createdAt)}</time>
-                            </div>
-                            <TextoSistema className="whitespace-pre-wrap leading-relaxed">{message.body}</TextoSistema>
-                          </div>
-                        </div>
-                      </article>
-                    )
+                    return <MessageBubble key={message.id} message={message} participant={participant} roleLabel={roleLabel} isReporter={isReporter} />
                   })}
                 </div>
               )}
 
-              <div className="border-t border-border pt-5">
+              <div className="border-t border-border pt-4">
                 <SupportTicketReplyComposer action={canStaffReply ? staffReplyAction : replyAction} isStaffReply={canStaffReply} />
               </div>
             </TarjetaSistema>
@@ -184,8 +164,8 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
 
 function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
-    <div className="space-y-1">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{eyebrow}</p>
+    <div className="space-y-0.5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{eyebrow}</p>
       <TituloSistema nivel={3}>{title}</TituloSistema>
     </div>
   )
@@ -193,8 +173,8 @@ function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
 
 function TicketStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-card/70 p-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+    <div className="rounded-xl border border-border bg-card/70 px-3 py-2">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
     </div>
   )
@@ -202,8 +182,8 @@ function TicketStat({ label, value }: { label: string; value: string }) {
 
 function ParticipantSummary({ participant, role, muted = false }: { participant: Participant; role: string; muted?: boolean }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/20 p-3">
-      <UserAvatar photoUrl={participant.photoUrl} nombre={participant.nombre} apellido={participant.apellido} size="md" />
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-2.5">
+      <UserAvatar photoUrl={participant.photoUrl} nombre={participant.nombre} apellido={participant.apellido} size="sm" />
       <div className="min-w-0">
         <p className={`truncate text-sm font-semibold ${muted ? 'text-muted-foreground' : 'text-foreground'}`}>{participant.fullName}</p>
         <p className="text-xs font-medium text-muted-foreground">{role}</p>
@@ -228,6 +208,30 @@ type Participant = {
   photoUrl: string | null
 }
 
+type TicketMessage = {
+  id: string
+  body: string
+  authorUsuarioId?: string
+  createdAt: string
+}
+
+function MessageBubble({ message, participant, roleLabel, isReporter }: { message: TicketMessage; participant: Participant; roleLabel: string; isReporter: boolean }) {
+  return (
+    <article className={`flex gap-2.5 ${isReporter ? 'justify-start' : 'justify-end'}`}>
+      {isReporter && <UserAvatar photoUrl={participant.photoUrl} nombre={participant.nombre} apellido={participant.apellido} size="sm" className="mt-1 ring-2 ring-background" />}
+      <div className={`max-w-[min(92%,42rem)] rounded-2xl border px-3 py-2.5 shadow-sm ${isReporter ? 'rounded-tl-md border-border bg-card/85' : 'rounded-tr-md border-border border-l-4 border-l-[var(--brand-primary)] bg-muted/40'}`}>
+        <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <p className="text-sm font-semibold text-foreground">{participant.fullName}</p>
+          <span className="text-xs font-medium text-muted-foreground">{roleLabel}</span>
+          <time className="text-xs text-muted-foreground" dateTime={message.createdAt}>{formatMessageTimestamp(message.createdAt)}</time>
+        </div>
+        <TextoSistema tamaño="sm" className="whitespace-pre-wrap leading-relaxed">{message.body}</TextoSistema>
+      </div>
+      {!isReporter && <UserAvatar photoUrl={participant.photoUrl} nombre={participant.nombre} apellido={participant.apellido} size="sm" className="mt-1 ring-2 ring-background" />}
+    </article>
+  )
+}
+
 function createParticipant(profile: { nombre: string | null; apellido: string | null; photoUrl: string | null } | null | undefined, fallbackName: string): Participant {
   const nombre = profile?.nombre?.trim() || fallbackName
   const apellido = profile?.apellido?.trim() || ''
@@ -236,9 +240,8 @@ function createParticipant(profile: { nombre: string | null; apellido: string | 
   return { nombre, apellido, fullName, photoUrl: profile?.photoUrl ?? null }
 }
 
-function getMessageRoleLabel(authorUsuarioId: string | undefined, reporterUsuarioId: string | undefined) {
-  if (!authorUsuarioId || !reporterUsuarioId) return 'Actualización'
-  return authorUsuarioId === reporterUsuarioId ? 'Solicitante' : 'Equipo de soporte'
+function isReporterMessage(authorUsuarioId: string | undefined, reporterUsuarioId: string | undefined) {
+  return Boolean(authorUsuarioId && reporterUsuarioId && authorUsuarioId === reporterUsuarioId)
 }
 
 function formatCategory(category: string) {

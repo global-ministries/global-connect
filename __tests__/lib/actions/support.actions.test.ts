@@ -348,6 +348,33 @@ describe('support reporter actions', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/ayuda/admin')
   })
 
+  it('assigns an unassigned ticket to the managing staff responder after replying', async () => {
+    const rpc = jest.fn().mockResolvedValue({ error: null })
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffActionFromMock({ usuarioId: 'usuario-1', hasCapability: true, capability: 'support.manage' }),
+      rpc,
+    })
+
+    const result = await createStaffSupportTicketReply('ticket-1', createMessageFormData(), { autoAssignIfUnassigned: true })
+
+    expect(result).toEqual({ success: true })
+    expect(rpc).toHaveBeenCalledWith('create_staff_support_ticket_reply', { p_ticket_id: 'ticket-1', p_body: 'I can reproduce it on mobile.' })
+    expect(rpc).toHaveBeenCalledWith('auto_assign_support_ticket_if_unassigned', { p_ticket_id: 'ticket-1' })
+  })
+
+  it('keeps staff replies successful when best-effort auto-assignment fails', async () => {
+    const rpc = jest.fn((functionName: string) => Promise.resolve({ error: functionName === 'auto_assign_support_ticket_if_unassigned' ? { message: 'assignment failed' } : null }))
+    createSupabaseServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+      from: createStaffActionFromMock({ usuarioId: 'usuario-1', hasCapability: true, capability: 'support.manage' }),
+      rpc,
+    })
+
+    await expect(createStaffSupportTicketReply('ticket-1', createMessageFormData(), { autoAssignIfUnassigned: true })).resolves.toEqual({ success: true })
+    expect(rpc).toHaveBeenCalledWith('auto_assign_support_ticket_if_unassigned', { p_ticket_id: 'ticket-1' })
+  })
+
   it('assigns a support ticket through the atomic audit RPC', async () => {
     const rpc = jest.fn().mockResolvedValue({ error: null })
     createSupabaseServerClient.mockResolvedValue({

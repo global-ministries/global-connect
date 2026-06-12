@@ -30,11 +30,11 @@ export function SupportTicketReplyComposer({ action, isStaffReply }: { action: S
   return (
     <form ref={formRef} action={formAction} className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-foreground">{isStaffReply ? 'Respuesta del equipo de soporte' : 'Responder al ticket'}</p>
-        <TextoSistema variante="sutil" tamaño="sm">{isStaffReply ? 'Esta respuesta sera visible para el reportante.' : 'Agrega informacion o responde a soporte.'}</TextoSistema>
+        <p className="text-sm font-semibold text-foreground">{isStaffReply ? 'Responder como soporte' : 'Responder al equipo de soporte'}</p>
+        <TextoSistema variante="sutil" tamaño="sm">{isStaffReply ? 'Tu respuesta será visible para el solicitante.' : 'Agrega información o responde al equipo que revisa tu caso.'}</TextoSistema>
       </div>
-      <TextareaSistema name="body" label={isStaffReply ? 'Respuesta del equipo' : 'Respuesta'} filas={4} required />
-      <BotonSistema type="submit" disabled={isPending}>{isPending ? 'Enviando...' : isStaffReply ? 'Enviar respuesta del equipo' : 'Enviar respuesta'}</BotonSistema>
+      <TextareaSistema name="body" label={isStaffReply ? 'Respuesta de soporte' : 'Respuesta al equipo de soporte'} filas={4} required />
+      <BotonSistema type="submit" disabled={isPending}>{isPending ? 'Enviando...' : isStaffReply ? 'Enviar respuesta al solicitante' : 'Enviar respuesta'}</BotonSistema>
     </form>
   )
 }

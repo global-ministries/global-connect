@@ -162,7 +162,7 @@ export async function listStaffSupportTickets(filters: unknown) {
   return { success: true, supportCapabilities, tickets: (data ?? []).map(toStaffTicketSummary) }
 }
 
-export async function createStaffSupportTicketReply(ticketId: string, formData: FormData) {
+export async function createStaffSupportTicketReply(ticketId: string, formData: FormData, options: { autoAssignIfUnassigned?: boolean } = {}) {
   const parsed = messageSchema.safeParse(Object.fromEntries(formData))
   if (!parsed.success) return { success: false, error: parsed.error.errors[0]?.message ?? 'Respuesta invalida' }
 
@@ -174,6 +174,13 @@ export async function createStaffSupportTicketReply(ticketId: string, formData: 
 
   const { error } = await supabase.rpc('create_staff_support_ticket_reply' as never, { p_ticket_id: ticketId, p_body: parsed.data.body } as never)
   if (error) return { success: false, error: SUPPORT_STAFF_REPLY_ERROR }
+
+  if (options.autoAssignIfUnassigned) {
+    const manageCapability = await requireSupportCapability(supabase, actor.usuarioId, 'support.manage')
+    if (manageCapability.success) {
+      await supabase.rpc('auto_assign_support_ticket_if_unassigned' as never, { p_ticket_id: ticketId } as never)
+    }
+  }
 
   revalidatePath(`/ayuda/tickets/${ticketId}`)
   revalidatePath('/ayuda/admin')
