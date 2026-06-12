@@ -42,120 +42,126 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const assignee = createParticipant(ticket.assignee, 'Sin asignar')
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
-        <TarjetaSistema className="overflow-hidden border-border/70 p-0">
-          <div className="border-b border-border bg-muted/20 p-4 sm:p-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 space-y-1.5">
-                <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  <span>Ticket #{ticket.ticketNumber}</span>
-                  <span aria-hidden="true">/</span>
-                  <span>{formatCategory(ticket.category)}</span>
+    <DashboardLayout className="lg:overflow-hidden">
+      <ContenedorDashboard className="lg:h-full lg:min-h-0" titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
+        <div className="space-y-6 lg:grid lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-4 lg:space-y-0">
+          <TarjetaSistema className="overflow-hidden border-border/70 p-0">
+            <div className="border-b border-border bg-muted/20 p-4 sm:p-5">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                    <span>Ticket #{ticket.ticketNumber}</span>
+                    <span aria-hidden="true">/</span>
+                    <span>{formatCategory(ticket.category)}</span>
+                  </div>
+                  <TituloSistema nivel={2} className="text-balance leading-tight">{ticket.title}</TituloSistema>
+                  <TextoSistema tamaño="sm" className="max-w-3xl">{ticket.description}</TextoSistema>
                 </div>
-                <TituloSistema nivel={2} className="text-balance leading-tight">{ticket.title}</TituloSistema>
-                <TextoSistema tamaño="sm" className="max-w-3xl">{ticket.description}</TextoSistema>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                <BadgeSistema variante="info">{formatSupportStatus(ticket.status)}</BadgeSistema>
-                <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">Prioridad {formatSeverity(ticket.severity)}</span>
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                  <BadgeSistema variante="info">{formatSupportStatus(ticket.status)}</BadgeSistema>
+                  <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">Prioridad {formatSeverity(ticket.severity)}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="grid gap-3 p-3 sm:grid-cols-3 sm:p-4">
-            <TicketStat label="Creado" value={formatMessageTimestamp(ticket.createdAt)} />
-            <TicketStat label="Actualizado" value={formatMessageTimestamp(ticket.updatedAt)} />
-            <TicketStat label="Responsable" value={assignee.fullName} />
-          </div>
-        </TarjetaSistema>
+            <div className="grid gap-3 p-3 sm:grid-cols-3 sm:p-4">
+              <TicketStat label="Creado" value={formatMessageTimestamp(ticket.createdAt)} />
+              <TicketStat label="Actualizado" value={formatMessageTimestamp(ticket.updatedAt)} />
+              <TicketStat label="Responsable" value={assignee.fullName} />
+            </div>
+          </TarjetaSistema>
 
-        <div className="grid items-start gap-5 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-          <aside className="order-2 space-y-4 xl:order-1">
-            <TarjetaSistema className="space-y-3">
-              <SectionHeader eyebrow="Contexto" title="Solicitante" />
-              <ParticipantSummary participant={reporter} role="Solicitante" />
-              <div className="grid gap-2 border-t border-border pt-3 text-sm">
-                <MetadataRow label="Categoría" value={formatCategory(ticket.category)} />
-                <MetadataRow label="Prioridad" value={formatSeverity(ticket.severity)} />
-                <MetadataRow label="Estado" value={formatSupportStatus(ticket.status)} />
-                <MetadataRow label="Responsable" value={assignee.fullName} />
-              </div>
-            </TarjetaSistema>
-          </aside>
-
-          <section className="order-1 space-y-4 xl:order-2">
-            <TarjetaSistema className="space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <SectionHeader eyebrow="Actividad" title="Conversación" />
-                <TextoSistema variante="muted" tamaño="sm">{ticket.messages.length} {ticket.messages.length === 1 ? 'respuesta pública' : 'respuestas públicas'}</TextoSistema>
-              </div>
-
-              {ticket.messages.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-5 text-center">
-                  <TextoSistema variante="sutil">Aún no hay respuestas públicas.</TextoSistema>
+          <div className="grid items-start gap-5 lg:min-h-0 lg:grid-cols-[260px_minmax(0,1fr)_300px] lg:items-stretch xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+            <aside className="order-2 space-y-4 lg:order-1 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-4 lg:overflow-hidden">
+              <TarjetaSistema className="space-y-3 lg:flex-none">
+                <SectionHeader eyebrow="Contexto" title="Solicitante" />
+                <ParticipantSummary participant={reporter} role="Solicitante" />
+                <div className="grid gap-2 border-t border-border pt-3 text-sm">
+                  <MetadataRow label="Categoría" value={formatCategory(ticket.category)} />
+                  <MetadataRow label="Prioridad" value={formatSeverity(ticket.severity)} />
+                  <MetadataRow label="Estado" value={formatSupportStatus(ticket.status)} />
+                  <MetadataRow label="Responsable" value={assignee.fullName} />
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {ticket.messages.map((message) => {
-                    const isReporter = isReporterMessage(message.authorUsuarioId, ticket.reporterUsuarioId)
-                    const roleLabel = isReporter ? 'Solicitante' : 'Equipo de soporte'
-                    const participant = createParticipant(message.author, roleLabel)
-
-                    return <MessageBubble key={message.id} message={message} participant={participant} roleLabel={roleLabel} isReporter={isReporter} />
-                  })}
-                </div>
-              )}
-
-              <div className="border-t border-border pt-4">
-                <SupportTicketReplyComposer action={canStaffReply ? staffReplyAction : replyAction} isStaffReply={canStaffReply} />
-              </div>
-            </TarjetaSistema>
-          </section>
-
-          <aside className="order-3 space-y-5">
-            {canManage && (
-              <TarjetaSistema className="space-y-4">
-                <SectionHeader eyebrow="Gestión" title="Estado del ticket" />
-                <SupportTicketStatusForm action={statusAction} currentStatus={ticket.status} options={STATUS_OPTIONS} />
               </TarjetaSistema>
-            )}
 
-            <TarjetaSistema className="space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <SectionHeader eyebrow="Evidencia" title="Adjuntos" />
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{ticket.attachments.length}</span>
-              </div>
-              {ticket.attachments.length === 0 ? (
-                <TextoSistema variante="sutil">No hay adjuntos finalizados.</TextoSistema>
-              ) : ticket.attachments.map((attachment) => (
-                <div key={attachment.id} className="rounded-2xl border border-border bg-muted/20 p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{attachment.filename}</p>
-                    <TextoSistema variante="muted" tamaño="sm">{formatAttachmentKind(attachment.kind)} · {formatBytes(attachment.byteSize)}</TextoSistema>
-                    <TextoSistema variante="muted" tamaño="sm">{attachment.contentType} · {formatAttachmentStatus(attachment.status)}</TextoSistema>
+              {ticket.evidence.diagnosticsConsent && (
+                <TarjetaSistema className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
+                  <SectionHeader eyebrow="Diagnóstico" title="Datos seguros" />
+                  <div className="grid gap-3 text-sm lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                    <MetadataRow label="Ruta" value={ticket.evidence.currentRoute ?? 'Ruta no disponible'} />
+                    <MetadataRow label="Navegador" value={ticket.evidence.browserName ?? 'Navegador no disponible'} />
+                    <MetadataRow label="Sistema" value={ticket.evidence.osName ?? 'Sistema operativo no disponible'} />
+                    <MetadataRow label="Viewport" value={ticket.evidence.viewport ?? 'Viewport no disponible'} />
                   </div>
-                  {attachment.status === 'uploaded' && (
-                    <a href={`/api/support/attachments/${attachment.id}/download`} aria-label={`Descargar ${attachment.filename}`} className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-border px-3 text-sm font-medium text-[var(--brand-primary)] transition-colors hover:bg-card">
-                      Descargar archivo
-                    </a>
+                </TarjetaSistema>
+              )}
+            </aside>
+
+            <section className="order-1 lg:order-2 lg:min-h-0">
+              <TarjetaSistema className="space-y-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between lg:flex-none">
+                  <SectionHeader eyebrow="Actividad" title="Conversación" />
+                  <TextoSistema variante="muted" tamaño="sm">{ticket.messages.length} {ticket.messages.length === 1 ? 'respuesta pública' : 'respuestas públicas'}</TextoSistema>
+                </div>
+
+                <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                  {ticket.messages.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-5 text-center lg:min-h-full lg:content-center">
+                      <TextoSistema variante="sutil">Aún no hay respuestas públicas.</TextoSistema>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {ticket.messages.map((message) => {
+                        const isReporter = isReporterMessage(message.authorUsuarioId, ticket.reporterUsuarioId)
+                        const roleLabel = isReporter ? 'Solicitante' : 'Equipo de soporte'
+                        const participant = createParticipant(message.author, roleLabel)
+
+                        return <MessageBubble key={message.id} message={message} participant={participant} roleLabel={roleLabel} isReporter={isReporter} />
+                      })}
+                    </div>
                   )}
                 </div>
-              ))}
-            </TarjetaSistema>
 
-            {ticket.evidence.diagnosticsConsent && (
-              <TarjetaSistema className="space-y-4">
-                <SectionHeader eyebrow="Diagnóstico" title="Datos seguros" />
-                <div className="grid gap-3 text-sm">
-                  <MetadataRow label="Ruta" value={ticket.evidence.currentRoute ?? 'Ruta no disponible'} />
-                  <MetadataRow label="Navegador" value={ticket.evidence.browserName ?? 'Navegador no disponible'} />
-                  <MetadataRow label="Sistema" value={ticket.evidence.osName ?? 'Sistema operativo no disponible'} />
-                  <MetadataRow label="Viewport" value={ticket.evidence.viewport ?? 'Viewport no disponible'} />
+                <div className="border-t border-border pt-4 lg:flex-none">
+                  <SupportTicketReplyComposer action={canStaffReply ? staffReplyAction : replyAction} isStaffReply={canStaffReply} />
                 </div>
               </TarjetaSistema>
-            )}
-          </aside>
+            </section>
+
+            <aside className="order-3 space-y-5 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-4 lg:overflow-hidden">
+              {canManage && (
+                <TarjetaSistema className="space-y-4 lg:flex-none">
+                  <SectionHeader eyebrow="Gestión" title="Estado del ticket" />
+                  <SupportTicketStatusForm action={statusAction} currentStatus={ticket.status} options={STATUS_OPTIONS} />
+                </TarjetaSistema>
+              )}
+
+              <TarjetaSistema className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
+                <div className="flex items-start justify-between gap-3 lg:flex-none">
+                  <SectionHeader eyebrow="Evidencia" title="Adjuntos" />
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{ticket.attachments.length}</span>
+                </div>
+                <div className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                  {ticket.attachments.length === 0 ? (
+                    <TextoSistema variante="sutil">No hay adjuntos finalizados.</TextoSistema>
+                  ) : ticket.attachments.map((attachment) => (
+                    <div key={attachment.id} className="rounded-2xl border border-border bg-muted/20 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{attachment.filename}</p>
+                        <TextoSistema variante="muted" tamaño="sm">{formatAttachmentKind(attachment.kind)} · {formatBytes(attachment.byteSize)}</TextoSistema>
+                        <TextoSistema variante="muted" tamaño="sm">{attachment.contentType} · {formatAttachmentStatus(attachment.status)}</TextoSistema>
+                      </div>
+                      {attachment.status === 'uploaded' && (
+                        <a href={`/api/support/attachments/${attachment.id}/download`} aria-label={`Descargar ${attachment.filename}`} className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-border px-3 text-sm font-medium text-[var(--brand-primary)] transition-colors hover:bg-card">
+                          Descargar archivo
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </TarjetaSistema>
+            </aside>
+          </div>
         </div>
       </ContenedorDashboard>
     </DashboardLayout>
