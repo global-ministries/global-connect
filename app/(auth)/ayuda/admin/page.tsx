@@ -1,11 +1,11 @@
 import Link from 'next/link'
-import { TicketIcon } from 'lucide-react'
+import { Filter, MessageSquare, TicketIcon } from 'lucide-react'
 
 import { listStaffSupportTickets, updateSupportTicketStatus } from '@/lib/actions/support.actions'
 import { formatSupportCategory, formatSupportSeverity, formatSupportStatus } from '@/lib/support/support-labels'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table'
-import { BadgeSistema, BotonSistema, ContenedorDashboard, InputSistema, SelectSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { BadgeSistema, BotonSistema, ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { SupportTicketQueueStatusForm } from './support-ticket-admin-actions'
 
 type SupportAdminPageProps = {
@@ -48,6 +48,7 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
   }
 
   const statusOptions = STATUS_OPTIONS.filter((option) => option.valor)
+  const activeFiltersCount = Object.values(filters).filter(Boolean).length
   const columns: DataTableColumn<StaffTicket>[] = [
     {
       key: 'ticket',
@@ -76,16 +77,17 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
       key: 'actions',
       header: 'Acciones',
       cell: (ticket) => (
-        <div className="flex items-end justify-end gap-3">
+        <div className="flex items-center justify-end gap-3">
           {canManage && (
             <SupportTicketQueueStatusForm action={statusAction} ticketId={ticket.id} ticketNumber={ticket.ticketNumber} currentStatus={ticket.status} options={statusOptions} />
           )}
-          <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex min-h-[44px] items-center rounded-xl px-4 py-2 text-sm font-medium text-[var(--brand-primary)] hover:bg-[var(--brand-accent)] focus-ring">
+          <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 focus-ring">
+            <MessageSquare className="h-4 w-4" aria-hidden="true" />
             Responder #{ticket.ticketNumber}
           </Link>
         </div>
       ),
-      className: 'min-w-[220px] text-right',
+      className: 'min-w-[260px] whitespace-nowrap text-right text-sm',
       headerClassName: 'text-right',
     },
   ]
@@ -93,14 +95,40 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
   return (
     <DashboardLayout>
       <ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
-        <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]" action="/ayuda/admin">
-          <InputSistema label="Buscar tickets" name="search" type="search" role="searchbox" defaultValue={filters.search ?? ''} placeholder="Numero de ticket, titulo, descripcion" />
-          <SelectSistema label="Estado" name="status" defaultValue={filters.status ?? ''} opciones={STATUS_OPTIONS} />
-          <InputSistema label="Categoria" name="category" defaultValue={filters.category ?? ''} placeholder="bug, access, billing" />
-          <div className="flex items-end">
-            <BotonSistema type="submit" className="w-full">Filtrar</BotonSistema>
-          </div>
-        </form>
+        <details className="group">
+          <summary className="mb-4 flex cursor-pointer list-none items-center justify-end gap-2 rounded-xl focus-ring [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex min-h-[44px] items-center rounded-xl border-2 border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
+              <Filter className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+              <span className="ml-2">Filtros</span>
+              {activeFiltersCount > 0 && (
+                <span className="ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-orange-600 text-[10px] text-white">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </span>
+          </summary>
+          <form className="mt-4 grid gap-3 rounded-2xl border border-border bg-card/50 p-4 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]" action="/ayuda/admin">
+            <label className="space-y-2 text-sm font-medium text-foreground">
+              <span>Buscar tickets</span>
+              <input className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground placeholder:text-muted-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" name="search" type="search" role="searchbox" defaultValue={filters.search ?? ''} placeholder="Numero de ticket, titulo, descripcion" />
+            </label>
+            <label className="space-y-2 text-sm font-medium text-foreground">
+              <span>Estado</span>
+              <select className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" name="status" defaultValue={filters.status ?? ''}>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.valor} value={option.valor}>{option.etiqueta}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-2 text-sm font-medium text-foreground">
+              <span>Categoria</span>
+              <input className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground placeholder:text-muted-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" name="category" defaultValue={filters.category ?? ''} placeholder="bug, access, billing" />
+            </label>
+            <div className="flex items-end">
+              <BotonSistema type="submit" tamaño="sm" className="w-full">Filtrar</BotonSistema>
+            </div>
+          </form>
+        </details>
 
         {!result.success ? (
           <TarjetaSistema><TextoSistema variante="sutil">{result.error}</TextoSistema></TarjetaSistema>
@@ -114,9 +142,7 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
               getRowHref={(ticket) => `/ayuda/tickets/${ticket.id}`}
               getRowLabel={(ticket) => `#${ticket.ticketNumber} ${ticket.title}`}
               emptyState={<TextoSistema variante="sutil">Ningun ticket de soporte coincide con estos filtros.</TextoSistema>}
-              className="hidden overflow-hidden md:block"
-              tableClassName="w-full divide-y divide-border"
-              bodyClassName="divide-y divide-border"
+              className="hidden md:block"
             />
             <TicketsMobileList tickets={tickets} canManage={canManage} statusAction={statusAction} statusOptions={statusOptions} />
           </>
@@ -181,12 +207,13 @@ function TicketsMobileList({ tickets, canManage, statusAction, statusOptions }: 
               </div>
             </div>
           </div>
-          <div className={canManage ? 'grid gap-3' : 'flex justify-end'}>
+          <div className={canManage ? 'flex flex-wrap items-center justify-end gap-3' : 'flex justify-end'}>
             {canManage && (
               <SupportTicketQueueStatusForm action={statusAction} ticketId={ticket.id} ticketNumber={ticket.ticketNumber} currentStatus={ticket.status} options={statusOptions} />
             )}
             <div className="flex justify-end">
-              <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex min-h-[44px] items-center rounded-xl px-4 py-2 text-sm font-medium text-[var(--brand-primary)] hover:bg-[var(--brand-accent)] focus-ring">
+              <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 focus-ring">
+                <MessageSquare className="h-4 w-4" aria-hidden="true" />
                 Responder #{ticket.ticketNumber}
               </Link>
             </div>

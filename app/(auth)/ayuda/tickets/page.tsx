@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { TicketIcon } from 'lucide-react'
+import { Eye, TicketIcon } from 'lucide-react'
 
 import { listSupportTickets } from '@/lib/actions/support.actions'
 import { formatSupportCategory, formatSupportSeverity, formatSupportStatus } from '@/lib/support/support-labels'
@@ -43,6 +43,17 @@ export default async function TicketsPage() {
       className: 'hidden text-sm text-muted-foreground lg:table-cell',
       headerClassName: 'hidden lg:table-cell',
     },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      cell: (ticket) => (
+        <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 focus-ring">
+          <Eye className="h-4 w-4" aria-hidden="true" />
+          Ver detalle
+        </Link>
+      ),
+      className: 'whitespace-nowrap text-sm',
+    },
   ]
 
   return (
@@ -56,9 +67,7 @@ export default async function TicketsPage() {
           getRowHref={(ticket) => `/ayuda/tickets/${ticket.id}`}
           getRowLabel={(ticket) => `#${ticket.ticketNumber} ${ticket.title}`}
           emptyState={<TextoSistema variante="sutil">Todavia no has enviado tickets de soporte.</TextoSistema>}
-          className="hidden overflow-hidden md:block"
-          tableClassName="w-full divide-y divide-border"
-          bodyClassName="divide-y divide-border"
+          className="hidden md:block"
         />
         <TicketsMobileList tickets={tickets} />
       </ContenedorDashboard>
@@ -119,6 +128,10 @@ function TicketsMobileList({ tickets }: { tickets: TicketRow[] }) {
                 </div>
                 <div className="text-xs text-muted-foreground/70">{formatTicketDate(ticket.createdAt)}</div>
               </div>
+              <Link href={`/ayuda/tickets/${ticket.id}`} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 focus-ring">
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                Ver detalle
+              </Link>
             </div>
           </div>
         </TarjetaSistema>

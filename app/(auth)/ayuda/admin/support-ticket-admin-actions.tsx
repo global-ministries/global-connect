@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect } from 'react'
 
-import { BotonSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 
 type SupportFormState = { success: boolean; error?: string } | null
@@ -26,10 +25,22 @@ export function SupportTicketQueueStatusForm({ action, ticketId, ticketNumber, c
   }, [state, ticketNumber, toast])
 
   return (
-    <form action={formAction} className="space-y-2">
+    <form action={formAction} className="inline-flex items-center gap-2">
       <input type="hidden" name="ticketId" value={ticketId} />
-      <SelectSistema label={`Nuevo estado para #${ticketNumber}`} name="status" defaultValue={currentStatus} opciones={options} />
-      <BotonSistema type="submit" tamaño="sm" disabled={isPending}>{isPending ? 'Actualizando...' : `Actualizar estado de #${ticketNumber}`}</BotonSistema>
+      <label className="sr-only" htmlFor={`ticket-${ticketId}-status`}>Nuevo estado para #{ticketNumber}</label>
+      <select
+        id={`ticket-${ticketId}-status`}
+        name="status"
+        defaultValue={currentStatus}
+        className="h-8 rounded-lg border border-border bg-card/50 px-2 text-xs text-foreground focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+      >
+        {options.map((option) => (
+          <option key={option.valor} value={option.valor}>{option.etiqueta}</option>
+        ))}
+      </select>
+      <button type="submit" disabled={isPending} className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-50 focus-ring">
+        {isPending ? 'Actualizando...' : `Actualizar #${ticketNumber}`}
+      </button>
     </form>
   )
 }

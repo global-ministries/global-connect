@@ -130,7 +130,8 @@ describe('reporter support pages', () => {
 
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getByText('Historial de tickets de soporte enviados por ti.')).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: /Ticket/i })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /Seleccionar/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^Ticket$/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Categoria/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Severidad/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Estado/i })).toBeInTheDocument()
@@ -279,7 +280,8 @@ describe('reporter support pages', () => {
     expect(screen.getByLabelText(/^Estado$/i)).toHaveValue('in_progress')
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getByText('Cola de tickets de soporte autorizados para el equipo.')).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: /Ticket/i })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: /Seleccionar/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /^Ticket$/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Acciones/i })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /#43 Cannot submit attendance/i })[0]).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
     expect(screen.getAllByText('En progreso')).toHaveLength(3)
@@ -289,7 +291,7 @@ describe('reporter support pages', () => {
     render(await SupportAdminPage({ searchParams: Promise.resolve({}) }))
 
     expect(screen.queryByLabelText(/Nuevo estado para #43/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Actualizar estado de #43/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Actualizar #43/i })).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Responsable para #43/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Asignar #43/i })).not.toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /Responder #43/i })[0]).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
@@ -301,7 +303,7 @@ describe('reporter support pages', () => {
     render(await SupportAdminPage({ searchParams: Promise.resolve({}) }))
 
     expect(screen.getAllByLabelText(/Nuevo estado para #43/i)[0]).toHaveValue('in_progress')
-    expect(screen.getAllByRole('button', { name: /Actualizar estado de #43/i })[0]).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /Actualizar #43/i })[0]).toBeInTheDocument()
     expect(screen.queryByLabelText(/Responsable para #43/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Asignar #43/i })).not.toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: /Responder #43/i })[0]).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
