@@ -39,6 +39,58 @@ export const etiquetasRol: Record<RolSistema, string> = {
  */
 export const actualizaciones: Actualizacion[] = [
   {
+    version: "2.1.0",
+    fecha: "2026-06-12",
+    titulo: "Nuevo sistema de soporte y tickets",
+    descripcion:
+      "GlobalConnect ahora incluye un centro de ayuda para reportar problemas, adjuntar evidencia, dar seguimiento a tickets y recibir respuestas del equipo de soporte.",
+    tipo: "feature",
+    modulo: "soporte",
+    detalles: [
+      "Nuevo centro de ayuda para crear tickets desde la aplicación",
+      "Adjuntos privados para capturas y videos con vista previa dentro del ticket",
+      "Historial de conversación entre solicitante y equipo de soporte",
+      "Estados de seguimiento para saber si un ticket está nuevo, en revisión, en progreso o resuelto",
+      "Notificaciones por correo para solicitudes y respuestas importantes",
+      "Controles de seguridad para que solo el solicitante y el equipo autorizado vean cada ticket",
+    ],
+    detallesPorRol: {
+      admin: [
+        "Panel de soporte para revisar, responder y dar seguimiento a tickets",
+        "Configuración de capacidades para definir quién puede gestionar soporte",
+        "Adjuntos privados con descarga y vista previa autorizada",
+      ],
+      pastor: [
+        "Acceso al panel de soporte para acompañar y resolver solicitudes",
+        "Seguimiento de responsable, estado y conversación del ticket",
+      ],
+      director_general: [
+        "Acceso al panel de soporte según capacidades asignadas",
+        "Seguimiento de tickets y respuestas del equipo de soporte",
+      ],
+      director_etapa: [
+        "Puedes reportar problemas desde Ayuda y dar seguimiento a tus tickets",
+        "Recibirás respuestas del equipo de soporte dentro del ticket",
+      ],
+      lider: [
+        "Puedes reportar problemas desde Ayuda y adjuntar evidencia",
+        "Ahora puedes ver el estado, responsable y respuestas de tus tickets",
+      ],
+      miembro: [
+        "Puedes crear tickets de ayuda y dar seguimiento a tus solicitudes",
+        "Las respuestas del equipo de soporte aparecen dentro de tu ticket",
+      ],
+    },
+    impactoRoles: [
+      "admin",
+      "pastor",
+      "director_general",
+      "director_etapa",
+      "lider",
+      "miembro",
+    ],
+  },
+  {
     version: "2.0.0",
     fecha: "2026-03-14",
     titulo: "GlobalConnect 2.0 — Plataforma Lista para Producción",
