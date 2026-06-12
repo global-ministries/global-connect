@@ -57,15 +57,18 @@ interface SupportTicketNotificationRow {
   ticket_number: number
   title: string
   status: SupportEmailStatus
+  reporter?: SupportRecipientProfile | null
+}
+
+interface SupportRecipientProfile {
+  id: string
+  nombre: string | null
+  apellido: string | null
+  email: string | null
 }
 
 interface SupportCapabilityRecipientRow {
-  usuario?: {
-    id: string
-    nombre: string | null
-    apellido: string | null
-    email: string | null
-  } | null
+  usuario?: SupportRecipientProfile | null
 }
 
 interface SupportInngestDispatchOptions {
@@ -139,7 +142,7 @@ export async function deliverSupportNotificationEvent(
   const ticket = await loadSupportTicketNotificationData(supabase, event.data.ticketId)
   if (!ticket) return []
 
-  const recipients = await loadSupportStaffRecipients(supabase, ticket)
+  const recipients = await loadSupportNotificationRecipients(supabase, event, ticket)
   return sendSupportNotificationEmails(event, recipients)
 }
 
@@ -202,9 +205,21 @@ async function loadSupportTicketNotificationData(
   const query = supabase.from('support_tickets') as {
     select: (columns: string) => { eq: (column: string, value: string) => { single: () => Promise<{ data: SupportTicketNotificationRow | null; error: unknown }> } }
   }
-  const { data, error } = await query.select('id,ticket_number,title,status').eq('id', ticketId).single()
+  const { data, error } = await query.select('id,ticket_number,title,status,reporter:usuarios!support_tickets_reporter_usuario_id_fkey(id,nombre,apellido,email)').eq('id', ticketId).single()
   if (error || !data) return null
   return data
+}
+
+async function loadSupportNotificationRecipients(
+  supabase: { from: (table: string) => unknown },
+  event: SupportNotificationEvent,
+  ticket: SupportTicketNotificationRow
+): Promise<SupportNotificationEmailData[]> {
+  if (event.name === SUPPORT_INNGEST_EVENTS.ticketCreated) {
+    return toSupportNotificationRecipients([ticket.reporter], ticket)
+  }
+
+  return loadSupportStaffRecipients(supabase, ticket)
 }
 
 async function loadSupportStaffRecipients(
@@ -220,11 +235,17 @@ async function loadSupportStaffRecipients(
 
   if (error || !data) return []
 
+  return toSupportNotificationRecipients(data.map((row) => row.usuario), ticket)
+}
+
+function toSupportNotificationRecipients(
+  usuarios: Array<SupportRecipientProfile | null | undefined>,
+  ticket: SupportTicketNotificationRow
+) {
   const seen = new Set<string>()
   const recipients: SupportNotificationEmailData[] = []
 
-  for (const row of data) {
-    const usuario = row.usuario
+  for (const usuario of usuarios) {
     const email = usuario?.email?.trim()
     if (!usuario || !email) continue
 

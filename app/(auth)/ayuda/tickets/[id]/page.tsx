@@ -20,6 +20,8 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const result = await getSupportTicketDetail(id)
   if (!result.success || !result.ticket) notFound()
   const ticket = result.ticket
+  const canManage = ticket.supportCapabilities.includes('support.manage')
+  const canStaffReply = canManage || ticket.supportCapabilities.includes('support.reply')
 
   async function replyAction(formData: FormData) {
     'use server'
@@ -36,8 +38,6 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
     return updateSupportTicketStatus(ticket.id, String(formData.get('status') ?? ''))
   }
 
-  const canManage = ticket.supportCapabilities.includes('support.manage')
-  const canStaffReply = canManage || ticket.supportCapabilities.includes('support.reply')
   const reporter = createParticipant(ticket.reporter, 'Solicitante')
   const assignee = createParticipant(ticket.assignee, 'Sin asignar')
 

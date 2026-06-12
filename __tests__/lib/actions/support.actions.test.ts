@@ -403,7 +403,7 @@ describe('support reporter actions', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it('updates a support ticket status through the atomic audit RPC', async () => {
+  it('updates a support ticket status through the atomic audit RPC and auto-assigns if still unassigned', async () => {
     const rpc = jest.fn().mockResolvedValue({ error: null })
     createSupabaseServerClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
@@ -415,6 +415,7 @@ describe('support reporter actions', () => {
 
     expect(result).toEqual({ success: true })
     expect(rpc).toHaveBeenCalledWith('update_support_ticket_status', { p_ticket_id: 'ticket-1', p_status: 'resolved' })
+    expect(rpc).toHaveBeenCalledWith('auto_assign_support_ticket_if_unassigned', { p_ticket_id: 'ticket-1' })
   })
 
   it('maps denied staff status saves to a stable user-safe message', async () => {
