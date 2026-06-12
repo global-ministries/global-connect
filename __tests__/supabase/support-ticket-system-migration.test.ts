@@ -28,6 +28,10 @@ function readSupportStaffDirectMutationMigration(): string {
   return readMigrationBySuffix('_restrict_support_staff_direct_mutations.sql')
 }
 
+function readSupportGrantHardeningMigration(): string {
+  return readMigrationBySuffix('_harden_support_table_grants.sql')
+}
+
 function readMigrationBySuffix(suffix: string): string {
   const migration = readdirSync(migrationsDir).find((file) => file.endsWith(suffix))
 
@@ -40,6 +44,14 @@ function readMigrationBySuffix(suffix: string): string {
 
 function compactSql(sql: string): string {
   return sql.replace(/\s+/g, ' ')
+}
+
+function sqlStatements(sql: string): string[] {
+  return sql
+    .split(';')
+    .map(compactSql)
+    .map((statement) => statement.trim())
+    .filter(Boolean)
 }
 
 function policySql(sql: string, policyName: string): string {
@@ -369,5 +381,53 @@ describe('support ticket system migration', () => {
     expect(insertPolicy).toContain('is_internal = false')
     expect(insertPolicy).toContain('st.reporter_usuario_id = support_private.current_usuario_id()')
     expect(insertPolicy).not.toContain("support_private.has_capability('support.reply')")
+  })
+
+  it('hardens support table grants to remove anon access and keep authenticated privileges minimal', () => {
+    const sql = readSupportGrantHardeningMigration()
+    const supportTables = [
+      'support_user_capabilities',
+      'support_tickets',
+      'support_ticket_messages',
+      'support_ticket_attachments',
+      'support_ticket_events',
+    ]
+
+    for (const table of supportTables) {
+      expect(sql).toContain(`REVOKE ALL PRIVILEGES ON TABLE public.${table} FROM anon`)
+      expect(sql).toContain(`REVOKE ALL PRIVILEGES ON TABLE public.${table} FROM authenticated`)
+      expect(sql).toContain(`GRANT ALL PRIVILEGES ON TABLE public.${table} TO service_role`)
+    }
+
+    const authenticatedSupportTableGrants = sqlStatements(sql).filter(
+      (statement) =>
+        /^GRANT\s/i.test(statement) &&
+        /\bON TABLE public\.support_/i.test(statement) &&
+        /\bTO authenticated$/i.test(statement),
+    )
+
+    expect(authenticatedSupportTableGrants.sort()).toEqual(
+      [
+        'GRANT SELECT ON TABLE public.support_user_capabilities TO authenticated',
+        'GRANT SELECT, INSERT ON TABLE public.support_tickets TO authenticated',
+        'GRANT SELECT, INSERT ON TABLE public.support_ticket_messages TO authenticated',
+        'GRANT SELECT, INSERT ON TABLE public.support_ticket_attachments TO authenticated',
+        'GRANT SELECT, INSERT ON TABLE public.support_ticket_events TO authenticated',
+      ].sort(),
+    )
+    expect(sql).not.toMatch(/GRANT\s+[^;]*\bON TABLE public\.support_\w+\s+TO anon\b/i)
+    expect(authenticatedSupportTableGrants.join('; ')).not.toMatch(/\b(UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER|ALL PRIVILEGES)\b/i)
+  })
+
+  it('hardens the optional support ticket number identity sequence safely', () => {
+    const sql = readSupportGrantHardeningMigration()
+
+    expect(sql).toContain("to_regclass('public.support_tickets_ticket_number_seq')")
+    expect(sql).toContain("c.relkind = 'S'")
+    expect(sql).toContain('IF support_ticket_number_sequence IS NOT NULL THEN')
+    expect(sql).toContain('REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM anon')
+    expect(sql).toContain('REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM authenticated')
+    expect(sql).toContain('GRANT USAGE, SELECT ON SEQUENCE %s TO authenticated')
+    expect(sql).toContain('GRANT ALL PRIVILEGES ON SEQUENCE %s TO service_role')
   })
 })
