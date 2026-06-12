@@ -4,6 +4,7 @@ import {
   sanitizeExternalBridgeMessage,
   verifyExternalBridgeAuthorization,
 } from '@/lib/support/external-bridge'
+import { createHermesEscalationRequestedEvent, dispatchHermesEscalationRequest } from '@/lib/support/hermes'
 
 describe('support external bridge', () => {
   it('creates sanitized outbound escalation payloads without diagnostics, attachments, signed URLs, object keys, or GitHub sync fields', () => {
@@ -13,6 +14,8 @@ describe('support external bridge', () => {
       title: 'Map fails after login',
       summary: 'Steps: open map, receive 500. token=secret should be removed.',
       recipient: 'engineering-escalation',
+      idempotencyKey: 'hermes-ticket-1',
+      baseUrl: 'https://connect.example.test',
       diagnostics: { browser: 'Chrome', localStorage: 'secret' },
       attachments: [{ objectKey: 'support/ticket-1/attachment-1/file.png', signedUrl: 'https://r2.test/private?signature=secret' }],
       githubIssueUrl: 'https://github.com/org/repo/issues/1',
@@ -24,9 +27,52 @@ describe('support external bridge', () => {
       title: 'Map fails after login',
       summary: 'Steps: open map, receive 500. [redacted] should be removed.',
       recipient: 'engineering-escalation',
-      internalTicketUrl: '/ayuda/tickets/ticket-1',
+      internalTicketUrl: 'https://connect.example.test/ayuda/tickets/ticket-1',
+      idempotencyKey: 'hermes-ticket-1',
+      callbackUrl: 'https://connect.example.test/api/support/external/inbound',
     })
     expect(JSON.stringify(payload)).not.toMatch(/diagnostics|attachment|objectKey|signedUrl|support\/ticket-1|signature=secret|github|token=secret|Chrome|localStorage/i)
+  })
+
+  it('creates a dry-run Hermes escalation event with the audited inbound callback path', async () => {
+    const event = createHermesEscalationRequestedEvent({
+      eventId: 'event-hermes-1',
+      ticketId: 'ticket-1',
+      ticketNumber: 42,
+      title: 'Map fails after login',
+      summary: 'Safe staff-written summary. signedUrl=https://r2.test/private?signature=secret',
+      recipient: 'hermes-support',
+      diagnostics: { browser: 'Chrome' },
+      attachments: [{ objectKey: 'support/ticket-1/attachment-1/file.png' }],
+    })
+
+    expect(event).toEqual({
+      name: 'support/hermes.escalation.requested',
+      id: 'support:event-hermes-1',
+      data: {
+        eventId: 'event-hermes-1',
+        ticketId: 'ticket-1',
+        escalation: {
+          ticketId: 'ticket-1',
+          ticketNumber: 42,
+          title: 'Map fails after login',
+          summary: 'Safe staff-written summary. [redacted]',
+          recipient: 'hermes-support',
+          internalTicketUrl: '/ayuda/tickets/ticket-1',
+          idempotencyKey: 'hermes:ticket-1',
+          callbackUrl: '/api/support/external/inbound',
+        },
+      },
+    })
+    expect(JSON.stringify(event)).not.toMatch(/diagnostics|attachment|objectKey|signedUrl|support\/ticket-1\/attachment|signature=secret|Chrome/i)
+
+    await expect(dispatchHermesEscalationRequest(event)).resolves.toEqual({
+      success: true,
+      skipped: true,
+      dryRun: true,
+      eventId: 'event-hermes-1',
+      reason: 'Hermes live outbound dispatch is deferred',
+    })
   })
 
   it('authenticates inbound updates with a constant bearer token comparison', () => {

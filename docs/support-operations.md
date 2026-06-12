@@ -16,7 +16,7 @@ This runbook covers the operational path for the support ticket system. It is in
 |------|------|
 | Production Supabase | Migration application is manual, explicit, reviewed, and separate from this documentation change. |
 | R2 | Buckets stay private; signed URLs are issued only after app authorization. |
-| Inngest | Events carry IDs only; workers must fetch data after authorization and must be idempotent. |
+| Inngest | Safe dual mode is intentional: `/api/inngest` remains the compatibility custom webhook, while `/api/inngest/official` exposes the official SDK foundation. Events carry IDs only; workers must fetch data after authorization and must be idempotent. |
 | Resend | Emails contain safe authenticated links only; no evidence, attachments, or raw diagnostics. |
 | Sentry | Support stores Sentry references only; raw payloads, replay media, cookies, headers, and diagnostics are scrubbed. |
 | GitHub | No MVP sync. Future GitHub issues are downstream engineering artifacts only. |
@@ -62,18 +62,25 @@ Operational limits from code and spec:
 - Total active attachments per ticket: max 150 MB.
 - Object keys follow `support/{ticket_id}/{attachment_id}/{safe_filename}`; object keys are not authorization proof.
 
-### Support event webhook (`/api/inngest`)
+### Support event processing: safe dual mode
 
-The current app does **not** use the official Inngest SDK or real Inngest function registry. `package.json` has no `inngest` dependency. `/api/inngest` is a custom authenticated bearer webhook that accepts the support event shape below and then invokes local notification delivery helpers. Do not report provider dashboard run counts as application truth unless this is later replaced with a real Inngest SDK integration.
+The app retains `/api/inngest` as a custom authenticated bearer webhook for compatibility with the existing notification path. PR 1 also introduces the official Inngest SDK foundation at `/api/inngest/official` with app id `global-connect`; it must not replace the custom webhook until a later reviewed migration proves equivalent behavior.
 
 | Setting | Required | Notes |
 |---------|----------|-------|
 | Event names | Yes | `support/ticket.created`, `support/ticket.message.created`, `support/ticket.status.changed`, `support/attachment.finalized`, `support/external.update.received`. |
 | Payload shape | Yes | IDs only: `eventId`, `ticketId`, optional `actorUserId`, and relevant message or attachment IDs. |
 | Idempotency | Yes | Email keys use `email:{eventId}:{recipient}`. Preserve this shape in any worker integration. |
-| Provider credentials | Custom webhook only | `SUPPORT_INNGEST_EVENT_URL` and `SUPPORT_INNGEST_WEBHOOK_SECRET` post to the app route. Official Inngest app/function credentials are not wired. |
+| Custom webhook credentials | Existing compatibility path | `SUPPORT_INNGEST_EVENT_URL` and `SUPPORT_INNGEST_WEBHOOK_SECRET` post to `/api/inngest`. Preserve this behavior until replacement is explicitly reviewed. |
+| Official Inngest credentials | Optional foundation path | `SUPPORT_OFFICIAL_INNGEST_ENABLED` and `INNGEST_EVENT_KEY` allow ID-only events to be sent through the official SDK. The official route is `/api/inngest/official`. |
 
 Workers must fetch ticket data server-side, avoid long user text in events, and never include evidence, attachment URLs, R2 keys, raw Sentry payloads, diagnostics, cookies, tokens, emails beyond the intended recipient, phone numbers, church/member details, or database internals in queued payloads.
+
+### Hermes escalation foundation
+
+Hermes support agent integration is a PR 1 contract only. The ID-first event is `support/hermes.escalation.requested`, and the current dispatch helper is dry-run/no-op by default. Live outbound HTTP dispatch to Hermes is deferred to PR 2.
+
+The sanitized outbound shape contains ticket id, ticket number, title, staff-written summary, recipient, internal ticket URL, idempotency key, and callback URL. The callback remains the audited inbound path `/api/support/external/inbound`. Do not include diagnostics, attachment metadata, signed URLs, R2 object keys, raw Sentry payloads, tokens, cookies, GitHub sync fields, or secret values.
 
 ### Resend
 
@@ -120,7 +127,8 @@ Required environment keys, without values:
 |-------|---------------|-------------------|
 | Global guard | `RLS_ENV=staging` | Script refuses non-staging execution before provider calls. |
 | Protected Vercel preview routes | `VERCEL_AUTOMATION_BYPASS_SECRET` when `SUPPORT_SMOKE_BASE_URL` is behind Vercel Deployment Protection | The route smoke requests include `x-vercel-protection-bypass` so Vercel allows the request to reach app auth. Do not use this key for direct provider checks. |
-| Support event webhook | `SUPPORT_SMOKE_BASE_URL`, `SUPPORT_INNGEST_WEBHOOK_SECRET` | `/api/inngest` rejects missing/invalid auth and accepts a signed ID-only support event with HTTP 202; this is not an official Inngest SDK run. |
+| Support event webhook | `SUPPORT_SMOKE_BASE_URL`, `SUPPORT_INNGEST_WEBHOOK_SECRET` | `/api/inngest` rejects missing/invalid auth and accepts a signed ID-only support event with HTTP 202; this remains the compatibility custom webhook. |
+| Official Inngest foundation | `SUPPORT_OFFICIAL_INNGEST_ENABLED`, `INNGEST_EVENT_KEY` | `/api/inngest/official` serves the official SDK function registry separately from the custom webhook. |
 | External bridge | `SUPPORT_SMOKE_BASE_URL`, `SUPPORT_EXTERNAL_BRIDGE_TOKEN`, `SUPPORT_EXTERNAL_BRIDGE_AUTHOR_USUARIO_ID`, `SUPPORT_SMOKE_TICKET_ID` | `/api/support/external/inbound` rejects invalid auth, accepts one sanitized staging update, and treats the duplicate idempotency key as duplicate. |
 | R2 direct provider | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Private support bucket accepts one smoke PUT, returns matching bytes on GET, and deletes the smoke object in cleanup. |
 | Resend | `RESEND_API_KEY`, `SUPPORT_SMOKE_EMAIL_TO`, optional `RESEND_FROM_NAME`, `RESEND_FROM_EMAIL` | Resend accepts a staging-safe notification email with no evidence, attachments, diagnostics, secrets, object keys, or user PII. |
@@ -187,7 +195,9 @@ Operators and reviewers should confirm each item before enabling or reviewing th
 - [ ] R2 bucket `global-connect-support` is private and credentials are server-only.
 - [ ] Attachment upload, finalize, and download flows authorize before issuing signed URLs.
 - [ ] Resend sender domain and `NEXT_PUBLIC_SITE_URL` produce authenticated support links for the target environment.
+- [ ] `/api/inngest` still preserves current custom webhook behavior, while `/api/inngest/official` remains the isolated official SDK foundation.
 - [ ] Inngest support events contain IDs only and preserve idempotency keys.
+- [ ] Hermes escalation remains dry-run/no-op until PR 2 live outbound review.
 - [ ] Email templates exclude evidence, attachments, diagnostics, raw Sentry, R2 keys, GitHub data, and long user text.
 - [ ] Sentry support privacy defaults remain scrubbed and replay is not captured by default.
 - [ ] Rollback plan starts with hiding feature entry points and disabling side effects, not dropping production data.

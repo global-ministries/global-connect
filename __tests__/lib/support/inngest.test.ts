@@ -7,6 +7,7 @@ import {
   createSupportTicketMessageCreatedEvent,
   createSupportTicketStatusChangedEvent,
   deliverSupportNotificationEvent,
+  dispatchSupportOfficialInngestEvent,
   dispatchSupportInngestEvent,
   sendSupportNotificationEmails,
   sendSupportNotificationEmail,
@@ -32,6 +33,8 @@ describe('support Inngest events', () => {
     createdEmailMock.mockReset()
     messageEmailMock.mockReset()
     statusEmailMock.mockReset()
+    delete process.env.SUPPORT_OFFICIAL_INNGEST_ENABLED
+    delete process.env.INNGEST_EVENT_KEY
   })
 
   it('builds ID-only Inngest events with stable event deduplication IDs', () => {
@@ -258,6 +261,41 @@ describe('support Inngest events', () => {
       method: 'POST',
       headers: { authorization: 'Bearer secret-1', 'content-type': 'application/json' },
       body: JSON.stringify(event),
+    })
+  })
+
+  it('sends ID-only support events to official Inngest when explicitly configured', async () => {
+    const sender = { send: jest.fn().mockResolvedValue({ ids: ['inngest-event-1'] }) }
+    const event = createSupportTicketCreatedEvent({
+      eventId: 'event-created',
+      ticketId: 'ticket-1',
+      actorUserId: 'user-1',
+      rawSentryPayload: { token: 'secret' },
+      messageBody: 'Do not queue this text',
+    } as Parameters<typeof createSupportTicketCreatedEvent>[0])
+
+    await expect(dispatchSupportOfficialInngestEvent(event, { sender })).resolves.toEqual({
+      success: true,
+      skipped: true,
+      reason: 'Official Inngest event provider not configured',
+    })
+    expect(sender.send).not.toHaveBeenCalled()
+
+    await expect(dispatchSupportOfficialInngestEvent(event, { enabled: true, sender })).resolves.toEqual({
+      success: true,
+      result: { ids: ['inngest-event-1'] },
+    })
+    expect(sender.send).toHaveBeenCalledWith({
+      id: 'support:event-created',
+      name: SUPPORT_INNGEST_EVENTS.ticketCreated,
+      data: { eventId: 'event-created', ticketId: 'ticket-1', actorUserId: 'user-1' },
+    })
+    expect(JSON.stringify(sender.send.mock.calls)).not.toMatch(/rawSentry|secret|messageBody|Do not queue/i)
+
+    sender.send.mockRejectedValueOnce(new Error('network unavailable'))
+    await expect(dispatchSupportOfficialInngestEvent(event, { enabled: true, sender })).resolves.toEqual({
+      success: false,
+      error: 'Official Inngest event dispatch failed',
     })
   })
 
