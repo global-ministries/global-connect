@@ -167,8 +167,8 @@ describe('support reporter actions', () => {
   })
 
   it('returns ticket detail with public messages, safe attachments, and no internal evidence', async () => {
-    const ticketQuery = { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: 'ticket-1', ticket_number: 42, title: 'Map bug', description: 'Steps', status: 'received', category: 'bug', severity: 'normal', assignee_usuario_id: null, current_route: '/dashboard', browser_name: 'Chrome', os_name: 'macOS', viewport: '1440x900', app_build_version: 'build-123', sentry_event_id: 'event-1', diagnostics_consent: true, created_at: '2026-06-09T00:00:00Z', updated_at: '2026-06-09T00:00:00Z' }, error: null }) }) }) }
-    const messagesFilter = { eq: jest.fn(), order: jest.fn().mockResolvedValue({ data: [{ id: 'message-1', body: 'Public reply', is_internal: false, created_at: '2026-06-09T00:01:00Z' }], error: null }) }
+    const ticketQuery = { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: { id: 'ticket-1', ticket_number: 42, title: 'Map bug', description: 'Steps', status: 'received', category: 'bug', severity: 'normal', reporter_usuario_id: 'usuario-1', assignee_usuario_id: null, reporter: { id: 'usuario-1', nombre: 'Ana', apellido: 'Pérez', foto_perfil_url: null }, assignee: null, current_route: '/dashboard', browser_name: 'Chrome', os_name: 'macOS', viewport: '1440x900', app_build_version: 'build-123', sentry_event_id: 'event-1', diagnostics_consent: true, created_at: '2026-06-09T00:00:00Z', updated_at: '2026-06-09T00:00:00Z' }, error: null }) }) }) }
+    const messagesFilter = { eq: jest.fn(), order: jest.fn().mockResolvedValue({ data: [{ id: 'message-1', body: 'Public reply', author_usuario_id: 'usuario-1', author: { id: 'usuario-1', nombre: 'Ana', apellido: 'Pérez', foto_perfil_url: null }, is_internal: false, created_at: '2026-06-09T00:01:00Z' }], error: null }) }
     messagesFilter.eq.mockReturnValue(messagesFilter)
     const messagesQuery = { select: jest.fn().mockReturnValue(messagesFilter) }
     const attachmentsFilter = { eq: jest.fn(), order: jest.fn().mockResolvedValue({ data: [{ id: 'attachment-1', original_filename: 'map-error.webp', kind: 'screenshot', content_type: 'image/webp', byte_size: 2048, status: 'uploaded', object_key: 'support/ticket-1/attachment-1/map-error.webp' }], error: null }) }
@@ -191,8 +191,9 @@ describe('support reporter actions', () => {
     const result = await getSupportTicketDetail('ticket-1')
 
     expect(result.success).toBe(true)
-    expect(result.ticket?.messages).toEqual([{ id: 'message-1', body: 'Public reply', createdAt: '2026-06-09T00:01:00Z' }])
+    expect(result.ticket?.messages).toEqual([{ id: 'message-1', body: 'Public reply', authorUsuarioId: 'usuario-1', author: { id: 'usuario-1', nombre: 'Ana', apellido: 'Pérez', photoUrl: null }, createdAt: '2026-06-09T00:01:00Z' }])
     expect(result.ticket?.attachments).toEqual([{ id: 'attachment-1', filename: 'map-error.webp', kind: 'screenshot', contentType: 'image/webp', byteSize: 2048, status: 'uploaded' }])
+    expect(result.ticket?.reporter).toEqual({ id: 'usuario-1', nombre: 'Ana', apellido: 'Pérez', photoUrl: null })
     expect(result.ticket?.assigneeUsuarioId).toBeNull()
     expect(result.ticket?.supportCapabilities).toEqual([])
     expect(result.ticket?.attachments[0]).not.toHaveProperty('objectKey')
@@ -202,6 +203,7 @@ describe('support reporter actions', () => {
     expect(messagesFilter.eq).toHaveBeenCalledWith('is_internal', false)
     expect(attachmentsQuery.select).toHaveBeenCalledWith('id,original_filename,kind,content_type,byte_size,status')
     expect(attachmentsFilter.eq).toHaveBeenCalledWith('ticket_id', 'ticket-1')
+    expect(attachmentsFilter.eq).toHaveBeenCalledWith('status', 'uploaded')
   })
 
   it('maps Supabase list errors to a stable user-safe message', async () => {
