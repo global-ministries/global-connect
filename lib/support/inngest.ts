@@ -1,4 +1,5 @@
 import type { SupportEmailStatus } from '@/emails/support-ticket'
+import { inngest } from '@/lib/support/inngest-client'
 
 export const SUPPORT_INNGEST_EVENTS = {
   ticketCreated: 'support/ticket.created',
@@ -75,6 +76,16 @@ interface SupportInngestDispatchOptions {
   endpoint?: string
   secret?: string
   fetch?: typeof fetch
+  official?: SupportOfficialInngestDispatchOptions
+}
+
+type SupportOfficialInngestSender = {
+  send: (event: { id: string; name: SupportInngestEventName; data: SupportNotificationEvent['data'] }) => Promise<unknown>
+}
+
+interface SupportOfficialInngestDispatchOptions {
+  enabled?: boolean
+  sender?: SupportOfficialInngestSender
 }
 
 interface SkippedSupportNotificationEmailResult {
@@ -122,6 +133,8 @@ export async function dispatchSupportInngestEvent(
   const fetchFn = options.fetch ?? fetch
 
   if (!endpoint || !secret) {
+    const officialResult = await dispatchSupportOfficialInngestEvent(event, options.official)
+    if (!officialResult.skipped) return officialResult
     return { success: true as const, skipped: true as const, reason: 'Support event provider not configured' }
   }
 
@@ -132,7 +145,28 @@ export async function dispatchSupportInngestEvent(
   })
 
   if (!response.ok) return { success: false as const, status: response.status }
+  await dispatchSupportOfficialInngestEvent(event, options.official)
   return { success: true as const, status: response.status }
+}
+
+export async function dispatchSupportOfficialInngestEvent(
+  event: SupportNotificationEvent,
+  options: SupportOfficialInngestDispatchOptions = {}
+) {
+  const enabled = options.enabled ?? process.env.SUPPORT_OFFICIAL_INNGEST_ENABLED === 'true'
+  const hasEventKey = Boolean(process.env.INNGEST_EVENT_KEY || options.sender)
+
+  if (!enabled || !hasEventKey) {
+    return { success: true as const, skipped: true as const, reason: 'Official Inngest event provider not configured' }
+  }
+
+  const sender = options.sender ?? inngest
+  try {
+    const result = await sender.send({ id: event.id, name: event.name, data: event.data })
+    return { success: true as const, result }
+  } catch {
+    return { success: false as const, error: 'Official Inngest event dispatch failed' }
+  }
 }
 
 export async function deliverSupportNotificationEvent(

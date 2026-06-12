@@ -25,9 +25,16 @@ describe('support operations runbook', () => {
     expect(runbook).toContain('support/external.update.received')
   })
 
-  it('documents that /api/inngest is a custom webhook, not official Inngest SDK runs', () => {
-    expect(runbook).toContain('does **not** use the official Inngest SDK')
+  it('documents that /api/inngest remains a custom webhook in safe dual mode', () => {
+    expect(runbook).toContain('Safe dual mode')
     expect(runbook).toContain('/api/inngest')
-    expect(runbook).toContain('not an official Inngest SDK run')
+    expect(runbook).toContain('/api/inngest/official')
+    expect(runbook).toContain('compatibility custom webhook')
+  })
+
+  it('documents the staged Hermes foundation without live outbound dispatch', () => {
+    expect(runbook).toContain('support/hermes.escalation.requested')
+    expect(runbook).toContain('/api/support/external/inbound')
+    expect(runbook).toContain('Live outbound HTTP dispatch to Hermes is deferred to PR 2')
   })
 })

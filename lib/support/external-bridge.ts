@@ -9,13 +9,26 @@ const inboundUpdateSchema = z.object({
   message: z.string().trim().min(1).max(8000),
 })
 
-type ExternalEscalationInput = {
+export type ExternalEscalationInput = {
   ticketId: string
   ticketNumber: number
   title: string
   summary: string
   recipient: string
+  baseUrl?: string
+  idempotencyKey?: string
 } & Record<string, unknown>
+
+export type ExternalEscalationPayload = {
+  ticketId: string
+  ticketNumber: number
+  title: string
+  summary: string
+  recipient: string
+  internalTicketUrl: string
+  idempotencyKey: string
+  callbackUrl: string
+}
 
 type InsertAuditEventInput = {
   ticketId: string
@@ -37,14 +50,19 @@ type ProcessExternalBridgeInboundUpdateParams = {
   persistInboundUpdate: (input: InsertAuditEventInput) => Promise<PersistInboundUpdateResult>
 }
 
-export function createExternalEscalationPayload(input: ExternalEscalationInput) {
+export function createExternalEscalationPayload(input: ExternalEscalationInput): ExternalEscalationPayload {
+  const internalTicketPath = `/ayuda/tickets/${encodeURIComponent(input.ticketId)}`
+  const callbackPath = '/api/support/external/inbound'
+
   return {
     ticketId: input.ticketId,
     ticketNumber: input.ticketNumber,
     title: sanitizeExternalBridgeMessage(input.title),
     summary: sanitizeExternalBridgeMessage(input.summary),
     recipient: sanitizeExternalBridgeMessage(input.recipient),
-    internalTicketUrl: `/ayuda/tickets/${encodeURIComponent(input.ticketId)}`,
+    internalTicketUrl: toBridgeUrl(input.baseUrl, internalTicketPath),
+    idempotencyKey: input.idempotencyKey ?? `hermes:${input.ticketId}`,
+    callbackUrl: toBridgeUrl(input.baseUrl, callbackPath),
   }
 }
 
@@ -158,4 +176,9 @@ async function recordSupportExternalInboundUpdate(
 
 function jsonResponse(body: unknown, status = 200): Response {
   return Response.json(body, { status })
+}
+
+function toBridgeUrl(baseUrl: string | undefined, path: string) {
+  if (!baseUrl) return path
+  return new URL(path, baseUrl).toString()
 }
