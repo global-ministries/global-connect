@@ -135,7 +135,7 @@ describe('reporter support pages', () => {
     expect(screen.getByRole('columnheader', { name: /Severidad/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Estado/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Fecha/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /#42 Map bug/i })).toHaveAttribute('href', '/ayuda/tickets/ticket-1')
+    expect(screen.getAllByRole('link', { name: /#42 Map bug/i })[0]).toHaveAttribute('href', '/ayuda/tickets/ticket-1')
   })
 
   it('renders the reporter ticket history empty state', async () => {
@@ -145,7 +145,7 @@ describe('reporter support pages', () => {
     render(await TicketsPage())
 
     expect(screen.getByRole('table')).toBeInTheDocument()
-    expect(screen.getByText('Todavia no has enviado tickets de soporte.')).toBeInTheDocument()
+    expect(screen.getAllByText('Todavia no has enviado tickets de soporte.')[0]).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /#/ })).not.toBeInTheDocument()
   })
 
@@ -277,8 +277,12 @@ describe('reporter support pages', () => {
     expect(listStaffSupportTickets).toHaveBeenCalledWith({ search: 'attendance', status: 'in_progress', category: 'bug', campusId: undefined, assigneeId: undefined })
     expect(screen.getByRole('searchbox', { name: /Buscar tickets/i })).toHaveValue('attendance')
     expect(screen.getByLabelText(/^Estado$/i)).toHaveValue('in_progress')
-    expect(screen.getByRole('link', { name: /#43 Cannot submit attendance/i })).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
-    expect(screen.getAllByText('En progreso')).toHaveLength(2)
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getByText('Cola de tickets de soporte autorizados para el equipo.')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Ticket/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Acciones/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /#43 Cannot submit attendance/i })[0]).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
+    expect(screen.getAllByText('En progreso')).toHaveLength(3)
   })
 
   it('hides staff queue assignment and status transition controls for view-only staff', async () => {
@@ -288,7 +292,7 @@ describe('reporter support pages', () => {
     expect(screen.queryByRole('button', { name: /Actualizar estado de #43/i })).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Responsable para #43/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Asignar #43/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Responder #43/i })).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
+    expect(screen.getAllByRole('link', { name: /Responder #43/i })[0]).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
   })
 
   it('renders staff queue assignment and status transition controls for support managers', async () => {
@@ -296,11 +300,11 @@ describe('reporter support pages', () => {
 
     render(await SupportAdminPage({ searchParams: Promise.resolve({}) }))
 
-    expect(screen.getByLabelText(/Nuevo estado para #43/i)).toHaveValue('in_progress')
-    expect(screen.getByRole('button', { name: /Actualizar estado de #43/i })).toBeInTheDocument()
+    expect(screen.getAllByLabelText(/Nuevo estado para #43/i)[0]).toHaveValue('in_progress')
+    expect(screen.getAllByRole('button', { name: /Actualizar estado de #43/i })[0]).toBeInTheDocument()
     expect(screen.queryByLabelText(/Responsable para #43/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Asignar #43/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Responder #43/i })).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
+    expect(screen.getAllByRole('link', { name: /Responder #43/i })[0]).toHaveAttribute('href', '/ayuda/tickets/ticket-2')
   })
 
   it('explains the required access for denied support capability configuration', async () => {
