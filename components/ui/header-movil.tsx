@@ -26,6 +26,7 @@ interface SubItem {
   href: string
   icon?: React.ComponentType<{ className?: string }>
   roles?: string[]
+  capabilities?: string[]
 }
 
 // ── Menu items with optional children (mirror of sidebar) ──
@@ -36,7 +37,10 @@ interface MobileMenuItem {
   href: string
   children?: SubItem[]
   roles?: string[]
+  capabilities?: string[]
 }
+
+const SUPPORT_CONFIGURATION_ROLES = ['admin', 'pastor', 'director-general']
 
 const mainMenuItems: MobileMenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
@@ -66,8 +70,10 @@ const mainMenuItems: MobileMenuItem[] = [
     children: [
       { id: 'config-general', label: 'General', href: '/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
       { id: 'config-dg', label: 'Directores Generales', href: '/configuracion/directores-generales', icon: Users, roles: ['admin', 'pastor', 'director-general'] },
+      { id: 'config-soporte', label: 'Soporte', href: '/configuracion/soporte', icon: HelpCircle, roles: SUPPORT_CONFIGURATION_ROLES, capabilities: ['support.manage'] },
     ],
   },
+  { id: 'soporte-admin', label: 'Soporte', icon: HelpCircle, href: '/ayuda/admin', capabilities: ['support.view', 'support.reply', 'support.manage'] },
 ]
 
 const footerMenuItems: MobileMenuItem[] = [
@@ -104,7 +110,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set())
   const pathname = usePathname()
-  const { usuario, roles, loading } = useCurrentUser()
+  const { usuario, roles, supportCapabilities = [], loading } = useCurrentUser()
   const branding = useBranding()
   const toast = useNotificaciones()
   const { theme, setTheme } = useTheme()
@@ -182,6 +188,13 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   }, [])
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
+
+  const canAccess = (item: Pick<MobileMenuItem, 'roles' | 'capabilities'>): boolean => {
+    const hasRequiredRole = !item.roles || item.roles.some((role) => roles.includes(role))
+    const hasRequiredCapability = !item.capabilities || item.capabilities.some((capability) => supportCapabilities.includes(capability))
+
+    return hasRequiredRole && hasRequiredCapability
+  }
 
   const isActive = (href: string): boolean => {
     return pathname === href ||
@@ -439,11 +452,11 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
         <nav className="flex-1 overflow-y-auto px-3 py-1">
           <ul className="space-y-0.5">
             {mainMenuItems
-              .filter(item => !item.roles || item.roles.some(r => roles.includes(r)))
+              .filter(canAccess)
               .map(item => {
               const Icon = item.icon
               const visibleChildren = item.children?.filter(
-                child => !child.roles || child.roles.some(r => roles.includes(r))
+                canAccess
               ) ?? []
               const hasChildren = visibleChildren.length > 0
               const active = isActive(item.href)

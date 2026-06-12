@@ -2,9 +2,12 @@ import {
   SUPPORT_INNGEST_EVENTS,
   createSupportAttachmentFinalizedEvent,
   createSupportEmailIdempotencyKey,
+  createSupportExternalUpdateReceivedEvent,
   createSupportTicketCreatedEvent,
   createSupportTicketMessageCreatedEvent,
   createSupportTicketStatusChangedEvent,
+  deliverSupportNotificationEvent,
+  dispatchSupportInngestEvent,
   sendSupportNotificationEmails,
   sendSupportNotificationEmail,
 } from '@/lib/support/inngest'
@@ -61,11 +64,19 @@ describe('support Inngest events', () => {
       actorUserId: 'user-4',
       r2ObjectKey: 'support/ticket-1/attachment-1/file.png',
     }
+    const externalUpdateInput = {
+      eventId: 'event-external-1',
+      ticketId: 'ticket-1',
+      actorUserId: 'user-5',
+      externalMessage: 'Private external details must not enter the payload',
+      externalSystemUrl: 'https://vendor.test/tickets/123',
+    }
 
     const ticketCreated = createSupportTicketCreatedEvent(ticketCreatedInput)
     const messageCreated = createSupportTicketMessageCreatedEvent(messageCreatedInput)
     const statusChanged = createSupportTicketStatusChangedEvent(statusChangedInput)
     const attachmentFinalized = createSupportAttachmentFinalizedEvent(attachmentFinalizedInput)
+    const externalUpdate = createSupportExternalUpdateReceivedEvent(externalUpdateInput)
 
     expect(ticketCreated).toEqual({
       name: SUPPORT_INNGEST_EVENTS.ticketCreated,
@@ -85,9 +96,14 @@ describe('support Inngest events', () => {
       attachmentId: 'attachment-1',
       actorUserId: 'user-4',
     })
+    expect(externalUpdate).toEqual({
+      name: SUPPORT_INNGEST_EVENTS.externalUpdateReceived,
+      id: 'support:event-external-1',
+      data: { eventId: 'event-external-1', ticketId: 'ticket-1', actorUserId: 'user-5' },
+    })
 
-    const queuedPayload = JSON.stringify([ticketCreated, messageCreated, statusChanged, attachmentFinalized])
-    expect(queuedPayload).not.toMatch(/Unsafe text|rawSentry|secret|attachmentKey|r2ObjectKey|support\/ticket-1|github|messageBody|Resolved/i)
+    const queuedPayload = JSON.stringify([ticketCreated, messageCreated, statusChanged, attachmentFinalized, externalUpdate])
+    expect(queuedPayload).not.toMatch(/Unsafe text|rawSentry|secret|attachmentKey|r2ObjectKey|support\/ticket-1|github|messageBody|Resolved|Private external|vendor\.test/i)
   })
 
   it('creates one deterministic email idempotency key per event and normalized recipient', () => {
@@ -210,4 +226,91 @@ describe('support Inngest events', () => {
     expect(messageEmailMock).not.toHaveBeenCalled()
     expect(statusEmailMock).not.toHaveBeenCalled()
   })
+
+  it('does not send email for external update events because inbound updates are audited in-app', async () => {
+    const result = await sendSupportNotificationEmail(
+      createSupportExternalUpdateReceivedEvent({ eventId: 'event-external', ticketId: 'ticket-1' }),
+      {
+        recipientEmail: 'reporter@example.com',
+        ticketId: 'ticket-1',
+        ticketNumber: 42,
+        title: 'External bridge update',
+        status: 'in_review',
+      }
+    )
+
+    expect(result).toEqual({ success: true, skipped: true, reason: 'No support email for support/external.update.received' })
+    expect(createdEmailMock).not.toHaveBeenCalled()
+    expect(messageEmailMock).not.toHaveBeenCalled()
+    expect(statusEmailMock).not.toHaveBeenCalled()
+  })
+
+  it('dispatches support events to a configured provider endpoint without sending when the provider is disabled', async () => {
+    const fetchMock = jest.fn()
+    const event = createSupportTicketCreatedEvent({ eventId: 'event-created', ticketId: 'ticket-1', actorUserId: 'user-1' })
+
+    await expect(dispatchSupportInngestEvent(event, { fetch: fetchMock, endpoint: '', secret: '' })).resolves.toEqual({ success: true, skipped: true, reason: 'Support event provider not configured' })
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    fetchMock.mockResolvedValue({ ok: true, status: 202 })
+    await expect(dispatchSupportInngestEvent(event, { fetch: fetchMock, endpoint: 'https://events.example.test/api/inngest', secret: 'secret-1' })).resolves.toEqual({ success: true, status: 202 })
+    expect(fetchMock).toHaveBeenCalledWith('https://events.example.test/api/inngest', {
+      method: 'POST',
+      headers: { authorization: 'Bearer secret-1', 'content-type': 'application/json' },
+      body: JSON.stringify(event),
+    })
+  })
+
+  it('loads all active support staff recipients and sends one safe ticket-created notification to each recipient', async () => {
+    createdEmailMock.mockResolvedValue({ success: true, id: 'email-created' })
+    const supabase = createSupportNotificationSupabaseMock()
+
+    const result = await deliverSupportNotificationEvent(
+      createSupportTicketCreatedEvent({ eventId: 'event-created', ticketId: 'ticket-1', actorUserId: 'reporter-1' }),
+      supabase
+    )
+
+    expect(result).toEqual([{ success: true, id: 'email-created' }, { success: true, id: 'email-created' }])
+    expect(createdEmailMock).toHaveBeenCalledTimes(2)
+    expect(createdEmailMock).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      recipientEmail: 'staff-view@example.com',
+      recipientName: 'View Staff',
+      ticketId: 'ticket-1',
+      ticketNumber: 42,
+      title: 'Cannot open group map',
+      status: 'received',
+      idempotencyKey: 'email:event-created:staff-view@example.com',
+    }))
+    expect(createdEmailMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      recipientEmail: 'staff-reply@example.com',
+      recipientName: 'Reply Staff',
+      idempotencyKey: 'email:event-created:staff-reply@example.com',
+    }))
+    expect(JSON.stringify(createdEmailMock.mock.calls)).not.toMatch(/rawSentry|evidence|attachment|object_key|support\/ticket-1/i)
+  })
 })
+
+function createSupportNotificationSupabaseMock() {
+  const ticketQuery = { select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: { id: 'ticket-1', ticket_number: 42, title: 'Cannot open group map', status: 'received' }, error: null }) }) }) }
+  const capabilityQuery = {
+    select: jest.fn().mockReturnValue({
+      is: jest.fn().mockResolvedValue({
+        data: [
+          { usuario: { id: 'staff-view', nombre: 'View', apellido: 'Staff', email: 'staff-view@example.com' } },
+          { usuario: { id: 'staff-view', nombre: 'View', apellido: 'Staff', email: 'staff-view@example.com' } },
+          { usuario: { id: 'staff-reply', nombre: 'Reply', apellido: 'Staff', email: 'staff-reply@example.com' } },
+          { usuario: { id: 'staff-no-email', nombre: 'No', apellido: 'Email', email: null } },
+        ],
+        error: null,
+      }),
+    }),
+  }
+
+  return {
+    from: jest.fn((table: string) => {
+      if (table === 'support_tickets') return ticketQuery
+      if (table === 'support_user_capabilities') return capabilityQuery
+      throw new Error(`Unexpected table ${table}`)
+    }),
+  }
+}

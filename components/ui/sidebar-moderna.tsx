@@ -43,6 +43,8 @@ interface SubItem {
   icon?: React.ComponentType<{ className?: string }>
   /** Roles que pueden ver este sub-item. Si no se define, es visible para todos. */
   roles?: string[]
+  /** Support capabilities que pueden ver este sub-item. Si no se define, es visible para todos. */
+  capabilities?: string[]
 }
 
 interface MenuItem {
@@ -56,7 +58,11 @@ interface MenuItem {
   className?: string
   /** Roles que pueden ver este item. Si no se define, es visible para todos. */
   roles?: string[]
+  /** Support capabilities que pueden ver este item. Si no se define, es visible para todos. */
+  capabilities?: string[]
 }
+
+const SUPPORT_CONFIGURATION_ROLES = ['admin', 'pastor', 'director-general']
 
 const menuItems: MenuItem[] = [
   {
@@ -97,7 +103,15 @@ const menuItems: MenuItem[] = [
     children: [
       { id: 'config-general', label: 'General', href: '/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
       { id: 'config-dg', label: 'Directores Generales', href: '/configuracion/directores-generales', icon: Users, roles: ['admin', 'pastor', 'director-general'] },
+      { id: 'config-soporte', label: 'Soporte', href: '/configuracion/soporte', icon: HelpCircle, roles: SUPPORT_CONFIGURATION_ROLES, capabilities: ['support.manage'] },
     ],
+  },
+  {
+    id: 'soporte-admin',
+    label: 'Soporte',
+    icon: HelpCircle,
+    href: '/ayuda/admin',
+    capabilities: ['support.view', 'support.reply', 'support.manage'],
   },
 ]
 
@@ -122,7 +136,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const [tooltip, setTooltip] = useState<{ label: string; top: number } | null>(null)
   const router = useRouter()
   const pathname = usePathname()
-  const { usuario, roles, loading } = useCurrentUser()
+  const { usuario, roles, supportCapabilities = [], loading } = useCurrentUser()
   const branding = useBranding()
 
 
@@ -244,6 +258,13 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     return isActive(item.href)
   }
 
+  const canAccess = (item: Pick<MenuItem, 'roles' | 'capabilities'>): boolean => {
+    const hasRequiredRole = !item.roles || item.roles.some((role) => roles.includes(role))
+    const hasRequiredCapability = !item.capabilities || item.capabilities.some((capability) => supportCapabilities.includes(capability))
+
+    return hasRequiredRole && hasRequiredCapability
+  }
+
   // ─── Shared link styles ───
   const linkClasses = (active: boolean) => cn(
     "flex items-center gap-3 px-3 py-2 rounded-xl group relative min-h-[44px]",
@@ -331,12 +352,12 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         <nav className="flex-1 px-3 py-2 overflow-y-auto">
           <ul className="space-y-0.5">
             {menuItems
-              .filter((item) => !item.roles || item.roles.some(r => roles.includes(r)))
+              .filter(canAccess)
               .map((item) => {
                 const Icon = item.icon
-                // Filter children by role — if none are visible, treat as simple link
+                // Filter children by access — if none are visible, treat as simple link
                 const visibleChildren = item.children?.filter(
-                  (child) => !child.roles || child.roles.some(r => roles.includes(r))
+                  canAccess
                 ) ?? []
                 const hasChildren = visibleChildren.length > 0
                 const parentActive = isParentActive(item)

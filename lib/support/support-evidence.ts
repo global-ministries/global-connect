@@ -14,7 +14,7 @@ const supportEvidenceSchema = z.object({
 
 export function sanitizeSupportEvidence(input: Record<string, unknown>) {
   const parsed = supportEvidenceSchema.parse(input)
-  const diagnosticsConsent = parsed.diagnosticsConsent ?? false
+  const diagnosticsConsent = parsed.diagnosticsConsent ?? true
 
   return {
     current_route: sanitizeRouteEvidence(parsed.currentRoute),

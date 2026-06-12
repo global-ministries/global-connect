@@ -166,6 +166,8 @@ describe('Sentry privacy hardening', () => {
         supportEvidence: { route: '/ayuda?token=secret' },
         attachments: ['support/ticket-1/file.png'],
         r2ObjectKey: 'support/ticket-1/file.png',
+        signedUrl: 'https://r2.example.com/support/ticket-1/file.png?X-Amz-Signature=secret',
+        objectKey: 'support/ticket-1/file.png',
         sentryEventId: 'event-secret',
         githubIssueBody: 'private GitHub details',
         nested: {
@@ -181,7 +183,7 @@ describe('Sentry privacy hardening', () => {
         safeUrl: '/ayuda/tickets/ticket-1',
       },
     })
-    expect(JSON.stringify(scrubbed)).not.toMatch(/secret|localStorage|support\/ticket-1|github|private GitHub|event-secret|token=|reporter@example.com/i)
+    expect(JSON.stringify(scrubbed)).not.toMatch(/secret|localStorage|support\/ticket-1|github|private GitHub|event-secret|signed|objectKey|token=|reporter@example.com/i)
   })
 
   it('scrubs breadcrumbs already attached to events before sending', () => {

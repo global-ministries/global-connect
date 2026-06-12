@@ -21,6 +21,23 @@ This runbook covers the operational path for the support ticket system. It is in
 | Sentry | Support stores Sentry references only; raw payloads, replay media, cookies, headers, and diagnostics are scrubbed. |
 | GitHub | No MVP sync. Future GitHub issues are downstream engineering artifacts only. |
 
+## Production Readiness Gates
+
+Support must remain in a safe degraded state until every gate below has explicit review evidence. Safe degraded means users can be protected by hidden navigation, disabled side effects, or unavailable provider workflows without deleting tickets, messages, audit events, or private attachment metadata.
+
+| Gate | Required evidence | Failure behavior |
+|------|-------------------|------------------|
+| DB gate | Support migrations are reviewed as additive and non-destructive; generated Supabase types match the reviewed schema. | Do not claim production readiness; keep support data preserved and ship only additive corrections. |
+| provider gate | Non-production R2, Inngest, Resend, and Sentry checks prove private storage, ID-only events, safe emails, and scrubbed evidence. | Disable provider side effects and keep app flows authenticated/degraded. |
+| environment gate | Server-only secrets exist in the target runtime and no secret appears in `NEXT_PUBLIC_*`, docs, logs, or tickets. | Block rollout until secrets are configured or rotate any exposed value. |
+| RLS/privacy gate | `pnpm test:rls` or the approved staging RLS equivalent passes; privacy tests prove diagnostics, attachments, signed URLs, object keys, cookies, storage, and raw payloads are excluded. | Hide staff surfaces and do not expose cross-user support data. |
+| smoke gate | Reporter create, attachment upload/finalize/download, staff queue/detail, notification, inbound bridge, and rollback smoke checks pass in non-production. | Keep the feature degraded and document the failed check before retry. |
+| rollback gate | Rollback starts by hiding entry points and disabling side effects, not by deleting production data. | Do not proceed until the rollback owner and first action are known. |
+
+## External Escalation Approval
+
+Outbound bridge payloads are staff-approved sanitized external escalation only. The bridge sanitizer removes known support secrets, signed URL markers, token-like query values, and object-key patterns, but it must not be treated as a general PII scrubber. Staff must rewrite summaries and reproduction steps before escalation so user-identifying details, private church/member context, free-form sensitive text, attachments, raw diagnostics, and internal notes are not sent downstream.
+
 ## Environment Checklist
 
 Set secrets only in the runtime provider or deployment environment. Never commit them to the repository, docs, OpenSpec artifacts, screenshots, or support tickets.
@@ -49,7 +66,7 @@ Operational limits from code and spec:
 
 | Setting | Required | Notes |
 |---------|----------|-------|
-| Event names | Yes | `support/ticket.created`, `support/ticket.message.created`, `support/ticket.status.changed`, `support/attachment.finalized`. |
+| Event names | Yes | `support/ticket.created`, `support/ticket.message.created`, `support/ticket.status.changed`, `support/attachment.finalized`, `support/external.update.received`. |
 | Payload shape | Yes | IDs only: `eventId`, `ticketId`, optional `actorUserId`, and relevant message or attachment IDs. |
 | Idempotency | Yes | Email keys use `email:{eventId}:{recipient}`. Preserve this shape in any worker integration. |
 | Provider credentials | Future wiring | The current support module defines event contracts and email dispatch helpers; provider-specific live Inngest client wiring must be reviewed before enabling. |
@@ -76,6 +93,39 @@ Before enabling support evidence in production, reviewers must confirm:
 - Replay text is masked and media is blocked by default.
 - Support evidence stores allowlisted diagnostics and Sentry event IDs only.
 - Sentry requests, headers, bodies, user fields, URLs, and support contexts are scrubbed before send.
+
+## PR5.3 Staging Smoke Tooling
+
+Run PR5.3 provider smokes only against staging or a local app connected to staging-safe provider resources. The smoke script loads `.env.staging.local` by default, refuses to run unless `RLS_ENV=staging`, rejects obvious production hosts, and redacts secrets, ticket IDs, idempotency keys, recipients, and R2 object details in logs.
+
+Command:
+
+```bash
+pnpm support:smoke:staging
+```
+
+Focused checks are available when a provider input is not ready:
+
+```bash
+node scripts/support-smoke-staging.mjs --only=inngest,r2
+node scripts/support-smoke-staging.mjs --only=external
+node scripts/support-smoke-staging.mjs --only=resend
+```
+
+Required environment keys, without values:
+
+| Check | Required keys | Evidence produced |
+|-------|---------------|-------------------|
+| Global guard | `RLS_ENV=staging` | Script refuses non-staging execution before provider calls. |
+| Protected Vercel preview routes | `VERCEL_AUTOMATION_BYPASS_SECRET` when `SUPPORT_SMOKE_BASE_URL` is behind Vercel Deployment Protection | The route smoke requests include `x-vercel-protection-bypass` so Vercel allows the request to reach app auth. Do not use this key for direct provider checks. |
+| Inngest route | `SUPPORT_SMOKE_BASE_URL`, `SUPPORT_INNGEST_WEBHOOK_SECRET` | `/api/inngest` rejects missing/invalid auth and accepts a signed ID-only support event with HTTP 202. |
+| External bridge | `SUPPORT_SMOKE_BASE_URL`, `SUPPORT_EXTERNAL_BRIDGE_TOKEN`, `SUPPORT_EXTERNAL_BRIDGE_AUTHOR_USUARIO_ID`, `SUPPORT_SMOKE_TICKET_ID` | `/api/support/external/inbound` rejects invalid auth, accepts one sanitized staging update, and treats the duplicate idempotency key as duplicate. |
+| R2 direct provider | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Private support bucket accepts one smoke PUT, returns matching bytes on GET, and deletes the smoke object in cleanup. |
+| Resend | `RESEND_API_KEY`, `SUPPORT_SMOKE_EMAIL_TO`, optional `RESEND_FROM_NAME`, `RESEND_FROM_EMAIL` | Resend accepts a staging-safe notification email with no evidence, attachments, diagnostics, secrets, object keys, or user PII. |
+
+`SUPPORT_SMOKE_BASE_URL` must be a staging/preview/local origin for the running Next.js app. Do not use the production `connect.yosoyglobal.org` origin. `SUPPORT_SMOKE_TICKET_ID` must be a safe staging support ticket UUID because the external bridge persists a clearly labeled smoke update. `SUPPORT_SMOKE_EMAIL_TO` must be a reviewer-controlled staging recipient; do not send smoke email to users.
+
+The R2 smoke intentionally exercises direct provider put/get/delete, not the authenticated attachment app routes. The app-level attachment intent/finalize/download route smoke still requires an authenticated staging user/session with access to the staging ticket; do that manually unless a reviewer provides a safe session mechanism for automation.
 
 ## Rollback Guidance
 

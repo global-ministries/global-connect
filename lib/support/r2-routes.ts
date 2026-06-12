@@ -14,26 +14,40 @@ import {
 } from './r2'
 
 type RouteResult = { status: number; body: Record<string, unknown> }
-type ExistingAttachment = { kind: string; byte_size: number; status: string }
+type ExistingAttachment = { id?: string; kind: string; byte_size: number; status: string }
 type Attachment = ExistingAttachment & { id: string; ticket_id: string; uploaded_by_usuario_id: string; bucket: string; object_key: string; content_type: string }
 type Context = { authUserId: string; actorUsuarioId: string; now: Date; env?: Record<string, string | undefined> }
 
-export async function createAttachmentIntentResponse(input: Context & { body: { ticketId: string; files: unknown[] }; existingAttachments: ExistingAttachment[]; insertAttachment: (row: Record<string, unknown>) => Promise<void> }): Promise<RouteResult> {
+export async function createAttachmentIntentResponse(input: Context & { body: { ticketId: string; files: unknown[]; replaceAttachmentId?: string }; existingAttachments: ExistingAttachment[]; insertAttachment: (row: Record<string, unknown>) => Promise<void>; markRejected?: (id: string, reason: string) => Promise<boolean> }): Promise<RouteResult> {
   try {
     const files = input.body.files.map((file) => validateSupportAttachmentIntent(file as never))
-    enforceSupportAttachmentBatch(files, input.existingAttachments)
+    const replacedAttachment = findRetryReplacement(input.existingAttachments, input.body.replaceAttachmentId)
+    const retainedAttachments = replacedAttachment
+      ? input.existingAttachments.filter((attachment) => attachment.id !== replacedAttachment.id)
+      : input.existingAttachments
+    enforceSupportAttachmentBatch(files, retainedAttachments)
+    if (replacedAttachment?.id) {
+      if (!input.markRejected) throw new Error('Retry replacement requires metadata rejection')
+      const replacementStillEligible = await input.markRejected(replacedAttachment.id, 'replaced_by_retry')
+      if (!replacementStillEligible) throw new Error('Attachment retry is no longer available')
+    }
     const config = getSupportR2Config(input.env)
     const attachments = []
     for (const file of files) {
       const attachmentId = createSupportAttachmentId()
       const objectKey = buildSupportAttachmentKey(input.body.ticketId, attachmentId, file.filename)
       await input.insertAttachment({ id: attachmentId, ticket_id: input.body.ticketId, uploaded_by_usuario_id: input.actorUsuarioId, kind: file.kind, status: 'pending_upload', bucket: SUPPORT_R2_BUCKET, object_key: objectKey, original_filename: file.filename, content_type: file.contentType, byte_size: file.byteSize })
-      attachments.push({ id: attachmentId, bucket: SUPPORT_R2_BUCKET, objectKey, method: 'PUT', uploadUrl: createSupportR2SignedUrl({ method: 'PUT', key: objectKey, expiresInSeconds: SUPPORT_UPLOAD_URL_TTL_SECONDS, contentType: file.contentType, config }), expiresInSeconds: SUPPORT_UPLOAD_URL_TTL_SECONDS })
+      attachments.push({ id: attachmentId, bucket: SUPPORT_R2_BUCKET, method: 'PUT', uploadUrl: createSupportR2SignedUrl({ method: 'PUT', key: objectKey, expiresInSeconds: SUPPORT_UPLOAD_URL_TTL_SECONDS, contentType: file.contentType, config }), expiresInSeconds: SUPPORT_UPLOAD_URL_TTL_SECONDS })
     }
     return { status: 200, body: { attachments } }
   } catch (error) {
     return { status: 400, body: { error: error instanceof Error ? error.message : 'Invalid attachment intent' } }
   }
+}
+
+function findRetryReplacement(existingAttachments: ExistingAttachment[], replaceAttachmentId: string | undefined) {
+  if (!replaceAttachmentId) return null
+  return existingAttachments.find((attachment) => attachment.id === replaceAttachmentId && attachment.status === 'pending_upload') ?? null
 }
 
 export async function finalizeAttachmentResponse(input: Context & { attachment: Attachment; headObject: (key: string) => Promise<{ contentType: string | null; byteSize: number }>; readObjectPrefix: (key: string) => Promise<Uint8Array>; markUploaded: (id: string) => Promise<void>; markRejected: (id: string, reason: string) => Promise<void>; deleteObject: (key: string) => Promise<void> }): Promise<RouteResult> {
@@ -61,10 +75,15 @@ export async function supportAttachmentIntentRoute(request: Request) {
   if (!context) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   const body = await request.json()
   const supabase = await createSupabaseServerClient()
-  const { data: existing } = await supabase.from('support_ticket_attachments').select('kind,byte_size,status').eq('ticket_id', body.ticketId)
+  const { data: existing } = await supabase.from('support_ticket_attachments').select('id,kind,byte_size,status').eq('ticket_id', body.ticketId)
+  const admin = createSupabaseAdminClient()
   const result = await createAttachmentIntentResponse({ ...context, body, existingAttachments: existing ?? [], insertAttachment: async (row) => {
     const { error } = await supabase.from('support_ticket_attachments').insert(row as never)
     if (error) throw new Error(error.message)
+  }, markRejected: async (id, reason) => {
+    const { data, error } = await admin.from('support_ticket_attachments').update({ status: 'rejected', rejection_reason: reason }).eq('id', id).eq('ticket_id', body.ticketId).eq('status', 'pending_upload').select('id').maybeSingle()
+    if (error) throw new Error(error.message)
+    return Boolean(data?.id)
   } })
   return NextResponse.json(result.body, { status: result.status })
 }
@@ -84,7 +103,19 @@ export async function supportAttachmentFinalizeRoute(request: Request) {
 export async function supportAttachmentDownloadRoute(_request: Request, attachmentId: string) {
   const { NextResponse } = await import('next/server')
   const result = await getAttachmentDownloadResult(attachmentId)
-  return NextResponse.json(result.body, { status: result.status })
+  if (result.status !== 200) return NextResponse.json(result.body, { status: result.status })
+  const downloadUrl = typeof result.body.downloadUrl === 'string' ? result.body.downloadUrl : null
+  if (!downloadUrl) return NextResponse.json({ error: 'Attachment not available' }, { status: 403 })
+  const response = await fetch(downloadUrl)
+  if (!response.ok) return NextResponse.json({ error: 'Attachment download failed' }, { status: 502 })
+  return new Response(response.body ?? await response.arrayBuffer(), {
+    status: 200,
+    headers: {
+      'content-type': response.headers.get('content-type') ?? 'application/octet-stream',
+      'content-disposition': 'attachment',
+      'cache-control': 'no-store',
+    },
+  })
 }
 
 export async function supportAttachmentDownloadHeadRoute(_request: Request, attachmentId: string) {

@@ -1,19 +1,20 @@
 "use client"
 
+import { useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 
 export const useNotificaciones = () => {
-  const exito = (mensaje: string) => {
+  const exito = useCallback((mensaje: string) => {
     toast.success('Éxito', { description: mensaje })
-  }
+  }, [])
 
-  const error = (mensaje: string) => {
+  const error = useCallback((mensaje: string) => {
     toast.error('Error', { description: mensaje })
-  }
+  }, [])
 
-  const info = (mensaje: string) => {
+  const info = useCallback((mensaje: string) => {
     toast.info('Información', { description: mensaje })
-  }
+  }, [])
 
-  return { success: exito, error, info }
+  return useMemo(() => ({ success: exito, error, info }), [exito, error, info])
 }
