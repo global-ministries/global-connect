@@ -9,6 +9,7 @@ const SUPPORT_R2_BUCKET = 'global-connect-support'
 const SMOKE_PREFIX = 'support-smoke'
 const DEFAULT_TIMEOUT_MS = 30_000
 const VERCEL_PROTECTION_BYPASS_HEADER = 'x-vercel-protection-bypass'
+const EXTERNAL_INBOUND_ACTIONS = ['public_reply', 'internal_note']
 
 const CHECKS = new Set(['inngest', 'external', 'r2', 'resend'])
 const PRODUCTION_HOST_PATTERNS = [
@@ -189,27 +190,33 @@ async function smokeExternalBridge(smokeId, logger) {
   assertUuid(ticketId, 'SUPPORT_SMOKE_TICKET_ID')
 
   const endpoint = new URL('/api/support/external/inbound', baseUrl)
-  const idempotencyKey = `${SMOKE_PREFIX}:external:${smokeId}`
-  const payload = {
-    ticketId,
-    idempotencyKey,
-    message: `Staging smoke bridge update ${smokeId}. No user evidence, attachments, diagnostics, secrets, or PII included.`,
-  }
-
-  const invalidAuth = await postJson(endpoint, payload, { authorization: 'Bearer invalid-smoke-token' })
+  const invalidAuthPayload = buildExternalBridgePayload({ action: 'public_reply', ticketId, smokeId })
+  const invalidAuth = await postJson(endpoint, invalidAuthPayload, { authorization: 'Bearer invalid-smoke-token' })
   assertStatus('External bridge invalid auth', invalidAuth, [401])
 
-  const first = await postJson(endpoint, payload, { authorization: `Bearer ${token}` })
-  assertStatus('External bridge first delivery', first, [200])
-  assertResponseField(first.body, 'success', true, 'External bridge first success flag')
-  assertResponseField(first.body, 'duplicate', false, 'External bridge first duplicate flag')
+  for (const action of EXTERNAL_INBOUND_ACTIONS) {
+    const payload = buildExternalBridgePayload({ action, ticketId, smokeId })
+    const first = await postJson(endpoint, payload, { authorization: `Bearer ${token}` })
+    assertStatus(`External bridge first ${action} delivery`, first, [200])
+    assertResponseField(first.body, 'success', true, `External bridge ${action} first success flag`)
+    assertResponseField(first.body, 'duplicate', false, `External bridge ${action} first duplicate flag`)
 
-  const duplicate = await postJson(endpoint, payload, { authorization: `Bearer ${token}` })
-  assertStatus('External bridge duplicate delivery', duplicate, [200])
-  assertResponseField(duplicate.body, 'success', true, 'External bridge duplicate success flag')
-  assertResponseField(duplicate.body, 'duplicate', true, 'External bridge duplicate flag')
+    const duplicate = await postJson(endpoint, payload, { authorization: `Bearer ${token}` })
+    assertStatus(`External bridge duplicate ${action} delivery`, duplicate, [200])
+    assertResponseField(duplicate.body, 'success', true, `External bridge ${action} duplicate success flag`)
+    assertResponseField(duplicate.body, 'duplicate', true, `External bridge ${action} duplicate flag`)
 
-  logger.info(`External bridge accepted staging ticket ${redact(ticketId)} and enforced idempotency key ${redact(idempotencyKey)}`)
+    logger.info(`External bridge accepted staging ticket ${redact(ticketId)} for action ${action} and enforced idempotency key ${redact(payload.idempotencyKey)}`)
+  }
+}
+
+export function buildExternalBridgePayload({ action, ticketId, smokeId }) {
+  return {
+    ticketId,
+    idempotencyKey: `${SMOKE_PREFIX}:external:${action}:${smokeId}`,
+    action,
+    message: `Staging smoke bridge ${action} for ${smokeId}. No user evidence, attachments, diagnostics, secrets, or PII included.`,
+  }
 }
 
 async function smokeR2(smokeId, logger) {
