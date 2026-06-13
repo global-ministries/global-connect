@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 describe('support operations runbook', () => {
   const runbook = readFileSync(join(process.cwd(), 'docs', 'support-operations.md'), 'utf8')
+  const hermesPolicy = readFileSync(join(process.cwd(), 'docs', 'hermes-response-policy.md'), 'utf8')
 
   it('documents production release gates and safe degraded behavior', () => {
     expect(runbook).toContain('## Production Readiness Gates')
@@ -52,5 +53,35 @@ describe('support operations runbook', () => {
     expect(runbook).toContain('ID-first for PR 2')
     expect(runbook).toContain('future staff-reviewed safe-summary field')
     expect(runbook).toContain('Do not rely on `X-Hermes-Event`')
+  })
+
+  it('documents PR 4 Hermes response policy with allowlist, denylist, and deferral rules', () => {
+    expect(runbook).toContain('Hermes response policy (PR 4)')
+    expect(runbook).toContain('Direct `public_reply` allowlist')
+    expect(runbook).toContain('Direct `public_reply` denylist')
+    expect(runbook).toContain('`internal_note` triggers')
+    expect(runbook).toContain('GitHub deferral rules')
+    expect(runbook).toContain('Scenario -> action examples')
+    expect(runbook).toContain('Safety rules for all Hermes responses')
+  })
+
+  it('locks safety constraints and response boundaries', () => {
+    expect(runbook).toContain('PII: names')
+    expect(runbook).toContain('Secrets or secrets-like values')
+    expect(runbook).toContain('Diagnostics: stack traces')
+    expect(runbook).toContain('Attachments and attachment metadata')
+    expect(runbook).toContain('Promises of engineering fixes')
+  })
+
+  it('verifies repo-visible Hermes policy reference document', () => {
+    expect(runbook).toContain('docs/hermes-response-policy.md')
+    expect(hermesPolicy).toContain('# Hermes Response Policy (PR 4)')
+    expect(hermesPolicy).toContain('Direct `public_reply` allowlist')
+    expect(hermesPolicy).toContain('GitHub deferral')
+    expect(hermesPolicy).toContain('Example mapping')
+    expect(hermesPolicy).toContain('Safety constraints')
+    expect(hermesPolicy).toContain('must use `internal_note` instead of `public_reply`')
+    expect(hermesPolicy).toContain('Never create GitHub issues from Hermes callback handling in this PR')
+    expect(hermesPolicy).toContain('Promises about engineering timelines or fixes')
   })
 })
