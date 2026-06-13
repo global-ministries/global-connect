@@ -15,6 +15,7 @@ function readSupportTicketSql(): string {
     readMigrationBySuffix('_harden_staff_reply_rpc_body.sql'),
     readMigrationBySuffix('_add_support_capability_admin_rpcs.sql'),
     readMigrationBySuffix('_add_support_external_inbound_rpc.sql'),
+    readMigrationBySuffix('_extend_support_external_inbound_rpc_visibility.sql'),
     readMigrationBySuffix('_align_support_capability_hierarchy.sql'),
     readMigrationBySuffix('_add_safe_support_ticket_auto_assignment_rpc.sql'),
   ].join('\n')
@@ -346,11 +347,30 @@ describe('support ticket system migration', () => {
     expect(inboundRpc).toContain('ste.ticket_id = p_ticket_id')
     expect(inboundRpc).toContain("ste.action = 'external.update.received'")
     expect(inboundRpc).toContain("ste.target_type = 'support_external_update'")
+    expect(inboundRpc).toContain('p_is_internal')
+    expect(inboundRpc).toContain('INSERT INTO public.support_ticket_messages (ticket_id, author_usuario_id, body, is_internal)')
     expect(inboundRpc).toContain('INSERT INTO public.support_ticket_messages')
     expect(inboundRpc.indexOf('INSERT INTO public.support_ticket_events')).toBeLessThan(inboundRpc.indexOf('INSERT INTO public.support_ticket_messages'))
     expect(inboundRpc).not.toMatch(/\bEXECUTE\b/i)
-    expect(sql).toContain('REVOKE ALL ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text) FROM PUBLIC')
-    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text) TO service_role')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text, boolean) FROM PUBLIC')
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text, boolean) TO service_role')
+  })
+
+  it('keeps the original external inbound RPC migration and applies a follow-up visibility migration', () => {
+    const baseInboundMigration = readMigrationBySuffix('_add_support_external_inbound_rpc.sql')
+    const followUpInboundMigration = readMigrationBySuffix('_extend_support_external_inbound_rpc_visibility.sql')
+
+    expect(baseInboundMigration).toContain('CREATE OR REPLACE FUNCTION public.record_support_external_inbound_update(')
+    expect(baseInboundMigration).toContain('p_idempotency_key text')
+    expect(baseInboundMigration).toContain('REVOKE ALL ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text) FROM PUBLIC')
+    expect(baseInboundMigration).toContain('GRANT EXECUTE ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text) TO service_role')
+
+    expect(followUpInboundMigration).toContain('CREATE OR REPLACE FUNCTION public.record_support_external_inbound_update(')
+    expect(followUpInboundMigration).toContain('DROP FUNCTION IF EXISTS public.record_support_external_inbound_update(uuid, uuid, text, text)')
+    expect(followUpInboundMigration).not.toContain('DEFAULT false')
+    expect(followUpInboundMigration).toContain('REVOKE ALL ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text, boolean) FROM PUBLIC')
+    expect(followUpInboundMigration).toContain('GRANT EXECUTE ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text, boolean) TO service_role')
+    expect(followUpInboundMigration).not.toContain('GRANT EXECUTE ON FUNCTION public.record_support_external_inbound_update(uuid, uuid, text, text) TO service_role')
   })
 
   it('keeps generated support ticket event types consistent with nullable ticket_id', () => {

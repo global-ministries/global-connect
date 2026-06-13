@@ -241,6 +241,7 @@ describe('support external bridge', () => {
         ticketId: '11111111-1111-1111-1111-111111111111',
         idempotencyKey: 'external-update-1',
         message: 'Vendor fixed the upstream data mapping. signedUrl=https://r2.test/private?signature=secret',
+        action: 'public_reply',
       },
       persistInboundUpdate,
     })
@@ -265,11 +266,54 @@ describe('support external bridge', () => {
         ticketId: '11111111-1111-1111-1111-111111111111',
         idempotencyKey: 'external-update-1',
         message: 'Duplicate update',
+        action: 'public_reply',
       },
       persistInboundUpdate,
     })
 
     expect(result).toEqual({ success: true, duplicate: true, eventId: 'event-1' })
     expect(persistInboundUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('maps internal_note action to internal support messages', async () => {
+    const persistInboundUpdate = jest.fn().mockResolvedValue({ duplicate: false, eventId: 'event-2', messageId: 'message-2' })
+
+    const result = await processExternalBridgeInboundUpdate({
+      authorizationHeader: 'Bearer bridge-secret',
+      expectedToken: 'bridge-secret',
+      authorUsuarioId: '00000000-0000-0000-0000-000000000001',
+      body: {
+        ticketId: '11111111-1111-1111-1111-111111111111',
+        idempotencyKey: 'external-update-2',
+        action: 'internal_note',
+        message: 'Internal handoff note for staff follow-up',
+      },
+      persistInboundUpdate,
+    })
+
+    expect(result).toEqual({ success: true, duplicate: false, messageId: 'message-2', eventId: 'event-2' })
+    expect(persistInboundUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      isInternal: true,
+    }))
+  })
+
+  it('rejects unknown inbound actions', async () => {
+    const persistInboundUpdate = jest.fn()
+
+    const result = await processExternalBridgeInboundUpdate({
+      authorizationHeader: 'Bearer bridge-secret',
+      expectedToken: 'bridge-secret',
+      authorUsuarioId: '00000000-0000-0000-0000-000000000001',
+      body: {
+        ticketId: '11111111-1111-1111-1111-111111111111',
+        idempotencyKey: 'external-update-3',
+        message: 'Bad action value',
+        action: 'customer_reply',
+      },
+      persistInboundUpdate,
+    })
+
+    expect(result).toEqual({ success: false, status: 400, error: 'Invalid external support update' })
+    expect(persistInboundUpdate).not.toHaveBeenCalled()
   })
 })

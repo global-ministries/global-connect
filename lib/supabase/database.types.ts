@@ -3863,10 +3863,11 @@ export type Database = {
       }
       record_support_external_inbound_update: {
         Args: {
-          p_author_usuario_id: string
-          p_idempotency_key: string
-          p_message_body: string
           p_ticket_id: string
+          p_author_usuario_id: string
+          p_message_body: string
+          p_idempotency_key: string
+          p_is_internal: boolean
         }
         Returns: {
           duplicate: boolean
