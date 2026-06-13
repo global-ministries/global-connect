@@ -102,6 +102,55 @@ Each callback is idempotent by `idempotencyKey`; duplicates return `duplicate: t
 
 For PR 3, `/api/support/external/inbound` persists the callback audit row and message only; it intentionally does **not** dispatch `support/external.update.received` or trigger staff notifications directly. Downstream support staff actions are deferred to a future durable outbox/replay design that preserves retry safety.
 
+### Hermes response policy (PR 4)
+
+All Hermes replies should follow this policy to keep responses safe, low-risk, and auditable. Repo policy source: `docs/hermes-response-policy.md`.
+
+#### Direct `public_reply` allowlist
+
+Use `public_reply` only for simple, safe guidance that users can execute immediately without staff assistance. The authoritative allowlist is in `docs/hermes-response-policy.md` and covers password-change/login navigation, existing app navigation, safe confirmation messages, general self-service checks with no sensitive context, and non-technical status updates that do not promise dates, root causes, or fixes.
+
+#### Direct `public_reply` denylist
+
+Use `internal_note` instead of `public_reply` when the case is not clearly safe or may require follow-up work. The authoritative denylist is in `docs/hermes-response-policy.md` and covers identity recovery, account compromise, credentials, logs, diagnostics, attachments, internal fields, DB IDs, storage keys, engineering timelines, root-cause commitments, data mutation, manual policy judgment, cross-functional escalation, and any ambiguous safety level.
+
+#### `internal_note` triggers
+
+- Escalation requires staff review, engineering handoff, or risk assessment.
+- User provides potentially identifying details.
+- User report needs manual repro, triage, or policy interpretation.
+- A safe answer is outside the allowlist or includes uncertainty.
+- `public_reply` would risk exposing PII/secrets/diagnostics/attachments/raw ticket data.
+
+See `docs/hermes-response-policy.md` for the complete trigger checklist and examples.
+
+#### GitHub deferral rules
+
+- Do not create GitHub issues from Hermes callbacks in PR 4.
+- If an issue is needed, capture a concise `internal_note` only and route for PR #5 integration.
+- Include impact + reproducibility signals without copying ticket raw text, attachments, diagnostics, or promises.
+- `public_reply` should never mention GitHub issue status or IDs.
+
+#### Scenario -> action examples
+
+- User asks for password reset steps → `public_reply`
+- User asks where a setting is located → `public_reply`
+- User reports duplicate charges or data corruption → `internal_note`
+- User shares logs/diagnostics/attachments for investigation → `internal_note`
+- User requests a guarantee on fix date or timeline → `internal_note`
+- User asks for account recovery or suspicious activity investigation → `internal_note`
+
+#### Safety rules for all Hermes responses
+
+All outbound content (both `public_reply` and `internal_note`) must omit:
+
+- PII: names, emails, phone numbers, free-form identifying details
+- Secrets or secrets-like values: tokens, keys, signed URLs, cookies, bearer values, headers
+- Diagnostics: stack traces, raw request/response payloads, Sentry bodies, memory/CPU details
+- Attachments and attachment metadata, including object keys and raw ticket evidence
+- Raw ticket payloads and internal DB identifiers
+- Promises of engineering fixes, delivery dates, or guaranteed outcomes
+
 ### Resend
 
 | Variable | Required | Notes |
