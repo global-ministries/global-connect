@@ -91,7 +91,16 @@ Hermes uses `event_type` in the JSON body for routing. Do not rely on `X-Hermes-
 
 The `ticket.created` payload is minimal and ID-first for PR 2: `event_type`, stable `delivery_id` shaped as `global-connect:{eventId}`, `ticket.id`, `ticket.internalUrl`, and source system/environment. It must not include raw support titles, descriptions, message bodies, reporter names, emails, phone numbers, church/member details, tokens, cookies, headers, raw Sentry data, diagnostics, signed URLs, R2 object keys, attachment data, GitHub sync fields, or secret values. Hermes can use the internal ticket URL now; callbacks or a future staff-reviewed safe-summary field can enrich later.
 
-The legacy `support/hermes.escalation.requested` foundation event remains a dry-run escalation contract for future reviewed work. The audited inbound path `/api/support/external/inbound` is documented for the existing bridge only; Hermes inbound callbacks/actions are out of scope for this PR.
+The legacy `support/hermes.escalation.requested` foundation event remains a dry-run escalation contract for future reviewed work. The audited inbound path `/api/support/external/inbound` is documented for the existing bridge.
+
+Hermes inbound callbacks are now treated as explicit audit-safe actions. Expected callback actions are:
+
+- `public_reply`: append sanitized public support message (`is_internal = false`).
+- `internal_note`: append sanitized staff-only note (`is_internal = true`) visible only to staff.
+
+Each callback is idempotent by `idempotencyKey`; duplicates return `duplicate: true` and must not write a second message row.
+
+For PR 3, `/api/support/external/inbound` persists the callback audit row and message only; it intentionally does **not** dispatch `support/external.update.received` or trigger staff notifications directly. Downstream support staff actions are deferred to a future durable outbox/replay design that preserves retry safety.
 
 ### Resend
 

@@ -33,6 +33,7 @@ describe('support external inbound route', () => {
   })
 
   beforeEach(() => {
+    jest.resetAllMocks()
     createSupabaseAdminClient.mockReset()
     process.env.SUPPORT_EXTERNAL_BRIDGE_TOKEN = 'bridge-secret'
     process.env.SUPPORT_EXTERNAL_BRIDGE_AUTHOR_USUARIO_ID = '00000000-0000-0000-0000-000000000001'
@@ -58,6 +59,7 @@ describe('support external inbound route', () => {
         ticketId: '11111111-1111-1111-1111-111111111111',
         idempotencyKey: 'external-update-1',
         message: 'External fix is ready. token=secret https://r2.test/private?signature=secret',
+        action: 'public_reply',
       }),
     } as Request)
 
@@ -66,6 +68,31 @@ describe('support external inbound route', () => {
     expect(rpc).toHaveBeenCalledWith('record_support_external_inbound_update', expect.objectContaining({
       p_idempotency_key: 'external-update-1',
       p_message_body: 'External fix is ready. [redacted] [redacted-url]',
+      p_is_internal: false,
+    }))
+  })
+
+  it('handles duplicate inbound callbacks idempotently', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: { event_id: 'event-2', duplicate: true }, error: null })
+    createSupabaseAdminClient.mockReturnValue({
+      rpc,
+    })
+
+    const response = await supportExternalInboundRoute({
+      headers: new Headers([['authorization', 'Bearer bridge-secret']]),
+      json: async () => ({
+        ticketId: '22222222-2222-2222-2222-222222222222',
+        idempotencyKey: 'external-update-2',
+        message: 'Duplicate message payload',
+        action: 'internal_note',
+      }),
+    } as Request)
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ success: true, duplicate: true, eventId: 'event-2' })
+    expect(rpc).toHaveBeenCalledWith('record_support_external_inbound_update', expect.objectContaining({
+      p_idempotency_key: 'external-update-2',
+      p_is_internal: true,
     }))
   })
 

@@ -25,6 +25,14 @@ describe('support operations runbook', () => {
     expect(runbook).toContain('support/external.update.received')
   })
 
+  it('documents PR 3 inbound callback persistence boundary without direct staff dispatch', () => {
+    expect(runbook).toContain('For PR 3')
+    expect(runbook).toContain('/api/support/external/inbound')
+    expect(runbook).toContain('persists the callback audit row and message only')
+    expect(runbook).toContain('does **not** dispatch')
+    expect(runbook).toContain('durable outbox/replay')
+  })
+
   it('documents that /api/inngest remains a custom webhook in safe dual mode', () => {
     expect(runbook).toContain('Safe dual mode')
     expect(runbook).toContain('/api/inngest')
@@ -35,6 +43,8 @@ describe('support operations runbook', () => {
   it('documents Hermes outbound dispatch controls and PR 2 scope boundaries', () => {
     expect(runbook).toContain('support/hermes.escalation.requested')
     expect(runbook).toContain('/api/support/external/inbound')
+    expect(runbook).toContain('public_reply')
+    expect(runbook).toContain('internal_note')
     expect(runbook).toContain('SUPPORT_HERMES_DISPATCH_MODE')
     expect(runbook).toContain('SUPPORT_HERMES_WEBHOOK_URL')
     expect(runbook).toContain('SUPPORT_HERMES_WEBHOOK_SECRET')
@@ -42,6 +52,5 @@ describe('support operations runbook', () => {
     expect(runbook).toContain('ID-first for PR 2')
     expect(runbook).toContain('future staff-reviewed safe-summary field')
     expect(runbook).toContain('Do not rely on `X-Hermes-Event`')
-    expect(runbook).toContain('Inbound callbacks/actions from Hermes are not part of this PR')
   })
 })

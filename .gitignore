@@ -46,6 +46,7 @@ yarn-error.log*
 
 # Generated local review/apply artifacts
 /tmp/
+/artifacts/
 
 # Build artifacts
 tsconfig.tsbuildinfo

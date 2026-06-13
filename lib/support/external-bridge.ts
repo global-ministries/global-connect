@@ -3,10 +3,13 @@ import { timingSafeEqual } from 'crypto'
 
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
+const inboundUpdateActionSchema = z.enum(['public_reply', 'internal_note'])
+
 const inboundUpdateSchema = z.object({
   ticketId: z.string().uuid(),
   idempotencyKey: z.string().trim().min(3).max(120),
   message: z.string().trim().min(1).max(8000),
+  action: inboundUpdateActionSchema,
 })
 
 export type ExternalEscalationInput = {
@@ -99,7 +102,7 @@ export async function processExternalBridgeInboundUpdate(params: ProcessExternal
     targetType: 'support_external_update',
     idempotencyKey: parsed.data.idempotencyKey,
     body: sanitizeExternalBridgeMessage(parsed.data.message),
-    isInternal: false,
+    isInternal: parsed.data.action === 'internal_note',
   })
 
   if (inboundUpdate.duplicate) {
@@ -160,6 +163,7 @@ async function recordSupportExternalInboundUpdate(
       p_author_usuario_id: input.actorUsuarioId,
       p_message_body: input.body,
       p_idempotency_key: input.idempotencyKey,
+      p_is_internal: input.isInternal,
     })
 
   if (error || !data) throw new Error('External support update persistence failed')
