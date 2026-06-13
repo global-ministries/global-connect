@@ -32,9 +32,16 @@ describe('support operations runbook', () => {
     expect(runbook).toContain('compatibility custom webhook')
   })
 
-  it('documents the staged Hermes foundation without live outbound dispatch', () => {
+  it('documents Hermes outbound dispatch controls and PR 2 scope boundaries', () => {
     expect(runbook).toContain('support/hermes.escalation.requested')
     expect(runbook).toContain('/api/support/external/inbound')
-    expect(runbook).toContain('Live outbound HTTP dispatch to Hermes is deferred to PR 2')
+    expect(runbook).toContain('SUPPORT_HERMES_DISPATCH_MODE')
+    expect(runbook).toContain('SUPPORT_HERMES_WEBHOOK_URL')
+    expect(runbook).toContain('SUPPORT_HERMES_WEBHOOK_SECRET')
+    expect(runbook).toContain('event_type')
+    expect(runbook).toContain('ID-first for PR 2')
+    expect(runbook).toContain('future staff-reviewed safe-summary field')
+    expect(runbook).toContain('Do not rely on `X-Hermes-Event`')
+    expect(runbook).toContain('Inbound callbacks/actions from Hermes are not part of this PR')
   })
 })

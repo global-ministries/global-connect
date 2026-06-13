@@ -76,11 +76,22 @@ The app retains `/api/inngest` as a custom authenticated bearer webhook for comp
 
 Workers must fetch ticket data server-side, avoid long user text in events, and never include evidence, attachment URLs, R2 keys, raw Sentry payloads, diagnostics, cookies, tokens, emails beyond the intended recipient, phone numbers, church/member details, or database internals in queued payloads.
 
-### Hermes escalation foundation
+### Hermes outbound dispatch
 
-Hermes support agent integration is a PR 1 contract only. The ID-first event is `support/hermes.escalation.requested`, and the current dispatch helper is dry-run/no-op by default. Live outbound HTTP dispatch to Hermes is deferred to PR 2.
+PR 2 adds outbound Global Connect to Hermes ticket-created dispatch through the official Inngest `support/ticket.created` worker. Inbound callbacks/actions from Hermes are not part of this PR, live Hermes remains disabled unless explicitly configured, and Global Connect must not create GitHub issues.
 
-The sanitized outbound shape contains ticket id, ticket number, title, staff-written summary, recipient, internal ticket URL, idempotency key, and callback URL. The callback remains the audited inbound path `/api/support/external/inbound`. Do not include diagnostics, attachment metadata, signed URLs, R2 object keys, raw Sentry payloads, tokens, cookies, GitHub sync fields, or secret values.
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `SUPPORT_HERMES_DISPATCH_MODE` | Optional | `disabled`, `dry-run`, or `live`. Defaults to `dry-run`, so no network call is made by default. |
+| `SUPPORT_HERMES_WEBHOOK_URL` | Required only for `live` | Hermes route is `POST /webhooks/support-ticket`. |
+| `SUPPORT_HERMES_WEBHOOK_SECRET` | Required only for `live` | Server-only bearer secret. Never log or return this value. |
+| `SUPPORT_HERMES_TIMEOUT_MS` | Optional | Bounded HTTP timeout for live dispatch; defaults to a short safe value. |
+
+Hermes uses `event_type` in the JSON body for routing. Do not rely on `X-Hermes-Event`; Hermes ignored that header in smoke verification.
+
+The `ticket.created` payload is minimal and ID-first for PR 2: `event_type`, stable `delivery_id` shaped as `global-connect:{eventId}`, `ticket.id`, `ticket.internalUrl`, and source system/environment. It must not include raw support titles, descriptions, message bodies, reporter names, emails, phone numbers, church/member details, tokens, cookies, headers, raw Sentry data, diagnostics, signed URLs, R2 object keys, attachment data, GitHub sync fields, or secret values. Hermes can use the internal ticket URL now; callbacks or a future staff-reviewed safe-summary field can enrich later.
+
+The legacy `support/hermes.escalation.requested` foundation event remains a dry-run escalation contract for future reviewed work. The audited inbound path `/api/support/external/inbound` is documented for the existing bridge only; Hermes inbound callbacks/actions are out of scope for this PR.
 
 ### Resend
 
@@ -197,7 +208,7 @@ Operators and reviewers should confirm each item before enabling or reviewing th
 - [ ] Resend sender domain and `NEXT_PUBLIC_SITE_URL` produce authenticated support links for the target environment.
 - [ ] `/api/inngest` still preserves current custom webhook behavior, while `/api/inngest/official` remains the isolated official SDK foundation.
 - [ ] Inngest support events contain IDs only and preserve idempotency keys.
-- [ ] Hermes escalation remains dry-run/no-op until PR 2 live outbound review.
+- [ ] Hermes ticket-created outbound remains `dry-run` or `disabled` unless a reviewed environment explicitly sets `SUPPORT_HERMES_DISPATCH_MODE=live` with server-only URL and secret values.
 - [ ] Email templates exclude evidence, attachments, diagnostics, raw Sentry, R2 keys, GitHub data, and long user text.
 - [ ] Sentry support privacy defaults remain scrubbed and replay is not captured by default.
 - [ ] Rollback plan starts with hiding feature entry points and disabling side effects, not dropping production data.
