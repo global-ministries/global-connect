@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import {
+  buildExternalBridgePayload,
   assertSafeBaseUrl,
   assertStagingEnvironment,
   isObviousProductionHost,
@@ -53,5 +54,23 @@ describe('support smoke staging guards', () => {
       withRouteProtectionBypass('https://bucket.account.r2.cloudflarestorage.com/object', {}, env),
       {}
     )
+  })
+
+  it('builds external bridge payloads per action for idempotency-safe smoke updates', () => {
+    const smokeId = 'smoke-123'
+    const ticketId = '11111111-1111-1111-1111-111111111111'
+
+    const publicReply = buildExternalBridgePayload({ action: 'public_reply', ticketId, smokeId })
+    const internalNote = buildExternalBridgePayload({ action: 'internal_note', ticketId, smokeId })
+
+    assert.equal(publicReply.action, 'public_reply')
+    assert.equal(internalNote.action, 'internal_note')
+    assert.equal(publicReply.ticketId, ticketId)
+    assert.equal(internalNote.ticketId, ticketId)
+    assert.equal(publicReply.idempotencyKey.includes('public_reply'), true)
+    assert.equal(internalNote.idempotencyKey.includes('internal_note'), true)
+    assert.notEqual(publicReply.idempotencyKey, internalNote.idempotencyKey)
+    assert.match(publicReply.message, /Staging smoke bridge public_reply/)
+    assert.match(internalNote.message, /Staging smoke bridge internal_note/)
   })
 })
