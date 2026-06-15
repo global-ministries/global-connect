@@ -22,6 +22,8 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const ticket = result.ticket
   const canManage = ticket.supportCapabilities.includes('support.manage')
   const canStaffReply = canManage || ticket.supportCapabilities.includes('support.reply')
+  const canViewInternalMessages = canManage || ticket.supportCapabilities.includes('support.view') || ticket.supportCapabilities.includes('support.reply')
+  const safeEvents = ticket.events ?? []
 
   async function replyAction(formData: FormData) {
     'use server'
@@ -101,7 +103,10 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               <TarjetaSistema className="space-y-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between lg:flex-none">
                   <SectionHeader eyebrow="Actividad" title="Conversación" />
-                  <TextoSistema variante="muted" tamaño="sm">{ticket.messages.length} {ticket.messages.length === 1 ? 'respuesta pública' : 'respuestas públicas'}</TextoSistema>
+                  <TextoSistema variante="muted" tamaño="sm">
+                    {ticket.messages.length} {ticket.messages.length === 1 ? 'interacción' : 'interacciones'}
+                    {canViewInternalMessages ? '' : ' públicas'}
+                  </TextoSistema>
                 </div>
 
                 <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
@@ -116,7 +121,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                         const roleLabel = isReporter ? 'Solicitante' : 'Soporte'
                         const participant = createParticipant(message.author, roleLabel)
 
-                        return <MessageBubble key={message.id} message={message} participant={participant} roleLabel={roleLabel} isReporter={isReporter} />
+                        return <MessageBubble key={message.id} message={message} participant={participant} roleLabel={roleLabel} isReporter={isReporter} isInternal={message.isInternal ?? false} />
                       })}
                     </div>
                   )}
@@ -161,6 +166,21 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                   ))}
                 </div>
               </TarjetaSistema>
+
+              {canViewInternalMessages && safeEvents.length > 0 && (
+                <TarjetaSistema className="space-y-4 lg:flex-none">
+                  <SectionHeader eyebrow="Staff" title="Actividad" />
+                  <ol className="space-y-3">
+                    {safeEvents.map((event, index) => (
+                      <li key={`${event.type}-${event.createdAt}-${index}`} className="rounded-2xl border border-border bg-muted/20 p-3">
+                        <p className="text-sm font-semibold text-foreground">{formatEventType(event.type)}</p>
+                        <TextoSistema variante="muted" tamaño="sm">{formatMessageTimestamp(event.createdAt)}</TextoSistema>
+                        <SupportEventMetadata event={event} />
+                      </li>
+                    ))}
+                  </ol>
+                </TarjetaSistema>
+              )}
             </aside>
           </div>
         </div>
@@ -220,6 +240,13 @@ type TicketMessage = {
   body: string
   authorUsuarioId?: string
   createdAt: string
+  isInternal?: boolean
+  author: {
+    id: string
+    nombre: string | null
+    apellido: string | null
+    photoUrl: string | null
+  } | null
 }
 
 type TicketAttachment = {
@@ -229,6 +256,31 @@ type TicketAttachment = {
   contentType: string
   byteSize: number
   status: string
+}
+
+type SupportTicketEvent = {
+  type: string
+  createdAt: string
+  actorUsuarioId: string | null
+  metadata: {
+    source?: string
+    status?: string
+    category?: string
+    actor?: string
+  }
+}
+
+function SupportEventMetadata({ event }: { event: SupportTicketEvent }) {
+  const items = [
+    event.actorUsuarioId ? `Actor ${event.actorUsuarioId}` : null,
+    event.metadata.source ? `Origen ${event.metadata.source}` : null,
+    event.metadata.status ? `Estado ${formatSupportStatus(event.metadata.status)}` : null,
+    event.metadata.category ? `Categoría ${formatCategory(event.metadata.category)}` : null,
+    event.metadata.actor ? `Actor ${event.metadata.actor}` : null,
+  ].filter(Boolean)
+
+  if (items.length === 0) return null
+  return <TextoSistema variante="sutil" tamaño="sm">{items.join(' · ')}</TextoSistema>
 }
 
 function AttachmentPreview({ attachment }: { attachment: TicketAttachment }) {
@@ -250,14 +302,15 @@ function getAttachmentRoute(attachmentId: string) {
   return `/api/support/attachments/${attachmentId}/download`
 }
 
-function MessageBubble({ message, participant, roleLabel, isReporter }: { message: TicketMessage; participant: Participant; roleLabel: string; isReporter: boolean }) {
+function MessageBubble({ message, participant, roleLabel, isReporter, isInternal = false }: { message: TicketMessage; participant: Participant; roleLabel: string; isReporter: boolean; isInternal?: boolean }) {
   return (
     <article className={`flex gap-2.5 ${isReporter ? 'justify-start' : 'justify-end'}`}>
       {isReporter && <UserAvatar photoUrl={participant.photoUrl} nombre={participant.nombre} apellido={participant.apellido} size="sm" className="mt-1 ring-2 ring-background" />}
-      <div className={`max-w-[min(92%,42rem)] rounded-2xl border px-3 py-2.5 shadow-sm ${isReporter ? 'rounded-tl-md border-border bg-card/85' : 'rounded-tr-md border-border border-l-4 border-l-[var(--brand-primary)] bg-muted/40'}`}>
+      <div className={`max-w-[min(92%,42rem)] rounded-2xl border px-3 py-2.5 shadow-sm ${isReporter ? 'rounded-tl-md border-border bg-card/85' : 'rounded-tr-md border-border bg-muted/40'} ${isInternal ? 'border-l-4 border-l-amber-500/90 bg-amber-50/35 dark:bg-amber-900/20' : 'border-l-4 border-l-[var(--brand-primary)]'}`}>
         <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <p className="text-sm font-semibold text-foreground">{participant.fullName}</p>
           <span className="text-xs font-medium text-muted-foreground">{roleLabel}</span>
+          {isInternal ? <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-500/60 dark:bg-amber-500/15 dark:text-amber-100">Nota interna</span> : null}
           <time className="text-xs text-muted-foreground" dateTime={message.createdAt}>{formatMessageTimestamp(message.createdAt)}</time>
         </div>
         <TextoSistema tamaño="sm" className="whitespace-pre-wrap leading-relaxed">{message.body}</TextoSistema>
@@ -296,6 +349,18 @@ function formatAttachmentStatus(status: string) {
 
 function formatAttachmentKind(kind: string) {
   return kind === 'video' ? 'Video' : 'Captura'
+}
+
+function formatEventType(type: string) {
+  const labels: Record<string, string> = {
+    'support.ticket.created': 'Ticket creado',
+    'support.reporter_message.created': 'Respuesta del solicitante',
+    'support.staff_reply.created': 'Respuesta de soporte',
+    'support.ticket.status_changed': 'Estado actualizado',
+    'support.ticket.assigned': 'Ticket asignado',
+    'support.ticket.auto_assigned': 'Ticket autoasignado',
+  }
+  return labels[type] ?? type
 }
 
 function isPreviewableImage(contentType: string) {

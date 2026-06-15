@@ -4,6 +4,9 @@ import { join } from 'node:path'
 describe('support operations runbook', () => {
   const runbook = readFileSync(join(process.cwd(), 'docs', 'support-operations.md'), 'utf8')
   const hermesPolicy = readFileSync(join(process.cwd(), 'docs', 'hermes-response-policy.md'), 'utf8')
+  const vercelConfig = JSON.parse(readFileSync(join(process.cwd(), 'vercel.json'), 'utf8')) as {
+    crons?: Array<{ path?: string; schedule?: string }>
+  }
 
   it('documents production release gates and safe degraded behavior', () => {
     expect(runbook).toContain('## Production Readiness Gates')
@@ -39,6 +42,26 @@ describe('support operations runbook', () => {
     expect(runbook).toContain('/api/inngest')
     expect(runbook).toContain('/api/inngest/official')
     expect(runbook).toContain('compatibility custom webhook')
+  })
+
+  it('documents drain-only support event dispatch and scheduler wiring without secret values', () => {
+    expect(runbook).toContain('drain-only')
+    expect(runbook).toContain('POST /api/support/outbox/drain')
+    expect(runbook).toContain('GET /api/support/outbox/drain')
+    expect(runbook).toContain('CRON_SECRET')
+    expect(runbook).toContain('SUPPORT_OUTBOX_DRAIN_SECRET')
+    expect(runbook).toContain('Authorization: Bearer <configured scheduler secret>')
+    expect(runbook).toContain('vercel.json')
+    expect(runbook).toContain('must not directly dispatch provider events')
+    expect(runbook).toContain('returns counts only')
+    expect(runbook).toContain('Transient dispatch failures')
+    expect(runbook).toContain('Unsupported event types are marked `failed`')
+    expect(vercelConfig.crons).toEqual([
+      {
+        path: '/api/support/outbox/drain',
+        schedule: '0 8 * * *',
+      },
+    ])
   })
 
   it('documents Hermes outbound dispatch controls and PR 2 scope boundaries', () => {

@@ -30,6 +30,12 @@ const SUPPORT_EVENT_NAMES = new Set([
   'support/external.update.received',
 ])
 
+const SUPPORT_NOTIFICATION_EVENT_NAMES = new Set([
+  'support/ticket.created',
+  'support/ticket.message.created',
+  'support/ticket.status.changed',
+])
+
 export async function supportInngestRoute(request: Request): Promise<Response> {
   const secret = process.env.SUPPORT_INNGEST_WEBHOOK_SECRET
   if (!secret) {
@@ -51,7 +57,9 @@ export async function supportInngestRoute(request: Request): Promise<Response> {
   }
 
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    await deliverSupportNotificationEvent(toSupportNotificationEvent(event), createSupabaseAdminClient())
+    if (SUPPORT_NOTIFICATION_EVENT_NAMES.has(event.name)) {
+      await deliverSupportNotificationEvent(toSupportNotificationEvent(event), createSupabaseAdminClient())
+    }
   }
 
   return jsonResponse({ accepted: true, eventId: event.data.eventId, name: event.name }, 202)

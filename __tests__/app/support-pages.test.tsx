@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 
 import AyudaPage from '@/app/(auth)/ayuda/page'
 import SupportAdminPage from '@/app/(auth)/ayuda/admin/page'
@@ -45,6 +45,9 @@ jest.mock('@/lib/actions/support.actions', () => ({
         { id: 'message-1', body: 'Public reply', authorUsuarioId: 'reporter-1', author: { id: 'reporter-1', nombre: 'Ana', apellido: 'Pérez', photoUrl: null }, createdAt: '2026-06-09T00:01:00Z' },
         { id: 'message-2', body: 'Support reply', authorUsuarioId: 'staff-1', author: { id: 'staff-1', nombre: 'Soporte', apellido: 'Central', photoUrl: 'https://cdn.example/staff.webp' }, createdAt: '2026-06-09T00:02:00Z' },
       ],
+      events: [
+        { type: 'support.ticket.status_changed', actorUsuarioId: 'staff-1', createdAt: '2026-06-09T00:03:00Z', metadata: { status: 'in_progress', source: 'staff' } },
+      ],
       supportCapabilities: [],
     },
   }),
@@ -71,14 +74,18 @@ describe('reporter support pages', () => {
   })
 
   it('renders the /ayuda home with report and history links', async () => {
-    render(await AyudaPage())
+    await act(async () => {
+      render(await AyudaPage())
+    })
 
     expect(screen.getByRole('link', { name: /Reportar un problema/i })).toHaveAttribute('href', '/ayuda/reportar')
     expect(screen.getByRole('link', { name: /Ver mis tickets/i })).toHaveAttribute('href', '/ayuda/tickets')
   })
 
   it('renders the report form with only reporter-facing fields', async () => {
-    render(await ReportarPage())
+    await act(async () => {
+      render(await ReportarPage())
+    })
 
     expect(screen.getByLabelText(/Asunto/i)).toHaveAttribute('name', 'subject')
     expect(screen.getByLabelText(/Descripcion/i)).toHaveAttribute('name', 'description')
@@ -129,7 +136,9 @@ describe('reporter support pages', () => {
   })
 
   it('renders the reporter ticket history', async () => {
-    render(await TicketsPage())
+    await act(async () => {
+      render(await TicketsPage())
+    })
 
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getByText('Historial de tickets de soporte enviados por ti.')).toBeInTheDocument()
@@ -146,7 +155,9 @@ describe('reporter support pages', () => {
     const { listSupportTickets } = jest.requireMock('@/lib/actions/support.actions') as { listSupportTickets: jest.Mock }
     listSupportTickets.mockResolvedValueOnce({ success: true, tickets: [] })
 
-    render(await TicketsPage())
+    await act(async () => {
+      render(await TicketsPage())
+    })
 
     expect(screen.getByRole('table')).toBeInTheDocument()
     expect(screen.getAllByText('Todavia no has enviado tickets de soporte.')[0]).toBeInTheDocument()
@@ -154,7 +165,9 @@ describe('reporter support pages', () => {
   })
 
   it('renders reporter-visible ticket details and reply form', async () => {
-    render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-1' }) }))
+    await act(async () => {
+      render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-1' }) }))
+    })
 
     expect(screen.getByText('The group map does not load.')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Solicitante/i })).toBeInTheDocument()
@@ -177,6 +190,88 @@ describe('reporter support pages', () => {
     expect(screen.getByLabelText(/Respuesta/i)).toHaveAttribute('name', 'body')
     expect(screen.queryByLabelText(/Respuesta del equipo/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Nuevo estado/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /^Actividad$/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Estado actualizado/i)).not.toBeInTheDocument()
+  })
+
+  it('renders internal note badge only for users with support.view-equivalent capability', async () => {
+    const { getSupportTicketDetail } = jest.requireMock('@/lib/actions/support.actions') as { getSupportTicketDetail: jest.Mock }
+    getSupportTicketDetail.mockResolvedValueOnce({
+      success: true,
+      ticket: {
+        id: 'ticket-5',
+        ticketNumber: 46,
+        title: 'Need internal context',
+        description: 'Support needs private context before answering.',
+        status: 'received',
+        category: 'bug',
+        severity: 'normal',
+        reporterUsuarioId: 'reporter-5',
+        assigneeUsuarioId: 'staff-2',
+        reporter: { id: 'reporter-5', nombre: 'Lucía', apellido: 'García', photoUrl: null },
+        assignee: { id: 'staff-2', nombre: 'Soporte', apellido: 'Senior', photoUrl: 'https://cdn.example/staff-2.webp' },
+        createdAt: '2026-06-10T03:00:00Z',
+        updatedAt: '2026-06-10T03:05:00Z',
+        evidence: { currentRoute: '/dashboard', browserName: 'Chrome', osName: 'macOS', viewport: '1440x900', appBuildVersion: null, sentryEventId: null, diagnosticsConsent: true },
+        attachments: [],
+        messages: [
+          { id: 'message-1', body: 'Internal update for staff', authorUsuarioId: 'staff-2', isInternal: true, author: { id: 'staff-2', nombre: 'Soporte', apellido: 'Senior', photoUrl: 'https://cdn.example/staff-2.webp' }, createdAt: '2026-06-10T03:01:00Z' },
+          { id: 'message-2', body: 'Public follow-up', authorUsuarioId: 'staff-2', isInternal: false, author: { id: 'staff-2', nombre: 'Soporte', apellido: 'Senior', photoUrl: 'https://cdn.example/staff-2.webp' }, createdAt: '2026-06-10T03:02:00Z' },
+        ],
+        events: [
+          { type: 'support.ticket.status_changed', actorUsuarioId: 'staff-2', createdAt: '2026-06-10T03:03:00Z', metadata: { status: 'in_review', source: 'staff', category: 'bug' } },
+        ],
+        supportCapabilities: ['support.view'],
+      },
+    })
+
+    await act(async () => {
+      render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-5' }) }))
+    })
+
+    expect(screen.getByText('Need internal context')).toBeInTheDocument()
+    expect(screen.getByText('Nota interna')).toBeInTheDocument()
+    expect(screen.getByText('Internal update for staff')).toBeInTheDocument()
+    expect(screen.getByText('Public follow-up')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^Actividad$/i })).toBeInTheDocument()
+    expect(screen.getByText('Estado actualizado')).toBeInTheDocument()
+    expect(screen.getByText(/Origen staff/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Private body/i)).not.toBeInTheDocument()
+  })
+
+  it('does not render internal-note badge when message is public-only', async () => {
+    const { getSupportTicketDetail } = jest.requireMock('@/lib/actions/support.actions') as { getSupportTicketDetail: jest.Mock }
+    getSupportTicketDetail.mockResolvedValueOnce({
+      success: true,
+      ticket: {
+        id: 'ticket-6',
+        ticketNumber: 47,
+        title: 'Reporter only context',
+        description: 'No internal notes here.',
+        status: 'received',
+        category: 'other',
+        severity: 'low',
+        reporterUsuarioId: 'reporter-6',
+        assigneeUsuarioId: null,
+        reporter: { id: 'reporter-6', nombre: 'Mauro', apellido: 'López', photoUrl: null },
+        assignee: null,
+        createdAt: '2026-06-10T04:00:00Z',
+        updatedAt: '2026-06-10T04:05:00Z',
+        evidence: { currentRoute: '/dashboard', browserName: 'Chrome', osName: 'macOS', viewport: '1440x900', appBuildVersion: null, sentryEventId: null, diagnosticsConsent: true },
+        attachments: [],
+        messages: [
+          { id: 'message-3', body: 'Public reply only', authorUsuarioId: 'staff-2', isInternal: false, author: { id: 'staff-2', nombre: 'Soporte', apellido: 'Senior', photoUrl: 'https://cdn.example/staff-2.webp' }, createdAt: '2026-06-10T04:01:00Z' },
+        ],
+        supportCapabilities: [],
+      },
+    })
+
+    await act(async () => {
+      render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-6' }) }))
+    })
+
+    expect(screen.getByText('Public reply only')).toBeInTheDocument()
+    expect(screen.queryByText('Nota interna')).not.toBeInTheDocument()
   })
 
   it('renders staff reply and lifecycle controls only when staff capabilities are present', async () => {
@@ -204,7 +299,9 @@ describe('reporter support pages', () => {
       },
     })
 
-    render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-2' }) }))
+    await act(async () => {
+      render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-2' }) }))
+    })
 
     expect(screen.getByLabelText(/Respuesta de soporte/i)).toHaveAttribute('name', 'body')
     expect(screen.getByRole('button', { name: /Enviar respuesta al solicitante/i })).toBeInTheDocument()
@@ -238,7 +335,9 @@ describe('reporter support pages', () => {
       },
     })
 
-    render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-3' }) }))
+    await act(async () => {
+      render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-3' }) }))
+    })
 
     expect(screen.getByLabelText(/Respuesta de soporte/i)).toHaveAttribute('name', 'body')
     expect(screen.getByRole('button', { name: /Enviar respuesta al solicitante/i })).toBeInTheDocument()
@@ -272,7 +371,9 @@ describe('reporter support pages', () => {
       },
     })
 
-    render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-4' }) }))
+    await act(async () => {
+      render(await TicketDetailPage({ params: Promise.resolve({ id: 'ticket-4' }) }))
+    })
 
     expect(screen.queryByLabelText(/Respuesta de soporte/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Enviar respuesta al solicitante/i })).not.toBeInTheDocument()
@@ -281,7 +382,9 @@ describe('reporter support pages', () => {
   })
 
   it('renders the staff queue with search and filter controls', async () => {
-    render(await SupportAdminPage({ searchParams: Promise.resolve({ search: 'attendance', status: 'in_progress', category: 'bug' }) }))
+    await act(async () => {
+      render(await SupportAdminPage({ searchParams: Promise.resolve({ search: 'attendance', status: 'in_progress', category: 'bug' }) }))
+    })
 
     expect(listStaffSupportTickets).toHaveBeenCalledWith({ search: 'attendance', status: 'in_progress', category: 'bug', campusId: undefined, assigneeId: undefined })
     expect(screen.getByRole('searchbox', { name: /Buscar tickets/i })).toHaveValue('attendance')
@@ -296,7 +399,9 @@ describe('reporter support pages', () => {
   })
 
   it('hides staff queue assignment and status transition controls for view-only staff', async () => {
-    render(await SupportAdminPage({ searchParams: Promise.resolve({}) }))
+    await act(async () => {
+      render(await SupportAdminPage({ searchParams: Promise.resolve({}) }))
+    })
 
     expect(screen.queryByLabelText(/Nuevo estado para #43/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Actualizar #43/i })).not.toBeInTheDocument()
@@ -308,7 +413,9 @@ describe('reporter support pages', () => {
   it('renders staff queue assignment and status transition controls for support managers', async () => {
     listStaffSupportTickets.mockResolvedValueOnce({ ...staffQueueResult, supportCapabilities: ['support.view', 'support.manage'] })
 
-    render(await SupportAdminPage({ searchParams: Promise.resolve({}) }))
+    await act(async () => {
+      render(await SupportAdminPage({ searchParams: Promise.resolve({}) }))
+    })
 
     expect(screen.getAllByLabelText(/Nuevo estado para #43/i)[0]).toHaveValue('in_progress')
     expect(screen.getAllByRole('button', { name: /Actualizar #43/i })[0]).toBeInTheDocument()
@@ -322,7 +429,9 @@ describe('reporter support pages', () => {
     createSupabaseServerClient.mockResolvedValue(supabase)
     getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['miembro'] })
 
-    render(await SupportCapabilitiesPage())
+    await act(async () => {
+      render(await SupportCapabilitiesPage())
+    })
 
     expect(screen.getByRole('heading', { name: /Acceso requerido/i })).toBeInTheDocument()
     expect(screen.getByText(/requiere un rol de administracion alto y la capacidad support.manage/i)).toBeInTheDocument()
@@ -334,7 +443,9 @@ describe('reporter support pages', () => {
     createSupabaseServerClient.mockResolvedValue(supabase)
     getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['director-general'] })
 
-    render(await SupportCapabilitiesPage())
+    await act(async () => {
+      render(await SupportCapabilitiesPage())
+    })
 
     expect(screen.getByRole('heading', { name: /Capacidades permitidas/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Otorgar capacidad/i })).toBeInTheDocument()

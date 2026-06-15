@@ -19,6 +19,15 @@ function readSupportTicketSql(): string {
     readMigrationBySuffix('_restrict_support_external_inbound_rpc_visibility_privileges.sql'),
     readMigrationBySuffix('_align_support_capability_hierarchy.sql'),
     readMigrationBySuffix('_add_safe_support_ticket_auto_assignment_rpc.sql'),
+    readAtomicSupportOutboxRpcMigration(),
+  ].join('\n')
+}
+
+function readCurrentSupportTicketSql(): string {
+  return [
+    readSupportTicketSql(),
+    readCloseSupportOutboxBypassesMigration(),
+    readRestrictSupportTicketEventsSelectMigration(),
   ].join('\n')
 }
 
@@ -32,6 +41,30 @@ function readSupportStaffDirectMutationMigration(): string {
 
 function readSupportGrantHardeningMigration(): string {
   return readMigrationBySuffix('_harden_support_table_grants.sql')
+}
+
+function readSupportEventOutboxMigration(): string {
+  return readMigrationBySuffix('_add_support_event_outbox.sql')
+}
+
+function readAtomicSupportOutboxRpcMigration(): string {
+  return readMigrationBySuffix('_add_atomic_support_outbox_rpcs.sql')
+}
+
+function readCloseSupportOutboxBypassesMigration(): string {
+  return readMigrationBySuffix('_close_support_outbox_bypasses.sql')
+}
+
+function readRestrictSupportTicketEventsSelectMigration(): string {
+  return readMigrationBySuffix('_restrict_support_ticket_events_select.sql')
+}
+
+function readSupportOutboxClaimingMigration(): string {
+  return readMigrationBySuffix('_add_support_outbox_claiming.sql')
+}
+
+function readTightenSupportOutboxGrantsMigration(): string {
+  return readMigrationBySuffix('_tighten_support_outbox_grants.sql')
 }
 
 function readMigrationBySuffix(suffix: string): string {
@@ -313,7 +346,7 @@ describe('support ticket system migration', () => {
     expect(revokeRpc).not.toMatch(/\bEXECUTE\b/i)
   })
 
-  it('keeps nullable support capability audit events readable only to higher-role support managers', () => {
+  it('keeps nullable support capability audit events staff-only before final event read hardening', () => {
     const sql = readSupportTicketSql()
     const selectPolicy = latestPolicySqlByName(sql, 'support_events_select')
 
@@ -323,6 +356,21 @@ describe('support ticket system migration', () => {
     expect(selectPolicy).toContain('support_private.has_support_configuration_access()')
     expect(selectPolicy).toContain('st.id = ticket_id')
     expect(selectPolicy).toContain("support_private.has_capability('support.view')")
+  })
+
+  it('hardens direct support event reads to staff-only capability checks', () => {
+    const sql = readCurrentSupportTicketSql()
+    const hardeningSql = readRestrictSupportTicketEventsSelectMigration()
+    const selectPolicy = latestPolicySqlByName(sql, 'support_events_select')
+
+    expect(hardeningSql).toContain('REVOKE SELECT ON TABLE public.support_ticket_events FROM anon')
+    expect(hardeningSql).toContain('DROP POLICY IF EXISTS support_events_select ON public.support_ticket_events')
+    expect(selectPolicy).toContain("support_private.has_capability('support.view')")
+    expect(selectPolicy).not.toContain('reporter_usuario_id')
+    expect(selectPolicy).not.toContain('support_private.current_usuario_id()')
+    expect(selectPolicy).not.toContain('st.id = ticket_id')
+    expect(hardeningSql).not.toMatch(/REVOKE\s+SELECT[^;]*ON TABLE public\.support_ticket_events FROM authenticated/i)
+    expect(hardeningSql).not.toMatch(/REVOKE\s+[^;]*ON TABLE public\.support_ticket_events FROM service_role/i)
   })
 
   it('keeps support capability admin RPC execution limited to authenticated callers', () => {
@@ -458,5 +506,132 @@ describe('support ticket system migration', () => {
     expect(sql).toContain('REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM authenticated')
     expect(sql).toContain('GRANT USAGE, SELECT ON SEQUENCE %s TO authenticated')
     expect(sql).toContain('GRANT ALL PRIVILEGES ON SEQUENCE %s TO service_role')
+  })
+
+  it('adds a service-role-only support event outbox for durable pending dispatch', () => {
+    const sql = readSupportEventOutboxMigration()
+
+    expect(sql).toContain('CREATE TABLE IF NOT EXISTS public.support_event_outbox')
+    expect(sql).toContain('id uuid PRIMARY KEY DEFAULT gen_random_uuid()')
+    expect(sql).toContain('ticket_id uuid NOT NULL REFERENCES public.support_tickets(id) ON DELETE CASCADE')
+    expect(sql).toContain('event_type text NOT NULL')
+    expect(sql).toContain('event_key text NOT NULL UNIQUE')
+    expect(sql).toContain("payload jsonb NOT NULL DEFAULT '{}'::jsonb")
+    expect(sql).toContain("status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'dispatched', 'failed'))")
+    expect(sql).toContain('attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0)')
+    expect(sql).toContain("available_at timestamptz NOT NULL DEFAULT timezone('utc', now())")
+    expect(sql).toContain('CREATE INDEX IF NOT EXISTS support_event_outbox_pending_idx')
+    expect(sql).toContain("WHERE status = 'pending'")
+    expect(sql).toContain('CREATE INDEX IF NOT EXISTS support_event_outbox_ticket_idx')
+    expect(sql).toContain('ALTER TABLE public.support_event_outbox ENABLE ROW LEVEL SECURITY')
+    expect(sql).toContain('REVOKE ALL PRIVILEGES ON TABLE public.support_event_outbox FROM anon')
+    expect(sql).toContain('REVOKE ALL PRIVILEGES ON TABLE public.support_event_outbox FROM authenticated')
+    expect(sql).toContain('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.support_event_outbox TO service_role')
+    expect(sql).not.toMatch(/GRANT\s+ALL(?:\s+PRIVILEGES)?\s+ON TABLE public\.support_event_outbox\s+TO service_role/i)
+    expect(sql).not.toMatch(/GRANT\s+[^;]*ON TABLE public\.support_event_outbox\s+TO (anon|authenticated)\b/i)
+  })
+
+  it('adds atomic support mutation RPCs that insert audit and outbox rows before returning', () => {
+    const sql = readAtomicSupportOutboxRpcMigration()
+
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.create_support_ticket_with_outbox')
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.create_support_ticket_message_with_outbox')
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.create_staff_support_ticket_reply_with_outbox')
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.update_support_ticket_status_with_outbox')
+    expect(sql).toContain('INSERT INTO public.support_ticket_events')
+    expect(sql).toContain('RETURNING id INTO v_event_id')
+    expect(sql).toContain('INSERT INTO public.support_event_outbox (ticket_id, event_type, event_key, payload)')
+    expect(sql).not.toMatch(/EXCEPTION\s+WHEN/i)
+    expect(sql).not.toContain('ON CONFLICT')
+  })
+
+  it('uses the returned audit event id for status outbox keys so repeated statuses are not deduped', () => {
+    const sql = readAtomicSupportOutboxRpcMigration()
+    const statusFunction = sql.match(/CREATE OR REPLACE FUNCTION public\.update_support_ticket_status_with_outbox[\s\S]*?GRANT EXECUTE ON FUNCTION public\.update_support_ticket_status_with_outbox/)?.[0]
+
+    expect(statusFunction).toContain("'support:' || v_event_id::text")
+    expect(statusFunction).toContain("'eventId', v_event_id::text")
+    expect(statusFunction).not.toContain('p_ticket_id::text || p_status')
+    expect(statusFunction).not.toContain('p_ticket_id::text || \':\' || p_status')
+  })
+
+  it('adds service-role-only support outbox claiming with retry locks', () => {
+    const sql = readSupportOutboxClaimingMigration()
+
+    expect(sql).toContain('ADD COLUMN IF NOT EXISTS locked_at timestamptz')
+    expect(sql).toContain("CHECK (status IN ('pending', 'processing', 'dispatched', 'failed'))")
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.claim_support_event_outbox_batch')
+    expect(sql).toContain("SET search_path TO 'public', 'pg_temp'")
+    expect(sql).toContain('FOR UPDATE SKIP LOCKED')
+    expect(sql).toContain("status = 'processing'")
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.claim_support_event_outbox_batch(integer, interval) TO service_role')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.claim_support_event_outbox_batch(integer, interval) FROM authenticated')
+    expect(sql).not.toContain('GRANT EXECUTE ON FUNCTION public.claim_support_event_outbox_batch(integer, interval) TO authenticated')
+  })
+
+  it('tightens support outbox grants and drops stale reporter event insert policy', () => {
+    const sql = readTightenSupportOutboxGrantsMigration()
+
+    expect(sql).toContain('REVOKE TRUNCATE, REFERENCES, TRIGGER ON TABLE public.support_event_outbox FROM service_role')
+    expect(sql).toContain('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.support_event_outbox TO service_role')
+    expect(sql).toContain('DROP POLICY IF EXISTS support_events_reporter_insert ON public.support_ticket_events')
+
+    for (const table of ['support_ticket_events', 'support_event_outbox']) {
+      expect(sql).toContain(`REVOKE INSERT, UPDATE, DELETE ON TABLE public.${table} FROM anon`)
+      expect(sql).toContain(`REVOKE INSERT, UPDATE, DELETE ON TABLE public.${table} FROM authenticated`)
+      expect(sql).not.toMatch(new RegExp(`GRANT\\s+[^;]*\\b(INSERT|UPDATE|DELETE)\\b[^;]*ON TABLE public\\.${table}\\s+TO (anon|authenticated)`, 'i'))
+    }
+
+    expect(sql).not.toMatch(/GRANT\s+ALL(?:\s+PRIVILEGES)?\s+ON TABLE public\.support_event_outbox\s+TO service_role/i)
+    expect(sql).not.toMatch(/GRANT\s+[^;]*\b(TRUNCATE|REFERENCES|TRIGGER)\b[^;]*ON TABLE public\.support_event_outbox\s+TO service_role/i)
+  })
+
+  it('closes direct support ticket, message, and event mutation grants after outbox RPCs exist', () => {
+    const sql = readCloseSupportOutboxBypassesMigration()
+
+    for (const table of ['support_tickets', 'support_ticket_messages', 'support_ticket_events']) {
+      expect(sql).toContain(`REVOKE INSERT, UPDATE, DELETE ON TABLE public.${table} FROM anon`)
+      expect(sql).toContain(`REVOKE INSERT, UPDATE, DELETE ON TABLE public.${table} FROM authenticated`)
+      expect(sql).not.toMatch(new RegExp(`GRANT\\s+[^;]*\\b(INSERT|UPDATE|DELETE)\\b[^;]*ON TABLE public\\.${table}\\s+TO (anon|authenticated)`, 'i'))
+    }
+
+    expect(sql).toContain('DROP POLICY IF EXISTS support_tickets_insert ON public.support_tickets')
+    expect(sql).toContain('DROP POLICY IF EXISTS support_tickets_update ON public.support_tickets')
+    expect(sql).toContain('DROP POLICY IF EXISTS support_messages_insert ON public.support_ticket_messages')
+  })
+
+  it('preserves authenticated attachment inserts for the R2 intent path but blocks direct finalization updates', () => {
+    const sql = readCloseSupportOutboxBypassesMigration()
+
+    expect(sql).toContain('REVOKE UPDATE, DELETE ON TABLE public.support_ticket_attachments FROM anon')
+    expect(sql).toContain('REVOKE UPDATE, DELETE ON TABLE public.support_ticket_attachments FROM authenticated')
+    expect(sql).toContain('Keep authenticated INSERT on support_ticket_attachments')
+    expect(sql).not.toMatch(/REVOKE\s+INSERT[^;]*ON TABLE public\.support_ticket_attachments FROM authenticated/i)
+  })
+
+  it('revokes legacy support mutation RPC execution without touching new outbox RPC grants', () => {
+    const bypassSql = readCloseSupportOutboxBypassesMigration()
+    const atomicRpcSql = readAtomicSupportOutboxRpcMigration()
+
+    for (const signature of [
+      'public.create_staff_support_ticket_reply(uuid, text)',
+      'public.update_support_ticket_status(uuid, text)',
+    ]) {
+      expect(bypassSql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC`)
+      expect(bypassSql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM anon`)
+      expect(bypassSql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM authenticated`)
+      expect(bypassSql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM service_role`)
+      expect(bypassSql).not.toContain(`GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`)
+    }
+
+    for (const signature of [
+      'public.create_support_ticket_with_outbox(text, text, text, text, text, text, text, text, text, boolean)',
+      'public.create_support_ticket_message_with_outbox(uuid, text)',
+      'public.create_staff_support_ticket_reply_with_outbox(uuid, text)',
+      'public.update_support_ticket_status_with_outbox(uuid, text)',
+    ]) {
+      expect(atomicRpcSql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC`)
+      expect(atomicRpcSql).toContain(`GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`)
+    }
   })
 })
