@@ -85,7 +85,7 @@ The scheduler must call the app route, not Inngest directly:
 - Auth: `Authorization: Bearer <configured scheduler secret>`.
 - Required server-only variable: `SUPPORT_OUTBOX_DRAIN_SECRET`.
 - Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` automatically. Configure Vercel `CRON_SECRET` to the same secret value as `SUPPORT_OUTBOX_DRAIN_SECRET`; the route still validates only against `SUPPORT_OUTBOX_DRAIN_SECRET`.
-- Repo scheduler config: `vercel.json` runs `/api/support/outbox/drain` on `*/5 * * * *` UTC. Confirm the Vercel plan supports this cadence before deploy; Hobby plans require a daily cadence.
+- Repo scheduler config: `vercel.json` runs `/api/support/outbox/drain` daily at `0 8 * * *` UTC so the baseline scheduler is compatible with Vercel Hobby limits. Increase cadence only after confirming the target Vercel plan supports it.
 - Do not print, paste, store, or commit the actual secret in runbooks, issue comments, smoke logs, screenshots, or examples.
 
 Expected behavior:

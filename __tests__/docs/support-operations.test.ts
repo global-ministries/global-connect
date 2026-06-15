@@ -59,7 +59,7 @@ describe('support operations runbook', () => {
     expect(vercelConfig.crons).toEqual([
       {
         path: '/api/support/outbox/drain',
-        schedule: '*/5 * * * *',
+        schedule: '0 8 * * *',
       },
     ])
   })
