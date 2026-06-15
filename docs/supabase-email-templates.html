@@ -112,7 +112,7 @@
             <table cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 <td align="center">
-                  <a href="{{ .ConfirmationURL }}" style="background-color:#D06D2D;color:#ffffff;padding:14px 28px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;display:inline-block;">Restablecer contraseña</a>
+                  <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}" style="background-color:#D06D2D;color:#ffffff;padding:14px 28px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;display:inline-block;">Restablecer contraseña</a>
                 </td>
               </tr>
             </table>
@@ -120,7 +120,7 @@
               Si el botón no funciona, copia y pega este enlace en tu navegador:
             </p>
             <p style="color:#6b7280;font-size:12px;line-height:1.5;margin:4px 0 0;word-break:break-all;">
-              {{ .ConfirmationURL }}
+              {{ .RedirectTo }}&token_hash={{ .TokenHash }}
             </p>
           </td>
         </tr>
