@@ -1,5 +1,24 @@
 import { POST } from '@/app/api/inngest/route'
 
+jest.mock('@/lib/support/inngest', () => {
+  const actual = jest.requireActual('@/lib/support/inngest')
+
+  return {
+    ...actual,
+    deliverSupportNotificationEvent: jest.fn(),
+  }
+})
+
+jest.mock('@/lib/supabase/admin', () => ({
+  createSupabaseAdminClient: jest.fn(),
+}))
+
+import { deliverSupportNotificationEvent } from '@/lib/support/inngest'
+
+const mockDeliverSupportNotificationEvent = deliverSupportNotificationEvent as jest.MockedFunction<
+  typeof deliverSupportNotificationEvent
+>
+
 class TestResponseClass {
   status: number
 
@@ -30,6 +49,9 @@ describe('support Inngest route', () => {
 
   beforeEach(() => {
     delete process.env.SUPPORT_INNGEST_WEBHOOK_SECRET
+    process.env.SUPABASE_URL = 'https://example.supabase.co'
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-secret'
+    mockDeliverSupportNotificationEvent.mockClear()
   })
 
   it('rejects unsigned provider requests when a webhook secret is configured', async () => {
@@ -73,5 +95,26 @@ describe('support Inngest route', () => {
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({ error: 'Malformed support event provider payload' })
+  })
+
+  it('accepts external update events without dispatching notification processing', async () => {
+    process.env.SUPPORT_INNGEST_WEBHOOK_SECRET = 'secret-1'
+
+    const response = await POST({
+      headers: new Headers([['authorization', 'Bearer secret-1']]),
+      json: async () => ({
+        name: 'support/external.update.received',
+        id: 'support:event-3',
+        data: { eventId: 'event-3', ticketId: 'ticket-3' },
+      }),
+    } as Request)
+
+    expect(response.status).toBe(202)
+    await expect(response.json()).resolves.toEqual({
+      accepted: true,
+      eventId: 'event-3',
+      name: 'support/external.update.received',
+    })
+    expect(mockDeliverSupportNotificationEvent).not.toHaveBeenCalled()
   })
 })

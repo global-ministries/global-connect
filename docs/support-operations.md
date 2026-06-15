@@ -5,7 +5,7 @@ This runbook covers the operational path for the support ticket system. It is in
 ## Quick Path
 
 1. Confirm the support feature slice being released and review the migration diff before any hosted apply.
-2. Configure server-only provider environment variables for R2, Inngest, Resend, and Sentry/privacy controls in the target environment.
+2. Configure server-only provider environment variables for R2, Inngest, Resend, the support outbox drain scheduler, and Sentry/privacy controls in the target environment.
 3. Apply support migrations only after explicit review approval; do not apply production migrations from an unreviewed local branch.
 4. Verify `/ayuda` reporter flow, staff queue access, private attachment signing, and safe notification payloads with test accounts.
 5. If a rollout issue appears, hide support entry points and disable side effects first; preserve production data unless a reviewed retention/export plan exists.
@@ -16,7 +16,7 @@ This runbook covers the operational path for the support ticket system. It is in
 |------|------|
 | Production Supabase | Migration application is manual, explicit, reviewed, and separate from this documentation change. |
 | R2 | Buckets stay private; signed URLs are issued only after app authorization. |
-| Inngest | Safe dual mode is intentional: `/api/inngest` remains the compatibility custom webhook, while `/api/inngest/official` exposes the official SDK foundation. Events carry IDs only; workers must fetch data after authorization and must be idempotent. |
+| Inngest | Support actions are drain-only: mutations enqueue durable outbox rows, and the protected drain route dispatches provider events. Safe dual mode is intentional: `/api/inngest` remains the compatibility custom webhook, while `/api/inngest/official` exposes the official SDK foundation. Events carry IDs only; workers must fetch data after authorization and must be idempotent. |
 | Resend | Emails contain safe authenticated links only; no evidence, attachments, or raw diagnostics. |
 | Sentry | Support stores Sentry references only; raw payloads, replay media, cookies, headers, and diagnostics are scrubbed. |
 | GitHub | No MVP sync. Future GitHub issues are downstream engineering artifacts only. |
@@ -62,9 +62,11 @@ Operational limits from code and spec:
 - Total active attachments per ticket: max 150 MB.
 - Object keys follow `support/{ticket_id}/{attachment_id}/{safe_filename}`; object keys are not authorization proof.
 
-### Support event processing: safe dual mode
+### Support event processing: drain-only safe dual mode
 
-The app retains `/api/inngest` as a custom authenticated bearer webhook for compatibility with the existing notification path. PR 1 also introduces the official Inngest SDK foundation at `/api/inngest/official` with app id `global-connect`; it must not replace the custom webhook until a later reviewed migration proves equivalent behavior.
+Global Connect owns canonical support state and the durable support event boundary. Ticket creation, reporter public replies, staff public replies, and status changes enqueue `support_event_outbox` rows inside the same database mutation path; actions must not directly dispatch provider events after mutation success. The protected drain route is the only support-event dispatch path.
+
+The app retains `/api/inngest` as a custom authenticated bearer webhook for compatibility with the existing notification path. PR 1 also introduces the official Inngest SDK foundation at `/api/inngest/official` with app id `global-connect`; it must not replace the custom webhook until a later reviewed migration proves equivalent behavior. This remains Safe dual mode, but support mutation dispatch is drain-only.
 
 | Setting | Required | Notes |
 |---------|----------|-------|
@@ -73,6 +75,29 @@ The app retains `/api/inngest` as a custom authenticated bearer webhook for comp
 | Idempotency | Yes | Email keys use `email:{eventId}:{recipient}`. Preserve this shape in any worker integration. |
 | Custom webhook credentials | Existing compatibility path | `SUPPORT_INNGEST_EVENT_URL` and `SUPPORT_INNGEST_WEBHOOK_SECRET` post to `/api/inngest`. Preserve this behavior until replacement is explicitly reviewed. |
 | Official Inngest credentials | Optional foundation path | `SUPPORT_OFFICIAL_INNGEST_ENABLED` and `INNGEST_EVENT_KEY` allow ID-only events to be sent through the official SDK. The official route is `/api/inngest/official`. |
+
+#### Support outbox drain scheduler
+
+The scheduler must call the app route, not Inngest directly:
+
+- Method and path: `POST /api/support/outbox/drain`.
+- Scheduled method and path: `GET /api/support/outbox/drain` via Vercel Cron.
+- Auth: `Authorization: Bearer <configured scheduler secret>`.
+- Required server-only variable: `SUPPORT_OUTBOX_DRAIN_SECRET`.
+- Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` automatically. Configure Vercel `CRON_SECRET` to the same secret value as `SUPPORT_OUTBOX_DRAIN_SECRET`; the route still validates only against `SUPPORT_OUTBOX_DRAIN_SECRET`.
+- Repo scheduler config: `vercel.json` runs `/api/support/outbox/drain` on `*/5 * * * *` UTC. Confirm the Vercel plan supports this cadence before deploy; Hobby plans require a daily cadence.
+- Do not print, paste, store, or commit the actual secret in runbooks, issue comments, smoke logs, screenshots, or examples.
+
+Expected behavior:
+
+- The route returns `503` when `SUPPORT_OUTBOX_DRAIN_SECRET` is missing and `401` for missing/invalid bearer auth.
+- A successful authenticated drain returns counts only: `claimed`, `dispatched`, and `failed`.
+- Allowed durable event types are `support/ticket.created`, `support/ticket.message.created`, and `support/ticket.status.changed`.
+- Successful provider dispatch marks the outbox row `dispatched`.
+- Transient dispatch failures return the row to `pending`, increment `attempts`, record a scrubbed `last_error`, and schedule retry with bounded backoff.
+- Unsupported event types are marked `failed` and are not sent to providers.
+
+Scheduler cadence, hosted environment variables, and secret rotation are deferred operational setup steps. Configure them only in the target runtime after review approval; this repository documentation must never include a real secret value.
 
 Workers must fetch ticket data server-side, avoid long user text in events, and never include evidence, attachment URLs, R2 keys, raw Sentry payloads, diagnostics, cookies, tokens, emails beyond the intended recipient, phone numbers, church/member details, or database internals in queued payloads.
 

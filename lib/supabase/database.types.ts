@@ -2383,6 +2383,59 @@ export type Database = {
           },
         ]
       }
+      support_event_outbox: {
+        Row: {
+          attempts: number
+          available_at: string
+          created_at: string
+          event_key: string
+          event_type: string
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          payload: Json
+          status: string
+          ticket_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          available_at?: string
+          created_at?: string
+          event_key: string
+          event_type: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          payload?: Json
+          status?: string
+          ticket_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          available_at?: string
+          created_at?: string
+          event_key?: string
+          event_type?: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          payload?: Json
+          status?: string
+          ticket_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_event_outbox_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_ticket_attachments: {
         Row: {
           bucket: string
@@ -3861,20 +3914,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      record_support_external_inbound_update: {
-        Args: {
-          p_ticket_id: string
-          p_author_usuario_id: string
-          p_message_body: string
-          p_idempotency_key: string
-          p_is_internal: boolean
-        }
-        Returns: {
-          duplicate: boolean
-          event_id: string
-          message_id: string | null
-        }[]
-      }
       actualizar_rol_miembro: {
         Args: {
           p_auth_id: string
@@ -3947,6 +3986,10 @@ export type Database = {
         }
         Returns: Json
       }
+      assign_support_ticket: {
+        Args: { p_assignee_usuario_id: string; p_ticket_id: string }
+        Returns: undefined
+      }
       buscar_usuarios_para_grupo: {
         Args: {
           p_auth_id: string
@@ -3962,6 +4005,29 @@ export type Database = {
           telefono: string
           ya_es_miembro: boolean
         }[]
+      }
+      claim_support_event_outbox_batch: {
+        Args: { p_limit?: number; p_lock_timeout?: string }
+        Returns: {
+          attempts: number
+          available_at: string
+          created_at: string
+          event_key: string
+          event_type: string
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          payload: Json
+          status: string
+          ticket_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "support_event_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       contar_solicitudes_pendientes: {
         Args: { p_auth_id: string }
@@ -3989,6 +4055,33 @@ export type Database = {
         }
         Returns: Json
       }
+      create_staff_support_ticket_reply: {
+        Args: { p_body: string; p_ticket_id: string }
+        Returns: string
+      }
+      create_staff_support_ticket_reply_with_outbox: {
+        Args: { p_body: string; p_ticket_id: string }
+        Returns: Json
+      }
+      create_support_ticket_message_with_outbox: {
+        Args: { p_body: string; p_ticket_id: string }
+        Returns: Json
+      }
+      create_support_ticket_with_outbox: {
+        Args: {
+          p_app_build_version?: string
+          p_browser_name?: string
+          p_category: string
+          p_current_route?: string
+          p_description: string
+          p_diagnostics_consent?: boolean
+          p_os_name?: string
+          p_sentry_event_id?: string
+          p_subject: string
+          p_viewport?: string
+        }
+        Returns: Json
+      }
       eliminar_miembro_de_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string; p_usuario_id: string }
         Returns: Json
@@ -4013,6 +4106,10 @@ export type Database = {
       es_superadmin: { Args: { p_auth_uid: string }; Returns: boolean }
       expirar_solicitudes_vencidas: { Args: never; Returns: number }
       get_my_internal_id: { Args: never; Returns: string }
+      grant_support_capability: {
+        Args: { p_capability: string; p_target_usuario_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
       listar_eventos_grupo: {
         Args: {
@@ -4348,6 +4445,20 @@ export type Database = {
         Args: { p_target_user_id: string; p_viewer_id: string }
         Returns: boolean
       }
+      record_support_external_inbound_update: {
+        Args: {
+          p_author_usuario_id: string
+          p_idempotency_key: string
+          p_is_internal: boolean
+          p_message_body: string
+          p_ticket_id: string
+        }
+        Returns: {
+          duplicate: boolean
+          event_id: string
+          message_id: string
+        }[]
+      }
       registrar_asistencia: {
         Args: {
           p_asistencias?: Json
@@ -4368,6 +4479,10 @@ export type Database = {
         Returns: Json
       }
       resumen_dashboard_admin: { Args: { p_campus_id?: string }; Returns: Json }
+      revoke_support_capability: {
+        Args: { p_capability: string; p_target_usuario_id: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       sugerir_nombre_grupo: {
@@ -4379,6 +4494,14 @@ export type Database = {
         Returns: string
       }
       tiene_rol_de_liderazgo: { Args: { p_auth_id: string }; Returns: boolean }
+      update_support_ticket_status: {
+        Args: { p_status: string; p_ticket_id: string }
+        Returns: undefined
+      }
+      update_support_ticket_status_with_outbox: {
+        Args: { p_status: string; p_ticket_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       enum_dia_semana:

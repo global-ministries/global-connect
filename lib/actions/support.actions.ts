@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { diagnosticsConsentSchema, sanitizeSupportEvidence } from '@/lib/support/support-evidence'
-import { createSupportTicketCreatedEvent, dispatchSupportInngestEvent } from '@/lib/support/inngest'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
@@ -44,7 +43,6 @@ const SUPPORT_STAFF_QUEUE_ERROR = 'No se pudo cargar la cola de soporte'
 const SUPPORT_STAFF_REPLY_ERROR = 'No se pudo enviar la respuesta de soporte del equipo'
 const SUPPORT_STAFF_ASSIGNMENT_ERROR = 'No se pudo asignar el ticket de soporte'
 const SUPPORT_STAFF_STATUS_ERROR = 'No se pudo actualizar el estado del ticket de soporte'
-const DEFAULT_REPORTER_SEVERITY = 'normal'
 type SupportCapability = 'support.view' | 'support.reply' | 'support.manage'
 type SupportActionResult<T extends Record<string, unknown> = Record<string, never>> = ({ success: true } & T) | { success: false; error: string }
 
@@ -72,8 +70,10 @@ type SupportTicketRow = {
 }
 
 type UsuarioProfileRow = { id: string; nombre: string | null; apellido: string | null; foto_perfil_url: string | null }
-type SupportMessageRow = { id: string; body: string; author_usuario_id: string; created_at: string; author?: UsuarioProfileRow | null }
+type SupportMessageRow = { id: string; body: string; is_internal: boolean; author_usuario_id: string; created_at: string; author?: UsuarioProfileRow | null }
 type SupportAttachmentRow = { id: string; original_filename: string; kind: string; content_type: string; byte_size: number; status: string }
+type SupportTicketEventRow = { action: string; actor_usuario_id: string | null; created_at: string; metadata: unknown }
+type SupportOutboxMutationResult = { ticketId?: string; ticketNumber?: number; messageId?: string; eventId: string; actorUserId: string }
 
 type StaffSupportTicketRow = Pick<SupportTicketRow, 'id' | 'ticket_number' | 'title' | 'status' | 'category' | 'severity' | 'created_at' | 'updated_at'> & {
   assignee_usuario_id: string | null
@@ -90,31 +90,25 @@ export async function createSupportTicket(formData: FormData): Promise<SupportAc
   const actor = await getActorUsuarioId(supabase)
   if (!actor.success) return actor
 
-  const { data, error } = await supabase.from('support_tickets').insert({
-    reporter_usuario_id: actor.usuarioId,
-    status: 'received',
-    title: parsed.data.subject,
-    description: parsed.data.description,
-    category: parsed.data.category,
-    severity: DEFAULT_REPORTER_SEVERITY,
-    ...sanitizeSupportEvidence(parsed.data),
-  }).select('id,ticket_number').single()
+  const evidence = sanitizeSupportEvidence(parsed.data)
+  const { data, error } = await supabase.rpc('create_support_ticket_with_outbox' as never, {
+    p_subject: parsed.data.subject,
+    p_description: parsed.data.description,
+    p_category: parsed.data.category,
+    p_current_route: evidence.current_route,
+    p_browser_name: evidence.browser_name,
+    p_os_name: evidence.os_name,
+    p_viewport: evidence.viewport,
+    p_app_build_version: evidence.app_build_version,
+    p_sentry_event_id: evidence.sentry_event_id,
+    p_diagnostics_consent: evidence.diagnostics_consent,
+  } as never)
 
-  if (error || !data) return { success: false, error: SUPPORT_TICKET_CREATE_ERROR }
+  const mutation = readSupportOutboxMutationResult(data)
+  if (error || !mutation?.ticketId || typeof mutation.ticketNumber !== 'number') return { success: false, error: SUPPORT_TICKET_CREATE_ERROR }
 
-  const audit = await appendSupportTicketEvent(supabase, {
-    ticketId: data.id,
-    actorUsuarioId: actor.usuarioId,
-    action: 'support.ticket.created',
-    targetType: 'support_ticket',
-    targetId: data.id,
-    metadata: { source: 'reporter' },
-  })
-  if (!audit.success) return { success: false, error: SUPPORT_TICKET_CREATE_ERROR }
-
-  await dispatchSupportInngestEvent(createSupportTicketCreatedEvent({ eventId: audit.eventId, ticketId: data.id, actorUserId: actor.usuarioId }))
   revalidatePath('/ayuda/tickets')
-  return { success: true, ticketId: data.id, ticketNumber: data.ticket_number }
+  return { success: true, ticketId: mutation.ticketId, ticketNumber: mutation.ticketNumber }
 }
 
 export async function createSupportTicketFromForm(_previousState: SupportActionResult<{ ticketId: string; ticketNumber: number }> | null, formData: FormData): Promise<SupportActionResult<{ ticketId: string; ticketNumber: number }>> {
@@ -173,8 +167,9 @@ export async function createStaffSupportTicketReply(ticketId: string, formData: 
   const capability = await requireSupportCapability(supabase, actor.usuarioId, 'support.reply')
   if (!capability.success) return capability
 
-  const { error } = await supabase.rpc('create_staff_support_ticket_reply' as never, { p_ticket_id: ticketId, p_body: parsed.data.body } as never)
-  if (error) return { success: false, error: SUPPORT_STAFF_REPLY_ERROR }
+  const { data, error } = await supabase.rpc('create_staff_support_ticket_reply_with_outbox' as never, { p_ticket_id: ticketId, p_body: parsed.data.body } as never)
+  const mutation = readSupportOutboxMutationResult(data)
+  if (error || !mutation?.messageId) return { success: false, error: SUPPORT_STAFF_REPLY_ERROR }
 
   if (options.autoAssignIfUnassigned) {
     const manageCapability = await requireSupportCapability(supabase, actor.usuarioId, 'support.manage')
@@ -216,8 +211,9 @@ export async function updateSupportTicketStatus(ticketId: string, status: string
   const capability = await requireSupportCapability(supabase, actor.usuarioId, 'support.manage')
   if (!capability.success) return capability
 
-  const { error } = await supabase.rpc('update_support_ticket_status' as never, { p_ticket_id: ticketId, p_status: parsed.data } as never)
-  if (error) return { success: false, error: SUPPORT_STAFF_STATUS_ERROR }
+  const { data, error } = await supabase.rpc('update_support_ticket_status_with_outbox' as never, { p_ticket_id: ticketId, p_status: parsed.data } as never)
+  const mutation = readSupportOutboxMutationResult(data)
+  if (error || !mutation) return { success: false, error: SUPPORT_STAFF_STATUS_ERROR }
   await supabase.rpc('auto_assign_support_ticket_if_unassigned' as never, { p_ticket_id: ticketId } as never)
 
   revalidatePath(`/ayuda/tickets/${ticketId}`)
@@ -238,13 +234,19 @@ export async function getSupportTicketDetail(ticketId: string) {
 
   if (error) return { success: false, error: SUPPORT_TICKET_DETAIL_ERROR }
   if (!ticket) return { success: false, error: 'Ticket no encontrado' }
+  const supportCapabilities = await listActorSupportCapabilities(supabase, actor.usuarioId)
 
-  const { data: messages, error: messagesError } = await supabase
+  const hasInternalCapability = hasSupportCapability(supportCapabilities, 'support.view')
+  const messageQuery = supabase
     .from('support_ticket_messages')
-    .select('id,body,author_usuario_id,created_at,author:usuarios!support_ticket_messages_author_usuario_id_fkey(id,nombre,apellido,foto_perfil_url)')
+    .select('id,body,author_usuario_id,created_at,is_internal,author:usuarios!support_ticket_messages_author_usuario_id_fkey(id,nombre,apellido,foto_perfil_url)')
     .eq('ticket_id', ticketId)
-    .eq('is_internal', false)
-    .order('created_at', { ascending: true })
+
+  if (!hasInternalCapability) {
+    messageQuery.eq('is_internal', false)
+  }
+
+  const { data: messages, error: messagesError } = await messageQuery.order('created_at', { ascending: true })
 
   if (messagesError) return { success: false, error: SUPPORT_TICKET_DETAIL_ERROR }
 
@@ -256,9 +258,10 @@ export async function getSupportTicketDetail(ticketId: string) {
     .order('created_at', { ascending: true })
 
   if (attachmentsError) return { success: false, error: SUPPORT_TICKET_DETAIL_ERROR }
-  const supportCapabilities = await listActorSupportCapabilities(supabase, actor.usuarioId)
+  const events = hasInternalCapability ? await fetchSafeSupportTicketEvents(supabase, ticketId) : []
+  if (events === null) return { success: false, error: SUPPORT_TICKET_DETAIL_ERROR }
   const profiles = await fetchVisibleSupportProfiles(ticket as SupportTicketRow, messages ?? [])
-  return { success: true, ticket: toTicketDetail(ticket as SupportTicketRow, messages ?? [], attachments ?? [], supportCapabilities, profiles) }
+  return { success: true, ticket: toTicketDetail(ticket as SupportTicketRow, messages ?? [], attachments ?? [], supportCapabilities, profiles, events) }
 }
 
 export async function createSupportTicketMessage(ticketId: string, formData: FormData) {
@@ -269,79 +272,37 @@ export async function createSupportTicketMessage(ticketId: string, formData: For
   const actor = await getActorUsuarioId(supabase)
   if (!actor.success) return actor
 
-  const messageInsertResult = supabase.from('support_ticket_messages').insert({
-    ticket_id: ticketId,
-    author_usuario_id: actor.usuarioId,
-    body: parsed.data.body,
-    is_internal: false,
-  })
-  const message = await resolveInsertWithOptionalSingle(messageInsertResult)
-
-  if (message.error) return { success: false, error: SUPPORT_TICKET_MESSAGE_ERROR }
-
-  const audit = await appendSupportTicketEvent(supabase, {
-    ticketId,
-    actorUsuarioId: actor.usuarioId,
-    action: 'support.reporter_message.created',
-    targetType: 'support_ticket_message',
-    targetId: message.id ?? null,
-    metadata: { source: 'reporter' },
-  })
-  if (!audit.success) return { success: false, error: SUPPORT_TICKET_MESSAGE_ERROR }
+  const { data, error } = await supabase.rpc('create_support_ticket_message_with_outbox' as never, { p_ticket_id: ticketId, p_body: parsed.data.body } as never)
+  const mutation = readSupportOutboxMutationResult(data)
+  if (error || !mutation?.messageId) return { success: false, error: SUPPORT_TICKET_MESSAGE_ERROR }
 
   revalidatePath(`/ayuda/tickets/${ticketId}`)
   return { success: true }
 }
 
-async function appendSupportTicketEvent(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  input: {
-    ticketId: string
-    actorUsuarioId: string
-    action: string
-    targetType: string
-    targetId: string | null
-    metadata: Record<string, string>
+function readSupportOutboxMutationResult(value: unknown): SupportOutboxMutationResult | null {
+  if (typeof value !== 'object' || value === null) return null
+  const row = value as Record<string, unknown>
+  const eventId = readString(row.eventId)
+  const actorUserId = readString(row.actorUserId)
+  if (!eventId || !actorUserId) return null
+  return {
+    eventId,
+    actorUserId,
+    ticketId: readString(row.ticketId),
+    ticketNumber: readNumber(row.ticketNumber),
+    messageId: readString(row.messageId),
   }
-) {
-  const insertResult = supabase.from('support_ticket_events').insert({
-    ticket_id: input.ticketId,
-    actor_usuario_id: input.actorUsuarioId,
-    action: input.action,
-    target_type: input.targetType,
-    target_id: input.targetId,
-    metadata: input.metadata,
-  })
-  const event = await resolveInsertWithOptionalSingle(insertResult)
-
-  if (event.error) return { success: false as const }
-  return { success: true as const, eventId: event.id ?? `${input.action}:${input.ticketId}` }
 }
 
-async function resolveInsertWithOptionalSingle(insertResult: unknown): Promise<{ id: string | null; error: unknown }> {
-  if (hasSelect(insertResult)) {
-    const selected = insertResult.select('id')
-    if (hasSingle(selected)) {
-      const { data, error } = await selected.single()
-      return { id: readInsertedId(data), error }
-    }
-  }
-
-  const result = await insertResult as { error?: unknown }
-  return { id: null, error: result?.error ?? null }
+function readString(value: unknown) {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
-function hasSelect(value: unknown): value is { select: (columns: string) => unknown } {
-  return typeof value === 'object' && value !== null && 'select' in value && typeof value.select === 'function'
-}
-
-function hasSingle(value: unknown): value is { single: () => Promise<{ data: unknown; error: unknown }> } {
-  return typeof value === 'object' && value !== null && 'single' in value && typeof value.single === 'function'
-}
-
-function readInsertedId(value: unknown) {
-  if (typeof value !== 'object' || value === null || !('id' in value) || typeof value.id !== 'string') return null
-  return value.id
+function readNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value)
+  return undefined
 }
 
 async function getActorUsuarioId(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
@@ -383,7 +344,7 @@ function toTicketSummary(ticket: Omit<SupportTicketRow, 'description' | 'reporte
   return { id: ticket.id, ticketNumber: ticket.ticket_number, title: ticket.title, status: ticket.status, category: ticket.category, severity: ticket.severity, createdAt: ticket.created_at, updatedAt: ticket.updated_at }
 }
 
-function toTicketDetail(ticket: SupportTicketRow, messages: SupportMessageRow[], attachments: SupportAttachmentRow[], supportCapabilities: SupportCapability[], profiles: Map<string, UsuarioProfileRow> = new Map()) {
+function toTicketDetail(ticket: SupportTicketRow, messages: SupportMessageRow[], attachments: SupportAttachmentRow[], supportCapabilities: SupportCapability[], profiles: Map<string, UsuarioProfileRow> = new Map(), events: SafeSupportTicketEvent[] = []) {
   return {
     ...toTicketSummary(ticket),
     description: ticket.description,
@@ -392,10 +353,64 @@ function toTicketDetail(ticket: SupportTicketRow, messages: SupportMessageRow[],
     reporter: toSafeUsuarioProfile(ticket.reporter ?? profiles.get(ticket.reporter_usuario_id)),
     assignee: toSafeUsuarioProfile(ticket.assignee ?? (ticket.assignee_usuario_id ? profiles.get(ticket.assignee_usuario_id) : null)),
     evidence: { currentRoute: ticket.current_route, browserName: ticket.browser_name, osName: ticket.os_name, viewport: ticket.viewport, appBuildVersion: ticket.app_build_version, sentryEventId: ticket.sentry_event_id, diagnosticsConsent: ticket.diagnostics_consent },
-    messages: messages.map((message) => ({ id: message.id, body: message.body, authorUsuarioId: message.author_usuario_id, author: toSafeUsuarioProfile(message.author ?? profiles.get(message.author_usuario_id)), createdAt: message.created_at })),
+    messages: messages.map((message) => ({ id: message.id, body: message.body, isInternal: message.is_internal, authorUsuarioId: message.author_usuario_id, author: toSafeUsuarioProfile(message.author ?? profiles.get(message.author_usuario_id)), createdAt: message.created_at })),
     attachments: attachments.map((attachment) => ({ id: attachment.id, filename: attachment.original_filename, kind: attachment.kind, contentType: attachment.content_type, byteSize: attachment.byte_size, status: attachment.status })),
+    events,
     supportCapabilities,
   }
+}
+
+type SafeSupportTicketEvent = {
+  type: string
+  createdAt: string
+  actorUsuarioId: string | null
+  metadata: {
+    source?: string
+    status?: string
+    category?: string
+    actor?: string
+  }
+}
+
+async function fetchSafeSupportTicketEvents(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, ticketId: string): Promise<SafeSupportTicketEvent[] | null> {
+  const { data, error } = await supabase
+    .from('support_ticket_events')
+    .select('action,actor_usuario_id,created_at,metadata')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true })
+
+  if (error) return null
+  return (data ?? []).map((event) => toSafeSupportTicketEvent(event as SupportTicketEventRow))
+}
+
+function toSafeSupportTicketEvent(event: SupportTicketEventRow): SafeSupportTicketEvent {
+  return {
+    type: event.action,
+    createdAt: event.created_at,
+    actorUsuarioId: event.actor_usuario_id,
+    metadata: pickSafeSupportEventMetadata(event.metadata),
+  }
+}
+
+function pickSafeSupportEventMetadata(metadata: unknown): SafeSupportTicketEvent['metadata'] {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return {}
+  const source = readSafeMetadataString((metadata as Record<string, unknown>).source)
+  const status = readSafeMetadataString((metadata as Record<string, unknown>).status)
+  const category = readSafeMetadataString((metadata as Record<string, unknown>).category)
+  const actor = readSafeMetadataString((metadata as Record<string, unknown>).actor)
+  return {
+    ...(source ? { source } : {}),
+    ...(status ? { status } : {}),
+    ...(category ? { category } : {}),
+    ...(actor ? { actor } : {}),
+  }
+}
+
+function readSafeMetadataString(value: unknown) {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (trimmed.length === 0 || trimmed.length > 120) return undefined
+  return trimmed
 }
 
 async function fetchVisibleSupportProfiles(ticket: SupportTicketRow, messages: SupportMessageRow[]) {
