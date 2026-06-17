@@ -7,9 +7,21 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table'
 import { BadgeSistema, BotonSistema, ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
-export default async function TicketsPage() {
+const TICKET_FILTERS = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'abiertos', label: 'Abiertos' },
+  { value: 'resueltos', label: 'Resueltos' },
+  { value: 'cerrados', label: 'Cerrados' },
+] as const
+
+type TicketFilter = (typeof TICKET_FILTERS)[number]['value']
+
+export default async function TicketsPage({ searchParams }: { searchParams?: Promise<{ estado?: string }> } = {}) {
+  const params = await searchParams
+  const activeFilter = normalizeTicketFilter(params?.estado)
   const result = await listSupportTickets()
   const tickets = result.success ? result.tickets : []
+  const filteredTickets = tickets.filter((ticket) => matchesTicketFilter(ticket.status, activeFilter))
   type TicketSummary = (typeof tickets)[number]
 
   const columns: DataTableColumn<TicketSummary>[] = [
@@ -59,19 +71,48 @@ export default async function TicketsPage() {
   return (
     <DashboardLayout>
       <ContenedorDashboard titulo="Mis tickets de soporte" accionPrincipal={<Link href="/ayuda/reportar"><BotonSistema tamaño="sm">Nuevo ticket</BotonSistema></Link>}>
+        <TicketFilterPills activeFilter={activeFilter} />
         <DataTable
-          rows={tickets}
+          rows={filteredTickets}
           columns={columns}
           getRowKey={(ticket) => ticket.id}
           caption="Historial de tickets de soporte enviados por ti."
           getRowHref={(ticket) => `/ayuda/tickets/${ticket.id}`}
           getRowLabel={(ticket) => `#${ticket.ticketNumber} ${ticket.title}`}
-          emptyState={<TextoSistema variante="sutil">Todavia no has enviado tickets de soporte.</TextoSistema>}
+          emptyState={<TextoSistema variante="sutil">{getEmptyStateMessage(activeFilter)}</TextoSistema>}
           className="hidden md:block"
         />
-        <TicketsMobileList tickets={tickets} />
+        <TicketsMobileList tickets={filteredTickets} emptyMessage={getEmptyStateMessage(activeFilter)} />
       </ContenedorDashboard>
     </DashboardLayout>
+  )
+}
+
+function TicketFilterPills({ activeFilter }: { activeFilter: TicketFilter }) {
+  return (
+    <div className="mb-5 overflow-x-auto">
+      <div className="inline-flex items-center gap-1 rounded-2xl bg-card/60 border border-border/30 p-1 shadow-sm backdrop-blur">
+        {TICKET_FILTERS.map((filter) => {
+          const isActive = filter.value === activeFilter
+          const href = filter.value === 'todos' ? '/ayuda/tickets' : `/ayuda/tickets?estado=${filter.value}`
+
+          return (
+            <Link
+              key={filter.value}
+              href={href}
+              aria-current={isActive ? 'page' : undefined}
+              className={`px-3.5 py-2 text-sm font-medium rounded-xl text-muted-foreground transition-colors hover:bg-muted ${
+                isActive
+                  ? 'bg-orange-500 text-white'
+                  : ''
+              }`}
+            >
+              {filter.label}
+            </Link>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -92,12 +133,12 @@ function TicketIdentity({ ticket }: { ticket: TicketRow }) {
   )
 }
 
-function TicketsMobileList({ tickets }: { tickets: TicketRow[] }) {
+function TicketsMobileList({ tickets, emptyMessage }: { tickets: TicketRow[]; emptyMessage: string }) {
   if (tickets.length === 0) {
     return (
       <TarjetaSistema className="p-8 text-center md:hidden">
         <TicketIcon className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" aria-hidden="true" />
-        <TextoSistema variante="sutil">Todavia no has enviado tickets de soporte.</TextoSistema>
+        <TextoSistema variante="sutil">{emptyMessage}</TextoSistema>
       </TarjetaSistema>
     )
   }
@@ -142,6 +183,22 @@ function TicketsMobileList({ tickets }: { tickets: TicketRow[] }) {
 
 function formatTicketDate(value: string) {
   return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function normalizeTicketFilter(value: string | undefined): TicketFilter {
+  return TICKET_FILTERS.some((filter) => filter.value === value) ? (value as TicketFilter) : 'todos'
+}
+
+function matchesTicketFilter(status: string, filter: TicketFilter) {
+  if (filter === 'todos') return true
+  if (filter === 'abiertos') return ['received', 'in_review', 'in_progress'].includes(status)
+  if (filter === 'resueltos') return status === 'resolved'
+  return status === 'closed'
+}
+
+function getEmptyStateMessage(filter: TicketFilter) {
+  if (filter === 'todos') return 'Todavia no has enviado tickets de soporte.'
+  return 'No hay tickets para este filtro.'
 }
 
 type TicketRow = Awaited<ReturnType<typeof listSupportTickets>> extends { tickets: infer Tickets }

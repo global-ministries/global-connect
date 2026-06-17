@@ -9,14 +9,24 @@ import { BadgeSistema, BotonSistema, ContenedorDashboard, TarjetaSistema, TextoS
 import { SupportTicketQueueStatusForm } from './support-ticket-admin-actions'
 
 type SupportAdminPageProps = {
-  searchParams: Promise<{
+  searchParams?: Promise<{
     search?: string | string[]
     status?: string | string[]
+    estado?: string | string[]
     category?: string | string[]
     campusId?: string | string[]
     assigneeId?: string | string[]
   }>
 }
+
+const SUPPORT_ADMIN_STATUS_FILTERS = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'abiertos', label: 'Abiertos' },
+  { value: 'resueltos', label: 'Resueltos' },
+  { value: 'cerrados', label: 'Cerrados' },
+] as const
+
+type SupportAdminStatusFilter = (typeof SUPPORT_ADMIN_STATUS_FILTERS)[number]['value']
 
 const STATUS_OPTIONS = [
   { valor: '', etiqueta: 'Todos los estados' },
@@ -27,17 +37,18 @@ const STATUS_OPTIONS = [
   { valor: 'closed', etiqueta: 'Cerrado' },
 ]
 
-export default async function SupportAdminPage({ searchParams }: SupportAdminPageProps) {
+export default async function SupportAdminPage({ searchParams }: SupportAdminPageProps = {}) {
   const params = await searchParams
+  const activeStatusFilter = normalizeSupportAdminStatusFilter(emptyToUndefined(params?.estado))
   const filters = {
-    search: emptyToUndefined(params.search),
-    status: emptyToUndefined(params.status),
-    category: emptyToUndefined(params.category),
-    campusId: emptyToUndefined(params.campusId),
-    assigneeId: emptyToUndefined(params.assigneeId),
+    search: emptyToUndefined(params?.search),
+    status: activeStatusFilter === 'todos' ? emptyToUndefined(params?.status) : undefined,
+    category: emptyToUndefined(params?.category),
+    campusId: emptyToUndefined(params?.campusId),
+    assigneeId: emptyToUndefined(params?.assigneeId),
   }
   const result = await listStaffSupportTickets(filters)
-  const tickets = result.success ? result.tickets : []
+  const tickets = result.success ? result.tickets.filter((ticket) => matchesSupportAdminStatusFilter(ticket.status, activeStatusFilter)) : []
   type StaffTicket = (typeof tickets)[number]
   const supportCapabilities = result.success ? result.supportCapabilities ?? [] : []
   const canManage = supportCapabilities.includes('support.manage')
@@ -95,8 +106,11 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
   return (
     <DashboardLayout>
       <ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
-        <details className="group">
-          <summary className="mb-4 flex cursor-pointer list-none items-center justify-end gap-2 rounded-xl focus-ring [&::-webkit-details-marker]:hidden">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <SupportAdminStatusFilterPills activeFilter={activeStatusFilter} params={params} />
+
+          <details className="group shrink-0 sm:relative">
+            <summary className="flex cursor-pointer list-none items-center justify-end gap-2 rounded-xl focus-ring [&::-webkit-details-marker]:hidden">
             <span className="inline-flex min-h-[44px] items-center rounded-xl border-2 border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
               <Filter className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
               <span className="ml-2">Filtros</span>
@@ -106,15 +120,16 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
                 </span>
               )}
             </span>
-          </summary>
-          <form className="mt-4 grid gap-3 rounded-2xl border border-border bg-card/50 p-4 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]" action="/ayuda/admin">
+            </summary>
+            <form className="mt-4 grid gap-3 rounded-2xl border border-border bg-card/50 p-4 md:grid-cols-[minmax(0,1fr)_180px_180px_auto] sm:absolute sm:right-0 sm:top-full sm:z-20 sm:w-[min(48rem,calc(100vw-2rem))]" action="/ayuda/admin">
+            {activeStatusFilter !== 'todos' && <input type="hidden" name="estado" value={activeStatusFilter} />}
             <label className="space-y-2 text-sm font-medium text-foreground">
               <span>Buscar tickets</span>
               <input className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground placeholder:text-muted-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" name="search" type="search" role="searchbox" defaultValue={filters.search ?? ''} placeholder="Numero de ticket, titulo, descripcion" />
             </label>
             <label className="space-y-2 text-sm font-medium text-foreground">
               <span>Estado</span>
-              <select className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" name="status" defaultValue={filters.status ?? ''}>
+              <select className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20 disabled:cursor-not-allowed disabled:opacity-60" name="status" defaultValue={filters.status ?? ''} disabled={activeStatusFilter !== 'todos'}>
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option.valor} value={option.valor}>{option.etiqueta}</option>
                 ))}
@@ -127,8 +142,9 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
             <div className="flex items-end">
               <BotonSistema type="submit" tamaño="sm" className="w-full">Filtrar</BotonSistema>
             </div>
-          </form>
-        </details>
+            </form>
+          </details>
+        </div>
 
         {!result.success ? (
           <TarjetaSistema><TextoSistema variante="sutil">{result.error}</TextoSistema></TarjetaSistema>
@@ -149,6 +165,33 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
         )}
       </ContenedorDashboard>
     </DashboardLayout>
+  )
+}
+
+function SupportAdminStatusFilterPills({ activeFilter, params }: { activeFilter: SupportAdminStatusFilter; params?: Awaited<SupportAdminPageProps['searchParams']> }) {
+  return (
+    <div className="min-w-0 overflow-x-auto">
+      <div className="inline-flex items-center gap-1 rounded-2xl bg-card/60 border border-border/30 p-1 shadow-sm backdrop-blur">
+        {SUPPORT_ADMIN_STATUS_FILTERS.map((filter) => {
+          const isActive = filter.value === activeFilter
+
+          return (
+            <Link
+              key={filter.value}
+              href={buildSupportAdminStatusFilterHref(filter.value, params)}
+              aria-current={isActive ? 'page' : undefined}
+              className={`px-3.5 py-2 text-sm font-medium rounded-xl text-muted-foreground transition-colors hover:bg-muted ${
+                isActive
+                  ? 'bg-orange-500 text-white'
+                  : ''
+              }`}
+            >
+              {filter.label}
+            </Link>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -231,6 +274,34 @@ function formatTicketDate(value: string) {
 function emptyToUndefined(value: string | string[] | undefined) {
   const trimmed = (Array.isArray(value) ? value[0] : value)?.trim()
   return trimmed ? trimmed : undefined
+}
+
+function normalizeSupportAdminStatusFilter(value: string | undefined): SupportAdminStatusFilter {
+  return SUPPORT_ADMIN_STATUS_FILTERS.some((filter) => filter.value === value) ? (value as SupportAdminStatusFilter) : 'todos'
+}
+
+function matchesSupportAdminStatusFilter(status: string, filter: SupportAdminStatusFilter) {
+  if (filter === 'todos') return true
+  if (filter === 'abiertos') return ['received', 'in_review', 'in_progress'].includes(status)
+  if (filter === 'resueltos') return status === 'resolved'
+  return status === 'closed'
+}
+
+function buildSupportAdminStatusFilterHref(filter: SupportAdminStatusFilter, params?: Awaited<SupportAdminPageProps['searchParams']>) {
+  const query = new URLSearchParams()
+  appendQueryValue(query, 'search', params?.search)
+  appendQueryValue(query, 'category', params?.category)
+  appendQueryValue(query, 'campusId', params?.campusId)
+  appendQueryValue(query, 'assigneeId', params?.assigneeId)
+  if (filter !== 'todos') query.set('estado', filter)
+
+  const queryString = query.toString()
+  return queryString ? `/ayuda/admin?${queryString}` : '/ayuda/admin'
+}
+
+function appendQueryValue(query: URLSearchParams, key: string, value: string | string[] | undefined) {
+  const normalizedValue = emptyToUndefined(value)
+  if (normalizedValue) query.set(key, normalizedValue)
 }
 
 type StaffTicketRow = Awaited<ReturnType<typeof listStaffSupportTickets>> extends { tickets: infer Tickets }
