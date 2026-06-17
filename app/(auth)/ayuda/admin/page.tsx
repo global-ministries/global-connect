@@ -106,10 +106,11 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
   return (
     <DashboardLayout>
       <ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
-        <SupportAdminStatusFilterPills activeFilter={activeStatusFilter} params={params} />
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <SupportAdminStatusFilterPills activeFilter={activeStatusFilter} params={params} />
 
-        <details className="group">
-          <summary className="mb-4 flex cursor-pointer list-none items-center justify-end gap-2 rounded-xl focus-ring [&::-webkit-details-marker]:hidden">
+          <details className="group shrink-0 sm:relative">
+            <summary className="flex cursor-pointer list-none items-center justify-end gap-2 rounded-xl focus-ring [&::-webkit-details-marker]:hidden">
             <span className="inline-flex min-h-[44px] items-center rounded-xl border-2 border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
               <Filter className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
               <span className="ml-2">Filtros</span>
@@ -119,15 +120,16 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
                 </span>
               )}
             </span>
-          </summary>
-          <form className="mt-4 grid gap-3 rounded-2xl border border-border bg-card/50 p-4 md:grid-cols-[minmax(0,1fr)_180px_180px_auto]" action="/ayuda/admin">
+            </summary>
+            <form className="mt-4 grid gap-3 rounded-2xl border border-border bg-card/50 p-4 md:grid-cols-[minmax(0,1fr)_180px_180px_auto] sm:absolute sm:right-0 sm:top-full sm:z-20 sm:w-[min(48rem,calc(100vw-2rem))]" action="/ayuda/admin">
+            {activeStatusFilter !== 'todos' && <input type="hidden" name="estado" value={activeStatusFilter} />}
             <label className="space-y-2 text-sm font-medium text-foreground">
               <span>Buscar tickets</span>
               <input className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground placeholder:text-muted-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" name="search" type="search" role="searchbox" defaultValue={filters.search ?? ''} placeholder="Numero de ticket, titulo, descripcion" />
             </label>
             <label className="space-y-2 text-sm font-medium text-foreground">
               <span>Estado</span>
-              <select className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" name="status" defaultValue={filters.status ?? ''}>
+              <select className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20 disabled:cursor-not-allowed disabled:opacity-60" name="status" defaultValue={filters.status ?? ''} disabled={activeStatusFilter !== 'todos'}>
                 {STATUS_OPTIONS.map((option) => (
                   <option key={option.valor} value={option.valor}>{option.etiqueta}</option>
                 ))}
@@ -140,8 +142,9 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
             <div className="flex items-end">
               <BotonSistema type="submit" tamaño="sm" className="w-full">Filtrar</BotonSistema>
             </div>
-          </form>
-        </details>
+            </form>
+          </details>
+        </div>
 
         {!result.success ? (
           <TarjetaSistema><TextoSistema variante="sutil">{result.error}</TextoSistema></TarjetaSistema>
@@ -167,7 +170,7 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
 
 function SupportAdminStatusFilterPills({ activeFilter, params }: { activeFilter: SupportAdminStatusFilter; params?: Awaited<SupportAdminPageProps['searchParams']> }) {
   return (
-    <div className="mb-5 overflow-x-auto">
+    <div className="min-w-0 overflow-x-auto">
       <div className="inline-flex items-center gap-1 rounded-2xl bg-card/60 border border-border/30 p-1 shadow-sm backdrop-blur">
         {SUPPORT_ADMIN_STATUS_FILTERS.map((filter) => {
           const isActive = filter.value === activeFilter
