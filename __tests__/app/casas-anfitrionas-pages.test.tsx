@@ -45,9 +45,28 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
 }))
 jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => ({ success: jest.fn(), error: jest.fn() }) }))
 jest.mock('@/lib/actions/casas-anfitrionas.actions', () => ({ procesarAprobacionCasa: jest.fn() }))
+jest.mock('@/app/(auth)/grupos-vida/casas-anfitrionas/nueva/nueva-casa-client', () => ({
+  NuevaCasaClient: ({ mostrarSelectorUsuario, usuarios }: { mostrarSelectorUsuario: boolean; usuarios: Array<{ label: string }> }) => (
+    <section>
+      <span data-testid="nueva-selector-visible">{String(mostrarSelectorUsuario)}</span>
+      {usuarios.map((usuario) => <p key={usuario.label}>{usuario.label}</p>)}
+    </section>
+  ),
+}))
+jest.mock('@/app/(auth)/grupos-vida/casas-anfitrionas/[id]/editar/editar-casa-client', () => ({
+  EditarCasaClient: ({ mostrarSelectorUsuario, usuarios }: { mostrarSelectorUsuario: boolean; usuarios: Array<{ label: string }> }) => (
+    <section>
+      <span data-testid="editar-selector-visible">{String(mostrarSelectorUsuario)}</span>
+      {usuarios.map((usuario) => <p key={usuario.label}>{usuario.label}</p>)}
+    </section>
+  ),
+}))
 
 const authId = '11111111-1111-1111-1111-111111111111'
 const casaId = '22222222-2222-2222-2222-222222222222'
+const allowedUserId = '33333333-3333-3333-3333-333333333333'
+const deniedUserId = '44444444-4444-4444-4444-444444444444'
+const usedUserId = '55555555-5555-5555-5555-555555555555'
 
 describe('casas anfitrionas App Router permission wiring', () => {
   beforeEach(() => {
@@ -120,9 +139,94 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(screen.queryByRole('button', { name: 'Aprobar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Rechazar' })).not.toBeInTheDocument()
   })
+
+  it('lets the new page render from backend create permissions and filters assignable users through backend predicates', async () => {
+    createSupabaseServerClient.mockResolvedValue(createServerClient({
+      assignableUserIds: [allowedUserId],
+      canCreateForOthers: true,
+      canCreateOwn: true,
+    }))
+    createSupabaseAdminClient.mockReturnValue(createAdminClient({
+      existingCasas: [{ usuario_id: usedUserId, co_anfitrion_id: null }],
+      users: [
+        { id: allowedUserId, nombre: 'Ana', apellido: 'Permitida' },
+        { id: deniedUserId, nombre: 'Beto', apellido: 'Fuera de scope' },
+        { id: usedUserId, nombre: 'Casa', apellido: 'Existente' },
+      ],
+    }))
+    const { default: NuevaCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/nueva/page')
+
+    render(await NuevaCasaAnfitrionaPage())
+
+    const serverClient = await createSupabaseServerClient.mock.results[0].value
+    expect(serverClient.rpc).toHaveBeenCalledWith('obtener_permisos_casa_anfitriona', { p_auth_id: authId })
+    expect(serverClient.rpc).toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', {
+      p_auth_id: authId,
+      p_usuario_id: allowedUserId,
+    })
+    expect(screen.getByTestId('nueva-selector-visible')).toHaveTextContent('true')
+    expect(screen.getByText('Ana Permitida')).toBeInTheDocument()
+    expect(screen.queryByText('Beto Fuera de scope')).not.toBeInTheDocument()
+    expect(screen.queryByText('Casa Existente')).not.toBeInTheDocument()
+  })
+
+  it('denies edit access with the granular edit predicate before enriched admin reads', async () => {
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ canEdit: false }))
+    const { default: EditarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/[id]/editar/page')
+
+    await expect(EditarCasaAnfitrionaPage({ params: Promise.resolve({ id: casaId }) })).rejects.toThrow(
+      'redirect:/grupos-vida/casas-anfitrionas'
+    )
+
+    const serverClient = await createSupabaseServerClient.mock.results[0].value
+    expect(serverClient.rpc).toHaveBeenCalledWith('puede_editar_casa_anfitriona', { p_auth_id: authId, p_casa_id: casaId })
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
+  })
+
+  it('renders edit owner selector from backend edit and create-for-others permissions with assignable users filtered by backend predicates', async () => {
+    createSupabaseServerClient.mockResolvedValue(createServerClient({
+      assignableUserIds: [allowedUserId],
+      canCreateForOthers: true,
+      canEdit: true,
+    }))
+    createSupabaseAdminClient.mockReturnValue(createAdminClient({
+      existingCasas: [{ id: '66666666-6666-6666-6666-666666666666', usuario_id: usedUserId, co_anfitrion_id: null }],
+      users: [
+        { id: allowedUserId, nombre: 'Ana', apellido: 'Permitida' },
+        { id: deniedUserId, nombre: 'Beto', apellido: 'Fuera de scope' },
+        { id: usedUserId, nombre: 'Casa', apellido: 'Existente' },
+      ],
+    }))
+    const { default: EditarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/[id]/editar/page')
+
+    render(await EditarCasaAnfitrionaPage({ params: Promise.resolve({ id: casaId }) }))
+
+    const serverClient = await createSupabaseServerClient.mock.results[0].value
+    expect(serverClient.rpc).toHaveBeenCalledWith('puede_editar_casa_anfitriona', { p_auth_id: authId, p_casa_id: casaId })
+    expect(serverClient.rpc).toHaveBeenCalledWith('obtener_permisos_casa_anfitriona', { p_auth_id: authId, p_casa_id: casaId })
+    expect(serverClient.rpc).toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', {
+      p_auth_id: authId,
+      p_usuario_id: allowedUserId,
+    })
+    expect(serverClient.rpc).toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', {
+      p_auth_id: authId,
+      p_usuario_id: deniedUserId,
+    })
+    expect(serverClient.rpc).not.toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', {
+      p_auth_id: authId,
+      p_usuario_id: usedUserId,
+    })
+    expect(screen.getByTestId('editar-selector-visible')).toHaveTextContent('true')
+    expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
+    expect(screen.getByText('Ana Permitida')).toBeInTheDocument()
+    expect(screen.queryByText('Beto Fuera de scope')).not.toBeInTheDocument()
+    expect(screen.queryByText('Casa Existente')).not.toBeInTheDocument()
+  })
+
 })
 
 function createServerClient(overrides: {
+  assignableUserIds?: string[]
   canApprove?: boolean
   canCreateForOthers?: boolean
   canCreateOwn?: boolean
@@ -132,8 +236,13 @@ function createServerClient(overrides: {
 } = {}) {
   return {
     auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: authId } }, error: null }) },
+    from: jest.fn((table: string) => createServerTableQuery(table)),
     rpc: jest.fn((name: string, args: Record<string, unknown>) => {
       if (name === 'obtener_casas_visibles_ids') return Promise.resolve({ data: overrides.visibleCasaIds ?? [], error: null })
+      if (name === 'puede_crear_casa_anfitriona_para') {
+        return Promise.resolve({ data: overrides.assignableUserIds?.includes(String(args.p_usuario_id)) ?? false, error: null })
+      }
+      if (name === 'puede_editar_casa_anfitriona') return Promise.resolve({ data: overrides.canEdit ?? true, error: null })
       if (name === 'puede_ver_casa_anfitriona') return Promise.resolve({ data: overrides.canViewDetail ?? true, error: null })
       if (name === 'obtener_permisos_casa_anfitriona') {
         return Promise.resolve({
@@ -153,16 +262,37 @@ function createServerClient(overrides: {
   }
 }
 
-function createAdminClient(overrides: { casasListQuery?: ReturnType<typeof createCasasListQuery> } = {}) {
+function createAdminClient(overrides: {
+  casasListQuery?: ReturnType<typeof createCasasListQuery>
+  existingCasas?: Array<{ id?: string | null; usuario_id: string | null; co_anfitrion_id: string | null }>
+  users?: Array<{ id: string; nombre: string; apellido: string }>
+} = {}) {
+  let casasAnfitrionasCalls = 0
+
   return {
     from: jest.fn((table: string) => {
-      if (table === 'casas_anfitrionas') return overrides.casasListQuery ?? createCasasDetailQuery()
+      if (table === 'casas_anfitrionas') {
+        casasAnfitrionasCalls += 1
+        if (overrides.existingCasas && casasAnfitrionasCalls > 1) return createExistingCasasQuery(overrides.existingCasas)
+        return overrides.casasListQuery ?? createCasasDetailQuery()
+      }
       if (table === 'grupos') return createGruposQuery()
       if (table === 'relaciones_usuarios') return createRelacionesQuery()
-      if (table === 'usuarios') return createUsuariosQuery()
+      if (table === 'usuarios') return createUsuariosQuery(overrides.users)
       throw new Error(`Unexpected admin table ${table}`)
     }),
   }
+}
+
+function createServerTableQuery(table: string) {
+  const locationRows: Record<string, unknown[]> = {
+    estados: [],
+    municipios: [],
+    parroquias: [],
+  }
+
+  if (table in locationRows) return createSelectOrderQuery(locationRows[table])
+  throw new Error(`Unexpected server table ${table}`)
 }
 
 function createCasasListQuery(rows: unknown[]) {
@@ -197,6 +327,20 @@ function createCasasDetailQuery() {
   }
 }
 
+function createExistingCasasQuery(rows: Array<{ id?: string | null; usuario_id: string | null; co_anfitrion_id: string | null }> = []) {
+  return {
+    select: jest.fn().mockReturnThis(),
+    then: (resolve: (value: { data: typeof rows; error: null }) => void) => resolve({ data: rows, error: null }),
+  }
+}
+
+function createSelectOrderQuery(rows: unknown[]) {
+  return {
+    order: jest.fn().mockResolvedValue({ data: rows, error: null }),
+    select: jest.fn().mockReturnThis(),
+  }
+}
+
 function createGruposQuery() {
   return {
     select: jest.fn().mockReturnThis(),
@@ -213,8 +357,9 @@ function createRelacionesQuery() {
   }
 }
 
-function createUsuariosQuery() {
+function createUsuariosQuery(rows: Array<{ id: string; nombre: string; apellido: string }> = []) {
   return {
+    order: jest.fn().mockResolvedValue({ data: rows, error: null }),
     select: jest.fn().mockReturnThis(),
     in: jest.fn().mockResolvedValue({ data: null, error: null }),
   }

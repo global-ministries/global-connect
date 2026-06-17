@@ -46,8 +46,8 @@ Strict TDD: write/adjust the failing Jest or SQL-static test before each product
 
 - [x] 4.1 Update `app/(auth)/grupos-vida/casas-anfitrionas/page.tsx` to use backend list visibility and create permissions.
 - [x] 4.2 Update `app/(auth)/grupos-vida/casas-anfitrionas/[id]/page.tsx` to call visibility RPC before enriched `adminDb` detail reads.
-- [ ] 4.3 Update `app/(auth)/grupos-vida/casas-anfitrionas/nueva/page.tsx` and `[id]/editar/page.tsx` to use backend-derived assignable users/permissions.
-- [ ] 4.4 Keep `components/grupos-vida/form-casa-anfitriona.tsx` presentational; remove local role inference and consume passed permissions/options only.
+- [x] 4.3 Update `app/(auth)/grupos-vida/casas-anfitrionas/nueva/page.tsx` and `[id]/editar/page.tsx` to use backend-derived assignable users/permissions.
+- [x] 4.4 Keep `components/grupos-vida/form-casa-anfitriona.tsx` presentational; remove local role inference and consume passed permissions/options only.
 
 ## Phase 5: Verification
 
