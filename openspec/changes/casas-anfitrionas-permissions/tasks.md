@@ -51,4 +51,4 @@ Strict TDD: write/adjust the failing Jest or SQL-static test before each product
 
 ## Phase 5: Verification
 
-- [ ] 5.1 Run targeted Jest tests, `pnpm lint:migrations`, `pnpm test:no-only`, and `pnpm lint`; document any staging-only RPC checks separately.
+- [x] 5.1 Run targeted Jest tests, `pnpm lint:migrations`, `pnpm test:no-only`, and `pnpm lint`; document any staging-only RPC checks separately.
