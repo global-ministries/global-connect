@@ -15,10 +15,11 @@ import {
     SeparadorSistema,
 } from "@/components/ui/sistema-diseno";
 import {
-    Home, MapPin, Users, Calendar, CheckCircle, XCircle,
+    Home, MapPin, Users, Calendar, CheckCircle,
     Pencil, Phone, Mail, FileText, Clock, Info
 } from "lucide-react";
 import { AprobacionCasaClient } from "./aprobacion-client";
+import { obtenerPermisosCasaAnfitrionaUI, puedeVerCasaAnfitrionaUI } from "@/lib/casas-anfitrionas/ui-permissions";
 
 interface PageProps {
     params: Promise<{ id: string }>;
@@ -27,11 +28,14 @@ interface PageProps {
 export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
     const { id } = await params;
     const supabase = await createSupabaseServerClient();
-    const adminDb = createSupabaseAdminClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    // Usar admin para leer los datos completos sin restricciones RLS en joins
+    const puedeVer = await puedeVerCasaAnfitrionaUI(supabase, user.id, id);
+    if (!puedeVer) notFound();
+
+    // Usar admin solo después de validar visibilidad por RPC.
+    const adminDb = createSupabaseAdminClient();
     const { data: casa } = await adminDb
         .from("casas_anfitrionas")
         .select(`
@@ -54,27 +58,7 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
 
     if (!casa) notFound();
 
-    // Verificar permisos de gestión (admin/pastor/director)
-    const { data: puedeGestionar } = await supabase.rpc("puede_gestionar_casas", {
-        p_auth_id: user.id,
-    });
-
-    // Obtener roles del usuario para determinar si puede aprobar
-    const { data: rolesUsuario } = await supabase.rpc("obtener_roles_usuario", {
-        p_auth_id: user.id,
-    });
-    // obtener_roles_usuario retorna text[] directamente
-    const roles: string[] = Array.isArray(rolesUsuario) ? rolesUsuario : [];
-    const puedeAprobar = roles.some((r) => ["admin", "pastor", "director-general"].includes(r));
-
-    // Verificar si es dueño de la casa
-    const { data: currentUser } = await supabase
-        .from("usuarios")
-        .select("id")
-        .eq("auth_id", user.id)
-        .single();
-    const esDueno = currentUser?.id === casa.usuario_id;
-    const puedeEditar = esDueno || puedeGestionar;
+    const permisosCasa = await obtenerPermisosCasaAnfitrionaUI(supabase, user.id, id);
 
     // Contar grupos usando esta casa
     const { count: gruposUsando } = await adminDb
@@ -121,7 +105,7 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
             <ContenedorDashboard
                 titulo={casa.nombre_lugar}
                 botonRegreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
-                accionPrincipal={puedeEditar ? (
+                accionPrincipal={permisosCasa.puedeEditar ? (
                     <Link href={`/grupos-vida/casas-anfitrionas/${id}/editar`}>
                         <BotonSistema variante="outline" icono={Pencil} tamaño="sm">
                             Editar
@@ -351,8 +335,8 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
                             </div>
                         </TarjetaSistema>
 
-                        {/* Aprobación — solo admin/pastor/director (NO líderes) */}
-                        {puedeAprobar && !casa.aprobada && (
+                        {/* Aprobación — definida por el predicado backend granular. */}
+                        {permisosCasa.puedeAprobar && !casa.aprobada && (
                             <AprobacionCasaClient casaId={casa.id} />
                         )}
                     </div>
