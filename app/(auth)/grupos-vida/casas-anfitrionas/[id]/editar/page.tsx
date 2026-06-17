@@ -2,23 +2,21 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { extraerRelacion } from "@/lib/supabase/helpers";
 import { redirect, notFound } from "next/navigation";
-import { getUserWithRoles } from "@/lib/getUserWithRoles";
 import { ContenedorDashboard } from "@/components/ui/sistema-diseno";
 import { EditarCasaClient } from "./editar-casa-client";
 import { z } from "zod";
+import { obtenerUsuariosAsignablesCasaAnfitriona } from "@/lib/casas-anfitrionas/assignable-users";
+import { obtenerPermisosCasaAnfitrionaUI } from "@/lib/casas-anfitrionas/ui-permissions";
 
 interface PageProps {
     params: Promise<{ id: string }>;
 }
 
-/** Roles con capacidad de gestión de casas */
-const ROLES_GESTION = ["admin", "pastor", "director-general", "director-etapa", "lider"];
-
 /**
  * Página de edición de casa anfitriona.
  *
  * Carga los datos actuales de la casa, catálogos de ubicación y
- * lista de miembros asignables (para roles de gestión).
+ * lista de miembros asignables según permisos backend.
  * Renderiza el formulario con datos pre-cargados.
  */
 export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
@@ -27,8 +25,18 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
+    const { data: puedeEditar, error: editPermissionError } = await supabase.rpc("puede_editar_casa_anfitriona", {
+        p_auth_id: user.id,
+        p_casa_id: id,
+    });
+
+    if (editPermissionError || puedeEditar !== true) redirect("/grupos-vida/casas-anfitrionas");
+
+    const permisosCasa = await obtenerPermisosCasaAnfitrionaUI(supabase, user.id, id);
+    const adminDb = createSupabaseAdminClient();
+
     // Cargar casa con todos sus datos
-    const { data: casa } = await supabase
+    const { data: casa } = await adminDb
         .from("casas_anfitrionas")
         .select(`
       *,
@@ -48,21 +56,6 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
         .single();
 
     if (!casa) notFound();
-
-    // Verificar permisos: dueño o con rol de gestión
-    const { data: puedeGestionar } = await supabase.rpc("puede_gestionar_casas", {
-        p_auth_id: user.id,
-    });
-
-    // Obtener userId interno para verificar propiedad
-    const { data: currentUser } = await supabase
-        .from("usuarios")
-        .select("id")
-        .eq("auth_id", user.id)
-        .single();
-
-    const esDueno = currentUser?.id === casa.usuario_id;
-    if (!esDueno && !puedeGestionar) redirect("/grupos-vida/casas-anfitrionas");
 
     // Cargar catálogos de ubicación
     const [{ data: estados }, { data: municipios }, { data: parroquias }] = await Promise.all([
@@ -133,76 +126,18 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
         parentId: p.municipio_id,
     }));
 
-    // Determinar si mostrar selector de usuario
-    const userWithRoles = await getUserWithRoles(supabase);
-    const roles: string[] = userWithRoles?.roles ?? [];
-    const tieneRolGestion = roles.some((r) => ROLES_GESTION.includes(r));
-
-    // Cargar miembros si tiene rol de gestión
-    const usuariosOptions: { value: string; label: string }[] = [];
-    if (tieneRolGestion && currentUser) {
-        const admin = createSupabaseAdminClient();
-        const esAdmin = roles.some((r: string) => ["admin", "pastor", "director-general", "director-etapa"].includes(r));
-
-        let grupoIds: string[] = [];
-
-        if (esAdmin) {
-            // Admin/pastor/director: puede ver todos los grupos activos
-            const { data: todosGrupos } = await admin
-                .from("grupos")
-                .select("id")
-                .eq("activo", true)
-                .eq("eliminado", false);
-            grupoIds = (todosGrupos ?? []).map((g) => g.id);
-        } else {
-            // Líder/colíder: solo sus grupos
-            const { data: gruposLider } = await admin
-                .from("grupo_miembros")
-                .select("grupo_id")
-                .eq("usuario_id", currentUser.id)
-                .in("rol", ["Líder", "Colíder"]);
-            grupoIds = (gruposLider ?? []).map((g) => g.grupo_id);
-        }
-
-        if (grupoIds.length > 0) {
-            const { data: miembrosGrupo } = await admin
-                .from("grupo_miembros")
-                .select("usuario_id, usuarios!grupo_miembros_usuario_id_fkey(id, nombre, apellido)")
-                .in("grupo_id", grupoIds)
-                .eq("activo", true);
-
-            // Filtrar duplicados y excluir miembros que ya tienen casa (excepto la actual)
-            const { data: casasExistentes } = await admin
-                .from("casas_anfitrionas")
-                .select("usuario_id")
-                .neq("id", id);
-
-            const idsConCasa = new Set((casasExistentes ?? []).map((c) => c.usuario_id));
-            const vistos = new Set<string>();
-
-            for (const m of miembrosGrupo ?? []) {
-                const u = extraerRelacion<{ id: string; nombre: string; apellido: string }>(m.usuarios);
-                if (u && !vistos.has(u.id) && !idsConCasa.has(u.id)) {
-                    vistos.add(u.id);
-                    usuariosOptions.push({
-                        value: u.id,
-                        label: `${u.nombre} ${u.apellido}`.trim(),
-                    });
-                }
-            }
-
-            // Incluir al usuario actual de la casa (siempre debe aparecer)
-            if (casa.usuario_id && !vistos.has(casa.usuario_id)) {
-                const usuario = extraerRelacion<{ id: string; nombre: string; apellido: string }>(casa.usuarios);
-                if (usuario) {
-                    usuariosOptions.unshift({
-                        value: usuario.id,
-                        label: `${usuario.nombre} ${usuario.apellido}`.trim(),
-                    });
-                }
-            }
-        }
-    }
+    const usuarioActual = extraerRelacion<{ id: string; nombre: string; apellido: string }>(casa.usuarios);
+    const usuariosOptions = permisosCasa.puedeCrearParaOtros
+        ? await obtenerUsuariosAsignablesCasaAnfitriona({
+            supabase,
+            adminDb,
+            authId: user.id,
+            currentCasaId: id,
+            currentOwner: usuarioActual
+                ? { value: usuarioActual.id, label: `${usuarioActual.nombre} ${usuarioActual.apellido}`.trim() }
+                : null,
+        })
+        : [];
 
     return (
         <ContenedorDashboard
@@ -216,7 +151,7 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
                 municipios={municipiosOptions}
                 parroquias={parroquiasOptions}
                 usuarios={usuariosOptions}
-                mostrarSelectorUsuario={tieneRolGestion}
+                mostrarSelectorUsuario={permisosCasa.puedeCrearParaOtros}
             />
         </ContenedorDashboard>
     );
