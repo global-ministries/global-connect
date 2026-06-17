@@ -3,7 +3,8 @@
 -- Run against local or staging after applying
 -- 20260617161620_casas_anfitrionas_granular_permissions.sql and
 -- 20260617161954_revoke_anon_from_casas_permission_rpcs.sql and
--- 20260617183000_harden_casas_approval_rpc.sql.
+-- 20260617183000_harden_casas_approval_rpc.sql and
+-- 20260617214453_harden_obtener_casas_visibles_ids_rpc.sql.
 -- The harness creates deterministic fixtures and rolls them back.
 
 BEGIN;
@@ -130,6 +131,58 @@ EXCEPTION
   WHEN OTHERS THEN
     IF SQLERRM IS DISTINCT FROM p_expected_message THEN
       RAISE EXCEPTION 'RPC exception check failed: %, expected exception %, got %',
+        p_case,
+        p_expected_message,
+        SQLERRM;
+    END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.assert_uuid_array_contains(
+  p_case text,
+  p_actual uuid[],
+  p_expected_id uuid,
+  p_expected_present boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_actual_present boolean;
+BEGIN
+  v_actual_present := p_expected_id = ANY(COALESCE(p_actual, '{}'));
+
+  IF v_actual_present IS DISTINCT FROM p_expected_present THEN
+    RAISE EXCEPTION 'UUID array check failed: %, expected id % present %, got % in %',
+      p_case,
+      p_expected_id,
+      p_expected_present,
+      v_actual_present,
+      p_actual;
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.assert_uuid_array_rpc_exception(
+  p_case text,
+  p_expected_message text,
+  p_auth_claim uuid,
+  p_call_auth_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', p_auth_claim::text, true);
+  PERFORM public.obtener_casas_visibles_ids(p_call_auth_id);
+
+  RAISE EXCEPTION 'UUID array RPC exception check failed: %, expected exception % but call succeeded',
+    p_case,
+    p_expected_message;
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLERRM IS DISTINCT FROM p_expected_message THEN
+      RAISE EXCEPTION 'UUID array RPC exception check failed: %, expected exception %, got %',
         p_case,
         p_expected_message,
         SQLERRM;
@@ -289,6 +342,20 @@ SELECT pg_temp.assert_permission(
   true
 );
 
+SELECT pg_temp.assert_uuid_array_contains(
+  'obtener_casas_visibles_ids allows matching director etapa auth',
+  public.obtener_casas_visibles_ids(fixture_id('director_etapa_auth_id')),
+  fixture_id('in_scope_house_id'),
+  true
+);
+
+SELECT pg_temp.assert_uuid_array_contains(
+  'obtener_casas_visibles_ids excludes out-of-scope house',
+  public.obtener_casas_visibles_ids(fixture_id('director_etapa_auth_id')),
+  fixture_id('out_of_scope_house_id'),
+  false
+);
+
 SELECT pg_temp.assert_permission(
   'director etapa cannot edit out-of-scope house',
   public.puede_editar_casa_anfitriona(
@@ -325,6 +392,20 @@ SELECT pg_temp.assert_permission(
     fixture_id('in_scope_house_id')
   ),
   false
+);
+
+SELECT pg_temp.assert_uuid_array_rpc_exception(
+  'direct obtener_casas_visibles_ids requires non-null p_auth_id',
+  'auth_id_required',
+  fixture_id('director_etapa_auth_id'),
+  NULL
+);
+
+SELECT pg_temp.assert_uuid_array_rpc_exception(
+  'direct obtener_casas_visibles_ids denies spoofed p_auth_id',
+  'auth_id_spoofed',
+  fixture_id('outsider_auth_id'),
+  fixture_id('admin_auth_id')
 );
 
 SELECT pg_temp.assert_rpc_exception(
