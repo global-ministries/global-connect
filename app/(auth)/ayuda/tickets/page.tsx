@@ -22,7 +22,6 @@ export default async function TicketsPage({ searchParams }: { searchParams?: Pro
   const result = await listSupportTickets()
   const tickets = result.success ? result.tickets : []
   const filteredTickets = tickets.filter((ticket) => matchesTicketFilter(ticket.status, activeFilter))
-  const filterCounts = getTicketFilterCounts(tickets)
   type TicketSummary = (typeof tickets)[number]
 
   const columns: DataTableColumn<TicketSummary>[] = [
@@ -72,7 +71,7 @@ export default async function TicketsPage({ searchParams }: { searchParams?: Pro
   return (
     <DashboardLayout>
       <ContenedorDashboard titulo="Mis tickets de soporte" accionPrincipal={<Link href="/ayuda/reportar"><BotonSistema tamaño="sm">Nuevo ticket</BotonSistema></Link>}>
-        <TicketFilterPills activeFilter={activeFilter} counts={filterCounts} />
+        <TicketFilterPills activeFilter={activeFilter} />
         <DataTable
           rows={filteredTickets}
           columns={columns}
@@ -89,10 +88,10 @@ export default async function TicketsPage({ searchParams }: { searchParams?: Pro
   )
 }
 
-function TicketFilterPills({ activeFilter, counts }: { activeFilter: TicketFilter; counts: Record<TicketFilter, number> }) {
+function TicketFilterPills({ activeFilter }: { activeFilter: TicketFilter }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="inline-flex w-full max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-border bg-card/40 p-1 shadow-sm sm:w-auto">
+    <div className="mb-5 overflow-x-auto">
+      <div className="inline-flex items-center gap-1 rounded-2xl bg-card/60 border border-border/30 p-1 shadow-sm backdrop-blur">
         {TICKET_FILTERS.map((filter) => {
           const isActive = filter.value === activeFilter
           const href = filter.value === 'todos' ? '/ayuda/tickets' : `/ayuda/tickets?estado=${filter.value}`
@@ -102,14 +101,13 @@ function TicketFilterPills({ activeFilter, counts }: { activeFilter: TicketFilte
               key={filter.value}
               href={href}
               aria-current={isActive ? 'page' : undefined}
-              className={`inline-flex min-h-11 flex-shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors focus-ring ${
+              className={`px-3.5 py-2 text-sm font-medium rounded-xl text-muted-foreground transition-colors hover:bg-muted ${
                 isActive
-                  ? 'bg-[var(--brand-primary)] text-white shadow-sm hover:bg-[var(--brand-primary)]/90'
-                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                  ? 'bg-orange-500 text-white'
+                  : ''
               }`}
             >
-              <span>{filter.label}</span>
-              <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>{counts[filter.value]}</span>
+              {filter.label}
             </Link>
           )
         })}
@@ -196,16 +194,6 @@ function matchesTicketFilter(status: string, filter: TicketFilter) {
   if (filter === 'abiertos') return ['received', 'in_review', 'in_progress'].includes(status)
   if (filter === 'resueltos') return status === 'resolved'
   return status === 'closed'
-}
-
-function getTicketFilterCounts(tickets: TicketRow[]): Record<TicketFilter, number> {
-  return TICKET_FILTERS.reduce(
-    (counts, filter) => ({
-      ...counts,
-      [filter.value]: tickets.filter((ticket) => matchesTicketFilter(ticket.status, filter.value)).length,
-    }),
-    {} as Record<TicketFilter, number>
-  )
 }
 
 function getEmptyStateMessage(filter: TicketFilter) {
