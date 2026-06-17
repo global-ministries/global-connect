@@ -7,9 +7,22 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table'
 import { BadgeSistema, BotonSistema, ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
-export default async function TicketsPage() {
+const TICKET_FILTERS = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'abiertos', label: 'Abiertos' },
+  { value: 'resueltos', label: 'Resueltos' },
+  { value: 'cerrados', label: 'Cerrados' },
+] as const
+
+type TicketFilter = (typeof TICKET_FILTERS)[number]['value']
+
+export default async function TicketsPage({ searchParams }: { searchParams?: Promise<{ estado?: string }> } = {}) {
+  const params = await searchParams
+  const activeFilter = normalizeTicketFilter(params?.estado)
   const result = await listSupportTickets()
   const tickets = result.success ? result.tickets : []
+  const filteredTickets = tickets.filter((ticket) => matchesTicketFilter(ticket.status, activeFilter))
+  const filterCounts = getTicketFilterCounts(tickets)
   type TicketSummary = (typeof tickets)[number]
 
   const columns: DataTableColumn<TicketSummary>[] = [
@@ -59,19 +72,49 @@ export default async function TicketsPage() {
   return (
     <DashboardLayout>
       <ContenedorDashboard titulo="Mis tickets de soporte" accionPrincipal={<Link href="/ayuda/reportar"><BotonSistema tamaño="sm">Nuevo ticket</BotonSistema></Link>}>
+        <TicketFilterPills activeFilter={activeFilter} counts={filterCounts} />
         <DataTable
-          rows={tickets}
+          rows={filteredTickets}
           columns={columns}
           getRowKey={(ticket) => ticket.id}
           caption="Historial de tickets de soporte enviados por ti."
           getRowHref={(ticket) => `/ayuda/tickets/${ticket.id}`}
           getRowLabel={(ticket) => `#${ticket.ticketNumber} ${ticket.title}`}
-          emptyState={<TextoSistema variante="sutil">Todavia no has enviado tickets de soporte.</TextoSistema>}
+          emptyState={<TextoSistema variante="sutil">{getEmptyStateMessage(activeFilter)}</TextoSistema>}
           className="hidden md:block"
         />
-        <TicketsMobileList tickets={tickets} />
+        <TicketsMobileList tickets={filteredTickets} emptyMessage={getEmptyStateMessage(activeFilter)} />
       </ContenedorDashboard>
     </DashboardLayout>
+  )
+}
+
+function TicketFilterPills({ activeFilter, counts }: { activeFilter: TicketFilter; counts: Record<TicketFilter, number> }) {
+  return (
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="inline-flex w-full max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-border bg-card/40 p-1 shadow-sm sm:w-auto">
+        {TICKET_FILTERS.map((filter) => {
+          const isActive = filter.value === activeFilter
+          const href = filter.value === 'todos' ? '/ayuda/tickets' : `/ayuda/tickets?estado=${filter.value}`
+
+          return (
+            <Link
+              key={filter.value}
+              href={href}
+              aria-current={isActive ? 'page' : undefined}
+              className={`inline-flex min-h-11 flex-shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors focus-ring ${
+                isActive
+                  ? 'bg-[var(--brand-primary)] text-white shadow-sm hover:bg-[var(--brand-primary)]/90'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+              }`}
+            >
+              <span>{filter.label}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>{counts[filter.value]}</span>
+            </Link>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -92,12 +135,12 @@ function TicketIdentity({ ticket }: { ticket: TicketRow }) {
   )
 }
 
-function TicketsMobileList({ tickets }: { tickets: TicketRow[] }) {
+function TicketsMobileList({ tickets, emptyMessage }: { tickets: TicketRow[]; emptyMessage: string }) {
   if (tickets.length === 0) {
     return (
       <TarjetaSistema className="p-8 text-center md:hidden">
         <TicketIcon className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" aria-hidden="true" />
-        <TextoSistema variante="sutil">Todavia no has enviado tickets de soporte.</TextoSistema>
+        <TextoSistema variante="sutil">{emptyMessage}</TextoSistema>
       </TarjetaSistema>
     )
   }
@@ -142,6 +185,32 @@ function TicketsMobileList({ tickets }: { tickets: TicketRow[] }) {
 
 function formatTicketDate(value: string) {
   return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function normalizeTicketFilter(value: string | undefined): TicketFilter {
+  return TICKET_FILTERS.some((filter) => filter.value === value) ? (value as TicketFilter) : 'todos'
+}
+
+function matchesTicketFilter(status: string, filter: TicketFilter) {
+  if (filter === 'todos') return true
+  if (filter === 'abiertos') return ['received', 'in_review', 'in_progress'].includes(status)
+  if (filter === 'resueltos') return status === 'resolved'
+  return status === 'closed'
+}
+
+function getTicketFilterCounts(tickets: TicketRow[]): Record<TicketFilter, number> {
+  return TICKET_FILTERS.reduce(
+    (counts, filter) => ({
+      ...counts,
+      [filter.value]: tickets.filter((ticket) => matchesTicketFilter(ticket.status, filter.value)).length,
+    }),
+    {} as Record<TicketFilter, number>
+  )
+}
+
+function getEmptyStateMessage(filter: TicketFilter) {
+  if (filter === 'todos') return 'Todavia no has enviado tickets de soporte.'
+  return 'No hay tickets para este filtro.'
 }
 
 type TicketRow = Awaited<ReturnType<typeof listSupportTickets>> extends { tickets: infer Tickets }

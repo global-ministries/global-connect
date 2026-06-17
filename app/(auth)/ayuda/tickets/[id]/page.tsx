@@ -44,9 +44,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const assignee = createParticipant(ticket.assignee, 'Sin asignar')
 
   return (
-    <DashboardLayout className="lg:overflow-hidden">
-      <ContenedorDashboard className="lg:h-full lg:min-h-0" titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
-        <div className="space-y-6 lg:grid lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-4 lg:space-y-0">
+    <DashboardLayout>
+      <ContenedorDashboard titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
+        <div className="space-y-6">
           <TarjetaSistema className="overflow-hidden border-border/70 p-0">
             <div className="border-b border-border bg-muted/20 p-4 sm:p-5">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -73,8 +73,8 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
             </div>
           </TarjetaSistema>
 
-          <div className="grid items-start gap-5 lg:min-h-0 lg:grid-cols-[260px_minmax(0,1fr)_300px] lg:items-stretch xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-            <aside className="order-2 space-y-4 lg:order-1 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-4 lg:overflow-hidden">
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+            <aside className="order-2 space-y-4 lg:order-1 lg:flex lg:flex-col lg:space-y-4">
               <TarjetaSistema className="space-y-3 lg:flex-none">
                 <SectionHeader eyebrow="Contexto" title="Solicitante" />
                 <ParticipantSummary participant={reporter} role="Solicitante" />
@@ -87,9 +87,9 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               </TarjetaSistema>
 
               {ticket.evidence.diagnosticsConsent && (
-                <TarjetaSistema className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
+                <TarjetaSistema className="space-y-4">
                   <SectionHeader eyebrow="Diagnóstico" title="Datos seguros" />
-                  <div className="grid gap-3 text-sm lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                  <div className="grid gap-3 text-sm">
                     <MetadataRow label="Ruta" value={ticket.evidence.currentRoute ?? 'Ruta no disponible'} />
                     <MetadataRow label="Navegador" value={ticket.evidence.browserName ?? 'Navegador no disponible'} />
                     <MetadataRow label="Sistema" value={ticket.evidence.osName ?? 'Sistema operativo no disponible'} />
@@ -99,8 +99,8 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               )}
             </aside>
 
-            <section className="order-1 lg:order-2 lg:min-h-0">
-              <TarjetaSistema className="space-y-4 lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden">
+            <section className="order-1 lg:order-2">
+              <TarjetaSistema className="space-y-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between lg:flex-none">
                   <SectionHeader eyebrow="Actividad" title="Conversación" />
                   <TextoSistema variante="muted" tamaño="sm">
@@ -109,7 +109,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                   </TextoSistema>
                 </div>
 
-                <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                <div>
                   {ticket.messages.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-5 text-center lg:min-h-full lg:content-center">
                       <TextoSistema variante="sutil">Aún no hay respuestas públicas.</TextoSistema>
@@ -133,7 +133,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               </TarjetaSistema>
             </section>
 
-            <aside className="order-3 space-y-5 lg:flex lg:min-h-0 lg:flex-col lg:space-y-0 lg:gap-4 lg:overflow-hidden">
+            <aside className="order-3 space-y-5 lg:col-span-2 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 2xl:col-span-1 2xl:flex 2xl:flex-col 2xl:space-y-0">
               {canManage && (
                 <TarjetaSistema className="space-y-4 lg:flex-none">
                   <SectionHeader eyebrow="Gestión" title="Estado del ticket" />
@@ -141,12 +141,12 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                 </TarjetaSistema>
               )}
 
-              <TarjetaSistema className="space-y-4 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden">
+              <TarjetaSistema className="space-y-4">
                 <div className="flex items-start justify-between gap-3 lg:flex-none">
                   <SectionHeader eyebrow="Evidencia" title="Adjuntos" />
                   <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{ticket.attachments.length}</span>
                 </div>
-                <div className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                <div className="space-y-4">
                   {ticket.attachments.length === 0 ? (
                     <TextoSistema variante="sutil">No hay adjuntos finalizados.</TextoSistema>
                   ) : ticket.attachments.map((attachment) => (
