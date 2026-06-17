@@ -29,7 +29,7 @@ Strict TDD: write/adjust the failing Jest or SQL-static test before each product
 ## Phase 1: RED Permission Contract Tests
 
 - [x] 1.1 Create `__tests__/supabase/casas-anfitrionas-permissions-migration.test.ts` asserting additive SQL, RPC names/grants, `SECURITY DEFINER SET search_path`, and no destructive repair SQL.
-- [ ] 1.2 Create `__tests__/lib/actions/casas-anfitrionas.actions.test.ts` for deny-before-write, granular RPC calls, owner/co-host scope checks, revalidation, and approved sensitive edits.
+- [x] 1.2 Create `__tests__/lib/actions/casas-anfitrionas.actions.test.ts` for deny-before-write, granular RPC calls, owner/co-host scope checks, revalidation, and approved sensitive edits.
 
 ## Phase 2: Supabase Foundation
 
@@ -38,9 +38,9 @@ Strict TDD: write/adjust the failing Jest or SQL-static test before each product
 
 ## Phase 3: Server Enforcement
 
-- [ ] 3.1 Update `lib/actions/casas-anfitrionas.actions.ts` to replace coarse role checks with action-specific RPC permission helpers.
-- [ ] 3.2 In the same file, validate submitted owner, co-host, group, and house ids before any `adminDb` read/write.
-- [ ] 3.3 In the same file, conservatively reject or return approved sensitive edits to pending/review per spec before saving.
+- [x] 3.1 Update `lib/actions/casas-anfitrionas.actions.ts` to replace coarse role checks with action-specific RPC permission helpers.
+- [x] 3.2 In the same file, validate submitted owner, co-host, group, and house ids before any `adminDb` read/write.
+- [x] 3.3 In the same file, conservatively reject or return approved sensitive edits to pending/review per spec before saving.
 
 ## Phase 4: App Router UI Wiring
 
