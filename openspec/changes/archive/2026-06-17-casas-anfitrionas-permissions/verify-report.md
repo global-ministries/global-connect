@@ -174,3 +174,53 @@ App Router page files were exercised by `__tests__/app/casas-anfitrionas-pages.t
 PASS WITH WARNINGS
 
 All required safe verification commands completed successfully, all 12 tasks are complete, and no blocker was found. Warnings are non-blocking repo-wide lint/migration debt and coverage gaps documented above.
+
+## Corrective Addendum — 2026-06-17 Tracker Readiness Blocker
+
+**Scope**: Post-archive hardening for direct execution of legacy `public.obtener_casas_visibles_ids(uuid)`. No production Supabase calls were made.
+
+### Fix
+
+- Added additive migration `supabase/migrations/20260617214453_harden_obtener_casas_visibles_ids_rpc.sql`.
+- The RPC now checks `p_auth_id` before user/role/scope lookup and raises `auth_id_spoofed` for non-`service_role` callers whose `p_auth_id` differs from `auth.uid()`.
+- The SQL harness now asserts the explicit invalid-input contract: `obtener_casas_visibles_ids(NULL)` raises `auth_id_required` before identity comparison or user lookup.
+- Preserved authenticated caller behavior when `p_auth_id = auth.uid()` and kept trusted `service_role` execution available.
+- Explicitly revoked `anon` execution and granted execution to `authenticated, service_role`.
+
+### TDD Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|------|-----------|-------|------------|-----|-------|-------------|----------|
+| Tracker blocker: harden `obtener_casas_visibles_ids` | `__tests__/supabase/casas-anfitrionas-permissions-migration.test.ts`; `supabase/tests/casas-anfitrionas-permissions-rpc.test.sql` | SQL-static + SQL harness | ✅ Baseline targeted Jest passed 14/14 before this corrective evidence edit | ✅ Static test failed on missing SQL harness header / NULL invalid-input coverage | ✅ Focused Casas suites passed 43/43 after harness + static evidence update | ✅ Direct RPC NULL denial, spoof denial, matching director-etapa allow/in-scope, and out-of-scope cases documented | ✅ Minimal evidence-only update; no unrelated docs touched |
+
+### Checks Run
+
+```text
+pnpm test -- __tests__/supabase/casas-anfitrionas-permissions-migration.test.ts --runInBand
+Baseline: passed 14/14 before this corrective evidence edit.
+RED: failed as expected while static evidence required stale header and NULL invalid-input coverage that the SQL harness did not yet contain.
+GREEN: passed 14/14 after adding SQL harness `obtener_casas_visibles_ids(NULL)` coverage and header evidence.
+
+pnpm test -- __tests__/supabase/casas-anfitrionas-permissions-migration.test.ts __tests__/lib/actions/casas-anfitrionas.actions.test.ts __tests__/lib/casas-anfitrionas/ui-permissions.test.ts __tests__/app/casas-anfitrionas-pages.test.tsx --runInBand
+Test Suites: 4 passed, 4 total
+Tests: 43 passed, 43 total
+
+pnpm test -- --runInBand
+Test Suites: 28 passed, 28 total
+Tests: 251 passed, 251 total
+
+pnpm lint:migrations
+Summary: 173 files checked
+Errors: 0
+Warnings: 185
+Info: 128
+
+pnpm test:no-only
+No focused Jest tests found.
+```
+
+`pnpm exec supabase status` showed the local Supabase container was not running (`No such container: supabase_db_Global_Connect`), so the SQL harness was not executed locally in this corrective slice.
+
+### Corrective Verdict
+
+PASS WITH WARNINGS — the tracker readiness blocker is fixed in code and covered by static/SQL-harness evidence. Remaining warning: executable SQL harness still requires a running local/staging Supabase database before deployment.

@@ -49,3 +49,9 @@
 ## Result
 
 The Casas Anfitrionas permissions change has been planned, implemented, verified, synced to main specs, and archived. Tracker PR #180 can now be prepared from `feat/casas-permissions-tracker` with the archive commit included.
+
+## Corrective Addendum — 2026-06-17 Tracker Readiness Blocker
+
+After archive PR #187 merged, fresh tracker readiness review found that legacy `public.obtener_casas_visibles_ids(uuid)` still trusted caller-supplied `p_auth_id` when called directly. The tracker hardening branch adds `supabase/migrations/20260617214453_harden_obtener_casas_visibles_ids_rpc.sql`, extends SQL-static and deterministic SQL-harness evidence for spoofed and `NULL` `p_auth_id` calls, and updates `verify-report.md` with the corrective TDD/check results.
+
+**Corrective status**: blocker fixed with warnings. Static and focused Jest checks pass; direct SQL harness execution still requires a running local/staging Supabase database before production deployment.

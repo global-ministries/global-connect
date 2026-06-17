@@ -15,6 +15,7 @@ const rpcNames = [
 const expectedStagingMigrationFiles = [
   '20260617161620_casas_anfitrionas_granular_permissions.sql',
   '20260617161954_revoke_anon_from_casas_permission_rpcs.sql',
+  '20260617214453_harden_obtener_casas_visibles_ids_rpc.sql',
 ]
 const rpcSignatures = {
   obtener_permisos_casa_anfitriona: 'obtener_permisos_casa_anfitriona(uuid, uuid)',
@@ -53,6 +54,16 @@ function readCasasApprovalHardeningMigration(): string {
   )
 
   if (!file) throw new Error('Missing casas approval RPC hardening migration')
+
+  return readFileSync(join(migrationsDir, file), 'utf8')
+}
+
+function readObtenerCasasVisiblesHardeningMigration(): string {
+  const file = readdirSync(migrationsDir).find((name) =>
+    name.endsWith('_harden_obtener_casas_visibles_ids_rpc.sql'),
+  )
+
+  if (!file) throw new Error('Missing obtener_casas_visibles_ids RPC hardening migration')
 
   return readFileSync(join(migrationsDir, file), 'utf8')
 }
@@ -227,5 +238,34 @@ describe('casas anfitrionas granular permissions migration', () => {
     expect(compacted).toContain("'accion', 'aprobar'")
     expect(compacted).toContain("'estado', 'aprobada'")
     expect(sql).not.toMatch(/TODO|placeholder|manual/i)
+  })
+
+  it('hardens direct legacy visibility RPC execution against spoofed p_auth_id', () => {
+    const sql = readObtenerCasasVisiblesHardeningMigration()
+    const body = functionSql(sql, 'obtener_casas_visibles_ids')
+
+    expect(body).toContain("v_request_role text := nullif(current_setting('request.jwt.claim.role', true), '')")
+    expect(body).toContain("coalesce(v_request_role, '') <> 'service_role'")
+    expect(body).toContain('p_auth_id IS DISTINCT FROM auth.uid()')
+    expect(body.indexOf('p_auth_id IS DISTINCT FROM auth.uid()')).toBeLessThan(
+      body.indexOf('FROM public.usuarios'),
+    )
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.obtener_casas_visibles_ids(uuid) FROM PUBLIC;')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.obtener_casas_visibles_ids(uuid) FROM anon;')
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.obtener_casas_visibles_ids(uuid) TO authenticated, service_role;')
+    expect(sql).not.toMatch(/\bDROP\b|\bTRUNCATE\b|\bDELETE\s+FROM\b|\bINSERT\s+INTO\b|\bUPDATE\s+public\./i)
+  })
+
+  it('documents executable legacy visibility RPC spoof denial and authorized behavior', () => {
+    const sql = readCasasRpcChecks()
+
+    expect(sql).toContain('-- 20260617214453_harden_obtener_casas_visibles_ids_rpc.sql.')
+    expect(sql).toContain('assert_uuid_array_contains(')
+    expect(sql).toContain('assert_uuid_array_rpc_exception(')
+    expect(sql).toContain('obtener_casas_visibles_ids allows matching director etapa auth')
+    expect(sql).toContain('obtener_casas_visibles_ids excludes out-of-scope house')
+    expect(sql).toContain('direct obtener_casas_visibles_ids requires non-null p_auth_id')
+    expect(sql).toContain("'auth_id_required'")
+    expect(sql).toContain('direct obtener_casas_visibles_ids denies spoofed p_auth_id')
   })
 })
