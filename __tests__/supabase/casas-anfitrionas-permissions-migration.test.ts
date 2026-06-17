@@ -47,6 +47,16 @@ function readCasasPermissionsMigration(): string {
   return readFileSync(join(migrationsDir, file), 'utf8')
 }
 
+function readCasasApprovalHardeningMigration(): string {
+  const file = readdirSync(migrationsDir).find((name) =>
+    name.endsWith('_harden_casas_approval_rpc.sql'),
+  )
+
+  if (!file) throw new Error('Missing casas approval RPC hardening migration')
+
+  return readFileSync(join(migrationsDir, file), 'utf8')
+}
+
 function readCasasRpcChecks(): string {
   return readFileSync(
     join(supabaseTestsDir, 'casas-anfitrionas-permissions-rpc.test.sql'),
@@ -188,5 +198,34 @@ describe('casas anfitrionas granular permissions migration', () => {
     expect(types).toContain('Args: { p_auth_id: string; p_casa_id?: string }')
     expect(types).toContain('Args: { p_auth_id: string; p_casa_id: string }')
     expect(types).toContain('Args: { p_auth_id: string; p_usuario_id: string }')
+  })
+
+  it('hardens direct approval RPC execution with caller binding and granular approval permission', () => {
+    const sql = readCasasApprovalHardeningMigration()
+    const body = functionSql(sql, 'procesar_aprobacion_casa_anfitriona')
+
+    expect(body).toContain('p_auth_id IS DISTINCT FROM auth.uid()')
+    expect(body).toContain('public.puede_aprobar_casa_anfitriona(p_auth_id, p_casa_id)')
+    expect(body).not.toContain('public.puede_gestionar_casas')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.procesar_aprobacion_casa_anfitriona(uuid, uuid, text, text) FROM PUBLIC;')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.procesar_aprobacion_casa_anfitriona(uuid, uuid, text, text) FROM anon;')
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.procesar_aprobacion_casa_anfitriona(uuid, uuid, text, text) TO authenticated, service_role;')
+  })
+
+  it('documents executable direct approval RPC behavior for allow, deny, and failure paths', () => {
+    const sql = readCasasRpcChecks()
+    const compacted = compactSql(sql)
+
+    expect(sql).toContain('assert_rpc_exception(')
+    expect(sql).toContain('assert_json_text(')
+    expect(sql).toContain('assert_house_approval_state(')
+    expect(sql).toContain('public.procesar_aprobacion_casa_anfitriona(')
+    expect(sql).toContain('direct approval RPC denies spoofed p_auth_id')
+    expect(sql).toContain('direct approval RPC denies unauthorized director etapa')
+    expect(sql).toContain('direct approval RPC allows authorized admin approval')
+    expect(sql).toContain('direct approval RPC rejects invalid action')
+    expect(compacted).toContain("'accion', 'aprobar'")
+    expect(compacted).toContain("'estado', 'aprobada'")
+    expect(sql).not.toMatch(/TODO|placeholder|manual/i)
   })
 })
