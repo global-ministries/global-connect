@@ -140,6 +140,77 @@ async function validarAuthYPermisos(requiereGestion = false): Promise<{
   return { supabase, userId: usuario.id, authId: user.id };
 }
 
+async function verificarPermisoCasa(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  rpcName:
+    | "puede_aprobar_casa_anfitriona"
+    | "puede_cambiar_estado_casa_anfitriona"
+    | "puede_editar_casa_anfitriona"
+    | "puede_ver_casa_anfitriona",
+  authId: string,
+  casaId: string,
+  error: string
+): Promise<string | null> {
+  const { data: puede, error: rpcError } = await supabase.rpc(rpcName, {
+    p_auth_id: authId,
+    p_casa_id: casaId,
+  });
+
+  if (rpcError) return rpcError.message;
+  return puede ? null : error;
+}
+
+async function verificarUsuarioEnScope(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  authId: string,
+  usuarioId: string,
+  error: string
+): Promise<string | null> {
+  const { data: puede, error: rpcError } = await supabase.rpc(
+    "puede_crear_casa_anfitriona_para",
+    {
+      p_auth_id: authId,
+      p_usuario_id: usuarioId,
+    }
+  );
+
+  if (rpcError) return rpcError.message;
+  return puede ? null : error;
+}
+
+async function validarUsuarioConsultable(usuarioId: string): Promise<string | null> {
+  const { supabase, authId, error } = await validarAuthYPermisos();
+  if (error) return error;
+
+  return verificarUsuarioEnScope(
+    supabase,
+    authId,
+    usuarioId,
+    "No tienes permisos para consultar este usuario"
+  );
+}
+
+function tieneEdicionSensible(datos: z.infer<typeof actualizarCasaSchema>): boolean {
+  return [
+    "capacidad_maxima",
+    "calle",
+    "barrio",
+    "codigo_postal",
+    "co_anfitrion_id",
+    "disponibilidad",
+    "lat",
+    "lng",
+    "parroquia_id",
+    "referencia",
+    "usuario_id",
+  ].some((campo) => campo in datos);
+}
+
+function revalidarCasa(casaId: string): void {
+  revalidatePath("/grupos-vida/casas-anfitrionas");
+  revalidatePath(`/grupos-vida/casas-anfitrionas/${casaId}`);
+}
+
 // ─── Actions ─────────────────────────────────────────────────────────
 
 /** Familiar del usuario con su relación */
@@ -160,6 +231,9 @@ export async function obtenerRelacionesFamiliares(
     usuarioId: string
 ): Promise<ResultadoAccion<FamiliarRelacion[]>> {
     try {
+        const scopeError = await validarUsuarioConsultable(usuarioId);
+        if (scopeError) return { success: false, error: scopeError };
+
         const adminDb = createSupabaseAdminClient();
 
         const { data, error } = await adminDb
@@ -232,11 +306,10 @@ export async function obtenerDireccionUsuario(
   usuarioId: string
 ): Promise<ResultadoAccion<DireccionUsuario>> {
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: "No autenticado" };
+    const scopeError = await validarUsuarioConsultable(usuarioId);
+    if (scopeError) return { success: false, error: scopeError };
 
-    // Usar admin para bypasear RLS (el rol ya fue validado al cargar la página)
+    // Usar admin después de validar scope con RPC para obtener joins enriquecidos.
     const admin = createSupabaseAdminClient();
     const { data: usuario } = await admin
       .from("usuarios")
@@ -300,24 +373,29 @@ export async function crearCasaAnfitriona(
     const { supabase, userId, authId, error } = await validarAuthYPermisos();
     if (error) return { success: false, error };
 
-    // Determinar el propietario: si se pasa usuario_id y el creador tiene rol de gestión, usar ese
-    let propietarioId = userId;
-    let puedeGestionar = false;
-    if (parsed.usuario_id && parsed.usuario_id !== userId) {
-      const { data: puede } = await supabase.rpc("puede_gestionar_casas", {
-        p_auth_id: authId,
-      });
-      if (puede) {
-        propietarioId = parsed.usuario_id;
-        puedeGestionar = true;
-      }
+    const propietarioId = parsed.usuario_id ?? userId;
+    const ownerScopeError = await verificarUsuarioEnScope(
+      supabase,
+      authId,
+      propietarioId,
+      "No tienes permisos para crear una casa para este usuario"
+    );
+    if (ownerScopeError) return { success: false, error: ownerScopeError };
+
+    if (parsed.co_anfitrion_id) {
+      const coHostScopeError = await verificarUsuarioEnScope(
+        supabase,
+        authId,
+        parsed.co_anfitrion_id,
+        "No tienes permisos para asignar este co-anfitrión"
+      );
+      if (coHostScopeError) return { success: false, error: coHostScopeError };
     }
 
-    // Usar admin client si se asigna a otro usuario (RLS solo permite insertar para sí mismo)
-    const dbInsert = puedeGestionar ? createSupabaseAdminClient() : supabase;
+    const adminDb = createSupabaseAdminClient();
 
     // 1. Crear dirección con lat/lng
-    const { data: direccion, error: dirError } = await dbInsert
+    const { data: direccion, error: dirError } = await adminDb
       .from("direcciones")
       .insert({
         calle: parsed.calle,
@@ -339,7 +417,7 @@ export async function crearCasaAnfitriona(
       disponible: true,
     }));
 
-    const { data: casa, error: casaError } = await dbInsert
+    const { data: casa, error: casaError } = await adminDb
       .from("casas_anfitrionas")
       .insert({
         usuario_id: propietarioId,
@@ -379,25 +457,47 @@ export async function actualizarCasaAnfitriona(
 ): Promise<ResultadoAccion<void>> {
   try {
     const parsed = actualizarCasaSchema.parse(datos);
-    const { supabase, userId, authId, error } = await validarAuthYPermisos();
+    const { supabase, authId, error } = await validarAuthYPermisos();
     if (error) return { success: false, error };
 
-    // Verificar propiedad o permisos
-    const { data: casa } = await supabase
+    const permissionError = await verificarPermisoCasa(
+      supabase,
+      "puede_editar_casa_anfitriona",
+      authId,
+      casaId,
+      "No tienes permisos para editar esta casa"
+    );
+    if (permissionError) return { success: false, error: permissionError };
+
+    if (parsed.usuario_id) {
+      const ownerScopeError = await verificarUsuarioEnScope(
+        supabase,
+        authId,
+        parsed.usuario_id,
+        "No tienes permisos para asignar este propietario"
+      );
+      if (ownerScopeError) return { success: false, error: ownerScopeError };
+    }
+
+    if (parsed.co_anfitrion_id) {
+      const coHostScopeError = await verificarUsuarioEnScope(
+        supabase,
+        authId,
+        parsed.co_anfitrion_id,
+        "No tienes permisos para asignar este co-anfitrión"
+      );
+      if (coHostScopeError) return { success: false, error: coHostScopeError };
+    }
+
+    const adminDb = createSupabaseAdminClient();
+
+    const { data: casa } = await adminDb
       .from("casas_anfitrionas")
-      .select("usuario_id, direccion_id")
+      .select("usuario_id, direccion_id, aprobada")
       .eq("id", casaId)
       .single();
 
     if (!casa) return { success: false, error: "Casa no encontrada" };
-
-    const esDueno = casa.usuario_id === userId;
-    if (!esDueno) {
-      const { data: puede } = await supabase.rpc("puede_gestionar_casas", {
-        p_auth_id: authId,
-      });
-      if (!puede) return { success: false, error: "No tienes permisos" };
-    }
 
     // Actualizar dirección si hay cambios
     if (casa.direccion_id && (parsed.calle || parsed.barrio || parsed.codigo_postal || parsed.referencia || parsed.parroquia_id || parsed.lat !== undefined || parsed.lng !== undefined)) {
@@ -411,7 +511,7 @@ export async function actualizarCasaAnfitriona(
       if (parsed.lng !== undefined) dirUpdate.longitud = parsed.lng;
 
       if (Object.keys(dirUpdate).length > 0) {
-        await supabase.from("direcciones").update(dirUpdate).eq("id", casa.direccion_id);
+        await adminDb.from("direcciones").update(dirUpdate).eq("id", casa.direccion_id);
       }
     }
 
@@ -422,6 +522,7 @@ export async function actualizarCasaAnfitriona(
     if (parsed.capacidad_maxima !== undefined) casaUpdate.capacidad_maxima = parsed.capacidad_maxima || null;
     if (parsed.notas_publicas !== undefined) casaUpdate.notas_publicas = parsed.notas_publicas || null;
     if (parsed.co_anfitrion_id !== undefined) casaUpdate.co_anfitrion_id = parsed.co_anfitrion_id || null;
+    if (parsed.usuario_id !== undefined) casaUpdate.usuario_id = parsed.usuario_id;
     if (parsed.disponibilidad !== undefined) {
       casaUpdate.disponibilidad = parsed.disponibilidad.map((dia) => ({
         dia,
@@ -429,15 +530,20 @@ export async function actualizarCasaAnfitriona(
       }));
     }
 
-    const { error: updateError } = await supabase
+    if (casa.aprobada && tieneEdicionSensible(parsed)) {
+      casaUpdate.aprobada = false;
+      casaUpdate.aprobada_en = null;
+      casaUpdate.aprobada_por = null;
+    }
+
+    const { error: updateError } = await adminDb
       .from("casas_anfitrionas")
       .update(casaUpdate)
       .eq("id", casaId);
 
     if (updateError) return { success: false, error: `Error al actualizar: ${updateError.message}` };
 
-    revalidatePath("/grupos-vida/casas-anfitrionas");
-    revalidatePath(`/grupos-vida/casas-anfitrionas/${casaId}`);
+    revalidarCasa(casaId);
     return { success: true };
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -459,8 +565,17 @@ export async function procesarAprobacionCasa(
   accion: "aprobar" | "rechazar",
   notas?: string | null
 ): Promise<ResultadoAccion<AprobacionCasaResultado>> {
-  const { supabase, authId, error } = await validarAuthYPermisos(true);
+  const { supabase, authId, error } = await validarAuthYPermisos();
   if (error) return { success: false, error };
+
+  const permissionError = await verificarPermisoCasa(
+    supabase,
+    "puede_aprobar_casa_anfitriona",
+    authId,
+    casaId,
+    "No tienes permisos para aprobar o rechazar esta casa"
+  );
+  if (permissionError) return { success: false, error: permissionError };
 
   const { data, error: rpcError } = await supabase.rpc(
     "procesar_aprobacion_casa_anfitriona",
@@ -474,8 +589,7 @@ export async function procesarAprobacionCasa(
 
   if (rpcError) return { success: false, error: rpcError.message };
 
-  revalidatePath("/grupos-vida/casas-anfitrionas");
-  revalidatePath(`/grupos-vida/casas-anfitrionas/${casaId}`);
+  revalidarCasa(casaId);
 
   // Validar estructura del resultado JSON de la RPC con Zod
   const aprobacionSchema = z.object({
@@ -498,8 +612,16 @@ export async function listarCasasAnfitrionas(filtros?: {
   limite?: number;
   offset?: number;
 }): Promise<ResultadoAccion<CasaAnfitrionaListItem[]>> {
-  const { supabase, error } = await validarAuthYPermisos();
+  const { supabase, authId, error } = await validarAuthYPermisos();
   if (error) return { success: false, error };
+
+  const { data: visibleIds, error: visibleError } = await supabase.rpc(
+    "obtener_casas_visibles_ids",
+    { p_auth_id: authId }
+  );
+
+  if (visibleError) return { success: false, error: visibleError.message };
+  if (!visibleIds || visibleIds.length === 0) return { success: true, data: [] };
 
   let query = supabase
     .from("casas_anfitrionas")
@@ -513,6 +635,7 @@ export async function listarCasasAnfitrionas(filtros?: {
     )
     .order("creado_en", { ascending: false });
 
+  query = query.in("id", visibleIds);
   if (filtros?.soloAprobadas) query = query.eq("aprobada", true);
   if (filtros?.soloActivas) query = query.eq("activa", true);
   if (filtros?.limite) query = query.limit(filtros.limite);
@@ -522,6 +645,41 @@ export async function listarCasasAnfitrionas(filtros?: {
 
   if (queryError) return { success: false, error: queryError.message };
   return { success: true, data };
+}
+
+export async function cambiarEstadoCasaAnfitriona(
+  casaId: string,
+  activa: boolean
+): Promise<ResultadoAccion<void>> {
+  try {
+    const { supabase, authId, error } = await validarAuthYPermisos();
+    if (error) return { success: false, error };
+
+    const permissionError = await verificarPermisoCasa(
+      supabase,
+      "puede_cambiar_estado_casa_anfitriona",
+      authId,
+      casaId,
+      "No tienes permisos para cambiar el estado de esta casa"
+    );
+    if (permissionError) return { success: false, error: permissionError };
+
+    const adminDb = createSupabaseAdminClient();
+    const { error: updateError } = await adminDb
+      .from("casas_anfitrionas")
+      .update({ activa, actualizado_en: new Date().toISOString() })
+      .eq("id", casaId);
+
+    if (updateError) return { success: false, error: `Error al cambiar estado: ${updateError.message}` };
+
+    revalidarCasa(casaId);
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Error desconocido",
+    };
+  }
 }
 
 /**
