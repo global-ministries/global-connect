@@ -2,7 +2,8 @@
 --
 -- Run against local or staging after applying
 -- 20260617161620_casas_anfitrionas_granular_permissions.sql and
--- 20260617161954_revoke_anon_from_casas_permission_rpcs.sql.
+-- 20260617161954_revoke_anon_from_casas_permission_rpcs.sql and
+-- 20260617183000_harden_casas_approval_rpc.sql.
 -- The harness creates deterministic fixtures and rolls them back.
 
 BEGIN;
@@ -44,6 +45,95 @@ BEGIN
       p_expected,
       v_actual;
   END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.assert_json_text(
+  p_case text,
+  p_actual jsonb,
+  p_key text,
+  p_expected text
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_actual text;
+BEGIN
+  v_actual := p_actual ->> p_key;
+
+  IF v_actual IS DISTINCT FROM p_expected THEN
+    RAISE EXCEPTION 'JSON check failed: %, key %, expected %, got %', p_case, p_key, p_expected, v_actual;
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.assert_house_approval_state(
+  p_case text,
+  p_house_id uuid,
+  p_expected_approved boolean,
+  p_expected_active boolean,
+  p_expected_approver_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_approved boolean;
+  v_active boolean;
+  v_approver_id uuid;
+BEGIN
+  SELECT ca.aprobada, ca.activa, ca.aprobada_por
+  INTO v_approved, v_active, v_approver_id
+  FROM public.casas_anfitrionas ca
+  WHERE ca.id = p_house_id;
+
+  IF v_approved IS DISTINCT FROM p_expected_approved
+    OR v_active IS DISTINCT FROM p_expected_active
+    OR v_approver_id IS DISTINCT FROM p_expected_approver_id THEN
+    RAISE EXCEPTION 'House approval state check failed: %, expected approved %, active %, approver %, got approved %, active %, approver %',
+      p_case,
+      p_expected_approved,
+      p_expected_active,
+      p_expected_approver_id,
+      v_approved,
+      v_active,
+      v_approver_id;
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.assert_rpc_exception(
+  p_case text,
+  p_expected_message text,
+  p_auth_claim uuid,
+  p_call_auth_id uuid,
+  p_house_id uuid,
+  p_action text
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', p_auth_claim::text, true);
+  PERFORM public.procesar_aprobacion_casa_anfitriona(
+    p_call_auth_id,
+    p_house_id,
+    p_action,
+    'contract check'
+  );
+
+  RAISE EXCEPTION 'RPC exception check failed: %, expected exception % but call succeeded',
+    p_case,
+    p_expected_message;
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLERRM IS DISTINCT FROM p_expected_message THEN
+      RAISE EXCEPTION 'RPC exception check failed: %, expected exception %, got %',
+        p_case,
+        p_expected_message,
+        SQLERRM;
+    END IF;
 END;
 $$;
 
@@ -93,7 +183,14 @@ INSERT INTO gc_casas_permissions_fixture (key, id) VALUES
   ('director_etapa_assignment_id', '77777777-7777-4777-8777-777777777101'),
   ('director_etapa_group_id', '77777777-7777-4777-8777-777777777102'),
   ('in_scope_house_id', '88888888-8888-4888-8888-888888888101'),
-  ('out_of_scope_house_id', '88888888-8888-4888-8888-888888888102');
+  ('out_of_scope_house_id', '88888888-8888-4888-8888-888888888102'),
+  ('approval_success_house_id', '88888888-8888-4888-8888-888888888103'),
+  ('invalid_action_house_id', '88888888-8888-4888-8888-888888888104');
+
+CREATE TEMP TABLE gc_casas_rpc_results (
+  key text PRIMARY KEY,
+  result jsonb NOT NULL
+) ON COMMIT DROP;
 
 CREATE OR REPLACE FUNCTION pg_temp.fixture_id(p_key text)
 RETURNS uuid
@@ -159,7 +256,9 @@ VALUES (fixture_id('director_etapa_group_id'), fixture_id('director_etapa_assign
 INSERT INTO public.casas_anfitrionas (id, usuario_id, nombre_lugar, capacidad_maxima, disponibilidad, activa, aprobada)
 VALUES
   (fixture_id('in_scope_house_id'), fixture_id('same_group_user_id'), 'GC Casas Permissions In Scope House', 12, '[]'::jsonb, true, true),
-  (fixture_id('out_of_scope_house_id'), fixture_id('out_of_group_user_id'), 'GC Casas Permissions Out Scope House', 12, '[]'::jsonb, true, true);
+  (fixture_id('out_of_scope_house_id'), fixture_id('out_of_group_user_id'), 'GC Casas Permissions Out Scope House', 12, '[]'::jsonb, true, true),
+  (fixture_id('approval_success_house_id'), fixture_id('same_group_user_id'), 'GC Casas Permissions Approval Success House', 12, '[]'::jsonb, false, false),
+  (fixture_id('invalid_action_house_id'), fixture_id('same_group_user_id'), 'GC Casas Permissions Invalid Action House', 12, '[]'::jsonb, false, false);
 
 SELECT set_config('request.jwt.claim.sub', fixture_id('admin_auth_id')::text, true);
 SELECT pg_temp.assert_permission(
@@ -226,6 +325,88 @@ SELECT pg_temp.assert_permission(
     fixture_id('in_scope_house_id')
   ),
   false
+);
+
+SELECT pg_temp.assert_rpc_exception(
+  'direct approval RPC denies spoofed p_auth_id',
+  'sin_permisos',
+  fixture_id('outsider_auth_id'),
+  fixture_id('admin_auth_id'),
+  fixture_id('approval_success_house_id'),
+  'aprobar'
+);
+
+SELECT pg_temp.assert_house_approval_state(
+  'direct approval RPC spoof attempt leaves house pending',
+  fixture_id('approval_success_house_id'),
+  false,
+  false,
+  NULL
+);
+
+SELECT pg_temp.assert_rpc_exception(
+  'direct approval RPC denies unauthorized director etapa',
+  'sin_permisos',
+  fixture_id('director_etapa_auth_id'),
+  fixture_id('director_etapa_auth_id'),
+  fixture_id('approval_success_house_id'),
+  'aprobar'
+);
+
+SELECT pg_temp.assert_house_approval_state(
+  'direct approval RPC unauthorized role leaves house pending',
+  fixture_id('approval_success_house_id'),
+  false,
+  false,
+  NULL
+);
+
+SELECT set_config('request.jwt.claim.sub', fixture_id('admin_auth_id')::text, true);
+INSERT INTO gc_casas_rpc_results (key, result)
+SELECT 'admin_approval', public.procesar_aprobacion_casa_anfitriona(
+  fixture_id('admin_auth_id'),
+  fixture_id('approval_success_house_id'),
+  'aprobar',
+  'contract check'
+);
+
+SELECT pg_temp.assert_json_text(
+  'direct approval RPC allows authorized admin approval',
+  (SELECT result FROM gc_casas_rpc_results WHERE key = 'admin_approval'),
+  'accion',
+  'aprobar'
+);
+
+SELECT pg_temp.assert_json_text(
+  'direct approval RPC returns approved state',
+  (SELECT result FROM gc_casas_rpc_results WHERE key = 'admin_approval'),
+  'estado',
+  'aprobada'
+);
+
+SELECT pg_temp.assert_house_approval_state(
+  'direct approval RPC authorized admin marks house approved',
+  fixture_id('approval_success_house_id'),
+  true,
+  true,
+  fixture_id('admin_user_id')
+);
+
+SELECT pg_temp.assert_rpc_exception(
+  'direct approval RPC rejects invalid action',
+  'accion_invalida',
+  fixture_id('admin_auth_id'),
+  fixture_id('admin_auth_id'),
+  fixture_id('invalid_action_house_id'),
+  'archivar'
+);
+
+SELECT pg_temp.assert_house_approval_state(
+  'direct approval RPC invalid action leaves house pending',
+  fixture_id('invalid_action_house_id'),
+  false,
+  false,
+  NULL
 );
 
 ROLLBACK;
