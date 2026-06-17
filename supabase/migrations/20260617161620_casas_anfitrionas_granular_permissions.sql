@@ -1,5 +1,6 @@
 -- Additive granular Casas Anfitrionas permission RPCs.
 -- No data repair, backfill, deletion, or rewrite is performed by this migration.
+-- Timestamp matches the migration version applied to global staging for Task 2.2 evidence.
 
 CREATE OR REPLACE FUNCTION public.puede_ver_casa_anfitriona(
   p_auth_id uuid,
@@ -287,6 +288,12 @@ REVOKE ALL ON FUNCTION public.puede_aprobar_casa_anfitriona(uuid, uuid) FROM PUB
 REVOKE ALL ON FUNCTION public.puede_editar_casa_anfitriona(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.puede_cambiar_estado_casa_anfitriona(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.obtener_permisos_casa_anfitriona(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.puede_ver_casa_anfitriona(uuid, uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.puede_crear_casa_anfitriona_para(uuid, uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.puede_aprobar_casa_anfitriona(uuid, uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.puede_editar_casa_anfitriona(uuid, uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.puede_cambiar_estado_casa_anfitriona(uuid, uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.obtener_permisos_casa_anfitriona(uuid, uuid) FROM anon;
 
 GRANT EXECUTE ON FUNCTION public.puede_ver_casa_anfitriona(uuid, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.puede_crear_casa_anfitriona_para(uuid, uuid) TO authenticated, service_role;

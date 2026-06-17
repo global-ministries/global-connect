@@ -4334,6 +4334,10 @@ export type Database = {
             }[]
           }
       obtener_miembros_en_riesgo: { Args: { p_auth_id: string }; Returns: Json }
+      obtener_permisos_casa_anfitriona: {
+        Args: { p_auth_id: string; p_casa_id?: string }
+        Returns: Json
+      }
       obtener_ranking_asistencia_grupo: {
         Args: {
           p_auth_id: string
@@ -4418,11 +4422,27 @@ export type Database = {
         }
         Returns: Json
       }
+      puede_aprobar_casa_anfitriona: {
+        Args: { p_auth_id: string; p_casa_id: string }
+        Returns: boolean
+      }
+      puede_cambiar_estado_casa_anfitriona: {
+        Args: { p_auth_id: string; p_casa_id: string }
+        Returns: boolean
+      }
+      puede_crear_casa_anfitriona_para: {
+        Args: { p_auth_id: string; p_usuario_id: string }
+        Returns: boolean
+      }
       puede_crear_grupo: {
         Args: { p_auth_id: string; p_segmento_id: string }
         Returns: boolean
       }
       puede_crear_usuario: { Args: { p_auth_id: string }; Returns: boolean }
+      puede_editar_casa_anfitriona: {
+        Args: { p_auth_id: string; p_casa_id: string }
+        Returns: boolean
+      }
       puede_editar_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string }
         Returns: boolean
@@ -4434,6 +4454,10 @@ export type Database = {
       puede_gestionar_casas: { Args: { p_auth_id: string }; Returns: boolean }
       puede_gestionar_miembros: {
         Args: { p_auth_id: string; p_grupo_id: string }
+        Returns: boolean
+      }
+      puede_ver_casa_anfitriona: {
+        Args: { p_auth_id: string; p_casa_id: string }
         Returns: boolean
       }
       puede_ver_debug_toolbar: { Args: { p_auth_id: string }; Returns: boolean }

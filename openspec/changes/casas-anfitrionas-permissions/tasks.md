@@ -34,7 +34,7 @@ Strict TDD: write/adjust the failing Jest or SQL-static test before each product
 ## Phase 2: Supabase Foundation
 
 - [x] 2.1 Create `supabase/migrations/<timestamp>_casas_anfitrionas_granular_permissions.sql` with `obtener_permisos_*` and `puede_*` RPCs only; keep migration additive/non-destructive.
-- [ ] 2.2 Run staging migration/type workflow, then update `lib/supabase/database.types.ts`; flag generated-type diff if it alone exceeds review budget.
+- [x] 2.2 Run staging migration/type workflow, then update `lib/supabase/database.types.ts`; flag generated-type diff if it alone exceeds review budget.
 
 ## Phase 3: Server Enforcement
 

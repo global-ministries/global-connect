@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 const migrationsDir = join(process.cwd(), 'supabase', 'migrations')
 const supabaseTestsDir = join(process.cwd(), 'supabase', 'tests')
+const generatedTypesPath = join(process.cwd(), 'lib', 'supabase', 'database.types.ts')
 const rpcNames = [
   'obtener_permisos_casa_anfitriona',
   'puede_ver_casa_anfitriona',
@@ -10,6 +11,10 @@ const rpcNames = [
   'puede_aprobar_casa_anfitriona',
   'puede_editar_casa_anfitriona',
   'puede_cambiar_estado_casa_anfitriona',
+]
+const expectedStagingMigrationFiles = [
+  '20260617161620_casas_anfitrionas_granular_permissions.sql',
+  '20260617161954_revoke_anon_from_casas_permission_rpcs.sql',
 ]
 const rpcSignatures = {
   obtener_permisos_casa_anfitriona: 'obtener_permisos_casa_anfitriona(uuid, uuid)',
@@ -49,6 +54,10 @@ function readCasasRpcChecks(): string {
   )
 }
 
+function readGeneratedTypes(): string {
+  return readFileSync(generatedTypesPath, 'utf8')
+}
+
 function compactSql(sql: string): string {
   return sql.replace(/\s+/g, ' ')
 }
@@ -63,6 +72,16 @@ function functionSql(sql: string, name: string): string {
 }
 
 describe('casas anfitrionas granular permissions migration', () => {
+  it('keeps checked-in migration history aligned with global staging evidence', () => {
+    const migrationFiles = readdirSync(migrationsDir)
+
+    for (const file of expectedStagingMigrationFiles) {
+      expect(migrationFiles).toContain(file)
+    }
+
+    expect(migrationFiles).not.toContain('20260617120000_casas_anfitrionas_granular_permissions.sql')
+  })
+
   it('defines the additive Casas RPC contract', () => {
     const sql = readCasasPermissionsMigration()
 
@@ -80,6 +99,7 @@ describe('casas anfitrionas granular permissions migration', () => {
 
       expect(body).toMatch(/LANGUAGE plpgsql (STABLE )?SECURITY DEFINER SET search_path TO 'public'/i)
       expect(sql).toContain(`REVOKE ALL ON FUNCTION public.${signature} FROM PUBLIC;`)
+      expect(sql).toContain(`REVOKE ALL ON FUNCTION public.${signature} FROM anon;`)
       expect(sql).toContain(`GRANT EXECUTE ON FUNCTION public.${signature} TO authenticated, service_role;`)
       expect(sql).not.toContain(`GRANT EXECUTE ON FUNCTION public.${signature} TO anon`)
     }
@@ -125,6 +145,19 @@ describe('casas anfitrionas granular permissions migration', () => {
     expect(sql).toContain('spoofed p_auth_id is denied')
   })
 
+  it('documents executable effective RPC privilege checks for every exposed role', () => {
+    const sql = readCasasRpcChecks()
+
+    expect(sql).toContain('has_function_privilege(')
+    expect(sql).toContain('assert_function_privilege(')
+
+    for (const signature of Object.values(rpcSignatures)) {
+      expect(sql).toContain(`('anon', 'public.${signature}', 'EXECUTE', false)`)
+      expect(sql).toContain(`('authenticated', 'public.${signature}', 'EXECUTE', true)`)
+      expect(sql).toContain(`('service_role', 'public.${signature}', 'EXECUTE', true)`)
+    }
+  })
+
   it('keeps RPC contract evidence self-contained without manual fixture replacement', () => {
     const sql = readCasasRpcChecks()
     const compacted = compactSql(sql)
@@ -141,5 +174,19 @@ describe('casas anfitrionas granular permissions migration', () => {
     expect(sql).toContain("SELECT set_config('request.jwt.claim.sub', fixture_id('director_etapa_auth_id')::text, true);")
     expect(sql).toContain("SELECT set_config('request.jwt.claim.sub', fixture_id('leader_auth_id')::text, true);")
     expect(sql).toContain("SELECT set_config('request.jwt.claim.sub', fixture_id('outsider_auth_id')::text, true);")
+  })
+
+  it('includes the Casas permission RPCs in generated Supabase types', () => {
+    const types = readGeneratedTypes()
+
+    expect(types).toContain('obtener_permisos_casa_anfitriona: {')
+    expect(types).toContain('puede_ver_casa_anfitriona: {')
+    expect(types).toContain('puede_crear_casa_anfitriona_para: {')
+    expect(types).toContain('puede_aprobar_casa_anfitriona: {')
+    expect(types).toContain('puede_editar_casa_anfitriona: {')
+    expect(types).toContain('puede_cambiar_estado_casa_anfitriona: {')
+    expect(types).toContain('Args: { p_auth_id: string; p_casa_id?: string }')
+    expect(types).toContain('Args: { p_auth_id: string; p_casa_id: string }')
+    expect(types).toContain('Args: { p_auth_id: string; p_usuario_id: string }')
   })
 })

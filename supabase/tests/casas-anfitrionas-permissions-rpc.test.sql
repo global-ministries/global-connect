@@ -1,7 +1,8 @@
 -- Casas Anfitrionas permission RPC contract checks.
 --
 -- Run against local or staging after applying
--- 20260617120000_casas_anfitrionas_granular_permissions.sql.
+-- 20260617161620_casas_anfitrionas_granular_permissions.sql and
+-- 20260617161954_revoke_anon_from_casas_permission_rpcs.sql.
 -- The harness creates deterministic fixtures and rolls them back.
 
 BEGIN;
@@ -20,6 +21,50 @@ BEGIN
   END IF;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION pg_temp.assert_function_privilege(
+  p_role name,
+  p_function_signature text,
+  p_privilege text,
+  p_expected boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_actual boolean;
+BEGIN
+  SELECT has_function_privilege(p_role, p_function_signature, p_privilege) INTO v_actual;
+
+  IF v_actual IS DISTINCT FROM p_expected THEN
+    RAISE EXCEPTION 'Function privilege check failed: role %, function %, privilege %, expected %, got %',
+      p_role,
+      p_function_signature,
+      p_privilege,
+      p_expected,
+      v_actual;
+  END IF;
+END;
+$$;
+
+SELECT pg_temp.assert_function_privilege('anon', 'public.obtener_permisos_casa_anfitriona(uuid, uuid)', 'EXECUTE', false);
+SELECT pg_temp.assert_function_privilege('authenticated', 'public.obtener_permisos_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('service_role', 'public.obtener_permisos_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('anon', 'public.puede_ver_casa_anfitriona(uuid, uuid)', 'EXECUTE', false);
+SELECT pg_temp.assert_function_privilege('authenticated', 'public.puede_ver_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('service_role', 'public.puede_ver_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('anon', 'public.puede_crear_casa_anfitriona_para(uuid, uuid)', 'EXECUTE', false);
+SELECT pg_temp.assert_function_privilege('authenticated', 'public.puede_crear_casa_anfitriona_para(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('service_role', 'public.puede_crear_casa_anfitriona_para(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('anon', 'public.puede_aprobar_casa_anfitriona(uuid, uuid)', 'EXECUTE', false);
+SELECT pg_temp.assert_function_privilege('authenticated', 'public.puede_aprobar_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('service_role', 'public.puede_aprobar_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('anon', 'public.puede_editar_casa_anfitriona(uuid, uuid)', 'EXECUTE', false);
+SELECT pg_temp.assert_function_privilege('authenticated', 'public.puede_editar_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('service_role', 'public.puede_editar_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('anon', 'public.puede_cambiar_estado_casa_anfitriona(uuid, uuid)', 'EXECUTE', false);
+SELECT pg_temp.assert_function_privilege('authenticated', 'public.puede_cambiar_estado_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
+SELECT pg_temp.assert_function_privilege('service_role', 'public.puede_cambiar_estado_casa_anfitriona(uuid, uuid)', 'EXECUTE', true);
 
 CREATE TEMP TABLE gc_casas_permissions_fixture (
   key text PRIMARY KEY,
