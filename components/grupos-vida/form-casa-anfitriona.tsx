@@ -16,6 +16,7 @@ import {
 import { Home, MapPin, Hash, Save, Loader2, User, Users, Check, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import LocationPicker from "@/components/maps/LocationPicker.client";
+import { SelectorPropietarioCasa } from "@/components/grupos-vida/selector-propietario-casa";
 
 const schemaCasaAnfitriona = z.object({
     nombre_lugar: z.string().min(2, "Nombre del lugar es requerido"),
@@ -57,6 +58,12 @@ interface UbicacionOption {
 interface UsuarioOption {
     value: string;
     label: string;
+    email?: string | null;
+    cedula?: string | null;
+    fotoPerfilUrl?: string | null;
+    yaTieneCasa?: boolean;
+    puedeSeleccionar?: boolean;
+    razonNoSeleccionable?: string;
 }
 
 interface FormCasaAnfitrionaProps {
@@ -71,6 +78,7 @@ interface FormCasaAnfitrionaProps {
     usuarios?: UsuarioOption[];
     /** Si true, muestra selector de usuario (admin/líder) */
     mostrarSelectorUsuario?: boolean;
+    casaId?: string;
     cargando?: boolean;
     onSubmit: (datos: FormCasaData) => Promise<void>;
     onCancelar: () => void;
@@ -102,6 +110,7 @@ export function FormCasaAnfitriona({
     parroquias,
     usuarios = [],
     mostrarSelectorUsuario = false,
+    casaId,
     cargando = false,
     onSubmit,
     onCancelar,
@@ -350,25 +359,22 @@ export function FormCasaAnfitriona({
     return (
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-6">
             {/* Selector de usuario (solo admin/líder) */}
-            {mostrarSelectorUsuario && usuarios.length > 0 && (
+            {mostrarSelectorUsuario && (
                 <div className="space-y-4">
                     <TituloSistema nivel={4}>Propietario de la casa</TituloSistema>
                     <Controller
                         name="usuario_id"
                         control={control}
                         render={({ field }) => (
-                            <SelectSistema
-                                label="¿A quién pertenece esta casa?"
-                                placeholder="Seleccionar miembro..."
-                                onValueChange={(val) => {
+                            <SelectorPropietarioCasa
+                                value={field.value}
+                                usuariosIniciales={usuarios}
+                                casaId={casaId}
+                                disabled={cargando}
+                                onChange={(val) => {
                                     field.onChange(val);
                                     handleUsuarioChange(val);
                                 }}
-                                value={field.value}
-                                opciones={usuarios.map((u) => ({
-                                    valor: u.value,
-                                    etiqueta: u.label,
-                                }))}
                             />
                         )}
                     />

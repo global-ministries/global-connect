@@ -68,6 +68,26 @@ function readObtenerCasasVisiblesHardeningMigration(): string {
   return readFileSync(join(migrationsDir, file), 'utf8')
 }
 
+function readPreventDuplicateAssigneesMigration(): string {
+  const file = readdirSync(migrationsDir).find((name) =>
+    name.endsWith('_prevent_duplicate_casa_assignees.sql'),
+  )
+
+  if (!file) throw new Error('Missing duplicate casa assignees protection migration')
+
+  return readFileSync(join(migrationsDir, file), 'utf8')
+}
+
+function readHardenListarUsuariosSearchMigration(): string {
+  const file = readdirSync(migrationsDir).find((name) =>
+    name.endsWith('_harden_listar_usuarios_con_permisos_search.sql'),
+  )
+
+  if (!file) throw new Error('Missing listar_usuarios_con_permisos search hardening migration')
+
+  return readFileSync(join(migrationsDir, file), 'utf8')
+}
+
 function readCasasRpcChecks(): string {
   return readFileSync(
     join(supabaseTestsDir, 'casas-anfitrionas-permissions-rpc.test.sql'),
@@ -267,5 +287,33 @@ describe('casas anfitrionas granular permissions migration', () => {
     expect(sql).toContain('direct obtener_casas_visibles_ids requires non-null p_auth_id')
     expect(sql).toContain("'auth_id_required'")
     expect(sql).toContain('direct obtener_casas_visibles_ids denies spoofed p_auth_id')
+  })
+
+  it('adds DB-level duplicate assignment protection for owners and co-hosts', () => {
+    const sql = readPreventDuplicateAssigneesMigration()
+    const compacted = compactSql(sql)
+
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.prevent_duplicate_casa_anfitriona_assignees()')
+    expect(sql).toContain('CREATE TRIGGER ensure_unique_casa_anfitriona_assignees')
+    expect(sql).toContain('BEFORE INSERT OR UPDATE OF usuario_id, co_anfitrion_id')
+    expect(sql).toContain('pg_advisory_xact_lock')
+    expect(sql).toContain('hashtextextended')
+    expect(compacted).toContain('ca.usuario_id = ANY(v_assignee_ids) OR ca.co_anfitrion_id = ANY(v_assignee_ids)')
+    expect(sql).toContain("ERRCODE = '23505'")
+    expect(sql).toContain('CREATE INDEX IF NOT EXISTS idx_casas_co_anfitrion')
+    expect(sql).not.toMatch(/\bTRUNCATE\b|\bDELETE\s+FROM\b|\bINSERT\s+INTO\b|\bUPDATE\s+public\./i)
+  })
+
+  it('hardens listar_usuarios_con_permisos search without dynamic SQL interpolation', () => {
+    const sql = readHardenListarUsuariosSearchMigration()
+
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.listar_usuarios_con_permisos')
+    expect(sql).toContain("SECURITY DEFINER\nSET search_path TO 'public'")
+    expect(sql).toContain('v_busqueda_like := replace(')
+    expect(sql).toContain("ESCAPE E'\\\\'")
+    expect(sql).toContain('g2.activo = true')
+    expect(sql).toContain('g2.eliminado = false')
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.listar_usuarios_con_permisos(uuid, text, text[], boolean, boolean, boolean, integer, integer, boolean) TO authenticated, service_role;')
+    expect(sql).not.toMatch(/format\s*\(|RETURN\s+QUERY\s+EXECUTE|EXECUTE\s+format|%%%s%%/i)
   })
 })

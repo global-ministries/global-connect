@@ -17,6 +17,12 @@ interface UbicacionOption {
 interface UsuarioOption {
     value: string;
     label: string;
+    email?: string | null;
+    cedula?: string | null;
+    fotoPerfilUrl?: string | null;
+    yaTieneCasa?: boolean;
+    puedeSeleccionar?: boolean;
+    razonNoSeleccionable?: string;
 }
 
 /** Props del componente cliente para crear casa anfitriona */

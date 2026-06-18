@@ -17,6 +17,12 @@ interface UbicacionOption {
 interface UsuarioOption {
     value: string;
     label: string;
+    email?: string | null;
+    cedula?: string | null;
+    fotoPerfilUrl?: string | null;
+    yaTieneCasa?: boolean;
+    puedeSeleccionar?: boolean;
+    razonNoSeleccionable?: string;
 }
 
 /** Datos iniciales de la casa para pre-llenar el formulario */
@@ -96,6 +102,7 @@ export function EditarCasaClient({
     return (
         <FormCasaAnfitriona
             datosIniciales={datosIniciales}
+            casaId={casaId}
             estados={estados}
             municipios={municipios}
             parroquias={parroquias}

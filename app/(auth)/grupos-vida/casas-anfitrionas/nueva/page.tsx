@@ -1,10 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno";
 import { NuevaCasaClient } from "./nueva-casa-client";
-import { obtenerUsuariosAsignablesCasaAnfitriona } from "@/lib/casas-anfitrionas/assignable-users";
 import {
     obtenerPermisosCasaAnfitrionaUI,
     puedeMostrarRegistroCasa,
@@ -15,7 +13,7 @@ import {
  *
  * - Verifica autenticación y permisos backend de creación.
  * - Carga catálogos de estados, municipios y parroquias para cascading.
- * - Si el backend permite crear para otros, carga usuarios asignables ya filtrados.
+ * - Si el backend permite crear para otros, habilita búsqueda bajo demanda de propietario.
  */
 export default async function NuevaCasaAnfitrionaPage() {
     const supabase = await createSupabaseServerClient();
@@ -33,17 +31,8 @@ export default async function NuevaCasaAnfitrionaPage() {
         supabase.from("parroquias").select("id, nombre, municipio_id").order("nombre"),
     ]);
 
-    // Cargar usuarios elegibles solo cuando el backend permite asignar propietario.
-    let usuariosOptions: { value: string; label: string }[] = [];
-
-    if (permisosCasa.puedeCrearParaOtros) {
-        const adminDb = createSupabaseAdminClient();
-        usuariosOptions = await obtenerUsuariosAsignablesCasaAnfitriona({
-            supabase,
-            adminDb,
-            authId: user.id,
-        });
-    }
+    // El selector de propietario busca bajo demanda para evitar cargar todos los miembros upfront.
+    const usuariosOptions: { value: string; label: string }[] = [];
 
     const estadosOptions = (estados ?? []).map((e) => ({
         value: e.id,

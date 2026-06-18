@@ -178,6 +178,72 @@ async function verificarUsuarioEnScope(
   return puede ? null : error;
 }
 
+async function verificarUsuarioEnGrupoActivo(
+  adminDb: ReturnType<typeof createSupabaseAdminClient>,
+  usuarioId: string,
+  error: string
+): Promise<string | null> {
+  const { data, error: queryError } = await adminDb
+    .from("grupo_miembros")
+    .select("id, grupos!inner(id)")
+    .eq("usuario_id", usuarioId)
+    .is("fecha_salida", null)
+    .eq("grupos.activo", true)
+    .eq("grupos.eliminado", false)
+    .limit(1);
+
+  if (queryError) return queryError.message;
+  return data && data.length > 0 ? null : error;
+}
+
+async function verificarUsuarioSinCasaAsignada(
+  adminDb: ReturnType<typeof createSupabaseAdminClient>,
+  usuarioId: string,
+  currentCasaId: string | undefined,
+  error: string
+): Promise<string | null> {
+  let query = adminDb
+    .from("casas_anfitrionas")
+    .select("id")
+    .or(`usuario_id.eq.${usuarioId},co_anfitrion_id.eq.${usuarioId}`);
+
+  if (currentCasaId) {
+    query = query.neq("id", currentCasaId);
+  }
+
+  const { data, error: queryError } = await query.limit(1);
+  if (queryError) return queryError.message;
+  return data && data.length > 0 ? error : null;
+}
+
+async function validarUsuarioAsignableACasa({
+  adminDb,
+  usuarioId,
+  currentCasaId,
+  etiqueta,
+}: {
+  adminDb: ReturnType<typeof createSupabaseAdminClient>;
+  usuarioId: string;
+  currentCasaId?: string;
+  etiqueta: "propietario" | "co-anfitrión";
+}): Promise<string | null> {
+  const groupError = await verificarUsuarioEnGrupoActivo(
+    adminDb,
+    usuarioId,
+    `El ${etiqueta} debe pertenecer actualmente a un grupo de vida`
+  );
+  if (groupError) return groupError;
+
+  return verificarUsuarioSinCasaAsignada(
+    adminDb,
+    usuarioId,
+    currentCasaId,
+    etiqueta === "propietario"
+      ? "Este usuario ya tiene una casa anfitriona asignada"
+      : "Este co-anfitrión ya tiene una casa anfitriona asignada"
+  );
+}
+
 async function validarUsuarioConsultable(usuarioId: string): Promise<string | null> {
   const { supabase, authId, error } = await validarAuthYPermisos();
   if (error) return error;
@@ -394,6 +460,22 @@ export async function crearCasaAnfitriona(
 
     const adminDb = createSupabaseAdminClient();
 
+    const ownerAssignmentError = await validarUsuarioAsignableACasa({
+      adminDb,
+      usuarioId: propietarioId,
+      etiqueta: "propietario",
+    });
+    if (ownerAssignmentError) return { success: false, error: ownerAssignmentError };
+
+    if (parsed.co_anfitrion_id) {
+      const coHostAssignmentError = await validarUsuarioAsignableACasa({
+        adminDb,
+        usuarioId: parsed.co_anfitrion_id,
+        etiqueta: "co-anfitrión",
+      });
+      if (coHostAssignmentError) return { success: false, error: coHostAssignmentError };
+    }
+
     // 1. Crear dirección con lat/lng
     const { data: direccion, error: dirError } = await adminDb
       .from("direcciones")
@@ -498,6 +580,26 @@ export async function actualizarCasaAnfitriona(
       .single();
 
     if (!casa) return { success: false, error: "Casa no encontrada" };
+
+    if (parsed.usuario_id) {
+      const ownerAssignmentError = await validarUsuarioAsignableACasa({
+        adminDb,
+        usuarioId: parsed.usuario_id,
+        currentCasaId: casaId,
+        etiqueta: "propietario",
+      });
+      if (ownerAssignmentError) return { success: false, error: ownerAssignmentError };
+    }
+
+    if (parsed.co_anfitrion_id) {
+      const coHostAssignmentError = await validarUsuarioAsignableACasa({
+        adminDb,
+        usuarioId: parsed.co_anfitrion_id,
+        currentCasaId: casaId,
+        etiqueta: "co-anfitrión",
+      });
+      if (coHostAssignmentError) return { success: false, error: coHostAssignmentError };
+    }
 
     // Actualizar dirección si hay cambios
     if (casa.direccion_id && (parsed.calle || parsed.barrio || parsed.codigo_postal || parsed.referencia || parsed.parroquia_id || parsed.lat !== undefined || parsed.lng !== undefined)) {
