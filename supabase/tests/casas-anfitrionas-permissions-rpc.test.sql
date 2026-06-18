@@ -9,6 +9,8 @@
 
 BEGIN;
 
+SET LOCAL search_path TO pg_temp, public;
+
 CREATE OR REPLACE FUNCTION pg_temp.assert_permission(
   p_case text,
   p_actual boolean,
