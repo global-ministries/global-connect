@@ -1,0 +1,57 @@
+# Archive Report: Casas Anfitrionas Permissions
+
+**Change**: `casas-anfitrionas-permissions`
+**Date**: 2026-06-17
+**Artifact Store Mode**: hybrid (`both`)
+**Status**: archived with warnings
+
+## Archive Gates
+
+| Gate | Result | Evidence |
+|------|--------|----------|
+| Tasks complete | ✅ Passed | `tasks.md` shows 12/12 checked tasks and no unchecked implementation tasks. |
+| Critical verification issues | ✅ Passed | `verify-report.md` reports **CRITICAL: None** and verdict `PASS WITH WARNINGS`. |
+| Spec sync | ✅ Passed | Created `openspec/specs/casas-anfitrionas-permissions/spec.md` from the change delta/full spec. |
+| OpenSpec archive move | ✅ Passed | Change folder moved to `openspec/changes/archive/2026-06-17-casas-anfitrionas-permissions/`. |
+| Engram persistence | ✅ Passed | Archive report persisted to `sdd/casas-anfitrionas-permissions/archive-report`. |
+
+## Source Artifacts
+
+| Artifact | OpenSpec Path | Engram Observation |
+|----------|---------------|--------------------|
+| Proposal | `openspec/changes/casas-anfitrionas-permissions/proposal.md` | #8897 |
+| Spec | `openspec/changes/casas-anfitrionas-permissions/specs/casas-anfitrionas-permissions/spec.md` | #8903 |
+| Design | `openspec/changes/casas-anfitrionas-permissions/design.md` | #8904 |
+| Tasks | `openspec/changes/casas-anfitrionas-permissions/tasks.md` | #8907 |
+| Verify report | `openspec/changes/casas-anfitrionas-permissions/verify-report.md` | #9217 |
+
+## Specs Synced
+
+| Domain | Action | Details |
+|--------|--------|---------|
+| `casas-anfitrionas-permissions` | Created | No existing main spec was present, so the change spec was copied as the new source of truth. |
+
+## Archive Contents
+
+- `exploration.md` ✅
+- `proposal.md` ✅
+- `design.md` ✅
+- `tasks.md` ✅ (12/12 tasks complete)
+- `verify-report.md` ✅
+- `specs/casas-anfitrionas-permissions/spec.md` ✅
+- `archive-report.md` ✅
+
+## Warnings Recorded
+
+- Verification passed with warnings for repo-wide lint/migration warnings, changed-file coverage gaps, and lack of a dedicated runtime test for non-sensitive approved edit preservation.
+- `openspec/config.yaml` was not present; no project-specific `rules.archive` could be applied.
+
+## Result
+
+The Casas Anfitrionas permissions change has been planned, implemented, verified, synced to main specs, and archived. Tracker PR #180 can now be prepared from `feat/casas-permissions-tracker` with the archive commit included.
+
+## Corrective Addendum — 2026-06-17 Tracker Readiness Blocker
+
+After archive PR #187 merged, fresh tracker readiness review found that legacy `public.obtener_casas_visibles_ids(uuid)` still trusted caller-supplied `p_auth_id` when called directly. The tracker hardening branch adds `supabase/migrations/20260617214453_harden_obtener_casas_visibles_ids_rpc.sql`, extends SQL-static and deterministic SQL-harness evidence for spoofed and `NULL` `p_auth_id` calls, and updates `verify-report.md` with the corrective TDD/check results.
+
+**Corrective status**: blocker fixed with warnings. Static and focused Jest checks pass; direct SQL harness execution still requires a running local/staging Supabase database before production deployment.

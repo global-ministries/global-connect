@@ -7,6 +7,7 @@ import { ContenedorDashboard, TarjetaSistema, TextoSistema, BotonSistema, BadgeS
 import { Plus, Home } from "lucide-react";
 import Link from "next/link";
 import { BotonFlotante } from "@/components/ui/BotonFlotante";
+import { obtenerPermisosCasaAnfitrionaUI, puedeMostrarRegistroCasa } from "@/lib/casas-anfitrionas/ui-permissions";
 
 /**
  * Página de listado de casas anfitrionas.
@@ -18,15 +19,17 @@ export default async function CasasAnfitrionasPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    // Usar admin client para que el join a usuarios funcione sin importar el rol del usuario
-    const adminDb = createSupabaseAdminClient();
-
-    // Obtener IDs de casas visibles según el rol del usuario
-    const { data: casasVisiblesIds } = await supabase.rpc("obtener_casas_visibles_ids", {
-        p_auth_id: user.id,
-    });
+    // Obtener permisos y IDs visibles desde los predicados backend.
+    const [permisosCasa, { data: casasVisiblesIds }] = await Promise.all([
+        obtenerPermisosCasaAnfitrionaUI(supabase, user.id),
+        supabase.rpc("obtener_casas_visibles_ids", { p_auth_id: user.id }),
+    ]);
 
     const idsVisibles: string[] = casasVisiblesIds ?? [];
+    const puedeRegistrarCasa = puedeMostrarRegistroCasa(permisosCasa);
+
+    // Usar admin client para que el join a usuarios funcione sin importar el rol del usuario
+    const adminDb = createSupabaseAdminClient();
 
     // Obtener casas filtradas por visibilidad con datos del anfitrión, dirección y foto
     const { data: casas } = idsVisibles.length > 0
@@ -108,11 +111,6 @@ export default async function CasasAnfitrionasPage() {
         }
     }
 
-    // Verificar si el usuario puede gestionar casas
-    const { data: puedeGestionar } = await supabase.rpc("puede_gestionar_casas", {
-        p_auth_id: user.id,
-    });
-
     const totalCasas = casas?.length ?? 0;
     const aprobadas = casas?.filter((c) => c.aprobada && c.activa).length ?? 0;
     const pendientes = casas?.filter((c) => !c.aprobada).length ?? 0;
@@ -123,13 +121,13 @@ export default async function CasasAnfitrionasPage() {
             <ContenedorDashboard
                 titulo="Casas Anfitrionas"
                 botonRegreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
-                accionPrincipal={
+                accionPrincipal={puedeRegistrarCasa ? (
                     <Link href="/grupos-vida/casas-anfitrionas/nueva">
                         <BotonSistema variante="primario" icono={Plus} tamaño="sm">
                             Registrar casa
                         </BotonSistema>
                     </Link>
-                }
+                ) : undefined}
             >
                 {/* Stats rápidos — sin colores hardcoded (G-08) */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -314,7 +312,7 @@ export default async function CasasAnfitrionasPage() {
                     <TarjetaSistema variante="outlined" className="py-12 text-center">
                         <Home className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
                         <TextoSistema variante="muted">
-                            {puedeGestionar
+                            {puedeRegistrarCasa
                                 ? "No hay casas anfitrionas registradas aún."
                                 : "No hay casas anfitrionas disponibles."}
                         </TextoSistema>
@@ -323,7 +321,7 @@ export default async function CasasAnfitrionasPage() {
             </ContenedorDashboard>
 
             {/* FAB móvil para registrar casa */}
-            {puedeGestionar && (
+            {puedeRegistrarCasa && (
                 <BotonFlotante
                     href="/grupos-vida/casas-anfitrionas/nueva"
                     label="Registrar casa anfitriona"
