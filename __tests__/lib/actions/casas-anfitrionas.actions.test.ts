@@ -40,6 +40,37 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
+  it('rejects owners who only have inactive or deleted group membership', async () => {
+    const rpc = createPermissionRpcMock({ createFor: true })
+    const adminDb = createAdminClient({ activeGroupMemberIds: [] })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
+    createSupabaseAdminClient.mockReturnValue(adminDb)
+
+    const result = await crearCasaAnfitriona(createCasaInput({ usuario_id: targetUserId }))
+
+    expect(result).toEqual({ success: false, error: 'El propietario debe pertenecer actualmente a un grupo de vida' })
+    expect(adminDb.grupoMiembrosQuery.eq).toHaveBeenCalledWith('usuario_id', targetUserId)
+    expect(adminDb.grupoMiembrosQuery.eq).toHaveBeenCalledWith('grupos.activo', true)
+    expect(adminDb.grupoMiembrosQuery.eq).toHaveBeenCalledWith('grupos.eliminado', false)
+    expect(adminDb.insertDireccion).not.toHaveBeenCalled()
+  })
+
+  it('rejects co-hosts who only have inactive or deleted group membership', async () => {
+    const rpc = createPermissionRpcMock({ createFor: true, coHost: true })
+    const adminDb = createAdminClient({ activeGroupMemberIds: [actorUserId] })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
+    createSupabaseAdminClient.mockReturnValue(adminDb)
+
+    const result = await crearCasaAnfitriona(createCasaInput({ co_anfitrion_id: coHostUserId }))
+
+    expect(result).toEqual({ success: false, error: 'El co-anfitrión debe pertenecer actualmente a un grupo de vida' })
+    expect(adminDb.grupoMiembrosQuery.eq).toHaveBeenCalledWith('usuario_id', actorUserId)
+    expect(adminDb.grupoMiembrosQuery.eq).toHaveBeenCalledWith('usuario_id', coHostUserId)
+    expect(adminDb.grupoMiembrosQuery.eq).toHaveBeenCalledWith('grupos.activo', true)
+    expect(adminDb.grupoMiembrosQuery.eq).toHaveBeenCalledWith('grupos.eliminado', false)
+    expect(adminDb.insertDireccion).not.toHaveBeenCalled()
+  })
+
   it('denies approval before invoking the approval mutation RPC', async () => {
     const rpc = createPermissionRpcMock({ approve: false })
     createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
@@ -177,18 +208,67 @@ function createListQuery(rows: unknown[]) {
   }
 }
 
-function createAdminClient(input: { existingCasa: { usuario_id: string; direccion_id: string | null; aprobada: boolean } }) {
+function createAdminClient(input: {
+  activeGroupMemberIds?: string[]
+  existingCasa?: { usuario_id: string; direccion_id: string | null; aprobada: boolean }
+} = {}) {
   const updateCasasAnfitrionas = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) })
+  const insertDireccion = jest.fn().mockReturnValue({
+    select: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: { id: 'direccion-id' }, error: null }) }),
+  })
+  const grupoMiembrosQuery = createGrupoMiembrosQuery(input.activeGroupMemberIds ?? [actorUserId, targetUserId, coHostUserId])
+  const casasOcupadasQuery = createCasasOcupadasQuery([])
+
   return {
+    casasOcupadasQuery,
+    grupoMiembrosQuery,
+    insertDireccion,
     updateCasasAnfitrionas,
     from: jest.fn((table: string) => {
+      if (table === 'grupo_miembros') return grupoMiembrosQuery
+      if (table === 'direcciones') return { insert: insertDireccion }
       if (table === 'casas_anfitrionas') {
         return {
           update: updateCasasAnfitrionas,
-          select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: input.existingCasa, error: null }) }) }),
+          select: jest.fn(() => ({
+            eq: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: input.existingCasa, error: null }) }),
+            or: jest.fn().mockReturnValue(casasOcupadasQuery),
+          })),
         }
       }
       throw new Error(`Unexpected admin table ${table}`)
     }),
   }
+}
+
+function createCasasOcupadasQuery(rows: Array<{ id: string }>) {
+  const query = {
+    neq: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockResolvedValue({ data: rows, error: null }),
+  }
+
+  return query
+}
+
+function createGrupoMiembrosQuery(activeGroupMemberIds: string[]) {
+  let selectedUsuarioId = ''
+  const query: {
+    select: jest.Mock
+    eq: jest.Mock
+    is: jest.Mock
+    limit: jest.Mock
+  } = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn((column: string, value: string) => {
+      if (column === 'usuario_id') selectedUsuarioId = value
+      return query
+    }),
+    is: jest.fn().mockReturnThis(),
+    limit: jest.fn(() => Promise.resolve({
+      data: activeGroupMemberIds.includes(selectedUsuarioId) ? [{ id: 'membership-id' }] : [],
+      error: null,
+    })),
+  }
+
+  return query
 }

@@ -140,19 +140,11 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(screen.queryByRole('button', { name: 'Rechazar' })).not.toBeInTheDocument()
   })
 
-  it('lets the new page render from backend create permissions and filters assignable users through backend predicates', async () => {
+  it('lets the new page render from backend create permissions without preloading assignable users', async () => {
     createSupabaseServerClient.mockResolvedValue(createServerClient({
       assignableUserIds: [allowedUserId],
       canCreateForOthers: true,
       canCreateOwn: true,
-    }))
-    createSupabaseAdminClient.mockReturnValue(createAdminClient({
-      existingCasas: [{ usuario_id: usedUserId, co_anfitrion_id: null }],
-      users: [
-        { id: allowedUserId, nombre: 'Ana', apellido: 'Permitida' },
-        { id: deniedUserId, nombre: 'Beto', apellido: 'Fuera de scope' },
-        { id: usedUserId, nombre: 'Casa', apellido: 'Existente' },
-      ],
     }))
     const { default: NuevaCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/nueva/page')
 
@@ -160,14 +152,9 @@ describe('casas anfitrionas App Router permission wiring', () => {
 
     const serverClient = await createSupabaseServerClient.mock.results[0].value
     expect(serverClient.rpc).toHaveBeenCalledWith('obtener_permisos_casa_anfitriona', { p_auth_id: authId })
-    expect(serverClient.rpc).toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', {
-      p_auth_id: authId,
-      p_usuario_id: allowedUserId,
-    })
+    expect(serverClient.rpc).not.toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', expect.anything())
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
     expect(screen.getByTestId('nueva-selector-visible')).toHaveTextContent('true')
-    expect(screen.getByText('Ana Permitida')).toBeInTheDocument()
-    expect(screen.queryByText('Beto Fuera de scope')).not.toBeInTheDocument()
-    expect(screen.queryByText('Casa Existente')).not.toBeInTheDocument()
   })
 
   it('denies edit access with the granular edit predicate before enriched admin reads', async () => {
@@ -183,7 +170,7 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
-  it('renders edit owner selector from backend edit and create-for-others permissions with assignable users filtered by backend predicates', async () => {
+  it('renders edit owner selector with only the current owner preloaded', async () => {
     createSupabaseServerClient.mockResolvedValue(createServerClient({
       assignableUserIds: [allowedUserId],
       canCreateForOthers: true,
@@ -204,21 +191,10 @@ describe('casas anfitrionas App Router permission wiring', () => {
     const serverClient = await createSupabaseServerClient.mock.results[0].value
     expect(serverClient.rpc).toHaveBeenCalledWith('puede_editar_casa_anfitriona', { p_auth_id: authId, p_casa_id: casaId })
     expect(serverClient.rpc).toHaveBeenCalledWith('obtener_permisos_casa_anfitriona', { p_auth_id: authId, p_casa_id: casaId })
-    expect(serverClient.rpc).toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', {
-      p_auth_id: authId,
-      p_usuario_id: allowedUserId,
-    })
-    expect(serverClient.rpc).toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', {
-      p_auth_id: authId,
-      p_usuario_id: deniedUserId,
-    })
-    expect(serverClient.rpc).not.toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', {
-      p_auth_id: authId,
-      p_usuario_id: usedUserId,
-    })
+    expect(serverClient.rpc).not.toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', expect.anything())
     expect(screen.getByTestId('editar-selector-visible')).toHaveTextContent('true')
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
-    expect(screen.getByText('Ana Permitida')).toBeInTheDocument()
+    expect(screen.queryByText('Ana Permitida')).not.toBeInTheDocument()
     expect(screen.queryByText('Beto Fuera de scope')).not.toBeInTheDocument()
     expect(screen.queryByText('Casa Existente')).not.toBeInTheDocument()
   })

@@ -40,7 +40,7 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
         .from("casas_anfitrionas")
         .select(`
       *,
-      usuarios!casas_anfitrionas_usuario_id_fkey ( id, nombre, apellido ),
+      usuarios!casas_anfitrionas_usuario_id_fkey ( id, nombre, apellido, email, cedula, foto_perfil_url ),
       direcciones!casas_anfitrionas_direccion_id_fkey (
         calle, barrio, codigo_postal, referencia, latitud, longitud,
         parroquia_id,
@@ -126,7 +126,14 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
         parentId: p.municipio_id,
     }));
 
-    const usuarioActual = extraerRelacion<{ id: string; nombre: string; apellido: string }>(casa.usuarios);
+    const usuarioActual = extraerRelacion<{
+        id: string;
+        nombre: string;
+        apellido: string;
+        email: string | null;
+        cedula: string | null;
+        foto_perfil_url: string | null;
+    }>(casa.usuarios);
     const usuariosOptions = permisosCasa.puedeCrearParaOtros
         ? await obtenerUsuariosAsignablesCasaAnfitriona({
             supabase,
@@ -134,7 +141,13 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
             authId: user.id,
             currentCasaId: id,
             currentOwner: usuarioActual
-                ? { value: usuarioActual.id, label: `${usuarioActual.nombre} ${usuarioActual.apellido}`.trim() }
+                ? {
+                    value: usuarioActual.id,
+                    label: `${usuarioActual.nombre} ${usuarioActual.apellido}`.trim(),
+                    email: usuarioActual.email,
+                    cedula: usuarioActual.cedula,
+                    fotoPerfilUrl: usuarioActual.foto_perfil_url,
+                }
                 : null,
         })
         : [];
