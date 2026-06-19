@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 // 1. Definir el esquema de validación con Zod
@@ -53,9 +52,25 @@ export async function POST(req: NextRequest) {
   const { groupIds, status } = validation.data;
 
   try {
-    // 4. Ejecutar la actualización con cliente de admin
-    const supabaseAdmin = createSupabaseAdminClient();
-    const { data, error } = await supabaseAdmin
+    const { data: visibleGroups, error: visibilityError } = await supabase
+      .from('grupos')
+      .select('id')
+      .in('id', groupIds);
+
+    if (visibilityError) {
+      console.error('Error al validar alcance de grupos:', visibilityError);
+      return NextResponse.json({ error: 'Error al validar permisos sobre los grupos.' }, { status: 500 });
+    }
+
+    const visibleGroupIds = new Set((visibleGroups ?? []).map((group) => group.id));
+    const allGroupsAreVisible = groupIds.every((groupId) => visibleGroupIds.has(groupId));
+
+    if (!allGroupsAreVisible || visibleGroupIds.size !== groupIds.length) {
+      return NextResponse.json({ error: 'No tienes permiso para actualizar uno o más grupos.' }, { status: 403 });
+    }
+
+    // 4. Ejecutar la actualización con el cliente del usuario para que RLS valide cada grupo.
+    const { data, error } = await supabase
       .from('grupos')
       .update({ activo: status })
       .in('id', groupIds)
@@ -67,12 +82,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error al actualizar los grupos en la base de datos.' }, { status: 500 });
     }
 
+    if ((data?.length ?? 0) !== groupIds.length) {
+      return NextResponse.json({ error: 'No se actualizaron todos los grupos solicitados.' }, { status: 403 });
+    }
+
     return NextResponse.json({
       message: 'Grupos actualizados correctamente.',
       count: data?.length ?? 0,
     }, { status: 200 });
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('Excepción en el handler:', e);
     return NextResponse.json({ error: 'Ocurrió un error inesperado en el servidor.' }, { status: 500 });
   }

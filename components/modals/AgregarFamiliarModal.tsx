@@ -17,9 +17,9 @@ export type Usuario = {
   id: string
   nombre: string
   apellido: string
-  email: string
-  genero: string
-  cedula: string
+  email?: string
+  genero?: string
+  cedula?: string
   foto_perfil_url: string | null
 }
 
@@ -177,7 +177,7 @@ export function AgregarFamiliarModal({
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
                 <InputSistema
                   label="Buscar Usuario"
-                  placeholder="Buscar por nombre, apellido, cédula o correo..."
+                  placeholder="Buscar por nombre o apellido..."
                   value={terminoBusqueda}
                   onChange={(e) => setTerminoBusqueda(e.target.value)}
                   className="pl-10"
@@ -224,9 +224,7 @@ export function AgregarFamiliarModal({
                           <p className="font-medium text-foreground">
                             {usuario.nombre} {usuario.apellido}
                           </p>
-                          <p className="text-sm text-muted-foreground">
-                            {usuario.email} • {usuario.cedula}
-                          </p>
+                          <p className="text-sm text-muted-foreground">Usuario disponible para relación familiar</p>
                         </div>
                         {yaEsFamiliar && (
                           <span
