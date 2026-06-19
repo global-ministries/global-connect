@@ -67,10 +67,9 @@ export default function KpisGruposPanel() {
 					<KpiTile label="Sin Director" value={kpis.total_sin_director} sub={`${kpis.pct_sin_director}%`} highlight={Number(kpis.total_sin_director) > 0 ? 'warn' : 'ok'} />
 					<KpiTile label="Prom. Miembros" value={kpis.promedio_miembros?.toFixed(1) ?? '—'} />
 					<KpiTile label="Desv. Miembros" value={kpis.desviacion_miembros?.toFixed(1) ?? '—'} />
-					<KpiTile label="F. Actualización" value={new Date(kpis.fecha_ultima_actualizacion).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })} />
+					<KpiTile label="F. Actualización" value={new Date(kpis.fecha_ultima_actualizacion).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} />
 				</div>
 			)}
 		</Card>
 	);
 }
-

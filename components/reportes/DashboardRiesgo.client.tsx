@@ -4,7 +4,6 @@ import Link from 'next/link'
 import {
     PieChart, Pie, Cell,
     AreaChart, Area,
-    BarChart, Bar,
     XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer
 } from 'recharts'
@@ -45,18 +44,36 @@ interface Props {
 }
 
 export default function DashboardRiesgoClient({ data: d }: Props) {
-    const pctCriticos = d.total_miembros > 0
-        ? Math.round((d.miembros_criticos / d.total_miembros) * 100)
+    const totalMiembrosReporte = Math.max(0, Number(d.total_miembros) || 0)
+    const distribucionSalud = [
+        { nivel: 'normal', cantidad: d.miembros_sanos },
+        { nivel: 'atencion', cantidad: d.miembros_en_atencion },
+        { nivel: 'riesgo', cantidad: d.miembros_en_riesgo },
+        { nivel: 'critico', cantidad: d.miembros_criticos },
+    ].map((item) => ({ ...item, cantidad: Math.max(0, Number(item.cantidad) || 0) }))
+    const totalMiembrosDistribucion = distribucionSalud.reduce((total, item) => total + item.cantidad, 0)
+    const hayDiferenciaDistribucion = totalMiembrosDistribucion !== totalMiembrosReporte
+    const totalMiembrosVisual = totalMiembrosReporte || totalMiembrosDistribucion
+    const porcentajeDelReporte = (cantidad: number) => totalMiembrosReporte > 0
+        ? Math.round((cantidad / totalMiembrosReporte) * 100)
         : 0
-    const pctRiesgo = d.total_miembros > 0
-        ? Math.round((d.miembros_en_riesgo / d.total_miembros) * 100)
+    const porcentajeDistribucion = (cantidad: number) => totalMiembrosDistribucion > 0
+        ? Math.round((cantidad / totalMiembrosDistribucion) * 100)
         : 0
-    const pctAtencion = d.total_miembros > 0
-        ? Math.round((d.miembros_en_atencion / d.total_miembros) * 100)
-        : 0
-    const pctSanos = d.total_miembros > 0
-        ? Math.round((d.miembros_sanos / d.total_miembros) * 100)
-        : 0
+    const mensajeDiferenciaDistribucion = totalMiembrosDistribucion > totalMiembrosReporte
+        ? `La distribución suma ${totalMiembrosDistribucion}; podría haber miembros contados en más de un nivel.`
+        : `La distribución suma ${totalMiembrosDistribucion}; algunos miembros podrían no estar representados en la distribución de riesgo.`
+    const pctCriticos = porcentajeDelReporte(d.miembros_criticos)
+    const pctRiesgo = porcentajeDelReporte(d.miembros_en_riesgo)
+    const pctAtencion = porcentajeDelReporte(d.miembros_en_atencion)
+    const pctSanos = porcentajeDelReporte(d.miembros_sanos)
+    const distribucionGrafico = distribucionSalud
+        .filter((item) => item.cantidad > 0)
+        .map((item) => ({
+            ...item,
+            name: ETIQUETAS_NIVEL[item.nivel] || item.nivel,
+            porcentaje: porcentajeDistribucion(item.cantidad),
+        }))
 
     return (
         <div className="space-y-6">
@@ -126,16 +143,13 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                         </div>
                         <TituloSistema nivel={4}>Distribución de Salud</TituloSistema>
                     </div>
-                    {d.distribucion_riesgo.length > 0 ? (
+                    {distribucionGrafico.length > 0 ? (
                         <div className="flex flex-col sm:flex-row items-center gap-4">
                             <div className="w-48 h-48 sm:w-52 sm:h-52">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
-                                            data={d.distribucion_riesgo.map(r => ({
-                                                ...r,
-                                                name: ETIQUETAS_NIVEL[r.nivel] || r.nivel
-                                            }))}
+                                            data={distribucionGrafico}
                                             cx="50%"
                                             cy="50%"
                                             innerRadius={55}
@@ -144,7 +158,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                             dataKey="cantidad"
                                             strokeWidth={0}
                                         >
-                                            {d.distribucion_riesgo.map((r, i) => (
+                                            {distribucionGrafico.map((r, i) => (
                                                 <Cell
                                                     key={i}
                                                     fill={COLORES_NIVEL[r.nivel as keyof typeof COLORES_NIVEL] || '#94a3b8'}
@@ -165,7 +179,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                 </ResponsiveContainer>
                             </div>
                             <div className="flex flex-col gap-2 flex-1">
-                                {d.distribucion_riesgo.map((r) => (
+                                {distribucionGrafico.map((r) => (
                                     <div key={r.nivel} className="flex items-center gap-2">
                                         <span
                                             className="w-3 h-3 rounded-full shrink-0"
@@ -179,10 +193,15 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                     </div>
                                 ))}
                                 <div className="mt-1 pt-2 border-t border-border">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs text-muted-foreground">Total miembros</span>
-                                        <span className="text-sm font-bold text-foreground">{d.total_miembros}</span>
+                                     <div className="flex items-center justify-between">
+                                         <span className="text-xs text-muted-foreground">Total miembros</span>
+                                         <span className="text-sm font-bold text-foreground">{totalMiembrosVisual}</span>
                                     </div>
+                                    {hayDiferenciaDistribucion && (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            {mensajeDiferenciaDistribucion}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -463,7 +482,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                     {/* Horizontal stacked bars */}
                     <div className="space-y-3">
                         {d.segmentos_riesgo.map((seg) => {
-                            const problemas = seg.criticos + seg.riesgo + seg.atencion
+                            const totalSegmento = Math.max(0, seg.normal + seg.atencion + seg.riesgo + seg.criticos)
+                            const anchoSegmento = (cantidad: number) => totalSegmento > 0 ? (cantidad / totalSegmento) * 100 : 0
                             return (
                                 <div key={seg.segmento_nombre}>
                                     <div className="flex items-center justify-between mb-1.5">
@@ -475,7 +495,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                             {seg.riesgo > 0 && (
                                                 <span className="text-xs text-warning font-medium">{seg.riesgo} riesgo</span>
                                             )}
-                                            <span className="text-xs text-muted-foreground">{seg.total} total</span>
+                                            <span className="text-xs text-muted-foreground">{totalSegmento} total</span>
                                         </div>
                                     </div>
                                     {/* Bar visual */}
@@ -483,25 +503,25 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                         {seg.normal > 0 && (
                                             <div
                                                 className="h-full bg-green-500 transition-all duration-500"
-                                                style={{ width: `${(seg.normal / seg.total) * 100}%` }}
+                                                style={{ width: `${anchoSegmento(seg.normal)}%` }}
                                             />
                                         )}
                                         {seg.atencion > 0 && (
                                             <div
                                                 className="h-full bg-yellow-500 transition-all duration-500"
-                                                style={{ width: `${(seg.atencion / seg.total) * 100}%` }}
+                                                style={{ width: `${anchoSegmento(seg.atencion)}%` }}
                                             />
                                         )}
                                         {seg.riesgo > 0 && (
                                             <div
                                                 className="h-full bg-orange-500 transition-all duration-500"
-                                                style={{ width: `${(seg.riesgo / seg.total) * 100}%` }}
+                                                style={{ width: `${anchoSegmento(seg.riesgo)}%` }}
                                             />
                                         )}
                                         {seg.criticos > 0 && (
                                             <div
                                                 className="h-full bg-red-500 transition-all duration-500"
-                                                style={{ width: `${(seg.criticos / seg.total) * 100}%` }}
+                                                style={{ width: `${anchoSegmento(seg.criticos)}%` }}
                                             />
                                         )}
                                     </div>

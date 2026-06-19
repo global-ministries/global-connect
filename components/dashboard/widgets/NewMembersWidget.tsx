@@ -20,13 +20,13 @@ interface NewMembersWidgetProps {
 function formatearFecha(fechaISO: string): string {
   try {
     const d = new Date(fechaISO)
-    return d.toLocaleDateString('es-VE', { year: 'numeric', month: 'short', day: 'numeric' })
+    return d.toLocaleDateString('es-VE', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })
   } catch {
     return fechaISO
   }
 }
 
-export function NewMembersWidget({ id, title = 'Nuevos Miembros en tu Grupo', items }: NewMembersWidgetProps) {
+export function NewMembersWidget({ title = 'Nuevos Miembros en tu Grupo', items }: NewMembersWidgetProps) {
   return (
     <TarjetaSistema className="p-3 md:p-4 lg:p-6 h-full">
       <TituloSistema nivel={3} className="mb-4">{title}</TituloSistema>

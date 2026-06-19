@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo } from "react"
 import {
   Eye,
   Edit,
@@ -31,6 +31,17 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { FiltrosUsuarios as FiltrosUsuariosUI } from '@/components/ui/filtros-usuarios'
 import type { FiltrosUsuarios as FiltrosUsuariosType } from '@/components/ui/filtros-usuarios'
 import { useCampus } from '@/hooks/useCampus'
+
+type RolSeleccionable = 'miembro' | 'lider' | 'pastor' | 'director-etapa' | 'director-general' | 'admin'
+
+const ROLES_DISPONIBLES = [
+  { nombre_interno: 'miembro', nombre_visible: 'Miembro' },
+  { nombre_interno: 'lider', nombre_visible: 'Líder' },
+  { nombre_interno: 'pastor', nombre_visible: 'Pastor' },
+  { nombre_interno: 'director-etapa', nombre_visible: 'Director de Etapa' },
+  { nombre_interno: 'director-general', nombre_visible: 'Director General' },
+  { nombre_interno: 'admin', nombre_visible: 'Administrador' },
+]
 
 // Funciones auxiliares
 function obtenerVarianteBadgeRol(rol?: string): "default" | "success" | "warning" | "error" | "info" {
@@ -132,7 +143,7 @@ export default function PaginaUsuarios() {
 
   // Cambiar rol
   const [cambiandoRol, setCambiandoRol] = useState(false)
-  const [rolNuevo, setRolNuevo] = useState<'miembro' | 'lider' | 'pastor' | 'director-etapa' | 'director-general' | 'admin'>('miembro')
+  const [rolNuevo, setRolNuevo] = useState<RolSeleccionable>('miembro')
   const cambiarRolSeleccionados = async () => {
     if (!esAdmin || seleccionados.size === 0) return
     try {
@@ -157,26 +168,6 @@ export default function PaginaUsuarios() {
   const limpiarFiltros = () => {
     limpiarFiltrosHook()
   }
-
-  // Roles disponibles para el componente de filtros (se cargan una vez)
-  const [rolesDisponibles, setRolesDisponibles] = useState<Array<{ nombre_interno: string; nombre_visible: string }>>([])
-  useEffect(() => {
-    let cancelado = false
-    const cargarRoles = async () => {
-      try {
-        const res = await fetch('/api/debug/roles')
-        if (!res.ok) return
-        const json = await res.json().catch(() => ({} as any))
-        if (!cancelado) setRolesDisponibles(json?.roles || [])
-      } catch (e) {
-        // silencioso para no interrumpir la página
-        console.debug('No se pudieron cargar roles para filtros:', e)
-      }
-    }
-    cargarRoles()
-    return () => { cancelado = true }
-  }, [])
-
 
   const estadisticasUsuarios = [
     { titulo: "Total Usuarios", valor: estadisticas?.total_usuarios || 0, crecimiento: "+12.5%", esPositivo: true, icono: Users, color: "from-orange-500 to-orange-600" },
@@ -235,7 +226,7 @@ export default function PaginaUsuarios() {
           <div className="flex items-center gap-2">
             <select
               value={rolNuevo}
-              onChange={(e) => setRolNuevo(e.target.value as any)}
+              onChange={(e) => setRolNuevo(e.target.value as RolSeleccionable)}
               className="px-2 py-1 border border-border rounded text-sm bg-card focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]"
             >
               <option value="miembro">Miembro</option>
@@ -387,7 +378,7 @@ export default function PaginaUsuarios() {
                       onFiltrosChange={(f) => {
                         actualizarFiltros({ roles: f.roles, con_email: f.conEmail, con_telefono: f.conTelefono, en_grupo: f.enGrupo })
                       }}
-                      rolesDisponibles={rolesDisponibles}
+                      rolesDisponibles={ROLES_DISPONIBLES}
                       onLimpiarFiltros={limpiarFiltros}
                     />
                   )

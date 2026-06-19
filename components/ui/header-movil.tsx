@@ -343,6 +343,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                   <div className="py-1">
                     <Link
                       href="/perfil"
+                      prefetch={false}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
                     >
                       <User className="w-4 h-4 text-muted-foreground" />
@@ -398,9 +399,11 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           "transition-transform duration-300 ease-expo",
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         )}
-        role="dialog"
-        aria-modal="true"
+        role={drawerOpen ? "dialog" : undefined}
+        aria-modal={drawerOpen ? true : undefined}
+        aria-hidden={!drawerOpen}
         aria-label="Menú de navegación"
+        inert={!drawerOpen ? true : undefined}
       >
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 safe-area-pt border-b border-[var(--glass-border)]">
@@ -470,6 +473,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                       <div className="flex items-center">
                         <Link
                           href={item.href}
+                          prefetch={false}
                           aria-current={active ? "page" : undefined}
                           className={cn(
                             "flex-1 flex items-center gap-3 px-3 py-2.5 rounded-l-xl min-h-[44px]",
@@ -518,6 +522,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                               <li key={child.id}>
                                 <Link
                                   href={child.href}
+                                  prefetch={false}
                                   aria-current={childActive ? "page" : undefined}
                                   className={cn(
                                     "flex items-center gap-3 px-3 py-2 rounded-lg min-h-[36px] text-sm",
@@ -546,6 +551,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                     /* Simple item */
                     <Link
                       href={item.href}
+                      prefetch={false}
                       aria-current={active ? "page" : undefined}
                       className={cn(
                         "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
@@ -574,6 +580,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           {/* Actualizaciones */}
           <Link
             href="/actualizaciones"
+            prefetch={false}
             aria-current={isActive('/actualizaciones') ? "page" : undefined}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
@@ -592,6 +599,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           </Link>
           <Link
             href="/ayuda"
+            prefetch={false}
             aria-current={isActive('/ayuda') ? "page" : undefined}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px] w-full text-left",
@@ -625,6 +633,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           {/* Mi Perfil */}
           <Link
             href="/perfil"
+            prefetch={false}
             aria-current={pathname === '/perfil' ? "page" : undefined}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",

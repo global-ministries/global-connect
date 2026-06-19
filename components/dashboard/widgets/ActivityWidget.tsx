@@ -37,7 +37,7 @@ function getIcono(tipo: TipoActividad) {
 function formatearFechaHora(fechaISO: string): string {
   try {
     const d = new Date(fechaISO)
-    return d.toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' })
+    return d.toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short', timeZone: 'UTC' })
   } catch {
     return fechaISO
   }
