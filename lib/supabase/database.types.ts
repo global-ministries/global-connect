@@ -3956,14 +3956,6 @@ export type Database = {
         }
         Returns: Json
       }
-      agregar_relacion_familiar: {
-        Args: {
-          p_tipo_relacion: string
-          p_usuario1_id: string
-          p_usuario2_id: string
-        }
-        Returns: undefined
-      }
       asignar_director_etapa_a_ubicacion: {
         Args: {
           p_accion: string
@@ -4004,6 +3996,21 @@ export type Database = {
           nombre: string
           telefono: string
           ya_es_miembro: boolean
+        }[]
+      }
+      buscar_usuarios_para_relacion_familiar: {
+        Args: {
+          p_auth_id: string
+          p_busqueda?: string
+          p_limite?: number
+          p_usuario_base_id: string
+        }
+        Returns: {
+          apellido: string
+          foto_perfil_url: string | null
+          id: string
+          nombre: string
+          total_count: number
         }[]
       }
       claim_support_event_outbox_batch: {
@@ -4208,6 +4215,19 @@ export type Database = {
       obtener_casas_visibles_ids: {
         Args: { p_auth_id: string }
         Returns: string[]
+      }
+      agregar_relacion_familiar_segura: {
+        Args: {
+          p_auth_id: string
+          p_tipo_relacion: Database["public"]["Enums"]["enum_tipo_relacion"]
+          p_usuario1_id: string
+          p_usuario2_id: string
+        }
+        Returns: Json
+      }
+      eliminar_relacion_familiar_segura: {
+        Args: { p_auth_id: string; p_relacion_id: string }
+        Returns: Json
       }
       obtener_conyugue: {
         Args: { p_usuario_id: string }
@@ -4463,6 +4483,10 @@ export type Database = {
       puede_ver_debug_toolbar: { Args: { p_auth_id: string }; Returns: boolean }
       puede_ver_grupo: {
         Args: { p_grupo_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      puede_ver_grupo_reporte_asistencia: {
+        Args: { p_auth_id: string; p_grupo_id: string }
         Returns: boolean
       }
       puede_ver_usuario: {

@@ -7,22 +7,34 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireAuth } from "@/lib/auth/requireAuth"
 import type { Database } from "@/lib/supabase/database.types"
 
+type FamilyRelationshipResponse = {
+  error?: string
+  message?: string
+}
+
+type FamilyRelationshipType = Database["public"]["Enums"]["enum_tipo_relacion"]
+
 // Elimina una relacion familiar usando la funcion RPC y revalida la pagina de detalle
 export async function deleteFamilyRelation(relationId: string, userId: string) {
-  await requireAuth()
-  const supabase = createSupabaseAdminClient();
+  const { authId } = await requireAuth()
+  const supabase = await createSupabaseServerClient()
   try {
-    const { data, error } = await supabase.rpc('eliminar_relacion_familiar', { p_relacion_id: relationId });
+    const { data, error } = await supabase.rpc('eliminar_relacion_familiar_segura', {
+      p_auth_id: authId,
+      p_relacion_id: relationId,
+    });
     if (error) {
       return { success: false, error: error.message };
     }
-    if ((data as any) && (data as any).error) {
-      return { success: false, error: (data as any).error };
+    const response = data as FamilyRelationshipResponse | null
+    if (response?.error) {
+      return { success: false, error: response.error };
     }
     revalidatePath(`/users/${userId}`);
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Error inesperado' };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error inesperado'
+    return { success: false, error: message };
   }
 }
 
@@ -247,48 +259,34 @@ export async function addFamilyRelation({
   usuario2_id: string
   tipo_relacion: string
 }) {
-  await requireAuth()
-  const supabase = createSupabaseAdminClient()
+  const { authId } = await requireAuth()
+  const supabase = await createSupabaseServerClient()
   try {
-
-    // Validar duplicados: solo una relación entre los mismos usuarios (en cualquier orden, sin importar tipo)
-    const { data: existing, error: errorExisting } = await supabase
-      .from('relaciones_usuarios')
-      .select('id')
-      .or(
-        `and(usuario1_id.eq.${usuario1_id},usuario2_id.eq.${usuario2_id})` +
-        `,and(usuario1_id.eq.${usuario2_id},usuario2_id.eq.${usuario1_id})`
-      )
-      .limit(1)
-
-    if (errorExisting) {
-      return { success: false, message: errorExisting.message }
+    if (usuario1_id === usuario2_id) {
+      return { success: false, message: 'A user cannot be related to themselves' }
     }
 
-    if (existing && existing.length > 0) {
-      return { success: false, message: 'Ya existe una relación entre estos usuarios' }
-    }
-
-    // Insertar una sola fila representando la relación desde la perspectiva de usuario1
-    const { data: inserted, error: errorInsert } = await supabase
-      .from('relaciones_usuarios')
-      .insert({
-        usuario1_id,
-        usuario2_id,
-        tipo_relacion: tipo_relacion as any,
-        es_principal: false,
+    const { data, error } = await supabase.rpc('agregar_relacion_familiar_segura', {
+        p_auth_id: authId,
+        p_usuario1_id: usuario1_id,
+        p_usuario2_id: usuario2_id,
+        p_tipo_relacion: tipo_relacion as FamilyRelationshipType,
       })
-      .select()
-      .maybeSingle()
 
-    if (errorInsert) {
-      return { success: false, message: errorInsert.message }
+    if (error) {
+      return { success: false, message: error.message }
+    }
+
+    const response = data as FamilyRelationshipResponse | null
+    if (response?.error || response?.message) {
+      return { success: false, message: response.error ?? response.message }
     }
 
     revalidatePath(`/users/${usuario1_id}`)
     return { success: true }
-  } catch (err: any) {
-    return { success: false, message: err?.message || "Error inesperado" }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Error inesperado"
+    return { success: false, message }
   }
 }
 
