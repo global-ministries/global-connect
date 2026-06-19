@@ -3,6 +3,9 @@ import React, { useState, useEffect } from "react";
 interface PhoneNumberInputProps {
   value: string;
   onChange: (value: string) => void;
+  id?: string;
+  name?: string;
+  autoComplete?: string;
 }
 
 const COUNTRY_OPTIONS = [
@@ -22,7 +25,7 @@ function splitPhoneNumber(fullNumber: string) {
   return { prefix: COUNTRY_OPTIONS[0].value, number: fullNumber };
 }
 
-export const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({ value, onChange }) => {
+export const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({ value, onChange, id, name, autoComplete }) => {
   const [prefix, setPrefix] = useState(COUNTRY_OPTIONS[0].value);
   const [number, setNumber] = useState("");
 
@@ -49,6 +52,7 @@ export const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({ value, onCha
       <select
         value={prefix}
         onChange={handlePrefixChange}
+        aria-label="Código de país"
         className="h-11 px-3 border border-border rounded-xl focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] transition-[border-color,box-shadow] duration-200 bg-card/50 text-foreground shrink-0"
         style={{ width: 120 }}
       >
@@ -59,10 +63,13 @@ export const PhoneNumberInput: React.FC<PhoneNumberInputProps> = ({ value, onCha
         ))}
       </select>
       <input
+        id={id}
+        name={name}
         type="tel"
         value={number}
         onChange={handleNumberChange}
         placeholder="Número de teléfono"
+        autoComplete={autoComplete}
         className="flex-1 min-w-0 h-11 px-4 border border-border rounded-xl focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] transition-[border-color,box-shadow] duration-200 bg-card/50 text-foreground"
       />
     </div>

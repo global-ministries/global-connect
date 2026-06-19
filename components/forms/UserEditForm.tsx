@@ -295,34 +295,44 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <InputSistema
+            id="nombre"
             label="Nombre *"
             placeholder="Ingresa el nombre"
+            autoComplete="given-name"
             error={errors.nombre?.message}
             {...register("nombre")}
           />
 
           <InputSistema
+            id="apellido"
             label="Apellido *"
             placeholder="Ingresa el apellido"
+            autoComplete="family-name"
             error={errors.apellido?.message}
             {...register("apellido")}
           />
 
           <InputSistema
+            id="cedula"
             label="Cédula"
             placeholder="Ingresa la cédula"
+            autoComplete="off"
             error={errors.cedula?.message}
             {...register("cedula")}
           />
 
           <InputSistema
+            id="fecha_nacimiento"
             label="Fecha de Nacimiento"
             type="date"
+            autoComplete="bday"
             error={errors.fecha_nacimiento?.message}
             {...register("fecha_nacimiento")}
           />
 
           <SelectSistema
+            id="genero"
+            name="genero"
             label="Género"
             value={watch("genero")}
             onValueChange={(value) => setValue("genero", value as "Masculino" | "Femenino")}
@@ -334,6 +344,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           />
 
           <SelectSistema
+            id="estado_civil"
+            name="estado_civil"
             label="Estado Civil"
             value={watch("estado_civil")}
             onValueChange={(value) => setValue("estado_civil", value as "Soltero" | "Casado" | "Divorciado" | "Viudo")}
@@ -356,9 +368,11 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <InputSistema
+            id="email"
             label="Email"
             type="email"
             placeholder="Ingresa el email"
+            autoComplete="email"
             icono={Mail}
             error={errors.email?.message}
             {...register("email")}
@@ -371,6 +385,9 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               control={control}
               render={({ field }) => (
                 <PhoneNumberInput
+                  id="telefono"
+                  name={field.name}
+                  autoComplete="tel"
                   value={field.value || ""}
                   onChange={field.onChange}
                 />
@@ -391,6 +408,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <SelectSistema
+            id="ocupacion_id"
+            name="ocupacion_id"
             label="Ocupación"
             placeholder="Selecciona la ocupación"
             value={watch("ocupacion_id")}
@@ -403,6 +422,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           />
 
           <SelectSistema
+            id="profesion_id"
+            name="profesion_id"
             label="Profesión"
             placeholder="Selecciona la profesión"
             value={watch("profesion_id")}
@@ -464,6 +485,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         {/* Fila superior: Selectores */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <SelectSistema
+            id="direccion_pais_id"
+            name="direccion.pais_id"
             label="País"
             placeholder="Selecciona el país"
             value={watch("direccion.pais_id")}
@@ -479,6 +502,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           />
 
           <SelectSistema
+            id="direccion_estado_id"
+            name="direccion.estado_id"
             label="Estado"
             placeholder="Selecciona el estado"
             value={watch("direccion.estado_id")}
@@ -496,6 +521,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           />
 
           <SelectSistema
+            id="direccion_municipio_id"
+            name="direccion.municipio_id"
             label="Municipio"
             placeholder="Selecciona el municipio"
             value={watch("direccion.municipio_id")}
@@ -512,6 +539,8 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           />
 
           <SelectSistema
+            id="direccion_parroquia_id"
+            name="direccion.parroquia_id"
             label="Parroquia"
             placeholder="Selecciona la parroquia"
             value={watch("direccion.parroquia_id")}
@@ -530,27 +559,35 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
         {/* Sección central: Detalles de dirección */}
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <InputSistema
+            id="direccion_calle"
             label="Calle *"
             placeholder="Ingresa la calle"
+            autoComplete="address-line1"
             error={errors.direccion?.calle?.message}
             {...register("direccion.calle")}
           />
 
           <InputSistema
+            id="direccion_barrio"
             label="Barrio"
             placeholder="Ingresa el barrio"
+            autoComplete="address-line2"
             {...register("direccion.barrio")}
           />
 
           <InputSistema
+            id="direccion_codigo_postal"
             label="Código Postal"
             placeholder="Ingresa el código postal"
+            autoComplete="postal-code"
             {...register("direccion.codigo_postal")}
           />
 
           <InputSistema
+            id="direccion_referencia"
             label="Referencia"
             placeholder="Ingresa puntos de referencia"
+            autoComplete="off"
             {...register("direccion.referencia")}
           />
         </div>
@@ -582,12 +619,16 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           </div>
           <div className="flex flex-col gap-4">
             <InputSistema
+              id="direccion_latitud"
+              name="direccion.lat"
               label="Latitud"
               type="text"
               value={String(watch("direccion")?.lat ?? '')}
               disabled
             />
             <InputSistema
+              id="direccion_longitud"
+              name="direccion.lng"
               label="Longitud"
               type="text"
               value={String(watch("direccion")?.lng ?? '')}

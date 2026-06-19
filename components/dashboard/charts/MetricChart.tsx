@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useId } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
 
 interface MetricChartProps {
@@ -12,7 +12,7 @@ interface MetricChartProps {
 }
 
 export function MetricChart({ data, color = "#E96C20" }: MetricChartProps) {
-  const gradientId = `gradient-${Math.random().toString(36).substr(2, 9)}`
+  const gradientId = `metric-gradient-${useId().replace(/:/g, '')}`
   
   return (
     <div className="h-32 w-full">

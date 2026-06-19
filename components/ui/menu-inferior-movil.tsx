@@ -17,7 +17,7 @@ export function MenuInferiorMovil() {
   const pathname = usePathname()
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-t border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">
+    <nav aria-label="Navegación inferior" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-t border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">
       <div className="flex items-center justify-around px-2 py-2 safe-area-pb">
         {elementosMenu.map((elemento) => {
           const Icono = elemento.icono
@@ -29,6 +29,7 @@ export function MenuInferiorMovil() {
             <Link
               key={elemento.id}
               href={elemento.enlace}
+              prefetch={false}
               aria-label={`Navegar a ${elemento.nombre}`}
               aria-current={esActivo ? "page" : undefined}
               className={cn(
@@ -51,6 +52,6 @@ export function MenuInferiorMovil() {
           )
         })}
       </div>
-    </div>
+    </nav>
   )
 }

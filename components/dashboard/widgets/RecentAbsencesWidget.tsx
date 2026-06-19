@@ -20,13 +20,13 @@ interface RecentAbsencesWidgetProps {
 function formatearFecha(fechaISO: string): string {
   try {
     const d = new Date(fechaISO)
-    return d.toLocaleDateString('es-VE', { year: 'numeric', month: 'short', day: 'numeric' })
+    return d.toLocaleDateString('es-VE', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })
   } catch {
     return fechaISO
   }
 }
 
-export function RecentAbsencesWidget({ id, title = 'Seguimiento de Ausencias', items }: RecentAbsencesWidgetProps) {
+export function RecentAbsencesWidget({ title = 'Seguimiento de Ausencias', items }: RecentAbsencesWidgetProps) {
   return (
     <TarjetaSistema className="p-3 md:p-4 lg:p-6 h-full">
       <TituloSistema nivel={3} className="mb-4">{title}</TituloSistema>

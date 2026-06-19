@@ -306,19 +306,22 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setIsCollapsed(true)}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed left-0 top-0 z-50 h-full flex flex-col glass-panel-elevated border-r border-[var(--glass-border)]",
+          "fixed left-0 top-0 z-50 h-full hidden md:flex flex-col glass-panel-elevated border-r border-[var(--glass-border)]",
           "transition-[width,transform] duration-300 ease-expo",
           isCollapsed ? "w-16" : "w-64",
           "md:relative md:z-auto",
           isMobile && isCollapsed && "-translate-x-full md:translate-x-0",
           className
         )}
+        aria-hidden={isMobile ? true : undefined}
+        inert={isMobile ? true : undefined}
       >
         {/* Header con logo y toggle */}
         <div className="flex items-center justify-between p-3">
@@ -349,7 +352,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         )}
 
         {/* Navegación */}
-        <nav className="flex-1 px-3 py-2 overflow-y-auto">
+        <nav className="flex-1 px-3 py-2 overflow-y-auto" aria-label="Navegación principal">
           <ul className="space-y-0.5">
             {menuItems
               .filter(canAccess)
@@ -372,6 +375,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                         <div className="flex items-center">
                           <Link
                             href={item.href}
+                            prefetch={false}
                             aria-current={exactActive ? "page" : undefined}
                             className={cn(
                               linkClasses(parentActive),
@@ -435,9 +439,10 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                                   const childActive = isActive(child.href)
                                   return (
                                     <li key={child.id}>
-                                      <Link
-                                        href={child.href}
-                                        aria-current={childActive ? "page" : undefined}
+                                        <Link
+                                          href={child.href}
+                                          prefetch={false}
+                                          aria-current={childActive ? "page" : undefined}
                                         className={subLinkClasses(childActive)}
                                       >
                                         {ChildIcon && (
@@ -459,6 +464,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                       /* Simple item (no children) */
                       <Link
                         href={item.href}
+                        prefetch={false}
                         aria-current={parentActive ? "page" : undefined}
                         className={linkClasses(parentActive)}
                         onMouseEnter={(e) => showTooltip(e, item.label)}
@@ -499,6 +505,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
               <Link
                 key={item.id}
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? "page" : undefined}
                 className={linkClasses(active)}
                 onMouseEnter={(e) => showTooltip(e, item.label)}
@@ -514,6 +521,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
           })}
           <Link
             href="/ayuda"
+            prefetch={false}
             aria-current={isActive('/ayuda') ? "page" : undefined}
             className={linkClasses(isActive('/ayuda'))}
             onMouseEnter={(e) => showTooltip(e, 'Ayuda')}
@@ -553,6 +561,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
           {/* Mi Perfil */}
           <Link
             href="/perfil"
+            prefetch={false}
             aria-current={pathname === '/perfil' ? "page" : undefined}
             className={linkClasses(pathname === '/perfil')}
             onMouseEnter={(e) => showTooltip(e, 'Mi Perfil')}
