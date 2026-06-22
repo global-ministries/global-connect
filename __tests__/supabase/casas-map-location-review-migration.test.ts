@@ -73,7 +73,22 @@ describe('Casas map location review DB foundation', () => {
     expect(sql).toContain('CREATE TABLE IF NOT EXISTS public.casa_anfitriona_audit_events')
     expect(sql).toContain('ALTER TABLE public.casa_anfitriona_location_reviews ENABLE ROW LEVEL SECURITY;')
     expect(sql).toContain('ALTER TABLE public.casa_anfitriona_audit_events ENABLE ROW LEVEL SECURITY;')
-    for (const indexName of ['idx_casa_location_reviews_pending', 'idx_casa_audit_events_casa_created', 'idx_casas_map_approved_location']) expect(sql).toContain(indexName)
+    for (const indexName of [
+      'idx_casa_location_reviews_casa',
+      'idx_casa_location_reviews_proposed_direction',
+      'idx_casa_location_reviews_requested_by',
+      'idx_casa_location_reviews_decision_by',
+      'idx_casa_location_reviews_pending',
+      'idx_casa_audit_events_casa_created',
+      'idx_casa_audit_events_actor',
+      'idx_casa_audit_events_grupo',
+      'idx_casas_map_approved_location',
+    ]) expect(sql).toContain(indexName)
+    for (const indexSql of [
+      'CREATE INDEX IF NOT EXISTS idx_casa_location_reviews_requested_by\nON public.casa_anfitriona_location_reviews(requested_by_user_id);',
+      'CREATE INDEX IF NOT EXISTS idx_casa_location_reviews_decision_by\nON public.casa_anfitriona_location_reviews(decision_by_user_id);',
+      'CREATE INDEX IF NOT EXISTS idx_casa_audit_events_grupo\nON public.casa_anfitriona_audit_events(grupo_id);',
+    ]) expect(sql).toContain(indexSql)
     expect(sql).not.toMatch(/\bDROP\s+(TABLE|COLUMN)\b|\bTRUNCATE\b|\bDELETE\s+FROM\s+public\./i)
     expect(sql).not.toMatch(/INSERT\s+INTO\s+public\.casa_anfitriona_(location_reviews|audit_events)\s+SELECT/i)
     expect(sql).not.toMatch(/UPDATE\s+public\.casas_anfitrionas\s+SET\s+direccion_id/i)
@@ -101,6 +116,8 @@ describe('Casas map location review DB foundation', () => {
     }
     expect(sql).toContain('REVOKE ALL ON FUNCTION public.casas_map_director_general_can_view_group(uuid, uuid) FROM authenticated;')
     expect(sql).toContain('REVOKE ALL ON FUNCTION public.casas_map_actor_can_approve_review(uuid, uuid) FROM authenticated;')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.casas_map_user_can_view_group(uuid, uuid) FROM authenticated;')
+    expect(sql).not.toContain('GRANT EXECUTE ON FUNCTION public.casas_map_user_can_view_group(uuid, uuid) TO authenticated')
     expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.casas_map_director_general_can_view_group(uuid, uuid) TO service_role;')
     expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.casas_map_actor_can_approve_review(uuid, uuid) TO service_role;')
     expect(sql.match(/SECURITY DEFINER SET search_path TO 'public'/g)).toHaveLength(11)
@@ -201,7 +218,11 @@ describe('Casas map location review DB foundation', () => {
       'member layer hides pins from ordinary member',
       'spoofed p_auth_id is denied',
     ]) expect(contracts).toContain(token)
-    expect(contracts).toContain("set_config('request.jwt.claim.sub', fixture_id('admin_auth_id')::text, true)")
+    expect(contracts).toContain('INSERT INTO auth.users(id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)')
+    expect(contracts).toContain('INSERT INTO public.usuarios')
+    expect(contracts.indexOf('INSERT INTO auth.users')).toBeLessThan(contracts.indexOf('INSERT INTO public.usuarios'))
+    expect(contracts).toContain("set_config('request.jwt.claim.sub', pg_temp.fixture_id('admin_auth_id')::text, true)")
+    expect(contracts.replace(/pg_temp\.fixture_id\(/g, '')).not.toContain('fixture_id(')
     expect(contracts).toContain('public.asignar_casa_anfitriona_a_grupo(')
     expect(contracts).toContain('public.procesar_revision_ubicacion_casa(')
     expect(contracts).toContain('public.obtener_mapa_miembros(')

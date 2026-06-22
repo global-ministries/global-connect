@@ -47,6 +47,12 @@ ON public.casa_anfitriona_location_reviews(casa_anfitriona_id);
 CREATE INDEX IF NOT EXISTS idx_casa_location_reviews_proposed_direction
 ON public.casa_anfitriona_location_reviews(proposed_direccion_id);
 
+CREATE INDEX IF NOT EXISTS idx_casa_location_reviews_requested_by
+ON public.casa_anfitriona_location_reviews(requested_by_user_id);
+
+CREATE INDEX IF NOT EXISTS idx_casa_location_reviews_decision_by
+ON public.casa_anfitriona_location_reviews(decision_by_user_id);
+
 CREATE INDEX IF NOT EXISTS idx_casa_location_reviews_pending
 ON public.casa_anfitriona_location_reviews(created_at)
 WHERE status = 'pending';
@@ -56,6 +62,9 @@ ON public.casa_anfitriona_audit_events(casa_anfitriona_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_casa_audit_events_actor
 ON public.casa_anfitriona_audit_events(actor_user_id);
+
+CREATE INDEX IF NOT EXISTS idx_casa_audit_events_grupo
+ON public.casa_anfitriona_audit_events(grupo_id);
 
 CREATE INDEX IF NOT EXISTS idx_casas_map_approved_location
 ON public.casas_anfitrionas(direccion_id)
@@ -442,6 +451,7 @@ REVOKE ALL ON FUNCTION public.casas_map_actor_can_approve_review(uuid, uuid) FRO
 REVOKE ALL ON FUNCTION public.casas_map_actor_can_approve_review(uuid, uuid) FROM authenticated;
 REVOKE ALL ON FUNCTION public.casas_map_user_can_view_group(uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.casas_map_user_can_view_group(uuid, uuid) FROM anon;
+REVOKE ALL ON FUNCTION public.casas_map_user_can_view_group(uuid, uuid) FROM authenticated;
 REVOKE ALL ON FUNCTION public.puede_asignar_casa_anfitriona_a_grupo(uuid, uuid, uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.puede_asignar_casa_anfitriona_a_grupo(uuid, uuid, uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.puede_asignar_casa_anfitriona_a_grupo(uuid, uuid, uuid) FROM authenticated;
