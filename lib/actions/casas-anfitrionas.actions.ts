@@ -544,6 +544,12 @@ function puedeSolicitarColaRevisionCasas(roles: Set<string>): boolean {
   return puedeVerTodasLasColasCasas(roles) || roles.has("director-general");
 }
 
+function puedeSolicitarMapaMiembros(roles: Set<string>): boolean {
+  return roles.has("admin")
+    || roles.has("director-general")
+    || roles.has("director-etapa");
+}
+
 async function obtenerGruposLideradosDashboard(supabase: ServerRpcClient, userId: string): Promise<Set<string>> {
   const { data, error } = await supabase
     .from("grupo_miembros")
@@ -1224,7 +1230,22 @@ export async function obtenerCasasRevisionPendiente(): Promise<ResultadoAccion<C
 export async function obtenerMapaMiembros(
   input?: unknown
 ): Promise<ResultadoAccion<MapaMiembroItem[]>> {
-  return obtenerRpcRows(input, "obtener_mapa_miembros", memberMapRowSchema);
+  const scope = scopeInputSchema.safeParse(input ?? {});
+  if (!scope.success) return { success: false, error: formatZodError(scope.error) };
+
+  const { supabase, authId, error } = await validarAuthYPermisos();
+  if (error) return { success: false, error };
+
+  const roles = await obtenerRolesDashboardCasas(supabase, authId);
+  if (!puedeSolicitarMapaMiembros(roles)) return { success: true, data: [] };
+
+  const response = await executeCasasMapRpc(supabase, "obtener_mapa_miembros", {
+    p_auth_id: authId,
+    p_scope: scope.data.scope,
+  });
+
+  if (!response.success) return { success: false, error: response.error ?? genericMutationError };
+  return parseRpcArray(memberMapRowSchema, response.data, "obtener_mapa_miembros");
 }
 
 export async function asignarCasaAnfitrionaAGrupo(

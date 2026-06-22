@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { SkeletonSistema } from "@/components/ui/sistema-diseno";
-import type { GrupoMapa } from "./mapa-host-home-model";
+import type { GrupoMapa, MiembroMapa } from "./mapa-location-model";
 
 const MapaInteractivoInner = dynamic(
     () =>
@@ -22,6 +22,7 @@ const MapaInteractivoInner = dynamic(
 
 interface MapaGruposVidaProps {
     grupos: GrupoMapa[];
+    miembros?: MiembroMapa[];
     centro?: [number, number];
     zoom?: number;
     altura?: string;
@@ -35,6 +36,7 @@ interface MapaGruposVidaProps {
  */
 export function MapaGruposVida({
     grupos,
+    miembros = [],
     centro,
     zoom,
     altura,
@@ -43,6 +45,7 @@ export function MapaGruposVida({
     return (
         <MapaInteractivoInner
             grupos={grupos}
+            miembros={miembros}
             centro={centro}
             zoom={zoom}
             altura={altura}
@@ -51,4 +54,4 @@ export function MapaGruposVida({
     );
 }
 
-export type { GrupoMapa };
+export type { GrupoMapa, MiembroMapa };

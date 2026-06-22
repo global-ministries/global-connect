@@ -206,6 +206,17 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
+  it.each(['pastor', 'lider', 'miembro'])('returns no member map payload for %s without invoking the sensitive member RPC', async (role) => {
+    const rpc = createPermissionRpcMock({ roles: [role], memberMapRows: [createMemberMapRow()] })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
+
+    await expect(obtenerMapaMiembros({ scope: 'active' })).resolves.toEqual({ success: true, data: [] })
+
+    expect(rpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
+    expect(rpc).not.toHaveBeenCalledWith('obtener_mapa_miembros', expect.anything())
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
+  })
+
   it.each(['admin', 'pastor', 'director-general'])('allows %s to request the pending-review dashboard queue', async (role) => {
     const rpc = createPermissionRpcMock({ roles: [role], pendingReviewRows: [createPendingReviewRow()] })
     createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))

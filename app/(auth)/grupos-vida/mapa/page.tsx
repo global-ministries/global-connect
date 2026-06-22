@@ -3,14 +3,19 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { MapaGruposVida, type GrupoMapa } from "@/components/grupos-vida/mapa-grupos-vida";
-import { obtenerDatosMapaGruposHostHomes } from "@/lib/actions/casas-anfitrionas.actions";
+import { MapaGruposVida, type GrupoMapa, type MiembroMapa } from "@/components/grupos-vida/mapa-grupos-vida";
+import { emitMemberMapObservableEvent, splitValidMemberLocations } from "@/components/grupos-vida/mapa-location-model";
+import { obtenerDatosMapaGruposHostHomes, obtenerMapaMiembros } from "@/lib/actions/casas-anfitrionas.actions";
 import { MapPin, Users } from "lucide-react";
 
 type MapScope = "active" | "planned";
 type MapSearchParams = Record<string, string | string[] | undefined>;
 type HostHomeMapResult = Awaited<ReturnType<typeof obtenerDatosMapaGruposHostHomes>>;
 type HostHomeMapRow = NonNullable<HostHomeMapResult["data"]>[number];
+type MemberMapResult = Awaited<ReturnType<typeof obtenerMapaMiembros>>;
+type MemberMapRow = NonNullable<MemberMapResult["data"]>[number];
+const MEMBER_MAP_TIMEOUT_MS = 1500;
+const MEMBER_MAP_TIMEOUT_ERROR = "member-map-timeout";
 
 export default async function MapaGruposPage({ searchParams }: { searchParams?: Promise<MapSearchParams> } = {}) {
     const supabase = await createSupabaseServerClient();
@@ -20,9 +25,16 @@ export default async function MapaGruposPage({ searchParams }: { searchParams?: 
     const sp = searchParams ? await searchParams : {};
     const scope = resolveMapScope(Array.isArray(sp.scope) ? sp.scope[0] : sp.scope);
     const mapResult = await obtenerDatosMapaGruposHostHomes({ scope });
+    const memberMapResult = mapResult.success ? await loadMemberMap(scope) : { success: true, data: [] } satisfies MemberMapResult;
 
     const mapLoadFailed = !mapResult.success;
     const grupos: GrupoMapa[] = mapLoadFailed ? [] : (mapResult.data ?? []).map(toGrupoMapa);
+    const memberLayerFailed = mapResult.success && !memberMapResult.success;
+    const memberLayerRaw = memberLayerFailed ? [] : (memberMapResult.data ?? []).map(toMiembroMapa);
+    const { valid: miembros, skippedCount: skippedMemberLocations } = splitValidMemberLocations(memberLayerRaw);
+    if (skippedMemberLocations > 0) {
+        emitMemberMapObservableEvent("invalid-coordinates", skippedMemberLocations);
+    }
 
     const totalGrupos = grupos.length;
     const totalMiembros = grupos.reduce((sum, g) => sum + g.total_miembros, 0);
@@ -58,6 +70,24 @@ export default async function MapaGruposPage({ searchParams }: { searchParams?: 
                     )}
                 </div>
 
+                {miembros.length > 0 && (
+                    <TarjetaSistema variante="outlined" className="p-4 sm:p-5">
+                        <TextoSistema variante="sutil">
+                            La capa Miembros muestra ubicaciones exactas y privadas. Úsala únicamente para coordinación pastoral y operativa autorizada; no compartas estos datos fuera de los canales correspondientes.
+                        </TextoSistema>
+                    </TarjetaSistema>
+                )}
+
+                {(memberLayerFailed || skippedMemberLocations > 0) && (
+                    <TarjetaSistema variante="outlined" className="p-4 sm:p-5" role="alert">
+                        <TextoSistema variante="sutil">
+                            {memberLayerFailed
+                                ? "No pudimos cargar la capa de miembros. El mapa de grupos sigue disponible; actualiza la página y reporta la capa de miembros al equipo de soporte si el problema continúa."
+                                : `${skippedMemberLocations} ubicación${skippedMemberLocations === 1 ? "" : "es"} de miembro no se pudo mostrar porque sus coordenadas no son válidas. Actualiza la página y reporta la capa de miembros al equipo de soporte si persiste.`}
+                        </TextoSistema>
+                    </TarjetaSistema>
+                )}
+
                 {/* Stats */}
                 <div className="flex flex-wrap gap-4">
                     <TarjetaSistema className="flex items-center gap-3 px-4 py-3">
@@ -89,9 +119,10 @@ export default async function MapaGruposPage({ searchParams }: { searchParams?: 
                             </TextoSistema>
                         </div>
                     </TarjetaSistema>
-                ) : grupos.length > 0 ? (
+                ) : grupos.length > 0 || miembros.length > 0 ? (
                     <MapaGruposVida
                         grupos={grupos}
+                        miembros={miembros}
                         altura="calc(100vh - 300px)"
                     />
                 ) : (
@@ -129,6 +160,30 @@ function resolveMapScope(scope: string | undefined): MapScope {
     return scope === "planned" ? "planned" : "active";
 }
 
+async function loadMemberMap(scope: MapScope): Promise<MemberMapResult> {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<MemberMapResult>((resolve) => {
+        timeoutId = setTimeout(() => {
+            resolve({ success: false, error: MEMBER_MAP_TIMEOUT_ERROR });
+        }, MEMBER_MAP_TIMEOUT_MS);
+    });
+
+    try {
+        const result = await Promise.race([obtenerMapaMiembros({ scope }), timeout]);
+        if (!result.success) {
+            emitMemberMapObservableEvent(result.error === MEMBER_MAP_TIMEOUT_ERROR ? "timeout" : "failure", 0);
+            return { success: false, error: "No pudimos cargar la capa de miembros" };
+        }
+
+        return result;
+    } catch {
+        emitMemberMapObservableEvent("failure", 0);
+        return { success: false, error: "No pudimos cargar la capa de miembros" };
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
+}
+
 function toGrupoMapa(row: HostHomeMapRow): GrupoMapa {
     return {
         id: row.grupo_id,
@@ -145,5 +200,16 @@ function toGrupoMapa(row: HostHomeMapRow): GrupoMapa {
         casa_id: row.casa_id,
         barrio: row.barrio,
         notas_publicas: row.notas_publicas,
+    };
+}
+
+function toMiembroMapa(row: MemberMapRow): MiembroMapa {
+    return {
+        id: row.usuario_id,
+        nombre: row.nombre,
+        grupo_id: row.grupo_id,
+        grupo_nombre: row.grupo_nombre,
+        latitud: row.latitud,
+        longitud: row.longitud,
     };
 }
