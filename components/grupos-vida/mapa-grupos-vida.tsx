@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { SkeletonSistema } from "@/components/ui/sistema-diseno";
-import type { GrupoMapa } from "./mapa-interactivo-inner";
+import type { GrupoMapa } from "./mapa-host-home-model";
 
 const MapaInteractivoInner = dynamic(
     () =>

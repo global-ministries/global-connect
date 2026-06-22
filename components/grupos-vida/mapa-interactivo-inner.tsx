@@ -6,6 +6,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { TextoSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 import { BadgeEstadoCiclo } from "./badge-estado-ciclo";
+import { describeHostHomeLocation, type GrupoMapa } from "./mapa-host-home-model";
 import { Users, Clock, MapPin, Home } from "lucide-react";
 
 // Fix Leaflet default icons issue with Next.js/Webpack
@@ -19,25 +20,6 @@ const iconDefault = L.icon({
     shadowSize: [41, 41],
 });
 L.Marker.prototype.options.icon = iconDefault;
-
-export interface GrupoMapa {
-    id: string;
-    nombre: string;
-    latitud: number;
-    longitud: number;
-    direccion: string;
-    lugar_reunion: string;
-    dia_reunion: string | null;
-    hora_reunion: string | null;
-    estado_ciclo: string;
-    segmento: string;
-    temporada: string;
-    total_miembros: number;
-    capacidad_maxima: number | null;
-    lideres: Array<{ nombre: string; foto: string | null }> | null;
-    anfitrion_nombre: string | null;
-    co_anfitrion_nombre: string | null;
-}
 
 interface MapaInteractivoInnerProps {
     grupos: GrupoMapa[];
@@ -64,10 +46,44 @@ function FitBounds({ grupos }: { grupos: GrupoMapa[] }) {
     return null;
 }
 
+function HostHomeLocationDetails({ grupo }: { grupo: GrupoMapa }) {
+    const location = describeHostHomeLocation(grupo);
+
+    return (
+        <>
+            <div className="flex items-start gap-1.5 text-xs">
+                <Home className="h-3 w-3 flex-shrink-0 mt-0.5 text-orange-500" />
+                <div>
+                    <span className="font-medium text-foreground">{location.locationTypeLabel}</span>
+                </div>
+            </div>
+
+            <TextoSistema
+                variante="muted"
+                tamaño="sm"
+                className="flex items-center gap-1"
+            >
+                <MapPin className="h-3 w-3 flex-shrink-0" />
+                {location.publicLocationLabel}
+            </TextoSistema>
+
+            {location.publicNotes && (
+                <TextoSistema variante="muted" tamaño="sm">
+                    {location.publicNotes}
+                </TextoSistema>
+            )}
+
+            <TextoSistema variante="muted" tamaño="sm">
+                {location.privacyMessage}
+            </TextoSistema>
+        </>
+    );
+}
+
 /**
  * Componente interno del mapa interactivo con Leaflet.
  * Renderiza marcadores para cada grupo con popups informativos
- * que muestran nombre, estado, dirección, horario, miembros y líderes.
+ * que muestran nombre, estado, ubicación aprobada, horario y miembros.
  * Auto-ajusta los bounds para mostrar todos los marcadores.
  */
 export function MapaInteractivoInner({
@@ -130,42 +146,7 @@ export function MapaInteractivoInner({
                                     )}
                                 </div>
 
-                                {/* Líderes */}
-                                {grupo.lideres && grupo.lideres.length > 0 && (
-                                    <div className="flex items-start gap-1.5 text-xs">
-                                        <Users className="h-3 w-3 flex-shrink-0 mt-0.5 text-orange-500" />
-                                        <div>
-                                            <span className="font-medium text-foreground">Líderes:</span>{" "}
-                                            <span className="text-muted-foreground">
-                                                {grupo.lideres.map((l) => l.nombre).join(", ")}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Anfitriones */}
-                                {grupo.anfitrion_nombre && (
-                                    <div className="flex items-start gap-1.5 text-xs">
-                                        <Home className="h-3 w-3 flex-shrink-0 mt-0.5 text-orange-500" />
-                                        <div>
-                                            <span className="font-medium text-foreground">Anfitriones:</span>{" "}
-                                            <span className="text-muted-foreground">
-                                                {grupo.anfitrion_nombre}
-                                                {grupo.co_anfitrion_nombre && `, ${grupo.co_anfitrion_nombre}`}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Dirección */}
-                                <TextoSistema
-                                    variante="muted"
-                                    tamaño="sm"
-                                    className="flex items-center gap-1"
-                                >
-                                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                                    {grupo.lugar_reunion} — {grupo.direccion}
-                                </TextoSistema>
+                                <HostHomeLocationDetails grupo={grupo} />
 
                                 {/* Horario */}
                                 {grupo.dia_reunion && (
