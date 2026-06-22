@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { extraerRelacion } from "@/lib/supabase/helpers";
+import { REVIEW_DECISION_NOTES_MAX_LENGTH } from "@/lib/casas-anfitrionas/review-constants";
 
 // ─── Schemas ─────────────────────────────────────────────────────────
 
@@ -27,6 +28,88 @@ const crearCasaSchema = z.object({
 
 const actualizarCasaSchema = crearCasaSchema.partial();
 
+const scopeSchema = z.enum(["active", "planned"], {
+  errorMap: () => ({ message: "Scope inválido" }),
+});
+
+const scopeInputSchema = z.object({ scope: scopeSchema.default("active") }).default({ scope: "active" });
+
+const assignmentInputSchema = z.object({
+  groupId: z.string().uuid("Grupo inválido"),
+  casaId: z.string().uuid("Casa inválida"),
+});
+
+const reviewDecisionInputSchema = z.object({
+  reviewId: z.string().uuid("Revisión inválida"),
+  accion: z.enum(["aprobar", "rechazar"], { errorMap: () => ({ message: "Acción inválida" }) }),
+  notas: z.string().max(REVIEW_DECISION_NOTES_MAX_LENGTH, "Notas demasiado largas").nullable().optional(),
+});
+
+const countSchema = z.union([z.number(), z.string()]).transform((value, ctx) => {
+  const count = typeof value === "string" ? Number(value) : value;
+  if (!Number.isFinite(count) || count < 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Conteo inválido" });
+    return z.NEVER;
+  }
+  return count;
+});
+
+const hostHomeMapRowSchema = z.object({
+  grupo_id: z.string().uuid(),
+  grupo_nombre: z.string(),
+  dia_reunion: z.string().nullable(),
+  hora_reunion: z.string().nullable(),
+  capacidad_maxima: z.number().nullable(),
+  estado_ciclo: z.string().nullable(),
+  segmento: z.string().nullable(),
+  temporada: z.string().nullable(),
+  casa_id: z.string().uuid(),
+  casa_nombre: z.string(),
+  latitud: z.number(),
+  longitud: z.number(),
+  barrio: z.string().nullable(),
+  notas_publicas: z.string().nullable(),
+  total_miembros: countSchema,
+});
+
+const missingHostHomeRowSchema = z.object({
+  grupo_id: z.string().uuid(),
+  grupo_nombre: z.string(),
+  estado_ciclo: z.string().nullable(),
+  segmento: z.string().nullable(),
+  temporada: z.string().nullable(),
+});
+
+const pendingReviewRowSchema = z.object({
+  review_id: z.string().uuid(),
+  casa_id: z.string().uuid(),
+  casa_nombre: z.string(),
+  review_type: z.enum(["create", "location_change"]),
+  created_at: z.string(),
+  requested_by: z.string().nullable(),
+});
+
+const memberMapRowSchema = z.object({
+  usuario_id: z.string().uuid(),
+  nombre: z.string(),
+  grupo_id: z.string().uuid(),
+  grupo_nombre: z.string(),
+  latitud: z.number(),
+  longitud: z.number(),
+});
+
+const assignmentResultSchema = z.object({
+  ok: z.literal(true),
+  grupo_id: z.string().uuid(),
+  casa_id: z.string().uuid(),
+});
+
+const reviewDecisionResultSchema = z.object({
+  ok: z.literal(true),
+  accion: z.enum(["aprobar", "rechazar"]),
+  review_id: z.string().uuid(),
+});
+
 // ─── Types ───────────────────────────────────────────────────────────
 
 interface ResultadoAccion<T = void> {
@@ -34,6 +117,37 @@ interface ResultadoAccion<T = void> {
   error?: string;
   data?: T;
 }
+
+type RpcClient = Awaited<ReturnType<typeof createSupabaseServerClient>> | ReturnType<typeof createSupabaseAdminClient>;
+type ServerRpcClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+type RpcError = { message: string; code?: string; details?: string; hint?: string };
+type RpcResponse = { data: unknown; error: RpcError | null };
+type ScopeValue = z.infer<typeof scopeSchema>;
+type CasasMapRpcArgsByName = {
+  obtener_mapa_grupos_vida_host_homes: { p_auth_id: string; p_scope: ScopeValue };
+  obtener_grupos_sin_casa_anfitriona: { p_auth_id: string; p_scope: ScopeValue };
+  obtener_casas_revision_pendiente: { p_auth_id: string };
+  obtener_mapa_miembros: { p_auth_id: string; p_scope: ScopeValue };
+  asignar_casa_anfitriona_a_grupo: { p_auth_id: string; p_grupo_id: string; p_casa_id: string };
+  procesar_revision_ubicacion_casa: {
+    p_auth_id: string;
+    p_review_id: string;
+    p_accion: "aprobar" | "rechazar";
+    p_notas: string | null;
+  };
+};
+type CasasMapRpcName = keyof CasasMapRpcArgsByName;
+type ScopedRowsRpcName =
+  | "obtener_mapa_grupos_vida_host_homes"
+  | "obtener_grupos_sin_casa_anfitriona"
+  | "obtener_mapa_miembros";
+type RpcLogPhase = "admin_client_setup" | "parse_response" | "rpc_error" | "rpc_exception";
+type DatosMapaGrupoHostHomeItem = z.infer<typeof hostHomeMapRowSchema>;
+type GrupoSinCasaAnfitrionaItem = z.infer<typeof missingHostHomeRowSchema>;
+type CasaRevisionPendienteItem = z.infer<typeof pendingReviewRowSchema>;
+type MapaMiembroItem = z.infer<typeof memberMapRowSchema>;
+type AsignacionCasaGrupoResultado = z.infer<typeof assignmentResultSchema>;
+type RevisionUbicacionResultado = z.infer<typeof reviewDecisionResultSchema>;
 
 /** Resultado de la RPC de aprobación de casa anfitriona */
 interface AprobacionCasaResultado {
@@ -275,6 +389,278 @@ function tieneEdicionSensible(datos: z.infer<typeof actualizarCasaSchema>): bool
 function revalidarCasa(casaId: string): void {
   revalidatePath("/grupos-vida/casas-anfitrionas");
   revalidatePath(`/grupos-vida/casas-anfitrionas/${casaId}`);
+}
+
+function formatZodError(error: z.ZodError): string {
+  return error.errors.map((issue) => issue.message).join(" | ");
+}
+
+const genericMutationError = "No pudimos completar la solicitud. Intenta nuevamente.";
+const staleAssignmentQueueError = "El grupo ya no está en la cola de asignación. Actualiza la página e inténtalo nuevamente.";
+
+const safeRpcErrorMessages = {
+  accion_invalida: "La acción solicitada no es válida",
+  casa_en_uso: "La casa anfitriona ya está en uso",
+  estado_invalido: "El estado solicitado no es válido",
+  invalid_state: "El estado solicitado no es válido",
+  revision_invalida: "La revisión solicitada no es válida",
+  sin_permisos: "No tienes permisos para realizar esta acción",
+} satisfies Record<string, string>;
+
+function isSafeRpcErrorKey(key: string): key is keyof typeof safeRpcErrorMessages {
+  return Object.prototype.hasOwnProperty.call(safeRpcErrorMessages, key);
+}
+
+function clientSafeRpcError(error: RpcError): string {
+  const key = error.message.trim().toLowerCase();
+  if (isSafeRpcErrorKey(key)) return safeRpcErrorMessages[key];
+  return genericMutationError;
+}
+
+function getErrorLogMetadata(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return { name: error.name, message: "Server action failure details redacted" };
+  }
+
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const candidate = error as { code?: unknown; message?: unknown; name?: unknown };
+    const message = typeof candidate.message === "string" ? candidate.message.trim().toLowerCase() : undefined;
+    return {
+      code: typeof candidate.code === "string" ? candidate.code : message && isSafeRpcErrorKey(message) ? message : undefined,
+      name: typeof candidate.name === "string" ? candidate.name : undefined,
+      message: "RPC failure details redacted",
+    };
+  }
+
+  return { message: "Unknown server action failure details redacted" };
+}
+
+function logCasasMapServerIssue(
+  rpcName: CasasMapRpcName,
+  phase: RpcLogPhase,
+  error: unknown
+): void {
+  console.error("[casas-anfitrionas.actions]", {
+    rpcName,
+    phase,
+    error: getErrorLogMetadata(error),
+  });
+}
+
+function createCasasMapAdminClient(
+  rpcName: CasasMapRpcName
+): ResultadoAccion<ReturnType<typeof createSupabaseAdminClient>> {
+  try {
+    return { success: true, data: createSupabaseAdminClient() };
+  } catch (error) {
+    logCasasMapServerIssue(rpcName, "admin_client_setup", error);
+    return { success: false, error: genericMutationError };
+  }
+}
+
+async function callCasasMapRpc<Name extends CasasMapRpcName>(
+  client: RpcClient,
+  rpcName: Name,
+  args: CasasMapRpcArgsByName[Name]
+): Promise<RpcResponse> {
+  const rpc = client.rpc as unknown as (
+    name: Name,
+    rpcArgs: CasasMapRpcArgsByName[Name]
+  ) => Promise<RpcResponse>;
+  return rpc(rpcName, args);
+}
+
+async function executeCasasMapRpc<Name extends CasasMapRpcName>(
+  client: RpcClient,
+  rpcName: Name,
+  args: CasasMapRpcArgsByName[Name]
+): Promise<ResultadoAccion<unknown>> {
+  try {
+    const { data, error } = await callCasasMapRpc(client, rpcName, args);
+    if (error) {
+      logCasasMapServerIssue(rpcName, "rpc_error", error);
+      return { success: false, error: clientSafeRpcError(error) };
+    }
+    return { success: true, data };
+  } catch (error) {
+    logCasasMapServerIssue(rpcName, "rpc_exception", error);
+    return { success: false, error: genericMutationError };
+  }
+}
+
+function parseRpcArray<T>(
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  data: unknown,
+  rpcName: CasasMapRpcName
+): ResultadoAccion<T[]> {
+  const parsed = z.array(schema).safeParse(data);
+  if (!parsed.success) {
+    logCasasMapServerIssue(rpcName, "parse_response", new Error("Unexpected RPC array payload"));
+    return { success: false, error: "Respuesta inesperada del servidor" };
+  }
+  return { success: true, data: parsed.data };
+}
+
+function parseRpcObject<T>(
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  data: unknown,
+  rpcName: CasasMapRpcName
+): ResultadoAccion<T> {
+  const parsed = schema.safeParse(data);
+  if (!parsed.success) {
+    logCasasMapServerIssue(rpcName, "parse_response", new Error("Unexpected RPC object payload"));
+    return { success: false, error: "Respuesta inesperada del servidor" };
+  }
+  return { success: true, data: parsed.data };
+}
+
+function getRoleName(role: unknown): string | null {
+  if (typeof role === "string") return role;
+  if (typeof role === "object" && role !== null && "nombre_interno" in role && typeof role.nombre_interno === "string") {
+    return role.nombre_interno;
+  }
+  return null;
+}
+
+async function obtenerRolesDashboardCasas(supabase: ServerRpcClient, authId: string): Promise<Set<string>> {
+  const { data, error } = await supabase.rpc("obtener_roles_usuario", { p_auth_id: authId });
+  if (error || !Array.isArray(data)) return new Set();
+
+  return new Set(data.map(getRoleName).filter((role): role is string => role !== null));
+}
+
+function puedeVerTodasLasColasCasas(roles: Set<string>): boolean {
+  return roles.has("admin") || roles.has("pastor");
+}
+
+function puedeSolicitarColaGruposSinCasa(roles: Set<string>): boolean {
+  return puedeVerTodasLasColasCasas(roles)
+    || roles.has("director-general")
+    || roles.has("director-etapa")
+    || roles.has("lider");
+}
+
+function puedeSolicitarColaRevisionCasas(roles: Set<string>): boolean {
+  return puedeVerTodasLasColasCasas(roles) || roles.has("director-general");
+}
+
+async function obtenerGruposLideradosDashboard(supabase: ServerRpcClient, userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("grupo_miembros")
+    .select("grupo_id")
+    .eq("usuario_id", userId)
+    .is("fecha_salida", null)
+    .in("rol", ["Líder", "Colíder"]);
+
+  if (error || !Array.isArray(data)) return new Set();
+  return new Set(data.map((row) => row.grupo_id).filter((id): id is string => typeof id === "string"));
+}
+
+async function obtenerGruposDirectorEtapaDashboard(supabase: ServerRpcClient, userId: string): Promise<Set<string>> {
+  const { data: directorEtapas, error: directorError } = await supabase
+    .from("segmento_lideres")
+    .select("id")
+    .eq("usuario_id", userId)
+    .eq("tipo_lider", "director_etapa");
+
+  if (directorError || !Array.isArray(directorEtapas)) return new Set();
+
+  const directorEtapaIds = directorEtapas
+    .map((row) => row.id)
+    .filter((id): id is string => typeof id === "string");
+  if (directorEtapaIds.length === 0) return new Set();
+
+  const { data, error } = await supabase
+    .from("director_etapa_grupos")
+    .select("grupo_id")
+    .in("director_etapa_id", directorEtapaIds);
+
+  if (error || !Array.isArray(data)) return new Set();
+  return new Set(data.map((row) => row.grupo_id).filter((id): id is string => typeof id === "string"));
+}
+
+async function puedeDirectorGeneralVerGrupoDashboard(
+  supabase: ServerRpcClient,
+  authId: string,
+  grupoId: string
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("casas_map_director_general_can_view_group" as never, {
+    p_auth_id: authId,
+    p_grupo_id: grupoId,
+  } as never);
+  return !error && data === true;
+}
+
+async function filtrarGruposSinCasaParaDashboard(
+  supabase: ServerRpcClient,
+  authId: string,
+  userId: string,
+  roles: Set<string>,
+  rows: GrupoSinCasaAnfitrionaItem[]
+): Promise<GrupoSinCasaAnfitrionaItem[]> {
+  if (puedeVerTodasLasColasCasas(roles)) return rows;
+
+  if (roles.has("director-general")) {
+    const visibleRows = await Promise.all(
+      rows.map(async (row) => ({ row, visible: await puedeDirectorGeneralVerGrupoDashboard(supabase, authId, row.grupo_id) }))
+    );
+    return visibleRows.filter(({ visible }) => visible).map(({ row }) => row);
+  }
+
+  if (roles.has("director-etapa")) {
+    const groupIds = await obtenerGruposDirectorEtapaDashboard(supabase, userId);
+    return rows.filter((row) => groupIds.has(row.grupo_id));
+  }
+
+  if (roles.has("lider")) {
+    const groupIds = await obtenerGruposLideradosDashboard(supabase, userId);
+    return rows.filter((row) => groupIds.has(row.grupo_id));
+  }
+
+  return [];
+}
+
+async function validarGrupoEnColaAsignacion(
+  supabase: ServerRpcClient,
+  authId: string,
+  userId: string,
+  groupId: string
+): Promise<string | null> {
+  const roles = await obtenerRolesDashboardCasas(supabase, authId);
+  if (!puedeSolicitarColaGruposSinCasa(roles)) return "No tienes permisos para realizar esta acción";
+
+  const response = await executeCasasMapRpc(supabase, "obtener_grupos_sin_casa_anfitriona", {
+    p_auth_id: authId,
+    p_scope: "active",
+  });
+
+  if (!response.success) return response.error ?? genericMutationError;
+
+  const parsed = parseRpcArray(missingHostHomeRowSchema, response.data, "obtener_grupos_sin_casa_anfitriona");
+  if (!parsed.success) return parsed.error ?? genericMutationError;
+
+  const visibleQueueRows = await filtrarGruposSinCasaParaDashboard(supabase, authId, userId, roles, parsed.data);
+  return visibleQueueRows.some((row) => row.grupo_id === groupId) ? null : staleAssignmentQueueError;
+}
+
+async function obtenerRpcRows<T>(
+  input: unknown,
+  rpcName: ScopedRowsRpcName,
+  rowSchema: z.ZodType<T, z.ZodTypeDef, unknown>
+): Promise<ResultadoAccion<T[]>> {
+  const scope = scopeInputSchema.safeParse(input ?? {});
+  if (!scope.success) return { success: false, error: formatZodError(scope.error) };
+
+  const { supabase, authId, error } = await validarAuthYPermisos();
+  if (error) return { success: false, error };
+
+  const response = await executeCasasMapRpc(supabase, rpcName, {
+    p_auth_id: authId,
+    p_scope: scope.data.scope,
+  });
+
+  if (!response.success) return { success: false, error: response.error ?? genericMutationError };
+  return parseRpcArray(rowSchema, response.data, rpcName);
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────
@@ -782,6 +1168,135 @@ export async function cambiarEstadoCasaAnfitriona(
       error: err instanceof Error ? err.message : "Error desconocido",
     };
   }
+}
+
+export async function obtenerDatosMapaGruposHostHomes(
+  input?: unknown
+): Promise<ResultadoAccion<DatosMapaGrupoHostHomeItem[]>> {
+  return obtenerRpcRows(input, "obtener_mapa_grupos_vida_host_homes", hostHomeMapRowSchema);
+}
+
+export async function obtenerGruposSinCasaAnfitriona(
+  input?: unknown
+): Promise<ResultadoAccion<GrupoSinCasaAnfitrionaItem[]>> {
+  const scope = scopeInputSchema.safeParse(input ?? {});
+  if (!scope.success) return { success: false, error: formatZodError(scope.error) };
+
+  const { supabase, userId, authId, error } = await validarAuthYPermisos();
+  if (error) return { success: false, error };
+
+  const roles = await obtenerRolesDashboardCasas(supabase, authId);
+  if (!puedeSolicitarColaGruposSinCasa(roles)) return { success: true, data: [] };
+
+  const response = await executeCasasMapRpc(supabase, "obtener_grupos_sin_casa_anfitriona", {
+    p_auth_id: authId,
+    p_scope: scope.data.scope,
+  });
+
+  if (!response.success) return { success: false, error: response.error ?? genericMutationError };
+
+  const parsed = parseRpcArray(missingHostHomeRowSchema, response.data, "obtener_grupos_sin_casa_anfitriona");
+  if (!parsed.success) return parsed;
+
+  return {
+    success: true,
+    data: await filtrarGruposSinCasaParaDashboard(supabase, authId, userId, roles, parsed.data),
+  };
+}
+
+export async function obtenerCasasRevisionPendiente(): Promise<ResultadoAccion<CasaRevisionPendienteItem[]>> {
+  const { supabase, authId, error } = await validarAuthYPermisos();
+  if (error) return { success: false, error };
+
+  const roles = await obtenerRolesDashboardCasas(supabase, authId);
+  if (!puedeSolicitarColaRevisionCasas(roles)) return { success: true, data: [] };
+
+  const response = await executeCasasMapRpc(
+    supabase,
+    "obtener_casas_revision_pendiente",
+    { p_auth_id: authId }
+  );
+
+  if (!response.success) return { success: false, error: response.error ?? genericMutationError };
+  return parseRpcArray(pendingReviewRowSchema, response.data, "obtener_casas_revision_pendiente");
+}
+
+export async function obtenerMapaMiembros(
+  input?: unknown
+): Promise<ResultadoAccion<MapaMiembroItem[]>> {
+  return obtenerRpcRows(input, "obtener_mapa_miembros", memberMapRowSchema);
+}
+
+export async function asignarCasaAnfitrionaAGrupo(
+  input: unknown
+): Promise<ResultadoAccion<AsignacionCasaGrupoResultado>> {
+  const parsed = assignmentInputSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: formatZodError(parsed.error) };
+
+  const { supabase, userId, authId, error } = await validarAuthYPermisos();
+  if (error) return { success: false, error };
+
+  const queueError = await validarGrupoEnColaAsignacion(supabase, authId, userId, parsed.data.groupId);
+  if (queueError) return { success: false, error: queueError };
+
+  const adminResult = createCasasMapAdminClient("asignar_casa_anfitriona_a_grupo");
+  if (!adminResult.success || !adminResult.data) return { success: false, error: adminResult.error ?? genericMutationError };
+
+  const response = await executeCasasMapRpc(
+    adminResult.data,
+    "asignar_casa_anfitriona_a_grupo",
+    {
+      p_auth_id: authId,
+      p_grupo_id: parsed.data.groupId,
+      p_casa_id: parsed.data.casaId,
+    }
+  );
+
+  if (!response.success) return { success: false, error: response.error ?? genericMutationError };
+
+  const result = parseRpcObject(assignmentResultSchema, response.data, "asignar_casa_anfitriona_a_grupo");
+  if (!result.success) return { success: false, error: result.error ?? "Respuesta inesperada del servidor" };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/grupos-vida/mapa");
+  revalidatePath("/grupos-vida/casas-anfitrionas/asignar");
+
+  return { success: true, data: result.data };
+}
+
+export async function procesarRevisionUbicacionCasa(
+  input: unknown
+): Promise<ResultadoAccion<RevisionUbicacionResultado>> {
+  const parsed = reviewDecisionInputSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: formatZodError(parsed.error) };
+
+  const { authId, error } = await validarAuthYPermisos();
+  if (error) return { success: false, error };
+
+  const adminResult = createCasasMapAdminClient("procesar_revision_ubicacion_casa");
+  if (!adminResult.success || !adminResult.data) return { success: false, error: adminResult.error ?? genericMutationError };
+
+  const response = await executeCasasMapRpc(
+    adminResult.data,
+    "procesar_revision_ubicacion_casa",
+    {
+      p_auth_id: authId,
+      p_review_id: parsed.data.reviewId,
+      p_accion: parsed.data.accion,
+      p_notas: parsed.data.notas ?? null,
+    }
+  );
+
+  if (!response.success) return { success: false, error: response.error ?? genericMutationError };
+
+  const result = parseRpcObject(reviewDecisionResultSchema, response.data, "procesar_revision_ubicacion_casa");
+  if (!result.success) return { success: false, error: result.error ?? "Respuesta inesperada del servidor" };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/grupos-vida/mapa");
+  revalidatePath("/grupos-vida/casas-anfitrionas/revision");
+
+  return { success: true, data: result.data };
 }
 
 /**

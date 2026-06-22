@@ -1,8 +1,20 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { REVIEW_DECISION_NOTES_MAX_LENGTH } from '@/lib/casas-anfitrionas/review-constants'
 
 const createSupabaseServerClient = jest.fn()
 const createSupabaseAdminClient = jest.fn()
+const mockAsignarCasaAnfitrionaAGrupo = jest.fn()
+const mockListarCasasAnfitrionas = jest.fn()
+const mockObtenerCasasRevisionPendiente = jest.fn()
+const mockObtenerGruposSinCasaAnfitriona = jest.fn()
+const mockProcesarAprobacionCasa = jest.fn()
+const mockProcesarRevisionUbicacionCasa = jest.fn()
+const mockRouterPush = jest.fn()
+const mockRouterRefresh = jest.fn()
+const mockToastError = jest.fn()
+const mockToastSuccess = jest.fn()
 const redirect = jest.fn((path: string) => {
   throw new Error(`redirect:${path}`)
 })
@@ -15,7 +27,7 @@ jest.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: () => crea
 jest.mock('next/navigation', () => ({
   notFound: () => notFound(),
   redirect: (path: string) => redirect(path),
-  useRouter: () => ({ refresh: jest.fn() }),
+  useRouter: () => ({ push: mockRouterPush, refresh: mockRouterRefresh }),
 }))
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -29,7 +41,12 @@ jest.mock('@/components/ui/BotonFlotante', () => ({
 }))
 jest.mock('@/components/ui/sistema-diseno', () => ({
   BadgeSistema: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  BotonSistema: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
+  BotonSistema: ({ cargando, children, disabled, onClick, type = 'button' }: React.ButtonHTMLAttributes<HTMLButtonElement> & { cargando?: boolean }) => (
+    <button disabled={disabled || cargando} onClick={onClick} type={type}>
+      {cargando && <span aria-hidden="true">spinner</span>}
+      {children}
+    </button>
+  ),
   ContenedorDashboard: ({ accionPrincipal, children, titulo }: { accionPrincipal?: React.ReactNode; children: React.ReactNode; titulo: string }) => (
     <section>
       <h1>{titulo}</h1>
@@ -37,14 +54,30 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
       {children}
     </section>
   ),
+  SelectSistema: ({ disabled, label, onValueChange, opciones, placeholder, value }: { disabled?: boolean; label: string; onValueChange?: (value: string) => void; opciones: Array<{ valor: string; etiqueta: string }>; placeholder?: string; value?: string }) => (
+    <label>
+      {label}
+      <select disabled={disabled} value={value} onChange={(event) => onValueChange?.(event.target.value)}>
+        {placeholder && <option value="">{placeholder}</option>}
+        {opciones.map((option) => <option key={option.valor} value={option.valor}>{option.etiqueta}</option>)}
+      </select>
+    </label>
+  ),
   SeparadorSistema: () => <hr />,
   TarjetaSistema: ({ children }: { children: React.ReactNode }) => <article>{children}</article>,
-  TextareaSistema: ({ label }: { label: string }) => <label>{label}<textarea /></label>,
+  TextareaSistema: ({ label, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string }) => <label>{label}<textarea {...props} /></label>,
   TextoSistema: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
   TituloSistema: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
 }))
-jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => ({ success: jest.fn(), error: jest.fn() }) }))
-jest.mock('@/lib/actions/casas-anfitrionas.actions', () => ({ procesarAprobacionCasa: jest.fn() }))
+jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => ({ success: mockToastSuccess, error: mockToastError }) }))
+jest.mock('@/lib/actions/casas-anfitrionas.actions', () => ({
+  asignarCasaAnfitrionaAGrupo: (input: unknown) => mockAsignarCasaAnfitrionaAGrupo(input),
+  listarCasasAnfitrionas: (input: unknown) => mockListarCasasAnfitrionas(input),
+  obtenerCasasRevisionPendiente: () => mockObtenerCasasRevisionPendiente(),
+  obtenerGruposSinCasaAnfitriona: (input: unknown) => mockObtenerGruposSinCasaAnfitriona(input),
+  procesarAprobacionCasa: (...args: unknown[]) => mockProcesarAprobacionCasa(...args),
+  procesarRevisionUbicacionCasa: (input: unknown) => mockProcesarRevisionUbicacionCasa(input),
+}))
 jest.mock('@/app/(auth)/grupos-vida/casas-anfitrionas/nueva/nueva-casa-client', () => ({
   NuevaCasaClient: ({ mostrarSelectorUsuario, usuarios }: { mostrarSelectorUsuario: boolean; usuarios: Array<{ label: string }> }) => (
     <section>
@@ -67,12 +100,21 @@ const casaId = '22222222-2222-2222-2222-222222222222'
 const allowedUserId = '33333333-3333-3333-3333-333333333333'
 const deniedUserId = '44444444-4444-4444-4444-444444444444'
 const usedUserId = '55555555-5555-5555-5555-555555555555'
+const groupId = '66666666-6666-6666-6666-666666666666'
+const otherGroupId = '77777777-7777-7777-7777-777777777777'
+const otherCasaId = '88888888-8888-8888-8888-888888888888'
+const reviewId = '99999999-9999-9999-9999-999999999999'
 
 describe('casas anfitrionas App Router permission wiring', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     createSupabaseServerClient.mockResolvedValue(createServerClient())
     createSupabaseAdminClient.mockReturnValue(createAdminClient())
+    mockAsignarCasaAnfitrionaAGrupo.mockResolvedValue({ success: true, data: { ok: true, grupo_id: groupId, casa_id: casaId } })
+    mockListarCasasAnfitrionas.mockResolvedValue({ success: true, data: [createCandidateCasa()] })
+    mockObtenerCasasRevisionPendiente.mockResolvedValue({ success: true, data: [createPendingReview()] })
+    mockObtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: true, data: [createMissingGroup()] })
+    mockProcesarRevisionUbicacionCasa.mockResolvedValue({ success: true, data: { ok: true, accion: 'aprobar', review_id: reviewId } })
   })
 
   it('shows list page primary action and FAB only when backend create flags allow them', async () => {
@@ -199,7 +241,400 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(screen.queryByText('Casa Existente')).not.toBeInTheDocument()
   })
 
+  it('renders the assignment page from scoped missing groups and approved active Casas only', async () => {
+    const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
+
+    render(await AsignarCasaAnfitrionaPage())
+
+    expect(mockObtenerGruposSinCasaAnfitriona).toHaveBeenCalledWith({ scope: 'active' })
+    expect(mockListarCasasAnfitrionas).toHaveBeenCalledWith({ soloActivas: true, soloAprobadas: true })
+    expect(screen.getByRole('heading', { name: 'Asignar Casa Anfitriona' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Grupo Norte — Jóvenes · 2026' })).toBeInTheDocument()
+    expect(screen.getByText('Grupo Norte')).toBeInTheDocument()
+    expect(screen.getByText('Jóvenes · 2026')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Casa de Ana — Ana Pérez · Capacidad 12' })).toBeInTheDocument()
+    expect(screen.getByText('Casa de Ana')).toBeInTheDocument()
+    expect(screen.getByText('Ana Pérez · Capacidad 12')).toBeInTheDocument()
+  })
+
+  it('renders assignment empty states only when group and Casa loads succeed with empty arrays', async () => {
+    mockObtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: true, data: [] })
+    mockListarCasasAnfitrionas.mockResolvedValue({ success: true, data: [] })
+    const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
+
+    render(await AsignarCasaAnfitrionaPage())
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('No hay grupos activos sin Casa Anfitriona.')).toBeInTheDocument()
+    expect(screen.getByText('No hay Casas aprobadas y activas disponibles.')).toBeInTheDocument()
+  })
+
+  it('renders an actionable assignment load error instead of collapsing failures to empty states', async () => {
+    mockObtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: false, error: 'No pudimos cargar los grupos' })
+    mockListarCasasAnfitrionas.mockResolvedValue({ success: true, data: [] })
+    const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
+
+    render(await AsignarCasaAnfitrionaPage())
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar los grupos pendientes')
+    expect(screen.getByRole('link', { name: 'Reintentar carga' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/asignar')
+    expect(screen.getByRole('link', { name: 'Volver al dashboard' })).toHaveAttribute('href', '/dashboard')
+    expect(screen.queryByText('No hay grupos activos sin Casa Anfitriona.')).not.toBeInTheDocument()
+  })
+
+  it('does not render raw backend/provider errors from assignment Casa loading', async () => {
+    const rawProviderError = 'Supabase PostgREST error: relation "internal_private.casas" does not exist'
+    mockObtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: true, data: [] })
+    mockListarCasasAnfitrionas.mockResolvedValue({ success: false, error: rawProviderError })
+    const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
+
+    render(await AsignarCasaAnfitrionaPage())
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar las Casas disponibles')
+    expect(screen.queryByText(rawProviderError)).not.toBeInTheDocument()
+  })
+
+  it('renders assignment load error when a loader rejects instead of crashing', async () => {
+    mockObtenerGruposSinCasaAnfitriona.mockRejectedValue(new Error('network provider timeout: service key leaked'))
+    mockListarCasasAnfitrionas.mockResolvedValue({ success: true, data: [] })
+    const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
+
+    render(await AsignarCasaAnfitrionaPage())
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar los grupos pendientes')
+    expect(screen.queryByText(/service key leaked/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Reintentar carga' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/asignar')
+  })
+
+  it('renders the review page from the scoped pending-review queue', async () => {
+    const { default: RevisionCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/page')
+
+    render(await RevisionCasaAnfitrionaPage())
+
+    expect(mockObtenerCasasRevisionPendiente).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('heading', { name: 'Revisión de Casas Anfitrionas' })).toBeInTheDocument()
+    expect(screen.getByText('Casa de Ana')).toBeInTheDocument()
+    expect(screen.getByText('Cambio de ubicación')).toBeInTheDocument()
+    expect(screen.getByText('Solicitado por Ana Pérez')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Aprobar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rechazar' })).toBeInTheDocument()
+  })
+
+  it('renders revision empty state only when the pending-review load succeeds empty', async () => {
+    mockObtenerCasasRevisionPendiente.mockResolvedValue({ success: true, data: [] })
+    const { default: RevisionCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/page')
+
+    render(await RevisionCasaAnfitrionaPage())
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('No hay Casas Anfitrionas pendientes de revisión.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Volver al dashboard' })).toHaveAttribute('href', '/dashboard')
+  })
+
+  it('renders sanitized revision load errors instead of raw backend failures', async () => {
+    const rawProviderError = 'Supabase PostgREST error: internal_private.location_reviews leaked'
+    mockObtenerCasasRevisionPendiente.mockResolvedValue({ success: false, error: rawProviderError })
+    const { default: RevisionCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/page')
+
+    render(await RevisionCasaAnfitrionaPage())
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar las Casas pendientes de revisión')
+    expect(screen.queryByText(rawProviderError)).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Reintentar carga' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/revision')
+    expect(screen.queryByText('No hay Casas Anfitrionas pendientes de revisión.')).not.toBeInTheDocument()
+  })
+
+  it('approves a pending review with notes and records the audited decision', async () => {
+    const user = userEvent.setup()
+    const { RevisionCasaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/revision-casa-client')
+
+    render(<RevisionCasaClient reviews={[createPendingReviewOption()]} />)
+
+    await user.type(screen.getByLabelText('Notas de revisión para Casa de Ana'), 'Coordenadas verificadas')
+    await user.click(screen.getByRole('button', { name: 'Aprobar' }))
+
+    expect(mockProcesarRevisionUbicacionCasa).toHaveBeenCalledWith({ reviewId, accion: 'aprobar', notas: 'Coordenadas verificadas' })
+    expect(mockToastSuccess).toHaveBeenCalledWith('Revisión aprobada correctamente')
+    expect(mockRouterRefresh).toHaveBeenCalled()
+    expect(screen.getByRole('status')).toHaveTextContent('La decisión quedó registrada en la auditoría.')
+    expect(screen.queryByText('Casa de Ana')).not.toBeInTheDocument()
+  })
+
+  it('shows the notes limit and accepts notes at the valid boundary', async () => {
+    const user = userEvent.setup()
+    const boundaryNotes = 'x'.repeat(REVIEW_DECISION_NOTES_MAX_LENGTH)
+    const { RevisionCasaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/revision-casa-client')
+
+    render(<RevisionCasaClient reviews={[createPendingReviewOption()]} />)
+
+    expect(screen.getByText(`Máximo ${REVIEW_DECISION_NOTES_MAX_LENGTH} caracteres.`)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Notas de revisión para Casa de Ana'), { target: { value: boundaryNotes } })
+    await user.click(screen.getByRole('button', { name: 'Aprobar' }))
+
+    expect(mockProcesarRevisionUbicacionCasa).toHaveBeenCalledWith({ reviewId, accion: 'aprobar', notas: boundaryNotes })
+    expect(mockToastSuccess).toHaveBeenCalledWith('Revisión aprobada correctamente')
+  })
+
+  it('blocks over-limit review notes with clear shorten guidance before submitting', async () => {
+    const user = userEvent.setup()
+    const { RevisionCasaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/revision-casa-client')
+
+    render(<RevisionCasaClient reviews={[createPendingReviewOption()]} />)
+
+    fireEvent.change(screen.getByLabelText('Notas de revisión para Casa de Ana'), {
+      target: { value: 'x'.repeat(REVIEW_DECISION_NOTES_MAX_LENGTH + 1) },
+    })
+    await user.click(screen.getByRole('button', { name: 'Aprobar' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(`Acorta las notas a ${REVIEW_DECISION_NOTES_MAX_LENGTH} caracteres o menos.`)
+    expect(mockToastError).toHaveBeenCalledWith(`Acorta las notas a ${REVIEW_DECISION_NOTES_MAX_LENGTH} caracteres o menos.`)
+    expect(mockProcesarRevisionUbicacionCasa).not.toHaveBeenCalled()
+    expect(mockRouterRefresh).not.toHaveBeenCalled()
+  })
+
+  it('disables review controls and shows loading feedback while a decision is pending', async () => {
+    const user = userEvent.setup()
+    let resolveReview: (value: { success: true; data: { ok: true; accion: 'aprobar'; review_id: string } }) => void = () => undefined
+    mockProcesarRevisionUbicacionCasa.mockReturnValue(new Promise((resolve) => { resolveReview = resolve }))
+    const { RevisionCasaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/revision-casa-client')
+
+    render(<RevisionCasaClient reviews={[createPendingReviewOption()]} />)
+
+    await user.click(screen.getByRole('button', { name: 'Aprobar' }))
+
+    expect(screen.getByRole('button', { name: 'Aprobar' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Rechazar' })).toBeDisabled()
+    expect(screen.getByLabelText('Notas de revisión para Casa de Ana')).toBeDisabled()
+
+    resolveReview({ success: true, data: { ok: true, accion: 'aprobar', review_id: reviewId } })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('La decisión quedó registrada en la auditoría.'))
+  })
+
+  it('prevents rapid double-submit from calling the review action more than once', async () => {
+    let resolveReview: (value: { success: true; data: { ok: true; accion: 'aprobar'; review_id: string } }) => void = () => undefined
+    mockProcesarRevisionUbicacionCasa.mockReturnValue(new Promise((resolve) => { resolveReview = resolve }))
+    const { RevisionCasaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/revision-casa-client')
+
+    render(<RevisionCasaClient reviews={[createPendingReviewOption()]} />)
+
+    const approve = screen.getByRole('button', { name: 'Aprobar' })
+    fireEvent.click(approve)
+    fireEvent.click(approve)
+
+    expect(mockProcesarRevisionUbicacionCasa).toHaveBeenCalledTimes(1)
+    resolveReview({ success: true, data: { ok: true, accion: 'aprobar', review_id: reviewId } })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('La decisión quedó registrada en la auditoría.'))
+  })
+
+  it('records a successful reject decision and removes it from the queue', async () => {
+    const user = userEvent.setup()
+    mockProcesarRevisionUbicacionCasa.mockResolvedValue({ success: true, data: { ok: true, accion: 'rechazar', review_id: reviewId } })
+    const { RevisionCasaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/revision-casa-client')
+
+    render(<RevisionCasaClient reviews={[createPendingReviewOption()]} />)
+
+    await user.click(screen.getByRole('button', { name: 'Rechazar' }))
+
+    expect(mockProcesarRevisionUbicacionCasa).toHaveBeenCalledWith({ reviewId, accion: 'rechazar', notas: null })
+    expect(mockToastSuccess).toHaveBeenCalledWith('Revisión rechazada correctamente')
+    expect(mockRouterRefresh).toHaveBeenCalled()
+    expect(screen.getByRole('status')).toHaveTextContent('La decisión quedó registrada en la auditoría.')
+    expect(screen.queryByText('Casa de Ana')).not.toBeInTheDocument()
+  })
+
+  it('rejects a pending review without leaking raw mutation errors', async () => {
+    const user = userEvent.setup()
+    const rawProviderError = 'database leaked internal table name casa_anfitriona_audit_events'
+    mockProcesarRevisionUbicacionCasa.mockResolvedValue({ success: false, error: rawProviderError })
+    const { RevisionCasaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/revision/revision-casa-client')
+
+    render(<RevisionCasaClient reviews={[createPendingReviewOption()]} />)
+
+    await user.click(screen.getByRole('button', { name: 'Rechazar' }))
+
+    expect(mockProcesarRevisionUbicacionCasa).toHaveBeenCalledWith({ reviewId, accion: 'rechazar', notas: null })
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos procesar la revisión. Actualiza la cola y vuelve a intentarlo.')
+    expect(screen.queryByText(rawProviderError)).not.toBeInTheDocument()
+    expect(mockToastError).toHaveBeenCalledWith('No pudimos procesar la revisión. Actualiza la cola y vuelve a intentarlo.')
+    expect(mockRouterRefresh).not.toHaveBeenCalled()
+  })
+
+  it('uses distinguishing details in duplicate group and Casa select option labels', async () => {
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    render(
+      <AsignarCasaAnfitrionaClient
+        casas={[
+          createAssignmentCasaOption(),
+          { id: otherCasaId, name: 'Casa de Ana', details: 'Luis Pérez · Capacidad 20' },
+        ]}
+        grupos={[
+          createAssignmentGroupOption(),
+          { id: otherGroupId, name: 'Grupo Norte', details: 'Adultos · 2026' },
+        ]}
+      />
+    )
+
+    expect(screen.getByRole('option', { name: 'Grupo Norte — Jóvenes · 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Grupo Norte — Adultos · 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Casa de Ana — Ana Pérez · Capacidad 12' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Casa de Ana — Luis Pérez · Capacidad 20' })).toBeInTheDocument()
+  })
+
+  it('submits the selected group and Casa through the assignment action', async () => {
+    const user = userEvent.setup()
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    render(
+      <AsignarCasaAnfitrionaClient
+        casas={[createAssignmentCasaOption()]}
+        grupos={[createAssignmentGroupOption()]}
+      />
+    )
+
+    await user.selectOptions(screen.getByLabelText('Grupo de Vida'), groupId)
+    await user.selectOptions(screen.getByLabelText('Casa Anfitriona'), casaId)
+    await user.click(screen.getByRole('button', { name: 'Asignar Casa Anfitriona' }))
+
+    expect(mockAsignarCasaAnfitrionaAGrupo).toHaveBeenCalledWith({ groupId, casaId })
+    expect(mockToastSuccess).toHaveBeenCalledWith('Casa Anfitriona asignada correctamente')
+    expect(mockRouterRefresh).toHaveBeenCalled()
+    expect(screen.getByText('Asignación guardada. El grupo salió de la cola de grupos sin Casa Anfitriona.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Grupo de Vida')).toHaveValue('')
+    expect(screen.getByLabelText('Casa Anfitriona')).toHaveValue('')
+  })
+
+  it('surfaces assignment action failures with retry guidance without refreshing', async () => {
+    const user = userEvent.setup()
+    mockAsignarCasaAnfitrionaAGrupo.mockResolvedValue({ success: false, error: 'El grupo ya no está en la cola de asignación.' })
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    render(<AsignarCasaAnfitrionaClient casas={[createAssignmentCasaOption()]} grupos={[createAssignmentGroupOption()]} />)
+
+    await user.selectOptions(screen.getByLabelText('Grupo de Vida'), groupId)
+    await user.selectOptions(screen.getByLabelText('Casa Anfitriona'), casaId)
+    await user.click(screen.getByRole('button', { name: 'Asignar Casa Anfitriona' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('El grupo ya no está en la cola de asignación. Actualiza la cola y vuelve a intentarlo.')
+    expect(mockToastError).toHaveBeenCalledWith('El grupo ya no está en la cola de asignación. Actualiza la cola y vuelve a intentarlo.')
+    expect(mockRouterRefresh).not.toHaveBeenCalled()
+  })
+
+  it('surfaces rejected assignment actions with safe retry guidance', async () => {
+    const user = userEvent.setup()
+    mockAsignarCasaAnfitrionaAGrupo.mockRejectedValue(new Error('network down'))
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    render(<AsignarCasaAnfitrionaClient casas={[createAssignmentCasaOption()]} grupos={[createAssignmentGroupOption()]} />)
+
+    await user.selectOptions(screen.getByLabelText('Grupo de Vida'), groupId)
+    await user.selectOptions(screen.getByLabelText('Casa Anfitriona'), casaId)
+    await user.click(screen.getByRole('button', { name: 'Asignar Casa Anfitriona' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos asignar la Casa Anfitriona. Actualiza la cola y vuelve a intentarlo.')
+    expect(mockToastError).toHaveBeenCalledWith('No pudimos asignar la Casa Anfitriona. Actualiza la cola y vuelve a intentarlo.')
+    expect(mockRouterRefresh).not.toHaveBeenCalled()
+  })
+
+  it('disables controls and shows loading feedback while assignment is pending', async () => {
+    const user = userEvent.setup()
+    let resolveAssignment: (value: { success: true; data: { ok: true; grupo_id: string; casa_id: string } }) => void = () => undefined
+    mockAsignarCasaAnfitrionaAGrupo.mockReturnValue(new Promise((resolve) => { resolveAssignment = resolve }))
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    render(<AsignarCasaAnfitrionaClient casas={[createAssignmentCasaOption()]} grupos={[createAssignmentGroupOption()]} />)
+
+    await user.selectOptions(screen.getByLabelText('Grupo de Vida'), groupId)
+    await user.selectOptions(screen.getByLabelText('Casa Anfitriona'), casaId)
+    await user.click(screen.getByRole('button', { name: 'Asignar Casa Anfitriona' }))
+
+    expect(screen.getByRole('button', { name: 'Asignar Casa Anfitriona' })).toBeDisabled()
+    expect(screen.getByLabelText('Grupo de Vida')).toBeDisabled()
+    expect(screen.getByLabelText('Casa Anfitriona')).toBeDisabled()
+
+    resolveAssignment({ success: true, data: { ok: true, grupo_id: groupId, casa_id: casaId } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Asignar Casa Anfitriona' })).toBeDisabled())
+  })
+
+  it('prevents rapid double-submit from calling the assignment action more than once', async () => {
+    let resolveAssignment: (value: { success: true; data: { ok: true; grupo_id: string; casa_id: string } }) => void = () => undefined
+    mockAsignarCasaAnfitrionaAGrupo.mockReturnValue(new Promise((resolve) => { resolveAssignment = resolve }))
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    render(<AsignarCasaAnfitrionaClient casas={[createAssignmentCasaOption()]} grupos={[createAssignmentGroupOption()]} />)
+
+    fireEvent.change(screen.getByLabelText('Grupo de Vida'), { target: { value: groupId } })
+    fireEvent.change(screen.getByLabelText('Casa Anfitriona'), { target: { value: casaId } })
+    const submit = screen.getByRole('button', { name: 'Asignar Casa Anfitriona' })
+    fireEvent.click(submit)
+    fireEvent.click(submit)
+
+    expect(mockAsignarCasaAnfitrionaAGrupo).toHaveBeenCalledTimes(1)
+    resolveAssignment({ success: true, data: { ok: true, grupo_id: groupId, casa_id: casaId } })
+    await waitFor(() => expect(screen.getByText('Asignación guardada. El grupo salió de la cola de grupos sin Casa Anfitriona.')).toBeInTheDocument())
+  })
+
+  it('rejects stale selections that are no longer present in the current options before submitting', async () => {
+    const user = userEvent.setup()
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    const { rerender } = render(<AsignarCasaAnfitrionaClient casas={[createAssignmentCasaOption()]} grupos={[createAssignmentGroupOption()]} />)
+    await user.selectOptions(screen.getByLabelText('Grupo de Vida'), groupId)
+    await user.selectOptions(screen.getByLabelText('Casa Anfitriona'), casaId)
+
+    rerender(<AsignarCasaAnfitrionaClient casas={[]} grupos={[]} />)
+    await user.click(screen.getByRole('button', { name: 'Asignar Casa Anfitriona' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('La selección ya no está disponible. Actualiza la cola y vuelve a intentarlo.')
+    expect(mockAsignarCasaAnfitrionaAGrupo).not.toHaveBeenCalled()
+  })
+
 })
+
+function createMissingGroup() {
+  return { grupo_id: groupId, grupo_nombre: 'Grupo Norte', estado_ciclo: 'activo', segmento: 'Jóvenes', temporada: '2026' }
+}
+
+function createCandidateCasa() {
+  return {
+    id: casaId,
+    nombre_lugar: 'Casa de Ana',
+    capacidad_maxima: 12,
+    activa: true,
+    aprobada: true,
+    usuarios: { id: allowedUserId, nombre: 'Ana', apellido: 'Pérez', foto_perfil_url: null },
+  }
+}
+
+function createAssignmentGroupOption() {
+  return { id: groupId, name: 'Grupo Norte', details: 'Jóvenes · 2026' }
+}
+
+function createAssignmentCasaOption() {
+  return { id: casaId, name: 'Casa de Ana', details: 'Ana Pérez · Capacidad 12' }
+}
+
+function createPendingReview() {
+  return {
+    review_id: reviewId,
+    casa_id: casaId,
+    casa_nombre: 'Casa de Ana',
+    review_type: 'location_change' as const,
+    created_at: '2026-06-21T12:00:00.000Z',
+    requested_by: 'Ana Pérez',
+  }
+}
+
+function createPendingReviewOption() {
+  return {
+    id: reviewId,
+    casaId,
+    name: 'Casa de Ana',
+    type: 'location_change' as const,
+    createdAt: '2026-06-21T12:00:00.000Z',
+    requestedBy: 'Ana Pérez',
+  }
+}
 
 function createServerClient(overrides: {
   assignableUserIds?: string[]

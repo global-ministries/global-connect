@@ -5,6 +5,7 @@ import { BirthdayWidget } from '@/components/dashboard/widgets/BirthdayWidget'
 import { ActionRequiredWidget } from '@/components/dashboard/widgets/ActionRequiredWidget'
 import { RecentAbsencesWidget } from '@/components/dashboard/widgets/RecentAbsencesWidget'
 import { NewMembersWidget } from '@/components/dashboard/widgets/NewMembersWidget'
+import { HostHomeQueuesWidget } from '@/components/dashboard/widgets/HostHomeQueuesWidget'
 import { UsersRound, Activity } from 'lucide-react'
 
 interface PropsDashboardLider {
@@ -30,9 +31,16 @@ export default function DashboardLider({ data }: PropsDashboardLider) {
   const cumpleanos = data?.proximos_cumpleanos_grupo || []
   const ausentes = data?.miembros_ausentes_recientemente || []
   const nuevos = data?.nuevos_miembros_grupo || []
+  const hostHomeQueues = data?.casas_anfitrionas_queues
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      {hostHomeQueues && (
+        <div className="col-span-2 lg:col-span-4">
+          <HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes={false} />
+        </div>
+      )}
+
       <div className="col-span-2 lg:col-span-4">
         <ActionRequiredWidget accion={accion} />
       </div>
