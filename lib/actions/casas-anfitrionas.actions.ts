@@ -644,8 +644,9 @@ async function validarGrupoEnColaAsignacion(
 
   const parsed = parseRpcArray(missingHostHomeRowSchema, response.data, "obtener_grupos_sin_casa_anfitriona");
   if (!parsed.success) return parsed.error ?? genericMutationError;
+  const parsedRows = parsed.data ?? [];
 
-  const visibleQueueRows = await filtrarGruposSinCasaParaDashboard(supabase, authId, userId, roles, parsed.data);
+  const visibleQueueRows = await filtrarGruposSinCasaParaDashboard(supabase, authId, userId, roles, parsedRows);
   return visibleQueueRows.some((row) => row.grupo_id === groupId) ? null : staleAssignmentQueueError;
 }
 
@@ -1203,10 +1204,11 @@ export async function obtenerGruposSinCasaAnfitriona(
 
   const parsed = parseRpcArray(missingHostHomeRowSchema, response.data, "obtener_grupos_sin_casa_anfitriona");
   if (!parsed.success) return parsed;
+  const parsedRows = parsed.data ?? [];
 
   return {
     success: true,
-    data: await filtrarGruposSinCasaParaDashboard(supabase, authId, userId, roles, parsed.data),
+    data: await filtrarGruposSinCasaParaDashboard(supabase, authId, userId, roles, parsedRows),
   };
 }
 

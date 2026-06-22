@@ -560,6 +560,9 @@ function createMemberMapRow() {
   }
 }
 
+type RpcMockResponse = { data: unknown; error: null }
+type RpcMock = jest.Mock<Promise<RpcMockResponse>, [string, Record<string, unknown>]>
+
 function createPermissionRpcMock(input: {
   approve?: boolean
   changeState?: boolean
@@ -573,8 +576,8 @@ function createPermissionRpcMock(input: {
   pendingReviewRows?: unknown[]
   roles?: unknown[]
   visibleCasaIds?: string[]
-}) {
-  return jest.fn((rpcName: string, args: Record<string, unknown>) => {
+}): RpcMock {
+  return jest.fn<Promise<RpcMockResponse>, [string, Record<string, unknown>]>((rpcName: string, args: Record<string, unknown>) => {
     if (rpcName === 'puede_crear_casa_anfitriona_para') {
       return Promise.resolve({ data: args.p_usuario_id === coHostUserId ? input.coHost : input.createFor, error: null })
     }
@@ -644,16 +647,22 @@ function createDashboardGroupMembershipQuery(groupIds: string[]) {
   }
 }
 
+type DirectorEtapaIdsQuery = {
+  select: jest.Mock<DirectorEtapaIdsQuery, []>
+  eq: jest.Mock<DirectorEtapaIdsQuery | Promise<{ data: { id: string }[]; error: null }>, []>
+}
+
 function createDirectorEtapaIdsQuery(directorEtapaIds: string[]) {
   let eqCalls = 0
-  const query = {
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn(() => {
-      eqCalls += 1
-      if (eqCalls >= 2) return Promise.resolve({ data: directorEtapaIds.map((id) => ({ id })), error: null })
-      return query
-    }),
-  }
+  let query: DirectorEtapaIdsQuery
+  const select: DirectorEtapaIdsQuery['select'] = jest.fn(() => query)
+  const eq: DirectorEtapaIdsQuery['eq'] = jest.fn((): DirectorEtapaIdsQuery | Promise<{ data: { id: string }[]; error: null }> => {
+    eqCalls += 1
+    if (eqCalls >= 2) return Promise.resolve({ data: directorEtapaIds.map((id) => ({ id })), error: null })
+    return query
+  })
+
+  query = { select, eq }
 
   return query
 }

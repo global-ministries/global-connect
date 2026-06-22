@@ -19,9 +19,10 @@ jest.mock('leaflet', () => {
 })
 jest.mock('react-leaflet', () => {
   const LayersControl = ({ children }: { children: React.ReactNode }) => <div data-testid="layers-control">{children}</div>
-  LayersControl.Overlay = ({ checked, children, name }: { checked?: boolean; children: React.ReactNode; name: string }) => (
+  const LayersControlOverlay = ({ checked, children, name }: { checked?: boolean; children: React.ReactNode; name: string }) => (
     <section data-testid={`overlay-${name}`} data-checked={checked ? 'true' : 'false'} aria-label={name}>{children}</section>
   )
+  LayersControl.Overlay = LayersControlOverlay
   return {
     LayerGroup: ({ children }: { children: React.ReactNode }) => <div data-testid="layer-group">{children}</div>,
     LayersControl,
