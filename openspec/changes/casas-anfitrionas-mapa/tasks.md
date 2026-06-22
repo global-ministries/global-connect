@@ -65,7 +65,7 @@ First autonomous apply slice: PR 1 only.
 ## Phase 4: PRs 6-7 Maps and Privacy
 
 - [x] 4.1 Update `app/(auth)/grupos-vida/mapa/page.tsx` and `components/grupos-vida/mapa-*.tsx` to use host-home RPC, filters, and neutral privacy copy.
-- [ ] 4.2 Update `components/forms/GroupEditForm.tsx` to stop treating manual addresses as map source and link to guided assignment.
+- [x] 4.2 Update `components/forms/GroupEditForm.tsx` to stop treating manual addresses as map source and link to guided assignment.
 - [x] 4.3 Add member-layer rendering/tests in `components/grupos-vida/mapa-*.tsx`; verify unauthorized users receive no member payload.
 
 ## Phase 5: PR 8 Production Safety and Cleanup

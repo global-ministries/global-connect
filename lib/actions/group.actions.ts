@@ -21,7 +21,6 @@ const groupEditSchema = z.object({
   hora_reunion: z.string().optional(),
   activo: z.boolean(),
   notas_privadas: z.string().optional(),
-  casa_anfitriona_id: z.string().uuid().nullable().optional(),
   direccion: z.object({
     calle: z.string().optional(),
     barrio: z.string().optional(),
@@ -35,6 +34,10 @@ const groupEditSchema = z.object({
 
 export async function updateGroup(groupId: string, data: unknown) {
   try {
+    if (data && typeof data === "object" && "casa_anfitriona_id" in data) {
+      throw new Error("La Casa Anfitriona se asigna desde el flujo guiado");
+    }
+
     const validatedData = groupEditSchema.parse(data);
     const supabase = await createSupabaseServerClient();
 
@@ -59,13 +62,11 @@ export async function updateGroup(groupId: string, data: unknown) {
       hora_reunion: validatedData.hora_reunion || null,
       activo: validatedData.activo,
       notas_privadas: validatedData.notas_privadas || null,
-      casa_anfitriona_id: validatedData.casa_anfitriona_id ?? null,
       updated_at: new Date().toISOString(),
     };
 
-    // Resolver dirección SOLO si NO hay casa anfitriona seleccionada
-    // Cuando hay casa, el grupo usa la dirección de la casa automáticamente
-    if (!validatedData.casa_anfitriona_id && validatedData.direccion) {
+    // Resolver dirección manual solo cuando el formulario la envía como referencia legada.
+    if (validatedData.direccion) {
       // Obtener ID de dirección actual (si existe)
       const { data: grupoActual } = await supabase
         .from("grupos")

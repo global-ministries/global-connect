@@ -82,22 +82,16 @@ export default async function EditGroupPage({ params }: PageProps) {
   const [
     { data: temporadas },
     { data: segmentos },
-    { data: paises },
-    { data: estados },
-    { data: municipios },
     { data: parroquias },
     { data: casasRaw },
     { data: miembrosGrupo },
   ] = await Promise.all([
     supabase.from("temporadas").select("id, nombre"),
     supabase.from("segmentos").select("id, nombre"),
-    supabase.from("paises").select("id, nombre"),
-    supabase.from("estados").select("id, nombre"),
-    supabase.from("municipios").select("id, nombre"),
     supabase.from("parroquias").select("id, nombre"),
     adminDb
       .from("casas_anfitrionas")
-      .select("id, nombre_lugar, usuario_id, usuarios!casas_anfitrionas_usuario_id_fkey(nombre, apellido), direcciones!casas_anfitrionas_direccion_id_fkey(latitud, longitud)")
+      .select("id, nombre_lugar, usuario_id, usuarios!casas_anfitrionas_usuario_id_fkey(nombre, apellido)")
       .eq("activa", true)
       .eq("aprobada", true),
     adminDb
@@ -112,15 +106,12 @@ export default async function EditGroupPage({ params }: PageProps) {
     .filter((c: Record<string, unknown>) => miembroIds.has(c.usuario_id as string))
     .map((c: Record<string, unknown>) => {
       const usuario = c.usuarios as Record<string, unknown> | null;
-      const direccion = c.direcciones as Record<string, unknown> | null;
       return {
         id: c.id as string,
         nombre_lugar: c.nombre_lugar as string,
         anfitrion_nombre: usuario
           ? `${usuario.nombre ?? ''} ${usuario.apellido ?? ''}`.trim()
           : 'Sin anfitrión',
-        lat: (direccion?.latitud as number) ?? null,
-        lng: (direccion?.longitud as number) ?? null,
       };
     });
 
@@ -142,9 +133,6 @@ export default async function EditGroupPage({ params }: PageProps) {
             grupo={grupo as any}
             temporadas={temporadas || []}
             segmentos={segmentos || []}
-            paises={paises || []}
-            estados={estados || []}
-            municipios={municipios || []}
             parroquias={parroquias || []}
             casasDisponibles={casasDisponibles}
             readOnly={!puedeEditar}

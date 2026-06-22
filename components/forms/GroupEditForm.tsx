@@ -5,10 +5,10 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { InputSistema, SelectSistema, TextareaSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno";
-import LocationPicker from "@/components/maps/LocationPicker.client";
 import { updateGroup } from "@/lib/actions/group.actions";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
 
@@ -21,7 +21,6 @@ const groupEditSchema = z.object({
   hora_reunion: z.string().optional(),
   activo: z.boolean(),
   notas_privadas: z.string().optional(),
-  casa_anfitriona_id: z.string().uuid().nullable().optional(),
   direccion: z.object({
     calle: z.string().optional(),
     barrio: z.string().optional(),
@@ -35,13 +34,11 @@ const groupEditSchema = z.object({
 
 type GroupEditFormData = z.infer<typeof groupEditSchema>;
 
-/** Casa anfitriona disponible para seleccionar en el formulario */
+/** Casa anfitriona asignada que se muestra como referencia del grupo */
 interface CasaAnfitrionaOpcion {
   id: string;
   nombre_lugar: string;
   anfitrion_nombre: string;
-  lat?: number | null;
-  lng?: number | null;
 }
 
 interface GroupEditFormProps {
@@ -67,9 +64,6 @@ interface GroupEditFormProps {
   };
   temporadas: Array<{ id: string; nombre: string }>;
   segmentos: Array<{ id: string; nombre: string }>;
-  paises: Array<{ id: string; nombre: string }>;
-  estados: Array<{ id: string; nombre: string }>;
-  municipios: Array<{ id: string; nombre: string }>;
   parroquias: Array<{ id: string; nombre: string }>;
   casasDisponibles?: CasaAnfitrionaOpcion[];
   readOnly?: boolean;
@@ -79,15 +73,12 @@ interface GroupEditFormProps {
  * Formulario de edición de grupo.
  *
  * Usa componentes del design system para consistencia visual y accesibilidad.
- * Incluye mapa para selección de ubicación.
+ * La ubicación de mapa se gestiona desde la Casa Anfitriona aprobada.
  */
 export default function GroupEditForm({
   grupo,
   temporadas,
   segmentos,
-  paises,
-  estados,
-  municipios,
   parroquias,
   casasDisponibles = [],
   readOnly = false
@@ -95,17 +86,11 @@ export default function GroupEditForm({
   const router = useRouter();
   const toast = useNotificaciones();
   const [isLoading, setIsLoading] = useState(false);
-  const [mapCenter, setMapCenter] = useState({
-    lat: grupo.direccion?.lat || 10.4681,
-    lng: grupo.direccion?.lng || -66.8792
-  });
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    setValue,
-    watch,
     control,
   } = useForm<GroupEditFormData>({
     resolver: zodResolver(groupEditSchema),
@@ -117,18 +102,22 @@ export default function GroupEditForm({
       hora_reunion: grupo.hora_reunion || "",
       activo: grupo.activo ?? true,
       notas_privadas: grupo.notas_privadas || "",
-      casa_anfitriona_id: grupo.casa_anfitriona_id || null,
       direccion: {
         calle: grupo.direccion?.calle || "",
         barrio: grupo.direccion?.barrio || "",
         codigo_postal: grupo.direccion?.codigo_postal || "",
         referencia: grupo.direccion?.referencia || "",
-        lat: grupo.direccion?.lat || undefined,
-        lng: grupo.direccion?.lng || undefined,
+        lat: grupo.direccion?.lat,
+        lng: grupo.direccion?.lng,
         parroquia_id: grupo.direccion?.parroquia?.id || "",
       },
     },
   });
+
+  const selectedCasa = grupo.casa_anfitriona_id
+    ? casasDisponibles.find((casa) => casa.id === grupo.casa_anfitriona_id)
+    : undefined;
+  const hasValidAssignedCasa = Boolean(selectedCasa);
 
   const dias = [
     "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
@@ -162,7 +151,13 @@ export default function GroupEditForm({
     if (readOnly) return;
     setIsLoading(true);
     try {
-      const result = await updateGroup(grupo.id, data);
+      const manualDireccion = data.direccion
+        ? { ...data.direccion, lat: grupo.direccion?.lat, lng: grupo.direccion?.lng }
+        : data.direccion;
+      const payload: GroupEditFormData = hasValidAssignedCasa
+        ? { ...data, direccion: undefined }
+        : { ...data, direccion: manualDireccion };
+      const result = await updateGroup(grupo.id, payload);
 
       if (result.success) {
         toast.success("Grupo actualizado exitosamente");
@@ -285,57 +280,55 @@ export default function GroupEditForm({
       </TarjetaSistema>
 
       {/* Casa Anfitriona */}
-      {casasDisponibles.length > 0 && (
-        <TarjetaSistema>
-          <h3 className="text-xl font-bold text-foreground mb-6">Casa Anfitriona</h3>
-          <Controller
-            name="casa_anfitriona_id"
-            control={control}
-            render={({ field }) => (
-              <SelectSistema
-                label="Casa anfitriona registrada"
-                placeholder="Sin casa (dirección manual)"
-                value={field.value || ""}
-                onValueChange={(val) => {
-                  const casaId = val || null;
-                  field.onChange(casaId);
-                  // Auto-centrar mapa si la casa tiene coordenadas
-                  if (casaId) {
-                    const casa = casasDisponibles.find(c => c.id === casaId);
-                    if (casa?.lat != null && casa?.lng != null) {
-                      setMapCenter({ lat: casa.lat, lng: casa.lng });
-                      setValue("direccion.lat", casa.lat);
-                      setValue("direccion.lng", casa.lng);
-                    }
-                  }
-                }}
-                disabled={readOnly || isLoading}
-                opciones={[
-                  { valor: "", etiqueta: "Sin casa (dirección manual)" },
-                  ...casasDisponibles.map(c => ({
-                    valor: c.id,
-                    etiqueta: `${c.nombre_lugar} — ${c.anfitrion_nombre}`
-                  }))
-                ]}
-              />
-            )}
-          />
-          {watch("casa_anfitriona_id") ? (
-            <p className="text-sm text-muted-foreground mt-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-              📍 La dirección y ubicación del grupo se tomarán automáticamente de la casa anfitriona seleccionada.
+      <TarjetaSistema>
+        <div className="mb-6 space-y-2">
+          <h3 className="text-xl font-bold text-foreground">Casa Anfitriona</h3>
+          <p className="text-sm text-muted-foreground">
+            La visibilidad en el mapa se obtiene únicamente desde una Casa Anfitriona aprobada.
+          </p>
+        </div>
+
+        {selectedCasa && (
+          <div className="rounded-lg border border-border/50 p-3 text-sm">
+            <p className="font-medium text-foreground">Casa Anfitriona asignada</p>
+            <p className="text-muted-foreground">
+              {selectedCasa.nombre_lugar} — {selectedCasa.anfitrion_nombre}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-4 rounded-lg border border-border/50 bg-muted/30 p-3 text-sm text-muted-foreground">
+          {hasValidAssignedCasa ? (
+            <p>
+              El grupo usa la ubicación aprobada de la Casa Anfitriona asignada. Las coordenadas manuales no se copian al grupo.
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground mt-2">
-              Selecciona una casa anfitriona de un miembro del grupo, o usa dirección manual abajo.
-            </p>
+            <div className="space-y-3">
+              {grupo.casa_anfitriona_id && (
+                <p>
+                  La Casa Anfitriona asignada ya no está disponible para edición desde este formulario. Usa el flujo guiado para recuperar o cambiar la asignación.
+                </p>
+              )}
+              <p>
+                Las direcciones manuales quedan solo como referencia interna y no hacen visible el grupo en el mapa.
+              </p>
+              <Link className="inline-flex font-medium text-primary underline-offset-4 hover:underline" href="/grupos-vida/casas-anfitrionas/asignar">
+                Asignar Casa Anfitriona
+              </Link>
+            </div>
           )}
-        </TarjetaSistema>
-      )}
+        </div>
+      </TarjetaSistema>
 
-      {/* Dirección — solo visible si NO hay casa anfitriona seleccionada */}
-      {!watch("casa_anfitriona_id") && (
+      {/* Dirección manual — solo visible si NO hay casa anfitriona aprobada y disponible */}
+      {!hasValidAssignedCasa && (
         <TarjetaSistema>
-          <h3 className="text-xl font-bold text-foreground mb-6">Dirección de Reunión</h3>
+          <div className="mb-6 space-y-2">
+            <h3 className="text-xl font-bold text-foreground">Dirección manual de referencia</h3>
+            <p className="text-sm text-muted-foreground">
+              Conserva datos operativos legados, pero no se usa como fuente del mapa de Grupos de Vida.
+            </p>
+          </div>
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputSistema
@@ -386,30 +379,6 @@ export default function GroupEditForm({
               error={errors.direccion?.referencia?.message}
               {...register("direccion.referencia")}
             />
-
-            {/* Mapa */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">Ubicación en el mapa</Label>
-              <Controller
-                name="direccion"
-                control={control}
-                render={({ field }) => {
-                  const lat = field.value?.lat ?? mapCenter.lat;
-                  const lng = field.value?.lng ?? mapCenter.lng;
-                  return (
-                    <LocationPicker
-                      lat={lat}
-                      lng={lng}
-                      center={mapCenter}
-                      onLocationChange={({ lat, lng }) => {
-                        field.onChange({ ...field.value, lat, lng });
-                        setMapCenter({ lat, lng });
-                      }}
-                    />
-                  );
-                }}
-              />
-            </div>
           </div>
         </TarjetaSistema>
       )}
