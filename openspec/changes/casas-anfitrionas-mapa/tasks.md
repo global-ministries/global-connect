@@ -70,6 +70,6 @@ First autonomous apply slice: PR 1 only.
 
 ## Phase 5: PR 8 Production Safety and Cleanup
 
-- [ ] 5.1 Gate production data changes with dry-run inventory, staging smoke, explicit approval, and post-migration verification queries.
-- [ ] 5.2 Add guarded backfill utilities under `supabase/migrations/` only for approved existing Casa data; never invent historical host-home records.
-- [ ] 5.3 Run `supabase/tests/**`, Jest/page tests, and Supabase advisors; document fix-forward notes for each DB slice.
+- [x] 5.1 Gate production data changes with dry-run inventory, staging smoke, explicit approval, and post-migration verification queries.
+- [x] 5.2 Add guarded backfill utilities under `supabase/migrations/` only for approved existing Casa data; never invent historical host-home records.
+- [ ] 5.3 Run `supabase/tests/**`, Jest/page tests, and Supabase advisors; document fix-forward notes for each DB slice. Local/static Jest and SQL evidence gates are prepared in PR8, but live Supabase advisors remain a release gate and have not been run by this PR.

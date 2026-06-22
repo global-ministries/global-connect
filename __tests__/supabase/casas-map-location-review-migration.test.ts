@@ -38,8 +38,25 @@ function readMigration(): string {
   return readFileSync(join(migrationsDir, file), 'utf8')
 }
 
+function readMigrationBySuffix(suffix: string): string {
+  const file = readdirSync(migrationsDir).find((name) => name.endsWith(suffix))
+  if (!file) throw new Error(`Missing Casas migration with suffix ${suffix}`)
+  return readFileSync(join(migrationsDir, file), 'utf8')
+}
+
 function readSqlTest(name: string): string {
   return readFileSync(join(testsDir, name), 'utf8')
+}
+
+function readDoc(name: string): string {
+  return readFileSync(join(process.cwd(), 'docs', name), 'utf8')
+}
+
+function stripSqlCommentLines(sql: string): string {
+  return sql
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('--'))
+    .join('\n')
 }
 
 function extractFunctionBody(sql: string, name: string): string {
@@ -189,5 +206,110 @@ describe('Casas map location review DB foundation', () => {
     expect(contracts).toContain('public.procesar_revision_ubicacion_casa(')
     expect(contracts).toContain('public.obtener_mapa_miembros(')
     expect(contracts).not.toMatch(/TODO|placeholder|replace the fixture/i)
+  })
+
+  it('defines PR8 guarded backfill as a manual dry-run-first utility for approved Casas only', () => {
+    const sql = readMigrationBySuffix('_casas_map_guarded_backfill.sql')
+    const body = extractFunctionBody(sql, 'casas_map_backfill_approved_location_audit')
+    const dryRunBranchIndex = body.indexOf('IF p_dry_run THEN')
+    const approvalGateIndex = body.indexOf('backfill_requires_explicit_approval_reference')
+    const insertIndex = body.indexOf('INSERT INTO public.casa_anfitriona_audit_events')
+
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.casas_map_backfill_approved_location_audit(')
+    expect(sql).toContain('p_dry_run boolean DEFAULT true')
+    expect(sql).toContain('p_approval_reference text DEFAULT NULL')
+    expect(sql).toContain("current_setting('request.jwt.claim.role', true)")
+    expect(sql).toContain("<> 'service_role'")
+    expect(sql).toContain('IF p_dry_run THEN')
+    expect(sql).toContain('ca.aprobada = true')
+    expect(sql).toContain('ca.activa = true')
+    expect(sql).toContain('ca.direccion_id IS NOT NULL')
+    expect(sql).toContain("event_type = 'approved_location_backfill'")
+    expect(sql).toContain('ON CONFLICT DO NOTHING')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.casas_map_backfill_approved_location_audit(uuid, boolean, text) FROM PUBLIC;')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.casas_map_backfill_approved_location_audit(uuid, boolean, text) FROM anon;')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.casas_map_backfill_approved_location_audit(uuid, boolean, text) FROM authenticated;')
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.casas_map_backfill_approved_location_audit(uuid, boolean, text) TO service_role;')
+    expect(sql).toContain('CREATE UNIQUE INDEX IF NOT EXISTS idx_casa_audit_events_approved_location_backfill_once')
+    expect(sql).toContain("lower(v_approval_reference) IN ('approval-reference', 'approved-change-id', 'placeholder', 'replace-me', 'changeme', 'todo', 'tbd')")
+    expect(sql).toContain("'approval_reference', v_approval_reference")
+    expect(sql).toContain("pg_advisory_xact_lock(hashtextextended('casas_map_backfill_approved_location_audit', 0))")
+    expect([
+      ...body.matchAll(/WHERE\s+ca\.aprobada = true\s+AND ca\.activa = true\s+AND ca\.direccion_id IS NOT NULL/g),
+    ]).toHaveLength(2)
+    expect(dryRunBranchIndex).toBeGreaterThan(-1)
+    expect(approvalGateIndex).toBeGreaterThan(dryRunBranchIndex)
+    expect(insertIndex).toBeGreaterThan(approvalGateIndex)
+    expect(body.slice(dryRunBranchIndex, insertIndex)).not.toMatch(/\bINSERT\b|\bUPDATE\b|\bDELETE\b/i)
+    expect(sql).not.toMatch(/UPDATE\s+public\.(grupos|casas_anfitrionas)\s+SET|DELETE\s+FROM\s+public\.|TRUNCATE\s+|DROP\s+(TABLE|COLUMN)/i)
+  })
+
+  it('keeps the PR8 backfill boundary away from manual addresses and pending review creation', () => {
+    const sql = readMigrationBySuffix('_casas_map_guarded_backfill.sql')
+    expect(sql).not.toContain('direccion_anfitrion_id')
+    expect(sql).not.toMatch(/INSERT\s+INTO\s+public\.casa_anfitriona_location_reviews/i)
+    expect(sql).not.toMatch(/UPDATE\s+public\.casas_anfitrionas/i)
+    expect(sql).not.toMatch(/ca\.aprobada\s*=\s*false|ca\.activa\s*=\s*false|ca\.direccion_id\s+IS\s+NULL/i)
+    expect(sql).toContain("'approved_location_backfill'")
+    expect(sql).toContain("'source', 'pr8_guarded_backfill'")
+  })
+
+  it('documents PR8 production gates, staging smoke, advisors, and post-backfill verification', () => {
+    const safetySql = readSqlTest('casas_map_production_safety.sql')
+    const runbook = readDoc('casas-anfitrionas-map-operations.md')
+    const executableSafetySql = stripSqlCommentLines(safetySql)
+
+    for (const token of [
+      'PR8 production safety gate',
+      'dry-run inventory',
+      'staging smoke',
+      'explicit approval',
+      'post-backfill verification',
+      'Supabase Security Advisor',
+      'Supabase Performance Advisor',
+    ]) {
+      expect(safetySql).toContain(token)
+      expect(runbook).toContain(token)
+    }
+
+    expect(safetySql).toContain('p_dry_run => true')
+    expect(safetySql).toContain('casas_map_backfill_approved_location_audit')
+    expect(safetySql).toContain("set_config('request.jwt.claim.role', 'service_role', true)")
+    expect(safetySql).toContain("set_config('request.jwt.claim.sub', '<approved-admin-auth-id>', true)")
+    expect(safetySql).toContain("casas_map.run_post_backfill_assertions")
+    expect(safetySql).toContain("current_setting('casas_map.run_post_backfill_assertions', true)")
+    expect(safetySql).toContain("RAISE NOTICE 'post-backfill assertions skipped")
+    expect(safetySql).toContain("RAISE EXCEPTION 'post_backfill_missing_audit_snapshots")
+    expect(safetySql).toContain("RAISE EXCEPTION 'post_backfill_duplicate_audit_snapshots")
+    expect(safetySql).toContain("p_approval_reference => '<release-ticket-or-change-id>'")
+    expect(runbook).toContain("set_config('casas_map.run_post_backfill_assertions', 'off', false)")
+    expect(runbook).toContain("set_config('casas_map.run_post_backfill_assertions', 'on', false)")
+    expect(runbook).toContain('Use `\\i` only in `psql`; the Supabase SQL Editor does not support it.')
+    expect(runbook).toContain('same explicit transaction because `set_config(..., true)` is transaction-local')
+    expect(runbook).toContain('Supabase SQL Editor path')
+    expect(runbook).toContain('do not use `\\i` in the SQL Editor')
+    expect(runbook).toContain('it manages its own `BEGIN`/`ROLLBACK` fixture transaction')
+    expect(runbook).toContain('-- Paste the contents of supabase/tests/casas_map_production_safety.sql here.')
+    expect(safetySql).toContain('inside one explicit BEGIN/COMMIT transaction')
+    expect(safetySql).toContain('SQL Editor does not support \\i includes')
+    expect(runbook).toContain('safe end-to-end')
+
+    const assertionGuardIndex = executableSafetySql.indexOf('IF NOT v_run_post_backfill_assertions THEN')
+    const assertionReturnIndex = executableSafetySql.indexOf('RETURN;', assertionGuardIndex)
+    const firstAssertionRaiseIndex = executableSafetySql.indexOf('RAISE EXCEPTION', assertionReturnIndex)
+    expect(assertionGuardIndex).toBeGreaterThan(-1)
+    expect(assertionReturnIndex).toBeGreaterThan(assertionGuardIndex)
+    expect(firstAssertionRaiseIndex).toBeGreaterThan(assertionReturnIndex)
+    expect(executableSafetySql).not.toContain('p_dry_run => false')
+    expect(executableSafetySql).not.toMatch(/\bINSERT\b|\bUPDATE\b|\bDELETE\b|\bDROP\b|\bTRUNCATE\b/i)
+    expect(runbook).toContain('No live production SQL, migration, deploy, or Supabase advisor command is executed by this PR.')
+    expect(runbook).toContain('No feature flag currently exists for this slice')
+    expect(runbook).toContain('Monitor for the first 2 hours after release')
+
+    for (const signature of readOnlyRpcSignatures) {
+      expect(runbook).toContain(`REVOKE EXECUTE ON FUNCTION public.${signature} FROM authenticated;`)
+      expect(runbook).toContain(`REVOKE EXECUTE ON FUNCTION public.${signature} FROM service_role;`)
+      expect(runbook).toContain(`GRANT EXECUTE ON FUNCTION public.${signature} TO authenticated, service_role;`)
+    }
   })
 })
