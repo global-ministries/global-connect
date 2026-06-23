@@ -104,7 +104,12 @@ describe('HostHomeQueuesWidget', () => {
   it('shows queue cards when rendering the real admin dashboard role', () => {
     render(<DashboardAdmin rol="admin" data={{ casas_anfitrionas_queues: hostHomeQueues, kpis_globales: {} }} />)
 
-    expect(screen.getByRole('region', { name: 'Grupos de Vida sin Casa Anfitriona asignada en el sistema' })).toBeInTheDocument()
+    const assignmentQueue = screen.getByRole('region', { name: 'Grupos de Vida sin Casa Anfitriona asignada en el sistema' })
+    const riskGroups = screen.getByText('Grupos que Necesitan Atención')
+    const hostHomeWrapper = assignmentQueue.closest('.grid')?.parentElement
+
+    expect(assignmentQueue).toBeInTheDocument()
+    expect(hostHomeWrapper?.nextElementSibling).toContainElement(riskGroups)
     expect(screen.getByRole('region', { name: 'Casas Anfitrionas pendientes de revisión' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Asignar Casa Anfitriona' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/asignar')
     expect(screen.getByRole('link', { name: 'Revisar Casas Anfitrionas' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/revision')
@@ -113,7 +118,12 @@ describe('HostHomeQueuesWidget', () => {
   it('shows only assignment queue cards when rendering the real director dashboard role', () => {
     render(<DashboardDirector data={{ casas_anfitrionas_queues: hostHomeQueues, kpis_alcance: {} }} />)
 
-    expect(screen.getByRole('region', { name: 'Grupos de Vida sin Casa Anfitriona asignada en el sistema' })).toBeInTheDocument()
+    const assignmentQueue = screen.getByRole('region', { name: 'Grupos de Vida sin Casa Anfitriona asignada en el sistema' })
+    const riskGroups = screen.getByText('Grupos que Necesitan Atención (mi etapa)')
+    const hostHomeWrapper = assignmentQueue.closest('.grid')?.parentElement
+
+    expect(assignmentQueue).toBeInTheDocument()
+    expect(hostHomeWrapper?.nextElementSibling).toContainElement(riskGroups)
     expect(screen.getByRole('link', { name: 'Asignar Casa Anfitriona' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/asignar')
     expect(screen.queryByRole('region', { name: 'Casas Anfitrionas pendientes de revisión' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Revisar Casas Anfitrionas' })).not.toBeInTheDocument()

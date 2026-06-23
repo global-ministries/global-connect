@@ -104,12 +104,6 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
 
   return (
     <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 transition-opacity duration-200 ${refrescando ? 'opacity-60' : ''}`}>
-      {hostHomeQueues && (
-        <div className="col-span-2 lg:col-span-4">
-          <HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes={canReviewHostHomeQueue} />
-        </div>
-      )}
-
       <MetricWidget
         id="miembros"
         title="Total Miembros"
@@ -193,6 +187,12 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
           items={cumpleanos}
         />
       </div>
+
+      {hostHomeQueues && (
+        <div className="col-span-2 lg:col-span-4">
+          <HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes={canReviewHostHomeQueue} />
+        </div>
+      )}
 
       <div className="col-span-2">
         <RiskGroupsWidget
