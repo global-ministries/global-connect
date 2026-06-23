@@ -308,6 +308,31 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).toHaveBeenCalledTimes(1)
   })
 
+  it('preserves the Supabase client context when invoking missing-host-home RPCs', async () => {
+    const serverClient = createServerClient({ rpc: jest.fn() })
+    const serverRpc = jest.fn<Promise<RpcMockResponse>, [string, Record<string, unknown>]>(function (this: unknown, rpcName: string) {
+      if (this !== serverClient) throw new TypeError('server rpc context lost')
+      if (rpcName === 'obtener_roles_usuario') return Promise.resolve({ data: ['admin'], error: null })
+      return Promise.resolve({ data: [], error: null })
+    })
+    serverClient.rpc = serverRpc
+
+    const adminClient = createAdminClient()
+    const adminRpc = jest.fn<Promise<RpcMockResponse>, [string, Record<string, unknown>]>(function (this: unknown, rpcName: string) {
+      if (this !== adminClient) throw new TypeError('admin rpc context lost')
+      if (rpcName === 'obtener_grupos_sin_casa_anfitriona') return Promise.resolve({ data: [createMissingHostHomeRow()], error: null })
+      return Promise.resolve({ data: [], error: null })
+    })
+    adminClient.rpc = adminRpc
+    createSupabaseServerClient.mockResolvedValue(serverClient)
+    createSupabaseAdminClient.mockReturnValue(adminClient)
+
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMissingHostHomeRow()] })
+
+    expect(serverRpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
+    expect(adminRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
+  })
+
   it.each([
     ['scalar', 'admin'],
     ['object', { nombre_interno: 'admin' }],

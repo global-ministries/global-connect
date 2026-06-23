@@ -489,11 +489,10 @@ async function callCasasMapRpc<Name extends CasasMapRpcName>(
   rpcName: Name,
   args: CasasMapRpcArgsByName[Name]
 ): Promise<RpcResponse> {
-  const rpc = client.rpc as unknown as (
-    name: Name,
-    rpcArgs: CasasMapRpcArgsByName[Name]
-  ) => Promise<RpcResponse>;
-  return rpc(rpcName, args);
+  const rpcClient = client as unknown as {
+    rpc(name: Name, rpcArgs: CasasMapRpcArgsByName[Name]): Promise<RpcResponse>;
+  };
+  return rpcClient.rpc(rpcName, args);
 }
 
 async function executeCasasMapRpc<Name extends CasasMapRpcName>(
