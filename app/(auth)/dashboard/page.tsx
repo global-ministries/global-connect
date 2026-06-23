@@ -12,7 +12,7 @@ import type { HostHomeQueuesData, MissingHostHomeQueueItem, PendingHostHomeRevie
 export const dynamic = 'force-dynamic'
 
 const operationalDashboardRoles = new Set(['admin', 'pastor', 'director-general', 'director-etapa', 'lider'])
-export const HOST_HOME_QUEUE_FETCH_TIMEOUT_MS = 1500
+export const HOST_HOME_QUEUE_FETCH_TIMEOUT_MS = 3000
 
 type QueueActionResult<T> = {
   success: boolean
@@ -25,9 +25,15 @@ function degradedQueueResult<T>(): QueueActionResult<T> {
   return { success: false, data: [], degraded: true, error: 'No pudimos cargar esta cola' }
 }
 
-function withQueueFallback<T>(operation: Promise<QueueActionResult<T>>): Promise<QueueActionResult<T>> {
+function withQueueFallback<T>(operation: Promise<QueueActionResult<T>>, queueName: string): Promise<QueueActionResult<T>> {
   return new Promise((resolve) => {
-    const timeout = setTimeout(() => resolve(degradedQueueResult<T>()), HOST_HOME_QUEUE_FETCH_TIMEOUT_MS)
+    const timeout = setTimeout(() => {
+      console.warn('Casa host-home queue fetch timed out; using degraded fallback.', {
+        queueName,
+        timeoutMs: HOST_HOME_QUEUE_FETCH_TIMEOUT_MS,
+      })
+      resolve(degradedQueueResult<T>())
+    }, HOST_HOME_QUEUE_FETCH_TIMEOUT_MS)
 
     operation
       .then((result) => {
@@ -47,9 +53,9 @@ async function obtenerColasCasasAnfitrionas(rol: string): Promise<HostHomeQueues
 
   const canReviewHostHomeQueue = canReviewHostHomes(rol)
   const [missingResult, pendingResult] = await Promise.all([
-    withQueueFallback(obtenerGruposSinCasaAnfitriona({ scope: 'active' })),
+    withQueueFallback(obtenerGruposSinCasaAnfitriona({ scope: 'active' }), 'missing-host-home-groups'),
     canReviewHostHomeQueue
-      ? withQueueFallback(obtenerCasasRevisionPendiente())
+      ? withQueueFallback(obtenerCasasRevisionPendiente(), 'pending-host-home-reviews')
       : Promise.resolve<QueueActionResult<PendingHostHomeReviewItem>>({ success: true, data: [] }),
   ])
 

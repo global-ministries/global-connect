@@ -54,6 +54,7 @@ describe('dashboard host-home queue loading', () => {
 
   afterEach(() => {
     jest.useRealTimers()
+    jest.restoreAllMocks()
   })
 
   it('loads active host-home queues through server-action wrappers for operational roles', async () => {
@@ -102,6 +103,7 @@ describe('dashboard host-home queue loading', () => {
 
   it('preserves degraded queue state when optional queue wrappers do not complete promptly', async () => {
     jest.useFakeTimers()
+    const consoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
     obtenerDatosDashboard.mockResolvedValue({ rol: 'admin', widgets: {} })
     obtenerGruposSinCasaAnfitriona.mockReturnValue(new Promise(() => undefined))
     obtenerCasasRevisionPendiente.mockReturnValue(new Promise(() => undefined))
@@ -117,6 +119,40 @@ describe('dashboard host-home queue loading', () => {
     expect(screen.getByTestId('role-probe')).toHaveTextContent('pending:0')
     expect(screen.getByTestId('role-probe')).toHaveTextContent('missing-degraded:true')
     expect(screen.getByTestId('role-probe')).toHaveTextContent('pending-degraded:true')
+    expect(consoleWarn).toHaveBeenCalledTimes(2)
+    expect(consoleWarn).toHaveBeenCalledWith('Casa host-home queue fetch timed out; using degraded fallback.', {
+      queueName: 'missing-host-home-groups',
+      timeoutMs: HOST_HOME_QUEUE_FETCH_TIMEOUT_MS,
+    })
+    expect(consoleWarn).toHaveBeenCalledWith('Casa host-home queue fetch timed out; using degraded fallback.', {
+      queueName: 'pending-host-home-reviews',
+      timeoutMs: HOST_HOME_QUEUE_FETCH_TIMEOUT_MS,
+    })
+  })
+
+  it('does not degrade queue state for slow wrappers that complete within the latency budget', async () => {
+    jest.useFakeTimers()
+    const consoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    obtenerDatosDashboard.mockResolvedValue({ rol: 'admin', widgets: {} })
+    obtenerGruposSinCasaAnfitriona.mockImplementation(() => new Promise((resolve) => {
+      setTimeout(() => resolve({ success: true, data: [] }), 2000)
+    }))
+    obtenerCasasRevisionPendiente.mockImplementation(() => new Promise((resolve) => {
+      setTimeout(() => resolve({ success: true, data: [] }), 2000)
+    }))
+    const { default: PaginaTablero } = await import('@/app/(auth)/dashboard/page')
+
+    const page = PaginaTablero()
+    await jest.advanceTimersByTimeAsync(2000)
+    render(await page)
+
+    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByTestId('role-probe')).toHaveTextContent('admin:admin')
+    expect(screen.getByTestId('role-probe')).toHaveTextContent('missing:0')
+    expect(screen.getByTestId('role-probe')).toHaveTextContent('pending:0')
+    expect(screen.getByTestId('role-probe')).toHaveTextContent('missing-degraded:false')
+    expect(screen.getByTestId('role-probe')).toHaveTextContent('pending-degraded:false')
+    expect(consoleWarn).not.toHaveBeenCalled()
   })
 
   it('does not request pending-review queue data for roles that cannot review Casas', async () => {
