@@ -557,6 +557,8 @@ function parseRpcObject<T>(
   return { success: true, data: parsed.data };
 }
 
+const maxRoleNormalizationDepth = 4;
+
 function getRoleName(role: unknown): string | null {
   if (typeof role === "string") return role;
   if (typeof role === "object" && role !== null && "nombre_interno" in role && typeof role.nombre_interno === "string") {
@@ -565,11 +567,19 @@ function getRoleName(role: unknown): string | null {
   return null;
 }
 
+function normalizeRoleNames(value: unknown, depth = 0): string[] {
+  const roleName = getRoleName(value);
+  if (roleName !== null) return [roleName];
+
+  if (!Array.isArray(value) || depth >= maxRoleNormalizationDepth) return [];
+  return value.flatMap((entry) => normalizeRoleNames(entry, depth + 1));
+}
+
 async function obtenerRolesDashboardCasas(supabase: ServerRpcClient, authId: string): Promise<Set<string>> {
   const { data, error } = await supabase.rpc("obtener_roles_usuario", { p_auth_id: authId });
   if (error || !Array.isArray(data)) return new Set();
 
-  return new Set(data.map(getRoleName).filter((role): role is string => role !== null));
+  return new Set(normalizeRoleNames(data));
 }
 
 function puedeVerTodasLasColasCasas(roles: Set<string>): boolean {

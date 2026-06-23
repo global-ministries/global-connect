@@ -296,6 +296,36 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
+  it('loads missing-host-home dashboard rows when role RPC returns nested role arrays', async () => {
+    const rpc = createPermissionRpcMock({ roles: [['admin']], missingHostHomeRows: [createMissingHostHomeRow()] })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
+    createSupabaseAdminClient.mockReturnValue(createAdminClient({ rpc }))
+
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMissingHostHomeRow()] })
+
+    expect(rpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
+    expect(rpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
+    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['scalar', 'admin'],
+    ['object', { nombre_interno: 'admin' }],
+  ])('does not authorize missing-host-home dashboard rows when role RPC returns a root %s payload', async (_shape, rolePayload) => {
+    const rpc = createPermissionRpcMock({ missingHostHomeRows: [createMissingHostHomeRow()] })
+    rpc.mockImplementation((rpcName: string, args: Record<string, unknown>) => {
+      if (rpcName === 'obtener_roles_usuario') return Promise.resolve({ data: rolePayload, error: null })
+      return createPermissionRpcMock({ missingHostHomeRows: [createMissingHostHomeRow()] })(rpcName, args)
+    })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
+
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [] })
+
+    expect(rpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
+    expect(rpc).not.toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', expect.anything())
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
+  })
+
   it.each(['pastor', 'lider', 'miembro'])('returns no member map payload for %s without invoking the sensitive member RPC', async (role) => {
     const rpc = createPermissionRpcMock({ roles: [role], memberMapRows: [createMemberMapRow()] })
     createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
