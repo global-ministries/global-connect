@@ -388,6 +388,28 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
+  it('returns default missing-host-home rows without leader enrichment queries', async () => {
+    const rpc = createPermissionRpcMock({
+      roles: ['admin'],
+      missingHostHomeRows: [createMissingHostHomeRow()],
+    })
+    const serverClient = createServerClient({
+      rpc,
+      groupLeaderRows: [
+        { grupo_id: groupId, rol: 'Líder', usuarios: { nombre: 'Luis', apellido: 'Barreto' } },
+      ],
+    })
+    createSupabaseServerClient.mockResolvedValue(serverClient)
+
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({
+      success: true,
+      data: [createMissingHostHomeRow()],
+    })
+
+    expect(serverClient.from).not.toHaveBeenCalledWith('grupo_miembros')
+    expect(serverClient.groupLeaderQuery?.select).not.toHaveBeenCalled()
+  })
+
   it.each(['admin', 'pastor', 'director-general'])('allows %s to request the pending-review dashboard queue', async (role) => {
     const rpc = createPermissionRpcMock({ roles: [role], pendingReviewRows: [createPendingReviewRow()] })
     createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
@@ -440,7 +462,7 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
-  it('enriches only visible missing-host-home queue rows with deterministically ordered current leader names', async () => {
+  it('enriches only visible missing-host-home queue rows with deterministically ordered current leader names when requested', async () => {
     const hiddenGroupRow = createMissingHostHomeRow({
       grupo_id: otherGroupId,
       grupo_nombre: 'Grupo Sur',
@@ -463,7 +485,7 @@ describe('casas anfitrionas server actions permissions', () => {
     })
     createSupabaseServerClient.mockResolvedValue(serverClient)
 
-    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active', includeLeaders: true })).resolves.toEqual({
       success: true,
       data: [
         {

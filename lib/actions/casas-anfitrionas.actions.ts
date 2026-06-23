@@ -33,6 +33,10 @@ const scopeSchema = z.enum(["active", "planned"], {
 });
 
 const scopeInputSchema = z.object({ scope: scopeSchema.default("active") }).default({ scope: "active" });
+const missingHostHomeInputSchema = z.object({
+  scope: scopeSchema.default("active"),
+  includeLeaders: z.boolean().default(false),
+}).default({ scope: "active", includeLeaders: false });
 
 const assignmentInputSchema = z.object({
   groupId: z.string().uuid("Grupo inválido"),
@@ -1318,7 +1322,7 @@ export async function obtenerDatosMapaGruposHostHomes(
 export async function obtenerGruposSinCasaAnfitriona(
   input?: unknown
 ): Promise<ResultadoAccion<GrupoSinCasaAnfitrionaItem[]>> {
-  const scope = scopeInputSchema.safeParse(input ?? {});
+  const scope = missingHostHomeInputSchema.safeParse(input ?? {});
   if (!scope.success) return { success: false, error: formatZodError(scope.error) };
 
   const { supabase, userId, authId, error } = await validarAuthYPermisos();
@@ -1341,7 +1345,9 @@ export async function obtenerGruposSinCasaAnfitriona(
 
   return {
     success: true,
-    data: await enriquecerGruposSinCasaConLideres(supabase, visibleQueueRows),
+    data: scope.data.includeLeaders
+      ? await enriquecerGruposSinCasaConLideres(supabase, visibleQueueRows)
+      : visibleQueueRows,
   };
 }
 

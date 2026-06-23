@@ -251,7 +251,7 @@ describe('casas anfitrionas App Router permission wiring', () => {
 
     render(await AsignarCasaAnfitrionaPage())
 
-    expect(mockObtenerGruposSinCasaAnfitriona).toHaveBeenCalledWith({ scope: 'active' })
+    expect(mockObtenerGruposSinCasaAnfitriona).toHaveBeenCalledWith({ scope: 'active', includeLeaders: true })
     expect(mockListarCasasAnfitrionas).toHaveBeenCalledWith({ soloActivas: true, soloAprobadas: true })
     expect(screen.getByRole('heading', { name: 'Asignar Casa Anfitriona' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Grupo Norte — Líderes: Luis Barreto, Blanca Rojas de Barreto · Jóvenes · 2026' })).toBeInTheDocument()

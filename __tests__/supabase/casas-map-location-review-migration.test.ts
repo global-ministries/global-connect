@@ -123,6 +123,28 @@ describe('Casas map location review DB foundation', () => {
     expect(sql.match(/SECURITY DEFINER SET search_path TO 'public'/g)).toHaveLength(11)
   })
 
+  it('patches Casas map actor matching for PostgREST JSON JWT claims without broad mutation grants', () => {
+    const sql = readMigrationBySuffix('_fix_casas_map_auth_service_role_claims.sql')
+    const body = extractFunctionBody(sql, 'casas_map_auth_matches_actor')
+
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.casas_map_auth_matches_actor(')
+    expect(sql).toContain("SECURITY DEFINER SET search_path TO 'public'")
+    expect(body).toContain("current_setting('request.jwt.claim.role', true)")
+    expect(body).toContain("current_setting('request.jwt.claims', true)")
+    expect(body).toContain("v_claims_raw::jsonb ->> 'role'")
+    expect(body).toContain('EXCEPTION WHEN others THEN')
+    expect(body).toContain("coalesce(v_request_role, '') = 'service_role'")
+    expect(body).toContain("coalesce(v_claims_role, '') = 'service_role'")
+    expect(body).toContain('p_auth_id IS NOT DISTINCT FROM auth.uid()')
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.casas_map_auth_matches_actor(uuid) FROM authenticated;')
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.casas_map_auth_matches_actor(uuid) TO service_role;')
+
+    for (const signature of mutatingRpcSignatures) {
+      expect(sql).not.toContain(`GRANT EXECUTE ON FUNCTION public.${signature} TO authenticated`)
+      expect(sql).not.toContain(`GRANT EXECUTE ON FUNCTION public.${signature} TO authenticated, service_role`)
+    }
+  })
+
   it('hardens mutating RPCs with assignment authorization, eligibility, and concurrency protection', () => {
     const sql = readMigration()
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.puede_asignar_casa_anfitriona_a_grupo(')

@@ -35,7 +35,7 @@ export default async function AsignarCasaAnfitrionaPage({ searchParams }: Assign
   if (!user) redirect("/login")
 
   const [groupsResult, casasResult] = await Promise.allSettled([
-    obtenerGruposSinCasaAnfitriona({ scope: "active" }),
+    obtenerGruposSinCasaAnfitriona({ scope: "active", includeLeaders: true }),
     listarCasasAnfitrionas({ soloActivas: true, soloAprobadas: true }),
   ])
 
