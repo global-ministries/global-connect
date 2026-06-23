@@ -174,13 +174,13 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
-  it('wraps read-only casas map RPCs with actor auth through the service-role read client', async () => {
+  it('uses service-role read RPCs only for casas map reads that do not require JWT context', async () => {
     const serverRpc = createPermissionRpcMock({
       roles: ['admin'],
+      missingHostHomeRows: [createMissingHostHomeRow()],
     })
     const adminRpc = createPermissionRpcMock({
       hostHomeMapRows: [createHostHomeMapRow()],
-      missingHostHomeRows: [createMissingHostHomeRow()],
       pendingReviewRows: [createPendingReviewRow()],
       memberMapRows: [createMemberMapRow()],
     })
@@ -193,18 +193,18 @@ describe('casas anfitrionas server actions permissions', () => {
     await expect(obtenerMapaMiembros({ scope: 'planned' })).resolves.toEqual({ success: true, data: [createMemberMapRow()] })
     expect(createSupabaseServerClient).toHaveBeenCalledTimes(4)
     expect(serverRpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
-    expect(serverRpc).toHaveBeenCalledTimes(3)
+    expect(serverRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
+    expect(serverRpc).toHaveBeenCalledTimes(4)
     expect(serverRpc).not.toHaveBeenCalledWith('obtener_mapa_grupos_vida_host_homes', expect.anything())
-    expect(serverRpc).not.toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', expect.anything())
     expect(serverRpc).not.toHaveBeenCalledWith('obtener_casas_revision_pendiente', expect.anything())
     expect(serverRpc).not.toHaveBeenCalledWith('obtener_mapa_miembros', expect.anything())
     expect(adminRpc).toHaveBeenCalledWith('obtener_mapa_grupos_vida_host_homes', { p_auth_id: authId, p_scope: 'planned' })
-    expect(adminRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
     expect(adminRpc).toHaveBeenCalledWith('obtener_casas_revision_pendiente', { p_auth_id: authId })
     expect(adminRpc).toHaveBeenCalledWith('obtener_mapa_miembros', { p_auth_id: authId, p_scope: 'planned' })
-    expect(adminRpc).toHaveBeenCalledTimes(4)
+    expect(adminRpc).toHaveBeenCalledTimes(3)
+    expect(adminRpc).not.toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', expect.anything())
     expect(adminRpc).not.toHaveBeenCalledWith('obtener_roles_usuario', expect.anything())
-    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(4)
+    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(3)
   })
 
   it('falls back to the authenticated server RPC for read-only casas map actions when the service-role client is unavailable', async () => {
@@ -228,7 +228,7 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(rpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
     expect(rpc).toHaveBeenCalledWith('obtener_casas_revision_pendiente', { p_auth_id: authId })
     expect(rpc).toHaveBeenCalledWith('obtener_mapa_miembros', { p_auth_id: authId, p_scope: 'active' })
-    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(4)
+    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(3)
     expect(consoleError).toHaveBeenCalledWith('[casas-anfitrionas.actions]', expect.objectContaining({ phase: 'admin_client_setup' }))
   })
 
@@ -251,14 +251,14 @@ describe('casas anfitrionas server actions permissions', () => {
     await expect(obtenerMapaMiembros({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMemberMapRow()] })
 
     expect(adminRpc).toHaveBeenCalledWith('obtener_mapa_grupos_vida_host_homes', { p_auth_id: authId, p_scope: 'active' })
-    expect(adminRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
     expect(adminRpc).toHaveBeenCalledWith('obtener_casas_revision_pendiente', { p_auth_id: authId })
     expect(adminRpc).toHaveBeenCalledWith('obtener_mapa_miembros', { p_auth_id: authId, p_scope: 'active' })
+    expect(adminRpc).not.toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', expect.anything())
     expect(serverRpc).toHaveBeenCalledWith('obtener_mapa_grupos_vida_host_homes', { p_auth_id: authId, p_scope: 'active' })
     expect(serverRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
     expect(serverRpc).toHaveBeenCalledWith('obtener_casas_revision_pendiente', { p_auth_id: authId })
     expect(serverRpc).toHaveBeenCalledWith('obtener_mapa_miembros', { p_auth_id: authId, p_scope: 'active' })
-    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(4)
+    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(3)
     expect(consoleError).toHaveBeenCalledWith('[casas-anfitrionas.actions]', expect.objectContaining({ phase: 'rpc_error' }))
   })
 
@@ -296,6 +296,20 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
+  it('uses the authenticated server RPC for the missing-host-home queue even when a service-role read would succeed empty', async () => {
+    const serverRpc = createPermissionRpcMock({ roles: ['admin'], missingHostHomeRows: [createMissingHostHomeRow()] })
+    const adminRpc = createPermissionRpcMock({ missingHostHomeRows: [] })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc: serverRpc }))
+    createSupabaseAdminClient.mockReturnValue(createAdminClient({ rpc: adminRpc }))
+
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMissingHostHomeRow()] })
+
+    expect(serverRpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
+    expect(serverRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
+    expect(adminRpc).not.toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', expect.anything())
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
+  })
+
   it('loads missing-host-home dashboard rows when role RPC returns nested role arrays', async () => {
     const rpc = createPermissionRpcMock({ roles: [['admin']], missingHostHomeRows: [createMissingHostHomeRow()] })
     createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
@@ -305,32 +319,25 @@ describe('casas anfitrionas server actions permissions', () => {
 
     expect(rpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
     expect(rpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
-    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(1)
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
-  it('preserves the Supabase client context when invoking missing-host-home RPCs', async () => {
+  it('preserves the authenticated Supabase client context when invoking missing-host-home RPCs', async () => {
     const serverClient = createServerClient({ rpc: jest.fn() })
     const serverRpc = jest.fn<Promise<RpcMockResponse>, [string, Record<string, unknown>]>(function (this: unknown, rpcName: string) {
       if (this !== serverClient) throw new TypeError('server rpc context lost')
       if (rpcName === 'obtener_roles_usuario') return Promise.resolve({ data: ['admin'], error: null })
-      return Promise.resolve({ data: [], error: null })
-    })
-    serverClient.rpc = serverRpc
-
-    const adminClient = createAdminClient()
-    const adminRpc = jest.fn<Promise<RpcMockResponse>, [string, Record<string, unknown>]>(function (this: unknown, rpcName: string) {
-      if (this !== adminClient) throw new TypeError('admin rpc context lost')
       if (rpcName === 'obtener_grupos_sin_casa_anfitriona') return Promise.resolve({ data: [createMissingHostHomeRow()], error: null })
       return Promise.resolve({ data: [], error: null })
     })
-    adminClient.rpc = adminRpc
+    serverClient.rpc = serverRpc
     createSupabaseServerClient.mockResolvedValue(serverClient)
-    createSupabaseAdminClient.mockReturnValue(adminClient)
 
     await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMissingHostHomeRow()] })
 
     expect(serverRpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
-    expect(adminRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
+    expect(serverRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -362,7 +369,7 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
-  it('keeps director-general missing-host-home rows authorized by the service-role RPC', async () => {
+  it('keeps director-general missing-host-home rows authorized by the authenticated RPC', async () => {
     const rpc = createPermissionRpcMock({
       roles: ['director-general'],
       missingHostHomeRows: [createMissingHostHomeRow()],
@@ -370,7 +377,6 @@ describe('casas anfitrionas server actions permissions', () => {
     })
     const serverClient = createServerClient({ rpc })
     createSupabaseServerClient.mockResolvedValue(serverClient)
-    createSupabaseAdminClient.mockReturnValue(createAdminClient({ rpc }))
 
     await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMissingHostHomeRow()] })
 
@@ -380,7 +386,7 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(serverClient.from).not.toHaveBeenCalledWith('grupo_miembros')
     expect(serverClient.from).not.toHaveBeenCalledWith('segmento_lideres')
     expect(serverClient.from).not.toHaveBeenCalledWith('director_etapa_grupos')
-    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(1)
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
   it.each(['admin', 'pastor', 'director-general'])('allows %s to request the pending-review dashboard queue', async (role) => {
@@ -417,7 +423,7 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(rpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
     expect(rpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
     expect(serverClient.from).toHaveBeenCalledWith('grupo_miembros')
-    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(1)
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
   it('filters missing-host-home dashboard queue rows outside the director assigned scope', async () => {
@@ -432,7 +438,7 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(rpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
     expect(serverClient.from).toHaveBeenCalledWith('segmento_lideres')
     expect(serverClient.from).toHaveBeenCalledWith('director_etapa_grupos')
-    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(1)
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
   it('rejects invalid assignment input before creating the service-role client', async () => {

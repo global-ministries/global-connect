@@ -1227,10 +1227,10 @@ export async function obtenerGruposSinCasaAnfitriona(
   const roles = await obtenerRolesDashboardCasas(supabase, authId);
   if (!puedeSolicitarColaGruposSinCasa(roles)) return { success: true, data: [] };
 
-  const response = await executeCasasMapReadRpc("obtener_grupos_sin_casa_anfitriona", {
+  const response = await executeCasasMapRpc(supabase, "obtener_grupos_sin_casa_anfitriona", {
     p_auth_id: authId,
     p_scope: scope.data.scope,
-  }, supabase);
+  });
 
   if (!response.success) return { success: false, error: response.error ?? genericMutationError };
 
