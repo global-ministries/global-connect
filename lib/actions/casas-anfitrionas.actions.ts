@@ -141,6 +141,7 @@ type ScopedRowsRpcName =
   | "obtener_mapa_grupos_vida_host_homes"
   | "obtener_grupos_sin_casa_anfitriona"
   | "obtener_mapa_miembros";
+type ReadOnlyCasasMapRpcName = ScopedRowsRpcName | "obtener_casas_revision_pendiente";
 type RpcLogPhase = "admin_client_setup" | "parse_response" | "rpc_error" | "rpc_exception";
 type DatosMapaGrupoHostHomeItem = z.infer<typeof hostHomeMapRowSchema>;
 type GrupoSinCasaAnfitrionaItem = z.infer<typeof missingHostHomeRowSchema>;
@@ -513,16 +514,21 @@ async function executeCasasMapRpc<Name extends CasasMapRpcName>(
   }
 }
 
-async function executeCasasMapReadRpc<Name extends CasasMapRpcName>(
+async function executeCasasMapReadRpc<Name extends ReadOnlyCasasMapRpcName>(
   rpcName: Name,
-  args: CasasMapRpcArgsByName[Name]
+  args: CasasMapRpcArgsByName[Name],
+  fallbackClient?: ServerRpcClient
 ): Promise<ResultadoAccion<unknown>> {
   const adminResult = createCasasMapAdminClient(rpcName);
   if (!adminResult.success || !adminResult.data) {
+    if (fallbackClient) return executeCasasMapRpc(fallbackClient, rpcName, args);
     return { success: false, error: adminResult.error ?? genericMutationError };
   }
 
-  return executeCasasMapRpc(adminResult.data, rpcName, args);
+  const adminResponse = await executeCasasMapRpc(adminResult.data, rpcName, args);
+  if (!adminResponse.success && fallbackClient) return executeCasasMapRpc(fallbackClient, rpcName, args);
+
+  return adminResponse;
 }
 
 function parseRpcArray<T>(
@@ -675,13 +681,13 @@ async function obtenerRpcRows<T>(
   const scope = scopeInputSchema.safeParse(input ?? {});
   if (!scope.success) return { success: false, error: formatZodError(scope.error) };
 
-  const { authId, error } = await validarAuthYPermisos();
+  const { supabase, authId, error } = await validarAuthYPermisos();
   if (error) return { success: false, error };
 
   const response = await executeCasasMapReadRpc(rpcName, {
     p_auth_id: authId,
     p_scope: scope.data.scope,
-  });
+  }, supabase);
 
   if (!response.success) return { success: false, error: response.error ?? genericMutationError };
   return parseRpcArray(rowSchema, response.data, rpcName);
@@ -1215,7 +1221,7 @@ export async function obtenerGruposSinCasaAnfitriona(
   const response = await executeCasasMapReadRpc("obtener_grupos_sin_casa_anfitriona", {
     p_auth_id: authId,
     p_scope: scope.data.scope,
-  });
+  }, supabase);
 
   if (!response.success) return { success: false, error: response.error ?? genericMutationError };
 
@@ -1238,7 +1244,8 @@ export async function obtenerCasasRevisionPendiente(): Promise<ResultadoAccion<C
 
   const response = await executeCasasMapReadRpc(
     "obtener_casas_revision_pendiente",
-    { p_auth_id: authId }
+    { p_auth_id: authId },
+    supabase
   );
 
   if (!response.success) return { success: false, error: response.error ?? genericMutationError };
@@ -1260,7 +1267,7 @@ export async function obtenerMapaMiembros(
   const response = await executeCasasMapReadRpc("obtener_mapa_miembros", {
     p_auth_id: authId,
     p_scope: scope.data.scope,
-  });
+  }, supabase);
 
   if (!response.success) return { success: false, error: response.error ?? genericMutationError };
   return parseRpcArray(memberMapRowSchema, response.data, "obtener_mapa_miembros");

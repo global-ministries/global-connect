@@ -97,4 +97,73 @@ describe('SelectorPropietarioCasa', () => {
 
     expect(screen.getByText(/disponible\.con\.un\.correo/)).toHaveClass('truncate')
   })
+
+  it('keeps displaying the selected remote owner after closing and clearing search results', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+
+    render(<ControlledSelector />)
+
+    await user.click(screen.getByRole('button', { name: 'Buscar propietario' }))
+    await user.type(screen.getByLabelText('Buscar persona'), 'demo')
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(300)
+    })
+
+    const dialog = screen.getByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /Demo Disponible/i }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByText('Demo Disponible')).toBeInTheDocument()
+    expect(screen.getByText(/disponible\.con\.un\.correo/)).toBeInTheDocument()
+    expect(screen.queryByText('Sin propietario seleccionado')).not.toBeInTheDocument()
+  })
+
+  it('honors external clear and value changes after selecting a remote owner', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+
+    render(<ControlledSelector />)
+
+    await user.click(screen.getByRole('button', { name: 'Buscar propietario' }))
+    await user.type(screen.getByLabelText('Buscar persona'), 'demo')
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(300)
+    })
+
+    const dialog = screen.getByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /Demo Disponible/i }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByText('Demo Disponible')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'External clear' }))
+    expect(screen.getByText('Sin propietario seleccionado')).toBeInTheDocument()
+    expect(screen.queryByText('Demo Disponible')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'External change' }))
+    expect(screen.getByText('Inicial Disponible')).toBeInTheDocument()
+    expect(screen.queryByText('Demo Disponible')).not.toBeInTheDocument()
+  })
 })
+
+function ControlledSelector() {
+  const [value, setValue] = React.useState<string | undefined>()
+
+  return (
+    <>
+      <SelectorPropietarioCasa
+        value={value}
+        onChange={setValue}
+        usuariosIniciales={[
+          {
+            value: 'initial-user',
+            label: 'Inicial Disponible',
+            email: 'inicial@example.com',
+            cedula: 'V-111',
+          },
+        ]}
+      />
+      <button type="button" onClick={() => setValue(undefined)}>External clear</button>
+      <button type="button" onClick={() => setValue('initial-user')}>External change</button>
+    </>
+  )
+}

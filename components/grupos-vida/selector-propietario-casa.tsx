@@ -42,13 +42,16 @@ export function SelectorPropietarioCasa({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [resultados, setResultados] = useState<UsuarioCasaOption[]>([]);
+    const [selectedRemoteUser, setSelectedRemoteUser] = useState<UsuarioCasaOption | null>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const abortRef = useRef<AbortController | null>(null);
     const requestSeqRef = useRef(0);
 
     const selectedUser = useMemo(
-        () => [...usuariosIniciales, ...resultados].find((usuario) => usuario.value === value) ?? null,
-        [resultados, usuariosIniciales, value]
+        () =>
+            [...usuariosIniciales, ...resultados].find((usuario) => usuario.value === value)
+            ?? (selectedRemoteUser?.value === value ? selectedRemoteUser : null),
+        [resultados, selectedRemoteUser, usuariosIniciales, value]
     );
 
     const resultadosOrdenados = useMemo(
@@ -129,6 +132,7 @@ export function SelectorPropietarioCasa({
 
     const handleSelect = (usuario: UsuarioCasaOption) => {
         if (usuario.puedeSeleccionar === false) return;
+        setSelectedRemoteUser(usuario);
         onChange(usuario.value);
         setOpen(false);
         setQuery("");

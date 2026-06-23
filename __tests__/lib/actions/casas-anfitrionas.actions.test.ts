@@ -207,6 +207,61 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).toHaveBeenCalledTimes(4)
   })
 
+  it('falls back to the authenticated server RPC for read-only casas map actions when the service-role client is unavailable', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const rpc = createPermissionRpcMock({
+      roles: ['admin'],
+      hostHomeMapRows: [createHostHomeMapRow()],
+      missingHostHomeRows: [createMissingHostHomeRow()],
+      pendingReviewRows: [createPendingReviewRow()],
+      memberMapRows: [createMemberMapRow()],
+    })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
+    createSupabaseAdminClient.mockImplementation(() => { throw new Error('service role secret missing') })
+
+    await expect(obtenerDatosMapaGruposHostHomes({ scope: 'active' })).resolves.toEqual({ success: true, data: [createHostHomeMapRow()] })
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMissingHostHomeRow()] })
+    await expect(obtenerCasasRevisionPendiente()).resolves.toEqual({ success: true, data: [createPendingReviewRow()] })
+    await expect(obtenerMapaMiembros({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMemberMapRow()] })
+
+    expect(rpc).toHaveBeenCalledWith('obtener_mapa_grupos_vida_host_homes', { p_auth_id: authId, p_scope: 'active' })
+    expect(rpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
+    expect(rpc).toHaveBeenCalledWith('obtener_casas_revision_pendiente', { p_auth_id: authId })
+    expect(rpc).toHaveBeenCalledWith('obtener_mapa_miembros', { p_auth_id: authId, p_scope: 'active' })
+    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(4)
+    expect(consoleError).toHaveBeenCalledWith('[casas-anfitrionas.actions]', expect.objectContaining({ phase: 'admin_client_setup' }))
+  })
+
+  it('falls back to the authenticated server RPC for read-only casas map actions when service-role RPC execution fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const serverRpc = createPermissionRpcMock({
+      roles: ['admin'],
+      hostHomeMapRows: [createHostHomeMapRow()],
+      missingHostHomeRows: [createMissingHostHomeRow()],
+      pendingReviewRows: [createPendingReviewRow()],
+      memberMapRows: [createMemberMapRow()],
+    })
+    const adminRpc = jest.fn().mockResolvedValue({ data: null, error: { message: 'Invalid API key' } })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc: serverRpc }))
+    createSupabaseAdminClient.mockReturnValue(createAdminClient({ rpc: adminRpc }))
+
+    await expect(obtenerDatosMapaGruposHostHomes({ scope: 'active' })).resolves.toEqual({ success: true, data: [createHostHomeMapRow()] })
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMissingHostHomeRow()] })
+    await expect(obtenerCasasRevisionPendiente()).resolves.toEqual({ success: true, data: [createPendingReviewRow()] })
+    await expect(obtenerMapaMiembros({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMemberMapRow()] })
+
+    expect(adminRpc).toHaveBeenCalledWith('obtener_mapa_grupos_vida_host_homes', { p_auth_id: authId, p_scope: 'active' })
+    expect(adminRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
+    expect(adminRpc).toHaveBeenCalledWith('obtener_casas_revision_pendiente', { p_auth_id: authId })
+    expect(adminRpc).toHaveBeenCalledWith('obtener_mapa_miembros', { p_auth_id: authId, p_scope: 'active' })
+    expect(serverRpc).toHaveBeenCalledWith('obtener_mapa_grupos_vida_host_homes', { p_auth_id: authId, p_scope: 'active' })
+    expect(serverRpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
+    expect(serverRpc).toHaveBeenCalledWith('obtener_casas_revision_pendiente', { p_auth_id: authId })
+    expect(serverRpc).toHaveBeenCalledWith('obtener_mapa_miembros', { p_auth_id: authId, p_scope: 'active' })
+    expect(createSupabaseAdminClient).toHaveBeenCalledTimes(4)
+    expect(consoleError).toHaveBeenCalledWith('[casas-anfitrionas.actions]', expect.objectContaining({ phase: 'rpc_error' }))
+  })
+
   it('rejects authenticated auth users without an internal usuario on read-only casas map actions', async () => {
     const rpc = createPermissionRpcMock({
       roles: ['admin'],
