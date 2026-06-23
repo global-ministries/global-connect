@@ -39,6 +39,59 @@ export const etiquetasRol: Record<RolSistema, string> = {
  */
 export const actualizaciones: Actualizacion[] = [
   {
+    version: "2.2.0",
+    fecha: "2026-06-23",
+    titulo: "Casas Anfitrionas y mapa de Grupos de Vida",
+    descripcion:
+      "GlobalConnect ahora conecta los Grupos de Vida con Casas Anfitrionas aprobadas, mejora la asignación de grupos sin casa y muestra ubicaciones confiables en el mapa.",
+    tipo: "feature",
+    modulo: "grupos",
+    detalles: [
+      "Nuevo flujo para registrar, revisar y aprobar Casas Anfitrionas antes de usarlas en el mapa",
+      "Mapa de Grupos de Vida basado en la Casa Anfitriona aprobada de cada grupo",
+      "Cola de grupos activos que aún no tienen Casa Anfitriona asignada",
+      "Asignación guiada para vincular grupos con Casas Anfitrionas disponibles",
+      "Búsqueda mejorada por nombre del grupo, líderes, segmento y temporada",
+      "Dashboard con avisos operativos para grupos sin casa y revisiones pendientes",
+      "Controles de permisos para que cada rol vea y gestione solo lo que corresponde",
+    ],
+    detallesPorRol: {
+      admin: [
+        "Puedes ver la cola completa de grupos sin Casa Anfitriona desde el dashboard",
+        "Puedes registrar, revisar, aprobar y asignar Casas Anfitrionas dentro del sistema",
+        "El mapa usa ubicaciones aprobadas para evitar publicar datos incompletos o no revisados",
+      ],
+      pastor: [
+        "Puedes dar seguimiento global a grupos sin Casa Anfitriona y casas pendientes de revisión",
+        "El mapa refleja ubicaciones aprobadas para una vista más confiable de los grupos",
+      ],
+      director_general: [
+        "Puedes revisar el estado de Casas Anfitrionas dentro de tus segmentos asignados",
+        "La información del mapa respeta el alcance de tus segmentos",
+      ],
+      director_etapa: [
+        "Puedes identificar grupos de tu etapa que todavía necesitan Casa Anfitriona",
+        "La búsqueda de asignación incluye líderes, segmento y temporada para ubicar grupos más rápido",
+      ],
+      lider: [
+        "Tu grupo puede aparecer en el mapa usando la ubicación aprobada de su Casa Anfitriona",
+        "Los cambios sensibles de ubicación pasan por revisión antes de hacerse visibles",
+      ],
+      miembro: [
+        "La información de ubicación del grupo es más confiable porque se basa en Casas Anfitrionas aprobadas",
+        "El sistema protege datos sensibles y muestra solo información autorizada",
+      ],
+    },
+    impactoRoles: [
+      "admin",
+      "pastor",
+      "director_general",
+      "director_etapa",
+      "lider",
+      "miembro",
+    ],
+  },
+  {
     version: "2.1.0",
     fecha: "2026-06-12",
     titulo: "Nuevo sistema de soporte y tickets",
