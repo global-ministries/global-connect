@@ -3,10 +3,10 @@
 import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { CheckCircle, Home } from "lucide-react"
+import { CheckCircle, Home, Search } from "lucide-react"
 import { asignarCasaAnfitrionaAGrupo } from "@/lib/actions/casas-anfitrionas.actions"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
-import { BadgeSistema, BotonSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from "@/components/ui/sistema-diseno"
+import { BadgeSistema, BotonSistema, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from "@/components/ui/sistema-diseno"
 
 export type AssignmentGroupOption = {
   id: string
@@ -20,6 +20,8 @@ export type AssignmentCasaOption = {
   details: string
 }
 
+const diacriticRegex = /[\u0300-\u036f]/g
+
 type AsignarCasaAnfitrionaClientProps = {
   casas: AssignmentCasaOption[]
   grupos: AssignmentGroupOption[]
@@ -29,6 +31,7 @@ type AsignarCasaAnfitrionaClientProps = {
 export function AsignarCasaAnfitrionaClient({ casas, grupos, initialGroupId }: AsignarCasaAnfitrionaClientProps) {
   const [groupId, setGroupId] = useState(() => getInitialGroupId(initialGroupId, grupos))
   const [casaId, setCasaId] = useState("")
+  const [groupSearch, setGroupSearch] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
@@ -37,6 +40,17 @@ export function AsignarCasaAnfitrionaClient({ casas, grupos, initialGroupId }: A
   const router = useRouter()
   const toast = useNotificaciones()
   const canSubmit = Boolean(groupId && casaId && !isSubmitting)
+  const normalizedGroupSearch = normalizeSearchText(groupSearch)
+  const filteredGroups = normalizedGroupSearch
+    ? grupos.filter((grupo) => matchesGroupSearch(grupo, normalizedGroupSearch))
+    : grupos
+  const selectableGroups = includeSelectedGroup(filteredGroups, grupos, groupId)
+  const hasGroupSearch = normalizedGroupSearch.length > 0
+  const hasNoGroupSearchMatches = hasGroupSearch && filteredGroups.length === 0
+  const groupSelectPlaceholder = getGroupSelectPlaceholder(grupos.length, hasNoGroupSearchMatches)
+  const groupSummaryEmpty = hasNoGroupSearchMatches
+    ? "No hay grupos que coincidan con la búsqueda."
+    : "No hay grupos activos sin Casa Anfitriona."
 
   useEffect(() => {
     const nextInitialGroupId = getInitialGroupId(initialGroupId, grupos)
@@ -101,16 +115,25 @@ export function AsignarCasaAnfitrionaClient({ casas, grupos, initialGroupId }: A
             </TextoSistema>
           </div>
 
+          <InputSistema
+            label="Buscar grupo"
+            icono={Search}
+            placeholder="Busca por grupo, líderes, segmento o temporada"
+            value={groupSearch}
+            onChange={(event) => setGroupSearch(event.target.value)}
+            disabled={grupos.length === 0 || isSubmitting}
+          />
+
           <SelectSistema
             label="Grupo de Vida"
-            opciones={grupos.map((grupo) => ({ valor: grupo.id, etiqueta: formatAssignmentOptionLabel(grupo) }))}
-            placeholder={grupos.length > 0 ? "Selecciona un grupo..." : "No hay grupos pendientes"}
+            opciones={selectableGroups.map((grupo) => ({ valor: grupo.id, etiqueta: formatAssignmentOptionLabel(grupo) }))}
+            placeholder={groupSelectPlaceholder}
             value={groupId}
             onValueChange={(value) => {
               setGroupId(value)
               setFormError("")
             }}
-            disabled={grupos.length === 0 || isSubmitting}
+            disabled={selectableGroups.length === 0 || isSubmitting}
           />
 
           <SelectSistema
@@ -144,7 +167,7 @@ export function AsignarCasaAnfitrionaClient({ casas, grupos, initialGroupId }: A
       </TarjetaSistema>
 
       <div className="space-y-4">
-        <AssignmentSummaryCard title="Grupos en cola" empty="No hay grupos activos sin Casa Anfitriona." items={grupos} />
+        <AssignmentSummaryCard title="Grupos en cola" empty={groupSummaryEmpty} items={filteredGroups} />
         <AssignmentSummaryCard title="Casas disponibles" empty="No hay Casas aprobadas y activas disponibles." items={casas} />
         <TarjetaSistema variante="outlined" className="p-4">
           <div className="flex items-start gap-3">
@@ -166,6 +189,32 @@ function getInitialGroupId(initialGroupId: string | undefined, grupos: Assignmen
 
 function formatAssignmentOptionLabel(option: AssignmentGroupOption | AssignmentCasaOption): string {
   return `${option.name} — ${option.details}`
+}
+
+function normalizeSearchText(value: string): string {
+  return value.normalize("NFD").replace(diacriticRegex, "").toLowerCase().trim()
+}
+
+function matchesGroupSearch(group: AssignmentGroupOption, normalizedSearch: string): boolean {
+  const haystack = normalizeSearchText(`${group.name} ${group.details}`)
+  return normalizedSearch.split(/\s+/).every((token) => haystack.includes(token))
+}
+
+function includeSelectedGroup(
+  filteredGroups: AssignmentGroupOption[],
+  allGroups: AssignmentGroupOption[],
+  selectedGroupId: string
+): AssignmentGroupOption[] {
+  if (!selectedGroupId || filteredGroups.some((grupo) => grupo.id === selectedGroupId)) return filteredGroups
+
+  const selectedGroup = allGroups.find((grupo) => grupo.id === selectedGroupId)
+  return selectedGroup ? [selectedGroup, ...filteredGroups] : filteredGroups
+}
+
+function getGroupSelectPlaceholder(totalGroups: number, hasNoGroupSearchMatches: boolean): string {
+  if (totalGroups === 0) return "No hay grupos pendientes"
+  if (hasNoGroupSearchMatches) return "No hay coincidencias"
+  return "Selecciona un grupo..."
 }
 
 function withRetryGuidance(error: string): string {

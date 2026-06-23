@@ -54,6 +54,7 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
       {children}
     </section>
   ),
+  InputSistema: ({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string }) => <label>{label}<input {...props} /></label>,
   SelectSistema: ({ disabled, label, onValueChange, opciones, placeholder, value }: { disabled?: boolean; label: string; onValueChange?: (value: string) => void; opciones: Array<{ valor: string; etiqueta: string }>; placeholder?: string; value?: string }) => (
     <label>
       {label}
@@ -253,9 +254,9 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(mockObtenerGruposSinCasaAnfitriona).toHaveBeenCalledWith({ scope: 'active' })
     expect(mockListarCasasAnfitrionas).toHaveBeenCalledWith({ soloActivas: true, soloAprobadas: true })
     expect(screen.getByRole('heading', { name: 'Asignar Casa Anfitriona' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Grupo Norte — Jóvenes · 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Grupo Norte — Líderes: Luis Barreto, Blanca Rojas de Barreto · Jóvenes · 2026' })).toBeInTheDocument()
     expect(screen.getByText('Grupo Norte')).toBeInTheDocument()
-    expect(screen.getByText('Jóvenes · 2026')).toBeInTheDocument()
+    expect(screen.getByText('Líderes: Luis Barreto, Blanca Rojas de Barreto · Jóvenes · 2026')).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Casa de Ana — Ana Pérez · Capacidad 12' })).toBeInTheDocument()
     expect(screen.getByText('Casa de Ana')).toBeInTheDocument()
     expect(screen.getByText('Ana Pérez · Capacidad 12')).toBeInTheDocument()
@@ -542,10 +543,72 @@ describe('casas anfitrionas App Router permission wiring', () => {
       />
     )
 
-    expect(screen.getByRole('option', { name: 'Grupo Norte — Jóvenes · 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Grupo Norte — Líderes: Luis Barreto, Blanca Rojas de Barreto · Jóvenes · 2026' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Grupo Norte — Adultos · 2026' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Casa de Ana — Ana Pérez · Capacidad 12' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Casa de Ana — Luis Pérez · Capacidad 20' })).toBeInTheDocument()
+  })
+
+  it('filters assignment groups by group, leader, segment, and season search text', async () => {
+    const user = userEvent.setup()
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+    const grupos = [
+      createAssignmentGroupOption(),
+      { id: otherGroupId, name: 'Grupo Sur', details: 'Líderes: Marta Díaz · Matrimonios · 2026-I' },
+    ]
+
+    render(<AsignarCasaAnfitrionaClient casas={[createAssignmentCasaOption()]} grupos={grupos} />)
+
+    const search = screen.getByLabelText('Buscar grupo')
+    await user.type(search, 'Blanca')
+
+    expect(screen.getByRole('option', { name: 'Grupo Norte — Líderes: Luis Barreto, Blanca Rojas de Barreto · Jóvenes · 2026' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Grupo Sur — Líderes: Marta Díaz · Matrimonios · 2026-I' })).not.toBeInTheDocument()
+    expect(screen.getByText('Grupo Norte')).toBeInTheDocument()
+    expect(screen.queryByText('Grupo Sur')).not.toBeInTheDocument()
+
+    await user.clear(search)
+    await user.type(search, '2026-I')
+
+    expect(screen.queryByRole('option', { name: 'Grupo Norte — Líderes: Luis Barreto, Blanca Rojas de Barreto · Jóvenes · 2026' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Grupo Sur — Líderes: Marta Díaz · Matrimonios · 2026-I' })).toBeInTheDocument()
+    expect(screen.queryByText('Grupo Norte')).not.toBeInTheDocument()
+    expect(screen.getByText('Grupo Sur')).toBeInTheDocument()
+
+    await user.clear(search)
+    await user.type(search, 'Matrimonios')
+
+    expect(screen.getByRole('option', { name: 'Grupo Sur — Líderes: Marta Díaz · Matrimonios · 2026-I' })).toBeInTheDocument()
+  })
+
+  it('keeps the selected assignment group valid when search text would hide it', async () => {
+    const user = userEvent.setup()
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+    const grupos = [
+      createAssignmentGroupOption(),
+      { id: otherGroupId, name: 'Grupo Sur', details: 'Líderes: Marta Díaz · Matrimonios · 2026-I' },
+    ]
+
+    render(<AsignarCasaAnfitrionaClient casas={[createAssignmentCasaOption()]} grupos={grupos} />)
+
+    await user.selectOptions(screen.getByLabelText('Grupo de Vida'), groupId)
+    await user.type(screen.getByLabelText('Buscar grupo'), 'Marta')
+
+    expect(screen.getByLabelText('Grupo de Vida')).toHaveValue(groupId)
+    expect(screen.getByRole('option', { name: 'Grupo Norte — Líderes: Luis Barreto, Blanca Rojas de Barreto · Jóvenes · 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Grupo Sur — Líderes: Marta Díaz · Matrimonios · 2026-I' })).toBeInTheDocument()
+  })
+
+  it('shows clear empty copy when group search has no matches', async () => {
+    const user = userEvent.setup()
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    render(<AsignarCasaAnfitrionaClient casas={[createAssignmentCasaOption()]} grupos={[createAssignmentGroupOption()]} />)
+
+    await user.type(screen.getByLabelText('Buscar grupo'), 'sin coincidencias')
+
+    expect(screen.getByText('No hay grupos que coincidan con la búsqueda.')).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Grupo Norte — Líderes: Luis Barreto, Blanca Rojas de Barreto · Jóvenes · 2026' })).not.toBeInTheDocument()
   })
 
   it('submits the selected group and Casa through the assignment action', async () => {
@@ -772,7 +835,14 @@ describe('casas anfitrionas App Router permission wiring', () => {
 })
 
 function createMissingGroup() {
-  return { grupo_id: groupId, grupo_nombre: 'Grupo Norte', estado_ciclo: 'activo', segmento: 'Jóvenes', temporada: '2026' }
+  return {
+    grupo_id: groupId,
+    grupo_nombre: 'Grupo Norte',
+    estado_ciclo: 'activo',
+    segmento: 'Jóvenes',
+    temporada: '2026',
+    lideres: ['Luis Barreto', 'Blanca Rojas de Barreto'],
+  }
 }
 
 function createCandidateCasa() {
@@ -787,7 +857,7 @@ function createCandidateCasa() {
 }
 
 function createAssignmentGroupOption() {
-  return { id: groupId, name: 'Grupo Norte', details: 'Jóvenes · 2026' }
+  return { id: groupId, name: 'Grupo Norte', details: 'Líderes: Luis Barreto, Blanca Rojas de Barreto · Jóvenes · 2026' }
 }
 
 function createAssignmentCasaOption() {

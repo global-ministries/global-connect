@@ -78,6 +78,7 @@ const missingHostHomeRowSchema = z.object({
   estado_ciclo: z.string().nullable(),
   segmento: z.string().nullable(),
   temporada: z.string().nullable(),
+  lideres: z.array(z.string()).optional(),
 });
 
 const pendingReviewRowSchema = z.object({
@@ -149,6 +150,16 @@ type CasaRevisionPendienteItem = z.infer<typeof pendingReviewRowSchema>;
 type MapaMiembroItem = z.infer<typeof memberMapRowSchema>;
 type AsignacionCasaGrupoResultado = z.infer<typeof assignmentResultSchema>;
 type RevisionUbicacionResultado = z.infer<typeof reviewDecisionResultSchema>;
+type GroupLeaderMembershipRow = {
+  grupo_id: string;
+  rol: string;
+  usuarios: unknown;
+};
+type SortableGroupLeaderRow = {
+  grupoId: string;
+  leaderName: string;
+  role: string;
+};
 
 /** Resultado de la RPC de aprobación de casa anfitriona */
 interface AprobacionCasaResultado {
@@ -423,6 +434,8 @@ function formatZodError(error: z.ZodError): string {
 
 const genericMutationError = "No pudimos completar la solicitud. Intenta nuevamente.";
 const staleAssignmentQueueError = "El grupo ya no está en la cola de asignación. Actualiza la página e inténtalo nuevamente.";
+const groupLeaderRoles = ["Líder", "Colíder"] as const;
+const groupLeaderRolePriority = new Map<string, number>(groupLeaderRoles.map((role, index) => [role, index]));
 
 const safeRpcErrorMessages = {
   accion_invalida: "La acción solicitada no es válida",
@@ -656,6 +669,93 @@ async function filtrarGruposSinCasaParaDashboard(
   }
 
   return [];
+}
+
+function isGroupLeaderMembershipRow(row: unknown): row is GroupLeaderMembershipRow {
+  return typeof row === "object"
+    && row !== null
+    && "grupo_id" in row
+    && typeof row.grupo_id === "string"
+    && "rol" in row
+    && typeof row.rol === "string";
+}
+
+function formatLeaderName(user: { nombre: string | null; apellido: string | null } | null): string | null {
+  if (!user) return null;
+
+  const fullName = [user.nombre, user.apellido]
+    .map((part) => (typeof part === "string" ? part.trim() : ""))
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return fullName || null;
+}
+
+function compareGroupLeaderRows(a: SortableGroupLeaderRow, b: SortableGroupLeaderRow): number {
+  const roleComparison = (groupLeaderRolePriority.get(a.role) ?? groupLeaderRoles.length)
+    - (groupLeaderRolePriority.get(b.role) ?? groupLeaderRoles.length);
+  if (roleComparison !== 0) return roleComparison;
+
+  const normalizedNameComparison = a.leaderName.localeCompare(b.leaderName, "es", { sensitivity: "base" });
+  if (normalizedNameComparison !== 0) return normalizedNameComparison;
+
+  const displayNameComparison = a.leaderName.localeCompare(b.leaderName, "es", { sensitivity: "variant" });
+  if (displayNameComparison !== 0) return displayNameComparison;
+
+  return a.grupoId.localeCompare(b.grupoId);
+}
+
+async function obtenerLideresPorGrupoVisible(
+  supabase: ServerRpcClient,
+  rows: GrupoSinCasaAnfitrionaItem[]
+): Promise<Map<string, string[]>> {
+  const groupIds = rows.map((row) => row.grupo_id);
+  if (groupIds.length === 0) return new Map();
+
+  const visibleGroupIds = new Set(groupIds);
+  const { data, error } = await supabase
+    .from("grupo_miembros")
+    .select("grupo_id, rol, usuarios!grupo_miembros_usuario_id_fkey(nombre, apellido)")
+    .in("grupo_id", groupIds)
+    .is("fecha_salida", null)
+    .in("rol", [...groupLeaderRoles]);
+
+  if (error || !Array.isArray(data)) return new Map();
+
+  const sortedLeaderRows = data
+    .flatMap((row): SortableGroupLeaderRow[] => {
+      if (!isGroupLeaderMembershipRow(row) || !visibleGroupIds.has(row.grupo_id)) return [];
+
+      const user = extraerRelacion<{ nombre: string | null; apellido: string | null }>(row.usuarios);
+      const leaderName = formatLeaderName(user);
+      if (!leaderName) return [];
+
+      return [{ grupoId: row.grupo_id, leaderName, role: row.rol }];
+    })
+    .sort(compareGroupLeaderRows);
+
+  const leadersByGroupId = new Map<string, string[]>();
+  for (const row of sortedLeaderRows) {
+    const groupLeaders = leadersByGroupId.get(row.grupoId) ?? [];
+    if (!groupLeaders.includes(row.leaderName)) groupLeaders.push(row.leaderName);
+    leadersByGroupId.set(row.grupoId, groupLeaders);
+  }
+
+  return leadersByGroupId;
+}
+
+async function enriquecerGruposSinCasaConLideres(
+  supabase: ServerRpcClient,
+  rows: GrupoSinCasaAnfitrionaItem[]
+): Promise<GrupoSinCasaAnfitrionaItem[]> {
+  const leadersByGroupId = await obtenerLideresPorGrupoVisible(supabase, rows);
+  if (leadersByGroupId.size === 0) return rows;
+
+  return rows.map((row) => {
+    const leaders = leadersByGroupId.get(row.grupo_id);
+    return leaders && leaders.length > 0 ? { ...row, lideres: leaders } : row;
+  });
 }
 
 async function validarGrupoEnColaAsignacion(
@@ -1237,10 +1337,11 @@ export async function obtenerGruposSinCasaAnfitriona(
   const parsed = parseRpcArray(missingHostHomeRowSchema, response.data, "obtener_grupos_sin_casa_anfitriona");
   if (!parsed.success) return parsed;
   const parsedRows = parsed.data ?? [];
+  const visibleQueueRows = await filtrarGruposSinCasaParaDashboard(supabase, userId, roles, parsedRows);
 
   return {
     success: true,
-    data: await filtrarGruposSinCasaParaDashboard(supabase, userId, roles, parsedRows),
+    data: await enriquecerGruposSinCasaConLideres(supabase, visibleQueueRows),
   };
 }
 

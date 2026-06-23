@@ -151,8 +151,11 @@ function toGroupOption(group: {
   estado_ciclo: string | null
   segmento: string | null
   temporada: string | null
+  lideres?: string[] | null
 }): AssignmentGroupOption {
-  const details = [group.segmento, group.temporada].filter(Boolean).join(" · ")
+  const leaders = (group.lideres ?? []).map((leader) => leader.trim()).filter(Boolean)
+  const leaderDetails = leaders.length > 0 ? `Líderes: ${leaders.join(", ")}` : null
+  const details = [leaderDetails, group.segmento, group.temporada].filter(Boolean).join(" · ")
   return {
     id: group.grupo_id,
     name: group.grupo_nombre,

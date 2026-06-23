@@ -383,7 +383,6 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(rpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: authId })
     expect(rpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
     expect(rpc).not.toHaveBeenCalledWith('casas_map_director_general_can_view_group', expect.anything())
-    expect(serverClient.from).not.toHaveBeenCalledWith('grupo_miembros')
     expect(serverClient.from).not.toHaveBeenCalledWith('segmento_lideres')
     expect(serverClient.from).not.toHaveBeenCalledWith('director_etapa_grupos')
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
@@ -438,6 +437,44 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(rpc).toHaveBeenCalledWith('obtener_grupos_sin_casa_anfitriona', { p_auth_id: authId, p_scope: 'active' })
     expect(serverClient.from).toHaveBeenCalledWith('segmento_lideres')
     expect(serverClient.from).toHaveBeenCalledWith('director_etapa_grupos')
+    expect(createSupabaseAdminClient).not.toHaveBeenCalled()
+  })
+
+  it('enriches only visible missing-host-home queue rows with deterministically ordered current leader names', async () => {
+    const hiddenGroupRow = createMissingHostHomeRow({
+      grupo_id: otherGroupId,
+      grupo_nombre: 'Grupo Sur',
+      segmento: 'Matrimonios',
+      temporada: '2026-I',
+    })
+    const rpc = createPermissionRpcMock({
+      roles: ['director-etapa'],
+      missingHostHomeRows: [createMissingHostHomeRow(), hiddenGroupRow],
+    })
+    const serverClient = createServerClient({
+      rpc,
+      directorDashboardGroupIds: [groupId],
+      groupLeaderRows: [
+        { grupo_id: groupId, rol: 'Colíder', usuarios: { nombre: ' Zoe ', apellido: ' Núñez ' } },
+        { grupo_id: otherGroupId, rol: 'Líder', usuarios: { nombre: 'Oculto', apellido: 'Fuera de scope' } },
+        { grupo_id: groupId, rol: 'Líder', usuarios: { nombre: ' Luis ', apellido: ' Barreto ' } },
+        { grupo_id: groupId, rol: 'Colíder', usuarios: { nombre: 'Blanca', apellido: 'Rojas de Barreto' } },
+      ],
+    })
+    createSupabaseServerClient.mockResolvedValue(serverClient)
+
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({
+      success: true,
+      data: [
+        {
+          ...createMissingHostHomeRow(),
+          lideres: ['Luis Barreto', 'Blanca Rojas de Barreto', 'Zoe Núñez'],
+        },
+      ],
+    })
+
+    expect(serverClient.groupLeaderQuery?.in).toHaveBeenCalledWith('grupo_id', [groupId])
+    expect(serverClient.groupLeaderQuery?.in).toHaveBeenCalledWith('rol', ['Líder', 'Colíder'])
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
@@ -740,6 +777,11 @@ function createMemberMapRow() {
 
 type RpcMockResponse = { data: unknown; error: null }
 type RpcMock = jest.Mock<Promise<RpcMockResponse>, [string, Record<string, unknown>]>
+type GroupLeaderQueryRow = {
+  grupo_id: string
+  rol: string
+  usuarios: { nombre: string | null; apellido: string | null } | null
+}
 
 function createPermissionRpcMock(input: {
   approve?: boolean
@@ -780,19 +822,24 @@ function createServerClient(input: {
   rpc: jest.Mock
   casasQuery?: unknown
   directorDashboardGroupIds?: string[]
+  groupLeaderRows?: GroupLeaderQueryRow[]
   internalUserId?: string | null
   leaderDashboardGroupIds?: string[]
 }) {
+  const dashboardGroupMembershipQuery = createDashboardGroupMembershipQuery(input.leaderDashboardGroupIds ?? [])
+  const groupLeaderQuery = input.groupLeaderRows ? createGroupLeaderQuery(input.groupLeaderRows) : null
+
   return {
     auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: authId } }, error: null }) },
     from: jest.fn((table: string) => {
       if (table === 'usuarios') return createUsuarioQuery(input.internalUserId === undefined ? actorUserId : input.internalUserId)
       if (table === 'casas_anfitrionas' && input.casasQuery) return input.casasQuery
-      if (table === 'grupo_miembros') return createDashboardGroupMembershipQuery(input.leaderDashboardGroupIds ?? [])
+      if (table === 'grupo_miembros') return groupLeaderQuery ?? dashboardGroupMembershipQuery
       if (table === 'segmento_lideres') return createDirectorEtapaIdsQuery(['director-etapa-id'])
       if (table === 'director_etapa_grupos') return createDirectorEtapaGroupsQuery(input.directorDashboardGroupIds ?? [])
       throw new Error(`Unexpected server table ${table}`)
     }),
+    groupLeaderQuery,
     rpc: input.rpc,
   }
 }
@@ -818,12 +865,28 @@ function createListQuery(rows: unknown[]) {
 }
 
 function createDashboardGroupMembershipQuery(groupIds: string[]) {
-  return {
+  let selectedGroupIds: string[] | null = null
+  const query: {
+    select: jest.Mock
+    eq: jest.Mock
+    is: jest.Mock
+    in: jest.Mock
+  } = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     is: jest.fn().mockReturnThis(),
-    in: jest.fn().mockResolvedValue({ data: groupIds.map((grupo_id) => ({ grupo_id })), error: null }),
+    in: jest.fn((column: string, values: string[]) => {
+      if (column === 'grupo_id') {
+        selectedGroupIds = values
+        return query
+      }
+
+      const filteredGroupIds = selectedGroupIds ? groupIds.filter((grupo_id) => selectedGroupIds?.includes(grupo_id)) : groupIds
+      return Promise.resolve({ data: filteredGroupIds.map((grupo_id) => ({ grupo_id })), error: null })
+    }),
   }
+
+  return query
 }
 
 type DirectorEtapaIdsQuery = {
@@ -842,6 +905,35 @@ function createDirectorEtapaIdsQuery(directorEtapaIds: string[]) {
   })
 
   query = { select, eq }
+
+  return query
+}
+
+function createGroupLeaderQuery(rows: GroupLeaderQueryRow[]) {
+  let selectedGroupIds: string[] | null = null
+  const query: {
+    select: jest.Mock
+    is: jest.Mock
+    in: jest.Mock
+  } = {
+    select: jest.fn().mockReturnThis(),
+    is: jest.fn().mockReturnThis(),
+    in: jest.fn((column: string, values: string[]) => {
+      if (column === 'grupo_id') {
+        selectedGroupIds = values
+        return query
+      }
+
+      if (column === 'rol') {
+        return Promise.resolve({
+          data: rows.filter((row) => (!selectedGroupIds || selectedGroupIds.includes(row.grupo_id)) && values.includes(row.rol)),
+          error: null,
+        })
+      }
+
+      return query
+    }),
+  }
 
   return query
 }
