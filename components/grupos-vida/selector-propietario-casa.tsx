@@ -51,6 +51,19 @@ export function SelectorPropietarioCasa({
         [resultados, usuariosIniciales, value]
     );
 
+    const resultadosOrdenados = useMemo(
+        () => resultados
+            .map((usuario, index) => ({ usuario, index }))
+            .sort((a, b) => {
+                const aDisabled = a.usuario.puedeSeleccionar === false;
+                const bDisabled = b.usuario.puedeSeleccionar === false;
+                if (aDisabled !== bDisabled) return aDisabled ? 1 : -1;
+                return a.index - b.index;
+            })
+            .map(({ usuario }) => usuario),
+        [resultados]
+    );
+
     useEffect(() => {
         if (!open) return;
 
@@ -160,26 +173,28 @@ export function SelectorPropietarioCasa({
             </div>
 
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
-                    <DialogHeader>
+                <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-2xl flex-col overflow-hidden p-0 sm:max-w-2xl">
+                    <DialogHeader className="shrink-0 px-4 pb-0 pt-4 sm:px-6 sm:pt-6">
                         <DialogTitle>Seleccionar propietario</DialogTitle>
                         <DialogDescription>
                             Solo aparecen personas activas en un grupo de vida y dentro de tu alcance de permisos.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
-                        <InputSistema
-                            autoFocus
-                            icono={Search}
-                            label="Buscar persona"
-                            placeholder="Nombre, apellido, cédula o correo..."
-                            value={query}
-                            onChange={(event) => setQuery(event.target.value)}
-                        />
+                    <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 pb-4 sm:px-6 sm:pb-6">
+                        <div className="shrink-0">
+                            <InputSistema
+                                autoFocus
+                                icono={Search}
+                                label="Buscar persona"
+                                placeholder="Nombre, apellido, cédula o correo..."
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                            />
+                        </div>
 
-                        <div className="rounded-2xl border border-border bg-card/50 overflow-hidden">
-                            <div className="max-h-80 overflow-y-auto">
+                        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-card/50">
+                            <div className="max-h-[min(52dvh,24rem)] overflow-y-auto overscroll-contain">
                                 {query.trim().length < 2 && (
                                     <EstadoVacio icono={Search} texto="Escribe al menos 2 caracteres para buscar." />
                                 )}
@@ -196,42 +211,45 @@ export function SelectorPropietarioCasa({
                                     <EstadoVacio icono={User} texto="No se encontraron personas disponibles con ese criterio." />
                                 )}
 
-                                {resultados.map((usuario) => (
+                                {resultadosOrdenados.map((usuario) => (
                                     <button
                                         key={usuario.value}
                                         type="button"
                                         disabled={usuario.puedeSeleccionar === false}
                                         onClick={() => handleSelect(usuario)}
-                                        className={`w-full border-b border-border last:border-b-0 p-3 text-left transition-colors ${
+                                        className={`w-full border-b border-border p-3 text-left transition-colors last:border-b-0 ${
                                             usuario.puedeSeleccionar === false
-                                                ? "cursor-not-allowed bg-muted/60 opacity-70"
+                                                ? "cursor-not-allowed bg-muted/40 opacity-60"
                                                 : value === usuario.value
-                                                    ? "bg-accent"
-                                                    : "hover:bg-accent/50"
+                                                    ? "bg-accent ring-1 ring-inset ring-[var(--brand-primary)]"
+                                                    : "bg-background/80 hover:bg-accent/50"
                                         }`}
                                     >
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex min-w-0 items-start gap-3">
                                             <AvatarUsuario usuario={usuario} />
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="font-medium text-foreground truncate">{usuario.label}</span>
+                                                <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                                                    <span className="min-w-0 truncate font-medium text-foreground" title={usuario.label}>{usuario.label}</span>
                                                     {usuario.yaTieneCasa ? (
                                                         <BadgeSistema variante="warning" tamaño="sm">Ya tiene casa</BadgeSistema>
                                                     ) : (
                                                         <BadgeSistema variante="success" tamaño="sm">Disponible</BadgeSistema>
                                                     )}
                                                 </div>
-                                                <p className="text-sm text-muted-foreground truncate">
+                                                <p
+                                                    className="max-w-full truncate text-sm text-muted-foreground"
+                                                    title={`${usuario.email || "Sin correo"} · C.I. ${usuario.cedula || "sin cédula"}`}
+                                                >
                                                     {usuario.email || "Sin correo"} · C.I. {usuario.cedula || "sin cédula"}
                                                 </p>
                                                 {usuario.razonNoSeleccionable && (
-                                                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                                                    <p className="mt-1 truncate text-xs text-amber-700 dark:text-amber-400" title={usuario.razonNoSeleccionable}>
                                                         {usuario.razonNoSeleccionable}
                                                     </p>
                                                 )}
                                             </div>
                                             {value === usuario.value && (
-                                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--brand-primary)] text-white">
+                                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] text-white">
                                                     <Check className="h-4 w-4" />
                                                 </div>
                                             )}
@@ -241,7 +259,7 @@ export function SelectorPropietarioCasa({
                             </div>
                         </div>
 
-                        <div className="flex justify-end">
+                        <div className="flex shrink-0 justify-end">
                             <BotonSistema type="button" variante="outline" onClick={() => setOpen(false)}>
                                 Cancelar
                             </BotonSistema>

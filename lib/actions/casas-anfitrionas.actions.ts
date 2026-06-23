@@ -200,9 +200,8 @@ interface DatosMapaGrupoItem {
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
-async function validarAuthYPermisos(requiereGestion = false): Promise<{
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
-  userId: string;
+async function validarAuthBasica(): Promise<{
+  supabase: ServerRpcClient;
   authId: string;
   error?: string;
 }> {
@@ -215,43 +214,69 @@ async function validarAuthYPermisos(requiereGestion = false): Promise<{
   if (authError || !user) {
     return {
       supabase,
-      userId: "",
       authId: "",
       error: "Usuario no autenticado",
     };
   }
 
-  // Obtener usuario interno
+  return { supabase, authId: user.id };
+}
+
+async function obtenerUsuarioInternoId(supabase: ServerRpcClient, authId: string): Promise<string | null> {
   const { data: usuario } = await supabase
     .from("usuarios")
     .select("id")
-    .eq("auth_id", user.id)
+    .eq("auth_id", authId)
     .single();
 
-  if (!usuario) {
+  return usuario?.id ?? null;
+}
+
+async function validarAuthYPermisos(requiereGestion = false): Promise<{
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  userId: string;
+  authId: string;
+  error?: string;
+}> {
+  const auth = await validarAuthBasica();
+  if (auth.error) {
+    return {
+      supabase: auth.supabase,
+      userId: "",
+      authId: "",
+      error: auth.error,
+    };
+  }
+
+  const { supabase, authId } = auth;
+
+  // Obtener usuario interno
+  const userId = await obtenerUsuarioInternoId(supabase, authId);
+
+  if (!userId) {
     return {
       supabase,
       userId: "",
-      authId: user.id,
+      authId,
       error: "Usuario no encontrado",
     };
   }
 
   if (requiereGestion) {
     const { data: puede } = await supabase.rpc("puede_gestionar_casas", {
-      p_auth_id: user.id,
+      p_auth_id: authId,
     });
     if (!puede) {
       return {
         supabase,
-        userId: usuario.id,
-        authId: user.id,
+        userId,
+        authId,
         error: "No tienes permisos para gestionar casas anfitrionas",
       };
     }
   }
 
-  return { supabase, userId: usuario.id, authId: user.id };
+  return { supabase, userId, authId };
 }
 
 async function verificarPermisoCasa(
@@ -488,6 +513,18 @@ async function executeCasasMapRpc<Name extends CasasMapRpcName>(
   }
 }
 
+async function executeCasasMapReadRpc<Name extends CasasMapRpcName>(
+  rpcName: Name,
+  args: CasasMapRpcArgsByName[Name]
+): Promise<ResultadoAccion<unknown>> {
+  const adminResult = createCasasMapAdminClient(rpcName);
+  if (!adminResult.success || !adminResult.data) {
+    return { success: false, error: adminResult.error ?? genericMutationError };
+  }
+
+  return executeCasasMapRpc(adminResult.data, rpcName, args);
+}
+
 function parseRpcArray<T>(
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   data: unknown,
@@ -585,33 +622,13 @@ async function obtenerGruposDirectorEtapaDashboard(supabase: ServerRpcClient, us
   return new Set(data.map((row) => row.grupo_id).filter((id): id is string => typeof id === "string"));
 }
 
-async function puedeDirectorGeneralVerGrupoDashboard(
-  supabase: ServerRpcClient,
-  authId: string,
-  grupoId: string
-): Promise<boolean> {
-  const { data, error } = await supabase.rpc("casas_map_director_general_can_view_group" as never, {
-    p_auth_id: authId,
-    p_grupo_id: grupoId,
-  } as never);
-  return !error && data === true;
-}
-
 async function filtrarGruposSinCasaParaDashboard(
   supabase: ServerRpcClient,
-  authId: string,
   userId: string,
   roles: Set<string>,
   rows: GrupoSinCasaAnfitrionaItem[]
 ): Promise<GrupoSinCasaAnfitrionaItem[]> {
-  if (puedeVerTodasLasColasCasas(roles)) return rows;
-
-  if (roles.has("director-general")) {
-    const visibleRows = await Promise.all(
-      rows.map(async (row) => ({ row, visible: await puedeDirectorGeneralVerGrupoDashboard(supabase, authId, row.grupo_id) }))
-    );
-    return visibleRows.filter(({ visible }) => visible).map(({ row }) => row);
-  }
+  if (puedeVerTodasLasColasCasas(roles) || roles.has("director-general")) return rows;
 
   if (roles.has("director-etapa")) {
     const groupIds = await obtenerGruposDirectorEtapaDashboard(supabase, userId);
@@ -646,7 +663,7 @@ async function validarGrupoEnColaAsignacion(
   if (!parsed.success) return parsed.error ?? genericMutationError;
   const parsedRows = parsed.data ?? [];
 
-  const visibleQueueRows = await filtrarGruposSinCasaParaDashboard(supabase, authId, userId, roles, parsedRows);
+  const visibleQueueRows = await filtrarGruposSinCasaParaDashboard(supabase, userId, roles, parsedRows);
   return visibleQueueRows.some((row) => row.grupo_id === groupId) ? null : staleAssignmentQueueError;
 }
 
@@ -658,10 +675,10 @@ async function obtenerRpcRows<T>(
   const scope = scopeInputSchema.safeParse(input ?? {});
   if (!scope.success) return { success: false, error: formatZodError(scope.error) };
 
-  const { supabase, authId, error } = await validarAuthYPermisos();
+  const { authId, error } = await validarAuthYPermisos();
   if (error) return { success: false, error };
 
-  const response = await executeCasasMapRpc(supabase, rpcName, {
+  const response = await executeCasasMapReadRpc(rpcName, {
     p_auth_id: authId,
     p_scope: scope.data.scope,
   });
@@ -1195,7 +1212,7 @@ export async function obtenerGruposSinCasaAnfitriona(
   const roles = await obtenerRolesDashboardCasas(supabase, authId);
   if (!puedeSolicitarColaGruposSinCasa(roles)) return { success: true, data: [] };
 
-  const response = await executeCasasMapRpc(supabase, "obtener_grupos_sin_casa_anfitriona", {
+  const response = await executeCasasMapReadRpc("obtener_grupos_sin_casa_anfitriona", {
     p_auth_id: authId,
     p_scope: scope.data.scope,
   });
@@ -1208,7 +1225,7 @@ export async function obtenerGruposSinCasaAnfitriona(
 
   return {
     success: true,
-    data: await filtrarGruposSinCasaParaDashboard(supabase, authId, userId, roles, parsedRows),
+    data: await filtrarGruposSinCasaParaDashboard(supabase, userId, roles, parsedRows),
   };
 }
 
@@ -1219,8 +1236,7 @@ export async function obtenerCasasRevisionPendiente(): Promise<ResultadoAccion<C
   const roles = await obtenerRolesDashboardCasas(supabase, authId);
   if (!puedeSolicitarColaRevisionCasas(roles)) return { success: true, data: [] };
 
-  const response = await executeCasasMapRpc(
-    supabase,
+  const response = await executeCasasMapReadRpc(
     "obtener_casas_revision_pendiente",
     { p_auth_id: authId }
   );
@@ -1241,7 +1257,7 @@ export async function obtenerMapaMiembros(
   const roles = await obtenerRolesDashboardCasas(supabase, authId);
   if (!puedeSolicitarMapaMiembros(roles)) return { success: true, data: [] };
 
-  const response = await executeCasasMapRpc(supabase, "obtener_mapa_miembros", {
+  const response = await executeCasasMapReadRpc("obtener_mapa_miembros", {
     p_auth_id: authId,
     p_scope: scope.data.scope,
   });
