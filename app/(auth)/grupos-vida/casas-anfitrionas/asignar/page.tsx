@@ -11,6 +11,18 @@ export const dynamic = "force-dynamic"
 
 const GROUPS_LOAD_ERROR_MESSAGE = "No pudimos cargar los grupos pendientes"
 const CASAS_LOAD_ERROR_MESSAGE = "No pudimos cargar las Casas disponibles"
+const ASSIGNMENT_LOADER_FAILURE_LOG = "[casas-anfitrionas.asignar] Assignment loader failed"
+
+const safeAssignmentActionErrors = new Set([
+  "Usuario no autenticado",
+  "Usuario no encontrado",
+  "No tienes permisos para gestionar casas anfitrionas",
+  "Respuesta inesperada del servidor",
+  "No pudimos completar la solicitud. Intenta nuevamente.",
+])
+
+type AssignmentLoaderName = "groups" | "casas"
+type AssignmentLoadResult = { success: boolean; error?: string; data?: unknown }
 
 export default async function AsignarCasaAnfitrionaPage() {
   const supabase = await createSupabaseServerClient()
@@ -30,6 +42,9 @@ export default async function AsignarCasaAnfitrionaPage() {
     groupsLoaded ? null : GROUPS_LOAD_ERROR_MESSAGE,
     casasLoaded ? null : CASAS_LOAD_ERROR_MESSAGE,
   ].filter((message): message is string => Boolean(message))
+
+  if (!groupsLoaded) logAssignmentLoadIssue("groups", groupsResult)
+  if (!casasLoaded) logAssignmentLoadIssue("casas", casasResult)
 
   return (
     <DashboardLayout>
@@ -74,6 +89,40 @@ function AssignmentLoadError({ messages }: { messages: string[] }) {
       </div>
     </TarjetaSistema>
   )
+}
+
+function logAssignmentLoadIssue(
+  loader: AssignmentLoaderName,
+  result: PromiseSettledResult<AssignmentLoadResult>
+): void {
+  if (result.status === "rejected") {
+    console.error(ASSIGNMENT_LOADER_FAILURE_LOG, {
+      loader,
+      status: "rejected",
+      error: getRejectedLoadErrorMetadata(result.reason),
+    })
+    return
+  }
+
+  console.error(ASSIGNMENT_LOADER_FAILURE_LOG, {
+    loader,
+    status: "fulfilled",
+    success: result.value.success,
+    error: getSafeReturnedActionError(result.value.error),
+  })
+}
+
+function getSafeReturnedActionError(error: string | undefined): string {
+  if (error && safeAssignmentActionErrors.has(error)) return error
+  return "Assignment loader failure details redacted"
+}
+
+function getRejectedLoadErrorMetadata(error: unknown): Record<string, string | undefined> {
+  if (error instanceof Error) {
+    return { name: error.name, message: "Assignment loader exception details redacted" }
+  }
+
+  return { message: "Assignment loader exception details redacted" }
 }
 
 function toGroupOption(group: {

@@ -117,6 +117,10 @@ describe('casas anfitrionas App Router permission wiring', () => {
     mockProcesarRevisionUbicacionCasa.mockResolvedValue({ success: true, data: { ok: true, accion: 'aprobar', review_id: reviewId } })
   })
 
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
   it('shows list page primary action and FAB only when backend create flags allow them', async () => {
     createSupabaseServerClient.mockResolvedValue(createServerClient({ canCreateOwn: true }))
     const { default: CasasAnfitrionasPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/page')
@@ -270,12 +274,19 @@ describe('casas anfitrionas App Router permission wiring', () => {
   })
 
   it('renders an actionable assignment load error instead of collapsing failures to empty states', async () => {
-    mockObtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: false, error: 'No pudimos cargar los grupos' })
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockObtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: false, error: 'Usuario no encontrado' })
     mockListarCasasAnfitrionas.mockResolvedValue({ success: true, data: [] })
     const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
 
     render(await AsignarCasaAnfitrionaPage())
 
+    expect(consoleError).toHaveBeenCalledWith('[casas-anfitrionas.asignar] Assignment loader failed', expect.objectContaining({
+      loader: 'groups',
+      status: 'fulfilled',
+      success: false,
+      error: 'Usuario no encontrado',
+    }))
     expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar los grupos pendientes')
     expect(screen.getByRole('link', { name: 'Reintentar carga' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/asignar')
     expect(screen.getByRole('link', { name: 'Volver al dashboard' })).toHaveAttribute('href', '/dashboard')
@@ -283,6 +294,7 @@ describe('casas anfitrionas App Router permission wiring', () => {
   })
 
   it('does not render raw backend/provider errors from assignment Casa loading', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
     const rawProviderError = 'Supabase PostgREST error: relation "internal_private.casas" does not exist'
     mockObtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: true, data: [] })
     mockListarCasasAnfitrionas.mockResolvedValue({ success: false, error: rawProviderError })
@@ -292,9 +304,15 @@ describe('casas anfitrionas App Router permission wiring', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar las Casas disponibles')
     expect(screen.queryByText(rawProviderError)).not.toBeInTheDocument()
+    expect(consoleError).toHaveBeenCalledWith('[casas-anfitrionas.asignar] Assignment loader failed', expect.objectContaining({
+      loader: 'casas',
+      error: 'Assignment loader failure details redacted',
+    }))
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain('internal_private.casas')
   })
 
   it('renders assignment load error when a loader rejects instead of crashing', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
     mockObtenerGruposSinCasaAnfitriona.mockRejectedValue(new Error('network provider timeout: service key leaked'))
     mockListarCasasAnfitrionas.mockResolvedValue({ success: true, data: [] })
     const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
@@ -304,6 +322,31 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar los grupos pendientes')
     expect(screen.queryByText(/service key leaked/i)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Reintentar carga' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/asignar')
+    expect(consoleError).toHaveBeenCalledWith('[casas-anfitrionas.asignar] Assignment loader failed', expect.objectContaining({
+      loader: 'groups',
+      status: 'rejected',
+      error: { name: 'Error', message: 'Assignment loader exception details redacted' },
+    }))
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain('service key leaked')
+  })
+
+  it('redacts sensitive names from rejected non-Error assignment loaders', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const sensitiveName = 'Supabase PostgREST service key leaked: internal_private.casas'
+    mockObtenerGruposSinCasaAnfitriona.mockRejectedValue({ name: sensitiveName })
+    mockListarCasasAnfitrionas.mockResolvedValue({ success: true, data: [] })
+    const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
+
+    render(await AsignarCasaAnfitrionaPage())
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar los grupos pendientes')
+    expect(consoleError).toHaveBeenCalledWith('[casas-anfitrionas.asignar] Assignment loader failed', expect.objectContaining({
+      loader: 'groups',
+      status: 'rejected',
+      error: { message: 'Assignment loader exception details redacted' },
+    }))
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain(sensitiveName)
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain('internal_private.casas')
   })
 
   it('renders the review page from the scoped pending-review queue', async () => {
