@@ -31,6 +31,7 @@ export type HostHomeQueuesData = {
 
 type HostHomeQueuesWidgetProps = {
   canReviewHostHomes?: boolean
+  layout?: 'responsive-grid' | 'single-column'
   queues?: HostHomeQueuesData
 }
 
@@ -38,16 +39,19 @@ const MAX_VISIBLE_ITEMS = 3
 const ASSIGNMENT_QUEUE_HREF = '/grupos-vida/casas-anfitrionas/asignar'
 const REVIEW_QUEUE_HREF = '/grupos-vida/casas-anfitrionas/revision'
 
-export function HostHomeQueuesWidget({ canReviewHostHomes = false, queues }: HostHomeQueuesWidgetProps) {
+export function HostHomeQueuesWidget({ canReviewHostHomes = false, layout = 'responsive-grid', queues }: HostHomeQueuesWidgetProps) {
   const missingGroups = queues?.missingGroups ?? []
   const pendingReviews = canReviewHostHomes ? queues?.pendingReviews ?? [] : []
   const showMissingGroupsWarning = queues?.missingGroupsDegraded ?? false
   const showPendingReviewsWarning = canReviewHostHomes && (queues?.pendingReviewsDegraded ?? false)
+  const queueGridClassName = layout === 'single-column'
+    ? 'grid grid-cols-1 gap-4 md:gap-6'
+    : 'grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6'
 
   if (missingGroups.length === 0 && pendingReviews.length === 0 && !showMissingGroupsWarning && !showPendingReviewsWarning) return null
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+    <div className={queueGridClassName}>
       {showMissingGroupsWarning && (
         <QueueLoadWarning
           title="No pudimos cargar la cola de grupos sin Casa Anfitriona"

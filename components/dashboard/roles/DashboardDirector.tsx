@@ -115,8 +115,8 @@ export default function DashboardDirector({ data }: PropsDashboardDirector) {
       </div>
 
       {hostHomeQueues && (
-        <div className="col-span-2 lg:col-span-4">
-          <HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes={false} />
+        <div className="col-span-2">
+          <HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes={false} layout="single-column" />
         </div>
       )}
 

@@ -189,8 +189,8 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
       </div>
 
       {hostHomeQueues && (
-        <div className="col-span-2 lg:col-span-4">
-          <HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes={canReviewHostHomeQueue} />
+        <div className="col-span-2">
+          <HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes={canReviewHostHomeQueue} layout="single-column" />
         </div>
       )}
 

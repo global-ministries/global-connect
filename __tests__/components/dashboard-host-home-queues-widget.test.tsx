@@ -28,6 +28,16 @@ const hostHomeQueues = {
   ],
 }
 
+function getDashboardHostHomeLayout(assignmentQueue: HTMLElement) {
+  const hostHomeGrid = assignmentQueue.closest('.grid')
+  expect(hostHomeGrid).not.toBeNull()
+
+  const hostHomeWrapper = hostHomeGrid?.parentElement
+  expect(hostHomeWrapper).not.toBeNull()
+
+  return { hostHomeGrid, hostHomeWrapper }
+}
+
 describe('HostHomeQueuesWidget', () => {
   it('renders missing host-home and pending-review queues with active workflow links', () => {
     render(
@@ -59,6 +69,16 @@ describe('HostHomeQueuesWidget', () => {
     expect(within(pendingCard).getByRole('link', { name: 'Revisar Casas Anfitrionas' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/revision')
     expect(within(pendingCard).queryByRole('button', { name: 'Disponible en la próxima etapa' })).not.toBeInTheDocument()
     expect(screen.getAllByText(/no bloqueante/i)).toHaveLength(2)
+  })
+
+  it('keeps the default queue layout as a two-column grid on large screens', () => {
+    render(<HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes />)
+
+    const assignmentQueue = screen.getByRole('region', { name: 'Grupos de Vida sin Casa Anfitriona asignada en el sistema' })
+    const hostHomeGrid = assignmentQueue.closest('.grid')
+
+    expect(hostHomeGrid).toHaveClass('grid-cols-1')
+    expect(hostHomeGrid).toHaveClass('lg:grid-cols-2')
   })
 
   it('hides empty queue cards while keeping pending work visible independently', () => {
@@ -106,9 +126,13 @@ describe('HostHomeQueuesWidget', () => {
 
     const assignmentQueue = screen.getByRole('region', { name: 'Grupos de Vida sin Casa Anfitriona asignada en el sistema' })
     const riskGroups = screen.getByText('Grupos que Necesitan Atención')
-    const hostHomeWrapper = assignmentQueue.closest('.grid')?.parentElement
+    const { hostHomeGrid, hostHomeWrapper } = getDashboardHostHomeLayout(assignmentQueue)
 
     expect(assignmentQueue).toBeInTheDocument()
+    expect(hostHomeWrapper).toHaveClass('col-span-2')
+    expect(hostHomeWrapper).not.toHaveClass('lg:col-span-4')
+    expect(hostHomeGrid).toHaveClass('grid-cols-1')
+    expect(hostHomeGrid).not.toHaveClass('lg:grid-cols-2')
     expect(hostHomeWrapper?.nextElementSibling).toContainElement(riskGroups)
     expect(screen.getByRole('region', { name: 'Casas Anfitrionas pendientes de revisión' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Asignar Casa Anfitriona' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/asignar')
@@ -120,9 +144,13 @@ describe('HostHomeQueuesWidget', () => {
 
     const assignmentQueue = screen.getByRole('region', { name: 'Grupos de Vida sin Casa Anfitriona asignada en el sistema' })
     const riskGroups = screen.getByText('Grupos que Necesitan Atención (mi etapa)')
-    const hostHomeWrapper = assignmentQueue.closest('.grid')?.parentElement
+    const { hostHomeGrid, hostHomeWrapper } = getDashboardHostHomeLayout(assignmentQueue)
 
     expect(assignmentQueue).toBeInTheDocument()
+    expect(hostHomeWrapper).toHaveClass('col-span-2')
+    expect(hostHomeWrapper).not.toHaveClass('lg:col-span-4')
+    expect(hostHomeGrid).toHaveClass('grid-cols-1')
+    expect(hostHomeGrid).not.toHaveClass('lg:grid-cols-2')
     expect(hostHomeWrapper?.nextElementSibling).toContainElement(riskGroups)
     expect(screen.getByRole('link', { name: 'Asignar Casa Anfitriona' })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/asignar')
     expect(screen.queryByRole('region', { name: 'Casas Anfitrionas pendientes de revisión' })).not.toBeInTheDocument()
