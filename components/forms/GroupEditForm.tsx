@@ -118,6 +118,7 @@ export default function GroupEditForm({
     ? casasDisponibles.find((casa) => casa.id === grupo.casa_anfitriona_id)
     : undefined;
   const hasValidAssignedCasa = Boolean(selectedCasa);
+  const assignmentHref = `/grupos-vida/casas-anfitrionas/asignar?grupoId=${encodeURIComponent(grupo.id)}`;
 
   const dias = [
     "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"
@@ -312,7 +313,7 @@ export default function GroupEditForm({
               <p>
                 Las direcciones manuales quedan solo como referencia interna y no hacen visible el grupo en el mapa.
               </p>
-              <Link className="inline-flex font-medium text-primary underline-offset-4 hover:underline" href="/grupos-vida/casas-anfitrionas/asignar">
+              <Link className="inline-flex font-medium text-primary underline-offset-4 hover:underline" href={assignmentHref}>
                 Asignar Casa Anfitriona
               </Link>
             </div>

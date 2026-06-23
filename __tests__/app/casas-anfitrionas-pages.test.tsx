@@ -261,6 +261,30 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(screen.getByText('Ana Pérez · Capacidad 12')).toBeInTheDocument()
   })
 
+  it('preselects the assignment group from a valid grupoId search param', async () => {
+    const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
+
+    render(await AsignarCasaAnfitrionaPage({ searchParams: Promise.resolve({ grupoId: groupId }) }))
+
+    expect(screen.getByLabelText('Grupo de Vida')).toHaveValue(groupId)
+  })
+
+  it('does not preselect a stale grupoId search param that is not in the assignment queue', async () => {
+    const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
+
+    render(await AsignarCasaAnfitrionaPage({ searchParams: Promise.resolve({ grupoId: otherGroupId }) }))
+
+    expect(screen.getByLabelText('Grupo de Vida')).toHaveValue('')
+  })
+
+  it('ignores repeated grupoId search params as ambiguous', async () => {
+    const { default: AsignarCasaAnfitrionaPage } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/page')
+
+    render(await AsignarCasaAnfitrionaPage({ searchParams: Promise.resolve({ grupoId: [groupId, otherGroupId] }) }))
+
+    expect(screen.getByLabelText('Grupo de Vida')).toHaveValue('')
+  })
+
   it('renders assignment empty states only when group and Casa loads succeed with empty arrays', async () => {
     mockObtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: true, data: [] })
     mockListarCasasAnfitrionas.mockResolvedValue({ success: true, data: [] })
@@ -545,6 +569,119 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(screen.getByText('Asignación guardada. El grupo salió de la cola de grupos sin Casa Anfitriona.')).toBeInTheDocument()
     expect(screen.getByLabelText('Grupo de Vida')).toHaveValue('')
     expect(screen.getByLabelText('Casa Anfitriona')).toHaveValue('')
+  })
+
+  it('initializes the selected group from a valid initialGroupId', async () => {
+    const user = userEvent.setup()
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    render(
+      <AsignarCasaAnfitrionaClient
+        casas={[createAssignmentCasaOption()]}
+        grupos={[createAssignmentGroupOption()]}
+        initialGroupId={groupId}
+      />
+    )
+
+    expect(screen.getByLabelText('Grupo de Vida')).toHaveValue(groupId)
+
+    await user.selectOptions(screen.getByLabelText('Casa Anfitriona'), casaId)
+    await user.click(screen.getByRole('button', { name: 'Asignar Casa Anfitriona' }))
+
+    expect(mockAsignarCasaAnfitrionaAGrupo).toHaveBeenCalledWith({ groupId, casaId })
+  })
+
+  it('updates the selected group when initialGroupId changes without clearing the selected Casa', async () => {
+    const user = userEvent.setup()
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+    const grupos = [
+      createAssignmentGroupOption(),
+      { id: otherGroupId, name: 'Grupo Sur', details: 'Adultos · 2026' },
+    ]
+
+    const { rerender } = render(
+      <AsignarCasaAnfitrionaClient
+        casas={[createAssignmentCasaOption()]}
+        grupos={grupos}
+        initialGroupId={groupId}
+      />
+    )
+
+    await user.selectOptions(screen.getByLabelText('Casa Anfitriona'), casaId)
+    rerender(
+      <AsignarCasaAnfitrionaClient
+        casas={[createAssignmentCasaOption()]}
+        grupos={grupos}
+        initialGroupId={otherGroupId}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByLabelText('Grupo de Vida')).toHaveValue(otherGroupId))
+    expect(screen.getByLabelText('Casa Anfitriona')).toHaveValue(casaId)
+
+    await user.click(screen.getByRole('button', { name: 'Asignar Casa Anfitriona' }))
+
+    expect(mockAsignarCasaAnfitrionaAGrupo).toHaveBeenCalledWith({ groupId: otherGroupId, casaId })
+  })
+
+  it('selects initialGroupId when it becomes valid after the assignment queue changes', async () => {
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+
+    const { rerender } = render(
+      <AsignarCasaAnfitrionaClient
+        casas={[createAssignmentCasaOption()]}
+        grupos={[{ id: otherGroupId, name: 'Grupo Sur', details: 'Adultos · 2026' }]}
+        initialGroupId={groupId}
+      />
+    )
+
+    expect(screen.getByLabelText('Grupo de Vida')).toHaveValue('')
+
+    rerender(
+      <AsignarCasaAnfitrionaClient
+        casas={[createAssignmentCasaOption()]}
+        grupos={[createAssignmentGroupOption()]}
+        initialGroupId={groupId}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByLabelText('Grupo de Vida')).toHaveValue(groupId))
+  })
+
+  it('keeps a manually selected group when the queue refreshes with the same initialGroupId', async () => {
+    const user = userEvent.setup()
+    const { AsignarCasaAnfitrionaClient } = await import('@/app/(auth)/grupos-vida/casas-anfitrionas/asignar/asignar-casa-client')
+    const grupos = [
+      createAssignmentGroupOption(),
+      { id: otherGroupId, name: 'Grupo Sur', details: 'Adultos · 2026' },
+    ]
+    const refreshedGrupos = [
+      createAssignmentGroupOption(),
+      { id: otherGroupId, name: 'Grupo Sur', details: 'Adultos · 2026' },
+    ]
+
+    const { rerender } = render(
+      <AsignarCasaAnfitrionaClient
+        casas={[createAssignmentCasaOption()]}
+        grupos={grupos}
+        initialGroupId={groupId}
+      />
+    )
+
+    expect(screen.getByLabelText('Grupo de Vida')).toHaveValue(groupId)
+
+    await user.selectOptions(screen.getByLabelText('Grupo de Vida'), otherGroupId)
+    expect(screen.getByLabelText('Grupo de Vida')).toHaveValue(otherGroupId)
+
+    rerender(
+      <AsignarCasaAnfitrionaClient
+        casas={[createAssignmentCasaOption()]}
+        grupos={refreshedGrupos}
+        initialGroupId={groupId}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByLabelText('Grupo de Vida')).toHaveValue(otherGroupId))
   })
 
   it('surfaces assignment action failures with retry guidance without refreshing', async () => {

@@ -105,7 +105,7 @@ describe('GroupEditForm host-home assignment guidance', () => {
     expect(screen.getByText(/Las direcciones manuales quedan solo como referencia interna/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Asignar Casa Anfitriona' })).toHaveAttribute(
       'href',
-      '/grupos-vida/casas-anfitrionas/asignar'
+      `/grupos-vida/casas-anfitrionas/asignar?grupoId=${groupId}`
     )
     expect(screen.getByText('Dirección manual de referencia')).toBeInTheDocument()
     expect(screen.getByText(/Conserva datos operativos legados/i)).toBeInTheDocument()
@@ -193,7 +193,7 @@ describe('GroupEditForm host-home assignment guidance', () => {
     expect(screen.getByText(/ya no está disponible para edición desde este formulario/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Asignar Casa Anfitriona' })).toHaveAttribute(
       'href',
-      '/grupos-vida/casas-anfitrionas/asignar'
+      `/grupos-vida/casas-anfitrionas/asignar?grupoId=${groupId}`
     )
     expect(screen.getByText('Dirección manual de referencia')).toBeInTheDocument()
     expect(screen.getByLabelText('Calle')).toBeInTheDocument()

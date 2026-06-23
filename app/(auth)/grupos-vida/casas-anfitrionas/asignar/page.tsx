@@ -23,8 +23,13 @@ const safeAssignmentActionErrors = new Set([
 
 type AssignmentLoaderName = "groups" | "casas"
 type AssignmentLoadResult = { success: boolean; error?: string; data?: unknown }
+type AssignmentPageSearchParams = Record<string, string | string[] | undefined>
+type AssignmentPageProps = {
+  searchParams?: Promise<AssignmentPageSearchParams>
+}
 
-export default async function AsignarCasaAnfitrionaPage() {
+export default async function AsignarCasaAnfitrionaPage({ searchParams }: AssignmentPageProps = {}) {
+  const requestedGroupId = getRequestedGroupId(searchParams ? await searchParams : undefined)
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
@@ -38,6 +43,7 @@ export default async function AsignarCasaAnfitrionaPage() {
   const casasLoaded = casasResult.status === "fulfilled" && casasResult.value.success
   const grupos = groupsLoaded ? (groupsResult.value.data ?? []).map(toGroupOption) : []
   const casas = casasLoaded ? (casasResult.value.data ?? []).map(toCasaOption) : []
+  const initialGroupId = getValidInitialGroupId(requestedGroupId, grupos)
   const loadErrors = [
     groupsLoaded ? null : GROUPS_LOAD_ERROR_MESSAGE,
     casasLoaded ? null : CASAS_LOAD_ERROR_MESSAGE,
@@ -60,11 +66,25 @@ export default async function AsignarCasaAnfitrionaPage() {
         {loadErrors.length > 0 ? (
           <AssignmentLoadError messages={loadErrors} />
         ) : (
-          <AsignarCasaAnfitrionaClient grupos={grupos} casas={casas} />
+          <AsignarCasaAnfitrionaClient grupos={grupos} casas={casas} initialGroupId={initialGroupId} />
         )}
       </ContenedorDashboard>
     </DashboardLayout>
   )
+}
+
+function getRequestedGroupId(searchParams: AssignmentPageSearchParams | undefined): string | undefined {
+  const value = searchParams?.grupoId
+  if (Array.isArray(value)) return value.length === 1 ? value[0] : undefined
+  return value
+}
+
+function getValidInitialGroupId(
+  requestedGroupId: string | undefined,
+  grupos: AssignmentGroupOption[]
+): string | undefined {
+  if (!requestedGroupId) return undefined
+  return grupos.some((grupo) => grupo.id === requestedGroupId) ? requestedGroupId : undefined
 }
 
 function AssignmentLoadError({ messages }: { messages: string[] }) {

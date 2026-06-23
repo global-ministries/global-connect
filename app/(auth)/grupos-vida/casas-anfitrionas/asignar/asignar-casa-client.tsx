@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle, Home } from "lucide-react"
 import { asignarCasaAnfitrionaAGrupo } from "@/lib/actions/casas-anfitrionas.actions"
@@ -23,18 +23,32 @@ export type AssignmentCasaOption = {
 type AsignarCasaAnfitrionaClientProps = {
   casas: AssignmentCasaOption[]
   grupos: AssignmentGroupOption[]
+  initialGroupId?: string
 }
 
-export function AsignarCasaAnfitrionaClient({ casas, grupos }: AsignarCasaAnfitrionaClientProps) {
-  const [groupId, setGroupId] = useState("")
+export function AsignarCasaAnfitrionaClient({ casas, grupos, initialGroupId }: AsignarCasaAnfitrionaClientProps) {
+  const [groupId, setGroupId] = useState(() => getInitialGroupId(initialGroupId, grupos))
   const [casaId, setCasaId] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
+  const syncedInitialGroupId = useRef(getInitialGroupId(initialGroupId, grupos))
   const submitInFlight = useRef(false)
   const router = useRouter()
   const toast = useNotificaciones()
   const canSubmit = Boolean(groupId && casaId && !isSubmitting)
+
+  useEffect(() => {
+    const nextInitialGroupId = getInitialGroupId(initialGroupId, grupos)
+    const previousInitialGroupId = syncedInitialGroupId.current
+    syncedInitialGroupId.current = nextInitialGroupId
+
+    setGroupId((currentGroupId) => {
+      if (nextInitialGroupId && previousInitialGroupId !== nextInitialGroupId) return nextInitialGroupId
+      if (!nextInitialGroupId && previousInitialGroupId && currentGroupId === previousInitialGroupId) return ""
+      return currentGroupId
+    })
+  }, [initialGroupId, grupos])
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -143,6 +157,11 @@ export function AsignarCasaAnfitrionaClient({ casas, grupos }: AsignarCasaAnfitr
       </div>
     </div>
   )
+}
+
+function getInitialGroupId(initialGroupId: string | undefined, grupos: AssignmentGroupOption[]): string {
+  if (!initialGroupId) return ""
+  return grupos.some((grupo) => grupo.id === initialGroupId) ? initialGroupId : ""
 }
 
 function formatAssignmentOptionLabel(option: AssignmentGroupOption | AssignmentCasaOption): string {
