@@ -6,6 +6,7 @@ import { BirthdayWidget } from '@/components/dashboard/widgets/BirthdayWidget'
 import { RiskGroupsWidget } from '@/components/dashboard/widgets/RiskGroupsWidget'
 import { PendingLeadersWidget } from '@/components/dashboard/widgets/PendingLeadersWidget'
 import { NotasLideresWidget } from '@/components/dashboard/widgets/NotasLideresWidget'
+import { HostHomeQueuesWidget } from '@/components/dashboard/widgets/HostHomeQueuesWidget'
 import { Users, UsersRound, Activity } from 'lucide-react'
 
 interface PropsDashboardDirector {
@@ -33,6 +34,7 @@ export default function DashboardDirector({ data }: PropsDashboardDirector) {
   const cumpleanos = data?.proximos_cumpleanos_alcance || []
   const gruposRiesgo = data?.grupos_en_riesgo_alcance || []
   const lideresPendientes = data?.lideres_sin_reporte || []
+  const hostHomeQueues = data?.casas_anfitrionas_queues
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -111,6 +113,12 @@ export default function DashboardDirector({ data }: PropsDashboardDirector) {
           items={cumpleanos}
         />
       </div>
+
+      {hostHomeQueues && (
+        <div className="col-span-2">
+          <HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes={false} layout="single-column" />
+        </div>
+      )}
 
       <div className="col-span-2">
         <RiskGroupsWidget

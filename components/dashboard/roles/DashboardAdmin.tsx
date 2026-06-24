@@ -10,6 +10,8 @@ import { NotasLideresWidget } from '@/components/dashboard/widgets/NotasLideresW
 import { Users, UsersRound, Activity, TrendingUp, Calendar } from 'lucide-react'
 import { useCampus } from '@/hooks/useCampus'
 import { createClient } from '@/lib/supabase/client'
+import { HostHomeQueuesWidget } from '@/components/dashboard/widgets/HostHomeQueuesWidget'
+import { canReviewHostHomes } from '@/lib/casas-anfitrionas/review-roles'
 
 interface PropsDashboardAdmin {
   data: any
@@ -87,6 +89,8 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
   const actividadReciente = data?.actividad_reciente || []
   const cumpleanos = data?.proximos_cumpleanos || []
   const gruposRiesgo = data?.grupos_en_riesgo || []
+  const hostHomeQueues = data?.casas_anfitrionas_queues
+  const canReviewHostHomeQueue = canReviewHostHomes(rol)
   const tendencia = data?.tendencia_asistencia || []
   const distSeg = data?.distribucion_segmentos || []
 
@@ -183,6 +187,12 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
           items={cumpleanos}
         />
       </div>
+
+      {hostHomeQueues && (
+        <div className="col-span-2">
+          <HostHomeQueuesWidget queues={hostHomeQueues} canReviewHostHomes={canReviewHostHomeQueue} layout="single-column" />
+        </div>
+      )}
 
       <div className="col-span-2">
         <RiskGroupsWidget
