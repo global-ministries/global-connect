@@ -117,6 +117,66 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(revalidatePath).toHaveBeenCalledWith(`/grupos-vida/casas-anfitrionas/${casaId}`)
   })
 
+  it('resets approval before mutating direction data for approved sensitive edits when a later house update fails', async () => {
+    const rpc = createPermissionRpcMock({ edit: true })
+    const adminDb = createAdminClient({
+      existingCasa: { usuario_id: targetUserId, direccion_id: 'direccion-id', aprobada: true },
+      casaUpdateResults: [
+        { error: null },
+        { error: { message: 'house update failed' } },
+      ],
+    })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
+    createSupabaseAdminClient.mockReturnValue(adminDb)
+
+    const result = await actualizarCasaAnfitriona(casaId, {
+      calle: 'Calle nueva',
+      lat: 10.5,
+      lng: -66.9,
+      nombre_lugar: 'Casa ajustada',
+    })
+
+    expect(result).toEqual({ success: false, error: 'Error al actualizar: house update failed' })
+    expect(adminDb.updateCasasAnfitrionas).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      aprobada: false,
+      aprobada_en: null,
+      aprobada_por: null,
+    }))
+    expect(adminDb.updateDireccion).toHaveBeenCalledWith(expect.objectContaining({
+      calle: 'Calle nueva',
+      latitud: 10.5,
+      longitud: -66.9,
+    }))
+    expect(adminDb.updateCasasAnfitrionas.mock.invocationCallOrder[0]).toBeLessThan(
+      adminDb.updateDireccion.mock.invocationCallOrder[0]
+    )
+    expect(adminDb.updateCasasAnfitrionas).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      aprobada: false,
+      nombre_lugar: 'Casa ajustada',
+    }))
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('returns direction update errors before applying remaining house updates', async () => {
+    const rpc = createPermissionRpcMock({ edit: true })
+    const adminDb = createAdminClient({
+      existingCasa: { usuario_id: targetUserId, direccion_id: 'direccion-id', aprobada: false },
+      direccionUpdateError: { message: 'direction update failed' },
+    })
+    createSupabaseServerClient.mockResolvedValue(createServerClient({ rpc }))
+    createSupabaseAdminClient.mockReturnValue(adminDb)
+
+    const result = await actualizarCasaAnfitriona(casaId, {
+      calle: 'Calle nueva',
+      nombre_lugar: 'Casa ajustada',
+    })
+
+    expect(result).toEqual({ success: false, error: 'Error al actualizar dirección: direction update failed' })
+    expect(adminDb.updateDireccion).toHaveBeenCalledWith(expect.objectContaining({ calle: 'Calle nueva' }))
+    expect(adminDb.updateCasasAnfitrionas).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
   it('filters the list by RPC-visible house ids before returning enriched rows', async () => {
     const visibleCasaIds = [casaId]
     const rpc = createPermissionRpcMock({ visibleCasaIds })
@@ -969,10 +1029,18 @@ function createDirectorEtapaGroupsQuery(groupIds: string[]) {
 
 function createAdminClient(input: {
   activeGroupMemberIds?: string[]
+  casaUpdateResults?: Array<{ error: { message: string } | null }>
+  direccionUpdateError?: { message: string } | null
   existingCasa?: { usuario_id: string; direccion_id: string | null; aprobada: boolean }
   rpc?: jest.Mock
 } = {}) {
-  const updateCasasAnfitrionas = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) })
+  const casaUpdateResults = [...(input.casaUpdateResults ?? [])]
+  const updateCasasAnfitrionas = jest.fn(() => ({
+    eq: jest.fn().mockResolvedValue(casaUpdateResults.shift() ?? { error: null }),
+  }))
+  const updateDireccion = jest.fn(() => ({
+    eq: jest.fn().mockResolvedValue({ error: input.direccionUpdateError ?? null }),
+  }))
   const insertDireccion = jest.fn().mockReturnValue({
     select: jest.fn().mockReturnValue({ single: jest.fn().mockResolvedValue({ data: { id: 'direccion-id' }, error: null }) }),
   })
@@ -980,7 +1048,7 @@ function createAdminClient(input: {
   const casasOcupadasQuery = createCasasOcupadasQuery([])
   const from = jest.fn((table: string) => {
     if (table === 'grupo_miembros') return grupoMiembrosQuery
-    if (table === 'direcciones') return { insert: insertDireccion }
+    if (table === 'direcciones') return { insert: insertDireccion, update: updateDireccion }
     if (table === 'casas_anfitrionas') {
       return {
         update: updateCasasAnfitrionas,
@@ -999,6 +1067,7 @@ function createAdminClient(input: {
     grupoMiembrosQuery,
     insertDireccion,
     rpc: input.rpc ?? jest.fn(),
+    updateDireccion,
     updateCasasAnfitrionas,
   }
 }

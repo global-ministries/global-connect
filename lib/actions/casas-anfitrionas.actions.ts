@@ -1130,9 +1130,8 @@ export async function actualizarCasaAnfitriona(
       if (coHostAssignmentError) return { success: false, error: coHostAssignmentError };
     }
 
-    // Actualizar dirección si hay cambios
-    if (casa.direccion_id && (parsed.calle || parsed.barrio || parsed.codigo_postal || parsed.referencia || parsed.parroquia_id || parsed.lat !== undefined || parsed.lng !== undefined)) {
-      const dirUpdate: Record<string, unknown> = {};
+    const dirUpdate: Record<string, unknown> = {};
+    if (casa.direccion_id) {
       if (parsed.calle !== undefined) dirUpdate.calle = parsed.calle;
       if (parsed.barrio !== undefined) dirUpdate.barrio = parsed.barrio || null;
       if (parsed.codigo_postal !== undefined) dirUpdate.codigo_postal = parsed.codigo_postal || null;
@@ -1140,10 +1139,32 @@ export async function actualizarCasaAnfitriona(
       if (parsed.parroquia_id !== undefined) dirUpdate.parroquia_id = parsed.parroquia_id || null;
       if (parsed.lat !== undefined) dirUpdate.latitud = parsed.lat;
       if (parsed.lng !== undefined) dirUpdate.longitud = parsed.lng;
+    }
 
-      if (Object.keys(dirUpdate).length > 0) {
-        await adminDb.from("direcciones").update(dirUpdate).eq("id", casa.direccion_id);
-      }
+    const hasDireccionUpdate = Object.keys(dirUpdate).length > 0;
+
+    if (casa.aprobada && tieneEdicionSensible(parsed) && hasDireccionUpdate) {
+      const { error: approvalResetError } = await adminDb
+        .from("casas_anfitrionas")
+        .update({
+          aprobada: false,
+          aprobada_en: null,
+          aprobada_por: null,
+          actualizado_en: new Date().toISOString(),
+        })
+        .eq("id", casaId);
+
+      if (approvalResetError) return { success: false, error: `Error al actualizar: ${approvalResetError.message}` };
+    }
+
+    // Actualizar dirección si hay cambios
+    if (casa.direccion_id && hasDireccionUpdate) {
+      const { error: dirError } = await adminDb
+        .from("direcciones")
+        .update(dirUpdate)
+        .eq("id", casa.direccion_id);
+
+      if (dirError) return { success: false, error: `Error al actualizar dirección: ${dirError.message}` };
     }
 
     // Actualizar casa
