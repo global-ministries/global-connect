@@ -63,7 +63,9 @@ Revisión documental contra issue #200, roadmap y handoff. Rollback: revertir to
 - `exploration.md`, roadmap maestro, handoff Fase 1, specs existentes de soporte/casas.
 - Aprobación antes de implementación futura / `sdd-apply`; los artefactos de spec, diseño y tareas de este PR siguen siendo planificación.
 
-## Criterios de éxito
+## Criterios de éxito de la fase
+
+Estos checkboxes son objetivos de aceptación para la fase y para implementación futura; no representan tareas pendientes de este PR documental/SDD.
 
 - [ ] Specs pueden derivar capacidades sin inventar tablas prematuras ni grants UI.
 - [ ] Caso validado: una Persona es director de etapa GDV, bajista DPS Música, cónyuge, padre de Waumbaland e InsideOut, y participante de “De hombre a hombre” sin permisos cruzados.
