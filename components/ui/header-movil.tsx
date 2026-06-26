@@ -18,6 +18,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { cn } from '@/lib/utils'
 import { useBranding } from '@/hooks/useBranding'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { resolvePlatformNavigation, resolvePlatformNavigationGate } from '@/lib/platform/navigation'
+import type { PlatformNavigationFlags, PlatformNavigationItem, PlatformNavigationItemId } from '@/lib/platform/navigation'
 
 // ── SubItem type ──
 interface SubItem {
@@ -41,6 +43,18 @@ interface MobileMenuItem {
 }
 
 const SUPPORT_CONFIGURATION_ROLES = ['admin', 'pastor', 'director-general']
+
+const PLATFORM_NAVIGATION_ICONS = {
+  grupos_vida_stage: UserCheck,
+  dps_team_service: Megaphone,
+  ninos_room_context: Users,
+  estudiantes_room_context: Users,
+  talleres_participation: ClipboardList,
+  dps_admin: Settings,
+  nextgen_admin: Settings,
+  talleres_admin: Settings,
+  uno_a_uno_global: User,
+} satisfies Record<PlatformNavigationItemId, React.ComponentType<{ className?: string }>>
 
 const mainMenuItems: MobileMenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
@@ -81,9 +95,6 @@ const footerMenuItems: MobileMenuItem[] = [
   { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, href: '/ayuda' },
 ]
 
-// All items combined for title resolution
-const allMenuItems: MobileMenuItem[] = [...mainMenuItems, ...footerMenuItems]
-
 function formatearRol(roles: string[]): string {
   if (!roles || roles.length === 0) return 'Usuario'
   const map: Record<string, string> = {
@@ -92,6 +103,26 @@ function formatearRol(roles: string[]): string {
     miembro: 'Miembro',
   }
   return map[roles[0]] ?? roles[0].charAt(0).toUpperCase() + roles[0].slice(1)
+}
+
+function getBuildTimePlatformNavigationFlags(): PlatformNavigationFlags {
+  return {
+    enabled: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED === 'true',
+    killSwitch: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH === 'true',
+  }
+}
+
+function clearPlatformNavigationItems(setItems: React.Dispatch<React.SetStateAction<MobileMenuItem[]>>) {
+  setItems((current) => (current.length > 0 ? [] : current))
+}
+
+function toPlatformMobileMenuItem(item: PlatformNavigationItem): MobileMenuItem {
+  return {
+    id: `platform-${item.id}-${item.scope.type}-${item.scope.id ?? 'global'}`,
+    label: item.label,
+    icon: PLATFORM_NAVIGATION_ICONS[item.id],
+    href: item.href,
+  }
 }
 
 // ════════════════════════════════════════
@@ -109,17 +140,19 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set())
+  const [platformNavigationItems, setPlatformNavigationItems] = useState<MobileMenuItem[]>([])
   const pathname = usePathname()
-  const { usuario, roles, supportCapabilities = [], loading } = useCurrentUser()
+  const { usuario, roles, supportCapabilities = [], platformSession, loading } = useCurrentUser()
   const branding = useBranding()
   const toast = useNotificaciones()
   const { theme, setTheme } = useTheme()
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const primaryMenuItems = [...mainMenuItems, ...platformNavigationItems]
 
   // Auto-expand submenus when a child route is active
   useEffect(() => {
     const newOpen = new Set<string>()
-    for (const item of allMenuItems) {
+    for (const item of [...mainMenuItems, ...platformNavigationItems, ...footerMenuItems]) {
       if (item.children) {
         const isChildActive = item.children.some(child =>
           pathname === child.href || pathname?.startsWith(child.href + '/')
@@ -134,7 +167,38 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       newOpen.forEach(id => merged.add(id))
       return merged
     })
-  }, [pathname])
+  }, [pathname, platformNavigationItems])
+
+  useEffect(() => {
+    const flags = getBuildTimePlatformNavigationFlags()
+    const gate = resolvePlatformNavigationGate({ flags, platformSession })
+    if (!gate.ok) {
+      clearPlatformNavigationItems(setPlatformNavigationItems)
+      return
+    }
+
+    let isCurrent = true
+
+    resolvePlatformNavigation({
+      flags,
+      platformSession: gate.platformSession,
+    })
+      .then((resolution) => {
+        if (!isCurrent) return
+        setPlatformNavigationItems(
+          resolution.mode === 'platform'
+            ? resolution.visibleItems.map(toPlatformMobileMenuItem)
+            : []
+        )
+      })
+      .catch(() => {
+        if (isCurrent) setPlatformNavigationItems([])
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [platformSession])
 
   const toggleSubmenu = (id: string) => {
     setOpenSubmenus(prev => {
@@ -247,7 +311,8 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
     }
 
     // Fallback: top-level menu items
-    return allMenuItems.find(it => path.startsWith(it.href) && it.href !== '/dashboard')?.label ?? 'Global'
+    const titleItems = [...primaryMenuItems, ...footerMenuItems]
+    return titleItems.find(it => path.startsWith(it.href) && it.href !== '/dashboard')?.label ?? 'Global'
   }
 
   return (
@@ -454,7 +519,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
         {/* ── Main Navigation with Submenus ── */}
         <nav className="flex-1 overflow-y-auto px-3 py-1">
           <ul className="space-y-0.5">
-            {mainMenuItems
+            {primaryMenuItems
               .filter(canAccess)
               .map(item => {
               const Icon = item.icon
