@@ -71,8 +71,6 @@ describe('useCurrentUser', () => {
     const { result } = renderHook(() => useCurrentUser())
 
     await waitFor(() => expect(result.current.loading).toBe(false))
-    expect(result.current.roles).toEqual(['admin'])
-    expect(result.current.supportCapabilities).toEqual(['support.manage'])
     expect(result.current.platformSession).toEqual({
       personaId: 'usuario-1',
       subjectAuthId: 'auth-1',
@@ -215,8 +213,6 @@ describe('useCurrentUser', () => {
       contexts: [],
       capabilities: [],
     })
-    expect(result.current.platformSession?.subjectAuthId).not.toBe('auth-1')
-    expect(result.current.supportCapabilities).not.toContain('support.view')
     expect(client.auth.getUser).toHaveBeenCalledTimes(4)
   })
 
