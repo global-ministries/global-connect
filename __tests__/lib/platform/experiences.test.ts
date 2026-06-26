@@ -81,6 +81,57 @@ describe('Platform experiences and scoped capabilities', () => {
     ])
   })
 
+  it('fails closed without throwing for prototype-inherited scope experience keys', () => {
+    const inheritedKeys = ['constructor', 'toString', '__proto__']
+    const requiredScopeResults = inheritedKeys.map((experience) => resolvePlatformCapability({
+      ...gdvReadInput,
+      required: { key: 'grupos_vida.stage.read', scope: { experience, type: 'etapa', id: 'adultos' } },
+    }))
+    const grantScopeResults = inheritedKeys.map((experience) => resolvePlatformCapability({
+      ...gdvReadInput,
+      actor: {
+        ...authorizedActor,
+        grants: [{ ...gdvStageGrant, scope: { experience, type: 'etapa', id: 'adultos' } }],
+      },
+    }))
+
+    expect(requiredScopeResults.map((result) => result.ok ? null : result.reason)).toEqual([
+      'unknown_required_scope',
+      'unknown_required_scope',
+      'unknown_required_scope',
+    ])
+    expect(grantScopeResults.map((result) => result.ok ? null : result.reason)).toEqual([
+      'grant_scope_unknown',
+      'grant_scope_unknown',
+      'grant_scope_unknown',
+    ])
+  })
+
+  it('keeps scope id validation bounded to documented characters and length', () => {
+    const maxLengthScopeId = `a${'b'.repeat(63)}`
+    const validBoundaryResult = resolvePlatformCapability({
+      ...gdvReadInput,
+      actor: {
+        ...authorizedActor,
+        grants: [{ ...gdvStageGrant, scope: { experience: 'grupos_vida', type: 'etapa', id: maxLengthScopeId } }],
+      },
+      required: { key: 'grupos_vida.stage.read', scope: { experience: 'grupos_vida', type: 'etapa', id: maxLengthScopeId } },
+    })
+    const malformedResults = ['-adultos', `a${'b'.repeat(64)}`].map((id) => resolvePlatformCapability({
+      ...gdvReadInput,
+      required: { key: 'grupos_vida.stage.read', scope: { experience: 'grupos_vida', type: 'etapa', id } },
+    }))
+
+    expect(validBoundaryResult).toMatchObject({
+      ok: true,
+      audit: { requiredScope: `grupos_vida:etapa:${maxLengthScopeId}` },
+    })
+    expect(malformedResults.map((result) => result.ok ? null : result.reason)).toEqual([
+      'malformed_required_scope',
+      'malformed_required_scope',
+    ])
+  })
+
   it('fails closed for missing, malformed, unknown, duplicate, or conflicting grant scopes', () => {
     const cases: Array<[PlatformCapabilityActor['grants'], string]> = [
       [[{ ...gdvStageGrant, scope: null }], 'grant_scope_missing'],

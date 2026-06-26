@@ -1,4 +1,6 @@
-export type PlatformScopeType = 'experience' | 'equipo' | 'etapa' | 'grupo' | 'salon' | 'taller'
+export const PLATFORM_SCOPE_TYPES = ['experience', 'equipo', 'etapa', 'grupo', 'salon', 'taller'] as const
+
+export type PlatformScopeType = (typeof PLATFORM_SCOPE_TYPES)[number]
 
 export const PLATFORM_EXPERIENCE_CATALOG = {
   grupos_vida: { label: 'Grupos de Vida', scopeTypes: ['etapa', 'grupo'] },
@@ -62,40 +64,76 @@ type CapabilityDefinition = { experience: PlatformExperienceKey; scopeType: Plat
 type ScopeValidationFailure = 'missing' | 'malformed' | 'unknown' | 'conflicting'
 type ScopeValidationResult = { ok: true; scope: PlatformScope; signature: string } | { ok: false; reason: ScopeValidationFailure }
 type NormalizedGrant = PlatformCapabilityGrant & { signature: string }
+type DeniedParams = {
+  input: PlatformCapabilityResolutionInput
+  reason: PlatformCapabilityDeniedReason
+  evaluatedGrantSignatures: string[]
+  requiredCapability: string
+  requiredScope?: string
+}
+type AuditParams = {
+  input: PlatformCapabilityResolutionInput
+  decision: 'allowed' | 'denied'
+  evaluatedGrantSignatures: string[]
+  requiredCapability: string
+  requiredScope?: string
+  reason?: PlatformCapabilityDeniedReason
+}
 
-const SCOPE_ID_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,63}$/
+const PLATFORM_SCOPE_TYPE_SET: ReadonlySet<string> = new Set(PLATFORM_SCOPE_TYPES)
+const SCOPE_ID_MAX_LENGTH = 64
+const SCOPE_ID_FIRST_CHARACTER_PATTERN = /^[a-z0-9]$/
+const SCOPE_ID_ALLOWED_CHARACTERS_PATTERN = /^[a-z0-9._:-]+$/
 
 export function resolvePlatformCapability(input: PlatformCapabilityResolutionInput): PlatformCapabilityResolution {
   const actorPersonaId = input.actor?.personaId.trim() || undefined
   const requiredCapability = normalizeToken(input.required.key)
-  if (!actorPersonaId) return denied(input, 'actor_required', [], requiredCapability)
-  if (!input.flow.trim() || !input.actor?.allowedFlows.includes(input.flow)) return denied(input, 'flow_not_allowed', [], requiredCapability)
-  if (!isPlatformCapabilityKey(requiredCapability)) return denied(input, 'unknown_capability', [], requiredCapability)
+  if (!actorPersonaId) return denied({ input, reason: 'actor_required', evaluatedGrantSignatures: [], requiredCapability })
+  if (!input.flow.trim() || !input.actor?.allowedFlows.includes(input.flow)) {
+    return denied({ input, reason: 'flow_not_allowed', evaluatedGrantSignatures: [], requiredCapability })
+  }
+  if (!isPlatformCapabilityKey(requiredCapability)) {
+    return denied({ input, reason: 'unknown_capability', evaluatedGrantSignatures: [], requiredCapability })
+  }
 
   const definition = PLATFORM_CAPABILITIES[requiredCapability]
   const requiredScope = normalizeScope(input.required.scope, definition)
-  if (!requiredScope.ok) return denied(input, toRequiredScopeReason(requiredScope.reason), [], requiredCapability)
+  if (!requiredScope.ok) {
+    return denied({ input, reason: toRequiredScopeReason(requiredScope.reason), evaluatedGrantSignatures: [], requiredCapability })
+  }
 
   const grants = input.actor.grants.filter((grant) => normalizeToken(grant.key) === requiredCapability)
   const normalizedGrants: NormalizedGrant[] = []
   for (const grant of grants) {
     const normalized = normalizeScope(grant.scope, definition)
-    if (!normalized.ok) return denied(input, toGrantScopeReason(normalized.reason), normalizedGrants.map((item) => item.signature), requiredCapability, requiredScope.signature)
+    if (!normalized.ok) {
+      return denied({
+        input,
+        reason: toGrantScopeReason(normalized.reason),
+        evaluatedGrantSignatures: normalizedGrants.map((item) => item.signature),
+        requiredCapability,
+        requiredScope: requiredScope.signature,
+      })
+    }
     normalizedGrants.push({ key: requiredCapability, scope: normalized.scope, source: normalizeSource(grant.source), signature: `${requiredCapability}|${normalized.signature}` })
   }
 
   normalizedGrants.sort((left, right) => left.signature.localeCompare(right.signature) || left.source.localeCompare(right.source))
   const evaluatedGrantSignatures = normalizedGrants.map((grant) => grant.signature)
-  if (hasDuplicateSignature(evaluatedGrantSignatures)) return denied(input, 'duplicate_scope', evaluatedGrantSignatures, requiredCapability, requiredScope.signature)
+  if (hasDuplicateSignature(evaluatedGrantSignatures)) {
+    return denied({ input, reason: 'duplicate_scope', evaluatedGrantSignatures, requiredCapability, requiredScope: requiredScope.signature })
+  }
 
   const matchingGrant = normalizedGrants.find((grant) => grant.signature === `${requiredCapability}|${requiredScope.signature}`)
-  if (!matchingGrant) return denied(input, 'missing_required_capability', evaluatedGrantSignatures, requiredCapability, requiredScope.signature)
+  if (!matchingGrant) {
+    return denied({ input, reason: 'missing_required_capability', evaluatedGrantSignatures, requiredCapability, requiredScope: requiredScope.signature })
+  }
 
   return {
     ok: true,
     decision: 'allowed',
     grant: { key: matchingGrant.key, scope: matchingGrant.scope, source: matchingGrant.source },
-    audit: toAudit(input, 'allowed', evaluatedGrantSignatures, requiredCapability, requiredScope.signature),
+    audit: toAudit({ input, decision: 'allowed', evaluatedGrantSignatures, requiredCapability, requiredScope: requiredScope.signature }),
   }
 }
 
@@ -116,11 +154,18 @@ function normalizeScope(scope: PlatformScopeInput | null | undefined, definition
   return { ok: true, scope: normalizedScope, signature: scopeSignature(normalizedScope) }
 }
 
-function denied(input: PlatformCapabilityResolutionInput, reason: PlatformCapabilityDeniedReason, evaluatedGrantSignatures: string[], requiredCapability: string, requiredScope?: string): PlatformCapabilityResolution {
-  return { ok: false, decision: 'denied', reason, audit: toAudit(input, 'denied', evaluatedGrantSignatures, requiredCapability, requiredScope, reason) }
+function denied(params: DeniedParams): PlatformCapabilityResolution {
+  const { input, reason, evaluatedGrantSignatures, requiredCapability, requiredScope } = params
+  return {
+    ok: false,
+    decision: 'denied',
+    reason,
+    audit: toAudit({ input, decision: 'denied', evaluatedGrantSignatures, requiredCapability, requiredScope, reason }),
+  }
 }
 
-function toAudit(input: PlatformCapabilityResolutionInput, decision: 'allowed' | 'denied', evaluatedGrantSignatures: string[], requiredCapability: string, requiredScope?: string, reason?: PlatformCapabilityDeniedReason): PlatformCapabilityAudit {
+function toAudit(params: AuditParams): PlatformCapabilityAudit {
+  const { input, decision, evaluatedGrantSignatures, requiredCapability, requiredScope, reason } = params
   const actorPersonaId = input.actor?.personaId.trim() || undefined
   return {
     ...(actorPersonaId ? { actorPersonaId } : {}),
@@ -157,7 +202,9 @@ function normalizeSource(value: string | null | undefined): string {
 
 function normalizeScopeId(value: string | null | undefined): string | undefined {
   const normalized = normalizeToken(value)
-  return normalized && SCOPE_ID_PATTERN.test(normalized) ? normalized : undefined
+  if (!normalized || normalized.length > SCOPE_ID_MAX_LENGTH) return undefined
+  if (!SCOPE_ID_FIRST_CHARACTER_PATTERN.test(normalized[0] ?? '')) return undefined
+  return SCOPE_ID_ALLOWED_CHARACTERS_PATTERN.test(normalized) ? normalized : undefined
 }
 
 function scopeSignature(scope: PlatformScope): string {
@@ -174,13 +221,17 @@ function experienceAllowsScopeType(experience: PlatformExperienceKey, type: Plat
 }
 
 function isPlatformCapabilityKey(value: string): value is PlatformCapabilityKey {
-  return value in PLATFORM_CAPABILITIES
+  return hasOwnStringKey(PLATFORM_CAPABILITIES, value)
 }
 
 function isPlatformExperienceKey(value: string): value is PlatformExperienceKey {
-  return value in PLATFORM_EXPERIENCE_CATALOG
+  return hasOwnStringKey(PLATFORM_EXPERIENCE_CATALOG, value)
 }
 
 function isPlatformScopeType(value: string): value is PlatformScopeType {
-  return ['experience', 'equipo', 'etapa', 'grupo', 'salon', 'taller'].includes(value)
+  return PLATFORM_SCOPE_TYPE_SET.has(value)
+}
+
+function hasOwnStringKey<T extends object>(record: T, value: string): value is Extract<keyof T, string> {
+  return Object.prototype.hasOwnProperty.call(record, value)
 }
