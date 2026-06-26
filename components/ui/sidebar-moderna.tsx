@@ -31,7 +31,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { logout } from '@/lib/actions/auth.actions'
 import { ThemeToggle } from './theme-toggle'
 import { useBranding } from '@/hooks/useBranding'
-import { resolvePlatformNavigation } from '@/lib/platform/navigation'
+import { resolvePlatformNavigation, resolvePlatformNavigationGate } from '@/lib/platform/navigation'
 import type { PlatformNavigationFlags, PlatformNavigationItem, PlatformNavigationItemId } from '@/lib/platform/navigation'
 
 interface SidebarModernaProps {
@@ -138,11 +138,15 @@ const footerItems: MenuItem[] = [
   },
 ]
 
-function getPlatformNavigationFlags(): PlatformNavigationFlags {
+function getBuildTimePlatformNavigationFlags(): PlatformNavigationFlags {
   return {
     enabled: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED === 'true',
     killSwitch: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH === 'true',
   }
+}
+
+function clearPlatformNavigationItems(setItems: React.Dispatch<React.SetStateAction<MenuItem[]>>) {
+  setItems((current) => (current.length > 0 ? [] : current))
 }
 
 function toPlatformMenuItem(item: PlatformNavigationItem): MenuItem {
@@ -202,9 +206,10 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   }, [pathname])
 
   useEffect(() => {
-    const flags = getPlatformNavigationFlags()
-    if (!flags.enabled || flags.killSwitch || !platformSession) {
-      if (platformNavigationItems.length > 0) setPlatformNavigationItems([])
+    const flags = getBuildTimePlatformNavigationFlags()
+    const gate = resolvePlatformNavigationGate({ flags, platformSession })
+    if (!gate.ok) {
+      clearPlatformNavigationItems(setPlatformNavigationItems)
       return
     }
 
@@ -212,7 +217,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
 
     resolvePlatformNavigation({
       flags,
-      platformSession,
+      platformSession: gate.platformSession,
     })
       .then((resolution) => {
         if (!isCurrent) return
@@ -229,7 +234,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     return () => {
       isCurrent = false
     }
-  }, [platformSession, platformNavigationItems.length])
+  }, [platformSession])
 
   // Formatear roles para mostrar
   const formatearRoles = (roles: string[]): string => {

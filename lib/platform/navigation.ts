@@ -11,7 +11,8 @@ export type PlatformNavigationAdapterResult =
   | { ok: false; reason: string }
 export type PlatformNavigationAdapter = (session: PlatformNavigationSession) => Promise<PlatformNavigationAdapterResult>
 export type PlatformNavigationFallbackReason = 'feature_flag_disabled' | 'kill_switch_enabled' | 'platform_session_required' | 'adapter_failed'
-export type PlatformNavigationDeniedReason = PlatformNavigationFallbackReason | PlatformCapabilityDeniedReason
+export type PlatformNavigationRouteDeniedReason = 'route_unavailable'
+export type PlatformNavigationDeniedReason = PlatformNavigationFallbackReason | PlatformCapabilityDeniedReason | PlatformNavigationRouteDeniedReason
 export type PlatformNavigationItemId =
   | 'grupos_vida_stage'
   | 'dps_team_service'
@@ -49,12 +50,15 @@ export type PlatformNavigationResolverInput = {
   platformSession: PlatformNavigationSession | null | undefined
   adapters?: readonly PlatformNavigationAdapter[]
 }
+export type PlatformNavigationGate =
+  | { ok: true; platformSession: PlatformNavigationSession }
+  | { ok: false; reason: PlatformNavigationFallbackReason }
 
 type PlatformNavigationDefinition = {
   id: PlatformNavigationItemId
   capability: string
   label: string
-  href: string
+  availableHref?: string
   experience: string
   fallbackScope: PlatformScopeInput
 }
@@ -71,23 +75,22 @@ const PLATFORM_NAVIGATION_SCOPE_LABELS: Partial<Record<PlatformNavigationItemId,
 }
 
 const PLATFORM_NAVIGATION_DEFINITIONS = [
-  { id: 'grupos_vida_stage', capability: 'grupos_vida.stage.read', label: 'Grupos de Vida', href: '/dashboard/grupos-vida', experience: 'grupos_vida', fallbackScope: { experience: 'grupos_vida', type: 'etapa', id: 'required' } },
-  { id: 'dps_team_service', capability: 'dps.team.serve', label: 'DPS', href: '/dashboard/dps', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'required' } },
-  { id: 'ninos_room_context', capability: 'ninos.room.read', label: 'Niños', href: '/dashboard/ninos', experience: 'ninos', fallbackScope: { experience: 'ninos', type: 'salon', id: 'required' } },
-  { id: 'estudiantes_room_context', capability: 'estudiantes.room.read', label: 'Estudiantes', href: '/dashboard/estudiantes', experience: 'estudiantes', fallbackScope: { experience: 'estudiantes', type: 'salon', id: 'required' } },
-  { id: 'talleres_participation', capability: 'talleres_crecimiento.participation.read', label: 'Talleres de Crecimiento', href: '/dashboard/talleres', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'required' } },
-  { id: 'dps_admin', capability: 'dps.admin.manage', label: 'Administración DPS', href: '/dashboard/dps/admin', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'global' } },
-  { id: 'nextgen_admin', capability: 'nextgen.admin.manage', label: 'Administración NextGen', href: '/dashboard/nextgen/admin', experience: 'nextgen', fallbackScope: { experience: 'nextgen', type: 'experience' } },
-  { id: 'talleres_admin', capability: 'talleres_crecimiento.admin.manage', label: 'Administración Talleres', href: '/dashboard/talleres/admin', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
-  { id: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.itemId, capability: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.capability, label: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.label, href: '/dashboard/uno-a-uno', experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, fallbackScope: { experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, type: 'experience' } },
+  { id: 'grupos_vida_stage', capability: 'grupos_vida.stage.read', label: 'Grupos de Vida', availableHref: '/grupos-vida', experience: 'grupos_vida', fallbackScope: { experience: 'grupos_vida', type: 'etapa', id: 'required' } },
+  { id: 'dps_team_service', capability: 'dps.team.serve', label: 'DPS', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'required' } },
+  { id: 'ninos_room_context', capability: 'ninos.room.read', label: 'Niños', experience: 'ninos', fallbackScope: { experience: 'ninos', type: 'salon', id: 'required' } },
+  { id: 'estudiantes_room_context', capability: 'estudiantes.room.read', label: 'Estudiantes', experience: 'estudiantes', fallbackScope: { experience: 'estudiantes', type: 'salon', id: 'required' } },
+  { id: 'talleres_participation', capability: 'talleres_crecimiento.participation.read', label: 'Talleres de Crecimiento', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'required' } },
+  { id: 'dps_admin', capability: 'dps.admin.manage', label: 'Administración DPS', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'global' } },
+  { id: 'nextgen_admin', capability: 'nextgen.admin.manage', label: 'Administración NextGen', experience: 'nextgen', fallbackScope: { experience: 'nextgen', type: 'experience' } },
+  { id: 'talleres_admin', capability: 'talleres_crecimiento.admin.manage', label: 'Administración Talleres', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
+  { id: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.itemId, capability: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.capability, label: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.label, experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, fallbackScope: { experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, type: 'experience' } },
 ] satisfies readonly PlatformNavigationDefinition[]
 
 export async function resolvePlatformNavigation(input: PlatformNavigationResolverInput): Promise<PlatformNavigationResolution> {
-  if (!input.flags.enabled) return legacyFallback('feature_flag_disabled')
-  if (input.flags.killSwitch) return legacyFallback('kill_switch_enabled')
-  if (!input.platformSession?.personaId.trim() || !input.platformSession.subjectAuthId.trim()) return legacyFallback('platform_session_required')
+  const gate = resolvePlatformNavigationGate(input)
+  if (!gate.ok) return legacyFallback(gate.reason)
 
-  const adapterState = await applyAdapters(input.platformSession, input.adapters ?? [])
+  const adapterState = await applyAdapters(gate.platformSession, input.adapters ?? [])
   if (!adapterState.ok) return legacyFallback('adapter_failed')
 
   const visibleItems: PlatformNavigationItem[] = []
@@ -106,6 +109,15 @@ export async function resolvePlatformNavigation(input: PlatformNavigationResolve
     deniedItems,
     audit: { decision: 'allowed', flow: PLATFORM_NAVIGATION_FLOW, visibleItemCount: visibleItems.length, deniedItemCount: deniedItems.length },
   }
+}
+
+export function resolvePlatformNavigationGate(input: Pick<PlatformNavigationResolverInput, 'flags' | 'platformSession'>): PlatformNavigationGate {
+  if (!input.flags.enabled) return { ok: false, reason: 'feature_flag_disabled' }
+  if (input.flags.killSwitch) return { ok: false, reason: 'kill_switch_enabled' }
+  if (!input.platformSession?.personaId.trim() || !input.platformSession.subjectAuthId.trim()) {
+    return { ok: false, reason: 'platform_session_required' }
+  }
+  return { ok: true, platformSession: input.platformSession }
 }
 
 async function applyAdapters(session: PlatformNavigationSession, adapters: readonly PlatformNavigationAdapter[]) {
@@ -143,7 +155,12 @@ function resolveNavigationDefinition(definition: PlatformNavigationDefinition, s
       })
 
     if (capabilityResult.ok) {
-      visibleItems.push(toNavigationItem(definition, capability, session.contexts))
+      const visibleItem = toNavigationItem(definition, capability, session.contexts)
+      if (visibleItem) {
+        visibleItems.push(visibleItem)
+      } else {
+        deniedItem = { id: definition.id, reason: 'route_unavailable' }
+      }
     } else {
       deniedItem = { id: definition.id, reason: capabilityResult.reason }
     }
@@ -188,11 +205,12 @@ function toScopeInput(capability: PlatformSessionCapability): PlatformScopeInput
   return { experience: capability.experience, type: capability.scopeType, id: capability.scopeId }
 }
 
-function toNavigationItem(definition: PlatformNavigationDefinition, capability: PlatformSessionCapability, contexts: readonly PlatformSessionContext[]): PlatformNavigationItem {
+function toNavigationItem(definition: PlatformNavigationDefinition, capability: PlatformSessionCapability, contexts: readonly PlatformSessionContext[]): PlatformNavigationItem | undefined {
+  if (!definition.availableHref) return undefined
   return {
     id: definition.id,
     label: resolveLabel(definition, capability, contexts),
-    href: definition.href,
+    href: definition.availableHref,
     experience: definition.experience,
     scope: { type: capability.scopeType, ...(capability.scopeId ? { id: capability.scopeId } : {}) },
   }

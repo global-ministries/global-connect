@@ -72,10 +72,37 @@ describe('Platform navigation resolver', () => {
     expect(gdvAdapter).toHaveBeenCalledWith(baseSessionShape(session))
     expect(result).toMatchObject({ mode: 'platform', legacyFallback: false, audit: { decision: 'allowed', flow: PLATFORM_NAVIGATION_FLOW } })
     expect(result.visibleItems).toEqual([
-      { id: 'dps_team_service', label: 'DPS Música', href: '/dashboard/dps', experience: 'dps', scope: { type: 'equipo', id: 'musica' } },
-      { id: 'grupos_vida_stage', label: 'Grupos de Vida — Adultos', href: '/dashboard/grupos-vida', experience: 'grupos_vida', scope: { type: 'etapa', id: 'segmento-adultos' } },
+      { id: 'grupos_vida_stage', label: 'Grupos de Vida — Adultos', href: '/grupos-vida', experience: 'grupos_vida', scope: { type: 'etapa', id: 'segmento-adultos' } },
     ])
+    expect(deniedReasons(result)).toMatchObject({ dps_team_service: 'route_unavailable' })
     expect(JSON.stringify(result)).not.toContain('auth-1')
+  })
+
+  it('suppresses scoped navigation items when their routes are not available locally', async () => {
+    const session: PlatformSession = {
+      ...baseSession,
+      contexts: [
+        { experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', label: 'Grupos de Vida — Adultos' },
+      ],
+      capabilities: [
+        { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
+        { key: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'dream-team' },
+        { key: 'ninos.room.read', experience: 'ninos', scopeType: 'salon', scopeId: 'waumbaland', source: 'family' },
+        { key: 'estudiantes.room.read', experience: 'estudiantes', scopeType: 'salon', scopeId: 'insideout', source: 'family' },
+        { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'de-hombre-a-hombre', source: 'ledger' },
+      ],
+    }
+
+    const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+    expect(result.visibleItems.map((item) => item.href)).toEqual(['/grupos-vida'])
+    expect(result.visibleItems.map((item) => item.label)).toEqual(['Grupos de Vida — Adultos'])
+    expect(deniedReasons(result)).toMatchObject({
+      dps_team_service: 'route_unavailable',
+      ninos_room_context: 'route_unavailable',
+      estudiantes_room_context: 'route_unavailable',
+      talleres_participation: 'route_unavailable',
+    })
   })
 
   it('denies known capability keys when the capability scope conflicts with its catalog definition', async () => {
