@@ -33,7 +33,7 @@ Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
 ## Fase 1: Auth, Persona y scopes
 
 - [x] 1.1 Crear `lib/platform/session/types.ts` y builder desde `auth.uid()`/server session; rechazar `personaId` cliente como identidad; tests.
-- [ ] 1.2 Crear `lib/platform/persona.ts` para búsqueda/dedupe con minimización, masking, auditoría, boundaries base de actor/flujo/scope requerido y tests anti-enumeración.
+- [x] 1.2 Crear `lib/platform/persona.ts` para búsqueda/dedupe con minimización, masking, auditoría, boundaries base de actor/flujo/scope requerido y tests anti-enumeración.
 - [ ] 1.3 Crear `lib/platform/experiences.ts` y scopes allowlisted; scopes ausentes/malformados/desconocidos/duplicados/conflictivos fallan cerrado con tests.
 
 ## Fase 2: Adapter GDV read-only
