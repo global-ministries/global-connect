@@ -34,11 +34,16 @@ describe('Platform navigation resolver', () => {
   })
 
   it('uses legacy fallback and denies platform entries when the kill switch is enabled', async () => {
+    const adapter = jest.fn<ReturnType<PlatformNavigationAdapter>, Parameters<PlatformNavigationAdapter>>()
+      .mockRejectedValue(new Error('adapter must be skipped while kill switch is active'))
+
     const result = await resolvePlatformNavigation({
       flags: { enabled: true, killSwitch: true },
       platformSession: baseSession,
+      adapters: [adapter],
     })
 
+    expect(adapter).not.toHaveBeenCalled()
     expect(result).toMatchObject({
       mode: 'legacy_fallback',
       legacyFallback: true,
@@ -71,6 +76,18 @@ describe('Platform navigation resolver', () => {
       { id: 'grupos_vida_stage', label: 'Grupos de Vida — Adultos', href: '/dashboard/grupos-vida', experience: 'grupos_vida', scope: { type: 'etapa', id: 'segmento-adultos' } },
     ])
     expect(JSON.stringify(result)).not.toContain('auth-1')
+  })
+
+  it('denies known capability keys when the capability scope conflicts with its catalog definition', async () => {
+    const session: PlatformSession = {
+      ...baseSession,
+      capabilities: [{ key: 'dps.team.serve', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'wrong-scope' }],
+    }
+
+    const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+    expect(result.visibleItems).toEqual([])
+    expect(deniedReasons(result)).toMatchObject({ dps_team_service: 'conflicting_scope' })
   })
 
   it.each([

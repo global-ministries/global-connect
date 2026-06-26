@@ -59,6 +59,17 @@ type PlatformNavigationDefinition = {
   fallbackScope: PlatformScopeInput
 }
 
+const ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION = {
+  itemId: 'uno_a_uno_global',
+  capability: 'uno_a_uno.global.read',
+  label: '1:1 Global',
+  experience: 'the_living_room',
+} as const
+
+const PLATFORM_NAVIGATION_SCOPE_LABELS: Partial<Record<PlatformNavigationItemId, Readonly<Record<string, string>>>> = {
+  dps_team_service: { musica: 'DPS Música' },
+}
+
 const PLATFORM_NAVIGATION_DEFINITIONS = [
   { id: 'grupos_vida_stage', capability: 'grupos_vida.stage.read', label: 'Grupos de Vida', href: '/dashboard/grupos-vida', experience: 'grupos_vida', fallbackScope: { experience: 'grupos_vida', type: 'etapa', id: 'required' } },
   { id: 'dps_team_service', capability: 'dps.team.serve', label: 'DPS', href: '/dashboard/dps', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'required' } },
@@ -68,7 +79,7 @@ const PLATFORM_NAVIGATION_DEFINITIONS = [
   { id: 'dps_admin', capability: 'dps.admin.manage', label: 'Administración DPS', href: '/dashboard/dps/admin', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'global' } },
   { id: 'nextgen_admin', capability: 'nextgen.admin.manage', label: 'Administración NextGen', href: '/dashboard/nextgen/admin', experience: 'nextgen', fallbackScope: { experience: 'nextgen', type: 'experience' } },
   { id: 'talleres_admin', capability: 'talleres_crecimiento.admin.manage', label: 'Administración Talleres', href: '/dashboard/talleres/admin', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
-  { id: 'uno_a_uno_global', capability: 'uno_a_uno.global.read', label: '1:1 Global', href: '/dashboard/uno-a-uno', experience: 'uno_a_uno', fallbackScope: { experience: 'the_living_room', type: 'experience' } },
+  { id: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.itemId, capability: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.capability, label: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.label, href: '/dashboard/uno-a-uno', experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, fallbackScope: { experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, type: 'experience' } },
 ] satisfies readonly PlatformNavigationDefinition[]
 
 export async function resolvePlatformNavigation(input: PlatformNavigationResolverInput): Promise<PlatformNavigationResolution> {
@@ -190,8 +201,14 @@ function toNavigationItem(definition: PlatformNavigationDefinition, capability: 
 function resolveLabel(definition: PlatformNavigationDefinition, capability: PlatformSessionCapability, contexts: readonly PlatformSessionContext[]): string {
   const context = contexts.find((item) => item.experience === capability.experience && item.scopeType === capability.scopeType && item.scopeId === capability.scopeId)
   if (context?.label.trim()) return context.label
-  if (definition.id === 'dps_team_service' && capability.scopeId === 'musica') return 'DPS Música'
+  const explicitScopeLabel = resolveExplicitScopeLabel(definition.id, capability.scopeId)
+  if (explicitScopeLabel) return explicitScopeLabel
   return capability.scopeId ? `${definition.label} — ${capability.scopeId}` : definition.label
+}
+
+function resolveExplicitScopeLabel(itemId: PlatformNavigationItemId, scopeId: string | undefined): string | undefined {
+  if (!scopeId) return undefined
+  return PLATFORM_NAVIGATION_SCOPE_LABELS[itemId]?.[scopeId]
 }
 
 function toClientSafeSession(session: PlatformNavigationSession): PlatformNavigationSession {
