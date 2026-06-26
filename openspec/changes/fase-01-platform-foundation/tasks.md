@@ -38,8 +38,8 @@ Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
 
 ## Fase 2: Adapter GDV read-only
 
-- [ ] 2.1 Crear `lib/platform/adapters/grupos-vida.ts` para mapear contexto GDV sin reemplazar RPC/RLS ni flujos existentes.
-- [ ] 2.2 Agregar `__tests__/lib/platform/grupos-vida-adapter.test.ts`: director autorizado, adapter fallido, tutor sin permiso y ausencia de permisos cruzados.
+- [x] 2.1 Crear `lib/platform/adapters/grupos-vida.ts` para mapear contexto GDV sin reemplazar RPC/RLS ni flujos existentes.
+- [x] 2.2 Agregar `__tests__/lib/platform/grupos-vida-adapter.test.ts`: director autorizado, adapter fallido, tutor sin permiso y ausencia de permisos cruzados.
 
 ## Fase 3: Menú y dashboard
 

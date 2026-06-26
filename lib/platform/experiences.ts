@@ -146,7 +146,7 @@ function normalizeScope(scope: PlatformScopeInput | null | undefined, definition
   if (!experienceAllowsScopeType(experience, type)) return { ok: false, reason: 'unknown' }
   if (experience !== definition.experience || type !== definition.scopeType) return { ok: false, reason: 'conflicting' }
 
-  const id = normalizeScopeId(scope.id)
+  const id = normalizePlatformScopeId(scope.id)
   if (type !== 'experience' && !id) return { ok: false, reason: scope.id?.trim() ? 'malformed' : 'missing' }
   if (type === 'experience' && scope.id?.trim() && !id) return { ok: false, reason: 'malformed' }
 
@@ -200,7 +200,7 @@ function normalizeSource(value: string | null | undefined): string {
   return value?.trim() || 'unknown'
 }
 
-function normalizeScopeId(value: string | null | undefined): string | undefined {
+export function normalizePlatformScopeId(value: string | null | undefined): string | undefined {
   const normalized = normalizeToken(value)
   if (!normalized || normalized.length > SCOPE_ID_MAX_LENGTH) return undefined
   if (!SCOPE_ID_FIRST_CHARACTER_PATTERN.test(normalized[0] ?? '')) return undefined
