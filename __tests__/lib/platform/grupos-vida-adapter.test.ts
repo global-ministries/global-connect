@@ -44,6 +44,27 @@ describe('Grupos de Vida platform read adapter', () => {
     })
   })
 
+  it.each([
+    { label: 'undefined session', session: undefined },
+    { label: 'null session', session: null },
+    { label: 'blank backend auth subject', session: { ...directorSession, subjectAuthId: '   ' }, expectedPersonaId: 'persona-director' },
+    { label: 'malformed persona scope', session: { ...directorSession, personaId: '../persona-director' } },
+  ] satisfies Array<{ label: string; session: GruposVidaAdapterInput['session']; expectedPersonaId?: string }>)('fails closed for $label before reading assignments', async ({ session, expectedPersonaId }) => {
+    const reader = createReader([directorAssignment])
+
+    const result = await resolveGruposVidaPlatformContext({ session, reader })
+
+    expect(reader.findDirectorEtapaAssignmentsByPersonaId).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      ok: false,
+      reason: 'session_required',
+      contexts: [],
+      capabilities: [],
+      scope: { stageIds: [], groupIds: [] },
+      audit: { decision: 'denied', reason: 'session_required', ...(expectedPersonaId ? { personaId: expectedPersonaId } : {}), assignmentCount: 0, exposedGroupCount: 0 },
+    })
+  })
+
   it('fails closed for a user without Grupos de Vida scope', async () => {
     const reader = createReader([])
 
