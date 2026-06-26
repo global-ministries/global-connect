@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { buildPlatformSession } from '@/lib/platform/session/build'
 import type { Database } from '@/lib/supabase/database.types'
+import type { PlatformSession, PlatformSessionPersona } from '@/lib/platform/session/types'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 
 type Usuario = Database['public']['Tables']['usuarios']['Row']
@@ -11,6 +13,7 @@ interface CurrentUserData {
   usuario: Usuario | null
   roles: string[]
   supportCapabilities: string[]
+  platformSession: PlatformSession | null
   loading: boolean
   error: string | null
 }
@@ -18,36 +21,33 @@ interface CurrentUserData {
 const SUPPORT_CAPABILITIES = ['support.view', 'support.reply', 'support.manage'] as const
 type SupportCapability = (typeof SUPPORT_CAPABILITIES)[number]
 type CurrentUserResult = Omit<CurrentUserData, 'loading' | 'error'>
+  & { authUserId: string | null }
 
 const CURRENT_USER_CACHE_TTL_MS = 15_000
-let currentUserCache: { expiresAt: number; value: CurrentUserResult } | null = null
-let currentUserRequest: Promise<CurrentUserResult> | null = null
+let currentUserCache: { authUserId: string | null; expiresAt: number; value: CurrentUserResult } | null = null
+let currentUserCacheGeneration = 0
 
 function clearCurrentUserCache() {
+  currentUserCacheGeneration += 1
   currentUserCache = null
-  currentUserRequest = null
 }
 
 async function fetchCurrentUserData(): Promise<CurrentUserResult> {
   const now = Date.now()
   if (currentUserCache && currentUserCache.expiresAt > now) {
-    return currentUserCache.value
+    if (await isCurrentAuthUser(currentUserCache.authUserId)) return currentUserCache.value
+    clearCurrentUserCache()
   }
 
-  if (currentUserRequest) {
-    return currentUserRequest
-  }
-
-  currentUserRequest = loadCurrentUserData().then((value) => {
-    currentUserCache = { value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
-    currentUserRequest = null
+  const requestGeneration = currentUserCacheGeneration
+  return loadCurrentUserData().then(async (value) => {
+    if (requestGeneration === currentUserCacheGeneration) {
+      if (await isCurrentAuthUser(value.authUserId)) {
+        currentUserCache = { authUserId: value.authUserId, value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
+      }
+    }
     return value
-  }).catch((error: unknown) => {
-    currentUserRequest = null
-    throw error
   })
-
-  return currentUserRequest
 }
 
 async function loadCurrentUserData(): Promise<CurrentUserResult> {
@@ -60,7 +60,7 @@ async function loadCurrentUserData(): Promise<CurrentUserResult> {
   }
 
   if (!user) {
-    return { usuario: null, roles: [], supportCapabilities: [] }
+    return { authUserId: null, usuario: null, roles: [], supportCapabilities: [], platformSession: null }
   }
 
   const { data: userData, error: userError } = await supabase
@@ -95,34 +95,58 @@ async function loadCurrentUserData(): Promise<CurrentUserResult> {
     }
   }
 
-  return { usuario: userData, roles, supportCapabilities }
+  const platformSession = await resolveClientPlatformSession({
+    subjectAuthId: user.id,
+    usuario: userData,
+    globalRoles: roles,
+  })
+
+  return { authUserId: user.id, usuario: userData, roles, supportCapabilities, platformSession }
+}
+
+async function isCurrentAuthUser(authUserId: string | null): Promise<boolean> {
+  const { data, error } = await createClient().auth.getUser()
+  return !error && (data.user?.id ?? null) === authUserId
 }
 
 export function useCurrentUser(): CurrentUserData {
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [roles, setRoles] = useState<string[]>([])
   const [supportCapabilities, setSupportCapabilities] = useState<string[]>([])
+  const [platformSession, setPlatformSession] = useState<PlatformSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const authGenerationRef = useRef(0)
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
+      const authGeneration = authGenerationRef.current + 1
+      authGenerationRef.current = authGeneration
+
       try {
         setLoading(true)
         setError(null)
 
         const userData = await fetchCurrentUserData()
 
+        if (authGeneration !== authGenerationRef.current) return
+
         setUsuario(userData.usuario)
         setRoles(userData.roles)
         setSupportCapabilities(userData.supportCapabilities)
+        setPlatformSession(userData.platformSession)
       } catch (err) {
+        if (authGeneration !== authGenerationRef.current) return
+
         console.error('Error en useCurrentUser:', err)
         setError(err instanceof Error ? err.message : 'Error desconocido')
         setUsuario(null)
         setRoles([])
         setSupportCapabilities([])
+        setPlatformSession(null)
       } finally {
+        if (authGeneration !== authGenerationRef.current) return
+
         setLoading(false)
       }
     }
@@ -134,11 +158,14 @@ export function useCurrentUser(): CurrentUserData {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       clearCurrentUserCache()
       if (event === 'SIGNED_OUT') {
+        authGenerationRef.current += 1
         setUsuario(null)
         setRoles([])
         setSupportCapabilities([])
+        setPlatformSession(null)
         setLoading(false)
       } else if (event === 'SIGNED_IN' && session) {
+        authGenerationRef.current += 1
         fetchCurrentUser()
       }
     })
@@ -148,7 +175,27 @@ export function useCurrentUser(): CurrentUserData {
     }
   }, [])
 
-  return { usuario, roles, supportCapabilities, loading, error }
+  return { usuario, roles, supportCapabilities, platformSession, loading, error }
+}
+
+async function resolveClientPlatformSession(input: {
+  subjectAuthId: string
+  usuario: Usuario | null
+  globalRoles: string[]
+}): Promise<PlatformSession | null> {
+  const result = await buildPlatformSession({
+    subjectAuthId: input.subjectAuthId,
+    personaLookup: {
+      findByAuthId: async (authId) => toClientPlatformPersona(input.usuario, authId),
+    },
+  })
+
+  return result.ok ? { ...result.session, globalRoles: [...input.globalRoles] } : null
+}
+
+function toClientPlatformPersona(usuario: Usuario | null, authId: string): PlatformSessionPersona | null {
+  if (!usuario?.id || usuario.auth_id !== authId) return null
+  return { id: usuario.id, authId: usuario.auth_id }
 }
 
 function getRoleName(role: unknown) {
