@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { buildPlatformSession } from '@/lib/platform/session/build'
 import type { Database } from '@/lib/supabase/database.types'
@@ -114,20 +114,28 @@ export function useCurrentUser(): CurrentUserData {
   const [platformSession, setPlatformSession] = useState<PlatformSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const authGenerationRef = useRef(0)
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
+      const authGeneration = authGenerationRef.current + 1
+      authGenerationRef.current = authGeneration
+
       try {
         setLoading(true)
         setError(null)
 
         const userData = await fetchCurrentUserData()
 
+        if (authGeneration !== authGenerationRef.current) return
+
         setUsuario(userData.usuario)
         setRoles(userData.roles)
         setSupportCapabilities(userData.supportCapabilities)
         setPlatformSession(userData.platformSession)
       } catch (err) {
+        if (authGeneration !== authGenerationRef.current) return
+
         console.error('Error en useCurrentUser:', err)
         setError(err instanceof Error ? err.message : 'Error desconocido')
         setUsuario(null)
@@ -135,6 +143,8 @@ export function useCurrentUser(): CurrentUserData {
         setSupportCapabilities([])
         setPlatformSession(null)
       } finally {
+        if (authGeneration !== authGenerationRef.current) return
+
         setLoading(false)
       }
     }
@@ -146,12 +156,14 @@ export function useCurrentUser(): CurrentUserData {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       clearCurrentUserCache()
       if (event === 'SIGNED_OUT') {
+        authGenerationRef.current += 1
         setUsuario(null)
         setRoles([])
         setSupportCapabilities([])
         setPlatformSession(null)
         setLoading(false)
       } else if (event === 'SIGNED_IN' && session) {
+        authGenerationRef.current += 1
         fetchCurrentUser()
       }
     })

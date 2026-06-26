@@ -10,11 +10,17 @@ type MockAuthUser = { id: string }
 type MockUsuario = { id: string; auth_id: string; nombre: string; telefono?: string }
 type AuthStateEvent = 'SIGNED_IN' | 'SIGNED_OUT'
 type CapturedAuthStateCallback = (event: AuthStateEvent, session: unknown | null) => void
+type GetUserResponse = { data: { user: MockAuthUser | null }; error: null }
+type Deferred<T> = {
+  promise: Promise<T>
+  resolve: (value: T) => void
+}
 type SupabaseMockStep = {
   user: MockAuthUser | null
   usuario?: MockUsuario | null
   roles?: unknown[]
   supportCapabilities?: string[]
+  getUserDeferred?: Deferred<GetUserResponse>
 }
 
 const DETERMINISTIC_NOW_MS = 1_700_000_000_000
@@ -127,6 +133,38 @@ describe('useCurrentUser', () => {
     expect(result.current.platformSession).toBeNull()
   })
 
+  it('keeps user and platformSession cleared when SIGNED_OUT happens while a fetch is pending', async () => {
+    const pendingGetUser = createDeferred<GetUserResponse>()
+    const user = { id: 'auth-1' }
+    const usuario = { id: 'usuario-1', auth_id: 'auth-1', nombre: 'Staff User' }
+    const { client, triggerAuthStateChange } = setupSupabaseClient([
+      { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: pendingGetUser },
+    ])
+
+    const { result } = renderHook(() => useCurrentUser())
+
+    await act(async () => {
+      triggerAuthStateChange('SIGNED_OUT', null)
+    })
+
+    expect(result.current.loading).toBe(false)
+    expect(result.current.usuario).toBeNull()
+    expect(result.current.roles).toEqual([])
+    expect(result.current.supportCapabilities).toEqual([])
+    expect(result.current.platformSession).toBeNull()
+
+    await act(async () => {
+      pendingGetUser.resolve(getUserResponse(user))
+      await flushPendingPromises()
+    })
+
+    await waitFor(() => expect(client.rpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: 'auth-1' }))
+    expect(result.current.usuario).toBeNull()
+    expect(result.current.roles).toEqual([])
+    expect(result.current.supportCapabilities).toEqual([])
+    expect(result.current.platformSession).toBeNull()
+  })
+
   it('reloads platformSession for the signed-in user without stale Persona data', async () => {
     const firstUser = { id: 'auth-1' }
     const secondUser = { id: 'auth-2' }
@@ -160,6 +198,7 @@ describe('useCurrentUser', () => {
     expect(result.current.supportCapabilities).not.toContain('support.view')
     expect(client.auth.getUser).toHaveBeenCalledTimes(2)
   })
+
 })
 
 function setupSupabaseClient(steps: SupabaseMockStep[]) {
@@ -169,7 +208,11 @@ function setupSupabaseClient(steps: SupabaseMockStep[]) {
   const supportCapabilitiesResolver = jest.fn()
 
   for (const step of steps) {
-    getUser.mockResolvedValueOnce({ data: { user: step.user }, error: null })
+    if (step.getUserDeferred) {
+      getUser.mockReturnValueOnce(step.getUserDeferred.promise)
+    } else {
+      getUser.mockResolvedValueOnce(getUserResponse(step.user))
+    }
 
     if (!step.user) continue
 
@@ -224,4 +267,22 @@ function triggerAuthStateChange(event: AuthStateEvent, session: unknown | null) 
 
 function supportCapabilityRows(capabilities: string[]) {
   return capabilities.map((capability) => ({ capability }))
+}
+
+function getUserResponse(user: MockAuthUser | null): GetUserResponse {
+  return { data: { user }, error: null }
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: Deferred<T>['resolve']
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve
+  })
+  return { promise, resolve }
+}
+
+async function flushPendingPromises() {
+  for (let cycle = 0; cycle < 10; cycle += 1) {
+    await Promise.resolve()
+  }
 }
