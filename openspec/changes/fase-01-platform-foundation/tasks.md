@@ -44,6 +44,7 @@ Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
 ## Fase 3: Menú y dashboard
 
 - [ ] 3.1 Actualizar `lib/getUserWithRoles.ts`, `lib/auth/requireAuth.ts` y `hooks/useCurrentUser.ts` con `platformSession` read-only y fallback legado.
+  - Progreso PR #211 / issue #210: `lib/getUserWithRoles.ts` y `lib/auth/requireAuth.ts` exponen `platformSession` read-only con fallback legado; `hooks/useCurrentUser.ts` queda diferido y trazable para un slice client/UI posterior sin cambios visibles.
 - [ ] 3.2 Actualizar `lib/platform/navigation.ts`, `sidebar-moderna.tsx`, `header-movil.tsx`, `menu-inferior-movil.tsx` y dashboard con flag/kill switch.
 - [ ] 3.3 Verificar rutas directas denegadas, fallback legado si adapters fallan, y no mostrar DPS admin, NextGen, taller admin ni 1:1 global.
 

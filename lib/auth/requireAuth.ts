@@ -1,10 +1,13 @@
 "use server"
 
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { findPlatformSessionPersonaByAuthId, normalizeLegacyRoles, resolveReadOnlyPlatformSession } from '@/lib/auth/platformSessionReadOnly'
+import type { PlatformSession } from '@/lib/platform/session/types'
 
 interface AuthenticatedUser {
   authId: string
   email: string | undefined
+  platformSession: PlatformSession | null
 }
 
 /**
@@ -20,9 +23,15 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     throw new Error("No autenticado")
   }
 
+  const platformSession = await resolveReadOnlyPlatformSession({
+    subjectAuthId: user.id,
+    findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+  })
+
   return {
     authId: user.id,
     email: user.email,
+    platformSession,
   }
 }
 
@@ -47,14 +56,18 @@ export async function requireRole(
   })
 
   const rolesArray = Array.isArray(rolesRequeridos) ? rolesRequeridos : [rolesRequeridos]
-  const rolesUsuario = Array.isArray(roles)
-    ? (roles as any[]).map(r => typeof r === "string" ? r : r?.nombre_interno).filter(Boolean)
-    : []
+  const rolesUsuario = normalizeLegacyRoles(roles)
 
   const tieneRol = rolesUsuario.some(r => rolesArray.includes(r))
   if (!tieneRol) {
     throw new Error(`Permiso denegado: se requiere rol ${rolesArray.join(" o ")}`)
   }
 
-  return { authId: user.id, email: user.email }
+  const platformSession = await resolveReadOnlyPlatformSession({
+    subjectAuthId: user.id,
+    findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+    globalRoles: rolesUsuario,
+  })
+
+  return { authId: user.id, email: user.email, platformSession }
 }
