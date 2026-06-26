@@ -25,8 +25,10 @@ type CurrentUserResult = Omit<CurrentUserData, 'loading' | 'error'>
 const CURRENT_USER_CACHE_TTL_MS = 15_000
 let currentUserCache: { expiresAt: number; value: CurrentUserResult } | null = null
 let currentUserRequest: Promise<CurrentUserResult> | null = null
+let currentUserCacheGeneration = 0
 
 function clearCurrentUserCache() {
+  currentUserCacheGeneration += 1
   currentUserCache = null
   currentUserRequest = null
 }
@@ -41,12 +43,17 @@ async function fetchCurrentUserData(): Promise<CurrentUserResult> {
     return currentUserRequest
   }
 
+  const requestGeneration = currentUserCacheGeneration
   currentUserRequest = loadCurrentUserData().then((value) => {
-    currentUserCache = { value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
-    currentUserRequest = null
+    if (requestGeneration === currentUserCacheGeneration) {
+      currentUserCache = { value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
+      currentUserRequest = null
+    }
     return value
   }).catch((error: unknown) => {
-    currentUserRequest = null
+    if (requestGeneration === currentUserCacheGeneration) {
+      currentUserRequest = null
+    }
     throw error
   })
 

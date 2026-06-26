@@ -165,6 +165,41 @@ describe('useCurrentUser', () => {
     expect(result.current.platformSession).toBeNull()
   })
 
+  it('does not cache stale in-flight data for later mounts after SIGNED_OUT', async () => {
+    const pendingGetUser = createDeferred<GetUserResponse>()
+    const user = { id: 'auth-1' }
+    const usuario = { id: 'usuario-1', auth_id: 'auth-1', nombre: 'Staff User' }
+    const { client, triggerAuthStateChange } = setupSupabaseClient([
+      { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: pendingGetUser },
+      { user: null },
+    ])
+
+    const { unmount } = renderHook(() => useCurrentUser())
+
+    await act(async () => {
+      triggerAuthStateChange('SIGNED_OUT', null)
+    })
+
+    await act(async () => {
+      pendingGetUser.resolve(getUserResponse(user))
+      await flushPendingPromises()
+    })
+
+    await waitFor(() => expect(client.rpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: 'auth-1' }))
+    unmount()
+
+    const remounted = renderHook(() => useCurrentUser())
+
+    await waitFor(() => expect(remounted.result.current.loading).toBe(false))
+    expect(remounted.result.current.usuario).toBeNull()
+    expect(remounted.result.current.roles).toEqual([])
+    expect(remounted.result.current.supportCapabilities).toEqual([])
+    expect(remounted.result.current.platformSession).toBeNull()
+    expect(client.auth.getUser).toHaveBeenCalledTimes(2)
+
+    remounted.unmount()
+  })
+
   it('reloads platformSession for the signed-in user without stale Persona data', async () => {
     const firstUser = { id: 'auth-1' }
     const secondUser = { id: 'auth-2' }
