@@ -22,10 +22,11 @@ function createAuthBaseClient(input: {
   personaData?: PersonaRow | null
   personaError?: Error | null
 }) {
+  const personaData = input.personaData === undefined ? linkedPersona : input.personaData
   const personaQuery = {
     select: jest.fn(),
     eq: jest.fn(),
-    maybeSingle: jest.fn().mockResolvedValue({ data: input.personaData ?? linkedPersona, error: input.personaError ?? null }),
+    maybeSingle: jest.fn().mockResolvedValue({ data: personaData, error: input.personaError ?? null }),
   }
   personaQuery.select.mockReturnValue(personaQuery)
   personaQuery.eq.mockReturnValue(personaQuery)
@@ -84,6 +85,24 @@ describe('platformSession read-only auth base integration', () => {
     })
   })
 
+  it('resolves platformSession with empty roles when legacy roles lookup fails', async () => {
+    const { client } = createAuthBaseClient({
+      rolesError: new Error('roles rpc timeout'),
+    })
+
+    await expect(getUserWithRoles(client)).resolves.toEqual({
+      user: defaultUser,
+      roles: [],
+      platformSession: {
+        personaId: 'persona-1',
+        subjectAuthId: 'auth-1',
+        globalRoles: [],
+        contexts: [],
+        capabilities: [],
+      },
+    })
+  })
+
   it('adds read-only platformSession to requireAuth when persona lookup is safe', async () => {
     const { client } = createAuthBaseClient({})
     createSupabaseServerClient.mockResolvedValue(client)
@@ -98,6 +117,32 @@ describe('platformSession read-only auth base integration', () => {
         contexts: [],
         capabilities: [],
       },
+    })
+  })
+
+  it('keeps requireAuth authenticated when platformSession lookup fails closed', async () => {
+    const { client } = createAuthBaseClient({
+      personaError: new Error('platform lookup timeout'),
+    })
+    createSupabaseServerClient.mockResolvedValue(client)
+
+    await expect(requireAuth()).resolves.toEqual({
+      authId: 'auth-1',
+      email: 'staff@example.com',
+      platformSession: null,
+    })
+  })
+
+  it('keeps requireAuth authenticated when no Persona row is linked', async () => {
+    const { client } = createAuthBaseClient({
+      personaData: null,
+    })
+    createSupabaseServerClient.mockResolvedValue(client)
+
+    await expect(requireAuth()).resolves.toEqual({
+      authId: 'auth-1',
+      email: 'staff@example.com',
+      platformSession: null,
     })
   })
 
