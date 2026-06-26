@@ -82,6 +82,32 @@ describe('PlatformSession builder', () => {
     })
   })
 
+  it('ignores a client-provided personaId even when it matches the resolved Persona', async () => {
+    const personaLookup = {
+      findByAuthId: jest.fn().mockResolvedValue(linkedPersona),
+    }
+
+    const result = await buildPlatformSession({
+      subjectAuthId: 'auth-1',
+      clientPersonaId: 'persona-auth-1',
+      personaLookup,
+    })
+
+    expect(personaLookup.findByAuthId).toHaveBeenCalledWith('auth-1')
+    expect(personaLookup.findByAuthId).not.toHaveBeenCalledWith('persona-auth-1')
+    expect(result).toEqual({
+      ok: true,
+      session: {
+        personaId: 'persona-auth-1',
+        subjectAuthId: 'auth-1',
+        globalRoles: [],
+        contexts: [],
+        capabilities: [],
+      },
+      warnings: [{ code: 'client_persona_id_ignored', clientPersonaId: 'persona-auth-1' }],
+    })
+  })
+
   it('denies direct PlatformSession access for a persona without linked auth', async () => {
     const personaWithoutAuth: PlatformSessionPersona = {
       ...linkedPersona,
