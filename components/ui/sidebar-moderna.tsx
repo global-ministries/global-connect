@@ -31,6 +31,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { logout } from '@/lib/actions/auth.actions'
 import { ThemeToggle } from './theme-toggle'
 import { useBranding } from '@/hooks/useBranding'
+import { resolvePlatformNavigation } from '@/lib/platform/navigation'
+import type { PlatformNavigationFlags, PlatformNavigationItem, PlatformNavigationItemId } from '@/lib/platform/navigation'
 
 interface SidebarModernaProps {
   className?: string
@@ -63,6 +65,18 @@ interface MenuItem {
 }
 
 const SUPPORT_CONFIGURATION_ROLES = ['admin', 'pastor', 'director-general']
+
+const PLATFORM_NAVIGATION_ICONS = {
+  grupos_vida_stage: UserCheck,
+  dps_team_service: Megaphone,
+  ninos_room_context: Users,
+  estudiantes_room_context: Users,
+  talleres_participation: ClipboardList,
+  dps_admin: Settings,
+  nextgen_admin: Settings,
+  talleres_admin: Settings,
+  uno_a_uno_global: User,
+} satisfies Record<PlatformNavigationItemId, React.ComponentType<{ className?: string }>>
 
 const menuItems: MenuItem[] = [
   {
@@ -124,6 +138,22 @@ const footerItems: MenuItem[] = [
   },
 ]
 
+function getPlatformNavigationFlags(): PlatformNavigationFlags {
+  return {
+    enabled: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED === 'true',
+    killSwitch: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH === 'true',
+  }
+}
+
+function toPlatformMenuItem(item: PlatformNavigationItem): MenuItem {
+  return {
+    id: `platform-${item.id}-${item.scope.type}-${item.scope.id ?? 'global'}`,
+    label: item.label,
+    icon: PLATFORM_NAVIGATION_ICONS[item.id],
+    href: item.href,
+  }
+}
+
 /**
  * Sidebar principal con navegación, submenús colapsables, selector de campus.
  * Incluye modal de confirmación de logout y tooltips en modo colapsado.
@@ -134,10 +164,12 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [tooltip, setTooltip] = useState<{ label: string; top: number } | null>(null)
+  const [platformNavigationItems, setPlatformNavigationItems] = useState<MenuItem[]>([])
   const router = useRouter()
   const pathname = usePathname()
-  const { usuario, roles, supportCapabilities = [], loading } = useCurrentUser()
+  const { usuario, roles, supportCapabilities = [], platformSession, loading } = useCurrentUser()
   const branding = useBranding()
+  const primaryMenuItems = [...menuItems, ...platformNavigationItems]
 
 
   // ─── Tooltip hover handlers (collapsed mode) ───
@@ -168,6 +200,36 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
       return merged
     })
   }, [pathname])
+
+  useEffect(() => {
+    const flags = getPlatformNavigationFlags()
+    if (!flags.enabled || flags.killSwitch || !platformSession) {
+      if (platformNavigationItems.length > 0) setPlatformNavigationItems([])
+      return
+    }
+
+    let isCurrent = true
+
+    resolvePlatformNavigation({
+      flags,
+      platformSession,
+    })
+      .then((resolution) => {
+        if (!isCurrent) return
+        setPlatformNavigationItems(
+          resolution.mode === 'platform'
+            ? resolution.visibleItems.map(toPlatformMenuItem)
+            : []
+        )
+      })
+      .catch(() => {
+        if (isCurrent) setPlatformNavigationItems([])
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [platformSession, platformNavigationItems.length])
 
   // Formatear roles para mostrar
   const formatearRoles = (roles: string[]): string => {
@@ -354,7 +416,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         {/* Navegación */}
         <nav className="flex-1 px-3 py-2 overflow-y-auto" aria-label="Navegación principal">
           <ul className="space-y-0.5">
-            {menuItems
+            {primaryMenuItems
               .filter(canAccess)
               .map((item) => {
                 const Icon = item.icon
