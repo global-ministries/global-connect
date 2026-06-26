@@ -1,27 +1,28 @@
 # Tareas: Fase 1 — Platform Foundation
 
-> Plan de implementación futura. No aplicar en el PR documental/SDD.
+> Plan de implementación por PRs después del planning mergeado. PR1a registra progreso de implementación; los gates de estrategia siguen aplicando antes de ampliar futuros slices.
 
 ## Review Workload Forecast
 
 | Field | Value |
 |-------|-------|
 | Estimated changed lines | 1,200–1,800 |
-| Suggested split | PR 1 → PR 2 → PR 3 → PR 4 → PR 5 → PR 6 → PR 7 |
-| Delivery strategy | ask-on-risk |
+| Suggested split | PR 1a → PR 1b → PR 2 → PR 3 → PR 4 → PR 5 → PR 6 → PR 7 |
+| Delivery strategy | stacked-to-main para PR1a; ask-on-risk para slices futuros |
 
-Decision needed before apply: Yes
+Decision needed before apply: No para PR1a aprobado; sí antes de cambiar estrategia o ampliar futuros slices
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
 400-line budget risk: High
 
-**Gate obligatorio antes de implementar:** no ejecutar `sdd-apply` ni abrir un PR de implementación hasta elegir `stacked-to-main` o `feature-branch-chain`. Un PR único para esta fase queda bloqueado salvo aprobación explícita `size:exception` del mantenedor.
+**Gate obligatorio para futuros slices:** mantener PRs encadenados y no ampliar alcance sin confirmar estrategia. Un PR único para toda la fase queda bloqueado salvo aprobación explícita `size:exception` del mantenedor.
 
 ### Suggested Work Units
 
 | Unit | Goal | Likely PR | Notes |
 |------|------|-----------|-------|
-| 1 | Auth/sesión + Persona/dedupe | PR 1 | `auth.uid()`/server session, anti-enumeración y tests del slice |
+| 1a | Auth/sesión | PR 1a | `auth.uid()`/server session y rechazo de `personaId` cliente |
+| 1b | Persona/dedupe | PR 1b | anti-enumeración, masking y boundaries base; issue #203 |
 | 2 | Capabilities/scopes fail-closed | PR 2 | Allowlist, scopes inválidos, tests de denegación |
 | 3 | Adapter GDV read-only | PR 3 | Delegar RPC/RLS actuales; tests de compatibilidad |
 | 4 | Menú/dashboard contextual | PR 4 | Feature flag, kill switch, fallback legado y tests UI/server |
@@ -31,8 +32,8 @@ Chain strategy: pending
 
 ## Fase 1: Auth, Persona y scopes
 
-- [ ] 1.1 Crear `lib/platform/session/types.ts` y builder desde `auth.uid()`/server session; rechazar `personaId` cliente como identidad; tests.
-- [ ] 1.2 Crear `lib/platform/persona.ts` para búsqueda/dedupe con minimización, masking, auditoría, boundaries y tests anti-enumeración.
+- [x] 1.1 Crear `lib/platform/session/types.ts` y builder desde `auth.uid()`/server session; rechazar `personaId` cliente como identidad; tests.
+- [ ] 1.2 Crear `lib/platform/persona.ts` para búsqueda/dedupe con minimización, masking, auditoría, boundaries base de actor/flujo/scope requerido y tests anti-enumeración.
 - [ ] 1.3 Crear `lib/platform/experiences.ts` y scopes allowlisted; scopes ausentes/malformados/desconocidos/duplicados/conflictivos fallan cerrado con tests.
 
 ## Fase 2: Adapter GDV read-only
