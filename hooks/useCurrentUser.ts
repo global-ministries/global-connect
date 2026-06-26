@@ -21,43 +21,33 @@ interface CurrentUserData {
 const SUPPORT_CAPABILITIES = ['support.view', 'support.reply', 'support.manage'] as const
 type SupportCapability = (typeof SUPPORT_CAPABILITIES)[number]
 type CurrentUserResult = Omit<CurrentUserData, 'loading' | 'error'>
+  & { authUserId: string | null }
 
 const CURRENT_USER_CACHE_TTL_MS = 15_000
-let currentUserCache: { expiresAt: number; value: CurrentUserResult } | null = null
-let currentUserRequest: Promise<CurrentUserResult> | null = null
+let currentUserCache: { authUserId: string | null; expiresAt: number; value: CurrentUserResult } | null = null
 let currentUserCacheGeneration = 0
 
 function clearCurrentUserCache() {
   currentUserCacheGeneration += 1
   currentUserCache = null
-  currentUserRequest = null
 }
 
 async function fetchCurrentUserData(): Promise<CurrentUserResult> {
   const now = Date.now()
   if (currentUserCache && currentUserCache.expiresAt > now) {
-    return currentUserCache.value
-  }
-
-  if (currentUserRequest) {
-    return currentUserRequest
+    if (await isCurrentAuthUser(currentUserCache.authUserId)) return currentUserCache.value
+    clearCurrentUserCache()
   }
 
   const requestGeneration = currentUserCacheGeneration
-  currentUserRequest = loadCurrentUserData().then((value) => {
+  return loadCurrentUserData().then(async (value) => {
     if (requestGeneration === currentUserCacheGeneration) {
-      currentUserCache = { value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
-      currentUserRequest = null
+      if (await isCurrentAuthUser(value.authUserId)) {
+        currentUserCache = { authUserId: value.authUserId, value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
+      }
     }
     return value
-  }).catch((error: unknown) => {
-    if (requestGeneration === currentUserCacheGeneration) {
-      currentUserRequest = null
-    }
-    throw error
   })
-
-  return currentUserRequest
 }
 
 async function loadCurrentUserData(): Promise<CurrentUserResult> {
@@ -70,7 +60,7 @@ async function loadCurrentUserData(): Promise<CurrentUserResult> {
   }
 
   if (!user) {
-    return { usuario: null, roles: [], supportCapabilities: [], platformSession: null }
+    return { authUserId: null, usuario: null, roles: [], supportCapabilities: [], platformSession: null }
   }
 
   const { data: userData, error: userError } = await supabase
@@ -111,7 +101,12 @@ async function loadCurrentUserData(): Promise<CurrentUserResult> {
     globalRoles: roles,
   })
 
-  return { usuario: userData, roles, supportCapabilities, platformSession }
+  return { authUserId: user.id, usuario: userData, roles, supportCapabilities, platformSession }
+}
+
+async function isCurrentAuthUser(authUserId: string | null): Promise<boolean> {
+  const { data, error } = await createClient().auth.getUser()
+  return !error && (data.user?.id ?? null) === authUserId
 }
 
 export function useCurrentUser(): CurrentUserData {

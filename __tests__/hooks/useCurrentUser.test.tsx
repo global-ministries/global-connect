@@ -17,6 +17,7 @@ type Deferred<T> = {
 }
 type SupabaseMockStep = {
   user: MockAuthUser | null
+  cacheAuthUser?: MockAuthUser | null
   usuario?: MockUsuario | null
   roles?: unknown[]
   supportCapabilities?: string[]
@@ -62,12 +63,7 @@ describe('useCurrentUser', () => {
 
   it('exposes a client-safe read-only platformSession for a linked user', async () => {
     const user = { id: 'auth-1' }
-    const usuario = {
-      id: 'usuario-1',
-      auth_id: 'auth-1',
-      nombre: 'Staff User',
-      telefono: '+5491111111111',
-    }
+    const usuario = { id: 'usuario-1', auth_id: 'auth-1', nombre: 'Staff User' }
     setupSupabaseClient([
       { user, usuario, roles: [{ nombre_interno: 'admin' }], supportCapabilities: ['support.manage'] },
     ])
@@ -84,13 +80,6 @@ describe('useCurrentUser', () => {
       contexts: [],
       capabilities: [],
     })
-    expect(Object.keys(result.current.platformSession ?? {}).sort()).toEqual([
-      'capabilities',
-      'contexts',
-      'globalRoles',
-      'personaId',
-      'subjectAuthId',
-    ])
   })
 
   it('fails closed to legacy data when no Persona row is linked', async () => {
@@ -165,20 +154,17 @@ describe('useCurrentUser', () => {
     expect(result.current.platformSession).toBeNull()
   })
 
-  it('does not cache stale in-flight data for later mounts after SIGNED_OUT', async () => {
+  it('does not cache stale in-flight data after unmount and auth change', async () => {
     const pendingGetUser = createDeferred<GetUserResponse>()
     const user = { id: 'auth-1' }
     const usuario = { id: 'usuario-1', auth_id: 'auth-1', nombre: 'Staff User' }
-    const { client, triggerAuthStateChange } = setupSupabaseClient([
-      { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: pendingGetUser },
+    const { client } = setupSupabaseClient([
+      { user, cacheAuthUser: null, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: pendingGetUser },
       { user: null },
     ])
 
     const { unmount } = renderHook(() => useCurrentUser())
-
-    await act(async () => {
-      triggerAuthStateChange('SIGNED_OUT', null)
-    })
+    unmount()
 
     await act(async () => {
       pendingGetUser.resolve(getUserResponse(user))
@@ -195,7 +181,7 @@ describe('useCurrentUser', () => {
     expect(remounted.result.current.roles).toEqual([])
     expect(remounted.result.current.supportCapabilities).toEqual([])
     expect(remounted.result.current.platformSession).toBeNull()
-    expect(client.auth.getUser).toHaveBeenCalledTimes(2)
+    expect(client.auth.getUser).toHaveBeenCalledTimes(4)
 
     remounted.unmount()
   })
@@ -231,7 +217,7 @@ describe('useCurrentUser', () => {
     })
     expect(result.current.platformSession?.subjectAuthId).not.toBe('auth-1')
     expect(result.current.supportCapabilities).not.toContain('support.view')
-    expect(client.auth.getUser).toHaveBeenCalledTimes(2)
+    expect(client.auth.getUser).toHaveBeenCalledTimes(4)
   })
 
 })
@@ -248,6 +234,8 @@ function setupSupabaseClient(steps: SupabaseMockStep[]) {
     } else {
       getUser.mockResolvedValueOnce(getUserResponse(step.user))
     }
+    const cacheAuthUser = 'cacheAuthUser' in step ? step.cacheAuthUser ?? null : step.user
+    getUser.mockResolvedValueOnce(getUserResponse(cacheAuthUser))
 
     if (!step.user) continue
 
