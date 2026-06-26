@@ -67,11 +67,7 @@ describe('Platform Persona lookup and dedupe base', () => {
 
   it('fails closed for invalid input and keeps no-match responses non-enumerable', async () => {
     const invalidLookup = createLookup([adaPersona])
-    const invalid = await findPlatformPersonaCandidates({
-      ...baseLookupInput,
-      query: { nombre: 'A' },
-      personaLookup: invalidLookup,
-    })
+    const invalid = await findPlatformPersonaCandidates({ ...baseLookupInput, query: { nombre: 'A' }, personaLookup: invalidLookup })
     expect(invalidLookup.findCandidatesBySignals).not.toHaveBeenCalled()
     expect(invalid).toMatchObject({
       ok: false,
@@ -79,6 +75,13 @@ describe('Platform Persona lookup and dedupe base', () => {
       candidates: [],
       audit: { decision: 'lookup_denied', reason: 'invalid_query', signalNames: ['nombre'], resultCount: 0 },
     })
+
+    const malformedLookup = createLookup([adaPersona])
+    for (const query of [{ email: 'ada@' }, { nombre: 'Ada', apellido: 'Lovelace', fechaNacimiento: '1815-99-99' }]) {
+      const malformed = await findPlatformPersonaCandidates({ ...baseLookupInput, query, personaLookup: malformedLookup })
+      expect(malformed).toMatchObject({ ok: false, reason: 'invalid_query', candidates: [] })
+    }
+    expect(malformedLookup.findCandidatesBySignals).not.toHaveBeenCalled()
 
     const noMatch = await findPlatformPersonaCandidates({
       ...baseLookupInput,
@@ -94,18 +97,25 @@ describe('Platform Persona lookup and dedupe base', () => {
       audit: { resultCount: 0, signalNames: ['email'] },
     })
     expect(JSON.stringify(noMatch)).not.toContain('missing.person@example.com')
+
+    const failingLookup = { findCandidatesBySignals: jest.fn().mockRejectedValue(new Error('db leaked ada.lovelace@example.com')) }
+    const failed = await findPlatformPersonaCandidates({ ...baseLookupInput, query: { email: 'ada.lovelace@example.com' }, personaLookup: failingLookup })
+    expect(failed).toMatchObject({ ok: false, reason: 'lookup_failed', candidates: [], audit: { decision: 'lookup_failed', reason: 'lookup_failed', resultCount: 0 } })
+    expect(JSON.stringify(failed)).not.toContain('ada.lovelace@example.com')
   })
 
-  it('marks partial duplicate candidates as ambiguous without auto-merging them', async () => {
-    const personaLookup = createLookup([
-      { ...adaPersona, id: 'persona-ada-1', email: null, telefono: null, cedula: null },
-      { ...adaPersona, id: 'persona-ada-2', auth_id: null, email: null, telefono: null, cedula: null },
-    ])
-    const result = await findPlatformPersonaCandidates({
+  it('requires review for weak-only or conflicting non-tie matches without auto-merge', async () => {
+    const weakOnly = await findPlatformPersonaCandidates({
       ...baseLookupInput,
-      query: { nombre: 'Ada', apellido: 'Lovelace', fechaNacimiento: '1815-12-10' },
-      personaLookup,
+      query: { email: 'ada.lovelace@example.com', nombre: 'Ada' },
+      personaLookup: createLookup([{ ...adaPersona, email: null, telefono: null, cedula: null, apellido: null, fecha_nacimiento: null }]),
     })
+    expect(weakOnly).toMatchObject({ ok: true, decision: 'single_candidate', autoMerge: false, reviewRequired: true, candidates: [{ matchedSignals: ['nombre'] }] })
+
+    const result = await findPlatformPersonaCandidates({ ...baseLookupInput, query: { email: 'ada.lovelace@example.com', telefono: '+54 9 11 1234-7890' }, personaLookup: createLookup([
+      { ...adaPersona, id: 'persona-email', telefono: null, cedula: null },
+      { ...adaPersona, id: 'persona-phone', auth_id: null, email: null, cedula: null },
+    ]) })
 
     expect(result).toMatchObject({
       ok: true,
@@ -113,8 +123,8 @@ describe('Platform Persona lookup and dedupe base', () => {
       autoMerge: false,
       reviewRequired: true,
       candidates: [
-        { personaId: 'persona-ada-1', displayName: 'A. L.', hasAuthAccount: true },
-        { personaId: 'persona-ada-2', displayName: 'A. L.', hasAuthAccount: false },
+        { personaId: 'persona-email', displayName: 'A. L.', hasAuthAccount: true, matchedSignals: ['email'] },
+        { personaId: 'persona-phone', displayName: 'A. L.', hasAuthAccount: false, matchedSignals: ['telefono'] },
       ],
       audit: { resultCount: 2, reviewRequired: true },
     })

@@ -43,13 +43,22 @@ export type PlatformPersonaLookupResult =
   | { ok: false; reason: PlatformPersonaDeniedReason; candidates: []; audit: PlatformPersonaLookupAudit }
 
 const SIGNAL_ORDER: PlatformPersonaSignalName[] = ['email', 'telefono', 'cedula', 'nombre', 'apellido', 'fechaNacimiento']
+const DIRECT_MATCH_SIGNALS: PlatformPersonaSignalName[] = ['email', 'telefono', 'cedula']
+const MIN_PHONE_DIGITS = 7
+const MIN_CEDULA_CHARS = 4
+const MIN_NAME_CHARS = 2
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const SIGNAL_WEIGHTS = { email: 4, telefono: 3, cedula: 4, nombre: 1, apellido: 1, fechaNacimiento: 2 } satisfies Record<PlatformPersonaSignalName, number>
 type ScoredCandidate = { usuario: PlatformPersonaUsuario; matchedSignals: PlatformPersonaSignalName[]; score: number }
+type AuditParams = Pick<PlatformPersonaLookupAudit, 'decision' | 'signalNames' | 'resultCount' | 'reviewRequired' | 'reason'> & { input: PlatformPersonaLookupInput }
 
 export async function findPlatformPersonaCandidates(input: PlatformPersonaLookupInput): Promise<PlatformPersonaLookupResult> {
   const signalNames = collectInputSignalNames(input.query)
   const boundaryFailure = resolveBoundaryFailure(input.actor, input.flow, input.requiredScope)
   if (boundaryFailure) return deniedResult(input, boundaryFailure, signalNames)
+
+  if (hasMalformedStrongSignal(input.query)) return deniedResult(input, 'invalid_query', signalNames)
 
   const normalizedSignals = normalizeSignals(input.query)
   if (!hasLookupStrength(normalizedSignals)) return deniedResult(input, 'invalid_query', signalNames)
@@ -58,7 +67,7 @@ export async function findPlatformPersonaCandidates(input: PlatformPersonaLookup
   try {
     usuarios = await input.personaLookup.findCandidatesBySignals(normalizedSignals)
   } catch {
-    return { ok: false, reason: 'lookup_failed', candidates: [], audit: toAudit(input, 'lookup_failed', signalNames, 0, false, 'lookup_failed') }
+    return { ok: false, reason: 'lookup_failed', candidates: [], audit: toAudit({ input, decision: 'lookup_failed', signalNames, resultCount: 0, reviewRequired: false, reason: 'lookup_failed' }) }
   }
 
   const matches = usuarios
@@ -67,24 +76,23 @@ export async function findPlatformPersonaCandidates(input: PlatformPersonaLookup
     .sort((left, right) => right.score - left.score || left.usuario.id.localeCompare(right.usuario.id))
 
   if (matches.length === 0) {
-    return { ok: true, decision: 'no_match', autoMerge: false, reviewRequired: false, candidates: [], audit: toAudit(input, 'lookup_allowed', signalNames, 0, false) }
+    return { ok: true, decision: 'no_match', autoMerge: false, reviewRequired: false, candidates: [], audit: toAudit({ input, decision: 'lookup_allowed', signalNames, resultCount: 0, reviewRequired: false }) }
   }
 
-  const topScore = matches[0].score
-  const ambiguous = matches.length > 1 && matches[1].score === topScore
-  const selected = ambiguous ? matches.filter((match) => match.score === topScore) : [matches[0]]
+  const selected = selectReviewCandidates(matches)
+  const reviewRequired = selected.length > 1 || !hasCandidateLookupStrength(selected[0].matchedSignals)
   return {
     ok: true,
-    decision: ambiguous ? 'ambiguous_candidates' : 'single_candidate',
+    decision: selected.length > 1 ? 'ambiguous_candidates' : 'single_candidate',
     autoMerge: false,
-    reviewRequired: ambiguous,
+    reviewRequired,
     candidates: selected.map(toCandidate),
-    audit: toAudit(input, 'lookup_allowed', signalNames, selected.length, ambiguous),
+    audit: toAudit({ input, decision: 'lookup_allowed', signalNames, resultCount: selected.length, reviewRequired }),
   }
 }
 
 function deniedResult(input: PlatformPersonaLookupInput, reason: PlatformPersonaDeniedReason, signalNames: PlatformPersonaSignalName[]): PlatformPersonaLookupResult {
-  return { ok: false, reason, candidates: [], audit: toAudit(input, 'lookup_denied', signalNames, 0, false, reason) }
+  return { ok: false, reason, candidates: [], audit: toAudit({ input, decision: 'lookup_denied', signalNames, resultCount: 0, reviewRequired: false, reason }) }
 }
 
 function resolveBoundaryFailure(actor: PlatformPersonaLookupActor | null | undefined, flow: string, requiredScope: string): PlatformPersonaDeniedReason | null {
@@ -94,14 +102,7 @@ function resolveBoundaryFailure(actor: PlatformPersonaLookupActor | null | undef
   return null
 }
 
-function toAudit(
-  input: PlatformPersonaLookupInput,
-  decision: PlatformPersonaLookupAudit['decision'],
-  signalNames: PlatformPersonaSignalName[],
-  resultCount: number,
-  reviewRequired: boolean,
-  reason?: PlatformPersonaDeniedReason
-): PlatformPersonaLookupAudit {
+function toAudit({ input, decision, signalNames, resultCount, reviewRequired, reason }: AuditParams): PlatformPersonaLookupAudit {
   return {
     actorPersonaId: input.actor?.personaId.trim() || undefined,
     decision,
@@ -118,12 +119,16 @@ function collectInputSignalNames(query: PlatformPersonaSearchSignals): PlatformP
   return SIGNAL_ORDER.filter((signal) => Boolean(query[signal]?.trim()))
 }
 
+function hasMalformedStrongSignal(query: PlatformPersonaSearchSignals): boolean {
+  return Boolean((query.email?.trim() && !normalizeEmail(query.email)) || (query.fechaNacimiento?.trim() && !normalizeDate(query.fechaNacimiento)))
+}
+
 function normalizeSignals(query: PlatformPersonaSearchSignals): PlatformPersonaNormalizedSignals {
   const signals: PlatformPersonaNormalizedSignals = {}
   const values = {
     email: normalizeEmail(query.email),
-    telefono: normalizeDigits(query.telefono, 7),
-    cedula: normalizeAlphanumeric(query.cedula, 4),
+    telefono: normalizeDigits(query.telefono, MIN_PHONE_DIGITS),
+    cedula: normalizeAlphanumeric(query.cedula, MIN_CEDULA_CHARS),
     nombre: normalizeName(query.nombre),
     apellido: normalizeName(query.apellido),
     fechaNacimiento: normalizeDate(query.fechaNacimiento),
@@ -138,6 +143,15 @@ function normalizeSignals(query: PlatformPersonaSearchSignals): PlatformPersonaN
 
 function hasLookupStrength(signals: PlatformPersonaNormalizedSignals): boolean {
   return Boolean(signals.email || signals.telefono || signals.cedula || (signals.nombre && signals.apellido && signals.fechaNacimiento))
+}
+
+function selectReviewCandidates(matches: ScoredCandidate[]): ScoredCandidate[] {
+  const strongMatches = matches.filter((match) => hasCandidateLookupStrength(match.matchedSignals))
+  return strongMatches.length > 1 ? strongMatches : [strongMatches[0] ?? matches[0]]
+}
+
+function hasCandidateLookupStrength(matchedSignals: PlatformPersonaSignalName[]): boolean {
+  return DIRECT_MATCH_SIGNALS.some((signal) => matchedSignals.includes(signal)) || (matchedSignals.includes('nombre') && matchedSignals.includes('apellido') && matchedSignals.includes('fechaNacimiento'))
 }
 
 function scoreCandidate(usuario: PlatformPersonaUsuario, signals: PlatformPersonaNormalizedSignals): ScoredCandidate {
@@ -176,8 +190,8 @@ function maskDisplayName(usuario: PlatformPersonaUsuario): string {
 
 function normalizeUsuarioSignal(usuario: PlatformPersonaUsuario, signal: PlatformPersonaSignalName): string | null {
   if (signal === 'email') return normalizeEmail(usuario.email)
-  if (signal === 'telefono') return normalizeDigits(usuario.telefono, 7)
-  if (signal === 'cedula') return normalizeAlphanumeric(usuario.cedula, 4)
+  if (signal === 'telefono') return normalizeDigits(usuario.telefono, MIN_PHONE_DIGITS)
+  if (signal === 'cedula') return normalizeAlphanumeric(usuario.cedula, MIN_CEDULA_CHARS)
   if (signal === 'nombre') return normalizeName(usuario.nombre)
   if (signal === 'apellido') return normalizeName(usuario.apellido)
   return normalizeDate(usuario.fecha_nacimiento)
@@ -185,7 +199,7 @@ function normalizeUsuarioSignal(usuario: PlatformPersonaUsuario, signal: Platfor
 
 function normalizeEmail(value: string | null | undefined): string | null {
   const normalized = value?.trim().toLowerCase()
-  return normalized && normalized.includes('@') ? normalized : null
+  return normalized && EMAIL_PATTERN.test(normalized) ? normalized : null
 }
 
 function normalizeDigits(value: string | null | undefined, minLength: number): string | null {
@@ -200,12 +214,15 @@ function normalizeAlphanumeric(value: string | null | undefined, minLength: numb
 
 function normalizeName(value: string | null | undefined): string | null {
   const normalized = value?.trim().replace(/\s+/g, ' ').toLowerCase()
-  return normalized && normalized.length >= 2 ? normalized : null
+  return normalized && normalized.length >= MIN_NAME_CHARS ? normalized : null
 }
 
 function normalizeDate(value: string | null | undefined): string | null {
   const normalized = value?.trim()
-  return normalized && /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : null
+  if (!normalized || !DATE_PATTERN.test(normalized)) return null
+  const [year, month, day] = normalized.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? normalized : null
 }
 
 function maskEmail(value: string | null | undefined): string | undefined {
