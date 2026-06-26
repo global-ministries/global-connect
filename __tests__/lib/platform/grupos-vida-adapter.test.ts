@@ -3,7 +3,7 @@ import {
   filterGruposVidaRecordsByScope,
   resolveGruposVidaPlatformContext,
 } from '@/lib/platform/adapters/grupos-vida'
-import type { GruposVidaDirectorEtapaAssignment, GruposVidaReadRepository } from '@/lib/platform/adapters/grupos-vida'
+import type { GruposVidaAdapterInput, GruposVidaDirectorEtapaAssignment, GruposVidaReadRepository } from '@/lib/platform/adapters/grupos-vida'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 const directorSession: PlatformSession = {
@@ -59,21 +59,59 @@ describe('Grupos de Vida platform read adapter', () => {
     })
   })
 
+  it('fails closed when a director assignment does not expose any explicit group scope', async () => {
+    const reader = createReader([{ ...directorAssignment, assignedGroupIds: [] }])
+
+    const result = await resolveGruposVidaPlatformContext({ session: directorSession, reader })
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'invalid_gdv_scope',
+      contexts: [],
+      capabilities: [],
+      scope: { stageIds: [], groupIds: [] },
+      audit: { decision: 'denied', reason: 'invalid_gdv_scope', personaId: 'persona-director', assignmentCount: 0, exposedGroupCount: 0 },
+    })
+  })
+
   it('does not grant Grupos de Vida permissions from padre or tutor family relationships', async () => {
     const parentSession: PlatformSession = { ...directorSession, personaId: 'persona-padre', subjectAuthId: 'auth-padre' }
-    const reader = createReader([])
+    const childAssignment: GruposVidaDirectorEtapaAssignment = {
+      ...directorAssignment,
+      directorEtapaId: 'director-child-waumba',
+      personaId: 'child-waumba',
+      segmentoId: 'segmento-ninos',
+      segmentoLabel: 'Niños',
+      assignedGroupIds: ['grupo-child-waumba'],
+    }
+    const reader: GruposVidaReadRepository = {
+      findDirectorEtapaAssignmentsByPersonaId: jest.fn(async (personaId: string) => {
+        if (personaId === 'child-waumba') return [childAssignment]
+        if (personaId === 'child-insideout') return [{ ...childAssignment, personaId, assignedGroupIds: ['grupo-child-insideout'] }]
+        return []
+      }),
+    }
 
     const result = await resolveGruposVidaPlatformContext({
       session: parentSession,
       reader,
-      familyRelations: [
-        { personaId: 'persona-padre', relatedPersonaId: 'child-waumba', type: 'padre' },
-        { personaId: 'persona-padre', relatedPersonaId: 'child-insideout', type: 'tutor' },
-      ],
     })
 
     expect(result).toMatchObject({ ok: false, reason: 'missing_gdv_scope', capabilities: [], scope: { groupIds: [] } })
     expect(reader.findDirectorEtapaAssignmentsByPersonaId).toHaveBeenCalledWith('persona-padre')
+    expect(reader.findDirectorEtapaAssignmentsByPersonaId).not.toHaveBeenCalledWith('child-waumba')
+    expect(reader.findDirectorEtapaAssignmentsByPersonaId).not.toHaveBeenCalledWith('child-insideout')
+  })
+
+  it('keeps the adapter input boundary free from unused family relationship data', () => {
+    const inputWithoutFamilySurface = {
+      session: directorSession,
+      reader: createReader([]),
+      // @ts-expect-error Family relationships are context-only and must not be accepted by the GDV adapter boundary.
+      familyRelations: [{ personaId: 'persona-padre', relatedPersonaId: 'child-waumba', type: 'padre' }],
+    } satisfies GruposVidaAdapterInput
+
+    expect(inputWithoutFamilySurface.familyRelations).toEqual([{ personaId: 'persona-padre', relatedPersonaId: 'child-waumba', type: 'padre' }])
   })
 
   it('does not copy or create cross-experience permissions', async () => {

@@ -1,3 +1,4 @@
+import { normalizePlatformScopeId } from '@/lib/platform/experiences'
 import type { PlatformSession, PlatformSessionCapability, PlatformSessionContext } from '@/lib/platform/session/types'
 
 export type GruposVidaDirectorEtapaAssignment = {
@@ -12,16 +13,9 @@ export type GruposVidaReadRepository = {
   findDirectorEtapaAssignmentsByPersonaId(personaId: string): Promise<readonly GruposVidaDirectorEtapaAssignment[]>
 }
 
-export type GruposVidaFamilyRelation = {
-  personaId: string
-  relatedPersonaId: string
-  type: 'conyuge' | 'padre' | 'hijo' | 'tutor' | 'hermano' | 'otro_familiar'
-}
-
 export type GruposVidaAdapterInput = {
   session: PlatformSession | null | undefined
   reader: GruposVidaReadRepository
-  familyRelations?: readonly GruposVidaFamilyRelation[]
 }
 
 export type GruposVidaAuthorizedScope = { stageIds: string[]; groupIds: string[] }
@@ -42,12 +36,9 @@ type NormalizedDirectorAssignment = { stageId: string; label: string; groupIds: 
 
 const GDV_STAGE_READ_CAPABILITY = 'grupos_vida.stage.read'
 const GDV_CONTEXT_SOURCE = 'gdv:director_etapa'
-const SCOPE_ID_MAX_LENGTH = 64
-const SCOPE_ID_FIRST_CHARACTER_PATTERN = /^[a-z0-9]$/
-const SCOPE_ID_ALLOWED_CHARACTERS_PATTERN = /^[a-z0-9._:-]+$/
 
 export async function resolveGruposVidaPlatformContext(input: GruposVidaAdapterInput): Promise<GruposVidaAdapterResult> {
-  const personaId = normalizeScopeId(input.session?.personaId)
+  const personaId = normalizePlatformScopeId(input.session?.personaId)
   if (!personaId || !input.session?.subjectAuthId.trim()) {
     return denied('session_required', personaId)
   }
@@ -78,14 +69,14 @@ export async function resolveGruposVidaPlatformContext(input: GruposVidaAdapterI
 }
 
 export function canReadGruposVidaGroup(scope: GruposVidaAuthorizedScope, groupId: string | null | undefined): boolean {
-  const normalizedGroupId = normalizeScopeId(groupId)
+  const normalizedGroupId = normalizePlatformScopeId(groupId)
   return Boolean(normalizedGroupId && new Set(scope.groupIds).has(normalizedGroupId))
 }
 
 export function filterGruposVidaRecordsByScope<T>(scope: GruposVidaAuthorizedScope, records: readonly T[], selectGroupId: (record: T) => string | null | undefined): T[] {
   const allowedGroupIds = new Set(scope.groupIds)
   return records.filter((record) => {
-    const groupId = normalizeScopeId(selectGroupId(record))
+    const groupId = normalizePlatformScopeId(selectGroupId(record))
     return Boolean(groupId && allowedGroupIds.has(groupId))
   })
 }
@@ -93,9 +84,9 @@ export function filterGruposVidaRecordsByScope<T>(scope: GruposVidaAuthorizedSco
 function normalizeDirectorAssignments(assignments: readonly GruposVidaDirectorEtapaAssignment[], personaId: string): NormalizedDirectorAssignment[] | null {
   const byStageId = new Map<string, NormalizedDirectorAssignment>()
   for (const assignment of assignments) {
-    const assignmentPersonaId = normalizeScopeId(assignment.personaId)
-    const directorEtapaId = normalizeScopeId(assignment.directorEtapaId)
-    const stageId = normalizeScopeId(assignment.segmentoId)
+    const assignmentPersonaId = normalizePlatformScopeId(assignment.personaId)
+    const directorEtapaId = normalizePlatformScopeId(assignment.directorEtapaId)
+    const stageId = normalizePlatformScopeId(assignment.segmentoId)
     const groupIds = normalizeGroupIds(assignment.assignedGroupIds)
     if (!assignmentPersonaId || assignmentPersonaId !== personaId || !directorEtapaId || !stageId || !groupIds) {
       return null
@@ -111,11 +102,11 @@ function normalizeDirectorAssignments(assignments: readonly GruposVidaDirectorEt
 function normalizeGroupIds(groupIds: readonly string[]): string[] | null {
   const normalizedGroupIds: string[] = []
   for (const groupId of groupIds) {
-    const normalizedGroupId = normalizeScopeId(groupId)
+    const normalizedGroupId = normalizePlatformScopeId(groupId)
     if (!normalizedGroupId) return null
     normalizedGroupIds.push(normalizedGroupId)
   }
-  return uniqueSorted(normalizedGroupIds)
+  return normalizedGroupIds.length > 0 ? uniqueSorted(normalizedGroupIds) : null
 }
 
 function toAuthorizedScope(assignments: readonly NormalizedDirectorAssignment[]): GruposVidaAuthorizedScope {
@@ -147,13 +138,6 @@ function denied(reason: GruposVidaAdapterDeniedReason, personaId?: string): Grup
 function formatStageLabel(label: string | null, stageId: string): string {
   const cleanLabel = label?.trim()
   return `Grupos de Vida — ${cleanLabel || stageId}`
-}
-
-function normalizeScopeId(value: string | null | undefined): string | undefined {
-  const normalized = value?.trim().toLowerCase()
-  if (!normalized || normalized.length > SCOPE_ID_MAX_LENGTH) return undefined
-  if (!SCOPE_ID_FIRST_CHARACTER_PATTERN.test(normalized[0] ?? '')) return undefined
-  return SCOPE_ID_ALLOWED_CHARACTERS_PATTERN.test(normalized) ? normalized : undefined
 }
 
 function uniqueSorted(values: readonly string[]): string[] {
