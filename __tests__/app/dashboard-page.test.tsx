@@ -1,6 +1,7 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { canReviewHostHomes } from '@/lib/casas-anfitrionas/review-roles'
+import type { PlatformSession } from '@/lib/platform/session/types'
 
 const obtenerDatosDashboard = jest.fn()
 const obtenerGruposSinCasaAnfitriona = jest.fn()
@@ -12,11 +13,37 @@ jest.mock('@/lib/actions/casas-anfitrionas.actions', () => ({
   obtenerGruposSinCasaAnfitriona: (input: unknown) => obtenerGruposSinCasaAnfitriona(input),
 }))
 jest.mock('@/components/layout/dashboard-layout', () => ({ DashboardLayout: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }))
-jest.mock('@/components/ui/sistema-diseno', () => ({ ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo: string }) => <section><h1>{titulo}</h1>{children}</section> }))
+jest.mock('@/components/ui/sistema-diseno', () => ({
+  ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo: string }) => <section><h1>{titulo}</h1>{children}</section>,
+  TarjetaSistema: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TextoSistema: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  TituloSistema: ({ children, id, nivel = 1 }: { children: React.ReactNode; id?: string; nivel?: 1 | 2 | 3 | 4 }) => {
+    if (nivel === 2) return <h2 id={id}>{children}</h2>
+    if (nivel === 3) return <h3 id={id}>{children}</h3>
+    if (nivel === 4) return <h4 id={id}>{children}</h4>
+    return <h1 id={id}>{children}</h1>
+  },
+}))
 jest.mock('@/components/dashboard/roles/DashboardAdmin', () => ({ __esModule: true, default: ({ data, rol }: DashboardRoleProbeProps) => <DashboardRoleProbe data={data} name={`admin:${rol}`} /> }))
 jest.mock('@/components/dashboard/roles/DashboardDirector', () => ({ __esModule: true, default: ({ data }: DashboardRoleProbeProps) => <DashboardRoleProbe data={data} name="director" /> }))
 jest.mock('@/components/dashboard/roles/DashboardLider', () => ({ __esModule: true, default: ({ data }: DashboardRoleProbeProps) => <DashboardRoleProbe data={data} name="lider" /> }))
 jest.mock('@/components/dashboard/roles/DashboardMiembro', () => ({ __esModule: true, default: ({ data }: DashboardRoleProbeProps) => <DashboardRoleProbe data={data} name="miembro" /> }))
+
+const originalPlatformNavigationEnabled = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
+const originalPlatformNavigationKillSwitch = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH
+
+type PlatformNavigationTestEnv = {
+  enabled?: 'true'
+  killSwitch?: 'true'
+}
+
+const basePlatformSession: PlatformSession = {
+  personaId: 'persona-1',
+  subjectAuthId: 'auth-1',
+  globalRoles: [],
+  contexts: [],
+  capabilities: [],
+}
 
 type DashboardRoleProbeProps = {
   data: {
@@ -55,6 +82,52 @@ describe('dashboard host-home queue loading', () => {
   afterEach(() => {
     jest.useRealTimers()
     jest.restoreAllMocks()
+    restoreEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED', originalPlatformNavigationEnabled)
+    restoreEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH', originalPlatformNavigationKillSwitch)
+  })
+
+  it('renders visible contextual access behind the platform flag without replacing the role dashboard', async () => {
+    setPlatformNavigationTestEnv({ enabled: 'true' })
+    obtenerDatosDashboard.mockResolvedValue({
+      rol: 'miembro',
+      widgets: {},
+      platformSession: withPlatformCapabilities([
+        { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
+      ], [
+        { experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', label: 'Grupos de Vida — Adultos' },
+      ]),
+    })
+    const { default: PaginaTablero } = await import('@/app/(auth)/dashboard/page')
+
+    render(await PaginaTablero())
+
+    expect(screen.getByTestId('role-probe')).toHaveTextContent('miembro')
+    expect(screen.getByRole('heading', { name: 'Contextos visibles' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Abrir Grupos de Vida — Adultos' })).toHaveAttribute('href', '/grupos-vida')
+    expect(screen.queryByRole('link', { name: 'Abrir DPS Música' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['feature flag is off', {}, withPlatformCapabilities([
+      { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
+    ])],
+    ['kill switch is active', { enabled: 'true', killSwitch: 'true' }, withPlatformCapabilities([
+      { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
+    ])],
+    ['platform session is missing', { enabled: 'true' }, null],
+    ['no verified platform route is available', { enabled: 'true' }, withPlatformCapabilities([
+      { key: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'dream-team' },
+    ])],
+  ] satisfies Array<[string, PlatformNavigationTestEnv, PlatformSession | null]>)('preserves the legacy dashboard with no contextual section when the %s', async (_label, env, platformSession) => {
+    setPlatformNavigationTestEnv(env)
+    obtenerDatosDashboard.mockResolvedValue({ rol: 'miembro', widgets: {}, platformSession })
+    const { default: PaginaTablero } = await import('@/app/(auth)/dashboard/page')
+
+    render(await PaginaTablero())
+
+    expect(screen.getByTestId('role-probe')).toHaveTextContent('miembro')
+    expect(screen.queryByRole('heading', { name: 'Contextos visibles' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Abrir / })).not.toBeInTheDocument()
   })
 
   it('loads active host-home queues through server-action wrappers for operational roles', async () => {
@@ -169,6 +242,23 @@ describe('dashboard host-home queue loading', () => {
     expect(screen.getByTestId('role-probe')).toHaveTextContent('pending-degraded:false')
   })
 })
+
+function restoreEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key]
+    return
+  }
+  process.env[key] = value
+}
+
+function setPlatformNavigationTestEnv(env: PlatformNavigationTestEnv) {
+  restoreEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED', env.enabled)
+  restoreEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH', env.killSwitch)
+}
+
+function withPlatformCapabilities(capabilities: PlatformSession['capabilities'], contexts: PlatformSession['contexts'] = []): PlatformSession {
+  return { ...basePlatformSession, contexts, capabilities }
+}
 
 describe('host-home review role predicate', () => {
   it('keeps review access scoped to admin, pastor, and director-general roles', () => {
