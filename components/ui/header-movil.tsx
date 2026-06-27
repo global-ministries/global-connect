@@ -18,8 +18,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { cn } from '@/lib/utils'
 import { useBranding } from '@/hooks/useBranding'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import { resolvePlatformNavigation, resolvePlatformNavigationGate } from '@/lib/platform/navigation'
-import type { PlatformNavigationFlags, PlatformNavigationItem, PlatformNavigationItemId } from '@/lib/platform/navigation'
+import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
 
 // ── SubItem type ──
 interface SubItem {
@@ -43,18 +42,6 @@ interface MobileMenuItem {
 }
 
 const SUPPORT_CONFIGURATION_ROLES = ['admin', 'pastor', 'director-general']
-
-const PLATFORM_NAVIGATION_ICONS = {
-  grupos_vida_stage: UserCheck,
-  dps_team_service: Megaphone,
-  ninos_room_context: Users,
-  estudiantes_room_context: Users,
-  talleres_participation: ClipboardList,
-  dps_admin: Settings,
-  nextgen_admin: Settings,
-  talleres_admin: Settings,
-  uno_a_uno_global: User,
-} satisfies Record<PlatformNavigationItemId, React.ComponentType<{ className?: string }>>
 
 const mainMenuItems: MobileMenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
@@ -105,26 +92,6 @@ function formatearRol(roles: string[]): string {
   return map[roles[0]] ?? roles[0].charAt(0).toUpperCase() + roles[0].slice(1)
 }
 
-function getBuildTimePlatformNavigationFlags(): PlatformNavigationFlags {
-  return {
-    enabled: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED === 'true',
-    killSwitch: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH === 'true',
-  }
-}
-
-function clearPlatformNavigationItems(setItems: React.Dispatch<React.SetStateAction<MobileMenuItem[]>>) {
-  setItems((current) => (current.length > 0 ? [] : current))
-}
-
-function toPlatformMobileMenuItem(item: PlatformNavigationItem): MobileMenuItem {
-  return {
-    id: `platform-${item.id}-${item.scope.type}-${item.scope.id ?? 'global'}`,
-    label: item.label,
-    icon: PLATFORM_NAVIGATION_ICONS[item.id],
-    href: item.href,
-  }
-}
-
 // ════════════════════════════════════════
 // Mobile Header + Drawer
 // ════════════════════════════════════════
@@ -140,9 +107,9 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set())
-  const [platformNavigationItems, setPlatformNavigationItems] = useState<MobileMenuItem[]>([])
   const pathname = usePathname()
   const { usuario, roles, supportCapabilities = [], platformSession, loading } = useCurrentUser()
+  const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
   const branding = useBranding()
   const toast = useNotificaciones()
   const { theme, setTheme } = useTheme()
@@ -168,37 +135,6 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       return merged
     })
   }, [pathname, platformNavigationItems])
-
-  useEffect(() => {
-    const flags = getBuildTimePlatformNavigationFlags()
-    const gate = resolvePlatformNavigationGate({ flags, platformSession })
-    if (!gate.ok) {
-      clearPlatformNavigationItems(setPlatformNavigationItems)
-      return
-    }
-
-    let isCurrent = true
-
-    resolvePlatformNavigation({
-      flags,
-      platformSession: gate.platformSession,
-    })
-      .then((resolution) => {
-        if (!isCurrent) return
-        setPlatformNavigationItems(
-          resolution.mode === 'platform'
-            ? resolution.visibleItems.map(toPlatformMobileMenuItem)
-            : []
-        )
-      })
-      .catch(() => {
-        if (isCurrent) setPlatformNavigationItems([])
-      })
-
-    return () => {
-      isCurrent = false
-    }
-  }, [platformSession])
 
   const toggleSubmenu = (id: string) => {
     setOpenSubmenus(prev => {
