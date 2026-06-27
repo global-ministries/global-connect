@@ -50,6 +50,7 @@ Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
   - Issue #214: primer slice interno crea `lib/platform/navigation.ts` con resolver/modelo puro, flag/kill switch, fallback legado deny-by-default y tests; sin wiring visible de sidebar/header/mobile/dashboard.
   - Issue #216: slice sidebar-only cablea `sidebar-moderna.tsx` al resolver contextual detrás de flag/kill switch, conserva fallback legado y agrega tests de scope permitido/denegaciones globales; header/mobile/dashboard siguen pendientes.
   - Issue #218: slice header mobile cablea `header-movil.tsx` al resolver contextual detrás de flag/kill switch; conserva fallback legado y prueba scope permitido, kill switch y supresión de rutas no disponibles/accesos globales. `menu-inferior-movil.tsx` y dashboard siguen pendientes.
+  - Issue #220: slice menú inferior móvil cablea `menu-inferior-movil.tsx` al helper contextual compartido detrás de flag/kill switch para presentación de navegación UI; conserva fallback legado solo con flag off, kill switch o carga finalizada sin sesión de plataforma, y no presenta enlaces legacy/globales mientras `useCurrentUser` carga, una sesión de plataforma resuelve, cambia de sesión o queda sin ítems visibles. No implementa ni afirma autorización de rutas directas; dashboard y task 3.3 siguen pendientes.
 - [ ] 3.3 Verificar rutas directas denegadas, fallback legado si adapters fallan, y no mostrar DPS admin, NextGen, taller admin ni 1:1 global.
 
 ## Fase 4: Familia y menores
