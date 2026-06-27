@@ -3,19 +3,42 @@ import { getUserWithRoles } from '@/lib/getUserWithRoles'
 import { getTotalUsuarios } from '@/lib/dashboard/getTotalUsuarios'
 import { getTotalGruposActivos } from '@/lib/dashboard/getTotalGruposActivos'
 import { getDistribucionSegmentos } from '@/lib/dashboard/getDistribucionSegmentos'
+import type { PlatformSession } from '@/lib/platform/session/types'
 
 export interface DatosWidgets {
-  [clave: string]: any
+  [clave: string]: unknown
 }
 
 export interface RespuestaDashboard {
   rol: string
   widgets: DatosWidgets
+  platformSession: PlatformSession | null
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function toDashboardWidgets(value: unknown): DatosWidgets {
+  return isRecord(value) ? { ...value } : {}
+}
+
+function toDashboardRole(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.trim() ? value : fallback
+}
+
+function ensureKpisGlobales(widgets: DatosWidgets): Record<string, unknown> {
+  if (isRecord(widgets.kpis_globales)) return widgets.kpis_globales
+
+  const kpisGlobales: Record<string, unknown> = {}
+  widgets.kpis_globales = kpisGlobales
+  return kpisGlobales
 }
 
 export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
   const supabase = await createSupabaseServerClient()
   const userData = await getUserWithRoles(supabase)
+  const platformSession = userData?.platformSession ?? null
   const { data: auth } = await supabase.auth.getUser()
   const authId = auth?.user?.id || userData?.user?.id || ''
 
@@ -31,20 +54,20 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
   try {
     const { data: rpcData, error } = await supabase.rpc('obtener_datos_dashboard', { p_auth_id: authId })
     if (!error && rpcData) {
-      const d = rpcData as any
-      const rolRpc = d.rol || rolPrincipal
-      const widgets = d.widgets || {}
+      const d = isRecord(rpcData) ? rpcData : {}
+      const rolRpc = toDashboardRole(d.rol, rolPrincipal)
+      const widgets = toDashboardWidgets(d.widgets)
 
       // Fallbacks mínimos si faltan datos (skip for DG, their data is already scoped)
       if (rolRpc !== 'director-general') {
-        if (!widgets.kpis_globales) widgets.kpis_globales = {}
-        if (widgets.kpis_globales.total_miembros == null) {
+        const kpisGlobales = ensureKpisGlobales(widgets)
+        if (kpisGlobales.total_miembros == null) {
           const total = await getTotalUsuarios()
-          if (total != null) widgets.kpis_globales.total_miembros = { valor: total }
+          if (total != null) kpisGlobales.total_miembros = { valor: total }
         }
-        if (widgets.kpis_globales.grupos_activos == null) {
+        if (kpisGlobales.grupos_activos == null) {
           const totalGrupos = await getTotalGruposActivos()
-          if (totalGrupos != null) widgets.kpis_globales.grupos_activos = { valor: totalGrupos }
+          if (totalGrupos != null) kpisGlobales.grupos_activos = { valor: totalGrupos }
         }
         if (!Array.isArray(widgets.distribucion_segmentos) || widgets.distribucion_segmentos.length === 0) {
           const dist = await getDistribucionSegmentos()
@@ -54,7 +77,7 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
         }
       }
 
-      return { rol: rolRpc, widgets }
+      return { rol: rolRpc, widgets, platformSession }
     }
     if (error) {
       console.error('obtener_datos_dashboard RPC error:', error)
@@ -78,8 +101,11 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
       p_fecha_semana: undefined,
       p_incluir_todos: true,
     })
-    if (rep && (rep as any).kpis_globales && (rep as any).kpis_globales.porcentaje_asistencia_global != null) {
-      asistenciaSemanalFB = Number((rep as any).kpis_globales.porcentaje_asistencia_global)
+    const reporteSemanal = isRecord(rep) ? rep : null
+    const kpisReporte = reporteSemanal && isRecord(reporteSemanal.kpis_globales) ? reporteSemanal.kpis_globales : null
+    const porcentajeAsistencia = kpisReporte?.porcentaje_asistencia_global
+    if (porcentajeAsistencia != null) {
+      asistenciaSemanalFB = Number(porcentajeAsistencia)
     }
   } catch {}
 
@@ -95,7 +121,7 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
     if (typeof count === 'number') nuevosMiembros30FB = count
   } catch {}
 
-  const widgetsFB: any = {
+  const widgetsFB: DatosWidgets = {
     kpis_globales: {
       ...(totalUsuariosFB != null ? { total_miembros: { valor: totalUsuariosFB } } : {}),
       ...(asistenciaSemanalFB != null ? { asistencia_semanal: { valor: asistenciaSemanalFB } } : {}),
@@ -111,5 +137,5 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
     grupos_en_riesgo: [],
   }
 
-  return { rol: rolPrincipal, widgets: widgetsFB }
+  return { rol: rolPrincipal, widgets: widgetsFB, platformSession }
 }
