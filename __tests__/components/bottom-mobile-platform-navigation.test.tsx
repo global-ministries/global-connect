@@ -79,18 +79,43 @@ describe('MenuInferiorMovil platform navigation', () => {
     expect(screen.getByLabelText('Navegar a Ayuda')).toHaveAttribute('href', '/ayuda')
   })
 
-  it('does not show legacy bottom navigation while the user session is still loading with platform navigation enabled', () => {
+  it('shows legacy bottom navigation while loading when no platform items are resolved yet', () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    currentLoading = true
+    currentPlatformSession = withCapabilities([])
+
+    render(<MenuInferiorMovil />)
+
+    expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
+    expect(screen.getByLabelText('Navegar a Usuarios')).toHaveAttribute('href', '/users')
+    expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
+    expect(screen.getByLabelText('Navegar a Ayuda')).toHaveAttribute('href', '/ayuda')
+  })
+
+  it('shows legacy bottom navigation while loading with a null platform session and the flag on (#224 reload)', () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentLoading = true
     currentPlatformSession = null
 
     render(<MenuInferiorMovil />)
 
-    expect(screen.queryAllByRole('link')).toHaveLength(0)
-    expect(screen.queryByLabelText('Navegar a Dashboard')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Navegar a Grupos de Vida')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Navegar a Ayuda')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
+    expect(screen.getByLabelText('Navegar a Usuarios')).toHaveAttribute('href', '/users')
+    expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
+    expect(screen.getByLabelText('Navegar a Ayuda')).toHaveAttribute('href', '/ayuda')
+  })
+
+  it('shows legacy bottom navigation for a regular member after loading completes', () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    currentLoading = false
+    currentPlatformSession = withCapabilities([])
+
+    render(<MenuInferiorMovil />)
+
+    expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
+    expect(screen.getByLabelText('Navegar a Usuarios')).toHaveAttribute('href', '/users')
+    expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
+    expect(screen.getByLabelText('Navegar a Ayuda')).toHaveAttribute('href', '/ayuda')
   })
 
   it('shows scoped platform navigation when the flag is on and the route is available', async () => {
@@ -111,7 +136,7 @@ describe('MenuInferiorMovil platform navigation', () => {
     expect(screen.queryByLabelText('Navegar a Ayuda')).not.toBeInTheDocument()
   })
 
-  it('hides previously resolved platform links while the user session reloads', async () => {
+  it('preserves previously resolved platform links while the user session reloads', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPlatformSession = withCapabilities([
       { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
@@ -125,8 +150,7 @@ describe('MenuInferiorMovil platform navigation', () => {
     currentLoading = true
     rerender(<MenuInferiorMovil />)
 
-    expect(screen.queryAllByRole('link')).toHaveLength(0)
-    expect(screen.queryByLabelText('Navegar a Grupos de Vida — Adultos')).not.toBeInTheDocument()
+    expect(await screen.findByLabelText('Navegar a Grupos de Vida — Adultos')).toHaveAttribute('href', '/grupos-vida')
     expect(screen.queryByLabelText('Navegar a Dashboard')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Ayuda')).not.toBeInTheDocument()

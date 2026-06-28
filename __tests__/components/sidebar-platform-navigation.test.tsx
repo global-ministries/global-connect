@@ -5,6 +5,8 @@ import type { PlatformSession } from '@/lib/platform/session/types'
 
 let currentRoles = ['miembro']
 let currentPlatformSession: PlatformSession | null = null
+let currentLoading = false
+let currentUsuario: { id: string } | null = null
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
@@ -12,11 +14,11 @@ jest.mock('next/navigation', () => ({
 }))
 jest.mock('@/hooks/useCurrentUser', () => ({
   useCurrentUser: () => ({
-    usuario: null,
+    usuario: currentUsuario,
     roles: currentRoles,
     supportCapabilities: [],
     platformSession: currentPlatformSession,
-    loading: false,
+    loading: currentLoading,
     error: null,
   }),
 }))
@@ -37,6 +39,8 @@ describe('SidebarModerna platform navigation', () => {
   beforeEach(() => {
     currentRoles = ['miembro']
     currentPlatformSession = null
+    currentLoading = false
+    currentUsuario = null
     delete process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
     delete process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH
   })
@@ -51,6 +55,44 @@ describe('SidebarModerna platform navigation', () => {
 
     expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
     expect(screen.queryByRole('link', { name: 'DPS Música' })).not.toBeInTheDocument()
+  })
+
+  it('keeps gated legacy items visible while loading after they were already resolved', () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    currentRoles = ['admin']
+    currentPlatformSession = null
+
+    const { rerender } = render(<SidebarModerna />)
+    expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
+
+    currentLoading = true
+    currentRoles = []
+    rerender(<SidebarModerna />)
+
+    expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
+  })
+
+  it('retains gated legacy items for a signed-in admin during loading and removes them after sign-out', () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    currentRoles = ['admin']
+    currentUsuario = { id: 'usuario-1' }
+    currentPlatformSession = null
+
+    const { rerender } = render(<SidebarModerna />)
+    expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
+
+    currentLoading = true
+    currentRoles = []
+    rerender(<SidebarModerna />)
+
+    expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
+
+    currentLoading = false
+    currentRoles = []
+    currentUsuario = null
+    rerender(<SidebarModerna />)
+
+    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
   })
 
   it('shows scoped platform navigation when the flag is on and the route is available', async () => {

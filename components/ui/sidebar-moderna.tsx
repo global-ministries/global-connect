@@ -26,12 +26,13 @@ import {
   ClipboardList
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
-import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { useCachedAccessCredentials } from '@/hooks/useCachedAccessCredentials'
 import { logout } from '@/lib/actions/auth.actions'
 import { ThemeToggle } from './theme-toggle'
 import { useBranding } from '@/hooks/useBranding'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
+import { canAccess } from '@/lib/navigation/canAccess'
 
 interface SidebarModernaProps {
   className?: string
@@ -125,6 +126,13 @@ const footerItems: MenuItem[] = [
   },
 ]
 
+// ─── Active indicator pill ───
+function ActivePill() {
+  return (
+    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--brand-primary)] rounded-r-full animate-bounce-spring" />
+  )
+}
+
 /**
  * Sidebar principal con navegación, submenús colapsables, selector de campus.
  * Incluye modal de confirmación de logout y tooltips en modo colapsado.
@@ -138,6 +146,16 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { usuario, roles, supportCapabilities = [], platformSession, loading } = useCurrentUser()
+
+  // Restore collapsed preference after mount to avoid SSR/client mismatch (#224)
+  useEffect(() => {
+    const saved = window.localStorage.getItem('sidebar-collapsed')
+    /* eslint-disable react-hooks/set-state-in-effect -- restoring persisted UI preference after mount (pre-existing pattern) */
+    setIsCollapsed(parseSidebarCollapsed(saved))
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [])
+  const effectiveRoles = useCachedAccessCredentials({ values: roles, loading, isSignedIn: !!usuario })
+  const effectiveSupportCapabilities = useCachedAccessCredentials({ values: supportCapabilities, loading, isSignedIn: !!usuario })
   const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
   const branding = useBranding()
   const primaryMenuItems = [...menuItems, ...platformNavigationItems]
@@ -164,6 +182,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         }
       }
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincronización de submenús activos con la ruta actual (patrón preexistente)
     setOpenSubmenus(prev => {
       // Merge: keep manually opened ones, add auto-opened ones
       const merged = new Set(prev)
@@ -171,24 +190,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
       return merged
     })
   }, [pathname])
-
-  // Formatear roles para mostrar
-  const formatearRoles = (roles: string[]): string => {
-    if (!roles || roles.length === 0) return 'Usuario'
-
-    const rolesAmigables = roles.map(rol => {
-      switch (rol) {
-        case 'admin': return 'Administrador'
-        case 'lider': return 'Líder'
-        case 'coordinador': return 'Coordinador'
-        case 'voluntario': return 'Voluntario'
-        case 'miembro': return 'Miembro'
-        default: return rol.charAt(0).toUpperCase() + rol.slice(1)
-      }
-    })
-
-    return rolesAmigables[0]
-  }
 
   // Detectar si es móvil
   useEffect(() => {
@@ -203,14 +204,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-
-  // Cargar estado del localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('sidebar-collapsed')
-    if (saved !== null && !isMobile) {
-      setIsCollapsed(JSON.parse(saved))
-    }
-  }, [isMobile])
 
   // Guardar estado en localStorage
   const toggleSidebar = () => {
@@ -261,12 +254,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     return isActive(item.href)
   }
 
-  const canAccess = (item: Pick<MenuItem, 'roles' | 'capabilities'>): boolean => {
-    const hasRequiredRole = !item.roles || item.roles.some((role) => roles.includes(role))
-    const hasRequiredCapability = !item.capabilities || item.capabilities.some((capability) => supportCapabilities.includes(capability))
-
-    return hasRequiredRole && hasRequiredCapability
-  }
+  const accessCredentials = { roles: effectiveRoles, supportCapabilities: effectiveSupportCapabilities }
 
   // ─── Shared link styles ───
   const linkClasses = (active: boolean) => cn(
@@ -296,11 +284,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
 
   // ─── Sidebar width for fixed tooltip positioning ───
   const sidebarWidth = isCollapsed ? 64 : 256
-
-  // ─── Active indicator pill ───
-  const ActivePill = () => (
-    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--brand-primary)] rounded-r-full animate-bounce-spring" />
-  )
 
   return (
     <>
@@ -358,12 +341,12 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         <nav className="flex-1 px-3 py-2 overflow-y-auto" aria-label="Navegación principal">
           <ul className="space-y-0.5">
             {primaryMenuItems
-              .filter(canAccess)
+              .filter((item) => canAccess(item, accessCredentials))
               .map((item) => {
                 const Icon = item.icon
                 // Filter children by access — if none are visible, treat as simple link
                 const visibleChildren = item.children?.filter(
-                  canAccess
+                  (child) => canAccess(child, accessCredentials)
                 ) ?? []
                 const hasChildren = visibleChildren.length > 0
                 const parentActive = isParentActive(item)
@@ -661,15 +644,21 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   )
 }
 
+function parseSidebarCollapsed(saved: string | null): boolean {
+  if (saved === null) return false
+  const parsed = JSON.parse(saved)
+  return parsed === true || parsed === false ? parsed : false
+}
+
 /** Hook para leer el estado colapsado del sidebar desde localStorage. */
 export function useSidebarModerna() {
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('sidebar-collapsed')
-    if (saved !== null) {
-      setIsCollapsed(JSON.parse(saved))
-    }
+    const saved = window.localStorage.getItem('sidebar-collapsed')
+    /* eslint-disable react-hooks/set-state-in-effect -- restoring persisted UI preference after mount (pre-existing pattern) */
+    setIsCollapsed(parseSidebarCollapsed(saved))
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
 
   return { isCollapsed }

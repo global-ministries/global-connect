@@ -32,17 +32,19 @@ export function MenuInferiorMovil() {
     flags: platformNavigationFlags,
     platformSession,
   })
-  const shouldRenderLegacyNavigation = !platformNavigationFlags.enabled ||
-    platformNavigationFlags.killSwitch ||
-    (!loading && !platformNavigationGate.ok)
-  const shouldSuppressNavigationWhileLoading = platformNavigationFlags.enabled &&
-    !platformNavigationFlags.killSwitch &&
-    loading
-  const navigationItems = shouldSuppressNavigationWhileLoading
+  // #224 navigation states: legacy links while loading/flag-off/kill-switch; resolved platform
+  // items once available; fail-closed empty when a scoped platform session exists but has no
+  // visible routes, so we never fall back to global legacy links in that case.
+  const hasPlatformNavigationItems = platformNavigationItems.length > 0
+  const hasPlatformCapabilities = (platformSession?.capabilities.length ?? 0) > 0
+  const showPlatformItems = hasPlatformNavigationItems && (loading || platformNavigationGate.ok)
+  const suppressLegacyForFailClosed = !loading && platformNavigationGate.ok && !hasPlatformNavigationItems && hasPlatformCapabilities
+
+  const navigationItems = suppressLegacyForFailClosed
     ? []
-    : shouldRenderLegacyNavigation
-      ? elementosMenu
-      : toMenuInferiorMovilItems(platformNavigationItems)
+    : showPlatformItems
+      ? toMenuInferiorMovilItems(platformNavigationItems)
+      : elementosMenu
 
   return (
     <nav aria-label="Navegación inferior" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-t border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">

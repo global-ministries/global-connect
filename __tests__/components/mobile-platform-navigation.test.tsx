@@ -6,6 +6,7 @@ import type { PlatformSession } from '@/lib/platform/session/types'
 
 let currentRoles = ['miembro']
 let currentPlatformSession: PlatformSession | null = null
+let currentLoading = false
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
@@ -16,7 +17,7 @@ jest.mock('@/hooks/useCurrentUser', () => ({
     roles: currentRoles,
     supportCapabilities: [],
     platformSession: currentPlatformSession,
-    loading: false,
+    loading: currentLoading,
     error: null,
   }),
 }))
@@ -38,6 +39,7 @@ describe('HeaderMovil platform navigation', () => {
   beforeEach(() => {
     currentRoles = ['miembro']
     currentPlatformSession = null
+    currentLoading = false
     delete process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
     delete process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH
   })
@@ -58,6 +60,22 @@ describe('HeaderMovil platform navigation', () => {
 
     expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
     expect(screen.queryByRole('link', { name: 'DPS Música' })).not.toBeInTheDocument()
+  })
+
+  it('keeps gated legacy items visible while loading after they were already resolved', async () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    currentRoles = ['admin']
+    currentPlatformSession = null
+
+    const { rerender } = render(<HeaderMovil />)
+    await userEvent.click(screen.getByLabelText('Abrir menú'))
+    expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
+
+    currentLoading = true
+    currentRoles = []
+    rerender(<HeaderMovil />)
+
+    expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
   })
 
   it('shows scoped platform navigation in the mobile drawer when the flag is on and the route is available', async () => {
