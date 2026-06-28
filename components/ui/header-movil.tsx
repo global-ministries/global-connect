@@ -15,10 +15,12 @@ import {
 import { useTheme } from 'next-themes'
 import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { useCachedAccessCredentials } from '@/hooks/useCachedAccessCredentials'
 import { cn } from '@/lib/utils'
 import { useBranding } from '@/hooks/useBranding'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
+import { canAccess } from '@/lib/navigation/canAccess'
 
 // ── SubItem type ──
 interface SubItem {
@@ -109,6 +111,8 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set())
   const pathname = usePathname()
   const { usuario, roles, supportCapabilities = [], platformSession, loading } = useCurrentUser()
+  const effectiveRoles = useCachedAccessCredentials({ values: roles, loading, isSignedIn: !!usuario })
+  const effectiveSupportCapabilities = useCachedAccessCredentials({ values: supportCapabilities, loading, isSignedIn: !!usuario })
   const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
   const branding = useBranding()
   const toast = useNotificaciones()
@@ -129,6 +133,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
         }
       }
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincronización de submenús activos con la ruta actual (patrón preexistente)
     setOpenSubmenus(prev => {
       const merged = new Set(prev)
       newOpen.forEach(id => merged.add(id))
@@ -150,6 +155,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
 
   // Close on route change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- cierre del drawer al navegar (patrón preexistente)
     setDrawerOpen(false)
     setUserMenuOpen(false)
   }, [pathname])
@@ -189,12 +195,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
 
-  const canAccess = (item: Pick<MobileMenuItem, 'roles' | 'capabilities'>): boolean => {
-    const hasRequiredRole = !item.roles || item.roles.some((role) => roles.includes(role))
-    const hasRequiredCapability = !item.capabilities || item.capabilities.some((capability) => supportCapabilities.includes(capability))
-
-    return hasRequiredRole && hasRequiredCapability
-  }
+  const accessCredentials = { roles: effectiveRoles, supportCapabilities: effectiveSupportCapabilities }
 
   const isActive = (href: string): boolean => {
     return pathname === href ||
@@ -456,11 +457,11 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
         <nav className="flex-1 overflow-y-auto px-3 py-1">
           <ul className="space-y-0.5">
             {primaryMenuItems
-              .filter(canAccess)
+              .filter((item) => canAccess(item, accessCredentials))
               .map(item => {
               const Icon = item.icon
               const visibleChildren = item.children?.filter(
-                canAccess
+                (child) => canAccess(child, accessCredentials)
               ) ?? []
               const hasChildren = visibleChildren.length > 0
               const active = isActive(item.href)

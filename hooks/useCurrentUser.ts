@@ -24,6 +24,7 @@ type CurrentUserResult = Omit<CurrentUserData, 'loading' | 'error'>
   & { authUserId: string | null }
 
 const CURRENT_USER_CACHE_TTL_MS = 15_000
+const SIGNED_IN_DEBOUNCE_MS = 150
 let currentUserCache: { authUserId: string | null; expiresAt: number; value: CurrentUserResult } | null = null
 let currentUserCacheGeneration = 0
 
@@ -117,6 +118,7 @@ export function useCurrentUser(): CurrentUserData {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const authGenerationRef = useRef(0)
+  const signedInDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -157,6 +159,10 @@ export function useCurrentUser(): CurrentUserData {
     const supabase = createClient()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       clearCurrentUserCache()
+      if (signedInDebounceRef.current) {
+        clearTimeout(signedInDebounceRef.current)
+        signedInDebounceRef.current = null
+      }
       if (event === 'SIGNED_OUT') {
         authGenerationRef.current += 1
         setUsuario(null)
@@ -166,11 +172,17 @@ export function useCurrentUser(): CurrentUserData {
         setLoading(false)
       } else if (event === 'SIGNED_IN' && session) {
         authGenerationRef.current += 1
-        fetchCurrentUser()
+        signedInDebounceRef.current = setTimeout(() => {
+          signedInDebounceRef.current = null
+          fetchCurrentUser()
+        }, SIGNED_IN_DEBOUNCE_MS)
       }
     })
 
     return () => {
+      if (signedInDebounceRef.current) {
+        clearTimeout(signedInDebounceRef.current)
+      }
       subscription.unsubscribe()
     }
   }, [])

@@ -216,6 +216,81 @@ describe('useCurrentUser', () => {
     expect(client.auth.getUser).toHaveBeenCalledTimes(4)
   })
 
+  it('debounces rapid SIGNED_IN events to a single refetch', async () => {
+    jest.useFakeTimers()
+    try {
+      const initialDeferred = createDeferred<GetUserResponse>()
+      const user = { id: 'auth-1' }
+      const usuario = { id: 'usuario-1', auth_id: 'auth-1', nombre: 'Staff User' }
+      const { client, triggerAuthStateChange } = setupSupabaseClient([
+        { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: initialDeferred },
+        { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
+      ])
+
+      const { result } = renderHook(() => useCurrentUser())
+
+      await act(async () => {
+        initialDeferred.resolve(getUserResponse(user))
+        await flushPendingPromises()
+      })
+      expect(result.current.loading).toBe(false)
+      const getUserCallsAfterInitial = client.auth.getUser.mock.calls.length
+
+      await act(async () => {
+        triggerAuthStateChange('SIGNED_IN', AUTH_SESSION_PLACEHOLDER)
+        triggerAuthStateChange('SIGNED_IN', AUTH_SESSION_PLACEHOLDER)
+      })
+
+      expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsAfterInitial)
+
+      await act(async () => {
+        jest.runAllTimers()
+        await flushPendingPromises()
+      })
+      expect(result.current.loading).toBe(false)
+      expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsAfterInitial + 2)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('cancels pending SIGNED_IN debounce when SIGNED_OUT happens first', async () => {
+    jest.useFakeTimers()
+    try {
+      const user = { id: 'auth-1' }
+      const usuario = { id: 'usuario-1', auth_id: 'auth-1', nombre: 'Staff User' }
+      const { client, triggerAuthStateChange } = setupSupabaseClient([
+        { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
+      ])
+
+      const { result } = renderHook(() => useCurrentUser())
+      await act(async () => {
+        await flushPendingPromises()
+      })
+      expect(result.current.loading).toBe(false)
+      const getUserCallsAfterInitial = client.auth.getUser.mock.calls.length
+
+      await act(async () => {
+        triggerAuthStateChange('SIGNED_IN', AUTH_SESSION_PLACEHOLDER)
+        triggerAuthStateChange('SIGNED_OUT', null)
+      })
+
+      expect(result.current.loading).toBe(false)
+      expect(result.current.usuario).toBeNull()
+      expect(result.current.roles).toEqual([])
+      expect(result.current.supportCapabilities).toEqual([])
+      expect(result.current.platformSession).toBeNull()
+
+      await act(async () => {
+        jest.runAllTimers()
+        await flushPendingPromises()
+      })
+      expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsAfterInitial)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
 })
 
 function setupSupabaseClient(steps: SupabaseMockStep[]) {
