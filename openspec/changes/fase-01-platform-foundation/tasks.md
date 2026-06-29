@@ -66,7 +66,8 @@ Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
 
 ## Fase 5: Ledger longitudinal y `uno_a_uno` preflight
 
-- [ ] 5.1 Crear `lib/platform/preflight.ts` para bloquear `uno_a_uno` sin baseline/archive/reintroducción formal; test de falla pre-implementación.
+- [x] 5.1 Crear `lib/platform/preflight.ts` para bloquear `uno_a_uno` sin baseline/archive/reintroducción formal; test de falla pre-implementación.
+  - Issue #232: `lib/platform/preflight.ts` + `__tests__/lib/platform/preflight.test.ts`. Preflight puro discriminated-union, sin DB ni imports de `@/lib/supabase/*`; registro mutable solo vía `registerPlatformUnoAUnoDecision`; denegación por defecto con `reason: 'no_formal_decision'` y `PLATFORM_UNO_A_UNO_REQUIRED_STEPS`. R2 aplicado: nombres con prefijo `Platform*`, evidencia discriminada por decisión (`PlatformUnoAUnoBaselineEvidence`, `PlatformUnoAUnoArchiveEvidence`, `PlatformUnoAUnoReintroduceEvidence`) y `PlatformUnoAUnoRegisteredDecision` estrechado a `ok: true`.
 - [ ] 5.2 Crear `lib/platform/participation.ts` con clasificación de sensibilidad, retención, actor/fuente y boundaries de lectura.
 - [ ] 5.3 Probar lectura autorizada, denegación fuera de scope, evento sin permisos y no revelación de existencia de datos sensibles.
 
