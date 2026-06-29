@@ -53,7 +53,8 @@ Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
   - Issue #220: slice menú inferior móvil cablea `menu-inferior-movil.tsx` al helper contextual compartido detrás de flag/kill switch para presentación de navegación UI; conserva fallback legado solo con flag off, kill switch o carga finalizada sin sesión de plataforma, y no presenta enlaces legacy/globales mientras `useCurrentUser` carga, una sesión de plataforma resuelve, cambia de sesión o queda sin ítems visibles. No implementa ni afirma autorización de rutas directas; task 3.3 sigue pendiente.
   - Issue #222: slice dashboard cablea `platformSession` desde `obtenerDatosDashboard()` y agrega una sección pequeña de “Contextos visibles” detrás de flag/kill switch; solo presenta `/grupos-vida` para scope GDV elegible, conserva el dashboard legacy como contenido principal y no implementa autorización de rutas directas.
   - Issue #224 (hotfix): corrige navegación colgada por `loading` atascado en transiciones client-side en `menu-inferior-movil.tsx`, `sidebar-moderna.tsx`, `header-movil.tsx` y `hooks/useCurrentUser.ts`.
-- [ ] 3.3 Verificar rutas directas denegadas, fallback legado si adapters fallan, y no mostrar DPS admin, NextGen, taller admin ni 1:1 global.
+- [x] 3.3 Verificar rutas directas denegadas, fallback legado si adapters fallan, y no mostrar DPS admin, NextGen, taller admin ni 1:1 global.
+  - Issue #226: crear `lib/platform/routeGuard.ts` (`checkPlatformRouteAccess`), `lib/platform/flags.ts` (`getPlatformNavigationFlags`) y aplicar guard a `app/(auth)/configuracion/page.tsx`, `app/(auth)/configuracion/directores-generales/page.tsx` y `app/(auth)/configuracion/soporte/page.tsx`. El helper es un marcador de permiso para Fase 1; cada página decide el redirect con `if (!routeGuard.allowed) redirect('/dashboard')`.
 
 ## Fase 4: Familia y menores
 

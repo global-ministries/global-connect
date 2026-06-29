@@ -3,13 +3,9 @@
 import { useEffect, useState, type ComponentType } from 'react'
 import { ClipboardList, Megaphone, Settings, User, UserCheck, Users } from 'lucide-react'
 
+import { getPlatformNavigationFlags } from '@/lib/platform/flags'
+import type { PlatformNavigationItem, PlatformNavigationItemId, PlatformNavigationSession } from '@/lib/platform/navigation'
 import { resolvePlatformNavigation, resolvePlatformNavigationGate } from '@/lib/platform/navigation'
-import type {
-  PlatformNavigationFlags,
-  PlatformNavigationItem,
-  PlatformNavigationItemId,
-  PlatformNavigationSession,
-} from '@/lib/platform/navigation'
 
 export type PlatformNavigationViewItem = {
   id: string
@@ -41,16 +37,9 @@ const PLATFORM_NAVIGATION_ICONS = {
   uno_a_uno_global: User,
 } satisfies Record<PlatformNavigationItemId, ComponentType<{ className?: string }>>
 
-export function getBuildTimePlatformNavigationFlags(): PlatformNavigationFlags {
-  return {
-    enabled: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED === 'true',
-    killSwitch: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH === 'true',
-  }
-}
-
 export async function resolvePlatformNavigationViewItems(
   platformSession: PlatformNavigationSession | null | undefined,
-  flags: PlatformNavigationFlags = getBuildTimePlatformNavigationFlags()
+  flags: { enabled: boolean; killSwitch?: boolean } = getPlatformNavigationFlags()
 ): Promise<PlatformNavigationViewItem[]> {
   const gate = resolvePlatformNavigationGate({ flags, platformSession })
   if (!gate.ok) return []
@@ -72,7 +61,7 @@ export function usePlatformNavigationViewItems(
   const [state, setState] = useState<PlatformNavigationViewItemsState>({ sessionKey, items: [] })
 
   useEffect(() => {
-    const flags = getBuildTimePlatformNavigationFlags()
+    const flags = getPlatformNavigationFlags()
     const gate = resolvePlatformNavigationGate({ flags, platformSession })
     if (!gate.ok) return
 

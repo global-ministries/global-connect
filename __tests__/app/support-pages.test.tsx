@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react'
+import type { PlatformSession } from '@/lib/platform/session/types'
 
 import AyudaPage from '@/app/(auth)/ayuda/page'
 import SupportAdminPage from '@/app/(auth)/ayuda/admin/page'
@@ -425,9 +426,14 @@ describe('reporter support pages', () => {
   })
 
   it('explains the required access for denied support capability configuration', async () => {
+    setSupportNavigationEnv({ enabled: 'true' })
     const supabase = createSupportCapabilitiesPageSupabase(true)
     createSupabaseServerClient.mockResolvedValue(supabase)
-    getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['miembro'] })
+    getUserWithRoles.mockResolvedValue({
+      user: { id: 'auth-1' },
+      roles: ['miembro'],
+      platformSession: buildSupportPlatformSession([{ key: 'support.manage', experience: 'support', scopeType: 'experience', source: 'legacy' }]),
+    })
 
     await act(async () => {
       render(await SupportCapabilitiesPage())
@@ -439,9 +445,14 @@ describe('reporter support pages', () => {
   })
 
   it('renders support capability configuration for higher-role support managers', async () => {
+    setSupportNavigationEnv({ enabled: 'true' })
     const supabase = createSupportCapabilitiesPageSupabase(true)
     createSupabaseServerClient.mockResolvedValue(supabase)
-    getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['director-general'] })
+    getUserWithRoles.mockResolvedValue({
+      user: { id: 'auth-1' },
+      roles: ['director-general'],
+      platformSession: buildSupportPlatformSession([{ key: 'support.manage', experience: 'support', scopeType: 'experience', source: 'legacy' }]),
+    })
 
     await act(async () => {
       render(await SupportCapabilitiesPage())
@@ -452,6 +463,65 @@ describe('reporter support pages', () => {
     expect(screen.getByRole('button', { name: /Revocar capacidad/i })).toBeInTheDocument()
   })
 })
+
+describe('support capability configuration page platform route guard', () => {
+  const originalEnabled = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
+  const originalKillSwitch = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  afterEach(() => {
+    restoreSupportNavigationEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED', originalEnabled)
+    restoreSupportNavigationEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH', originalKillSwitch)
+  })
+
+  it.each([
+    ['feature flag is off', {}, null],
+    ['kill switch is active', { enabled: 'true', killSwitch: 'true' }, null],
+    ['platform session is missing', { enabled: 'true' }, null],
+    ['platform session has no capabilities', { enabled: 'true' }, buildSupportPlatformSession([])],
+    ['platform session lacks the required capability', { enabled: 'true' }, buildSupportPlatformSession([{ key: 'support.view', experience: 'support', scopeType: 'experience', source: 'legacy' }])],
+  ] satisfies Array<[string, { enabled?: 'true'; killSwitch?: 'true' }, PlatformSession | null]>)('redirects to /dashboard when the %s', async (_label, env, platformSession) => {
+    setSupportNavigationEnv(env)
+    createSupabaseServerClient.mockResolvedValue(createSupportCapabilitiesPageSupabase(true))
+    getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['director-general'], platformSession })
+
+    await expect(SupportCapabilitiesPage()).rejects.toThrow(/NEXT_REDIRECT:\/dashboard/)
+  })
+
+  it('renders the configuration UI when the platform flag is on and the required capability is present', async () => {
+    setSupportNavigationEnv({ enabled: 'true' })
+    createSupabaseServerClient.mockResolvedValue(createSupportCapabilitiesPageSupabase(true))
+    getUserWithRoles.mockResolvedValue({
+      user: { id: 'auth-1' },
+      roles: ['director-general'],
+      platformSession: buildSupportPlatformSession([{ key: 'support.manage', experience: 'support', scopeType: 'experience', source: 'legacy' }]),
+    })
+
+    await act(async () => { render(await SupportCapabilitiesPage()) })
+
+    expect(screen.getByRole('heading', { name: /Capacidades permitidas/i })).toBeInTheDocument()
+  })
+})
+
+function restoreSupportNavigationEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key]
+    return
+  }
+  process.env[key] = value
+}
+
+function setSupportNavigationEnv(env: { enabled?: 'true'; killSwitch?: 'true' }) {
+  restoreSupportNavigationEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED', env.enabled)
+  restoreSupportNavigationEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH', env.killSwitch)
+}
+
+function buildSupportPlatformSession(capabilities: PlatformSession['capabilities']): PlatformSession {
+  return { personaId: 'persona-1', subjectAuthId: 'auth-1', globalRoles: ['director-general'], contexts: [], capabilities }
+}
 
 function createSupportCapabilitiesPageSupabase(hasSupportManage: boolean) {
   return {

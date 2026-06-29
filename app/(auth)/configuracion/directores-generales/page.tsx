@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
+import { checkPlatformRouteAccess } from "@/lib/platform/routeGuard"
 import { redirect } from "next/navigation"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ContenedorDashboard } from "@/components/ui/sistema-diseno"
@@ -23,6 +24,12 @@ export default async function DirectoresGeneralesPage() {
   const rolesPermitidos = ["admin", "pastor", "director-general"]
   const tieneAcceso = userData.roles.some((r) => rolesPermitidos.includes(r))
   if (!tieneAcceso) redirect("/dashboard")
+
+  const routeGuard = checkPlatformRouteAccess({
+    platformSession: userData.platformSession,
+    requiredCapability: "configuracion.directores-generales.manage",
+  })
+  if (!routeGuard.allowed) redirect("/dashboard")
 
   const [directores, segmentos, desAsignadosPorDG] = await Promise.all([
     obtenerDirectoresGenerales(),
