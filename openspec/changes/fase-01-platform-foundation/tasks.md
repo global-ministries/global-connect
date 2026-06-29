@@ -58,7 +58,9 @@ Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
 
 ## Fase 4: Familia y menores
 
-- [ ] 4.1 Crear `lib/platform/family.ts` con taxonomía existente (`conyuge`, `padre`, `hijo`, `tutor`, `hermano`, `otro_familiar`) y futuros `autorizado/contacto` explícitos.
+- [x] 4.1 Crear `lib/platform/family.ts` con taxonomía existente (`conyuge`, `padre`, `hijo`, `tutor`, `hermano`, `otro_familiar`) y futuros `autorizado/contacto` explícitos.
+  - Issue #228: `lib/platform/family.ts` + `__tests__/lib/platform/family.test.ts` en rama `feat/228-family-taxonomy`.
+  - Revisión 4R (fixes no bloqueantes): renombrar exports con prefijo `Platform*`, agregar guard `isPlatformFutureFamilyRelationType`, test de involution y normalización de solo espacios en blanco.
 - [ ] 4.2 Probar tutor denegado, menor sin auth, permiso familiar insuficiente y no exposición de datos sensibles por backend/RLS.
 
 ## Fase 5: Ledger longitudinal y `uno_a_uno` preflight
