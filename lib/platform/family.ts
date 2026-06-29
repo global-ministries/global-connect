@@ -38,6 +38,16 @@ const PLATFORM_ANY_FAMILY_RELATION_TYPE_SET = new Set<string>([
 /** Conjunto de búsqueda O(1) para tipos futuros. */
 const PLATFORM_FUTURE_FAMILY_RELATION_TYPE_SET = new Set<string>(PLATFORM_FUTURE_FAMILY_RELATION_TYPES)
 
+/**
+ * Normaliza un identificador de persona de plataforma.
+ * Recorta espacios y devuelve `undefined` para valores no-string o vacíos.
+ */
+export function normalizePlatformPersonaId(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed || undefined
+}
+
 /** Verifica si un valor es uno de los 6 tipos actuales de relación familiar. */
 export function isPlatformFamilyRelationType(value: unknown): value is PlatformFamilyRelationType {
   return typeof value === 'string' && PLATFORM_FAMILY_RELATION_TYPE_SET.has(value)

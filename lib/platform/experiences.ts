@@ -9,6 +9,7 @@ export const PLATFORM_EXPERIENCE_CATALOG = {
   estudiantes: { label: 'Estudiantes', scopeTypes: ['salon'] },
   the_living_room: { label: 'The Living Room', scopeTypes: ['experience'] },
   talleres_crecimiento: { label: 'Talleres de Crecimiento', scopeTypes: ['taller'] },
+  family: { label: 'Familia', scopeTypes: ['experience'] },
 } satisfies Record<string, { label: string; scopeTypes: readonly PlatformScopeType[] }>
 
 export type PlatformExperienceKey = keyof typeof PLATFORM_EXPERIENCE_CATALOG
@@ -20,6 +21,8 @@ export const PLATFORM_CAPABILITIES = {
   'ninos.room.read': { experience: 'ninos', scopeType: 'salon' },
   'estudiantes.room.read': { experience: 'estudiantes', scopeType: 'salon' },
   'talleres_crecimiento.participation.read': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'family.minor.read': { experience: 'family', scopeType: 'experience' },
+  'family.minor.consent': { experience: 'family', scopeType: 'experience' },
 } satisfies Record<string, { experience: PlatformExperienceKey; scopeType: PlatformScopeType }>
 
 export type PlatformCapabilityKey = keyof typeof PLATFORM_CAPABILITIES
