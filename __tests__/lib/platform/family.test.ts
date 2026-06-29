@@ -11,6 +11,7 @@ import {
   normalizePlatformFamilyRelationType,
   isPlatformReciprocalFamilyRelation,
   invertPlatformFamilyRelation,
+  normalizePlatformPersonaId,
 } from '@/lib/platform/family'
 
 describe('lib/platform/family', () => {
@@ -28,6 +29,28 @@ describe('lib/platform/family', () => {
 
     it('exposes the 2 future relation types', () => {
       expect(PLATFORM_FUTURE_FAMILY_RELATION_TYPES).toEqual(['autorizado', 'contacto'])
+    })
+  })
+
+  describe('normalizePlatformPersonaId', () => {
+    it('returns trimmed string for valid persona ids', () => {
+      expect(normalizePlatformPersonaId('persona-1')).toBe('persona-1')
+      expect(normalizePlatformPersonaId('  persona-1  ')).toBe('persona-1')
+    })
+
+    it('returns undefined for blank or whitespace-only strings', () => {
+      expect(normalizePlatformPersonaId('')).toBeUndefined()
+      expect(normalizePlatformPersonaId('   ')).toBeUndefined()
+      expect(normalizePlatformPersonaId('\t\n  ')).toBeUndefined()
+    })
+
+    it('returns undefined for non-string values', () => {
+      expect(normalizePlatformPersonaId(null)).toBeUndefined()
+      expect(normalizePlatformPersonaId(undefined)).toBeUndefined()
+      expect(normalizePlatformPersonaId(123)).toBeUndefined()
+      expect(normalizePlatformPersonaId(false)).toBeUndefined()
+      expect(normalizePlatformPersonaId({})).toBeUndefined()
+      expect(normalizePlatformPersonaId([])).toBeUndefined()
     })
   })
 
