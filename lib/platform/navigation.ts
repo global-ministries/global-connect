@@ -1,11 +1,11 @@
 import { resolvePlatformCapability } from '@/lib/platform/experiences'
 import type { PlatformCapabilityDeniedReason, PlatformCapabilityGrantInput, PlatformScopeInput } from '@/lib/platform/experiences'
+import type { PlatformNavigationFlags } from '@/lib/platform/flags'
 import type { PlatformSession, PlatformSessionCapability, PlatformSessionContext } from '@/lib/platform/session/types'
 
 export const PLATFORM_NAVIGATION_FLOW = 'navigation'
 
 export type PlatformNavigationSession = Pick<PlatformSession, 'personaId' | 'subjectAuthId' | 'globalRoles' | 'contexts' | 'capabilities'>
-export type PlatformNavigationFlags = { enabled: boolean; killSwitch?: boolean }
 export type PlatformNavigationAdapterResult =
   | { ok: true; contexts?: readonly PlatformSessionContext[]; capabilities?: readonly PlatformSessionCapability[] }
   | { ok: false; reason: string }

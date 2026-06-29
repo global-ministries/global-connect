@@ -1,6 +1,6 @@
+import { getPlatformNavigationFlags, type PlatformNavigationFlags } from '@/lib/platform/flags'
 import { resolvePlatformNavigation } from '@/lib/platform/navigation'
 import type {
-  PlatformNavigationFlags,
   PlatformNavigationItem,
   PlatformNavigationResolution,
   PlatformNavigationResolverInput,
@@ -21,16 +21,15 @@ type DashboardContextualAccessOptions = {
 const DASHBOARD_CONTEXTUAL_DESCRIPTION = 'Accede al espacio disponible para este contexto.'
 const VERIFIED_DASHBOARD_CONTEXTUAL_ROUTES = new Set(['/grupos-vida'])
 
-export function getDashboardPlatformNavigationFlags(): PlatformNavigationFlags {
-  return {
-    enabled: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED === 'true',
-    killSwitch: process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH === 'true',
-  }
-}
+/**
+ * Alias preserved for the dashboard page while the centralized flags module
+ * owns the env read. Prefer `getPlatformNavigationFlags()` in new callers.
+ */
+export const getDashboardPlatformNavigationFlags = getPlatformNavigationFlags
 
 export async function resolveDashboardContextualAccess(
   platformSession: PlatformNavigationSession | null | undefined,
-  flags: PlatformNavigationFlags = getDashboardPlatformNavigationFlags(),
+  flags: PlatformNavigationFlags = getPlatformNavigationFlags(),
   options: DashboardContextualAccessOptions = {}
 ): Promise<DashboardContextualShortcut[]> {
   try {

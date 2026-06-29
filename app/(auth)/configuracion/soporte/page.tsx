@@ -1,6 +1,7 @@
 import { grantSupportCapability, revokeSupportCapability } from '@/lib/actions/support-capabilities.actions'
 import { SUPPORT_CAPABILITIES, SUPPORT_CAPABILITY_LABELS } from '@/lib/support/capabilities'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
+import { checkPlatformRouteAccess } from '@/lib/platform/routeGuard'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { BotonSistema, ContenedorDashboard, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
@@ -21,6 +22,13 @@ export default async function SupportCapabilitiesPage() {
 
   const hasHigherRole = userData.roles.some((role: string) => SUPPORT_CONFIGURATION_ROLES.includes(role))
   const hasSupportManage = await hasSupportManageCapability(supabase, userData.user.id)
+
+  const routeGuard = checkPlatformRouteAccess({
+    platformSession: userData.platformSession,
+    requiredCapability: 'support.manage',
+  })
+  if (!routeGuard.allowed) redirect('/dashboard')
+
   if (!hasHigherRole || !hasSupportManage) {
     return (
       <DashboardLayout>

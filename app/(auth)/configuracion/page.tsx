@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
+import { checkPlatformRouteAccess } from "@/lib/platform/routeGuard"
 import { redirect } from "next/navigation"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ContenedorDashboard } from "@/components/ui/sistema-diseno"
@@ -25,6 +26,12 @@ export default async function PaginaConfiguracion() {
   if (!esAdmin && !esPastor) {
     redirect("/dashboard")
   }
+
+  const routeGuard = checkPlatformRouteAccess({
+    platformSession: userData.platformSession,
+    requiredCapability: "configuracion.platform.manage",
+  })
+  if (!routeGuard.allowed) redirect("/dashboard")
 
   // Obtener configuración de la plataforma (org data + branding)
   const { data: config } = await supabase

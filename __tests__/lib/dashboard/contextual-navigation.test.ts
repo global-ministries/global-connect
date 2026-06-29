@@ -1,5 +1,5 @@
 import { resolveDashboardContextualAccess } from '@/lib/dashboard/contextual-navigation'
-import type { PlatformNavigationFlags } from '@/lib/platform/navigation'
+import type { PlatformNavigationFlags } from '@/lib/platform/flags'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 const basePlatformSession: PlatformSession = {

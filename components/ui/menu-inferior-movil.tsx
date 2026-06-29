@@ -6,7 +6,8 @@ import { usePathname } from 'next/navigation'
 import { LayoutDashboard, Users, UsersRound, HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
-import { getBuildTimePlatformNavigationFlags, usePlatformNavigationViewItems, type PlatformNavigationViewItem } from '@/components/ui/platform-navigation-view-items'
+import { getPlatformNavigationFlags } from '@/lib/platform/flags'
+import { usePlatformNavigationViewItems, type PlatformNavigationViewItem } from '@/components/ui/platform-navigation-view-items'
 import { resolvePlatformNavigationGate } from '@/lib/platform/navigation'
 
 type MenuInferiorMovilItem = {
@@ -27,7 +28,7 @@ export function MenuInferiorMovil() {
   const pathname = usePathname()
   const { platformSession, loading } = useCurrentUser()
   const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
-  const platformNavigationFlags = getBuildTimePlatformNavigationFlags()
+  const platformNavigationFlags = getPlatformNavigationFlags()
   const platformNavigationGate = resolvePlatformNavigationGate({
     flags: platformNavigationFlags,
     platformSession,
