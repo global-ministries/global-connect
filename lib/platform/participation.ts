@@ -200,3 +200,25 @@ function capabilityMatchesEvent(
   }
   return capability.scopeId === scope.scopeId
 }
+
+// ── Repository (read-only, future adapter contract) ────────────────
+/**
+ * Read-only data-provider contract for participation events.
+ *
+ * Pure contract: no DB, no env, no `@/lib/supabase/*` imports here — only the
+ * data shape that future adapters (in-memory, Supabase, audit) MUST satisfy.
+ *
+ * The repository ONLY returns events. It is NOT an authorization gate:
+ * `canReadPlatformParticipationEvent` still performs every read-boundary
+ * decision (separation of concerns). An adapter that returns events does not
+ * imply the caller may read them — the guard remains the single source of
+ * authorization truth.
+ */
+export type PlatformParticipationReadRepository = {
+  findEventsByActorPersonaId(personaId: string): Promise<readonly PlatformParticipationEvent[]>
+  findEventsByScope(params: {
+    experience: string
+    scopeType: string
+    scopeId?: string
+  }): Promise<readonly PlatformParticipationEvent[]>
+}
