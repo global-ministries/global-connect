@@ -85,4 +85,5 @@ Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
 
 ## Fase 7: Rollout y gates por PR
 
-- [ ] 7.1 Exigir por PR: tests del slice, build verde, umbral de error/denegación productiva, rollout staged y ruta fix-forward/rollback al legado.
+- [x] 7.1 Exigir por PR: tests del slice, build verde, umbral de error/denegación productiva, rollout staged y ruta fix-forward/rollback al legado.
+  - Issue #240: `lib/platform/rollout.ts` + `__tests__/lib/platform/rollout.test.ts`. Contrato puro con 5 PR gates (`tests`, `build`, `typecheck`, `bundle_size`, `review`), 4 hard gates requeridos, `bundle_size` opcional, plan de rollout staged 0→5→25→50→100% con observación mínima, ruta de rollback inmediato vía kill switch / flag off, y `checkPlatformRolloutGate()` reusable para CI o pre-merge script. Sin DB/env/RLS. **FASE 1-7 PLATFORM FOUNDATION CERRADA.**
