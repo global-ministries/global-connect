@@ -64,6 +64,20 @@ Incluye:
 
 **Validación:** una persona puede tener múltiples contextos sin duplicarse ni recibir permisos indebidos.
 
+**Estado: CERRADA** (Fase 1 completa, 7 sub-fases, 20 PRs mergeados a `main` en `c364128`).
+
+- 14 módulos `lib/platform/` (session, persona, experiences, navigation, routeGuard, flags, family, adapters, preflight, participation, grants, rollout, etc.).
+- 666 tests pasan en `pnpm test:ci` (62 suites + 26 node tests).
+- Flag `NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED=off` en Vercel (decisión de producto: foundation invisible, no entrega valor de usuario, no se reactiva hasta rollout staged documentado).
+- Bugfix crítico PR #243: `routeGuard` ya no redirige con flag OFF (fail-open).
+- PR #235 marcado con `size:exception` (636 líneas, sobre budget de 400; accepted por defensa real de contrato de datos sensibles).
+
+**Riesgos residuales:**
+- Retention defaults en `lib/platform/participation.ts` marcados "pending legal review".
+- DB adapters reales (`FamilyReadRepository`, `ParticipationReadRepository`) son interfaces con stubs; las impls con Supabase son scope de fases futuras.
+- `uno_a_uno` drift: preflight bloquea uso; decisión de producto pendiente (baseline/archive/reintroduce).
+- `lib/platform/**` no está en `jest.config.ts` `collectCoverageFrom` (sugerido como follow-up).
+
 ### Fase 2 — Dream Team Global Base
 
 **Objetivo:** modelar a toda persona que sirve.
