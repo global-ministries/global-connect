@@ -80,7 +80,8 @@ Chain strategy: stacked-to-main para PR1a; confirmar por slice futuro
 
 ## Fase 6: Grants y observabilidad
 
-- [ ] 6.1 Crear `lib/platform/grants.ts` con auditoría actor/fuente/before-after/deny, logs de denegación, métricas y alertas.
+- [x] 6.1 Crear `lib/platform/grants.ts` con auditoría actor/fuente/before-after/deny, logs de denegación, métricas y alertas.
+  - Issue #238: `lib/platform/grants.ts` + `__tests__/lib/platform/grants.test.ts`. Contrato puro con taxonomía `grant|revoke|deny|audit`, logger con `getEvents()` para test assertions, métricas acumuladas por `${experience}|${source}|${decision}` y alerta pura sobre denegaciones cuando `count > maxDenials`.
 
 ## Fase 7: Rollout y gates por PR
 
