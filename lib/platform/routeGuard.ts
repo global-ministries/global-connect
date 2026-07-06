@@ -9,7 +9,7 @@ export type PlatformRouteGuardReason =
   | 'missing_required_capability'
 
 export type PlatformRouteGuardResult =
-  | { allowed: true }
+  | { allowed: true; reason?: string }
   | { allowed: false; reason: PlatformRouteGuardReason }
 
 export type PlatformRouteGuardInput = {
@@ -26,11 +26,15 @@ export type PlatformRouteGuardInput = {
  * and decides what to do with a denial. Strict denial is out of scope for
  * Fase 1 task 3.3; add Sentry capture at the deny branches when Fase 2 enables
  * hard-deny.
+ *
+ * When the feature flag is disabled, the guard returns
+ * `{ allowed: true, reason: 'feature_flag_disabled' }` to ensure pre-slice
+ * behavior is preserved. The caller's role-based check remains the real gate.
  */
 export function checkPlatformRouteAccess(input: PlatformRouteGuardInput): PlatformRouteGuardResult {
   const flags = normalizeFlags(input.flags)
 
-  if (!flags.enabled) return { allowed: false, reason: 'feature_flag_disabled' }
+  if (!flags.enabled) return { allowed: true, reason: 'feature_flag_disabled' }
   if (flags.killSwitch) return { allowed: false, reason: 'kill_switch_enabled' }
   if (!input.platformSession) return { allowed: false, reason: 'platform_session_required' }
   if (input.requiredCapability.trim() === '') return { allowed: true }
