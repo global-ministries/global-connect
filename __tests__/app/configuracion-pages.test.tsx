@@ -30,16 +30,17 @@ describe('configuracion pages render through the platform route guard without ch
     restoreEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH', originalKillSwitch)
   })
 
-  it('redirects /configuracion/directores-generales to /dashboard when the platform flag is off', async () => {
+  it('renders /configuracion/directores-generales when the platform flag is off (pre-slice behavior preserved)', async () => {
     delete process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
-    getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['admin'], platformSession: null })
+    getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['admin', 'pastor', 'director-general'], platformSession: null })
     const { default: DirectoresGeneralesPage } = await import('@/app/(auth)/configuracion/directores-generales/page')
 
-    await expect(DirectoresGeneralesPage()).rejects.toThrow(/NEXT_REDIRECT:\/dashboard/)
+    await act(async () => { render(await DirectoresGeneralesPage()) })
+
+    expect(screen.getByText('Directores Generales')).toBeInTheDocument()
   })
 
   it.each([
-    ['feature flag is off', {}, null],
     ['kill switch is active', { enabled: 'true', killSwitch: 'true' }, null],
     ['platform session is missing', { enabled: 'true' }, null],
     ['platform session has no capabilities', { enabled: 'true' }, buildPlatformSession([])],

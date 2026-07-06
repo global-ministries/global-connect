@@ -46,8 +46,17 @@ describe('getPlatformNavigationFlags', () => {
 })
 
 describe('checkPlatformRouteAccess', () => {
+  it('allows access with reason when the feature flag is disabled to preserve pre-slice behavior', () => {
+    const result = checkPlatformRouteAccess({
+      flags: { enabled: false },
+      platformSession: basePlatformSession,
+      requiredCapability: 'support.manage',
+    })
+
+    expect(result).toEqual({ allowed: true, reason: 'feature_flag_disabled' })
+  })
+
   it.each([
-    ['feature flag is disabled', { enabled: false }, basePlatformSession, 'feature_flag_disabled'],
     ['kill switch is active', { enabled: true, killSwitch: true }, basePlatformSession, 'kill_switch_enabled'],
     ['no platformSession', { enabled: true }, null, 'platform_session_required'],
     ['empty capabilities', { enabled: true }, { ...basePlatformSession, capabilities: [] }, 'no_platform_grants'],

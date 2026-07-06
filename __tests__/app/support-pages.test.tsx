@@ -478,7 +478,6 @@ describe('support capability configuration page platform route guard', () => {
   })
 
   it.each([
-    ['feature flag is off', {}, null],
     ['kill switch is active', { enabled: 'true', killSwitch: 'true' }, null],
     ['platform session is missing', { enabled: 'true' }, null],
     ['platform session has no capabilities', { enabled: 'true' }, buildSupportPlatformSession([])],
@@ -489,6 +488,20 @@ describe('support capability configuration page platform route guard', () => {
     getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['director-general'], platformSession })
 
     await expect(SupportCapabilitiesPage()).rejects.toThrow(/NEXT_REDIRECT:\/dashboard/)
+  })
+
+  it('renders the support capability configuration when the platform flag is off (pre-slice behavior preserved)', async () => {
+    setSupportNavigationEnv({})
+    createSupabaseServerClient.mockResolvedValue(createSupportCapabilitiesPageSupabase(true))
+    getUserWithRoles.mockResolvedValue({
+      user: { id: 'auth-1' },
+      roles: ['director-general'],
+      platformSession: null,
+    })
+
+    await act(async () => { render(await SupportCapabilitiesPage()) })
+
+    expect(screen.getByRole('heading', { name: /Capacidades permitidas/i })).toBeInTheDocument()
   })
 
   it('renders the configuration UI when the platform flag is on and the required capability is present', async () => {
