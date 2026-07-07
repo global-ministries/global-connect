@@ -6,10 +6,11 @@ export const PLATFORM_EXPERIENCE_CATALOG = {
   grupos_vida: { label: 'Grupos de Vida', scopeTypes: ['etapa', 'grupo'] },
   dps: { label: 'DPS', scopeTypes: ['equipo'] },
   ninos: { label: 'Niños', scopeTypes: ['salon'] },
-  estudiantes: { label: 'Estudiantes', scopeTypes: ['salon'] },
+  estudiantes: { label: 'Estudiantes', scopeTypes: ['salon', 'equipo'] },
   the_living_room: { label: 'The Living Room', scopeTypes: ['experience'] },
   talleres_crecimiento: { label: 'Talleres de Crecimiento', scopeTypes: ['taller'] },
   family: { label: 'Familia', scopeTypes: ['experience'] },
+  dream_team: { label: 'Dream Team', scopeTypes: ['experience', 'equipo'] },
 } satisfies Record<string, { label: string; scopeTypes: readonly PlatformScopeType[] }>
 
 export type PlatformExperienceKey = keyof typeof PLATFORM_EXPERIENCE_CATALOG
@@ -23,6 +24,22 @@ export const PLATFORM_CAPABILITIES = {
   'talleres_crecimiento.participation.read': { experience: 'talleres_crecimiento', scopeType: 'taller' },
   'family.minor.read': { experience: 'family', scopeType: 'experience' },
   'family.minor.consent': { experience: 'family', scopeType: 'experience' },
+  // Generic Dream Team capabilities (hybrid model)
+  'dream_team.serve': { experience: 'dream_team', scopeType: 'experience' },
+  'dream_team.lead': { experience: 'dream_team', scopeType: 'equipo' },
+  'dream_team.coordinate': { experience: 'dream_team', scopeType: 'equipo' },
+  'dream_team.director.coordinate': { experience: 'dream_team', scopeType: 'experience' },
+  'dream_team.requirements.manage': { experience: 'dream_team', scopeType: 'experience' },
+  'dream_team.metrics.read': { experience: 'dream_team', scopeType: 'experience' },
+  'dream_team.gdv.lead': { experience: 'grupos_vida', scopeType: 'grupo' },
+  // Domain-specific team capabilities
+  'dps.team.lead': { experience: 'dps', scopeType: 'equipo' },
+  'dps.team.director': { experience: 'dps', scopeType: 'equipo' },
+  'estudiantes.team.serve': { experience: 'estudiantes', scopeType: 'equipo' },
+  'estudiantes.team.lead': { experience: 'estudiantes', scopeType: 'equipo' },
+  'talleres_crecimiento.team.serve': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'ninos.team.serve': { experience: 'ninos', scopeType: 'salon' },
+  'the_living_room.team.serve': { experience: 'the_living_room', scopeType: 'experience' },
 } satisfies Record<string, { experience: PlatformExperienceKey; scopeType: PlatformScopeType }>
 
 export type PlatformCapabilityKey = keyof typeof PLATFORM_CAPABILITIES
