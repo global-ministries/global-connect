@@ -58,8 +58,8 @@ function makeAdminClient(): SupabaseClient {
   })
 }
 
-function makeTestId(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`
+function makeTestId(_prefix: string): string {
+  return crypto.randomUUID()
 }
 
 function makePersonaId(name: string): PersonaId {
@@ -264,8 +264,10 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
 
       const result = await repo.listServicios({ estado: 'activo' })
 
-      expect(result).toHaveLength(1)
-      expect(result[0].estado).toBe('activo')
+      const resultIds = result.map((s) => s.id)
+      expect(resultIds).toContain(active.id)
+      expect(resultIds).not.toContain(paused.id)
+      expect(result.every((s) => s.estado === 'activo')).toBe(true)
     })
 
     it('filters by an array of estados', async () => {
@@ -276,8 +278,11 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
 
       const result = await repo.listServicios({ estado: ['activo', 'en_pausa'] })
 
-      expect(result).toHaveLength(2)
-      expect(result.map((s) => s.estado).sort()).toEqual(['activo', 'en_pausa'])
+      const resultIds = result.map((s) => s.id)
+      expect(resultIds).toContain(active.id)
+      expect(resultIds).toContain(paused.id)
+      expect(resultIds).not.toContain(retired.id)
+      expect(result.every((s) => ['activo', 'en_pausa'].includes(s.estado))).toBe(true)
     })
   })
 
@@ -425,13 +430,16 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
 
   describe('verificacion de requisitos', () => {
     it('upserts a verificacion and lists it by servicio', async () => {
-      const { servicio } = await seedServicio(client, repo)
+      const { equipo, rol, servicio } = await seedServicio(client, repo)
       createdServicioIds.push(servicio.id)
+
+      const requisito = makeRequisito(rol.id, equipo.id)
+      await repo.upsertRequisito(requisito)
 
       const verificacion: DreamTeamRequisitoVerificacion = {
         id: makeTestId('verificacion'),
         servicioId: servicio.id,
-        requisitoId: makeTestId('requisito'),
+        requisitoId: requisito.id,
         estado: 'pendiente',
       }
       const saved = await repo.upsertRequisitoVerificacion(verificacion)
@@ -469,14 +477,18 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
 
   describe('countServiciosByEstado', () => {
     it('counts services by estado', async () => {
+      const baselineActivo = await repo.countServiciosByEstado('activo')
+      const baselinePausa = await repo.countServiciosByEstado('en_pausa')
+      const baselineRetirado = await repo.countServiciosByEstado('retirado')
+
       const { servicio: a } = await seedServicio(client, repo, { estado: 'activo' })
       const { servicio: b } = await seedServicio(client, repo, { estado: 'activo' })
       const { servicio: c } = await seedServicio(client, repo, { estado: 'en_pausa' })
       createdServicioIds.push(a.id, b.id, c.id)
 
-      expect(await repo.countServiciosByEstado('activo')).toBe(2)
-      expect(await repo.countServiciosByEstado('en_pausa')).toBe(1)
-      expect(await repo.countServiciosByEstado('retirado')).toBe(0)
+      expect(await repo.countServiciosByEstado('activo')).toBe(baselineActivo + 2)
+      expect(await repo.countServiciosByEstado('en_pausa')).toBe(baselinePausa + 1)
+      expect(await repo.countServiciosByEstado('retirado')).toBe(baselineRetirado)
     })
   })
 
