@@ -23,6 +23,7 @@ const config: Config = {
   collectCoverageFrom: [
     'lib/actions/**/*.ts',
     'lib/supabase/**/*.ts',
+    'lib/platform/**/*.ts',
     'components/**/*.tsx',
     '!**/*.d.ts',
     '!**/node_modules/**',
