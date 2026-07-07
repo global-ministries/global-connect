@@ -45,3 +45,6 @@ export const hasDreamTeamReadCapability = (session: PlatformSession) =>
 
 export const hasDreamTeamWriteCapability = (session: PlatformSession) =>
   WRITE_CAPABILITIES.some((key) => hasCapability(session, key))
+
+export const hasDreamTeamMetricsCapability = (session: PlatformSession) =>
+  hasCapability(session, 'dream_team.metrics.read')
