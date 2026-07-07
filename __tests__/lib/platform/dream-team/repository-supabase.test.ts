@@ -38,10 +38,10 @@ type RepositoryModule = {
 }
 
 async function loadRepository(): Promise<RepositoryModule> {
-  const module = (await import('@/lib/platform/dream-team/repository-supabase')) as RepositoryModule
+  const imported = (await import('@/lib/platform/dream-team/repository-supabase')) as RepositoryModule
   return {
-    createSupabaseDreamTeamRepository: module.createSupabaseDreamTeamRepository,
-    ConcurrencyConflictError: module.ConcurrencyConflictError,
+    createSupabaseDreamTeamRepository: imported.createSupabaseDreamTeamRepository,
+    ConcurrencyConflictError: imported.ConcurrencyConflictError,
   }
 }
 
