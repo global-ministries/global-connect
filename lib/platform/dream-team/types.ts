@@ -51,3 +51,71 @@ export interface DreamTeamTransicionInput {
 export type DreamTeamTransicionResult =
   | { readonly ok: true; readonly servicioNuevo: DreamTeamServicio }
   | { readonly ok: false; readonly error: DreamTeamError }
+
+export interface DreamTeamRequisito {
+  readonly id: string
+  readonly equipoId: string
+  readonly rolId: string
+  readonly codigo: string
+  readonly label: string
+  readonly tipo: 'documento' | 'capacitacion' | 'entrevista' | 'firma' | 'otro'
+  readonly obligatoriedad: 'requerido' | 'opcional' | 'no_aplica'
+}
+
+export type DreamTeamRequisitoTipo = DreamTeamRequisito['tipo']
+export type DreamTeamRequisitoObligatoriedad = DreamTeamRequisito['obligatoriedad']
+
+export interface DreamTeamRequisitoVerificacion {
+  readonly id: string
+  readonly servicioId: string
+  readonly requisitoId: string
+  readonly estado: 'pendiente' | 'completado' | 'vencido' | 'no_aplica'
+  readonly fechaVerificacion?: string
+  readonly verificadoPor?: PersonaId
+  readonly fechaVencimiento?: string
+}
+
+export type DreamTeamRequisitoVerificacionEstado = DreamTeamRequisitoVerificacion['estado']
+
+export interface DreamTeamEstadoHistorial {
+  readonly id: string
+  readonly servicioId: string
+  readonly estadoAnterior: DreamTeamEstado
+  readonly estadoNuevo: DreamTeamEstado
+  readonly motivo: DreamTeamMotivo
+  readonly detalleMotivo?: string
+  readonly actorPersonaId: PersonaId
+  readonly fecha: string
+  readonly pausedGrantsSnapshot?: ReadonlyArray<{ readonly key: string; readonly scope: unknown }>
+}
+
+export interface DreamTeamHistorialAppend {
+  readonly servicioId: string
+  readonly estadoAnterior: DreamTeamEstado
+  readonly estadoNuevo: DreamTeamEstado
+  readonly motivo: DreamTeamMotivo
+  readonly detalleMotivo?: string
+  readonly actorPersonaId: PersonaId
+  readonly fecha: string
+  readonly pausedGrantsSnapshot?: DreamTeamEstadoHistorial['pausedGrantsSnapshot']
+}
+
+export const DREAM_TEAM_PARTICIPATION_EVENT_TYPES = [
+  'service_assigned',
+  'service_state_changed',
+  'service_paused_grants_snapshot',
+  'service_reactivated',
+  'service_retired',
+  'requirement_overdue',
+] as const
+
+export type DreamTeamParticipationEventType = (typeof DREAM_TEAM_PARTICIPATION_EVENT_TYPES)[number]
+
+export interface DreamTeamParticipationEvent {
+  readonly id: string
+  readonly personaId: PersonaId
+  readonly servicioId: string
+  readonly tipoEvento: DreamTeamParticipationEventType
+  readonly payload: Readonly<Record<string, unknown>>
+  readonly fecha: string
+}
