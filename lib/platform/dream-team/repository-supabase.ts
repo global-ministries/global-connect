@@ -152,18 +152,22 @@ function mapParticipationEvent(row: DbParticipationEvent): DreamTeamParticipatio
 
 export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRepository {
   async function createServicio(input: Omit<DreamTeamServicio, 'id' | 'version'>): Promise<DreamTeamServicio> {
-    const { data, error } = await client
-      .from('dream_team_servicios')
-      .insert({
-        persona_id: input.personaId,
-        equipo_id: input.equipoId,
-        rol_id: input.rolId,
-        estado: input.estado,
-        fecha_inicio: input.fechaInicio,
-        motivo_actual: input.motivoActual,
-      })
-      .select()
-      .single()
+    const insert: Database['public']['Tables']['dream_team_servicios']['Insert'] = {
+      persona_id: input.personaId,
+      equipo_id: input.equipoId,
+      rol_id: input.rolId,
+      estado: input.estado,
+      fecha_inicio: input.fechaInicio,
+      motivo_actual: input.motivoActual,
+    }
+
+    if (input.estado === 'retirado') {
+      insert.fecha_fin = input.fechaFin ?? new Date().toISOString()
+    } else if (input.fechaFin !== undefined) {
+      insert.fecha_fin = input.fechaFin
+    }
+
+    const { data, error } = await client.from('dream_team_servicios').insert(insert).select().single()
 
     if (error) throw error
     return mapServicio(data)
