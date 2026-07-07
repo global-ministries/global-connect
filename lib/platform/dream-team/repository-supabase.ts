@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/supabase/database.types'
 import type {
   DreamTeamEquipo,
   DreamTeamEstado,
@@ -30,87 +31,27 @@ export class ConcurrencyConflictError extends Error {
   }
 }
 
-// The new dream_team_* tables are not yet in the generated Database types.
-// We cast the injected client to any internally and cast row shapes explicitly.
-type DbClient = SupabaseClient
+// Tipado estricto: el cliente conoce las tablas de Database.
+type DbClient = SupabaseClient<Database, 'public'>
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function asDb(client: DbClient): any {
-  return client
-}
+// ── Row shapes (snake_case) derivadas de los tipos generados ─────────
 
-// ── Row shapes (snake_case) ───────────────────────────────────────
+type DbEquipo = Database['public']['Tables']['dream_team_equipos']['Row']
+type DbRol = Database['public']['Tables']['dream_team_roles']['Row']
+type DbServicio = Database['public']['Tables']['dream_team_servicios']['Row']
+type DbRequisito = Database['public']['Tables']['dream_team_requisitos']['Row']
+type DbRequisitoVerificacion =
+  Database['public']['Tables']['dream_team_requisitos_verificacion']['Row']
+type DbEstadoHistorial =
+  Database['public']['Tables']['dream_team_estados_historial']['Row']
+type DbParticipationEvent =
+  Database['public']['Tables']['dream_team_participation_eventos']['Row']
 
-interface DbEquipo {
-  id: string
-  experiencia: string
-  parent_equipo_id: string | null
-  label: string
-  activo: boolean
-}
+type DbServicioUpdate = Database['public']['Tables']['dream_team_servicios']['Update']
+type DbEstadoHistorialInsert =
+  Database['public']['Tables']['dream_team_estados_historial']['Insert']
 
-interface DbRol {
-  id: string
-  equipo_id: string
-  label: string
-  parent_rol_id: string | null
-  activo: boolean
-}
-
-interface DbServicio {
-  id: string
-  persona_id: string
-  equipo_id: string
-  rol_id: string
-  estado: DreamTeamEstado
-  fecha_inicio: string
-  fecha_fin: string | null
-  motivo_actual: DreamTeamMotivo
-  version: number
-}
-
-interface DbRequisito {
-  id: string
-  equipo_id: string
-  rol_id: string
-  codigo: string
-  label: string
-  tipo: DreamTeamRequisito['tipo']
-  obligatoriedad: DreamTeamRequisito['obligatoriedad']
-}
-
-interface DbRequisitoVerificacion {
-  id: string
-  servicio_id: string
-  requisito_id: string
-  estado: DreamTeamRequisitoVerificacion['estado']
-  fecha_verificacion: string | null
-  verificado_por: string | null
-  fecha_vencimiento: string | null
-}
-
-interface DbEstadoHistorial {
-  id: string
-  servicio_id: string
-  estado_anterior: DreamTeamEstado
-  estado_nuevo: DreamTeamEstado
-  motivo: DreamTeamMotivo
-  detalle_motivo: string | null
-  actor_persona_id: string
-  fecha: string
-  paused_grants_snapshot: unknown
-}
-
-interface DbParticipationEvent {
-  id: string
-  persona_id: string
-  servicio_id: string
-  tipo_evento: DreamTeamParticipationEvent['tipoEvento']
-  payload: unknown
-  fecha: string
-}
-
-// ── Mappers ───────────────────────────────────────────────────────
+// ── Mappers ─────────────────────────────────────────────────────────
 
 function mapEquipo(row: DbEquipo): DreamTeamEquipo {
   return {
@@ -138,10 +79,10 @@ function mapServicio(row: DbServicio): DreamTeamServicio {
     personaId: row.persona_id as PersonaId,
     equipoId: row.equipo_id,
     rolId: row.rol_id,
-    estado: row.estado,
+    estado: row.estado as DreamTeamEstado,
     fechaInicio: row.fecha_inicio,
     fechaFin: row.fecha_fin ?? undefined,
-    motivoActual: row.motivo_actual,
+    motivoActual: row.motivo_actual as DreamTeamMotivo,
     version: row.version,
   }
 }
@@ -153,8 +94,8 @@ function mapRequisito(row: DbRequisito): DreamTeamRequisito {
     rolId: row.rol_id,
     codigo: row.codigo,
     label: row.label,
-    tipo: row.tipo,
-    obligatoriedad: row.obligatoriedad,
+    tipo: row.tipo as DreamTeamRequisito['tipo'],
+    obligatoriedad: row.obligatoriedad as DreamTeamRequisito['obligatoriedad'],
   }
 }
 
@@ -163,7 +104,7 @@ function mapRequisitoVerificacion(row: DbRequisitoVerificacion): DreamTeamRequis
     id: row.id,
     servicioId: row.servicio_id,
     requisitoId: row.requisito_id,
-    estado: row.estado,
+    estado: row.estado as DreamTeamRequisitoVerificacion['estado'],
     fechaVerificacion: row.fecha_verificacion ?? undefined,
     verificadoPor: row.verificado_por ? (row.verificado_por as PersonaId) : undefined,
     fechaVencimiento: row.fecha_vencimiento ?? undefined,
@@ -174,9 +115,9 @@ function mapEstadoHistorial(row: DbEstadoHistorial): DreamTeamEstadoHistorial {
   return {
     id: row.id,
     servicioId: row.servicio_id,
-    estadoAnterior: row.estado_anterior,
-    estadoNuevo: row.estado_nuevo,
-    motivo: row.motivo,
+    estadoAnterior: row.estado_anterior as DreamTeamEstado,
+    estadoNuevo: row.estado_nuevo as DreamTeamEstado,
+    motivo: row.motivo as DreamTeamMotivo,
     detalleMotivo: row.detalle_motivo ?? undefined,
     actorPersonaId: row.actor_persona_id as PersonaId,
     fecha: row.fecha,
@@ -184,7 +125,9 @@ function mapEstadoHistorial(row: DbEstadoHistorial): DreamTeamEstadoHistorial {
   }
 }
 
-function parsePausedGrantsSnapshot(value: unknown): DreamTeamEstadoHistorial['pausedGrantsSnapshot'] {
+function parsePausedGrantsSnapshot(
+  value: DbEstadoHistorial['paused_grants_snapshot'],
+): DreamTeamEstadoHistorial['pausedGrantsSnapshot'] {
   if (!value) return undefined
   if (!Array.isArray(value)) return undefined
   return value.map((item) => {
@@ -199,19 +142,17 @@ function mapParticipationEvent(row: DbParticipationEvent): DreamTeamParticipatio
     id: row.id,
     personaId: row.persona_id as PersonaId,
     servicioId: row.servicio_id,
-    tipoEvento: row.tipo_evento,
+    tipoEvento: row.tipo_evento as DreamTeamParticipationEvent['tipoEvento'],
     payload: typeof row.payload === 'object' && row.payload !== null ? (row.payload as Record<string, unknown>) : {},
     fecha: row.fecha,
   }
 }
 
-// ── Repository implementation ─────────────────────────────────────
+// ── Repository implementation ───────────────────────────────────────
 
 export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRepository {
-  const db = asDb(client)
-
   async function createServicio(input: Omit<DreamTeamServicio, 'id' | 'version'>): Promise<DreamTeamServicio> {
-    const { data, error } = await db
+    const { data, error } = await client
       .from('dream_team_servicios')
       .insert({
         persona_id: input.personaId,
@@ -225,7 +166,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
       .single()
 
     if (error) throw error
-    return mapServicio(data as DbServicio)
+    return mapServicio(data)
   }
 
   async function getServicioById(id: string): Promise<DreamTeamServicio | null> {
@@ -236,11 +177,11 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
       .single()
 
     if (error || !data) return null
-    return mapServicio(data as DbServicio)
+    return mapServicio(data)
   }
 
   async function listServicios(filtros: DreamTeamServicioFiltros): Promise<readonly DreamTeamServicio[]> {
-    let query = db.from('dream_team_servicios').select()
+    let query = client.from('dream_team_servicios').select()
 
     if (filtros.personaId !== undefined) {
       query = query.eq('persona_id', filtros.personaId)
@@ -258,7 +199,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
 
     const { data, error } = await query
     if (error) throw error
-    return (data ?? []).map((row: unknown) => mapServicio(row as DbServicio))
+    return (data ?? []).map(mapServicio)
   }
 
   async function updateServicio(id: string, update: DreamTeamServicioUpdate): Promise<DreamTeamServicio> {
@@ -275,7 +216,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
     }
 
     const estadoNuevo = update.estado ?? current.estado
-    const updates: Record<string, unknown> = {
+    const updates: DbServicioUpdate = {
       estado: estadoNuevo,
       motivo_actual: update.motivoActual ?? current.motivoActual,
       version: current.version + 1,
@@ -312,7 +253,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
       )
     }
 
-    const updated = mapServicio(data as DbServicio)
+    const updated = mapServicio(data)
 
     if (update.estado !== undefined && update.estado !== current.estado) {
       await appendHistorial({
@@ -330,21 +271,21 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
   }
 
   async function listEquipos(): Promise<readonly DreamTeamEquipo[]> {
-    const { data, error } = await db.from('dream_team_equipos').select()
+    const { data, error } = await client.from('dream_team_equipos').select()
     if (error) throw error
-    return (data ?? []).map((row: unknown) => mapEquipo(row as DbEquipo))
+    return (data ?? []).map(mapEquipo)
   }
 
   async function listRolesPorEquipo(equipoId: string): Promise<readonly DreamTeamRol[]> {
-    const { data, error } = await db.from('dream_team_roles').select().eq('equipo_id', equipoId)
+    const { data, error } = await client.from('dream_team_roles').select().eq('equipo_id', equipoId)
     if (error) throw error
-    return (data ?? []).map((row: unknown) => mapRol(row as DbRol))
+    return (data ?? []).map(mapRol)
   }
 
   async function listRequisitosPorRol(rolId: string): Promise<readonly DreamTeamRequisito[]> {
-    const { data, error } = await db.from('dream_team_requisitos').select().eq('rol_id', rolId)
+    const { data, error } = await client.from('dream_team_requisitos').select().eq('rol_id', rolId)
     if (error) throw error
-    return (data ?? []).map((row: unknown) => mapRequisito(row as DbRequisito))
+    return (data ?? []).map(mapRequisito)
   }
 
   async function upsertRequisito(requisito: DreamTeamRequisito): Promise<DreamTeamRequisito> {
@@ -363,7 +304,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
       .single()
 
     if (error) throw error
-    return mapRequisito(data as DbRequisito)
+    return mapRequisito(data)
   }
 
   async function listRequisitoVerificaciones(servicioId: string): Promise<readonly DreamTeamRequisitoVerificacion[]> {
@@ -372,7 +313,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
       .select()
       .eq('servicio_id', servicioId)
     if (error) throw error
-    return (data ?? []).map((row: unknown) => mapRequisitoVerificacion(row as DbRequisitoVerificacion))
+    return (data ?? []).map(mapRequisitoVerificacion)
   }
 
   async function upsertRequisitoVerificacion(
@@ -393,7 +334,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
       .single()
 
     if (error) throw error
-    return mapRequisitoVerificacion(data as DbRequisitoVerificacion)
+    return mapRequisitoVerificacion(data)
   }
 
   async function appendHistorial(input: DreamTeamHistorialAppend): Promise<DreamTeamEstadoHistorial> {
@@ -407,13 +348,13 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
         detalle_motivo: input.detalleMotivo,
         actor_persona_id: input.actorPersonaId,
         fecha: input.fecha,
-        paused_grants_snapshot: input.pausedGrantsSnapshot as unknown[],
+        paused_grants_snapshot: input.pausedGrantsSnapshot as DbEstadoHistorialInsert['paused_grants_snapshot'],
       })
       .select()
       .single()
 
     if (error) throw error
-    return mapEstadoHistorial(data as DbEstadoHistorial)
+    return mapEstadoHistorial(data)
   }
 
   async function listHistorial(servicioId: string): Promise<readonly DreamTeamEstadoHistorial[]> {
@@ -423,7 +364,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
       .eq('servicio_id', servicioId)
       .order('fecha', { ascending: true })
     if (error) throw error
-    return (data ?? []).map((row: unknown) => mapEstadoHistorial(row as DbEstadoHistorial))
+    return (data ?? []).map(mapEstadoHistorial)
   }
 
   async function countServiciosByEstado(estado: DreamTeamEstado): Promise<number> {
@@ -444,14 +385,14 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
         persona_id: event.personaId,
         servicio_id: event.servicioId,
         tipo_evento: event.tipoEvento,
-        payload: event.payload,
+        payload: event.payload as DbParticipationEvent['payload'],
         fecha: event.fecha,
       })
       .select()
       .single()
 
     if (error) throw error
-    return mapParticipationEvent(data as DbParticipationEvent)
+    return mapParticipationEvent(data)
   }
 
   async function listParticipationEvents(servicioId: string): Promise<readonly DreamTeamParticipationEvent[]> {
@@ -460,7 +401,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
       .select()
       .eq('servicio_id', servicioId)
     if (error) throw error
-    return (data ?? []).map((row: unknown) => mapParticipationEvent(row as DbParticipationEvent))
+    return (data ?? []).map(mapParticipationEvent)
   }
 
   async function listParticipationEventsByPersona(personaId: PersonaId): Promise<readonly DreamTeamParticipationEvent[]> {
@@ -469,7 +410,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
       .select()
       .eq('persona_id', personaId)
     if (error) throw error
-    return (data ?? []).map((row: unknown) => mapParticipationEvent(row as DbParticipationEvent))
+    return (data ?? []).map(mapParticipationEvent)
   }
 
   return {

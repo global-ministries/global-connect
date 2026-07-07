@@ -272,6 +272,241 @@ export type Database = {
           },
         ]
       }
+      casa_anfitriona_audit_events: {
+        Row: {
+          actor_user_id: string | null
+          casa_anfitriona_id: string | null
+          created_at: string
+          event_data: Json
+          event_type: string
+          grupo_id: string | null
+          id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          casa_anfitriona_id?: string | null
+          created_at?: string
+          event_data?: Json
+          event_type: string
+          grupo_id?: string | null
+          id?: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          casa_anfitriona_id?: string | null
+          created_at?: string
+          event_data?: Json
+          event_type?: string
+          grupo_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_casa_anfitriona_id_fkey"
+            columns: ["casa_anfitriona_id"]
+            isOneToOne: false
+            referencedRelation: "casas_anfitrionas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_casa_anfitriona_id_fkey"
+            columns: ["casa_anfitriona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_grupos_supervisiones"
+            referencedColumns: ["grupo_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_audit_events_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_mapa_grupos_vida"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      casa_anfitriona_location_reviews: {
+        Row: {
+          casa_anfitriona_id: string
+          created_at: string
+          decided_at: string | null
+          decision_by_user_id: string | null
+          decision_notes: string | null
+          id: string
+          proposed_direccion_id: string
+          requested_by_user_id: string | null
+          review_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          casa_anfitriona_id: string
+          created_at?: string
+          decided_at?: string | null
+          decision_by_user_id?: string | null
+          decision_notes?: string | null
+          id?: string
+          proposed_direccion_id: string
+          requested_by_user_id?: string | null
+          review_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          casa_anfitriona_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decision_by_user_id?: string | null
+          decision_notes?: string | null
+          id?: string
+          proposed_direccion_id?: string
+          requested_by_user_id?: string | null
+          review_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_casa_anfitriona_id_fkey"
+            columns: ["casa_anfitriona_id"]
+            isOneToOne: false
+            referencedRelation: "casas_anfitrionas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_casa_anfitriona_id_fkey"
+            columns: ["casa_anfitriona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_decision_by_user_id_fkey"
+            columns: ["decision_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_decision_by_user_id_fkey"
+            columns: ["decision_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_decision_by_user_id_fkey"
+            columns: ["decision_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_decision_by_user_id_fkey"
+            columns: ["decision_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_decision_by_user_id_fkey"
+            columns: ["decision_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_proposed_direccion_id_fkey"
+            columns: ["proposed_direccion_id"]
+            isOneToOne: false
+            referencedRelation: "direcciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "casa_anfitriona_location_reviews_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
       casas_anfitrionas: {
         Row: {
           activa: boolean
@@ -1116,6 +1351,360 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_solicitudes_pendientes"
             referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      dream_team_capability_grants: {
+        Row: {
+          capability_key: string
+          experience: string
+          granted_at: string
+          id: string
+          persona_id: string
+          revoked_at: string | null
+          scope_id: string | null
+          scope_type: string
+          source: string
+        }
+        Insert: {
+          capability_key: string
+          experience: string
+          granted_at?: string
+          id?: string
+          persona_id: string
+          revoked_at?: string | null
+          scope_id?: string | null
+          scope_type: string
+          source?: string
+        }
+        Update: {
+          capability_key?: string
+          experience?: string
+          granted_at?: string
+          id?: string
+          persona_id?: string
+          revoked_at?: string | null
+          scope_id?: string | null
+          scope_type?: string
+          source?: string
+        }
+        Relationships: []
+      }
+      dream_team_equipos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          experiencia: string
+          id: string
+          label: string
+          parent_equipo_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          experiencia: string
+          id?: string
+          label: string
+          parent_equipo_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          experiencia?: string
+          id?: string
+          label?: string
+          parent_equipo_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_equipos_parent_equipo_id_fkey"
+            columns: ["parent_equipo_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dream_team_estados_historial: {
+        Row: {
+          actor_persona_id: string
+          detalle_motivo: string | null
+          estado_anterior: Database["public"]["Enums"]["dream_team_estado"]
+          estado_nuevo: Database["public"]["Enums"]["dream_team_estado"]
+          fecha: string
+          id: string
+          motivo: Database["public"]["Enums"]["dream_team_transicion_motivo"]
+          paused_grants_snapshot: Json | null
+          servicio_id: string
+        }
+        Insert: {
+          actor_persona_id: string
+          detalle_motivo?: string | null
+          estado_anterior: Database["public"]["Enums"]["dream_team_estado"]
+          estado_nuevo: Database["public"]["Enums"]["dream_team_estado"]
+          fecha?: string
+          id?: string
+          motivo: Database["public"]["Enums"]["dream_team_transicion_motivo"]
+          paused_grants_snapshot?: Json | null
+          servicio_id: string
+        }
+        Update: {
+          actor_persona_id?: string
+          detalle_motivo?: string | null
+          estado_anterior?: Database["public"]["Enums"]["dream_team_estado"]
+          estado_nuevo?: Database["public"]["Enums"]["dream_team_estado"]
+          fecha?: string
+          id?: string
+          motivo?: Database["public"]["Enums"]["dream_team_transicion_motivo"]
+          paused_grants_snapshot?: Json | null
+          servicio_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_estados_historial_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dream_team_participation_eventos: {
+        Row: {
+          fecha: string
+          id: string
+          payload: Json
+          persona_id: string
+          servicio_id: string
+          tipo_evento: string
+        }
+        Insert: {
+          fecha?: string
+          id?: string
+          payload?: Json
+          persona_id: string
+          servicio_id: string
+          tipo_evento: string
+        }
+        Update: {
+          fecha?: string
+          id?: string
+          payload?: Json
+          persona_id?: string
+          servicio_id?: string
+          tipo_evento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_participation_eventos_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dream_team_requisitos: {
+        Row: {
+          codigo: string
+          created_at: string
+          equipo_id: string
+          id: string
+          label: string
+          obligatoriedad: Database["public"]["Enums"]["dream_team_obligatoriedad"]
+          rol_id: string
+          tipo: Database["public"]["Enums"]["dream_team_requisito_tipo"]
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          equipo_id: string
+          id?: string
+          label: string
+          obligatoriedad: Database["public"]["Enums"]["dream_team_obligatoriedad"]
+          rol_id: string
+          tipo: Database["public"]["Enums"]["dream_team_requisito_tipo"]
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          equipo_id?: string
+          id?: string
+          label?: string
+          obligatoriedad?: Database["public"]["Enums"]["dream_team_obligatoriedad"]
+          rol_id?: string
+          tipo?: Database["public"]["Enums"]["dream_team_requisito_tipo"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_requisitos_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dream_team_requisitos_rol_id_fkey"
+            columns: ["rol_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dream_team_requisitos_verificacion: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["dream_team_requisito_estado"]
+          fecha_vencimiento: string | null
+          fecha_verificacion: string | null
+          id: string
+          requisito_id: string
+          servicio_id: string
+          updated_at: string
+          verificado_por: string | null
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["dream_team_requisito_estado"]
+          fecha_vencimiento?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          requisito_id: string
+          servicio_id: string
+          updated_at?: string
+          verificado_por?: string | null
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["dream_team_requisito_estado"]
+          fecha_vencimiento?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          requisito_id?: string
+          servicio_id?: string
+          updated_at?: string
+          verificado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_requisitos_verificacion_requisito_id_fkey"
+            columns: ["requisito_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_requisitos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dream_team_requisitos_verificacion_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dream_team_roles: {
+        Row: {
+          activo: boolean
+          created_at: string
+          equipo_id: string
+          id: string
+          label: string
+          parent_rol_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          equipo_id: string
+          id?: string
+          label: string
+          parent_rol_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          equipo_id?: string
+          id?: string
+          label?: string
+          parent_rol_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_roles_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dream_team_roles_parent_rol_id_fkey"
+            columns: ["parent_rol_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dream_team_servicios: {
+        Row: {
+          created_at: string
+          equipo_id: string
+          estado: Database["public"]["Enums"]["dream_team_estado"]
+          fecha_fin: string | null
+          fecha_inicio: string
+          id: string
+          motivo_actual: Database["public"]["Enums"]["dream_team_transicion_motivo"]
+          persona_id: string
+          rol_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          equipo_id: string
+          estado?: Database["public"]["Enums"]["dream_team_estado"]
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          id?: string
+          motivo_actual?: Database["public"]["Enums"]["dream_team_transicion_motivo"]
+          persona_id: string
+          rol_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          equipo_id?: string
+          estado?: Database["public"]["Enums"]["dream_team_estado"]
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          id?: string
+          motivo_actual?: Database["public"]["Enums"]["dream_team_transicion_motivo"]
+          persona_id?: string
+          rol_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_servicios_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dream_team_servicios_rol_id_fkey"
+            columns: ["rol_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_roles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3956,6 +4545,19 @@ export type Database = {
         }
         Returns: Json
       }
+      agregar_relacion_familiar_segura: {
+        Args: {
+          p_auth_id: string
+          p_tipo_relacion: Database["public"]["Enums"]["enum_tipo_relacion"]
+          p_usuario1_id: string
+          p_usuario2_id: string
+        }
+        Returns: Json
+      }
+      asignar_casa_anfitriona_a_grupo: {
+        Args: { p_auth_id: string; p_casa_id: string; p_grupo_id: string }
+        Returns: Json
+      }
       asignar_director_etapa_a_ubicacion: {
         Args: {
           p_accion: string
@@ -3982,6 +4584,10 @@ export type Database = {
         Args: { p_assignee_usuario_id: string; p_ticket_id: string }
         Returns: undefined
       }
+      auth_has_dream_team_capability: {
+        Args: { p_capability_key: string }
+        Returns: boolean
+      }
       buscar_usuarios_para_grupo: {
         Args: {
           p_auth_id: string
@@ -4007,11 +4613,35 @@ export type Database = {
         }
         Returns: {
           apellido: string
-          foto_perfil_url: string | null
+          foto_perfil_url: string
           id: string
           nombre: string
           total_count: number
         }[]
+      }
+      casas_map_actor_can_approve_review: {
+        Args: { p_auth_id: string; p_casa_id: string }
+        Returns: boolean
+      }
+      casas_map_auth_matches_actor: {
+        Args: { p_auth_id: string }
+        Returns: boolean
+      }
+      casas_map_backfill_approved_location_audit: {
+        Args: {
+          p_approval_reference?: string
+          p_auth_id: string
+          p_dry_run?: boolean
+        }
+        Returns: Json
+      }
+      casas_map_director_general_can_view_group: {
+        Args: { p_grupo_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      casas_map_user_can_view_group: {
+        Args: { p_auth_id: string; p_grupo_id: string }
+        Returns: boolean
       }
       claim_support_event_outbox_batch: {
         Args: { p_limit?: number; p_lock_timeout?: string }
@@ -4097,6 +4727,11 @@ export type Database = {
         Args: { p_relacion_id: string }
         Returns: undefined
       }
+      eliminar_relacion_familiar_segura: {
+        Args: { p_auth_id: string; p_relacion_id: string }
+        Returns: Json
+      }
+      es_admin_o_pastor: { Args: { p_auth_id: string }; Returns: boolean }
       es_director_de_grupo: {
         Args: { p_grupo_id: string; p_user_id: string }
         Returns: boolean
@@ -4212,22 +4847,20 @@ export type Database = {
           usuario_nombre: string
         }[]
       }
+      obtener_casas_revision_pendiente: {
+        Args: { p_auth_id: string }
+        Returns: {
+          casa_id: string
+          casa_nombre: string
+          created_at: string
+          requested_by: string
+          review_id: string
+          review_type: string
+        }[]
+      }
       obtener_casas_visibles_ids: {
         Args: { p_auth_id: string }
         Returns: string[]
-      }
-      agregar_relacion_familiar_segura: {
-        Args: {
-          p_auth_id: string
-          p_tipo_relacion: Database["public"]["Enums"]["enum_tipo_relacion"]
-          p_usuario1_id: string
-          p_usuario2_id: string
-        }
-        Returns: Json
-      }
-      eliminar_relacion_familiar_segura: {
-        Args: { p_auth_id: string; p_relacion_id: string }
-        Returns: Json
       }
       obtener_conyugue: {
         Args: { p_usuario_id: string }
@@ -4322,6 +4955,16 @@ export type Database = {
           total_count: number
         }[]
       }
+      obtener_grupos_sin_casa_anfitriona: {
+        Args: { p_auth_id: string; p_scope?: string }
+        Returns: {
+          estado_ciclo: string
+          grupo_id: string
+          grupo_nombre: string
+          segmento: string
+          temporada: string
+        }[]
+      }
       obtener_kpis_grupos_para_usuario:
         | {
             Args: { p_auth_id: string }
@@ -4353,6 +4996,37 @@ export type Database = {
               total_sin_director: number
             }[]
           }
+      obtener_mapa_grupos_vida_host_homes: {
+        Args: { p_auth_id: string; p_scope?: string }
+        Returns: {
+          barrio: string
+          capacidad_maxima: number
+          casa_id: string
+          casa_nombre: string
+          dia_reunion: string
+          estado_ciclo: string
+          grupo_id: string
+          grupo_nombre: string
+          hora_reunion: string
+          latitud: number
+          longitud: number
+          notas_publicas: string
+          segmento: string
+          temporada: string
+          total_miembros: number
+        }[]
+      }
+      obtener_mapa_miembros: {
+        Args: { p_auth_id: string; p_scope?: string }
+        Returns: {
+          grupo_id: string
+          grupo_nombre: string
+          latitud: number
+          longitud: number
+          nombre: string
+          usuario_id: string
+        }[]
+      }
       obtener_miembros_en_riesgo: { Args: { p_auth_id: string }; Returns: Json }
       obtener_permisos_casa_anfitriona: {
         Args: { p_auth_id: string; p_casa_id?: string }
@@ -4433,6 +5107,15 @@ export type Database = {
         }
         Returns: Json
       }
+      procesar_revision_ubicacion_casa: {
+        Args: {
+          p_accion: string
+          p_auth_id: string
+          p_notas?: string
+          p_review_id: string
+        }
+        Returns: Json
+      }
       procesar_solicitud_grupo: {
         Args: {
           p_accion: string
@@ -4444,6 +5127,10 @@ export type Database = {
       }
       puede_aprobar_casa_anfitriona: {
         Args: { p_auth_id: string; p_casa_id: string }
+        Returns: boolean
+      }
+      puede_asignar_casa_anfitriona_a_grupo: {
+        Args: { p_auth_id: string; p_casa_id: string; p_grupo_id: string }
         Returns: boolean
       }
       puede_cambiar_estado_casa_anfitriona: {
@@ -4476,6 +5163,14 @@ export type Database = {
         Args: { p_auth_id: string; p_grupo_id: string }
         Returns: boolean
       }
+      puede_gestionar_relacion_familiar: {
+        Args: {
+          p_auth_id: string
+          p_usuario1_id: string
+          p_usuario2_id: string
+        }
+        Returns: boolean
+      }
       puede_ver_casa_anfitriona: {
         Args: { p_auth_id: string; p_casa_id: string }
         Returns: boolean
@@ -4487,6 +5182,14 @@ export type Database = {
       }
       puede_ver_grupo_reporte_asistencia: {
         Args: { p_auth_id: string; p_grupo_id: string }
+        Returns: boolean
+      }
+      puede_ver_relacion_familiar: {
+        Args: {
+          p_auth_id: string
+          p_usuario1_id: string
+          p_usuario2_id: string
+        }
         Returns: boolean
       }
       puede_ver_usuario: {
@@ -4552,6 +5255,36 @@ export type Database = {
       }
     }
     Enums: {
+      dream_team_estado:
+        | "postulado"
+        | "en_orientacion"
+        | "activo"
+        | "en_pausa"
+        | "inactivo"
+        | "retirado"
+      dream_team_obligatoriedad: "requerido" | "opcional" | "no_aplica"
+      dream_team_requisito_estado:
+        | "pendiente"
+        | "completado"
+        | "vencido"
+        | "no_aplica"
+      dream_team_requisito_tipo:
+        | "documento"
+        | "capacitacion"
+        | "entrevista"
+        | "firma"
+        | "otro"
+      dream_team_transicion_motivo:
+        | "admin_asignacion"
+        | "admin_promocion"
+        | "admin_pausa"
+        | "admin_reactivacion"
+        | "admin_retiro"
+        | "reasignacion"
+        | "requisito_vencido"
+        | "gdv_liderazgo_removed"
+        | "auto_pausa"
+        | "otro"
       enum_dia_semana:
         | "Lunes"
         | "Martes"
@@ -4698,6 +5431,40 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      dream_team_estado: [
+        "postulado",
+        "en_orientacion",
+        "activo",
+        "en_pausa",
+        "inactivo",
+        "retirado",
+      ],
+      dream_team_obligatoriedad: ["requerido", "opcional", "no_aplica"],
+      dream_team_requisito_estado: [
+        "pendiente",
+        "completado",
+        "vencido",
+        "no_aplica",
+      ],
+      dream_team_requisito_tipo: [
+        "documento",
+        "capacitacion",
+        "entrevista",
+        "firma",
+        "otro",
+      ],
+      dream_team_transicion_motivo: [
+        "admin_asignacion",
+        "admin_promocion",
+        "admin_pausa",
+        "admin_reactivacion",
+        "admin_retiro",
+        "reasignacion",
+        "requisito_vencido",
+        "gdv_liderazgo_removed",
+        "auto_pausa",
+        "otro",
+      ],
       enum_dia_semana: [
         "Lunes",
         "Martes",

@@ -21,8 +21,8 @@ import type {
 import type { DreamTeamRepository } from '@/lib/platform/dream-team/repository'
 
 const RUN_INTEGRATION = Boolean(process.env.RUN_INTEGRATION)
-const STAGING_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const STAGING_URL = process.env.SUPABASE_STAGING_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
+const SERVICE_ROLE_KEY = process.env.SUPABASE_STAGING_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const describeIntegration =
   RUN_INTEGRATION && STAGING_URL && SERVICE_ROLE_KEY ? describe : describe.skip
