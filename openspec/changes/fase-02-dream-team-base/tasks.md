@@ -168,9 +168,9 @@ Chain strategy: stacked-to-main
 
 ### Tasks
 
-- [ ] 10.1 DT-032 — Extender `lib/platform/flags.ts` con `getDreamTeamFlags()`: retorna `{ enabled, killSwitch }` desde `NEXT_PUBLIC_DREAM_TEAM_ENABLED`. Default `off`. Integrar en API routes de S6/S8 (404 si flag OFF). Archivos: `lib/platform/flags.ts`. Test: `__tests__/lib/platform/flags.test.ts`. Verificación: `pnpm test -- --testPathPattern=flags`.
-- [ ] 10.2 DT-033 — Integration test caso Ana end-to-end: asignación DPS+Cámara (postulado), promoción a activo (grants emitidos), segundo servicio Estudiantes+Transit (activo), pausa DPS (grants revoked + snapshot), capacitación vencida (alerta sin bloqueo), reactivación DPS (grants restaurados), métricas reflejan estado final. Archivos: `__tests__/lib/platform/dream-team/integration-ana.test.ts`. Verificación: `pnpm test -- --testPathPattern=dream-team/integration-ana` — todos verdes.
-- [ ] 10.3 DT-034 — Documentación de rollout: staged 0→5→25→50→100% vía `lib/platform/rollout.ts`, `NEXT_PUBLIC_DREAM_TEAM_ENABLED=off` en Vercel por defecto, notas de producción en PR body. Archivos: PR description. Verificación: review approval.
+- [x] 10.1 DT-032 — Extender `lib/platform/flags.ts` con `getDreamTeamFlags()`: retorna `{ enabled, killSwitch }` desde `NEXT_PUBLIC_DREAM_TEAM_ENABLED`. Default `off`. Integrar en API routes de S6/S8 (404 si flag OFF). Archivos: `lib/platform/flags.ts`. Test: `__tests__/lib/platform/flags.test.ts`. Verificación: `pnpm test -- --testPathPattern=flags`.
+- [x] 10.2 DT-033 — Integration test caso Ana end-to-end: asignación DPS+Cámara (postulado), promoción a activo (grants emitidos), segundo servicio Estudiantes+Transit (activo), pausa DPS (grants revoked + snapshot), capacitación vencida (alerta sin bloqueo), reactivación DPS (grants restaurados), métricas reflejan estado final. Archivos: `__tests__/lib/platform/dream-team/end-to-end-ana.test.ts`. Verificación: `pnpm test -- --testPathPattern=dream-team/end-to-end-ana` — todos verdes.
+- [x] 10.3 DT-034 — Documentación de rollout: staged 0→5→25→50→100% vía `lib/platform/rollout.ts`, `NEXT_PUBLIC_DREAM_TEAM_ENABLED=off` en Vercel por defecto, notas de producción en PR body. Archivos: `docs/roadmap/handoffs/fase-02-rollout.md`. Verificación: review approval.
 
 ---
 
