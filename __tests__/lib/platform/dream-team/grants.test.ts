@@ -230,9 +230,9 @@ describe('Paused grants snapshot', () => {
 })
 
 describe('transitionWithGrants integration', () => {
-  it('returns an error for invalid state transitions without emitting grants', () => {
+  it('returns an error for invalid state transitions without emitting grants', async () => {
     const audit = createPlatformGrantAudit()
-    const result = transitionWithGrants({
+    const result = await transitionWithGrants({
       servicio: makeServicio('postulado'),
       estadoNuevo: 'en_pausa',
       motivo: 'admin_pausa',
@@ -249,9 +249,9 @@ describe('transitionWithGrants integration', () => {
     expect(audit.logger.getEvents()).toHaveLength(0)
   })
 
-  it('returns a paused snapshot for activo to en_pausa', () => {
+  it('returns a paused snapshot for activo to en_pausa', async () => {
     const audit = createPlatformGrantAudit()
-    const result = transitionWithGrants({
+    const result = await transitionWithGrants({
       servicio: makeServicio('activo'),
       estadoNuevo: 'en_pausa',
       motivo: 'admin_pausa',
