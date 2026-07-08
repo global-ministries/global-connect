@@ -1,0 +1,39 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: Next.js 16 (App Router), TypeScript strict, React 19, Tailwind CSS 4, pnpm
+  Architecture: Server Components by default, Supabase Auth SSR, RLS + RPCs, Server Actions
+  Testing: Jest 30 + React Testing Library + ts-jest, jsdom environment, v8 coverage
+  Style: Radix UI primitives, SistemaDiseno components (glass/visionOS), lucide-react icons, dark mode
+  Patterns: liquid-glass / VisionOS design, zod validation, react-hook-form, atomic commits with conventional-commits
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Keep scope focused; use chained PRs for large changes
+    - Reference GitHub issues when applicable
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Prefer Spanish for UI-facing docs, English for technical specs
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - Reference platform modules (persona, grants, experiences, participation, preflight, rollout, routeGuard, family)
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Use chained PR strategy for >400-line changes
+  apply:
+    - Follow existing code patterns (Server Components first, Client Components only for interactivity)
+    - Respect SistemaDiseno components and tokens
+    tdd: true
+    test_command: "pnpm test -- --related"
+  verify:
+    test_command: "pnpm test"
+    build_command: "pnpm build"
+    coverage_threshold: 10
+  archive:
+    - Warn before merging destructive deltas
+    - Preserve state.yaml for audit trail
