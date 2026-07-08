@@ -20,9 +20,9 @@ const equipoDps = { id: 'equipo-dps-camara', experiencia: 'dps' as const }
 const rolVoluntario = { id: 'rol-voluntario', label: 'Voluntario' }
 
 describe('transitionWithGrants', () => {
-  it('returns the updated service and grant decision on a valid activation', () => {
+  it('returns the updated service and grant decision on a valid activation', async () => {
     const audit = createPlatformGrantAudit()
-    const result = transitionWithGrants({
+    const result = await transitionWithGrants({
       servicio: makeServicio('en_orientacion'),
       estadoNuevo: 'activo',
       motivo: 'admin_promocion',
@@ -44,9 +44,9 @@ describe('transitionWithGrants', () => {
     expect(audit.logger.getEvents()).toHaveLength(2)
   })
 
-  it('returns an error and leaves audit empty for invalid transitions', () => {
+  it('returns an error and leaves audit empty for invalid transitions', async () => {
     const audit = createPlatformGrantAudit()
-    const result = transitionWithGrants({
+    const result = await transitionWithGrants({
       servicio: makeServicio('postulado'),
       estadoNuevo: 'en_pausa',
       motivo: 'admin_pausa',
@@ -63,9 +63,9 @@ describe('transitionWithGrants', () => {
     expect(audit.logger.getEvents()).toHaveLength(0)
   })
 
-  it('snapshots paused grants for activo to en_pausa', () => {
+  it('snapshots paused grants for activo to en_pausa', async () => {
     const audit = createPlatformGrantAudit()
-    const result = transitionWithGrants({
+    const result = await transitionWithGrants({
       servicio: makeServicio('activo'),
       estadoNuevo: 'en_pausa',
       motivo: 'admin_pausa',
@@ -85,9 +85,9 @@ describe('transitionWithGrants', () => {
     expect(audit.logger.getEvents()).toHaveLength(2)
   })
 
-  it('restores grants from a previous snapshot on reactivation', () => {
+  it('restores grants from a previous snapshot on reactivation', async () => {
     const auditPause = createPlatformGrantAudit()
-    const paused = transitionWithGrants({
+    const paused = await transitionWithGrants({
       servicio: makeServicio('activo'),
       estadoNuevo: 'en_pausa',
       motivo: 'admin_pausa',
@@ -102,7 +102,7 @@ describe('transitionWithGrants', () => {
     if (!paused.ok) throw new Error('expected ok')
 
     const auditRestore = createPlatformGrantAudit()
-    const restored = transitionWithGrants({
+    const restored = await transitionWithGrants({
       servicio: paused.servicioNuevo,
       estadoNuevo: 'activo',
       motivo: 'admin_reactivacion',
@@ -121,9 +121,9 @@ describe('transitionWithGrants', () => {
     expect(auditRestore.logger.getEvents()).toHaveLength(2)
   })
 
-  it('revokes grants without snapshot when retiring a service', () => {
+  it('revokes grants without snapshot when retiring a service', async () => {
     const audit = createPlatformGrantAudit()
-    const result = transitionWithGrants({
+    const result = await transitionWithGrants({
       servicio: makeServicio('activo'),
       estadoNuevo: 'retirado',
       motivo: 'admin_retiro',
