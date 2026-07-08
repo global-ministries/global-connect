@@ -16,9 +16,14 @@ const config: Config = {
     '<rootDir>/supabase/',
     '<rootDir>/scripts/.*\\.test\\.mjs$',
   ],
+  // Skip integration:supabase tests unless RUN_INTEGRATION=1 is set.
+  testNamePattern: process.env.RUN_INTEGRATION
+    ? undefined
+    : '^(?!.*\\[integration:supabase\\]).*$',
   collectCoverageFrom: [
     'lib/actions/**/*.ts',
     'lib/supabase/**/*.ts',
+    'lib/platform/**/*.ts',
     'components/**/*.tsx',
     '!**/*.d.ts',
     '!**/node_modules/**',

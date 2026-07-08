@@ -1,4 +1,8 @@
-import { resolvePlatformCapability } from '@/lib/platform/experiences'
+import {
+  PLATFORM_CAPABILITIES,
+  PLATFORM_EXPERIENCE_CATALOG,
+  resolvePlatformCapability,
+} from '@/lib/platform/experiences'
 import type { PlatformCapabilityActor, PlatformCapabilityResolutionInput } from '@/lib/platform/experiences'
 
 const gdvStageGrant = {
@@ -145,5 +149,236 @@ describe('Platform experiences and scoped capabilities', () => {
       const result = resolvePlatformCapability({ ...gdvReadInput, actor: { ...authorizedActor, grants } })
       expect(result).toMatchObject({ ok: false, decision: 'denied', reason, audit: { reason } })
     }
+  })
+})
+
+describe('Dream Team S2 capabilities (hybrid model)', () => {
+  const actorBase: PlatformCapabilityActor = {
+    personaId: 'ana',
+    allowedFlows: ['dashboard'],
+    grants: [],
+  }
+
+  function makeInput(
+    key: string,
+    requiredScope: { experience: string; type: string; id?: string },
+    grants: PlatformCapabilityActor['grants'] = [],
+  ): PlatformCapabilityResolutionInput {
+    return {
+      actor: { ...actorBase, grants },
+      flow: 'dashboard',
+      required: { key, scope: requiredScope },
+    }
+  }
+
+  describe('catalog', () => {
+    it('includes dream_team with experience and equipo scope types', () => {
+      expect(PLATFORM_EXPERIENCE_CATALOG).toHaveProperty('dream_team')
+      const dreamTeam = (PLATFORM_EXPERIENCE_CATALOG as Record<string, { label: string; scopeTypes: readonly string[] }>).dream_team
+      expect(dreamTeam.label).toBe('Dream Team')
+      expect(dreamTeam.scopeTypes).toEqual(['experience', 'equipo'])
+    })
+
+    it('extends estudiantes with equipo scope type while preserving salon', () => {
+      const estudiantes = (PLATFORM_EXPERIENCE_CATALOG as Record<string, { scopeTypes: readonly string[] }>).estudiantes
+      expect(estudiantes.scopeTypes).toContain('equipo')
+      expect(estudiantes.scopeTypes).toContain('salon')
+    })
+
+    it('preserves all Fase 1 experience catalogs', () => {
+      const expected = [
+        'grupos_vida',
+        'dps',
+        'ninos',
+        'estudiantes',
+        'the_living_room',
+        'talleres_crecimiento',
+        'family',
+      ]
+      for (const key of expected) {
+        expect(PLATFORM_EXPERIENCE_CATALOG).toHaveProperty(key)
+      }
+    })
+  })
+
+  describe('generic dream_team capabilities', () => {
+    it('resolves dream_team.serve with experience scope', () => {
+      const input = makeInput('dream_team.serve', { experience: 'dream_team', type: 'experience' }, [
+        { key: 'dream_team.serve', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.grant.scope).toEqual({ experience: 'dream_team', type: 'experience' })
+    })
+
+    it('resolves dream_team.lead with equipo scope', () => {
+      const input = makeInput('dream_team.lead', { experience: 'dream_team', type: 'equipo', id: 'produccion-tecnica' }, [
+        { key: 'dream_team.lead', scope: { experience: 'dream_team', type: 'equipo', id: 'produccion-tecnica' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.grant.scope).toEqual({ experience: 'dream_team', type: 'equipo', id: 'produccion-tecnica' })
+    })
+
+    it('resolves dream_team.coordinate with equipo scope', () => {
+      const input = makeInput('dream_team.coordinate', { experience: 'dream_team', type: 'equipo', id: 'produccion-tecnica' }, [
+        { key: 'dream_team.coordinate', scope: { experience: 'dream_team', type: 'equipo', id: 'produccion-tecnica' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves dream_team.director.coordinate with experience scope', () => {
+      const input = makeInput('dream_team.director.coordinate', { experience: 'dream_team', type: 'experience' }, [
+        { key: 'dream_team.director.coordinate', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves dream_team.requirements.manage with experience scope', () => {
+      const input = makeInput('dream_team.requirements.manage', { experience: 'dream_team', type: 'experience' }, [
+        { key: 'dream_team.requirements.manage', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves dream_team.metrics.read with experience scope', () => {
+      const input = makeInput('dream_team.metrics.read', { experience: 'dream_team', type: 'experience' }, [
+        { key: 'dream_team.metrics.read', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves dream_team.gdv.lead with grupo scope', () => {
+      const input = makeInput('dream_team.gdv.lead', { experience: 'grupos_vida', type: 'grupo', id: 'transit-2-anio' }, [
+        { key: 'dream_team.gdv.lead', scope: { experience: 'grupos_vida', type: 'grupo', id: 'transit-2-anio' }, source: 'dream-team-gdv' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.grant.scope).toEqual({ experience: 'grupos_vida', type: 'grupo', id: 'transit-2-anio' })
+    })
+  })
+
+  describe('domain-specific team capabilities', () => {
+    it('resolves dps.team.serve with equipo scope', () => {
+      const input = makeInput('dps.team.serve', { experience: 'dps', type: 'equipo', id: 'camara' }, [
+        { key: 'dps.team.serve', scope: { experience: 'dps', type: 'equipo', id: 'camara' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves dps.team.lead with equipo scope', () => {
+      const input = makeInput('dps.team.lead', { experience: 'dps', type: 'equipo', id: 'camara' }, [
+        { key: 'dps.team.lead', scope: { experience: 'dps', type: 'equipo', id: 'camara' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves dps.team.director with equipo scope', () => {
+      const input = makeInput('dps.team.director', { experience: 'dps', type: 'equipo', id: 'camara' }, [
+        { key: 'dps.team.director', scope: { experience: 'dps', type: 'equipo', id: 'camara' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves estudiantes.team.serve with equipo scope', () => {
+      const input = makeInput('estudiantes.team.serve', { experience: 'estudiantes', type: 'equipo', id: 'transit' }, [
+        { key: 'estudiantes.team.serve', scope: { experience: 'estudiantes', type: 'equipo', id: 'transit' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves estudiantes.team.lead with equipo scope', () => {
+      const input = makeInput('estudiantes.team.lead', { experience: 'estudiantes', type: 'equipo', id: 'transit' }, [
+        { key: 'estudiantes.team.lead', scope: { experience: 'estudiantes', type: 'equipo', id: 'transit' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves talleres_crecimiento.team.serve with taller scope', () => {
+      const input = makeInput('talleres_crecimiento.team.serve', { experience: 'talleres_crecimiento', type: 'taller', id: 'punto-de-partida' }, [
+        { key: 'talleres_crecimiento.team.serve', scope: { experience: 'talleres_crecimiento', type: 'taller', id: 'punto-de-partida' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves ninos.team.serve with salon scope', () => {
+      const input = makeInput('ninos.team.serve', { experience: 'ninos', type: 'salon', id: 'waumbaland-3-4' }, [
+        { key: 'ninos.team.serve', scope: { experience: 'ninos', type: 'salon', id: 'waumbaland-3-4' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+
+    it('resolves the_living_room.team.serve with experience scope', () => {
+      const input = makeInput('the_living_room.team.serve', { experience: 'the_living_room', type: 'experience' }, [
+        { key: 'the_living_room.team.serve', scope: { experience: 'the_living_room', type: 'experience' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+    })
+  })
+
+  describe('negative cases', () => {
+    it('rejects dream_team.serve required with dps experience as conflicting_scope', () => {
+      const input = makeInput('dream_team.serve', { experience: 'dps', type: 'equipo' }, [
+        { key: 'dream_team.serve', scope: { experience: 'dps', type: 'equipo' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.reason).toBe('conflicting_scope')
+    })
+
+    it('rejects estudiantes.team.lead required with salon scope as conflicting_scope', () => {
+      const input = makeInput('estudiantes.team.lead', { experience: 'estudiantes', type: 'salon' }, [
+        { key: 'estudiantes.team.lead', scope: { experience: 'estudiantes', type: 'salon' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.reason).toBe('conflicting_scope')
+    })
+  })
+
+  describe('Ana integration case', () => {
+    const ana: PlatformCapabilityActor = {
+      personaId: 'ana',
+      allowedFlows: ['dashboard'],
+      grants: [
+        { key: 'dream_team.serve', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
+        { key: 'dream_team.lead', scope: { experience: 'dream_team', type: 'equipo', id: 'camara' }, source: 'dream-team' },
+        { key: 'dps.team.serve', scope: { experience: 'dps', type: 'equipo', id: 'camara' }, source: 'dream-team' },
+        { key: 'estudiantes.team.lead', scope: { experience: 'estudiantes', type: 'equipo', id: 'transit' }, source: 'dream-team' },
+      ],
+    }
+
+    it('allows all four Ana grants independently with only matching signatures evaluated', () => {
+      const cases: Array<[string, { experience: string; type: string; id?: string }, string]> = [
+        ['dream_team.serve', { experience: 'dream_team', type: 'experience' }, 'dream_team:experience'],
+        ['dream_team.lead', { experience: 'dream_team', type: 'equipo', id: 'camara' }, 'dream_team:equipo:camara'],
+        ['dps.team.serve', { experience: 'dps', type: 'equipo', id: 'camara' }, 'dps:equipo:camara'],
+        ['estudiantes.team.lead', { experience: 'estudiantes', type: 'equipo', id: 'transit' }, 'estudiantes:equipo:transit'],
+      ]
+
+      for (const [key, scope, signature] of cases) {
+        const result = resolvePlatformCapability({ actor: ana, flow: 'dashboard', required: { key, scope } })
+        expect(result.ok).toBe(true)
+        if (!result.ok) continue
+        expect(result.audit.evaluatedGrantSignatures).toEqual([`${key}|${signature}`])
+      }
+    })
   })
 })
