@@ -1,12 +1,14 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { findPlatformSessionPersonaByAuthId, resolveReadOnlyPlatformSession } from '@/lib/auth/platformSessionReadOnly'
 import { PLATFORM_CAPABILITIES, resolvePlatformCapability } from '@/lib/platform/experiences'
+import { getDreamTeamFlags } from '@/lib/platform/flags'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 const READ_CAPABILITIES = ['dream_team.metrics.read', 'dream_team.requirements.manage', 'dream_team.director.coordinate']
 const WRITE_CAPABILITIES = ['dream_team.requirements.manage', 'dream_team.director.coordinate']
 
-export const isDreamTeamEnabled = () => process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED === 'on'
+export const isDreamTeamEnabled = (env: NodeJS.ProcessEnv = process.env) =>
+  getDreamTeamFlags(env).enabled || env.NEXT_PUBLIC_DREAM_TEAM_ENABLED === 'on'
 
 export async function requireDreamTeamSession() {
   const supabase = await createSupabaseServerClient()
