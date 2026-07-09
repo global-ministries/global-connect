@@ -23,9 +23,9 @@ function setNodeEnv(value: string | undefined) {
 
 type MockAuthUser = { id: string }
 type MockUsuario = { id: string; auth_id: string; nombre: string; telefono?: string }
-type AuthStateEvent = 'SIGNED_IN' | 'SIGNED_OUT'
+type AuthStateEvent = 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'USER_UPDATED' | 'INITIAL_SESSION'
 type CapturedAuthStateCallback = (event: AuthStateEvent, session: unknown | null) => void
-type GetUserResponse = { data: { user: MockAuthUser | null }; error: null }
+type GetUserResponse = { data: { user: MockAuthUser | null }; error: { message: string } | null }
 type Deferred<T> = {
   promise: Promise<T>
   resolve: (value: T) => void
@@ -549,6 +549,107 @@ describe('useCurrentUser', () => {
     } finally {
       jest.useRealTimers()
     }
+  })
+
+  // Finding 6: TOKEN_REFRESHED must NOT clear the cache. The user identity is
+  // unchanged on a refresh; only the access token rotates. Clearing the
+  // cache on every refresh negates the 15s TTL — every Supabase auth event
+  // (which fires roughly every hour on a healthy session) would force a
+  // full DB reload on next navigation.
+  it('keeps the cache intact when TOKEN_REFRESHED fires', async () => {
+    const user = { id: 'auth-token-refresh' }
+    const usuario = { id: 'usuario-token-refresh', auth_id: 'auth-token-refresh', nombre: 'Refresh User' }
+    const { client, triggerAuthStateChange } = setupSupabaseClient([
+      { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
+    ])
+
+    const { result, unmount } = renderHook(() => useCurrentUser())
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.usuario?.id).toBe('usuario-token-refresh')
+    const getUserCallsAfterLoad = client.auth.getUser.mock.calls.length
+
+    // Fire TOKEN_REFRESHED — the cache must survive. No refetch is triggered
+    // and the module-level cache still holds the user data.
+    await act(async () => {
+      triggerAuthStateChange('TOKEN_REFRESHED', AUTH_SESSION_PLACEHOLDER)
+    })
+
+    // No refetch was triggered by the refresh event.
+    expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsAfterLoad)
+
+    // Cache must still hold the user data after the refresh. __reset returns
+    // the previous (now-cleared) cache entry — if TOKEN_REFRESHED cleared it,
+    // this would be null.
+    expect(__resetCurrentUserCacheForTesting()).not.toBeNull()
+
+    unmount()
+  })
+
+  // Finding 1: a real error from loadCurrentUserData (DB outage, RPC failure,
+  // malformed data) must surface through setError() instead of being silently
+  // swallowed by the timeout wrapper. The previous fix's .catch(() => null)
+  // collapsed "no user data because of network stall" with "no user data
+  // because the database exploded" — ops couldn't tell the two apart and
+  // users got neither a toast nor a retry prompt.
+  it('surfaces an auth error from loadCurrentUserData through setError', async () => {
+    const getUser = jest.fn().mockResolvedValue({
+      data: { user: null },
+      error: { message: 'invalid_grant: refresh token revoked' },
+    })
+    createClient.mockReturnValue({
+      auth: {
+        getUser,
+        onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+      },
+      from: jest.fn(),
+      rpc: jest.fn(),
+    })
+
+    const { result } = renderHook(() => useCurrentUser())
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.usuario).toBeNull()
+    expect(result.current.roles).toEqual([])
+    expect(result.current.supportCapabilities).toEqual([])
+    expect(result.current.platformSession).toBeNull()
+    // Real error surfaces via setError — user gets a toast and ops gets a
+    // Sentry report. Silent failure is reserved for genuine timeouts.
+    expect(result.current.error).toMatch(/autenticaci/i)
+  })
+
+  // Finding 1: a thrown error from the userData query must also surface
+  // (not be silently swallowed like the previous .catch(() => null)).
+  it('surfaces a database query error from loadCurrentUserData through setError', async () => {
+    const getUser = jest.fn().mockResolvedValue({
+      data: { user: { id: 'auth-db-error' } },
+      error: null,
+    })
+    const usuariosQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'connection terminated' },
+      }),
+    }
+    createClient.mockReturnValue({
+      auth: {
+        getUser,
+        onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+      },
+      from: jest.fn((table: string) => {
+        if (table === 'usuarios') return usuariosQuery
+        throw new Error(`Unexpected table ${table}`)
+      }),
+      rpc: jest.fn(),
+    })
+
+    const { result } = renderHook(() => useCurrentUser())
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.usuario).toBeNull()
+    expect(result.current.error).toMatch(/datos del usuario/i)
   })
 
 })
