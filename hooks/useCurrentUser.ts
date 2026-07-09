@@ -39,6 +39,13 @@ function clearCurrentUserCache() {
   currentUserCache = null
 }
 
+// Test-only: clears the module-level cache so tests can run in isolation.
+// Not part of the public hook surface — the leading underscores signal
+// "internal/test-only" and lint rules can forbid production imports.
+export function __resetCurrentUserCacheForTesting() {
+  clearCurrentUserCache()
+}
+
 async function fetchCurrentUserData(): Promise<CurrentUserResult | null> {
   const now = Date.now()
   if (currentUserCache && currentUserCache.expiresAt > now) {

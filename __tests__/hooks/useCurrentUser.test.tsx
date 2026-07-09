@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
-import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { useCurrentUser, __resetCurrentUserCacheForTesting } from '@/hooks/useCurrentUser'
 
 const createClient = jest.fn()
 
@@ -45,6 +45,7 @@ describe('useCurrentUser', () => {
   })
 
   afterEach(() => {
+    __resetCurrentUserCacheForTesting()
     jest.restoreAllMocks()
   })
 
@@ -157,13 +158,14 @@ describe('useCurrentUser', () => {
   })
 
   it('sets loading to false and clears state when getUser hangs past the timeout', async () => {
-    jest.useFakeTimers({ advanceTimers: true })
+    jest.useFakeTimers()
     try {
       const pendingGetUser = createDeferred<GetUserResponse>()
       setupSupabaseClient([
-        // Initial fetch — getUser never resolves. The isCurrentAuthUser cache check
-        // also resolves a getUser; we leave it dangling too because the hook should
-        // settle on the outer timeout regardless of cache state.
+        // Initial fetch — getUser never resolves. The cache is empty (first
+        // render), so the cache-hit branch is skipped; the stalled getUser is
+        // the one called by loadCurrentUserData. The hook must release
+        // loading once the outer timeout fires.
         { user: { id: 'auth-1' }, getUserDeferred: pendingGetUser },
       ])
 
@@ -326,6 +328,174 @@ describe('useCurrentUser', () => {
         await flushPendingPromises()
       })
       expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsAfterInitial)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  // Regression coverage for the 4R review of fix #257.
+  // The previous GREEN commit (6187c53) wrapped loadCurrentUserData in a 5s
+  // Promise.race, but four boundaries were left uncovered. These tests pin
+  // the post-remediation behavior.
+
+  it('times out when the cache-hit isCurrentAuthUser() hangs (R3 HIGH-1)', async () => {
+    jest.useFakeTimers()
+    try {
+      // First render — seed the module-level cache with a fast path so the
+      // second render takes the cache-hit branch at line 45.
+      const seedDeferred = createDeferred<GetUserResponse>()
+      const cachedUser = { id: 'auth-cached' }
+      setupSupabaseClient([
+        { user: cachedUser, roles: ['admin'], supportCapabilities: [], getUserDeferred: seedDeferred },
+      ])
+      const seed = renderHook(() => useCurrentUser())
+      await act(async () => {
+        seedDeferred.resolve(getUserResponse(cachedUser))
+        await flushPendingPromises()
+      })
+      await waitFor(() => expect(seed.result.current.loading).toBe(false))
+      seed.unmount()
+
+      // Second render — cache is populated. The next setupSupabaseClient call
+      // creates a fresh client; the first getUser queued is the one
+      // isCurrentAuthUser will call on the cache-hit branch. Stalling it
+      // reproduces the HIGH-1 bug.
+      const stalledCacheCheck = createDeferred<GetUserResponse>()
+      setupSupabaseClient([
+        { user: null, cacheAuthUser: null, getUserDeferred: stalledCacheCheck },
+      ])
+      const { result } = renderHook(() => useCurrentUser())
+      expect(result.current.loading).toBe(true)
+
+      await act(async () => {
+        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 1000)
+        await flushPendingPromises()
+      })
+
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.usuario).toBeNull()
+      expect(result.current.error).toBeNull()
+
+      // Resolve the stalled deferred so the test doesn't leak unhandled
+      // rejection warnings — the cache check is irrelevant after the timeout.
+      await act(async () => {
+        stalledCacheCheck.resolve(getUserResponse(null))
+        await flushPendingPromises()
+      })
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('does not populate currentUserCache when getUser resolves AFTER the timeout (R3 HIGH-2)', async () => {
+    jest.useFakeTimers()
+    try {
+      const pendingGetUser = createDeferred<GetUserResponse>()
+      const user = { id: 'auth-late' }
+      const usuario = { id: 'usuario-late', auth_id: 'auth-late', nombre: 'Late User' }
+      setupSupabaseClient([
+        { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: pendingGetUser },
+      ])
+      const { result } = renderHook(() => useCurrentUser())
+
+      // Advance past the timeout — the abandoned loadCurrentUserData is still
+      // awaiting getUser.
+      await act(async () => {
+        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 100)
+        await flushPendingPromises()
+      })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.usuario).toBeNull()
+
+      // Late resolve. The work promise chain continues in the background; the
+      // didTimeOut flag must prevent it from writing to currentUserCache.
+      await act(async () => {
+        pendingGetUser.resolve(getUserResponse(user))
+        await flushPendingPromises()
+      })
+
+      // Inspect the module-level cache directly via the test-only reset
+      // helper. If the cache was poisoned, this returns the stale entry; the
+      // GREEN fix keeps it null.
+      expect(__resetCurrentUserCacheForTesting()).toBeNull()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('returns user data when getUser resolves just under the timeout (R3 MEDIUM-3)', async () => {
+    jest.useFakeTimers()
+    try {
+      const pendingGetUser = createDeferred<GetUserResponse>()
+      const user = { id: 'auth-slow' }
+      const usuario = { id: 'usuario-slow', auth_id: 'auth-slow', nombre: 'Slow User' }
+      setupSupabaseClient([
+        { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: pendingGetUser },
+      ])
+      const { result } = renderHook(() => useCurrentUser())
+
+      // Advance 500ms before the timeout. The race timer has NOT fired yet.
+      await act(async () => {
+        jest.advanceTimersByTime(FETCH_TIMEOUT_MS - 500)
+        await flushPendingPromises()
+      })
+
+      // Resolve just before the timeout — the work promise should win the race.
+      await act(async () => {
+        pendingGetUser.resolve(getUserResponse(user))
+        await flushPendingPromises()
+      })
+
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.usuario?.id).toBe('usuario-slow')
+      expect(result.current.roles).toEqual(['admin'])
+      expect(result.current.supportCapabilities).toEqual(['support.view'])
+
+      // Advance past the timeout — should be a no-op now (timer was cleared).
+      await act(async () => {
+        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 1000)
+        await flushPendingPromises()
+      })
+      expect(result.current.loading).toBe(false)
+      expect(result.current.usuario?.id).toBe('usuario-slow')
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('clears the timeout when getUser resolves well before the timeout (R3 HIGH-3)', async () => {
+    jest.useFakeTimers()
+    try {
+      const pendingGetUser = createDeferred<GetUserResponse>()
+      const user = { id: 'auth-fast' }
+      const usuario = { id: 'usuario-fast', auth_id: 'auth-fast', nombre: 'Fast User' }
+      const { client } = setupSupabaseClient([
+        { user, usuario, roles: ['admin'], supportCapabilities: [], getUserDeferred: pendingGetUser },
+      ])
+      const { result } = renderHook(() => useCurrentUser())
+
+      // Resolve well before the timeout — work promise wins, finally clears timer.
+      await act(async () => {
+        pendingGetUser.resolve(getUserResponse(user))
+        jest.advanceTimersByTime(100)
+        await flushPendingPromises()
+      })
+
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.usuario?.id).toBe('usuario-fast')
+      const getUserCallsAfterSettle = client.auth.getUser.mock.calls.length
+
+      // Advance PAST the original timeout. If the timer wasn't cleared, the
+      // setTimeout callback would still fire and (in the GREEN fix) emit a
+      // Sentry breadcrumb. With proper cleanup, nothing observable changes.
+      await act(async () => {
+        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 1000)
+        await flushPendingPromises()
+      })
+      expect(result.current.loading).toBe(false)
+      expect(result.current.usuario?.id).toBe('usuario-fast')
+      // No additional getUser calls should have been triggered by the timer.
+      expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsAfterSettle)
     } finally {
       jest.useRealTimers()
     }
