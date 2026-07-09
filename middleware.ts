@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import * as Sentry from '@sentry/nextjs'
 import type { NextRequest } from 'next/server'
 
 /**
@@ -20,6 +21,23 @@ export function isPublicPath(path: string) {
   return PUBLIC_PATHS.has(path)
 }
 
+/**
+ * Bound on how long middleware will wait for supabase.auth.getUser() before
+ * failing closed. Mirrors the FETCH_TIMEOUT_MS in hooks/useCurrentUser.ts:
+ * 5s is the upper bound of what users perceive as "this feels broken"
+ * before bouncing. Without this bound, a stalled network between Vercel and
+ * Supabase can hang every client-side navigation because middleware runs on
+ * every matched route in Edge runtime.
+ *
+ * See GH issue #257 — this is the server-side root cause that made the
+ * client-side hook fix in PR #258 appear not to work in the preview
+ * deployment.
+ *
+ * Exported so tests can advance timers by the same value rather than
+ * hand-coding magic numbers.
+ */
+export const MIDDLEWARE_FETCH_TIMEOUT_MS = 5_000
+
 export async function middleware(request: NextRequest) {
   const url = new URL(request.url)
   const path = url.pathname
@@ -35,7 +53,7 @@ export async function middleware(request: NextRequest) {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) => {
           // Setear cookies en el request (para Server Components downstream)
-          cookiesToSet.forEach(({ name, value, options }) => {
+          cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value)
           })
           // Re-crear response con cookies actualizadas
@@ -48,8 +66,52 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // IMPORTANTE: NO usar getSession() — getUser() valida contra el servidor de Supabase
-  const { data: { user }, error } = await supabase.auth.getUser()
+  // Para rutas públicas el middleware no necesita validar sesión contra el
+  // servidor: el handler de la ruta hace su propio gating (p.ej. /auth/callback
+  // intercambia el code y redirige). Saltarse el getUser() aquí elimina una
+  // llamada de red y un punto de bloqueo potencial en cada navegación a una
+  // ruta pública.
+  if (isPublicPath(path)) {
+    return supabaseResponse
+  }
+
+  // IMPORTANTE: NO usar getSession() — getUser() valida contra el servidor de
+  // Supabase. Bound la llamada con un Promise.race: si Supabase cuelga, la
+  // navegación no debe quedar esperando eternamente. On timeout, tratamos al
+  // usuario como no autenticado y redirigimos a login (fail closed).
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+  const getUserPromise = supabase.auth.getUser()
+  const timeoutPromise = new Promise<{ data: { user: null }; error: Error }>((resolve) => {
+    timeoutHandle = setTimeout(
+      () =>
+        resolve({
+          data: { user: null },
+          error: new Error('middleware getUser timeout'),
+        }),
+      MIDDLEWARE_FETCH_TIMEOUT_MS
+    )
+  })
+
+  let authResult: { data: { user: { id: string } | null }; error: { message?: string; code?: string } | null }
+  try {
+    authResult = await Promise.race([getUserPromise, timeoutPromise])
+    if (authResult.error?.message === 'middleware getUser timeout') {
+      // Sentry soporta Edge runtime via @sentry/nextjs; la breadcrumb queda
+      // visible en la sesión del usuario y en el dashboard de ops sin
+      // necesidad de instrumentar el cliente. Si por alguna razón la SDK no
+      // estuviera inicializada en Edge, addBreadcrumb es no-op seguro.
+      Sentry.addBreadcrumb({
+        category: 'auth',
+        level: 'warning',
+        message: 'middleware getUser timed out',
+        data: { timeoutMs: MIDDLEWARE_FETCH_TIMEOUT_MS, path },
+      })
+    }
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle)
+  }
+
+  const { data: { user }, error } = authResult
 
   // Si hay error de refresh token expirado, limpiar cookies
   if (error && (
@@ -70,10 +132,8 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
-  const isPublic = isPublicPath(path)
-
   // No autenticado + ruta privada → login
-  if (!user && !isPublic) {
+  if (!user) {
     const redirectUrl = new URL('/', request.url)
     redirectUrl.searchParams.set('redirect', path)
     return NextResponse.redirect(redirectUrl)

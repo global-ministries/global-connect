@@ -16,6 +16,8 @@ type MockAuthUser = { id: string }
 type GetUserResponse = { data: { user: MockAuthUser | null }; error: { message: string; code?: string } | null }
 type Deferred<T> = { promise: Promise<T>; resolve: (value: T) => void }
 
+type NextInit = { request?: { headers?: Headers } }
+
 const getUserMock = jest.fn()
 const cookieGetAllMock = jest.fn(() => [] as Array<{ name: string; value: string }>)
 const cookieSetAllMock = jest.fn()
@@ -28,9 +30,14 @@ jest.mock('@supabase/ssr', () => ({
   }),
 }))
 
+const sentryAddBreadcrumbMock = jest.fn()
+jest.mock('@sentry/nextjs', () => ({
+  addBreadcrumb: (crumb: unknown) => sentryAddBreadcrumbMock(crumb),
+}))
+
 // next/server is already mocked in the original test, just lifted here with
 // working cookie surface so middleware's setAll() path doesn't blow up.
-const nextResponseNextMock = jest.fn((init?: { request?: { headers?: Headers } }) => ({
+const nextResponseNextMock = jest.fn((init?: NextInit) => ({
   type: 'next' as const,
   headers: init?.request?.headers ?? new Headers(),
   cookies: { set: jest.fn(), delete: jest.fn() },
@@ -43,7 +50,7 @@ const nextResponseRedirectMock = jest.fn((url: URL | string) => ({
 
 jest.mock('next/server', () => ({
   NextResponse: {
-    next: (init?: unknown) => nextResponseNextMock(init),
+    next: (init?: NextInit) => nextResponseNextMock(init),
     redirect: (url: URL | string) => nextResponseRedirectMock(url),
   },
 }))
@@ -64,6 +71,7 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
     getUserMock.mockReset()
     cookieGetAllMock.mockReset()
     cookieSetAllMock.mockReset()
+    sentryAddBreadcrumbMock.mockClear()
     cookieGetAllMock.mockReturnValue([])
   })
 
@@ -135,6 +143,20 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
       expect(redirectUrl.pathname).toBe('/')
       expect(redirectUrl.searchParams.get('redirect')).toBe('/dashboard')
 
+      // Observability: middleware must emit a Sentry breadcrumb on timeout so
+      // ops can correlate user complaints with Supabase incidents.
+      expect(sentryAddBreadcrumbMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          category: 'auth',
+          level: 'warning',
+          message: 'middleware getUser timed out',
+          data: expect.objectContaining({
+            timeoutMs: MIDDLEWARE_FETCH_TIMEOUT_MS,
+            path: '/dashboard',
+          }),
+        })
+      )
+
       // Drain the deferred so unhandled-rejection warnings don't leak.
       pendingGetUser.resolve({ data: { user: null }, error: null })
       await flushPendingPromises()
@@ -198,5 +220,34 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
     const redirectUrl = new URL(redirectArg as string)
     expect(redirectUrl.pathname).toBe('/')
     expect(redirectUrl.searchParams.get('redirect')).toBe('/dashboard')
+  })
+
+  it('clears the timeout handle when getUser resolves well before the timeout (no leak)', async () => {
+    jest.useFakeTimers()
+    try {
+      const pendingGetUser = createDeferred<GetUserResponse>()
+      pendingGetUser.resolve({ data: { user: { id: 'auth-fast-2' } }, error: null })
+      getUserMock.mockReturnValueOnce(pendingGetUser.promise)
+
+      const request = createMockRequest('/dashboard')
+      const promise = middleware(request as unknown as Parameters<typeof middleware>[0])
+
+      // Let microtasks settle, then advance well past the timeout. If the
+      // timer were not cleared, the timeout callback would fire again and
+      // re-write to response state — observable here as an extra redirect call.
+      jest.advanceTimersByTime(50)
+      await flushPendingPromises()
+      await promise
+
+      jest.advanceTimersByTime(MIDDLEWARE_FETCH_TIMEOUT_MS + 1000)
+      await flushPendingPromises()
+
+      expect(nextResponseRedirectMock).not.toHaveBeenCalled()
+      expect(nextResponseNextMock).toHaveBeenCalledTimes(1)
+      // No Sentry breadcrumb for the fast path.
+      expect(sentryAddBreadcrumbMock).not.toHaveBeenCalled()
+    } finally {
+      jest.useRealTimers()
+    }
   })
 })
