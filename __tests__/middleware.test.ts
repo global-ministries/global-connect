@@ -201,6 +201,59 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
     expect(result.type).toBe('next')
   })
 
+  // Finding 2: logged-in user visiting "/" (the login page) must be
+  // redirected to /dashboard. The original fix short-circuited on
+  // isPublicPath('/') which SKIPS getUser entirely, so the redirect
+  // branch at the bottom of middleware() never ran for '/'.
+  it('redirects logged-in user from / to /dashboard', async () => {
+    queueFastResult({ id: 'auth-logged-in' })
+
+    const request = createMockRequest('/')
+    const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+    expect(getUserMock).toHaveBeenCalledTimes(1)
+    expect(nextResponseRedirectMock).toHaveBeenCalledTimes(1)
+    const redirectArg = nextResponseRedirectMock.mock.calls[0]?.[0]
+    expect(redirectArg).toBeDefined()
+    const redirectUrl = new URL(redirectArg as string)
+    expect(redirectUrl.pathname).toBe('/dashboard')
+    expect(result.type).toBe('redirect')
+  })
+
+  // Finding 2 (companion): logged-in user visiting /signup must redirect
+  // to /dashboard. /signup is in ALWAYS_CHECK_AUTH_PATHS — it needs getUser
+  // so we can redirect, but does not need to validate the route against
+  // the auth server for protection (it's a public route).
+  it('redirects logged-in user from /signup to /dashboard', async () => {
+    queueFastResult({ id: 'auth-logged-in-signup' })
+
+    const request = createMockRequest('/signup')
+    const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+    expect(getUserMock).toHaveBeenCalledTimes(1)
+    expect(nextResponseRedirectMock).toHaveBeenCalledTimes(1)
+    const redirectArg = nextResponseRedirectMock.mock.calls[0]?.[0]
+    const redirectUrl = new URL(redirectArg as string)
+    expect(redirectUrl.pathname).toBe('/dashboard')
+    expect(result.type).toBe('redirect')
+  })
+
+  // Finding 2 (companion): unauthenticated user visiting / must NOT be
+  // redirected — it's the login page. SKIP_AUTH_PATHS-only paths skip
+  // getUser; ALWAYS_CHECK_AUTH_PATHS paths still call getUser, but the
+  // no-user branch must return NextResponse.next() (not redirect to
+  // itself).
+  it('does not redirect an unauthenticated user from / to /dashboard', async () => {
+    queueFastResult(null)
+
+    const request = createMockRequest('/')
+    const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+    expect(getUserMock).toHaveBeenCalledTimes(1)
+    expect(nextResponseRedirectMock).not.toHaveBeenCalled()
+    expect(result.type).toBe('next')
+  })
+
   it('redirects to login and clears cookies on refresh_token_not_found error', async () => {
     queueFastResult(null, {
       message: 'refresh_token_not_found',
