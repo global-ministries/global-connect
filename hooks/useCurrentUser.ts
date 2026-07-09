@@ -25,6 +25,12 @@ type CurrentUserResult = Omit<CurrentUserData, 'loading' | 'error'>
 
 const CURRENT_USER_CACHE_TTL_MS = 15_000
 const SIGNED_IN_DEBOUNCE_MS = 150
+// Bound the time we wait for supabase.auth.getUser() (and the dependent
+// queries) before treating the user as unauthenticated. Without this, a stalled
+// network between Vercel and Supabase can leave `loading=true` forever and
+// block all client-side navigation. See GH issue #257 — this is a regression
+// of the same root cause partially fixed in #225.
+const FETCH_TIMEOUT_MS = 5_000
 let currentUserCache: { authUserId: string | null; expiresAt: number; value: CurrentUserResult } | null = null
 let currentUserCacheGeneration = 0
 
@@ -33,7 +39,7 @@ function clearCurrentUserCache() {
   currentUserCache = null
 }
 
-async function fetchCurrentUserData(): Promise<CurrentUserResult> {
+async function fetchCurrentUserData(): Promise<CurrentUserResult | null> {
   const now = Date.now()
   if (currentUserCache && currentUserCache.expiresAt > now) {
     if (await isCurrentAuthUser(currentUserCache.authUserId)) return currentUserCache.value
@@ -41,19 +47,29 @@ async function fetchCurrentUserData(): Promise<CurrentUserResult> {
   }
 
   const requestGeneration = currentUserCacheGeneration
-  return loadCurrentUserData().then(async (value) => {
-    if (requestGeneration === currentUserCacheGeneration) {
-      if (await isCurrentAuthUser(value.authUserId)) {
-        currentUserCache = { authUserId: value.authUserId, value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
-      }
-    }
-    return value
+  const supabase = createClient()
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+  const timeoutPromise = new Promise<null>((resolve) => {
+    timeoutHandle = setTimeout(() => resolve(null), FETCH_TIMEOUT_MS)
   })
+  try {
+    return await Promise.race([
+      loadCurrentUserData(supabase).then(async (value) => {
+        if (requestGeneration === currentUserCacheGeneration) {
+          if (await isCurrentAuthUser(value.authUserId)) {
+            currentUserCache = { authUserId: value.authUserId, value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
+          }
+        }
+        return value
+      }),
+      timeoutPromise,
+    ])
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle)
+  }
 }
 
-async function loadCurrentUserData(): Promise<CurrentUserResult> {
-  const supabase = createClient()
-
+async function loadCurrentUserData(supabase: ReturnType<typeof createClient>): Promise<CurrentUserResult> {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError) {
@@ -133,10 +149,19 @@ export function useCurrentUser(): CurrentUserData {
 
         if (authGeneration !== authGenerationRef.current) return
 
-        setUsuario(userData.usuario)
-        setRoles(userData.roles)
-        setSupportCapabilities(userData.supportCapabilities)
-        setPlatformSession(userData.platformSession)
+        if (userData === null) {
+          // Fetch timed out — treat as unauthenticated and fail silently
+          // (a stalled network should not surface an error toast to the user).
+          setUsuario(null)
+          setRoles([])
+          setSupportCapabilities([])
+          setPlatformSession(null)
+        } else {
+          setUsuario(userData.usuario)
+          setRoles(userData.roles)
+          setSupportCapabilities(userData.supportCapabilities)
+          setPlatformSession(userData.platformSession)
+        }
       } catch (err) {
         if (authGeneration !== authGenerationRef.current) return
 
