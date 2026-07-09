@@ -60,7 +60,20 @@ export function __resetCurrentUserCacheForTesting() {
   return previous
 }
 
-async function tryFetchCurrentUserData(): Promise<CurrentUserResult | null> {
+// Discriminated union returned by tryFetchCurrentUserData. Distinguishes a
+// network timeout (silent failure — the UI renders as signed-out without a
+// toast) from a real error from loadCurrentUserData (DB outage, RPC failure,
+// auth error) which the consumer must surface via setError() so ops can
+// correlate and the user can retry. The previous fix collapsed both into a
+// single `null` return with `.catch(() => null)` — ops could not tell the
+// two apart and users got neither a toast nor a retry prompt. See Finding 1
+// in the 4R review.
+type CurrentUserFetchResult =
+  | { kind: 'ok'; data: CurrentUserResult }
+  | { kind: 'timeout' }
+  | { kind: 'error'; error: unknown }
+
+async function tryFetchCurrentUserData(): Promise<CurrentUserFetchResult> {
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null
   let didTimeOut = false
   const timeoutPromise = new Promise<null>((resolve) => {
@@ -90,7 +103,10 @@ async function tryFetchCurrentUserData(): Promise<CurrentUserResult | null> {
       }
       return value
     })
-  })().catch(() => null)
+  })().then(
+    (value): CurrentUserFetchResult => ({ kind: 'ok', data: value }),
+    (error): CurrentUserFetchResult => ({ kind: 'error', error })
+  )
   try {
     const result = await Promise.race([work, timeoutPromise])
     if (result === null) {
@@ -106,6 +122,7 @@ async function tryFetchCurrentUserData(): Promise<CurrentUserResult | null> {
         // disabled) — observability is best-effort and must never break
         // the auth flow.
       }
+      return { kind: 'timeout' }
     }
     return result
   } finally {
@@ -189,32 +206,35 @@ export function useCurrentUser(): CurrentUserData {
         setLoading(true)
         setError(null)
 
-        const userData = await tryFetchCurrentUserData()
+        const result = await tryFetchCurrentUserData()
 
         if (authGeneration !== authGenerationRef.current) return
 
-        if (userData === null) {
+        if (result.kind === 'timeout') {
           // Fetch timed out — treat as unauthenticated and fail silently
           // (a stalled network should not surface an error toast to the user).
           setUsuario(null)
           setRoles([])
           setSupportCapabilities([])
           setPlatformSession(null)
+        } else if (result.kind === 'ok') {
+          setUsuario(result.data.usuario)
+          setRoles(result.data.roles)
+          setSupportCapabilities(result.data.supportCapabilities)
+          setPlatformSession(result.data.platformSession)
         } else {
-          setUsuario(userData.usuario)
-          setRoles(userData.roles)
-          setSupportCapabilities(userData.supportCapabilities)
-          setPlatformSession(userData.platformSession)
+          // Real error from loadCurrentUserData (DB outage, RPC failure,
+          // auth error). Surface through setError so the user gets a toast
+          // and ops gets a Sentry report. Silent failure is reserved for
+          // genuine timeouts. See Finding 1 in the 4R review.
+          const err = result.error
+          console.error('Error en useCurrentUser:', err)
+          setError(err instanceof Error ? err.message : 'Error desconocido')
+          setUsuario(null)
+          setRoles([])
+          setSupportCapabilities([])
+          setPlatformSession(null)
         }
-      } catch (err) {
-        if (authGeneration !== authGenerationRef.current) return
-
-        console.error('Error en useCurrentUser:', err)
-        setError(err instanceof Error ? err.message : 'Error desconocido')
-        setUsuario(null)
-        setRoles([])
-        setSupportCapabilities([])
-        setPlatformSession(null)
       } finally {
         if (authGeneration !== authGenerationRef.current) return
 
@@ -227,7 +247,14 @@ export function useCurrentUser(): CurrentUserData {
     // Escuchar cambios en la autenticación
     const supabase = createClient()
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      clearCurrentUserCache()
+      // TOKEN_REFRESHED and INITIAL_SESSION do not change the user identity
+      // — only the access token rotates (or no rotation has happened yet
+      // for INITIAL_SESSION). Clearing the cache on these events negates
+      // the 15s TTL and forces a full DB reload on every Supabase auth
+      // event. See Finding 6 in the 4R review.
+      if (event !== 'TOKEN_REFRESHED' && event !== 'INITIAL_SESSION') {
+        clearCurrentUserCache()
+      }
       if (signedInDebounceRef.current) {
         clearTimeout(signedInDebounceRef.current)
         signedInDebounceRef.current = null
