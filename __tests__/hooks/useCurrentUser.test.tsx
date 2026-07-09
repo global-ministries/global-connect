@@ -1,10 +1,25 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
-import { useCurrentUser, __resetCurrentUserCacheForTesting, FETCH_TIMEOUT_MS } from '@/hooks/useCurrentUser'
+import { useCurrentUser, __resetCurrentUserCacheForTesting } from '@/hooks/useCurrentUser'
+import { AUTH_FETCH_TIMEOUT_MS } from '@/lib/platform/auth-timeout'
 
 const createClient = jest.fn()
 
 jest.mock('@/lib/supabase/client', () => ({ createClient: () => createClient() }))
+
+const sentryAddBreadcrumbMock = jest.fn()
+jest.mock('@sentry/nextjs', () => ({
+  addBreadcrumb: (crumb: unknown) => sentryAddBreadcrumbMock(crumb),
+}))
+
+const ORIGINAL_NODE_ENV = process.env.NODE_ENV
+function setNodeEnv(value: string | undefined) {
+  if (value === undefined) {
+    delete (process.env as Record<string, string | undefined>).NODE_ENV
+  } else {
+    (process.env as Record<string, string | undefined>).NODE_ENV = value
+  }
+}
 
 type MockAuthUser = { id: string }
 type MockUsuario = { id: string; auth_id: string; nombre: string; telefono?: string }
@@ -178,7 +193,7 @@ describe('useCurrentUser', () => {
       // Advance past the fetch timeout. The hook must release loading without
       // ever receiving a response from getUser.
       await act(async () => {
-        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 1000)
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 1000)
         await flushPendingPromises()
       })
 
@@ -190,6 +205,40 @@ describe('useCurrentUser', () => {
       // Silent failure: don't alarm the user with a toast for a network stall.
       // The hook should clear state without setting an error.
       expect(result.current.error).toBeNull()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  // Finding 5: Sentry.addBreadcrumb must be wrapped — if the SDK throws
+  // (e.g. Edge bundling failure, instrumentation not initialized), the
+  // surrounding auth flow must not crash.
+  it('survives a throwing Sentry.addBreadcrumb on timeout', async () => {
+    jest.useFakeTimers()
+    try {
+      sentryAddBreadcrumbMock.mockImplementationOnce(() => {
+        throw new Error('Sentry SDK not initialized')
+      })
+      const pendingGetUser = createDeferred<GetUserResponse>()
+      setupSupabaseClient([
+        { user: { id: 'auth-1' }, getUserDeferred: pendingGetUser },
+      ])
+
+      const { result } = renderHook(() => useCurrentUser())
+
+      await act(async () => {
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 1000)
+        await flushPendingPromises()
+      })
+
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.usuario).toBeNull()
+      expect(result.current.error).toBeNull()
+      // Drain the deferred so unhandled-rejection warnings don't leak.
+      await act(async () => {
+        pendingGetUser.resolve(getUserResponse(null))
+        await flushPendingPromises()
+      })
     } finally {
       jest.useRealTimers()
     }
@@ -369,7 +418,7 @@ describe('useCurrentUser', () => {
       expect(result.current.loading).toBe(true)
 
       await act(async () => {
-        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 1000)
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 1000)
         await flushPendingPromises()
       })
 
@@ -402,7 +451,7 @@ describe('useCurrentUser', () => {
       // Advance past the timeout — the abandoned loadCurrentUserData is still
       // awaiting getUser.
       await act(async () => {
-        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 100)
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 100)
         await flushPendingPromises()
       })
       await waitFor(() => expect(result.current.loading).toBe(false))
@@ -437,7 +486,7 @@ describe('useCurrentUser', () => {
 
       // Advance 500ms before the timeout. The race timer has NOT fired yet.
       await act(async () => {
-        jest.advanceTimersByTime(FETCH_TIMEOUT_MS - 500)
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS - 500)
         await flushPendingPromises()
       })
 
@@ -454,7 +503,7 @@ describe('useCurrentUser', () => {
 
       // Advance past the timeout — should be a no-op now (timer was cleared).
       await act(async () => {
-        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 1000)
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 1000)
         await flushPendingPromises()
       })
       expect(result.current.loading).toBe(false)
@@ -490,7 +539,7 @@ describe('useCurrentUser', () => {
       // setTimeout callback would still fire and (in the GREEN fix) emit a
       // Sentry breadcrumb. With proper cleanup, nothing observable changes.
       await act(async () => {
-        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 1000)
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 1000)
         await flushPendingPromises()
       })
       expect(result.current.loading).toBe(false)
@@ -502,6 +551,27 @@ describe('useCurrentUser', () => {
     }
   })
 
+})
+
+// Regression coverage for the 4R review of fix #257.
+//
+// Finding 4: __resetCurrentUserCacheForTesting must refuse to run in
+// production so production code cannot accidentally poison the module-level
+// cache through the test-only escape hatch.
+describe('__resetCurrentUserCacheForTesting NODE_ENV guard', () => {
+  afterEach(() => {
+    setNodeEnv(ORIGINAL_NODE_ENV)
+  })
+
+  it('throws when NODE_ENV is production', () => {
+    setNodeEnv('production')
+    expect(() => __resetCurrentUserCacheForTesting()).toThrow(/test-only/i)
+  })
+
+  it('does not throw when NODE_ENV is test', () => {
+    setNodeEnv('test')
+    expect(() => __resetCurrentUserCacheForTesting()).not.toThrow()
+  })
 })
 
 function setupSupabaseClient(steps: SupabaseMockStep[]) {

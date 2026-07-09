@@ -55,7 +55,8 @@ jest.mock('next/server', () => ({
   },
 }))
 
-import { middleware, isPublicPath, MIDDLEWARE_FETCH_TIMEOUT_MS } from '@/middleware'
+import { middleware, isPublicPath } from '@/middleware'
+import { AUTH_FETCH_TIMEOUT_MS } from '@/lib/platform/auth-timeout'
 
 describe('middleware isPublicPath (legacy)', () => {
   it('allows the Supabase token hash confirmation route without an existing session', () => {
@@ -128,7 +129,7 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
       const request = createMockRequest('/dashboard')
       const promise = middleware(request as unknown as Parameters<typeof middleware>[0])
 
-      jest.advanceTimersByTime(MIDDLEWARE_FETCH_TIMEOUT_MS + 100)
+      jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 100)
       await flushPendingPromises()
 
       const result = await promise
@@ -151,7 +152,7 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
           level: 'warning',
           message: 'middleware getUser timed out',
           data: expect.objectContaining({
-            timeoutMs: MIDDLEWARE_FETCH_TIMEOUT_MS,
+            timeoutMs: AUTH_FETCH_TIMEOUT_MS,
             path: '/dashboard',
           }),
         })
@@ -239,13 +240,41 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
       await flushPendingPromises()
       await promise
 
-      jest.advanceTimersByTime(MIDDLEWARE_FETCH_TIMEOUT_MS + 1000)
+      jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 1000)
       await flushPendingPromises()
 
       expect(nextResponseRedirectMock).not.toHaveBeenCalled()
       expect(nextResponseNextMock).toHaveBeenCalledTimes(1)
       // No Sentry breadcrumb for the fast path.
       expect(sentryAddBreadcrumbMock).not.toHaveBeenCalled()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  // Finding 5: Sentry.addBreadcrumb must be wrapped — if the SDK throws
+  // (e.g. Edge bundling failure), the middleware must still redirect.
+  it('survives a throwing Sentry.addBreadcrumb on timeout', async () => {
+    jest.useFakeTimers()
+    try {
+      sentryAddBreadcrumbMock.mockImplementationOnce(() => {
+        throw new Error('Sentry SDK not initialized')
+      })
+      const pendingGetUser = createDeferred<GetUserResponse>()
+      getUserMock.mockReturnValueOnce(pendingGetUser.promise)
+
+      const request = createMockRequest('/dashboard')
+      const promise = middleware(request as unknown as Parameters<typeof middleware>[0])
+
+      jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 100)
+      await flushPendingPromises()
+
+      const result = await promise
+      expect(result).toBeDefined()
+      expect(nextResponseRedirectMock).toHaveBeenCalledTimes(1)
+
+      pendingGetUser.resolve({ data: { user: null }, error: null })
+      await flushPendingPromises()
     } finally {
       jest.useRealTimers()
     }

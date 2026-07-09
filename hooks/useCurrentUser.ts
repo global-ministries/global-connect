@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/client'
 import { buildPlatformSession } from '@/lib/platform/session/build'
+import { AUTH_FETCH_TIMEOUT_MS } from '@/lib/platform/auth-timeout'
 import type { Database } from '@/lib/supabase/database.types'
 import type { PlatformSession, PlatformSessionPersona } from '@/lib/platform/session/types'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
@@ -32,15 +33,11 @@ const SIGNED_IN_DEBOUNCE_MS = 150
 // forever and block all client-side navigation. See GH issue #257 — this is
 // a regression of the same root cause partially fixed in #225.
 //
-// Why 5s and not 3s (dashboard's HOST_HOME_QUEUE_FETCH_TIMEOUT_MS): the
-// navigation hook is the gate to rendering any protected page; a stuck
-// spinner is worse UX than a stale "logged out" state. 5s is the upper
-// bound of what users perceive as "this feels broken" before bouncing.
-//
 // On timeout we resolve null (not throw) so the UI can render as signed-out
 // without alarming the user with a toast; a Sentry breadcrumb captures the
-// event for ops.
-export const FETCH_TIMEOUT_MS = 5_000
+// event for ops. The constant lives in lib/platform/auth-timeout.ts so the
+// middleware getUser() guard shares the same value (Finding 7 in 4R).
+const FETCH_TIMEOUT_MS = AUTH_FETCH_TIMEOUT_MS
 let currentUserCache: { authUserId: string | null; expiresAt: number; value: CurrentUserResult } | null = null
 let currentUserCacheGeneration = 0
 
@@ -52,9 +49,12 @@ function clearCurrentUserCache() {
 // Test-only: clears the module-level cache and returns the prior value so
 // tests can both reset state between cases AND assert that a code path
 // did NOT poison the cache. Not part of the public hook surface — the
-// leading underscores signal "internal/test-only" and lint rules can
-// forbid production imports.
+// leading underscores signal "internal/test-only" and the NODE_ENV guard
+// enforces that production code cannot accidentally call this.
 export function __resetCurrentUserCacheForTesting() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('__resetCurrentUserCacheForTesting is test-only')
+  }
   const previous = currentUserCache
   clearCurrentUserCache()
   return previous
@@ -94,12 +94,18 @@ async function tryFetchCurrentUserData(): Promise<CurrentUserResult | null> {
   try {
     const result = await Promise.race([work, timeoutPromise])
     if (result === null) {
-      Sentry.addBreadcrumb({
-        category: 'auth',
-        level: 'warning',
-        message: 'useCurrentUser fetch timed out',
-        data: { timeoutMs: FETCH_TIMEOUT_MS },
-      })
+      try {
+        Sentry.addBreadcrumb({
+          category: 'auth',
+          level: 'warning',
+          message: 'useCurrentUser fetch timed out',
+          data: { timeoutMs: FETCH_TIMEOUT_MS },
+        })
+      } catch {
+        // Sentry SDK not initialized (e.g. Edge runtime, instrumentation
+        // disabled) — observability is best-effort and must never break
+        // the auth flow.
+      }
     }
     return result
   } finally {
