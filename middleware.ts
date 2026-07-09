@@ -5,21 +5,36 @@ import type { NextRequest } from 'next/server'
 import { AUTH_FETCH_TIMEOUT_MS } from '@/lib/platform/auth-timeout'
 
 /**
- * Rutas públicas que no requieren autenticación.
- * El code exchange se maneja en /auth/callback y el token hash recovery en /auth/confirm.
+ * Rutas públicas que NO requieren getUser() — saltarse la llamada al
+ * servidor de Supabase elimina una llamada de red y un punto de bloqueo
+ * potencial en cada navegación. El handler de la ruta hace su propio
+ * gating (p.ej. /auth/callback intercambia el code y redirige).
+ *
+ * Note: las rutas de auth UI (login/signup/reset-password/verify-email)
+ * NO están acá — necesitan getUser() para redirigir al usuario ya
+ * logueado a /dashboard. Ver ALWAYS_CHECK_AUTH_PATHS más abajo.
  */
-const PUBLIC_PATHS = new Set([
-  '/',               // login
-  '/signup',
-  '/reset-password',
-  '/verify-email',
+const SKIP_AUTH_PATHS = new Set([
   '/auth/callback',
   '/auth/confirm',
   '/auth/reset-password',
 ])
 
+/**
+ * Rutas públicas que igual necesitan getUser() para poder redirigir al
+ * usuario logueado. Antes estas rutas estaban en PUBLIC_PATHS y
+ * cortocircuituaban ANTES de getUser(), así que la rama
+ * `user && path === '/'` jamás corría para '/'. Ver Finding 2 en 4R.
+ */
+const ALWAYS_CHECK_AUTH_PATHS = new Set([
+  '/',                 // login
+  '/signup',
+  '/reset-password',
+  '/verify-email',
+])
+
 export function isPublicPath(path: string) {
-  return PUBLIC_PATHS.has(path)
+  return SKIP_AUTH_PATHS.has(path) || ALWAYS_CHECK_AUTH_PATHS.has(path)
 }
 
 /**
@@ -65,12 +80,16 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Para rutas públicas el middleware no necesita validar sesión contra el
-  // servidor: el handler de la ruta hace su propio gating (p.ej. /auth/callback
-  // intercambia el code y redirige). Saltarse el getUser() aquí elimina una
-  // llamada de red y un punto de bloqueo potencial en cada navegación a una
-  // ruta pública.
-  if (isPublicPath(path)) {
+  // Para rutas SKIP_AUTH_PATHS el middleware no necesita validar sesión contra
+  // el servidor: el handler de la ruta hace su propio gating (p.ej.
+  // /auth/callback intercambia el code y redirige). Saltarse el getUser() acá
+  // elimina una llamada de red y un punto de bloqueo potencial en cada
+  // navegación a una ruta de auth callback.
+  //
+  // ALWAYS_CHECK_AUTH_PATHS (login, signup, reset-password, verify-email)
+  // también son públicas, pero igual necesitan getUser() para poder redirigir
+  // al usuario ya logueado a /dashboard. Ver Finding 2 en 4R.
+  if (SKIP_AUTH_PATHS.has(path)) {
     return supabaseResponse
   }
 
@@ -136,8 +155,11 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
-  // No autenticado + ruta privada → login
-  if (!user) {
+  // No autenticado + ruta privada → login. ALWAYS_CHECK_AUTH_PATHS (login,
+// signup, reset-password, verify-email) son públicas: pasarlas tal cual
+// aunque no haya sesión (de lo contrario /signup sin sesión redirige a /
+// con ?redirect=/signup — loop infinito).
+  if (!user && !ALWAYS_CHECK_AUTH_PATHS.has(path)) {
     const redirectUrl = new URL('/', request.url)
     redirectUrl.searchParams.set('redirect', path)
     return NextResponse.redirect(redirectUrl)

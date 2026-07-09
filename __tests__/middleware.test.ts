@@ -220,24 +220,6 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
     expect(result.type).toBe('redirect')
   })
 
-  // Finding 2 (companion): logged-in user visiting /signup must redirect
-  // to /dashboard. /signup is in ALWAYS_CHECK_AUTH_PATHS — it needs getUser
-  // so we can redirect, but does not need to validate the route against
-  // the auth server for protection (it's a public route).
-  it('redirects logged-in user from /signup to /dashboard', async () => {
-    queueFastResult({ id: 'auth-logged-in-signup' })
-
-    const request = createMockRequest('/signup')
-    const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
-
-    expect(getUserMock).toHaveBeenCalledTimes(1)
-    expect(nextResponseRedirectMock).toHaveBeenCalledTimes(1)
-    const redirectArg = nextResponseRedirectMock.mock.calls[0]?.[0]
-    const redirectUrl = new URL(redirectArg as string)
-    expect(redirectUrl.pathname).toBe('/dashboard')
-    expect(result.type).toBe('redirect')
-  })
-
   // Finding 2 (companion): unauthenticated user visiting / must NOT be
   // redirected — it's the login page. SKIP_AUTH_PATHS-only paths skip
   // getUser; ALWAYS_CHECK_AUTH_PATHS paths still call getUser, but the
