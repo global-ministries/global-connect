@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/client'
 import { buildPlatformSession } from '@/lib/platform/session/build'
 import type { Database } from '@/lib/supabase/database.types'
@@ -25,12 +26,21 @@ type CurrentUserResult = Omit<CurrentUserData, 'loading' | 'error'>
 
 const CURRENT_USER_CACHE_TTL_MS = 15_000
 const SIGNED_IN_DEBOUNCE_MS = 150
-// Bound the time we wait for supabase.auth.getUser() (and the dependent
-// queries) before treating the user as unauthenticated. Without this, a stalled
-// network between Vercel and Supabase can leave `loading=true` forever and
-// block all client-side navigation. See GH issue #257 — this is a regression
-// of the same root cause partially fixed in #225.
-const FETCH_TIMEOUT_MS = 5_000
+// Bound the time we wait for the entire auth lookup (cache check + load +
+// dependent queries) before treating the user as unauthenticated. Without
+// this, a stalled network between Vercel and Supabase can leave `loading=true`
+// forever and block all client-side navigation. See GH issue #257 — this is
+// a regression of the same root cause partially fixed in #225.
+//
+// Why 5s and not 3s (dashboard's HOST_HOME_QUEUE_FETCH_TIMEOUT_MS): the
+// navigation hook is the gate to rendering any protected page; a stuck
+// spinner is worse UX than a stale "logged out" state. 5s is the upper
+// bound of what users perceive as "this feels broken" before bouncing.
+//
+// On timeout we resolve null (not throw) so the UI can render as signed-out
+// without alarming the user with a toast; a Sentry breadcrumb captures the
+// event for ops.
+export const FETCH_TIMEOUT_MS = 5_000
 let currentUserCache: { authUserId: string | null; expiresAt: number; value: CurrentUserResult } | null = null
 let currentUserCacheGeneration = 0
 
@@ -39,38 +49,59 @@ function clearCurrentUserCache() {
   currentUserCache = null
 }
 
-// Test-only: clears the module-level cache so tests can run in isolation.
-// Not part of the public hook surface — the leading underscores signal
-// "internal/test-only" and lint rules can forbid production imports.
+// Test-only: clears the module-level cache and returns the prior value so
+// tests can both reset state between cases AND assert that a code path
+// did NOT poison the cache. Not part of the public hook surface — the
+// leading underscores signal "internal/test-only" and lint rules can
+// forbid production imports.
 export function __resetCurrentUserCacheForTesting() {
+  const previous = currentUserCache
   clearCurrentUserCache()
+  return previous
 }
 
-async function fetchCurrentUserData(): Promise<CurrentUserResult | null> {
-  const now = Date.now()
-  if (currentUserCache && currentUserCache.expiresAt > now) {
-    if (await isCurrentAuthUser(currentUserCache.authUserId)) return currentUserCache.value
-    clearCurrentUserCache()
-  }
-
-  const requestGeneration = currentUserCacheGeneration
-  const supabase = createClient()
+async function tryFetchCurrentUserData(): Promise<CurrentUserResult | null> {
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+  let didTimeOut = false
   const timeoutPromise = new Promise<null>((resolve) => {
-    timeoutHandle = setTimeout(() => resolve(null), FETCH_TIMEOUT_MS)
+    timeoutHandle = setTimeout(() => {
+      didTimeOut = true
+      resolve(null)
+    }, FETCH_TIMEOUT_MS)
   })
-  try {
-    return await Promise.race([
-      loadCurrentUserData(supabase).then(async (value) => {
-        if (requestGeneration === currentUserCacheGeneration) {
-          if (await isCurrentAuthUser(value.authUserId)) {
-            currentUserCache = { authUserId: value.authUserId, value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
-          }
+  const work = (async () => {
+    const now = Date.now()
+    if (currentUserCache && currentUserCache.expiresAt > now) {
+      if (await isCurrentAuthUser(currentUserCache.authUserId)) return currentUserCache.value
+      clearCurrentUserCache()
+    }
+
+    const requestGeneration = currentUserCacheGeneration
+    const supabase = createClient()
+    return loadCurrentUserData(supabase).then(async (value) => {
+      // Skip the cache write if the race already settled by timeout —
+      // otherwise the abandoned chain would poison the module-level cache
+      // with stale data the caller was told does not exist.
+      if (didTimeOut) return value
+      if (requestGeneration === currentUserCacheGeneration) {
+        if (await isCurrentAuthUser(value.authUserId)) {
+          currentUserCache = { authUserId: value.authUserId, value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
         }
-        return value
-      }),
-      timeoutPromise,
-    ])
+      }
+      return value
+    })
+  })().catch(() => null)
+  try {
+    const result = await Promise.race([work, timeoutPromise])
+    if (result === null) {
+      Sentry.addBreadcrumb({
+        category: 'auth',
+        level: 'warning',
+        message: 'useCurrentUser fetch timed out',
+        data: { timeoutMs: FETCH_TIMEOUT_MS },
+      })
+    }
+    return result
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle)
   }
@@ -152,7 +183,7 @@ export function useCurrentUser(): CurrentUserData {
         setLoading(true)
         setError(null)
 
-        const userData = await fetchCurrentUserData()
+        const userData = await tryFetchCurrentUserData()
 
         if (authGeneration !== authGenerationRef.current) return
 

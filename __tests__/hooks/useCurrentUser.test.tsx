@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
-import { useCurrentUser, __resetCurrentUserCacheForTesting } from '@/hooks/useCurrentUser'
+import { useCurrentUser, __resetCurrentUserCacheForTesting, FETCH_TIMEOUT_MS } from '@/hooks/useCurrentUser'
 
 const createClient = jest.fn()
 
@@ -28,10 +28,11 @@ const DETERMINISTIC_NOW_MS = 1_700_000_000_000
 const HOOK_CACHE_TTL_MS = 15_000
 const CACHE_EXPIRY_ADVANCE_MS = HOOK_CACHE_TTL_MS + 5_000
 const AUTH_SESSION_PLACEHOLDER = { user: { id: 'auth-session-placeholder' } }
-// Must match the FETCH_TIMEOUT_MS exported (or otherwise used) by the hook.
-// The hook module is not imported here to avoid coupling; we duplicate the
-// contract value so the test pins the behavior independently.
-const FETCH_TIMEOUT_MS = 5_000
+// Mirrors the SIGNED_IN_DEBOUNCE_MS in the hook. Kept local rather than
+// imported because the value is incidental to test correctness — tests
+// only need "long enough to fire the debounce, short enough to not fire
+// the 5s timeout".
+const SIGNED_IN_DEBOUNCE_MS = 150
 let authStateCallback: CapturedAuthStateCallback | null = null
 
 describe('useCurrentUser', () => {
@@ -286,7 +287,7 @@ describe('useCurrentUser', () => {
       expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsAfterInitial)
 
       await act(async () => {
-        jest.runAllTimers()
+        jest.advanceTimersByTime(SIGNED_IN_DEBOUNCE_MS + 100)
         await flushPendingPromises()
       })
       expect(result.current.loading).toBe(false)
@@ -324,7 +325,7 @@ describe('useCurrentUser', () => {
       expect(result.current.platformSession).toBeNull()
 
       await act(async () => {
-        jest.runAllTimers()
+        jest.advanceTimersByTime(SIGNED_IN_DEBOUNCE_MS + 100)
         await flushPendingPromises()
       })
       expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsAfterInitial)
