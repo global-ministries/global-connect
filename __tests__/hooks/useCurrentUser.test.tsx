@@ -28,6 +28,10 @@ const DETERMINISTIC_NOW_MS = 1_700_000_000_000
 const HOOK_CACHE_TTL_MS = 15_000
 const CACHE_EXPIRY_ADVANCE_MS = HOOK_CACHE_TTL_MS + 5_000
 const AUTH_SESSION_PLACEHOLDER = { user: { id: 'auth-session-placeholder' } }
+// Must match the FETCH_TIMEOUT_MS exported (or otherwise used) by the hook.
+// The hook module is not imported here to avoid coupling; we duplicate the
+// contract value so the test pins the behavior independently.
+const FETCH_TIMEOUT_MS = 5_000
 let authStateCallback: CapturedAuthStateCallback | null = null
 
 describe('useCurrentUser', () => {
@@ -150,6 +154,42 @@ describe('useCurrentUser', () => {
     expect(result.current.roles).toEqual([])
     expect(result.current.supportCapabilities).toEqual([])
     expect(result.current.platformSession).toBeNull()
+  })
+
+  it('sets loading to false and clears state when getUser hangs past the timeout', async () => {
+    jest.useFakeTimers({ advanceTimers: true })
+    try {
+      const pendingGetUser = createDeferred<GetUserResponse>()
+      setupSupabaseClient([
+        // Initial fetch — getUser never resolves. The isCurrentAuthUser cache check
+        // also resolves a getUser; we leave it dangling too because the hook should
+        // settle on the outer timeout regardless of cache state.
+        { user: { id: 'auth-1' }, getUserDeferred: pendingGetUser },
+      ])
+
+      const { result } = renderHook(() => useCurrentUser())
+
+      // Loading starts true while we wait for getUser to resolve.
+      expect(result.current.loading).toBe(true)
+
+      // Advance past the fetch timeout. The hook must release loading without
+      // ever receiving a response from getUser.
+      await act(async () => {
+        jest.advanceTimersByTime(FETCH_TIMEOUT_MS + 1000)
+        await flushPendingPromises()
+      })
+
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.usuario).toBeNull()
+      expect(result.current.roles).toEqual([])
+      expect(result.current.supportCapabilities).toEqual([])
+      expect(result.current.platformSession).toBeNull()
+      // Silent failure: don't alarm the user with a toast for a network stall.
+      // The hook should clear state without setting an error.
+      expect(result.current.error).toBeNull()
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('does not cache stale in-flight data after unmount and auth change', async () => {
