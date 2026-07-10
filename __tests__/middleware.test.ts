@@ -201,6 +201,29 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
     expect(result.type).toBe('next')
   })
 
+  // R2-W1: /signup, /reset-password, and /verify-email are public auth UI
+  // pages that have NO logged-in-user redirect branch. They were originally
+  // in SKIP_AUTH_PATHS (instant pass-through), but the Round 1 split moved
+  // them to ALWAYS_CHECK_AUTH_PATHS, which calls getUser() on every nav
+  // (up to 5s timeout) with no behavioral gain. Regression guard: keep them
+  // in SKIP_AUTH_PATHS so they skip the network call entirely.
+  it.each(['/signup', '/reset-password', '/verify-email'])(
+    'does not call getUser for %s (R2-W1: skip auth, no redirect branch needed)',
+    async (path) => {
+      // Intentionally do not queue getUser — if middleware calls it, the mock
+      // throws ("no queued responses"). This pins the regression: moving
+      // these paths back to SKIP_AUTH_PATHS must keep getUser out of the
+      // path entirely.
+      const request = createMockRequest(path)
+      const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+      expect(getUserMock).not.toHaveBeenCalled()
+      expect(nextResponseRedirectMock).not.toHaveBeenCalled()
+      expect(nextResponseNextMock).toHaveBeenCalled()
+      expect(result.type).toBe('next')
+    }
+  )
+
   // Finding 2: logged-in user visiting "/" (the login page) must be
   // redirected to /dashboard. The original fix short-circuited on
   // isPublicPath('/') which SKIPS getUser entirely, so the redirect

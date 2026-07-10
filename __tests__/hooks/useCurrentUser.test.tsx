@@ -586,6 +586,38 @@ describe('useCurrentUser', () => {
     unmount()
   })
 
+  // R2-W2: INITIAL_SESSION fires once when the Supabase client first
+  // hydrates from storage. It carries the same user identity as the
+  // bootstrap fetch, so clearing the cache on it would be the same
+  // regression as TOKEN_REFRESHED — same identity, but a forced refetch.
+  // The hook short-circuits both events in the same branch; this test
+  // pins the INITIAL_SESSION side of that branch.
+  it('keeps the cache intact when INITIAL_SESSION fires (R2-W2)', async () => {
+    const user = { id: 'auth-initial-session' }
+    const usuario = { id: 'usuario-initial-session', auth_id: 'auth-initial-session', nombre: 'Initial Session User' }
+    const { client, triggerAuthStateChange } = setupSupabaseClient([
+      { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
+    ])
+
+    const { result, unmount } = renderHook(() => useCurrentUser())
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.usuario?.id).toBe('usuario-initial-session')
+    const getUserCallsAfterLoad = client.auth.getUser.mock.calls.length
+
+    // Fire INITIAL_SESSION — the cache must survive. No refetch is triggered
+    // and the module-level cache still holds the user data. Same branch as
+    // TOKEN_REFRESHED; this guards the second event in the early-return.
+    await act(async () => {
+      triggerAuthStateChange('INITIAL_SESSION', AUTH_SESSION_PLACEHOLDER)
+    })
+
+    expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsAfterLoad)
+    expect(__resetCurrentUserCacheForTesting()).not.toBeNull()
+
+    unmount()
+  })
+
   // Finding 1: a real error from loadCurrentUserData (DB outage, RPC failure,
   // malformed data) must surface through setError() instead of being silently
   // swallowed by the timeout wrapper. The previous fix's .catch(() => null)
