@@ -10,11 +10,16 @@ import { AUTH_FETCH_TIMEOUT_MS } from '@/lib/platform/auth-timeout'
  * potencial en cada navegación. El handler de la ruta hace su propio
  * gating (p.ej. /auth/callback intercambia el code y redirige).
  *
- * Note: las rutas de auth UI (login/signup/reset-password/verify-email)
- * NO están acá — necesitan getUser() para redirigir al usuario ya
- * logueado a /dashboard. Ver ALWAYS_CHECK_AUTH_PATHS más abajo.
+ * Note: las rutas de auth UI signup/reset-password/verify-email caen
+ * acá (R2-W1) — no tienen rama de redirect para usuario logueado, así
+ * que llamar a getUser() en cada navegación sería un costo de red sin
+ * ganancia. La única ruta de auth UI con redirect es `/`, que vive en
+ * ALWAYS_CHECK_AUTH_PATHS. Ver Finding 2 en 4R.
  */
 const SKIP_AUTH_PATHS = new Set([
+  '/signup',
+  '/reset-password',
+  '/verify-email',
   '/auth/callback',
   '/auth/confirm',
   '/auth/reset-password',
@@ -28,9 +33,6 @@ const SKIP_AUTH_PATHS = new Set([
  */
 const ALWAYS_CHECK_AUTH_PATHS = new Set([
   '/',                 // login
-  '/signup',
-  '/reset-password',
-  '/verify-email',
 ])
 
 export function isPublicPath(path: string) {
