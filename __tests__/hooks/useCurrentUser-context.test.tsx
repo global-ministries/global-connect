@@ -17,11 +17,6 @@ type Deferred<T> = {
   promise: Promise<T>
   resolve: (value: T) => void
 }
-type AuthStateEvent = 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'USER_UPDATED' | 'INITIAL_SESSION'
-type CapturedAuthStateCallback = (event: AuthStateEvent, session: unknown | null) => void
-
-let authStateCallback: CapturedAuthStateCallback | null = null
-
 function createDeferred<T>(): Deferred<T> {
   let resolve!: Deferred<T>['resolve']
   const promise = new Promise<T>((promiseResolve) => {
@@ -59,8 +54,7 @@ function setupSupabaseClient(getUserDeferred?: Deferred<GetUserResponse>) {
   const client = {
     auth: {
       getUser,
-      onAuthStateChange: jest.fn((callback: CapturedAuthStateCallback) => {
-        authStateCallback = callback
+      onAuthStateChange: jest.fn(() => {
         return { data: { subscription: { unsubscribe: jest.fn() } } }
       }),
     },
@@ -90,7 +84,6 @@ function setupSupabaseClient(getUserDeferred?: Deferred<GetUserResponse>) {
 
 describe('CurrentUserProvider singleton behavior', () => {
   beforeEach(() => {
-    authStateCallback = null
     createClient.mockReset()
   })
 
