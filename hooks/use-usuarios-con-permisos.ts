@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 interface Usuario {
   id: string
@@ -80,6 +81,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
   })
 
   const { toast } = useToast()
+  const { authUserId } = useCurrentUser()
   const supabase = createClient()
 
   // Debounce para búsqueda
@@ -99,9 +101,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     setError(null)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
+      if (!authUserId) {
         throw new Error('Usuario no autenticado')
       }
 
@@ -109,7 +109,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
       const offset = (paginaActual - 1) * limite
 
       const rpcParams: any = {
-        p_auth_id: user.id,
+        p_auth_id: authUserId,
         p_busqueda: busquedaDebounced,
         p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : null,
         p_con_email: filtros.con_email,
@@ -131,7 +131,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
       // Fallback de compatibilidad si el RPC no acepta p_en_grupo (instancias viejas)
       if (errorRPC && filtros.en_grupo !== null) {
         const { data: data2, error: error2 } = await supabase.rpc('listar_usuarios_con_permisos', {
-          p_auth_id: user.id,
+          p_auth_id: authUserId,
           p_busqueda: busquedaDebounced,
           p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : undefined,
           p_con_email: filtros.con_email ?? undefined,
@@ -198,7 +198,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     } finally {
       setCargando(false)
     }
-  }, [supabase, paginaActual, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId, toast])
+  }, [supabase, authUserId, paginaActual, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId, toast])
 
   // Cargar estadísticas con caché
   const cargarEstadisticas = useCallback(async () => {
@@ -223,15 +223,13 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     setCargandoEstadisticas(true)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
+      if (!authUserId) {
         throw new Error('Usuario no autenticado')
       }
 
       // Intentar nueva firma con filtros
       let { data, error: errorRPC } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
-        p_auth_id: user.id,
+        p_auth_id: authUserId,
         p_busqueda: busquedaDebounced || '',
         p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : undefined,
         p_con_email: filtros.con_email ?? undefined,
@@ -243,7 +241,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
       // Fallback: si el RPC no acepta parámetros extra, usar la firma antigua (solo p_auth_id)
       if (errorRPC && !campusId) {
         const { data: data2, error: error2 } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
-          p_auth_id: user.id
+          p_auth_id: authUserId
         })
         data = data2
         errorRPC = error2 as any
@@ -275,7 +273,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     } finally {
       setCargandoEstadisticas(false)
     }
-  }, [supabase, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
+  }, [supabase, authUserId, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
 
   // Efectos para cargar datos
   useEffect(() => {
