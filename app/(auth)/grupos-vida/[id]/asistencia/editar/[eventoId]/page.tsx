@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import RegistroAsistenciaAvanzado from '@/components/grupos/RegistroAsistenciaAvanzado.client'
 import { Eye, History } from 'lucide-react'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import {
   ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema,
 } from '@/components/ui/sistema-diseno'
@@ -52,8 +52,7 @@ export default async function EditarAsistenciaPage({
 
   if (!user) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -64,8 +63,7 @@ export default async function EditarAsistenciaPage({
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   const [{ data: evento }, { data: lista }, { data: grupoRaw }, { data: puedeEditar }, configResult] = await Promise.all([
@@ -81,8 +79,7 @@ export default async function EditarAsistenciaPage({
 
   if (!ev || !puedeEditar || !grupo) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -94,8 +91,7 @@ export default async function EditarAsistenciaPage({
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Mapear asistencias a formato EstadoMiembro para RegistroAsistenciaAvanzado
@@ -153,8 +149,7 @@ export default async function EditarAsistenciaPage({
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo={`Editar Asistencia - ${grupo.nombre}`}
         descripcion={`Fecha: ${formatearFecha(ev.fecha)}`}
         botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
@@ -190,6 +185,5 @@ export default async function EditarAsistenciaPage({
           />
         </TarjetaSistema>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

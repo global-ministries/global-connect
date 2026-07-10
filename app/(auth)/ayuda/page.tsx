@@ -1,13 +1,11 @@
 import Link from 'next/link'
 import { FileText, History } from 'lucide-react'
 
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { BotonSistema, ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 
 export default async function AyudaPage() {
   return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo="Ayuda" descripcion="Reporta problemas y da seguimiento a tus solicitudes desde un solo lugar.">
+<ContenedorDashboard titulo="Ayuda" descripcion="Reporta problemas y da seguimiento a tus solicitudes desde un solo lugar.">
         <div className="grid gap-4 md:grid-cols-2">
           <TarjetaSistema className="space-y-4">
             <FileText className="h-8 w-8 text-[var(--brand-primary)]" />
@@ -32,6 +30,5 @@ export default async function AyudaPage() {
           </TarjetaSistema>
         </div>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

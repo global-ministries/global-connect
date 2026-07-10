@@ -3,7 +3,7 @@ import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { UserEditForm } from "@/components/forms/UserEditForm"
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
 
@@ -16,8 +16,7 @@ export default async function PerfilPage() {
 
   if (authError || !user) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo=""
           descripcion=""
           accionPrincipal={null}
@@ -37,8 +36,7 @@ export default async function PerfilPage() {
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Usar admin client para bypass RLS y obtener datos del usuario
@@ -53,8 +51,7 @@ export default async function PerfilPage() {
 
   if (errorUsuario || !usuario) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo=""
           descripcion=""
           accionPrincipal={null}
@@ -80,8 +77,7 @@ export default async function PerfilPage() {
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Obtener dirección si existe usando admin client
@@ -189,8 +185,7 @@ export default async function PerfilPage() {
   const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(usuario.id)
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo={`${usuario.nombre} ${usuario.apellido}`}
         subtitulo="Gestiona tu información personal"
         botonRegreso={{ href: '/dashboard', texto: 'Volver al Dashboard' }}
@@ -210,6 +205,5 @@ export default async function PerfilPage() {
           />
         </div>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

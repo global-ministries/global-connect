@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import GruposListClient from "@/components/grupos/GruposList.client"
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, BotonSistema } from '@/components/ui/sistema-diseno'
 import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions"
 
@@ -127,7 +127,6 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     const totalMios = gruposMios?.[0]?.total_count ? Number(gruposMios[0].total_count) : 0
     const totalFuturos = gruposFuturos?.[0]?.total_count ? Number(gruposFuturos[0].total_count) : 0
 
-
     const roles = userData.roles || []
     const canCreateSuperior = roles.some(r => ["admin", "pastor", "director-general", "director-etapa"].includes(r))
     // Solo permitir creación si la configuración global lo habilita
@@ -138,8 +137,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     const canRestore = roles.some(r => ["admin", "pastor", "director-general"].includes(r))
 
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo="Grupos"
           descripcion="Administra y organiza los grupos de tu comunidad"
           accionPrincipal={canCreateSuperior ? (
@@ -174,17 +172,14 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
             totalFuturos={totalFuturos}
           />
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   } catch {
     // Error silencioso: se renderiza layout vacío de fallback
   }
   // En caso de excepción previa devuelve layout básico vacío
   return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo="Grupos" descripcion="Administra y organiza los grupos de tu comunidad">
+<ContenedorDashboard titulo="Grupos" descripcion="Administra y organiza los grupos de tu comunidad">
         <GruposListClient grupos={[]} segmentos={[]} temporadas={[]} totalCount={0} pageSize={pageSize} />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

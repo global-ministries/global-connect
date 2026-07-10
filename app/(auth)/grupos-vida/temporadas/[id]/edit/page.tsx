@@ -3,7 +3,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import SeasonForm from "@/components/forms/SeasonForm"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 
 interface Props {
@@ -23,8 +23,7 @@ export default async function EditSeasonPage({ params }: Props) {
 
   if (error || !temporada) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo="Error"
           descripcion="No se pudo cargar la temporada"
         >
@@ -43,13 +42,11 @@ export default async function EditSeasonPage({ params }: Props) {
             </div>
           </TarjetaSistema>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo={temporada.nombre}
         descripcion="Modifica la información de esta temporada"
         botonRegreso={{ href: '/grupos-vida/temporadas', texto: 'Volver a Temporadas' }}
@@ -58,6 +55,5 @@ export default async function EditSeasonPage({ params }: Props) {
           <SeasonForm initialData={temporada} />
         </TarjetaSistema>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

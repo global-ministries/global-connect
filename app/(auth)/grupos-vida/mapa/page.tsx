@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+
 import { MapaGruposVida, type GrupoMapa, type MiembroMapa } from "@/components/grupos-vida/mapa-grupos-vida";
 import { emitMemberMapObservableEvent, splitValidMemberLocations } from "@/components/grupos-vida/mapa-location-model";
 import { obtenerDatosMapaGruposHostHomes, obtenerMapaMiembros } from "@/lib/actions/casas-anfitrionas.actions";
@@ -41,8 +41,7 @@ export default async function MapaGruposPage({ searchParams }: { searchParams?: 
     const scopeLabel = scope === "planned" ? "Mostrando grupos planificados" : "Mostrando grupos activos";
 
     return (
-        <DashboardLayout>
-            <ContenedorDashboard
+<ContenedorDashboard
                 titulo="Mapa de Grupos de Vida"
                 botonRegreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
             >
@@ -137,8 +136,7 @@ export default async function MapaGruposPage({ searchParams }: { searchParams?: 
                     </TarjetaSistema>
                 )}
             </ContenedorDashboard>
-        </DashboardLayout>
-    );
+);
 }
 
 function MapScopeLink({ active, children, href }: { active: boolean; children: string; href: string }) {

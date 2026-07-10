@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, TituloSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 import VistaSaludMiembros from "@/components/grupos/VistaSaludMiembros.client"
 import { obtenerSaludMiembrosGrupo } from "@/lib/actions/asistencia-avanzada.actions"
@@ -17,8 +17,7 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
 
     if (!user) {
         return (
-            <DashboardLayout>
-                <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
                     <div className="flex items-center justify-center min-h-[50vh]">
                         <div className="text-center">
                             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -29,8 +28,7 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
                         </div>
                     </div>
                 </ContenedorDashboard>
-            </DashboardLayout>
-        )
+)
     }
 
     const [{ data: puedeEditar }, saludResult, { data: grupoRaw }] = await Promise.all([
@@ -43,8 +41,7 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
 
     if (!grupo || !puedeEditar) {
         return (
-            <DashboardLayout>
-                <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
                     <div className="flex items-center justify-center min-h-[50vh]">
                         <div className="text-center">
                             <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -56,13 +53,11 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
                         </div>
                     </div>
                 </ContenedorDashboard>
-            </DashboardLayout>
-        )
+)
     }
 
     return (
-        <DashboardLayout>
-            <ContenedorDashboard
+<ContenedorDashboard
                 titulo={`Salud del Grupo - ${grupo?.nombre ?? ""}`}
                 descripcion="Seguimiento de asistencia, riesgo y bienestar de los miembros."
                 botonRegreso={{ href: `/grupos-vida/${id}`, texto: "Volver al grupo" }}
@@ -72,6 +67,5 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
                     grupoId={id}
                 />
             </ContenedorDashboard>
-        </DashboardLayout>
-    )
+)
 }

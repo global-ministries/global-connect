@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import GrupoDetailClient from "./GrupoDetailClient";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+
 import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
@@ -61,8 +61,7 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
 
   if (error || !grupo) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo="Grupo no encontrado"
           botonRegreso={{ href: "/grupos-vida", texto: "Volver a Grupos" }}
         >
@@ -81,8 +80,7 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
             </Link>
           </TarjetaSistema>
         </ContenedorDashboard>
-      </DashboardLayout>
-    );
+);
   }
 
   // Mapear latitud/longitud a lat/lng para el frontend
@@ -149,8 +147,6 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
   }
 
   return (
-    <DashboardLayout>
-      <GrupoDetailClient grupo={grupo} id={id} />
-    </DashboardLayout>
-  );
+<GrupoDetailClient grupo={grupo} id={id} />
+);
 }

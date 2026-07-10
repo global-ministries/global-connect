@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import UserCreateForm from "@/components/forms/UserCreateForm";
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 
 export default async function CreateUserPage() {
@@ -21,8 +21,7 @@ export default async function CreateUserPage() {
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Agregar Miembro"
         botonRegreso={{ href: '/users', texto: 'Volver a Usuarios' }}
       >
@@ -31,6 +30,5 @@ export default async function CreateUserPage() {
           <UserCreateForm />
         </div>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

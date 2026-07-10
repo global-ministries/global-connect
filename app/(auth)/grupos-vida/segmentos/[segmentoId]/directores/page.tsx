@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Suspense, lazy } from 'react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, TextoSistema } from '@/components/ui/sistema-diseno'
 
 const DirectoresSegmentoClient = lazy(() => import('./DirectoresSegmentoClient'))
@@ -39,8 +39,7 @@ export default async function DirectoresSegmentoPage({ params }: Props) {
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Directores del Segmento"
         subtitulo={segmento.nombre}
         botonRegreso={{ href: `/grupos-vida/segmentos/${segmento.id}`, texto: 'Volver' }}
@@ -57,6 +56,5 @@ export default async function DirectoresSegmentoPage({ params }: Props) {
           )}
         </div>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

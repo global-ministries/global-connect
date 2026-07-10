@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import ReporteSemanal from '@/components/reportes/ReporteSemanal.client'
 
@@ -42,8 +42,7 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
   // Manejar errores
   if (reporteError) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo="Reporte Semanal de Asistencia"
           descripcion="Análisis consolidado de asistencia"
           accionPrincipal={null}
@@ -58,14 +57,12 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   if (!reporteData) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo="Reporte Semanal de Asistencia"
           descripcion="Análisis consolidado de asistencia"
           accionPrincipal={null}
@@ -80,13 +77,11 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Reporte Semanal de Asistencia"
         descripcion={`Semana del ${new Date((reporteData as any).semana.inicio).toLocaleDateString('es-ES', {
           day: 'numeric',
@@ -102,6 +97,5 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
       >
         <ReporteSemanal reporte={reporteData as any} incluirTodosInicial={incluirTodos} />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
