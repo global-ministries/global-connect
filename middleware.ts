@@ -88,9 +88,11 @@ export async function middleware(request: NextRequest) {
   // elimina una llamada de red y un punto de bloqueo potencial en cada
   // navegación a una ruta de auth callback.
   //
-  // ALWAYS_CHECK_AUTH_PATHS (login, signup, reset-password, verify-email)
-  // también son públicas, pero igual necesitan getUser() para poder redirigir
-  // al usuario ya logueado a /dashboard. Ver Finding 2 en 4R.
+  // ALWAYS_CHECK_AUTH_PATHS (login, `/`) también es pública, pero igual
+  // necesita getUser() para poder redirigir al usuario ya logueado a
+  // /dashboard. Ver Finding 2 en 4R. Las otras paths "públicas" de auth UI
+  // (/signup, /reset-password, /verify-email) viven en SKIP_AUTH_PATHS porque
+  // no redirigen logueados — solo las manejan sus propios page handlers.
   if (SKIP_AUTH_PATHS.has(path)) {
     return supabaseResponse
   }
@@ -157,10 +159,10 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
-  // No autenticado + ruta privada → login. ALWAYS_CHECK_AUTH_PATHS (login,
-// signup, reset-password, verify-email) son públicas: pasarlas tal cual
-// aunque no haya sesión (de lo contrario /signup sin sesión redirige a /
-// con ?redirect=/signup — loop infinito).
+// No autenticado + ruta privada → login. ALWAYS_CHECK_AUTH_PATHS (login,
+  // `/`) es pública: pasarla tal cual aunque no haya sesión, para que el
+  // redirect a `/dashboard` (línea 171) funcione cuando sí hay sesión.
+  // Las otras paths de auth UI ya se filtraron arriba en SKIP_AUTH_PATHS.
   if (!user && !ALWAYS_CHECK_AUTH_PATHS.has(path)) {
     const redirectUrl = new URL('/', request.url)
     redirectUrl.searchParams.set('redirect', path)
