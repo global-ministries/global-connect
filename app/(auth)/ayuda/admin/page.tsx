@@ -3,7 +3,7 @@ import { Filter, MessageSquare, TicketIcon } from 'lucide-react'
 
 import { listStaffSupportTickets, updateSupportTicketStatus } from '@/lib/actions/support.actions'
 import { formatSupportCategory, formatSupportSeverity, formatSupportStatus } from '@/lib/support/support-labels'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table'
 import { BadgeSistema, BotonSistema, ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { SupportTicketQueueStatusForm } from './support-ticket-admin-actions'
@@ -104,8 +104,7 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
   ]
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
+<ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
         <div className="mb-5 flex items-center justify-between gap-2">
           <SupportAdminStatusFilterPills activeFilter={activeStatusFilter} params={params} />
 
@@ -164,8 +163,7 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
           </>
         )}
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
 
 function SupportAdminStatusFilterPills({ activeFilter, params }: { activeFilter: SupportAdminStatusFilter; params?: Awaited<SupportAdminPageProps['searchParams']> }) {

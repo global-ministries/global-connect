@@ -3,6 +3,8 @@ import { HeaderMovil } from "@/components/ui/header-movil"
 import { MenuInferiorMovil } from "@/components/ui/menu-inferior-movil"
 import { CampusProvider } from "@/hooks/useCampus"
 import { BrandingProvider } from "@/hooks/useBranding"
+import { CurrentUserProvider } from "@/hooks/useCurrentUser"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
 interface PropiedadesLayoutTablero {
@@ -33,13 +35,15 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
   return (
     <CampusProvider>
       <BrandingProvider branding={branding}>
-        <div className="min-h-screen bg-[var(--surface-primary)]">
-          <HeaderMovil />
-          <div className="pt-16 pb-20 md:pt-0 md:pb-0">
-            {children}
+        <CurrentUserProvider>
+          <div className="min-h-screen bg-[var(--surface-primary)]">
+            <HeaderMovil />
+            <div className="pt-16 pb-20 md:pt-0 md:pb-0">
+              <DashboardLayout>{children}</DashboardLayout>
+            </div>
+            <MenuInferiorMovil />
           </div>
-          <MenuInferiorMovil />
-        </div>
+        </CurrentUserProvider>
       </BrandingProvider>
     </CampusProvider>
   )

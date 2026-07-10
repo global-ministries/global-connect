@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from "@/components/ui/sistema-diseno"
 import { extraerRelacion } from "@/lib/supabase/helpers"
 import { listarCasasAnfitrionas, obtenerGruposSinCasaAnfitriona } from "@/lib/actions/casas-anfitrionas.actions"
@@ -53,8 +53,7 @@ export default async function AsignarCasaAnfitrionaPage({ searchParams }: Assign
   if (!casasLoaded) logAssignmentLoadIssue("casas", casasResult)
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Asignar Casa Anfitriona"
         botonRegreso={{ href: "/dashboard", texto: "Dashboard" }}
       >
@@ -69,8 +68,7 @@ export default async function AsignarCasaAnfitrionaPage({ searchParams }: Assign
           <AsignarCasaAnfitrionaClient grupos={grupos} casas={casas} initialGroupId={initialGroupId} />
         )}
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
 
 function getRequestedGroupId(searchParams: AssignmentPageSearchParams | undefined): string | undefined {

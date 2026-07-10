@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from "@/components/ui/sistema-diseno"
 import { obtenerCasasRevisionPendiente } from "@/lib/actions/casas-anfitrionas.actions"
 import { RevisionCasaClient, type PendingReviewOption } from "./revision-casa-client"
@@ -30,8 +30,7 @@ export default async function RevisionCasaAnfitrionaPage() {
   const reviews = reviewsLoaded ? (pendingResult.value.data ?? []).map(toReviewOption) : []
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Revisión de Casas Anfitrionas"
         botonRegreso={{ href: "/dashboard", texto: "Dashboard" }}
       >
@@ -42,8 +41,7 @@ export default async function RevisionCasaAnfitrionaPage() {
         </TarjetaSistema>
         {reviewsLoaded ? <RevisionCasaClient reviews={reviews} /> : <RevisionLoadError />}
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
 
 function RevisionLoadError() {

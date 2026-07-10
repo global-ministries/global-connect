@@ -3,7 +3,7 @@ import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, TituloSistema, TextoSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 import { ArrowRight } from "lucide-react"
 import { UserAvatar } from "@/components/ui/UserAvatar"
@@ -153,8 +153,7 @@ export default async function SegmentoDetallePage({ params }: Props) {
 	}
 
 	return (
-		<DashboardLayout>
-			<ContenedorDashboard
+<ContenedorDashboard
 				titulo={`Segmento: ${segmento.nombre}`}
 				subtitulo="Información general y accesos rápidos"
 				botonRegreso={{ href: '/grupos-vida/segmentos', texto: 'Volver a Segmentos' }}
@@ -210,6 +209,5 @@ export default async function SegmentoDetallePage({ params }: Props) {
 					</TarjetaSistema>
 				</div>
 			</ContenedorDashboard>
-		</DashboardLayout>
-	)
+)
 }

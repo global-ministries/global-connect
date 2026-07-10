@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+
 import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno";
 import { NuevaCasaClient } from "./nueva-casa-client";
 import {
@@ -51,11 +51,8 @@ export default async function NuevaCasaAnfitrionaPage() {
         parentId: p.municipio_id,
     }));
 
-
-
     return (
-        <DashboardLayout>
-            <ContenedorDashboard
+<ContenedorDashboard
                 titulo="Registrar Casa Anfitriona"
                 botonRegreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
             >
@@ -69,6 +66,5 @@ export default async function NuevaCasaAnfitrionaPage() {
                     />
                 </TarjetaSistema>
             </ContenedorDashboard>
-        </DashboardLayout>
-    );
+);
 }

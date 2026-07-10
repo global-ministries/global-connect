@@ -26,7 +26,7 @@ import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
 import { createClient } from "@/lib/supabase/client"
 import { deleteFamilyRelation } from "@/lib/actions/user.actions"
 import { toast } from "@/components/ui/use-toast"
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, TituloSistema, BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
@@ -153,7 +153,6 @@ export default function PaginaDetalleUsuario() {
     }
   }
 
-
   const obtenerColorRol = (rolInterno: string) => {
     switch (rolInterno) {
       case 'admin':
@@ -237,8 +236,7 @@ export default function PaginaDetalleUsuario() {
   // Renderizado
   if (loading) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500 mx-auto"></div>
@@ -246,14 +244,12 @@ export default function PaginaDetalleUsuario() {
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   if (error || !usuario) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -272,8 +268,7 @@ export default function PaginaDetalleUsuario() {
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Asume que la función RPC retorna un objeto con las siguientes propiedades:
@@ -287,8 +282,7 @@ export default function PaginaDetalleUsuario() {
     : { nombre_visible: 'Sin rol', nombre_interno: 'sin-rol' }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo={`${usuario.nombre} ${usuario.apellido}`}
         botonRegreso={{ href: '/users', texto: 'Volver a Usuarios' }}
       >
@@ -351,7 +345,6 @@ export default function PaginaDetalleUsuario() {
               </div>
             </div>
           </TarjetaSistema>
-
 
           {/* Información Básica */}
           <div className="backdrop-blur-2xl bg-card/50 border border-border rounded-3xl p-6 shadow-2xl">
@@ -642,6 +635,5 @@ export default function PaginaDetalleUsuario() {
           />
         </div>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { redirect } from "next/navigation"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard } from "@/components/ui/sistema-diseno"
 import { GestionDGClient } from "./GestionDGClient"
 import {
@@ -31,8 +31,7 @@ export default async function DirectoresGeneralesPage() {
   ])
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Directores Generales"
         botonRegreso={{ href: "/configuracion", texto: "Configuración" }}
       >
@@ -44,6 +43,5 @@ export default async function DirectoresGeneralesPage() {
           rolesUsuario={userData.roles}
         />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

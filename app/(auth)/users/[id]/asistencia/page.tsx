@@ -1,7 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import ReporteAsistenciaUsuarioClient from '@/components/asistencia/ReporteAsistenciaUsuario.client'
 
@@ -19,8 +18,7 @@ export default async function AsistenciaUsuarioPage({
 
   if (!user) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -33,8 +31,7 @@ export default async function AsistenciaUsuarioPage({
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Obtener información básica del usuario
@@ -43,8 +40,7 @@ export default async function AsistenciaUsuarioPage({
 
   if (!usuarioData) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -58,8 +54,7 @@ export default async function AsistenciaUsuarioPage({
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Obtener reporte de asistencia con filtros de fecha
@@ -89,8 +84,7 @@ export default async function AsistenciaUsuarioPage({
   // Verificar si hay error de permisos
   if (reporteError || (reporteData && (reporteData as any).error)) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">🔒</div>
@@ -116,8 +110,7 @@ export default async function AsistenciaUsuarioPage({
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Estructura por defecto si hay error
@@ -135,8 +128,7 @@ export default async function AsistenciaUsuarioPage({
   const nombreCompleto = `${usuarioData.nombre} ${usuarioData.apellido}`
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo={`Reporte de Asistencia - ${nombreCompleto}`}
         descripcion="Análisis detallado del historial de asistencia"
         botonRegreso={{ href: `/users/${id}`, texto: 'Volver al usuario' }}
@@ -148,6 +140,5 @@ export default async function AsistenciaUsuarioPage({
           fechaFin={fechaFin || undefined}
         />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

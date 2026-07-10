@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useUsuariosConPermisos } from '@/hooks/use-usuarios-con-permisos'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import {
   ContenedorDashboard,
@@ -178,8 +178,7 @@ export default function PaginaUsuarios() {
 
   if (cargando) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo="Usuarios"
           descripcion="Cargando información de usuarios..."
         >
@@ -213,13 +212,11 @@ export default function PaginaUsuarios() {
             </div>
           </TarjetaSistema>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Usuarios"
         descripcion=""
         accionPrincipal={esAdmin && seleccionados.size > 0 ? (
@@ -578,6 +575,5 @@ export default function PaginaUsuarios() {
           )}
         </div>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

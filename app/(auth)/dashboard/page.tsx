@@ -1,13 +1,15 @@
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import Link from 'next/link'
+
+import { ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { obtenerDatosDashboard } from '@/lib/dashboard/obtenerDatosDashboard'
+import { getDashboardPlatformNavigationFlags, resolveDashboardContextualAccess, type DashboardContextualShortcut } from '@/lib/dashboard/contextual-navigation'
 import DashboardAdmin from '@/components/dashboard/roles/DashboardAdmin'
 import DashboardDirector from '@/components/dashboard/roles/DashboardDirector'
 import DashboardLider from '@/components/dashboard/roles/DashboardLider'
 import DashboardMiembro from '@/components/dashboard/roles/DashboardMiembro'
 import { obtenerCasasRevisionPendiente, obtenerGruposSinCasaAnfitriona } from '@/lib/actions/casas-anfitrionas.actions'
 import { canReviewHostHomes } from '@/lib/casas-anfitrionas/review-roles'
-import type { HostHomeQueuesData, MissingHostHomeQueueItem, PendingHostHomeReviewItem } from '@/components/dashboard/widgets/HostHomeQueuesWidget'
+import type { HostHomeQueuesData, PendingHostHomeReviewItem } from '@/components/dashboard/widgets/HostHomeQueuesWidget'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,6 +75,7 @@ export default async function PaginaTablero() {
   const widgets = hostHomeQueues
     ? { ...data.widgets, casas_anfitrionas_queues: hostHomeQueues }
     : data.widgets
+  const contextualAccess = await resolveDashboardContextualAccess(data.platformSession, getDashboardPlatformNavigationFlags())
 
   const titulo = 'Dashboard'
   const descripcion =
@@ -87,8 +90,7 @@ export default async function PaginaTablero() {
       : 'Conexión e información personal'
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo={titulo} descripcion={descripcion}>
+<ContenedorDashboard titulo={titulo} descripcion={descripcion}>
         {data.rol === 'admin' || data.rol === 'pastor' || data.rol === 'director-general' ? (
           <DashboardAdmin data={widgets} rol={data.rol} />
         ) : data.rol === 'director-etapa' ? (
@@ -98,7 +100,37 @@ export default async function PaginaTablero() {
         ) : (
           <DashboardMiembro data={widgets} />
         )}
+        <ContextosVisiblesDashboard items={contextualAccess} />
       </ContenedorDashboard>
-    </DashboardLayout>
+)
+}
+
+function ContextosVisiblesDashboard({ items }: { items: DashboardContextualShortcut[] }) {
+  if (items.length === 0) return null
+
+  return (
+    <TarjetaSistema className="p-4 md:p-5">
+      <section aria-labelledby="contextos-visibles-dashboard" className="space-y-3">
+        <div className="space-y-1">
+          <TituloSistema id="contextos-visibles-dashboard" nivel={2}>Contextos visibles</TituloSistema>
+          <TextoSistema variante="sutil" tamaño="sm">
+            Accesos disponibles para tu sesión actual.
+          </TextoSistema>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {items.map((item) => (
+            <Link
+              key={item.id}
+              href={item.href}
+              aria-label={`Abrir ${item.label}`}
+              className="rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/30"
+            >
+              <span className="block text-sm font-medium text-foreground">{item.label}</span>
+              <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </TarjetaSistema>
   )
 }

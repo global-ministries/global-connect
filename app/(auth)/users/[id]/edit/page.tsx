@@ -5,7 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { UserEditForm } from "@/components/forms/UserEditForm"
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { AdminAccionesAsignarContrasena } from '@/components/admin/AdminAccionesAsignarContrasena.client'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
@@ -43,8 +43,7 @@ export default async function EditUserPage({ params }: Props) {
 
   if (errorUsuario || !usuario) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo=""
           descripcion=""
           accionPrincipal={null}
@@ -67,8 +66,7 @@ export default async function EditUserPage({ params }: Props) {
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Obtener dirección si existe
@@ -180,7 +178,7 @@ export default async function EditUserPage({ params }: Props) {
   const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(id)
 
   return (
-    <DashboardLayout>
+    <>
       {/* Header sticky como en ver usuario */}
       <div className="sticky top-0 z-10 bg-card border-b border-border px-4 sm:px-6 lg:px-20 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -237,6 +235,6 @@ export default async function EditUserPage({ params }: Props) {
           sugerenciasDireccion={sugerenciasDireccion}
         />
       </div>
-    </DashboardLayout>
+    </>
   )
 }

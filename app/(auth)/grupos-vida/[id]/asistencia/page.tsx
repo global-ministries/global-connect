@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import RegistroAsistenciaAvanzado from "@/components/grupos/RegistroAsistenciaAvanzado.client"
 import Link from "next/link"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, TituloSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions"
 
@@ -20,8 +20,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
 
   if (!user) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -32,8 +31,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   const [{ data: grupoRaw }, { data: puedeEditar }, configResult] = await Promise.all([
@@ -46,8 +44,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
 
   if (!grupo || !puedeEditar) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -59,8 +56,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Normalizar lat/lng si existen
@@ -78,8 +74,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
     : undefined
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo={`Registrar Asistencia - ${grupo.nombre}`}
         descripcion="Registra la asistencia y notas pastorales de la reunión."
         botonRegreso={{ href: `/grupos-vida/${id}`, texto: "Volver al grupo" }}
@@ -96,6 +91,5 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
           initialData={grupo.hora_reunion ? { hora: grupo.hora_reunion } : undefined}
         />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

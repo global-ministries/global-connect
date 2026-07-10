@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { extraerRelacion } from "@/lib/supabase/helpers";
 import { redirect } from "next/navigation";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 import { Plus, Home } from "lucide-react";
 import Link from "next/link";
@@ -117,8 +117,8 @@ export default async function CasasAnfitrionasPage() {
     const inactivas = casas?.filter((c) => c.aprobada && !c.activa).length ?? 0;
 
     return (
-        <DashboardLayout>
-            <ContenedorDashboard
+      <>
+        <ContenedorDashboard
                 titulo="Casas Anfitrionas"
                 botonRegreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
                 accionPrincipal={puedeRegistrarCasa ? (
@@ -327,6 +327,6 @@ export default async function CasasAnfitrionasPage() {
                     label="Registrar casa anfitriona"
                 />
             )}
-        </DashboardLayout>
+      </>
     );
 }

@@ -1,4 +1,4 @@
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
@@ -22,8 +22,7 @@ export default async function DashboardRiesgoPage() {
 
     if (!result.success || !result.data) {
         return (
-            <DashboardLayout>
-                <ContenedorDashboard
+<ContenedorDashboard
                     titulo="Salud de los Grupos"
                     descripcion="Vista panorámica de la salud de todos los grupos de vida."
                     botonRegreso={{ href: "/grupos-vida", texto: "Volver" }}
@@ -35,19 +34,16 @@ export default async function DashboardRiesgoPage() {
                         </p>
                     </TarjetaSistema>
                 </ContenedorDashboard>
-            </DashboardLayout>
-        )
+)
     }
 
     return (
-        <DashboardLayout>
-            <ContenedorDashboard
+<ContenedorDashboard
                 titulo="Salud de los Grupos"
                 descripcion="Monitoreo de asistencia, riesgo y tendencias de todos los grupos de vida."
                 botonRegreso={{ href: "/grupos-vida", texto: "Volver" }}
             >
                 <DashboardRiesgoClient data={result.data} />
             </ContenedorDashboard>
-        </DashboardLayout>
-    )
+)
 }

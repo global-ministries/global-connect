@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import Link from "next/link";
 import GroupEditForm from "@/components/forms/GroupEditForm";
-import { DashboardLayout } from '@/components/layout/dashboard-layout';
+
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno';
 
 interface PageProps {
@@ -32,8 +32,7 @@ export default async function EditGroupPage({ params }: PageProps) {
 
   if (error || !grupo) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -49,8 +48,7 @@ export default async function EditGroupPage({ params }: PageProps) {
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    );
+);
   }
 
   // Chequear permiso explícito para editar; si no tiene, redirigir al detalle
@@ -116,8 +114,7 @@ export default async function EditGroupPage({ params }: PageProps) {
     });
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Editar Grupo"
         descripcion={`Modifica la información del grupo "${grupo.nombre}"`}
         botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
@@ -139,6 +136,5 @@ export default async function EditGroupPage({ params }: PageProps) {
           />
         </TarjetaSistema>
       </ContenedorDashboard>
-    </DashboardLayout>
-  );
+);
 }

@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import HistorialAsistenciaClient from '@/components/asistencia/HistorialAsistencia.client'
 
@@ -18,8 +18,7 @@ export default async function HistorialAsistenciaPage({
 
   if (!user) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -32,8 +31,7 @@ export default async function HistorialAsistenciaPage({
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Obtener detalles del grupo y validar permisos
@@ -47,8 +45,7 @@ export default async function HistorialAsistenciaPage({
 
   if (!puedeEditar || !grupo) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -62,8 +59,7 @@ export default async function HistorialAsistenciaPage({
             </div>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Obtener reporte de asistencia con filtros de fecha
@@ -98,8 +94,7 @@ export default async function HistorialAsistenciaPage({
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo={`Historial de Asistencia - ${grupo.nombre}`}
         descripcion="Análisis y eventos registrados"
         botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
@@ -123,6 +118,5 @@ export default async function HistorialAsistenciaPage({
           fechaFin={fechaFin || undefined}
         />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

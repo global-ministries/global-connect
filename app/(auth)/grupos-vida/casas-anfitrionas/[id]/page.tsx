@@ -4,7 +4,7 @@ import { extraerRelacion } from "@/lib/supabase/helpers";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { z } from "zod";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+
 import {
     ContenedorDashboard,
     TarjetaSistema,
@@ -101,8 +101,7 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
         : null;
 
     return (
-        <DashboardLayout>
-            <ContenedorDashboard
+<ContenedorDashboard
                 titulo={casa.nombre_lugar}
                 botonRegreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
                 accionPrincipal={permisosCasa.puedeEditar ? (
@@ -342,6 +341,5 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
                     </div>
                 </div>
             </ContenedorDashboard>
-        </DashboardLayout>
-    );
+);
 }

@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { redirect } from "next/navigation"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard } from "@/components/ui/sistema-diseno"
 import { ConfiguracionGlobalClient } from "./ConfiguracionGlobalClient"
 
@@ -34,8 +34,7 @@ export default async function PaginaConfiguracion() {
     .single()
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Configuración"
         botonRegreso={{ href: "/dashboard", texto: "Dashboard" }}
       >
@@ -55,7 +54,6 @@ export default async function PaginaConfiguracion() {
           } : undefined}
         />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
 
