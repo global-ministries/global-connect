@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
-import { useCurrentUser, __resetCurrentUserCacheForTesting } from '@/hooks/useCurrentUser'
+import { useCurrentUser, CurrentUserProvider, __resetCurrentUserCacheForTesting } from '@/hooks/useCurrentUser'
 import { AUTH_FETCH_TIMEOUT_MS } from '@/lib/platform/auth-timeout'
 
 const createClient = jest.fn()
@@ -72,7 +72,7 @@ describe('useCurrentUser', () => {
       { user, usuario, roles: ['admin'], supportCapabilities: ['support.view', 'support.reply'] },
     ])
 
-    const { result } = renderHook(() => useCurrentUser())
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.roles).toEqual(['admin'])
@@ -89,7 +89,7 @@ describe('useCurrentUser', () => {
       { user, usuario, roles: [{ nombre_interno: 'admin' }], supportCapabilities: ['support.manage'] },
     ])
 
-    const { result } = renderHook(() => useCurrentUser())
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.platformSession).toEqual({
@@ -107,7 +107,7 @@ describe('useCurrentUser', () => {
       { user, usuario: null, roles: ['lider'] },
     ])
 
-    const { result } = renderHook(() => useCurrentUser())
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.usuario).toBeNull()
@@ -124,7 +124,7 @@ describe('useCurrentUser', () => {
       { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
     ])
 
-    const { result } = renderHook(() => useCurrentUser())
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.usuario?.id).toBe('usuario-1')
@@ -149,7 +149,7 @@ describe('useCurrentUser', () => {
       { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: pendingGetUser },
     ])
 
-    const { result } = renderHook(() => useCurrentUser())
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await act(async () => {
       triggerAuthStateChange('SIGNED_OUT', null)
@@ -185,7 +185,7 @@ describe('useCurrentUser', () => {
         { user: { id: 'auth-1' }, getUserDeferred: pendingGetUser },
       ])
 
-      const { result } = renderHook(() => useCurrentUser())
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
       // Loading starts true while we wait for getUser to resolve.
       expect(result.current.loading).toBe(true)
@@ -224,7 +224,7 @@ describe('useCurrentUser', () => {
         { user: { id: 'auth-1' }, getUserDeferred: pendingGetUser },
       ])
 
-      const { result } = renderHook(() => useCurrentUser())
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
       await act(async () => {
         jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS + 1000)
@@ -253,7 +253,7 @@ describe('useCurrentUser', () => {
       { user: null },
     ])
 
-    const { unmount } = renderHook(() => useCurrentUser())
+    const { unmount } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
     unmount()
 
     await act(async () => {
@@ -264,7 +264,7 @@ describe('useCurrentUser', () => {
     await waitFor(() => expect(client.rpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: 'auth-1' }))
     unmount()
 
-    const remounted = renderHook(() => useCurrentUser())
+    const remounted = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(remounted.result.current.loading).toBe(false))
     expect(remounted.result.current.usuario).toBeNull()
@@ -286,7 +286,7 @@ describe('useCurrentUser', () => {
       { user: secondUser, usuario: secondUsuario, roles: ['lider'], supportCapabilities: ['support.reply'] },
     ])
 
-    const { result } = renderHook(() => useCurrentUser())
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(result.current.platformSession?.personaId).toBe('usuario-1'))
 
@@ -319,7 +319,7 @@ describe('useCurrentUser', () => {
         { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
       ])
 
-      const { result } = renderHook(() => useCurrentUser())
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
       await act(async () => {
         initialDeferred.resolve(getUserResponse(user))
@@ -355,7 +355,7 @@ describe('useCurrentUser', () => {
         { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
       ])
 
-      const { result } = renderHook(() => useCurrentUser())
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
       await act(async () => {
         await flushPendingPromises()
       })
@@ -398,7 +398,7 @@ describe('useCurrentUser', () => {
       setupSupabaseClient([
         { user: cachedUser, roles: ['admin'], supportCapabilities: [], getUserDeferred: seedDeferred },
       ])
-      const seed = renderHook(() => useCurrentUser())
+      const seed = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
       await act(async () => {
         seedDeferred.resolve(getUserResponse(cachedUser))
         await flushPendingPromises()
@@ -414,7 +414,7 @@ describe('useCurrentUser', () => {
       setupSupabaseClient([
         { user: null, cacheAuthUser: null, getUserDeferred: stalledCacheCheck },
       ])
-      const { result } = renderHook(() => useCurrentUser())
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
       expect(result.current.loading).toBe(true)
 
       await act(async () => {
@@ -446,7 +446,7 @@ describe('useCurrentUser', () => {
       setupSupabaseClient([
         { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: pendingGetUser },
       ])
-      const { result } = renderHook(() => useCurrentUser())
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
       // Advance past the timeout — the abandoned loadCurrentUserData is still
       // awaiting getUser.
@@ -482,7 +482,7 @@ describe('useCurrentUser', () => {
       setupSupabaseClient([
         { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'], getUserDeferred: pendingGetUser },
       ])
-      const { result } = renderHook(() => useCurrentUser())
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
       // Advance 500ms before the timeout. The race timer has NOT fired yet.
       await act(async () => {
@@ -522,7 +522,7 @@ describe('useCurrentUser', () => {
       const { client } = setupSupabaseClient([
         { user, usuario, roles: ['admin'], supportCapabilities: [], getUserDeferred: pendingGetUser },
       ])
-      const { result } = renderHook(() => useCurrentUser())
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
       // Resolve well before the timeout — work promise wins, finally clears timer.
       await act(async () => {
@@ -563,7 +563,7 @@ describe('useCurrentUser', () => {
       { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
     ])
 
-    const { result, unmount } = renderHook(() => useCurrentUser())
+    const { result, unmount } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.usuario?.id).toBe('usuario-token-refresh')
@@ -599,7 +599,7 @@ describe('useCurrentUser', () => {
       { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
     ])
 
-    const { result, unmount } = renderHook(() => useCurrentUser())
+    const { result, unmount } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.usuario?.id).toBe('usuario-initial-session')
@@ -638,7 +638,7 @@ describe('useCurrentUser', () => {
       rpc: jest.fn(),
     })
 
-    const { result } = renderHook(() => useCurrentUser())
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.usuario).toBeNull()
@@ -677,7 +677,7 @@ describe('useCurrentUser', () => {
       rpc: jest.fn(),
     })
 
-    const { result } = renderHook(() => useCurrentUser())
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.usuario).toBeNull()
