@@ -118,7 +118,9 @@ Atributos:
 
 Reglas:
 
-- Antes de crear una persona nueva, **obligatorio** buscar en `Persona` por nombre + teléfono/email. Si hay match con ≥0.85 score (definido en `lib/platform/persona.ts`), usar existente.
+- Antes de crear una persona nueva, **obligatorio** buscar en `Persona` por **cédula como identificador fuerte** y, en paralelo, por nombre + teléfono/email. Si hay match por cédula, usar existente sin preguntas. Si hay match por nombre + teléfono/email con ≥0.85 score (definido en `lib/platform/persona.ts`), usar existente. Si no, crear `Persona` mínima con `autoMerge=false` por defecto.
+- La cédula es el **identificador de identidad** más fuerte disponible; no es opcional. Cuando se capture, debe persistirse en `Persona` (campo dedicado en la extensión de `lib/platform/persona.ts`). El sistema debe validar formato por país si está disponible (cédula dominicana, DNI argentino, CURP mexicano, etc.) y dejar `cédula_country` como metadato.
+- El score de matching por nombre/teléfono/email es fallback cuando no hay cédula o no coincide.
 - Inscripción autenticada vía admin o líder del evento.
 - Inscripción por link público: el link se genera con `token` de un solo uso o expiración configurable. NO requiere cuenta de usuario.
 - Inscripción self-service: solo en Fase 12.
