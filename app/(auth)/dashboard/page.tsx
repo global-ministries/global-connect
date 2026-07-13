@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { obtenerDatosDashboard } from '@/lib/dashboard/obtenerDatosDashboard'
 import { getDashboardPlatformNavigationFlags, resolveDashboardContextualAccess, type DashboardContextualShortcut } from '@/lib/dashboard/contextual-navigation'
@@ -90,8 +90,7 @@ export default async function PaginaTablero() {
       : 'Conexión e información personal'
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo={titulo} descripcion={descripcion}>
+<ContenedorDashboard titulo={titulo} descripcion={descripcion}>
         {data.rol === 'admin' || data.rol === 'pastor' || data.rol === 'director-general' ? (
           <DashboardAdmin data={widgets} rol={data.rol} />
         ) : data.rol === 'director-etapa' ? (
@@ -103,8 +102,7 @@ export default async function PaginaTablero() {
         )}
         <ContextosVisiblesDashboard items={contextualAccess} />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
 
 function ContextosVisiblesDashboard({ items }: { items: DashboardContextualShortcut[] }) {

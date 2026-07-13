@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import AuditViewer from "@/components/grupos/AuditViewer.client";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+
 import { ContenedorDashboard, BotonSistema } from "@/components/ui/sistema-diseno";
 
 export default async function GrupoAuditPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,8 +19,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
 
   if (!detalle) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard>
+<ContenedorDashboard>
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">No tienes acceso a esta auditoría.</p>
             <Link href={`/grupos-vida/${id}`}>
@@ -31,8 +30,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
             </Link>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    );
+);
   }
 
   // Si puede gestionar miembros o no es miembro simple, permitimos ver auditoría
@@ -40,8 +38,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
 
   if (!puedeVerAuditoria) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard>
+<ContenedorDashboard>
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">No tienes permiso para ver la auditoría.</p>
             <Link href={`/grupos-vida/${id}`}>
@@ -52,13 +49,11 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
             </Link>
           </div>
         </ContenedorDashboard>
-      </DashboardLayout>
-    );
+);
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Auditoría"
         subtitulo={`Historial de cambios del grupo ${detalle.nombre}`}
         botonRegreso={{
@@ -68,6 +63,5 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
       >
         <AuditViewer grupoId={id} />
       </ContenedorDashboard>
-    </DashboardLayout>
-  );
+);
 }

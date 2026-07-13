@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUserWithRoles } from "@/lib/getUserWithRoles";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+
 import { ContenedorDashboard } from "@/components/ui/sistema-diseno";
 import { listarSolicitudesPendientes, listarSolicitudesCompletadas } from "@/lib/actions/solicitudes-grupo.actions";
 import { SolicitudesPendientesClient } from "./SolicitudesPendientesClient";
@@ -26,8 +26,7 @@ export default async function SolicitudesPage() {
     ]);
 
     return (
-        <DashboardLayout>
-            <ContenedorDashboard
+<ContenedorDashboard
                 titulo="Solicitudes"
                 descripcion="Gestiona las solicitudes de grupos de vida"
                 botonRegreso={{ href: "/grupos-vida", texto: "Grupos" }}
@@ -37,6 +36,5 @@ export default async function SolicitudesPage() {
                     solicitudesCompletadas={completadasRes.success ? (completadasRes.data ?? []) : []}
                 />
             </ContenedorDashboard>
-        </DashboardLayout>
-    );
+);
 }

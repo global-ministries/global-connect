@@ -1,11 +1,15 @@
 "use client"
 
-import { useEffect, useState, type ComponentType } from 'react'
+import { useEffect, useState, type ComponentType, type Dispatch, type SetStateAction } from 'react'
 import { ClipboardList, Megaphone, Settings, User, UserCheck, Users } from 'lucide-react'
 
-import { getPlatformNavigationFlags } from '@/lib/platform/flags'
-import type { PlatformNavigationItem, PlatformNavigationItemId, PlatformNavigationSession } from '@/lib/platform/navigation'
+import { getPlatformNavigationFlags, type PlatformNavigationFlags } from '@/lib/platform/flags'
 import { resolvePlatformNavigation, resolvePlatformNavigationGate } from '@/lib/platform/navigation'
+import type {
+  PlatformNavigationItem,
+  PlatformNavigationItemId,
+  PlatformNavigationSession,
+} from '@/lib/platform/navigation'
 
 export type PlatformNavigationViewItem = {
   id: string
@@ -18,11 +22,6 @@ export type PlatformNavigationViewItem = {
   badge?: never
   badgeVariant?: never
   className?: never
-}
-
-type PlatformNavigationViewItemsState = {
-  sessionKey: string
-  items: PlatformNavigationViewItem[]
 }
 
 const PLATFORM_NAVIGATION_ICONS = {
@@ -39,7 +38,7 @@ const PLATFORM_NAVIGATION_ICONS = {
 
 export async function resolvePlatformNavigationViewItems(
   platformSession: PlatformNavigationSession | null | undefined,
-  flags: { enabled: boolean; killSwitch?: boolean } = getPlatformNavigationFlags()
+  flags: PlatformNavigationFlags = getPlatformNavigationFlags()
 ): Promise<PlatformNavigationViewItem[]> {
   const gate = resolvePlatformNavigationGate({ flags, platformSession })
   if (!gate.ok) return []
@@ -57,71 +56,36 @@ export async function resolvePlatformNavigationViewItems(
 export function usePlatformNavigationViewItems(
   platformSession: PlatformNavigationSession | null | undefined
 ): PlatformNavigationViewItem[] {
-  const sessionKey = getPlatformNavigationSessionKey(platformSession)
-  const [state, setState] = useState<PlatformNavigationViewItemsState>({ sessionKey, items: [] })
+  const [items, setItems] = useState<PlatformNavigationViewItem[]>([])
 
   useEffect(() => {
     const flags = getPlatformNavigationFlags()
     const gate = resolvePlatformNavigationGate({ flags, platformSession })
-    if (!gate.ok) return
+    if (!gate.ok) {
+      clearPlatformNavigationViewItems(setItems)
+      return
+    }
 
     let isCurrent = true
 
     resolvePlatformNavigationViewItems(gate.platformSession, flags)
       .then((resolvedItems) => {
-        if (!isCurrent) return
-        setState((current) => toPlatformNavigationViewItemsState(current, sessionKey, resolvedItems))
+        if (isCurrent) setItems(resolvedItems)
       })
       .catch(() => {
-        if (!isCurrent) return
-        setState((current) => toPlatformNavigationViewItemsState(current, sessionKey, []))
+        if (isCurrent) setItems([])
       })
 
     return () => {
       isCurrent = false
     }
-  }, [platformSession, sessionKey])
+  }, [platformSession])
 
-  return state.sessionKey === sessionKey ? state.items : []
+  return items
 }
 
-function toPlatformNavigationViewItemsState(
-  current: PlatformNavigationViewItemsState,
-  sessionKey: string,
-  items: PlatformNavigationViewItem[]
-): PlatformNavigationViewItemsState {
-  if (current.sessionKey === sessionKey && arePlatformNavigationViewItemsEqual(current.items, items)) {
-    return current
-  }
-
-  return { sessionKey, items }
-}
-
-function arePlatformNavigationViewItemsEqual(
-  currentItems: PlatformNavigationViewItem[],
-  nextItems: PlatformNavigationViewItem[]
-): boolean {
-  if (currentItems.length !== nextItems.length) return false
-  return currentItems.every((currentItem, index) => {
-    const nextItem = nextItems[index]
-    return currentItem.id === nextItem.id &&
-      currentItem.label === nextItem.label &&
-      currentItem.href === nextItem.href &&
-      currentItem.icon === nextItem.icon
-  })
-}
-
-function getPlatformNavigationSessionKey(session: PlatformNavigationSession | null | undefined): string {
-  if (!session) return 'platform-session:none'
-
-  const contextsKey = session.contexts
-    .map((context) => [context.experience, context.scopeType, context.scopeId ?? '', context.label].join(':'))
-    .join('|')
-  const capabilitiesKey = session.capabilities
-    .map((capability) => [capability.key, capability.experience, capability.scopeType, capability.scopeId ?? '', capability.source].join(':'))
-    .join('|')
-
-  return [session.personaId, session.subjectAuthId, session.globalRoles.join(','), contextsKey, capabilitiesKey].join('::')
+function clearPlatformNavigationViewItems(setItems: Dispatch<SetStateAction<PlatformNavigationViewItem[]>>) {
+  setItems((current) => (current.length > 0 ? [] : current))
 }
 
 function toPlatformNavigationViewItem(item: PlatformNavigationItem): PlatformNavigationViewItem {

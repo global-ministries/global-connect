@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import TemporadasListClient from "@/components/temporadas/TemporadasList.client"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, BotonSistema } from "@/components/ui/sistema-diseno"
 
 export default async function Page() {
@@ -33,8 +33,7 @@ export default async function Page() {
   const roles = userData.roles || []
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Temporadas"
         descripcion="Administra los períodos temporales de tu organización"
         accionPrincipal={
@@ -51,6 +50,5 @@ export default async function Page() {
           userRoles={roles}
         />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

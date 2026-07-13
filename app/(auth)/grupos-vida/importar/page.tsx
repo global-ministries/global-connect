@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, TarjetaSistema, TituloSistema, BotonSistema, TextoSistema } from "@/components/ui/sistema-diseno"
 import Link from "next/link"
 import { Upload, Download } from "lucide-react"
@@ -32,8 +32,7 @@ export default function ImportarGruposPage() {
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Importar Grupos por CSV"
         descripcion="Sube un archivo .csv para crear grupos y miembros automáticamente"
         botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
@@ -82,6 +81,5 @@ export default function ImportarGruposPage() {
           </TarjetaSistema>
         )}
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }

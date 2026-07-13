@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import RankingAsistenciaClient from '@/components/asistencia/RankingAsistencia.client'
 
@@ -15,8 +15,7 @@ export default async function MasConstantesPage({
 
     if (!user) {
         return (
-            <DashboardLayout>
-                <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
                     <div className="flex items-center justify-center min-h-[50vh]">
                         <div className="text-center">
                             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -27,8 +26,7 @@ export default async function MasConstantesPage({
                         </div>
                     </div>
                 </ContenedorDashboard>
-            </DashboardLayout>
-        )
+)
     }
 
     // Obtener nombre del grupo
@@ -51,8 +49,7 @@ export default async function MasConstantesPage({
     const ranking = rankingData as any || { total_eventos: 0, miembros: [] }
 
     return (
-        <DashboardLayout>
-            <ContenedorDashboard
+<ContenedorDashboard
                 titulo="Más Constantes"
                 descripcion={`Miembros con mejor asistencia — ${grupo?.nombre || 'Grupo'}`}
                 botonRegreso={{ href: `/grupos-vida/${id}/asistencia/historial`, texto: 'Historial' }}
@@ -65,6 +62,5 @@ export default async function MasConstantesPage({
                     grupoNombre={grupo?.nombre || 'Grupo'}
                 />
             </ContenedorDashboard>
-        </DashboardLayout>
-    )
+)
 }

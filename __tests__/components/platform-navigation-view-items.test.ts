@@ -1,7 +1,13 @@
+import { renderHook, waitFor } from '@testing-library/react'
 import { UserCheck } from 'lucide-react'
 
-import { resolvePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
+import {
+  resolvePlatformNavigationViewItems,
+  usePlatformNavigationViewItems,
+} from '@/components/ui/platform-navigation-view-items'
 import type { PlatformSession } from '@/lib/platform/session/types'
+
+const originalPlatformNavigationEnabled = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
 
 const basePlatformSession: PlatformSession = {
   personaId: 'persona-1',
@@ -12,6 +18,10 @@ const basePlatformSession: PlatformSession = {
 }
 
 describe('platform navigation view items', () => {
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = originalPlatformNavigationEnabled
+  })
+
   it('maps available platform navigation to reusable view items', async () => {
     const platformSession = withCapabilities([
       { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
@@ -29,6 +39,26 @@ describe('platform navigation view items', () => {
         href: '/grupos-vida',
       },
     ])
+  })
+
+  it('does not re-call resolvePlatformNavigationViewItems when the platformSession reference changes but data is the same', async () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    const platformSession = withCapabilities([
+      { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
+    ], [
+      { experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', label: 'Grupos de Vida — Adultos' },
+    ])
+    const { result, rerender } = renderHook(
+      ({ session }) => usePlatformNavigationViewItems(session),
+      { initialProps: { session: platformSession } }
+    )
+
+    await waitFor(() => expect(result.current).toHaveLength(1))
+    const resolvedItems = result.current
+
+    rerender({ session: { ...platformSession } })
+
+    await waitFor(() => expect(result.current).toBe(resolvedItems))
   })
 
   it.each([

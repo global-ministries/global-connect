@@ -3,7 +3,7 @@ import { SUPPORT_CAPABILITIES, SUPPORT_CAPABILITY_LABELS } from '@/lib/support/c
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
 import { checkPlatformRouteAccess } from '@/lib/platform/routeGuard'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { BotonSistema, ContenedorDashboard, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { redirect } from 'next/navigation'
 
@@ -31,15 +31,13 @@ export default async function SupportCapabilitiesPage() {
 
   if (!hasHigherRole || !hasSupportManage) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard titulo="Configuracion de soporte" botonRegreso={{ href: '/dashboard', texto: 'Dashboard' }}>
+<ContenedorDashboard titulo="Configuracion de soporte" botonRegreso={{ href: '/dashboard', texto: 'Dashboard' }}>
           <TarjetaSistema className="space-y-3">
             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
             <TextoSistema variante="sutil">Esta configuracion requiere un rol de administracion alto y la capacidad support.manage. Si necesitas administrar soporte, solicita acceso a un administrador autorizado.</TextoSistema>
           </TarjetaSistema>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   async function grantAction(formData: FormData) {
@@ -53,8 +51,7 @@ export default async function SupportCapabilitiesPage() {
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo="Configuracion de soporte" descripcion="Administra capacidades de soporte con cambios auditados y limitados al conjunto permitido.">
+<ContenedorDashboard titulo="Configuracion de soporte" descripcion="Administra capacidades de soporte con cambios auditados y limitados al conjunto permitido.">
         <TarjetaSistema className="space-y-4">
           <TituloSistema nivel={2}>Capacidades permitidas</TituloSistema>
           <TextoSistema variante="sutil">Solo se pueden administrar support.view, support.reply y support.manage para usuarios staff o admin.</TextoSistema>
@@ -72,8 +69,7 @@ export default async function SupportCapabilitiesPage() {
           </div>
         </TarjetaSistema>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
 
 async function hasSupportManageCapability(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, authId: string) {

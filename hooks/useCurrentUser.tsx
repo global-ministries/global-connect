@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { createClient } from '@/lib/supabase/client'
 import { buildPlatformSession } from '@/lib/platform/session/build'
@@ -12,6 +12,7 @@ import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 type Usuario = Database['public']['Tables']['usuarios']['Row']
 
 interface CurrentUserData {
+  authUserId: string | null
   usuario: Usuario | null
   roles: string[]
   supportCapabilities: string[]
@@ -22,7 +23,7 @@ interface CurrentUserData {
 
 const SUPPORT_CAPABILITIES = ['support.view', 'support.reply', 'support.manage'] as const
 type SupportCapability = (typeof SUPPORT_CAPABILITIES)[number]
-type CurrentUserResult = Omit<CurrentUserData, 'loading' | 'error'>
+export type CurrentUserResult = Omit<CurrentUserData, 'loading' | 'error'>
   & { authUserId: string | null }
 
 const CURRENT_USER_CACHE_TTL_MS = 15_000
@@ -68,7 +69,7 @@ export function __resetCurrentUserCacheForTesting() {
 // single `null` return with `.catch(() => null)` — ops could not tell the
 // two apart and users got neither a toast nor a retry prompt. See Finding 1
 // in the 4R review.
-type CurrentUserFetchResult =
+export type CurrentUserFetchResult =
   | { kind: 'ok'; data: CurrentUserResult }
   | { kind: 'timeout' }
   | { kind: 'error'; error: unknown }
@@ -187,7 +188,10 @@ async function isCurrentAuthUser(authUserId: string | null): Promise<boolean> {
   return !error && (data.user?.id ?? null) === authUserId
 }
 
-export function useCurrentUser(): CurrentUserData {
+const CurrentUserContext = createContext<CurrentUserData | null>(null)
+
+export function CurrentUserProvider({ children }: { children: ReactNode }) {
+  const [authUserId, setAuthUserId] = useState<string | null>(null)
   const [usuario, setUsuario] = useState<Usuario | null>(null)
   const [roles, setRoles] = useState<string[]>([])
   const [supportCapabilities, setSupportCapabilities] = useState<string[]>([])
@@ -213,11 +217,13 @@ export function useCurrentUser(): CurrentUserData {
         if (result.kind === 'timeout') {
           // Fetch timed out — treat as unauthenticated and fail silently
           // (a stalled network should not surface an error toast to the user).
+          setAuthUserId(null)
           setUsuario(null)
           setRoles([])
           setSupportCapabilities([])
           setPlatformSession(null)
         } else if (result.kind === 'ok') {
+          setAuthUserId(result.data.authUserId)
           setUsuario(result.data.usuario)
           setRoles(result.data.roles)
           setSupportCapabilities(result.data.supportCapabilities)
@@ -230,6 +236,7 @@ export function useCurrentUser(): CurrentUserData {
           const err = result.error
           console.error('Error en useCurrentUser:', err)
           setError(err instanceof Error ? err.message : 'Error desconocido')
+          setAuthUserId(null)
           setUsuario(null)
           setRoles([])
           setSupportCapabilities([])
@@ -261,6 +268,7 @@ export function useCurrentUser(): CurrentUserData {
       }
       if (event === 'SIGNED_OUT') {
         authGenerationRef.current += 1
+        setAuthUserId(null)
         setUsuario(null)
         setRoles([])
         setSupportCapabilities([])
@@ -283,7 +291,20 @@ export function useCurrentUser(): CurrentUserData {
     }
   }, [])
 
-  return { usuario, roles, supportCapabilities, platformSession, loading, error }
+  const value = useMemo(
+    () => ({ authUserId, usuario, roles, supportCapabilities, platformSession, loading, error }),
+    [authUserId, usuario, roles, supportCapabilities, platformSession, loading, error]
+  )
+
+  return <CurrentUserContext.Provider value={value}>{children}</CurrentUserContext.Provider>
+}
+
+export function useCurrentUser(): CurrentUserData {
+  const ctx = useContext(CurrentUserContext)
+  if (!ctx) {
+    throw new Error('useCurrentUser must be used within CurrentUserProvider')
+  }
+  return ctx
 }
 
 async function resolveClientPlatformSession(input: {

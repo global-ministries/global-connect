@@ -3,7 +3,7 @@ import { Eye, TicketIcon } from 'lucide-react'
 
 import { listSupportTickets } from '@/lib/actions/support.actions'
 import { formatSupportCategory, formatSupportSeverity, formatSupportStatus } from '@/lib/support/support-labels'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table'
 import { BadgeSistema, BotonSistema, ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
@@ -69,8 +69,7 @@ export default async function TicketsPage({ searchParams }: { searchParams?: Pro
   ]
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo="Mis tickets de soporte" accionPrincipal={<Link href="/ayuda/reportar"><BotonSistema tamaño="sm">Nuevo ticket</BotonSistema></Link>}>
+<ContenedorDashboard titulo="Mis tickets de soporte" accionPrincipal={<Link href="/ayuda/reportar"><BotonSistema tamaño="sm">Nuevo ticket</BotonSistema></Link>}>
         <TicketFilterPills activeFilter={activeFilter} />
         <DataTable
           rows={filteredTickets}
@@ -84,8 +83,7 @@ export default async function TicketsPage({ searchParams }: { searchParams?: Pro
         />
         <TicketsMobileList tickets={filteredTickets} emptyMessage={getEmptyStateMessage(activeFilter)} />
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
 
 function TicketFilterPills({ activeFilter }: { activeFilter: TicketFilter }) {

@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import GroupCreateForm from "@/components/forms/GroupCreateForm";
 import { getUserWithRoles } from "@/lib/getUserWithRoles";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+
 import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
 
 export default async function CreateGroupPage() {
@@ -20,8 +20,7 @@ export default async function CreateGroupPage() {
   // Si no es admin/pastor/director-general ni director-etapa, redirigir a listado
   if (!esAdminOPastorODG && !esDirectorEtapa) {
     return (
-      <DashboardLayout>
-        <ContenedorDashboard
+<ContenedorDashboard
           titulo="Crear Grupo"
           descripcion="No tienes permisos para crear grupos"
           botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
@@ -30,8 +29,7 @@ export default async function CreateGroupPage() {
             <div className="text-sm text-red-600">No Tienes permisos para crear grupos.</div>
           </TarjetaSistema>
         </ContenedorDashboard>
-      </DashboardLayout>
-    )
+)
   }
 
   // Cargar temporadas activas y segmentos permitidos
@@ -64,8 +62,7 @@ export default async function CreateGroupPage() {
   const segmentos = segmentosResult.data || [];
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo="Crear Grupo"
         descripcion="Ingresa los datos para crear un nuevo grupo"
         botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
@@ -74,6 +71,5 @@ export default async function CreateGroupPage() {
           <GroupCreateForm temporadas={temporadas} segmentos={segmentos} userRoles={roles} />
         </TarjetaSistema>
       </ContenedorDashboard>
-    </DashboardLayout>
-  );
+);
 }

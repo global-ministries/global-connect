@@ -4,7 +4,7 @@ import { Layers, Users, ChevronRight } from "lucide-react"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 import GestionSegmentosModales from "@/components/grupos/FormularioSegmento.client"
 
@@ -94,7 +94,7 @@ export default async function Page() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <ContenedorDashboard
         titulo="Segmentos"
         botonRegreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
@@ -186,6 +186,6 @@ export default async function Page() {
       {puedeGestionar && (
         <GestionSegmentosModales segmentos={lista} trigger="fab" />
       )}
-    </DashboardLayout>
+    </>
   )
 }

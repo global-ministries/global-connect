@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 
 import { createStaffSupportTicketReply, createSupportTicketMessage, getSupportTicketDetail, updateSupportTicketStatus } from '@/lib/actions/support.actions'
 import { formatSupportStatus } from '@/lib/support/support-labels'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { BadgeSistema, ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { SupportTicketReplyComposer, SupportTicketStatusForm } from './support-ticket-detail-actions'
@@ -44,8 +44,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const assignee = createParticipant(ticket.assignee, 'Sin asignar')
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
+<ContenedorDashboard titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
         <div className="space-y-6">
           <TarjetaSistema className="overflow-hidden border-border/70 p-0">
             <div className="border-b border-border bg-muted/20 p-4 sm:p-5">
@@ -185,8 +184,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
 
 function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {

@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import AttendanceList from "@/components/grupos/AttendanceList.client";
 import { Edit, Calendar, Clock, BookOpen, StickyNote, Users, AlertTriangle } from 'lucide-react'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+
 import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema, BadgeSistema, SeparadorSistema } from '@/components/ui/sistema-diseno'
 
 /** Evento devuelto por obtener_evento_grupo (v2) */
@@ -41,8 +41,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -53,8 +52,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
           </div>
         </div>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 
   const [{ data: evento }, { data: puedeEditar }, asistenciaRes, { data: grupoData }] = await Promise.all([
     supabase.rpc('obtener_evento_grupo', { p_auth_id: user.id, p_evento_id: eventoId }),
@@ -86,8 +84,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
 
   const ev: EventoGrupo | undefined = Array.isArray(evento) ? (evento[0] as EventoGrupo) : undefined
   if (!ev) return (
-    <DashboardLayout>
-      <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -99,8 +96,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
           </div>
         </div>
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 
   const asistentes = Array.isArray(asistenciaRes.data)
     ? (asistenciaRes.data as AsistenciaRPCRow[]).map((r) => ({
@@ -140,8 +136,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   }
 
   return (
-    <DashboardLayout>
-      <ContenedorDashboard
+<ContenedorDashboard
         titulo={`Asistencia del ${formatearFecha(ev.fecha)}`}
         botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
         accionPrincipal={
@@ -294,6 +289,5 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
           </TarjetaSistema>
         )}
       </ContenedorDashboard>
-    </DashboardLayout>
-  )
+)
 }
