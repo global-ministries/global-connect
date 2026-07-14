@@ -62,7 +62,7 @@ No debe implementar hasta que esos artefactos sean revisados y aprobados. La fas
 8. **Formularios simples**: campos básicos, estados, dueño/scope. Sin workflows avanzados, sin lógica condicional pesada, sin aprobaciones sofisticadas.
 9. **Recursos**: biblioteca simple con `archivo/link`, categoría, área, rol visible. Sin tracking de cumplimiento.
 10. **Sin rediseñar Grupos de Vida**, sin romper dashboards existentes, sin romper flujos de asistencia de grupos pequeños actuales.
-11. **Sin usar `uno_a_uno`** hasta decisión formal de producto (preflight sigue activo en `lib/platform/preflight.ts`).
+11. **Sin usar `uno_a_uno`** — decisión CLOSED como `archive`. Preflight sigue activo en `lib/platform/preflight.ts` (no se llama `registerPlatformUnoAUnoDecision` desde ningún artefacto de Fase 3). La unión canónica de 11 kinds del Operating Core excluye `one_on_one_logged`.
 12. **Cambios aditivos**: cualquier migración es no-destructiva, todo es retrocompatible con producción actual.
 13. **Strict TDD**: tests primero, RED verificado, GREEN implementado, REFACTOR con cobertura.
 14. **Dashboards operativos, no avanzados**: conteos, asistencia, pendientes, alertas. Tendencias, comparativas y predicciones NO entran en esta fase.
@@ -78,18 +78,19 @@ Una iglesia puede tener 1, 2 o N servicios por domingo. El modelo debe:
 - soportar múltiples campuses (un campus con su set de servicios);
 - alimentar la asistencia y la capacidad operativa por servicio.
 
-`Service` no se confunde con `Experience` (Fase 1): `Service` es un horario, `Experience` es una organización (Niños, Estudiantes, DPS). Un servicio de las 9am puede contener niños + estudiantes + universitarios + grupos de vida a la vez.
+`Service` no se confunde con `Experience` (Fase 1) ni con `Event`/`EventInstance` (Fase 3): `Service` es un horario semanal recurrente configurable, `Experience` es una organización (Niños, Estudiantes, DPS), `Event`/`EventInstance` son ocurrencias concretas. Un servicio de las 9am puede contener niños + estudiantes + universitarios + grupos de vida a la vez. Las ediciones del schedule NO mutan ni duplican filas históricas de `Event`/`EventInstance`; la materialización futura honra el nuevo schedule.
 
 ### 2. Eventos / Actividades / Talleres
 
-Una sola entidad `Event` con `kind` configurable:
+Una sola entidad `Event` con `kind` configurable. Tipos válidos en Fase 3:
 
 - `service` (sermón dominical);
 - `group_meeting` (reunión de grupo pequeño);
 - `workshop` (taller con inscripción);
 - `activity` (actividad puntual);
-- `camp` (Fase 13, declarado como futuro);
 - `custom` (admin-defined).
+
+`camp` **no es un kind válido en Fase 3** — se rechaza al validar el input. La razón histórica queda como referencia a Fase 13, pero el kind NO se persiste en este cambio.
 
 Atributos:
 
@@ -98,8 +99,10 @@ Atributos:
 - capacidad_total, capacidad_operativa (override por instancia);
 - visibilidad (público, solo miembros, solo staff);
 - estado (borrador, abierto, en_curso, cerrado, cancelado);
-- equipo responsable (vinculado a Dream Team por experiencia/equipo);
+- equipo responsable (vinculado a Dream Team por experiencia/equipo; la asignación respeta el scope de Dream Team del actor y NO muta la fila de Dream Team);
 - `parent_event_id` opcional (relacionar cohortes o series).
+
+La creación de eventos se autoriza por la capability `operating_core.events.manage` scoped por Experience; los directores la reciben por default y la delegación es scope-bound. **No se hace un chequeo de string de rol**. La cancelación es soft: marca `estado = cancelled` y preserva el historial; no hay hard delete.
 
 `Event` se vincula con `Experience` (Fase 1) por scope: un taller de Talleres de Crecimiento tiene `experience='talleres_crecimiento'`. Esto es **fundamental** para que dashboards y permisos funcionen.
 
@@ -109,7 +112,7 @@ Atributos:
 
 - persona_id (Fase 1);
 - event_id;
-- estado: pendiente, confirmada, asistió, no_asistió, cancelada;
+- estado: pendiente, confirmada, asistida, no_asistio, cancelada, rechazada. (Estados terminales: asistida, no_asistio, cancelada, rechazada. La denegación manual usa `rechazada`; la cancelación del usuario o del sistema usa `cancelada`.)
 - origen: admin, líder, link_publico, kiosk, self_service;
 - created_by (persona_id del staff o null si fue link);
 - created_at, updated_at, confirmed_at, attended_at;
@@ -118,25 +121,25 @@ Atributos:
 
 Reglas:
 
-- Antes de crear una persona nueva, **obligatorio** buscar en `Persona` por **cédula como identificador fuerte** y, en paralelo, por nombre + teléfono/email. Si hay match por cédula, usar existente sin preguntas. Si hay match por nombre + teléfono/email con ≥0.85 score (definido en `lib/platform/persona.ts`), usar existente. Si no, crear `Persona` mínima con `autoMerge=false` por defecto.
-- La cédula es el **identificador de identidad** más fuerte disponible; no es opcional. Cuando se capture, debe persistirse en `Persona` (campo dedicado en la extensión de `lib/platform/persona.ts`). El sistema debe validar formato por país si está disponible (cédula dominicana, DNI argentino, CURP mexicano, etc.) y dejar `cédula_country` como metadato.
-- El score de matching por nombre/teléfono/email es fallback cuando no hay cédula o no coincide.
+- Antes de crear una persona nueva, **obligatorio** buscar en `Persona` por **cédula como identificador fuerte** y, en paralelo, por nombre + teléfono/email. La resolución consume el contrato público de `lib/platform/persona.ts` (`decision`, `candidates`, `reviewRequired`) — **sin inventar un score paralelo**. Si hay match exacto de cédula, se reutiliza la persona existente (reusa `usuarios.id`; la cuenta/auth, si existe, se reutiliza vía `usuarios.auth_id`). Si el contrato devuelve `single_candidate` con `reviewRequired === false`, se reutiliza ese candidato. Si devuelve candidatos ambiguos o `reviewRequired === true`, **se requiere confirmación de un operador autorizado** antes de cualquier persistencia. Si devuelve `no_match`, se crea la persona mínima con `autoMerge=false`.
+- La cédula es el **identificador de identidad** más fuerte disponible y se persiste en `Persona` reusando el campo existente `public.usuarios.cedula` y la señal existente `PlatformPersonaUsuario.cedula`. **No se agrega ninguna columna de metadato de país** (`cédula_country` queda fuera); el adaptador de resolución de visitantes opera sobre los campos protegidos sin modificarlos.
 - Inscripción autenticada vía admin o líder del evento.
-- Inscripción por link público: el link se genera con `token` de un solo uso o expiración configurable. NO requiere cuenta de usuario.
+- Inscripción por link público: el link se genera con `token` firmado, de un solo uso o expiración configurable. NO requiere cuenta de usuario.
 - Inscripción self-service: solo en Fase 12.
+- Modo de confirmación por evento (`automatic` | `manual`). `automatic` es el default: confirma en orden de llegada hasta la capacidad efectiva y encola el overflow en una waitlist ordenada; `manual` deja las nuevas filas en `pendiente` hasta aprobación. Overflow waitlistable devuelve HTTP 200 `{ outcome: 'waitlisted' }`. 409 se reserva para: capacidad no-waitlistable, transición inválida, conflicto de idempotencia irreconcilable.
 
 ### 4. Attendance / Participation Ledger
 
-Una sola tabla `participation_events` (ya existe contrato en Fase 1, `lib/platform/participation.ts`):
+Una sola tabla `participation_events` (ya existe contrato en Fase 1, `lib/platform/participation.ts`; Fase 3 añade los nuevos kinds en un módulo hermano):
 
 - persona_id, event_id, service_id, experience_id;
-- kind: `attendance`, `registration`, `cancellation`, `check_in`, `check_out`, `service_assignment`, `requirement_update`, `transition`, `document_received`, `one_on_one_logged`;
+- kind ∈ {`attendance`, `visitor_capture`, `registration`, `cancellation`, `check_in`, `check_out`, `attendance_update`, `service_assignment`, `requirement_update`, `transition`, `document_received`} — unión canónica de **11 kinds** del Operating Core (`attendance` ya existe en Fase 1; los otros 10 son aditivos). `one_on_one_logged` queda explícitamente fuera de Fase 3 (decisión cerrada: `uno_a_uno=archive`, Fase 3 precede a Fase 4);
 - status: `present`, `absent`, `excused`, `late`, `partial`, `pending`, `confirmed`, `cancelled`;
 - occurred_at;
 - captured_by (persona_id staff o null si fue automatic);
 - capture_source: `manual`, `kiosk`, `qr_scan`, `link`, `import`, `system`;
-- metadata (jsonb: contexto adicional, sin PII sensible en claro);
-- retention_policy (referencia a Fase 1).
+- metadata (jsonb: contexto adicional bounded por kind, **sin PII sensible en claro**; para `visitor_capture` solo se persiste `match_method`, actor/source y `persona_id` resuelto — nunca la cédula cruda);
+- retention_policy (referencia a Fase 1; los defaults específicos del Operating Core se difieren a Legal).
 
 Toda operación de asistencia, inscripción, check-in, etc., genera un `participation_events`. Esto es lo que alimenta el historial longitudinal.
 
@@ -145,15 +148,15 @@ Toda operación de asistencia, inscripción, check-in, etc., genera un `particip
 `Capacity` se modela en dos niveles:
 
 - **Capacity base**: por ambiente/grupo/salón/evento. Atributos: `max`, `kind`, `effective_from`, `effective_to`.
-- **Capacity operativa por instancia**: por fecha + servicio + ambiente. Atributos: `max_override`, `reason`, `set_by`. Esto es **crítico** para Niños donde el límite real depende de voluntarios disponibles ese día.
+- **Capacity operativa por instancia**: por fecha + servicio + ambiente. Atributos: `max_override`, `reason`, `set_by`, `set_at`. Esto es **crítico** para Niños donde el límite real depende de voluntarios disponibles ese día.
 
-Capacidad operativa NO es hardcoded. La setea el director/líder antes del evento o automáticamente por algoritmo (Fase futura: cruce de voluntarios asignados vs capacidad base).
+Capacidad operativa es **manual** en el MVP. La setea el director/líder autorizado por `operating_core.capacity.manage` antes del evento. La autorización es scoped por Experience, con directores como grantees default; **no depende de un chequeo de string de rol**. La capacidad algorítmica basada en voluntarios asignados queda **diferida** a una fase posterior.
 
-Si `capacity_operativa` < `capacity_base`, el sistema debe:
+Reglas de validación:
 
-- alertar al director;
-- rechazar check-ins que excedan `capacity_operativa` con respuesta clara (no 500);
-- mantener cola de espera si la iglesia así lo configura.
+- Sin override: el límite efectivo es `capacity_base`.
+- Override por debajo de `capacity_base`: se persiste; alerta a los `capacity_managers` scoped; overflow waitlistable devuelve HTTP 200 `{ outcome: 'waitlisted' }`; overflow no-waitlistable devuelve 409 `{ code: 'capacity_exceeded' }`.
+- Override por encima de `capacity_base`: se **rechaza** con error de validación de dominio. No se capa silenciosamente ni se persiste.
 
 ### 6. Formularios simples
 
@@ -186,30 +189,42 @@ Sin tracking de cumplimiento, sin SCORM, sin analytics avanzados. Esto NO es LMS
 
 - recipient_person_id;
 - kind: `system`, `email`;
-- template_key (referencia a `lib/notifications/templates/`);
+- template_key (referencia a `lib/platform/operating-core/notifications/templates/` con versionado `<key>.vN`);
 - payload (jsonb con datos del template);
 - status: `pending`, `sent`, `failed`;
-- sent_at, read_at.
+- sent_at (timestamp de envío del email), read_at (timestamp de lectura de la notificación de sistema).
 
 Reglas:
 
-- Plantillas versionadas en código, no editables desde UI.
+- Outbox compartido: el Operating Core no introduce un motor de entrega paralelo. Reusa la infraestructura de outbox compartida con Dream Team (`support_event_outbox` como precedente).
+- Plantillas versionadas en código, no editables desde UI. Una versión vieja NO se elimina hasta al menos 90 días después de su última emisión.
+- Triggers requeridos: confirmación de inscripción, placement en waitlist, promoción desde waitlist, cancelación (al líder responsable o capability holder), reminder configurable (default T-24h), no-show (`no_asistio`).
 - Email usa el `Resend` actual (ver `lib/email/` y `emails/`).
 - Sistema: insert en tabla, render en dashboard.
+- Retry con backoff exponencial acotado. Tras agotar el techo documentado, la fila pasa a estado terminal `failed`, observable por operadores autorizados.
 - Sin SMS, sin WhatsApp API en esta fase.
 - Link compartible: url firmada con TTL de 7 días (configurable) que permite completar formulario o confirmar asistencia sin cuenta.
+- Retención de emails enviados: defaults **diferidos** a una decisión Legal/Product separada. NO se confunde con la retención de participación (que es decisión de Legal).
 
 ### 9. Dashboards operativos básicos
 
 Tres vistas por dominio:
 
-- **Director**: conteos (voluntarios activos, asistencia promedio, alertas activas, pendientes), tabla de items que requieren acción.
+- **Director**: conteos (eventos próximos, inscripciones pendientes, alertas activas, items que requieren acción), tabla de items por atender.
 - **Líder**: lista de miembros/participantes, próxima reunión, items pendientes del líder.
 - **Operador (kiosk/portal)**: vista limitada al evento actual.
 
-NO construir:
+Los conteos se derivan del **ledger único** del Operating Core y distinguen **métricas de registration vs attendance**:
 
-- analytics avanzados (ML, cohortes, churn);
+- Registration: conteos de `registration`, `cancellation`, `attendance_update`.
+- Attendance: conteos de `attendance`, `check_in`, `check_out`.
+
+El período operativo por defecto es hoy más la próxima ventana de ocurrencias; es configurable por vista pero siempre derivable del ledger. Los widgets del Operating Core se agregan como **sección aditiva con nombre explícito** sobre los dashboards existentes — los layouts de Fase 1/Fase 2 NO se rediseñan.
+
+NO construir (diferido a Product/Ops):
+
+- targets concretos de KPI operativos;
+- analytics avanzados (ML, cohortes, churn, retención, predictivo);
 - BI dashboards externos;
 - reportes programados automáticos (Fase futura).
 
@@ -218,20 +233,22 @@ NO construir:
 `GruposVidaAttendanceAdapter`:
 
 - consume el modelo de asistencia de Grupos de Vida **sin modificarlo**;
-- emite `participation_events` con `kind='attendance'`, `experience_id` del grupo;
+- emite `participation_events` con `kind='attendance'`, `experience_id` del grupo, y un `capture_source` que identifica el origen del bridge;
 - respeta los campos existentes de Grupos de Vida;
-- es **read-only** sobre tablas de Grupos de Vida (verificado: `lib/platform/adapters/grupos-vida.ts` 0 bytes diff post-Fase 2).
+- es **read-only** sobre tablas de Grupos de Vida (verificado: `lib/platform/adapters/grupos-vida.ts` 0 bytes diff post-Fase 2). El bridge NO emite `kind='registration'` desde el bridge path; `kind='attendance_update'` se reserva para correcciones de observaciones previas.
+- **Start-clean**: el bridge observa solo capturas nuevas hacia adelante; NO hace backfill del historial de Grupos de Vida hacia el ledger del Operating Core.
+- Un visitante nuevo en un domingo de Grupos de Vida se enruta por el adaptador de resolución de visitantes (`visitor-resolution.ts`), que emite `kind='visitor_capture'` (solo metadatos no-PII) antes del `attendance`.
 
-Fase 3 NO toca `supabase/migrations/`, NO agrega columnas a tablas de Grupos de Vida, NO modifica RLS de Grupos de Vida.
+Fase 3 NO agrega columnas a tablas de Grupos de Vida, NO modifica RLS de Grupos de Vida, NO toca los RPCs protegidos (incluido `buscar_usuarios_para_grupo`). El esquema propio del Operating Core es estrictamente **aditivo**, se aplica únicamente después de que la auditoría aprobada del Issue #103 (SECURITY DEFINER) cierre, y se ejecuta vía la rama de staging antes de cualquier merge a `main`.
 
 ### 11. Modelos derivados (decidir en SDD)
 
-- `Waitlist`: cola de espera para eventos con capacidad.
-- `RepeatSeries`: eventos recurrentes (semanal, mensual).
-- `AttendanceAuditLog`: historial de cambios manuales de asistencia.
-- `ReminderSchedule`: programación de recordatorios automáticos (T-24h, T-1h).
+- `Waitlist`: cola de espera ordenada para eventos con capacidad. Persistida como filas `pendiente` con membresía ordenada; interactúa con promociones idempotentes de un slot por vez (cancelación o aumento de capacidad efectiva).
+- `RepeatSeries`: eventos recurrentes (semanal, mensual) con `recurrence_rule` (subset cerrado de RRULE) y `EventInstance` materializado lazy/determinístico; los overrides por instancia no mutan la serie.
+- `AttendanceAuditLog`: historial de cambios manuales de asistencia. Se materializa como filas `attendance_update` en el ledger con referencia `corrects_event_id`, no como tabla separada.
+- `ReminderSchedule`: programación de recordatorios automáticos. El default configurable es T-24h. Se modela como jobs del outbox de notificaciones.
 
-Estos pueden ser tablas reales o derivables de `participation_events` con `kind` específico. Decisión del SDD.
+Las decisiones concretas de modelado (tablas reales vs derivación desde `participation_events` con `kind` específico) las cierra el SDD.
 
 ## Fuera de alcance
 
@@ -248,7 +265,7 @@ Estos pueden ser tablas reales o derivables de `participation_events` con `kind`
 - Onboarding de voluntarios con cursos y evaluaciones (Fase 1 limitó esto).
 - Self-service de padres y miembros (Fase 12).
 - Analytics avanzado: cohortes, churn, tendencias.
-- Decisión formal de `uno_a_uno`.
+- Decisión de producto sobre `uno_a_uno` (CLOSED como `archive`); reavivar esa decisión requiere un issue nuevo aprobado fuera del alcance de Fase 3.
 
 ## Investigación obligatoria en el repo
 
@@ -260,9 +277,9 @@ El agente debe investigar como mínimo:
 - `lib/actions/asistencia-avanzada.actions.ts` (302 líneas actualmente sin cobertura) y los `app/api/asistencia/**` si existen.
 - `lib/actions/group.actions.ts` y `lib/actions/groupMember.actions.ts`.
 - `lib/actions/support.actions.ts` y `lib/actions/support-capabilities.actions.ts` (referencia para patrón de formularios simples).
-- `app/(auth)/dashboard/page.tsx` y `lib/dashboard/obtenerDatosDashboard.ts` (entender qué consume el dashboard hoy).
-- `app/(auth)/grupos-vida/**` y `lib/actions/configuracion-grupos-vida.actions.ts` (no tocar, solo entender).
-- `lib/auth/requireAuth.ts` y `lib/auth/requireRole.ts`.
+- `app/(auth)/dashboard/page.tsx` y `lib/dashboard/obtenerDatosDashboard.ts` (entender qué consume el dashboard hoy; los dashboards existentes de Fase 1/Fase 2 **no se rediseñan**; los widgets de Operating Core se agregan como sección aditiva).
+- `app/(auth)/grupos-vida/**` y `lib/actions/configuracion-grupos-vida.actions.ts` (no tocar, solo entender; el adapter read-only del Operating Core vive en un módulo hermano).
+- `lib/auth/requireAuth.ts`. (Nota: `lib/auth/requireRole.ts` no existe como archivo independiente; `requireRole` vive dentro de `lib/auth/requireAuth.ts`.)
 - `hooks/useCurrentUser.ts` (Fase 2 fix #258).
 - `app/api/dream-team/**` (Fase 2 API routes).
 - `docs/grupos-vida.md` y `docs/dashboard-por-rol.md` (si existe).
@@ -312,11 +329,9 @@ Documentos fuente externos (solo si necesita validar necesidades de ministerios)
 
 Status: `priority:high`, `status:approved`, sin asignar. No bloquea Fase 3 por sí solo, pero la auditoria de RPCs `SECURITY DEFINER` debe ser **el primer PR de Fase 3** porque condiciona la seguridad de las nuevas APIs que Fase 3 va a crear.
 
-### `uno_a_uno` decisión de producto
+### `uno_a_uno` decisión de producto — CLOSED
 
-`lib/platform/preflight.ts` bloquea uso hasta que se llame `registerPlatformUnoAUnoDecision({ ok: true, decision: 'baseline' | 'archive' | 'reintroduce', evidence })`. Decisión de producto pendiente. Si se decide `reintroduce`, Fase 3 debe diseñar cómo crear una migración aditiva que reconcilie drift; si se decide `archive`, no se necesita trabajo técnico.
-
-Recomendación operativa: abrir issue de seguimiento explícito `#uno_a_uno_decision` y resolver antes de Fase 5 (Talleres) o Fase 7 (DPS) si esas fases dependen del módulo.
+`lib/platform/preflight.ts` bloquea uso hasta que se llame `registerPlatformUnoAUnoDecision({ ok: true, decision: 'baseline' | 'archive' | 'reintroduce', evidence })`. **Decisión cerrada como `archive`** para Fase 3: no se invoca `registerPlatformUnoAUnoDecision` desde ningún artefacto de Fase 3; el preflight permanece bloqueado indefinidamente; la unión canónica de 11 kinds del Operating Core excluye `one_on_one_logged`. No hay trabajo técnico de Fase 3 asociado a esta decisión. Reabrirla requiere un nuevo issue aprobado fuera del alcance de Fase 3.
 
 ### Bug en `.github/workflows/pr-size.yml`
 
@@ -328,7 +343,9 @@ Recomendación de Fase 3: el primer PR de Fase 3 puede incluir un fix minimalist
 
 ### `jest.config.ts` `coverageThreshold.branches: 3`
 
-Inconsistencia numérica en el umbral de cobertura: Jest interpreta `branches: 3` como 3% (fuera de 0–100). Esto no rompe tests funcionales pero sí rompe `pnpm test:ci`. **Recomendación:** corregir a `branches: 0.03` o quitar el threshold hasta Fase 3 cubrir más. Es PR trivial y debería ser parte del primer slice de Fase 3 o de hygiene previo.
+Aclaración numérica: Jest 30 interpreta `branches: 3` como **3%** (no 0.03%). El valor es válido; no es la causa de los fallos del suite. **Recomendación:** eliminar el bloque entero `coverageThreshold` como mejora de hygiene (el piso global aporta poca señal y los thresholds por módulo pertenecen a los criterios de aceptación de cada slice). Reducir a `branches: 0.03` no aporta beneficio práctico sobre la versión actual y por eso no se recomienda. El PR trivial de hygiene es el primer slice de Fase 3.
+
+**Separado de eso**, el suite de cobertura falla por un timeout de cinco segundos en `__tests__/components/mobile-platform-navigation.test.tsx`, no por el threshold. Ese timeout es un prerrequisito de baseline verde y requiere su propio issue/PR aprobado (incrementar el timeout del test a 30s o corregir la lentitud subyacente). El baseline 840+ passing debe estar restaurado antes de cualquier slice de feature.
 
 ### `lib/platform/**` no está en `collectCoverageFrom`
 
@@ -355,7 +372,7 @@ In-memory adapter tiene cobertura baja. Se sugiere incluir tests de in-memory pa
 
 1. ¿Cómo se modela `Event` con su polimorfismo (kind) sin caer en una tabla genérica inmanejable?
 2. ¿Cómo se integra la captura de Grupos de Vida sin modificar nada de Grupos de Vida?
-3. ¿Cuál es el contrato de `Registration` y su ciclo de vida (pendiente → confirmada → asistida → no_asistió → cancelada)?
+3. ¿Cuál es el contrato de `Registration` y su ciclo de vida (pendiente → confirmada → asistida | no_asistio; pendiente → cancelada | rechazada; confirmada → cancelada; con asistida, no_asistio, cancelada y rechazada como terminales)?
 4. ¿Qué hace el sistema cuando `capacity_operativa` se vacía o se contradice con la base?
 5. ¿Cómo se elige entre `kind='attendance'` y `kind='registration'` en participation_ledger?
 6. ¿Cuál es la UX mínima de captura por dominio: Niños (check-in), Grupos de Vida (lista del líder), Estudiantes (lista del líder), The Living Room (lista), DPS (coordinador), Talleres (inscripción)?
@@ -384,8 +401,7 @@ Domingo 9am, Grupo "Familias en Victoria" (líder: Carlos).
 - El sistema genera participation_events(kind='attendance') para cada uno.
 - Una persona nueva "Lucía" llega sin registro. Carlos la registra por nombre+teléfono → busca Persona → si no existe, crea mínima con autoMerge=false.
 - Lucía queda registrada como nueva Persona + participation_event(kind='attendance', status='present').
-- 1:1 con Lucía queda como pendiente en el dashboard del líder (no se crea automáticamente).
-- Carlos puede programar una 1:1 desde el perfil de Lucía (vincula al módulo de Fase 4).
+- Fase 3 no crea ni agenda ningún artefacto 1:1 desde este flujo: el módulo 1:1 es Fase 4 y Fase 3 precede a Fase 4.
 ```
 
 ### Caso 2 — Taller de Crecimiento
@@ -407,8 +423,8 @@ Domingo 9am, ambiente "Upstreet 1er grado" (capacidad base 20).
 - Director setea capacidad operativa 14 para este servicio (motivo: 2 voluntarios faltaron).
 - Check-in: llegan 18 niños. Los primeros 14 pasan; 2 quedan en cola de espera; 2 van a otro salón (regla de capacidad operativa).
 - Alertas automáticas al director: capacidad operativa alcanzada.
-- Check-out: códigos de seguridad verificados por salón. Check-out genera participation_event(kind='check_out').
-- 1:1 con padres no se crea automáticamente; queda como pendiente en el dashboard del director.
+- Check-out: códigos de seguridad verificados por salón. Check-out genera participation_event(kind='check_out') y libera el slot al pool efectivo.
+- Fase 3 no crea ni agenda ningún artefacto 1:1 con padres desde este flujo.
 ```
 
 ## Criterios de aceptación del diseño
@@ -456,18 +472,20 @@ Domingo 9am, ambiente "Upstreet 1er grado" (capacidad base 20).
 
 Esta es una sugerencia, **no una restricción**. El SDD puede proponer otra distribución si está justificada.
 
-1. **Slice 1 — Schemas contract-only (migración aditiva)**: nuevas tablas para `events`, `registrations`, `form_definitions`, `form_submissions`, `resources`, `notifications`. Sin UI. Sin RLS compleja (helper básico). Tests de contrato.
-2. **Slice 2 — Repositorios + adapters**: `lib/operating-core/repositories/*.ts` con contratos y fakes. Tests exhaustivos sin Supabase.
-3. **Slice 3 — Participación ledger integration**: extender `lib/platform/participation.ts` para consumir el nuevo repositorio. Migrar el contrato a Supabase.
-4. **Slice 4 — Captura Grupos de Vida adapter**: integrar asistencia existente sin tocar Grupos de Vida. Read-only.
-5. **Slice 5 — Formularios simples**: builder, render, submit, listado básico. UI mínima.
-6. **Slice 6 — Recursos**: biblioteca, listado, detalle, ACL simple.
-7. **Slice 7 — Notificaciones**: cola, envío, retry, plantillas.
-8. **Slice 8 — Dashboards operativos**: tres vistas (Director, Líder, Operador).
-9. **Slice 9 — Capacidad operativa**: modelado, override, alertas.
-10. **Slice 10 — Inscriptions + waitlist**: ciclo de vida completo, emails asociados.
-11. **Slice 11 — Eventos recurrentes**: modelado de series.
-12. **Slice 12 — Rollout flags + retrocompatibilidad**: `OPERATING_CORE_ENABLED`, kill switch, integración con `routeAccess` y `routeGuard`.
+1. **Slice 1 — Schemas contract-only (migración aditiva)**: nuevas tablas para `events`, `services`, `registrations`, `form_definitions`, `form_submissions`, `resources`, `notifications`. Sin UI. Sin RLS compleja (helper básico). Tests de contrato. **No se edita `lib/platform/{participation,flags}.ts`**: los nuevos kinds viven en `lib/platform/operating-core/participation-kinds.ts` y los flags en `lib/platform/operating-core/flags.ts`.
+2. **Slice 2 — Repositorios + adapters**: `lib/platform/operating-core/repositories/*.ts` con contratos y fakes. Tests exhaustivos sin Supabase.
+3. **Slice 3 — Participación ledger integration**: integrar el contrato público de `lib/platform/participation.ts` (solo lectura/escritura de los 7 kinds existentes) más los nuevos kinds aditivos en módulos hermanos. **El archivo `lib/platform/participation.ts` permanece byte-idéntico**; el read-guard del Operating Core vive en `lib/platform/operating-core/participation.ts` y refleja la regla de strict-equality scope de Fase 1.
+4. **Slice 4 — Captura Grupos de Vida adapter**: integrar asistencia existente sin tocar Grupos de Vida. Read-only en `lib/platform/adapters/operating-core-grupos-vida.ts`. Start-clean (sin backfill histórico); emite solo `kind='attendance'` desde el bridge y `kind='attendance_update'` solo para correcciones.
+5. **Slice 5 — Capture UX contracts**: contratos compartidos sobre el ledger (`specs/operating-core-capture-ux/spec.md`). Fase 3 no entrega UI de producción por dominio. Quick-mark y bulk-select funcionan sin hardware.
+6. **Slice 6 — Formularios simples**: schema, render, submit, listado básico, alineado con los estados compartidos del Capture UX.
+7. **Slice 7 — Recursos**: biblioteca, listado, detalle, ACL simple. Cambios de ownership archivan el registro previo y crean sucesor.
+8. **Slice 8 — Notificaciones**: outbox compartido, plantillas versionadas en código (Español default), retry con backoff acotado. `read_at` en sistema, `sent_at` en email.
+9. **Slice 9 — Dashboards operativos**: tres vistas (Director, Líder, Operador), conteos de registration y attendance derivados del ledger único y distinguidos normativamente. KPI targets/trends diferidos a Product/Ops.
+10. **Slice 10 — Capacidad operativa**: base + override por instancia. Override above-base se rechaza (sin cap silencioso). Auth por `operating_core.capacity.manage` (directores default; sin role-string check).
+11. **Slice 11 — Inscriptions + waitlist**: ciclo de vida completo con la state machine canónica (6 estados), modo automatic/manual por evento, waitlist ordenada, promoción idempotente de un slot por vez. 409 reservado.
+12. **Slice 12 — Eventos recurrentes**: modelado de series con RRULE subset cerrado, materialización lazy, override por instancia sin mutación retroactiva de la serie.
+13. **Slice 13 — Servicios configurables (multi-campus)**: schedule semanal distinto de Experience/Event/EventInstance; edición de schedule no muta ni duplica filas de Event.
+14. **Slice 14 — Rollout flags + retrocompatibilidad**: `NEXT_PUBLIC_OPERATING_CORE_*`, kill switch, integración con `routeAccess` y `routeGuard` (todo en módulo hermano `lib/platform/operating-core/flags.ts`).
 
 Cada slice debe ser un PR separado con su propio `type:*`, issue aprobado y tests. Si un slice supera 400 líneas, dividir o pedir `size:exception` (ya autorizado por defensa real de cohesión operativa).
 
@@ -487,7 +505,7 @@ Cada slice debe ser un PR separado con su propio `type:*`, issue aprobado y test
 12. Crear un sistema de emails paralelo al de Fase 2.
 13. Acoplar Operating Core al calendario de Fase 14 (Logística de Voluntarios) cuando esos vienen después.
 14. Activar `OPERATING_CORE_ENABLED` en producción antes de validar ≥7 días en staging.
-15. Construir sobre `uno_a_uno` antes de decisión formal.
+15. Construir sobre `uno_a_uno` (decisión cerrada como `archive`; el módulo permanece bloqueado por preflight y la unión canónica de 11 kinds excluye `one_on_one_logged`).
 
 ## Stop conditions para el agente SDD
 
@@ -497,44 +515,52 @@ El agente debe detenerse y pedir nueva instrucción si:
 - encuentra que la firma de `buscar_usuarios_para_grupo` u otra RPC preexistente no coincide con el contrato esperado;
 - un PR de Fase 3 supera 400 líneas sin poder dividirse limpiamente;
 - necesita aplicar migraciones riesgosas (DROP, ALTER sobre tablas preexistentes);
-- la decisión de `uno_a_uno` se vuelve bloqueante;
+- reabrir la decisión cerrada de `uno_a_uno` (que ya está en `archive`);
 - el workflow `pr-size.yml` no permite merge aunque el código esté limpio;
 - cualquier inconsistencia con los principios no negociables.
 
 ## Validación contra roadmap
 
-Cada bullet del objetivo de Fase 3 en el roadmap maestro debe tener correspondencia directa en el SDD:
+Cada bullet del objetivo de Fase 3 en el roadmap maestro debe tener correspondencia directa con las **14 capabilities** del cambio `fase-03-operating-core`. Las specs viven en paths locales del cambio:
 
-| Bullet roadmap | Spec / Design |
+```
+openspec/changes/fase-03-operating-core/specs/<capability>/spec.md
+```
+
+| Bullet roadmap | Capability (spec local) |
 |---|---|
-| servicios configurables | operating-core-services |
-| eventos / actividades / talleres | operating-core-events |
-| inscripciones asistidas o por link público | operating-core-registrations |
-| búsqueda de persona antes de crear | operating-core-dedupe-enforcement |
-| attendance / participation ledger | operating-core-participation-ledger (extension de Fase 1) |
-| experiencias de captura específicas | operating-core-capture-ux |
-| capacidad base y operativa | operating-core-capacity |
-| formularios simples | operating-core-forms |
-| biblioteca de recursos | operating-core-resources |
-| notificaciones en sistema y email | operating-core-notifications |
-| dashboards operativos básicos | operating-core-dashboards |
+| servicios configurables (multi-iglesia, multi-campus) | `operating-core-services` |
+| eventos / actividades / talleres | `operating-core-events` |
+| inscripciones asistidas o por link público | `operating-core-registrations` |
+| búsqueda de persona antes de crear (visitor-resolution) | `operating-core-visitor-resolution` |
+| attendance / participation ledger | `operating-core-participation-ledger` |
+| experiencias de captura específicas (contratos compartidos sobre el ledger) | `operating-core-capture-ux` |
+| capacidad base y operativa | `operating-core-capacity` |
+| formularios simples | `operating-core-forms` |
+| biblioteca de recursos | `operating-core-resources` |
+| notificaciones en sistema y email | `operating-core-notifications` |
+| dashboards operativos básicos | `operating-core-dashboards` |
+| eventos recurrentes (RRULE subset, materialización lazy) | `operating-core-recurrent-events` |
+| integración read-only con Grupos de Vida | `operating-core-grupos-vida-bridge` |
+| superficie de API (auth + capability + flag) | `operating-core-api-surface` |
+
+Las 14 capabilities son: `operating-core-events`, `operating-core-services`, `operating-core-visitor-resolution`, `operating-core-registrations`, `operating-core-participation-ledger`, `operating-core-capacity`, `operating-core-forms`, `operating-core-resources`, `operating-core-notifications`, `operating-core-dashboards`, `operating-core-capture-ux`, `operating-core-recurrent-events`, `operating-core-grupos-vida-bridge`, `operating-core-api-surface`.
 
 ## Validación contra Fase 1
 
-- `lib/platform/**` intacto (verificado: 0 bytes diff en módulos críticos tras Fase 2).
+- `lib/platform/**` intacto (verificado: 0 bytes diff en módulos críticos tras Fase 2). Los módulos protegidos (`lib/platform/{grants,participation,navigation,routeGuard,persona,preflight,flags}.ts` y `lib/platform/adapters/grupos-vida.ts`) **no se editan**. Operating Core añade nuevos kinds, flags y lectores en **módulos hermanos** (`lib/platform/operating-core/participation-kinds.ts`, `lib/platform/operating-core/flags.ts`, `lib/platform/operating-core/capture-ux.ts`, etc.) — la identidad byte-a-byte se mantiene.
 - `Persona` se usa como `persona_id`, no se duplica.
-- `lib/platform/experiences.ts` se extiende aditivamente si Fase 3 introduce nuevas capabilities.
+- `lib/platform/experiences.ts` se extiende **aditivamente** (no es parte de la lista de protegidos) si Fase 3 introduce nuevas capabilities.
 - `lib/platform/grants.ts` se consume para auditar grants nuevos.
-- `lib/platform/participation.ts` se extiende con nuevos `kind` si es necesario.
-- `lib/platform/flags.ts` se extiende aditivamente con `OPERATING_CORE_FLAGS`.
-- `lib/platform/preflight.ts` sigue bloqueando `uno_a_uno`.
+- `lib/platform/preflight.ts` sigue bloqueando `uno_a_uno` (decisión cerrada como `archive`; no se invoca `registerPlatformUnoAUnoDecision` desde Fase 3).
 
 ## Validación contra Fase 2
 
-- `lib/platform/dream-team/**` se consume para asignar equipos responsables a eventos.
-- `lib/platform/dream-team/repository-supabase.ts` sirve como referencia de patrones para nuevos repos.
-- `lib/platform/adapters/participation-adapter.ts` (writer Supabase) se extiende con nuevos kinds o se crea uno paralelo para Operating Core (decisión SDD).
+- `lib/platform/dream-team/**` se consume para asignar equipos responsables a eventos. Ningún archivo bajo `lib/platform/dream-team/**` se edita.
+- `lib/platform/dream-team/repository-supabase.ts` sirve como referencia de patrones para los repositorios de Operating Core (espejo de forma, no de archivo).
+- `lib/platform/adapters/participation-adapter.ts` **no se extiende** con nuevos kinds de Operating Core. El writer del Operating Core vive en un módulo hermano (`lib/platform/operating-core/repositories/participation-supabase.ts`) y consume el contrato público de `lib/platform/participation.ts` para eventos del Fase 1, mientras que los kinds aditivos (`visitor_capture`, `attendance_update`, etc.) tienen su propio writer y read-guard en `lib/platform/operating-core/`.
 - `app/api/dream-team/**` no se modifica.
+- La firma del RPC `buscar_usuarios_para_grupo` permanece intacta (`(p_auth_id uuid, p_grupo_id uuid, p_query text, p_limit integer DEFAULT 10)` → `TABLE(id uuid, nombre text, apellido text, email text, telefono text, ya_es_miembro boolean)`).
 
 ## Reporte requerido al finalizar el SDD
 
@@ -561,12 +587,12 @@ siguiente_recomendado:
 - Strict TDD activo.
 - No tocar producción.
 - No rediseñar Grupos de Vida ni su RLS.
-- No usar `uno_a_uno` sin decisión formal previa.
-- No migraciones destructivas; toda migración es aditiva.
+- No usar `uno_a_uno` (`archive` cerrado; preflight permanece bloqueado; `one_on_one_logged` excluido de la unión de 11 kinds).
+- No migraciones destructivas; toda migración es aditiva y solo se aplica después de cerrar la auditoría aprobada del Issue #103 (SECURITY DEFINER).
 - No ampliar alcance del slice aprobado.
 - Cada PR debe tener issue aprobado, label `type:*` único, checks verdes, tests relevantes y `size:exception` documentada si excede 400 líneas.
 - Detenerse si requiere migraciones riesgosas, producción, Fase 4+, cambios de arquitectura o rediseño de Grupos de Vida.
-- Antes de merge a `main`: verificar `git diff` sobre `lib/platform/**`, `lib/supabase/database.types.ts` y tablas preexistentes de Grupos de Vida.
+- Antes de merge a `main`: verificar `git diff` sobre `lib/platform/{grants,participation,navigation,routeGuard,persona,preflight,flags}.ts`, `lib/platform/dream-team/**`, `lib/platform/adapters/grupos-vida.ts`, `lib/supabase/database.types.ts` (solo `buscar_usuarios_para_grupo` byte-idéntico) y tablas preexistentes de Grupos de Vida. **No se editan los módulos protegidos**; Operating Core añade módulos hermanos.
 - Después del merge: validar staging ≥7 días antes de producción.
 
 ## Documentos que el agente debe leer antes de trabajar
@@ -586,12 +612,13 @@ siguiente_recomendado:
 
 No lanzar implementación directa desde este handoff. Primero el agente debe producir los artefactos SDD y vos los revisás. Luego, con el plan de slices aprobado, se mergea slice por slice contra `main` con el patrón `stacked-to-main` que funcionó en Fase 2.
 
-Recomiendo que el primer PR de Fase 3 resuelva hygiene crítico: fix de `jest.config.ts` (`branches: 3` → 0.03 o quitarlo) y/o fix del workflow `pr-size.yml` (con `if:` para `size:exception`). Eso evita arrastrar deuda en cada slice.
+Recomiendo que el primer PR de Fase 3 resuelva hygiene crítico: eliminación del bloque `coverageThreshold` en `jest.config.ts` (como mejora de hygiene; el valor `3` es válido en Jest 30, pero el piso global aporta poca señal). El fix del workflow `pr-size.yml` queda fuera del alcance del orquestador de Fase 3 — lo decide el equipo de repo.
 
-Una vez que la decisión formal sobre `uno_a_uno` esté tomada (o se decida diferir fuera de Fase 3), el handoff queda sin ambigüedades de dependencias externas.
+Estado de las dos llaves que bloqueaban el SDD:
 
-También, antes de planificar Fase 3 en serio, **decidir si Fase 4 (1:1 + Triada) entra como pre-requisito** o si se implementa después. La razón: la 1:1 en Fase 4 consume `participation_events(kind='one_on_one_logged')` que es el mismo modelo de Fase 3. Si Fase 4 va primero, el modelo `participation_events` se ajusta a esos requisitos; si va después, Fase 3 se diseña sin esa restricción.
+- **`uno_a_uno` = `archive` (CLOSED).** Preflight en `lib/platform/preflight.ts` permanece bloqueado indefinidamente; la unión canónica de 11 kinds del Operating Core excluye `one_on_one_logged`. No hay trabajo técnico de Fase 3 asociado a esa decisión.
+- **Orden Fase 3 ↔ Fase 4: Fase 3 primero (CLOSED).** Si Fase 4 comparte el ledger, su unión se extenderá vía migración aditiva. Fase 3 se diseña sin esa restricción.
 
-La decisión de producto sobre `uno_a_uno` y la decisión sobre el orden Fase 3 ↔ Fase 4 son las dos llaves que faltan antes de abrir el SDD.
+El esquema propio del Operating Core es estrictamente aditivo y se aplica únicamente después de que la auditoría aprobada del Issue #103 cierre. El baseline verde (840+ tests) debe estar restaurado — incluyendo el fix independiente del timeout de `mobile-platform-navigation.test.tsx` — antes del primer slice de feature.
 
-Estado actual: **listo para planificar Fase 3** cuando vos confirmes esas dos decisiones pendientes.
+Estado actual: **listo para planificar Fase 3** sin llaves pendientes; las decisiones cerradas son invariantes.
