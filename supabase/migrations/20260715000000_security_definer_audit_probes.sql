@@ -1,0 +1,127 @@
+-- =============================================================================
+-- SECURITY DEFINER + p_auth_id Audit — Probe Snapshot
+-- =============================================================================
+-- S01 Slice: feat/265-S01-security-definer-audit
+-- Probe: F(OC/security-definer) — static analysis of supabase/migrations/
+-- Harness: DB (static analysis, NO database apply)
+-- Rollback: revert=grants (not applied — documentation artifact only)
+--
+-- AUDIT RESULT SUMMARY (as of 2026-07-15):
+--   Total RPCs audited:  142
+--   Hardened (safe):    45  ✅
+--   Unbound (unsafe):   97
+--     Fase-2 protected: 33 unique functions — BLOCKED (follow-up Issue #103)
+--     Fase-3:            0  ✅ (probe confirms no new unbound in operating-core)
+--
+-- This file is NOT APPLIED. It is a documentation artifact for the audit.
+-- The hardening fixes (if applied) would use the pattern:
+--   IF p_auth_id IS DISTINCT FROM auth.uid() THEN RETURN false; END IF;
+-- at function entry, BEFORE any usuarios.auth_id = p_auth_id lookup.
+--
+-- =============================================================================
+
+-- AUDIT FINDING: No unbound p_auth_id in Fase-3 (operating-core) RPCs.
+-- The probe confirms that all operating-core migrations (2025-10+) either:
+--   (a) Do not use p_auth_id (derive auth.uid() internally), OR
+--   (b) Use the IS DISTINCT FROM auth.uid() hardening guard
+--
+-- This satisfies the Issue #103 prerequisite for S03.
+--
+-- See: docs/audit/security-definer-audit.md for full findings table.
+
+-- =============================================================================
+-- KNOWN UNBOUND p_auth_id IN FASE-2 (PROTECTED — CANNOT FIX IN THIS SLICE)
+-- =============================================================================
+-- The following RPCs in the grupos-vida / grupos / asistencia / estadisticas
+-- domain accept p_auth_id without the IS DISTINCT FROM auth.uid() guard.
+-- These are protected paths per the S01 ABSOLUTE restrictions.
+-- FIX REQUIRED: Follow-up Issue #103 (Security owner)
+--
+-- Example hardening (NOT applied here — documentation only):
+--
+--   CREATE OR REPLACE FUNCTION public.obtener_grupos_para_usuario(p_auth_id uuid)
+--   RETURNS TABLE(...) AS $$
+--   DECLARE
+--     internal_user_id uuid;
+--   BEGIN
+--     -- HARDENING: Enforce caller identity
+--     IF p_auth_id IS DISTINCT FROM auth.uid() THEN
+--       RETURN; -- No rows — caller cannot query as someone else
+--     END IF;
+--
+--     SELECT u.id INTO internal_user_id
+--     FROM public.usuarios u
+--     WHERE u.auth_id = p_auth_id;
+--
+--     -- ... rest of function
+--   END;
+--   $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public';
+--
+-- FASE-2 UNBOUND RPCS (protected — 33 unique functions):
+--   public.obtener_grupos_para_usuario      (20250905120000, 20250905123000, ...)
+--   public.puede_gestionar_miembros         (20250906110000)
+--   public.obtener_detalle_grupo            (20250906111510, 20250906114500, ...)
+--   public.buscar_usuarios_para_grupo       (20250906111510)
+--   public.agregar_miembro_a_grupo          (20250906111510)
+--   public.actualizar_rol_miembro           (20250906113000)
+--   public.eliminar_miembro_de_grupo        (20250906113000)
+--   public.puede_crear_grupo                (20250906143000, 20250921131000, ...)
+--   public.obtener_segmentos_para_director  (20250906143100)
+--   public.crear_grupo                     (20250906150000, 20250921131000, ...)
+--   public.puede_ver_debug_toolbar          (20250906152000)
+--   public.debug_cambiar_rol               (20250906152000)
+--   public.debug_cambiar_rol_usuario        (20250906153000)
+--   public.puede_editar_grupo              (20250906160000)
+--   public.registrar_asistencia            (20250909120000, 20250909125500)
+--   public.obtener_evento_grupo             (20250909123000, 20250909131500)
+--   public.obtener_asistencia_evento       (20250909123000, 20250909131500, ...)
+--   public.listar_eventos_grupo            (20250909124000, 20250909131500, ...)
+--   public.obtener_estadisticas_usuarios_con_permisos (20250910211000, 20250923200000)
+--   public.obtener_kpis_grupos_para_usuario (20251006190000, 20251006193000, ...)
+--   public.asignar_director_etapa_a_ubicacion (20251006203000, 20251006214500, ...)
+--   public.obtener_reporte_asistencia_grupo (20251027140000)
+--   public.obtener_reporte_asistencia_usuario (20251027150000)
+--   public.obtener_reporte_semanal_asistencia (20251027170000, 20251027193000, ...)
+--   public.obtener_datos_dashboard          (20251028120000, 20251028122000, ...)
+--
+-- See docs/audit/security-definer-audit.md for full list (97 entries across all phases).
+-- =============================================================================
+
+-- =============================================================================
+-- CASES WHERE IS DISTINCT FROM auth.uid() IS ALREADY PRESENT (HARDENED)
+-- =============================================================================
+-- These RPCs have the guard and are NOT vulnerable to identity confusion:
+--
+--   public.puede_ver_casa_anfitriona        (20260617161620)
+--   public.puede_crear_casa_anfitriona_para (20260617161620)
+--   public.puede_editar_casa_anfitriona      (20260617161620)
+--   public.puede_cambiar_estado_casa_anfitriona (20260617161620)
+--   public.puede_aprobar_casa_anfitriona     (20260617161620)
+--   public.obtener_casas_visibles_ids        (20260617161620)
+--   public.puede_asignar_casa_anfitriona     (20260618180543)
+--   public.puede_crear_usuario              (20260618203000)
+--   public.puede_editar_usuario             (20260618203000)
+--   public.es_superadmin                    (20260312_fix_es_superadmin_param)
+--   (+ 35 more — see test output for full list)
+-- =============================================================================
+
+-- =============================================================================
+-- HARDENING TEMPLATE (for future apply — NOT APPLIED in this slice)
+-- =============================================================================
+-- The following template shows the correct hardening pattern for any public
+-- SECURITY DEFINER RPC that accepts p_auth_id:
+--
+--   IF p_auth_id IS DISTINCT FROM auth.uid() THEN
+--     RAISE EXCEPTION 'Identity mismatch in %', current_setting('search_path', true);
+--   END IF;
+--
+-- Or for read-only RPCs (return empty rather than raise):
+--
+--   IF p_auth_id IS DISTINCT FROM auth.uid() THEN
+--     RETURN;
+--   END IF;
+--
+-- IMPORTANT: The guard MUST appear BEFORE any:
+--   SELECT ... FROM usuarios WHERE auth_id = p_auth_id
+-- or any other use of p_auth_id for identity resolution.
+-- =============================================================================
