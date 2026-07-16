@@ -146,3 +146,11 @@ export type {
   OperatingCoreParticipationReadInput,
   OperatingCoreParticipationReadResult,
 } from './participation-read-guard'
+
+// Participation ledger (S07)
+export type {
+  AppendParticipationEventInput,
+  ListParticipationEventsFilter,
+  ParticipationLedgerEvent,
+  ParticipationLedgerRepository,
+} from './participation-ledger-repository'

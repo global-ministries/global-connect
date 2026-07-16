@@ -30,7 +30,7 @@ One `type:*`/slice; F(x)+runtime; RED→GREEN→REFACTOR; `pnpm test` green + `t
 - [x] **S04** Repos+fakes events/services/EventInstance, `I`, `type:feature`, `F(OC/{repository,repository-fake})`, `N/A`, revert=repos, ~380
 - [x] **S05** Event/service APIs, `I`, `type:feature`, `F(api/OC/{events,services})`, `HTTP`+`R`, revert=404, ~380
 - [x] **S06** Visitor adapter cedula+persona, 11-kind guard, non-PII, `I`, `type:feature`, `F(OC/{visitor,kinds-guard})`, `N/A`+`DB`, revert=adapter, ~340
-- [ ] **S07** Participation ledger schema+repo, `I`, `type:feature`, `F(OC/ledger-repository)`, `DB`, revert=unapplied, ~360
+- [x] **S07** Participation ledger schema+repo, `I`, `type:feature`, `F(OC/ledger-repository)`, `DB`, revert=unapplied, ~360
 
 ## Registrations/Capacity/Forms/Resources
 
