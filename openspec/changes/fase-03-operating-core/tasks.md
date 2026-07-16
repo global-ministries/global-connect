@@ -25,7 +25,7 @@ One `type:*`/slice; F(x)+runtime; RED→GREEN→REFACTOR; `pnpm test` green + `t
 
 ## Foundation
 
-- [ ] **S02** Pure contracts (types/errors/kinds/6-state/capture-states), `I`, `type:feature`, `F(OC/{types,errors,state,capture})`, `N/A`, revert=contracts, ~360
+- [x] **S02** Pure contracts (types/errors/kinds/6-state/capture-states), `I`, `type:feature`, `F(OC/{types,errors,state,capture})`, `N/A`, revert=contracts, ~360
 - [ ] **S03** Migration events+services+EventInstance+RLS helper+types, `I`, `type:feature` `size:exception`, `F(OC/schema/migration-dry-run)`, `DB`, revert=unapplied, ~520
 - [ ] **S04** Repos+fakes events/services/EventInstance, `I`, `type:feature`, `F(OC/{repository,repository-fake})`, `N/A`, revert=repos, ~380
 - [ ] **S05** Event/service APIs, `I`, `type:feature`, `F(api/OC/{events,services})`, `HTTP`+`R`, revert=404, ~380
