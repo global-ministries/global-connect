@@ -11,6 +11,7 @@ export const PLATFORM_EXPERIENCE_CATALOG = {
   talleres_crecimiento: { label: 'Talleres de Crecimiento', scopeTypes: ['taller'] },
   family: { label: 'Familia', scopeTypes: ['experience'] },
   dream_team: { label: 'Dream Team', scopeTypes: ['experience', 'equipo'] },
+  operating_core: { label: 'Operating Core', scopeTypes: ['experience'] },
 } satisfies Record<string, { label: string; scopeTypes: readonly PlatformScopeType[] }>
 
 export type PlatformExperienceKey = keyof typeof PLATFORM_EXPERIENCE_CATALOG
@@ -40,6 +41,11 @@ export const PLATFORM_CAPABILITIES = {
   'talleres_crecimiento.team.serve': { experience: 'talleres_crecimiento', scopeType: 'taller' },
   'ninos.team.serve': { experience: 'ninos', scopeType: 'salon' },
   'the_living_room.team.serve': { experience: 'the_living_room', scopeType: 'experience' },
+  // Operating Core capabilities
+  'operating_core.events.read': { experience: 'operating_core', scopeType: 'experience' },
+  'operating_core.events.manage': { experience: 'operating_core', scopeType: 'experience' },
+  'operating_core.services.read': { experience: 'operating_core', scopeType: 'experience' },
+  'operating_core.services.manage': { experience: 'operating_core', scopeType: 'experience' },
 } satisfies Record<string, { experience: PlatformExperienceKey; scopeType: PlatformScopeType }>
 
 export type PlatformCapabilityKey = keyof typeof PLATFORM_CAPABILITIES
