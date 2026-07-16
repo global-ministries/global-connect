@@ -6,6 +6,7 @@ import { OperatingCoreConcurrencyConflictError } from '@/lib/platform/operating-
 import type { RegistrationsRepository } from '@/lib/platform/operating-core/registrations/registration-repository'
 import { createInMemoryRegistrationsRepository } from '@/lib/platform/operating-core/registrations/registration-repository-fake'
 import type { CreateRegistrationInput } from '@/lib/platform/operating-core/registrations/registration-state'
+import { isPersistedRegistrationOutcome } from '@/lib/platform/operating-core/registrations/registration-state'
 
 // ---------------------------------------------------------------------------
 // Helper builders
@@ -143,6 +144,9 @@ describe('RegistrationsRepository', () => {
       if (outcome.kind === 'capacity_conflict') {
         throw new Error('unexpected capacity_conflict')
       }
+      if (!isPersistedRegistrationOutcome(outcome)) {
+        throw new Error('unexpected')
+      }
       const id = outcome.registrationId
       const found = await repo.findById(id)
       expect(found).not.toBeNull()
@@ -175,6 +179,9 @@ describe('RegistrationsRepository', () => {
       if (outcome.kind === 'capacity_conflict' || outcome.kind === 'irreconcilable_idempotency') {
         throw new Error('unexpected')
       }
+      if (!isPersistedRegistrationOutcome(outcome)) {
+        throw new Error('unexpected')
+      }
       const id = outcome.registrationId
       // Transition to terminal state
       await repo.transition(id, 1, 'asistida', 'manual', 'operator-1')
@@ -204,6 +211,9 @@ describe('RegistrationsRepository', () => {
     it('filters by state', async () => {
       const outcome1 = await repo.create(makeRegInput({ personaId: 'p1', eventId: 'e1' }))
       if (outcome1.kind === 'capacity_conflict' || outcome1.kind === 'irreconcilable_idempotency') {
+        throw new Error('unexpected')
+      }
+      if (!isPersistedRegistrationOutcome(outcome1)) {
         throw new Error('unexpected')
       }
       await repo.create(makeRegInput({ personaId: 'p2', eventId: 'e1', currentConfirmedCount: 20 }))
@@ -249,6 +259,9 @@ describe('RegistrationsRepository', () => {
       if (outcome.kind === 'capacity_conflict' || outcome.kind === 'irreconcilable_idempotency') {
         throw new Error('unexpected')
       }
+      if (!isPersistedRegistrationOutcome(outcome)) {
+        throw new Error('unexpected')
+      }
       const id = outcome.registrationId
       const result = await repo.transition(id, 1, 'confirmada', 'manual', 'operator-1')
       expect(result.outcome.kind).toBe('confirmed')
@@ -261,6 +274,9 @@ describe('RegistrationsRepository', () => {
       if (outcome.kind === 'capacity_conflict' || outcome.kind === 'irreconcilable_idempotency') {
         throw new Error('unexpected')
       }
+      if (!isPersistedRegistrationOutcome(outcome)) {
+        throw new Error('unexpected')
+      }
       const id = outcome.registrationId
       await expect(
         repo.transition(id, 99, 'cancelada', 'test', 'operator-1'),
@@ -270,6 +286,9 @@ describe('RegistrationsRepository', () => {
     it('returns invalid_transition for terminal → non-terminal', async () => {
       const outcome = await repo.create(makeRegInput())
       if (outcome.kind === 'capacity_conflict' || outcome.kind === 'irreconcilable_idempotency') {
+        throw new Error('unexpected')
+      }
+      if (!isPersistedRegistrationOutcome(outcome)) {
         throw new Error('unexpected')
       }
       const id = outcome.registrationId
@@ -303,9 +322,11 @@ describe('RegistrationsRepository', () => {
       // p1 at capacity → waitlisted position 1
       const p1 = await repo.create(makeRegInput({ personaId: 'p1', eventId: 'e1', currentConfirmedCount: 20, effectiveCapacity: 20 }))
       if (p1.kind === 'capacity_conflict' || p1.kind === 'irreconcilable_idempotency') throw new Error('unexpected')
+      if (!isPersistedRegistrationOutcome(p1)) throw new Error('unexpected')
       // p2 waitlisted position 2
       const p2 = await repo.create(makeRegInput({ personaId: 'p2', eventId: 'e1', currentConfirmedCount: 20, effectiveCapacity: 20, currentWaitlistLength: 1 }))
       if (p2.kind === 'capacity_conflict' || p2.kind === 'irreconcilable_idempotency') throw new Error('unexpected')
+      if (!isPersistedRegistrationOutcome(p2)) throw new Error('unexpected')
 
       // Cancel p1 (position 1) — this SHOULD promote p2
       const cancelResult = await repo.cancel(p1.registrationId, 1, 'test', 'operator-1')
@@ -322,9 +343,11 @@ describe('RegistrationsRepository', () => {
       // p-confirmed at confirmed
       const pConfirmed = await repo.create(makeRegInput({ personaId: 'pC', eventId: 'e1', confirmationMode: 'automatic' }))
       if (pConfirmed.kind === 'capacity_conflict' || pConfirmed.kind === 'irreconcilable_idempotency') throw new Error('unexpected')
+      if (!isPersistedRegistrationOutcome(pConfirmed)) throw new Error('unexpected')
       // pWait1 at waitlist position 1
       const pWait1 = await repo.create(makeRegInput({ personaId: 'pW1', eventId: 'e1', currentConfirmedCount: 20, effectiveCapacity: 20 }))
       if (pWait1.kind === 'capacity_conflict' || pWait1.kind === 'irreconcilable_idempotency') throw new Error('unexpected')
+      if (!isPersistedRegistrationOutcome(pWait1)) throw new Error('unexpected')
       // pWait2 at waitlist position 2
       await repo.create(makeRegInput({ personaId: 'pW2', eventId: 'e1', currentConfirmedCount: 20, effectiveCapacity: 20, currentWaitlistLength: 1 }))
 
@@ -401,6 +424,9 @@ describe('RegistrationsRepository', () => {
       expect(promoted[1].personaId).toBe('pW2')
       expect(promoted[1].state).toBe('confirmada')
       // pW3 should still be waitlisted
+      if (!isPersistedRegistrationOutcome(pW3Outcome)) {
+        throw new Error('unexpected')
+      }
       const pW3State = await repo.findById(pW3Outcome.registrationId)
       expect(pW3State!.state).toBe('pendiente')
       expect(pW3State!.waitlistPosition).toBe(1) // after promotion, pW3 is now position 1
@@ -432,6 +458,7 @@ describe('RegistrationsRepository', () => {
       // pWait1 waitlisted
       const pWait1 = await repo.create(makeRegInput({ personaId: 'pW1', eventId: 'e1', currentConfirmedCount: 20, effectiveCapacity: 20 }))
       if (pWait1.kind === 'capacity_conflict' || pWait1.kind === 'irreconcilable_idempotency') throw new Error('unexpected')
+      if (!isPersistedRegistrationOutcome(pWait1)) throw new Error('unexpected')
 
       // Cancel confirmed → promotes pWait1
       const cancelResult = await repo.cancel(pConfirmed.registrationId, 1, 'test', 'operator-1')

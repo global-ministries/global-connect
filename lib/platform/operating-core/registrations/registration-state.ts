@@ -136,6 +136,20 @@ export function validateWaitlistPromotion(params: {
 }
 
 // ---------------------------------------------------------------------------
+// Type guards
+// ---------------------------------------------------------------------------
+
+/**
+ * Type guard: did this outcome persist a new registration?
+ * Only 'confirmed' | 'waitlisted' | 'rejected' outcomes carry a registrationId.
+ */
+export function isPersistedRegistrationOutcome(
+  outcome: RegistrationOutcome,
+): outcome is Extract<RegistrationOutcome, { registrationId: string }> {
+  return outcome.kind === 'confirmed' || outcome.kind === 'waitlisted' || outcome.kind === 'rejected'
+}
+
+// ---------------------------------------------------------------------------
 // Internal utilities
 // ---------------------------------------------------------------------------
 
