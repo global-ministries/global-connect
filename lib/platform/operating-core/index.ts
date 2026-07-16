@@ -123,3 +123,26 @@ export {
   hasOperatingCoreServicesWriteCapability,
 } from './route-access'
 export { requireOperatingCoreSession } from './route-access'
+
+// Visitor resolution (S06)
+export {
+  resolveVisitor,
+} from './visitor-resolution'
+export type {
+  VisitorCaptureMetadata,
+  VisitorResolutionResult,
+  ResolveVisitorInput,
+  ResolveVisitorQuery,
+} from './visitor-resolution'
+
+// Participation read guard (S06)
+export {
+  canReadOperatingCoreParticipationEvent,
+  hasOperatingCoreParticipationReadCapability,
+} from './participation-read-guard'
+export type {
+  OperatingCoreParticipationReadActor,
+  OperatingCoreParticipationReadEvent,
+  OperatingCoreParticipationReadInput,
+  OperatingCoreParticipationReadResult,
+} from './participation-read-guard'
