@@ -35,7 +35,7 @@ One `type:*`/slice; F(x)+runtime; RED→GREEN→REFACTOR; `pnpm test` green + `t
 ## Registrations/Capacity/Forms/Resources
 
 - [x] **S08** GDV bridge (idempotent), `I`, `type:feature`, `F(adapters/OC-grupos-vida)`, `N/A`+`DB`, revert=gone, ~320
-- [ ] **S09** 6-state registration contract+repo+fake, `I`, `type:feature`, `F(OC/registration-state)`, `N/A`, revert=repo, ~360
+- [x] **S09** 6-state registration contract+repo+fake, `I`, `type:feature`, `F(OC/registration-state)`, `N/A`, revert=repo, ~360
 - [ ] **S10** Migration registrations+partial unique+atomic `promote_waitlist`, `I`, `type:feature` `size:exception`, `F(OC/schema/registrations-parallel)`, `DB`, revert=unapplied, ~480
 - [ ] **S11** Public token + reg APIs, `I`, `type:feature`, `F(api/OC/registrations)` (expiry/replay/rate/disclosure; `F(threat-matrix-token-replay)`), `HTTP`+`R`, revert=404, ~380
 - [ ] **S12** Capacity contract+repo (≤base), `I`, `type:feature`, `F(OC/capacity)`, `N/A`, revert=override, ~300

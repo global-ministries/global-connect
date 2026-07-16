@@ -119,6 +119,7 @@ export function createInMemoryRegistrationsRepository(
         return outcome
       }
 
+      // After capacity_conflict check, outcome is confirmed | waitlisted — both have registrationId and state
       // Persist the registration
       const capturedAt = now()
       const newReg: Registration = {
@@ -200,8 +201,9 @@ export function createInMemoryRegistrationsRepository(
       }
 
       updateRegistration(id, updated)
+      // Cast to RegistrationOutcome because canTransition gate above guarantees to is valid
       return {
-        outcome: { kind: 'confirmed', registrationId: id, state: to },
+        outcome: { kind: 'confirmed', registrationId: id, state: to } as RegistrationOutcome,
         registration: updated,
       }
     },

@@ -9,19 +9,18 @@ import { type RegistrationState } from '../state'
 // Outcome types
 // ---------------------------------------------------------------------------
 
-export type RegistrationOutcome =
+/** Outcome returned by evaluateRegistrationOutcome (create evaluation) — excludes idempotency */
+export type RegistrationCreateOutcome =
   | { kind: 'confirmed'; registrationId: string; state: 'confirmada' }
   | { kind: 'confirmed'; registrationId: string; state: 'pendiente' }
   | { kind: 'waitlisted'; registrationId: string; state: 'pendiente'; waitlistPosition: number }
-  | {
-      kind: 'rejected'
-      registrationId: string
-      state: 'rechazada'
-      reason: 'manual_denial'
-      deniedBy?: string
-    }
-  | { kind: 'invalid_transition'; from: RegistrationState; to: RegistrationState }
   | { kind: 'capacity_conflict'; effectiveCapacity: number; waitlistable: boolean }
+
+/** Full registration outcome union — used by repository layer */
+export type RegistrationOutcome =
+  | RegistrationCreateOutcome
+  | { kind: 'rejected'; registrationId: string; state: 'rechazada'; reason: 'manual_denial'; deniedBy?: string }
+  | { kind: 'invalid_transition'; from: RegistrationState; to: RegistrationState }
   | { kind: 'irreconcilable_idempotency'; personaId: string; eventId: string }
 
 // ---------------------------------------------------------------------------
@@ -53,7 +52,7 @@ export type DenyManualRegistrationInput = {
 // Determines the registration outcome without side effects.
 // ---------------------------------------------------------------------------
 
-export function evaluateRegistrationOutcome(input: CreateRegistrationInput): RegistrationOutcome {
+export function evaluateRegistrationOutcome(input: CreateRegistrationInput): RegistrationCreateOutcome {
   const { confirmationMode, effectiveCapacity, waitlistable, currentConfirmedCount, currentWaitlistLength } =
     input
 
