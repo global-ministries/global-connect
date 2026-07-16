@@ -113,3 +113,13 @@ export type {
   UpdateEventInstancePatch,
   EventInstancesRepository,
 } from './repositories/event-instances-repository'
+
+// Route access (S05)
+export {
+  isOperatingCoreEnabled,
+  hasOperatingCoreEventsReadCapability,
+  hasOperatingCoreEventsWriteCapability,
+  hasOperatingCoreServicesReadCapability,
+  hasOperatingCoreServicesWriteCapability,
+} from './route-access'
+export { requireOperatingCoreSession } from './route-access'
