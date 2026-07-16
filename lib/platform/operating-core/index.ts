@@ -1,0 +1,91 @@
+/**
+ * Operating Core — public contract surface.
+ * All symbols re-exported here are the stable public API for subsequent slices.
+ */
+
+// Kinds
+export {
+  OPERATING_CORE_PARTICIPATION_KINDS,
+} from './kinds'
+export type {
+  OperatingCoreParticipationKind,
+} from './kinds'
+
+// Errors
+export {
+  OPERATING_CORE_ERROR_CLASSES,
+} from './errors'
+export type {
+  OperatingCoreError,
+  OperatingCoreErrorCode,
+} from './errors'
+
+// State machines
+export {
+  REGISTRATION_STATES,
+  REGISTRATION_TRANSITIONS,
+  canTransition,
+} from './state'
+export type {
+  RegistrationState,
+} from './state'
+
+export {
+  CAPTURE_STATES,
+  CAPTURE_TRANSITIONS,
+  canTransitionCapture,
+} from './capture-states'
+export type {
+  CaptureState,
+} from './capture-states'
+
+// Types
+export type {
+  // Events
+  OperatingCoreEventKind,
+  OperatingCoreEventEstado,
+  OperatingCoreEvent,
+  OperatingCoreEventInstance,
+  // Services
+  OperatingCoreServiceEstado,
+  OperatingCoreService,
+  // Registrations
+  OperatingCoreRegistrationState,
+  OperatingCoreRegistrationConfirmationMode,
+  OperatingCoreRegistrationOutcome,
+  OperatingCoreRegistration,
+  // Capacity
+  OperatingCoreCapacityBase,
+  OperatingCoreCapacityOverride,
+  OperatingCoreCapacitySource,
+  OperatingCoreEffectiveCapacity,
+  // Forms
+  OperatingCoreFormFieldType,
+  OperatingCoreFormLifecycle,
+  OperatingCoreFormField,
+  OperatingCoreFormDefinition,
+  OperatingCoreFormSubmission,
+  // Resources
+  OperatingCoreResourceType,
+  OperatingCoreResourceVisibility,
+  OperatingCoreResourceLifecycle,
+  OperatingCoreResource,
+  // Notifications
+  OperatingCoreNotificationTrigger,
+  OperatingCoreNotificationChannel,
+  OperatingCoreNotificationState,
+  OperatingCoreNotificationOutbox,
+  // Recurrent events
+  OperatingCoreRecurrenceFreq,
+  OperatingCoreRecurrenceRule,
+  // GDV bridge
+  OperatingCoreGDVAttendanceEstado,
+  OperatingCoreGDVAttendanceEvent,
+  // Visitor resolution
+  OperatingCoreVisitorResolutionMethod,
+  OperatingCoreVisitorResolutionResult,
+  OperatingCoreVisitorCandidate,
+  OperatingCoreVisitorResolution,
+  // Participation ledger
+  OperatingCoreParticipationEvent,
+} from './types'
