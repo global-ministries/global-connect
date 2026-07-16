@@ -69,9 +69,9 @@ describe('OperatingCoreEventKind', () => {
 
   it('should reject other invalid kinds', () => {
     const accept = (_: OperatingCoreEventKind) => { void _ }
-    // @ts-expect-error
+    // @ts-expect-error — invalid kind must be rejected
     accept('party')
-    // @ts-expect-error
+    // @ts-expect-error — invalid kind must be rejected
     accept('meeting')
   })
 })
@@ -85,9 +85,9 @@ describe('OperatingCoreRegistrationConfirmationMode', () => {
 
   it('should reject invalid modes', () => {
     const accept = (_: OperatingCoreRegistrationConfirmationMode) => { void _ }
-    // @ts-expect-error
+    // @ts-expect-error — invalid mode must be rejected
     accept('auto')
-    // @ts-expect-error
+    // @ts-expect-error — invalid mode must be rejected
     accept('semi-automatic')
   })
 })
@@ -117,9 +117,9 @@ describe('OperatingCoreFormFieldType', () => {
 
   it('should reject invalid field types', () => {
     const accept = (_: OperatingCoreFormFieldType) => { void _ }
-    // @ts-expect-error
+    // @ts-expect-error — invalid field type must be rejected
     accept('radio')
-    // @ts-expect-error
+    // @ts-expect-error — invalid field type must be rejected
     accept('file')
   })
 })
@@ -184,9 +184,9 @@ describe('OperatingCoreRecurrenceFreq', () => {
 
   it('should reject other frequencies', () => {
     const accept = (_: OperatingCoreRecurrenceFreq) => { void _ }
-    // @ts-expect-error
+    // @ts-expect-error — only weekly supported
     accept('daily')
-    // @ts-expect-error
+    // @ts-expect-error — only weekly supported
     accept('monthly')
   })
 })

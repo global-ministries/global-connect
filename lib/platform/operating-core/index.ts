@@ -14,11 +14,13 @@ export type {
 // Errors
 export {
   OPERATING_CORE_ERROR_CLASSES,
+  OperatingCoreConcurrencyConflictError,
 } from './errors'
 export type {
   OperatingCoreError,
   OperatingCoreErrorCode,
 } from './errors'
+export { OperatingCoreConcurrencyConflictError as ConcurrencyConflictError } from './errors'
 
 // State machines
 export {
@@ -89,3 +91,25 @@ export type {
   // Participation ledger
   OperatingCoreParticipationEvent,
 } from './types'
+
+// Repositories
+export type {
+  VersionedOperatingCoreService,
+  CreateServiceInput,
+  UpdateServicePatch,
+  ServicesRepository,
+} from './repositories/services-repository'
+
+export type {
+  VersionedOperatingCoreEvent,
+  CreateEventInput,
+  UpdateEventPatch,
+  EventsRepository,
+} from './repositories/events-repository'
+
+export type {
+  VersionedOperatingCoreEventInstance,
+  CreateEventInstanceInput,
+  UpdateEventInstancePatch,
+  EventInstancesRepository,
+} from './repositories/event-instances-repository'
