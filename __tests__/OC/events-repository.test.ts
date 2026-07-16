@@ -2,7 +2,7 @@
  * S04 RED — events repository
  * Verifies EventsRepository interface contract via in-memory fake.
  */
-import { OperatingCoreEventKind, OperatingCoreEventEstado } from '@/lib/platform/operating-core/types'
+// OperatingCoreEventKind / Estado are inferred via the repository interface
 import {
   OperatingCoreConcurrencyConflictError,
 } from '@/lib/platform/operating-core/errors'

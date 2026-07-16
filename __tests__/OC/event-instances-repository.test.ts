@@ -3,7 +3,7 @@
  * Verifies EventInstancesRepository interface contract via in-memory fake.
  * Tests lazy RRULE materialization semantics.
  */
-import { OperatingCoreEventEstado } from '@/lib/platform/operating-core/types'
+// OperatingCoreEventEstado is inferred via the repository interface
 import {
   OperatingCoreConcurrencyConflictError,
 } from '@/lib/platform/operating-core/errors'
@@ -11,7 +11,7 @@ import type { EventInstancesRepository } from '@/lib/platform/operating-core/rep
 import {
   createInMemoryEventInstancesRepository,
 } from '@/lib/platform/operating-core/repositories/event-instances-repository-fake'
-import type { VersionedOperatingCoreEvent } from '@/lib/platform/operating-core/repositories/events-repository'
+// VersionedOperatingCoreEvent is not directly used in this test
 import { createInMemoryEventsRepository } from '@/lib/platform/operating-core/repositories/events-repository-fake'
 
 describe('EventInstancesRepository', () => {

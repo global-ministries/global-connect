@@ -56,12 +56,13 @@ function extractTables(content: string): TableDef[] {
   // Find CREATE TABLE statements
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
     const createMatch = line.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?(\w+)/i)
     if (!createMatch) continue
 
     const tableName = createMatch[1]
     const columns: ColumnDef[] = []
-    let primaryKey: string[] = []
+    const primaryKey: string[] = []
 
     // Collect column definitions until we hit a line that ends the CREATE TABLE block
     // (lines starting with CREATE INDEX, ALTER TABLE, etc.)
@@ -203,6 +204,7 @@ function extractHelperFunction(content: string): HelperFunction | null {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan
     const funcMatch = line.match(/CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.(\w+)/i)
     if (!funcMatch) continue
 
@@ -210,7 +212,7 @@ function extractHelperFunction(content: string): HelperFunction | null {
     if (!funcName.includes('auth_has_operating_core_capability')) continue
 
     // Extract parameter list
-    let params: string[] = []
+    const params: string[] = []
     let paramsLine = line
     if (line.includes('(') && !line.includes(')')) {
       for (let j = i + 1; j < lines.length; j++) {
@@ -384,6 +386,7 @@ function extractBuscarUsuariosSignature(content: string): string[] | null {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan
     if (!/CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.buscar_usuarios_para_grupo/i.test(line)) {
       continue
     }
@@ -458,6 +461,7 @@ describe('F(OC/schema-migration-dry-run) — S03 Operating Core Events Migration
     it('should have operating_core_services table', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
+      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan
       expect(content).toMatch(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?operating_core_services/i)
     })
 
