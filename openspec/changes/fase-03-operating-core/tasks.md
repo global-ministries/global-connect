@@ -20,7 +20,8 @@ One `type:*`/slice; F(x)+runtime; RED→GREEN→REFACTOR; `pnpm test` green + `t
 ## Prerequisites
 
 - [ ] **S00** mobile-nav timeout + drop `coverageThreshold`, `I`, `type:bug`, `F(mobile-platform-navigation)` + `pnpm test:ci`, `UI`, revert=baseline, ~120
-- [ ] **S01** SECURITY DEFINER audit Issue #103 (S03 gate), `type:bug`, `F(OC/security-definer)`, `DB`, revert=grants, ~120
+- [x] **S01** SECURITY DEFINER audit Issue #103 (S03 gate), `type:bug`, `F(OC/security-definer)`, `DB`, revert=grants, ~120
+  - **NOTE**: Stop condition met — unbound p_auth_id found in Fase-2 protected paths (grupos-vida/asistencia domain). 33 unique functions documented for follow-up Issue #103. Zero unbound in Fase-3 (operating-core) confirmed. See docs/audit/security-definer-audit.md.
 
 ## Foundation
 

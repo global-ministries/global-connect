@@ -212,6 +212,106 @@ const rules = [
       return null
     },
   },
+  /**
+   * Rule 8 (NEW — S01 audit):
+   * SECURITY DEFINER public RPCs accepting caller-supplied p_auth_id without
+   * binding it to auth.uid() are an identity-confusion risk.
+   *
+   * A p_auth_id is "hardened" when the function body contains, BEFORE any use:
+   *   IF p_auth_id IS DISTINCT FROM auth.uid() THEN RETURN false; END IF;
+   *
+   * A p_auth_id is "unbound" when:
+   *   - The RPC accepts p_auth_id AND
+   *   - The body does NOT contain the IS DISTINCT FROM auth.uid() guard AND
+   *   - The body uses p_auth_id to look up usuarios.auth_id = p_auth_id
+   *
+   * Note: This rule flags the pattern as INFO (not ERROR) because many existing
+   * RPCs use the unbound pattern with acceptable business justification. The probe
+   * test (F(OC/security-definer)) is the authoritative audit tool.
+   */
+  {
+    id: 'security-definer-unbound-auth-id',
+    severity: SEVERITY.INFO,
+    check: (content, filename) => {
+      const hasSecurityDefiner = /SECURITY\s+DEFINER/i.test(content)
+      if (!hasSecurityDefiner) return null
+
+      const lines = content.split('\n')
+      const findings = []
+
+      // Find all CREATE FUNCTION public.name(...) declarations
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        const createMatch = line.match(
+          /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.(\w+)/i,
+        )
+        if (!createMatch) continue
+
+        const funcName = createMatch[1]
+        const startLine = i + 1
+
+        // Collect parameter list (may span multiple lines)
+        let params = ''
+        if (line.includes('(')) {
+          params = line.substring(line.indexOf('('))
+          if (!params.includes(')')) {
+            for (let j = i + 1; j < lines.length; j++) {
+              params += '\n' + lines[j]
+              if (lines[j].includes(')')) break
+            }
+          }
+        } else {
+          for (let j = i + 1; j < lines.length; j++) {
+            params += '\n' + lines[j]
+            if (lines[j].includes(')')) break
+          }
+        }
+
+        const openParen = params.indexOf('(')
+        const closeParen = params.lastIndexOf(')')
+        params = params.substring(openParen + 1, closeParen)
+
+        const hasAuthIdParam = /\bp_auth_id\b/.test(params)
+        if (!hasAuthIdParam) continue
+
+        // Scan forward for SECURITY DEFINER and $$ body delimiters
+        let hasDefiner = false
+        let dollarStartLine = -1
+        for (let k = i; k < Math.min(i + 20, lines.length); k++) {
+          const scanLine = lines[k]
+          if (/SECURITY\s+DEFINER/i.test(scanLine)) hasDefiner = true
+          if (/\$\$/i.test(scanLine)) { dollarStartLine = k; break }
+        }
+        if (!hasDefiner || dollarStartLine === -1) continue
+
+        // Collect function body from $$ to $$
+        const bodyLines = []
+        let dollarFound = false
+        for (let m = dollarStartLine; m < lines.length; m++) {
+          const bodyLine = lines[m]
+          bodyLines.push(bodyLine)
+          if (/\$/i.test(bodyLine)) {
+            if (dollarFound) break
+            dollarFound = true
+          }
+        }
+        const body = bodyLines.join('\n')
+
+        // Check for hardening guard
+        const hasGuard = /\bp_auth_id\s+IS\s+DISTINCT\s+FROM\s+auth\.uid\(\)/i.test(body)
+        if (!hasGuard) {
+          findings.push(`public.${funcName} (line ${startLine})`)
+        }
+      }
+
+      if (findings.length === 0) return null
+
+      return {
+        message: `SECURITY DEFINER RPC(s) accepting p_auth_id without IS DISTINCT FROM auth.uid() guard: ${findings.join(', ')}`,
+        line: 1,
+      }
+    },
+  },
 ]
 
 // ─── Noqa comment support ────────────────────────────────────────────────────
