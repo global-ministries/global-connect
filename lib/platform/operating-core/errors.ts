@@ -61,6 +61,23 @@ export class OperatingCoreError {
   }
 }
 
+/**
+ * Concurrency conflict error for optimistic locking.
+ * Thrown when expectedVersion does not match the current version.
+ * Shape mirrors dream-team/Errors.ts ConcurrencyConflictError (pattern reference only).
+ */
+export class OperatingCoreConcurrencyConflictError extends Error {
+  readonly code = 'CONCURRENCY_CONFLICT' as const
+
+  constructor(
+    message: string,
+    readonly context?: Readonly<Record<string, unknown>>,
+  ) {
+    super(message)
+    this.name = 'OperatingCoreConcurrencyConflictError'
+  }
+}
+
 /** All error classes — used by tests to assert no 500 mapping. */
 export const OPERATING_CORE_ERROR_CLASSES: readonly OperatingCoreError[] = [
   new OperatingCoreError('invalid_input', ''),
