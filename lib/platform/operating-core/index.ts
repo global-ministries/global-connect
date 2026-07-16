@@ -154,3 +154,17 @@ export type {
   ParticipationLedgerEvent,
   ParticipationLedgerRepository,
 } from './participation-ledger-repository'
+
+// GDV bridge (S08)
+export {
+  bridgeGdvAttendanceToOperatingCore,
+  GDV_BRIDGE_CAPTURE_SOURCE,
+} from '../adapters/operating-core-grupos-vida'
+export type {
+  GdvAttendanceRecord,
+  GdvAttendanceReader,
+  OperatingCoreGdvBridgeActor,
+  OperatingCoreGdvBridgeInput,
+  OperatingCoreGdvBridgePerRecord,
+  OperatingCoreGdvBridgeResult,
+} from '../adapters/operating-core-grupos-vida'
