@@ -122,6 +122,8 @@ export {
   hasOperatingCoreServicesReadCapability,
   hasOperatingCoreServicesWriteCapability,
   hasOperatingCoreCapacityManageCapability,
+  hasOperatingCoreFormsManageCapability,
+  hasOperatingCoreFormsSubmitCapability,
 } from './route-access'
 export { requireOperatingCoreSession } from './route-access'
 
@@ -286,3 +288,21 @@ export type {
 } from './forms/form-repository'
 
 export { createFormsRepositoryFake } from './forms/form-repository-fake'
+
+// Forms SQL row types (S15)
+export type {
+  OperatingCoreFormLifecycleSql,
+  OperatingCoreFormRow,
+  OperatingCoreFormSubmissionRow,
+} from './forms/form-sql-row'
+
+export { mapSqlFormRowToDomain, mapSqlSubmissionRowToDomain } from './forms/form-sql-row'
+
+// Forms Supabase adapter (S15)
+export type {
+  FormsRepositorySupabaseOptions,
+} from './forms/form-repository-supabase'
+export { createSupabaseFormsRepository } from './forms/form-repository-supabase'
+
+// Forms factory (S15)
+export { createOperatingCoreFormsRepository } from './forms/factory'

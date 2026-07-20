@@ -48,6 +48,9 @@ export const PLATFORM_CAPABILITIES = {
   'operating_core.services.manage': { experience: 'operating_core', scopeType: 'experience' },
   'operating_core.participation.read': { experience: 'operating_core', scopeType: 'experience' },
   'operating_core.capacity.manage': { experience: 'operating_core', scopeType: 'experience' },
+  // Forms capabilities (S15)
+  'operating_core.forms.manage': { experience: 'operating_core', scopeType: 'experience' },
+  'operating_core.forms.submit': { experience: 'operating_core', scopeType: 'experience' },
 } satisfies Record<string, { experience: PlatformExperienceKey; scopeType: PlatformScopeType }>
 
 export type PlatformCapabilityKey = keyof typeof PLATFORM_CAPABILITIES

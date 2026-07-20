@@ -13,6 +13,8 @@ const EVENTS_WRITE = ['operating_core.events.manage'] as const
 const SERVICES_READ = ['operating_core.services.read'] as const
 const SERVICES_WRITE = ['operating_core.services.manage'] as const
 const CAPACITY_WRITE = ['operating_core.capacity.manage'] as const
+const FORMS_MANAGE = ['operating_core.forms.manage'] as const
+const FORMS_SUBMIT = ['operating_core.forms.submit'] as const
 
 /**
  * Flag check — mirrors dream-team flag pattern.
@@ -67,3 +69,9 @@ export const hasOperatingCoreServicesWriteCapability = (session: PlatformSession
 
 export const hasOperatingCoreCapacityManageCapability = (session: PlatformSession) =>
   CAPACITY_WRITE.some((key) => hasCapability(session, key))
+
+export const hasOperatingCoreFormsManageCapability = (session: PlatformSession) =>
+  FORMS_MANAGE.some((key) => hasCapability(session, key))
+
+export const hasOperatingCoreFormsSubmitCapability = (session: PlatformSession) =>
+  FORMS_SUBMIT.some((key) => hasCapability(session, key))
