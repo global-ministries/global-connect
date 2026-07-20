@@ -7,7 +7,6 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { RegistrationsRepository } from '@/lib/platform/operating-core/registrations/registration-repository'
 import {
   createSupabaseRegistrationsRepository,
 } from '@/lib/platform/operating-core/registrations/registration-repository-supabase'
@@ -15,82 +14,10 @@ import { OperatingCoreConcurrencyConflictError } from '@/lib/platform/operating-
 
 // ─── Mock factory ─────────────────────────────────────────────────────────────
 
-type ChainableMock = ReturnType<typeof jest.fn>
-
 function makeMock(data: unknown) {
   const mock = jest.fn()
   mock.mockResolvedValue(data)
   return mock
-}
-
-function createSelectChain(data: unknown) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const select: any = {}
-  const eq1: any = {}
-  const eq2: any = {}
-  const eq3: any = {}
-  const eq4: any = {}
-  const eq5: any = {}
-  const order: any = {}
-  const not: any = {}
-
-  // eq1 → eq2 → eq3 → maybeSingle
-  eq3.maybeSingle = makeMock({ data, error: null })
-  eq3.select = makeMock(data)
-  eq2.eq = jest.fn().mockReturnValue(eq3)
-  eq2.select = jest.fn().mockReturnValue(data)
-  eq1.eq = jest.fn().mockReturnValue(eq2)
-  eq1.select = jest.fn().mockReturnValue(data)
-  eq4.eq = jest.fn().mockReturnValue(eq5)
-  eq4.select = jest.fn().mockReturnValue(data)
-  eq5.eq = jest.fn().mockReturnValue(eq4)
-  eq5.select = jest.fn().mockReturnValue(data)
-  not.eq = jest.fn().mockReturnValue(eq1)
-  not.select = jest.fn().mockReturnValue(data)
-  order.select = jest.fn().mockReturnValue(data)
-  order.eq = jest.fn().mockReturnValue(eq2)
-  select.eq = jest.fn().mockReturnValue(eq1)
-  select.select = jest.fn().mockReturnValue(data)
-  select.not = jest.fn().mockReturnValue(not)
-  select.order = jest.fn().mockReturnValue(order)
-  select.maybeSingle = makeMock({ data, error: null })
-
-  return select
-}
-
-function createUpdateChain(data: unknown) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const update: any = {}
-  const eq1: any = {}
-  const eq2: any = {}
-  const eq3: any = {}
-  const eq4: any = {}
-
-  eq3.select = makeMock(data)
-  eq3.single = makeMock({ data, error: null })
-  eq2.eq = jest.fn().mockReturnValue(eq3)
-  eq2.select = jest.fn().mockReturnValue(data)
-  eq1.eq = jest.fn().mockReturnValue(eq2)
-  eq1.select = jest.fn().mockReturnValue(data)
-  update.eq = jest.fn().mockReturnValue(eq1)
-  update.select = jest.fn().mockReturnValue(data)
-
-  return update
-}
-
-function createInsertChain(data: unknown) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const insert: any = {}
-  const select: any = {}
-  const single: any = {}
-
-  single.mockResolvedValue({ data, error: null })
-  select.single = single
-  select.select = makeMock(data)
-  insert.select = jest.fn().mockReturnValue(select)
-  insert.mockReturnValue(insert)
-
-  return insert
 }
 
 function createMockSupabaseClient() {
@@ -492,6 +419,7 @@ describe('RegistrationsRepository (Supabase adapter)', () => {
 
   describe('deny — transitions to rechazada, does NOT call promote_waitlist', () => {
     it('should UPDATE row to rechazada state', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { client, fromMock, rpcMock } = createMockSupabaseClient()
       const row = sampleRow({ id: 'deny-id', estado: 'pendiente', confirmation_mode: 'manual', version: 1 })
       const deniedRow = { ...row, estado: 'rechazada', version: 2 }
