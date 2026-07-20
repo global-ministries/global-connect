@@ -12,6 +12,7 @@ const EVENTS_READ = ['operating_core.events.read'] as const
 const EVENTS_WRITE = ['operating_core.events.manage'] as const
 const SERVICES_READ = ['operating_core.services.read'] as const
 const SERVICES_WRITE = ['operating_core.services.manage'] as const
+const CAPACITY_WRITE = ['operating_core.capacity.manage'] as const
 
 /**
  * Flag check — mirrors dream-team flag pattern.
@@ -63,3 +64,6 @@ export const hasOperatingCoreServicesReadCapability = (session: PlatformSession)
 
 export const hasOperatingCoreServicesWriteCapability = (session: PlatformSession) =>
   SERVICES_WRITE.some((key) => hasCapability(session, key))
+
+export const hasOperatingCoreCapacityManageCapability = (session: PlatformSession) =>
+  CAPACITY_WRITE.some((key) => hasCapability(session, key))
