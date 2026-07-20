@@ -121,6 +121,7 @@ export {
   hasOperatingCoreEventsWriteCapability,
   hasOperatingCoreServicesReadCapability,
   hasOperatingCoreServicesWriteCapability,
+  hasOperatingCoreCapacityManageCapability,
 } from './route-access'
 export { requireOperatingCoreSession } from './route-access'
 
@@ -221,3 +222,24 @@ export type {
   OperatingCoreGdvBridgePerRecord,
   OperatingCoreGdvBridgeResult,
 } from '../adapters/operating-core-grupos-vida'
+
+// Capacity (S12)
+export type {
+  CapacityScope,
+  CapacityBase,
+  CapacityOverride,
+  CapacitySnapshot,
+  CapacityValidationError,
+  CapacityValidationFailure,
+  CapacityValidationSuccess,
+  CapacityValidationResult,
+  CapacityAlert,
+} from './capacity/capacity-types'
+
+export type {
+  CapacityRepository,
+  SetOverrideInput,
+  CapacityAlertHook,
+} from './capacity/capacity-repository'
+
+export { createCapacityRepositoryFake } from './capacity/capacity-repository-fake'
