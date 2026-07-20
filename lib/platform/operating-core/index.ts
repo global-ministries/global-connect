@@ -179,6 +179,22 @@ export {
   canDenyManualRegistration,
   validateWaitlistPromotion,
 } from './registrations/registration-state'
+
+// Registrations SQL row types (S10)
+export type {
+  OperatingCoreRegistrationRow,
+  OperatingCoreRegistrationDomainMapped,
+  OperatingCoreRegistrationEstadoSql,
+  OperatingCoreRegistrationConfirmationModeSql,
+} from './registrations/registration-sql-row'
+export { mapSqlRowToDomain } from './registrations/registration-sql-row'
+
+// Registrations Supabase adapter (S10)
+export type {
+  RegistrationsRepositorySupabaseOptions,
+} from './registrations/registration-repository-supabase'
+export { createSupabaseRegistrationsRepository } from './registrations/registration-repository-supabase'
+
 export type {
   GdvAttendanceRecord,
   GdvAttendanceReader,
