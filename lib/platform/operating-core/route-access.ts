@@ -16,6 +16,7 @@ const CAPACITY_WRITE = ['operating_core.capacity.manage'] as const
 const FORMS_MANAGE = ['operating_core.forms.manage'] as const
 const FORMS_SUBMIT = ['operating_core.forms.submit'] as const
 const RESOURCES_MANAGE = ['operating_core.resources.manage'] as const
+const OUTBOX_DRAIN = ['operating_core.outbox.drain'] as const
 
 /**
  * Flag check — mirrors dream-team flag pattern.
@@ -79,3 +80,6 @@ export const hasOperatingCoreFormsSubmitCapability = (session: PlatformSession) 
 
 export const hasOperatingCoreResourcesManageCapability = (session: PlatformSession) =>
   RESOURCES_MANAGE.some((key) => hasCapability(session, key))
+
+export const hasOperatingCoreOutboxDrainCapability = (session: PlatformSession) =>
+  OUTBOX_DRAIN.some((key) => hasCapability(session, key))

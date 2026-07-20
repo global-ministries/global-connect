@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
 // GET — health check
 // ---------------------------------------------------------------------------
 
-export async function GET() {
+export async function GET(_req: NextRequest) {
   if (!isOperatingCoreEnabled()) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
