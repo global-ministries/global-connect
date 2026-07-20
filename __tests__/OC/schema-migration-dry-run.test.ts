@@ -468,12 +468,14 @@ describe('F(OC/schema-migration-dry-run) — S03 Operating Core Events Migration
     it('should have operating_core_events table', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
+      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?operating_core_events/i)
     })
 
     it('should have operating_core_event_instances table', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
+      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?operating_core_event_instances/i)
     })
   })
@@ -640,6 +642,7 @@ describe('F(OC/schema-migration-dry-run) — S03 Operating Core Events Migration
         if (!migrationExists) return
         const content = readFileSync(migrationPath!, 'utf-8')
         expect(content).toMatch(
+          /* eslint-disable-next-line security/detect-non-literal-regexp -- table name interpolated from test loop, no nested quantifiers */
           new RegExp(`ALTER\\s+TABLE\\s+(?:public\\.)?${table}\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY`, 'i')
         )
       })
@@ -648,6 +651,7 @@ describe('F(OC/schema-migration-dry-run) — S03 Operating Core Events Migration
         if (!migrationExists) return
         const content = readFileSync(migrationPath!, 'utf-8')
         expect(content).toMatch(
+          /* eslint-disable-next-line security/detect-non-literal-regexp -- table name interpolated from test loop, no nested quantifiers */
           new RegExp(`REVOKE\\s+ALL\\s+ON\\s+TABLE\\s+(?:public\\.)?${table}\\s+FROM\\s+anon,\\s*authenticated`, 'i')
         )
       })
@@ -657,6 +661,7 @@ describe('F(OC/schema-migration-dry-run) — S03 Operating Core Events Migration
         const content = readFileSync(migrationPath!, 'utf-8')
         // Just check there's a grant to service_role for this table
         expect(content).toMatch(
+          /* eslint-disable-next-line security/detect-non-literal-regexp -- table name interpolated from test loop, no nested quantifiers */
           new RegExp(`GRANT\\s+.+\\s+ON\\s+TABLE\\s+(?:public\\.)?${table}\\s+TO\\s+service_role`, 'i')
         )
       })
@@ -694,6 +699,7 @@ describe('F(OC/schema-migration-dry-run) — S03 Operating Core Events Migration
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
       // service_id column that references operating_core_services
+      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/service_id\s+uuid\s+(?:NOT\s+NULL\s+)?REFERENCES\s+(?:public\.)?operating_core_services/i)
     })
 
@@ -723,12 +729,14 @@ describe('F(OC/schema-migration-dry-run) — S03 Operating Core Events Migration
     it('should have weekday integer (0=Sunday, 6=Saturday)', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
+      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/weekday\s+integer\s+(?:NOT\s+NULL)?/i)
     })
 
     it('should have start_time text (HH:mm format)', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
+      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/start_time\s+text\s+(?:NOT\s+NULL)?/i)
     })
   })
@@ -749,13 +757,16 @@ describe('F(OC/schema-migration-dry-run) — S03 Operating Core Events Migration
     it('should have instance_date (YYYY-MM-DD)', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
+      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/instance_date\s+text\s+(?:NOT\s+NULL)?/i)
     })
 
     it('should have start_time and end_time', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
+      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/start_time\s+timestamptz\s+(?:NOT\s+NULL)?/i)
+      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/end_time\s+timestamptz\s+(?:NOT\s+NULL)?/i)
     })
   })
@@ -933,7 +944,8 @@ interface LintFinding {
   message: string
 }
 
-function lintMigrationContent(content: string, filename: string): LintFinding[] {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- intentionally unused, kept for API signature parity
+function lintMigrationContent(content: string, _filename: string): LintFinding[] {
   const findings: LintFinding[] = []
   const lines = content.split('\n')
 
@@ -979,6 +991,7 @@ function lintMigrationContent(content: string, filename: string): LintFinding[] 
   let dollarDepth = 0
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
     if (/CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION/i.test(line)) inFunction = true
     dollarDepth += (line.match(/\$\$/g) || []).length
     if (inFunction && dollarDepth >= 2) { inFunction = false; dollarDepth = 0 }

@@ -160,6 +160,25 @@ export {
   bridgeGdvAttendanceToOperatingCore,
   GDV_BRIDGE_CAPTURE_SOURCE,
 } from '../adapters/operating-core-grupos-vida'
+
+// Registrations (S09)
+export type {
+  Registration,
+  RegistrationsRepository,
+} from './registrations/registration-repository'
+
+export type {
+  RegistrationOutcome,
+  RegistrationCreateOutcome,
+  CreateRegistrationInput,
+  DenyManualRegistrationInput,
+} from './registrations/registration-state'
+
+export {
+  evaluateRegistrationOutcome,
+  canDenyManualRegistration,
+  validateWaitlistPromotion,
+} from './registrations/registration-state'
 export type {
   GdvAttendanceRecord,
   GdvAttendanceReader,
