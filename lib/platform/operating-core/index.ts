@@ -255,3 +255,34 @@ export { createSupabaseCapacityRepository, CapacityOverrideValidationError } fro
 export type {
   CapacitySupabaseAdapterOptions,
 } from './capacity/capacity-repository-supabase'
+
+// Forms (S14)
+export {
+  OPERATING_CORE_FORM_FIELD_TYPES,
+  OPERATING_CORE_FORM_LIFECYCLES,
+} from './forms/form-types'
+
+export type {
+  OperatingCoreFormFieldValidation,
+  FormAnswerValue,
+  OperatingCoreFormValidationError,
+  FormSubmissionValidationSuccess,
+  FormSubmissionValidationFailure,
+  FormSubmissionValidationResult,
+} from './forms/form-types'
+
+export {
+  canAcceptSubmission,
+  validateAnswerType,
+  validateOptionMembership,
+  validateSubmission,
+} from './forms/form-state'
+
+export type {
+  CreateFormInput,
+  UpdateFormInput,
+  SubmitFormInput,
+  FormsRepository,
+} from './forms/form-repository'
+
+export { createFormsRepositoryFake } from './forms/form-repository-fake'
