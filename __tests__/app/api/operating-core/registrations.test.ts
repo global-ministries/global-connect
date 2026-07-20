@@ -11,7 +11,7 @@
  */
 
 import { NextRequest } from 'next/server'
-import { GET, POST } from '@/app/api/operating-core/registrations/route'
+import { POST } from '@/app/api/operating-core/registrations/route'
 
 // ─── Mock setup ───────────────────────────────────────────────────────────────
 
@@ -57,35 +57,6 @@ function repo() {
 beforeEach(() => {
   jest.clearAllMocks()
   process.env.NEXT_PUBLIC_OPERATING_CORE_ENABLED = 'on'
-})
-
-// ─── GET /api/operating-core/registrations ─────────────────────────────────────
-
-describe('GET /api/operating-core/registrations', () => {
-  it('401 unauthenticated', async () => {
-    auth([], null)
-    repo()
-    expect((await GET(request('/api/operating-core/registrations'))).status).toBe(401)
-  })
-
-  it('403 without manage capability', async () => {
-    auth([otherCap])
-    repo()
-    expect((await GET(request('/api/operating-core/registrations'))).status).toBe(403)
-  })
-
-  it('404 when flag off', async () => {
-    process.env.NEXT_PUBLIC_OPERATING_CORE_ENABLED = 'off'
-    auth([manageCap])
-    repo()
-    expect((await GET(request('/api/operating-core/registrations'))).status).toBe(404)
-  })
-
-  it('200 with manage capability', async () => {
-    auth([manageCap])
-    repo()
-    expect((await GET(request('/api/operating-core/registrations'))).status).toBe(200)
-  })
 })
 
 // ─── POST /api/operating-core/registrations ───────────────────────────────────

@@ -1,5 +1,5 @@
 /**
- * Registrations API — authenticated (directors with manage capability).
+ * Registrations API — POST: create registration (authenticated, directors with manage capability).
  * Deny-by-default: flag → auth → capability → body → concurrency.
  */
 import { NextRequest, NextResponse } from 'next/server'
@@ -39,35 +39,6 @@ function parseCreateBody(body: unknown): {
     confirmationMode: confirmationMode as 'automatic' | 'manual',
     effectiveCapacity,
     waitlistable,
-  }
-}
-
-export async function GET(_req: NextRequest) {
-  try {
-    if (!isOperatingCoreEnabled()) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    }
-    const session = await requireOperatingCoreSession()
-    if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
-    if (!hasOperatingCoreEventsWriteCapability(session)) {
-      return NextResponse.json({ error: 'Permiso denegado' }, { status: 403 })
-    }
-
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
-
-    const repo = createSupabaseRegistrationsRepository({ supabase })
-
-    // List all registrations for this director's scope (all events for now)
-    // NOTE: filtering by scope is deferred; this returns all accessible registrations
-    const events = await repo.list()
-    void events // suppress unused warning — filtering by director scope deferred
-
-    return NextResponse.json({ message: 'List registrations — scope filtering deferred' })
-  } catch (error) {
-    console.error('[operating-core/registrations] GET error:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }
 
