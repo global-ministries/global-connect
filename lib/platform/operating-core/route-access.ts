@@ -15,6 +15,7 @@ const SERVICES_WRITE = ['operating_core.services.manage'] as const
 const CAPACITY_WRITE = ['operating_core.capacity.manage'] as const
 const FORMS_MANAGE = ['operating_core.forms.manage'] as const
 const FORMS_SUBMIT = ['operating_core.forms.submit'] as const
+const RESOURCES_MANAGE = ['operating_core.resources.manage'] as const
 
 /**
  * Flag check — mirrors dream-team flag pattern.
@@ -75,3 +76,6 @@ export const hasOperatingCoreFormsManageCapability = (session: PlatformSession) 
 
 export const hasOperatingCoreFormsSubmitCapability = (session: PlatformSession) =>
   FORMS_SUBMIT.some((key) => hasCapability(session, key))
+
+export const hasOperatingCoreResourcesManageCapability = (session: PlatformSession) =>
+  RESOURCES_MANAGE.some((key) => hasCapability(session, key))

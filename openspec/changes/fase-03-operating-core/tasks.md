@@ -42,7 +42,7 @@ One `type:*`/slice; F(x)+runtime; RED→GREEN→REFACTOR; `pnpm test` green + `t
 - [x] **S13** Capacity schema+API+waitlist, `I`, `type:feature`, `F(api/OC/capacity)`, `HTTP`+`DB`+`R`, revert=404, ~360
 - [x] **S14** Forms contract+repo, `I`, `type:feature`, `F(OC/forms-contract)`, `N/A`, revert=repo, ~320
 - [x] **S15** Forms API+publish gating, `I`, `type:feature`, `F(api/OC/forms)`, `HTTP`+`R`, revert=404, ~340
-- [ ] **S16** Resources contract+repo+API, `I`, `type:feature`, `F(OC+api/resources)`, `N/A`+`HTTP`+`R`, revert=resource-route+repo, ~280
+- [x] **S16** Resources contract+repo+API, `I`, `type:feature`, `F(OC+api/resources)`, `N/A`+`HTTP`+`R`, revert=resource-route+repo, ~280
 
 ## Notifications/Capture-UX/Dashboard/Recurrence/Rollout
 

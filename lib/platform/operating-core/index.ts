@@ -124,6 +124,7 @@ export {
   hasOperatingCoreCapacityManageCapability,
   hasOperatingCoreFormsManageCapability,
   hasOperatingCoreFormsSubmitCapability,
+  hasOperatingCoreResourcesManageCapability,
 } from './route-access'
 export { requireOperatingCoreSession } from './route-access'
 
@@ -306,3 +307,34 @@ export { createSupabaseFormsRepository } from './forms/form-repository-supabase'
 
 // Forms factory (S15)
 export { createOperatingCoreFormsRepository } from './forms/factory'
+
+// Resources (S16)
+export {
+  OPERATING_CORE_RESOURCE_KINDS,
+} from './resources/resource-types'
+
+export type {
+  OperatingCoreResourceKind,
+  CreateResourceInput,
+  ResourceTransferRequest,
+  ResourceArchiveRequest,
+  ResourceValidationError,
+} from './resources/resource-types'
+
+export type {
+  ResourcesRepository,
+  ListResourcesFilter,
+} from './resources/resource-repository'
+
+export { createInMemoryResourcesRepository } from './resources/resource-repository-fake'
+
+export {
+  validateKind,
+  canOperate,
+  isVisibleTo,
+  buildSuccessorFromTransfer,
+  validateCreateInput,
+} from './resources/resource-state'
+
+// Resources factory (S16)
+export { createOperatingCoreResourcesRepository } from './resources/factory'
