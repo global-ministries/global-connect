@@ -195,6 +195,24 @@ export type {
 } from './registrations/registration-repository-supabase'
 export { createSupabaseRegistrationsRepository } from './registrations/registration-repository-supabase'
 
+// Public tokens (S11)
+export { hashPublicToken } from './public-tokens/token-hash'
+
+export type {
+  OperatingCorePublicTokenRow,
+  OperatingCoreClaimOutcome,
+} from './public-tokens/public-token-sql-row'
+
+export type {
+  PublicTokensRepository,
+  CreatePublicTokenInput,
+} from './public-tokens/public-token-repository'
+
+export type {
+  PublicTokensRepositorySupabaseOptions,
+} from './public-tokens/public-token-repository-supabase'
+export { createSupabasePublicTokensRepository } from './public-tokens/public-token-repository-supabase'
+
 export type {
   GdvAttendanceRecord,
   GdvAttendanceReader,
