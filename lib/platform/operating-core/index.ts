@@ -243,3 +243,15 @@ export type {
 } from './capacity/capacity-repository'
 
 export { createCapacityRepositoryFake } from './capacity/capacity-repository-fake'
+
+// Capacity SQL row types (S13)
+export type {
+  OperatingCoreCapacitySourceSql,
+  OperatingCoreCapacityOverrideRow,
+} from './capacity/capacity-sql-row'
+
+// Capacity Supabase adapter (S13)
+export { createSupabaseCapacityRepository, CapacityOverrideValidationError } from './capacity/capacity-repository-supabase'
+export type {
+  CapacitySupabaseAdapterOptions,
+} from './capacity/capacity-repository-supabase'
