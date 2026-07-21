@@ -7,6 +7,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { findPlatformSessionPersonaByAuthId, resolveReadOnlyPlatformSession } from '@/lib/auth/platformSessionReadOnly'
 import { PLATFORM_CAPABILITIES, resolvePlatformCapability } from '@/lib/platform/experiences'
 import type { PlatformSession } from '@/lib/platform/session/types'
+import { getOperatingCoreFlags } from './flags'
 
 const EVENTS_READ = ['operating_core.events.read'] as const
 const EVENTS_WRITE = ['operating_core.events.manage'] as const
@@ -20,11 +21,13 @@ const OUTBOX_DRAIN = ['operating_core.outbox.drain'] as const
 const DASHBOARDS_READ = ['operating_core.dashboards.read'] as const
 
 /**
- * Flag check — mirrors dream-team flag pattern.
- * Reads env var directly since getOperatingCoreFlags is not yet in flags.ts.
+ * Flag check — uses getOperatingCoreFlags for unified flag management.
+ * The kill switch is honored: if killSwitch is on, OC is disabled.
  */
-export const isOperatingCoreEnabled = (env: NodeJS.ProcessEnv = process.env) =>
-  env.NEXT_PUBLIC_OPERATING_CORE_ENABLED === 'on'
+export const isOperatingCoreEnabled = (env: NodeJS.ProcessEnv = process.env): boolean => {
+  const flags = getOperatingCoreFlags(env)
+  return flags.enabled && !flags.killSwitch
+}
 
 export async function requireOperatingCoreSession() {
   const supabase = await createSupabaseServerClient()

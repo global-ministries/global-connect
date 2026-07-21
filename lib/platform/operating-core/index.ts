@@ -479,3 +479,10 @@ export type {
 } from './recurrent/recurrent-repository'
 export { createSupabaseRecurrentRepository } from './recurrent/recurrent-repository-supabase'
 export { createInMemoryRecurrentRepository } from './recurrent/recurrent-repository-fake'
+
+// Flags (S23)
+export { getOperatingCoreFlags } from './flags'
+export type {
+  OperatingCoreFlags,
+  OperatingCoreRolloutStage,
+} from './flags'
