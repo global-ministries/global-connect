@@ -47,7 +47,7 @@ One `type:*`/slice; F(x)+runtime; RED→GREEN→REFACTOR; `pnpm test` green + `t
 ## Notifications/Capture-UX/Dashboard/Recurrence/Rollout
 
 - [x] **S17** Outbox schema + drain dispatch, `I`, `type:feature`, `F(OC/outbox-drain)`, `DB`, revert=legacy drain, ~360
-- [ ] **S18** `*.v1` Spanish templates, `I`, `type:feature`, `F(emails/OC-templates)`, `N/A`, revert=unused, ~280
+- [x] **S18** `*.v1` Spanish templates, `I`, `type:feature`, `F(emails/OC-templates)`, `N/A`, revert=unused, ~280
 - [ ] **S19** Read/sent state + 7-day TTL + retry/backoff, `I`, `type:feature`, `F(OC/notifications-state)`, `N/A`+`DB`, revert=notification-state, ~360
 - [ ] **S20** Capture-UX contracts (domain-neutral), `I`, `type:feature`, `F(OC/capture-ux)`, `N/A`+`UI`, revert=stub, ~300
 - [ ] **S21** Dashboard loader+widgets behind flag (`lib/platform/operating-core/dashboards/loader.ts`; distinct from `obtenerDatosDashboard.ts`), `I`, `type:feature`, `F(OC/dashboard-loader)`, `UI`+`OFF`, revert=unmount, ~280
