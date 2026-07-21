@@ -17,6 +17,7 @@ const FORMS_MANAGE = ['operating_core.forms.manage'] as const
 const FORMS_SUBMIT = ['operating_core.forms.submit'] as const
 const RESOURCES_MANAGE = ['operating_core.resources.manage'] as const
 const OUTBOX_DRAIN = ['operating_core.outbox.drain'] as const
+const DASHBOARDS_READ = ['operating_core.dashboards.read'] as const
 
 /**
  * Flag check — mirrors dream-team flag pattern.
@@ -83,3 +84,6 @@ export const hasOperatingCoreResourcesManageCapability = (session: PlatformSessi
 
 export const hasOperatingCoreOutboxDrainCapability = (session: PlatformSession) =>
   OUTBOX_DRAIN.some((key) => hasCapability(session, key))
+
+export const hasOperatingCoreDashboardsReadCapability = (session: PlatformSession) =>
+  DASHBOARDS_READ.some((key) => hasCapability(session, key))

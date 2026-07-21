@@ -127,6 +127,7 @@ export {
   hasOperatingCoreResourcesManageCapability,
 } from './route-access'
 export { requireOperatingCoreSession } from './route-access'
+export { hasOperatingCoreDashboardsReadCapability } from './route-access'
 
 // Visitor resolution (S06)
 export {
@@ -440,3 +441,18 @@ export type {
   CaptureUXAction,
   CaptureUXActionType,
 } from './capture-ux/capture-ux-types'
+
+// Dashboards (S21)
+export { loadDashboardData } from './dashboards/loader'
+export type { LoadDashboardResult } from './dashboards/loader'
+export {
+  DASHBOARD_VIEWS,
+} from './dashboards/dashboard-types'
+export type {
+  DashboardView,
+  DirectorWidgets,
+  LiderWidgets,
+  OperadorWidgets,
+  DashboardWidgets,
+  DashboardData,
+} from './dashboards/dashboard-types'

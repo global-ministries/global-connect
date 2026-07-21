@@ -55,6 +55,8 @@ export const PLATFORM_CAPABILITIES = {
   'operating_core.resources.manage': { experience: 'operating_core', scopeType: 'experience' },
   // Outbox drain capabilities (S17)
   'operating_core.outbox.drain': { experience: 'operating_core', scopeType: 'experience' },
+  // Dashboard capabilities (S21)
+  'operating_core.dashboards.read': { experience: 'operating_core', scopeType: 'experience' },
 } satisfies Record<string, { experience: PlatformExperienceKey; scopeType: PlatformScopeType }>
 
 export type PlatformCapabilityKey = keyof typeof PLATFORM_CAPABILITIES
