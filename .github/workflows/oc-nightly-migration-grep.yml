@@ -1,0 +1,24 @@
+name: OC migration nightly grep
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 2 AM daily
+  workflow_dispatch: # allow manual trigger
+
+jobs:
+  grep-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for DROP TABLE or DELETE FROM on participation_eventos
+        run: |
+          if grep -rn "DROP TABLE operating_core_participation_eventos" supabase/migrations/; then
+            echo "ERROR: DROP TABLE operating_core_participation_eventos found in migrations"
+            exit 1
+          fi
+          if grep -rn "DELETE FROM operating_core_participation_eventos" supabase/migrations/; then
+            echo "ERROR: DELETE FROM operating_core_participation_eventos found in migrations"
+            exit 1
+          fi
+          echo "OK: No DROP TABLE or DELETE FROM on operating_core_participation_eventos"
