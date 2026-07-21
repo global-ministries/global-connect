@@ -352,3 +352,30 @@ export type { OutboxRepository } from './notification-outbox/outbox-repository'
 export { createOperatingCoreOutboxRepository } from './notification-outbox/factory'
 
 export { drainOutbox } from './notification-outbox/drain'
+
+// Notifications — S18 templates
+export {
+  OPERATING_CORE_TEMPLATE_KEYS,
+  OPERATING_CORE_TEMPLATE_VERSION,
+} from './notifications/template-keys'
+export type {
+  OperatingCoreTemplateKey,
+  OperatingCoreTemplateVersionedKey,
+  OperatingCoreTemplatePropsMap,
+  OperatingCoreTemplateProps,
+} from './notifications/template-keys'
+
+export { renderOperatingCoreTemplate } from './notifications/render-template'
+
+export {
+  triggerOnRegistrationConfirmed,
+  triggerOnWaitlistPlaced,
+  triggerOnWaitlistPromoted,
+  triggerOnCancellationToLeader,
+  triggerOnEventReminder,
+  triggerOnNoShow,
+} from './notifications/triggers'
+export type {
+  OperatingCoreTriggerOutcome,
+  TriggerContext,
+} from './notifications/triggers'
