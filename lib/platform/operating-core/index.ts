@@ -456,3 +456,26 @@ export type {
   DashboardWidgets,
   DashboardData,
 } from './dashboards/dashboard-types'
+
+// Recurrent events (S22)
+export {
+  generateInstanceDates,
+  isOutOfHorizon,
+  validateRecurrenceRule,
+} from './recurrent/recurrent-state'
+export type {
+  MaterializationInput,
+  MaterializationResult,
+  MaterializedInstance,
+  OutOfHorizonError,
+  RecurrenceFreq,
+  RecurrenceRule,
+} from './recurrent/recurrent-types'
+export type {
+  OperatingCoreEventInstanceRowWithRecurrence,
+} from './recurrent/recurrent-sql-row'
+export type {
+  RecurrentEventRepository,
+} from './recurrent/recurrent-repository'
+export { createSupabaseRecurrentRepository } from './recurrent/recurrent-repository-supabase'
+export { createInMemoryRecurrentRepository } from './recurrent/recurrent-repository-fake'
