@@ -379,3 +379,47 @@ export type {
   OperatingCoreTriggerOutcome,
   TriggerContext,
 } from './notifications/triggers'
+
+// Notifications — S19 read/sent state, retry, signed links
+export {
+  nextRetryAt,
+  shouldRetry,
+  isTerminalFailureStatus,
+  isTerminalStatus,
+  isRead,
+  isSent,
+} from './notifications/notification-state'
+
+export {
+  generateSignedLink,
+  verifySignedLink,
+  DEFAULT_SIGNED_LINK_TTL_DAYS,
+  MAX_SIGNED_LINK_TTL_DAYS,
+} from './notifications/signed-link'
+export type {
+  SignedLinkInput,
+  SignedLinkToken,
+  SignedLinkVerifyResult,
+} from './notifications/notification-state-types'
+
+export {
+  logClaim,
+  logRelease,
+  logRetry,
+  logTerminal,
+  logSend,
+  logRead,
+  logExpire,
+} from './notifications/structured-logger'
+export type {
+  NotificationLogEntry,
+  NotificationLogEvent,
+  NotificationLogLevel,
+} from './notifications/structured-logger'
+
+export { createNotificationStateRepository } from './notifications/factory'
+export type { NotificationStateRepository, SystemNotificationSummary } from './notifications/factory'
+
+export type {
+  OperatingCoreSystemNotificationRow,
+} from './notifications/system-notification-sql-row'

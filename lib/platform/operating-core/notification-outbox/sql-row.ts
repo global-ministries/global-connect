@@ -1,9 +1,11 @@
 /**
- * S17 — Hand-written SQL row types for operating_core_notification_outbox.
+ * S17 (extended S19) — Hand-written SQL row types for operating_core_notification_outbox.
  *
  * DO NOT regenerate database.types.ts. These types mirror the SQL columns
  * exactly and are the authoritative mapping layer between the database and
  * the domain layer.
+ *
+ * S19 adds: next_retry_at, sent_at
  *
  * Columns map as follows (snake_case SQL → camelCase domain convention):
  *   id                → id
@@ -22,6 +24,8 @@
  *   created_at        → createdAt
  *   updated_at        → updatedAt
  *   dispatched_at     → dispatchedAt
+ *   next_retry_at     → nextRetryAt    (S19)
+ *   sent_at           → sentAt         (S19)
  */
 
 export type OperatingCoreNotificationOutboxStatusSql =
@@ -47,4 +51,7 @@ export interface OperatingCoreNotificationOutboxRow {
   readonly created_at: string
   readonly updated_at: string
   readonly dispatched_at: string | null
+  // S19 — retry + sent state
+  readonly next_retry_at: string | null
+  readonly sent_at: string | null
 }
