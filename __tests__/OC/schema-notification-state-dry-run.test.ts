@@ -30,7 +30,8 @@ function findNotificationStateMigration(): string | null {
 
 function extractTables(content: string): string[] {
   const tables: string[] = []
-  const tablePattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?(\w+)/gi
+  // Simplified pattern: avoid \s+ followed by optional groups with \s+ inside
+  const tablePattern = /CREATE TABLE(?: IF NOT EXISTS)? (?:public\.)?(\w+)/gi
   let match: RegExpExecArray | null
   while ((match = tablePattern.exec(content)) !== null) {
     tables.push(match[1])
@@ -40,7 +41,7 @@ function extractTables(content: string): string[] {
 
 function extractAlterTables(content: string): string[] {
   const altered: string[] = []
-  const alterPattern = /ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:public\.)?(\w+)/gi
+  const alterPattern = /ALTER TABLE(?: IF EXISTS)? (?:public\.)?(\w+)/gi
   let match: RegExpExecArray | null
   while ((match = alterPattern.exec(content)) !== null) {
     altered.push(match[1])
@@ -207,7 +208,7 @@ describe('F(OC/schema-notification-state-dry-run) — S19 Notification State Mig
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
       expect(content).toMatch(
-        /REVOKE\s+ALL\s+ON\s+TABLE\s+operating_core_system_notifications\s+FROM\s+(?:PUBLIC,\s*)?anon,\s*authenticated/i,
+        /REVOKE ALL ON TABLE operating_core_system_notifications FROM (?:PUBLIC, )?anon, authenticated/i,
       )
     })
 

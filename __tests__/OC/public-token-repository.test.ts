@@ -4,7 +4,6 @@
  */
 import { createInMemoryPublicTokensRepository } from '@/lib/platform/operating-core/public-tokens/public-token-repository-fake'
 import type { PublicTokensRepository } from '@/lib/platform/operating-core/public-tokens/public-token-repository'
-import type { OperatingCorePublicTokenRow } from '@/lib/platform/operating-core/public-tokens/public-token-sql-row'
 
 // ---------------------------------------------------------------------------
 // Helper builders

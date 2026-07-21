@@ -209,7 +209,6 @@ describe('F(OC/schema-public-tokens-dry-run) — S11 Public Tokens Migration Pro
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
       // Column has: token_hash text NOT NULL PRIMARY KEY
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/token_hash\s+text[\s\S]*?PRIMARY\s+KEY/i)
     })
 
@@ -272,7 +271,6 @@ describe('F(OC/schema-public-tokens-dry-run) — S11 Public Tokens Migration Pro
     it('should have token_hash as PRIMARY KEY', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/token_hash\s+text\s+.*PRIMARY\s+KEY/i)
     })
   })
@@ -319,7 +317,6 @@ describe('F(OC/schema-public-tokens-dry-run) — S11 Public Tokens Migration Pro
     it('should REVOKE ALL FROM PUBLIC, anon, authenticated', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/REVOKE\s+ALL\s+ON\s+TABLE\s+(?:public\.)?operating_core_public_tokens\s+FROM\s+PUBLIC,\s*anon,\s*authenticated/i)
     })
 
@@ -421,14 +418,12 @@ describe('F(OC/schema-public-tokens-dry-run) — S11 Public Tokens Migration Pro
     it('should REVOKE ALL ON FUNCTION FROM PUBLIC, anon, authenticated', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.operating_core_claim_public_token[\s\S]*?FROM\s+PUBLIC,\s*anon,\s*authenticated/i)
     })
 
     it('should GRANT EXECUTE ON FUNCTION TO service_role', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.operating_core_claim_public_token[\s\S]*?TO\s+service_role/i)
     })
   })
