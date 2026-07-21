@@ -423,3 +423,20 @@ export type { NotificationStateRepository, SystemNotificationSummary } from './n
 export type {
   OperatingCoreSystemNotificationRow,
 } from './notifications/system-notification-sql-row'
+
+// Capture-UX (S20)
+export {
+  CAPTURE_UX_STATES,
+  CAPTURE_UX_SHAPES,
+  CAPTURE_UX_TRANSITIONS,
+  canTransitionUX,
+  isTerminal,
+} from './capture-ux/capture-ux-state'
+export type {
+  CaptureUXState,
+  CaptureUXShape,
+  CaptureUXInput,
+  CaptureUXOutput,
+  CaptureUXAction,
+  CaptureUXActionType,
+} from './capture-ux/capture-ux-types'
