@@ -338,3 +338,17 @@ export {
 
 // Resources factory (S16)
 export { createOperatingCoreResourcesRepository } from './resources/factory'
+
+// Outbox drain (S17)
+export type {
+  OperatingCoreNotificationOutboxEntry,
+  DrainResult,
+} from './notification-outbox/outbox-types'
+
+export { canRetry, isTerminalFailure, nextAttemptDelay, validatePayload } from './notification-outbox/outbox-state'
+
+export type { OutboxRepository } from './notification-outbox/outbox-repository'
+
+export { createOperatingCoreOutboxRepository } from './notification-outbox/factory'
+
+export { drainOutbox } from './notification-outbox/drain'
