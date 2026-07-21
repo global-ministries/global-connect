@@ -43,9 +43,7 @@ function request(path: string, init?: ConstructorParameters<typeof NextRequest>[
   })
 }
 
-// Token hash used for rate limit test (same token = same rate limit bucket)
-const RATE_LIMIT_TOKEN = 'rate-limited-token'
-const RATE_LIMIT_TOKEN_HASH = hashPublicToken(RATE_LIMIT_TOKEN)
+
 
 function setupSupabase() {
   mockSupabaseClient.mockResolvedValue({

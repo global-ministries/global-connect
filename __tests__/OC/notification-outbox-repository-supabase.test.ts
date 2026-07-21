@@ -27,6 +27,8 @@ function createMockSupabase(rpcResults: MockRpcResult[]): { rpc: MockRpcFn } {
   let callIndex = 0
   return {
     rpc: async (_fn: string, _args: Record<string, unknown>) => {
+      void _fn
+      void _args
       const result = rpcResults[callIndex] ?? { data: null, error: null }
       callIndex++
       return result

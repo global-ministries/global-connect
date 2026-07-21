@@ -84,59 +84,114 @@ function createMockSupabaseClient(mockResults: MockDbResult[]) {
 function createMockFrom(_callIdx: number, mockResults: MockDbResult[]) {
   let localIdx = 0
   return {
-    select: (_cols: string) => createMockSelect(localIdx++, mockResults),
+    select: (_cols: string) => {
+      void _cols
+      return createMockSelect(localIdx++, mockResults)
+    },
     insert: (row: Record<string, unknown>) => createMockInsert(localIdx++, mockResults, row),
     update: (row: Record<string, unknown>) => createMockUpdate(localIdx++, mockResults, row),
-    eq: (_col: string, _val: unknown) => createMockEq(localIdx++, mockResults),
+    eq: (_col: string, _val: unknown) => {
+      void _col
+      void _val
+      return createMockEq(localIdx++, mockResults)
+    },
   }
 }
 
 function createMockSelect(callIdx: number, mockResults: MockDbResult[]) {
   return {
-    eq: (_col: string, _val: unknown) => createMockEq(callIdx, mockResults),
+    eq: (_col: string, _val: unknown) => {
+      void _col
+      void _val
+      return createMockEq(callIdx, mockResults)
+    },
     maybeSingle: () => Promise.resolve(mockResults[callIdx] ?? { data: null, error: null }),
-    order: (_col: string, _opts: { ascending: boolean }) => createMockEqOrder(callIdx, mockResults),
-    limit: (_n: number) => Promise.resolve(mockResults[callIdx] ?? { data: null, error: null }),
-    is: (_col: string, _val: null) => createMockEqOrder(callIdx, mockResults),
+    order: (_col: string, _opts: { ascending: boolean }) => {
+      void _col
+      void _opts
+      return createMockEqOrder(callIdx, mockResults)
+    },
+    limit: (_n: number) => {
+      void _n
+      return Promise.resolve(mockResults[callIdx] ?? { data: null, error: null })
+    },
+    is: (_col: string, _val: null) => {
+      void _col
+      void _val
+      return createMockEqOrder(callIdx, mockResults)
+    },
   }
 }
 
 function createMockEq(callIdx: number, mockResults: MockDbResult[]) {
   return {
     maybeSingle: () => Promise.resolve(mockResults[callIdx] ?? { data: null, error: null }),
-    order: (_col: string, _opts: { ascending: boolean }) => createMockEqOrder(callIdx, mockResults),
-    limit: (_n: number) => Promise.resolve(mockResults[callIdx] ?? { data: [], error: null }),
-    is: (_col: string, _val: null) => createMockIs(callIdx, mockResults),
+    order: (_col: string, _opts: { ascending: boolean }) => {
+      void _col
+      void _opts
+      return createMockEqOrder(callIdx, mockResults)
+    },
+    limit: (_n: number) => {
+      void _n
+      return Promise.resolve(mockResults[callIdx] ?? { data: [], error: null })
+    },
+    is: (_col: string, _val: null) => {
+      void _col
+      void _val
+      return createMockIs(callIdx, mockResults)
+    },
   }
 }
 
 function createMockIs(callIdx: number, mockResults: MockDbResult[]) {
   return {
-    order: (_col: string, _opts: { ascending: boolean }) => createMockEqOrder(callIdx, mockResults),
-    limit: (_n: number) => Promise.resolve(mockResults[callIdx] ?? { data: [], error: null }),
+    order: (_col: string, _opts: { ascending: boolean }) => {
+      void _col
+      void _opts
+      return createMockEqOrder(callIdx, mockResults)
+    },
+    limit: (_n: number) => {
+      void _n
+      return Promise.resolve(mockResults[callIdx] ?? { data: [], error: null })
+    },
   }
 }
 
 function createMockEqOrder(callIdx: number, mockResults: MockDbResult[]) {
   return {
-    limit: (_n: number) => Promise.resolve(mockResults[callIdx] ?? { data: [], error: null }),
+    limit: (_n: number) => {
+      void _n
+      return Promise.resolve(mockResults[callIdx] ?? { data: [], error: null })
+    },
   }
 }
 
 function createMockInsert(callIdx: number, mockResults: MockDbResult[], _row: Record<string, unknown>) {
+  void _row
   return {
-    select: (_cols: string) => ({
-      single: () => Promise.resolve(mockResults[callIdx] ?? { data: null, error: null }),
-    }),
+    select: (_cols: string) => {
+      void _cols
+      return {
+        single: () => Promise.resolve(mockResults[callIdx] ?? { data: null, error: null }),
+      }
+    },
   }
 }
 
 function createMockUpdate(callIdx: number, mockResults: MockDbResult[], _row: Record<string, unknown>) {
+  void _row
   return {
-    eq: (_col: string, _val: unknown) => ({
-      eq: (_col2: string, _val2: unknown) =>
-        Promise.resolve(mockResults[callIdx] ?? { data: null, error: null }),
-    }),
+    eq: (_col: string, _val: unknown) => {
+      void _col
+      void _val
+      return {
+        eq: (_col2: string, _val2: unknown) => {
+          void _col2
+          void _val2
+          return Promise.resolve(mockResults[callIdx] ?? { data: null, error: null })
+        },
+      }
+    },
   }
 }
 

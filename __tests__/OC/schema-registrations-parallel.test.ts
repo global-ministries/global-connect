@@ -78,104 +78,6 @@ function extractEnums(content: string): EnumDef[] {
 }
 
 /**
- * Extract CREATE TABLE statements from migration content.
- */
-interface ColumnDef {
-  name: string
-  type: string
-  nullable: boolean
-  default: string | null
-  references: string | null
-  hasExcludeConstraint: boolean
-}
-
-interface TableDef {
-  name: string
-  columns: ColumnDef[]
-  primaryKey: string[]
-  excludeConstraint: string | null
-}
-
-function extractTables(content: string): TableDef[] {
-  const tables: TableDef[] = []
-  const lines = content.split('\n')
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
-    const createMatch = line.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?(\w+)/i)
-    if (!createMatch) continue
-
-    const tableName = createMatch[1]
-    const columns: ColumnDef[] = []
-    const primaryKey: string[] = []
-    let excludeConstraint: string | null = null
-
-    let j = i + 1
-    while (j < lines.length) {
-      const colLine = lines[j].trim()
-
-      if (/^(CREATE|ALTER|DROP|GRANT|REVOKE|INSERT|SET|RESET|--)/i.test(colLine)) {
-        break
-      }
-
-      if (!colLine) {
-        j++
-        continue
-      }
-      if (colLine === ')' || colLine.endsWith(');')) {
-        break
-      }
-
-      // Check for EXCLUDE constraint (partial unique)
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
-      const excludeMatch = colLine.match(/CONSTRAINT\s+(\w+)\s+EXCLUDE/i)
-      if (excludeMatch) {
-        // Collect the full EXCLUDE constraint across lines
-        let excludeLines = colLine
-        while (j < lines.length && !excludeLines.includes(');') && !excludeLines.trim().endsWith(')')) {
-          j++
-          excludeLines += ' ' + lines[j].trim()
-        }
-        excludeConstraint = excludeLines
-      }
-
-      // Parse column definition
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
-      const colMatch = colLine.match(/^(\w+)\s+(\w+(?:\[\])?)(.*)/i)
-      if (colMatch) {
-        const [, colName, colType, rest] = colMatch
-        const nullable = !/NOT\s+NULL/i.test(rest) && !/PRIMARY\s+KEY/i.test(rest)
-        const defaultMatch = rest.match(/DEFAULT\s+('[^']*'|\d+|[\w.]+\(\)|[\w.]+)/i)
-        // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
-        const refMatch = rest.match(/REFERENCES\s+(\w+)/i)
-
-        columns.push({
-          name: colName,
-          type: colType,
-          nullable,
-          default: defaultMatch ? defaultMatch[1] : null,
-          references: refMatch ? refMatch[1] : null,
-          hasExcludeConstraint: false,
-        })
-
-        if (/PRIMARY\s+KEY/i.test(rest)) {
-          primaryKey.push(colName)
-        }
-      }
-
-      j++
-    }
-
-    if (columns.length > 0) {
-      tables.push({ name: tableName, columns, primaryKey, excludeConstraint })
-    }
-  }
-
-  return tables
-}
-
-/**
  * Extract RLS policies for a table.
  */
 interface Policy {
@@ -190,7 +92,6 @@ function extractPolicies(content: string, tableName: string): Policy[] {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan
     const policyMatch = line.match(/CREATE\s+POLICY\s+"?(\w+)"?\s+ON\s+(\w+)/i)
     if (!policyMatch) continue
 
@@ -518,7 +419,6 @@ describe('F(OC/schema-registrations-parallel) — S10 Registrations Migration Pr
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
       // Use [\s\S]* to match across newlines (equivalent to .* with s flag)
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/event_id[\s\S]*?REFERENCES[\s\S]*?operating_core_events\(id\)[\s\S]*?ON DELETE CASCADE/i)
     })
 
@@ -581,14 +481,12 @@ describe('F(OC/schema-registrations-parallel) — S10 Registrations Migration Pr
     it('should use USING btree with persona_id WITH =, event_id WITH =', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/EXCLUDE\s+USING\s+btree\s*\(\s*persona_id\s+WITH\s*=\s*,\s*event_id\s+WITH\s*=\s*\)/i)
     })
 
     it('should have WHERE clause excluding cancelada and rechazada states', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/WHERE\s*\(\s*estado\s+NOT\s+IN\s*\(\s*'cancelada'\s*,\s*'rechazada'\s*\)\s*\)/i)
     })
 
@@ -612,7 +510,6 @@ describe('F(OC/schema-registrations-parallel) — S10 Registrations Migration Pr
     it('should REVOKE ALL FROM PUBLIC, anon, authenticated', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/REVOKE\s+ALL\s+ON\s+TABLE\s+(?:public\.)?operating_core_registrations\s+FROM\s+PUBLIC,\s*anon,\s*authenticated/i)
     })
 
@@ -620,7 +517,6 @@ describe('F(OC/schema-registrations-parallel) — S10 Registrations Migration Pr
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
       // More flexible pattern to handle comma-separated permissions
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/GRANT\s+(?:SELECT|INSERT|UPDATE|ALL|SELECT,?\s*(?:INSERT|UPDATE|ALL))/i)
       expect(content).toMatch(/GRANT\s+.*\s+ON\s+TABLE\s+(?:public\.)?operating_core_registrations\s+TO\s+service_role/i)
     })
@@ -760,21 +656,18 @@ describe('F(OC/schema-registrations-parallel) — S10 Registrations Migration Pr
     it('should REVOKE ALL ON FUNCTION FROM PUBLIC, anon, authenticated', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.operating_core_promote_waitlist.*FROM\s+PUBLIC,\s*anon,\s*authenticated/i)
     })
 
     it('should GRANT EXECUTE ON FUNCTION TO service_role', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.operating_core_promote_waitlist.*TO\s+service_role/i)
     })
 
     it('should RETURN SETOF operating_core_registrations', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/RETURNS\s+SETOF\s+operating_core_registrations/i)
     })
   })
@@ -796,7 +689,6 @@ describe('F(OC/schema-registrations-parallel) — S10 Registrations Migration Pr
     it('should trigger BEFORE UPDATE ON operating_core_registrations', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL keyword scan, no nested quantifiers
       expect(content).toMatch(/BEFORE\s+UPDATE\s+ON\s+(?:public\.)?operating_core_registrations/i)
     })
   })

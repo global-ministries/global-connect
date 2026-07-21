@@ -48,6 +48,7 @@ function extractSecurityDefinerRpcs(
   body: string
   line: number
 }> {
+  void filename
   const results: Array<{ name: string; params: string; body: string; line: number }> = []
   const lines = content.split('\n')
 
@@ -57,7 +58,7 @@ function extractSecurityDefinerRpcs(
     // Match CREATE FUNCTION public.name (possibly on its own line)
     // The function name may be on the same line as CREATE or on the next line
     const createMatch = line.match(
-      /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.(\w+)/i,
+      /CREATE (?:OR REPLACE )?FUNCTION public\.(\w+)/i,
     )
     if (!createMatch) continue
 

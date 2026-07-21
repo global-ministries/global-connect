@@ -58,25 +58,13 @@ function extractEnums(content: string): EnumDef[] {
 
 function extractTables(content: string): string[] {
   const tables: string[] = []
-  const tablePattern = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?(\w+)/gi
+  // Simplified pattern: avoid \s+ followed by optional groups with \s+ inside
+  const tablePattern = /CREATE TABLE(?: IF NOT EXISTS)? (?:public\.)?(\w+)/gi
   let match: RegExpExecArray | null
   while ((match = tablePattern.exec(content)) !== null) {
     tables.push(match[1])
   }
   return tables
-}
-
-function extractRpcs(content: string): string[] {
-  const rpcs: string[] = []
-  const rpcPattern = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.(\w+)/gi
-  let match: RegExpExecArray | null
-  while ((match = rpcPattern.exec(content)) !== null) {
-    if (match[1].startsWith('claim_operating_core_notification_outbox') ||
-        match[1].startsWith('mark_operating_core_notification_outbox')) {
-      rpcs.push(match[1])
-    }
-  }
-  return rpcs
 }
 
 // ─── RED Tests ────────────────────────────────────────────────────────────────
@@ -142,7 +130,6 @@ describe('F(OC/schema-notification-outbox-dry-run) — S17 Outbox Migration Prob
     it('should have required columns (id, kind, payload, target_kind, target_address, status)', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL scan
       expect(content).toMatch(/id\s+uuid\s+PRIMARY\s+KEY/i)
       expect(content).toMatch(/kind\s+text\s+NOT\s+NULL/i)
       expect(content).toMatch(/payload\s+jsonb\s+NOT\s+NULL/i)
@@ -232,7 +219,6 @@ describe('F(OC/schema-notification-outbox-dry-run) — S17 Outbox Migration Prob
     it('should have partial index for pending status on available_at', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL scan
       expect(content).toMatch(/CREATE\s+INDEX.*idx_oc_notification_outbox_pending/i)
       expect(content).toMatch(/WHERE\s+status\s*=\s*['"]pending['"]/i)
     })
@@ -240,7 +226,6 @@ describe('F(OC/schema-notification-outbox-dry-run) — S17 Outbox Migration Prob
     it('should have partial index for processing status on locked_at', () => {
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
-      // eslint-disable-next-line security/detect-unsafe-regex -- static SQL scan
       expect(content).toMatch(/CREATE\s+INDEX.*idx_oc_notification_outbox_processing/i)
       expect(content).toMatch(/WHERE\s+status\s*=\s*['"]processing['"]/i)
     })
@@ -259,7 +244,7 @@ describe('F(OC/schema-notification-outbox-dry-run) — S17 Outbox Migration Prob
       if (!migrationExists) return
       const content = readFileSync(migrationPath!, 'utf-8')
       expect(content).toMatch(
-        /REVOKE\s+ALL\s+ON\s+TABLE\s+operating_core_notification_outbox\s+FROM\s+(?:PUBLIC,\s*)?anon,\s*authenticated/i,
+        /REVOKE ALL ON TABLE operating_core_notification_outbox FROM (?:PUBLIC, )?anon, authenticated/i,
       )
     })
 

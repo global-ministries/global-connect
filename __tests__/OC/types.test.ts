@@ -26,10 +26,8 @@ import type {
   // Resources
   OperatingCoreResource,
   OperatingCoreResourceType,
-  OperatingCoreResourceVisibility,
   OperatingCoreResourceLifecycle,
   // Notifications
-  OperatingCoreNotificationTrigger,
   OperatingCoreNotificationChannel,
   OperatingCoreNotificationState,
   OperatingCoreNotificationOutbox,
@@ -80,7 +78,8 @@ describe('OperatingCoreRegistrationConfirmationMode', () => {
   it('should accept automatic and manual', () => {
     const m: OperatingCoreRegistrationConfirmationMode = 'automatic'
     const m2: OperatingCoreRegistrationConfirmationMode = 'manual'
-    void m, m2
+    expect(m).toBe('automatic')
+    expect(m2).toBe('manual')
   })
 
   it('should reject invalid modes', () => {
@@ -97,7 +96,9 @@ describe('OperatingCoreRegistrationOutcome', () => {
     const o: OperatingCoreRegistrationOutcome = 'confirmed'
     const o2: OperatingCoreRegistrationOutcome = 'waitlisted'
     const o3: OperatingCoreRegistrationOutcome = 'rejected'
-    void o, o2, o3
+    expect(o).toBe('confirmed')
+    expect(o2).toBe('waitlisted')
+    expect(o3).toBe('rejected')
   })
 })
 
@@ -112,7 +113,15 @@ describe('OperatingCoreFormFieldType', () => {
     const t7: OperatingCoreFormFieldType = 'multiselect'
     const t8: OperatingCoreFormFieldType = 'checkbox'
     const t9: OperatingCoreFormFieldType = 'textarea'
-    void t, t2, t3, t4, t5, t6, t7, t8, t9
+    expect(t).toBe('text')
+    expect(t2).toBe('email')
+    expect(t3).toBe('phone')
+    expect(t4).toBe('number')
+    expect(t5).toBe('date')
+    expect(t6).toBe('select')
+    expect(t7).toBe('multiselect')
+    expect(t8).toBe('checkbox')
+    expect(t9).toBe('textarea')
   })
 
   it('should reject invalid field types', () => {
@@ -129,7 +138,9 @@ describe('OperatingCoreFormLifecycle', () => {
     const l: OperatingCoreFormLifecycle = 'draft'
     const l2: OperatingCoreFormLifecycle = 'published'
     const l3: OperatingCoreFormLifecycle = 'archived'
-    void l, l2, l3
+    expect(l).toBe('draft')
+    expect(l2).toBe('published')
+    expect(l3).toBe('archived')
   })
 })
 
@@ -138,7 +149,9 @@ describe('OperatingCoreResourceType', () => {
     const t: OperatingCoreResourceType = 'link'
     const t2: OperatingCoreResourceType = 'file'
     const t3: OperatingCoreResourceType = 'video'
-    void t, t2, t3
+    expect(t).toBe('link')
+    expect(t2).toBe('file')
+    expect(t3).toBe('video')
   })
 })
 
@@ -146,7 +159,8 @@ describe('OperatingCoreResourceLifecycle', () => {
   it('should accept active and archived', () => {
     const l: OperatingCoreResourceLifecycle = 'active'
     const l2: OperatingCoreResourceLifecycle = 'archived'
-    void l, l2
+    expect(l).toBe('active')
+    expect(l2).toBe('archived')
   })
 })
 
@@ -154,7 +168,8 @@ describe('OperatingCoreNotificationChannel', () => {
   it('should accept in_app and email only (no SMS/WhatsApp)', () => {
     const c: OperatingCoreNotificationChannel = 'in_app'
     const c2: OperatingCoreNotificationChannel = 'email'
-    void c, c2
+    expect(c).toBe('in_app')
+    expect(c2).toBe('email')
   })
 
   it('should reject SMS and WhatsApp', () => {
@@ -172,14 +187,17 @@ describe('OperatingCoreNotificationState', () => {
     const s2: OperatingCoreNotificationState = 'sent'
     const s3: OperatingCoreNotificationState = 'read'
     const s4: OperatingCoreNotificationState = 'failed'
-    void s, s2, s3, s4
+    expect(s).toBe('pending')
+    expect(s2).toBe('sent')
+    expect(s3).toBe('read')
+    expect(s4).toBe('failed')
   })
 })
 
 describe('OperatingCoreRecurrenceFreq', () => {
   it('should accept weekly only', () => {
     const f: OperatingCoreRecurrenceFreq = 'weekly'
-    void f
+    expect(f).toBe('weekly')
   })
 
   it('should reject other frequencies', () => {
@@ -195,7 +213,8 @@ describe('OperatingCoreVisitorResolutionMethod', () => {
   it('should accept cedula_exact and persona_candidate', () => {
     const m: OperatingCoreVisitorResolutionMethod = 'cedula_exact'
     const m2: OperatingCoreVisitorResolutionMethod = 'persona_candidate'
-    void m, m2
+    expect(m).toBe('cedula_exact')
+    expect(m2).toBe('persona_candidate')
   })
 })
 
@@ -204,7 +223,9 @@ describe('OperatingCoreVisitorResolutionResult', () => {
     const r: OperatingCoreVisitorResolutionResult = 'resolved'
     const r2: OperatingCoreVisitorResolutionResult = 'ambiguous'
     const r3: OperatingCoreVisitorResolutionResult = 'no_match'
-    void r, r2, r3
+    expect(r).toBe('resolved')
+    expect(r2).toBe('ambiguous')
+    expect(r3).toBe('no_match')
   })
 })
 

@@ -2,7 +2,6 @@
  * S04 RED — services repository
  * Verifies ServicesRepository interface contract via in-memory fake.
  */
-import { OperatingCoreServiceEstado } from '@/lib/platform/operating-core/types'
 import {
   OperatingCoreConcurrencyConflictError,
 } from '@/lib/platform/operating-core/errors'
