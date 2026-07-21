@@ -51,7 +51,7 @@ One `type:*`/slice; F(x)+runtime; RED→GREEN→REFACTOR; `pnpm test` green + `t
 - [x] **S19** Read/sent state + 7-day TTL + retry/backoff, `I`, `type:feature`, `F(OC/notifications-state)`, `N/A`+`DB`, revert=notification-state, ~360
 - [x] **S20** Capture-UX contracts (domain-neutral), `I`, `type:feature`, `F(OC/capture-ux)`, `N/A`+`UI`, revert=stub, ~300
 - [x] **S21** Dashboard loader+widgets behind flag (`lib/platform/operating-core/dashboards/loader.ts`; distinct from `obtenerDatosDashboard.ts`), `I`, `type:feature`, `F(OC/dashboard-loader)`, `UI`+`OFF`, revert=unmount, ~280
-- [ ] **S22** Recurrent materialization — verify `buscar_usuarios_para_grupo` byte-identical by parameter NAMES, `I`, `type:feature`, `F(OC/recurrent-events)`, `N/A`+`DB`, revert=recurrence, ~320
+- [x] **S22** Recurrent materialization — verify `buscar_usuarios_para_grupo` byte-identical by parameter NAMES, `I`, `type:feature`, `F(OC/recurrent-events)`, `N/A`+`DB`, revert=recurrence, ~320
 - [ ] **S23** Flags/route-access + rollout (signature guard by parameter NAMES), `I`, `type:feature`, `F(flags-route-access-compat-e2e)`, `OFF`+`R`, revert=kill-switch OFF, ~220
 
 ## Open Owner Gates
