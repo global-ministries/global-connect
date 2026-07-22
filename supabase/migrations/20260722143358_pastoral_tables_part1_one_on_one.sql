@@ -109,7 +109,7 @@ REVOKE ALL ON TABLE pastoral_one_on_one_notas FROM anon, authenticated;
 -- Pastoral 1:1 read: mentor autor OR asistido (roadmap) OR pastoral.read.all
 CREATE POLICY "pastoral_one_on_one_mentor_read"
   ON pastoral_one_on_one FOR SELECT USING (
-    mentor_oficial_persona_id = public.current_persona_id()
+    mentor_oficial_persona_id = auth.uid()
     OR auth_has_pastoral_capability('pastoral.read.all')
   );
 
@@ -118,16 +118,16 @@ CREATE POLICY "pastoral_one_on_one_asistido_read"
     EXISTS (
       SELECT 1 FROM pastoral_one_on_one_participantes p
       WHERE p.one_on_one_id = pastoral_one_on_one.id
-        AND p.persona_id = public.current_persona_id()
+        AND p.persona_id = auth.uid()
     )
   );
 
 -- Pastoral 1:1 write: only mentor autor
 CREATE POLICY "pastoral_one_on_one_mentor_write"
   ON pastoral_one_on_one FOR UPDATE USING (
-    mentor_oficial_persona_id = public.current_persona_id()
+    mentor_oficial_persona_id = auth.uid()
   ) WITH CHECK (
-    mentor_oficial_persona_id = public.current_persona_id()
+    mentor_oficial_persona_id = auth.uid()
   );
 
 -- Pastoral 1:1 insert: requires pastoral.one_on_one.create capability
@@ -139,13 +139,13 @@ CREATE POLICY "pastoral_one_on_one_insert"
 -- Pastoral 1:1 participantes: mentor autor or asistido can read their own
 CREATE POLICY "pastoral_one_on_one_participantes_read"
   ON pastoral_one_on_one_participantes FOR SELECT USING (
-    mentor_oficial_persona_id = public.current_persona_id()
+    mentor_oficial_persona_id = auth.uid()
     OR auth_has_pastoral_capability('pastoral.read.all')
     OR EXISTS (
       SELECT 1 FROM pastoral_one_on_one ooo
       JOIN pastoral_one_on_one_participantes p ON p.one_on_one_id = ooo.id
       WHERE ooo.id = pastoral_one_on_one_participantes.one_on_one_id
-        AND p.persona_id = public.current_persona_id()
+        AND p.persona_id = auth.uid()
     )
   );
 
@@ -158,7 +158,7 @@ CREATE POLICY "pastoral_one_on_one_participantes_write"
 -- Never mutable (no UPDATE/DELETE policies — deny all)
 CREATE POLICY "pastoral_one_on_one_notas_read"
   ON pastoral_one_on_one_notas FOR SELECT USING (
-    autor_persona_id = public.current_persona_id()
+    autor_persona_id = auth.uid()
     OR auth_has_pastoral_capability('pastoral.read.all')
   );
 
