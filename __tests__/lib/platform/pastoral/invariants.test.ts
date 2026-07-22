@@ -33,20 +33,24 @@ function rg(pattern: string, searchPath: string, _options: { include?: string } 
   }
 }
 
-describe('Invariant I-18: registerPlatformUnoAUnoDecision only in tests', () => {
-  it('registerPlatformUnoAUnoDecision not in lib/', () => {
+describe('Invariant I-18: registerPlatformUnoAUnoDecision only in tests (or in its declaration site)', () => {
+  it('registerPlatformUnoAUnoDecision not called from lib/ production code', () => {
     if (!existsSync(LIB_DIR)) return
 
     const results = rg('registerPlatformUnoAUnoDecision', LIB_DIR, { include: '*.ts' })
 
     if (results === null) return // No matches — invariant satisfied
 
-    // Filter to only non-test files
+    // Filter to non-test, non-declaration files.
+    // The declaration site lib/platform/preflight.ts is the only legitimate
+    // occurrence outside tests (the function must be defined somewhere).
+    const PREFLIGHT_DECLARATION = 'lib/platform/preflight.ts';
     const nonTestMatches = results
       .split('\n')
       .filter((line) => line.length > 0)
       .filter((line) => !line.includes('__tests__'))
       .filter((line) => !line.includes('.test.') && !line.includes('.spec.'))
+      .filter((line) => !line.includes(PREFLIGHT_DECLARATION))
 
     expect(nonTestMatches).toHaveLength(0)
   })
