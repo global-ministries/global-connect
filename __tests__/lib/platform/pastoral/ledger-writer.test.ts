@@ -11,7 +11,10 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import type { ParticipationLedgerEvent } from '../../../../lib/platform/operating-core/participation-ledger-repository'
+import type {
+  AppendParticipationEventInput,
+  ParticipationLedgerEvent,
+} from '../../../../lib/platform/operating-core/participation-ledger-repository'
 import { PASTORAL_PARTICIPATION_KINDS } from '../../../../lib/platform/pastoral/participation-kinds'
 import {
   createPastoralLedgerWriter,
@@ -22,13 +25,13 @@ import {
 // ─── Fake repository ───────────────────────────────────────────────────────────
 
 interface FakeLedgerEntry {
-  input: Record<string, unknown>
+  input: AppendParticipationEventInput
   output: ParticipationLedgerEvent
 }
 
 function createFakeLedgerRepository(): {
   repository: {
-    append: (input: Record<string, unknown>) => Promise<ParticipationLedgerEvent>
+    append: (input: AppendParticipationEventInput) => Promise<ParticipationLedgerEvent>
     listBySubject: () => Promise<readonly ParticipationLedgerEvent[]>
     findById: () => Promise<ParticipationLedgerEvent | null>
     correct: () => Promise<ParticipationLedgerEvent>
@@ -38,21 +41,21 @@ function createFakeLedgerRepository(): {
   const entries: FakeLedgerEntry[] = []
 
   const repository = {
-    async append(input: Record<string, unknown>): Promise<ParticipationLedgerEvent> {
+    async append(input: AppendParticipationEventInput): Promise<ParticipationLedgerEvent> {
       const output: ParticipationLedgerEvent = {
         id: randomUUID(),
-        kind: input.kind as ParticipationLedgerEvent['kind'],
-        subjectId: input.subjectId as string,
-        occurredAt: (input.occurredAt as string) ?? new Date().toISOString(),
-        actorPersonaId: input.actorPersonaId as string,
-        captureSource: (input.captureSource as string) ?? 'manual',
+        kind: input.kind,
+        subjectId: input.subjectId,
+        occurredAt: input.occurredAt ?? new Date().toISOString(),
+        actorPersonaId: input.actorPersonaId,
+        captureSource: input.captureSource ?? 'manual',
         experience: 'pastoral',
         eventId: null,
         serviceId: null,
         eventInstanceId: null,
         correctsEventId: null,
         status: 'recorded',
-        metadata: (input.metadata as Record<string, unknown>) ?? {},
+        metadata: input.metadata ?? {},
         createdAt: new Date().toISOString(),
       }
       entries.push({ input, output })

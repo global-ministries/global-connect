@@ -27,7 +27,7 @@ export type { PastoralParticipationKind } from './participation-kinds'
 // ─── Sensitivity helpers ──────────────────────────────────────────────────────
 
 /** Kinds that carry sensitive content and must use sensitivity='sensitive'. */
-const SENSITIVE_KINDS = new Set(['pastoral_crisis_detected'] as const)
+const SENSITIVE_KINDS = new Set<string>(['pastoral_crisis_detected'])
 
 /**
  * Returns the appropriate sensitivity value for a pastoral kind.
@@ -39,7 +39,7 @@ export function pastoralKindSensitivity(kind: PastoralParticipationKind): 'inter
 
 // ─── PII key denylist (mirrors the DB CHECK constraint) ──────────────────────
 
-const PII_KEYS = new Set(['cedula', 'telefono', 'email', 'nombre', 'apellido'] as const)
+const PII_KEYS: ReadonlySet<string> = new Set(['cedula', 'telefono', 'email', 'nombre', 'apellido'])
 
 /**
  * Returns true if the metadata object contains any PII key.
@@ -47,7 +47,7 @@ const PII_KEYS = new Set(['cedula', 'telefono', 'email', 'nombre', 'apellido'] a
  */
 export function metadataHasPII(metadata: Record<string, unknown> | undefined): boolean {
   if (!metadata) return false
-  return Object.keys(metadata).some((key) => PII_KEYS.has(key as (typeof PII_KEYS)[number]))
+  return Object.keys(metadata).some((key) => PII_KEYS.has(key))
 }
 
 // ─── Input types ─────────────────────────────────────────────────────────────
@@ -107,7 +107,11 @@ export function createPastoralLedgerWriter(
     const sensitivity = pastoralKindSensitivity(input.kind)
 
     const ledgerInput: AppendParticipationEventInput = {
-      kind: input.kind, // widened to OperatingCoreParticipationKind via type assertion
+      // Cast kind — the underlying table now accepts pastoral_* via M4 extension
+      // (M4 ALTER on operating_core_participation_kind ENUM added 14 new values).
+      // The DB accepts it; the F3 type union is narrower because M4 ran after F3
+      // shipped and we deliberately did not edit F3 types (byte-identity I-10).
+      kind: input.kind as unknown as AppendParticipationEventInput['kind'],
       subjectId: input.subjectId,
       occurredAt: input.occurredAt,
       actorPersonaId: input.actorPersonaId,
@@ -119,8 +123,7 @@ export function createPastoralLedgerWriter(
       metadata: input.metadata ?? {},
     }
 
-    // Cast kind — the underlying table now accepts pastoral_* via M4 extension
-    return repository.append(ledgerInput as AppendParticipationEventInput)
+    return repository.append(ledgerInput)
   }
 
   return {

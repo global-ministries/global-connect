@@ -112,8 +112,8 @@ describe('buildPastoralEvent', () => {
       const after = new Date().toISOString()
 
       expect(result.occurredAt).toBeDefined()
-      expect(result.occurredAt >= before).toBe(true)
-      expect(result.occurredAt <= after).toBe(true)
+      expect(result.occurredAt! >= before).toBe(true)
+      expect(result.occurredAt! <= after).toBe(true)
     })
 
     it('accepts custom occurredAt', () => {
