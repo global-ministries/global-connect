@@ -128,6 +128,16 @@ Incluye:
 
 **Regla:** mantenerlo simple, sin workflows pesados.
 
+**Estado: CERRADA** (Fase 4 completa, 16 PRs mergeados a `main` en 2026-07-24).
+
+- Spec consolidado: `openspec/specs/platform/pastoral/spec.md`
+- Archive: `openspec/changes/archive/2026-07-24-fase-04-seguimiento-pastoral/`
+- 13 capabilities + 1 crisis detection capability añadidas
+- 8 migrations aplicadas (M1–M8)
+- 16 decisiones pastorales (P1–P16) implementadas
+- 4 círculos de visibilidad enforced
+- Flag `NEXT_PUBLIC_PASTORAL_ENABLED=off` (pendiente activación)
+
 ### Fase 5 — Talleres de Crecimiento Base
 
 **Objetivo:** operar talleres formativos que alimentan la Ruta Espiritual.
