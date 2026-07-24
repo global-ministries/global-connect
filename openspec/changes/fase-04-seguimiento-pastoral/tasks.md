@@ -105,14 +105,14 @@ W01 es raíz sin dependencias. W02 depende solo de W01. W04 depende de W02+W03 (
   - [x] DT-012: Crear `lib/platform/pastoral/one-on-one/validators.ts` con `validarResumen(text)` bounded 500 chars + regex sensible (D17, P4). Test cubre ESC-04 (>500) + ESC-05 (sensitive pattern) de `pastoral-one-on-one-complete`.
   - [x] DT-013: TypeScript types en `lib/platform/pastoral/types.ts`: `PastoralOneOnOne`, `PastoralOneOnOneParticipante`, `PastoralOneOnOneNota` con `version: number`, `motivo_cancelacion?`, `resumen?`. Test cubre invariante de forma.
 
-- [ ] **W03** `size:exception` M3 tablas tríada + state machine tríada, `I`, `type:feature`, `F(pastoral/{schema/triada,triad-state})`, `DB`, revert=migration-unapplied, ~520
+- [x] **W03** `size:exception` M3 tablas tríada + state machine tríada, `I`, `type:feature`, `F(pastoral/{schema/triada,triad-state})`, `DB`, revert=migration-unapplied, ~520
   - **Justificación size:exception:** M3 (DDL tríada con RLS + CHECK + cardinalidad 3 + 3 tablas) + catálogo cerrado de motivos (D14, 5 valores) + state machine 4 estados (D13) + validaciones de cardinalidad humana 3 fija (D25). Se autoriza para no romper la unidad pastoral de la tríada.
-  - DT-014: Migration M3 `supabase/migrations/<ts>_pastoral_tables_part2_triada.sql` con `pastoral_triada`, `pastoral_triada_miembros`, `pastoral_triada_eventos` + RLS activada + CHECK constraint `cardinality_humana=3` (D25) + índices. Test `F(pastoral/schema/triada-migration)` cubre ESC-03 de `pastoral-triada-create` (rechazo por cardinalidad incorrecta).
-  - DT-015: Policies RLS en M3: lectura por círculo (asistido solo roadmap, miembros ven composición, director agregado, pastor/admin completo); escritura solo mentor oficial autor. Test verifica que coordinador_area en simultaneidad NO lee notas del líder (T6).
-  - DT-016: Catálogo cerrado de motivos de disolución en `lib/platform/pastoral/triad-state.ts`: `TRIAD_DISSOLUTION_REASONS = ['gdv_liderazgo_removed','servicio_retirado','cambio_de_temporada','pastoral_decision','otro']` (D14). Test cubre ESC-05 de `pastoral-triada-disband` (motivo fuera del catálogo).
-  - DT-017: `TRIADA_STATES` (4 estados D13) + `TRIADA_TRANSITIONS` matrix + `triadTransition(currentState, action, motivo?, version)` puro con `disbanded` terminal absoluto (D13). Test cubre ESC-04 transiciones a `disbanded`, ESC-02 `en_pausa → active` round-trip.
-  - DT-018: Validación de cardinalidad humana 3 fija (D25) en `lib/platform/pastoral/triad/validators.ts`: permite doble rol_en_triada si la persona tiene dos roles distintos, pero cardinalidad humana total = 3. Test parametrizado con combinaciones de roles.
-  - DT-019: Tipo `PastoralTriada`, `PastoralTriadaMiembro`, `PastoralTriadaEvento` en `types.ts` con `version: number`, `motivo_disolucion?`, `contexto ∈ {nuevo_paso, simultaneidad, inicial, reformada}`. Test cubre REQ-02 tipo declarado de `pastoral-triada-create`.
+  - [x] DT-014: Migration M3 `20260722172128_pastoral_tables_part2_triada.sql` con `pastoral_triada`, `pastoral_triada_miembros`, `pastoral_triada_eventos` + RLS activada + CHECK constraint + índices. **Reglas W02**: DO block para enums, auth.uid() en policies, nombres únicos de policies. Test `F(pastoral/schema/triada-migration)` cubre ESC-03 de `pastoral-triada-create` (rechazo por cardinalidad incorrecta).
+  - [x] DT-015: Policies RLS en M3: lectura por círculo (asistido solo roadmap, miembros ven composición, director agregado, pastor/admin completo); escritura solo mentor oficial autor. Test verifica que coordinador_area en simultaneidad NO lee notas del líder (T6).
+  - [x] DT-016: Catálogo cerrado de motivos de disolución en `lib/platform/pastoral/triad-state.ts`: `TRIAD_DISSOLUTION_REASONS = ['gdv_liderazgo_removed','servicio_retirado','cambio_de_temporada','pastoral_decision','otro']` (D14). Test cubre ESC-05 de `pastoral-triada-disband` (motivo fuera del catálogo).
+  - [x] DT-017: `TRIADA_STATES` (4 estados D13) + `TRIADA_TRANSITIONS` matrix + `triadTransition(currentState, action, motivo?, version)` puro con `disbanded` terminal absoluto (D13). Test cubre ESC-04 transiciones a `disbanded`, ESC-02 `en_pausa → active` round-trip. **Actualizar el placeholder de W02-DT-011** en `lib/platform/pastoral/triad-state.ts` con la implementación completa.
+  - [x] DT-018: Validación de cardinalidad humana 3 fija (D25) en `lib/platform/pastoral/triad/validators.ts`: permite doble rol_en_triada si la persona tiene dos roles distintos, pero cardinalidad humana total = 3. Test parametrizado con combinaciones de roles.
+  - [x] DT-019: Tipo `PastoralTriada`, `PastoralTriadaMiembro`, `PastoralTriadaEvento` en `types.ts` con `version: number`, `motivo_disolucion?`, `contexto ∈ {nuevo_paso, simultaneidad, inicial, reformada}`. Test cubre REQ-02 tipo declarado de `pastoral-triada-create`.
 
 - [ ] **W04** `size:exception` M4+M5 kinds+sensitivity extension + writer al libro mayor compartido, `I`, `type:feature`, `F(pastoral/{kinds-extension,ledger-writer})`, `DB`, revert=migration-unapplied, ~580
   - **Justificación size:exception:** M4+M5 (DDL ALTER sobre check constraint del ledger compartido F3 con 11 kinds originales + 14 nuevos + `sensitivity` con `sensitive`) + `participation-ledger-pastoral-writer.ts` (cubre D2, D9, D15, D16, D28). F4 rompe la invariante byte-identity de `lib/supabase/database.types.ts` solo por regeneración post-migration, no por edición. Se autoriza para mantener la unidad de la integración con el ledger.
@@ -133,24 +133,24 @@ W01 es raíz sin dependencias. W02 depende solo de W01. W04 depende de W02+W03 (
   - DT-030: `service.ts` con `completeOneOnOneWithGrants(...)` (precedente F3 `servicios.ts`) + `emitPastoralOneOnOneCompleted(...)` que invoca el writer del ledger + emite `pastoral_one_on_one_completed`. Test cubre ESC-01 de `pastoral-one-on-one-complete`.
   - DT-031: `factories.ts` con `createOneOnOneRepository({ useFake: true|false })` análogo F3 `factories.ts`. Test cubre selección de fake vs supabase por flag.
 
-- [ ] **W07** Repos tríada + fakes + service + read guards con excepción P7, `I`, `type:feature`, `F(pastoral/triad/{repository,repository-fake,service,read-guard})`, `N/A`, revert=repos, ~360
-  - DT-032: `lib/platform/pastoral/triad/repository.ts` interface análoga a F2. Test contrato.
-  - DT-033: `repository-fake.ts` in-memory. Test cubre todas las operaciones + cardinalidad 3.
-  - DT-034: `repository-supabase.ts` con `ConcurrencyConflictError` + `disbandTriada(...)` que exige motivo del catálogo (DT-016). Test cubre ESC-02 rechazo sin motivo de `pastoral-triada-disband`.
-  - DT-035: `lib/platform/pastoral/triad/read-guard.ts` con `canReadPastoralTriadaNote(actor, triada, note)` que aplica excepción P7 (`contexto='simultaneidad' AND actor.rol='coordinador_area' AND note.autor_persona_id != actor.persona_id → deny`). Test cubre T6 + ESC-02 de `pastoral-triada-read` + ESC-07 de `pastoral-triada-notes`.
-  - DT-036: `service.ts` con `createTriadaWithAutoFormation(...)` que escucha eventos de paso tomado (P4) + `disbandTriadaWithAudit(...)` que emite `pastoral_triada_disbanded`. Test cubre ESC-01 creación automática por nuevo paso de `pastoral-triada-create`.
+- [x] **W07** Repos tríada + fakes + service + read guards con excepción P7, `I`, `type:feature`, `F(pastoral/triad/{repository,repository-fake,service,read-guard})`, `N/A`, revert=repos, ~360 — PR #341
+  - [x] DT-032: `lib/platform/pastoral/triad/repository.ts` interface análoga a F2. Test contrato.
+  - [x] DT-033: `repository-fake.ts` in-memory. Test cubre todas las operaciones + cardinalidad 3.
+  - [x] DT-034: `repository-supabase.ts` con `ConcurrencyConflictError` + `disbandTriada(...)` que exige motivo del catálogo (DT-016). Test cubre ESC-02 rechazo sin motivo de `pastoral-triada-disband`.
+  - [x] DT-035: `lib/platform/pastoral/triad/read-guard.ts` con `canReadPastoralTriadaNote(actor, triada, note)` que aplica excepción P7 (`contexto='simultaneidad' AND actor.rol='coordinador_area' AND note.autor_persona_id != actor.persona_id → deny`). Test cubre T6 + ESC-02 de `pastoral-triada-read` + ESC-07 de `pastoral-triada-notes`.
+  - [x] DT-036: `service.ts` con `createTriadaWithAutoFormation(...)` que escucha eventos de paso tomado (P4) + `disbandTriadaWithAudit(...)` que emite `pastoral_triada_disbanded`. Test cubre ESC-01 creación automática por nuevo paso de `pastoral-triada-create`.
 
 ## API Routes
 
-- [ ] **W06** API routes 1:1 (8 endpoints) + D22 shape pastoral en CAPTURE_UX, `I`, `type:feature`, `F(api/pastoral/one-on-one)`, `HTTP`+`R`, revert=404 (kill switch), ~420
-  - DT-037: `app/api/pastoral/one-on-one/route.ts` POST create. 401 sin sesión, 403 sin `pastoral.one_on_one.create`, 404 flag off, 400 input malformado, 403 sin rol formal (ESC-04), 409 cascada sin resultado (ESC-03), 201 happy path con `id` + `version=1`. Test R cubre las seis ramas.
-  - DT-038: `app/api/pastoral/one-on-one/[id]/route.ts` GET read con tres círculos (read guard DT-029). Test R cubre ESC-01/02/03/04/05/06 de `pastoral-one-on-one-read`.
-  - DT-039: `app/api/pastoral/one-on-one/[id]/schedule/route.ts` POST cambiar `scheduled_at` con `expected_version`. 409 stale.
-  - DT-040: `app/api/pastoral/one-on-one/[id]/start/route.ts` POST `scheduled → in_progress`.
-  - DT-041: `app/api/pastoral/one-on-one/[id]/complete/route.ts` POST cerrar como `completed`. 400 si resumen > 500 o sensitive pattern (DT-012). Emite `pastoral_one_on_one_completed` + invoca crisis scan (W09). Test R cubre ESC-01/04/05/06 de `pastoral-one-on-one-complete`.
-  - DT-042: `app/api/pastoral/one-on-one/[id]/cancel/route.ts` POST cerrar como `cancelled` con motivo del catálogo. 400 sin motivo (ESC-03).
-  - DT-043: `app/api/pastoral/one-on-one/[id]/notes/route.ts` GET + POST. Solo mentor autor o `pastoral.read.all`. Anexable, no mutable. Test R cubre ESC-01–06 de `pastoral-one-on-one-notes` y D16.
-  - DT-044: `app/api/pastoral/one-on-one/[id]/validate-step/route.ts` POST validar paso espiritual. Solo mentor oficial (P5, T5). Idempotente por `(one_on_one_id, step_id)`. Test R cubre ESC-01/02/03/05/06/07 de `pastoral-one-on-one-validate-step` + T5 + T7 (auto-validación asistida → 403).
+- [x] **W06** API routes 1:1 (8 endpoints) + D22 shape pastoral en CAPTURE_UX, `I`, `type:feature`, `F(api/pastoral/one-on-one)`, `HTTP`+`R`, revert=404 (kill switch), ~420
+  - [x] DT-037: `app/api/pastoral/one-on-one/route.ts` POST create. 401 sin sesión, 403 sin `pastoral.one_on_one.create`, 404 flag off, 400 input malformado, 403 sin rol formal (ESC-04), 409 cascada sin resultado (ESC-03), 201 happy path con `id` + `version=1`. Test R cubre las seis ramas.
+  - [x] DT-038: `app/api/pastoral/one-on-one/[id]/route.ts` GET read con tres círculos (read guard DT-029). Test R cubre ESC-01/02/03/04/05/06 de `pastoral-one-on-one-read`.
+  - [x] DT-039: `app/api/pastoral/one-on-one/[id]/schedule/route.ts` POST cambiar `scheduled_at` con `expected_version`. 409 stale.
+  - [x] DT-040: `app/api/pastoral/one-on-one/[id]/start/route.ts` POST `scheduled → in_progress`.
+  - [x] DT-041: `app/api/pastoral/one-on-one/[id]/complete/route.ts` POST cerrar como `completed`. 400 si resumen > 500 o sensitive pattern (DT-012). Emite `pastoral_one_on_one_completed` + invoca crisis scan (W09). Test R cubre ESC-01/04/05/06 de `pastoral-one-on-one-complete`.
+  - [x] DT-042: `app/api/pastoral/one-on-one/[id]/cancel/route.ts` POST cerrar como `cancelled` con motivo del catálogo. 400 sin motivo (ESC-03).
+  - [x] DT-043: `app/api/pastoral/one-on-one/[id]/notes/route.ts` GET + POST. Solo mentor autor o `pastoral.read.all`. Anexable, no mutable. Test R cubre ESC-01–06 de `pastoral-one-on-one-notes` y D16.
+  - [x] DT-044: `app/api/pastoral/one-on-one/[id]/validate-step/route.ts` POST validar paso espiritual. Solo mentor oficial (P5, T5). Idempotente por `(one_on_one_id, step_id)`. Test R cubre ESC-01/02/03/05/06/07 de `pastoral-one-on-one-validate-step` + T5 + T7 (auto-validación asistida → 403).
 
 - [ ] **W08** API routes tríada (5 endpoints) + 409 conflict, `I`, `type:feature`, `F(api/pastoral/triada)`, `HTTP`+`R`, revert=404, ~340
   - DT-045: `app/api/pastoral/triada/route.ts` POST create manual (simultaneidad). 400 cardinalidad != 3, 400 sin tipo declarado, 403 sin rol formal (ESC-05 de `pastoral-triada-create`). Test R cubre ESC-02/03/04/05/06.
