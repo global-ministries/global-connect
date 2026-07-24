@@ -22,15 +22,6 @@ const ONE_ON_ONE_NOTES = ['pastoral.one_on_one.write_notes', 'pastoral.read.all'
 const ONE_ON_ONE_VALIDATE = ['pastoral.one_on_one.validate_step', 'pastoral.read.all'] as const
 const ONE_ON_ONE_COMPLETE = ['pastoral.one_on_one.complete', 'pastoral.read.all'] as const
 
-// W08 — DT-045+DT-047+DT-048+DT-049: Triada capabilities
-const TRIADA_CREATE = ['pastoral.triada.create', 'pastoral.read.all'] as const
-const TRIADA_READ = ['pastoral.triada.read', 'pastoral.read.all'] as const
-const TRIADA_NOTES = ['pastoral.triada.write_notes', 'pastoral.read.all'] as const
-const TRIADA_DISBAND = ['pastoral.triada.disband', 'pastoral.read.all'] as const
-
-// W12 — DT-069+: Metrics capabilities
-const METRICS_READ = ['pastoral.metrics.read', 'pastoral.read.all'] as const
-
 // ─── Flag check ───────────────────────────────────────────────────────────────
 
 /**
@@ -129,49 +120,4 @@ export function hasPastoralOneOnOneCompleteCapability(session: PlatformSession):
  */
 export function hasPastoralReadAllCapability(session: PlatformSession): boolean {
   return hasCapability(session, 'pastoral.read.all')
-}
-
-// ─── Triada capability predicates (W08) ──────────────────────────────────────
-
-/**
- * Check if actor can create pastoral triada records.
- * pastoral.triada.create or pastoral.read.all.
- */
-export function hasPastoralTriadaCreateCapability(session: PlatformSession): boolean {
-  return (TRIADA_CREATE as readonly string[]).some((key) => hasCapability(session, key))
-}
-
-/**
- * Check if actor can read pastoral triada records.
- * pastoral.triada.read or pastoral.read.all.
- */
-export function hasPastoralTriadaReadCapability(session: PlatformSession): boolean {
-  return (TRIADA_READ as readonly string[]).some((key) => hasCapability(session, key))
-}
-
-/**
- * Check if actor can write notes on pastoral triada records.
- * pastoral.triada.write_notes or pastoral.read.all.
- * Per P5: pastoral.read.all does NOT grant write_notes.
- */
-export function hasPastoralTriadaNotesCapability(session: PlatformSession): boolean {
-  return (TRIADA_NOTES as readonly string[]).some((key) => hasCapability(session, key))
-}
-
-/**
- * Check if actor can disband pastoral triada records.
- * pastoral.triada.disband or pastoral.read.all.
- */
-export function hasPastoralTriadaDisbandCapability(session: PlatformSession): boolean {
-  return (TRIADA_DISBAND as readonly string[]).some((key) => hasCapability(session, key))
-}
-
-// ─── Metrics capability predicate (W12) ─────────────────────────────────────
-
-/**
- * Check if actor can read pastoral metrics.
- * pastoral.metrics.read or pastoral.read.all.
- */
-export function hasPastoralMetricsReadCapability(session: PlatformSession): boolean {
-  return (METRICS_READ as readonly string[]).some((key) => hasCapability(session, key))
 }

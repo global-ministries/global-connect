@@ -15,6 +15,7 @@ export {
   isSelfTransition,
   isPastoralNotFound,
   isPastoralAccessDenied,
+  isInvalidCardinality,
   TERMINAL_ONE_ON_ONE_STATES,
   TERMINAL_TRIADA_STATES,
 } from './errors'
@@ -62,8 +63,13 @@ export {
 } from './state'
 
 // W02 — Triada state (placeholder — full in W03)
-export { triadTransition } from './triad-state'
+export { triadTransition, TRIADA_TRANSITIONS } from './triad-state'
+export type { TriadaAccion, TriadaTransitionInput, TriadaTransitionResult } from './triad-state'
 
 // W02 — 1:1 validators
 export { validarResumen } from './one-on-one/validators'
 export type { ValidarResumenResult, ValidarResumenError, ValidarResumenResultType } from './one-on-one/validators'
+
+// W03 — Triada validators
+export { validarCardinalidadTriada } from './triad/validators'
+export type { CardalididadTriadaInput, CardalididadTriadaResult } from './triad/validators'

@@ -1,117 +1,55 @@
 /**
- * W13 — DT-078 sibling CAPTURE_UX extension for pastoral_one_on_one shape.
+ * W06 — D22 extension — Pastoral capture-UX shape.
  *
- * Extends the domain-neutral CAPTURE_UX_STATES from operating-core with
- * a pastoral-specific shape: pastoral_one_on_one.
+ * Byte-identity sibling: does NOT edit
+ * lib/platform/operating-core/capture-ux/capture-ux-types.ts (protected file).
  *
- * Byte-identity: does NOT edit lib/platform/operating-core/capture-ux/capture-ux-types.ts
- * Byte-identity: does NOT edit lib/platform/operating-core/capture-ux/capture-ux-state.ts
+ * Instead, this file re-exports the base capture UX constants and adds the
+ * pastoral_one_on_one shape, following the same pattern as W01-DT-002 where
+ * kinds.ts was extended via a sibling module rather than editing the original.
  *
- * Reuses CAPTURE_UX_STATES, CaptureUXState, CAPTURE_UX_TRANSITIONS, canTransitionUX, isTerminal
- * from the protected parent modules via public exports.
+ * D22: Reuse CAPTURE_UX_STATES with new shape = 'pastoral_one_on_one'.
+ * The 6-element UX experience state union remains the same;
+ * only the shape domain is extended.
  *
- * Shape pastoral_one_on_one:
- * - Used in: MentorPanel (DT-078) for quick-capture post-1:1
- * - Context fields: oneOnOneId, mentorPersonaId, assistedPersonaId, stepId?
+ * W13 (DT-078) will use this in app/(pastoral)/lider/captura/page.tsx
+ * for the pastoral mobile capture flow.
  */
 
-import {
+// Re-export base constants (read-only — do not reimplement)
+export {
   CAPTURE_UX_STATES,
-  CAPTURE_UX_TRANSITIONS,
-  canTransitionUX,
-  isTerminal,
-} from '@/lib/platform/operating-core/capture-ux/capture-ux-state'
-import type { CaptureUXState } from '@/lib/platform/operating-core/capture-ux/capture-ux-state'
+  CAPTURE_UX_SHAPES,
+} from '@/lib/platform/operating-core/capture-ux/capture-ux-types'
 
-export { CAPTURE_UX_STATES, canTransitionUX, isTerminal } from '@/lib/platform/operating-core/capture-ux/capture-ux-state'
-export type { CaptureUXState } from '@/lib/platform/operating-core/capture-ux/capture-ux-state'
+export type {
+  CaptureUXState,
+  CaptureUXShape,
+  CaptureUXInput,
+  CaptureUXActionType,
+  CaptureUXAction,
+  CaptureUXOutput,
+} from '@/lib/platform/operating-core/capture-ux/capture-ux-types'
 
-// ─── Pastoral shape ──────────────────────────────────────────────────────────
+// ─── Pastoral capture-UX domain extension ────────────────────────────────────
 
 /**
- * Pastoral-specific capture shape for 1:1 post-session quick capture.
+ * Pastoral 1:1 capture domain.
+ * Added to CAPTURE_UX_SHAPES as the 4th shape.
+ *
+ * Used in app/(pastoral)/lider/captura/page.tsx (W13 DT-078).
  */
 export const PASTORAL_CAPTURE_UX_SHAPE = 'pastoral_one_on_one' as const
-export type PastoralCaptureUXShape = typeof PASTORAL_CAPTURE_UX_SHAPE
-
-// ─── Pastoral capture context ─────────────────────────────────────────────────
 
 /**
- * Context for pastoral_one_on_one capture flow.
- * Embedded in CaptureUXInput.context when shape = pastoral_one_on_one.
+ * All capture UX shapes including pastoral_one_on_one.
+ * Use this instead of CAPTURE_UX_SHAPES when pastoral capture is in scope.
  */
-export interface PastoralCaptureContext {
-  readonly oneOnOneId: string
-  readonly mentorPersonaId: string
-  readonly assistedPersonaId: string
-  /** Optional step being validated during this capture */
-  readonly stepId?: string
-  /** ISO timestamp of the 1:1 session */
-  readonly sessionAtIso?: string
-  readonly [key: string]: unknown
-}
+export const CAPTURE_UX_SHAPES_WITH_PASTORAL = [
+  'visitor_resolution',
+  'registration',
+  'attendance',
+  'pastoral_one_on_one',
+] as const
 
-// ─── Pastoral capture output ───────────────────────────────────────────────────
-
-/**
- * Pastoral-specific capture output with shape = pastoral_one_on_one.
- */
-export interface PastoralCaptureOutput {
-  readonly state: CaptureUXState
-  readonly shape: PastoralCaptureUXShape
-  readonly actions: readonly string[]
-  readonly feedback?: string
-  readonly capturedAtIso: string
-}
-
-// ─── Pastoral capture action types ─────────────────────────────────────────────
-
-/**
- * Pastoral capture-specific actions (extends base CaptureUXActionType).
- * Added: 'validate_step' — confirms a spiritual step was taken.
- */
-export type PastoralCaptureActionType =
-  | CaptureUXState
-  | 'validate_step'
-  | 'add_note'
-  | 'mark_crisis'
-
-// ─── Pure functions ──────────────────────────────────────────────────────────
-
-/**
- * Returns the pastoral capture context from a generic CaptureUXInput,
- * validating that shape = pastoral_one_on_one.
- */
-export function extractPastoralCaptureContext(
-  input: { shape: string; context: Record<string, unknown> }
-): PastoralCaptureContext | null {
-  if (input.shape !== PASTORAL_CAPTURE_UX_SHAPE) return null
-  const ctx = input.context
-  if (typeof ctx.oneOnOneId !== 'string' || !ctx.oneOnOneId) return null
-  if (typeof ctx.mentorPersonaId !== 'string' || !ctx.mentorPersonaId) return null
-  if (typeof ctx.assistedPersonaId !== 'string' || !ctx.assistedPersonaId) return null
-  return {
-    oneOnOneId: ctx.oneOnOneId as string,
-    mentorPersonaId: ctx.mentorPersonaId as string,
-    assistedPersonaId: ctx.assistedPersonaId as string,
-    stepId: typeof ctx.stepId === 'string' ? ctx.stepId : undefined,
-    sessionAtIso: typeof ctx.sessionAtIso === 'string' ? ctx.sessionAtIso : undefined,
-  }
-}
-
-/**
- * Builds a PastoralCaptureOutput from a state and optional feedback.
- */
-export function buildPastoralCaptureOutput(
-  state: CaptureUXState,
-  actions: readonly string[],
-  feedback?: string
-): PastoralCaptureOutput {
-  return {
-    state,
-    shape: PASTORAL_CAPTURE_UX_SHAPE,
-    actions,
-    feedback,
-    capturedAtIso: new Date().toISOString(),
-  }
-}
+export type CaptureUXShapeWithPastoral = (typeof CAPTURE_UX_SHAPES_WITH_PASTORAL)[number]
