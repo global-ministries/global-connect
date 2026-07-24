@@ -12,7 +12,6 @@ export type PastoralErrorCode =
   | 'SELF_TRANSITION'
   | 'PASTORAL_NOT_FOUND'
   | 'PASTORAL_ACCESS_DENIED'
-  | 'INVALID_CARDINALITY'
 
 export interface PastoralError {
   readonly code: PastoralErrorCode
@@ -39,7 +38,6 @@ export const isConcurrencyConflict = errorIs('CONCURRENCY_CONFLICT')
 export const isSelfTransition = errorIs('SELF_TRANSITION')
 export const isPastoralNotFound = errorIs('PASTORAL_NOT_FOUND')
 export const isPastoralAccessDenied = errorIs('PASTORAL_ACCESS_DENIED')
-export const isInvalidCardinality = errorIs('INVALID_CARDINALITY')
 
 /** Terminal states for 1:1 lifecycle (completed and cancelled — D12). */
 export const TERMINAL_ONE_ON_ONE_STATES: ReadonlySet<string> = new Set(['completed', 'cancelled'])

@@ -130,18 +130,3 @@ export interface PastoralTriadaEvento {
   readonly payload: Readonly<Record<string, unknown>>
   readonly createdAt: string
 }
-
-// ── Triada State transition types (DT-017) ────────────────────────────────
-
-export type TriadaAccion = 'confirm' | 'disband' | 'pause' | 'resume'
-
-export interface TriadaTransitionInput {
-  readonly triada: PastoralTriada
-  readonly accion: TriadaAccion
-  readonly version: number
-  readonly motivo?: TriadaDissolutionReason
-}
-
-export type TriadaTransitionResult =
-  | { readonly ok: true; readonly triadaNueva: PastoralTriada }
-  | { readonly ok: false; readonly error: import('./errors').PastoralError }
