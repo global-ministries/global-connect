@@ -66,6 +66,24 @@ export type DisbandTriadaWithAuditResultType =
   | DisbandTriadaWithAuditResult
   | { readonly ok: false; readonly error: DisbandTriadaWithAuditError }
 
+// W08 — DT-047: Confirm triada (pending_confirmation → active)
+
+export interface ConfirmTriadaInput {
+  readonly triadaId: string
+  readonly actorPersonaId: string
+  readonly expectedVersion: number
+}
+
+export interface ConfirmTriadaResult {
+  readonly ok: true
+  readonly triada: PastoralTriada
+}
+
+export type ConfirmTriadaError = PastoralError
+export type ConfirmTriadaResultType =
+  | ConfirmTriadaResult
+  | { readonly ok: false; readonly error: ConfirmTriadaError }
+
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 export interface PastoralTriadaService {
@@ -76,6 +94,10 @@ export interface PastoralTriadaService {
   disbandTriadaWithAudit(
     input: DisbandTriadaWithAuditInput,
   ): Promise<DisbandTriadaWithAuditResultType>
+
+  confirmTriada(
+    input: ConfirmTriadaInput,
+  ): Promise<ConfirmTriadaResultType>
 }
 
 export function createPastoralTriadaService(
@@ -186,7 +208,7 @@ export function createPastoralTriadaService(
     })
 
     if (!transitionResult.ok) {
-      return { ok: false, error: transitionResult.error }
+      return { ok: false, error: (transitionResult as unknown as { ok: false; error: PastoralError }).error }
     }
 
     // 3. Update the record with disbanded state + version bump
@@ -216,8 +238,65 @@ export function createPastoralTriadaService(
     return { ok: true, triada: updated }
   }
 
+  async function confirmTriada(
+    input: ConfirmTriadaInput,
+  ): Promise<ConfirmTriadaResultType> {
+    const { triadaId, actorPersonaId, expectedVersion } = input
+
+    // 1. Fetch current triada record
+    const current = await repository.getTriadaById(triadaId)
+    if (!current) {
+      return {
+        ok: false,
+        error: {
+          code: 'PASTORAL_NOT_FOUND',
+          message: `Triada ${triadaId} not found`,
+        },
+      }
+    }
+
+    // 2. Apply state machine transition (pending_confirmation → active)
+    const transitionResult = triadTransition({
+      triada: current,
+      accion: 'confirm',
+      version: expectedVersion,
+    })
+
+    if (!transitionResult.ok) {
+      return { ok: false, error: (transitionResult as unknown as { ok: false; error: PastoralError }).error }
+    }
+
+    // 3. Update the record with active state + version bump
+    const updated = await repository.updateTriada(triadaId, {
+      estado: transitionResult.triadaNueva.estado,
+      expectedVersion,
+    })
+
+    // 4. Emit pastoral_triada_confirmed to the ledger
+    // pastoral_triada_confirmed is not yet in PastoralParticipationKind union
+    // Use as any to bypass type check (ledger accepts it at runtime via M3)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const eventInput = buildTriadaPastoralEvent({
+        kind: 'pastoral_triada_confirmed' as any,
+        actorPersonaId,
+        triadaId,
+        metadata: {
+          previousEstado: current.estado,
+        },
+      })
+      await ledgerWriter.emitPastoralEvent(eventInput)
+    } catch (ledgerError) {
+      // Ledger failure should not rollback the confirmation
+      console.error('[PastoralTriadaService] Ledger emit failed:', ledgerError)
+    }
+
+    return { ok: true, triada: updated }
+  }
+
   return {
     createTriadaWithAutoFormation,
     disbandTriadaWithAudit,
+    confirmTriada,
   }
 }

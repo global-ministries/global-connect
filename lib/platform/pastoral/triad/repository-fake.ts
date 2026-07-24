@@ -61,7 +61,7 @@ export function createInMemoryPastoralTriadaRepository(
     async createTriada(input: CreateTriadaInput): Promise<PastoralTriada> {
       const now = new Date().toISOString()
       const created: PastoralTriada = {
-        id: randomUUID(),
+        id: input.id ?? randomUUID(),
         mentorOficialPersonaId: input.mentorOficialPersonaId,
         autorPersonaId: input.autorPersonaId,
         estado: 'pending_confirmation',

@@ -10,7 +10,7 @@
 import { createPastoralTriadaService } from '@/lib/platform/pastoral/triad/service'
 import { ConcurrencyConflictError } from '@/lib/platform/pastoral/triad/repository-fake'
 import type { PastoralTriada } from '@/lib/platform/pastoral/types'
-import type { CreateTriadaWithAutoFormationResultType, DisbandTriadaWithAuditResultType } from '@/lib/platform/pastoral/triad/service'
+import type { CreateTriadaWithAutoFormationResultType, DisbandTriadaWithAuditResultType, ConfirmTriadaResultType } from '@/lib/platform/pastoral/triad/service'
 
 const MENTOR_ID = '00000000-0000-0000-0000-000000000001'
 const ASSISTED_ID = '00000000-0000-0000-0000-000000000002'
@@ -149,7 +149,7 @@ function createMockLedgerWriter() {
 
 // ─── Type helper ──────────────────────────────────────────────────────────────
 
-function expectOk(r: CreateTriadaWithAutoFormationResultType | DisbandTriadaWithAuditResultType) {
+function expectOk(r: CreateTriadaWithAutoFormationResultType | DisbandTriadaWithAuditResultType | ConfirmTriadaResultType) {
   if (!r.ok) throw new Error('Expected ok=true but got: ' + JSON.stringify(r.error))
 }
 
@@ -371,5 +371,100 @@ describe('PastoralTriadaService — disbandTriadaWithAudit', () => {
       const e = disbandResult as Extract<typeof disbandResult, { ok: false }>
       expect(e.error.code).toBe('CONCURRENCY_CONFLICT')
     })
+  })
+})
+
+// W08 — DT-047: confirmTriada tests
+describe('PastoralTriadaService — confirmTriada', () => {
+  let mockRepo: ReturnType<typeof createMockRepository>
+  let mockLedger: ReturnType<typeof createMockLedgerWriter>
+  let service: ReturnType<typeof createPastoralTriadaService>
+
+  beforeEach(() => {
+    mockRepo = createMockRepository()
+    mockLedger = createMockLedgerWriter()
+
+    const repo = {
+      createTriada: mockRepo.create,
+      getTriadaById: mockRepo.getById,
+      listTriadas: jest.fn(),
+      updateTriada: mockRepo.update,
+      addMiembro: mockRepo.addMiembro,
+      listMiembros: jest.fn(),
+      addNota: jest.fn(),
+      listNotas: jest.fn(),
+      emitPastoralEvent: mockLedger.emitPastoralEvent,
+    }
+
+    service = createPastoralTriadaService(repo as never, mockLedger)
+  })
+
+  it('confirm pending_confirmation → active', async () => {
+    // Create triada in pending_confirmation state
+    const createResult = await service.createTriadaWithAutoFormation({
+      mentorOficialPersonaId: MENTOR_ID,
+      autorPersonaId: AUTOR_ID,
+      assistedPersonaId: ASSISTED_ID,
+      coordinatorPersonaId: COORDINATOR_ID,
+    })
+    expectOk(createResult)
+    expect(createResult.triada.estado).toBe('pending_confirmation')
+
+    // Confirm
+    const confirmResult = await service.confirmTriada({
+      triadaId: createResult.triada.id,
+      actorPersonaId: MENTOR_ID,
+      expectedVersion: 1,
+    })
+
+    expect(confirmResult.ok).toBe(true)
+    const ok = confirmResult as Extract<ConfirmTriadaResultType, { ok: true }>
+    expect(ok.triada.estado).toBe('active')
+    expect(ok.triada.version).toBe(2)
+    expect(mockLedger.emitPastoralEvent).toHaveBeenCalled()
+  })
+
+  it('409 stale version on confirm', async () => {
+    const createResult = await service.createTriadaWithAutoFormation({
+      mentorOficialPersonaId: MENTOR_ID,
+      autorPersonaId: AUTOR_ID,
+      assistedPersonaId: ASSISTED_ID,
+      coordinatorPersonaId: COORDINATOR_ID,
+    })
+    expectOk(createResult)
+
+    const confirmResult = await service.confirmTriada({
+      triadaId: createResult.triada.id,
+      actorPersonaId: MENTOR_ID,
+      expectedVersion: 99, // stale
+    })
+
+    expect(confirmResult.ok).toBe(false)
+    const err = confirmResult as Extract<ConfirmTriadaResultType, { ok: false }>
+    expect(err.error.code).toBe('CONCURRENCY_CONFLICT')
+  })
+
+  it('400 invalid state when already active', async () => {
+    const createResult = await service.createTriadaWithAutoFormation({
+      mentorOficialPersonaId: MENTOR_ID,
+      autorPersonaId: AUTOR_ID,
+      assistedPersonaId: ASSISTED_ID,
+      coordinatorPersonaId: COORDINATOR_ID,
+    })
+    expectOk(createResult)
+
+    // Manually transition to active first
+    await mockRepo.update(createResult.triada.id, { estado: 'active', expectedVersion: 1 })
+
+    // Try to confirm again
+    const confirmResult = await service.confirmTriada({
+      triadaId: createResult.triada.id,
+      actorPersonaId: MENTOR_ID,
+      expectedVersion: 2,
+    })
+
+    expect(confirmResult.ok).toBe(false)
+    const err = confirmResult as Extract<ConfirmTriadaResultType, { ok: false }>
+    expect(err.error.code).toBe('INVALID_STATE_TRANSITION')
   })
 })
