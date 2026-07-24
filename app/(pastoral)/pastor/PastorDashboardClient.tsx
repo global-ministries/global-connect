@@ -8,7 +8,7 @@
  */
 
 import React from 'react'
-import { AlertTriangle, Users, Calendar, TrendingUp } from 'lucide-react'
+import { AlertTriangle, Users, Calendar, TrendingUp, Settings, UserCog } from 'lucide-react'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { TituloSistema } from '@/components/ui/sistema-diseno'
@@ -32,6 +32,7 @@ interface PastorDashboardClientProps {
     readonly assistedPersonaId: string
     readonly assistedPersonaName?: string
   }>
+  readonly hasAdminManage?: boolean
 }
 
 function MetricCard({
@@ -66,6 +67,7 @@ function MetricCard({
 export default function PastorDashboardClient({
   metrics,
   crisisAlerts,
+  hasAdminManage = false,
 }: PastorDashboardClientProps) {
   return (
     <ContenedorDashboard
@@ -121,6 +123,21 @@ export default function PastorDashboardClient({
           </Link>
         </div>
       </TarjetaSistema>
+
+      {/* Admin actions - only visible with pastoral.admin.manage */}
+      {hasAdminManage && (
+        <TarjetaSistema>
+          <TituloSistema nivel={2} className="mb-3">Administración</TituloSistema>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link href="/pastor/usuarios">
+              <Button variant="outline" size="sm">
+                <UserCog className="h-4 w-4 mr-1" />
+                Gestión de usuarios
+              </Button>
+            </Link>
+          </div>
+        </TarjetaSistema>
+      )}
     </ContenedorDashboard>
   )
 }

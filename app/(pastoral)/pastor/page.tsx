@@ -7,7 +7,7 @@
 
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { requirePastoralSession, hasPastoralReadAllCapability } from '@/lib/platform/pastoral/route-access'
+import { requirePastoralSession, hasPastoralReadAllCapability, hasPastoralAdminManageCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import PastorDashboardClient from './PastorDashboardClient'
 
@@ -17,6 +17,8 @@ export default async function PastorDashboardPage() {
   if (!isPastoralEnabled()) redirect('/')
   const session = await requirePastoralSession()
   if (!session || !hasPastoralReadAllCapability(session)) redirect('/')
+
+  const hasAdminManage = hasPastoralAdminManageCapability(session)
 
   const supabase = await createSupabaseServerClient()
 
@@ -59,6 +61,7 @@ export default async function PastorDashboardPage() {
     <PastorDashboardClient
       metrics={metrics}
       crisisAlerts={mappedCrisis}
+      hasAdminManage={hasAdminManage}
     />
   )
 }
