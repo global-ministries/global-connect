@@ -37,30 +37,30 @@ export default async function AsistidoUnoAUnoListPage() {
       scheduled_at,
       completed_at,
       pastoral_one_on_one_participantes (
-        persona_id,
-        rol
-      ),
-      pastoral_one_on_one_pasos_validados ( id )
+        persona_id
+      )
     `)
-    .contains('participantes_persona_ids', [actorPersonaId])
     .order('scheduled_at', { ascending: false })
 
   // Show roadmap fields only (no notes)
-  const sesiones = (rows ?? []).map((row: {
+  const sesiones = (rows ?? [])
+    .filter((row) =>
+      row.pastoral_one_on_one_participantes?.some((p) => p.persona_id === actorPersonaId)
+    )
+    .map((row: {
     id: string
     estado: string
     scheduled_at: string | null
     completed_at: string | null
-    pastoral_one_on_one_participantes?: Array<{ persona_id: string; rol: string }>
-    pastoral_one_on_one_pasos_validados?: Array<unknown>
+    pastoral_one_on_one_participantes?: Array<{ persona_id: string }>
   }) => {
-    const mentor = row.pastoral_one_on_one_participantes?.find((p) => p.rol === 'mentor')
+    const firstParticipant = row.pastoral_one_on_one_participantes?.[0]
     return {
       id: row.id,
       estado: row.estado,
       scheduledAtIso: row.scheduled_at,
-      assistedPersonaName: mentor?.persona_id ?? '—',
-      pasosValidadosCount: row.pastoral_one_on_one_pasos_validados?.length ?? 0,
+      assistedPersonaName: firstParticipant?.persona_id ?? '—',
+      pasosValidadosCount: 0,
     }
   })
 

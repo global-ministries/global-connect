@@ -56,6 +56,6 @@ describe('PastoralTimeline', () => {
     render(<PastoralTimeline items={[
       { id: '4', type: 'triada_disbanded' as const, title: 'Tríada disuelta', isoDate: '2025-03-01T00:00:00Z' }
     ]} />)
-    expect(screen.getByText('Tríada disuelta')).toBeBeInTheDocument()
+    expect(screen.getByText('Tríada disuelta')).toBeInTheDocument()
   })
 })

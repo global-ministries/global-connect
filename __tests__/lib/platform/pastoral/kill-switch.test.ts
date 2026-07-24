@@ -22,7 +22,7 @@ describe('kill switch — isPastoralRouteEnabled', () => {
       NEXT_PUBLIC_PASTORAL_ENABLED: 'on',
       NEXT_PUBLIC_PASTORAL_STAGE: 'public',
       NEXT_PUBLIC_PASTORAL_KILL_SWITCH: 'on',
-    } as NodeJS.ProcessEnv)
+    } as unknown as NodeJS.ProcessEnv)
     expect(result).toBe(false)
   })
 
@@ -32,7 +32,7 @@ describe('kill switch — isPastoralRouteEnabled', () => {
       NEXT_PUBLIC_PASTORAL_ENABLED: 'on',
       NEXT_PUBLIC_PASTORAL_STAGE: 'public',
       NEXT_PUBLIC_PASTORAL_KILL_SWITCH: '',
-    } as NodeJS.ProcessEnv)
+    } as unknown as NodeJS.ProcessEnv)
     expect(result).toBe(true)
   })
 

@@ -40,17 +40,18 @@ export default async function CapturaPage({ params }: Props) {
     .eq('id', id)
     .single()
 
-  if (!row || row.mentor_oficial_persona_id !== actorPersonaId) redirect('/')
+  if (!row) redirect('/')
+  if ((row as { mentor_oficial_persona_id?: string }).mentor_oficial_persona_id !== actorPersonaId) redirect('/')
 
-  const typedRow = row as { id: string; mentor_oficial_persona_id: string; estado: string }
+  const typedRow = row as unknown as { id: string; mentor_oficial_persona_id: string; estado: string }
 
   // Get assisted person
   const { data: participantes } = await supabase
     .from('pastoral_one_on_one_participantes')
-    .select('persona_id, rol')
+    .select('persona_id')
     .eq('one_on_one_id', id)
 
-  const assisted = participantes?.find((p) => p.rol === 'asistido')
+  const assisted = (participantes ?? [])[0]
 
   return (
     <ContenedorDashboard

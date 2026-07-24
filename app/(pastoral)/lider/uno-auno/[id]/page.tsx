@@ -54,21 +54,13 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
       autor_persona_id,
       created_at,
       pastoral_one_on_one_participantes (
-        persona_id,
-        rol
+        persona_id
       ),
       pastoral_one_on_one_notas (
         id,
         contenido,
         autor_persona_id,
         created_at
-      ),
-      pastoral_one_on_one_pasos_validados (
-        id,
-        step_key,
-        validated_at,
-        validated_by_persona_id,
-        is_shared_milestone
       )
     `)
     .eq('id', id)
@@ -83,45 +75,31 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
 
   if (!isMentor && !isAuthor && !hasReadAll) redirect('/')
 
-  const typedRow = row as {
+  const typedRow = row as unknown as {
     id: string
     estado: string
     scheduled_at: string | null
     completed_at: string | null
-    motivo_cancelacion?: string
-    resumen?: string
+    motivo_cancelacion?: string | null
+    resumen?: string | null
     version: number
     mentor_oficial_persona_id: string
     autor_persona_id: string
     created_at: string
-    pastoral_one_on_one_participantes?: Array<{ persona_id: string; rol: string }>
+    pastoral_one_on_one_participantes?: Array<{ persona_id: string }>
     pastoral_one_on_one_notas?: Array<{
       id: string
       contenido: string
       autor_persona_id: string
       created_at: string
     }>
-    pastoral_one_on_one_pasos_validados?: Array<{
-      id: string
-      step_key: string
-      validated_at: string
-      validated_by_persona_id: string
-      is_shared_milestone: boolean
-    }>
   }
 
-  const assisted = typedRow.pastoral_one_on_one_participantes?.find((p) => p.rol === 'asistido')
-  const assistedPersonaId = assisted?.persona_id ?? ''
+  const firstParticipant = typedRow.pastoral_one_on_one_participantes?.[0]
+  const assistedPersonaId = firstParticipant?.persona_id ?? ''
 
   // Timeline items
   const timelineItems = [
-    ...(typedRow.pastoral_one_on_one_pasos_validados ?? []).map((s) => ({
-      id: s.id,
-      type: 'step_validated' as const,
-      title: `Paso validado: ${s.step_key}`,
-      isoDate: s.validated_at,
-      isSharedMilestone: s.is_shared_milestone,
-    })),
     ...(typedRow.pastoral_one_on_one_notas ?? []).map((n) => ({
       id: n.id,
       type: 'one_on_one' as const,
@@ -179,23 +157,7 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
         )}
       </TarjetaSistema>
 
-      {/* Steps validated */}
-      {typedRow.pastoral_one_on_one_pasos_validados && typedRow.pastoral_one_on_one_pasos_validados.length > 0 && (
-        <TarjetaSistema>
-          <TituloSistema nivel={2} className="mb-3">Pasos Validados</TituloSistema>
-          <div className="space-y-2">
-            {typedRow.pastoral_one_on_one_pasos_validados.map((s) => (
-              <div key={s.id} className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-                <span className="text-sm">{s.step_key}</span>
-                <span className="text-xs text-muted-foreground ml-auto">
-                  {format(new Date(s.validated_at), 'MMM d', { locale: es })}
-                </span>
-              </div>
-            ))}
-          </div>
-        </TarjetaSistema>
-      )}
+      {/* Steps validated — relationship pending (pasos_validados table deferred) */}
 
       {/* Validate step (mentor only) */}
       {isMentor && typedRow.estado !== 'completed' && typedRow.estado !== 'cancelled' && (

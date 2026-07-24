@@ -277,7 +277,7 @@ describe('getPastoralMetricsGate', () => {
       NEXT_PUBLIC_PASTORAL_ENABLED: 'on',
       NEXT_PUBLIC_PASTORAL_STAGE: 'internal',
       NEXT_PUBLIC_PASTORAL_KILL_SWITCH: '',
-    } as NodeJS.ProcessEnv)
+    } as unknown as NodeJS.ProcessEnv)
     expect(result).toBe(true)
   })
 })

@@ -4043,6 +4043,281 @@ export type Database = {
           },
         ]
       }
+      pastoral_crisis_detection_log: {
+        Row: {
+          actor_persona_id: string
+          categoria: string
+          detected_at: string
+          detected_at_minute: string
+          id: string
+          keyword: string
+          one_on_one_id: string
+          scan_nota_id: string | null
+          scan_resumen: boolean
+        }
+        Insert: {
+          actor_persona_id: string
+          categoria: string
+          detected_at?: string
+          detected_at_minute: string
+          id?: string
+          keyword: string
+          one_on_one_id: string
+          scan_nota_id?: string | null
+          scan_resumen?: boolean
+        }
+        Update: {
+          actor_persona_id?: string
+          categoria?: string
+          detected_at?: string
+          detected_at_minute?: string
+          id?: string
+          keyword?: string
+          one_on_one_id?: string
+          scan_nota_id?: string | null
+          scan_resumen?: boolean
+        }
+        Relationships: []
+      }
+      pastoral_crisis_keyword_catalog: {
+        Row: {
+          activo: boolean
+          categoria: string
+          id: string
+          termino: string
+          version: number
+        }
+        Insert: {
+          activo?: boolean
+          categoria: string
+          id?: string
+          termino: string
+          version?: number
+        }
+        Update: {
+          activo?: boolean
+          categoria?: string
+          id?: string
+          termino?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      pastoral_one_on_one: {
+        Row: {
+          autor_persona_id: string
+          completed_at: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["pastoral_one_on_one_estado"]
+          id: string
+          mentor_oficial_persona_id: string
+          motivo_cancelacion: string | null
+          motivo_no_realizado: string | null
+          resumen: string | null
+          scheduled_at: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          autor_persona_id: string
+          completed_at?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["pastoral_one_on_one_estado"]
+          id?: string
+          mentor_oficial_persona_id: string
+          motivo_cancelacion?: string | null
+          motivo_no_realizado?: string | null
+          resumen?: string | null
+          scheduled_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          autor_persona_id?: string
+          completed_at?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["pastoral_one_on_one_estado"]
+          id?: string
+          mentor_oficial_persona_id?: string
+          motivo_cancelacion?: string | null
+          motivo_no_realizado?: string | null
+          resumen?: string | null
+          scheduled_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      pastoral_one_on_one_notas: {
+        Row: {
+          autor_persona_id: string
+          contenido: string
+          created_at: string
+          id: string
+          one_on_one_id: string
+        }
+        Insert: {
+          autor_persona_id: string
+          contenido: string
+          created_at?: string
+          id?: string
+          one_on_one_id: string
+        }
+        Update: {
+          autor_persona_id?: string
+          contenido?: string
+          created_at?: string
+          id?: string
+          one_on_one_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_one_on_one_notas_one_on_one_id_fkey"
+            columns: ["one_on_one_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_one_on_one"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_one_on_one_participantes: {
+        Row: {
+          created_at: string
+          id: string
+          one_on_one_id: string
+          persona_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          one_on_one_id: string
+          persona_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          one_on_one_id?: string
+          persona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_one_on_one_participantes_one_on_one_id_fkey"
+            columns: ["one_on_one_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_one_on_one"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_triada: {
+        Row: {
+          autor_persona_id: string
+          contexto: Database["public"]["Enums"]["pastoral_triada_contexto"]
+          created_at: string
+          estado: Database["public"]["Enums"]["pastoral_triada_estado"]
+          id: string
+          mentor_oficial_persona_id: string
+          motivo_disolucion:
+            | Database["public"]["Enums"]["pastoral_triada_motivo_disolucion"]
+            | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          autor_persona_id: string
+          contexto: Database["public"]["Enums"]["pastoral_triada_contexto"]
+          created_at?: string
+          estado?: Database["public"]["Enums"]["pastoral_triada_estado"]
+          id?: string
+          mentor_oficial_persona_id: string
+          motivo_disolucion?:
+            | Database["public"]["Enums"]["pastoral_triada_motivo_disolucion"]
+            | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          autor_persona_id?: string
+          contexto?: Database["public"]["Enums"]["pastoral_triada_contexto"]
+          created_at?: string
+          estado?: Database["public"]["Enums"]["pastoral_triada_estado"]
+          id?: string
+          mentor_oficial_persona_id?: string
+          motivo_disolucion?:
+            | Database["public"]["Enums"]["pastoral_triada_motivo_disolucion"]
+            | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      pastoral_triada_eventos: {
+        Row: {
+          actor_persona_id: string
+          created_at: string
+          id: string
+          payload: Json
+          tipo_evento: Database["public"]["Enums"]["pastoral_triada_evento_tipo"]
+          triada_id: string
+        }
+        Insert: {
+          actor_persona_id: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          tipo_evento: Database["public"]["Enums"]["pastoral_triada_evento_tipo"]
+          triada_id: string
+        }
+        Update: {
+          actor_persona_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          tipo_evento?: Database["public"]["Enums"]["pastoral_triada_evento_tipo"]
+          triada_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_triada_eventos_triada_id_fkey"
+            columns: ["triada_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_triada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_triada_miembros: {
+        Row: {
+          created_at: string
+          id: string
+          persona_id: string
+          rol_en_triada: string
+          triada_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          persona_id: string
+          rol_en_triada: string
+          triada_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          persona_id?: string
+          rol_en_triada?: string
+          triada_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_triada_miembros_triada_id_fkey"
+            columns: ["triada_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_triada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_casas_anfitrionas_disponibles: {
@@ -5304,6 +5579,39 @@ export type Database = {
         | "tutor"
         | "hermano"
         | "otro_familiar"
+      pastoral_one_on_one_estado:
+        | "pending_participant"
+        | "scheduled"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "no_realizado"
+      pastoral_triada_contexto:
+        | "nuevo_paso"
+        | "simultaneidad"
+        | "inicial"
+        | "reformada"
+      pastoral_triada_estado:
+        | "pending_confirmation"
+        | "active"
+        | "en_pausa"
+        | "disbanded"
+      pastoral_triada_evento_tipo:
+        | "formada"
+        | "miembro_anadido"
+        | "miembro_removido"
+        | "pausada"
+        | "reactivada"
+        | "disuelta"
+        | "paso_sugerido"
+        | "paso_validado"
+      pastoral_triada_motivo_disolucion:
+        | "gdv_liderazgo_removed"
+        | "servicio_retirado"
+        | "cambio_de_temporada"
+        | "pastoral_decision"
+        | "otro"
+
     }
     CompositeTypes: {
       [_ in never]: never

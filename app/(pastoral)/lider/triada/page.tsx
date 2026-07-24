@@ -39,7 +39,7 @@ export default async function LiderTriadaListPage() {
       ),
       pastoral_triada_eventos (
         id,
-        tipo,
+        tipo_evento,
         created_at
       )
     `)
@@ -51,7 +51,7 @@ export default async function LiderTriadaListPage() {
     contexto: string
     created_at: string
     pastoral_triada_miembros?: Array<{ id: string; persona_id: string; rol_en_triada: string }>
-    pastoral_triada_eventos?: Array<{ id: string; tipo: string; created_at: string }>
+    pastoral_triada_eventos?: Array<{ id: string; tipo_evento: string; created_at: string }>
   }) => ({
     id: row.id,
     estado: row.estado,

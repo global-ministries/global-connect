@@ -143,3 +143,52 @@ const CRISIS_DETECT = ['pastoral.crisis.detect', 'pastoral.read.all'] as const
 export function hasPastoralCrisisDetectCapability(session: PlatformSession): boolean {
   return (CRISIS_DETECT as readonly string[]).some((key) => hasCapability(session, key))
 }
+
+// W08 — DT-040, DT-041, DT-044: Tríada capabilities
+const TRIADA_READ = ['pastoral.triada.read', 'pastoral.read.all'] as const
+const TRIADA_CREATE = ['pastoral.triada.create', 'pastoral.read.all'] as const
+const TRIADA_NOTES = ['pastoral.triada.write_notes', 'pastoral.read.all'] as const
+const TRIADA_DISBAND = ['pastoral.triada.disband', 'pastoral.read.all'] as const
+
+/**
+ * Check if actor can read pastoral tríada records.
+ * pastoral.triada.read or pastoral.read.all.
+ */
+export function hasPastoralTriadaReadCapability(session: PlatformSession): boolean {
+  return (TRIADA_READ as readonly string[]).some((key) => hasCapability(session, key))
+}
+
+/**
+ * Check if actor can create pastoral tríada records.
+ * pastoral.triada.create or pastoral.read.all.
+ */
+export function hasPastoralTriadaCreateCapability(session: PlatformSession): boolean {
+  return (TRIADA_CREATE as readonly string[]).some((key) => hasCapability(session, key))
+}
+
+/**
+ * Check if actor can write notes on pastoral tríada records.
+ * Separation of read vs write per P5: pastoral.read.all does NOT grant write_notes.
+ */
+export function hasPastoralTriadaNotesCapability(session: PlatformSession): boolean {
+  return (TRIADA_NOTES as readonly string[]).some((key) => hasCapability(session, key))
+}
+
+/**
+ * Check if actor can disband pastoral tríada records.
+ * pastoral.triada.disband or pastoral.read.all.
+ */
+export function hasPastoralTriadaDisbandCapability(session: PlatformSession): boolean {
+  return (TRIADA_DISBAND as readonly string[]).some((key) => hasCapability(session, key))
+}
+
+// W12 — DT-069: Pastoral metrics read capability
+const METRICS_READ = ['pastoral.metrics.read', 'pastoral.read.all'] as const
+
+/**
+ * Check if actor can read pastoral metrics dashboard cards.
+ * pastoral.metrics.read or pastoral.read.all.
+ */
+export function hasPastoralMetricsReadCapability(session: PlatformSession): boolean {
+  return (METRICS_READ as readonly string[]).some((key) => hasCapability(session, key))
+}

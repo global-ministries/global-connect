@@ -105,13 +105,7 @@ export async function loadPublicRoadmap(
       id,
       estado,
       scheduled_at,
-      completed_at,
-      pastoral_one_on_one_pasos_validados (
-        id,
-        step_key,
-        validated_at,
-        is_shared_milestone
-      )
+      completed_at
     `)
     .contains('participantes_persona_ids', [options.assistedPersonaId])
     .order('scheduled_at', { ascending: false })
@@ -143,16 +137,23 @@ export async function loadPublicRoadmap(
   const proximo = sesiones.find((s) => !terminalStates.has(s.estado)) ?? null
 
   // Build roadmap
+  const proximoPasoSugerido = suggestNextStep({
+    assistedPersonaId: options.assistedPersonaId,
+    sesiones,
+    proximoUnoAuno: proximo,
+    pasosValidadosTotal: pasosShared,
+    proximoPasoSugerido: null,
+    generatedAtIso: new Date().toISOString(),
+  })
+
   const roadmap: PublicRoadmap = {
     assistedPersonaId: options.assistedPersonaId,
     sesiones,
     proximoUnoAuno: proximo,
     pasosValidadosTotal: pasosShared,
-    proximoPasoSugerido: null, // filled below
+    proximoPasoSugerido,
     generatedAtIso: new Date().toISOString(),
   }
-
-  roadmap.proximoPasoSugerido = suggestNextStep(roadmap)
 
   return roadmap
 }

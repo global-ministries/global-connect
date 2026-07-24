@@ -18,6 +18,7 @@ import type { PlatformSession } from '@/lib/platform/session/types'
 function makeSession(capabilities: string[]): PlatformSession {
   return {
     personaId: 'test-persona-id',
+    subjectAuthId: 'test-auth-id',
     capabilities: capabilities.map((key) => ({
       key,
       experience: 'pastoral' as const,
@@ -25,8 +26,8 @@ function makeSession(capabilities: string[]): PlatformSession {
       scopeId: undefined,
       source: 'test' as const,
     })),
-    roles: [],
-    activeFlow: 'pastoral.api',
+    globalRoles: [],
+    contexts: [],
   }
 }
 

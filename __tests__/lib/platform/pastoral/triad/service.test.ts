@@ -149,7 +149,12 @@ function createMockLedgerWriter() {
 
 // ─── Type helper ──────────────────────────────────────────────────────────────
 
-function expectOk(r: CreateTriadaWithAutoFormationResultType | DisbandTriadaWithAuditResultType | ConfirmTriadaResultType) {
+type OkResult =
+  | (CreateTriadaWithAutoFormationResultType & { ok: true })
+  | (DisbandTriadaWithAuditResultType & { ok: true })
+  | (ConfirmTriadaResultType & { ok: true })
+
+function expectOk(r: CreateTriadaWithAutoFormationResultType | DisbandTriadaWithAuditResultType | ConfirmTriadaResultType): asserts r is OkResult {
   if (!r.ok) throw new Error('Expected ok=true but got: ' + JSON.stringify(r.error))
 }
 

@@ -19,10 +19,10 @@ import { Button } from '@/components/ui/button'
 
 interface PastorDashboardClientProps {
   readonly metrics: {
-    readonly unoAunoPorPeriodo: number
-    readonly lideresActivos: number
-    readonly triadasActivas: number
-    readonly alarmas90dias: number
+    readonly unoAunoPorPeriodo: string | number
+    readonly lideresActivos: string | number
+    readonly triadasActivas: string | number
+    readonly alarmas90dias: string | number
   }
   readonly crisisAlerts: ReadonlyArray<{
     readonly oneOnOneId: string

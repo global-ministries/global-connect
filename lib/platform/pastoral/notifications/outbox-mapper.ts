@@ -153,5 +153,5 @@ export function mapPastoralEventToOutboxEntries(
     }
   }
 
-  return Object.freeze(entries)
+  return Object.freeze(entries) as unknown as PastoralOutboxEntry[]
 }

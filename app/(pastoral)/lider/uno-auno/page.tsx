@@ -35,10 +35,8 @@ export default async function LiderUnoAUnoListPage() {
       scheduled_at,
       completed_at,
       pastoral_one_on_one_participantes (
-        persona_id,
-        rol
-      ),
-      pastoral_one_on_one_pasos_validados ( id )
+        persona_id
+      )
     `)
     .eq('mentor_oficial_persona_id', actorPersonaId)
     .order('scheduled_at', { ascending: false })
@@ -48,16 +46,15 @@ export default async function LiderUnoAUnoListPage() {
     estado: string
     scheduled_at: string | null
     completed_at: string | null
-    pastoral_one_on_one_participantes?: Array<{ persona_id: string; rol: string }>
-    pastoral_one_on_one_pasos_validados?: Array<unknown>
+    pastoral_one_on_one_participantes?: Array<{ persona_id: string }>
   }) => {
-    const assisted = row.pastoral_one_on_one_participantes?.find((p) => p.rol === 'asistido')
+    const firstParticipant = row.pastoral_one_on_one_participantes?.[0]
     return {
       id: row.id,
       estado: row.estado,
       scheduledAtIso: row.scheduled_at,
-      assistedPersonaName: assisted?.persona_id ?? '—',
-      pasosValidadosCount: row.pastoral_one_on_one_pasos_validados?.length ?? 0,
+      assistedPersonaName: firstParticipant?.persona_id ?? '—',
+      pasosValidadosCount: 0,
     }
   })
 
