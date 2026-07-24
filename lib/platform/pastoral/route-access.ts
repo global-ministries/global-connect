@@ -22,12 +22,6 @@ const ONE_ON_ONE_NOTES = ['pastoral.one_on_one.write_notes', 'pastoral.read.all'
 const ONE_ON_ONE_VALIDATE = ['pastoral.one_on_one.validate_step', 'pastoral.read.all'] as const
 const ONE_ON_ONE_COMPLETE = ['pastoral.one_on_one.complete', 'pastoral.read.all'] as const
 
-// W08 — DT-045+DT-047+DT-048+DT-049: Triada capabilities
-const TRIADA_CREATE = ['pastoral.triada.create', 'pastoral.read.all'] as const
-const TRIADA_READ = ['pastoral.triada.read', 'pastoral.read.all'] as const
-const TRIADA_NOTES = ['pastoral.triada.write_notes', 'pastoral.read.all'] as const
-const TRIADA_DISBAND = ['pastoral.triada.disband', 'pastoral.read.all'] as const
-
 // ─── Flag check ───────────────────────────────────────────────────────────────
 
 /**
@@ -128,37 +122,24 @@ export function hasPastoralReadAllCapability(session: PlatformSession): boolean 
   return hasCapability(session, 'pastoral.read.all')
 }
 
-// ─── Triada capability predicates (W08) ──────────────────────────────────────
+// W10 — DT-060: Mentor cascade resolve capability
+const MENTOR_CASCADE_RESOLVE = ['pastoral.mentor.cascade.resolve', 'pastoral.read.all'] as const
 
 /**
- * Check if actor can create pastoral triada records.
- * pastoral.triada.create or pastoral.read.all.
+ * Check if actor can resolve mentor cascade for a persona.
+ * pastoral.mentor.cascade.resolve or pastoral.read.all.
  */
-export function hasPastoralTriadaCreateCapability(session: PlatformSession): boolean {
-  return (TRIADA_CREATE as readonly string[]).some((key) => hasCapability(session, key))
+export function hasPastoralMentorCascadeResolveCapability(session: PlatformSession): boolean {
+  return (MENTOR_CASCADE_RESOLVE as readonly string[]).some((key) => hasCapability(session, key))
 }
 
-/**
- * Check if actor can read pastoral triada records.
- * pastoral.triada.read or pastoral.read.all.
- */
-export function hasPastoralTriadaReadCapability(session: PlatformSession): boolean {
-  return (TRIADA_READ as readonly string[]).some((key) => hasCapability(session, key))
-}
+// W09 — DT-055: Crisis detect capability
+const CRISIS_DETECT = ['pastoral.crisis.detect', 'pastoral.read.all'] as const
 
 /**
- * Check if actor can write notes on pastoral triada records.
- * pastoral.triada.write_notes or pastoral.read.all.
- * Per P5: pastoral.read.all does NOT grant write_notes.
+ * Check if actor can trigger crisis scan on a pastoral 1:1.
+ * pastoral.crisis.detect or pastoral.read.all.
  */
-export function hasPastoralTriadaNotesCapability(session: PlatformSession): boolean {
-  return (TRIADA_NOTES as readonly string[]).some((key) => hasCapability(session, key))
-}
-
-/**
- * Check if actor can disband pastoral triada records.
- * pastoral.triada.disband or pastoral.read.all.
- */
-export function hasPastoralTriadaDisbandCapability(session: PlatformSession): boolean {
-  return (TRIADA_DISBAND as readonly string[]).some((key) => hasCapability(session, key))
+export function hasPastoralCrisisDetectCapability(session: PlatformSession): boolean {
+  return (CRISIS_DETECT as readonly string[]).some((key) => hasCapability(session, key))
 }

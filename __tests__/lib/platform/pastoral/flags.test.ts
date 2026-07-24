@@ -5,7 +5,7 @@
  * lib/platform/operating-core/flags.ts (sibling, no edits).
  */
 import { execSync } from 'child_process'
-import { getPastoralFlags, isPastoralEnabled, getPastoralStage, getPastoralStageGate } from '@/lib/platform/pastoral/flags'
+import { getPastoralFlags, isPastoralEnabled, getPastoralStage, getPastoralStageGate, getPastoralMetricsGate } from '@/lib/platform/pastoral/flags'
 
 describe('getPastoralFlags', () => {
   const originalEnv = process.env
@@ -218,6 +218,66 @@ describe('getPastoralStageGate', () => {
 
   it('accepts custom env object', () => {
     const result = getPastoralStageGate({ ...process.env, NEXT_PUBLIC_PASTORAL_ENABLED: 'on', NEXT_PUBLIC_PASTORAL_STAGE: 'public', NEXT_PUBLIC_PASTORAL_KILL_SWITCH: '' })
+    expect(result).toBe(true)
+  })
+})
+
+describe('getPastoralMetricsGate', () => {
+  const originalEnv = process.env
+
+  beforeEach(() => {
+    jest.resetModules()
+    process.env = { ...originalEnv }
+    delete process.env.NEXT_PUBLIC_PASTORAL_ENABLED
+    delete process.env.NEXT_PUBLIC_PASTORAL_STAGE
+    delete process.env.NEXT_PUBLIC_PASTORAL_KILL_SWITCH
+  })
+
+  afterAll(() => {
+    process.env = originalEnv
+  })
+
+  it('returns false when pastoral is disabled', () => {
+    expect(getPastoralMetricsGate()).toBe(false)
+  })
+
+  it('returns true when pastoral is enabled at admin-only stage', () => {
+    process.env.NEXT_PUBLIC_PASTORAL_ENABLED = 'on'
+    process.env.NEXT_PUBLIC_PASTORAL_STAGE = 'admin-only'
+    expect(getPastoralMetricsGate()).toBe(true)
+  })
+
+  it('returns true when pastoral is enabled at internal stage', () => {
+    process.env.NEXT_PUBLIC_PASTORAL_ENABLED = 'on'
+    process.env.NEXT_PUBLIC_PASTORAL_STAGE = 'internal'
+    expect(getPastoralMetricsGate()).toBe(true)
+  })
+
+  it('returns true when pastoral is enabled at public stage', () => {
+    process.env.NEXT_PUBLIC_PASTORAL_ENABLED = 'on'
+    process.env.NEXT_PUBLIC_PASTORAL_STAGE = 'public'
+    expect(getPastoralMetricsGate()).toBe(true)
+  })
+
+  it('returns false when killSwitch is on regardless of stage', () => {
+    process.env.NEXT_PUBLIC_PASTORAL_ENABLED = 'on'
+    process.env.NEXT_PUBLIC_PASTORAL_STAGE = 'public'
+    process.env.NEXT_PUBLIC_PASTORAL_KILL_SWITCH = 'on'
+    expect(getPastoralMetricsGate()).toBe(false)
+  })
+
+  it('returns false when enabled but stage is off', () => {
+    process.env.NEXT_PUBLIC_PASTORAL_ENABLED = 'on'
+    process.env.NEXT_PUBLIC_PASTORAL_STAGE = 'off'
+    expect(getPastoralMetricsGate()).toBe(false)
+  })
+
+  it('accepts custom env object', () => {
+    const result = getPastoralMetricsGate({
+      NEXT_PUBLIC_PASTORAL_ENABLED: 'on',
+      NEXT_PUBLIC_PASTORAL_STAGE: 'internal',
+      NEXT_PUBLIC_PASTORAL_KILL_SWITCH: '',
+    } as NodeJS.ProcessEnv)
     expect(result).toBe(true)
   })
 })

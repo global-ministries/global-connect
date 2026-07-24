@@ -60,3 +60,13 @@ export function getPastoralStageGate(env: NodeJS.ProcessEnv = process.env): bool
   const flags = getPastoralFlags(env)
   return flags.enabled && flags.stage === 'public' && !flags.killSwitch
 }
+
+/**
+ * Returns true when pastoral metrics are accessible.
+ * Metrics are visible when pastoral is enabled (stage != off, no killSwitch).
+ * Unlike stageGate, metrics may be visible at internal stage as well.
+ */
+export function getPastoralMetricsGate(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flags = getPastoralFlags(env)
+  return flags.enabled && flags.stage !== 'off' && !flags.killSwitch
+}
