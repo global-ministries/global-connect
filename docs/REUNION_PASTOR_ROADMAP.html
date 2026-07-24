@@ -1,0 +1,2171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GlobalConnect &middot; Documento para la reunión pastoral</title>
+<style>
+:root{
+  --paper:#faf6ee;
+  --paper-2:#f1ebdb;
+  --paper-shadow:#e8dfcb;
+  --ink:#162032;
+  --ink-soft:#2a3445;
+  --ink-mid:#3a4356;
+  --deep:#102542;
+  --deep-2:#1f3a6b;
+  --deep-3:#2d4373;
+  --warm:#9c6a1f;
+  --warm-soft:#b07a2a;
+  --warm-light:#d4a857;
+  --border:#d9cfb8;
+  --border-strong:#b8a87d;
+  --muted:#5a5247;
+  --muted-2:#8a7d68;
+  --c-built:var(--deep-3);
+  --c-planned:var(--warm-soft);
+  --c-vision:var(--muted-2);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Iowan Old Style","Palatino Linotype","Book Antiqua","URW Palladio L",Georgia,"Times New Roman",serif;
+  font-size:1.0625rem;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  font-feature-settings:"kern","liga","onum";
+  padding:48px 0 96px;
+}
+.container{max-width:1080px;margin:0 auto;padding:0 40px}
+.container--narrow{max-width:840px;margin:0 auto;padding:0 40px}
+@media (max-width:680px){
+  body{padding:32px 0 64px}
+  .container,.container--narrow{padding:0 22px}
+}
+
+/* Typography */
+h1,h2,h3,h4{
+  font-family:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,"Times New Roman",serif;
+  font-weight:500;
+  color:var(--deep);
+  letter-spacing:-0.015em;
+}
+h1{font-size:clamp(2.6rem,6.5vw,4.6rem);line-height:1.02;letter-spacing:-0.028em;font-weight:500}
+h2{font-size:clamp(1.85rem,4vw,2.8rem);line-height:1.1;margin-bottom:14px;font-weight:500}
+h3{font-size:clamp(1.15rem,2.4vw,1.45rem);line-height:1.25;font-weight:600;color:var(--ink)}
+p{margin-bottom:1em}
+.lead{
+  font-size:clamp(1.2rem,2.4vw,1.55rem);
+  line-height:1.5;
+  font-style:italic;
+  color:var(--ink-soft);
+  max-width:34ch;
+  font-weight:400;
+}
+.muted{color:var(--muted)}
+.eyebrow{
+  display:block;
+  font-size:0.72rem;
+  font-style:italic;
+  letter-spacing:0.22em;
+  text-transform:uppercase;
+  color:var(--warm);
+  margin-bottom:14px;
+}
+.eyebrow span.roman{
+  letter-spacing:0.08em;
+  font-style:normal;
+  font-weight:600;
+  color:var(--deep);
+  margin-right:10px;
+}
+
+/* Section wrappers */
+section.block{
+  padding:80px 0;
+  border-top:1px solid var(--border);
+}
+section.block:first-of-type{border-top:none;padding-top:48px}
+@media (max-width:680px){section.block{padding:56px 0}}
+
+.section-intro{
+  max-width:60ch;
+  font-size:1.0625rem;
+  color:var(--ink-soft);
+  margin-bottom:48px;
+  line-height:1.65;
+}
+
+/* Hero */
+.hero{padding:48px 0 80px;border-bottom:1px solid var(--border)}
+.hero-mark{
+  display:inline-flex;
+  align-items:center;
+  gap:14px;
+  margin-bottom:36px;
+  color:var(--warm);
+}
+.hero-mark svg{width:34px;height:34px;display:block}
+.hero-mark-text{
+  font-size:0.72rem;
+  letter-spacing:0.28em;
+  text-transform:uppercase;
+  color:var(--muted);
+  font-weight:600;
+}
+.hero-title{margin-bottom:28px;max-width:18ch}
+.hero-tagline{margin-bottom:40px}
+.hero-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px 28px;
+  font-size:0.85rem;
+  color:var(--muted);
+  font-style:italic;
+  border-top:1px solid var(--border);
+  padding-top:24px;
+  max-width:560px;
+}
+.hero-meta dt{font-style:normal;font-weight:600;color:var(--deep);font-size:0.72rem;letter-spacing:0.2em;text-transform:uppercase;margin-right:8px;display:inline}
+.hero-meta dd{display:inline;margin-right:24px}
+.hero-meta dd:last-child{margin-right:0}
+
+/* Asterism divider */
+.divider{
+  text-align:center;
+  margin:64px 0;
+  color:var(--border-strong);
+  letter-spacing:1em;
+  user-select:none;
+}
+.divider::before{content:"\2042";font-size:1.4rem;line-height:1}
+
+/* Phase grid */
+.timeline-wrap{margin-top:48px}
+.timeline-legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:24px 32px;
+  margin-bottom:32px;
+  padding:18px 24px;
+  background:var(--paper-2);
+  border:1px solid var(--border);
+}
+.legend-item{display:flex;align-items:center;gap:10px;font-size:0.85rem;color:var(--ink-soft)}
+.legend-swatch{width:14px;height:14px;flex:none;border:1px solid var(--border-strong)}
+.legend-swatch--built{background:var(--deep-3);border-color:var(--deep-3)}
+.legend-swatch--planned{background:var(--warm-soft);border-color:var(--warm-soft)}
+.legend-swatch--vision{background:transparent;border-color:var(--border-strong);border-style:dashed}
+
+.phases{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:0;
+  border-top:1px solid var(--border);
+  border-left:1px solid var(--border);
+}
+.phase{
+  background:var(--paper);
+  border-right:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  padding:24px 22px 26px;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  min-height:210px;
+}
+.phase--built{box-shadow:inset 4px 0 0 var(--deep-3)}
+.phase--planned{box-shadow:inset 4px 0 0 var(--warm-soft)}
+.phase--vision{box-shadow:inset 4px 0 0 var(--border-strong);background:rgba(250,246,238,0.6)}
+.phase-header{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;
+}
+.phase-num{
+  font-size:0.7rem;letter-spacing:0.2em;color:var(--muted-2);font-weight:600;
+}
+.phase-tag{
+  font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;
+  padding:3px 8px;font-weight:600;line-height:1;flex:none;
+}
+.phase-tag--built{background:var(--deep);color:var(--paper)}
+.phase-tag--planned{background:var(--warm);color:var(--paper)}
+.phase-tag--vision{background:transparent;color:var(--muted);border:1px solid var(--border-strong)}
+.phase-icon{display:block;margin-bottom:14px;color:var(--deep-2)}
+.phase-icon svg{width:34px;height:34px;display:block}
+.phase--vision .phase-icon{color:var(--muted)}
+.phase--planned .phase-icon{color:var(--warm)}
+.phase-name{
+  font-size:1.05rem;font-weight:600;color:var(--ink);margin-bottom:8px;line-height:1.25;
+}
+.phase-outcome{
+  font-size:0.88rem;color:var(--muted);line-height:1.5;font-style:italic;margin-top:auto;
+}
+
+/* Spiritual path */
+.spiritual-stations{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:16px;
+  margin-top:48px;
+  position:relative;
+}
+@media (max-width:920px){
+  .spiritual-stations{grid-template-columns:repeat(3,1fr);gap:32px 16px}
+}
+@media (max-width:580px){
+  .spiritual-stations{grid-template-columns:1fr;gap:28px}
+}
+.station{
+  padding:0 12px;
+  position:relative;
+  text-align:left;
+}
+.station-head{
+  display:flex;align-items:center;gap:14px;margin-bottom:14px;
+}
+.station-number{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:42px;height:42px;border:1.5px solid var(--warm);
+  border-radius:50%;background:var(--paper);flex:none;
+  font-size:0.92rem;font-weight:600;color:var(--warm);
+  font-feature-settings:"lnum";
+}
+.station-name{
+  font-size:1.02rem;font-weight:600;color:var(--deep);
+  line-height:1.3;
+}
+.station-body{
+  font-size:0.95rem;color:var(--ink-soft);
+  line-height:1.55;
+}
+.station-aside{
+  margin-top:12px;padding:10px 14px;
+  background:var(--paper-2);
+  border-left:2px solid var(--warm-soft);
+  font-size:0.82rem;color:var(--muted);
+  font-style:italic;
+  line-height:1.5;
+}
+.station-aside strong{font-style:normal;color:var(--warm);font-weight:600;letter-spacing:0.05em}
+
+/* Connector lines between stations */
+@media (min-width:921px){
+  .station:not(:last-child)::after{
+    content:"";position:absolute;top:21px;left:54px;right:-16px;
+    height:1px;background:linear-gradient(to right,var(--border-strong) 50%,transparent 50%);background-size:8px 1px;
+  }
+}
+@media (min-width:581px) and (max-width:920px){
+  .station:nth-child(3n)::after{display:none}
+}
+
+/* Ana timeline */
+.ana-intro{
+  background:var(--deep);
+  color:var(--paper);
+  padding:32px 36px;
+  margin-bottom:48px;
+  position:relative;
+}
+.ana-intro-quote{
+  font-size:1.15rem;line-height:1.55;font-style:italic;
+  font-family:"Iowan Old Style",Georgia,serif;color:var(--paper);
+  margin-bottom:12px;
+}
+.ana-intro-quote::before{content:"\201C";font-size:2.4rem;color:var(--warm-light);line-height:0.8;display:inline-block;margin-right:6px;vertical-align:-0.2em;font-style:normal;font-family:Georgia,serif}
+.ana-intro-quote::after{content:"\201D";font-size:2.4rem;color:var(--warm-light);line-height:0.1;display:inline-block;margin-left:4px;vertical-align:-0.4em;font-style:normal;font-family:Georgia,serif}
+.ana-intro-attr{font-size:0.82rem;color:var(--warm-light);letter-spacing:0.1em;font-style:normal}
+
+.ana-timeline{
+  margin-top:0;
+  position:relative;
+  padding-left:56px;
+}
+.ana-timeline::before{
+  content:"";position:absolute;left:18px;top:14px;bottom:14px;
+  width:1px;background:var(--border-strong);
+}
+.ana-step{
+  position:relative;padding:0 0 36px 0;
+}
+.ana-step:last-child{padding-bottom:0}
+.ana-step::before{
+  content:"";position:absolute;left:-46px;top:6px;
+  width:19px;height:19px;border-radius:50%;
+  background:var(--paper);
+  border:2px solid var(--warm);
+  box-shadow:0 0 0 4px var(--paper);
+}
+.ana-step-marker{
+  font-size:0.7rem;letter-spacing:0.22em;text-transform:uppercase;
+  color:var(--warm);font-weight:600;margin-bottom:6px;
+}
+.ana-step-title{
+  font-size:1.25rem;font-weight:600;color:var(--deep);margin-bottom:8px;line-height:1.3;
+}
+.ana-step-body{
+  font-size:1.05rem;color:var(--ink-soft);line-height:1.6;
+  max-width:60ch;
+}
+
+/* How-built flow */
+.flow-diagram{
+  margin-top:48px;
+  padding:40px 32px;
+  background:var(--paper-2);
+  border:1px solid var(--border);
+  position:relative;
+}
+.flow-title{
+  font-size:0.75rem;letter-spacing:0.22em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:24px;font-weight:600;
+}
+.flow{
+  display:flex;align-items:stretch;justify-content:space-between;
+  gap:0;flex-wrap:nowrap;
+}
+@media (max-width:780px){
+  .flow{flex-direction:column;align-items:stretch}
+}
+.flow-node{
+  flex:1 1 0;min-width:0;
+  background:var(--paper);
+  border:1px solid var(--border);
+  padding:18px 18px;
+  position:relative;
+}
+.flow-node-head{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:8px;
+}
+.flow-node-num{
+  width:24px;height:24px;border-radius:50%;
+  background:var(--deep);color:var(--paper);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:0.78rem;font-weight:600;
+  font-feature-settings:"lnum";flex:none;
+}
+.flow-node-name{font-size:0.95rem;font-weight:600;color:var(--deep);line-height:1.25}
+.flow-node-body{font-size:0.85rem;color:var(--muted);line-height:1.5}
+.flow-arrow{
+  flex:none;display:flex;align-items:center;justify-content:center;
+  color:var(--warm-soft);width:36px;
+}
+.flow-arrow svg{width:36px;height:14px;display:block}
+@media (max-width:780px){
+  .flow-arrow{width:auto;height:28px;transform:rotate(90deg)}
+}
+
+/* Built vs coming */
+.compare{margin-top:48px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media (max-width:780px){.compare{grid-template-columns:1fr}}
+.compare-col{
+  border:1px solid var(--border);padding:32px 28px;background:var(--paper);
+}
+.compare-col--built{box-shadow:inset 4px 0 0 var(--deep-3)}
+.compare-col--coming{box-shadow:inset 4px 0 0 var(--warm-soft)}
+.compare-col--ready{box-shadow:inset 4px 0 0 var(--warm-light)}
+.compare-label{
+  display:inline-block;font-size:0.68rem;letter-spacing:0.22em;text-transform:uppercase;
+  padding:4px 10px;font-weight:600;margin-bottom:18px;
+}
+.compare-label--built{background:var(--deep);color:var(--paper)}
+.compare-label--coming{background:var(--warm);color:var(--paper)}
+.compare-label--ready{background:var(--warm-light);color:var(--deep)}
+.compare--three-cols{grid-template-columns:repeat(3,1fr);gap:24px}
+@media (max-width:980px){.compare--three-cols{grid-template-columns:1fr}}
+.compare-heading{
+  font-size:1.4rem;font-weight:600;color:var(--deep);margin-bottom:20px;line-height:1.25;
+}
+.compare-list{list-style:none}
+.compare-list li{
+  font-size:0.98rem;color:var(--ink-soft);line-height:1.55;
+  padding:14px 0 14px 26px;position:relative;border-top:1px solid var(--border);
+}
+.compare-list li:first-child{border-top:none;padding-top:0}
+.compare-list li::before{
+  content:"";position:absolute;left:0;top:22px;
+  width:14px;height:1px;background:var(--warm-soft);
+}
+.compare-list li:first-child::before{top:8px}
+.compare-list li strong{color:var(--deep);font-weight:600;display:block;margin-bottom:2px}
+.compare-list li .small{font-size:0.85rem;color:var(--muted);font-style:italic;margin-top:2px;display:block}
+
+/* Ana bifurcation after Hito 3 */
+.ana-branch{margin-top:56px;padding-top:8px}
+.ana-branch .flow-title{margin-bottom:8px}
+.ana-branch-intro{
+  font-size:0.95rem;color:var(--muted);max-width:60ch;
+  margin-bottom:32px;line-height:1.6;font-style:italic;
+}
+
+/* Workshops gallery */
+.workshops-gallery{margin-top:64px;padding-top:32px;border-top:1px solid var(--border)}
+.workshops-intro{
+  font-size:0.95rem;color:var(--ink-soft);max-width:62ch;
+  margin-bottom:36px;line-height:1.65;
+}
+.workshops-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:0;
+  border-top:1px solid var(--border);border-left:1px solid var(--border);
+}
+@media (max-width:780px){.workshops-grid{grid-template-columns:1fr}}
+.workshop-card{
+  background:var(--paper);
+  border-right:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  padding:26px 26px 30px;
+  display:flex;flex-direction:column;
+}
+.workshop-card:first-child{box-shadow:inset 4px 0 0 var(--deep-3)}
+.workshop-card:nth-child(2){box-shadow:inset 4px 0 0 var(--deep-3)}
+.workshop-card:nth-child(3){box-shadow:inset 4px 0 0 var(--warm-soft)}
+.workshop-card:nth-child(4){box-shadow:inset 4px 0 0 var(--warm-soft)}
+.workshop-card:nth-child(5){box-shadow:inset 4px 0 0 var(--deep-3)}
+.workshop-kind{
+  font-size:0.66rem;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--warm);font-weight:600;margin-bottom:10px;
+}
+.workshop-name{
+  font-size:1.35rem;color:var(--deep);font-weight:600;
+  margin-bottom:10px;letter-spacing:-0.01em;
+}
+.workshop-body{
+  font-size:0.95rem;color:var(--ink-soft);line-height:1.6;
+}
+
+/* Workshop anchor (Próximo Paso) */
+.workshop-card--anchor{
+  background:var(--paper-2);
+  box-shadow:inset 4px 0 0 var(--deep-3), 0 0 0 1px var(--deep-3);
+  position:relative;
+}
+.workshop-card--anchor .workshop-name{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.workshop-card--anchor .anchor-tag{
+  display:inline-block;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;
+  background:var(--deep);color:var(--paper);padding:4px 9px;font-weight:600;line-height:1;flex:none;
+}
+.workshop-card:nth-child(6){box-shadow:inset 4px 0 0 var(--warm-soft)}
+.workshop-card:nth-child(7){box-shadow:inset 4px 0 0 var(--deep-3)}
+
+/* Inscripción note */
+.inscripcion-note{
+  margin-top:32px;padding:24px 28px;
+  background:var(--paper);border:1px solid var(--border);
+  box-shadow:inset 4px 0 0 var(--warm-soft);
+}
+.inscripcion-note p{font-size:0.98rem;color:var(--ink-soft);line-height:1.6;max-width:62ch;margin-bottom:12px}
+.inscripcion-note p:last-child{margin-bottom:0}
+.inscripcion-note .flow-title{margin-bottom:14px}
+
+/* Escalas (5 escalones de la ruta espiritual) */
+.escalas-block{
+  margin-top:64px;padding-top:40px;
+  border-top:1px solid var(--border);
+}
+.escalas-intro{
+  font-size:0.98rem;color:var(--ink-soft);max-width:62ch;
+  margin-bottom:36px;line-height:1.65;
+}
+.escalas{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:0;
+  border-top:1px solid var(--border);border-left:1px solid var(--border);
+}
+@media (max-width:920px){.escalas{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:580px){.escalas{grid-template-columns:1fr}}
+.escala{
+  background:var(--paper);border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+  padding:24px 22px 26px;position:relative;
+}
+.escala-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.escala-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:38px;height:38px;background:var(--deep-3);color:var(--paper);
+  font-size:0.95rem;font-weight:600;font-style:italic;font-feature-settings:"lnum";flex:none;
+}
+.escala-name{font-size:1.02rem;font-weight:600;color:var(--deep);line-height:1.3}
+.escala-body{font-size:0.92rem;color:var(--ink-soft);line-height:1.55}
+.escala--pendiente{background:rgba(250,246,238,0.6)}
+.escala--pendiente .escala-num{
+  background:transparent;color:var(--warm);
+  border:1.5px dashed var(--border-strong);
+}
+.escala--pendiente .escala-name{color:var(--muted);font-style:italic}
+.escalas-note{
+  margin-top:28px;padding:14px 18px;
+  background:var(--paper-2);border-left:2px solid var(--warm-soft);
+  font-size:0.92rem;color:var(--muted);font-style:italic;line-height:1.55;
+  max-width:62ch;
+}
+
+/* Triada block */
+.triada-block{
+  margin-top:80px;padding-top:48px;border-top:1px solid var(--border);
+}
+.triada-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+  border-top:1px solid var(--border);border-left:1px solid var(--border);
+  margin-top:32px;
+}
+@media (max-width:780px){.triada-grid{grid-template-columns:1fr}}
+.triada-card{
+  background:var(--paper);
+  border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+  padding:26px 26px 30px;
+}
+.triada-card:first-child{box-shadow:inset 4px 0 0 var(--deep-3)}
+.triada-card:nth-child(2){box-shadow:inset 4px 0 0 var(--warm-soft)}
+.triada-card:nth-child(3){box-shadow:inset 4px 0 0 var(--deep-3)}
+.triada-role{
+  display:inline-block;font-size:0.66rem;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--warm);font-weight:600;margin-bottom:12px;
+}
+.triada-name{font-size:1.2rem;color:var(--deep);font-weight:600;margin-bottom:10px;line-height:1.3}
+.triada-card p{font-size:0.95rem;color:var(--ink-soft);line-height:1.55;margin:0}
+.triada-detail{
+  margin-top:48px;padding:28px 32px;
+  background:var(--paper-2);border:1px solid var(--border);max-width:65ch;
+}
+.triada-detail p{font-size:0.98rem;color:var(--ink-soft);line-height:1.65;margin-bottom:14px}
+.triada-detail p:last-child{margin-bottom:0}
+.triada-vistas{
+  display:grid;grid-template-columns:1fr 1fr;gap:24px;
+  margin-top:32px;
+}
+@media (max-width:780px){.triada-vistas{grid-template-columns:1fr}}
+.triada-vista{
+  padding:26px 28px;border:1px solid var(--border);background:var(--paper);
+}
+.triada-vista:first-child{box-shadow:inset 4px 0 0 var(--deep-3)}
+.triada-vista:last-child{box-shadow:inset 4px 0 0 var(--warm-soft)}
+.triada-vista-tag{
+  display:inline-block;font-size:0.66rem;letter-spacing:0.2em;text-transform:uppercase;
+  padding:4px 10px;font-weight:600;background:var(--deep);color:var(--paper);margin-bottom:14px;
+}
+.triada-vista h4{font-size:1.1rem;color:var(--deep);margin-bottom:10px;font-weight:600;line-height:1.3}
+.triada-vista p{font-size:0.95rem;color:var(--ink-soft);line-height:1.55;margin:0}
+
+/* Phase detail blocks (expanded, 1-by-1) */
+.phase-detail-list{
+  margin-top:64px;
+  padding-top:40px;
+  border-top:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  gap:0;
+}
+.phase-detail-list .section-intro{
+  margin-bottom:40px;
+}
+.phase-detail{
+  padding:36px 0;
+  border-bottom:1px solid var(--border);
+  display:grid;
+  grid-template-columns:200px 1fr;
+  gap:36px;
+}
+.phase-detail:last-child{border-bottom:none}
+@media (max-width:780px){
+  .phase-detail{grid-template-columns:1fr;gap:14px}
+}
+.phase-detail-header{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  align-items:flex-start;
+}
+.phase-detail-num{
+  font-size:0.72rem;
+  letter-spacing:0.22em;
+  text-transform:uppercase;
+  color:var(--muted);
+  font-weight:600;
+}
+.phase-detail--built{border-left:3px solid var(--deep-3);padding-left:24px}
+.phase-detail--planned{border-left:3px solid var(--warm-soft);padding-left:24px}
+.phase-detail--vision{border-left:3px dashed var(--border-strong);padding-left:24px}
+@media (max-width:780px){
+  .phase-detail--built,.phase-detail--planned,.phase-detail--vision{padding-left:18px}
+}
+.phase-detail-name{
+  font-size:1.45rem;
+  color:var(--deep);
+  font-weight:600;
+  letter-spacing:-0.01em;
+  margin-bottom:12px;
+  line-height:1.2;
+}
+.phase-detail-outcome{
+  font-size:1rem;
+  color:var(--ink);
+  line-height:1.65;
+  margin-bottom:16px;
+  max-width:62ch;
+}
+.phase-detail-for-label{
+  display:block;
+  font-size:0.7rem;
+  letter-spacing:0.2em;
+  text-transform:uppercase;
+  color:var(--warm);
+  font-weight:600;
+  margin-bottom:10px;
+}
+.phase-detail-for ul{
+  list-style:none;
+  padding:0;
+  margin:0;
+}
+.phase-detail-for li{
+  padding:8px 0 8px 22px;
+  position:relative;
+  font-size:0.95rem;
+  color:var(--ink-soft);
+  line-height:1.55;
+  border-bottom:1px dotted var(--border);
+}
+.phase-detail-for li:last-child{border-bottom:none}
+.phase-detail-for li::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:18px;
+  width:14px;
+  height:1px;
+  background:var(--warm-soft);
+}
+
+/* Pastor questions */
+.questions{
+  margin-top:48px;
+  display:grid;grid-template-columns:1fr 1fr;gap:0;
+  border:1px solid var(--border);background:var(--paper);
+}
+@media (max-width:780px){.questions{grid-template-columns:1fr}}
+.question{
+  padding:28px 30px;
+  border-right:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  display:flex;gap:18px;
+}
+.question:nth-child(2n){border-right:none}
+.questions > .question:nth-last-child(-n+2){border-bottom:none}
+@media (max-width:780px){
+  .question{border-right:none;border-bottom:1px solid var(--border)}
+  .question:last-child{border-bottom:none}
+}
+.q-num{
+  font-size:0.78rem;letter-spacing:0.18em;color:var(--warm);
+  font-weight:700;flex:none;font-feature-settings:"lnum";
+}
+.q-body{font-size:1.02rem;line-height:1.5;color:var(--ink)}
+.q-why{
+  margin-top:8px;font-size:0.78rem;color:var(--muted-2);
+  font-style:italic;letter-spacing:0.02em;
+}
+.q-answer{
+  margin-top:10px;
+  font-size:0.92rem;
+  font-style:italic;
+  color:var(--ink-soft);
+  padding-left:14px;
+  border-left:2px solid var(--warm-soft);
+  line-height:1.55;
+}
+
+/* Closing */
+.closing{
+  padding:80px 0 0;
+  border-top:1px solid var(--border);
+  text-align:center;
+  font-style:italic;
+  color:var(--muted);
+  font-size:1.05rem;
+}
+.closing-mark{
+  color:var(--warm);font-size:1.4rem;letter-spacing:0.5em;margin-bottom:16px;
+}
+
+/* Section heading with Roman numerals */
+.section-eyebrow{
+  display:flex;align-items:baseline;gap:18px;
+  margin-bottom:18px;padding-bottom:14px;
+  border-bottom:1px solid var(--border);
+}
+.section-eyebrow .roman{
+  font-size:1rem;font-weight:600;color:var(--warm);
+  letter-spacing:0.05em;font-feature-settings:"lnum";font-style:italic;
+}
+.section-eyebrow .num-label{
+  font-size:0.72rem;letter-spacing:0.25em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;
+}
+
+/* Two-column intro layout */
+.intro-grid{
+  display:grid;grid-template-columns:1.4fr 1fr;gap:48px;
+  margin-top:40px;
+}
+@media (max-width:780px){.intro-grid{grid-template-columns:1fr;gap:32px}}
+.intro-card{
+  padding:28px;border:1px solid var(--border);background:var(--paper-2);
+}
+.intro-card h3{margin-bottom:10px}
+.intro-card p{font-size:0.98rem;color:var(--ink-soft);margin:0}
+
+/* Utility */
+.tag-inline{
+  display:inline-block;font-size:0.7rem;letter-spacing:0.12em;
+  padding:2px 8px;border:1px solid currentColor;font-weight:600;
+}
+
+/* Configurabilidad mini-block */
+.config-block{
+  margin-top:32px;padding:22px 26px;
+  background:var(--paper-2);border:1px solid var(--border);
+  box-shadow:inset 4px 0 0 var(--warm);
+}
+.config-block .flow-title{margin-bottom:12px}
+.config-block p{font-size:0.98rem;color:var(--ink-soft);line-height:1.6;max-width:64ch;margin:0}
+
+/* Roles y capacidades block */
+.roles-block{
+  margin-top:64px;padding-top:40px;
+  border-top:1px solid var(--border);
+}
+.roles-intro{
+  font-size:0.98rem;color:var(--ink-soft);max-width:62ch;
+  margin-bottom:32px;line-height:1.65;
+}
+.roles-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:0;
+  border-top:1px solid var(--border);border-left:1px solid var(--border);
+}
+@media (max-width:780px){.roles-grid{grid-template-columns:1fr}}
+.role-card{
+  background:var(--paper);
+  border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+  padding:22px 24px 26px;
+}
+.role-card:nth-child(odd){box-shadow:inset 4px 0 0 var(--deep-3)}
+.role-card:nth-child(even){box-shadow:inset 4px 0 0 var(--warm-soft)}
+.role-tag{
+  display:inline-block;font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--warm);font-weight:600;margin-bottom:10px;
+}
+.role-name{font-size:1.1rem;color:var(--deep);font-weight:600;margin-bottom:8px;line-height:1.3}
+.role-body{font-size:0.92rem;color:var(--ink-soft);line-height:1.55;margin:0}
+
+/* Cascada de mentor */
+.cascada-list{
+  list-style:none;margin:14px 0 0;padding:0;
+}
+.cascada-list li{
+  padding:10px 0 10px 28px;position:relative;
+  font-size:0.98rem;color:var(--ink-soft);line-height:1.6;
+  border-bottom:1px dotted var(--border);
+}
+.cascada-list li:last-child{border-bottom:none}
+.cascada-list li::before{
+  content:"";position:absolute;left:0;top:18px;
+  width:18px;height:1px;background:var(--warm-soft);
+}
+.cascada-list li strong{color:var(--deep);font-weight:600}
+
+/* Nota destacada dentro del bloque de cascada */
+.cascada-note{
+  margin-top:22px;
+  padding:16px 20px;
+  background:var(--paper-2);
+  border-left:3px solid var(--warm);
+  font-size:0.96rem;
+  color:var(--ink);
+  line-height:1.65;
+  font-style:normal;
+  max-width:64ch;
+}
+.cascada-note strong{color:var(--deep);font-weight:600}
+
+/* Tríada por simultaneidad */
+.triada-subtitle{
+  font-size:0.7rem;
+  letter-spacing:0.22em;
+  text-transform:uppercase;
+  color:var(--warm);
+  font-weight:600;
+  margin-bottom:12px;
+  margin-top:0;
+}
+.triada-simultaneidad{
+  margin-top:32px;
+  padding:26px 28px 28px;
+  background:var(--paper);
+  border:1px solid var(--border);
+  box-shadow:inset 4px 0 0 var(--warm-soft);
+  max-width:65ch;
+}
+.triada-simultaneidad p{font-size:0.98rem;color:var(--ink-soft);line-height:1.65;margin-bottom:12px}
+.triada-simultaneidad p:last-child{margin-bottom:0}
+
+/* Nota pastoral dentro de un hito de Ana */
+.ana-note{
+  margin:24px 0 8px;
+  padding:14px 18px;
+  background:var(--paper-2);
+  border-left:3px solid var(--warm);
+  font-size:0.95rem;
+  color:var(--ink-soft);
+  line-height:1.6;
+  font-style:italic;
+  max-width:62ch;
+}
+.ana-note strong{color:var(--deep);font-style:normal;font-weight:600}
+
+</style>
+</head>
+<body>
+<div class="container container--narrow">
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-mark">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+        <circle cx="16" cy="16" r="14"/>
+        <path d="M11 16 L21 16 M16 11 L16 21" stroke-linecap="round"/>
+        <circle cx="6" cy="16" r="1.4" fill="currentColor" stroke="none"/>
+        <circle cx="26" cy="16" r="1.4" fill="currentColor" stroke="none"/>
+        <circle cx="16" cy="6" r="1.4" fill="currentColor" stroke="none"/>
+        <circle cx="16" cy="26" r="1.4" fill="currentColor" stroke="none"/>
+      </svg>
+      <span class="hero-mark-text">GlobalConnect &middot; Documento pastoral</span>
+    </div>
+
+    <h1 class="hero-title">GlobalConnect, el recorrido&nbsp;espiritual de cada persona en una sola plataforma.</h1>
+    <p class="hero-tagline lead">Un documento para conversar sobre hacia dónde vamos, qué&nbsp;construimos primero y qué le pedimos hoy a la tecnología.</p>
+
+    <dl class="hero-meta">
+      <dd><dt>Reunión</dt>Pastor &amp; equipo de plataforma</dd>
+      <dd><dt>Edición</dt>Julio 2026</dd>
+      <dd><dt>Idioma</dt>Español</dd>
+    </dl>
+  </header>
+
+</div>
+
+<div class="container">
+
+  <!-- I. LINEA DE TIEMPO DE LAS 15 FASES -->
+  <section class="block" id="timeline">
+    <div class="section-eyebrow">
+      <span class="roman">I.</span>
+      <span class="num-label">El recorrido completo</span>
+    </div>
+
+    <h2>Quince fases para acompañar a una persona de principio a fin.</h2>
+
+    <p class="section-intro">La plataforma se construye por fases. Las dos primeras ya están en producción. La tercera está planificada y empieza a ejecutarse pronto. Las demás son visión: sabemos hacia dónde vamos, pero el orden y el detalle se construyen con el pastor y los equipos.</p>
+
+    <div class="timeline-wrap">
+
+      <div class="timeline-legend">
+        <div class="legend-item"><span class="legend-swatch legend-swatch--built"></span> Construidas</div>
+        <div class="legend-item"><span class="legend-swatch legend-swatch--planned"></span> Planificadas (corto plazo)</div>
+        <div class="legend-item"><span class="legend-swatch legend-swatch--vision"></span> Visión</div>
+      </div>
+
+      <div class="phases">
+
+        <!-- Fase 1: Construidas -->
+        <article class="phase phase--built">
+          <div class="phase-header">
+            <span class="phase-num">FASE 01</span>
+            <span class="phase-tag phase-tag--built">Construida</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <rect x="6" y="20" width="22" height="8"/>
+              <rect x="9" y="13" width="16" height="7"/>
+              <rect x="12" y="6" width="10" height="7"/>
+              <circle cx="11" cy="24" r="1" fill="currentColor" stroke="none"/>
+              <circle cx="23" cy="24" r="1" fill="currentColor" stroke="none"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Cimientos de la plataforma</h3>
+          <p class="phase-outcome">Una sola cuenta por persona. Permisos claros según el rol. La iglesia puede confiar en una identidad ordenada.</p>
+        </article>
+
+        <!-- Fase 2: Construidas -->
+        <article class="phase phase--built">
+          <div class="phase-header">
+            <span class="phase-num">FASE 02</span>
+            <span class="phase-tag phase-tag--built">Construida</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <circle cx="17" cy="11" r="4.5"/>
+              <circle cx="9" cy="14" r="3.2"/>
+              <circle cx="25" cy="14" r="3.2"/>
+              <path d="M7 26 c0-4 4-6 10-6 s10 2 10 6"/>
+              <path d="M3 28 c0-3 3-5 6-5"/>
+              <path d="M31 28 c0-3 -3-5 -6-5"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Dream Team</h3>
+          <p class="phase-outcome">Quien sirve tiene un proceso visible de seis etapas. Se cuida a cada servidor y se respeta su tiempo.</p>
+        </article>
+
+        <!-- Fase 3: Planificada -->
+        <article class="phase phase--planned">
+          <div class="phase-header">
+            <span class="phase-num">FASE 03</span>
+            <span class="phase-tag phase-tag--planned">Planificada</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <rect x="5" y="7" width="24" height="22" rx="1"/>
+              <path d="M5 13 L29 13"/>
+              <path d="M11 4 L11 10 M23 4 L23 10"/>
+              <circle cx="11" cy="19" r="1.3" fill="currentColor" stroke="none"/>
+              <circle cx="17" cy="19" r="1.3" fill="currentColor" stroke="none"/>
+              <circle cx="23" cy="19" r="1.3" fill="currentColor" stroke="none"/>
+              <circle cx="11" cy="24" r="1.3" fill="currentColor" stroke="none"/>
+              <circle cx="17" cy="24" r="1.3" fill="currentColor" stroke="none"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Eventos, inscripciones y asistencia</h3>
+          <p class="phase-outcome">El corazón operativo: cómo se inscribe la gente, cómo se controla la capacidad y cómo se registra la asistencia.</p>
+        </article>
+
+        <!-- Fases 4-15: Vision -->
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 04</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <circle cx="22" cy="22" r="4"/>
+              <path d="M12 16 L12 22 M22 12 L22 16 M16 12 L18 12 M16 22 L18 22"/>
+              <path d="M5 17 L9 17 M25 17 L29 17" stroke-dasharray="2 2"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Acompañamiento pastoral 1:1 y triadas</h3>
+          <p class="phase-outcome">Reuniones uno a uno registradas y triadas con memoria pastoral, sin convertir lo sagrado en un dato más.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 05</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <path d="M5 6 L5 28 L29 28 L29 6 Z"/>
+              <path d="M9 6 L9 28 M9 12 L25 12 M9 18 L25 18 M9 24 L20 24"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Talleres de crecimiento</h3>
+          <p class="phase-outcome">Inscripción, asistencia y certificación que avanzan el crecimiento personal y quedan registradas.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 06</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <path d="M5 14 L17 7 L29 14 L29 27 L17 27 L5 27 Z"/>
+              <path d="M17 27 L17 20 M12 17.5 L17 20 L22 17.5"/>
+              <circle cx="17" cy="17" r="1.5" fill="currentColor" stroke="none"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">The Living Room</h3>
+          <p class="phase-outcome">Grupos universitarios con su propia identidad pastoral y seguimiento propio.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 07</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <path d="M17 4 L20 11 L27 11.5 L21.5 16 L23.5 23 L17 19 L10.5 23 L12.5 16 L7 11.5 L14 11 Z"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Operaciones por áreas</h3>
+          <p class="phase-outcome">Reportes y evaluaciones por equipo, área y director, listos para conversar con datos reales.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 08</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <path d="M17 4 L26 8 L26 17 c0 7 -5 11 -9 13 c-4 -2 -9 -6 -9 -13 L8 8 Z"/>
+              <path d="M13 17 L16 20 L21 14"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Base para niños y adolescentes</h3>
+          <p class="phase-outcome">Estructura sólida y permisos estrictos para proteger los datos de los más jóvenes.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 09</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <circle cx="17" cy="13" r="5"/>
+              <path d="M7 28 c0-5 5-9 10-9 s10 4 10 9"/>
+              <circle cx="17" cy="13" r="2" fill="currentColor" stroke="none"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Niños operativo</h3>
+          <p class="phase-outcome">Ambientes, check-in de cada niño y capacidad operativa por salón.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 10</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <circle cx="13" cy="11" r="4"/>
+              <circle cx="23" cy="13" r="3.4"/>
+              <path d="M4 27 c0-4 4-7 9-7 s9 3 9 7"/>
+              <path d="M18 27 c0-3 3-6 6-6 s6 2 6 5"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Adolescentes operativo</h3>
+          <p class="phase-outcome">Registro de adolescentes, grupos propios y asistencia nominal por reunión.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 11</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <path d="M5 27 L13 18 L18 22 L25 12 L29 16"/>
+              <circle cx="13" cy="18" r="1.6" fill="currentColor" stroke="none"/>
+              <circle cx="18" cy="22" r="1.6" fill="currentColor" stroke="none"/>
+              <circle cx="25" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+              <path d="M5 7 L29 7" stroke-dasharray="2 3"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Ruta espiritual completa</h3>
+          <p class="phase-outcome">Pasos, hitos y próximos pasos de cada persona, actualizados en tiempo real.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 12</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <path d="M5 17 L17 5 L29 17 L29 29 L5 29 Z"/>
+              <circle cx="17" cy="20" r="2"/>
+              <path d="M17 22 L17 27"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Portal para miembros</h3>
+          <p class="phase-outcome">Cada miembro con su cuenta, su historial y la posibilidad de gestionar lo suyo sin llamar a la oficina.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 13</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <path d="M4 24 L4 28 L30 28 L30 24"/>
+              <path d="M5 24 L17 9 L29 24"/>
+              <path d="M13 24 L13 16 L21 16 L21 24"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Campamentos y eventos grandes</h3>
+          <p class="phase-outcome">Pagos, becas, lista de espera y ficha médica integrados.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 14</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <rect x="6" y="9" width="22" height="20"/>
+              <path d="M11 9 L11 6 L23 6 L23 9"/>
+              <path d="M6 14 L28 14"/>
+              <path d="M10 18 L14 18 M18 18 L24 18 M10 22 L14 22 M18 22 L22 22"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Logística de voluntarios</h3>
+          <p class="phase-outcome">Refrigerio, planificación semanal y validación por código para que la logística deje de vivir en la cabeza de una persona.</p>
+        </article>
+
+        <article class="phase phase--vision">
+          <div class="phase-header">
+            <span class="phase-num">FASE 15</span>
+            <span class="phase-tag phase-tag--vision">Visión</span>
+          </div>
+          <span class="phase-icon">
+            <svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <rect x="7" y="5" width="20" height="24" rx="1.5"/>
+              <line x1="7" y1="11" x2="27" y2="11"/>
+              <circle cx="17" cy="23" r="1.6"/>
+              <rect x="11" y="8" width="3.5" height="2"/>
+            </svg>
+          </span>
+          <h3 class="phase-name">Equipos físicos y automatización</h3>
+          <p class="phase-outcome">Tablets, kioskos y self check-in. Solo cuando el equipo humano esté listo.</p>
+        </article>
+
+      </div>
+    </div>
+
+    <div class="phase-detail-list">
+      <p class="flow-title">Cada fase explicada con detalle pastoral</p>
+      <p class="section-intro">A continuaci&oacute;n, cada una de las 15 fases explicada con detalle pastoral. Las dos primeras ya est&aacute;n construidas y la tercera empieza pronto. Las dem&aacute;s son la visi&oacute;n completa del programa.</p>
+
+      <!-- Fase 1 -->
+      <div class="phase-detail phase-detail--built">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 1</span>
+          <span class="phase-tag phase-tag--built">Construida</span>
+        </div>
+        <h3 class="phase-detail-name">Cimientos de la plataforma</h3>
+        <p class="phase-detail-outcome">Ya tenemos la base de la plataforma funcionando. Cada persona tiene una sola cuenta y un lugar claro seg&uacute;n el rol que cumple en la iglesia. Los permisos est&aacute;n ordenados y la navegaci&oacute;n funciona, aunque todav&iacute;a no la hemos prendido p&uacute;blicamente.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Una identidad ordenada para cada persona, sin cuentas duplicadas.</li>
+            <li>Permisos claros por &aacute;rea: l&iacute;deres ven lo que necesitan, no m&aacute;s.</li>
+            <li>Navegaci&oacute;n contextual que respeta el rol y la responsabilidad de cada uno.</li>
+            <li>Base firme sobre la que se construyen las fases siguientes.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 2 -->
+      <div class="phase-detail phase-detail--built">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 2</span>
+          <span class="phase-tag phase-tag--built">Construida</span>
+        </div>
+        <h3 class="phase-detail-name">Dream Team</h3>
+        <p class="phase-detail-outcome">Toda persona que sirve tiene hoy un proceso visible con seis etapas. No es un registro burocr&aacute;tico: es la forma en que la iglesia acompa&ntilde;a a cada servidor y respeta su tiempo. El sistema reconoce capacidades (permisos espec&iacute;ficos) y no duplica roles: una misma persona puede dirigir varias cosas si tiene los permisos para cada una. Toda persona que termina Pr&oacute;ximo Paso y manifiesta inter&eacute;s en servir es recibida por Dream Team, que la redirige al l&iacute;der del &aacute;rea correspondiente. La base ya est&aacute; funcionando. Cuando una persona quiere servir, primero pasa por Pr&oacute;ximo Paso y desde all&iacute; Dream Team la recibe y la redirige al &aacute;rea donde quiere servir. Si la persona candidata ya asiste a un grupo de vida, su l&iacute;der de grupo es el mentor oficial. El coordinador del &aacute;rea conversa con ese l&iacute;der para alinear el acompa&ntilde;amiento, formando una tr&iacute;ada entre la persona, el coordinador del &aacute;rea y el l&iacute;der de grupo de vida.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Cada servidor tiene un proceso ordenado: postulado, en orientaci&oacute;n, activo, en pausa, inactivo o retirado.</li>
+            <li>El sistema reconoce capacidades y no duplica roles cuando una persona asume nuevas responsabilidades.</li>
+            <li>Toda persona que termina Pr&oacute;ximo Paso y manifiesta inter&eacute;s en servir es recibida por la persona a cargo de Dream Team, que la redirige al l&iacute;der del &aacute;rea correspondiente.</li>
+            <li>El l&iacute;der del &aacute;rea hace la selecci&oacute;n (audiciones, entrenamiento) y actualiza el estado de la persona en el sistema.</li>
+            <li>Una misma persona puede dirigir varias cosas si tiene los permisos para cada una. No se duplican los roles.</li>
+            <li>Se puede pausar y reactivar sin perder el historial ni la formaci&oacute;n.</li>
+            <li>Conecta con Grupos de Vida sin romper lo que ya funciona all&iacute;.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 3 -->
+      <div class="phase-detail phase-detail--planned">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 3</span>
+          <span class="phase-tag phase-tag--planned">Planificada</span>
+        </div>
+        <h3 class="phase-detail-name">Eventos, inscripciones y asistencia</h3>
+        <p class="phase-detail-outcome">Toda esta fase ya est&aacute; construida e integrada en la plataforma. Las piezas principales ya est&aacute;n en su lugar: las reglas que definen cada capacidad, las tablas y relaciones que guardan la informaci&oacute;n, los componentes que conectan todo, las pantallas para dirigir, liderar y servir, los mensajes autom&aacute;ticos, los recordatorios, los eventos que se repiten en el tiempo y el plan paso a paso para llevarlo a la pr&aacute;ctica. Sigue detr&aacute;s de un interruptor de activaci&oacute;n: hasta que el pastor y el equipo den el visto bueno, la fase no se enciende en producci&oacute;n. Activar la fase sigue el mismo patr&oacute;n de la Fase 2: primero en ambiente de prueba, luego a l&iacute;deres, luego a toda la iglesia, con al menos siete d&iacute;as entre cada paso.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Inscripci&oacute;n a talleres y eventos desde la web o un c&oacute;digo QR, sin planillas.</li>
+            <li>Registro de asistencia en grupos de corto plazo, &aacute;reas de servicio y grupos de vida.</li>
+            <li>Control de capacidad por reuni&oacute;n, con aviso autom&aacute;tico cuando un sal&oacute;n se llena.</li>
+            <li>Notificaciones y correos autom&aacute;ticos configurables por taller.</li>
+            <li>Certificaci&oacute;n digital al cerrar cada taller, con actualizaci&oacute;n autom&aacute;tica de la ruta.</li>
+            <li>Tres vistas de panel: director, l&iacute;der y operador.</li>
+            <li>Materializaci&oacute;n autom&aacute;tica de eventos recurrentes (cursos que se repiten cada cierto tiempo).</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 4 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 4</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Acompa&ntilde;amiento pastoral 1:1 y triadas</h3>
+        <p class="phase-detail-outcome">Las reuniones uno a uno y las triadas quedan registradas para que el acompa&ntilde;amiento pastoral no dependa solo de la memoria del l&iacute;der. La plataforma acompa&ntilde;a, no reemplaza la conversaci&oacute;n.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Registro de cada 1:1 con fecha, tema y seguimiento acordado.</li>
+            <li>Vista clara de qui&eacute;n est&aacute; acompa&ntilde;ando a qui&eacute;n.</li>
+            <li>Triadas con sus participantes y su pr&oacute;ximo encuentro visible.</li>
+            <li>Historial pastoral por persona, sin reemplazar la conversaci&oacute;n personal.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 5 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 5</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Talleres de crecimiento</h3>
+        <p class="phase-detail-outcome">Los talleres como Pr&oacute;ximo Paso, Mujer de Hoy, Hombre a Hombre, Punto de Partida y Nacimientos dejan de vivir solo en la cabeza de alguien y se vuelven parte del camino de cada persona dentro de la plataforma. La gesti&oacute;n de cada taller ocurre desde la propia plataforma: inscripciones, boletines interactivos, notificaciones push, asistencia y materiales despu&eacute;s de cada clase. No se trabaja con documentos descargables. Los roles del equipo detr&aacute;s de cada taller son los mismos que ya existen en el sistema.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Inscripciones desde la plataforma, con boletines interactivos y notificaciones push como canales de comunicaci&oacute;n.</li>
+            <li>Asistencia registrada por la persona y por el equipo del taller.</li>
+            <li>Al finalizar cada taller se emite un certificado digital que actualiza autom&aacute;ticamente la ruta de crecimiento de la persona.</li>
+            <li>El sistema sugiere el siguiente paso; la confirmaci&oacute;n siempre la hace un mentor humano, nunca una pantalla.</li>
+            <li>Cada taller decide si env&iacute;a un recordatorio o material a los asistentes despu&eacute;s de cada clase. Lo que el pastor o l&iacute;der configure hoy puede ajustarse sin rearmar el sistema.</li>
+            <li>Los roles del equipo (director general, director de grupos de corto plazo, director de &aacute;rea, l&iacute;der de taller) son los mismos que ya existen en la plataforma.</li>
+            <li>Cada taller se conecta con un paso de la ruta espiritual.</li>
+            <li>El equipo pastoral ve qui&eacute;n hizo qu&eacute; taller y en qu&eacute; fecha.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 6 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 6</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">The Living Room</h3>
+        <p class="phase-detail-outcome">El p&uacute;blico universitario tiene su propio espacio dentro de la plataforma, con sus grupos, su mentor&iacute;a y su ritmo. No es un subproducto de Grupos de Vida: es una experiencia con identidad propia.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Grupos universitarios con din&aacute;mica propia y mentores asignados.</li>
+            <li>Asistencia y transici&oacute;n visibles para el equipo pastoral.</li>
+            <li>Conexi&oacute;n con la ruta espiritual general cuando llega el momento.</li>
+            <li>Una identidad ordenada para un p&uacute;blico que suele quedar invisible en los sistemas tradicionales.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 7 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 7</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Operaciones por &aacute;reas</h3>
+        <p class="phase-detail-outcome">Cada &aacute;rea de la iglesia (producci&oacute;n, ni&ntilde;os, hospitalidad, entre otras) tiene un panel donde ve su gente, su agenda y sus necesidades. No reemplaza la coordinaci&oacute;n humana; la ordena.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Cada &aacute;rea ve qui&eacute;n sirve, en qu&eacute; equipo y con qu&eacute; requisitos.</li>
+            <li>Evaluaciones y repertorio de canciones donde corresponde.</li>
+            <li>Coordinaci&oacute;n con otras &aacute;reas sin perder autonom&iacute;a.</li>
+            <li>Conexi&oacute;n con Dream Team y con la ruta espiritual del servidor.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 8 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 8</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Base para ni&ntilde;os y adolescentes</h3>
+        <p class="phase-detail-outcome">Antes de empezar con ni&ntilde;os y adolescentes, dejamos lista la base de permisos y protecciones para datos sensibles. Esta fase es el cimiento, no la operaci&oacute;n.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Permisos estrictos para datos de menores, con consentimiento familiar.</li>
+            <li>Separaci&oacute;n clara entre lo que un l&iacute;der puede ver y lo que no.</li>
+            <li>Base lista para que las fases 9 y 10 puedan construir sobre reglas s&oacute;lidas.</li>
+            <li>Tranquilidad pastoral y legal de que la informaci&oacute;n sensible est&aacute; cuidada.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 9 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 9</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Ni&ntilde;os operativo</h3>
+        <p class="phase-detail-outcome">Cada domingo, el &aacute;rea de ni&ntilde;os sabe qui&eacute;n vino, qui&eacute;n autoriz&oacute; a cada menor y qui&eacute;n est&aacute; disponible para servir. El check-in y el check-out quedan ordenados y visibles para los padres.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Check-in y check-out de cada menor con registro claro.</li>
+            <li>Lista de autorizados visible para el equipo de ni&ntilde;os.</li>
+            <li>Capacidad por sal&oacute;n con avisos autom&aacute;ticos.</li>
+            <li>Comunicaci&oacute;n simple con padres sin exponer datos sensibles.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 10 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 10</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Adolescentes operativo</h3>
+        <p class="phase-detail-outcome">Los adolescentes tienen un registro propio con sus grupos, su asistencia y sus visitantes. La transici&oacute;n desde ni&ntilde;os y hacia la vida adulta de la iglesia queda acompa&ntilde;ada.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Registro ordenado de cada adolescente y su grupo.</li>
+            <li>Asistencia nominal a reuniones y eventos propios.</li>
+            <li>Visibilidad de visitantes y nuevos con seguimiento pastoral.</li>
+            <li>Conexi&oacute;n natural con la ruta espiritual general.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 11 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 11</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Ruta espiritual completa</h3>
+        <p class="phase-detail-outcome">La persona ve en un solo lugar d&oacute;nde est&aacute; dentro del camino espiritual y qu&eacute; sigue. Bautismo, Pr&oacute;ximo Paso, talleres, servicio, 1:1 y triadas quedan conectados en una vista que acompa&ntilde;a.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Una vista &uacute;nica del camino espiritual de cada persona.</li>
+            <li>Pasos, hitos y pr&oacute;ximos pasos visibles para l&iacute;der y miembro.</li>
+            <li>Recomendaciones pastorales basadas en d&oacute;nde est&aacute; cada uno.</li>
+            <li>Una herramienta para conversar el camino, no para reemplazarlo.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 12 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 12</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Portal para miembros</h3>
+        <p class="phase-detail-outcome">Cada miembro entra a la plataforma, ve su historial, su pr&oacute;ximo paso, sus certificados y su camino. Los padres ven el camino de sus hijos. La autogesti&oacute;n deja de ser un sue&ntilde;o y se vuelve cotidiana.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Acceso propio para cada miembro con su historial visible.</li>
+            <li>Portal de padres con el camino de sus hijos a la vista.</li>
+            <li>Descarga de certificados y constancias cuando se necesitan.</li>
+            <li>Una puerta de entrada &uacute;nica para preguntas frecuentes y tr&aacute;mites simples.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 13 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 13</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Campamentos y eventos grandes</h3>
+        <p class="phase-detail-outcome">Los eventos que mueven mucha gente y mucho dinero (campamentos, retiros, congresos) quedan soportados con pagos, becas, lista de espera y ficha m&eacute;dica. Llegamos ac&aacute; cuando la base est&eacute; firme.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Inscripci&oacute;n con pagos, becas y lista de espera ordenada.</li>
+            <li>Ficha m&eacute;dica y documentos requeridos centralizados.</li>
+            <li>Coordinaci&oacute;n con el equipo pastoral y de operaciones.</li>
+            <li>Eventos grandes sin improvisar a &uacute;ltima hora.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 14 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 14</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Log&iacute;stica de voluntarios</h3>
+        <p class="phase-detail-outcome">Refrigerios, planificaci&oacute;n semanal, validaci&oacute;n por QR: la log&iacute;stica detr&aacute;s del servicio se vuelve simple. Esta fase depende de que el portal de voluntarios y Dream Team est&eacute;n maduros.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Planificaci&oacute;n semanal visible para cada equipo.</li>
+            <li>Refrigerios y recursos log&iacute;sticos coordinados con antelaci&oacute;n.</li>
+            <li>Validaci&oacute;n por QR en puertas y entradas.</li>
+            <li>Menos WhatsApp, menos confusi&oacute;n, m&aacute;s tiempo para servir.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Fase 15 -->
+      <div class="phase-detail phase-detail--vision">
+        <div class="phase-detail-header">
+          <span class="phase-detail-num">Fase 15</span>
+          <span class="phase-tag phase-tag--vision">Visi&oacute;n</span>
+        </div>
+        <h3 class="phase-detail-name">Equipos f&iacute;sicos y automatizaci&oacute;n</h3>
+        <p class="phase-detail-outcome">Tablets, kioskos, impresoras de etiquetas, esc&aacute;neres de QR, self check-in. Lo agregamos cuando el resto est&eacute; firme. La plataforma no se queda esperando al hardware: el hardware llega al final, no bloquea el camino.</p>
+        <div class="phase-detail-for">
+          <span class="phase-detail-for-label">Qu&eacute; hace por la iglesia</span>
+          <ul>
+            <li>Tablets y kioskos para check-in y autoinscripci&oacute;n.</li>
+            <li>Impresi&oacute;n de etiquetas y escaneo de QR en accesos.</li>
+            <li>Self check-in para &aacute;reas grandes y eventos masivos.</li>
+            <li>Menos carga administrativa para el equipo pastoral.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+<div class="container container--narrow">
+
+  <!-- II. RUTA ESPIRITUAL (la mas importante) -->
+  <section class="block" id="ruta">
+    <div class="section-eyebrow">
+      <span class="roman">II.</span>
+      <span class="num-label">El corazón de la plataforma</span>
+    </div>
+
+    <h2>La ruta espiritual: cómo acompaña la plataforma a una persona, de la primera visita al siguiente paso.</h2>
+
+    <p class="section-intro">Esta es la sección más importante del documento. Toda la plataforma se sostiene sobre una sola intuición: cada persona tiene un recorrido, y la iglesia debería poder verlo y acompañarlo sin inventarlo a mano cada vez.</p>
+
+    <p class="section-intro">Las seis estaciones que siguen no son fases técnicas. Son el camino que cualquier creyente o buscador recorre, desde que pisa la iglesia hasta que se convierte en acompañante de otros. Lo demás, eventos y formularios, está al servicio de este camino.</p>
+
+    <div class="spiritual-stations">
+
+      <div class="station">
+        <div class="station-head">
+          <span class="station-number">1</span>
+          <div class="station-name">Llegada y conexión</div>
+        </div>
+        <div class="station-body">Cuando alguien nuevo llega, la plataforma permite identificarlo, registrarlo y vincularlo a un grupo pequeño cercano. La iglesia no espera a que se acerque solo. Vamos a su encuentro.</div>
+        <div class="station-aside"><strong>Hoy:</strong> una nueva persona entra a la base con su nombre, contacto y grupo asignado, sin duplicar información.</div>
+      </div>
+
+      <div class="station">
+        <div class="station-head">
+          <span class="station-number">2</span>
+          <div class="station-name">Dream Team</div>
+        </div>
+        <div class="station-body">Servir no es &ldquo;apuntarse y listo&rdquo;. Toda persona que quiere servir pasa por seis etapas visibles: postulada, en orientación, activa, en pausa, inactiva y retirada. Esto cuida a cada servidor y respeta su tiempo.</div>
+        <div class="station-aside"><strong>Construido:</strong> la plataforma ya registra estas seis etapas y registra la historia de cada una.</div>
+      </div>
+
+      <div class="station">
+        <div class="station-head">
+          <span class="station-number">3</span>
+          <div class="station-name">Talleres de crecimiento</div>
+        </div>
+        <div class="station-body">Los talleres son espacios para aprender, discernir y fortalecerse. La persona se inscribe desde la plataforma, registra su asistencia y, al completar, recibe su certificación.</div>
+        <div class="station-aside"><strong>Visión cercana:</strong> la certificación avanza automáticamente el progreso de la persona en su propia ruta espiritual.</div>
+      </div>
+
+      <div class="station">
+        <div class="station-head">
+          <span class="station-number">4</span>
+          <div class="station-name">Seguimiento 1:1 y triadas</div>
+        </div>
+        <div class="station-body">El acompañamiento pastoral es personal y confidencial. La plataforma guarda la memoria de las reuniones uno a uno y de las triadas: quién acompaña a quién, qué se conversó, qué se decidió.</div>
+        <div class="station-aside"><strong>Principio:</strong> nunca convertir lo sagrado en un dato más. La memoria es para servir, no para exhibir.</div>
+      </div>
+
+      <div class="station">
+        <div class="station-head">
+          <span class="station-number">5</span>
+          <div class="station-name">Grupos pequeños y Living Room</div>
+        </div>
+        <div class="station-body">La fe se vive en comunidad. Los grupos pequeños son la casa de cada persona dentro de la iglesia. Living Room es nuestra propuesta para universitarios, con su propia identidad pastoral.</div>
+        <div class="station-aside"><strong>Hoy:</strong> los grupos pequeños ya funcionan sobre la plataforma, ordenados y visibles.</div>
+      </div>
+
+      <div class="station">
+        <div class="station-head">
+          <span class="station-number">6</span>
+          <div class="station-name">Próximos pasos</div>
+        </div>
+        <div class="station-body">La ruta nunca termina. Cada hito abre una nueva puerta: liderar un grupo, acompañar a alguien nuevo, servir en otra área, tomar otro taller. La plataforma sugiere el siguiente paso según dónde está cada persona.</div>
+        <div class="station-aside"><strong>Principio:</strong> el próximo paso correcto es el que la persona puede dar hoy, no el que quisiéramos que diera mañana.</div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+<div class="container">
+
+  <!-- III. CASO ANA -->
+  <section class="block" id="ana">
+    <div class="section-eyebrow">
+      <span class="roman">III.</span>
+      <span class="num-label">Un caso para pensarlo juntos</span>
+    </div>
+
+    <h2>El recorrido de Ana, en cinco hitos.</h2>
+
+    <p class="section-intro">Ana no existe como persona. Pero su recorrido es el de muchas personas reales de la iglesia. Lo que sigue es la historia de cómo una persona cualquiera recorre la ruta espiritual de principio a fin, con la plataforma cuidando lo que hoy se cuida en papel, en la cabeza de un líder o en el chat de un grupo.</p>
+
+    <div class="ana-intro">
+      <p class="ana-intro-quote">Esta plataforma no reemplaza a las personas que ayudan. Lo que hace es darles a los l&iacute;deres, coordinadores y pastores un mejor control de las personas de adentro que est&aacute;n acompa&ntilde;ando a otras. Hoy, las personas nuevas todav&iacute;a no usan el sistema; llegar&aacute; un momento en que les sea &uacute;til tambi&eacute;n a ellas. Mientras tanto, esta herramienta existe para que quienes ya est&aacute;n dentro puedan cuidar mejor a quienes est&aacute;n llegando.</p>
+      <p class="ana-intro-quote">Todo lo que empieza debe terminar. Cada taller que se inicia queda con su certificado, su actualizaci&oacute;n en la ruta y su paso siguiente visible. El sistema sugiere, pero siempre valida un mentor humano: nadie crece solo frente a una pantalla.</p>
+      <p class="ana-intro-attr">Principio rector del equipo de plataforma</p>
+    </div>
+
+    <div class="ana-timeline">
+
+      <div class="ana-step">
+        <div class="ana-step-marker">Hito uno &middot; Invitaci&oacute;n</div>
+        <h3 class="ana-step-title">Ana llega un domingo por invitaci&oacute;n de una amiga y se inscribe a Pr&oacute;ximo Paso.</h3>
+        <p class="ana-step-body">El primer paso dentro de la ruta espiritual es el taller Pr&oacute;ximo Paso, que se realiza los domingos. Ana queda registrada en la plataforma desde el primer d&iacute;a. La iglesia puede saber qui&eacute;n vino, qui&eacute;n se interes&oacute; y qui&eacute;n debe recibir un seguimiento personal.</p>
+      </div>
+
+      <div class="ana-step">
+        <div class="ana-step-marker">Hito dos &middot; Pr&oacute;ximo Paso</div>
+        <h3 class="ana-step-title">Asiste a Pr&oacute;ximo Paso durante cuatro semanas seguidas.</h3>
+        <p class="ana-step-body">El taller dura cuatro encuentros. La plataforma registra cada asistencia y avisa al equipo pastoral si alguien deja de venir, para que nadie se pierda sin aviso. No hace falta planilla ni WhatsApp: el seguimiento queda ordenado.</p>
+      </div>
+
+      <div class="ana-step">
+        <div class="ana-step-marker">Hito tres &middot; Decisi&oacute;n</div>
+        <h3 class="ana-step-title">Recibe el test de dones y se le habla del bautismo.</h3>
+        <p class="ana-step-body">Al terminar Pr&oacute;ximo Paso, se le aplica un test de dones para entender d&oacute;nde puede servir mejor. Tambi&eacute;n se le presenta el paso del bautismo como una decisi&oacute;n personal. Si quiere bautizarse, se inscribe al pr&oacute;ximo bautizo. Si quiere servir, se le ofrece el siguiente paso.</p>
+      </div>
+
+      <div class="ana-step">
+        <div class="ana-step-marker">Hito cuatro &middot; Inducci&oacute;n</div>
+        <h3 class="ana-step-title">Toma la inducci&oacute;n del &aacute;rea donde quiere servir y queda registrada en Dream Team.</h3>
+        <p class="ana-step-body">Hay un taller de inducci&oacute;n donde se le explica c&oacute;mo funciona cada &aacute;rea de la iglesia: producci&oacute;n, ni&ntilde;os, hospitalidad y dem&aacute;s. Ana elige d&oacute;nde quiere servir y queda registrada en la plataforma como postulada en Dream Team, lista para empezar a entrenarse en su &aacute;rea.</p>
+      </div>
+
+      <div class="ana-branch">
+        <p class="flow-title">Despu&eacute;s del Hito cuatro, dos respuestas posibles</p>
+        <p class="ana-branch-intro">La inducci&oacute;n no siempre termina en un s&iacute;. La persona puede ser aceptada en el &aacute;rea que eligi&oacute; o descubrir, en el camino, que esa no es su temporada. En ambos casos la iglesia responde con cuidado pastoral: nadie se queda sin acompa&ntilde;amiento.</p>
+
+        <div class="compare">
+
+          <div class="compare-col compare-col--built">
+            <span class="compare-label">Camino A</span>
+            <h3 class="compare-heading">Es aceptada en el &aacute;rea.</h3>
+            <ul class="compare-list">
+              <li>
+                <strong>Sigue dentro de Dream Team</strong>
+                <span class="small">Ana contin&uacute;a su entrenamiento en el &aacute;rea que eligi&oacute;, acompa&ntilde;ada por el l&iacute;der de equipo asignado.</span>
+              </li>
+              <li>
+                <strong>Su estado se actualiza</strong>
+                <span class="small">La plataforma refleja el avance de Ana etapa por etapa hasta llegar a la condici&oacute;n de activa.</span>
+              </li>
+              <li>
+                <strong>Puede tomar otros talleres en paralelo</strong>
+                <span class="small">Mientras sirve, puede inscribirse a Punto de Partida, Mujer de Hoy, Hombre a Hombre u otros, seg&uacute;n su momento.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="compare-col compare-col--coming">
+            <span class="compare-label">Camino B</span>
+            <h3 class="compare-heading">No es aceptada o descubre que no es para ella.</h3>
+            <ul class="compare-list">
+              <li>
+                <strong>No vuelve a Pr&oacute;ximo Paso</strong>
+                <span class="small">Ana no repite el primer paso. Su camino no retrocede: se acompa&ntilde;a desde donde est&aacute;.</span>
+              </li>
+              <li>
+                <strong>Es redirigida a la persona a cargo de Dream Team</strong>
+                <span class="small">La persona a cargo de Dream Team conversa con Ana y la orienta a explorar otra &aacute;rea donde pueda servir mejor.</span>
+              </li>
+              <li>
+                <strong>Su ruta queda abierta</strong>
+                <span class="small">La iglesia sigue acompa&ntilde;&aacute;ndola. Ana puede intentar otra &aacute;rea o seguir solo con talleres y grupos peque&ntilde;os, sin perder su lugar.</span>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="ana-step">
+        <div class="ana-step-marker">Hito cinco &middot; Crecimiento continuo</div>
+        <h3 class="ana-step-title">Mientras sirve, toma talleres de corto plazo seg&uacute;n su momento.</h3>
+        <p class="ana-step-body">Adem&aacute;s del servicio y la inducci&oacute;n, Ana puede tomar talleres de corto plazo como Mujer de Hoy, Hombre a Hombre, Nacimientos u otros, seg&uacute;n su temporada de vida. Cada taller se inscribe, se asiste y se certifica desde la plataforma, y eso va actualizando su camino espiritual. Mientras est&aacute; en el taller, su mentor es el l&iacute;der de ese taller (segundo nivel de la cascada). Cuando no est&eacute; en taller pero siga sirviendo, su mentor ser&aacute; el coordinador de su equipo (tercer nivel).</p>
+      </div>
+
+      <p class="ana-note"><strong>Nota pastoral.</strong> Como Ana asiste a un grupo de vida, su l&iacute;der de grupo es su mentor oficial. Cuando empieza a servir, se forma una tr&iacute;ada entre Ana, el coordinador del &aacute;rea que eligi&oacute; y su l&iacute;der de grupo de vida.</p>
+
+    </div>
+
+    <div class="ana-branch">
+      <p class="flow-title">Despu&eacute;s del Hito tres, dos caminos posibles</p>
+      <p class="ana-branch-intro">El test de dones y la charla sobre el bautismo abren una bifurcaci&oacute;n. La persona puede tomar uno solo de los dos caminos, los dos, o volver m&aacute;s adelante cuando se sienta lista.</p>
+
+      <div class="compare">
+
+        <div class="compare-col compare-col--built">
+          <span class="compare-label">Camino A</span>
+          <h3 class="compare-heading">Decide bautizarse.</h3>
+          <ul class="compare-list">
+            <li>
+              <strong>Inscripci&oacute;n al pr&oacute;ximo bautizo</strong>
+              <span class="small">Ana se inscribe desde la plataforma. El equipo pastoral ve la lista actualizada y coordina la preparaci&oacute;n.</span>
+            </li>
+            <li>
+              <strong>Acompa&ntilde;amiento previo</strong>
+              <span class="small">La plataforma registra cada paso del proceso previo al bautizo y qui&eacute;n es su acompa&ntilde;ante pastoral.</span>
+            </li>
+            <li>
+              <strong>Certificaci&oacute;n del bautismo</strong>
+              <span class="small">El bautismo queda asociado a su nombre como un hito permanente en su ruta espiritual.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="compare-col compare-col--coming">
+          <span class="compare-label">Camino B</span>
+          <h3 class="compare-heading">Decide servir.</h3>
+          <ul class="compare-list">
+            <li>
+              <strong>Taller de inducci&oacute;n al &aacute;rea</strong>
+              <span class="small">Ana toma la inducci&oacute;n del &aacute;rea donde quiere servir: producci&oacute;n, ni&ntilde;os, hospitalidad y dem&aacute;s.</span>
+            </li>
+            <li>
+              <strong>Postulaci&oacute;n en Dream Team</strong>
+              <span class="small">Queda registrada en la plataforma como postulada y empieza su proceso de entrenamiento por &aacute;rea.</span>
+            </li>
+            <li>
+              <strong>Puede bautizarse despu&eacute;s</strong>
+              <span class="small">El bautismo no se cierra como opci&oacute;n. Ana puede tomarlo m&aacute;s adelante, sin perder su lugar en la ruta.</span>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="escalas-block">
+      <p class="flow-title">Los 5 escalones de la ruta espiritual</p>
+      <p class="escalas-intro">Detr&aacute;s de cada hito de Ana hay un escal&oacute;n m&aacute;s profundo del camino. Estos cinco escalones describen el recorrido que cualquier persona puede vivir dentro de la iglesia, desde el primer inter&eacute;s hasta el momento de acompa&ntilde;ar a otros. Sirven como mapa para conversar el orden y los tiempos del crecimiento pastoral.</p>
+
+      <div class="escalas">
+
+        <div class="escala">
+          <div class="escala-head">
+            <span class="escala-num">I</span>
+            <span class="escala-name">Explorando la fe</span>
+          </div>
+          <div class="escala-body">El primer inter&eacute;s, las primeras preguntas.</div>
+        </div>
+
+        <div class="escala">
+          <div class="escala-head">
+            <span class="escala-num">II</span>
+            <span class="escala-name">Conociendo a Jes&uacute;s</span>
+          </div>
+          <div class="escala-body">Bautismo, decisi&oacute;n personal.</div>
+        </div>
+
+        <div class="escala">
+          <div class="escala-head">
+            <span class="escala-num">III</span>
+            <span class="escala-name">Siguiendo a Jes&uacute;s</span>
+          </div>
+          <div class="escala-body">Servicio en Dream Team, primera tarea estable.</div>
+        </div>
+
+        <div class="escala">
+          <div class="escala-head">
+            <span class="escala-num">IV</span>
+            <span class="escala-name">Creciendo en Jes&uacute;s</span>
+          </div>
+          <div class="escala-body">Talleres de corto plazo, mentor activo, disc&iacute;pulos.</div>
+        </div>
+
+        <div class="escala escala--pendiente">
+          <div class="escala-head">
+            <span class="escala-num">V</span>
+            <span class="escala-name">[Por nombrar en la reuni&oacute;n]</span>
+          </div>
+          <div class="escala-body">Liderando a otros, reproduciendo el camino.</div>
+        </div>
+
+      </div>
+
+      <p class="escalas-note">Etapa V &mdash; el nombre se define en la reuni&oacute;n pastoral. La descripci&oacute;n pastoral ya est&aacute; clara (liderar y reproducir), pero el equipo quiere conversar el lenguaje antes de cerrar la denominaci&oacute;n.</p>
+    </div>
+  </section>
+
+  <!-- IV. COMO SE CONSTRUYE LA RUTA -->
+  <section class="block" id="how">
+    <div class="section-eyebrow">
+      <span class="roman">IV.</span>
+      <span class="num-label">Cómo se conectan las piezas</span>
+    </div>
+
+    <h2>Cómo los talleres se conectan con la ruta espiritual de cada persona.</h2>
+
+    <p class="section-intro">Los talleres no son un programa paralelo. Son una pieza clave del crecimiento de cada miembro y por eso viven dentro de la misma plataforma que registra su asistencia, su grupo pequeño y su servicio. El siguiente diagrama muestra el camino completo de un taller, desde que alguien se inscribe hasta que su paso queda reflejado en su ruta.</p>
+
+    <div class="flow-diagram">
+      <p class="flow-title">El camino de un taller</p>
+      <div class="flow">
+
+        <div class="flow-node">
+          <div class="flow-node-head">
+            <span class="flow-node-num">1</span>
+            <span class="flow-node-name">Inscripción</span>
+          </div>
+          <p class="flow-node-body">La persona ve los talleres disponibles y se inscribe desde la plataforma, en pocos pasos.</p>
+        </div>
+
+        <div class="flow-arrow">
+          <svg viewBox="0 0 36 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+            <line x1="2" y1="7" x2="30" y2="7" stroke-linecap="round"/>
+            <path d="M24 2 L30 7 L24 12" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div class="flow-node">
+          <div class="flow-node-head">
+            <span class="flow-node-num">2</span>
+            <span class="flow-node-name">Asistencia</span>
+          </div>
+          <p class="flow-node-body">El equipo registra la asistencia en el encuentro. No hace falta papel ni lista manual.</p>
+        </div>
+
+        <div class="flow-arrow">
+          <svg viewBox="0 0 36 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+            <line x1="2" y1="7" x2="30" y2="7" stroke-linecap="round"/>
+            <path d="M24 2 L30 7 L24 12" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div class="flow-node">
+          <div class="flow-node-head">
+            <span class="flow-node-num">3</span>
+            <span class="flow-node-name">Certificación</span>
+          </div>
+          <p class="flow-node-body">Al completar el taller, la persona recibe su certificación. Queda asociada a su nombre para siempre.</p>
+        </div>
+
+        <div class="flow-arrow">
+          <svg viewBox="0 0 36 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+            <line x1="2" y1="7" x2="30" y2="7" stroke-linecap="round"/>
+            <path d="M24 2 L30 7 L24 12" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div class="flow-node">
+          <div class="flow-node-head">
+            <span class="flow-node-num">4</span>
+            <span class="flow-node-name">Progreso espiritual</span>
+          </div>
+          <p class="flow-node-body">La certificación actualiza automáticamente el lugar de la persona en su ruta espiritual.</p>
+        </div>
+
+        <div class="flow-arrow">
+          <svg viewBox="0 0 36 14" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+            <line x1="2" y1="7" x2="30" y2="7" stroke-linecap="round"/>
+            <path d="M24 2 L30 7 L24 12" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <div class="flow-node">
+          <div class="flow-node-head">
+            <span class="flow-node-num">5</span>
+            <span class="flow-node-name">Próximo paso</span>
+          </div>
+          <p class="flow-node-body">La ruta sugiere el siguiente paso: servir, tomar otro taller, acompañar a alguien, recibir 1:1.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <p style="margin-top:32px;font-size:0.95rem;color:var(--muted);max-width:60ch">Este flujo se piensa para que nada de lo importante dependa de la memoria de una sola persona. La iglesia entera puede ver y acompañar, sin agregar reuniones nuevas ni planillas paralelas.</p>
+
+    <div class="inscripcion-note">
+      <p class="flow-title">Cómo se inscribe alguien hoy</p>
+      <p>El botón <strong>Inscribirme</strong> acompaña a la persona desde el primer clic. Si ya tiene cuenta, le pide iniciar sesión y la deja anotada en el taller en pocos pasos. Si aún no tiene cuenta, la invita a un formulario breve para crearla. Esa puerta sirve también como canal para registrar personas nuevas en el sistema, sin pedirles que pasen antes por otra pantalla.</p>
+      <p>Los avisos, recordatorios y novedades de cada taller llegan por <strong>boletines interactivos</strong> y <strong>notificaciones push</strong>, no por planillas descargables.</p>
+    </div>
+
+    <div class="config-block">
+      <p class="flow-title">Configurabilidad</p>
+      <p>Los talleres son configurables. Hoy Pr&oacute;ximo Paso dura 4 clases y Punto de Partida dura 8 semanas, pero ma&ntilde;ana pueden cambiar. Cada taller decide si env&iacute;a un recordatorio o material a los asistentes despu&eacute;s de cada clase. As&iacute;, lo que el pastor o l&iacute;der configure hoy puede ajustarse sin rearmar el sistema.</p>
+    </div>
+
+    <div class="workshops-gallery">
+      <p class="flow-title">Talleres que viven dentro de la ruta</p>
+      <p class="workshops-intro">Estos son algunos de los talleres que la plataforma va a registrar como parte del camino espiritual de cada persona. Todos siguen el mismo flujo de inscripci&oacute;n, asistencia y certificaci&oacute;n, pero cada uno responde a un momento distinto de la vida.</p>
+
+      <div class="workshops-grid">
+
+        <div class="workshop-card">
+          <span class="workshop-kind">Corto plazo &middot; 4 clases</span>
+          <h3 class="workshop-name">Pr&oacute;ximo Paso</h3>
+          <p class="workshop-body">Cuatro clases con cuatro pasos con nombre propio: <strong>S&iacute;gueme</strong> (Paso 1), <strong>Intimidad con Dios</strong> (Paso 2), <strong>Compa&ntilde;erismo con los de adentro</strong> (Paso 3) e <strong>Influencia hacia los de afuera</strong> (Paso 4). Cada clase lleva registro de asistencia, de las acciones concretas que va dando la persona y, al cerrar, una certificaci&oacute;n digital que avanza su camino espiritual.</p>
+          <p class="workshop-body">Pr&oacute;ximo Paso tiene su propio equipo dentro de la iglesia: un l&iacute;der, un director y un grupo de voluntarios. Todos ellos pertenecen tambi&eacute;n a Dream Team, con la misma estructura que cualquier taller. Nada del acompa&ntilde;amiento depende solo de una persona: est&aacute; sostenido por un equipo.</p>
+        </div>
+
+        <div class="workshop-card">
+          <span class="workshop-kind">Corto plazo &middot; 8 semanas</span>
+          <h3 class="workshop-name">Punto de Partida</h3>
+          <p class="workshop-body">Ocho semanas pensadas para acompa&ntilde;ar a la persona en su primera temporada dentro de la iglesia. El l&iacute;der del taller act&uacute;a como mentor durante las ocho semanas, dando seguimiento cercano y acompa&ntilde;ando cada paso del proceso.</p>
+        </div>
+
+        <div class="workshop-card">
+          <span class="workshop-kind">Corto plazo &middot; mujeres</span>
+          <h3 class="workshop-name">Mujer de Hoy</h3>
+          <p class="workshop-body">Acompa&ntilde;a a mujeres seg&uacute;n su temporada de vida. Se certifica y queda como un paso visible en la ruta de cada una.</p>
+        </div>
+
+        <div class="workshop-card">
+          <span class="workshop-kind">Corto plazo &middot; hombres</span>
+          <h3 class="workshop-name">Hombre a Hombre</h3>
+          <p class="workshop-body">Acompa&ntilde;a a hombres en los momentos claves de su vida. Inscripci&oacute;n, asistencia y certificaci&oacute;n desde la plataforma.</p>
+        </div>
+
+        <div class="workshop-card">
+          <span class="workshop-kind">Fundamentos</span>
+          <h3 class="workshop-name">Cimientos de la fe</h3>
+          <p class="workshop-body">Taller de fundamentos de la fe. Pensado para quienes reci&eacute;n comienzan su camino y necesitan una base s&oacute;lida antes de seguir creciendo. Los contenidos y la duraci&oacute;n se terminan de definir en la reuni&oacute;n pastoral.</p>
+        </div>
+
+        <div class="workshop-card">
+          <span class="workshop-kind">Corto plazo &middot; familias</span>
+          <h3 class="workshop-name">Nacimientos</h3>
+          <p class="workshop-body">Para padres y madres que esperan un hijo o acaban de tenerlo. El taller acompa&ntilde;a la nueva etapa familiar y se integra a la ruta espiritual.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="roles-block">
+      <p class="flow-title">Roles y capacidades</p>
+      <p class="roles-intro">El equipo detr&aacute;s de cada taller est&aacute; formado por personas con roles que el sistema ya conoce. Lo que cambia entre un director y otro no es el rol en s&iacute;, sino el conjunto de capacidades (permisos espec&iacute;ficos) que se le asignan. Una misma persona puede ser director de varias cosas si tiene los permisos para cada una.</p>
+
+      <div class="roles-grid">
+
+        <div class="role-card">
+          <span class="role-tag">Rol</span>
+          <h4 class="role-name">Director general</h4>
+          <p class="role-body">Dirige cualquier &aacute;rea.</p>
+        </div>
+
+        <div class="role-card">
+          <span class="role-tag">Rol</span>
+          <h4 class="role-name">Director de grupos de corto plazo</h4>
+          <p class="role-body">Dirige el programa de talleres en general.</p>
+        </div>
+
+        <div class="role-card">
+          <span class="role-tag">Rol</span>
+          <h4 class="role-name">Director de un &aacute;rea espec&iacute;fica</h4>
+          <p class="role-body">Dirige un &aacute;rea puntual (por ejemplo, Ni&ntilde;os, Producci&oacute;n).</p>
+        </div>
+
+        <div class="role-card">
+          <span class="role-tag">Rol</span>
+          <h4 class="role-name">L&iacute;der de taller</h4>
+          <p class="role-body">Acompa&ntilde;a un taller espec&iacute;fico.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="triada-block">
+      <div class="section-eyebrow">
+        <span class="roman">IV.b</span>
+        <span class="num-label">La tr&iacute;ada que acompa&ntilde;a a cada persona</span>
+      </div>
+
+      <h2>La tr&iacute;ada: persona, l&iacute;der y mentor.</h2>
+
+      <p class="section-intro">Detr&aacute;s de cada persona que recorre la ruta hay una tr&iacute;ada: la persona misma, el l&iacute;der pastoral con un rol formal en la iglesia, y el mentor que la acompa&ntilde;a de cerca. El principio rector es simple: el sistema sugiere, pero el mentor valida. Las decisiones de progreso nunca las toma la plataforma sola.</p>
+
+      <div class="triada-grid">
+
+        <div class="triada-card">
+          <span class="triada-role">Persona</span>
+          <h3 class="triada-name">La que recorre la ruta</h3>
+          <p>Es quien recorre el camino espiritual. Tiene su cuenta, su ruta visual con el progreso general y sus pr&oacute;ximos pasos a la vista.</p>
+        </div>
+
+        <div class="triada-card">
+          <span class="triada-role">L&iacute;der</span>
+          <h3 class="triada-name">Pastor o coordinador con rol formal</h3>
+          <p>Es el l&iacute;der pastoral con un rol formal dentro de la iglesia. Tiene visibilidad institucional del proceso y responde pastoralmente por &eacute;l.</p>
+        </div>
+
+        <div class="triada-card">
+          <span class="triada-role">Mentor</span>
+          <h3 class="triada-name">El que acompa&ntilde;a de cerca</h3>
+          <p>Siempre es un l&iacute;der con rol formal. Acompa&ntilde;a a la persona paso a paso y valida su progreso en la plataforma.</p>
+        </div>
+
+      </div>
+
+      <div class="triada-detail">
+        <p class="flow-title">Qui&eacute;n es mentor y qui&eacute;n no</p>
+        <p>La figura del mentor aplica en todos los talleres. El mentor se asigna por cascada: el primer nivel que coincida con la realidad de la persona es su mentor.</p>
+        <ul class="cascada-list">
+          <li><strong>Nivel 1.</strong> Si la persona est&aacute; en un grupo de vida, su mentor es el l&iacute;der de su grupo de vida.</li>
+          <li><strong>Nivel 2.</strong> Si no est&aacute; en grupo de vida pero s&iacute; participa en un grupo de corto plazo (taller), su mentor es el l&iacute;der de ese taller.</li>
+          <li><strong>Nivel 3.</strong> Si no est&aacute; en grupo de vida ni en grupo de corto plazo pero s&iacute; sirve en un equipo, su mentor es el l&iacute;der de su servicio (coordinador inmediato o director del &aacute;rea).</li>
+        </ul>
+        <p class="cascada-note"><strong>El l&iacute;der de grupo de vida tiene m&aacute;s peso que cualquier otro rol.</strong> Si la persona asiste a un grupo de vida, ese l&iacute;der es el mentor oficial aunque tambi&eacute;n sirva en un &aacute;rea o est&eacute; en otro programa. El mentor pasa a ser el l&iacute;der de servicio solo cuando la persona no asiste a ning&uacute;n grupo.</p>
+        <p>Los mentores no oficiales (los que la persona elige sin tener un rol formal dentro de la iglesia) no entran al sistema para validar progreso. Pueden acompa&ntilde;ar de manera informal, pero la certificaci&oacute;n y los hitos los firma siempre un l&iacute;der con rol.</p>
+      </div>
+
+      <div class="triada-simultaneidad">
+        <p class="triada-subtitle">Tr&iacute;ada por simultaneidad</p>
+        <p>Tambi&eacute;n hay tr&iacute;ada cuando la persona ya tiene varios v&iacute;nculos activos al mismo tiempo. Por ejemplo, alguien asiste a un grupo de vida y tambi&eacute;n sirve en producci&oacute;n. En ese caso el coordinador del &aacute;rea conversa con el l&iacute;der del grupo de vida para alinear el acompa&ntilde;amiento.</p>
+        <p>El mentor oficial sigue siendo el l&iacute;der de grupo, porque es quien tiene m&aacute;s peso. La tr&iacute;ada conecta al l&iacute;der de grupo con el coordinador del &aacute;rea para que ambos acompa&ntilde;en el proceso sin pisarse.</p>
+      </div>
+
+      <p class="flow-title" style="margin-top:56px">Dos vistas, una sola verdad</p>
+      <p style="max-width:62ch;font-size:0.98rem;color:var(--ink-soft);line-height:1.65;margin-bottom:24px">La plataforma distingue entre lo que ve el mentor por detr&aacute;s y lo que ve la persona en su propia ruta. Esta separaci&oacute;n cuida la confianza pastoral y mantiene la privacidad del acompa&ntilde;amiento.</p>
+
+      <div class="triada-vistas">
+
+        <div class="triada-vista">
+          <span class="triada-vista-tag">Panel del mentor</span>
+          <h4>Lo que el mentor ve y la persona no</h4>
+          <p>El mentor marca los hitos, escribe notas privadas sobre cada paso y registra lo que observa en los encuentros. Esta informaci&oacute;n es confidencial y nunca aparece en la vista del usuario.</p>
+        </div>
+
+        <div class="triada-vista">
+          <span class="triada-vista-tag">Vista de la persona</span>
+          <h4>Lo que la persona ve de su propio camino</h4>
+          <p>La persona ve una ruta visual con su progreso general, los hitos alcanzados y el pr&oacute;ximo paso sugerido. No ve las notas privadas del mentor ni el detalle operativo del acompa&ntilde;amiento.</p>
+        </div>
+
+      </div>
+    </div>
+
+  </section>
+
+</div>
+
+<div class="container container--narrow">
+
+  <!-- V. CONSTRUIDO VS VIENE -->
+  <section class="block" id="status">
+    <div class="section-eyebrow">
+      <span class="roman">V.</span>
+      <span class="num-label">Dónde estamos hoy</span>
+    </div>
+
+    <h2>Lo que ya está construido, lo que viene pronto y lo que está más lejos.</h2>
+
+    <p class="section-intro">La plataforma no se hace de golpe. Hay una parte viva, una que empieza a caminar pronto y otra que todavía es visión. Lo importante es que las tres partes están pensadas como una sola, no como proyectos separados.</p>
+
+    <div class="compare compare--three-cols">
+
+      <div class="compare-col compare-col--built">
+        <span class="compare-label compare-label--built">Construido y funcionando</span>
+        <h3 class="compare-heading">Lo que ya tenemos hoy.</h3>
+        <ul class="compare-list">
+          <li>
+            <strong>Plataforma base</strong>
+            <span class="small">Una sola cuenta por persona, navegación ordenada según el rol, permisos claros por área. La iglesia ya puede confiar en una identidad ordenada.</span>
+          </li>
+          <li>
+            <strong>Dream Team</strong>
+            <span class="small">Toda persona que sirve tiene un proceso visible con seis etapas. Se cuida a cada servidor y se respeta su tiempo.</span>
+          </li>
+          <li>
+            <strong>Dream Team con persona a cargo designada</strong>
+            <span class="small">Ya hay una persona a cargo de Dream Team y el flujo de remisión a los líderes de área funciona en la práctica.</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="compare-col compare-col--ready">
+        <span class="compare-label compare-label--ready">Construido, pendiente de activar</span>
+        <h3 class="compare-heading">Lo que se enciende cuando pastor y equipo lo aprueben.</h3>
+        <ul class="compare-list">
+          <li>
+            <strong>Eventos e inscripciones</strong>
+            <span class="small">Inscripción a talleres y eventos desde la web o un código QR, sin planillas.</span>
+          </li>
+          <li>
+            <strong>Asistencia y capacidad</strong>
+            <span class="small">Registro de asistencia en grupos de corto plazo, áreas de servicio y grupos de vida, con aviso automático cuando un salón se llena.</span>
+          </li>
+          <li>
+            <strong>Notificaciones y materiales</strong>
+            <span class="small">Notificaciones y correos automáticos configurables por taller. Cada taller decide qué enviar, a quién y cuándo.</span>
+          </li>
+          <li>
+            <strong>Certificación digital</strong>
+            <span class="small">Certificación al cerrar cada taller, con actualización automática de la ruta espiritual.</span>
+          </li>
+          <li>
+            <strong>Tres vistas de panel</strong>
+            <span class="small">Director, líder y operador, cada uno con la información que necesita para su rol.</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="compare-col compare-col--coming">
+        <span class="compare-label compare-label--coming">Visi&oacute;n, se construye con vos</span>
+        <h3 class="compare-heading">Lo que definiremos juntos en pr&oacute;ximas reuniones.</h3>
+        <ul class="compare-list">
+          <li>
+            <strong>Fases 4 a 15</strong>
+            <span class="small">Acompañamiento pastoral 1:1 y triadas, Living Room, operaciones por áreas, niños y adolescentes, ruta espiritual completa, portal para miembros, campamentos, logística y equipos físicos.</span>
+          </li>
+          <li>
+            <strong>El orden se conversa</strong>
+            <span class="small">El pastor y los equipos definen el orden y el detalle de cada fase cuando llegue el momento. La plataforma se adapta, no se impone.</span>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <p style="margin-top:32px;max-width:60ch;font-size:1rem;color:var(--ink-soft)">Las fases 4 a 15 se construyen con el pastor y los equipos, paso a paso, en pr&oacute;ximas reuniones.</p>
+
+  </section>
+
+  <!-- VI. PREGUNTAS PARA EL PASTOR -->
+  <section class="block" id="preguntas">
+    <div class="section-eyebrow">
+      <span class="roman">VI.</span>
+      <span class="num-label">Preguntas para conversar</span>
+    </div>
+
+    <h2>Preguntas abiertas para llevar a la reunión.</h2>
+
+    <p class="section-intro">Estas preguntas no tienen respuesta correcta ni incorrecta. Sirven para abrir la conversación sobre lo que la iglesia ya hace bien, lo que todavía queda en la cabeza de algunas personas y lo que la plataforma podría venir a ordenar.</p>
+
+    <div class="questions">
+
+      <div class="question">
+        <div class="q-num">01</div>
+        <div>
+          <div class="q-body">¿Cómo imaginás hoy que una persona nueva descubre los talleres que existen?</div>
+          <p class="q-why">Para entender qué canales descubren los talleres y si esos canales llegan a tiempo.</p>
+          <p class="q-answer">La persona entra desde la página web o escaneando un código QR. Si ya tiene cuenta, inicia sesión y se inscribe. Si no, se le crea una cuenta en el momento. Esto requerirá una página donde se vean las inscripciones abiertas para talleres y eventos.</p>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="q-num">02</div>
+        <div>
+          <div class="q-body">Cuando alguien quiere empezar a servir, ¿hay un proceso claro o se va resolviendo sobre la marcha?</div>
+          <p class="q-why">Dream Team ya tiene un proceso visible. Queremos saber si eso coincide con cómo la iglesia lo vive.</p>
+          <p class="q-answer">El proceso ya está planificado con Dream Team: la persona pasa primero por Próximo Paso y desde ahí se redirige al equipo correspondiente. El flujo ya está creado.</p>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="q-num">03</div>
+        <div>
+          <div class="q-body">Después de Pr&oacute;ximo Paso, &iquest;hay un siguiente paso definido para quien lo completa?</div>
+          <p class="q-why">Para que la certificaci&oacute;n no sea un punto final, sino el inicio de algo concreto.</p>
+          <p class="q-answer">Al finalizar Próximo Paso vienen recomendaciones automáticas según la ruta de crecimiento espiritual. Lo iremos creando y dando forma en la marcha. La persona también puede empezar a servir desde ese momento.</p>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="q-num">04</div>
+        <div>
+          <div class="q-body">¿Quién debería ser el &ldquo;mentor&rdquo; en un 1:1? ¿Líderes de grupo, pastores, voluntarios formados?</div>
+          <p class="q-why">La definición de quién acompaña cambia bastante el diseño técnico del seguimiento.</p>
+          <p class="q-answer">Los 1 a 1 los hace siempre el líder inmediato: si la persona está en un grupo de vida, con su líder de grupo; si está en un área de servicio, con su coordinador o director (un músico, por ejemplo, con su director).</p>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="q-num">05</div>
+        <div>
+          <div class="q-body">¿Qué talleres son obligatorios para quien quiere servir en Dream Team?</div>
+          <p class="q-why">Para saber qué requisitos visibles va a pedir la plataforma cuando alguien se postule.</p>
+          <p class="q-answer">Solo Próximo Paso, pero como recomendación, no como obligatorio. Que no sea limitante.</p>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="q-num">06</div>
+        <div>
+          <div class="q-body">¿Cómo medimos si la ruta espiritual está dando fruto? ¿Qué señales concretas buscamos?</div>
+          <p class="q-why">Para diseñar juntos qué reporta la plataforma y qué se conversa en el equipo pastoral, no en una pantalla.</p>
+          <p class="q-answer">Eso lo construiremos cuando llegue el momento. Hoy alcanza con tener el camino claro.</p>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="q-num">07</div>
+        <div>
+          <div class="q-body">¿Hay algo que hoy hacemos en papel o por chat que te gustaría que la plataforma reemplazara?</div>
+          <p class="q-why">Para entender dónde la iglesia vive hoy enredos innecesarios, antes de proponer soluciones nuevas.</p>
+          <p class="q-answer">Las inscripciones, la asistencia en grupos de corto plazo y áreas de servicio, y también la asistencia en grupos de vida.</p>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="q-num">08</div>
+        <div>
+          <div class="q-body">Si tuvieras que priorizar una sola pieza para los próximos tres meses, ¿cuál sería?</div>
+          <p class="q-why">Para alinear expectativas sobre qué se entrega primero y qué se deja para después.</p>
+          <p class="q-answer">Todo es importante. Ya tenemos tres fases construidas; ahora hay que alinearnos y ajustar lo que sigue.</p>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="q-num">09</div>
+        <div>
+          <div class="q-body">¿Qué talleres querés que sí envíen recordatorio o material después de cada clase? ¿Y cuáles no necesitan esa automatización?</div>
+          <p class="q-why">Para decidir la configuración por taller y qué talleres dependen más del seguimiento automático.</p>
+          <p class="q-answer">Configurable por taller. Al crear el taller se decide qué automatizar: qué enviar, a quién, cuándo.</p>
+        </div>
+      </div>
+
+      <div class="question">
+        <div class="q-num">10</div>
+        <div>
+          <div class="q-body">Imaginemos a alguien que ya terminó Pr&oacute;ximo Paso, no se inscribió a otro taller pero ya empez&oacute; a servir en un equipo. ¿Su mentor natural debería ser su coordinador de servicio?</div>
+          <p class="q-why">Para validar el tercer nivel de la cascada y entender si la asignación automática coincide con la práctica pastoral.</p>
+          <p class="q-answer">Sí, correcto. Si la persona no está en grupo de vida ni en taller, su mentor es su coordinador de servicio.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CIERRE -->
+  <footer class="closing">
+    <div class="closing-mark">&middot;&nbsp;&middot;&nbsp;&middot;</div>
+    <p>Documento pensado para conversar, no para archivar.<br>
+    Construido con cuidado para la reunión pastoral &middot; Julio 2026.</p>
+  </footer>
+
+</div>
+
+</body>
+</html>
