@@ -22,7 +22,6 @@ import type { ParticipationLedgerEvent } from '@/lib/platform/operating-core/par
 // ─── Input types ─────────────────────────────────────────────────────────────
 
 export interface CreateTriadaInput {
-  readonly id?: string
   readonly mentorOficialPersonaId: string
   readonly autorPersonaId: string
   readonly contexto: PastoralTriada['contexto']
