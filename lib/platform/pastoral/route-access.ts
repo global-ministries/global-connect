@@ -28,6 +28,9 @@ const TRIADA_READ = ['pastoral.triada.read', 'pastoral.read.all'] as const
 const TRIADA_NOTES = ['pastoral.triada.write_notes', 'pastoral.read.all'] as const
 const TRIADA_DISBAND = ['pastoral.triada.disband', 'pastoral.read.all'] as const
 
+// W12 — DT-069+: Metrics capabilities
+const METRICS_READ = ['pastoral.metrics.read', 'pastoral.read.all'] as const
+
 // ─── Flag check ───────────────────────────────────────────────────────────────
 
 /**
@@ -161,4 +164,14 @@ export function hasPastoralTriadaNotesCapability(session: PlatformSession): bool
  */
 export function hasPastoralTriadaDisbandCapability(session: PlatformSession): boolean {
   return (TRIADA_DISBAND as readonly string[]).some((key) => hasCapability(session, key))
+}
+
+// ─── Metrics capability predicate (W12) ─────────────────────────────────────
+
+/**
+ * Check if actor can read pastoral metrics.
+ * pastoral.metrics.read or pastoral.read.all.
+ */
+export function hasPastoralMetricsReadCapability(session: PlatformSession): boolean {
+  return (METRICS_READ as readonly string[]).some((key) => hasCapability(session, key))
 }
