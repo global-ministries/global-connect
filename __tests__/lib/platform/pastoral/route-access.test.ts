@@ -12,6 +12,7 @@ import {
   hasPastoralMentorCascadeResolveCapability,
   hasPastoralCrisisDetectCapability,
   hasPastoralReadAllCapability,
+  hasPastoralAdminManageCapability,
 } from '@/lib/platform/pastoral/route-access'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
@@ -89,5 +90,27 @@ describe('hasPastoralReadAllCapability', () => {
   it('returns false when session has no capabilities', () => {
     const session = makeSession([])
     expect(hasPastoralReadAllCapability(session)).toBe(false)
+  })
+})
+
+describe('hasPastoralAdminManageCapability', () => {
+  it('returns true when session has pastoral.admin.manage', () => {
+    const session = makeSession(['pastoral.admin.manage'])
+    expect(hasPastoralAdminManageCapability(session)).toBe(true)
+  })
+
+  it('returns true when session has pastoral.read.all', () => {
+    const session = makeSession(['pastoral.read.all'])
+    expect(hasPastoralAdminManageCapability(session)).toBe(true)
+  })
+
+  it('returns false when session has only pastoral.one_on_one.read', () => {
+    const session = makeSession(['pastoral.one_on_one.read'])
+    expect(hasPastoralAdminManageCapability(session)).toBe(false)
+  })
+
+  it('returns false when session has no capabilities', () => {
+    const session = makeSession([])
+    expect(hasPastoralAdminManageCapability(session)).toBe(false)
   })
 })

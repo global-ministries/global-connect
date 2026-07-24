@@ -192,3 +192,14 @@ const METRICS_READ = ['pastoral.metrics.read', 'pastoral.read.all'] as const
 export function hasPastoralMetricsReadCapability(session: PlatformSession): boolean {
   return (METRICS_READ as readonly string[]).some((key) => hasCapability(session, key))
 }
+
+// W17 — DT-001: Pastoral admin manage capability
+const ADMIN_MANAGE = ['pastoral.admin.manage', 'pastoral.read.all'] as const
+
+/**
+ * Check if actor can manage pastoral admin grants.
+ * pastoral.admin.manage or pastoral.read.all.
+ */
+export function hasPastoralAdminManageCapability(session: PlatformSession): boolean {
+  return (ADMIN_MANAGE as readonly string[]).some((key) => hasCapability(session, key))
+}

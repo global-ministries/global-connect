@@ -72,6 +72,7 @@ export const PLATFORM_CAPABILITIES = {
   'pastoral.metrics.read': { experience: 'pastoral', scopeType: 'experience' },
   'pastoral.read.all': { experience: 'pastoral', scopeType: 'experience' },
   'pastoral.crisis.detect': { experience: 'pastoral', scopeType: 'experience' },
+  'pastoral.admin.manage': { experience: 'pastoral', scopeType: 'experience' },
 } satisfies Record<string, { experience: PlatformExperienceKey; scopeType: PlatformScopeType }>
 
 export type PlatformCapabilityKey = keyof typeof PLATFORM_CAPABILITIES
