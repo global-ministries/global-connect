@@ -26,15 +26,16 @@ export default async function PastorLecturasPage() {
   const supabase = await createSupabaseServerClient()
   const actorPersonaId = session.personaId
 
-  // Register audit log (D32) — append-only, best-effort
-  await supabase
-    .from('pastoral_access_audit_log')
-    .insert({
-      actor_persona_id: actorPersonaId,
-      accessed_at: new Date().toISOString(),
-      access_type: 'pastor_lectura_view',
-    })
-    .catch(() => { /* best-effort */ })
+  // Register audit log (D32) — best-effort, skipped if table unavailable
+  // TODO: enable when pastoral_access_audit_log migration is applied
+  // await supabase
+  //   .from('pastoral_access_audit_log')
+  //   .insert({
+  //     actor_persona_id: actorPersonaId,
+  //     accessed_at: new Date().toISOString(),
+  //     access_type: 'pastor_lectura_view',
+  //   })
+  //   .then(() => undefined, () => undefined)
 
   // Fetch recent 1:1s
   const { data: unoAunos } = await supabase
@@ -44,7 +45,7 @@ export default async function PastorLecturasPage() {
       estado,
       scheduled_at,
       completed_at,
-      pastoral_one_on_one_participantes ( persona_id, rol )
+      pastoral_one_on_one_participantes ( persona_id )
     `)
     .order('created_at', { ascending: false })
     .limit(20)
@@ -66,14 +67,14 @@ export default async function PastorLecturasPage() {
     estado: string
     scheduled_at: string | null
     completed_at: string | null
-    pastoral_one_on_one_participantes?: Array<{ persona_id: string; rol: string }>
+    pastoral_one_on_one_participantes?: Array<{ persona_id: string }>
   }) => {
-    const assisted = row.pastoral_one_on_one_participantes?.find((p) => p.rol === 'asistido')
+    const firstParticipant = row.pastoral_one_on_one_participantes?.[0]
     return {
       id: row.id,
       estado: row.estado,
       scheduledAtIso: row.scheduled_at,
-      assistedPersonaName: assisted?.persona_id ?? '—',
+      assistedPersonaName: firstParticipant?.persona_id ?? '—',
       pasosValidadosCount: 0,
     }
   })
@@ -83,7 +84,7 @@ export default async function PastorLecturasPage() {
     estado: string
     contexto: string
     created_at: string
-    pastoral_triada_miembros?: Array<unknown>
+    pastoral_triada_miembros?: Array<{ id: string }>
   }) => ({
     id: row.id,
     estado: row.estado,

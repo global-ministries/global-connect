@@ -201,6 +201,7 @@ describe('parametrized: todas las combinaciones fuente', () => {
       const ctx = makeCtx({ gdvMentor: gdv, tallerMentor: taller, servicioMentor: servicio })
       const result = await resolveMentorOficial('test-persona', ctx)
       expect(result.ok).toBe(true)
+      if (!result.ok) throw new Error('expected ok')
       if (expected === null) {
         expect(result.assignment).toBeNull()
       } else {

@@ -53,8 +53,7 @@ export default async function LiderTriadaDetailPage({ params }: Props) {
       ),
       pastoral_triada_eventos (
         id,
-        tipo,
-        descripcion,
+        tipo_evento,
         created_at
       )
     `)
@@ -63,11 +62,11 @@ export default async function LiderTriadaDetailPage({ params }: Props) {
 
   if (!row) notFound()
 
-  const typedRow = row as {
+  const typedRow = row as unknown as {
     id: string
     estado: string
     contexto: string
-    motivo_disolucion?: string
+    motivo_disolucion?: string | null
     version: number
     autor_persona_id: string
     created_at: string
@@ -78,8 +77,7 @@ export default async function LiderTriadaDetailPage({ params }: Props) {
     }>
     pastoral_triada_eventos?: Array<{
       id: string
-      tipo: string
-      descripcion?: string
+      tipo_evento: string
       created_at: string
     }>
   }
@@ -95,8 +93,8 @@ export default async function LiderTriadaDetailPage({ params }: Props) {
   const timelineItems = (typedRow.pastoral_triada_eventos ?? []).map((e) => ({
     id: e.id,
     type: 'triada_created' as const,
-    title: e.tipo,
-    subtitle: e.descripcion,
+    title: e.tipo_evento,
+    subtitle: undefined as string | undefined,
     isoDate: e.created_at,
   }))
 

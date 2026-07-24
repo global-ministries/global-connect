@@ -27,26 +27,22 @@ export default async function PastorDashboardPage() {
       one_on_one_id,
       categoria,
       keyword,
-      created_at,
-      pastoral_one_on_one (
-        participantes_persona_ids
-      )
+      detected_at
     `)
-    .order('created_at', { ascending: false })
+    .order('detected_at', { ascending: false })
     .limit(10)
 
   const mappedCrisis = (crisisRows ?? []).map((row: {
     one_on_one_id: string
     categoria: string
     keyword: string
-    created_at: string
-    pastoral_one_on_one?: { participantes_persona_ids: string[] }
+    detected_at: string
   }) => ({
     oneOnOneId: row.one_on_one_id,
     categoria: row.categoria,
     keyword: row.keyword,
-    detectedAtIso: row.created_at,
-    assistedPersonaId: row.pastoral_one_on_one?.participantes_persona_ids?.[0] ?? '',
+    detectedAtIso: row.detected_at,
+    assistedPersonaId: '',
     assistedPersonaName: undefined as string | undefined,
   }))
 

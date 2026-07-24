@@ -27,12 +27,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   crisis_de_fe: 'Crisis de Fe',
 }
 
-const CATEGORY_VARIANT: Record<string, 'destructive' | 'warning' | 'secondary'> = {
-  duelo: 'warning',
+const CATEGORY_VARIANT: Record<string, 'destructive' | 'secondary'> = {
+  duelo: 'secondary',
   crisis_matrimonial: 'destructive',
   ideacion_suicida: 'destructive',
   violencia_intrafamiliar: 'destructive',
-  crisis_de_fe: 'warning',
+  crisis_de_fe: 'secondary',
 }
 
 export default async function PastorCrisisPage() {
@@ -48,36 +48,26 @@ export default async function PastorCrisisPage() {
       one_on_one_id,
       categoria,
       keyword,
-      created_at,
-      actor_persona_id,
-      pastoral_one_on_one (
-        estado,
-        scheduled_at,
-        participantes_persona_ids
-      )
+      detected_at,
+      actor_persona_id
     `)
-    .order('created_at', { ascending: false })
+    .order('detected_at', { ascending: false })
 
   const alerts = (rows ?? []).map((row: {
     one_on_one_id: string
     categoria: string
     keyword: string
-    created_at: string
+    detected_at: string
     actor_persona_id: string
-    pastoral_one_on_one?: {
-      estado: string
-      scheduled_at: string | null
-      participantes_persona_ids: string[]
-    }
   }) => ({
     id: row.one_on_one_id,
     categoria: row.categoria,
     keyword: row.keyword,
-    detectedAtIso: row.created_at,
+    detectedAtIso: row.detected_at,
     detectedByPersonaId: row.actor_persona_id,
-    assistedPersonaId: row.pastoral_one_on_one?.participantes_persona_ids?.[0] ?? '',
-    oneOnOneEstado: row.pastoral_one_on_one?.estado ?? 'unknown',
-    oneOnOneScheduledAt: row.pastoral_one_on_one?.scheduled_at ?? null,
+    assistedPersonaId: '',
+    oneOnOneEstado: 'unknown',
+    oneOnOneScheduledAt: null,
   }))
 
   return (

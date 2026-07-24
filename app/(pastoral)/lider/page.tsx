@@ -40,10 +40,8 @@ export default async function LiderDashboardPage() {
       estado,
       scheduled_at,
       pastoral_one_on_one_participantes (
-        persona_id,
-        rol
-      ),
-      pastoral_one_on_one_pasos_validados ( id )
+        persona_id
+      )
     `)
     .eq('mentor_oficial_persona_id', actorPersonaId)
     .in('estado', ['scheduled', 'in_progress'])
@@ -70,12 +68,9 @@ export default async function LiderDashboardPage() {
       one_on_one_id,
       categoria,
       keyword,
-      created_at,
-      pastoral_one_on_one (
-        participantes_persona_ids
-      )
+      detected_at
     `)
-    .order('created_at', { ascending: false })
+    .order('detected_at', { ascending: false })
     .limit(5)
 
   // Map data to client types
@@ -83,16 +78,15 @@ export default async function LiderDashboardPage() {
     id: string
     estado: string
     scheduled_at: string | null
-    pastoral_one_on_one_participantes?: Array<{ persona_id: string; rol: string }>
-    pastoral_one_on_one_pasos_validados?: Array<unknown>
+    pastoral_one_on_one_participantes?: Array<{ persona_id: string }>
   }) => {
-    const assisted = row.pastoral_one_on_one_participantes?.find((p) => p.rol === 'asistido')
+    const firstParticipant = row.pastoral_one_on_one_participantes?.[0]
     return {
       id: row.id,
       estado: row.estado,
       scheduledAtIso: row.scheduled_at,
-      assistedPersonaName: assisted?.persona_id ?? '—',
-      pasosValidadosCount: (row.pastoral_one_on_one_pasos_validados?.length ?? 0),
+      assistedPersonaName: firstParticipant?.persona_id ?? '—',
+      pasosValidadosCount: 0,
     }
   })
 
@@ -114,14 +108,13 @@ export default async function LiderDashboardPage() {
     one_on_one_id: string
     categoria: string
     keyword: string
-    created_at: string
-    pastoral_one_on_one?: { participantes_persona_ids: string[] }
+    detected_at: string
   }) => ({
     oneOnOneId: row.one_on_one_id,
     categoria: row.categoria,
     keyword: row.keyword,
-    detectedAtIso: row.created_at,
-    assistedPersonaId: row.pastoral_one_on_one?.participantes_persona_ids?.[0] ?? '',
+    detectedAtIso: row.detected_at,
+    assistedPersonaId: '',
     assistedPersonaName: undefined,
   }))
 

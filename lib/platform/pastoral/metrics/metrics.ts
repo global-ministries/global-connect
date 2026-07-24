@@ -51,10 +51,11 @@ export async function uno_auno_por_periodo(
     return []
   }
 
-  return repository.unoAunoPorPeriodo(
+  const result = await repository.unoAunoPorPeriodo(
     { periodoInicio, periodoFin },
     liveOnly,
   )
+  return result as unknown as { personaId: string; completados: number; cancelados: number }[]
 }
 
 // ─── lideres_activos_por_ventana ─────────────────────────────────────────
@@ -79,7 +80,12 @@ export async function lideres_activos_por_ventana(
     return []
   }
 
-  return repository.lideresActivosPorVentana({ ventanaInicio, ventanaFin })
+  const result = await repository.lideresActivosPorVentana({ ventanaInicio, ventanaFin })
+  return result as unknown as {
+    liderId: string
+    unoAunoCount: number
+    triadaCount: number
+  }[]
 }
 
 // ─── triadas_por_tipo ─────────────────────────────────────────────────────
@@ -93,7 +99,8 @@ export async function lideres_activos_por_ventana(
 export async function triadas_por_tipo(
   repository: PastoralMetricsRepository,
 ): Promise<{ readonly tipo: string; readonly count: number }[]> {
-  return repository.triadasPorTipo()
+  const result = await repository.triadasPorTipo()
+  return result as unknown as { tipo: string; count: number }[]
 }
 
 // ─── alarma_gdv_sin_uno_auno_en_90_dias ──────────────────────────────────
