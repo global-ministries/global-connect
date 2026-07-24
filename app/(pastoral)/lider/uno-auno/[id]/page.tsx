@@ -15,13 +15,14 @@ import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { TituloSistema } from '@/components/ui/sistema-diseno'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { MentorPanel } from '@/components/pastoral/MentorPanel'
 import { PastoralTimeline } from '@/components/pastoral/PastoralTimeline'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import NotesForm from './NotesForm.client'
+import ValidateStepButton from './ValidateStepButton.client'
 
 export const dynamic = 'force-dynamic'
 
@@ -196,6 +197,16 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
         </TarjetaSistema>
       )}
 
+      {/* Validate step (mentor only) */}
+      {isMentor && typedRow.estado !== 'completed' && typedRow.estado !== 'cancelled' && (
+        <TarjetaSistema>
+          <TituloSistema nivel={2} className="mb-3">Acciones</TituloSistema>
+          <div className="space-y-3">
+            <ValidateStepButton oneOnOneId={typedRow.id} stepId="primera_conexion" />
+          </div>
+        </TarjetaSistema>
+      )}
+
       {/* Mentor panel — quick capture (D22) */}
       {typedRow.estado !== 'completed' && typedRow.estado !== 'cancelled' && isMentor && (
         <MentorPanel
@@ -207,24 +218,22 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
       )}
 
       {/* Notes (mentor only — not exposed in public roadmap) */}
-      {isMentor && typedRow.pastoral_one_on_one_notas && typedRow.pastoral_one_on_one_notas.length > 0 && (
+      {isMentor && (
         <TarjetaSistema>
           <TituloSistema nivel={2} className="mb-3">Notas Privadas</TituloSistema>
-          <div className="space-y-3">
-            {typedRow.pastoral_one_on_one_notas.map((n) => (
-              <div key={n.id} className="text-sm border-l-2 border-border pl-3">
-                <p>{n.contenido}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {format(new Date(n.created_at), "d 'de' MMM yyyy HH:mm", { locale: es })}
-                </p>
-              </div>
-            ))}
-          </div>
-          <Link href={`/lider/uno-auno/${id}/captura`} className="mt-3 block">
-            <Button variant="outline" size="sm">
-              Agregar nota
-            </Button>
-          </Link>
+          {typedRow.pastoral_one_on_one_notas && typedRow.pastoral_one_on_one_notas.length > 0 && (
+            <div className="space-y-3 mb-4">
+              {typedRow.pastoral_one_on_one_notas.map((n) => (
+                <div key={n.id} className="text-sm border-l-2 border-border pl-3">
+                  <p>{n.contenido}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {format(new Date(n.created_at), "d 'de' MMM yyyy HH:mm", { locale: es })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+          <NotesForm oneOnOneId={typedRow.id} mentorPersonaId={typedRow.mentor_oficial_persona_id} />
         </TarjetaSistema>
       )}
 
