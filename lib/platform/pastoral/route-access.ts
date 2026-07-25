@@ -45,6 +45,7 @@ export async function requirePastoralSession() {
   return resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+    capabilitySupabase: supabase,
   })
 }
 

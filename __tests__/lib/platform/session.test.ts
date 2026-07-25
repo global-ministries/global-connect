@@ -147,6 +147,68 @@ describe('PlatformSession builder', () => {
     expect(result).toEqual({ ok: false, reason: 'persona_not_linked_to_backend_auth', warnings: [] })
   })
 
+  it('loads capabilities for the resolved persona', async () => {
+    const personaLookup = {
+      findByAuthId: jest.fn().mockResolvedValue(linkedPersona),
+    }
+    const capabilities = [
+      {
+        key: 'pastoral.read.all',
+        experience: 'pastoral',
+        scopeType: 'global',
+        source: 'manual',
+        grantedAt: '2026-07-24T10:00:00.000Z',
+      },
+    ]
+    const capabilityLookup = {
+      findByPersonaId: jest.fn().mockResolvedValue(capabilities),
+    }
+
+    const result = await buildPlatformSession({
+      subjectAuthId: 'auth-1',
+      personaLookup,
+      capabilityLookup,
+    })
+
+    expect(capabilityLookup.findByPersonaId).toHaveBeenCalledWith('persona-auth-1')
+    expect(result).toMatchObject({
+      ok: true,
+      session: { capabilities },
+    })
+  })
+
+  it('keeps capabilities empty when no capability lookup is provided', async () => {
+    const result = await buildPlatformSession({
+      subjectAuthId: 'auth-1',
+      personaLookup: {
+        findByAuthId: jest.fn().mockResolvedValue(linkedPersona),
+      },
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      session: { capabilities: [] },
+    })
+  })
+
+  it('fails closed when capability lookup rejects', async () => {
+    const result = await buildPlatformSession({
+      subjectAuthId: 'auth-1',
+      personaLookup: {
+        findByAuthId: jest.fn().mockResolvedValue(linkedPersona),
+      },
+      capabilityLookup: {
+        findByPersonaId: jest.fn().mockRejectedValue(new Error('lookup timeout')),
+      },
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'capability_lookup_failed',
+      warnings: [],
+    })
+  })
+
   it('fails closed when backend auth has no linked Persona row', async () => {
     const personaLookup = {
       findByAuthId: jest.fn().mockResolvedValue(null),

@@ -1,5 +1,5 @@
 import { buildPlatformSession } from '@/lib/platform/session/build'
-import type { PlatformSession, PlatformSessionPersona } from '@/lib/platform/session/types'
+import type { PlatformCapabilityLookup, PlatformSession, PlatformSessionCapability, PlatformSessionPersona } from '@/lib/platform/session/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type AuthBaseUser = { id: string; email?: string }
@@ -14,8 +14,30 @@ type AuthBasePersonaSingleQuery = {
 type AuthBasePersonaQuery = {
   select(columns: string): AuthBasePersonaSelection
 }
+type CapabilityGrantRow = {
+  capability_key: string
+  experience: string
+  scope_type: string
+  scope_id: string | null
+  source: string
+  granted_at: string
+  revoked_at: string | null
+}
+type CapabilityGrantFilter = {
+  eq(column: string, value: string): CapabilityGrantFilter
+  is(column: string, value: null): PromiseLike<{ data: CapabilityGrantRow[] | null; error: unknown }>
+}
+type CapabilityGrantQuery = {
+  select(columns: string): CapabilityGrantFilter
+}
+type PersonaSupabaseClient = {
+  from(table: 'usuarios'): AuthBasePersonaQuery
+}
+type CapabilityGrantSupabaseClient = {
+  from(table: 'dream_team_capability_grants'): CapabilityGrantQuery
+}
 
-export type AuthBaseSupabaseClient = {
+export type AuthBaseSupabaseClient = PersonaSupabaseClient & CapabilityGrantSupabaseClient & {
   auth: {
     getUser(): Promise<{ data: { user: AuthBaseUser | null }; error: unknown }>
   }
@@ -38,14 +60,23 @@ export function normalizeLegacyRoles(rolesData: unknown): string[] {
 export async function resolveReadOnlyPlatformSession(input: {
   subjectAuthId: string | null | undefined
   findPersonaByAuthId: (authId: string) => Promise<PlatformSessionPersona | null>
+  capabilityLookup?: PlatformCapabilityLookup
+  capabilitySupabase?: unknown
   globalRoles?: string[]
 }): Promise<PlatformSession | null> {
   try {
+    const capabilityLookup = input.capabilityLookup ?? (input.capabilitySupabase ? {
+      findByPersonaId: (personaId: string) => findDreamTeamCapabilityGrantsByPersonaId(
+        toCapabilityGrantSupabaseClient(input.capabilitySupabase),
+        personaId,
+      ),
+    } : undefined)
     const result = await buildPlatformSession({
       subjectAuthId: input.subjectAuthId,
       personaLookup: {
         findByAuthId: input.findPersonaByAuthId,
       },
+      capabilityLookup,
     })
 
     return result.ok ? { ...result.session, globalRoles: [...(input.globalRoles ?? [])] } : null
@@ -55,8 +86,11 @@ export async function resolveReadOnlyPlatformSession(input: {
 }
 
 export function findPlatformSessionPersonaByAuthId(supabase: SupabaseClient, authId: string): Promise<PlatformSessionPersona | null>
-export function findPlatformSessionPersonaByAuthId(supabase: AuthBaseSupabaseClient, authId: string): Promise<PlatformSessionPersona | null>
-export async function findPlatformSessionPersonaByAuthId(supabase: SupabaseClient | AuthBaseSupabaseClient, authId: string): Promise<PlatformSessionPersona | null> {
+export function findPlatformSessionPersonaByAuthId(supabase: PersonaSupabaseClient, authId: string): Promise<PlatformSessionPersona | null>
+export async function findPlatformSessionPersonaByAuthId(
+  supabase: SupabaseClient | PersonaSupabaseClient,
+  authId: string,
+): Promise<PlatformSessionPersona | null> {
   const { data, error } = await supabase
     .from('usuarios')
     .select('id, auth_id')
@@ -65,6 +99,31 @@ export async function findPlatformSessionPersonaByAuthId(supabase: SupabaseClien
 
   if (error) throw new Error('platform persona lookup failed')
   return toPlatformSessionPersona(data)
+}
+
+export async function findDreamTeamCapabilityGrantsByPersonaId(
+  supabase: CapabilityGrantSupabaseClient,
+  personaId: string,
+): Promise<PlatformSessionCapability[]> {
+  const { data, error } = await supabase
+    .from('dream_team_capability_grants')
+    .select('capability_key, experience, scope_type, scope_id, source, granted_at, revoked_at')
+    .eq('persona_id', personaId)
+    .is('revoked_at', null)
+
+  if (error) throw new Error('platform capability lookup failed')
+  return (data ?? []).map(toPlatformSessionCapability)
+}
+
+function toPlatformSessionCapability(row: CapabilityGrantRow): PlatformSessionCapability {
+  return {
+    key: row.capability_key,
+    experience: row.experience,
+    scopeType: row.scope_type,
+    scopeId: row.scope_id || undefined,
+    source: row.source,
+    grantedAt: row.granted_at,
+  }
 }
 
 function toPlatformSessionPersona(row: AuthBasePersonaRow | null): PlatformSessionPersona | null {
@@ -76,6 +135,15 @@ function getRoleName(role: unknown): string | undefined {
   if (typeof role !== 'object' || role === null || !('nombre_interno' in role)) return undefined
   const roleName = role.nombre_interno
   return typeof roleName === 'string' ? roleName : undefined
+}
+
+function toCapabilityGrantSupabaseClient(value: unknown): CapabilityGrantSupabaseClient {
+  if (!isCapabilityGrantSupabaseClient(value)) throw new Error('Invalid capability grant Supabase client')
+  return value
+}
+
+function isCapabilityGrantSupabaseClient(value: unknown): value is CapabilityGrantSupabaseClient {
+  return typeof value === 'object' && value !== null && typeof Reflect.get(value, 'from') === 'function'
 }
 
 function isAuthBaseSupabaseClient(value: unknown): value is AuthBaseSupabaseClient {

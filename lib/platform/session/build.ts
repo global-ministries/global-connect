@@ -1,4 +1,4 @@
-import type { PlatformSessionBuildInput, PlatformSessionBuildResult, PlatformSessionWarning } from '@/lib/platform/session/types'
+import type { PlatformSessionBuildInput, PlatformSessionBuildResult, PlatformSessionCapability, PlatformSessionWarning } from '@/lib/platform/session/types'
 
 export async function buildPlatformSession(input: PlatformSessionBuildInput): Promise<PlatformSessionBuildResult> {
   const warnings = input.clientPersonaId ? [clientPersonaWarning(input.clientPersonaId)] : []
@@ -19,6 +19,15 @@ export async function buildPlatformSession(input: PlatformSessionBuildInput): Pr
     return { ok: false, reason: 'persona_not_linked_to_backend_auth', warnings }
   }
 
+  let capabilities: PlatformSessionCapability[] = []
+  if (input.capabilityLookup) {
+    try {
+      capabilities = await input.capabilityLookup.findByPersonaId(persona.id)
+    } catch {
+      return { ok: false, reason: 'capability_lookup_failed', warnings }
+    }
+  }
+
   return {
     ok: true,
     session: {
@@ -26,7 +35,7 @@ export async function buildPlatformSession(input: PlatformSessionBuildInput): Pr
       subjectAuthId,
       globalRoles: [],
       contexts: [],
-      capabilities: [],
+      capabilities,
     },
     warnings,
   }

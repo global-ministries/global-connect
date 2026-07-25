@@ -28,6 +28,7 @@ export async function getUserWithRoles(supabase: SupabaseClient | AuthBaseSupaba
   const platformSession = await resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(authBaseSupabase, authId),
+    capabilitySupabase: authBaseSupabase,
     globalRoles: roles,
   })
 

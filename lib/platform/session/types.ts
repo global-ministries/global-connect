@@ -1,6 +1,6 @@
 export type PlatformSessionContext = { experience: string; scopeType: string; scopeId?: string; label: string }
 
-export type PlatformSessionCapability = { key: string; experience: string; scopeType: string; scopeId?: string; source: string }
+export type PlatformSessionCapability = { key: string; experience: string; scopeType: string; scopeId?: string; source: string; grantedAt?: string }
 
 export type PlatformSession = {
   personaId: string
@@ -21,14 +21,19 @@ export type PlatformSessionWarning = { code: 'client_persona_id_ignored'; client
 
 export type PlatformSessionBuildResult =
   | { ok: true; session: PlatformSession; warnings: PlatformSessionWarning[] }
-  | { ok: false; reason: 'unauthenticated' | 'persona_not_linked_to_backend_auth' | 'persona_lookup_failed'; warnings: PlatformSessionWarning[] }
+  | { ok: false; reason: 'unauthenticated' | 'persona_not_linked_to_backend_auth' | 'persona_lookup_failed' | 'capability_lookup_failed'; warnings: PlatformSessionWarning[] }
 
 export type PlatformPersonaLookup = {
   findByAuthId(authId: string): Promise<PlatformSessionPersona | null>
+}
+
+export type PlatformCapabilityLookup = {
+  findByPersonaId(personaId: string): Promise<PlatformSessionCapability[]>
 }
 
 export type PlatformSessionBuildInput = {
   subjectAuthId: string | null | undefined
   clientPersonaId?: string | null
   personaLookup: PlatformPersonaLookup
+  capabilityLookup?: PlatformCapabilityLookup
 }
