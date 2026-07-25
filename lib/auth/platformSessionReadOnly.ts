@@ -143,17 +143,25 @@ function toCapabilityGrantSupabaseClient(value: unknown): CapabilityGrantSupabas
 }
 
 function isCapabilityGrantSupabaseClient(value: unknown): value is CapabilityGrantSupabaseClient {
-  return typeof value === 'object' && value !== null && typeof Reflect.get(value, 'from') === 'function'
+  if (typeof value !== 'object' || value === null) return false
+  // Reflect.get no atraviesa prototype chain. El supabase client real expone
+  // `from()` desde SupabaseClient.prototype. Verificamos con bracket access,
+  // que sí incluye la cadena de prototipos, en lugar de Reflect.get.
+  return typeof (value as { from?: unknown }).from === 'function'
 }
 
 function isAuthBaseSupabaseClient(value: unknown): value is AuthBaseSupabaseClient {
   if (typeof value !== 'object' || value === null) return false
-  const auth = Reflect.get(value, 'auth')
+  const v = value as {
+    auth?: { getUser?: unknown }
+    rpc?: unknown
+    from?: unknown
+  }
   return (
-    typeof auth === 'object'
-    && auth !== null
-    && typeof Reflect.get(auth, 'getUser') === 'function'
-    && typeof Reflect.get(value, 'rpc') === 'function'
-    && typeof Reflect.get(value, 'from') === 'function'
+    typeof v.auth === 'object' &&
+    v.auth !== null &&
+    typeof v.auth.getUser === 'function' &&
+    typeof v.rpc === 'function' &&
+    typeof v.from === 'function'
   )
 }
