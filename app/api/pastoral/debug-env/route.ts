@@ -1,7 +1,7 @@
 /**
- * F4 staging debug endpoint v2 — exhaustive runtime diagnostics.
- * Inspects: env vars, computed pastoral flags, buildPlatformSession, hardcoded bearer identity.
- * Temporary diagnostic for the access blocker investigation.
+ * F4 staging debug endpoint v3 — exhaustive runtime diagnostics.
+ * Inspects: env vars, computed pastoral flags, cookie list, direct Supabase auth probe.
+ * Temporary diagnostic for the access blocker investigation. DELETE after.
  */
 
 import { NextResponse } from 'next/server'
@@ -10,36 +10,41 @@ import { createServerClient } from '@supabase/ssr'
 
 export const dynamic = 'force-dynamic'
 
-async function buildSessionDirectly() {
-  // Mimics what buildPlatformSession probably does
+async function buildSessionDiag() {
+  const cookieStore = await cookies()
+  const cookieList = cookieStore.getAll()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => cookies().getAll(),
+        getAll: () => cookieList,
       },
     }
   )
   const { data, error } = await supabase.auth.getUser()
-  return { data, error: error ? { message: error.message, code: error.code } : null }
+  return {
+    cookies: cookieList.map((c) => ({
+      name: c.name,
+      hasValue: !!c.value && c.value.length > 0,
+      sameSite: c.sameSite,
+      secure: c.secure,
+      path: c.path,
+    })),
+    auth: {
+      data,
+      error: error ? { message: error.message, code: error.code } : null,
+    },
+  }
 }
 
 export async function GET() {
-  const cookieList = cookies().getAll().map((c) => ({
-    name: c.name,
-    hasValue: !!c.value && c.value.length > 0,
-    sameSite: c.sameSite,
-    secure: c.secure,
-    path: c.path,
-  }))
-
-  let sessionDiag: unknown = null
-  let sessionError: unknown = null
+  let diag: unknown = null
+  let diagError: unknown = null
   try {
-    sessionDiag = await buildSessionDirectly()
+    diag = await buildSessionDiag()
   } catch (e: unknown) {
-    sessionError = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+    diagError = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
   }
 
   const allEnvKeys = Object.keys(process.env).filter((k) => k.startsWith('NEXT_PUBLIC_'))
@@ -54,12 +59,11 @@ export async function GET() {
       NODE_ENV: process.env.NODE_ENV,
     },
     env_summary: envSummary,
-    cookies: cookieList,
-    session_direct_auth_call: sessionDiag,
-    session_error: sessionError,
+    session_diag: diag,
+    diag_error: diagError,
     diagnosis:
-      'Si session_direct_auth_call.data.user es null pero hay cookies sb-*-auth-token, ' +
-      'entonces la Supabase SSR client no está leyendo bien las cookies — apunta a ' +
-      'un dominio/path distinto al que la cookie pertenece.',
+      'Si auth.data.user es null pero hay cookies sb-*-auth-token, hay drift entre ' +
+      'la cookie que setea @supabase/ssr y lo que getUser() ve — probablemente ' +
+      'cross-domain de cookies sb-* sin name específico.',
   })
 }
