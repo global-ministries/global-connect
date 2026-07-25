@@ -158,6 +158,92 @@ describe('Platform navigation resolver', () => {
       uno_a_uno_global: 'unknown_capability',
     })
   })
+
+  describe('pastoral navigation items', () => {
+    it('shows pastor dashboard, crisis, lecturas and admin usuarios when pastoral.read.all and pastoral.admin.manage are present', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'pastoral.read.all', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
+          { key: 'pastoral.admin.manage', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const itemsById = Object.fromEntries(result.visibleItems.map((item) => [item.id, item]))
+      expect(itemsById.pastor_dashboard).toMatchObject({ label: 'Dashboard Pastoral', href: '/pastor', experience: 'pastoral' })
+      expect(itemsById.pastor_usuarios).toMatchObject({ label: 'Gestión de Usuarios', href: '/pastor/usuarios', experience: 'pastoral' })
+      expect(itemsById.pastor_crisis).toMatchObject({ label: 'Alertas de Crisis', href: '/pastor/crisis', experience: 'pastoral' })
+      expect(itemsById.pastor_lecturas).toMatchObject({ label: 'Lecturas Pastorales', href: '/pastor/lecturas', experience: 'pastoral' })
+      expect(itemsById.lider_dashboard).toBeUndefined()
+      expect(itemsById.lider_uno_a_uno).toBeUndefined()
+      expect(itemsById.lider_triada).toBeUndefined()
+      expect(itemsById.asistido_roadmap).toBeUndefined()
+    })
+
+    it('does not show pastor admin usuarios when only pastoral.read.all is granted', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'pastoral.read.all', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const visibleIds = result.visibleItems.map((item) => item.id)
+      expect(visibleIds).toContain('pastor_dashboard')
+      expect(visibleIds).toContain('pastor_crisis')
+      expect(visibleIds).toContain('pastor_lecturas')
+      expect(visibleIds).not.toContain('pastor_usuarios')
+    })
+
+    it('shows leader dashboard when pastoral.one_on_one.create is granted', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'pastoral.one_on_one.create', experience: 'pastoral', scopeType: 'one_on_one', scopeId: 'gdv-adultos', source: 'pastoral' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const visibleIds = result.visibleItems.map((item) => item.id)
+      expect(visibleIds).toContain('lider_dashboard')
+    })
+
+    it('shows leader uno-a-uno and triada entries per scoped capability', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'pastoral.one_on_one.read', experience: 'pastoral', scopeType: 'one_on_one', scopeId: 'gdv-adultos', source: 'pastoral' },
+          { key: 'pastoral.triada.read', experience: 'pastoral', scopeType: 'triada', scopeId: 'triada-norte', source: 'pastoral' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const itemsById = Object.fromEntries(result.visibleItems.map((item) => [item.id, item]))
+      expect(itemsById.lider_uno_a_uno).toMatchObject({ href: '/lider/uno-a-uno', experience: 'pastoral' })
+      expect(itemsById.lider_triada).toMatchObject({ href: '/lider/triada', experience: 'pastoral' })
+      expect(itemsById.asistido_roadmap).toMatchObject({ href: '/asistido', experience: 'pastoral' })
+    })
+
+    it('does not show any pastoral items when no pastoral capability is granted', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'dream-team' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const pastoralIds = result.visibleItems.filter((item) => item.experience === 'pastoral').map((item) => item.id)
+      expect(pastoralIds).toEqual([])
+    })
+  })
 })
 
 function deniedReasons(result: PlatformNavigationResolution): Record<string, string> {
