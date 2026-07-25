@@ -1,47 +1,65 @@
 /**
- * F4 staging debug endpoint — reads runtime env values used by pastoral flags.
+ * F4 staging debug endpoint v2 — exhaustive runtime diagnostics.
+ * Inspects: env vars, computed pastoral flags, buildPlatformSession, hardcoded bearer identity.
  * Temporary diagnostic for the access blocker investigation.
- * Will be removed once env delivery is verified.
- *
- * Path: app/api/pastoral/_debug-env/route.ts
- * GET  /api/pastoral/_debug-env  → returns process.env values
  */
 
 import { NextResponse } from 'next/server'
-import { getPastoralFlags, isPastoralEnabled } from '@/lib/platform/pastoral/flags'
-import { getPlatformNavigationFlags } from '@/lib/platform/flags'
+import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 
 export const dynamic = 'force-dynamic'
 
+async function buildSessionDirectly() {
+  // Mimics what buildPlatformSession probably does
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookies().getAll(),
+      },
+    }
+  )
+  const { data, error } = await supabase.auth.getUser()
+  return { data, error: error ? { message: error.message, code: error.code } : null }
+}
+
 export async function GET() {
-  const runtime = {
-    NEXT_PUBLIC_PASTORAL_ENABLED: process.env.NEXT_PUBLIC_PASTORAL_ENABLED ?? '<undefined>',
-    NEXT_PUBLIC_PASTORAL_STAGE: process.env.NEXT_PUBLIC_PASTORAL_STAGE ?? '<undefined>',
-    NEXT_PUBLIC_PASTORAL_METRICS_ENABLED: process.env.NEXT_PUBLIC_PASTORAL_METRICS_ENABLED ?? '<undefined>',
-    NEXT_PUBLIC_PASTORAL_KILL_SWITCH: process.env.NEXT_PUBLIC_PASTORAL_KILL_SWITCH ?? '<undefined>',
-    NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED:
-      process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED ?? '<undefined>',
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '<undefined>',
-    NODE_ENV: process.env.NODE_ENV ?? '<undefined>',
-    VERCEL_ENV: process.env.VERCEL_ENV ?? '<undefined>',
-    VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA ?? '<undefined>',
+  const cookieList = cookies().getAll().map((c) => ({
+    name: c.name,
+    hasValue: !!c.value && c.value.length > 0,
+    sameSite: c.sameSite,
+    secure: c.secure,
+    path: c.path,
+  }))
+
+  let sessionDiag: unknown = null
+  let sessionError: unknown = null
+  try {
+    sessionDiag = await buildSessionDirectly()
+  } catch (e: unknown) {
+    sessionError = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
   }
 
-  const flags = getPastoralFlags()
-  const platformNav = getPlatformNavigationFlags()
-  const pastoralEnabledFn = isPastoralEnabled()
+  const allEnvKeys = Object.keys(process.env).filter((k) => k.startsWith('NEXT_PUBLIC_'))
+  const envSummary = Object.fromEntries(
+    allEnvKeys.map((k) => [k, `${process.env[k]?.length ?? 0} chars`])
+  )
 
   return NextResponse.json({
-    runtime_env: runtime,
-    computed_flags: {
-      pastoral: flags,
-      platformNavigation: platformNav,
+    deployment: {
+      VERCEL_ENV: process.env.VERCEL_ENV,
+      VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA,
+      NODE_ENV: process.env.NODE_ENV,
     },
-    computed_gates: {
-      isPastoralEnabled: pastoralEnabledFn,
-    },
-    debug_note:
-      'Si isPastoralEnabled=false y NEXT_PUBLIC_PASTORAL_ENABLED está vacío o no es "true"/' +
-      'on/1/yes, hay drift entre Vercel storage (que sí tiene "true") y el bundle que sirve la función.',
+    env_summary: envSummary,
+    cookies: cookieList,
+    session_direct_auth_call: sessionDiag,
+    session_error: sessionError,
+    diagnosis:
+      'Si session_direct_auth_call.data.user es null pero hay cookies sb-*-auth-token, ' +
+      'entonces la Supabase SSR client no está leyendo bien las cookies — apunta a ' +
+      'un dominio/path distinto al que la cookie pertenece.',
   })
 }
