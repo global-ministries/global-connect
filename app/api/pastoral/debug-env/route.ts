@@ -1,8 +1,6 @@
 /**
- * F4 staging debug endpoint v5 — exact replication of page.tsx redirect logic.
- * Calls requirePastoralSession + hasPastoralReadAllCapability, exactly as
- * /pastor/page.tsx does. Reports each step's outcome so we can localize the
- * redirect trigger.
+ * F4 staging debug endpoint v6 — full transparency into requirePastoralSession failure.
+ * Calls each step in isolation and reports which check throws.
  */
 
 import { NextResponse } from 'next/server'
@@ -11,66 +9,74 @@ import { createServerClient } from '@supabase/ssr'
 import {
   findPlatformSessionPersonaByAuthId,
   resolveReadOnlyPlatformSession,
+  isAuthBaseSupabaseClient,
 } from '@/lib/auth/platformSessionReadOnly'
-import { buildPlatformSession } from '@/lib/platform/session/build'
-import {
-  requirePastoralSession,
-  hasPastoralReadAllCapability,
-  hasPastoralAdminManageCapability,
-} from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled, getPastoralFlags } from '@/lib/platform/pastoral/flags'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  // Step 0: flag check (the FIRST guard in page.tsx)
+  const cookieStore = await cookies()
+  const cookieList = cookieStore.getAll()
+  const cookieNames = cookieList.map((c) => c.name)
+
   const flags = getPastoralFlags()
   const isPastoralFnResult = isPastoralEnabled()
 
-  // Step 1: session via the actual requirePastoralSession path
-  let sessionResult: unknown = null
-  let sessionStepLog: unknown = null
-  try {
-    sessionResult = await requirePastoralSession()
-  } catch (e: unknown) {
-    sessionStepLog = { caught_error: e instanceof Error ? `${e.name}: ${e.message}` : String(e) }
+  // We need a supabase client with all the methods. The `database.types.ts`
+  // generic should make `client.from(...)`, `client.auth.getUser()`, etc. typed.
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieList,
+      },
+    }
+  )
+
+  // Step 1: validator checks directly
+  const validatorChecks = {
+    cookiesCount: cookieList.length,
+    cookieNames,
+    isAuthBaseSupabaseClient_bracket: isAuthBaseSupabaseClient(supabase),
+    typeof_supabase_from: typeof (supabase as { from?: unknown }).from,
+    typeof_reflect_from: typeof Reflect.get(supabase, 'from'),
+    supabase_proto_has_from: typeof Reflect.get(Object.getPrototypeOf(supabase), 'from'),
   }
 
-  // Step 2: capability checks against the real session (if we have one)
-  let capabilityChecks: unknown = null
-  if (sessionResult && typeof sessionResult === 'object' && 'personaId' in sessionResult) {
-    const s = sessionResult as { personaId: string; capabilities: Array<{ key: string }> }
-    capabilityChecks = {
-      hasPastoralReadAll: hasPastoralReadAllCapability(
-        s as unknown as Parameters<typeof hasPastoralReadAllCapability>[0]
-      ),
-      hasPastoralAdminManage: hasPastoralAdminManageCapability(
-        s as unknown as Parameters<typeof hasPastoralAdminManageCapability>[0]
-      ),
-      capabilitiesCount: s.capabilities.length,
-      capabilitiesKeys: s.capabilities.map((c) => c.key),
-    }
-  } else {
-    capabilityChecks = {
-      error: 'no session returned from requirePastoralSession',
-      session: sessionResult,
+  // Step 2: getUser
+  const { data: userData, error: userErr } = await supabase.auth.getUser()
+
+  // Step 3: buildPlatformSession directly (bypass resolvers)
+  let directResult: unknown = null
+  let directError: unknown = null
+  if (userData?.user?.id) {
+    try {
+      directResult = await resolveReadOnlyPlatformSession({
+        subjectAuthId: userData.user.id,
+        findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+        capabilitySupabase: supabase,
+      })
+    } catch (e: unknown) {
+      directError = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
     }
   }
 
   return NextResponse.json({
-    step_0_flag_check: {
-      flags,
-      isPastoralEnabled_returns: isPastoralFnResult,
+    cookies_seen: validatorChecks,
+    step_0_flag: { flags, isPastoralEnabled_returns: isPastoralFnResult },
+    step_1_user: {
+      authId: userData?.user?.id ?? null,
+      email: userData?.user?.email,
+      userError: userErr ? { message: userErr.message } : null,
     },
-    step_1_session: sessionResult ?? sessionStepLog,
-    step_2_capability_checks: capabilityChecks,
+    step_2_direct_call: directResult,
+    step_2_caught_error: directError,
     diagnosis:
       'isPastoralEnabled=' + isPastoralFnResult +
-      ' ? session=' + (sessionResult ? 'present' : 'null') +
-      ' ? hasPastoralReadAll=' + (
-        capabilityChecks && typeof capabilityChecks === 'object' && 'hasPastoralReadAll' in capabilityChecks
-          ? String((capabilityChecks as { hasPastoralReadAll: boolean }).hasPastoralReadAll)
-          : '?'
-      ),
+      ' • user=' + (userData?.user?.id ? 'OK' : 'NULL') +
+      ' • isAuthBaseSupabaseClient=' + validatorChecks.isAuthBaseSupabaseClient_bracket +
+      ' • typeof_from=' + validatorChecks.typename_supabase_from,
   })
 }
