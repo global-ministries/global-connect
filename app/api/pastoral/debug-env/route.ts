@@ -26,9 +26,10 @@ async function buildSessionDiag() {
   return {
     cookies: cookieList.map((c) => ({
       name: c.name,
-      hasValue: !!c.value && c.value.length > 0,
-      path: c.path,
-      // sameSite y secure no están en RequestCookie tipado de Next.js 16 — se omiten aquí
+      valueLength: c.value?.length ?? 0,
+      valuePreview: c.value ? `${c.value.slice(0, 12)}...` : null,
+      // En Next.js 16 RequestCookie solo expone name y value — sameSite/path/secure
+      // no son parte del tipo público. Si se necesitan, leer desde el request crudo.
     })),
     auth: {
       data,
