@@ -9,7 +9,6 @@ import { createServerClient } from '@supabase/ssr'
 import {
   findPlatformSessionPersonaByAuthId,
   resolveReadOnlyPlatformSession,
-  isAuthBaseSupabaseClient,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isPastoralEnabled, getPastoralFlags } from '@/lib/platform/pastoral/flags'
 
@@ -39,7 +38,10 @@ export async function GET() {
   const validatorChecks = {
     cookiesCount: cookieList.length,
     cookieNames,
-    isAuthBaseSupabaseClient_bracket: isAuthBaseSupabaseClient(supabase),
+    isAuthBaseSupabaseClient_bracket: (() => {
+      const v = supabase as unknown as { from?: unknown; auth?: unknown; rpc?: unknown }
+      return typeof v.from === 'function' && typeof v.rpc === 'function' && typeof v.auth === 'object'
+    })(),
     typeof_supabase_from: typeof (supabase as { from?: unknown }).from,
     typeof_reflect_from: typeof Reflect.get(supabase, 'from'),
     supabase_proto_has_from: typeof Reflect.get(Object.getPrototypeOf(supabase), 'from'),
