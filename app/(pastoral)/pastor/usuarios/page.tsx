@@ -14,10 +14,10 @@ export const dynamic = 'force-dynamic'
 
 type UsuarioRow = {
   id: string
-  email: string
+  email: string | null
   nombre: string
   apellido: string
-  auth_id: string
+  auth_id: string | null
 }
 
 type GrantRow = {
@@ -35,10 +35,10 @@ type CapabilityEntry = {
 
 type UsuarioResponse = {
   id: string
-  email: string
+  email: string | null
   nombre: string
   apellido: string
-  auth_id: string
+  auth_id: string | null
   capabilities: CapabilityEntry[]
 }
 
@@ -49,24 +49,24 @@ export default async function PastorUsuariosPage() {
 
   const supabase = await createSupabaseServerClient()
 
-  // Fetch all personas
-  const { data: personas, error: personasError } = await supabase
-    .from('personas')
+  // Fetch all usuarios
+  const { data: usuarios, error: usuariosError } = await supabase
+    .from('usuarios')
     .select('id, email, nombre, apellido, auth_id')
     .order('apellido', { ascending: true })
 
-  if (personasError || !personas) {
+  if (usuariosError || !usuarios) {
     return <UsuariosClient usuarios={[]} error="Error al cargar usuarios" />
   }
 
-  if (personas.length === 0) {
+  if (usuarios.length === 0) {
     return <UsuariosClient usuarios={[]} error={null} />
   }
 
   // Fetch all pastoral grants
-  const personaIds = personas.map((p: UsuarioRow) => p.id)
+  const personaIds = usuarios.map((p: UsuarioRow) => p.id)
   const { data: grants } = await supabase
-    .from('platform_capability_grants')
+    .from('dream_team_capability_grants')
     .select('persona_id, capability_key, granted_at, revoked_at')
     .in('persona_id', personaIds)
     .like('capability_key', 'pastoral.%')
@@ -84,7 +84,7 @@ export default async function PastorUsuariosPage() {
     grantsByPersona.set(grant.persona_id, existing)
   }
 
-  const usuarios: UsuarioResponse[] = personas.map((p: UsuarioRow) => ({
+  const usuariosResponse: UsuarioResponse[] = usuarios.map((p: UsuarioRow) => ({
     id: p.id,
     email: p.email,
     nombre: p.nombre,
@@ -93,5 +93,5 @@ export default async function PastorUsuariosPage() {
     capabilities: grantsByPersona.get(p.id) ?? [],
   }))
 
-  return <UsuariosClient usuarios={usuarios} error={null} />
+  return <UsuariosClient usuarios={usuariosResponse} error={null} />
 }

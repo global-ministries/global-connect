@@ -42,7 +42,7 @@ describe('PastoralTimeline', () => {
 
   it('renders date for each item', () => {
     render(<PastoralTimeline items={items} />)
-    expect(screen.getByText(/enero/i)).toBeInTheDocument()
+    expect(screen.getByText(/ene/i)).toBeInTheDocument()
   })
 
   it('renders triada_created type', () => {
