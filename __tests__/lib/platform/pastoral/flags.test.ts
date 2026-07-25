@@ -5,7 +5,14 @@
  * lib/platform/operating-core/flags.ts (sibling, no edits).
  */
 import { execSync } from 'child_process'
-import { getPastoralFlags, isPastoralEnabled, getPastoralStage, getPastoralStageGate, getPastoralMetricsGate } from '@/lib/platform/pastoral/flags'
+import {
+  parseFlag,
+  getPastoralFlags,
+  isPastoralEnabled,
+  getPastoralStage,
+  getPastoralStageGate,
+  getPastoralMetricsGate,
+} from '@/lib/platform/pastoral/flags'
 
 describe('getPastoralFlags', () => {
   const originalEnv = process.env
@@ -279,6 +286,80 @@ describe('getPastoralMetricsGate', () => {
       NEXT_PUBLIC_PASTORAL_KILL_SWITCH: '',
     } as unknown as NodeJS.ProcessEnv)
     expect(result).toBe(true)
+  })
+})
+
+describe('parseFlag (tolerant boolean flag parser)', () => {
+  it.each([
+    ['on', true],
+    ['true', true],
+    ['TRUE', true],
+    ['yes', true],
+    ['1', true],
+    [' on ', true],
+    ['off', false],
+    ['false', false],
+    ['0', false],
+    ['no', false],
+    ['', false],
+    [undefined, false],
+    [null, false],
+    ['random-string', false],
+  ] as Array<[string | undefined | null, boolean]>)(
+    'parseFlag(%p) -> %p',
+    (input, expected) => {
+      expect(parseFlag(input)).toBe(expected)
+    },
+  )
+})
+
+describe('getPastoralFlags accepts both "on" and "true" conventions', () => {
+  const originalEnv = process.env
+
+  beforeEach(() => {
+    jest.resetModules()
+    process.env = { ...originalEnv }
+    delete process.env.NEXT_PUBLIC_PASTORAL_ENABLED
+    delete process.env.NEXT_PUBLIC_PASTORAL_STAGE
+    delete process.env.NEXT_PUBLIC_PASTORAL_KILL_SWITCH
+    delete process.env.NEXT_PUBLIC_PASTORAL_MIN_APP_VERSION
+  })
+
+  afterAll(() => {
+    process.env = originalEnv
+  })
+
+  it('enables when NEXT_PUBLIC_PASTORAL_ENABLED is "on"', () => {
+    const flags = getPastoralFlags({ NEXT_PUBLIC_PASTORAL_ENABLED: 'on' } as unknown as NodeJS.ProcessEnv)
+    expect(flags.enabled).toBe(true)
+  })
+
+  it('enables when NEXT_PUBLIC_PASTORAL_ENABLED is "true"', () => {
+    const flags = getPastoralFlags({ NEXT_PUBLIC_PASTORAL_ENABLED: 'true' } as unknown as NodeJS.ProcessEnv)
+    expect(flags.enabled).toBe(true)
+  })
+
+  it('isPastoralEnabled returns true with "true" + admin-only stage + off killSwitch', () => {
+    const env: NodeJS.ProcessEnv = {
+      NEXT_PUBLIC_PASTORAL_ENABLED: 'true',
+      NEXT_PUBLIC_PASTORAL_STAGE: 'admin-only',
+      NEXT_PUBLIC_PASTORAL_KILL_SWITCH: '',
+    } as unknown as NodeJS.ProcessEnv
+    expect(isPastoralEnabled(env)).toBe(true)
+  })
+
+  it('treats "true" killSwitch as enabled killSwitch (regression: old code rejected "true")', () => {
+    const flags = getPastoralFlags({
+      NEXT_PUBLIC_PASTORAL_KILL_SWITCH: 'true',
+    } as unknown as NodeJS.ProcessEnv)
+    expect(flags.killSwitch).toBe(true)
+  })
+
+  it('rejects "false" even when killSwitch is "true"-like elsewhere (semantic safety)', () => {
+    const flags = getPastoralFlags({
+      NEXT_PUBLIC_PASTORAL_ENABLED: 'false',
+    } as unknown as NodeJS.ProcessEnv)
+    expect(flags.enabled).toBe(false)
   })
 })
 

@@ -14,15 +14,31 @@ export interface PastoralFlags {
 }
 
 /**
+ * Tolerant boolean flag parser. Accepts the union of the two conventions
+ * historically used across the codebase (`'on'` and `'true'`) plus other
+ * common truthy literals. Returns false on undefined, 'off', 'false', '0',
+ * or any other value not explicitly listed as truthy.
+ *
+ * Rationale: F4's handoff doc and several env templates use 'true' while
+ * the original pastoral flag parser used 'on'. This caused the entire
+ * `app/(pastoral)/**` route tree to redirect to '/' in staging.
+ */
+export function parseFlag(value: string | undefined | null): boolean {
+  if (value == null) return false
+  const normalized = value.trim().toLowerCase()
+  return normalized === 'on' || normalized === 'true' || normalized === '1' || normalized === 'yes'
+}
+
+/**
  * Reads the Pastoral feature flags at call time.
  *
  * Values are read from NEXT_PUBLIC_* env vars when called, not inlined at
  * build time, so server and client callers see the runtime value.
  */
 export function getPastoralFlags(env: NodeJS.ProcessEnv = process.env): PastoralFlags {
-  const enabled = env.NEXT_PUBLIC_PASTORAL_ENABLED === 'on'
+  const enabled = parseFlag(env.NEXT_PUBLIC_PASTORAL_ENABLED)
   const stage = (env.NEXT_PUBLIC_PASTORAL_STAGE ?? 'off') as PastoralRolloutStage
-  const killSwitch = env.NEXT_PUBLIC_PASTORAL_KILL_SWITCH === 'on'
+  const killSwitch = parseFlag(env.NEXT_PUBLIC_PASTORAL_KILL_SWITCH)
   const minAppVersion = env.NEXT_PUBLIC_PASTORAL_MIN_APP_VERSION ?? null
 
   const validStages: PastoralRolloutStage[] = ['off', 'admin-only', 'internal', 'public']

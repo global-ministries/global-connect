@@ -4,7 +4,7 @@
 
 Fase 4 entrega el modelo **Seguimiento Pastoral**: 1:1 + Tríada + Detección de Crisis + Mentor Cascade + Notificaciones + Métricas. Toda persona acompañada tiene un mentor oficial asignado por la cascada `GDV > grupo de corto plazo > servicio` (con GDV pesando más). Las reuniones 1:1 se modelan con state machine de 6 estados y versionado optimista. Las tríadas tienen cardinalidad humana 3 fija y dos modos: por nuevo paso (P4) y por simultaneidad. La detección de crisis pastoral usa keyword scan con alerta a pastor/admin y la nota original queda intacta.
 
-15 PRs encadenados stacked-to-main (W01 → W15, más el bundle documental), 8 migrations SQL, 16 archivos protegidos intactos de F1+F2+F3, ~21,000 insertions, 700+ tests unit GREEN + 27 tests e2e/integration.
+15 PRs encadenados stacked-to-main (W01 → W15, más el bundle documental) + 1 fix PR con M9 (drift fix de `auth_has_pastoral_capability`) + fix permanente del parser de flags tolerante, **9 migrations SQL** (M1 → M9 incluyendo la helper-function drift fix), 16 archivos protegidos intactos de F1+F2+F3, ~21,000 insertions, 700+ tests unit GREEN + 27 tests e2e/integration.
 
 ## Plan de rollout
 
@@ -12,10 +12,12 @@ Staged rollout controlado por feature flags en `lib/platform/pastoral/flags.ts` 
 
 | Stage | `NEXT_PUBLIC_PASTORAL_ENABLED` | `NEXT_PUBLIC_PASTORAL_STAGE` | Quién ve |
 |---|---|---|---|
-| OFF (default) | `false` | (no importa) | Nadie. API routes retornan 404. |
-| Admin only | `true` | `admin-only` | Solo admins (gated por capability `pastoral.read.all`) |
-| Internal | `true` | `internal` | Beta testers internos (gated por allowlist) |
-| Public | `true` | `public` | Todos los usuarios autenticados |
+| OFF (default) | `false` / unset | (no importa) | Nadie. API routes retornan 404. |
+| Admin only | `true` (o `on`, `1`, `yes`) | `admin-only` | Solo admins (gated por capability `pastoral.read.all`) |
+| Internal | `true` (o `on`, `1`, `yes`) | `internal` | Beta testers internos (gated por allowlist) |
+| Public | `true` (o `on`, `1`, `yes`) | `public` | Todos los usuarios autenticados |
+
+> **Parser tolerante**: el flag `NEXT_PUBLIC_PASTORAL_ENABLED` se evalúa con `parseFlag()` (`lib/platform/pastoral/flags.ts`), que acepta `on` (canónico), `true`, `1` y `yes` (case-insensitive, con trim). Cero, `false`, `off`, `no`, vacío y otros valores → `false`. Mismas reglas aplican al kill switch `NEXT_PUBLIC_PASTORAL_KILL_SWITCH`.
 
 Flags disponibles:
 - `NEXT_PUBLIC_PASTORAL_ENABLED` — kill switch principal.
@@ -25,16 +27,16 @@ Flags disponibles:
 ### Defaults seguros
 
 - **Producción**: `NEXT_PUBLIC_PASTORAL_ENABLED=false` (default) hasta validación post-merge + ≥7 días staging.
-- **Staging**: `NEXT_PUBLIC_PASTORAL_ENABLED=true`, `NEXT_PUBLIC_PASTORAL_STAGE=admin-only`.
+- **Staging**: `NEXT_PUBLIC_PASTORAL_ENABLED=on` (canónico; el parser también acepta `true`, `1`, `yes`). `NEXT_PUBLIC_PASTORAL_STAGE=admin-only`.
 - **Flag kill-switch**: las funciones `getPastoralFlags()` y `getPastoralStageGate()` leen en **call time** (no inline build), por lo que un rollback en Vercel es instantáneo.
 
 ## Migrations aplicadas al staging
 
-Las 8 migrations están aplicadas a `supabase_global_staging` en orden:
+Las migrations F4 están aplicadas a `supabase_global_staging` en orden. **Producción debe aplicar primero todas las migrations (incluida M9) y solo después desplegar el código del flag tolerante** — si el código sale sin M9, las rutas `/pastor` redirigen y todo RLS sobre `pastoral_*` falla con "relation does not exist" (helper apunta a tabla inexistente).
 
 | # | Migration | Tabla principal | Aplica al staging |
 |---|---|---|---|
-| M1 | `20260722143357_pastoral_helper_auth_has_capability.sql` | `auth_has_pastoral_capability()` | ✓ |
+| M1 | `20260722143357_pastoral_helper_auth_has_capability.sql` | `auth_has_pastoral_capability()` (declaración original, drift conocido) | ✓ |
 | M2 | `20260722143358_pastoral_tables_part1_one_on_one.sql` | `pastoral_one_on_one` + `_participantes` + `_notas` | ✓ |
 | M3 | `20260722172128_pastoral_tables_part2_triada.sql` | `pastoral_triada` + `_miembros` + `_eventos` (cardinalidad 3) | ✓ |
 | M4 | `20260722181344_pastoral_kinds_extension.sql` | ALTER ENUM `operating_core_participation_eventos.kind` (+14 `pastoral_*`) | ✓ |
@@ -42,6 +44,7 @@ Las 8 migrations están aplicadas a `supabase_global_staging` en orden:
 | M6 | `20260723170000_pastoral_crisis_keyword_catalog.sql` | `pastoral_crisis_keyword_catalog` (5 categorías, 32 keywords) | ✓ |
 | M7 | `20260723170001_pastoral_crisis_detection_log.sql` | `pastoral_crisis_detection_log` (PK idempotente) | ✓ |
 | M8 | `20260724000000_pastoral_seeding.sql` | Seeding: 3 test users | ✓ |
+| M9 | `20260725130000_pastoral_capability_helper_drift_fix.sql` | `CREATE OR REPLACE FUNCTION auth_has_pastoral_capability()` apuntando a `dream_team_capability_grants` con JOIN vía `usuarios.auth_id` (corrige drift de M1) | ✓ |
 
 Cada migration es **idempotente** (DO block para enums, `IF NOT EXISTS` para tablas, `CREATE OR REPLACE FUNCTION` para helper, `ALTER TABLE ... ADD CONSTRAINT` para checks). Re-ejecución es segura.
 
@@ -52,7 +55,7 @@ Cada migration es **idempotente** (DO block para enums, `IF NOT EXISTS` para tab
 - **Tríada** (P4, P7): cardinalidad humana 3 fija, dos modos (nuevo paso y simultaneidad), 4 estados (`pending_confirmation`, `active`, `disbanded`). Read guard P7: coordinador_area en simultaneidad NO ve notas del líder de GDV.
 - **1:1**: state machine de 6 estados (`pending_participant`, `scheduled`, `in_progress`, `completed`, `cancelled`, `no_realizado`), `version+409` para optimistic locking, append-only en notas, motivos obligatorios al cerrar.
 - **Detección de crisis** (P16): keyword scan sobre `resumen + notas`, alerta a pastor/admin vía outbox compartido de F3, log idempotente, nota original intacta.
-- **Cero cambios destructivos**: las 8 migrations son ADITIVAS (CREATE TABLE / CREATE INDEX / ALTER ADD CONSTRAINT). Byte-identity preservada sobre los 16 archivos protegidos de F1+F2+F3.
+- **Cero cambios destructivos**: las 9 migrations son ADITIVAS (CREATE TABLE / CREATE INDEX / ALTER ADD CONSTRAINT) excepto M1+M9 que tocan una helper function con `CREATE OR REPLACE FUNCTION` (idempotente, sin DROP). Byte-identity preservada sobre los 16 archivos protegidos de F1+F2+F3.
 - **Multi-tenant OUT of MVP** (P15): no se introduce `church_id` en F4.
 - **`uno_a_uno=archive`** sigue bloqueado en `lib/platform/preflight.ts`; F4 NO invoca `registerPlatformUnoAUnoDecision`.
 
@@ -98,7 +101,7 @@ Cada migration es **idempotente** (DO block para enums, `IF NOT EXISTS` para tab
 
 ## Cero cambios destructivos
 
-- Las 8 migrations SQL son **solo aditivas** (CREATE TABLE / CREATE INDEX / ALTER ADD CONSTRAINT). Cero `DROP TABLE` sobre tablas existentes.
+- Las 9 migrations SQL son **solo aditivas** (CREATE TABLE / CREATE INDEX / ALTER ADD CONSTRAINT). M1+M9 usan `CREATE OR REPLACE FUNCTION` para redefinir la helper (sin DROP). Cero `DROP TABLE` sobre tablas existentes.
 - Los 16 archivos protegidos de F1+F2+F3 quedan **byte-idénticos** después de F4. Verificado con `git diff main -- <paths>`.
 - Extensiones vía **sibling pattern**: `lib/platform/pastoral/**` (nuevo módulo), `emails/pastoral-templates/**`, `lib/whatsapp/pastoral-templates/**`, `app/(pastoral)/**`, `components/pastoral/**`, `supabase/migrations/`.
 - `lib/platform/dream-team/**` no modificado (F2 intacto).
@@ -112,7 +115,7 @@ Cada migration es **idempotente** (DO block para enums, `IF NOT EXISTS` para tab
 - **Fase 5** — Talleres de Crecimiento operativos (catálogo, cohortes, inscripción, asistencia, completación, conexión con Dream Team).
 - **Revisar y mergear** cualquier PR pendiente antes del rollout.
 - **Post-merge W15**: levantar flag a `admin-only` en staging, validar 24-48 h, luego `internal`, luego `public`.
-- **Aplicar migrations a producción** en ventana de mantenimiento (orden M1 → M8).
+- **Aplicar migrations a producción** en ventana de mantenimiento (orden M1 → M9). El paso de M9 es crítico: sin él, la helper `auth_has_pastoral_capability` queda apuntando a tabla inexistente y TODO el acceso pastoral devuelve error.
 - **Activar flag** en modo `admin-only` con el plan descrito arriba.
 
 ## Archivos clave del cierre W15
