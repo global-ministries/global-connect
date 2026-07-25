@@ -10,6 +10,15 @@ jest.mock('@/lib/supabase/server', () => ({
 
 type AuthUser = { id: string; email?: string }
 type PersonaRow = { id: string; auth_id: string | null }
+type CapabilityGrantRow = {
+  capability_key: string
+  experience: string
+  scope_type: string
+  scope_id: string | null
+  source: string
+  granted_at: string
+  revoked_at: string | null
+}
 
 const defaultUser = { id: 'auth-1', email: 'staff@example.com' } satisfies AuthUser
 const linkedPersona = { id: 'persona-1', auth_id: 'auth-1' } satisfies PersonaRow
@@ -21,6 +30,7 @@ function createAuthBaseClient(input: {
   rolesError?: Error | null
   personaData?: PersonaRow | null
   personaError?: Error | null
+  capabilityRows?: CapabilityGrantRow[]
 }) {
   const personaData = input.personaData === undefined ? linkedPersona : input.personaData
   const personaQuery = {
@@ -30,6 +40,13 @@ function createAuthBaseClient(input: {
   }
   personaQuery.select.mockReturnValue(personaQuery)
   personaQuery.eq.mockReturnValue(personaQuery)
+  const capabilityQuery = {
+    select: jest.fn(),
+    eq: jest.fn(),
+    is: jest.fn().mockResolvedValue({ data: input.capabilityRows ?? [], error: null }),
+  }
+  capabilityQuery.select.mockReturnValue(capabilityQuery)
+  capabilityQuery.eq.mockReturnValue(capabilityQuery)
 
   const client: AuthBaseSupabaseClient = {
     auth: {
@@ -37,12 +54,13 @@ function createAuthBaseClient(input: {
     },
     rpc: jest.fn().mockResolvedValue({ data: input.rolesData ?? [], error: input.rolesError ?? null }),
     from: jest.fn((table: string) => {
-      if (table !== 'usuarios') throw new Error(`Unexpected table ${table}`)
-      return personaQuery
+      if (table === 'usuarios') return personaQuery
+      if (table === 'dream_team_capability_grants') return capabilityQuery
+      throw new Error(`Unexpected table ${table}`)
     }),
   }
 
-  return { client, personaQuery }
+  return { client, personaQuery, capabilityQuery }
 }
 
 describe('platformSession read-only auth base integration', () => {
@@ -70,6 +88,31 @@ describe('platformSession read-only auth base integration', () => {
     })
     expect(personaQuery.select).toHaveBeenCalledWith('id, auth_id')
     expect(personaQuery.eq).toHaveBeenCalledWith('auth_id', 'auth-1')
+  })
+
+  it('loads active capability grants into the auth base platformSession', async () => {
+    const capabilityRows: CapabilityGrantRow[] = [{
+      capability_key: 'pastoral.read.all',
+      experience: 'pastoral',
+      scope_type: 'global',
+      scope_id: null,
+      source: 'manual',
+      granted_at: '2026-07-24T10:00:00.000Z',
+      revoked_at: null,
+    }]
+    const { client, capabilityQuery } = createAuthBaseClient({ capabilityRows })
+
+    const result = await getUserWithRoles(client)
+
+    expect(result?.platformSession?.capabilities).toEqual([{
+      key: 'pastoral.read.all',
+      experience: 'pastoral',
+      scopeType: 'global',
+      scopeId: undefined,
+      source: 'manual',
+      grantedAt: '2026-07-24T10:00:00.000Z',
+    }])
+    expect(capabilityQuery.is).toHaveBeenCalledWith('revoked_at', null)
   })
 
   it('keeps legacy roles when platformSession lookup fails closed', async () => {

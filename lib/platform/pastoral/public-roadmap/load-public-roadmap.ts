@@ -88,6 +88,7 @@ export async function loadPublicRoadmap(
   const session = await resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+    capabilitySupabase: supabase,
   })
   if (!session) return null
 

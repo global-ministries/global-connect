@@ -26,6 +26,7 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
   const platformSession = await resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+    capabilitySupabase: supabase,
   })
 
   return {
@@ -66,6 +67,7 @@ export async function requireRole(
   const platformSession = await resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+    capabilitySupabase: supabase,
     globalRoles: rolesUsuario,
   })
 

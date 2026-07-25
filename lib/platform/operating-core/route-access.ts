@@ -36,6 +36,7 @@ export async function requireOperatingCoreSession() {
   return resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+    capabilitySupabase: supabase,
   })
 }
 
