@@ -36,23 +36,26 @@ describe('OneOnOneCard', () => {
 
   it('renders scheduled badge', () => {
     render(<OneOnOneCard {...defaultProps} />)
-    const badge = screen.getByTestId('badge')
-    expect(badge).toHaveAttribute('data-variant', 'outline')
-    expect(badge).toHaveTextContent('Programado')
+    const badges = screen.getAllByTestId('badge')
+    const estadoBadge = badges.find((b) => b.textContent === 'Programado')
+    expect(estadoBadge).toBeDefined()
+    expect(estadoBadge).toHaveAttribute('data-variant', 'outline')
   })
 
   it('renders completed badge when estado is completed', () => {
     render(<OneOnOneCard {...defaultProps} estado="completed" />)
-    const badge = screen.getByTestId('badge')
-    expect(badge).toHaveAttribute('data-variant', 'default')
-    expect(badge).toHaveTextContent('Completado')
+    const badges = screen.getAllByTestId('badge')
+    const estadoBadge = badges.find((b) => b.textContent === 'Completado')
+    expect(estadoBadge).toBeDefined()
+    expect(estadoBadge).toHaveAttribute('data-variant', 'default')
   })
 
   it('renders cancelled badge when estado is cancelled', () => {
     render(<OneOnOneCard {...defaultProps} estado="cancelled" />)
-    const badge = screen.getByTestId('badge')
-    expect(badge).toHaveAttribute('data-variant', 'destructive')
-    expect(badge).toHaveTextContent('Cancelado')
+    const badges = screen.getAllByTestId('badge')
+    const estadoBadge = badges.find((b) => b.textContent === 'Cancelado')
+    expect(estadoBadge).toBeDefined()
+    expect(estadoBadge).toHaveAttribute('data-variant', 'destructive')
   })
 
   it('renders steps count badge', () => {

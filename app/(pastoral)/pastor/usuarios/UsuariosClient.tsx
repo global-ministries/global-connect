@@ -25,10 +25,10 @@ type CapabilityEntry = {
 
 type UsuarioResponse = {
   readonly id: string
-  readonly email: string
+  readonly email: string | null
   readonly nombre: string
   readonly apellido: string
-  readonly auth_id: string
+  readonly auth_id: string | null
   readonly capabilities: CapabilityEntry[]
 }
 

@@ -44,19 +44,19 @@ export default async function PastorGrantsPage({ params }: PageProps) {
   const supabase = await createSupabaseServerClient()
 
   // Fetch usuario
-  const { data: persona, error: personaError } = await supabase
-    .from('personas')
+  const { data: usuario, error: usuarioError } = await supabase
+    .from('usuarios')
     .select('id, email, nombre, apellido')
     .eq('id', usuario_id)
     .single()
 
-  if (personaError || !persona) {
+  if (usuarioError || !usuario) {
     redirect('/pastor/usuarios')
   }
 
   // Fetch grants for this usuario
   const { data: grants } = await supabase
-    .from('platform_capability_grants')
+    .from('dream_team_capability_grants')
     .select('persona_id, capability_key, granted_at, revoked_at')
     .eq('persona_id', usuario_id)
     .like('capability_key', 'pastoral.%')
@@ -67,7 +67,7 @@ export default async function PastorGrantsPage({ params }: PageProps) {
     revoked_at: g.revoked_at,
   }))
 
-  const usuarioNombre = `${persona.nombre} ${persona.apellido}`
+  const usuarioNombre = `${usuario.nombre} ${usuario.apellido}`
 
   return (
     <ContenedorDashboard

@@ -30,7 +30,9 @@ describe('CrisisAlertBanner', () => {
 
   it('renders alert with category label', () => {
     render(<CrisisAlertBanner alerts={[defaultAlert]} />)
-    expect(screen.getByText('Duelo')).toBeInTheDocument()
+    expect(screen.getByText((content, element) => {
+      return element?.tagName === 'P' && content.startsWith('Duelo')
+    })).toBeInTheDocument()
   })
 
   it('renders alert with assisted person name', () => {
@@ -56,11 +58,15 @@ describe('CrisisAlertBanner', () => {
 
   it('renders ideacion_suicida as destructive', () => {
     render(<CrisisAlertBanner alerts={[{ ...defaultAlert, categoria: 'ideacion_suicida' }]} />)
-    expect(screen.getByText('Ideación Suicida')).toBeInTheDocument()
+    expect(screen.getByText((content, element) => {
+      return element?.tagName === 'P' && content.startsWith('Ideación Suicida')
+    })).toBeInTheDocument()
   })
 
   it('renders crisis_matrimonial as destructive', () => {
     render(<CrisisAlertBanner alerts={[{ ...defaultAlert, categoria: 'crisis_matrimonial' }]} />)
-    expect(screen.getByText('Crisis Matrimonial')).toBeInTheDocument()
+    expect(screen.getByText((content, element) => {
+      return element?.tagName === 'P' && content.startsWith('Crisis Matrimonial')
+    })).toBeInTheDocument()
   })
 })

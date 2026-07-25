@@ -24,10 +24,10 @@ interface RouteContext {
 
 type UsuarioRow = {
   id: string
-  email: string
+  email: string | null
   nombre: string
   apellido: string
-  auth_id: string
+  auth_id: string | null
 }
 
 type GrantRow = {
@@ -45,10 +45,10 @@ type CapabilityEntry = {
 
 type UsuarioResponse = {
   id: string
-  email: string
+  email: string | null
   nombre: string
   apellido: string
-  auth_id: string
+  auth_id: string | null
   capabilities: CapabilityEntry[]
 }
 
@@ -67,25 +67,25 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const supabase = await createSupabaseServerClient()
 
-    // Fetch all personas with pastoral capabilities (those that have at least one grant starting with 'pastoral.')
-    const { data: personas, error: personasError } = await supabase
-      .from('personas')
+    // Fetch all usuarios with pastoral capabilities (those that have at least one grant starting with 'pastoral.')
+    const { data: usuarios, error: usuariosError } = await supabase
+      .from('usuarios')
       .select('id, email, nombre, apellido, auth_id')
       .order('apellido', { ascending: true })
 
-    if (personasError) {
-      console.error('[pastoral/admin/usuarios GET] personas error:', personasError)
+    if (usuariosError) {
+      console.error('[pastoral/admin/usuarios GET] usuarios error:', usuariosError)
       return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
 
-    if (!personas || personas.length === 0) {
+    if (!usuarios || usuarios.length === 0) {
       return NextResponse.json([])
     }
 
     // Fetch all active pastoral grants (not revoked)
-    const personaIds = personas.map((p: UsuarioRow) => p.id)
+    const personaIds = usuarios.map((p: UsuarioRow) => p.id)
     const { data: grants, error: grantsError } = await supabase
-      .from('platform_capability_grants')
+      .from('dream_team_capability_grants')
       .select('persona_id, capability_key, granted_at, revoked_at')
       .in('persona_id', personaIds)
       .like('capability_key', 'pastoral.%')
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
 
-    // Build response: map grants to personas
+    // Build response: map grants to usuarios
     const grantsByPersona = new Map<string, CapabilityEntry[]>()
     for (const grant of grants ?? []) {
       const entry: CapabilityEntry = {
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       grantsByPersona.set(grant.persona_id, existing)
     }
 
-    const response: UsuarioResponse[] = personas.map((p: UsuarioRow) => ({
+    const response: UsuarioResponse[] = usuarios.map((p: UsuarioRow) => ({
       id: p.id,
       email: p.email,
       nombre: p.nombre,

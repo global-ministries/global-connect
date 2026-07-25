@@ -14,6 +14,7 @@ import {
   requirePastoralSession,
   hasPastoralAdminManageCapability,
 } from '@/lib/platform/pastoral/route-access'
+import { PLATFORM_CAPABILITIES } from '@/lib/platform/experiences'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 interface RouteContext {
@@ -51,6 +52,17 @@ function isPastoralCapability(key: string): boolean {
   return key.startsWith('pastoral.')
 }
 
+// Map a pastoral.* capability_key to its experience/scope_type from the
+// platform catalog. Falls back to 'pastoral' / 'experience' if unknown
+// so the grants table's NOT NULL constraints are always satisfied.
+function resolvePastoralScope(capabilityKey: string): { experience: string; scopeType: string } {
+  const definition = PLATFORM_CAPABILITIES[capabilityKey as keyof typeof PLATFORM_CAPABILITIES]
+  if (definition) {
+    return { experience: definition.experience, scopeType: definition.scopeType }
+  }
+  return { experience: 'pastoral', scopeType: 'experience' }
+}
+
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
     if (!isPastoralRouteEnabled()) {
@@ -85,20 +97,25 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const supabase = await createSupabaseServerClient()
     const now = new Date().toISOString()
+    const capabilityKey = parsed.capability_key
+    const { experience, scopeType } = resolvePastoralScope(capabilityKey)
 
     if (parsed.action === 'grant') {
-      // Upsert: INSERT or UPDATE platform_capability_grants
+      // Upsert: INSERT or UPDATE dream_team_capability_grants
       const { error } = await supabase
-        .from('platform_capability_grants')
+        .from('dream_team_capability_grants')
         .upsert(
           {
             persona_id: parsed.usuario_id,
-            capability_key: parsed.capability_key,
-            granted_by_persona_id: session.personaId,
+            capability_key: capabilityKey,
+            experience,
+            scope_type: scopeType,
+            scope_id: null,
+            source: 'pastoral_admin',
             granted_at: now,
             revoked_at: null,
           },
-          { onConflict: 'persona_id,capability_key' }
+          { onConflict: 'persona_id,capability_key,experience,scope_type,scope_id,source' }
         )
 
       if (error) {
@@ -108,18 +125,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
       const result: GrantResult = {
         persona_id: parsed.usuario_id,
-        capability_key: parsed.capability_key,
+        capability_key: capabilityKey,
         granted_at: now,
         revoked_at: null,
       }
       return NextResponse.json(result)
     } else {
-      // Revoke: UPDATE set revoked_at
+      // Revoke: UPDATE set revoked_at for ALL active grants matching this (persona, capability).
       const { error } = await supabase
-        .from('platform_capability_grants')
+        .from('dream_team_capability_grants')
         .update({ revoked_at: now })
         .eq('persona_id', parsed.usuario_id)
-        .eq('capability_key', parsed.capability_key)
+        .eq('capability_key', capabilityKey)
         .is('revoked_at', null)
 
       if (error) {
@@ -129,7 +146,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
       const result: GrantResult = {
         persona_id: parsed.usuario_id,
-        capability_key: parsed.capability_key,
+        capability_key: capabilityKey,
         granted_at: null,
         revoked_at: now,
       }

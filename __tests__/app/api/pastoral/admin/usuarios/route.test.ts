@@ -135,9 +135,9 @@ describe('GET /api/pastoral/admin/usuarios', () => {
         },
       ]
 
-      // First call: from('personas')
+      // First call: from('usuarios')
       mockFrom.mockReturnValueOnce(createQueryChain(mockPersonas, null))
-      // Second call: from('platform_capability_grants')
+      // Second call: from('dream_team_capability_grants')
       mockFrom.mockReturnValueOnce(createQueryChain(mockGrants, null))
 
       const res = await GET(
@@ -157,9 +157,9 @@ describe('GET /api/pastoral/admin/usuarios', () => {
       hasAdminCap.mockReturnValue(false)
       hasReadAllCap.mockReturnValue(true)
 
-      // First call: from('personas')
+      // First call: from('usuarios')
       mockFrom.mockReturnValueOnce(createQueryChain([], null))
-      // Second call: from('platform_capability_grants')
+      // Second call: from('dream_team_capability_grants')
       mockFrom.mockReturnValueOnce(createQueryChain([], null))
 
       const res = await GET(
