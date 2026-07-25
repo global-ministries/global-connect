@@ -23,6 +23,14 @@ export type PlatformNavigationItemId =
   | 'nextgen_admin'
   | 'talleres_admin'
   | 'uno_a_uno_global'
+  | 'pastor_dashboard'
+  | 'pastor_usuarios'
+  | 'pastor_crisis'
+  | 'pastor_lecturas'
+  | 'lider_dashboard'
+  | 'lider_uno_a_uno'
+  | 'lider_triada'
+  | 'asistido_roadmap'
 export type PlatformNavigationItem = {
   id: PlatformNavigationItemId
   label: string
@@ -84,6 +92,14 @@ const PLATFORM_NAVIGATION_DEFINITIONS = [
   { id: 'nextgen_admin', capability: 'nextgen.admin.manage', label: 'Administración NextGen', experience: 'nextgen', fallbackScope: { experience: 'nextgen', type: 'experience' } },
   { id: 'talleres_admin', capability: 'talleres_crecimiento.admin.manage', label: 'Administración Talleres', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
   { id: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.itemId, capability: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.capability, label: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.label, experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, fallbackScope: { experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, type: 'experience' } },
+  { id: 'pastor_dashboard', capability: 'pastoral.read.all', label: 'Dashboard Pastoral', availableHref: '/pastor', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
+  { id: 'pastor_usuarios', capability: 'pastoral.admin.manage', label: 'Gestión de Usuarios', availableHref: '/pastor/usuarios', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
+  { id: 'pastor_crisis', capability: 'pastoral.read.all', label: 'Alertas de Crisis', availableHref: '/pastor/crisis', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
+  { id: 'pastor_lecturas', capability: 'pastoral.read.all', label: 'Lecturas Pastorales', availableHref: '/pastor/lecturas', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
+  { id: 'lider_dashboard', capability: 'pastoral.one_on_one.create', label: 'Dashboard del Líder', availableHref: '/lider', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'one_on_one', id: 'required' } },
+  { id: 'lider_uno_a_uno', capability: 'pastoral.one_on_one.read', label: '1:1 del Líder', availableHref: '/lider/uno-a-uno', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'one_on_one', id: 'required' } },
+  { id: 'lider_triada', capability: 'pastoral.triada.read', label: 'Tríadas del Líder', availableHref: '/lider/triada', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'triada', id: 'required' } },
+  { id: 'asistido_roadmap', capability: 'pastoral.one_on_one.read', label: 'Mi Camino Pastoral', availableHref: '/asistido', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'one_on_one', id: 'required' } },
 ] satisfies readonly PlatformNavigationDefinition[]
 
 export async function resolvePlatformNavigation(input: PlatformNavigationResolverInput): Promise<PlatformNavigationResolution> {

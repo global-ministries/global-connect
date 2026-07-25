@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ComponentType, type Dispatch, type SetStateAction } from 'react'
-import { ClipboardList, Megaphone, Settings, User, UserCheck, Users } from 'lucide-react'
+import { AlertTriangle, BarChart3, Calendar, ClipboardList, MapPin, Megaphone, Settings, User, UserCheck, UserCog, Users } from 'lucide-react'
 
 import { getPlatformNavigationFlags, type PlatformNavigationFlags } from '@/lib/platform/flags'
 import { resolvePlatformNavigation, resolvePlatformNavigationGate } from '@/lib/platform/navigation'
@@ -34,6 +34,14 @@ const PLATFORM_NAVIGATION_ICONS = {
   nextgen_admin: Settings,
   talleres_admin: Settings,
   uno_a_uno_global: User,
+  pastor_dashboard: BarChart3,
+  pastor_usuarios: UserCog,
+  pastor_crisis: AlertTriangle,
+  pastor_lecturas: ClipboardList,
+  lider_dashboard: User,
+  lider_uno_a_uno: Calendar,
+  lider_triada: Users,
+  asistido_roadmap: MapPin,
 } satisfies Record<PlatformNavigationItemId, ComponentType<{ className?: string }>>
 
 export async function resolvePlatformNavigationViewItems(
