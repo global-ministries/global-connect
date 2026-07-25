@@ -79,6 +79,6 @@ export async function GET() {
       'isPastoralEnabled=' + isPastoralFnResult +
       ' • user=' + (userData?.user?.id ? 'OK' : 'NULL') +
       ' • isAuthBaseSupabaseClient=' + validatorChecks.isAuthBaseSupabaseClient_bracket +
-      ' • typeof_from=' + validatorChecks.typename_supabase_from,
+      ' • typeof_from=' + validatorChecks.typeof_supabase_from,
   })
 }
