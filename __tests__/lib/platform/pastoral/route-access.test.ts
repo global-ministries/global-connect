@@ -8,7 +8,23 @@
  *
  * Uses real PlatformSession types with minimal mock grants.
  */
+const mockCreateSupabaseServerClient = jest.fn()
+const mockResolveReadOnlyPlatformSession = jest.fn()
+const mockFindPlatformSessionPersonaByAuthId = jest.fn()
+
+jest.mock('@/lib/supabase/server', () => ({
+  createSupabaseServerClient: () => mockCreateSupabaseServerClient(),
+}))
+
+jest.mock('@/lib/auth/platformSessionReadOnly', () => ({
+  findPlatformSessionPersonaByAuthId: (supabase: unknown, authId: string) => (
+    mockFindPlatformSessionPersonaByAuthId(supabase, authId)
+  ),
+  resolveReadOnlyPlatformSession: (input: unknown) => mockResolveReadOnlyPlatformSession(input),
+}))
+
 import {
+  requirePastoralSession,
   hasPastoralMentorCascadeResolveCapability,
   hasPastoralCrisisDetectCapability,
   hasPastoralReadAllCapability,
@@ -31,6 +47,36 @@ function makeSession(capabilities: string[]): PlatformSession {
     contexts: [],
   }
 }
+
+describe('requirePastoralSession', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('passes the authenticated Supabase client as capabilitySupabase', async () => {
+    const supabase = {
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: { id: 'test-auth-id', email: 'test@example.com' } },
+          error: null,
+        }),
+      },
+      from: jest.fn(),
+      rpc: jest.fn(),
+    }
+    const session = makeSession(['pastoral.read.all'])
+    mockCreateSupabaseServerClient.mockResolvedValue(supabase)
+    mockResolveReadOnlyPlatformSession.mockResolvedValue(session)
+
+    await expect(requirePastoralSession()).resolves.toBe(session)
+
+    expect(mockResolveReadOnlyPlatformSession).toHaveBeenCalledWith({
+      subjectAuthId: 'test-auth-id',
+      findPersonaByAuthId: expect.any(Function),
+      capabilitySupabase: supabase,
+    })
+  })
+})
 
 describe('hasPastoralMentorCascadeResolveCapability', () => {
   it('returns true when session has pastoral.mentor.cascade.resolve', () => {
