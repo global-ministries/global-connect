@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react'
-import { AlertTriangle, BarChart3, Calendar, ClipboardList, MapPin, User, UserCog, Users, UserCheck } from 'lucide-react'
+import { AlertTriangle, BarChart3, Calendar, ClipboardList, MapPin, User, UserCog, UserCheck } from 'lucide-react'
 
 import {
   resolvePlatformNavigationViewItems,
@@ -89,9 +89,9 @@ describe('platform navigation view items', () => {
       expect(itemsByHref['/pastor/crisis']?.icon).toBe(AlertTriangle)
       expect(itemsByHref['/pastor/lecturas']?.icon).toBe(ClipboardList)
       expect(itemsByHref['/lider']?.icon).toBe(User)
-      expect(itemsByHref['/lider/uno-a-uno']?.icon).toBe(Calendar)
-      expect(itemsByHref['/lider/triada']?.icon).toBe(Users)
-      expect(itemsByHref['/asistido']?.icon).toBe(MapPin)
+       expect(itemsByHref['/lider/uno-a-uno']?.icon).toBe(Calendar)
+       expect(itemsByHref['/lider/triada']).toBeUndefined()
+       expect(itemsByHref['/asistido']?.icon).toBe(MapPin)
     })
 
     it('does not include pastor admin usuarios when only pastoral.read.all is granted', async () => {

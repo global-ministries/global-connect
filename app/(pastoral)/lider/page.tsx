@@ -1,13 +1,5 @@
-/**
- * W13 — DT-074 — Líder dashboard page (server component).
- *
- * Uses auth.uid() directly — NOT public.current_persona_id().
- * Fetches: upcoming 1:1s, active tríadas, crisis alerts.
- */
-
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { findPlatformSessionPersonaByAuthId, resolveReadOnlyPlatformSession } from '@/lib/auth/platformSessionReadOnly'
 import { requirePastoralSession, hasPastoralOneOnOneReadCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import LiderDashboardClient from './LiderDashboardClient'
@@ -15,16 +7,13 @@ import LiderDashboardClient from './LiderDashboardClient'
 export const dynamic = 'force-dynamic'
 
 export default async function LiderDashboardPage() {
-  // Check pastoral flag
   if (!isPastoralEnabled()) {
     redirect('/')
   }
 
-  // Require session
   const session = await requirePastoralSession()
   if (!session) redirect('/')
 
-  // Require read capability
   if (!hasPastoralOneOnOneReadCapability(session)) {
     redirect('/')
   }
@@ -32,7 +21,6 @@ export default async function LiderDashboardPage() {
   const supabase = await createSupabaseServerClient()
   const actorPersonaId = session.personaId
 
-  // Fetch upcoming 1:1s where actor is mentor
   const { data: unoAunos } = await supabase
     .from('pastoral_one_on_one')
     .select(`
@@ -48,20 +36,6 @@ export default async function LiderDashboardPage() {
     .order('scheduled_at', { ascending: true })
     .limit(10)
 
-  // Fetch active tríadas where actor is mentor
-  const { data: triadas } = await supabase
-    .from('pastoral_triada')
-    .select(`
-      id,
-      estado,
-      contexto,
-      created_at,
-      pastoral_triada_miembros ( id )
-    `)
-    .eq('estado', 'active')
-    .limit(10)
-
-  // Fetch crisis alerts (simplified — W09 adds full scan)
   const { data: crisisRows } = await supabase
     .from('pastoral_crisis_detection_log')
     .select(`
@@ -73,7 +47,6 @@ export default async function LiderDashboardPage() {
     .order('detected_at', { ascending: false })
     .limit(5)
 
-  // Map data to client types
   const mappedUnoAunos = (unoAunos ?? []).map((row: {
     id: string
     estado: string
@@ -89,20 +62,6 @@ export default async function LiderDashboardPage() {
       pasosValidadosCount: 0,
     }
   })
-
-  const mappedTriadas = (triadas ?? []).map((row: {
-    id: string
-    estado: string
-    contexto: string
-    created_at: string
-    pastoral_triada_miembros?: Array<unknown>
-  }) => ({
-    id: row.id,
-    estado: row.estado,
-    contexto: row.contexto,
-    createdAtIso: row.created_at,
-    miembrosCount: row.pastoral_triada_miembros?.length ?? 0,
-  }))
 
   const mappedCrisis = (crisisRows ?? []).map((row: {
     one_on_one_id: string
@@ -121,7 +80,6 @@ export default async function LiderDashboardPage() {
   return (
     <LiderDashboardClient
       unoAunos={mappedUnoAunos}
-      triadas={mappedTriadas}
       crisisAlerts={mappedCrisis}
     />
   )
