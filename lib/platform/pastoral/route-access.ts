@@ -83,8 +83,8 @@ function hasCapability(session: PlatformSession, key: string): boolean {
   const needType = def.scopeType
   return session.capabilities.some((grant) => {
     if (grant.key !== key) return false
-    if (grant.scope.experience !== needExp) return false
-    if (grant.scope.type !== needType) return false
+    if (grant.experience !== needExp) return false
+    if (grant.scopeType !== needType) return false
     return true
   })
 }
