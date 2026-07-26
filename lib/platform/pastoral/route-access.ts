@@ -64,15 +64,29 @@ function toActor(session: PlatformSession) {
 }
 
 // ─── Generic capability checker ─────────────────────────────────────────────────
+//
+// "Does this session have AT LEAST ONE grant that covers the (experience,
+// scopeType) shape of this capability?" — equivalent to "can the user
+// act on some record of this type" without specifying which one.
+//
+// The upstream resolvePlatformCapability() rejects the required scope when
+// `scope.id` is missing on a non-experience scopeType (it requires an
+// id, since otherwise it cannot compute an exact-match signature). For the
+// generic "can they do X?" question we don't need exact id match — we
+// just need to confirm a grant exists for the same experience+scopeType
+// shape. We do that directly here and skip the resolver.
 
 function hasCapability(session: PlatformSession, key: string): boolean {
   const def = PLATFORM_CAPABILITIES[key as keyof typeof PLATFORM_CAPABILITIES]
   if (!def) return false
-  return resolvePlatformCapability({
-    actor: toActor(session),
-    flow: 'pastoral.api',
-    required: { key, scope: { experience: def.experience, type: def.scopeType } },
-  }).ok
+  const needExp = def.experience
+  const needType = def.scopeType
+  return session.capabilities.some((grant) => {
+    if (grant.key !== key) return false
+    if (grant.scope.experience !== needExp) return false
+    if (grant.scope.type !== needType) return false
+    return true
+  })
 }
 
 // ─── Specific capability predicates ───────────────────────────────────────────
