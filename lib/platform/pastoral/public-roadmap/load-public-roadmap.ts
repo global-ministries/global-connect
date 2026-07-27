@@ -68,6 +68,7 @@ function projectOneOnOne(row: {
 
 export interface LoadPublicRoadmapOptions {
   readonly assistedPersonaId: string
+  readonly enforceHierarchicalVisibility?: boolean
 }
 
 /**
@@ -96,7 +97,10 @@ export async function loadPublicRoadmap(
   const actorPersonaId = session.personaId
   const visiblePersonaIds = await getPersonasUnderMe(supabase)
 
-  if (!visiblePersonaIds.includes(options.assistedPersonaId)) return null
+  if (
+    options.enforceHierarchicalVisibility !== false
+    && !visiblePersonaIds.includes(options.assistedPersonaId)
+  ) return null
 
   // P6 guard: check access
   const canAccess = await canAccessRoadmap(actorPersonaId, options.assistedPersonaId)
