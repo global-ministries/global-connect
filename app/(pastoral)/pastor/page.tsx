@@ -53,7 +53,6 @@ export default async function PastorDashboardPage() {
   const metrics = {
     unoAunoPorPeriodo: '—',
     lideresActivos: '—',
-    triadasActivas: '—',
     alarmas90dias: '—',
   }
 

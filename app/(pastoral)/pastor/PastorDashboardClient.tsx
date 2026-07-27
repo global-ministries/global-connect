@@ -1,14 +1,7 @@
 "use client"
 
-/**
- * W13 — Pastor dashboard client component.
- *
- * Shows all pastoral metrics (from W12) + crisis alerts.
- * Only visible to pastoral.read.all capability.
- */
-
 import React from 'react'
-import { AlertTriangle, Users, Calendar, TrendingUp, Settings, UserCog } from 'lucide-react'
+import { AlertTriangle, Users, Calendar, UserCog } from 'lucide-react'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { TituloSistema } from '@/components/ui/sistema-diseno'
@@ -21,7 +14,6 @@ interface PastorDashboardClientProps {
   readonly metrics: {
     readonly unoAunoPorPeriodo: string | number
     readonly lideresActivos: string | number
-    readonly triadasActivas: string | number
     readonly alarmas90dias: string | number
   }
   readonly crisisAlerts: ReadonlyArray<{
@@ -74,12 +66,10 @@ export default function PastorDashboardClient({
       titulo="Dashboard Pastoral"
       descripcion="Vista global de seguimiento pastoral — pastor/admin"
     >
-      {/* Crisis alerts */}
       {crisisAlerts.length > 0 && (
         <CrisisAlertBanner alerts={crisisAlerts} />
       )}
 
-      {/* Metrics grid */}
       <div className="grid grid-cols-2 gap-4">
         <MetricCard
           title="Sesiones 1:1"
@@ -94,11 +84,6 @@ export default function PastorDashboardClient({
           description="Con sesión en ventana"
         />
         <MetricCard
-          title="Tríadas Activas"
-          value={metrics.triadasActivas}
-          icon={TrendingUp}
-        />
-        <MetricCard
           title="Alarmas 90 días"
           value={metrics.alarmas90dias}
           icon={AlertTriangle}
@@ -106,7 +91,6 @@ export default function PastorDashboardClient({
         />
       </div>
 
-      {/* Quick actions */}
       <TarjetaSistema>
         <TituloSistema nivel={2} className="mb-3">Accesos Rápidos</TituloSistema>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -118,13 +102,12 @@ export default function PastorDashboardClient({
           </Link>
           <Link href="/pastor/lecturas">
             <Button variant="outline" size="sm">
-              Ver sesiones 1:1 y tríadas
+              Ver sesiones 1:1
             </Button>
           </Link>
         </div>
       </TarjetaSistema>
 
-      {/* Admin actions - only visible with pastoral.admin.manage */}
       {hasAdminManage && (
         <TarjetaSistema>
           <TituloSistema nivel={2} className="mb-3">Administración</TituloSistema>

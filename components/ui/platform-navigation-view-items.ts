@@ -24,7 +24,7 @@ export type PlatformNavigationViewItem = {
   className?: never
 }
 
-const PLATFORM_NAVIGATION_ICONS = {
+const PLATFORM_NAVIGATION_ICONS: Partial<Record<PlatformNavigationItemId, ComponentType<{ className?: string }>>> = {
   grupos_vida_stage: UserCheck,
   dps_team_service: Megaphone,
   ninos_room_context: Users,
@@ -40,9 +40,8 @@ const PLATFORM_NAVIGATION_ICONS = {
   pastor_lecturas: ClipboardList,
   lider_dashboard: User,
   lider_uno_a_uno: Calendar,
-  lider_triada: Users,
   asistido_roadmap: MapPin,
-} satisfies Record<PlatformNavigationItemId, ComponentType<{ className?: string }>>
+} satisfies Partial<Record<PlatformNavigationItemId, ComponentType<{ className?: string }>>>
 
 export async function resolvePlatformNavigationViewItems(
   platformSession: PlatformNavigationSession | null | undefined,
@@ -57,7 +56,10 @@ export async function resolvePlatformNavigationViewItems(
   })
 
   return resolution.mode === 'platform'
-    ? resolution.visibleItems.map(toPlatformNavigationViewItem)
+    ? resolution.visibleItems
+      .filter((item) => item.id !== 'lider_triada')
+      .map(toPlatformNavigationViewItem)
+      .filter((item): item is PlatformNavigationViewItem => item !== null)
     : []
 }
 
@@ -96,11 +98,14 @@ function clearPlatformNavigationViewItems(setItems: Dispatch<SetStateAction<Plat
   setItems((current) => (current.length > 0 ? [] : current))
 }
 
-function toPlatformNavigationViewItem(item: PlatformNavigationItem): PlatformNavigationViewItem {
+function toPlatformNavigationViewItem(item: PlatformNavigationItem): PlatformNavigationViewItem | null {
+  const icon = PLATFORM_NAVIGATION_ICONS[item.id]
+  if (!icon) return null
+
   return {
     id: `platform-${item.id}-${item.scope.type}-${item.scope.id ?? 'global'}`,
     label: item.label,
-    icon: PLATFORM_NAVIGATION_ICONS[item.id],
+    icon,
     href: item.href,
   }
 }
