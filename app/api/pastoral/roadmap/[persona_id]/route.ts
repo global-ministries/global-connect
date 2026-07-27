@@ -22,6 +22,8 @@ import {
   hasPastoralOneOnOneReadCapability,
   hasPastoralReadAllCapability,
 } from '@/lib/platform/pastoral/route-access'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getPersonasUnderMe } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { loadPublicRoadmap } from '@/lib/platform/pastoral/public-roadmap/load-public-roadmap'
 
 interface RouteContext {
@@ -44,6 +46,12 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const { persona_id: assistedPersonaId } = await context.params
     if (!assistedPersonaId) {
       return NextResponse.json({ error: 'persona_id requerido' }, { status: 400 })
+    }
+
+    const supabase = await createSupabaseServerClient()
+    const visiblePersonaIds = await getPersonasUnderMe(supabase)
+    if (!visiblePersonaIds.includes(assistedPersonaId)) {
+      return NextResponse.json({ error: 'Roadmap no encontrado' }, { status: 404 })
     }
 
     // P6: Actor must be the assisted, their mentor, or have pastoral.read.all

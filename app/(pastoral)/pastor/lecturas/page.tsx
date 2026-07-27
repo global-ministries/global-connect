@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralReadAllCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { ContenedorDashboard, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { getPersonasUnderMe, visiblePersonaIdsOrNone } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +14,7 @@ export default async function PastorLecturasPage() {
   if (!session || !hasPastoralReadAllCapability(session)) redirect('/')
 
   const supabase = await createSupabaseServerClient()
+  const visiblePersonaIds = visiblePersonaIdsOrNone(await getPersonasUnderMe(supabase))
 
   const { data: unoAunos } = await supabase
     .from('pastoral_one_on_one')
@@ -21,8 +23,9 @@ export default async function PastorLecturasPage() {
       estado,
       scheduled_at,
       completed_at,
-      pastoral_one_on_one_participantes ( persona_id )
+      pastoral_one_on_one_participantes!inner ( persona_id )
     `)
+    .in('pastoral_one_on_one_participantes.persona_id', visiblePersonaIds)
     .order('created_at', { ascending: false })
     .limit(20)
 

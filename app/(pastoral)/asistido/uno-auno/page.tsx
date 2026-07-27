@@ -10,6 +10,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
+import { getPersonasUnderMe, visiblePersonaIdsOrNone } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { TituloSistema } from '@/components/ui/sistema-diseno'
@@ -27,6 +28,7 @@ export default async function AsistidoUnoAUnoListPage() {
 
   const supabase = await createSupabaseServerClient()
   const actorPersonaId = session.personaId
+  const visiblePersonaIds = visiblePersonaIdsOrNone(await getPersonasUnderMe(supabase))
 
   // Fetch 1:1 sessions where actor is a participant
   const { data: rows } = await supabase
@@ -36,10 +38,11 @@ export default async function AsistidoUnoAUnoListPage() {
       estado,
       scheduled_at,
       completed_at,
-      pastoral_one_on_one_participantes (
+      pastoral_one_on_one_participantes!inner (
         persona_id
       )
     `)
+    .in('pastoral_one_on_one_participantes.persona_id', visiblePersonaIds)
     .order('scheduled_at', { ascending: false })
 
   // Show roadmap fields only (no notes)

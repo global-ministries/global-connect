@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralOneOnOneReadCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
+import { getPersonasUnderMe, visiblePersonaIdsOrNone } from '@/lib/platform/pastoral/hierarchical-visibility'
 import LiderDashboardClient from './LiderDashboardClient'
 
 export const dynamic = 'force-dynamic'
@@ -20,6 +21,7 @@ export default async function LiderDashboardPage() {
 
   const supabase = await createSupabaseServerClient()
   const actorPersonaId = session.personaId
+  const visiblePersonaIds = visiblePersonaIdsOrNone(await getPersonasUnderMe(supabase))
 
   const { data: unoAunos } = await supabase
     .from('pastoral_one_on_one')
@@ -27,11 +29,12 @@ export default async function LiderDashboardPage() {
       id,
       estado,
       scheduled_at,
-      pastoral_one_on_one_participantes (
+      pastoral_one_on_one_participantes!inner (
         persona_id
       )
     `)
     .eq('mentor_oficial_persona_id', actorPersonaId)
+    .in('pastoral_one_on_one_participantes.persona_id', visiblePersonaIds)
     .in('estado', ['scheduled', 'in_progress'])
     .order('scheduled_at', { ascending: true })
     .limit(10)

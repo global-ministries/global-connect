@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralReadAllCapability, hasPastoralAdminManageCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
+import { getVisiblePastoralOneOnOneIds } from '@/lib/platform/pastoral/hierarchical-visibility'
 import PastorDashboardClient from './PastorDashboardClient'
 
 export const dynamic = 'force-dynamic'
@@ -21,6 +22,7 @@ export default async function PastorDashboardPage() {
   const hasAdminManage = hasPastoralAdminManageCapability(session)
 
   const supabase = await createSupabaseServerClient()
+  const visibleOneOnOneIds = await getVisiblePastoralOneOnOneIds(supabase)
 
   // Fetch crisis alerts
   const { data: crisisRows } = await supabase
@@ -31,6 +33,7 @@ export default async function PastorDashboardPage() {
       keyword,
       detected_at
     `)
+    .in('one_on_one_id', visibleOneOnOneIds.length > 0 ? visibleOneOnOneIds : ['00000000-0000-0000-0000-000000000000'])
     .order('detected_at', { ascending: false })
     .limit(10)
 
