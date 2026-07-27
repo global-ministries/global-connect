@@ -172,7 +172,7 @@ describe('Platform navigation resolver', () => {
       const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
 
       const itemsById = Object.fromEntries(result.visibleItems.map((item) => [item.id, item]))
-      expect(itemsById.pastor_dashboard).toMatchObject({ label: 'Dashboard Pastoral', href: '/pastor', experience: 'pastoral' })
+      expect(itemsById.pastor_dashboard).toMatchObject({ label: 'Sesiones 1:1', href: '/pastor', experience: 'pastoral' })
       expect(itemsById.pastor_usuarios).toMatchObject({ label: 'Gestión de Usuarios', href: '/pastor/usuarios', experience: 'pastoral' })
       expect(itemsById.pastor_crisis).toMatchObject({ label: 'Alertas de Crisis', href: '/pastor/crisis', experience: 'pastoral' })
       expect(itemsById.pastor_lecturas).toMatchObject({ label: 'Lecturas Pastorales', href: '/pastor/lecturas', experience: 'pastoral' })

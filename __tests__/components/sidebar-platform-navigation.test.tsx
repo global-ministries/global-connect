@@ -109,6 +109,23 @@ describe('SidebarModerna platform navigation', () => {
     expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
   })
 
+  it('shows all pastoral links for a session with pastoral capabilities', async () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    currentRoles = ['admin']
+    currentUsuario = { id: 'usuario-1' }
+    currentPlatformSession = withCapabilities([
+      { key: 'pastoral.read.all', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
+      { key: 'pastoral.admin.manage', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
+    ])
+
+    render(<SidebarModerna />)
+
+    expect(await screen.findByRole('link', { name: 'Sesiones 1:1' })).toHaveAttribute('href', '/pastor')
+    expect(screen.getByRole('link', { name: 'Gestión de Usuarios' })).toHaveAttribute('href', '/pastor/usuarios')
+    expect(screen.getByRole('link', { name: 'Alertas de Crisis' })).toHaveAttribute('href', '/pastor/crisis')
+    expect(screen.getByRole('link', { name: 'Lecturas Pastorales' })).toHaveAttribute('href', '/pastor/lecturas')
+  })
+
   it('does not render platform links for dashboard child routes that do not exist', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPlatformSession = withCapabilities([
