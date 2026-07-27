@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralOneOnOneReadCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
+import { getVisiblePastoralOneOnOneIds } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { TituloSistema } from '@/components/ui/sistema-diseno'
@@ -38,6 +39,8 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
   const { id } = await params
   const supabase = await createSupabaseServerClient()
   const actorPersonaId = session.personaId
+  const visibleOneOnOneIds = await getVisiblePastoralOneOnOneIds(supabase)
+  if (!visibleOneOnOneIds.includes(id)) notFound()
 
   // Fetch 1:1 with full detail
   const { data: row } = await supabase

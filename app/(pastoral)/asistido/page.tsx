@@ -14,6 +14,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { findPlatformSessionPersonaByAuthId, resolveReadOnlyPlatformSession } from '@/lib/auth/platformSessionReadOnly'
 import { requirePastoralSession } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
+import { getPersonasUnderMe } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { loadPublicRoadmap } from '@/lib/platform/pastoral/public-roadmap/load-public-roadmap'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import AsistidoRoadmapClient from './AsistidoRoadmapClient'
@@ -27,6 +28,10 @@ export default async function AsistidoRoadmapPage() {
   if (!isPastoralEnabled()) redirect('/')
   const session = await requirePastoralSession()
   if (!session) redirect('/')
+
+  const supabase = await createSupabaseServerClient()
+  const visiblePersonaIds = await getPersonasUnderMe(supabase)
+  if (!visiblePersonaIds.includes(session.personaId)) redirect('/')
 
   // Actor is the assisted person — load their own roadmap
   const roadmap = await loadPublicRoadmap({

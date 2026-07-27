@@ -10,6 +10,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { findPlatformSessionPersonaByAuthId, resolveReadOnlyPlatformSession } from '@/lib/auth/platformSessionReadOnly'
 import { requirePastoralSession, hasPastoralOneOnOneReadCapability } from '@/lib/platform/pastoral/route-access'
+import { getPersonasUnderMe } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { suggestNextStep } from './next-step-suggestion'
 import type { PublicRoadmap, PublicRoadmapOneOnOne, PublicRoadmapStep } from './types'
 
@@ -67,6 +68,7 @@ function projectOneOnOne(row: {
 
 export interface LoadPublicRoadmapOptions {
   readonly assistedPersonaId: string
+  readonly enforceHierarchicalVisibility?: boolean
 }
 
 /**
@@ -93,6 +95,12 @@ export async function loadPublicRoadmap(
   if (!session) return null
 
   const actorPersonaId = session.personaId
+  const visiblePersonaIds = await getPersonasUnderMe(supabase)
+
+  if (
+    options.enforceHierarchicalVisibility !== false
+    && !visiblePersonaIds.includes(options.assistedPersonaId)
+  ) return null
 
   // P6 guard: check access
   const canAccess = await canAccessRoadmap(actorPersonaId, options.assistedPersonaId)

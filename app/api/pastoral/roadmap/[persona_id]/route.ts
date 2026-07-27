@@ -56,7 +56,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     // Load the public roadmap (applies field-projection - P6)
-    const roadmap = await loadPublicRoadmap({ assistedPersonaId })
+    const roadmap = await loadPublicRoadmap({
+      assistedPersonaId,
+      enforceHierarchicalVisibility: true,
+    })
 
     if (!roadmap) {
       return NextResponse.json({ error: 'Roadmap no encontrado' }, { status: 404 })

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePastoralSession, hasPastoralMetricsReadCapability, isPastoralRouteEnabled } from '@/lib/platform/pastoral/route-access'
+import { getPersonasUnderMe } from '@/lib/platform/pastoral/hierarchical-visibility'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { PASTORAL_METRIC_CARDS } from '@/lib/platform/pastoral/dashboards/types'
 import {
   uno_auno_por_periodo,
@@ -44,15 +46,19 @@ export async function GET(
   const ventFin = ventanaFin ?? fin
   const ventInicio = ventanaInicio ?? inicio
   const repo = createFakePastoralMetricsRepository()
+  const supabase = await createSupabaseServerClient()
+  const visiblePersonaIds = new Set(await getPersonasUnderMe(supabase))
 
   switch (card) {
     case 'uno_auno_por_periodo': {
       const liveOnly = url.searchParams.get('live') !== 'false'
-      const data = await uno_auno_por_periodo(inicio, fin, repo, liveOnly)
+      const data = (await uno_auno_por_periodo(inicio, fin, repo, liveOnly))
+        .filter((row) => visiblePersonaIds.has(row.personaId))
       return NextResponse.json({ card, data, periodo: { inicio, fin }, liveOnly })
     }
     case 'lideres_activos_por_ventana': {
-      const data = await lideres_activos_por_ventana(ventInicio, ventFin, repo)
+      const data = (await lideres_activos_por_ventana(ventInicio, ventFin, repo))
+        .filter((row) => visiblePersonaIds.has(row.liderId))
       return NextResponse.json({ card, data, ventana: { inicio: ventInicio, fin: ventFin } })
     }
     case 'alarma_gdv_sin_uno_auno_en_90_dias': {

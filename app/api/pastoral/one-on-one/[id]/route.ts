@@ -18,6 +18,7 @@ import {
   isPastoralRouteEnabled,
   requirePastoralSession,
 } from '@/lib/platform/pastoral/route-access'
+import { getVisiblePastoralOneOnOneIds } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { createPastoralOneOnOneRepository } from '@/lib/platform/pastoral/one-on-one/factories'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -44,6 +45,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
     if (!id) return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
 
     const supabase = await createSupabaseServerClient()
+    const visibleOneOnOneIds = await getVisiblePastoralOneOnOneIds(supabase)
+    if (!visibleOneOnOneIds.includes(id)) {
+      return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+    }
     const repo = createPastoralOneOnOneRepository({ useFake: false, client: supabase as any })
 
     const oneOnOne = await repo.getOneOnOneById(id)

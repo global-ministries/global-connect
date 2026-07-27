@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralOneOnOneReadCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
+import { getPersonasUnderMe, visiblePersonaIdsOrNone } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { TituloSistema } from '@/components/ui/sistema-diseno'
@@ -26,6 +27,7 @@ export default async function LiderUnoAUnoListPage() {
 
   const supabase = await createSupabaseServerClient()
   const actorPersonaId = session.personaId
+  const visiblePersonaIds = visiblePersonaIdsOrNone(await getPersonasUnderMe(supabase))
 
   const { data: rows } = await supabase
     .from('pastoral_one_on_one')
@@ -34,11 +36,12 @@ export default async function LiderUnoAUnoListPage() {
       estado,
       scheduled_at,
       completed_at,
-      pastoral_one_on_one_participantes (
+      pastoral_one_on_one_participantes!inner (
         persona_id
       )
     `)
     .eq('mentor_oficial_persona_id', actorPersonaId)
+    .in('pastoral_one_on_one_participantes.persona_id', visiblePersonaIds)
     .order('scheduled_at', { ascending: false })
 
   const sesiones = (rows ?? []).map((row: {
