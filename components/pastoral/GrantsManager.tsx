@@ -63,14 +63,19 @@ function isCapabilityActive(cap: CapabilityEntry): boolean {
 }
 
 export function GrantsManager({ usuarioId, usuarioNombre, capabilitiesIniciales, onSave }: GrantsManagerProps) {
-  // Build initial state: for each capability, track if it's currently granted
-  const initialState = new Map<string, boolean>()
-  for (const cap of capabilitiesIniciales) {
-    initialState.set(cap.capability_key, isCapabilityActive(cap))
-  }
+  // Baseline: capabilities as received from the server. Immutable — never
+  // mutated after mount. Used to compute hasChanges and which capabilities
+  // changed during a save.
+  const [baseline, setBaseline] = useState<Map<string, boolean>>(() => {
+    const initial = new Map<string, boolean>()
+    for (const cap of capabilitiesIniciales) {
+      initial.set(cap.capability_key, isCapabilityActive(cap))
+    }
+    return initial
+  })
 
-  const [enabled, setEnabled] = useState<Map<string, boolean>>(initialState)
-  const [dirty, setDirty] = useState(false)
+  // Editable state: toggled by the user, diffed against baseline on save.
+  const [enabled, setEnabled] = useState<Map<string, boolean>>(() => new Map(baseline))
   const [saving, setSaving] = useState(false)
   const [saveResult, setSaveResult] = useState<Array<{ capability_key: string; action: 'grant' | 'revoke'; success: boolean }> | null>(null)
 
@@ -80,7 +85,6 @@ export function GrantsManager({ usuarioId, usuarioNombre, capabilitiesIniciales,
       next.set(key, checked)
       return next
     })
-    setDirty(true)
     setSaveResult(null)
   }, [])
 
@@ -92,7 +96,7 @@ export function GrantsManager({ usuarioId, usuarioNombre, capabilitiesIniciales,
 
     // Find changed capabilities
     for (const key of PASTORAL_CAPABILITIES) {
-      const initialActive = initialState.get(key) ?? false
+      const initialActive = baseline.get(key) ?? false
       const currentActive = enabled.get(key) ?? false
 
       if (initialActive !== currentActive) {
@@ -124,26 +128,29 @@ export function GrantsManager({ usuarioId, usuarioNombre, capabilitiesIniciales,
     }
 
     setSaving(false)
-    setDirty(false)
     setSaveResult(results)
 
     if (results.length === 0) {
       // No changes
-      setDirty(false)
     }
 
-    // Update initial state to reflect saved changes
-    for (const r of results) {
-      if (r.success) {
-        initialState.set(r.capability_key, r.action === 'grant')
-      }
+    // Update baseline to reflect saved changes (immutably via setState)
+    const successful = results.filter((r) => r.success)
+    if (successful.length > 0) {
+      setBaseline((prev) => {
+        const next = new Map(prev)
+        for (const r of successful) {
+          next.set(r.capability_key, r.action === 'grant')
+        }
+        return next
+      })
     }
 
     onSave?.(results)
-  }, [enabled, usuarioId, initialState, onSave])
+  }, [enabled, usuarioId, baseline, onSave])
 
   const hasChanges = Array.from(enabled.entries()).some(([key, val]) => {
-    const initial = initialState.get(key) ?? false
+    const initial = baseline.get(key) ?? false
     return initial !== val
   })
 
