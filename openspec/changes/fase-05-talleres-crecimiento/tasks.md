@@ -115,7 +115,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
   - DT-007: Scope helpers `puede_editar_taller_grupo`, `puede_gestionar_participantes_taller_grupo`, `puede_ver_taller_grupo` (todos `LANGUAGE sql STABLE SECURITY DEFINER`).
   - DT-008: `GRANT EXECUTE ON FUNCTION ... TO authenticated, service_role`. Test `F(talleres/schema/helper)` verifica invocabilidad + firmas byte-idénticas + SECURITY DEFINER `search_path` correct.
 
-- [ ] **PR3** Capabilities extension + auto-grant trigger + seed grants, `type:foundation`, `F(talleres/{capabilities,experience})`, `DB`, revert=migration-unapplied, ~200
+- [x] **PR3** Capabilities extension + auto-grant trigger + seed grants, `type:foundation`, `F(talleres/{capabilities,experience})`, `DB`, revert=migration-unapplied, ~200
   - DT-009: Extender `lib/platform/experiences.ts` aditivamente con `experience: 'talleres_crecimiento'` y `scopeType: 'taller'` en `PLATFORM_EXPERIENCE_CATALOG` + `PLATFORM_SCOPE_TYPES` (cierra gap `admin.manage` pre-existente en `navigation.ts:93`).
   - DT-010: Extender `PLATFORM_CAPABILITIES` aditivamente con 13 capacidades nuevas (design §4: `talleres_crecimiento.{director.{read,write}, admin.manage, coordinator.{read,write}, lead.{read,write}, volunteer.read, participation.read, metrics.read, team.serve, integration.read, certificates.verify}`).
   - DT-011: Migration `supabase/migrations/<ts>_talleres_role_auto_grant.sql` con trigger AFTER INSERT/UPDATE/DELETE sobre `dream_team_servicios` (experiencia='talleres_crecimiento') + `taller_grupo_asignaciones` que otorgan/revocan capabilities (precedente `20260727000000_pastoral_auto_grant_on_role.sql`).
