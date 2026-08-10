@@ -122,10 +122,10 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
   - DT-012: Migration `supabase/migrations/<ts>_talleres_seed_initial_grants.sql` con INSERT idempotente de director grants iniciales (F5 bootstrap).
   - DT-013: Test `F(talleres/capabilities)` cubre herencia por scope (director/coordinador/líder/voluntario/participante) + revocación automática + 0 manual grants.
 
-- [ ] **PR4** `state.ts` (workshop/participant/report) + optimistic concurrency, `type:foundation`, `F(talleres/{state,state-machine})`, `N/A`, revert=contracts, ~350
-  - DT-014: `lib/platform/talleres/state.ts` con `WORKSHOP_STATES` (5 estados D15: `borrador→abierto→en_curso→cerrado|cancelado`) + `PARTICIPANT_STATES` (4 estados D16: `pendiente→aprobado→completado|no_completado|abandono`) + `REPORT_STATES` (4 estados: `borrador→enviado→reabierto→cerrado`) + matrices de transición + `transition(currentState, action, version)` puro.
-  - DT-015: Test `F(talleres/state)` cubre happy path, invalid transition, terminal states, stale version → 409, motivo obligatorio en `reabierto`/`cancelado`.
-  - DT-016: `lib/platform/talleres/state-machine.ts` con composición de state machines (workshop × enrollment) + helper `assertVersion(actual, expected)` reusable.
+- [x] **PR4** `state.ts` (workshop/participant/report) + optimistic concurrency, `type:foundation`, `F(talleres/{state,state-machine})`, `N/A`, revert=contracts, ~350
+  - [x] DT-014: `lib/platform/talleres/state.ts` con `WORKSHOP_STATES` (5 estados D15: `borrador→abierto→en_curso→cerrado|cancelado`) + `PARTICIPANT_STATES` (4 estados D16: `pendiente→aprobado→completado|no_completado|abandono`) + `REPORT_STATES` (4 estados: `borrador→enviado→reabierto→cerrado`) + matrices de transición + `transition(currentState, action, version)` puro.
+  - [x] DT-015: Test `F(talleres/state)` cubre happy path, invalid transition, terminal states, stale version → 409, motivo obligatorio en `reabierto`/`cancelado`.
+  - [x] DT-016: `lib/platform/talleres/state-machine.ts` con composición de state machines (workshop × enrollment) + helper `assertVersion(actual, expected)` reusable.
 
 ## Phase 2: Catalog
 
