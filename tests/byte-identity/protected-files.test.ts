@@ -18,6 +18,7 @@
  */
 
 import { execSync } from 'node:child_process'
+import { resolveMainRef } from '../helpers/git-ref'
 
 const PROTECTED_PATHS = [
   'lib/platform/flags.ts',
@@ -44,7 +45,7 @@ describe('Byte-identity — protected files unchanged', () => {
 
     try {
       diffOutput = execSync(
-        `git diff main...HEAD -- ${PROTECTED_PATHS.join(' ')}`,
+        `git diff ${resolveMainRef()}..HEAD -- ${PROTECTED_PATHS.join(' ')}`,
         { encoding: 'utf-8', cwd: process.cwd() },
       )
     } catch (err: unknown) {
