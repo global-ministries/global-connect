@@ -1,10 +1,9 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server"
 
-import Link from "next/link";
-import GroupCreateForm from "@/components/forms/GroupCreateForm";
-import { getUserWithRoles } from "@/lib/getUserWithRoles";
+import GroupCreateForm from "@/components/forms/GroupCreateForm"
+import { getUserWithRoles } from "@/lib/getUserWithRoles"
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
+import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno"
 
 export default async function CreateGroupPage() {
   const supabase = await createSupabaseServerClient();

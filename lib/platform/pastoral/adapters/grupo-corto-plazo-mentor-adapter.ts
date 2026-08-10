@@ -7,7 +7,6 @@
  * Read-only: NO writes, NO side effects.
  * Uses Dream Team servicios filtered by experiencia='talleres_crecimiento'.
  */
-import type { DreamTeamServicio, DreamTeamEquipo } from '@/lib/platform/dream-team/types'
 
 export interface ServicioInfo {
   readonly id: string

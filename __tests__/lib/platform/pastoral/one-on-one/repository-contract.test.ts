@@ -5,12 +5,6 @@
  * Tests that the repository interface exists and has the correct shape.
  * Uses a fake implementation to verify the contract.
  */
-import type {
-  PastoralOneOnOneRepository,
-  CreateOneOnOneInput,
-  UpdateOneOnOneInput,
-  AddNotaInput,
-} from '@/lib/platform/pastoral/one-on-one/repository'
 
 // We test against the interface shape by verifying the type exists
 // and the expected methods are present. Actual behavior tested in fake/supabase tests.

@@ -2,33 +2,7 @@
  * PR1 — DT-002 — Talleres errors tests.
  */
 
-import {
-  talleresError,
-  routeAccessError,
-  isInvalidStateTransition,
-  isMissingMotivo,
-  isTerminalState,
-  isInvalidMotivoForTransition,
-  isConcurrencyConflict,
-  isSelfTransition,
-  isTallerNotFound,
-  isTallerAccessDenied,
-  isInvalidCardinality,
-  isInvalidEnrollmentState,
-  isSessionSequenceViolation,
-  isDuplicateEnrollment,
-  isInvalidModalityChange,
-  isRouteAccessDenied,
-  isRouteNotFound,
-  isFlagDisabled,
-  TERMINAL_TALLER_ESTADOS,
-  TERMINAL_PARTICIPANT_ESTADOS,
-  TERMINAL_REPORT_ESTADOS,
-  type TalleresErrorCode,
-  type TalleresError,
-  type RouteAccessErrorCode,
-  type RouteAccessError,
-} from '@/lib/platform/talleres/errors'
+import { talleresError, routeAccessError, isInvalidStateTransition, isMissingMotivo, isTerminalState, isConcurrencyConflict, isTallerNotFound, isTallerAccessDenied, isInvalidEnrollmentState, isSessionSequenceViolation, isDuplicateEnrollment, isRouteAccessDenied, isRouteNotFound, isFlagDisabled, TERMINAL_TALLER_ESTADOS, TERMINAL_PARTICIPANT_ESTADOS, TERMINAL_REPORT_ESTADOS, type TalleresErrorCode, type RouteAccessErrorCode } from '@/lib/platform/talleres/errors'
 
 describe('talleresError factory', () => {
   it('creates an error with code and message', () => {

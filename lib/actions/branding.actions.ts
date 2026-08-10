@@ -14,8 +14,7 @@ const ROLES_ADMIN = ["admin", "pastor"]
  * - Welcome/login: 120px width
  * - Max para calidad 2x retina: 240px
  */
-const LOGO_MAX_SIZE = 512 // max dimension
-const FAVICON_MAX_SIZE = 64
+ // max dimension
 
 /** Sube un logo al bucket de Supabase Storage y devuelve la URL pública */
 async function subirImagen(

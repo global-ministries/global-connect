@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react'
-import { TarjetaSistema, TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { TarjetaSistema, TituloSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import { LucideIcon } from 'lucide-react'
 
 interface DashboardCardProps {

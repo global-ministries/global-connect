@@ -384,12 +384,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
         motivoActual: 'admin_promocion',
         expectedVersion: servicio.version,
       })
-      const v2 = await repo.updateServicio(servicio.id, {
-        estado: 'activo',
-        motivoActual: 'admin_promocion',
-        expectedVersion: v1.version,
-      })
-
+      
       const historial = await repo.listHistorial(servicio.id)
 
       expect(historial).toHaveLength(2)

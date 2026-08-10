@@ -45,8 +45,7 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
 
       // Call obtener_datos_dashboard which already supports campus filtering
       // through RLS (the RPC sees the user's data filtered)
-      const rpcParams: any = { p_auth_id: user.id }
-
+      
       // Also get the resumen with campus filter for KPIs
       const { data: resumen } = await supabase.rpc(
         'resumen_dashboard_admin',
@@ -91,8 +90,7 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
   const gruposRiesgo = data?.grupos_en_riesgo || []
   const hostHomeQueues = data?.casas_anfitrionas_queues
   const canReviewHostHomeQueue = canReviewHostHomes(rol)
-  const tendencia = data?.tendencia_asistencia || []
-  const distSeg = data?.distribucion_segmentos || []
+    const distSeg = data?.distribucion_segmentos || []
 
   const palette = ['#E96C20', '#F59E0B', '#10B981', '#6366F1', '#8B5CF6', '#0EA5E9', '#F43F5E']
   const segmentosData = (Array.isArray(distSeg) ? distSeg : []).map((s: any, idx: number) => ({

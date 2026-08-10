@@ -12,7 +12,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { mapPastoralEventToOutboxEntries } from './outbox-mapper'
 import type { PastoralNotificationPayload } from './outbox-mapper'
-import { PASTORAL_NOTIFICATION_KINDS } from './outbox-mapper'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

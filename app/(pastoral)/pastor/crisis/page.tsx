@@ -11,7 +11,6 @@ import { requirePastoralSession, hasPastoralReadAllCapability } from '@/lib/plat
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { TituloSistema } from '@/components/ui/sistema-diseno'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -98,7 +97,7 @@ export default async function PastorCrisisPage() {
                     <Badge variant="outline">{alert.oneOnOneEstado}</Badge>
                   </div>
                   <p className="text-sm font-medium">
-                    Palabra clave: "{alert.keyword}"
+                    Palabra clave: &quot;{alert.keyword}&quot;
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Detectado: {format(new Date(alert.detectedAtIso), "d 'de' MMM 'de' yyyy HH:mm", { locale: es })}

@@ -2,35 +2,7 @@
  * PR1 — DT-002 — Talleres types tests.
  */
 
-import type {
-  TallerTipo,
-  TallerLinkType,
-  TallerModalidadInscripcion,
-  TallerEstado,
-  TallerGrupoEstado,
-  TallerSesionEstado,
-  TallerAsistenciaEstado,
-  TallerInscripcionEstado,
-  TallerUnidadEstado,
-  TallerReporteEstado,
-  TallerGrupoAsignacionRol,
-  TallerSolicitudRetiroTipo,
-  TallerSolicitudRetiroEstado,
-  TallerMetadata,
-  TallerFirmante,
-  TallerCohorte,
-  TallerInscripcion,
-  TallerGrupo,
-  TallerGrupoAsignacion,
-  TallerSesion,
-  TallerAsistencia,
-  TallerReporte,
-  TallerReporteCorreccion,
-  TallerEvento,
-  TallerCertificado,
-  TallerPeriodoGeneral,
-  TallerSolicitudRetiro,
-} from '@/lib/platform/talleres/types'
+import type { TallerTipo, TallerLinkType, TallerModalidadInscripcion, TallerEstado, TallerGrupoEstado, TallerSesionEstado, TallerAsistenciaEstado, TallerInscripcionEstado, TallerUnidadEstado, TallerReporteEstado, TallerGrupoAsignacionRol, TallerSolicitudRetiroTipo, TallerSolicitudRetiroEstado } from '@/lib/platform/talleres/types'
 
 describe('Talleres types', () => {
   describe('TallerTipo', () => {

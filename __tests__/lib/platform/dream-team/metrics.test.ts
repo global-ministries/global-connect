@@ -4,7 +4,6 @@ import { personaId, DREAM_TEAM_ESTADOS } from '@/lib/platform/dream-team/types'
 import type { DreamTeamEquipo, DreamTeamRol, DreamTeamServicio, DreamTeamRequisitoVerificacion } from '@/lib/platform/dream-team/types'
 
 const ana = personaId('persona-ana')
-const luis = personaId('persona-luis')
 
 const equipos: DreamTeamEquipo[] = [
   { id: 'equipo-dps-camara', experiencia: 'dps', label: 'DPS Producción Técnica', activo: true },

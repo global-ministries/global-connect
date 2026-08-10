@@ -12,16 +12,7 @@
  * - D23: double GDV (P1: one person = one GDV per season)
  * - D24: pendingRecentChange window of 7 days
  */
-import {
-  resolveMentorOficial,
-  hasMentorOficial,
-  type ResolveMentorOficialContext,
-} from '@/lib/platform/pastoral/mentor-cascade'
-import {
-  createFakeGdvMentorAdapter,
-  createFakeGrupoCortoPlazoMentorAdapter,
-  createFakeServicioMentorAdapter,
-} from '@/lib/platform/pastoral/mentor-cascade-fakes'
+import { resolveMentorOficial, hasMentorOficial, type ResolveMentorOficialContext } from '@/lib/platform/pastoral/mentor-cascade'
 
 const MENTOR_GDV = 'mentor-gdv-001'
 const MENTOR_TALLER = 'mentor-taller-001'

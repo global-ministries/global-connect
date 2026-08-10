@@ -118,8 +118,7 @@ describe('PastoralTriadaRepository — in-memory fake', () => {
     it('filters by estado (single)', async () => {
       const t1 = await repo.createTriada({ mentorOficialPersonaId: 'm1', autorPersonaId: 'a1', contexto: 'nuevo_paso' })
       await repo.updateTriada(t1.id, { estado: 'active', expectedVersion: 1 })
-      const t3 = await repo.createTriada({ mentorOficialPersonaId: 'm3', autorPersonaId: 'a3', contexto: 'nuevo_paso' })
-      const result = await repo.listTriadas({ estado: 'active' })
+            const result = await repo.listTriadas({ estado: 'active' })
       expect(result).toHaveLength(1)
       expect(result[0]!.estado).toBe('active')
     })

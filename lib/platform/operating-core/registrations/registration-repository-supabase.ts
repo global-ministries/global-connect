@@ -103,8 +103,7 @@ export function createSupabaseRegistrationsRepository(
       }
 
       const row = await upsertAndSelect(insertData)
-      const domain = mapSqlRowToDomain(row)
-
+      
       if (confirmationMode === 'automatic' && input.currentConfirmedCount < input.effectiveCapacity) {
         // Auto-confirm: update to confirmada
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

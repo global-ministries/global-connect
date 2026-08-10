@@ -3,35 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend
-} from 'recharts'
-import {
-  TarjetaSistema,
-  TituloSistema,
-  TextoSistema,
-  BotonSistema,
-  BadgeSistema
-} from '@/components/ui/sistema-diseno'
-import {
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  Users,
-  CheckCircle2,
-  AlertTriangle,
-  ChevronLeft,
-  ChevronRight
-} from 'lucide-react'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { TarjetaSistema, TituloSistema, TextoSistema, BotonSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { TrendingUp, TrendingDown, Calendar, Users, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type Semana = {
   inicio: string

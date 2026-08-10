@@ -23,21 +23,10 @@
 
 import React, { useReducer, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  CaptureUXState,
-  PASTORAL_CAPTURE_UX_SHAPE,
-  PastoralCaptureContext,
-  canTransitionUX,
-  isTerminal,
-  buildPastoralCaptureOutput,
-} from '@/lib/platform/pastoral/capture-ux/pastoral-capture-ux'
+import { CaptureUXState, PASTORAL_CAPTURE_UX_SHAPE, PastoralCaptureContext, canTransitionUX, isTerminal } from '@/lib/platform/pastoral/capture-ux/pastoral-capture-ux'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Badge } from '@/components/ui/badge'
 import { ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
 

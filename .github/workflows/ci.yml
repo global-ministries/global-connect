@@ -51,10 +51,10 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      # TODO: reduce this threshold as warnings are fixed. Current: ~666. Target: 0
-      # Tracked in issue #381 (warning debt). Includes eslint-plugin-security
+      # TODO: reduce this threshold further. Current: ~465. Target: 0
+      # Tracked in issue #380 (warning debt). Includes eslint-plugin-security
       # findings (unsafe regex, timing attacks, etc.)
-      - run: npx eslint . --max-warnings 700
+      - run: npx eslint . --max-warnings 470
 
   type-check:
     runs-on: ubuntu-latest

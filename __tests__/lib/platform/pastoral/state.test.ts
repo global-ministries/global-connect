@@ -5,9 +5,8 @@
  * ESC-02: invalid transition → INVALID_STATE_TRANSITION.
  * ESC-03: stale version → CONCURRENCY_CONFLICT (409).
  */
-import { transition, ONE_ON_ONE_STATES, ONE_ON_ONE_TRANSITIONS } from '@/lib/platform/pastoral/state'
+import { transition, ONE_ON_ONE_STATES } from '@/lib/platform/pastoral/state'
 import type { PastoralOneOnOne } from '@/lib/platform/pastoral/types'
-import { PastoralErrorCode } from '@/lib/platform/pastoral/errors'
 
 function makeOneOnOne(overrides: Partial<PastoralOneOnOne> = {}): PastoralOneOnOne {
   return {

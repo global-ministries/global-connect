@@ -15,12 +15,6 @@
  * - Context fields: oneOnOneId, mentorPersonaId, assistedPersonaId, stepId?
  */
 
-import {
-  CAPTURE_UX_STATES,
-  CAPTURE_UX_TRANSITIONS,
-  canTransitionUX,
-  isTerminal,
-} from '@/lib/platform/operating-core/capture-ux/capture-ux-state'
 import type { CaptureUXState } from '@/lib/platform/operating-core/capture-ux/capture-ux-state'
 
 export { CAPTURE_UX_STATES, canTransitionUX, isTerminal } from '@/lib/platform/operating-core/capture-ux/capture-ux-state'

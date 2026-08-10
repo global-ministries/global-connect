@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, Edit, TrendingUp, Calendar, Users, UserCheck, UserX, Filter, ChevronRight } from 'lucide-react'
+import { Eye, Edit, TrendingUp, Calendar, UserCheck, UserX, Filter, ChevronRight } from 'lucide-react'
 import { TarjetaSistema, BotonSistema, TituloSistema, TextoSistema, InputSistema } from '@/components/ui/sistema-diseno'
 import GraficoTendencia from './GraficoTendencia.client'
 

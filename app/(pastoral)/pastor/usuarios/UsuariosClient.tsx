@@ -8,14 +8,12 @@
  */
 import React from 'react'
 import Link from 'next/link'
-import { Users, Settings } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { TituloSistema } from '@/components/ui/sistema-diseno'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Card, CardContent } from '@/components/ui/card'
 
 type CapabilityEntry = {
   readonly capability_key: string

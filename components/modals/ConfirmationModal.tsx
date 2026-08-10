@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertTriangle, Loader2 } from "lucide-react"
+import { AlertTriangle } from "lucide-react"
 import { BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 
 interface ConfirmationModalProps {

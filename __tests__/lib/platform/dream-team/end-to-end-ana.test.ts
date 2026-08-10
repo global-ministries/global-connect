@@ -8,14 +8,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { personaId } from '@/lib/platform/dream-team/types'
-import type {
-  DreamTeamEquipo,
-  DreamTeamEstadoHistorial,
-  DreamTeamParticipationEvent,
-  DreamTeamRol,
-  DreamTeamServicio,
-  PersonaId,
-} from '@/lib/platform/dream-team/types'
+import type { DreamTeamEquipo, DreamTeamEstadoHistorial, DreamTeamRol, DreamTeamServicio, PersonaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamRepository, DreamTeamParticipationEventWriter } from '@/lib/platform/dream-team/repository'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { createDreamTeamParticipationSupabaseWriter } from '@/lib/platform/adapters/participation-adapter'
@@ -151,7 +144,6 @@ async function truncateDreamTeamTables(client: SupabaseClient) {
   for (const table of tables) {
     const { error } = await client.from(table).delete().not('id', 'is', null)
     if (error) {
-      // eslint-disable-next-line no-console
       console.warn(`Could not truncate ${table}: ${error.message}`)
     }
   }

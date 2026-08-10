@@ -5,13 +5,6 @@
  * Tests that the repository interface exists and has the correct shape.
  * Uses a fake implementation to verify the contract.
  */
-import type {
-  PastoralTriadaRepository,
-  CreateTriadaInput,
-  UpdateTriadaInput,
-  AddMiembroInput,
-  AddNotaInput,
-} from '@/lib/platform/pastoral/triad/repository'
 
 // We test against the interface shape by verifying the type exists
 // and the expected methods are present. Actual behavior tested in fake/supabase tests.

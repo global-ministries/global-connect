@@ -123,7 +123,6 @@ export async function POST(req: NextRequest) {
 
 function createSupabaseLedgerWriter(supabase: any) {
   // Dynamic import to break circular dependency at runtime
-  // eslint-disable-next-line @typescript-eslint/no-shadow
   const { createSupabaseParticipationLedgerRepository } = require('@/lib/platform/operating-core/participation-ledger-repository-supabase')
   const repository = createSupabaseParticipationLedgerRepository(supabase)
   return createPastoralLedgerWriter(repository)

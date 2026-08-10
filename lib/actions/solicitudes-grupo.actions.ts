@@ -1,18 +1,9 @@
 "use server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import type {
-  TipoSolicitud,
-  AccionSolicitud,
-  SolicitudPendiente,
-  SolicitudCompletada,
-  CrearSolicitudRpcResultado,
-  ProcesarSolicitudRpcResultado,
-  MovimientoHistorial,
-  MiSolicitud,
-} from "@/lib/types/solicitudes-grupo.types";
+import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { revalidatePath } from "next/cache"
+import { z } from "zod"
+import type { SolicitudPendiente, SolicitudCompletada, CrearSolicitudRpcResultado, ProcesarSolicitudRpcResultado, MovimientoHistorial, MiSolicitud } from "@/lib/types/solicitudes-grupo.types"
 
 // ─── Types ───────────────────────────────────────────────────────────
 

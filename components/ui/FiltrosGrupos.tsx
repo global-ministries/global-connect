@@ -38,9 +38,7 @@ export default function FiltrosGrupos({ filtros, onFiltrosChange, segmentos, tem
     onFiltrosChange({})
   }, [onFiltrosChange])
 
-  const segmentoLabel = useMemo(() => segmentos.find(s => s.id === filtros.segmentoId)?.nombre ?? "Todos", [segmentos, filtros.segmentoId])
-  const temporadaLabel = useMemo(() => temporadas.find(t => t.id === filtros.temporadaId)?.nombre ?? "Todas", [temporadas, filtros.temporadaId])
-  const parroquiasFiltradas = useMemo(() => {
+      const parroquiasFiltradas = useMemo(() => {
     if (!filtros.municipioId) return parroquias
     return parroquias.filter(p => p.municipio_id === filtros.municipioId)
   }, [parroquias, filtros.municipioId])

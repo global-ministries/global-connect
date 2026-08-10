@@ -134,12 +134,7 @@ export function SolicitudesPendientesClient({
     }, [completadasBase, filtroTipo]);
 
     // Detectar qué tipos existen para mostrar solo filtros relevantes
-    const filtrosDisponibles = useMemo(() => {
-        const allSolicitudes = [...pendientesBase, ...completadasBase];
-        const tipos = new Set(allSolicitudes.map((s) => s.tipo));
-        return FILTROS_TIPO.filter((f) => f.valor === "todas" || tipos.has(f.valor));
-    }, [pendientesBase, completadasBase]);
-
+    
     const recargar = useCallback(() => {
         startTransition(async () => {
             const [pendientesRes, completadasRes] = await Promise.all([

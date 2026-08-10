@@ -1,4 +1,4 @@
-import { Users2, Upload } from "lucide-react"
+import { Upload } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
@@ -52,8 +52,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
   ])
   // Los líderes NO pueden ver grupos futuros, solo directores y roles superiores
   const esSuperior = userData.roles.some(r => ['admin', 'pastor', 'director-general', 'director-etapa'].includes(r))
-  const esLider = userData.roles.includes('lider') && !esSuperior
-
+  
   try {
     const [actResp, pasResp, miosResp, futResp] = await Promise.all([
       supabase.rpc('obtener_grupos_para_usuario', {

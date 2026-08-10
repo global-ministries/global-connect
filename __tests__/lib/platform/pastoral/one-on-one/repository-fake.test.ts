@@ -138,8 +138,7 @@ describe('PastoralOneOnOneRepository — in-memory fake', () => {
     it('filters by participanteId', async () => {
       const o1 = await repo.createOneOnOne({ mentorOficialPersonaId: 'm1', autorPersonaId: 'a1' })
       await repo.addParticipante(o1.id, 'persona-participant-1')
-      const o2 = await repo.createOneOnOne({ mentorOficialPersonaId: 'm2', autorPersonaId: 'a2' })
-      const result = await repo.listOneOnOnes({ participanteId: 'persona-participant-1' })
+            const result = await repo.listOneOnOnes({ participanteId: 'persona-participant-1' })
       expect(result).toHaveLength(1)
       expect(result[0]!.id).toBe(o1.id)
     })

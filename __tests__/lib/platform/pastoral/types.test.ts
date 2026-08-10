@@ -5,24 +5,8 @@
  * PastoralOneOnOneParticipante, PastoralOneOnOneNota.
  */
 import { PastoralErrorCode } from '@/lib/platform/pastoral/errors'
-import type {
-  PastoralOneOnOne,
-  PastoralOneOnOneParticipante,
-  PastoralOneOnOneNota,
-  OneOnOneEstado,
-  PastoralTriada,
-  PastoralTriadaMiembro,
-  PastoralTriadaEvento,
-  TriadaEstado,
-  TriadaDissolutionReason,
-} from '@/lib/platform/pastoral/types'
-import {
-  ONE_ON_ONE_STATES,
-  TERMINAL_ONE_ON_ONE_ESTADOS,
-  TRIADA_STATES,
-  TERMINAL_TRIADA_ESTADOS,
-  TRIADA_DISSOLUTION_REASONS,
-} from '@/lib/platform/pastoral/types'
+import type { PastoralOneOnOne, PastoralOneOnOneParticipante, PastoralOneOnOneNota, PastoralTriada } from '@/lib/platform/pastoral/types'
+import { ONE_ON_ONE_STATES, TERMINAL_ONE_ON_ONE_ESTADOS, TRIADA_STATES, TERMINAL_TRIADA_ESTADOS, TRIADA_DISSOLUTION_REASONS } from '@/lib/platform/pastoral/types'
 
 describe('Pastoral types invariants', () => {
   describe('OneOnOneEstado', () => {

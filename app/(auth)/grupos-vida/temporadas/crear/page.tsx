@@ -1,8 +1,6 @@
-import { Calendar } from "lucide-react"
-import Link from "next/link"
 import SeasonForm from "@/components/forms/SeasonForm"
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno"
+import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno"
 
 export default function CreateSeasonPage() {
   return (

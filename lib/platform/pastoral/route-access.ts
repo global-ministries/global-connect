@@ -10,7 +10,7 @@
  */
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { findPlatformSessionPersonaByAuthId, resolveReadOnlyPlatformSession } from '@/lib/auth/platformSessionReadOnly'
-import { PLATFORM_CAPABILITIES, resolvePlatformCapability } from '@/lib/platform/experiences'
+import { PLATFORM_CAPABILITIES } from '@/lib/platform/experiences'
 import type { PlatformSession } from '@/lib/platform/session/types'
 import { isPastoralEnabled } from './flags'
 

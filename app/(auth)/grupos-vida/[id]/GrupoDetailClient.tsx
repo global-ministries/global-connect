@@ -109,19 +109,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   const puedeEliminarDirecto = nivelUsuario >= nivelMinimo;
   /** true si puede al menos enviar solicitud (es director pero no alcanza el nivel) */
   const puedeEnviarSolicitud = !puedeEliminarDirecto && nivelUsuario >= JERARQUIA_ROLES['director-etapa'];
-  const obtenerColorRol = (rol: string | undefined) => {
-    switch (rol?.toLowerCase()) {
-      case 'líder':
-        return 'bg-orange-100 text-orange-700';
-      case 'colíder':
-        return 'bg-blue-100 text-blue-700';
-      case 'miembro':
-        return 'bg-muted text-muted-foreground';
-      default:
-        return 'bg-muted text-muted-foreground';
-    }
-  };
-
+  
   function formatHora12(h?: string) {
     if (!h) return "";
     const trimmed = h.trim();
