@@ -110,7 +110,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
   - [x] DT-004: Crear `lib/platform/talleres/flags.ts` con `NEXT_PUBLIC_TALLERES_*` siblings (`isTalleresEnabled`, `getTalleresStage`, `getTalleresStageGate`). Test verifica byte-identity de `lib/platform/flags.ts` y `lib/platform/operating-core/flags.ts`.
   - [x] DT-005: Pre-flight checks: `pnpm test:no-only`, `pnpm lint:migrations`, `deno check supabase/functions/*/index.ts`, baseline coverage saneado.
 
-- [ ] **PR2** Helper `auth_has_talleres_capability` + scope helpers + migration, `type:foundation`, `F(talleres/schema/helper)`, `DB`, revert=migration-unapplied, ~250
+^- [x] **PR2** Helper `auth_has_talleres_capability` + scope helpers + migration, `type:foundation`, `F(talleres/schema/helper)`, `DB`, revert=migration-unapplied, ~250
   - DT-006: Migration `supabase/migrations/<ts>_talleres_helper_auth_has_capability.sql` con `CREATE OR REPLACE FUNCTION public.auth_has_talleres_capability(p_capability_key text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public` (firma byte-idéntica a F4 precedent).
   - DT-007: Scope helpers `puede_editar_taller_grupo`, `puede_gestionar_participantes_taller_grupo`, `puede_ver_taller_grupo` (todos `LANGUAGE sql STABLE SECURITY DEFINER`).
   - DT-008: `GRANT EXECUTE ON FUNCTION ... TO authenticated, service_role`. Test `F(talleres/schema/helper)` verifica invocabilidad + firmas byte-idénticas + SECURITY DEFINER `search_path` correct.
