@@ -1,22 +1,15 @@
 "use client";
 
-import { useForm, Controller, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { obtenerDireccionUsuario, obtenerRelacionesFamiliares } from "@/lib/actions/casas-anfitrionas.actions";
-import { useNotificaciones } from "@/hooks/use-notificaciones";
-import {
-    InputSistema,
-    TextareaSistema,
-    SelectSistema,
-    BotonSistema,
-    TituloSistema,
-} from "@/components/ui/sistema-diseno";
-import { Home, MapPin, Hash, Save, Loader2, User, Users, Check, X } from "lucide-react";
-import { Label } from "@/components/ui/label";
-import LocationPicker from "@/components/maps/LocationPicker.client";
-import { SelectorPropietarioCasa } from "@/components/grupos-vida/selector-propietario-casa";
+import { useForm, Controller, useWatch } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { obtenerDireccionUsuario, obtenerRelacionesFamiliares } from "@/lib/actions/casas-anfitrionas.actions"
+import { useNotificaciones } from "@/hooks/use-notificaciones"
+import { InputSistema, TextareaSistema, SelectSistema, BotonSistema, TituloSistema } from "@/components/ui/sistema-diseno"
+import { Home, MapPin, Hash, Save, Loader2, User, Users, Check } from "lucide-react"
+import LocationPicker from "@/components/maps/LocationPicker.client"
+import { SelectorPropietarioCasa } from "@/components/grupos-vida/selector-propietario-casa"
 
 const schemaCasaAnfitriona = z.object({
     nombre_lugar: z.string().min(2, "Nombre del lugar es requerido"),

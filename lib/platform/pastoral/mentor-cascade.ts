@@ -15,10 +15,7 @@
  * Strict TDD: RED first, then GREEN, then REFACTOR.
  * Uses byte-identity seams via `as unknown as Type` where needed.
  */
-import type {
-  MentorAssignment,
-  ResolveMentorCascadeContext,
-} from './mentor-cascade/types'
+import type { MentorAssignment } from './mentor-cascade/types'
 
 export { type MentorAssignment, type MentorSource, type ResolveMentorCascadeContext } from './mentor-cascade/types'
 

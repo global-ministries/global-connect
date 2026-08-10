@@ -1,8 +1,4 @@
-import {
-  PLATFORM_CAPABILITIES,
-  PLATFORM_EXPERIENCE_CATALOG,
-  resolvePlatformCapability,
-} from '@/lib/platform/experiences'
+import { PLATFORM_EXPERIENCE_CATALOG, resolvePlatformCapability } from '@/lib/platform/experiences'
 import type { PlatformCapabilityActor, PlatformCapabilityResolutionInput } from '@/lib/platform/experiences'
 
 const gdvStageGrant = {

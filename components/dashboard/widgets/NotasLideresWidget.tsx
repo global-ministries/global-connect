@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { FileText, ChevronRight, Calendar, Users } from 'lucide-react'
+import { FileText, ChevronRight, Users } from 'lucide-react'
 import { TarjetaSistema, TituloSistema, TextoSistema, BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'

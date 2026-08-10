@@ -5,13 +5,10 @@
  * Auth: requires pastoral.admin.manage.
  */
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralAdminManageCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { GrantsManager } from '@/components/pastoral/GrantsManager'
-import { Button } from '@/components/ui/button'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 
 export const dynamic = 'force-dynamic'

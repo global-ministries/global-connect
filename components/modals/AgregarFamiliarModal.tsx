@@ -1,9 +1,8 @@
 "use client"
 
-import type { Database } from '@/lib/supabase/database.types'
 
 import { useState, useEffect } from 'react'
-import { X, Search, User, Users, Plus } from 'lucide-react'
+import { X, Search, Plus } from 'lucide-react'
 import { InputSistema, SelectSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { createClient } from '@/lib/supabase/client'

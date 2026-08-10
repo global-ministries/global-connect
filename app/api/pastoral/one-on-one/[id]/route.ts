@@ -14,19 +14,11 @@
  * ESC-06: null oneOnOne → denied (404)
  */
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  isPastoralRouteEnabled,
-  requirePastoralSession,
-} from '@/lib/platform/pastoral/route-access'
+import { isPastoralRouteEnabled, requirePastoralSession } from '@/lib/platform/pastoral/route-access'
 import { getVisiblePastoralOneOnOneIds } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { createPastoralOneOnOneRepository } from '@/lib/platform/pastoral/one-on-one/factories'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import {
-  canReadPastoralOneOnOne,
-  applyReadResult,
-  projectToRoadmap,
-  type PastoralOneOnOneReadActor,
-} from '@/lib/platform/pastoral/one-on-one/read-guard'
+import { canReadPastoralOneOnOne, projectToRoadmap, type PastoralOneOnOneReadActor } from '@/lib/platform/pastoral/one-on-one/read-guard'
 
 interface RouteContext {
   params: Promise<{ id: string }>

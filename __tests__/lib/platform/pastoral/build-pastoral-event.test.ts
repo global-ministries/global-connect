@@ -9,14 +9,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import {
-  buildPastoralEvent,
-  buildOneOnOnePastoralEvent,
-  buildTriadaPastoralEvent,
-  buildPastoralCrisisEvent,
-  sensitivityForKind,
-} from '../../../../lib/platform/pastoral/build-pastoral-event'
-import type { PastoralLedgerEventInput } from '../../../../lib/platform/pastoral/participation-ledger-pastoral-writer'
+import { buildPastoralEvent, buildOneOnOnePastoralEvent, buildTriadaPastoralEvent, buildPastoralCrisisEvent, sensitivityForKind } from '../../../../lib/platform/pastoral/build-pastoral-event'
 
 describe('buildPastoralEvent', () => {
   const actorPersonaId = randomUUID()

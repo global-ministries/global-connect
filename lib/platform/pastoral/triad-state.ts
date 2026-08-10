@@ -18,22 +18,8 @@
  *
  * Follows the DreamTeam state-machine.ts pattern (F2).
  */
-import {
-  pastoralError,
-  isTerminalState,
-  isConcurrencyConflict,
-} from './errors'
-import {
-  TRIADA_STATES,
-  TERMINAL_TRIADA_ESTADOS,
-  TRIADA_DISSOLUTION_REASONS,
-  type PastoralTriada,
-  type TriadaEstado,
-  type TriadaAccion,
-  type TriadaTransitionInput,
-  type TriadaTransitionResult,
-  type TriadaDissolutionReason,
-} from './types'
+import { pastoralError } from './errors'
+import { TRIADA_STATES, TERMINAL_TRIADA_ESTADOS, TRIADA_DISSOLUTION_REASONS, type PastoralTriada, type TriadaEstado, type TriadaAccion, type TriadaTransitionInput, type TriadaTransitionResult, type TriadaDissolutionReason } from './types'
 
 export { TRIADA_STATES, TERMINAL_TRIADA_ESTADOS, TRIADA_DISSOLUTION_REASONS }
 export type { TriadaEstado, TriadaAccion, TriadaTransitionInput, TriadaTransitionResult }

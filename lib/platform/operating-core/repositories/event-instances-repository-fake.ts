@@ -29,7 +29,7 @@ export function createInMemoryEventInstancesRepository(
 
   // Default event reader if not provided — looks up from seeded instances
   // This allows tests to provide their own event store
-  let eventReader = options.eventReader
+  const eventReader = options.eventReader
 
   function requireInstance(id: string): VersionedOperatingCoreEventInstance {
     const found = instances.find((i) => i.id === id)
@@ -56,7 +56,7 @@ export function createInMemoryEventInstancesRepository(
     horizonDate.setDate(horizonDate.getDate() + horizonDays)
 
     // Starting point: the start date itself
-    let currentDate = new Date(startDate)
+    const currentDate = new Date(startDate)
     const byDay = rule.byDay ?? []
 
     // Count how many instances we've generated

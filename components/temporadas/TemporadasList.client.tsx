@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useCallback, useEffect } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Calendar, Edit } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"

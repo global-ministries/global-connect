@@ -1,15 +1,9 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
-import {
-    CheckCircle2, XCircle, AlertTriangle, User, Clock,
-    UserPlus, ArrowRight, UserMinus, Shield, X, MessageSquare
-} from "lucide-react";
-import {
-    BadgeSistema, BotonSistema, TarjetaSistema,
-    TextoSistema, TituloSistema, SeparadorSistema,
-} from "@/components/ui/sistema-diseno";
-import type { SolicitudCompletada } from "@/lib/types/solicitudes-grupo.types";
+import { useEffect, useCallback } from "react"
+import { CheckCircle2, XCircle, AlertTriangle, User, Clock, X, MessageSquare } from "lucide-react"
+import { BadgeSistema, BotonSistema, TarjetaSistema, TextoSistema, TituloSistema, SeparadorSistema } from "@/components/ui/sistema-diseno"
+import type { SolicitudCompletada } from "@/lib/types/solicitudes-grupo.types"
 
 // ─── Config ───────────────────────────────────────────────────────
 

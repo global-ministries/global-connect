@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { Suspense, lazy } from 'react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'

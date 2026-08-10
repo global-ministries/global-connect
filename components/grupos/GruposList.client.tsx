@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react"
 import Link from "next/link"
-import { Eye, Edit, Trash2, Plus, Users2, Sparkles, UserPlus, Filter, ChevronDown, ChevronUp } from "lucide-react"
+import { Trash2, Plus, Users2, Sparkles, UserPlus, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import FiltrosGrupos, { type FiltrosGruposState } from "@/components/ui/FiltrosGrupos"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -233,10 +233,7 @@ export default function GruposListClient({
   }, [canRestore, toast, filtroEstado])
 
   // Aplicar filtro estado 'eliminado' client-side adicionalmente (ya se filtró en server, pero refuerzo por seguridad si cambian props sin recarga)
-  const gruposFiltrados = useMemo(() => {
-    return internalGrupos
-  }, [internalGrupos])
-
+  
   const gruposActuales = useMemo(() => (preActuales && preActuales.length > 0) ? preActuales : internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'actual'), [preActuales, internalGrupos])
   const gruposPasados = useMemo(() => (prePasados && prePasados.length > 0) ? prePasados : internalGrupos.filter(g => (g.estado_temporal ?? (g.activo ? 'actual' : 'pasado')) === 'pasado'), [prePasados, internalGrupos])
   const gruposFuturos = useMemo(() => (preFuturos && preFuturos.length > 0) ? preFuturos : internalGrupos.filter(g => g.estado_temporal === 'futuro'), [preFuturos, internalGrupos])

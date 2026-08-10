@@ -40,13 +40,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   crisis_de_fe: 'Crisis de Fe',
 }
 
-const CATEGORY_VARIANT: Record<string, 'destructive' | 'warning' | 'secondary'> = {
-  duelo: 'warning',
-  crisis_matrimonial: 'destructive',
-  ideacion_suicida: 'destructive',
-  violencia_intrafamiliar: 'destructive',
-  crisis_de_fe: 'warning',
-}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -80,7 +73,7 @@ export function CrisisAlertBanner({ alerts, className }: CrisisAlertBannerProps)
 
             {/* Keyword (no sensitive content) */}
             <p className="text-xs text-red-500/70 dark:text-red-500/60 mt-1">
-              Palabra detectada: "{mostUrgent.keyword}"
+              Palabra detectada: &quot;{mostUrgent.keyword}&quot;
             </p>
 
             {/* Additional alerts count */}

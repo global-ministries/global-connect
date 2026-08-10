@@ -2,8 +2,6 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
-import { requireAuth } from "@/lib/auth/requireAuth"
-import { redirect } from "next/navigation"
 
 // Configuración para fotos de perfil
 const PROFILE_PHOTOS_BUCKET = "profile-photos"

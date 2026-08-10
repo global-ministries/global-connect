@@ -10,7 +10,6 @@
  * This module is a PURE mapper — no side effects, no DB calls.
  */
 
-import type { PastoralParticipationKind } from '../participation-kinds'
 
 // ─── Notification kinds ────────────────────────────────────────────────────────
 

@@ -1,11 +1,10 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import GrupoDetailClient from "./GrupoDetailClient";
+import { createSupabaseServerClient } from "@/lib/supabase/server"
+import GrupoDetailClient from "./GrupoDetailClient"
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
-import { AlertTriangle } from "lucide-react";
-import Link from "next/link";
-import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions";
+import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno"
+import { AlertTriangle } from "lucide-react"
+import Link from "next/link"
+import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions"
 
 /** Tipo para el resultado del RPC obtener_detalle_grupo */
 interface GrupoRPCResult {

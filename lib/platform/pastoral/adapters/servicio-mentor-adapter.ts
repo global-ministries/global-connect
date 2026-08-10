@@ -6,7 +6,6 @@
  *
  * Read-only: NO writes, NO side effects.
  */
-import type { DreamTeamServicio, DreamTeamEquipo } from '@/lib/platform/dream-team/types'
 
 export interface ServicioInfo {
   readonly id: string

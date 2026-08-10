@@ -92,8 +92,7 @@ export async function POST(req: Request, context: { params: Promise<{ segmentoId
     const { segmentoId } = awaitedParams;
     if (!segmentoId) return NextResponse.json({ error: 'segmentoId requerido' }, { status: 400 });
   const supabase = await createSupabaseServerClient();
-  const supabaseAdmin = createSupabaseAdminClient();
-  const userWithRoles = await getUserWithRoles(supabase);
+    const userWithRoles = await getUserWithRoles(supabase);
   if (!userWithRoles) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
     const { data: { user }, error: authErr } = await supabase.auth.getUser();

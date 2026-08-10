@@ -2,14 +2,7 @@
  * W13 — Tests for pastoral-capture-ux.ts pure functions.
  */
 
-import {
-  PASTORAL_CAPTURE_UX_SHAPE,
-  PastoralCaptureContext,
-  extractPastoralCaptureContext,
-  buildPastoralCaptureOutput,
-  canTransitionUX,
-  isTerminal,
-} from '@/lib/platform/pastoral/capture-ux/pastoral-capture-ux'
+import { PASTORAL_CAPTURE_UX_SHAPE, extractPastoralCaptureContext, buildPastoralCaptureOutput, canTransitionUX, isTerminal } from '@/lib/platform/pastoral/capture-ux/pastoral-capture-ux'
 
 // ─── CAPTURE_UX shape ─────────────────────────────────────────────────────────
 

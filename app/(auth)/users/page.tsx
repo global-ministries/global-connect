@@ -1,32 +1,12 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import {
-  Eye,
-  Edit,
-  Plus,
-  Users,
-  Mail,
-  Phone,
-  UserCheckIcon as UserEdit,
-  Search,
-  CheckSquare,
-  Square,
-} from "lucide-react"
+import { Plus, Users, Mail, Phone, UserCheckIcon as UserEdit, Search, CheckSquare, Square } from "lucide-react"
 import Link from "next/link"
 import { useUsuariosConPermisos } from '@/hooks/use-usuarios-con-permisos'
 
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import {
-  ContenedorDashboard,
-  TarjetaSistema,
-  BotonSistema,
-  InputSistema,
-  BadgeSistema,
-  TituloSistema,
-  TextoSistema,
-  SkeletonSistema
-} from '@/components/ui/sistema-diseno'
+import { ContenedorDashboard, TarjetaSistema, BotonSistema, InputSistema, BadgeSistema, TituloSistema, TextoSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { FiltrosUsuarios as FiltrosUsuariosUI } from '@/components/ui/filtros-usuarios'
 import type { FiltrosUsuarios as FiltrosUsuariosType } from '@/components/ui/filtros-usuarios'

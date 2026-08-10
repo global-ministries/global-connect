@@ -18,11 +18,7 @@
 import { transition } from '../state'
 import { validarResumen } from './validators'
 import type { PastoralOneOnOneRepository } from './repository'
-import type {
-  PastoralOneOnOne,
-  PastoralOneOnOneParticipante,
-} from '../types'
-import { isConcurrencyConflict, isTerminalState, isInvalidStateTransition, isMissingMotivo } from '../errors'
+import type { PastoralOneOnOne } from '../types'
 import type { PastoralError } from '../errors'
 import type { PastoralLedgerWriter } from '../participation-ledger-pastoral-writer'
 import { buildOneOnOnePastoralEvent } from '../build-pastoral-event'

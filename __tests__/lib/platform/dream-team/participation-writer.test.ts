@@ -493,14 +493,7 @@ describe('Caso Ana: mixed services and participation events', () => {
     const audit = createPlatformGrantAudit()
     const writer = createFakeParticipationWriter()
 
-    const servicioDps: DreamTeamServicio = {
-      ...makeServicio('activo'),
-      id: 'servicio-dps',
-      personaId: ana,
-      equipoId: equipoDps.id,
-      rolId: rolVoluntario.id,
-    }
-    const servicioEstudiantes: DreamTeamServicio = {
+        const servicioEstudiantes: DreamTeamServicio = {
       ...makeServicio('activo'),
       id: 'servicio-estudiantes',
       personaId: ana,

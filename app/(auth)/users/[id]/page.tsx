@@ -1,26 +1,10 @@
 "use client"
 
-import {
-  Mail,
-  Phone,
-  PhoneCall,
-  Calendar,
-  Edit,
-  Users,
-  MapPin,
-  User,
-  Briefcase,
-  GraduationCap,
-  Heart,
-  Shield,
-  Clock,
-  Trash2,
-  BarChart3
-} from "lucide-react"
+import { Mail, Phone, PhoneCall, Calendar, Edit, Users, MapPin, User, Briefcase, GraduationCap, Heart, Shield, Clock, Trash2, BarChart3 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useState, useEffect } from "react"
-import { obtenerNombreRelacion, obtenerColorRelacion } from "@/lib/config/relaciones-familiares"
+import { obtenerNombreRelacion } from "@/lib/config/relaciones-familiares"
 import { AgregarFamiliarModal } from '@/components/modals/AgregarFamiliarModal'
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
 import { createClient } from "@/lib/supabase/client"
@@ -584,7 +568,7 @@ export default function PaginaDetalleUsuario() {
                 <Heart className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
                 <p className="text-muted-foreground text-lg font-medium mb-2">No hay relaciones familiares registradas</p>
                 <p className="text-muted-foreground/50 text-sm">Este usuario no tiene relaciones familiares configuradas en el sistema.</p>
-                <p className="text-muted-foreground/50 text-sm mt-2">Haz clic en "Agregar Familiar" para comenzar a configurar las relaciones familiares.</p>
+                <p className="text-muted-foreground/50 text-sm mt-2">Haz clic en &quot;Agregar Familiar&quot; para comenzar a configurar las relaciones familiares.</p>
               </div>
             )}
           </div>

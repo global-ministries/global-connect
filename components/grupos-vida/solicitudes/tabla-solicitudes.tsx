@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, XCircle, Clock, User, ArrowRight, UserPlus, UserMinus, Shield, Loader2 } from "lucide-react";
-import { BadgeSistema, BotonSistema, TarjetaSistema, TextoSistema } from "@/components/ui/sistema-diseno";
-import { ModalProcesarSolicitud } from "./modal-procesar-solicitud";
-import type { SolicitudPendiente } from "@/lib/types/solicitudes-grupo.types";
+import { useState } from "react"
+import { CheckCircle2, Clock, User, ArrowRight, UserPlus, UserMinus, Shield } from "lucide-react"
+import { BadgeSistema, BotonSistema, TarjetaSistema, TextoSistema } from "@/components/ui/sistema-diseno"
+import { ModalProcesarSolicitud } from "./modal-procesar-solicitud"
+import type { SolicitudPendiente } from "@/lib/types/solicitudes-grupo.types"
 
 const ICONO_TIPO: Record<string, typeof UserPlus> = {
     ingreso: UserPlus,

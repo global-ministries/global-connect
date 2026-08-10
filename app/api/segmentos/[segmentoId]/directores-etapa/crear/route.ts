@@ -10,8 +10,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ segment
   const supabaseAdmin = createSupabaseAdminClient()
   const userData = await getUserWithRoles(supabase)
   if (!userData) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
-  const user = userData.user
-  let body: any
+    let body: any
   try { body = await req.json() } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }) }
   const { usuario_id, segmento_ubicacion_id } = body || {}
   if (!usuario_id) return NextResponse.json({ error: 'usuario_id requerido' }, { status: 400 })

@@ -56,7 +56,6 @@ interface UseUsuariosConPermisosReturn {
   limpiarFiltros: () => void
 }
 
-const USUARIOS_POR_PAGINA = 20
 const CACHE_ESTADISTICAS_MS = 5 * 60 * 1000 // 5 minutos
 
 // Cache para estadísticas por clave de filtros

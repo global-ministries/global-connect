@@ -9,13 +9,7 @@
  * - Notes (append-only, never mutable)
  * - Ledger event emission for pastoral triada participation events
  */
-import type {
-  PastoralTriada,
-  PastoralTriadaMiembro,
-  PastoralTriadaEvento,
-  TriadaEstado,
-  TriadaDissolutionReason,
-} from '../types'
+import type { PastoralTriada, PastoralTriadaMiembro, TriadaEstado, TriadaDissolutionReason } from '../types'
 import type { PastoralLedgerEventInput } from '../participation-ledger-pastoral-writer'
 import type { ParticipationLedgerEvent } from '@/lib/platform/operating-core/participation-ledger-repository'
 

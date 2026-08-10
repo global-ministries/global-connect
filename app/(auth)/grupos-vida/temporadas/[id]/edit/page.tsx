@@ -1,6 +1,5 @@
 import { Calendar } from "lucide-react"
 import Link from "next/link"
-import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import SeasonForm from "@/components/forms/SeasonForm"
 

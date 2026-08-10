@@ -1,10 +1,9 @@
 
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import UserCreateForm from "@/components/forms/UserCreateForm";
+import { redirect } from "next/navigation"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
+import UserCreateForm from "@/components/forms/UserCreateForm"
 
-import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
+import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 
 export default async function CreateUserPage() {
   // Verificar permisos antes de mostrar el formulario

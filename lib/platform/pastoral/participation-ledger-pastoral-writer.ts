@@ -104,8 +104,7 @@ export function createPastoralLedgerWriter(
       )
     }
 
-    const sensitivity = pastoralKindSensitivity(input.kind)
-
+    
     const ledgerInput: AppendParticipationEventInput = {
       // Cast kind — the underlying table now accepts pastoral_* via M4 extension
       // (M4 ALTER on operating_core_participation_kind ENUM added 14 new values).
@@ -145,7 +144,6 @@ export function createSupabasePastoralLedgerWriter(
   client: AnySupabaseClient,
 ): PastoralLedgerWriter {
   // Dynamic import to break circular dependency at runtime
-  // eslint-disable-next-line @typescript-eslint/no-shadow
   const { createSupabaseParticipationLedgerRepository } = require('../operating-core/participation-ledger-repository-supabase')
 
   const repository = createSupabaseParticipationLedgerRepository(client)

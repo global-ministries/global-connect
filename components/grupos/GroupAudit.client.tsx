@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
-import { TarjetaSistema, BotonSistema, BadgeSistema, InputSistema, TituloSistema } from "@/components/ui/sistema-diseno";
-import { Download, Filter } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react"
+import { TarjetaSistema, BotonSistema, BadgeSistema, TituloSistema } from "@/components/ui/sistema-diseno"
+import { Download, Filter } from "lucide-react"
 
 type AuditItem = {
   id: string;

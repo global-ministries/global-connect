@@ -15,8 +15,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ segmento
   const supabase = await createSupabaseServerClient()
   const userData = await getUserWithRoles(supabase)
   if (!userData) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
-  const user = userData.user
-
+  
   const url = new URL(req.url)
   const q = (url.searchParams.get('q') || '').trim().toLowerCase()
   const debug = url.searchParams.get('debug') === '1'

@@ -65,14 +65,6 @@ const initialState: FormState = {
 
 // ─── Labels ──────────────────────────────────────────────────────────────────
 
-const STATE_LABELS: Record<CaptureUXState, string> = {
-  idle: 'Iniciar captura',
-  in_progress: 'En captura',
-  awaiting_resolution: 'Esperando confirmación',
-  confirmed: 'Confirmado',
-  overridden: 'Anulado',
-  rejected: 'Rechazado',
-}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 

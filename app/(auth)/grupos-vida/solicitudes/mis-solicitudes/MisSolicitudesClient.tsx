@@ -1,34 +1,14 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import {
-    TarjetaSistema,
-    TextoSistema,
-    BadgeSistema,
-    BotonSistema,
-} from "@/components/ui/sistema-diseno";
-import { TabsSistema, TabsList, TabsTrigger, TabsContent } from "@/components/ui/TabsSistema";
-import {
-    Clock,
-    CheckCircle2,
-    XCircle,
-    AlertTriangle,
-    Users,
-    UserCheck,
-    MapPin,
-    Calendar,
-    Building2,
-    Pencil,
-    Trash2,
-    X,
-    FileText,
-    Eye,
-} from "lucide-react";
-import { cancelarSolicitudActivacion, editarGrupoPendiente } from "@/lib/actions/solicitudes-grupo.actions";
-import SelectLeaderModal from "@/components/modals/SelectLeaderModal";
-import { useNotificaciones } from "@/hooks/use-notificaciones";
-import type { MiSolicitud } from "@/lib/types/solicitudes-grupo.types";
+import { useState, useTransition, useMemo } from "react"
+import { useRouter } from "next/navigation"
+import { TarjetaSistema, TextoSistema, BadgeSistema, BotonSistema } from "@/components/ui/sistema-diseno"
+import { TabsSistema, TabsList, TabsTrigger, TabsContent } from "@/components/ui/TabsSistema"
+import { Clock, CheckCircle2, XCircle, AlertTriangle, Users, UserCheck, MapPin, Calendar, Pencil, Trash2, X, FileText, Eye } from "lucide-react"
+import { cancelarSolicitudActivacion, editarGrupoPendiente } from "@/lib/actions/solicitudes-grupo.actions"
+import SelectLeaderModal from "@/components/modals/SelectLeaderModal"
+import { useNotificaciones } from "@/hooks/use-notificaciones"
+import type { MiSolicitud } from "@/lib/types/solicitudes-grupo.types"
 
 // ─── Config ─────────────────────────────────────────────────────────
 

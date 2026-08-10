@@ -1,25 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import {
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Users,
-  Briefcase,
-  GraduationCap,
-  Heart,
-  Hash,
-  Save,
-  X,
-  Lightbulb
-} from "lucide-react"
+import { User, Mail, MapPin, Briefcase, Save, X, Lightbulb } from "lucide-react"
 import { InputSistema, SelectSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput"
 import LocationPicker from "@/components/maps/LocationPicker.client"

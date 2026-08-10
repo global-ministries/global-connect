@@ -5,20 +5,8 @@
  * Optimistic concurrency via `version` — stale version → 409 CONCURRENCY_CONFLICT.
  * Follows the DreamTeam state-machine.ts pattern (F2).
  */
-import {
-  pastoralError,
-  isTerminalState,
-  isConcurrencyConflict,
-} from './errors'
-import {
-  ONE_ON_ONE_STATES,
-  TERMINAL_ONE_ON_ONE_ESTADOS,
-  type OneOnOneEstado,
-  type OneOnOneAccion,
-  type OneOnOneTransitionInput,
-  type OneOnOneTransitionResult,
-  type PastoralOneOnOne,
-} from './types'
+import { pastoralError } from './errors'
+import { ONE_ON_ONE_STATES, TERMINAL_ONE_ON_ONE_ESTADOS, type OneOnOneEstado, type OneOnOneAccion, type OneOnOneTransitionInput, type OneOnOneTransitionResult, type PastoralOneOnOne } from './types'
 
 export { ONE_ON_ONE_STATES, TERMINAL_ONE_ON_ONE_ESTADOS }
 export type { OneOnOneEstado, OneOnOneAccion, OneOnOneTransitionInput, OneOnOneTransitionResult }

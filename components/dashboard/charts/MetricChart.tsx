@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useId } from 'react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area, ResponsiveContainer } from 'recharts'
 
 interface MetricChartProps {
   data: Array<{

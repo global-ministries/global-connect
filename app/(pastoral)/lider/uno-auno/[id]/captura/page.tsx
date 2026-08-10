@@ -13,10 +13,7 @@ import { getVisiblePastoralOneOnOneIds } from '@/lib/platform/pastoral/hierarchi
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { TituloSistema } from '@/components/ui/sistema-diseno'
-import { Textarea } from '@/components/ui/textarea'
-import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import CapturaForm from './CapturaForm.client'
 
 export const dynamic = 'force-dynamic'

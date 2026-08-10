@@ -13,21 +13,10 @@
  */
 import { triadTransition } from '../triad-state'
 import type { PastoralTriadaRepository } from './repository'
-import type {
-  PastoralTriada,
-  PastoralTriadaMiembro,
-  TriadaDissolutionReason,
-} from '../types'
-import {
-  isConcurrencyConflict,
-  isTerminalState,
-  isInvalidStateTransition,
-  isMissingMotivo,
-} from '../errors'
+import type { PastoralTriada, PastoralTriadaMiembro, TriadaDissolutionReason } from '../types'
 import type { PastoralError } from '../errors'
 import type { PastoralLedgerWriter } from '../participation-ledger-pastoral-writer'
 import { buildTriadaPastoralEvent } from '../build-pastoral-event'
-import { validarCardinalidadTriada } from './validators'
 
 // ─── Input types ─────────────────────────────────────────────────────────────
 

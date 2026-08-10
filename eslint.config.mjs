@@ -13,6 +13,16 @@ const eslintConfig = [
       // Keep the current codebase reviewable while replacing the removed `next lint`
       // command. These existing violations are still surfaced by `pnpm lint`, but do
       // not block this focused security/dependency maintenance slice.
+      // Underscore-prefixed identifiers are intentionally unused (callback signatures,
+      // destructured-but-ignored values). Standard pattern from @typescript-eslint.
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-non-null-asserted-optional-chain': 'warn',
       '@typescript-eslint/no-require-imports': 'warn',
