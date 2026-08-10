@@ -34,9 +34,7 @@ export type PastoralOneOnOneReadActor = {
 // ─── Field projection types ─────────────────────────────────────────────────
 
 /** Full 1:1 — all fields (mentor autor or pastor/admin) */
-export interface PastoralOneOnOneFull extends PastoralOneOnOne {
-  // All fields from PastoralOneOnOne
-}
+export type PastoralOneOnOneFull = PastoralOneOnOne
 
 /** Roadmap view (P6 — participated person) — public fields only */
 export interface PastoralOneOnOneRoadmap {
