@@ -5,6 +5,7 @@
  */
 
 import { execSync } from 'child_process'
+import { resolveMainRef } from '../../../../tests/helpers/git-ref'
 import {
   TALLERES_PARTICIPATION_KINDS,
   type TalleresParticipationKind,
@@ -78,7 +79,7 @@ describe('TalleresParticipationKind type', () => {
 describe('byte-identity of protected kinds.ts (I-10)', () => {
   it('operating-core/kinds.ts is unchanged from main', () => {
     const diff = execSync(
-      'git diff main...HEAD -- lib/platform/operating-core/kinds.ts',
+      `git diff ${resolveMainRef()}..HEAD -- lib/platform/operating-core/kinds.ts`,
       { encoding: 'utf-8', cwd: process.cwd() },
     )
     expect(diff.trim()).toBe('')

@@ -5,6 +5,7 @@
  * lib/platform/operating-core/flags.ts (sibling, no edits).
  */
 import { execSync } from 'child_process'
+import { resolveMainRef } from '../../../../tests/helpers/git-ref'
 import {
   parseFlag,
   getPastoralFlags,
@@ -366,7 +367,7 @@ describe('getPastoralFlags accepts both "on" and "true" conventions', () => {
 describe('byte-identity of protected flags files (I-7)', () => {
   it('lib/platform/flags.ts is unchanged from main', () => {
     const diff = execSync(
-      'git diff main...HEAD -- lib/platform/flags.ts',
+      `git diff ${resolveMainRef()}..HEAD -- lib/platform/flags.ts`,
       { encoding: 'utf-8', cwd: process.cwd() },
     )
     expect(diff.trim()).toBe('')
@@ -374,7 +375,7 @@ describe('byte-identity of protected flags files (I-7)', () => {
 
   it('lib/platform/operating-core/flags.ts is unchanged from main', () => {
     const diff = execSync(
-      'git diff main...HEAD -- lib/platform/operating-core/flags.ts',
+      `git diff ${resolveMainRef()}..HEAD -- lib/platform/operating-core/flags.ts`,
       { encoding: 'utf-8', cwd: process.cwd() },
     )
     expect(diff.trim()).toBe('')
