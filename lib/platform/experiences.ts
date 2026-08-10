@@ -23,7 +23,25 @@ export const PLATFORM_CAPABILITIES = {
   'dps.team.serve': { experience: 'dps', scopeType: 'equipo' },
   'ninos.room.read': { experience: 'ninos', scopeType: 'salon' },
   'estudiantes.room.read': { experience: 'estudiantes', scopeType: 'salon' },
+  // Talleres de Crecimiento capabilities (Fase 5 — PR3 — DT-009 + DT-010).
+  // 13 canonical keys per design.md §4. All experience='talleres_crecimiento'
+  // and scopeType='taller' (certificates.verify is taller-scoped per R3-2 review:
+  // the capability gates access to the /verificar-certificado/[codigo] page
+  // for users with an active taller enrollment, while truly-public certificate
+  // lookup without session lives in the operating-core / public RPC surface).
+  // ADITIVO: existing entries (participation.read, team.serve) preserved byte-identical.
   'talleres_crecimiento.participation.read': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.director.read': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.director.write': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.admin.manage': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.coordinator.read': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.coordinator.write': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.lead.read': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.lead.write': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.volunteer.read': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.metrics.read': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.integration.read': { experience: 'talleres_crecimiento', scopeType: 'taller' },
+  'talleres_crecimiento.certificates.verify': { experience: 'talleres_crecimiento', scopeType: 'taller' },
   'family.minor.read': { experience: 'family', scopeType: 'experience' },
   'family.minor.consent': { experience: 'family', scopeType: 'experience' },
   // Generic Dream Team capabilities (hybrid model)

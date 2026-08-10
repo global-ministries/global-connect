@@ -150,11 +150,16 @@ describe('Platform navigation resolver', () => {
     const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
 
     expect(result.visibleItems).toEqual([])
+    // NOTE: `talleres_admin` resolves to `missing_required_capability` (not
+    // `unknown_capability`) as of PR3 — Fase 5 closed the pre-existing
+    // `admin.manage` gap by registering `talleres_crecimiento.admin.manage`
+    // in PLATFORM_CAPABILITIES (lib/platform/experiences.ts, DT-009/DT-010).
+    // The user in this test simply has no grant for the (now-recognized) key.
     expect(deniedReasons(result)).toMatchObject({
       dps_team_service: 'grant_scope_missing',
       dps_admin: 'unknown_capability',
       nextgen_admin: 'unknown_capability',
-      talleres_admin: 'unknown_capability',
+      talleres_admin: 'missing_required_capability',
       uno_a_uno_global: 'unknown_capability',
     })
   })
