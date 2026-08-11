@@ -129,7 +129,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 2: Catalog
 
-- [ ] **PR5** `size:exception` metadata + cohortes + RLS, `type:catalog`, `F(talleres/schema/{metadata,cohortes})`, `DB`, revert=migration-unapplied, ~450
+- [x] **PR5** `size:exception` metadata + cohortes + RLS, `type:catalog`, `F(talleres/schema/{metadata,cohortes})`, `DB`, revert=migration-unapplied, ~450
   - **Justificación size:exception:** Migration `M5.1` (DDL `talleres_crecimiento_metadata` con FK UNIQUE a `operating_core_events(id)` + 12 columnas incluyendo snapshots + `talleres_crecimiento_cohortes` con FK a `dream_team_equipo_id` + RLS + CHECK + 8 índices parciales) supera 400 líneas; D15–D17 cubre modalidades + lifecycle + cohortes; unidades inseparables del catálogo.
   - DT-017: Migration `supabase/migrations/<ts>_talleres_tables_metadata_cohortes.sql` con `talleres_crecimiento_metadata` (`operating_core_event_id UNIQUE FK`, `tipo∈{individual,pareja}`, `link_type∈{matrimonio,novios}`, `modalidad_inscripcion∈{periodo_general,permanente_custom}`, `recurrence_rule jsonb`, `estado`, `*_snapshot`, `firmantes jsonb`, `version`) + `talleres_crecimiento_cohortes` (`dream_team_equipo_id FK`, `edicion`, `version`).
   - DT-018: Policies RLS con sufijos únicos `_select/_insert/_update/_delete` + `auth.uid()` directo (nunca `current_persona_id()`). Test cubre T-cross-scope-leakage.
