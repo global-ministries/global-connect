@@ -138,7 +138,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 3: Enrollment
 
-- [ ] **PR6** `size:exception` inscripciones + grupos + asignaciones + solicitudes_retiro + RLS, `type:enrollment`, `F(talleres/schema/{enrollment,groups})`, `DB`, revert=migration-unapplied, ~450
+- [x] **PR6** `size:exception` inscripciones + grupos + asignaciones + solicitudes_retiro + RLS, `type:enrollment`, `F(talleres/schema/{enrollment,groups})`, `DB`, revert=migration-unapplied, ~450
   - **Justificación size:exception:** Migration `M5.2` (DDL `taller_inscripciones` con `UNIQUE(taller_id,cohorte_id,persona_principal_id)` + couple unit + `taller_grupos` + `taller_grupo_asignaciones` con `rol∈{lider,voluntario}` + `taller_catalogo_etiquetas` + `taller_solicitudes_retiro` + RLS + CHECK + índices) supera 400 líneas; unidades inseparables del enrollment + grupos.
   - DT-021: Migration `supabase/migrations/<ts>_talleres_tables_inscripciones_grupos.sql` con `taller_inscripciones` (`persona_principal_id`, `companero_id`, `link_type`, `estado∈{pendiente,aprobado,no_aprobado}`, `motivo_no_aprobado` internal, `ocurrencia_objetivo`, `unit_estado`, `version`, UNIQUE triple) + `taller_grupos` (`estado∈{activo,completado,cancelado}`, `capacidad`, `recursos_snapshot jsonb` R5) + `taller_grupo_asignaciones` (`rol`, `activo`, `approved_by_director_id`) + `taller_catalogo_etiquetas` (PK compuesta) + `taller_solicitudes_retiro` (`tipo∈{participante_retiro,equipo_retiro_definitivo}`).
   - DT-022: Policies RLS con sufijos únicos + `auth.uid()` directo. Test cubre T-cross-scope-leakage (matriz rol × scope).
