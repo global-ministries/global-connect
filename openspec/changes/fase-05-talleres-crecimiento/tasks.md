@@ -162,7 +162,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 6: Events
 
-- [ ] **PR9** eventos + 5 `taller_*` kinds CHECK extension + writer al libro mayor, `type:events`, `F(talleres/{events,ledger-writer})`, `DB`, revert=migration-unapplied, ~350
+- [x] **PR9** eventos + 5 `taller_*` kinds CHECK extension + writer al libro mayor, `type:events`, `F(talleres/{events,ledger-writer})`, `DB`, revert=migration-unapplied, ~350
   - DT-032: Migration `supabase/migrations/<ts>_talleres_tables_eventos.sql` con `taller_eventos` (`taller_id`, `cohorte_id`, `grupo_id?`, `persona_id`, `actor_persona_id`, `schema_version`, `payload jsonb` sensitive-excluded, `occurred_at`, `emitted_to_outbox`).
   - DT-033: Migration `supabase/migrations/<ts>_talleres_kinds_extension.sql` extiende CHECK constraint de `operating_core_participation_eventos.kind` con 5 nuevos valores con prefijo `taller_` + `sensitivity='internal'`. NO edita `lib/platform/operating-core/kinds.ts`.
   - DT-034: `lib/platform/talleres/events.ts` con catálogo versionado `SCHEMA_VERSION='v1'` + funciones puras de construcción (`buildTallerEvent(kind, actor, scope, metadata)` con sensitive-field filter — excluye cédula/teléfono/email/notes privadas).
