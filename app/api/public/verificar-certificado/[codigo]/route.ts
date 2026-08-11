@@ -15,14 +15,14 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isValidCertificateCode } from '@/lib/platform/talleres/certificates'
 
 interface RouteContext {
-  readonly params: { readonly codigo: string }
+  readonly params: Promise<{ readonly codigo: string }>
 }
 
 const NON_SENSITIVE_COLUMNS =
   'id, codigo_verificacion, taller_id, persona_id, nombre_taller_snapshot, nombre_participante_snapshot, fecha_completitud, firmantes_snapshot'
 
 export async function GET(_req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
-  const { codigo } = ctx.params
+  const { codigo } = await ctx.params
   if (!isValidCertificateCode(codigo)) {
     return NextResponse.json({ valid: false, reason: 'not-found' }, { status: 404 })
   }

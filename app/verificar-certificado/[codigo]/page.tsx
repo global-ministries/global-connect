@@ -12,7 +12,7 @@
 import { buildQrSvg, buildVerificationUrl, isValidCertificateCode, type VerifiedCertificate } from '@/lib/platform/talleres/certificates'
 
 interface PageProps {
-  readonly params: { readonly codigo: string }
+  readonly params: Promise<{ readonly codigo: string }>
 }
 
 async function fetchCertificate(codigo: string, baseUrl: string): Promise<VerifiedCertificate> {
@@ -50,9 +50,10 @@ async function fetchCertificate(codigo: string, baseUrl: string): Promise<Verifi
 }
 
 export default async function VerificarCertificadoPage({ params }: PageProps) {
+  const { codigo } = await params
   const baseUrl = process.env['NEXT_PUBLIC_BASE_URL'] ?? process.env['VERCEL_URL'] ?? ''
-  const result = await fetchCertificate(params.codigo, baseUrl)
-  const verificationUrl = buildVerificationUrl(baseUrl, params.codigo)
+  const result = await fetchCertificate(codigo, baseUrl)
+  const verificationUrl = buildVerificationUrl(baseUrl, codigo)
   const qrSvg = buildQrSvg({ text: verificationUrl, size: 4 })
 
   return (
