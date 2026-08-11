@@ -174,6 +174,7 @@ describe('Talleres cohortes migration — talleres_crecimiento_cohortes (DT-017 
       // table definition. (Dream_team_equipos itself has a UNIQUE on
       // its own PK, but that's a sibling table — irrelevant here.)
       expect(cohorteTable[1]).not.toMatch(
+        // eslint-disable-next-line security/detect-unsafe-regex -- bounded alternation, no nested quantifiers (analyzer is conservative on \s*\(\s*)
         /UNIQUE\s*\(\s*dream_team_equipo_id\s*(?:,\s*[^)]+)?\s*\)/i
       )
     })

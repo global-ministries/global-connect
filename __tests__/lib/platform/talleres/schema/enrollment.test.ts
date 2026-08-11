@@ -293,7 +293,10 @@ describe('Talleres enrollment migration — taller_inscripciones (DT-021 + DT-02
       // And the migration body must not define a DB-level function
       // named canRevertEnrollmentToPendiente (this is app-layer
       // territory per PR4 DT-016).
-      expect(content).not.toMatch(/CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?canRevertEnrollmentToPendiente/i)
+      expect(content).not.toMatch(
+        // eslint-disable-next-line security/detect-unsafe-regex -- bounded alternation, no nested quantifiers
+        /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?canRevertEnrollmentToPendiente/i
+      )
     })
   })
 

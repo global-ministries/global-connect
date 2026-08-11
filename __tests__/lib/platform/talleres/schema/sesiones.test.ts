@@ -45,8 +45,10 @@ describe('Talleres sessions schema — DT-025, DT-027, DT-028', () => {
     if (!migrationPath) return
     const content = readFileSync(migrationPath, 'utf8')
     for (const table of ['taller_sesiones', 'taller_asistencias']) {
+      // eslint-disable-next-line security/detect-non-literal-regexp -- table name is a fixed string from this test's local list (no user input)
       expect(content).toMatch(new RegExp(`ALTER TABLE public\\.${table} ENABLE ROW LEVEL SECURITY`, 'i'))
       for (const action of ['select', 'insert', 'update', 'delete']) {
+        // eslint-disable-next-line security/detect-non-literal-regexp -- both args are local test constants
         expect(content).toMatch(new RegExp(`CREATE POLICY ${table}_${action}`, 'i'))
       }
     }
