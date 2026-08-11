@@ -176,6 +176,7 @@ describe('Talleres metadata migration — talleres_crecimiento_metadata (DT-017 
         'modalidad_inscripcion_snapshot',
       ]
       for (const col of textSnapshots) {
+        // eslint-disable-next-line security/detect-non-literal-regexp -- col is from a fixed local list
         expect(content).toMatch(new RegExp(`${col}\\s+text\\s+NOT\\s+NULL`, 'i'))
       }
       // The integer snapshots:

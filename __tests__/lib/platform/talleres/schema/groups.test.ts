@@ -309,6 +309,7 @@ describe('Talleres groups migration — taller_grupos + taller_grupo_asignacione
       // the assignment row survives (the audit trail records that it
       // happened, even if the approver is gone).
       const directorFk = content.match(
+        // eslint-disable-next-line security/detect-unsafe-regex -- bounded alternation, no nested quantifiers
         /approved_by_director_id\s+uuid(?:\s+NULL)?\s+REFERENCES\s+public\.usuarios\s*\(\s*id\s*\)\s+ON\s+DELETE\s+SET\s+NULL/i
       )
       expect(directorFk).not.toBeNull()
