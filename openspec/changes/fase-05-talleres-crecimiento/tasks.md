@@ -155,7 +155,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 5: Reports
 
-- [ ] **PR8** reportes + correcciones (append-only) + signature preservation + RLS, `type:reports`, `F(talleres/schema/reportes)`, `DB`, revert=migration-unapplied, ~400
+- [x] **PR8** reportes + correcciones (append-only) + signature preservation + RLS, `type:reports`, `F(talleres/schema/reportes)`, `DB`, revert=migration-unapplied, ~400
   - DT-029: Migration `supabase/migrations/<ts>_talleres_tables_reportes_eventos.sql` con `taller_reportes` (`estado∈{borrador,enviado,reabierto,cerrado}`, `observaciones_generales NOT NULL`, `firma_lider_persona_id`, `firma_lider_fecha`, `reabierto_por_persona_id`, `reabierto_motivo NOT NULL`, `version`) + `taller_reporte_correcciones` (`reporte_id`, `autor_persona_id`, `contenido_anterior jsonb`, `contenido_nuevo jsonb`, `motivo NOT NULL`, append-only via trigger).
   - DT-030: Logic: lock al enviar (rechaza UPDATE); reopen solo por coordinador/director con motivo obligatorio; solo el reopener edita y re-publica.
   - DT-031: Test `F(talleres/schema/reportes)` cubre state machine + couple unit (1 reporte por unidad, no por persona) + signature preservation across corrections + audit trail append-only.
