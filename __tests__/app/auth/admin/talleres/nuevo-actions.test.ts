@@ -112,7 +112,7 @@ const validInput: CreateTallerInput = {
   duracion_estimada_minutos: 90,
   fecha_inicio_periodo: '2026-03-15T00:00:00.000Z',
   fecha_fin_periodo: '2026-06-15T00:00:00.000Z',
-  firmantes: [{ nombre: 'Juan Pérez', rol: 'Director Pastoral' }],
+  firmantes: [],
   cohorte_edicion_label: 'otoño-2026',
   cohorte_started_at: '2026-03-15T00:00:00.000Z',
   cohorte_ended_at: '2026-06-15T00:00:00.000Z',
@@ -283,17 +283,15 @@ describe('createTaller — happy path', () => {
     expect(call?.args['p_equipo_label']).toBe(null)
   })
 
-  it('serializes firmantes as a JSONB array of {nombre, rol}', async () => {
+  it('passes p_firmantes as a JSONB array (always [] in PR21.1 — handled in PR22)', async () => {
     setupSupabaseMock({
       personaId: 'p-1',
       capabilities: ['talleres_crecimiento.director.write'],
     })
     await createTaller(validInput)
-    const firmantes = JSON.parse(rpcCalls[0]?.args['p_firmantes'] as string) as unknown[]
+    const firmantes = rpcCalls[0]?.args['p_firmantes'] as unknown[]
     expect(Array.isArray(firmantes)).toBe(true)
-    expect(firmantes).toEqual([
-      { nombre: 'Juan Pérez', rol: 'Director Pastoral' },
-    ])
+    expect(firmantes).toEqual([])
   })
 
   it('passes equipo_label when creating a new equipo (id is null)', async () => {
@@ -309,27 +307,6 @@ describe('createTaller — happy path', () => {
     expect(result.ok).toBe(true)
     expect(rpcCalls[0]?.args['p_equipo_id']).toBe(null)
     expect(rpcCalls[0]?.args['p_equipo_label']).toBe('Equipo Matrimonio 101')
-  })
-
-  it('strips empty firmantes from the JSONB array', async () => {
-    setupSupabaseMock({
-      personaId: 'p-1',
-      capabilities: ['talleres_crecimiento.director.write'],
-    })
-    await createTaller({
-      ...validInput,
-      firmantes: [
-        { nombre: 'Juan', rol: 'Director' },
-        { nombre: '   ', rol: '' },
-        { nombre: 'Maria', rol: '   ' },
-        { nombre: 'Pedro', rol: 'Líder' },
-      ],
-    })
-    const firmantes = JSON.parse(rpcCalls[0]?.args['p_firmantes'] as string) as unknown[]
-    expect(firmantes).toEqual([
-      { nombre: 'Juan', rol: 'Director' },
-      { nombre: 'Pedro', rol: 'Líder' },
-    ])
   })
 })
 
