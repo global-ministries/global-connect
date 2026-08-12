@@ -196,7 +196,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 10: Integration
 
-- [ ] **PR13** F4 mentor-cascade adapter completion (`grupo-corto-plazo-supabase-adapter.ts`), `type:integration`, `F(pastoral/mentor-cascade-adapter)`, `N/A`, revert=adapter-body-revert, ~200
+- [x] **PR13** F4 mentor-cascade adapter completion (`grupo-corto-plazo-supabase-adapter.ts`), `type:integration`, `F(pastoral/mentor-cascade-adapter)`, `N/A`, revert=adapter-body-revert, ~200
   - DT-049: `lib/platform/pastoral/adapters/grupo-corto-plazo-supabase-adapter.ts` completar body (signature intacta) — soporta `resolverLiderDeTaller` para Fase 5. Precedente: F4 ya consume talleres en `mentor-cascade.ts:81-90`.
   - DT-050: Test `F(pastoral/mentor-cascade-adapter)` cubre integración con F4 + byte-identity de signature + cascade determinista (ESC-05 pastoral).
 
