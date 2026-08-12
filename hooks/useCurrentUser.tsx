@@ -291,6 +291,32 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // PR21.3: listen for explicit "refresh session" events fired by the
+  // sidebar (or any other client component) when the user returns to the
+  // tab. This forces a full DB re-fetch so newly-granted capabilities
+  // appear in the UI without requiring logout+login.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onRefresh = (): void => {
+      void (async () => {
+        try {
+          const result = await tryFetchCurrentUserData()
+          if (result.kind === 'ok') {
+            setAuthUserId(result.data.authUserId)
+            setUsuario(result.data.usuario)
+            setRoles(result.data.roles)
+            setSupportCapabilities(result.data.supportCapabilities)
+            setPlatformSession(result.data.platformSession)
+          }
+        } catch {
+          // Silent — sidebar refresh is best-effort.
+        }
+      })()
+    }
+    window.addEventListener('talleres:refresh-session', onRefresh)
+    return () => window.removeEventListener('talleres:refresh-session', onRefresh)
+  }, [])
+
   const value = useMemo(
     () => ({ authUserId, usuario, roles, supportCapabilities, platformSession, loading, error }),
     [authUserId, usuario, roles, supportCapabilities, platformSession, loading, error]

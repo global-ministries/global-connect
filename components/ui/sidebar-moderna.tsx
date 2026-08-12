@@ -192,15 +192,17 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     })
   }, [pathname])
 
-  // PR21.2: When the browser tab becomes visible again (user switches
-  // back to the tab), refresh the server tree so the sidebar picks up
-  // any new capability grants without requiring a full logout+login.
-  // No interval — only fires on visibility transitions, which is rare.
+  // PR21.2 + PR21.3: When the browser tab becomes visible again (user
+  // switches back to the tab), refresh the server tree AND dispatch a
+  // custom event so the client-side CurrentUserProvider re-fetches the
+  // platformSession. This makes newly-granted capabilities appear in
+  // the navigation without requiring a full logout+login.
   useEffect(() => {
     if (typeof document === 'undefined') return
     const onVisible = (): void => {
       if (document.visibilityState === 'visible') {
         router.refresh()
+        window.dispatchEvent(new CustomEvent('talleres:refresh-session'))
       }
     }
     document.addEventListener('visibilitychange', onVisible)
