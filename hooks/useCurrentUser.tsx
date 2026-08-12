@@ -343,11 +343,44 @@ async function resolveClientPlatformSession(input: {
   usuario: Usuario | null
   globalRoles: string[]
 }): Promise<PlatformSession | null> {
+  // PR21.6: also fetch the user's capability grants so the client-side
+  // session mirrors the server session. Without this, the client's
+  // session.capabilities is always [] because buildPlatformSession
+  // requires an explicit capabilityLookup to populate capabilities.
   const result = await buildPlatformSession({
     subjectAuthId: input.subjectAuthId,
     personaLookup: {
       findByAuthId: async (authId) => toClientPlatformPersona(input.usuario, authId),
     },
+    capabilityLookup: input.usuario?.id
+      ? {
+          findByPersonaId: async (personaId) => {
+            const supabase = createClient()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- browser supabase
+            const { data, error } = await (supabase as any)
+              .from('dream_team_capability_grants')
+              .select('capability_key, experience, scope_type, scope_id, source, granted_at, revoked_at')
+              .eq('persona_id', personaId)
+              .is('revoked_at', null)
+            if (error) throw new Error('platform capability lookup failed')
+            return (data ?? []).map((row: {
+              capability_key: string
+              experience: string
+              scope_type: string
+              scope_id: string | null
+              source: string
+              granted_at: string
+            }) => ({
+              key: row.capability_key,
+              experience: row.experience,
+              scopeType: row.scope_type,
+              scopeId: row.scope_id || undefined,
+              source: row.source,
+              grantedAt: row.granted_at,
+            }))
+          },
+        }
+      : undefined,
   })
 
   return result.ok ? { ...result.session, globalRoles: [...input.globalRoles] } : null

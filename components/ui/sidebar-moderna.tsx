@@ -158,15 +158,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const effectiveRoles = useCachedAccessCredentials({ values: roles, loading, isSignedIn: !!usuario })
   const effectiveSupportCapabilities = useCachedAccessCredentials({ values: supportCapabilities, loading, isSignedIn: !!usuario })
   const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
-  // PR21 debug: log the nav items count + capability keys for visibility
-  if (typeof window !== 'undefined' && (window as unknown as { __talleres_debug?: boolean }).__talleres_debug) {
-    console.log('[PR21-debug] sidebar render:', {
-      hasPlatformSession: platformSession !== null,
-      capabilityKeys: platformSession?.capabilities.map((c) => c.key) ?? [],
-      platformNavItemsCount: platformNavigationItems.length,
-      talleresInNav: platformNavigationItems.filter((i) => i.id.includes('talleres')).map((i) => ({ id: i.id, label: i.label })),
-    })
-  }
   const branding = useBranding()
   const primaryMenuItems = [...menuItems, ...platformNavigationItems]
 
