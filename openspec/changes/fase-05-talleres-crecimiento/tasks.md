@@ -189,7 +189,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 9: Metrics
 
-- [ ] **PR12** métricas API (5 funciones puras, scope por rol), `type:metrics`, `F(talleres/metrics)` + `F(api/talleres/metricas)`, `HTTP+R`, revert=404 (kill switch), ~350
+- [x] **PR12** métricas API (5 funciones puras, scope por rol), `type:metrics`, `F(talleres/metrics)` + `F(api/talleres/metricas)`, `HTTP+R`, revert=404 (kill switch), ~350
   - DT-046: `lib/platform/talleres/metrics.ts` con 5 funciones puras (design §8): `finalizationRateByTaller(tallerId)`, `finalizationRateByPeriodoGeneral(periodoId)`, `inscripcionesActivas(tallerId)`, `asistenciaPromedio(tallerId)`, `noAprobadosPorMotivo(tallerId)` (internal). Rate = `completados / total_con_estado_final`.
   - DT-047: `app/api/talleres/metricas/route.ts` GET con capability `talleres_crecimiento.metrics.read`. 401 sin auth, 403 sin capability, 404 flag off.
   - DT-048: Test `F(talleres/metrics)` cubre scope por rol (Director global, coordinador assigned, líder/voluntario group) + sensitive data excluded (motivos NO en payload).
