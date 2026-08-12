@@ -1,5 +1,7 @@
 /**
  * PR18 — DT-072 — /talleres/explorar (RSC).
+ * PR20 — wires the list into a client component (ExplorarTalleresClient)
+ *        so that the FAB can react to selection.
  *
  * Lists talleres currently open for enrollment (`estado='abierto'` or
  * `estado='en_curso'`). Participants see each taller with a flag
@@ -9,13 +11,14 @@
  * Capability gate: participation.read (via requireParticipante).
  */
 
-import { ContenedorDashboard, TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
-import { BookOpen } from 'lucide-react'
+import { ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
 import {
   loadParticipanteExplorar,
   requireParticipante,
 } from '@/lib/platform/talleres/participante'
+
+import { ExplorarTalleresClient } from './explorar-client'
 
 export const metadata = {
   title: 'Explorar Talleres',
@@ -25,6 +28,20 @@ export default async function ExplorarTalleresPage() {
   const ctx = await requireParticipante()
   const talleres = await loadParticipanteExplorar(ctx)
 
+  // For the FAB we need a default cohorte id. The current participante
+  // model doesn't surface it on the listing; we look up the first
+  // active cohorte as a fallback. Future iteration: surface cohorte_id
+  // per-taller on the listing projection.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = ctx.supabase
+  const cohorteRes = await client
+    .from('talleres_crecimiento_cohortes')
+    .select('id')
+    .eq('estado', 'activo')
+    .limit(1)
+    .maybeSingle()
+  const defaultCohorteId: string = (cohorteRes.data?.id as string | undefined) ?? ''
+
   return (
     <ContenedorDashboard
       titulo="Explorar Talleres"
@@ -33,42 +50,19 @@ export default async function ExplorarTalleresPage() {
       <div className="grid gap-4">
         <TarjetaSistema variante="outlined" className="p-4 sm:p-5">
           <TextoSistema variante="sutil">
-            Estos talleres están abiertos para inscripción. Si ya estás
-            inscripto/a en uno, el botón correspondiente estará deshabilitado.
+            Estos talleres están abiertos para inscripción. Tocá uno para
+            seleccionarlo; el botón &quot;Inscribirme&quot; aparece abajo a la
+            derecha. Si ya estás inscripto/a en uno, su tarjeta está
+            deshabilitada.
           </TextoSistema>
         </TarjetaSistema>
-
-        {talleres.length === 0 ? (
-          <TarjetaSistema variante="outlined" className="p-6 text-center">
-            <TextoSistema variante="sutil">
-              No hay talleres abiertos en este momento.
-            </TextoSistema>
-          </TarjetaSistema>
-        ) : (
-          <ul className="grid gap-4 md:grid-cols-2">
-            {talleres.map((t) => (
-              <li key={t.id}>
-                <TarjetaSistema variante="elevated" className="p-4">
-                  <div className="flex items-start gap-3">
-                    <BookOpen className="mt-0.5 h-5 w-5 text-muted-foreground" />
-                    <div className="flex-1">
-                      <TextoSistema className="font-medium">{t.nombre}</TextoSistema>
-                      <TextoSistema variante="sutil" className="mt-1 block text-sm">
-                        Edición {t.edicion} · {t.tipo === 'pareja' ? 'Pareja' : 'Individual'}
-                      </TextoSistema>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <BadgeSistema>{t.estado}</BadgeSistema>
-                        {t.ya_inscrito && (
-                          <BadgeSistema variante="success">Ya inscripto</BadgeSistema>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </TarjetaSistema>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ExplorarTalleresClient
+          talleres={talleres.map((t) => ({
+            ...t,
+            cohorte_id: defaultCohorteId,
+          }))}
+          defaultCohorteId={defaultCohorteId}
+        />
       </div>
     </ContenedorDashboard>
   )

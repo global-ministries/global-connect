@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { TalleresNavSubmenu } from '@/components/talleres/nav-submenu'
 import { useCachedAccessCredentials } from '@/hooks/useCachedAccessCredentials'
 import { logout } from '@/lib/actions/auth.actions'
 import { ThemeToggle } from './theme-toggle'
@@ -474,6 +475,19 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                           </>
                         )}
                       </Link>
+                    )}
+
+                    {/* PR20: Talleres role-grouped sub-menu — rendered
+                        inline after the talleres_participation parent
+                        entry. Uses the same chevron-toggled sub-menu
+                        pattern via the openSubmenus state. */}
+                    {item.id.startsWith('platform-talleres_') && isOpen && (
+                      <TalleresNavSubmenu
+                        sessionCapabilities={
+                          (platformSession?.capabilities ?? []).map((c) => c.key)
+                        }
+                        counters={{}}
+                      />
                     )}
                   </li>
                 )
