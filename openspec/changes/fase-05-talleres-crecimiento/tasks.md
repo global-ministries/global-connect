@@ -180,7 +180,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 8: Periods + Scheduler
 
-- [ ] **PR11** periodos_generales + solicitudes_retiro + scheduler (nunca auto-cierra), `type:periods`, `F(talleres/{recurrence,period-closer,solicitudes-retiro})`, `DB`, revert=migration-unapplied, ~400
+- [x] **PR11** periodos_generales + solicitudes_retiro + scheduler (nunca auto-cierra), `type:periods`, `F(talleres/{recurrence,period-closer,solicitudes-retiro})`, `DB`, revert=migration-unapplied, ~400
   - DT-041: Migration `supabase/migrations/<ts>_talleres_period_closer.sql` con scheduled job `talleres_period_closer` que detecta talleres `en_curso` overdue y emite evento interno `taller_session_overdue` (NUNCA auto-cierra talleres — R5 closed decision).
   - DT-042: Logic `lib/platform/talleres/recurrence.ts`: `periodo_general` lee `fecha_cierre_real = COALESCE(manual, automatic)` (R1, manual prevalece); `permanente_custom` lee `recurrence_rule jsonb` y calcula próxima ocurrencia vía F3 engine.
   - DT-043: Reschedule SOLO cuando inscription `pendiente` al iniciar (R2). Test cubre silencio (no event) cuando inscription ya aprobada.
