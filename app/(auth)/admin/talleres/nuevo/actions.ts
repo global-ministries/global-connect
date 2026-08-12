@@ -99,12 +99,11 @@ export async function createTaller(
     return { ok: false, error: 'invalid-input', message: 'equipo_id o equipo_label requerido' }
   }
 
-  // Build firmantes JSONB.
-  const firmantesJson = JSON.stringify(
-    input.firmantes
-      .filter((f) => f.nombre?.trim() && f.rol?.trim())
-      .map((f) => ({ nombre: f.nombre.trim(), rol: f.rol.trim() })),
-  )
+  // Build firmantes as a JSONB array (Postgres cast handles serialization
+  // automatically; we pass the object directly, not a stringified one).
+  const firmantesJsonb = input.firmantes
+    .filter((f) => f.nombre?.trim() && f.rol?.trim())
+    .map((f) => ({ nombre: f.nombre.trim(), rol: f.rol.trim() }))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
@@ -118,7 +117,7 @@ export async function createTaller(
     p_modalidad_inscripcion: 'periodo_general',
     p_fecha_inicio_periodo: input.fecha_inicio_periodo,
     p_fecha_fin_periodo: input.fecha_fin_periodo,
-    p_firmantes: firmantesJson,
+    p_firmantes: firmantesJsonb,
     p_cohorte_edicion_label: input.cohorte_edicion_label.trim(),
     p_cohorte_started_at: input.cohorte_started_at,
     p_cohorte_ended_at: input.cohorte_ended_at,

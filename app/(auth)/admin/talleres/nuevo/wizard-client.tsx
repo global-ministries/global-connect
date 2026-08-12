@@ -16,14 +16,13 @@
 
 import { useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Plus, Trash2, Send } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Send } from 'lucide-react'
 
 import { TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 
 import {
   createTaller,
   type CreateTallerInput,
-  type FirmanteInput,
 } from './actions'
 
 interface Equipo {
@@ -35,7 +34,7 @@ interface Input {
   equiposDisponibles: readonly Equipo[]
 }
 
-const STEPS = ['Datos del taller', 'Firmantes', 'Cohorte'] as const
+const STEPS = ['Datos del taller', 'Cohorte'] as const
 
 export function CrearTallerWizard({ equiposDisponibles }: Input): ReactElement {
   const router = useRouter()
@@ -53,10 +52,7 @@ export function CrearTallerWizard({ equiposDisponibles }: Input): ReactElement {
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
 
-  // ─── Step 2 state ────────────────────────────────────────────────
-  const [firmantes, setFirmantes] = useState<FirmanteInput[]>([])
-
-  // ─── Step 3 state ────────────────────────────────────────────────
+  // ─── Step 2 state (cohorte) ─────────────────────────────────────
   const [equipoModo, setEquipoModo] = useState<'existente' | 'nuevo'>('existente')
   const [equipoId, setEquipoId] = useState<string>('')
   const [equipoLabel, setEquipoLabel] = useState('')
@@ -74,9 +70,7 @@ export function CrearTallerWizard({ equiposDisponibles }: Input): ReactElement {
     fechaInicio.length > 0 &&
     (fechaFin === '' || fechaFin > fechaInicio)
 
-  const step2Valid = true // firmantes is optional (default [])
-
-  const step3Valid =
+  const step2Valid =
     cohorteLabel.trim().length > 0 &&
     (equipoModo === 'existente' ? equipoId !== '' : equipoLabel.trim().length > 0) &&
     (cohorteStartedAt === '' || cohorteEndedAt === '' || cohorteEndedAt > cohorteStartedAt)
@@ -92,18 +86,8 @@ export function CrearTallerWizard({ equiposDisponibles }: Input): ReactElement {
     setStep((s) => Math.max(s - 1, 0))
   }
 
-  function addFirmante(): void {
-    setFirmantes((arr) => [...arr, { nombre: '', rol: '' }])
-  }
-  function updateFirmante(idx: number, patch: Partial<FirmanteInput>): void {
-    setFirmantes((arr) => arr.map((f, i) => (i === idx ? { ...f, ...patch } : f)))
-  }
-  function removeFirmante(idx: number): void {
-    setFirmantes((arr) => arr.filter((_, i) => i !== idx))
-  }
-
   function submit(): void {
-    if (!step3Valid) return
+    if (!step2Valid) return
     setError(null)
     const input: CreateTallerInput = {
       nombre,
@@ -114,7 +98,7 @@ export function CrearTallerWizard({ equiposDisponibles }: Input): ReactElement {
       duracion_estimada_minutos: duracion,
       fecha_inicio_periodo: new Date(fechaInicio).toISOString(),
       fecha_fin_periodo: fechaFin ? new Date(fechaFin).toISOString() : null,
-      firmantes,
+      firmantes: [],
       cohorte_edicion_label: cohorteLabel,
       cohorte_started_at: cohorteStartedAt ? new Date(cohorteStartedAt).toISOString() : null,
       cohorte_ended_at: cohorteEndedAt ? new Date(cohorteEndedAt).toISOString() : null,
@@ -239,56 +223,6 @@ export function CrearTallerWizard({ equiposDisponibles }: Input): ReactElement {
 
       {step === 1 && (
         <TarjetaSistema variante="elevated" className="p-5">
-          <div className="flex items-center justify-between">
-            <TextoSistema className="text-lg font-medium">Firmantes del certificado</TextoSistema>
-            <button
-              type="button"
-              onClick={addFirmante}
-              className="inline-flex items-center gap-1 rounded border px-3 py-1.5 text-sm hover:bg-[var(--brand-accent)]"
-            >
-              <Plus className="h-4 w-4" /> Agregar firmante
-            </button>
-          </div>
-          <TextoSistema variante="sutil" className="mt-1 block text-sm">
-            Opcional. Si la lista está vacía, los certificados se emiten sin firmas. Podés agregar firmantes después.
-          </TextoSistema>
-          <ul className="mt-4 grid gap-2">
-            {firmantes.length === 0 ? (
-              <li className="rounded border border-dashed p-3 text-center text-sm text-muted-foreground">
-                Sin firmantes
-              </li>
-            ) : (
-              firmantes.map((f, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <input
-                    value={f.nombre}
-                    onChange={(e) => updateFirmante(i, { nombre: e.target.value })}
-                    placeholder="Nombre"
-                    className="flex-1 rounded border px-3 py-2"
-                  />
-                  <input
-                    value={f.rol}
-                    onChange={(e) => updateFirmante(i, { rol: e.target.value })}
-                    placeholder="Rol (Ej. Director Pastoral)"
-                    className="flex-1 rounded border px-3 py-2"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeFirmante(i)}
-                    aria-label="Quitar firmante"
-                    className="rounded border p-2 text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-        </TarjetaSistema>
-      )}
-
-      {step === 2 && (
-        <TarjetaSistema variante="elevated" className="p-5">
           <TextoSistema className="text-lg font-medium">Cohorte inicial</TextoSistema>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Field label="Label de la cohorte *">
@@ -391,14 +325,13 @@ export function CrearTallerWizard({ equiposDisponibles }: Input): ReactElement {
           <ChevronLeft className="h-4 w-4" /> Atrás
         </button>
         {step < STEPS.length - 1 ? (
-          <button
-            type="button"
-            onClick={next}
-            disabled={
-              pending ||
-              (step === 0 && !step1Valid) ||
-              (step === 1 && !step2Valid)
-            }
+            <button
+              type="button"
+              onClick={next}
+              disabled={
+                pending ||
+                (step === 0 && !step1Valid)
+              }
             className="inline-flex items-center gap-1 rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             Siguiente <ChevronRight className="h-4 w-4" />
@@ -407,7 +340,7 @@ export function CrearTallerWizard({ equiposDisponibles }: Input): ReactElement {
           <button
             type="button"
             onClick={submit}
-            disabled={pending || !step3Valid}
+            disabled={pending || !step2Valid}
             className="inline-flex items-center gap-1 rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             <Send className="h-4 w-4" /> {pending ? 'Creando…' : 'Crear taller'}

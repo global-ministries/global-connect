@@ -3,9 +3,11 @@
  *
  * 3-step wizard:
  *   1. Datos básicos del taller (nombre, edicion, tipo, link_type,
- *      sesiones, duracion, fechas del periodo)
- *   2. Firmantes (lista vacía → agregar N firmantes con nombre+rol)
- *   3. Cohorte (equipo existente o crear nuevo)
+ *      sesiones, duracion, fecha_inicio_periodo, fecha_fin_periodo)
+ *   2. Cohorte (equipo existente o crear nuevo)
+ *
+ * Note: firmantes del certificado se gestionan en otra PR (PR22+) — el
+ * snapshot de firmantes en esta fila queda en [] por ahora.
  *
  * RSC fetches the available dream_team_equipos list (with
  * experiencia='talleres_crecimiento', activo=true). The wizard UI
@@ -93,10 +95,11 @@ export default async function CrearTallerPage() {
     <ContenedorDashboard titulo="Crear Taller" botonRegreso={{ href: '/dashboard', texto: 'Inicio' }}>
       <TarjetaSistema variante="outlined" className="mb-4 p-4">
         <TextoSistema variante="sutil">
-          Wizard de 3 pasos: <strong>1. Datos del taller</strong> →{' '}
-          <strong>2. Firmantes</strong> → <strong>3. Cohorte inicial</strong>.
-          Al confirmar, se crea atómicamente el taller + el evento + el
-          periodo + la cohorte (y opcionalmente un equipo nuevo).
+          Wizard de 2 pasos: <strong>1. Datos del taller</strong> →{' '}
+          <strong>2. Cohorte inicial</strong>. Al confirmar, se crea
+          atómicamente el taller + el evento + el periodo + la cohorte
+          (y opcionalmente un equipo nuevo). Los firmantes del certificado
+          se gestionan al crear el certificado (PR22+).
         </TextoSistema>
       </TarjetaSistema>
       <CrearTallerWizard
