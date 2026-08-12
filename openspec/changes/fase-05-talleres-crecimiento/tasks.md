@@ -200,7 +200,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
   - DT-049: `lib/platform/pastoral/adapters/grupo-corto-plazo-supabase-adapter.ts` completar body (signature intacta) — soporta `resolverLiderDeTaller` para Fase 5. Precedente: F4 ya consume talleres en `mentor-cascade.ts:81-90`.
   - DT-050: Test `F(pastoral/mentor-cascade-adapter)` cubre integración con F4 + byte-identity de signature + cascade determinista (ESC-05 pastoral).
 
-- [ ] **PR14** Route-integration contract v1 + CI grep guard, `type:integration`, `F(talleres/route-integration)` + `F(invariants/talleres-ruta)`, `N/A`, revert=contract-stub, ~300
+- [x] **PR14** Route-integration contract v1 + CI grep guard, `type:integration`, `F(talleres/route-integration)` + `F(invariants/talleres-ruta)`, `N/A`, revert=contract-stub, ~300
   - DT-051: `lib/platform/talleres/route-integration.ts` con `SCHEMA_VERSION='v1'` + types `TallerIntegrationSnapshot` + field allowlist (ONLY `taller_id`, `nombre` snapshot, `tipo`, `edicion`, `periodo{id,nombre,fecha_cierre_real}`, `sesiones_total`, `estado`, `inscripcion.{estado,unit_estado,fecha_completitud}`, `certificado.{id,codigo_verificacion,emitido_at}`).
   - DT-052: `app/api/talleres/ruta-integracion/snapshot/route.ts` GET.
   - DT-053: CI grep guard: `rg 'taller_(inscripciones|asistencias|reportes)' app/\(pastoral\)/ruta/` debe retornar vacío (invariante I-ruta).
