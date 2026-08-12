@@ -70,6 +70,7 @@ describe('CI guard — app/(pastoral)/ruta/** must not access taller_* tables', 
         // Match table name as a quoted string literal: ".from('taller_*')" or
         // ".rpc('taller_*')" or "FROM public.taller_*" or "taller_*\\.". We
         // also accept the table name as a bare identifier to flag SQL.
+        // eslint-disable-next-line security/detect-non-literal-regexp -- table name is interpolated from FORBIDDEN_TABLES (a fixed local list, no user input)
         const re = new RegExp(`['"\`]?${table.replace(/_/g, '_')}['"\`]?`, 'g')
         // Skip the file path that contains the table name (not the source).
         if (file.includes(`__tests__/invariants/${table}`)) continue
@@ -93,12 +94,10 @@ describe('CI guard — app/(pastoral)/ruta/** must not access taller_* tables', 
       return
     }
 
-    // eslint-disable-next-line no-console -- CI failure report
     console.error(
       `talleres route-integration guard: ${violations.length} file(s) violate the contract`,
     )
     for (const v of violations) {
-      // eslint-disable-next-line no-console
       console.error(`  ${path.relative(process.cwd(), v.file)}:${v.lines.join(',')}`)
     }
     throw new Error(
@@ -109,7 +108,6 @@ describe('CI guard — app/(pastoral)/ruta/** must not access taller_* tables', 
   it('directory absent: no-op pass (PR18 will create it)', async () => {
     const exists = fs.existsSync(RUTA_DIR)
     if (exists) return // first test already covered
-    // eslint-disable-next-line no-console
     console.log(
       `talleres route-integration guard: app/(pastoral)/ruta not yet present (PR18 deliverable); skipping`,
     )
