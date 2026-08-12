@@ -295,11 +295,16 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   // sidebar (or any other client component) when the user returns to the
   // tab. This forces a full DB re-fetch so newly-granted capabilities
   // appear in the UI without requiring logout+login.
+  //
+  // NOTE: clearCurrentUserCache() is critical — without it, the
+  // module-level cache (15s TTL) returns the stale value and the UI
+  // never updates. See Finding 7 in the 4R review for cache semantics.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const onRefresh = (): void => {
       void (async () => {
         try {
+          clearCurrentUserCache()
           const result = await tryFetchCurrentUserData()
           if (result.kind === 'ok') {
             setAuthUserId(result.data.authUserId)
