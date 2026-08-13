@@ -60,14 +60,14 @@ export function CrearTallerAbstractoForm(): ReactElement {
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-2 rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white"
       >
-        <Plus className="h-4 w-4" /> Crear taller abstracto
+        <Plus className="h-4 w-4" /> Crear grupo de corto plazo
       </button>
     )
   }
 
   return (
     <TarjetaSistema variante="elevated" className="p-5">
-      <TextoSistema className="text-lg font-medium">Nuevo taller abstracto</TextoSistema>
+      <TextoSistema className="text-lg font-medium">Nuevo grupo de corto plazo</TextoSistema>
       <TextoSistema variante="sutil" className="mt-1 block text-sm">
         El slug se genera automáticamente del nombre si lo dejás vacío. Una
         vez creado, podés abrir ediciones específicas (otoño 2026, etc.) — eso

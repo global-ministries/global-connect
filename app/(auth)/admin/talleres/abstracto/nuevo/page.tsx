@@ -9,19 +9,19 @@ import { ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/
 
 import { CrearTallerAbstractoForm } from './crear-form'
 
-export const metadata = { title: 'Crear Taller Abstracto' }
+export const metadata = { title: 'Crear Grupo de Corto Plazo' }
 
 export default function CrearTallerAbstractoPage() {
   return (
     <ContenedorDashboard
-      titulo="Crear Taller Abstracto"
-      botonRegreso={{ href: '/admin/talleres/abstracto', texto: 'Talleres abstractos' }}
+      titulo="Crear Grupo de Corto Plazo"
+      botonRegreso={{ href: '/admin/talleres/abstracto', texto: 'Grupos de corto plazo' }}
     >
       <TarjetaSistema variante="outlined" className="mb-4 p-4">
         <TextoSistema variante="sutil">
-          Creá el taller conceptual (programa abstracto). Una vez creado, podés
-          abrir ediciones específicas (otoño 2026, primavera 2027, etc.) desde
-          la página del taller — eso es PR23.2.
+          Creá el grupo de corto plazo (programa conceptual). Una vez creado,
+          podés abrir ediciones específicas (otoño 2026, primavera 2027, etc.)
+          desde la página del grupo — eso es PR23.2.
         </TextoSistema>
       </TarjetaSistema>
       <CrearTallerAbstractoForm />
