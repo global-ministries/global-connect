@@ -87,10 +87,10 @@ const PLATFORM_NAVIGATION_DEFINITIONS = [
   { id: 'dps_team_service', capability: 'dps.team.serve', label: 'DPS', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'required' } },
   { id: 'ninos_room_context', capability: 'ninos.room.read', label: 'Niños', experience: 'ninos', fallbackScope: { experience: 'ninos', type: 'salon', id: 'required' } },
   { id: 'estudiantes_room_context', capability: 'estudiantes.room.read', label: 'Estudiantes', experience: 'estudiantes', fallbackScope: { experience: 'estudiantes', type: 'salon', id: 'required' } },
-  { id: 'talleres_participation', capability: 'talleres_crecimiento.participation.read', label: 'Talleres de Crecimiento', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'required' } },
+  { id: 'talleres_participation', capability: 'talleres_crecimiento.participation.read', label: 'Talleres de Crecimiento', availableHref: '/talleres/explorar', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
   { id: 'dps_admin', capability: 'dps.admin.manage', label: 'Administración DPS', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'global' } },
   { id: 'nextgen_admin', capability: 'nextgen.admin.manage', label: 'Administración NextGen', experience: 'nextgen', fallbackScope: { experience: 'nextgen', type: 'experience' } },
-  { id: 'talleres_admin', capability: 'talleres_crecimiento.admin.manage', label: 'Administración Talleres', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
+  { id: 'talleres_admin', capability: 'talleres_crecimiento.admin.manage', label: 'Administración Talleres', availableHref: '/admin/talleres', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
   { id: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.itemId, capability: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.capability, label: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.label, experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, fallbackScope: { experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, type: 'experience' } },
   { id: 'pastor_dashboard', capability: 'pastoral.read.all', label: 'Sesiones 1:1', availableHref: '/pastor', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
   { id: 'pastor_usuarios', capability: 'pastoral.admin.manage', label: 'Gestión de Usuarios', availableHref: '/pastor/usuarios', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
@@ -151,11 +151,32 @@ async function applyAdapters(session: PlatformNavigationSession, adapters: reado
   }
   return { ok: true, session: merged } as const
 }
-
 function resolveNavigationDefinition(definition: PlatformNavigationDefinition, session: PlatformNavigationSession) {
   const matchingCapabilities = session.capabilities.filter((capability) => capability.key === definition.capability)
-  if (matchingCapabilities.length === 0) {
+
+  // PR21.8: admin override for global-scope items. If the user has any
+  // admin.manage cap for this experience and the item's fallbackScope
+  // is 'global' (e.g. talleres_participation), grant them the item even
+  // if they don't have the item-specific cap. This is required because
+  // some "global" items (e.g. talleres_participation) have items that
+  // are conceptually global, not scoped to a specific taller.
+  const isGlobalItem = definition.fallbackScope.id === 'global'
+  const adminCap = isGlobalItem
+    ? session.capabilities.find(
+        (c) =>
+          c.experience === definition.experience &&
+          (c.key === `${definition.experience}.admin.manage` ||
+            (definition.experience === 'talleres_crecimiento' && c.key === 'talleres_crecimiento.metrics.read')),
+      )
+    : undefined
+
+  if (matchingCapabilities.length === 0 && !adminCap) {
     return { visibleItems: [], deniedItem: denyByCapability(definition, session, definition.fallbackScope) }
+  }
+
+  if (matchingCapabilities.length === 0 && adminCap) {
+    // Use the admin's cap as the visibleItem's source.
+    return { visibleItems: [toNavigationItem(definition, adminCap, session.contexts)!].filter(Boolean), deniedItem: undefined }
   }
 
   const visibleItems: PlatformNavigationItem[] = []
