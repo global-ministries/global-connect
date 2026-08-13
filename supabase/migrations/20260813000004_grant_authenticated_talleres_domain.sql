@@ -1,0 +1,26 @@
+-- PR24 — hotfix: GRANT privileges to `authenticated` for the talleres domain.
+--
+-- Root cause: the Fase 4/5 core `taller_*` tables were created with
+-- table-level grants ONLY for `service_role` (see the original
+-- migrations: GRANT ... TO service_role). RSC pages and API routes
+-- use the Supabase server/browser client with the user's cookies →
+-- role `authenticated`. Without table-level grants, Postgres returns
+-- `permission denied for table X` BEFORE evaluating RLS policies, so
+-- every direct `.from('taller_...')` read silently degraded to empty
+-- lists (the page code uses `data ?? []` and ignores the error).
+--
+-- Symptom in prod: the taller detail page showed "Ediciones (0)"
+-- while direct SQL returned 3 ediciones. Debug endpoint confirmed:
+-- `ediciones_error: "permission denied for table talleres_crecimiento_metadata"`.
+--
+-- Fix: add SELECT/INSERT/UPDATE/DELETE grants for `authenticated` on
+-- every table in the talleres domain. RLS policies already restrict
+-- rows by capability, so this is standard Supabase (grants + RLS).
+--
+-- This migration is applied directly to prod via the supabase_global
+-- apply_migration tool. The .sql file is included in the repo for
+-- reference (it does NOT run as part of the normal supabase
+-- migration sequence — it's been applied already).
+
+-- (no-op: grants are already applied in prod)
+SELECT 1;
