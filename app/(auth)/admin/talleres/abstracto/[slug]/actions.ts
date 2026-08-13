@@ -23,6 +23,7 @@ import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 
 export interface OpenEdicionInput {
   readonly taller_id: string
+  readonly tipo: 'individual' | 'pareja'
   readonly nombre_edicion: string
   readonly link_type: 'matrimonio' | 'novios' | null
   readonly sesiones_estimadas: number
@@ -67,6 +68,9 @@ export async function openEdicion(input: OpenEdicionInput): Promise<OpenEdicionR
   if (!input.taller_id) {
     return { ok: false, error: 'invalid-input', message: 'taller_id requerido' }
   }
+  if (!['individual', 'pareja'].includes(input.tipo)) {
+    return { ok: false, error: 'invalid-input', message: 'tipo requerido (individual|pareja)' }
+  }
   if (!input.nombre_edicion?.trim()) {
     return { ok: false, error: 'invalid-input', message: 'nombre_edicion requerido' }
   }
@@ -90,12 +94,18 @@ export async function openEdicion(input: OpenEdicionInput): Promise<OpenEdicionR
     .filter((f) => f.nombre?.trim() && f.rol?.trim())
     .map((f) => ({ nombre: f.nombre.trim(), rol: f.rol.trim() }))
 
+  // Defense-in-depth: force link_type to null when tipo='individual'
+  // (matches the form's UI behavior; the RPC also rejects this but
+  // normalizing here keeps the action's behavior symmetric with the UI).
+  const linkType = input.tipo === 'individual' ? null : input.link_type
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
   const { data, error } = await client.rpc('open_edicion', {
     p_taller_id: input.taller_id,
+    p_tipo: input.tipo,
     p_nombre_edicion: input.nombre_edicion.trim(),
-    p_link_type: input.link_type,
+    p_link_type: linkType,
     p_sesiones_estimadas: input.sesiones_estimadas,
     p_duracion_estimada_minutos: input.duracion_estimada_minutos,
     p_modalidad_inscripcion: input.modalidad_inscripcion,
