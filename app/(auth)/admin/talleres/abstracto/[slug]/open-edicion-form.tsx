@@ -33,6 +33,7 @@ export function OpenEdicionForm({
   const [open, setOpen] = useState(false)
 
   const [nombreEdicion, setNombreEdicion] = useState('')
+  const [tipo, setTipo] = useState<'individual' | 'pareja'>('pareja')
   const [linkType, setLinkType] = useState<'matrimonio' | 'novios' | ''>('')
   const [sesiones, setSesiones] = useState<number>(1)
   const [duracion, setDuracion] = useState<number>(60)
@@ -48,8 +49,9 @@ export function OpenEdicionForm({
     startTransition(async () => {
       const result = await openEdicion({
         taller_id: tallerId,
+        tipo,
         nombre_edicion: nombreEdicion.trim(),
-        link_type: linkType === '' ? null : (linkType as 'matrimonio' | 'novios'),
+        link_type: tipo === 'pareja' && linkType !== '' ? (linkType as 'matrimonio' | 'novios') : null,
         sesiones_estimadas: sesiones,
         duracion_estimada_minutos: duracion,
         modalidad_inscripcion: modalidad,
@@ -101,11 +103,27 @@ export function OpenEdicionForm({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium">Vínculo (opcional)</span>
+          <span className="mb-1 block text-sm font-medium">Tipo *</span>
+          <select
+            value={tipo}
+            onChange={(e) => {
+              const v = e.target.value as 'individual' | 'pareja'
+              setTipo(v)
+              if (v === 'individual') setLinkType('')
+            }}
+            className="w-full rounded border px-3 py-2"
+          >
+            <option value="pareja">Pareja</option>
+            <option value="individual">Individual</option>
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium">Vínculo (solo pareja)</span>
           <select
             value={linkType}
             onChange={(e) => setLinkType(e.target.value as 'matrimonio' | 'novios' | '')}
-            className="w-full rounded border px-3 py-2"
+            disabled={tipo !== 'pareja'}
+            className="w-full rounded border px-3 py-2 disabled:opacity-50"
           >
             <option value="">— Ninguno —</option>
             <option value="matrimonio">Matrimonio</option>

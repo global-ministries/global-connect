@@ -99,6 +99,7 @@ function setupSupabaseMock(opts: {
 
 const validInput: OpenEdicionInput = {
   taller_id: 't-1',
+  tipo: 'pareja',
   nombre_edicion: 'Otoño 2026',
   link_type: 'matrimonio',
   sesiones_estimadas: 8,
@@ -192,6 +193,21 @@ describe('openEdicion — input validation', () => {
 })
 
 describe('openEdicion — happy path', () => {
+  it('normalizes link_type to null when tipo=individual (defense-in-depth)', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+    })
+    const result = await openEdicion({
+      ...validInput,
+      tipo: 'individual',
+      link_type: 'matrimonio', // would be invalid; action normalizes to null
+    })
+    expect(result.ok).toBe(true)
+    expect(rpcCalls[0]?.args['p_tipo']).toBe('individual')
+    expect(rpcCalls[0]?.args['p_link_type']).toBeNull()
+  })
+
   it('invokes the RPC with all expected parameters and returns the ids', async () => {
     setupSupabaseMock({
       personaId: 'p-1',
@@ -206,6 +222,7 @@ describe('openEdicion — happy path', () => {
     expect(rpcCalls.length).toBe(1)
     expect(rpcCalls[0]?.fn).toBe('open_edicion')
     expect(rpcCalls[0]?.args['p_taller_id']).toBe('t-1')
+    expect(rpcCalls[0]?.args['p_tipo']).toBe('pareja')
     expect(rpcCalls[0]?.args['p_nombre_edicion']).toBe('Otoño 2026')
     expect(rpcCalls[0]?.args['p_modalidad_inscripcion']).toBe('periodo_general')
   })
