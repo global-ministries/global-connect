@@ -22,7 +22,7 @@ import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 
 import { CrearTallerAbstractoForm } from './nuevo/crear-form'
 
-export const metadata = { title: 'Talleres Abstractos' }
+export const metadata = { title: 'Grupos de Corto Plazo' }
 
 interface TallerRow {
   id: string
@@ -36,9 +36,9 @@ interface TallerRow {
 export default async function TalleresAbstractosIndex() {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Talleres Abstractos">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
+    <ContenedorDashboard titulo="Grupos de Corto Plazo">
+      <TarjetaSistema variante="outlined" className="p-6 text-center">
+        <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
@@ -49,9 +49,9 @@ export default async function TalleresAbstractosIndex() {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Talleres Abstractos">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
+    <ContenedorDashboard titulo="Grupos de Corto Plazo">
+      <TarjetaSistema variante="outlined" className="p-6 text-center">
+        <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
@@ -67,9 +67,9 @@ export default async function TalleresAbstractosIndex() {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Talleres Abstractos">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
+    <ContenedorDashboard titulo="Grupos de Corto Plazo">
+      <TarjetaSistema variante="outlined" className="p-6 text-center">
+        <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
@@ -91,17 +91,18 @@ export default async function TalleresAbstractosIndex() {
 
   return (
     <ContenedorDashboard
-      titulo="Talleres Abstractos"
+      titulo="Grupos de Corto Plazo"
       botonRegreso={{ href: '/dashboard', texto: 'Inicio' }}
     >
       <TarjetaSistema variante="outlined" className="mb-4 p-4">
         <TextoSistema variante="sutil">
-          Un <strong>taller abstracto</strong> es el programa conceptual (ej. &quot;Matrimonio sobre la Roca&quot;).
-          Cada <strong>edición</strong> (otoño 2026, primavera 2027, etc.) es una ocurrencia
-          específica con sus propias cohortes, sesiones, e inscripciones.
-          Esta página lista los talleres abstractos. Para crear uno nuevo usá
-          el formulario de abajo. Para abrir una edición específica de un
-          taller existente, usá la página del taller (PR23.2).
+          Un <strong>grupo de corto plazo</strong> es el programa conceptual
+          (ej. &quot;Matrimonio sobre la Roca&quot;). Cada <strong>edición</strong>
+          (otoño 2026, primavera 2027, etc.) es una ocurrencia específica
+          con sus propias cohortes, sesiones e inscripciones. Esta página lista
+          los grupos. Para crear uno nuevo usá el formulario de abajo. Para
+          abrir una edición específica de un grupo existente, usá la página
+          del grupo (PR23.2).
         </TextoSistema>
       </TarjetaSistema>
 
@@ -123,7 +124,7 @@ export default async function TalleresAbstractosIndex() {
       {talleres.length === 0 ? (
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">
-            No hay talleres abstractos todavía. Creá el primero arriba.
+            No hay grupos de corto plazo todavía. Creá el primero arriba.
           </TextoSistema>
         </TarjetaSistema>
       ) : (
