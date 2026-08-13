@@ -95,13 +95,18 @@ describe('Platform navigation resolver', () => {
 
     const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
 
-    expect(result.visibleItems.map((item) => item.href)).toEqual(['/grupos-vida'])
-    expect(result.visibleItems.map((item) => item.label)).toEqual(['Grupos de Vida — Adultos'])
+    // PR21.8: talleres_participation now has fallbackScope.id='global', so
+    // the ledger-style participation.read with a specific taller_id
+    // matches the global requirement. The taller item is shown alongside
+    // grupos_vida (both have availableHref set in the catalog).
+    expect(result.visibleItems.map((item) => item.href).sort()).toEqual(['/grupos-vida', '/talleres/explorar'].sort())
+    expect(result.visibleItems.map((item) => item.label).sort()).toEqual(
+      ['Grupos de Vida — Adultos', 'Talleres de Crecimiento — de-hombre-a-hombre'].sort(),
+    )
     expect(deniedReasons(result)).toMatchObject({
       dps_team_service: 'route_unavailable',
       ninos_room_context: 'route_unavailable',
       estudiantes_room_context: 'route_unavailable',
-      talleres_participation: 'route_unavailable',
     })
   })
 
@@ -247,6 +252,59 @@ describe('Platform navigation resolver', () => {
 
       const pastoralIds = result.visibleItems.filter((item) => item.experience === 'pastoral').map((item) => item.id)
       expect(pastoralIds).toEqual([])
+    })
+  })
+
+  // PR21.8: talleres_participation uses id='global' fallback scope so
+  // any taller grant (scope_id='global') matches. Same for
+  // director/coordinator/lead/volunteer items (also have id='global').
+  describe('talleres fallback scope = global', () => {
+    it('shows talleres_participation when user has participation.read with scope_id=global', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'admin' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const talleresIds = result.visibleItems
+        .filter((item) => item.experience === 'talleres_crecimiento')
+        .map((item) => item.id)
+      expect(talleresIds).toContain('talleres_participation')
+    })
+
+    it('shows talleres_participation when user has admin.manage (grants global scope)', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'admin' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const talleresIds = result.visibleItems
+        .filter((item) => item.experience === 'talleres_crecimiento')
+        .map((item) => item.id)
+      expect(talleresIds).toContain('talleres_participation')
+    })
+
+    it('shows talleres_admin (id=global) when user has admin.manage with scope_id=global', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'admin' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const talleresIds = result.visibleItems
+        .filter((item) => item.experience === 'talleres_crecimiento')
+        .map((item) => item.id)
+      expect(talleresIds).toContain('talleres_admin')
     })
   })
 })
