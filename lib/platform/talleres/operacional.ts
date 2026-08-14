@@ -269,8 +269,8 @@ export async function loadCoordTalleres(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
   const { data, error } = await client
-    .from('talleres_crecimiento_metadata')
-    .select('id, nombre_snapshot, tipo, edicion, estado')
+    .from('taller_ediciones')
+    .select('id, nombre_snapshot, tipo, estado')
     .order('created_at', { ascending: false })
   if (error) return []
   return (data ?? []) as CoordTaller[]
@@ -331,9 +331,9 @@ export async function loadDirTalleres(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
   const { data, error } = await client
-    .from('talleres_crecimiento_metadata')
+    .from('taller_ediciones')
     .select(
-      `id, nombre_snapshot, tipo, edicion, estado,
+      `id, nombre_snapshot, tipo, estado,
        inscripciones:taller_inscripciones (id)`,
     )
     .order('created_at', { ascending: false })
@@ -382,7 +382,7 @@ export async function loadDirResumen(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
   const [talleres, inscripciones, solicitudes, certificados] = await Promise.all([
-    client.from('talleres_crecimiento_metadata').select('id', { count: 'exact', head: true }).in('estado', ['abierto', 'en_curso']),
+    client.from('taller_ediciones').select('id', { count: 'exact', head: true }).in('estado', ['abierto', 'en_curso']),
     client.from('taller_inscripciones').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente'),
     client.from('taller_solicitudes_retiro').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente'),
     client.from('taller_certificados').select('id', { count: 'exact', head: true }).is('revocado_at', null),
