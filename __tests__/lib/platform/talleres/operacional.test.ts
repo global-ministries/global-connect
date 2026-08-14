@@ -314,7 +314,7 @@ describe('loadCoordInscripcionesPendientes — only pendiente', () => {
 // ─── Direccion (D) ────────────────────────────────────────────────────────
 
 describe('loadDirResumen — counts across 4 tables', () => {
-  it('queries talleres_crecimiento_metadata filtered to abierto|en_curso', async () => {
+  it('queries taller_ediciones filtered to abierto|en_curso', async () => {
     setupSupabaseMock({
       personaId: PERSONA_ID,
       capabilities: ['talleres_crecimiento.director.read'],
@@ -323,8 +323,8 @@ describe('loadDirResumen — counts across 4 tables', () => {
     if (!ctxResult.ok) throw new Error('expected ok')
     await loadDirResumen(ctxResult.context)
 
-    // talleres_crecimiento_metadata: estado in [abierto, en_curso]
-    const tallerFilters = capturedFiltersFor('talleres_crecimiento_metadata')
+    // taller_ediciones: estado in [abierto, en_curso]
+    const tallerFilters = capturedFiltersFor('taller_ediciones')
     expect(
       tallerFilters.some(
         (f) => f.column === 'estado' && Array.isArray(f.value) && (f.value as string[]).includes('abierto'),

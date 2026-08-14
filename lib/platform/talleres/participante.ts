@@ -114,7 +114,7 @@ export async function loadParticipanteActiveTalleres(
     .from('taller_inscripciones')
     .select(
       `id, estado, unit_estado, fecha_completitud,
-       taller:talleres_crecimiento_metadata (id, nombre_snapshot, tipo, edicion, estado)`,
+       taller:taller_ediciones (id, nombre_snapshot, tipo, estado)`,
     )
     .eq('persona_principal_id', ctx.personaId)
     .in('estado', ['pendiente', 'aprobado'])
@@ -163,7 +163,7 @@ export async function loadParticipanteHistorial(
     .from('taller_inscripciones')
     .select(
       `id, estado, unit_estado, fecha_completitud, created_at,
-       taller:talleres_crecimiento_metadata (id, nombre_snapshot, edicion)`,
+       taller:taller_ediciones (id, nombre_snapshot)`,
     )
     .eq('persona_principal_id', ctx.personaId)
     .order('created_at', { ascending: false })
@@ -217,8 +217,8 @@ export async function loadParticipanteExplorar(
   const client: any = ctx.supabase
   const [talleresRes, inscripcionesRes] = await Promise.all([
     client
-      .from('talleres_crecimiento_metadata')
-      .select('id, nombre_snapshot, tipo, edicion, estado')
+      .from('taller_ediciones')
+      .select('id, nombre_snapshot, tipo, estado')
       .in('estado', ['abierto', 'en_curso'])
       .order('created_at', { ascending: false }),
     client

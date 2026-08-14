@@ -264,7 +264,7 @@ describe('loadParticipanteHistorial — full history without motivos/asistencia'
 })
 
 describe('loadParticipanteExplorar — only abierto/en_curso talleres', () => {
-  it('queries talleres_crecimiento_metadata filtered to open states', async () => {
+  it('queries taller_ediciones filtered to open states', async () => {
     setupSupabaseMock({
       personaId: PERSONA_ID,
       capabilities: ['talleres_crecimiento.participation.read'],
@@ -273,7 +273,7 @@ describe('loadParticipanteExplorar — only abierto/en_curso talleres', () => {
     if (!ctxResult.ok) throw new Error('expected ok:true')
     await loadParticipanteExplorar(ctxResult.context)
 
-    const tallerFilters = capturedFiltersFor('talleres_crecimiento_metadata')
+    const tallerFilters = capturedFiltersFor('taller_ediciones')
     const estadoFilter = tallerFilters.find(
       (f) => f.column === 'estado' && f.op === 'in',
     )
