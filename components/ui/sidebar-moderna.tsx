@@ -183,13 +183,15 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         }
       }
     }
-    // PR25 — also auto-expand the talleres sub-menu when the active
-    // route is under the talleres admin tree. The platformNavigation
-    // items themselves don't carry `children: SubItem[]` (they're
-    // rendered as simple links), but their corresponding
-    // TalleresNavSubmenu lives under a synthetic id keyed on the
-    // parent platform item id. The id is built in
-    // `components/ui/platform-navigation-view-items.ts` as
+    // PR25 + PR27 — also auto-expand the talleres sub-menu when the
+    // active route is under the talleres admin tree. The
+    // platformNavigation items themselves don't carry
+    // `children: SubItem[]` (their view-item type has
+    // `children?: never`), but the talleres platform items do get a
+    // chevron in the render path (see the `isTalleresPlatformItem`
+    // branch in the map below), and that chevron drives the same
+    // `openSubmenus` slot used by the static menu items. The id is
+    // built in `components/ui/platform-navigation-view-items.ts` as
     // `platform-${item.id}-${scope.type}-${scope.id ?? 'global'}`,
     // so for the talleres admin item the full id is e.g.
     // "platform-talleres_admin-taller-global".
@@ -399,7 +401,16 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                 const visibleChildren = item.children?.filter(
                   (child) => canAccess(child, accessCredentials)
                 ) ?? []
-                const hasChildren = visibleChildren.length > 0
+                // PR27 — platform items never carry `children: SubItem[]`
+                // (their view-item type has `children?: never`), but the
+                // talleres platform items still need a chevron so the
+                // submenu follows the same collapse/expand pattern as
+                // the static menu items ("Grupos de Vida", "Configuración").
+                // We detect the talleres prefix and treat those items as
+                // having children — the TalleresNavSubmenu is rendered
+                // in the standard submenu slot below.
+                const isTalleresPlatformItem = item.id.startsWith('platform-talleres_')
+                const hasChildren = visibleChildren.length > 0 || isTalleresPlatformItem
                 const parentActive = isParentActive(item)
                 const isOpen = openSubmenus.has(item.id)
                 const exactActive = pathname === item.href
@@ -469,17 +480,31 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                               isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
                             )}
                           >
-                            <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
-                              {visibleChildren
-                                .map((child) => {
-                                  const ChildIcon = child.icon
-                                  const childActive = isActive(child.href)
-                                  return (
-                                    <li key={child.id}>
-                                        <Link
-                                          href={child.href}
-                                          prefetch={false}
-                                          aria-current={childActive ? "page" : undefined}
+                            {isTalleresPlatformItem ? (
+                              /* PR27 — Talleres platform item renders the
+                                  role-grouped sub-menu via TalleresNavSubmenu
+                                  when the parent is open. TalleresNavSubmenu
+                                  emits its own <ul> with the same border-l
+                                  indentation as the static sub-menus, so the
+                                  visual matches the rest of the sidebar. */
+                              <TalleresNavSubmenu
+                                sessionCapabilities={
+                                  (platformSession?.capabilities ?? []).map((c) => c.key)
+                                }
+                                counters={{}}
+                              />
+                            ) : (
+                              <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
+                                {visibleChildren
+                                  .map((child) => {
+                                    const ChildIcon = child.icon
+                                    const childActive = isActive(child.href)
+                                    return (
+                                      <li key={child.id}>
+                                          <Link
+                                            href={child.href}
+                                            prefetch={false}
+                                            aria-current={childActive ? "page" : undefined}
                                         className={subLinkClasses(childActive)}
                                       >
                                         {ChildIcon && (
@@ -493,7 +518,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                                     </li>
                                   )
                                 })}
-                            </ul>
+                              </ul>
+                            )}
                           </div>
                         )}
                       </>
@@ -525,28 +551,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                           </>
                         )}
                       </Link>
-                    )}
-
-                    {/* PR20 + PR25: Talleres role-grouped sub-menu — rendered
-                        inline after any `platform-talleres_*` parent
-                        entry. PR25 removes the `&& isOpen` guard so the
-                        sub-menu mounts regardless of the parent's
-                        chevron state — platform items never render a
-                        chevron (their view-item type has `children?: never`)
-                        and therefore the chevron-driven toggle path is
-                        not reachable from this code path. The auto-expand
-                        useEffect above still opens the parent's slot
-                        when the active route is under the talleres admin
-                        tree, but the submenu now also mounts for users
-                        who simply want to see their nav items without
-                        an active route match. */}
-                    {item.id.startsWith('platform-talleres_') && (
-                      <TalleresNavSubmenu
-                        sessionCapabilities={
-                          (platformSession?.capabilities ?? []).map((c) => c.key)
-                        }
-                        counters={{}}
-                      />
                     )}
                   </li>
                 )
