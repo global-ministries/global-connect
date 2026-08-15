@@ -10,11 +10,17 @@
  *
  * This test runs in CI by PR and fails if any protected file has changed.
  *
- * Allowlist with rationale: PR24 (2026-08-14) intentionally modifies
- * `lib/platform/navigation.ts` to fix the E2E-found sidebar 404 — the
- * `talleres_admin` availableHref still pointed at `/admin/talleres` even
- * though that page was removed in PR21.1. Mirror of the allow-list in
- * `tests/byte-identity/protected-files.test.ts`.
+ * Allowlist with rationale:
+ *   PR24 (2026-08-14) intentionally modified
+ *   `lib/platform/navigation.ts` to fix the E2E-found sidebar 404 —
+ *   the `talleres_admin` availableHref pointed at `/admin/talleres`
+ *   even though that page was removed in PR21.1.
+ *
+ *   PR25 (2026-08-14) retargets the same `talleres_admin`
+ *   availableHref from `/talleres/direccion/talleres` to
+ *   `/admin/talleres/abstracto` (the wizard entry-point). Mirror of
+ *   the allow-list in
+ *   `tests/byte-identity/protected-files.test.ts`.
  */
 
 import { execSync } from 'node:child_process'
@@ -43,8 +49,12 @@ const PROTECTED_PATHS = [
 // Must match the allow-list in tests/byte-identity/protected-files.test.ts.
 const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // PR24 (2026-08-14): fix sidebar 404 — talleres_admin href /admin/talleres
-  // (404) -> /talleres/direccion/talleres (real route). Sidebar was
-  // pointing at a page removed in PR21.1. One-line string change.
+  // (404) -> /talleres/direccion/talleres (real route). One-line string.
+  //
+  // PR25 (2026-08-14): retarget the same talleres_admin href to
+  // /admin/talleres/abstracto (real wizard entry-point). Mirror of
+  // the global allow-list — same one-line string change to a
+  // protected file, no structural impact on the navigation registry.
   'lib/platform/navigation.ts',
 ])
 

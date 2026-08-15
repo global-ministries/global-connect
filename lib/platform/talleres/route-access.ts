@@ -5,6 +5,11 @@
  * PR17 — DT-070 — `getTalleresNavItems(sessionCapabilities)` helper for
  * the talleres sub-items menu (UI / navigation, design §9). Multi-role
  * users see the union of inherited sub-items.
+ *
+ * PR25 — Added admin-only sub-item `talleres_admin_abstracto` so users
+ * with `talleres_crecimiento.admin.manage` (and no other talleres cap)
+ * still see a meaningful entry in the sub-menu pointing at the wizard
+ * entry-point (`/admin/talleres/abstracto`).
  */
 
 import {
@@ -106,6 +111,8 @@ export type TalleresNavItemId =
   | 'talleres_direccion_solicitudes'
   | 'talleres_direccion_metricas'
   | 'talleres_direccion_reportes'
+  // Admin
+  | 'talleres_admin_abstracto'
 
 export type TalleresNavItem = Readonly<{
   id: TalleresNavItemId
@@ -150,6 +157,12 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   { id: 'talleres_direccion_solicitudes', label: 'Solicitudes', href: '/talleres/direccion/solicitudes', requiredCapability: 'talleres_crecimiento.director.read' },
   { id: 'talleres_direccion_metricas', label: 'Métricas', href: '/talleres/direccion/metricas', requiredCapability: 'talleres_crecimiento.metrics.read' },
   { id: 'talleres_direccion_reportes', label: 'Reportes', href: '/talleres/direccion/reportes', requiredCapability: 'talleres_crecimiento.director.read' },
+  // A — Admin (admin.manage). PR25: admin-only sub-item pointing at the
+  // wizard entry-point (`/admin/talleres/abstracto`). Users with ONLY
+  // this cap (no participation.read) need at least one sub-menu entry
+  // — previously they got an empty sub-menu, which made the sidebar
+  // entry look broken even though the capability gate resolved.
+  { id: 'talleres_admin_abstracto', label: 'Grupos de Corto Plazo', href: '/admin/talleres/abstracto', requiredCapability: 'talleres_crecimiento.admin.manage' },
 ]
 
 /**
@@ -175,8 +188,12 @@ export function getTalleresNavItems(
   return TALLERES_NAV_ITEMS.filter((item) => {
     if (caps.has(item.requiredCapability)) return true
     // Director.read superset fallback: every read capability is
-    // implied.
-    if (hasDirectorRead) return true
+    // implied. Admin items are NOT part of the superset — admin is a
+    // distinct role group (PR25) and admin.manage must be granted
+    // explicitly. Otherwise a user holding director.read would see
+    // the wizard entry-point as if they had admin powers, which
+    // would inflate the visible sub-menu and bypass the admin gate.
+    if (hasDirectorRead && !isAdminCapability(item.requiredCapability)) return true
     return false
   }).map((item) => ({
     id: item.id,
@@ -184,5 +201,15 @@ export function getTalleresNavItems(
     href: item.href,
     requiredCapability: item.requiredCapability,
   }))
+}
+
+/**
+ * PR25 — Returns true if the capability is an admin.manage grant for
+ * the talleres_crecimiento experience. Admin items are NOT part of
+ * the director.read superset — admin is a distinct role group and
+ * must be granted explicitly.
+ */
+function isAdminCapability(capability: string): boolean {
+  return capability === 'talleres_crecimiento.admin.manage'
 }
 

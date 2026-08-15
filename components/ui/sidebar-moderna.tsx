@@ -183,6 +183,27 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         }
       }
     }
+    // PR25 — also auto-expand the talleres sub-menu when the active
+    // route is under the talleres admin tree. The platformNavigation
+    // items themselves don't carry `children: SubItem[]` (they're
+    // rendered as simple links), but their corresponding
+    // TalleresNavSubmenu lives under a synthetic id keyed on the
+    // parent platform item id (e.g. "platform-talleres_admin-...").
+    // We open the matching platform parent so the auto-expand path
+    // mirrors what the static `menuItems` flow does. The active
+    // check is inlined (matches the `isActive` helper defined below
+    // on every render) to avoid accessing `isActive` before its
+    // declaration inside this useEffect.
+    for (const item of platformNavigationItems) {
+      if (!item.id.startsWith('platform-talleres_')) continue
+      const href = item.href
+      const isMatch =
+        pathname === href ||
+        (href !== '/dashboard' && !!pathname?.startsWith(href + '/'))
+      if (isMatch) {
+        newOpen.add(item.id)
+      }
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincronización de submenús activos con la ruta actual (patrón preexistente)
     setOpenSubmenus(prev => {
       // Merge: keep manually opened ones, add auto-opened ones
@@ -190,7 +211,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
       newOpen.forEach(id => merged.add(id))
       return merged
     })
-  }, [pathname])
+  }, [pathname, platformNavigationItems])
 
   // PR21.2 + PR21.3: When the browser tab becomes visible again (user
   // switches back to the tab), refresh the server tree AND dispatch a
@@ -494,11 +515,20 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                       </Link>
                     )}
 
-                    {/* PR20: Talleres role-grouped sub-menu — rendered
-                        inline after the talleres_participation parent
-                        entry. Uses the same chevron-toggled sub-menu
-                        pattern via the openSubmenus state. */}
-                    {item.id.startsWith('platform-talleres_') && isOpen && (
+                    {/* PR20 + PR25: Talleres role-grouped sub-menu — rendered
+                        inline after any `platform-talleres_*` parent
+                        entry. PR25 removes the `&& isOpen` guard so the
+                        sub-menu mounts regardless of the parent's
+                        chevron state — platform items never render a
+                        chevron (their view-item type has `children?: never`)
+                        and therefore the chevron-driven toggle path is
+                        not reachable from this code path. The auto-expand
+                        useEffect above still opens the parent's slot
+                        when the active route is under the talleres admin
+                        tree, but the submenu now also mounts for users
+                        who simply want to see their nav items without
+                        an active route match. */}
+                    {item.id.startsWith('platform-talleres_') && (
                       <TalleresNavSubmenu
                         sessionCapabilities={
                           (platformSession?.capabilities ?? []).map((c) => c.key)

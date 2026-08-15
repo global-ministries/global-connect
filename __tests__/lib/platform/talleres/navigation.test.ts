@@ -77,6 +77,50 @@ describe('getTalleresNavItems — capability filter', () => {
   })
 })
 
+// ─── PR25 — admin-only sub-item ───────────────────────────────────────────
+
+describe('getTalleresNavItems — admin.manage (PR25)', () => {
+  it('user with ONLY admin.manage sees the wizard entry-point item', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.admin.manage'],
+      { isEnabled: true },
+    )
+    // PR25: previously this returned [] — now it must include at least
+    // the abstracto entry-point so the sidebar shows a meaningful
+    // sub-menu for admin-only users.
+    expect(items.length).toBe(1)
+    expect(items.map((i) => i.id)).toEqual(['talleres_admin_abstracto'])
+    expect(items[0]?.href).toBe('/admin/talleres/abstracto')
+    expect(items[0]?.requiredCapability).toBe('talleres_crecimiento.admin.manage')
+  })
+
+  it('admin.manage does NOT count as a superset for director.read items', () => {
+    // PR25: keep the director-read superset scoped to read-only items.
+    // Admin is a distinct role group (A) and does not implicitly
+    // include director items (and vice versa).
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.admin.manage'],
+      { isEnabled: true },
+    )
+    expect(items.some((i) => i.id.startsWith('talleres_direccion_'))).toBe(false)
+    expect(items.some((i) => i.id.startsWith('talleres_coordinacion_'))).toBe(false)
+    expect(items.some((i) => i.id.startsWith('talleres_participante_'))).toBe(false)
+  })
+
+  it('admin.manage combined with director.read yields P+L+C+D+A union', () => {
+    const items = getTalleresNavItems(
+      [
+        'talleres_crecimiento.admin.manage',
+        'talleres_crecimiento.director.read',
+      ],
+      { isEnabled: true },
+    )
+    // 19 (P+L+C+D via director.read superset) + 1 admin entry = 20
+    expect(items.length).toBe(20)
+    expect(items.map((i) => i.id)).toContain('talleres_admin_abstracto')
+  })
+})
+
 describe('getTalleresNavItems — kill switch', () => {
   it('returns empty array when feature flag is off, regardless of caps', () => {
     const items = getTalleresNavItems(
@@ -167,6 +211,18 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(groups[0]?.id).toBe('P')
   })
 
+  it('PR25: admin.manage produces an "Administración" group with the abstracto item', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.admin.manage'],
+      { isEnabled: true },
+    )
+    const groups = groupTalleresNavItems(items)
+    expect(groups.length).toBe(1)
+    expect(groups[0]?.id).toBe('A')
+    expect(groups[0]?.title).toBe('Administración')
+    expect(groups[0]?.items.map((i) => i.id)).toEqual(['talleres_admin_abstracto'])
+  })
+
   it('preserves canonical order within each group', () => {
     const items = getTalleresNavItems(
       [
@@ -228,9 +284,12 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
     }
   })
 
-  it('every href starts with /talleres/', () => {
+  it('every href starts with /talleres/ OR /admin/talleres/ (PR25 admin entry-point)', () => {
     for (const item of TALLERES_NAV_ITEMS) {
-      expect(item.href.startsWith('/talleres/')).toBe(true)
+      const ok =
+        item.href.startsWith('/talleres/') ||
+        item.href.startsWith('/admin/talleres/')
+      expect(ok).toBe(true)
     }
   })
 
@@ -246,6 +305,7 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
       'talleres_recursos',
       'talleres_coordinacion_',
       'talleres_direccion_',
+      'talleres_admin_',
     ]
     for (const id of allIds) {
       const matches = groupPrefixes.some((p) => id.startsWith(p))
