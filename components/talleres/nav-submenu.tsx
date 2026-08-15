@@ -165,8 +165,22 @@ export function TalleresNavSubmenu({ sessionCapabilities, counters: propCounters
   const counters = propCounters ?? fetchedCounters
 
   const items = useMemo(() => {
-    if (!isTalleresEnabled()) return []
-    return getTalleresNavItems(sessionCapabilities)
+    // PR26 — The talleres participant-facing feature flag (rolled out
+    // per `lib/platform/talleres/flags.ts`) gates end-user access to
+    // talleres, but the operational admin entry-point
+    // (`talleres_admin_abstracto`) must remain visible to admins even
+    // when the participant flag is off — otherwise admin users with
+    // `talleres_crecimiento.admin.manage` see the parent sidebar
+    // entry but no sub-items, which made the sidebar look broken in
+    // production after PR25.
+    //
+    // We pass `isEnabled: true` to bypass the flag check inside
+    // `getTalleresNavItems`, then filter out non-admin items locally
+    // when the participant flag is off. The admin group remains
+    // visible to admins in all rollout stages.
+    const all = getTalleresNavItems(sessionCapabilities, { isEnabled: true })
+    if (isTalleresEnabled()) return all
+    return all.filter((item) => item.requiredCapability === 'talleres_crecimiento.admin.manage')
   }, [sessionCapabilities])
 
   const groups = useMemo(() => groupTalleresNavItems(items), [items])

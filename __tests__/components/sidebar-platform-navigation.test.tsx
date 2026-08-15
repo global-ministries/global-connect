@@ -266,6 +266,66 @@ describe('SidebarModerna platform navigation', () => {
       expect(adminParents.length).toBeGreaterThanOrEqual(1)
     })
   })
+
+  // ─── PR26 — talleres sub-menu must render for admins even when the
+  // participant-facing feature flag is off ────────────────────────────────
+  //
+  // The user reported that PR25's sub-menu is invisible in production
+  // even after the merge. The most likely cause is `isTalleresEnabled()`
+  // returning `false` at runtime because the NEXT_PUBLIC_TALLERES_*
+  // env vars are not (or not yet) set on Vercel for this deploy.
+  //
+  // The top-of-file mock forces the flag on for the existing PR25
+  // tests, which is why those pass. We override that mock here to
+  // simulate the production scenario: NO mock, NO env vars, flag off.
+  //
+  // The admin sub-item is operational — it must render for users
+  // holding `talleres_crecimiento.admin.manage` regardless of the
+  // participant rollout stage. The flag gates end-user participation,
+  // not the admin entry-point.
+
+  it('PR26: admin sub-item renders even when the talleres participant-facing flag is off', async () => {
+    // Override the global `isTalleresEnabled` mock to simulate the
+    // production scenario where the flag env vars are unset.
+    const flagsModule = jest.requireMock('@/lib/platform/talleres/flags') as {
+      isTalleresEnabled: () => boolean
+    }
+    const originalIsTalleresEnabled = flagsModule.isTalleresEnabled
+    flagsModule.isTalleresEnabled = () => false
+
+    try {
+      process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+      // No NEXT_PUBLIC_TALLERES_* env vars set — this is the
+      // production scenario we want to reproduce.
+      delete process.env.NEXT_PUBLIC_TALLERES_ENABLED
+      delete process.env.NEXT_PUBLIC_TALLERES_STAGE
+      delete process.env.NEXT_PUBLIC_TALLERES_KILL_SWITCH
+
+      currentPathname = '/admin/talleres/abstracto'
+      currentPlatformSession = withCapabilities([
+        { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+      ])
+
+      render(<SidebarModerna />)
+
+      // The admin parent must still render (gated by capability, not
+      // by the participant-facing flag).
+      await waitFor(() => {
+        const adminLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
+        expect(adminLinks.length).toBeGreaterThanOrEqual(1)
+      })
+
+      // The admin sub-item under the parent must also render. The
+      // operational admin entry-point must work regardless of the
+      // participant rollout stage — this is the production bug fix.
+      await waitFor(() => {
+        const subLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
+        expect(subLinks.length).toBeGreaterThanOrEqual(2)
+      })
+    } finally {
+      flagsModule.isTalleresEnabled = originalIsTalleresEnabled
+    }
+  })
 })
 
 function withCapabilities(capabilities: PlatformSession['capabilities'], contexts: PlatformSession['contexts'] = []): PlatformSession {
