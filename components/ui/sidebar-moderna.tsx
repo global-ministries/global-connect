@@ -188,9 +188,21 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     // items themselves don't carry `children: SubItem[]` (they're
     // rendered as simple links), but their corresponding
     // TalleresNavSubmenu lives under a synthetic id keyed on the
-    // parent platform item id (e.g. "platform-talleres_admin-...").
-    // We open the matching platform parent so the auto-expand path
-    // mirrors what the static `menuItems` flow does. The active
+    // parent platform item id. The id is built in
+    // `components/ui/platform-navigation-view-items.ts` as
+    // `platform-${item.id}-${scope.type}-${scope.id ?? 'global'}`,
+    // so for the talleres admin item the full id is e.g.
+    // "platform-talleres_admin-taller-global".
+    //
+    // CONVENTION NOTE: the segment between "talleres" and the role
+    // uses an UNDERSCORE (`_`), not a hyphen. The items registered in
+    // `lib/platform/navigation.ts` are `talleres_participation`,
+    // `talleres_admin`, etc., so the synthetic id always starts with
+    // `platform-talleres_` (single underscore). The matching check
+    // below uses `.startsWith('platform-talleres_')` accordingly.
+    //
+    // PR26 — we open the matching platform parent so the auto-expand
+    // path mirrors what the static `menuItems` flow does. The active
     // check is inlined (matches the `isActive` helper defined below
     // on every render) to avoid accessing `isActive` before its
     // declaration inside this useEffect.
