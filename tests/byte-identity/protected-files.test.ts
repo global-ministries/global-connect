@@ -16,12 +16,20 @@
  *
  * This test runs in CI per PR and fails if any protected file has changed.
  *
- * Allowlist with rationale: PR24 (2026-08-14) intentionally modifies
- * `lib/platform/navigation.ts` to fix the E2E-found sidebar 404 — the
- * `talleres_admin` availableHref still pointed at `/admin/talleres` even
- * though that page was removed in PR21.1. This is a documented exception;
- * remove from the allowlist after merge if a more fundamental refactor
- * of the navigation registry lands.
+ * Allowlist with rationale:
+ *   PR24 (2026-08-14) intentionally modified
+ *   `lib/platform/navigation.ts` to fix the E2E-found sidebar 404 — the
+ *   `talleres_admin` availableHref still pointed at `/admin/talleres`
+ *   even though that page was removed in PR21.1. This was a documented
+ *   exception; remove from the allowlist after merge if a more
+ *   fundamental refactor of the navigation registry lands.
+ *
+ *   PR25 (2026-08-14) retargets the same `talleres_admin` availableHref
+ *   from `/talleres/direccion/talleres` (the director's flat list view,
+ *   which has no admin actions) to `/admin/talleres/abstracto` (the
+ *   real wizard entry-point). Same one-line string change as PR24 but
+ *   the source-of-truth for what the admin sees — the admin needs the
+ *   wizard, not the read-only director list.
  */
 
 import { execSync } from 'node:child_process'
@@ -51,9 +59,14 @@ const PROTECTED_PATHS = [
 const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // PR24 (2026-08-14): fix sidebar 404 — talleres_admin href /admin/talleres
   // (404) -> /talleres/direccion/talleres (real route). Sidebar was
-  // pointing at a page removed in PR21.1. This is a one-line string change
-  // and the only way to fix the user-facing 404 without restructuring the
-  // platform navigation registry.
+  // pointing at a page removed in PR21.1. One-line string change.
+  //
+  // PR25 (2026-08-14): retarget the same talleres_admin href from
+  // /talleres/direccion/talleres (flat director list — no admin
+  // actions) to /admin/talleres/abstracto (the real wizard
+  // entry-point). Without this fix, the admin-cap user lands on a
+  // read-only list with no way to create or edit talleres. Same
+  // protected file, same one-line string change, mirror of PR24.
   'lib/platform/navigation.ts',
 ])
 

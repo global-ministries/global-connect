@@ -13,6 +13,7 @@
  *   V — Voluntario:        (same as L; subset via `lead.read | volunteer.read`)
  *   C — Coordinador:       Resumen / Inscripciones-Pendientes / Talleres / Equipos / Reportes
  *   D — Director:          Resumen-Global / Talleres / Periodos / Equipos / Solicitudes / Métricas / Reportes
+ *   A — Admin:             Grupos-de-Corto-Plazo (PR25; admin.manage; lives under /admin/...)
  *
  * Multi-role users see the union of inherited groups. The renderer
  * applies this grouping before capability-filtering — so a participant
@@ -30,7 +31,7 @@ import type { TalleresNavItem, TalleresNavItemId } from './route-access'
  * Group identifier for the renderer. The renderer maps each group to a
  * sub-section header in the menu.
  */
-export type TalleresNavGroupId = 'P' | 'L' | 'V' | 'C' | 'D'
+export type TalleresNavGroupId = 'P' | 'L' | 'V' | 'C' | 'D' | 'A'
 
 export interface TalleresNavGroup {
   readonly id: TalleresNavGroupId
@@ -59,6 +60,7 @@ export function groupTalleresNavItems(
     V: [],
     C: [],
     D: [],
+    A: [],
   }
   for (const item of items) {
     const groupId = groupIdForItemId(item.id)
@@ -71,6 +73,10 @@ export function groupTalleresNavItems(
   if (buckets.V.length > 0) groups.push({ id: 'V', title: 'Como Voluntario', items: buckets.V })
   if (buckets.C.length > 0) groups.push({ id: 'C', title: 'Coordinación', items: buckets.C })
   if (buckets.D.length > 0) groups.push({ id: 'D', title: 'Dirección', items: buckets.D })
+  // PR25 — Admin group. Title rendered only when the user actually has
+  // the admin.manage capability (otherwise the bucket is empty and we
+  // skip the section header).
+  if (buckets.A.length > 0) groups.push({ id: 'A', title: 'Administración', items: buckets.A })
   return groups
 }
 
@@ -79,5 +85,10 @@ function groupIdForItemId(id: TalleresNavItemId): TalleresNavGroupId | null {
   if (id.startsWith('talleres_grupos_') || id.startsWith('talleres_sesiones_') || id === 'talleres_recursos') return 'L'
   if (id.startsWith('talleres_coordinacion_')) return 'C'
   if (id.startsWith('talleres_direccion_')) return 'D'
+  // PR25 — Admin group is the wizard entry-point under `/admin/...`.
+  // Currently exactly one item maps here; if more are added later they
+  // can either follow the `talleres_admin_` prefix convention or be
+  // added as explicit branches.
+  if (id.startsWith('talleres_admin_')) return 'A'
   return null
 }
