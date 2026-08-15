@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { SidebarModerna } from '@/components/ui/sidebar-moderna'
 import type { PlatformSession } from '@/lib/platform/session/types'
@@ -325,6 +325,149 @@ describe('SidebarModerna platform navigation', () => {
     } finally {
       flagsModule.isTalleresEnabled = originalIsTalleresEnabled
     }
+  })
+
+  // ─── PR27 — chevron consistency for the talleres sub-menu ─────────────────
+  //
+  // PR25 made the talleres sub-menu render unconditionally (no `&& isOpen`
+  // guard) because the parent platform item never exposed a chevron
+  // (`children?: never`), so the toggle path was unreachable. The
+  // sub-menu was always visible, which broke visual consistency with
+  // the static menu items ("Grupos de Vida", "Configuración") that have
+  // a chevron and collapse/expand.
+  //
+  // PR27 restores the standard pattern: the talleres platform item
+  // gets a chevron (driven by the `platform-talleres_` prefix), and
+  // the sub-menu renders only when the chevron is open. The auto-expand
+  // useEffect already opens the parent when the route matches, so the
+  // active-route UX is preserved.
+  //
+  // These tests pin the three observable consequences:
+  //   1. Pathname does NOT match  →  submenu collapsed (no sub-link)
+  //   2. Pathname matches        →  submenu auto-expanded (sub-link visible)
+  //   3. Manual chevron toggle   →  submenu toggles open/closed
+
+  it('PR27: submenu is collapsed when pathname does not match the talleres parent', async () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    // Pathname is on a completely different route — auto-expand won't
+    // fire for the talleres parent.
+    currentPathname = '/dashboard'
+    currentPlatformSession = withCapabilities([
+      { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+    ])
+
+    render(<SidebarModerna />)
+
+    // The parent entry must appear (it's gated by the capability).
+    await waitFor(() => {
+      const adminParents = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
+      expect(adminParents.length).toBeGreaterThanOrEqual(1)
+    })
+
+    // PR27 — the chevron button must be present (it wasn't before
+    // this PR because platform items never exposed a chevron).
+    const chevronButton = await waitFor(() => {
+      const buttons = screen.getAllByRole('button').filter(
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Abrir submenú de Administración Talleres')
+      )
+      expect(buttons.length).toBeGreaterThanOrEqual(1)
+      return buttons[0]
+    })
+    expect(chevronButton).toHaveAttribute('aria-expanded', 'false')
+
+    // The submenu container must be visually collapsed (max-h-0 +
+    // opacity-0). The DOM still contains the sub-menu links (the
+    // container is kept in the tree for the transition), but the
+    // visible max-height is 0 — that's the source of truth for
+    // "collapsed" in this UX.
+    const submenuContainer = chevronButton.parentElement?.nextElementSibling as HTMLElement | null
+    expect(submenuContainer).not.toBeNull()
+    expect(submenuContainer).toHaveClass('max-h-0')
+    expect(submenuContainer).toHaveClass('opacity-0')
+  })
+
+  it('PR27: submenu is auto-expanded when pathname matches the talleres parent', async () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    currentPathname = '/admin/talleres/abstracto'
+    currentPlatformSession = withCapabilities([
+      { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+    ])
+
+    render(<SidebarModerna />)
+
+    // The auto-expand useEffect opens the parent's slot when the
+    // route matches. The chevron must reflect the open state.
+    const chevronButton = await waitFor(() => {
+      const buttons = screen.getAllByRole('button').filter(
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Cerrar submenú de Administración Talleres')
+      )
+      expect(buttons.length).toBeGreaterThanOrEqual(1)
+      return buttons[0]
+    })
+    expect(chevronButton).toHaveAttribute('aria-expanded', 'true')
+
+    // The submenu container must be visible (max-h-[500px] + opacity-100).
+    const submenuContainer = chevronButton.parentElement?.nextElementSibling as HTMLElement | null
+    expect(submenuContainer).not.toBeNull()
+    expect(submenuContainer).toHaveClass('max-h-[500px]')
+    expect(submenuContainer).toHaveClass('opacity-100')
+
+    // The parent + sub-menu link are both in the DOM (both point to
+    // /admin/talleres/abstracto) — confirms the sub-menu actually
+    // mounted for an admin on the matching route.
+    await waitFor(() => {
+      const adminLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
+      expect(adminLinks.length).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  it('PR27: chevron click toggles the talleres submenu open/closed', async () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    // Start on a non-matching pathname so the auto-expand does NOT
+    // pre-open the parent — we want to assert pure manual toggle.
+    currentPathname = '/dashboard'
+    currentPlatformSession = withCapabilities([
+      { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+    ])
+
+    render(<SidebarModerna />)
+
+    // Initially collapsed — chevron aria-expanded is false and the
+    // container shows max-h-0 / opacity-0.
+    const closedChevron = await waitFor(() => {
+      const buttons = screen.getAllByRole('button').filter(
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Abrir submenú de Administración Talleres')
+      )
+      expect(buttons.length).toBeGreaterThanOrEqual(1)
+      return buttons[0]
+    })
+    expect(closedChevron).toHaveAttribute('aria-expanded', 'false')
+    const collapsedContainer = closedChevron.parentElement?.nextElementSibling as HTMLElement | null
+    expect(collapsedContainer).toHaveClass('max-h-0')
+
+    // Click chevron → submenu opens.
+    fireEvent.click(closedChevron)
+    const openChevron = await waitFor(() => {
+      const buttons = screen.getAllByRole('button').filter(
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Cerrar submenú de Administración Talleres')
+      )
+      expect(buttons.length).toBeGreaterThanOrEqual(1)
+      return buttons[0]
+    })
+    expect(openChevron).toHaveAttribute('aria-expanded', 'true')
+    const openContainer = openChevron.parentElement?.nextElementSibling as HTMLElement | null
+    expect(openContainer).toHaveClass('max-h-[500px]')
+    expect(openContainer).toHaveClass('opacity-100')
+
+    // Click chevron again → submenu closes.
+    fireEvent.click(openChevron)
+    await waitFor(() => {
+      const buttons = screen.getAllByRole('button').filter(
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Abrir submenú de Administración Talleres')
+      )
+      expect(buttons.length).toBeGreaterThanOrEqual(1)
+      expect(buttons[0]).toHaveAttribute('aria-expanded', 'false')
+    })
   })
 })
 
