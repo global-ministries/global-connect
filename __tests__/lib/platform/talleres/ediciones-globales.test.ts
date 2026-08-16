@@ -108,6 +108,25 @@ function buildClient(opts: {
     return arr.shift()
   }
 
+  // Normalize a response entry into a { data, error } shape. By default
+  // raw values are treated as data (preserving the existing contract of
+  // passing a plain array). Callers can opt into the full shape by
+  // passing { data: ..., error: ... } directly.
+  const buildQueryResult = (v: unknown): { data: unknown; error: unknown } => {
+    if (
+      v !== null &&
+      typeof v === 'object' &&
+      'data' in (v as Record<string, unknown>) &&
+      'error' in (v as Record<string, unknown>)
+    ) {
+      return {
+        data: (v as { data: unknown }).data,
+        error: (v as { error: unknown }).error,
+      }
+    }
+    return { data: v, error: null }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic stub
   const client: any = {
     auth: {
@@ -140,8 +159,7 @@ function buildClient(opts: {
         }),
         maybeSingle: jest.fn().mockImplementation(async () => {
           queryLog.push({ table, filters: { ...filters }, ordering, limit: limitN })
-          const v = getResponse(table)
-          return { data: v, error: null }
+          return buildQueryResult(getResponse(table))
         }),
       }
       // Top-level await — most `await client.from(t).select(...).eq(...).maybeSingle()`
@@ -150,8 +168,7 @@ function buildClient(opts: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- top-level thenable
       ;(chain as any).then = (onFulfilled: (v: { data: unknown }) => unknown) => {
         queryLog.push({ table, filters: { ...filters }, ordering, limit: limitN })
-        const v = getResponse(table)
-        return Promise.resolve({ data: v, error: null }).then(onFulfilled)
+        return Promise.resolve(buildQueryResult(getResponse(table))).then(onFulfilled)
       }
       return chain
     },
@@ -419,10 +436,15 @@ describe('loadTalleresDisponibles', () => {
     })
 
     const result = await loadTalleresDisponibles(client, 'g-1')
-    expect(result.map((t) => t.id).sort()).toEqual(['t-1', 't-3'])
+    expect(result.disponibles.map((t) => t.id).sort()).toEqual(['t-1', 't-3'])
+    // totalActivos is the count BEFORE junction filtering — the helper
+    // needs it for the empty-state UX so admins see "all already added"
+    // instead of "no active talleres".
+    expect(result.totalActivos).toBe(3)
   })
 
-  it('returns [] when the talleres query errors', async () => {
+  it('returns { disponibles: [], totalActivos: 0 } when the talleres query errors', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
     const { client } = buildClient({
       personaId: 'p-1',
       capabilities: ['talleres_crecimiento.admin.manage'],
@@ -433,6 +455,133 @@ describe('loadTalleresDisponibles', () => {
     })
 
     const result = await loadTalleresDisponibles(client, 'g-1')
-    expect(result).toEqual([])
+    expect(result).toEqual({ disponibles: [], totalActivos: 0 })
+    // The silent-failure fix: the helper must surface the error to the
+    // server console instead of returning [] quietly.
+    expect(consoleError).toHaveBeenCalledWith(
+      '[ediciones-globales] loadTalleresDisponibles: talleres query returned null data without error — unexpected (edicion_global_id=g-1)',
+    )
+    consoleError.mockRestore()
+  })
+
+  it('returns all active talleres when none are associated with the global', async () => {
+    // Bug repro: a new (borrador) edicion global with no participants
+    // should see every active taller in the dropdown. Before the fix, an
+    // unrelated failure in the talleres query collapsed the dropdown to
+    // [] and the page showed 'No hay grupos activos disponibles'.
+    const talleresActivos = [
+      { id: '4b3f1bf2-0c26-4bd4-95dd-9d5cc3f5c6a5', slug: 'factor-mama', nombre: 'Factor Mamá', modalidad_default: 'periodo_general', estado: 'active' },
+      { id: '9d2e47ff-b032-4563-a839-fb741952e14c', slug: 'matrimonio-sobre-la-roca', nombre: 'Matrimonio sobre la Roca', modalidad_default: 'periodo_general', estado: 'active' },
+      { id: 'af0c509a-e1b9-4a89-9b71-70bbeadc14a2', slug: 'punto-de-partida', nombre: 'Punto de partida', modalidad_default: 'permanente_custom', estado: 'active' },
+    ]
+
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+      tableResponses: {
+        taller_edicion_global_participantes: [[]],
+        talleres: [talleresActivos],
+      },
+    })
+
+    const result = await loadTalleresDisponibles(client, 'g-2026')
+    expect(result.disponibles.map((t) => t.id).sort()).toEqual(talleresActivos.map((t) => t.id).sort())
+    expect(result.totalActivos).toBe(3)
+    // Every returned item must have edicion_local_id null (this loader
+    // does not join the junction local-edition table).
+    for (const t of result.disponibles) {
+      expect(t.edicion_local_id).toBeNull()
+      expect(t.edicion_local_estado).toBeNull()
+    }
+  })
+
+  it('logs the error when the talleres query fails (RLS denial, schema miss, etc.)', async () => {
+    // The bug surface: the original 'if (error || !talleresActivos) return []'
+    // branch silently swallowed the error. The fix surfaces the error to
+    // the server console so the page logs prove the root cause instead of
+    // presenting a misleading empty state.
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const talleresError = Object.assign(new Error('permission denied for table talleres'), {
+      code: '42501',
+      hint: 'Check RLS policy for talleres_select_all',
+    })
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+      tableResponses: {
+        taller_edicion_global_participantes: [[]],
+        talleres: [{ data: null, error: talleresError }],
+      },
+    })
+
+    const result = await loadTalleresDisponibles(client, 'g-1')
+    expect(result).toEqual({ disponibles: [], totalActivos: 0 })
+    expect(consoleError).toHaveBeenCalledWith(
+      '[ediciones-globales] loadTalleresDisponibles: ' +
+      'talleres query failed (edicion_global_id=g-1)',
+      talleresError,
+    )
+    consoleError.mockRestore()
+  })
+
+  it('logs the error when the junction query fails (so the dropdown does not silently offer duplicates)', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const junctionError = Object.assign(new Error('relation taller_edicion_global_participantes does not exist'), {
+      code: '42P01',
+    })
+    const talleresActivos = [
+      { id: 't-1', slug: 'a', nombre: 'A', modalidad_default: 'periodo_general', estado: 'active' },
+    ]
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+      tableResponses: {
+        taller_edicion_global_participantes: [{ data: null, error: junctionError }],
+        talleres: [talleresActivos],
+      },
+    })
+
+    const result = await loadTalleresDisponibles(client, 'g-1')
+    // Silent-failure fix: the junction error is logged even though the
+    // helper still falls back to an empty dedup set (we don't want to
+    // mask the false-positive 'taller offered twice' bug either).
+    expect(result.disponibles.map((t) => t.id)).toEqual(['t-1'])
+    expect(result.totalActivos).toBe(1)
+    expect(consoleError).toHaveBeenCalledWith(
+      '[ediciones-globales] loadTalleresDisponibles: ' +
+      'taller_edicion_global_participantes query failed (edicion_global_id=g-1)',
+      junctionError,
+    )
+    consoleError.mockRestore()
+  })
+
+  it('returns { disponibles: [], totalActivos: 3 } when all active talleres are already in the global', async () => {
+    // Bug repro (the user's actual report): an edicion global where
+    // every active taller is already associated used to render the
+    // dropdown with "No hay grupos activos disponibles para agregar"
+    // which misled admins into thinking the system had no active
+    // talleres. The fix surfaces `totalActivos` so the UI can render
+    // "Todos los grupos activos (3) ya forman parte de esta edición".
+    const talleresActivos = [
+      { id: '4b3f1bf2-0c26-4bd4-95dd-9d5cc3f5c6a5', slug: 'factor-mama', nombre: 'Factor Mamá', modalidad_default: 'periodo_general', estado: 'active' },
+      { id: '9d2e47ff-b032-4563-a839-fb741952e14c', slug: 'matrimonio-sobre-la-roca', nombre: 'Matrimonio sobre la Roca', modalidad_default: 'periodo_general', estado: 'active' },
+      { id: 'af0c509a-e1b9-4a89-9b71-70bbeadc14a2', slug: 'punto-de-partida', nombre: 'Punto de partida', modalidad_default: 'permanente_custom', estado: 'active' },
+    ]
+    // Junction contains ALL 3 active talleres — the user's reported state
+    // (slug='2026' global where every taller is already associated).
+    const yaEnGlobal = talleresActivos.map((t) => ({ taller_id: t.id }))
+
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+      tableResponses: {
+        taller_edicion_global_participantes: [yaEnGlobal],
+        talleres: [talleresActivos],
+      },
+    })
+
+    const result = await loadTalleresDisponibles(client, 'g-2026')
+    expect(result.disponibles).toEqual([])
+    expect(result.totalActivos).toBe(3)
   })
 })

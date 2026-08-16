@@ -115,7 +115,7 @@ export default async function EdicionGlobalDetailPage(ctx: RouteContext) {
     overlapWarnings.map((w: { taller_id: string; other_slug: string }) => [w.taller_id, w.other_slug]),
   )
 
-  const disponibles = await loadTalleresDisponibles(client, edicion.id)
+  const { disponibles, totalActivos } = await loadTalleresDisponibles(client, edicion.id)
 
   const editable = edicion.estado === 'borrador'
   const showOpen = edicion.estado === 'borrador'
@@ -243,6 +243,7 @@ export default async function EdicionGlobalDetailPage(ctx: RouteContext) {
           <AddTallerForm
             edicionGlobalId={edicion.id}
             disponibles={disponibles.map((d) => ({ id: d.id, nombre: d.nombre, slug: d.slug }))}
+            totalActivos={totalActivos}
           />
         </TarjetaSistema>
       )}

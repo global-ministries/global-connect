@@ -261,33 +261,87 @@ export async function loadEdicionGlobalById(client: any, id: string): Promise<Ed
 }
 
 /**
+ * Result of `loadTalleresDisponibles`. `disponibles` is the list of
+ * active talleres NOT yet associated with the global (the "add taller"
+ * dropdown options). `totalActivos` is the count of all active talleres
+ * in the DB — used by the UI to distinguish "no active talleres exist"
+ * from "all active talleres are already in this edition".
+ */
+export interface TalleresDisponiblesResult {
+  readonly disponibles: ReadonlyArray<TallerParticipante>
+  /** Total active talleres in `public.talleres` (before filtering by junction). */
+  readonly totalActivos: number
+}
+
+/**
  * Loads the list of talleres activos (not archived) that are NOT yet
  * associated with the given edicion global. Used by the "agregar
  * taller" dropdown.
  *
- * Returns `[]` on error.
+ * Returns `{ disponibles: [], totalActivos: 0 }` on error. Errors are
+ * logged to the server console so a silent failure (RLS denial,
+ * schema cache miss, FK resolution failure, etc.) is visible in the
+ * server logs instead of being collapsed to an empty state in the UI.
+ *
+ * The `totalActivos` field exists so the UI can render a precise
+ * message when `disponibles` is empty: if `totalActivos === 0` the DB
+ * genuinely has no active talleres; if `totalActivos > 0` then all
+ * active talleres are already in the global (no UX action needed).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase select returns untyped for new tables
-export async function loadTalleresDisponibles(client: any, edicionGlobalId: string): Promise<TallerParticipante[]> {
-  // Step 1: talleres already in this global
-  const { data: yaEnGlobal } = await client
+export async function loadTalleresDisponibles(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase select returns untyped for new tables
+  client: any,
+  edicionGlobalId: string,
+): Promise<TalleresDisponiblesResult> {
+  // Step 1: talleres already in this global. We also capture the error
+  // here so we can log it: a silent failure would be a false negative
+  // (the dropdown would offer talleres already in the global, and the
+  // RPC's UNIQUE constraint would reject the add).
+  const { data: yaEnGlobal, error: yaEnGlobalError } = await client
     .from('taller_edicion_global_participantes')
     .select('taller_id')
     .eq('edicion_global_id', edicionGlobalId)
+  if (yaEnGlobalError) {
+    console.error(
+      '[ediciones-globales] loadTalleresDisponibles: ' +
+      'taller_edicion_global_participantes query failed ' +
+      `(edicion_global_id=${edicionGlobalId})`,
+      yaEnGlobalError,
+    )
+  }
   const yaEnGlobalIds = new Set(
     ((yaEnGlobal ?? []) as Array<{ taller_id: string }>).map((r) => r.taller_id),
   )
 
-  // Step 2: all active talleres
+  // Step 2: all active talleres. Errors are logged to the server console
+  // so silent failures (RLS denial, schema cache miss, FK resolution
+  // failure, etc.) show up in the server logs instead of being
+  // collapsed to an empty `[]` in the UI.
   const { data: talleresActivos, error } = await client
     .from('talleres')
     .select('id, slug, nombre, modalidad_default, estado')
     .eq('estado', 'active')
     .order('nombre', { ascending: true })
     .limit(500)
-  if (error || !talleresActivos) return []
+  if (error) {
+    console.error(
+      '[ediciones-globales] loadTalleresDisponibles: ' +
+      'talleres query failed ' +
+      `(edicion_global_id=${edicionGlobalId})`,
+      error,
+    )
+    return { disponibles: [], totalActivos: 0 }
+  }
+  if (!talleresActivos) {
+    console.error(
+      '[ediciones-globales] loadTalleresDisponibles: ' +
+      'talleres query returned null data without error — unexpected ' +
+      `(edicion_global_id=${edicionGlobalId})`,
+    )
+    return { disponibles: [], totalActivos: 0 }
+  }
 
-  return (talleresActivos as Array<Omit<TallerParticipante, 'edicion_local_id' | 'edicion_local_estado'>>)
+  const disponibles = (talleresActivos as Array<Omit<TallerParticipante, 'edicion_local_id' | 'edicion_local_estado'>>)
     .filter((t) => !yaEnGlobalIds.has(t.id))
     .map((t) => ({
       id: t.id,
@@ -298,4 +352,5 @@ export async function loadTalleresDisponibles(client: any, edicionGlobalId: stri
       edicion_local_id: null,
       edicion_local_estado: null,
     }))
+  return { disponibles, totalActivos: talleresActivos.length }
 }
