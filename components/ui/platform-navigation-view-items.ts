@@ -32,7 +32,6 @@ const PLATFORM_NAVIGATION_ICONS: Partial<Record<PlatformNavigationItemId, Compon
   talleres_participation: ClipboardList,
   dps_admin: Settings,
   nextgen_admin: Settings,
-  talleres_admin: Settings,
   uno_a_uno_global: User,
   pastor_dashboard: BarChart3,
   pastor_usuarios: UserCog,

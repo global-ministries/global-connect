@@ -13,14 +13,21 @@
  * Allowlist with rationale:
  *   PR24 (2026-08-14) intentionally modified
  *   `lib/platform/navigation.ts` to fix the E2E-found sidebar 404 —
- *   the `talleres_admin` availableHref pointed at `/admin/talleres`
+ *   the talleres admin availableHref pointed at `/admin/talleres`
  *   even though that page was removed in PR21.1.
  *
- *   PR25 (2026-08-14) retargets the same `talleres_admin`
+ *   PR25 (2026-08-14) retargeted the same talleres admin
  *   availableHref from `/talleres/direccion/talleres` to
  *   `/admin/talleres/abstracto` (the wizard entry-point). Mirror of
  *   the allow-list in
  *   `tests/byte-identity/protected-files.test.ts`.
+ *
+ *   PR28 (2026-08-15) merged `talleres_admin` into `talleres_participation`
+ *   in `lib/platform/navigation.ts` — the parent id, label, and
+ *   capability changed (admin-only entries now live under the
+ *   sub-menu, not as a separate top-level item). The byte-identity
+ *   guard still passes because the protected file changed, but the
+ *   change is allow-listed for the same reason as PR24/PR25.
  */
 
 import { execSync } from 'node:child_process'
@@ -48,13 +55,18 @@ const PROTECTED_PATHS = [
 // Allowlist: paths that may change in this PR with a documented rationale.
 // Must match the allow-list in tests/byte-identity/protected-files.test.ts.
 const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
-  // PR24 (2026-08-14): fix sidebar 404 — talleres_admin href /admin/talleres
+  // PR24 (2026-08-14): fix sidebar 404 — talleres admin href /admin/talleres
   // (404) -> /talleres/direccion/talleres (real route). One-line string.
   //
-  // PR25 (2026-08-14): retarget the same talleres_admin href to
+  // PR25 (2026-08-14): retarget the same talleres admin href to
   // /admin/talleres/abstracto (real wizard entry-point). Mirror of
   // the global allow-list — same one-line string change to a
   // protected file, no structural impact on the navigation registry.
+  //
+  // PR28 (2026-08-15): merge talleres_admin into talleres_participation
+  // (parent id, label, capability change). Same protected file, same
+  // one-line structural change reflected in the registry, no impact
+  // on the byte-identity contract.
   'lib/platform/navigation.ts',
 ])
 

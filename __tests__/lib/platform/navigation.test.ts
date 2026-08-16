@@ -99,9 +99,10 @@ describe('Platform navigation resolver', () => {
     // the ledger-style participation.read with a specific taller_id
     // matches the global requirement. The taller item is shown alongside
     // grupos_vida (both have availableHref set in the catalog).
+    // PR28: the label is now `'Talleres'` (was `'Talleres de Crecimiento'`).
     expect(result.visibleItems.map((item) => item.href).sort()).toEqual(['/grupos-vida', '/talleres/explorar'].sort())
     expect(result.visibleItems.map((item) => item.label).sort()).toEqual(
-      ['Grupos de Vida — Adultos', 'Talleres de Crecimiento — de-hombre-a-hombre'].sort(),
+      ['Grupos de Vida — Adultos', 'Talleres — de-hombre-a-hombre'].sort(),
     )
     expect(deniedReasons(result)).toMatchObject({
       dps_team_service: 'route_unavailable',
@@ -155,16 +156,10 @@ describe('Platform navigation resolver', () => {
     const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
 
     expect(result.visibleItems).toEqual([])
-    // NOTE: `talleres_admin` resolves to `missing_required_capability` (not
-    // `unknown_capability`) as of PR3 — Fase 5 closed the pre-existing
-    // `admin.manage` gap by registering `talleres_crecimiento.admin.manage`
-    // in PLATFORM_CAPABILITIES (lib/platform/experiences.ts, DT-009/DT-010).
-    // The user in this test simply has no grant for the (now-recognized) key.
     expect(deniedReasons(result)).toMatchObject({
       dps_team_service: 'grant_scope_missing',
       dps_admin: 'unknown_capability',
       nextgen_admin: 'unknown_capability',
-      talleres_admin: 'missing_required_capability',
       uno_a_uno_global: 'unknown_capability',
     })
   })
@@ -289,22 +284,6 @@ describe('Platform navigation resolver', () => {
         .filter((item) => item.experience === 'talleres_crecimiento')
         .map((item) => item.id)
       expect(talleresIds).toContain('talleres_participation')
-    })
-
-    it('shows talleres_admin (id=global) when user has admin.manage with scope_id=global', async () => {
-      const session: PlatformSession = {
-        ...baseSession,
-        capabilities: [
-          { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'admin' },
-        ],
-      }
-
-      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
-
-      const talleresIds = result.visibleItems
-        .filter((item) => item.experience === 'talleres_crecimiento')
-        .map((item) => item.id)
-      expect(talleresIds).toContain('talleres_admin')
     })
   })
 })
