@@ -1,15 +1,24 @@
 /**
- * PR29-D — Helper module for admin-facing `Ediciones Globales` UI.
+ * PR29-D / PR31 — Helper module for admin-facing `Ediciones Globales` UI.
  *
  * Mirrors the admin-side data shape of the new global-ediciones
  * feature added in PR29-B (additive table + junction) and PR29-C
  * (6 SECURITY DEFINER RPCs). This helper is UI-layer only — all
- * mutations go through the 6 RPCs (`create_edicion_global`,
+ * mutations go through the surviving 4 RPCs (`create_edicion_global`,
  * `open_edicion_global`, `close_edicion_global`,
- * `cancel_edicion_global`, `add_taller_to_edicion_global`,
- * `remove_taller_from_edicion_global`); the SQL functions re-check
- * the capability gate, so the server-side `requireEdicionesGlobalesRole`
- * below is defense-in-depth.
+ * `cancel_edicion_global`); the SQL functions re-check the capability
+ * gate, so the server-side `requireEdicionesGlobalesRole` below is
+ * defense-in-depth.
+ *
+ * PR31: the junction table `taller_edicion_global_participantes`
+ * was dropped (it was empty for production data — the actual
+ * association flow goes through `taller_ediciones.edicion_global_id`,
+ * the FK column added in PR29-B and backfilled in PR29-F.1). The
+ * surviving 2 junction-only RPCs (`add_taller_to_edicion_global`,
+ * `remove_taller_from_edicion_global`) were also dropped. Taller
+ * associations are now managed directly by writing
+ * `taller_ediciones.edicion_global_id` (the detail page does this
+ * via plain SQL in the server actions — no junction exists).
  *
  * Capability gate: `talleres_crecimiento.director.write` OR
  *                  `talleres_crecimiento.admin.manage`.
@@ -20,8 +29,8 @@
  *     and `nueva/actions.ts`).
  *   - Capability model (unchanged from PR25).
  *
- * This file is NOT in the byte-identity protected list. It is a
- * brand-new module introduced in PR29-D.
+ * This file is NOT in the byte-identity protected list. It was
+ * introduced in PR29-D and updated in PR31.
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -143,7 +152,9 @@ export async function requireEdicionesGlobalesRole(): Promise<EdicionesGlobalesR
 
 /**
  * Loads all ediciones globales ordered by `fecha_apertura DESC`,
- * each joined with a `participantes_count` from the junction table.
+ * each joined with a `participantes_count` computed by walking
+ * `taller_ediciones.edicion_global_id` (PR31: the junction table
+ * was dropped — the FK column is the source of truth).
  *
  * Returns `[]` on error so callers can render an empty state without
  * branching on supabase error shape — the page-level error path is
@@ -154,40 +165,75 @@ export async function loadEdicionesGlobales(client: any): Promise<EdicionGlobal[
   const { data, error } = await client
     .from('taller_ediciones_globales')
     .select(
-      'id, nombre, slug, descripcion, fecha_apertura, fecha_cierre, estado, created_by_persona_id, created_at, updated_at, version, taller_edicion_global_participantes(count)',
+      'id, nombre, slug, descripcion, fecha_apertura, fecha_cierre, estado, created_by_persona_id, created_at, updated_at, version',
     )
     .order('fecha_apertura', { ascending: false })
     .limit(200)
 
   if (error || !data) return []
 
-  // Supabase returns the join as `{ taller_edicion_global_participantes: [{ count: N }] }`
-  return (data as Array<Record<string, unknown>>).map((row) => {
-    const join = row.taller_edicion_global_participantes
-    const count = Array.isArray(join)
-      ? Number((join[0] as { count?: number } | undefined)?.count ?? 0)
-      : 0
-    return {
-      id: row.id as string,
-      nombre: row.nombre as string,
-      slug: row.slug as string,
-      descripcion: (row.descripcion as string | null) ?? null,
-      fecha_apertura: row.fecha_apertura as string,
-      fecha_cierre: row.fecha_cierre as string,
-      estado: row.estado as EdicionGlobalEstado,
-      created_by_persona_id: (row.created_by_persona_id as string | null) ?? null,
-      created_at: row.created_at as string,
-      updated_at: row.updated_at as string,
-      version: Number(row.version ?? 1),
-      participantes_count: count,
+  // PR31: count participants by walking taller_ediciones.edicion_global_id.
+  // One batch — single round-trip, single query. Distinct taller_id because a
+  // taller could (theoretically) have multiple local ediciones pointing at
+  // the same global (the UNIQUE on the FK column is per-row, not per-taller).
+  // Returns { taller_ediciones: [{ edicion_global_id, taller_id }] }.
+  const globalIds = (data as Array<{ id: string }>).map((r) => r.id)
+  let participantsByGlobal: Record<string, number> = {}
+  if (globalIds.length > 0) {
+    const { data: locales, error: localesError } = await client
+      .from('taller_ediciones')
+      .select('edicion_global_id, taller_id')
+      .in('edicion_global_id', globalIds)
+      .not('edicion_global_id', 'is', null)
+    if (localesError) {
+      console.error(
+        '[ediciones-globales] loadEdicionesGlobales: taller_ediciones query failed',
+        localesError,
+      )
+      // Fall through — count defaults to 0 for each global below.
+    } else if (locales) {
+      const tallersPerGlobal = new Map<string, Set<string>>()
+      for (const row of locales as Array<{ edicion_global_id: string; taller_id: string }>) {
+        let set = tallersPerGlobal.get(row.edicion_global_id)
+        if (!set) {
+          set = new Set<string>()
+          tallersPerGlobal.set(row.edicion_global_id, set)
+        }
+        set.add(row.taller_id)
+      }
+      participantsByGlobal = Object.fromEntries(
+        Array.from(tallersPerGlobal.entries()).map(([k, v]) => [k, v.size]),
+      )
     }
-  })
+  }
+
+  return (data as Array<Record<string, unknown>>).map((row) => ({
+    id: row.id as string,
+    nombre: row.nombre as string,
+    slug: row.slug as string,
+    descripcion: (row.descripcion as string | null) ?? null,
+    fecha_apertura: row.fecha_apertura as string,
+    fecha_cierre: row.fecha_cierre as string,
+    estado: row.estado as EdicionGlobalEstado,
+    created_by_persona_id: (row.created_by_persona_id as string | null) ?? null,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+    version: Number(row.version ?? 1),
+    participantes_count: participantsByGlobal[row.id as string] ?? 0,
+  }))
 }
 
 /**
  * Loads a single edicion global by id along with its participantes
- * (the talleres associated via the junction table). Returns null if
- * not found.
+ * (the talleres associated via `taller_ediciones.edicion_global_id`).
+ * Returns null if not found.
+ *
+ * PR31: the junction table was dropped — associations are now
+ * walked via the FK column on taller_ediciones. The query is
+ * `taller_ediciones e JOIN talleres t ON t.id = e.taller_id WHERE
+ * e.edicion_global_id = $1`. A taller with multiple local ediciones
+ * under the same global is deduplicated to a single participante
+ * row (its first local edicion wins for the snapshot fields).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase rpc/select returns untyped for new tables
 export async function loadEdicionGlobalById(client: any, id: string): Promise<EdicionGlobalDetalle | null> {
@@ -201,46 +247,82 @@ export async function loadEdicionGlobalById(client: any, id: string): Promise<Ed
 
   if (globalError || !globalRow) return null
 
-  const { data: participantesRows } = await client
-    .from('taller_edicion_global_participantes')
-    .select(
-      'taller_id, talleres:talleres!inner(id, slug, nombre, modalidad_default, estado), taller_ediciones(id, estado)',
-    )
+  // PR31: walk taller_ediciones via FK. Each row gives us a
+  // taller_id (we then fetch the taller metadata) and the local
+  // edicion's id/estado snapshot.
+  const { data: localesRows, error: localesError } = await client
+    .from('taller_ediciones')
+    .select('id, taller_id, estado')
     .eq('edicion_global_id', id)
+    .not('edicion_global_id', 'is', null)
 
-  const participantes: TallerParticipante[] = (participantesRows ?? []).map(
-    (row: Record<string, unknown>) => {
-      const taller = row.talleres as {
-        id: string
-        slug: string
-        nombre: string
-        modalidad_default: 'periodo_general' | 'permanente_custom'
-        estado: 'active' | 'archived'
-      }
-      const local = row.taller_ediciones as
-        | Array<{ id: string; estado: TallerParticipante['edicion_local_estado'] }>
-        | { id: string; estado: TallerParticipante['edicion_local_estado'] }
-        | null
-      let edicionLocalId: string | null = null
-      let edicionLocalEstado: TallerParticipante['edicion_local_estado'] = null
-      if (Array.isArray(local) && local.length > 0) {
-        edicionLocalId = local[0]!.id
-        edicionLocalEstado = local[0]!.estado ?? null
-      } else if (local && !Array.isArray(local)) {
-        edicionLocalId = local.id
-        edicionLocalEstado = local.estado ?? null
-      }
-      return {
-        id: taller.id,
-        slug: taller.slug,
-        nombre: taller.nombre,
-        modalidad_default: taller.modalidad_default,
-        estado: taller.estado,
-        edicion_local_id: edicionLocalId,
-        edicion_local_estado: edicionLocalEstado,
-      }
-    },
-  )
+  if (localesError) {
+    console.error(
+      '[ediciones-globales] loadEdicionGlobalById: taller_ediciones query failed ' +
+      `(edicion_global_id=${id})`,
+      localesError,
+    )
+  }
+
+  // Dedupe by taller_id — first row wins for snapshot fields.
+  const locales = (localesRows ?? []) as Array<{
+    id: string
+    taller_id: string
+    estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
+  }>
+  const tallerIds = Array.from(new Set(locales.map((r) => r.taller_id).filter(Boolean)))
+
+  let talleresById = new Map<
+    string,
+    {
+      id: string
+      slug: string
+      nombre: string
+      modalidad_default: 'periodo_general' | 'permanente_custom'
+      estado: 'active' | 'archived'
+    }
+  >()
+  if (tallerIds.length > 0) {
+    const { data: talleresRows, error: talleresError } = await client
+      .from('talleres')
+      .select('id, slug, nombre, modalidad_default, estado')
+      .in('id', tallerIds)
+    if (talleresError) {
+      console.error(
+        '[ediciones-globales] loadEdicionGlobalById: talleres query failed ' +
+        `(edicion_global_id=${id})`,
+        talleresError,
+      )
+    } else if (talleresRows) {
+      talleresById = new Map(
+        (talleresRows as Array<{
+          id: string
+          slug: string
+          nombre: string
+          modalidad_default: 'periodo_general' | 'permanente_custom'
+          estado: 'active' | 'archived'
+        }>).map((t) => [t.id, t]),
+      )
+    }
+  }
+
+  const seenTaller = new Set<string>()
+  const participantes: TallerParticipante[] = []
+  for (const row of locales) {
+    if (seenTaller.has(row.taller_id)) continue
+    seenTaller.add(row.taller_id)
+    const taller = talleresById.get(row.taller_id)
+    if (!taller) continue
+    participantes.push({
+      id: taller.id,
+      slug: taller.slug,
+      nombre: taller.nombre,
+      modalidad_default: taller.modalidad_default,
+      estado: taller.estado,
+      edicion_local_id: row.id,
+      edicion_local_estado: row.estado,
+    })
+  }
 
   const base: EdicionGlobal = {
     id: globalRow.id as string,
@@ -269,7 +351,7 @@ export async function loadEdicionGlobalById(client: any, id: string): Promise<Ed
  */
 export interface TalleresDisponiblesResult {
   readonly disponibles: ReadonlyArray<TallerParticipante>
-  /** Total active talleres in `public.talleres` (before filtering by junction). */
+  /** Total active talleres in `public.talleres` (before filtering by FK). */
   readonly totalActivos: number
 }
 
@@ -277,6 +359,12 @@ export interface TalleresDisponiblesResult {
  * Loads the list of talleres activos (not archived) that are NOT yet
  * associated with the given edicion global. Used by the "agregar
  * taller" dropdown.
+ *
+ * PR31: association is now via `taller_ediciones.edicion_global_id`
+ * (the junction table was dropped). "Associated" means there is at
+ * least one taller_ediciones row whose FK points at this global.
+ * If the taller has multiple local ediciones pointing at the same
+ * global, the dropdown still hides it (deduped).
  *
  * Returns `{ disponibles: [], totalActivos: 0 }` on error. Errors are
  * logged to the server console so a silent failure (RLS denial,
@@ -293,24 +381,24 @@ export async function loadTalleresDisponibles(
   client: any,
   edicionGlobalId: string,
 ): Promise<TalleresDisponiblesResult> {
-  // Step 1: talleres already in this global. We also capture the error
-  // here so we can log it: a silent failure would be a false negative
-  // (the dropdown would offer talleres already in the global, and the
-  // RPC's UNIQUE constraint would reject the add).
-  const { data: yaEnGlobal, error: yaEnGlobalError } = await client
-    .from('taller_edicion_global_participantes')
+  // Step 1: talleres already associated with this global via the
+  // FK column. We capture errors to the server console so a silent
+  // failure does not silently offer duplicates.
+  const { data: localesEnGlobal, error: localesEnGlobalError } = await client
+    .from('taller_ediciones')
     .select('taller_id')
     .eq('edicion_global_id', edicionGlobalId)
-  if (yaEnGlobalError) {
+    .not('edicion_global_id', 'is', null)
+  if (localesEnGlobalError) {
     console.error(
       '[ediciones-globales] loadTalleresDisponibles: ' +
-      'taller_edicion_global_participantes query failed ' +
+      'taller_ediciones query failed ' +
       `(edicion_global_id=${edicionGlobalId})`,
-      yaEnGlobalError,
+      localesEnGlobalError,
     )
   }
   const yaEnGlobalIds = new Set(
-    ((yaEnGlobal ?? []) as Array<{ taller_id: string }>).map((r) => r.taller_id),
+    ((localesEnGlobal ?? []) as Array<{ taller_id: string }>).map((r) => r.taller_id),
   )
 
   // Step 2: all active talleres. Errors are logged to the server console

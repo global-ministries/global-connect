@@ -1,8 +1,14 @@
 'use client'
 
 /**
- * PR29-D — Inline button to remove a taller from the current edicion
- * global. Wraps the `remove_taller_from_edicion_global` RPC.
+ * PR29-D / PR31 — Inline button to remove a taller from the current
+ * edicion global.
+ *
+ * PR31: the action now nullifies `taller_ediciones.edicion_global_id`
+ * on a SPECIFIC taller_ediciones row (the one created via add).
+ * The button therefore takes the local edicion's id (not just the
+ * taller id) so we never touch other rows belonging to the same
+ * taller (e.g. the older Legacy edicion that may still exist).
  *
  * Only available while the global is in 'borrador' (the parent page
  * does NOT render this otherwise — see `[id]/page.tsx`). Uses an
@@ -17,11 +23,20 @@ import { removeTallerFromEdicionGlobalAction } from './actions'
 
 interface Input {
   readonly edicionGlobalId: string
-  readonly tallerId: string
+  /**
+   * The taller_ediciones row that was created when this taller was
+   * added to the current global. Removing it clears the FK on this
+   * specific row (we do not blanket-update all rows for the taller).
+   */
+  readonly edicionLocalId: string
   readonly tallerNombre: string
 }
 
-export function RemoveTallerButton({ edicionGlobalId, tallerId, tallerNombre }: Input): ReactElement {
+export function RemoveTallerButton({
+  edicionGlobalId,
+  edicionLocalId,
+  tallerNombre,
+}: Input): ReactElement {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +47,7 @@ export function RemoveTallerButton({ edicionGlobalId, tallerId, tallerNombre }: 
     startTransition(async () => {
       const result = await removeTallerFromEdicionGlobalAction({
         edicion_global_id: edicionGlobalId,
-        taller_id: tallerId,
+        edicion_local_id: edicionLocalId,
       })
       if (result.ok) {
         router.refresh()
