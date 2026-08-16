@@ -89,10 +89,13 @@ export default async function EdicionGlobalDetailPage(ctx: RouteContext) {
   // Warning: any participant taller that's also in another global
   // abierta (overlap). Cheap query — we only do it for the detail page,
   // not the list.
+  //
+  // PR31: walk taller_ediciones via edicion_global_id (junction dropped).
   const { data: overlapRows } = await client
-    .from('taller_edicion_global_participantes')
+    .from('taller_ediciones')
     .select('taller_id, edicion_global_id, taller_ediciones_globales!inner(id, slug, estado)')
     .in('taller_id', edicion.participantes.map((p) => p.id))
+    .not('edicion_global_id', 'is', null)
 
   const overlapWarnings = (overlapRows ?? [])
     .map((row: Record<string, unknown>) => {
@@ -225,7 +228,7 @@ export default async function EdicionGlobalDetailPage(ctx: RouteContext) {
                       {editable && (
                         <RemoveTallerButton
                           edicionGlobalId={edicion.id}
-                          tallerId={p.id}
+                          edicionLocalId={p.edicion_local_id ?? ''}
                           tallerNombre={p.nombre}
                         />
                       )}
