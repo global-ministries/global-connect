@@ -420,14 +420,14 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                     {hasChildren ? (
                       <>
                         {/* Parent item with chevron toggle */}
-                        <div className="flex items-center">
+                        <div className="flex items-center min-w-0">
                           <Link
                             href={item.href}
                             prefetch={false}
                             aria-current={exactActive ? "page" : undefined}
                             className={cn(
                               linkClasses(parentActive),
-                              "flex-1",
+                              "flex-1 min-w-0",
                               !isCollapsed && "pr-1"
                             )}
                             onMouseEnter={(e) => showTooltip(e, item.label)}

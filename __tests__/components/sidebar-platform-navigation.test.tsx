@@ -192,46 +192,51 @@ describe('SidebarModerna platform navigation', () => {
     expect(screen.queryByRole('link', { name: 'DPS Música' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Administración DPS' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Administración NextGen' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Administración Talleres' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Talleres' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '1:1 Global' })).not.toBeInTheDocument()
   })
 
   // ─── PR25 — talleres sub-menu render path ────────────────────────────────
   //
-  // The talleres admin parent (id: `platform-talleres_admin-taller-global`)
-  // must render the role-grouped sub-menu — including the new
+  // The talleres parent (id: `platform-talleres_participation-taller-global`)
+  // must render the role-grouped sub-menu — including the
   // `talleres_admin_abstracto` entry-point — when the user holds
   // `talleres_crecimiento.admin.manage` even if no other talleres cap is
   // present. PR25 removed the `&& isOpen` guard from the sub-menu render
   // because platform items never expose a chevron (`children?: never`),
   // so the chevron-toggled path was unreachable for them.
 
-  it('PR25: renders the talleres admin sub-menu for an admin user (no participation.read needed)', async () => {
+  it('PR25: renders the talleres admin sub-menu for an admin user (admin.manage + participation.read)', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPathname = '/admin/talleres/abstracto'
     currentPlatformSession = withCapabilities([
+      { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
       { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
     ])
 
     render(<SidebarModerna />)
 
-    // The admin parent entry must appear (fixed href in PR25 = /admin/talleres/abstracto).
-    // Use a manual query so we don't depend on accessible-name resolution
-    // for the platform item (whose SVG icon renders an SVG title that
-    // can interfere with name lookups in some jsdom configs).
+    // PR28: the talleres parent is now `talleres_participation`
+    // (href `/talleres/explorar`), not a standalone `talleres_admin`
+    // item. The parent must render because the user has both
+    // `participation.read` (gates the parent) and `admin.manage`
+    // (gates the sub-item). Use a manual query so we don't depend
+    // on accessible-name resolution for the platform item (whose
+    // SVG icon renders an SVG title that can interfere with name
+    // lookups in some jsdom configs).
     await waitFor(() => {
-      const adminLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
-      expect(adminLinks.length).toBeGreaterThanOrEqual(1)
+      const parentLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/explorar')
+      expect(parentLinks.length).toBeGreaterThanOrEqual(1)
     })
 
-    // The role-grouped sub-menu must mount under the admin parent.
-    // With admin.manage as the ONLY taller cap, the sub-menu shows the
-    // single abstracto entry-point (PR25: previously the sub-menu
-    // returned [] and never rendered for admin-only users).
+    // The role-grouped sub-menu must mount under the parent. With
+    // admin.manage present, the sub-menu shows the single abstracto
+    // entry-point (PR25: previously the sub-menu returned [] and
+    // never rendered for admin-only users).
     await waitFor(() => {
-      const subLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
-      // Parent + sub-menu link both point to /admin/talleres/abstracto.
-      expect(subLinks.length).toBeGreaterThanOrEqual(2)
+      const subItemLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
+      // Parent (with auto-expand active) + sub-item link both render.
+      expect(subItemLinks.length).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -239,31 +244,34 @@ describe('SidebarModerna platform navigation', () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPathname = '/admin/talleres/abstracto'
     currentPlatformSession = withCapabilities([
+      { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
       { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
     ])
 
     render(<SidebarModerna />)
 
-    // Wait for the platform admin parent to render (it's fetched
-    // asynchronously by usePlatformNavigationViewItems).
+    // Wait for the platform talleres parent to render (it's fetched
+    // asynchronously by usePlatformNavigationViewItems). PR28: the
+    // parent is now `talleres_participation` (href `/talleres/explorar`),
+    // while the sub-item keeps the wizard URL `/admin/talleres/abstracto`.
     await waitFor(() => {
-      const adminLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
-      expect(adminLinks.length).toBeGreaterThanOrEqual(1)
+      const parentLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/explorar')
+      expect(parentLinks.length).toBeGreaterThanOrEqual(1)
     })
 
-    // The sub-menu link must be in the document after auto-expand
-    // resolves — both the parent and the sub-menu entry point at
-    // /admin/talleres/abstracto, so we count occurrences.
+    // The sub-menu item must be in the document after auto-expand
+    // resolves — when the pathname matches the sub-item URL, the
+    // parent opens and the sub-item renders.
     await waitFor(() => {
-      const allAdminLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
-      expect(allAdminLinks.length).toBeGreaterThanOrEqual(2)
+      const subItemLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
+      expect(subItemLinks.length).toBeGreaterThanOrEqual(1)
     })
 
-    // Belt-and-suspenders: the admin parent link's aria-current must
+    // Belt-and-suspenders: the sub-item link's aria-current must
     // reflect the active route once pathname matches.
     await waitFor(() => {
-      const adminParents = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto' && link.getAttribute('aria-current') === 'page')
-      expect(adminParents.length).toBeGreaterThanOrEqual(1)
+      const activeSubItems = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto' && link.getAttribute('aria-current') === 'page')
+      expect(activeSubItems.length).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -303,16 +311,19 @@ describe('SidebarModerna platform navigation', () => {
 
       currentPathname = '/admin/talleres/abstracto'
       currentPlatformSession = withCapabilities([
+        { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
         { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
       ])
 
       render(<SidebarModerna />)
 
-      // The admin parent must still render (gated by capability, not
-      // by the participant-facing flag).
+      // The talleres parent must still render (gated by capability,
+      // not by the participant-facing flag). PR28: parent href is
+      // `/talleres/explorar` (the participant landing); the sub-item
+      // keeps the wizard URL `/admin/talleres/abstracto`.
       await waitFor(() => {
-        const adminLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
-        expect(adminLinks.length).toBeGreaterThanOrEqual(1)
+        const parentLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/explorar')
+        expect(parentLinks.length).toBeGreaterThanOrEqual(1)
       })
 
       // The admin sub-item under the parent must also render. The
@@ -320,7 +331,7 @@ describe('SidebarModerna platform navigation', () => {
       // participant rollout stage — this is the production bug fix.
       await waitFor(() => {
         const subLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
-        expect(subLinks.length).toBeGreaterThanOrEqual(2)
+        expect(subLinks.length).toBeGreaterThanOrEqual(1)
       })
     } finally {
       flagsModule.isTalleresEnabled = originalIsTalleresEnabled
@@ -353,22 +364,26 @@ describe('SidebarModerna platform navigation', () => {
     // fire for the talleres parent.
     currentPathname = '/dashboard'
     currentPlatformSession = withCapabilities([
+      { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
       { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
     ])
 
     render(<SidebarModerna />)
 
     // The parent entry must appear (it's gated by the capability).
+    // PR28: the talleres parent is now `talleres_participation` with
+    // href `/talleres/explorar`; the admin sub-item keeps the
+    // wizard URL `/admin/talleres/abstracto`.
     await waitFor(() => {
-      const adminParents = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
-      expect(adminParents.length).toBeGreaterThanOrEqual(1)
+      const parentLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/explorar')
+      expect(parentLinks.length).toBeGreaterThanOrEqual(1)
     })
 
     // PR27 — the chevron button must be present (it wasn't before
     // this PR because platform items never exposed a chevron).
     const chevronButton = await waitFor(() => {
       const buttons = screen.getAllByRole('button').filter(
-        (btn) => btn.getAttribute('aria-label')?.startsWith('Abrir submenú de Administración Talleres')
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Abrir submenú de Talleres')
       )
       expect(buttons.length).toBeGreaterThanOrEqual(1)
       return buttons[0]
@@ -388,8 +403,14 @@ describe('SidebarModerna platform navigation', () => {
 
   it('PR27: submenu is auto-expanded when pathname matches the talleres parent', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
-    currentPathname = '/admin/talleres/abstracto'
+    // PR28: the talleres parent is now `talleres_participation` with
+    // href `/talleres/explorar` (the participant landing). The
+    // sub-item keeps the wizard URL `/admin/talleres/abstracto`. The
+    // auto-expand useEffect matches the parent href, so we drive
+    // the test via the parent's own URL.
+    currentPathname = '/talleres/explorar'
     currentPlatformSession = withCapabilities([
+      { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
       { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
     ])
 
@@ -399,7 +420,7 @@ describe('SidebarModerna platform navigation', () => {
     // route matches. The chevron must reflect the open state.
     const chevronButton = await waitFor(() => {
       const buttons = screen.getAllByRole('button').filter(
-        (btn) => btn.getAttribute('aria-label')?.startsWith('Cerrar submenú de Administración Talleres')
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Cerrar submenú de Talleres')
       )
       expect(buttons.length).toBeGreaterThanOrEqual(1)
       return buttons[0]
@@ -412,12 +433,15 @@ describe('SidebarModerna platform navigation', () => {
     expect(submenuContainer).toHaveClass('max-h-[500px]')
     expect(submenuContainer).toHaveClass('opacity-100')
 
-    // The parent + sub-menu link are both in the DOM (both point to
-    // /admin/talleres/abstracto) — confirms the sub-menu actually
-    // mounted for an admin on the matching route.
+    // The talleres parent link must be in the DOM at the matching
+    // URL, and the role-grouped sub-menu (which contains the admin
+    // abstracto entry-point) must also mount — confirms the
+    // sub-menu actually mounted for an admin on the matching route.
     await waitFor(() => {
-      const adminLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
-      expect(adminLinks.length).toBeGreaterThanOrEqual(2)
+      const parentLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/explorar')
+      expect(parentLinks.length).toBeGreaterThanOrEqual(1)
+      const subLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/admin/talleres/abstracto')
+      expect(subLinks.length).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -427,6 +451,7 @@ describe('SidebarModerna platform navigation', () => {
     // pre-open the parent — we want to assert pure manual toggle.
     currentPathname = '/dashboard'
     currentPlatformSession = withCapabilities([
+      { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
       { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
     ])
 
@@ -436,7 +461,7 @@ describe('SidebarModerna platform navigation', () => {
     // container shows max-h-0 / opacity-0.
     const closedChevron = await waitFor(() => {
       const buttons = screen.getAllByRole('button').filter(
-        (btn) => btn.getAttribute('aria-label')?.startsWith('Abrir submenú de Administración Talleres')
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Abrir submenú de Talleres')
       )
       expect(buttons.length).toBeGreaterThanOrEqual(1)
       return buttons[0]
@@ -449,7 +474,7 @@ describe('SidebarModerna platform navigation', () => {
     fireEvent.click(closedChevron)
     const openChevron = await waitFor(() => {
       const buttons = screen.getAllByRole('button').filter(
-        (btn) => btn.getAttribute('aria-label')?.startsWith('Cerrar submenú de Administración Talleres')
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Cerrar submenú de Talleres')
       )
       expect(buttons.length).toBeGreaterThanOrEqual(1)
       return buttons[0]
@@ -463,7 +488,7 @@ describe('SidebarModerna platform navigation', () => {
     fireEvent.click(openChevron)
     await waitFor(() => {
       const buttons = screen.getAllByRole('button').filter(
-        (btn) => btn.getAttribute('aria-label')?.startsWith('Abrir submenú de Administración Talleres')
+        (btn) => btn.getAttribute('aria-label')?.startsWith('Abrir submenú de Talleres')
       )
       expect(buttons.length).toBeGreaterThanOrEqual(1)
       expect(buttons[0]).toHaveAttribute('aria-expanded', 'false')

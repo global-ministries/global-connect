@@ -21,7 +21,6 @@ export type PlatformNavigationItemId =
   | 'talleres_participation'
   | 'dps_admin'
   | 'nextgen_admin'
-  | 'talleres_admin'
   | 'uno_a_uno_global'
   | 'pastor_dashboard'
   | 'pastor_usuarios'
@@ -87,10 +86,9 @@ const PLATFORM_NAVIGATION_DEFINITIONS = [
   { id: 'dps_team_service', capability: 'dps.team.serve', label: 'DPS', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'required' } },
   { id: 'ninos_room_context', capability: 'ninos.room.read', label: 'Niños', experience: 'ninos', fallbackScope: { experience: 'ninos', type: 'salon', id: 'required' } },
   { id: 'estudiantes_room_context', capability: 'estudiantes.room.read', label: 'Estudiantes', experience: 'estudiantes', fallbackScope: { experience: 'estudiantes', type: 'salon', id: 'required' } },
-  { id: 'talleres_participation', capability: 'talleres_crecimiento.participation.read', label: 'Talleres de Crecimiento', availableHref: '/talleres/explorar', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
+  { id: 'talleres_participation', capability: 'talleres_crecimiento.participation.read', label: 'Talleres', availableHref: '/talleres/explorar', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
   { id: 'dps_admin', capability: 'dps.admin.manage', label: 'Administración DPS', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'global' } },
   { id: 'nextgen_admin', capability: 'nextgen.admin.manage', label: 'Administración NextGen', experience: 'nextgen', fallbackScope: { experience: 'nextgen', type: 'experience' } },
-  { id: 'talleres_admin', capability: 'talleres_crecimiento.admin.manage', label: 'Administración Talleres', availableHref: '/admin/talleres/abstracto', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
   { id: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.itemId, capability: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.capability, label: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.label, experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, fallbackScope: { experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, type: 'experience' } },
   { id: 'pastor_dashboard', capability: 'pastoral.read.all', label: 'Sesiones 1:1', availableHref: '/pastor', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
   { id: 'pastor_usuarios', capability: 'pastoral.admin.manage', label: 'Gestión de Usuarios', availableHref: '/pastor/usuarios', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
