@@ -104,6 +104,12 @@ export default async function TalleresAbstractosIndex() {
           abrir una edición específica de un grupo existente, usá la página
           del grupo (PR23.2).
         </TextoSistema>
+        <Link
+          href="/admin/talleres/ediciones-globales"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[var(--brand-primary)] hover:underline"
+        >
+          Ver ediciones globales →
+        </Link>
       </TarjetaSistema>
 
       {hasCap ? (

@@ -1,0 +1,438 @@
+/**
+ * @jest-environment node
+ *
+ * PR29-D — Unit tests for `lib/platform/talleres/ediciones-globales.ts`.
+ *
+ * Covers:
+ *   - requireEdicionesGlobalesRole: kill switch / auth / capability
+ *     gate, ok on director.write or admin.manage
+ *   - loadEdicionesGlobales: maps the join count and orders by
+ *     fecha_apertura DESC
+ *   - loadEdicionGlobalById: returns null on missing, joins
+ *     participantes with edicion local
+ *   - loadTalleresDisponibles: filters out talleres already in the
+ *     global
+ *
+ * All tests mock `createSupabaseServerClient`, the flag module and
+ * the session resolver. Tests do not hit the database.
+ */
+
+import {
+  loadEdicionGlobalById,
+  loadEdicionesGlobales,
+  loadTalleresDisponibles,
+  requireEdicionesGlobalesRole,
+  type EdicionGlobal,
+  type EdicionGlobalDetalle,
+} from '@/lib/platform/talleres/ediciones-globales'
+
+jest.mock('@/lib/platform/talleres/flags', () => ({
+  isTalleresEnabled: jest.fn(() => true),
+}))
+
+jest.mock('@/lib/supabase/server', () => ({
+  createSupabaseServerClient: jest.fn(),
+}))
+
+jest.mock('@/lib/auth/platformSessionReadOnly', () => ({
+  findPlatformSessionPersonaByAuthId: jest.fn(),
+  resolveReadOnlyPlatformSession: jest.fn(),
+}))
+
+const flagsMock = jest.requireMock('@/lib/platform/talleres/flags')
+  .isTalleresEnabled as jest.Mock
+const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
+  .createSupabaseServerClient as jest.Mock
+const findPersonaByAuthIdMock = jest.requireMock(
+  '@/lib/auth/platformSessionReadOnly',
+).findPlatformSessionPersonaByAuthId as jest.Mock
+const resolveSessionMock = jest.requireMock(
+  '@/lib/auth/platformSessionReadOnly',
+).resolveReadOnlyPlatformSession as jest.Mock
+
+interface QueryLogEntry {
+  readonly table: string
+  readonly filters: Readonly<Record<string, unknown>>
+  readonly ordering?: { column: string; ascending: boolean }
+  readonly limit?: number
+}
+
+interface ChainStub {
+  select: jest.Mock
+  eq: jest.Mock
+  order: jest.Mock
+  limit: jest.Mock
+  maybeSingle: jest.Mock
+  in: jest.Mock
+}
+
+function buildClient(opts: {
+  isEnabled?: boolean
+  user?: { id: string } | null
+  personaId?: string | null
+  capabilities?: string[]
+  /** Map of `table -> [data]` for the queue of `select(...)` responses. */
+  tableResponses?: Record<string, unknown>
+}): { client: unknown; queryLog: QueryLogEntry[] } {
+  flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
+  findPersonaByAuthIdMock.mockReset().mockImplementation(() =>
+    Promise.resolve(
+      opts.personaId
+        ? { id: opts.personaId, authId: 'auth-1', globalRoles: [] }
+        : null,
+    ),
+  )
+  resolveSessionMock.mockReset().mockResolvedValue(
+    opts.personaId
+      ? {
+          personaId: opts.personaId,
+          subjectAuthId: 'auth-1',
+          globalRoles: [],
+          contexts: [],
+          capabilities: (opts.capabilities ?? []).map((key) => ({
+            key,
+            experience: 'talleres_crecimiento',
+            scopeType: 'taller',
+            source: 'test',
+          })),
+        }
+      : null,
+  )
+
+  const queryLog: QueryLogEntry[] = []
+  const tableResponses = opts.tableResponses ?? {}
+  const getResponse = (table: string): unknown => {
+    // Pop the next response from the table's queue (LIFO).
+    const arr = (tableResponses[table] ?? []) as unknown[]
+    if (arr.length === 0) return null
+    return arr.shift()
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic stub
+  const client: any = {
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: opts.user ?? { id: 'auth-1' } },
+        error: null,
+      }),
+    },
+    from: (table: string) => {
+      const filters: Record<string, unknown> = {}
+      let ordering: { column: string; ascending: boolean } | undefined
+      let limitN: number | undefined
+      const chain: ChainStub = {
+        select: jest.fn().mockImplementation(() => chain),
+        eq: jest.fn().mockImplementation((col: string, value: unknown) => {
+          filters[col] = value
+          return chain
+        }),
+        in: jest.fn().mockImplementation((col: string, values: unknown) => {
+          filters[col] = values
+          return chain
+        }),
+        order: jest.fn().mockImplementation((col: string, opts2?: { ascending?: boolean }) => {
+          ordering = { column: col, ascending: opts2?.ascending ?? true }
+          return chain
+        }),
+        limit: jest.fn().mockImplementation((n: number) => {
+          limitN = n
+          return chain
+        }),
+        maybeSingle: jest.fn().mockImplementation(async () => {
+          queryLog.push({ table, filters: { ...filters }, ordering, limit: limitN })
+          const v = getResponse(table)
+          return { data: v, error: null }
+        }),
+      }
+      // Top-level await — most `await client.from(t).select(...).eq(...).maybeSingle()`
+      // chains end with maybeSingle; some end with await (without calling
+      // maybeSingle). Handle both.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- top-level thenable
+      ;(chain as any).then = (onFulfilled: (v: { data: unknown }) => unknown) => {
+        queryLog.push({ table, filters: { ...filters }, ordering, limit: limitN })
+        const v = getResponse(table)
+        return Promise.resolve({ data: v, error: null }).then(onFulfilled)
+      }
+      return chain
+    },
+  }
+
+  createSupabaseServerClientMock.mockReset().mockResolvedValue(client)
+  return { client, queryLog }
+}
+
+beforeEach(() => {
+  jest.clearAllMocks()
+})
+
+// ─── requireEdicionesGlobalesRole ────────────────────────────────────────
+
+describe('requireEdicionesGlobalesRole', () => {
+  it('returns not-found when feature flag is off', async () => {
+    buildClient({ isEnabled: false })
+    const result = await requireEdicionesGlobalesRole()
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+  })
+
+  it('returns unauthorized when no user is signed in', async () => {
+    buildClient({ user: null })
+    const result = await requireEdicionesGlobalesRole()
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+  })
+
+  it('returns unauthorized when persona cannot be resolved', async () => {
+    buildClient({ personaId: null })
+    const result = await requireEdicionesGlobalesRole()
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+  })
+
+  it('returns forbidden when neither director.write nor admin.manage is held', async () => {
+    buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.participation.read'],
+    })
+    const result = await requireEdicionesGlobalesRole()
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
+  })
+
+  it('returns ok for director.write', async () => {
+    buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+    })
+    const result = await requireEdicionesGlobalesRole()
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.personaId).toBe('p-1')
+  })
+
+  it('returns ok for admin.manage', async () => {
+    buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    const result = await requireEdicionesGlobalesRole()
+    expect(result.ok).toBe(true)
+  })
+})
+
+// ─── loadEdicionesGlobales ───────────────────────────────────────────────
+
+describe('loadEdicionesGlobales', () => {
+  it('returns an empty array when the underlying query errors', async () => {
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    // Force `from(...).select(...).order(...).limit(...)` (await) to
+    // resolve to null by NOT adding a table response for that table.
+    const result = await loadEdicionesGlobales(client)
+    expect(result).toEqual([])
+  })
+
+  it('maps the participant count from the joined row', async () => {
+    const sampleRows = [
+      {
+        id: 'g-1',
+        nombre: 'Otoño 2026',
+        slug: 'otono-2026',
+        descripcion: 'Temporada de otoño',
+        fecha_apertura: '2026-09-01T00:00:00.000Z',
+        fecha_cierre: '2026-12-15T00:00:00.000Z',
+        estado: 'borrador',
+        created_by_persona_id: 'p-1',
+        created_at: '2026-08-16T00:00:00.000Z',
+        updated_at: '2026-08-16T00:00:00.000Z',
+        version: 1,
+        taller_edicion_global_participantes: [{ count: 3 }],
+      },
+      {
+        id: 'g-2',
+        nombre: 'Edición Legacy',
+        slug: 'legacy-pre-pr29',
+        descripcion: null,
+        fecha_apertura: '2025-01-01T00:00:00.000Z',
+        fecha_cierre: '2030-12-31T23:59:59.000Z',
+        estado: 'borrador',
+        created_by_persona_id: null,
+        created_at: '2025-01-01T00:00:00.000Z',
+        updated_at: '2025-01-01T00:00:00.000Z',
+        version: 1,
+        taller_edicion_global_participantes: [],
+      },
+    ]
+
+    // Override the chain so the top-level await (without maybeSingle)
+    // resolves to the sample.
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    const origFrom = (client as { from: (t: string) => unknown }).from
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- replacement
+    ;(client as any).from = (table: string) => {
+      const chain = origFrom(table)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- extend
+      ;(chain as any).then = (onFulfilled: (v: { data: unknown }) => unknown) => {
+        if (table === 'taller_ediciones_globales') {
+          return Promise.resolve({ data: sampleRows, error: null }).then(onFulfilled)
+        }
+        return Promise.resolve({ data: null, error: null }).then(onFulfilled)
+      }
+      return chain
+    }
+
+    const result = await loadEdicionesGlobales(client)
+    expect(result.length).toBe(2)
+    const first = result[0] as EdicionGlobal
+    expect(first.id).toBe('g-1')
+    expect(first.nombre).toBe('Otoño 2026')
+    expect(first.participantes_count).toBe(3)
+    const second = result[1] as EdicionGlobal
+    expect(second.participantes_count).toBe(0)
+    expect(second.slug).toBe('legacy-pre-pr29')
+  })
+
+  it('orders by fecha_apertura DESC', async () => {
+    const { client, queryLog } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    await loadEdicionesGlobales(client)
+    const globalQuery = queryLog.find((q) => q.table === 'taller_ediciones_globales')
+    expect(globalQuery?.ordering).toEqual({ column: 'fecha_apertura', ascending: false })
+  })
+})
+
+// ─── loadEdicionGlobalById ───────────────────────────────────────────────
+
+describe('loadEdicionGlobalById', () => {
+  it('returns null when the global row is missing', async () => {
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    const result = await loadEdicionGlobalById(client, 'g-missing')
+    expect(result).toBeNull()
+  })
+
+  it('hydrates participantes with edicion local id and estado', async () => {
+    const globalRow = {
+      id: 'g-1',
+      nombre: 'Otoño 2026',
+      slug: 'otono-2026',
+      descripcion: null,
+      fecha_apertura: '2026-09-01T00:00:00.000Z',
+      fecha_cierre: '2026-12-15T00:00:00.000Z',
+      estado: 'borrador',
+      created_by_persona_id: 'p-1',
+      created_at: '2026-08-16T00:00:00.000Z',
+      updated_at: '2026-08-16T00:00:00.000Z',
+      version: 1,
+    }
+
+    const participantesRows = [
+      {
+        taller_id: 't-1',
+        talleres: {
+          id: 't-1',
+          slug: 'matrimoniosobrela-roca',
+          nombre: 'Matrimonio sobre la Roca',
+          modalidad_default: 'periodo_general',
+          estado: 'active',
+        },
+        taller_ediciones: [{ id: 'te-1', estado: 'borrador' }],
+      },
+    ]
+
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+      tableResponses: {
+        taller_ediciones_globales: [globalRow],
+        taller_edicion_global_participantes: [participantesRows],
+      },
+    })
+
+    const result = await loadEdicionGlobalById(client, 'g-1')
+    expect(result).not.toBeNull()
+    const r = result as EdicionGlobalDetalle
+    expect(r.nombre).toBe('Otoño 2026')
+    expect(r.participantes.length).toBe(1)
+    expect(r.participantes[0]?.id).toBe('t-1')
+    expect(r.participantes[0]?.edicion_local_id).toBe('te-1')
+    expect(r.participantes[0]?.edicion_local_estado).toBe('borrador')
+    expect(r.participantes_count).toBe(1)
+  })
+
+  it('returns an empty participantes array when the junction is empty', async () => {
+    const globalRow = {
+      id: 'g-1',
+      nombre: 'Vacía',
+      slug: 'vacia',
+      descripcion: null,
+      fecha_apertura: '2026-09-01T00:00:00.000Z',
+      fecha_cierre: '2026-12-15T00:00:00.000Z',
+      estado: 'borrador',
+      created_by_persona_id: 'p-1',
+      created_at: '2026-08-16T00:00:00.000Z',
+      updated_at: '2026-08-16T00:00:00.000Z',
+      version: 1,
+    }
+
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+      tableResponses: {
+        taller_ediciones_globales: [globalRow],
+        taller_edicion_global_participantes: [[]],
+      },
+    })
+
+    const result = await loadEdicionGlobalById(client, 'g-1')
+    expect(result?.participantes).toEqual([])
+    expect(result?.participantes_count).toBe(0)
+  })
+})
+
+// ─── loadTalleresDisponibles ─────────────────────────────────────────────
+
+describe('loadTalleresDisponibles', () => {
+  it('returns only talleres not already in the global', async () => {
+    const yaEnGlobal = [{ taller_id: 't-2' }]
+    const talleresActivos = [
+      { id: 't-1', slug: 'a', nombre: 'A', modalidad_default: 'periodo_general', estado: 'active' },
+      { id: 't-2', slug: 'b', nombre: 'B', modalidad_default: 'periodo_general', estado: 'active' },
+      { id: 't-3', slug: 'c', nombre: 'C', modalidad_default: 'permanente_custom', estado: 'active' },
+    ]
+
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+      tableResponses: {
+        taller_edicion_global_participantes: [yaEnGlobal],
+        talleres: [talleresActivos],
+      },
+    })
+
+    const result = await loadTalleresDisponibles(client, 'g-1')
+    expect(result.map((t) => t.id).sort()).toEqual(['t-1', 't-3'])
+  })
+
+  it('returns [] when the talleres query errors', async () => {
+    const { client } = buildClient({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.admin.manage'],
+      tableResponses: {
+        taller_edicion_global_participantes: [[]],
+        // talleres intentionally missing → resolves to null
+      },
+    })
+
+    const result = await loadTalleresDisponibles(client, 'g-1')
+    expect(result).toEqual([])
+  })
+})
