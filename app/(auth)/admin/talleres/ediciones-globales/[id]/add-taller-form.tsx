@@ -25,9 +25,17 @@ interface TallerOption {
 interface Input {
   readonly edicionGlobalId: string
   readonly disponibles: ReadonlyArray<TallerOption>
+  /**
+   * Total count of active talleres in the DB (before filtering by
+   * junction). When `disponibles.length === 0 && totalActivos > 0`,
+   * all active talleres are already in this edition — the UI should
+   * say so explicitly instead of implying there are no active
+   * talleres in the system.
+   */
+  readonly totalActivos: number
 }
 
-export function AddTallerForm({ edicionGlobalId, disponibles }: Input): ReactElement {
+export function AddTallerForm({ edicionGlobalId, disponibles, totalActivos }: Input): ReactElement {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -51,9 +59,18 @@ export function AddTallerForm({ edicionGlobalId, disponibles }: Input): ReactEle
   }
 
   if (disponibles.length === 0) {
+    // Distinguish "DB has no active talleres" (data problem) from
+    // "all active talleres are already in this edition" (UX clarity).
+    // The previous message conflated the two and misled admins into
+    // thinking the dropdown was broken when in reality all talleres
+    // were already associated.
+    const message =
+      totalActivos === 0
+        ? 'No hay grupos activos en el sistema. Pedile al admin que cree uno nuevo.'
+        : `Todos los grupos activos (${totalActivos}) ya forman parte de esta edición.`
     return (
       <TextoSistema variante="sutil" className="block text-sm">
-        No hay grupos activos disponibles para agregar.
+        {message}
       </TextoSistema>
     )
   }
