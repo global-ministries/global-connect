@@ -19,13 +19,6 @@
  * Counter badges: only displayed when count > 0 (avoid noise on empty
  * lists). Counter color matches the role group (P=info, L=info,
  * C=warning for pendientes, D=info).
- *
- * PR29-D — Hardcoded admin sub-item `talleres_admin_ediciones_globales`.
- * This item is NOT in `TALLERES_NAV_ITEMS` (which is treated as
- * protected in PR29-D's scope — its byte-identity must not change for
- * this PR). Instead, the nav-submenu injects the item locally for users
- * with `talleres_crecimiento.admin.manage`, so admins see the
- * Ediciones Globales entry-point under the same Administración group.
  */
 
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
@@ -186,25 +179,6 @@ export function TalleresNavSubmenu({ sessionCapabilities, counters: propCounters
     // when the participant flag is off. The admin group remains
     // visible to admins in all rollout stages.
     const all = getTalleresNavItems(sessionCapabilities, { isEnabled: true })
-
-    // PR29-D — Append the Ediciones Globales admin sub-item locally
-    // (NOT via TALLERES_NAV_ITEMS, which is byte-identity-protected for
-    // this PR's scope). Only visible to admin.manage holders. When the
-    // participant flag is off we already filter to admin-only items,
-    // so this also stays visible in admin-only mode.
-    const hasAdmin = sessionCapabilities.includes('talleres_crecimiento.admin.manage')
-    if (hasAdmin) {
-      // The id is not in the TalleresNavItemId union (intentional — we
-      // can't edit TALLERES_NAV_ITEMS for this PR). The cast is safe:
-      // `groupTalleresNavItems` dispatches via `startsWith('talleres_admin_')`
-      // which covers our new id.
-      all.push({
-        id: 'talleres_admin_ediciones_globales' as TalleresNavItem['id'],
-        label: 'Ediciones Globales',
-        href: '/admin/talleres/ediciones-globales',
-        requiredCapability: 'talleres_crecimiento.admin.manage',
-      })
-    }
 
     if (isTalleresEnabled()) return all
     return all.filter((item) => item.requiredCapability === 'talleres_crecimiento.admin.manage')

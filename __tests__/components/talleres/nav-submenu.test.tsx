@@ -4,8 +4,6 @@
  * Covers:
  *   - counterVariantFor: warning for pendientes, info otherwise
  *   - counters fetch behavior (4 capability profiles)
- *   - PR29-D: the hardcoded admin-only "Ediciones Globales" sub-item
- *     is visible to admin.manage holders (and not to other roles).
  */
 
 import { render, screen, waitFor } from '@testing-library/react'
@@ -148,79 +146,5 @@ describe('TalleresNavSubmenu — counters fetch behavior', () => {
   it('fetches 1 L counter (mis grupos) when user has lead.read', async () => {
     const count = await runFetchTest(['talleres_crecimiento.lead.read'], 1)
     expect(count).toBeGreaterThanOrEqual(1)
-  })
-})
-
-// ─── PR29-D — Ediciones Globales admin sub-item ─────────────────────────
-
-describe('TalleresNavSubmenu — PR29-D Ediciones Globales admin sub-item', () => {
-  function makeNoopClientMock() {
-    return () => ({
-      auth: {
-        getUser: () =>
-          Promise.resolve({ data: { user: null }, error: null }),
-      },
-      from: () => {
-        const chain: {
-          select: jest.Mock
-          eq: jest.Mock
-          in: jest.Mock
-          is: jest.Mock
-          then: <T>(onFulfilled: (v: { count: number }) => T) => Promise<T>
-        } = {
-          select: jest.fn(),
-          eq: jest.fn(),
-          in: jest.fn(),
-          is: jest.fn(),
-          then: (onFulfilled) => Promise.resolve({ count: 0 }).then(onFulfilled),
-        }
-        chain.select.mockImplementation(() => chain)
-        chain.eq.mockImplementation(() => chain)
-        chain.in.mockImplementation(() => chain)
-        chain.is.mockImplementation(() => chain)
-        return chain
-      },
-    })
-  }
-
-  it('renders the Ediciones Globales item for admin.manage holders', async () => {
-    createClientMock.mockImplementation(makeNoopClientMock())
-    render(
-      React.createElement(TalleresNavSubmenu, {
-        sessionCapabilities: ['talleres_crecimiento.admin.manage'],
-      }),
-    )
-    await waitFor(() => {
-      expect(screen.getByText('Ediciones Globales')).toBeInTheDocument()
-    })
-  })
-
-  it('links Ediciones Globales to /admin/talleres/ediciones-globales', async () => {
-    createClientMock.mockImplementation(makeNoopClientMock())
-    render(
-      React.createElement(TalleresNavSubmenu, {
-        sessionCapabilities: ['talleres_crecimiento.admin.manage'],
-      }),
-    )
-    await waitFor(() => {
-      const link = screen.getByText('Ediciones Globales').closest('a')
-      expect(link).not.toBeNull()
-      expect((link as HTMLAnchorElement).getAttribute('href')).toBe(
-        '/admin/talleres/ediciones-globales',
-      )
-    })
-  })
-
-  it('does NOT render Ediciones Globales for non-admin roles', async () => {
-    createClientMock.mockImplementation(makeNoopClientMock())
-    render(
-      React.createElement(TalleresNavSubmenu, {
-        sessionCapabilities: ['talleres_crecimiento.participation.read'],
-      }),
-    )
-    // The participation-only sub-menu renders only the P items, none
-    // of which is admin. Wait a tick for any async effects.
-    await new Promise((r) => setTimeout(r, 50))
-    expect(screen.queryByText('Ediciones Globales')).toBeNull()
   })
 })

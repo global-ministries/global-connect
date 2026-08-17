@@ -93,35 +93,9 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
     caps.includes('talleres_crecimiento.director.write') ||
     caps.includes('talleres_crecimiento.admin.manage')
 
-  // PR29-D — load the global association for the banner (if any).
-  // Query the most recent local edition to read its edicion_global_id
-  // (the canonical place where the FK lives per PR29-B).
-  const { data: edicionConGlobal } = await client
-    .from('talleres_crecimiento_metadata')
-    .select('edicion_global_id')
-    .eq('taller_id', taller.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const edicionGlobalId: string | null =
-    (edicionConGlobal as { edicion_global_id: string | null } | null)?.edicion_global_id ?? null
-
-  let edicionGlobalSummary: { id: string; nombre: string; estado: 'borrador' | 'abierto' | 'cerrado' | 'cancelado' } | null = null
-  if (edicionGlobalId) {
-    const { data: g } = await client
-      .from('taller_ediciones_globales')
-      .select('id, nombre, estado')
-      .eq('id', edicionGlobalId)
-      .maybeSingle()
-    if (g) {
-      edicionGlobalSummary = g as { id: string; nombre: string; estado: 'borrador' | 'abierto' | 'cerrado' | 'cancelado' }
-    }
-  }
-
   // Fetch ediciones for this taller
   const { data: edicionesData } = await client
-    .from('talleres_crecimiento_metadata')
+    .from('taller_ediciones')
     .select('id, nombre_snapshot, estado, created_at')
     .eq('taller_id', taller.id)
     .order('created_at', { ascending: false })
@@ -155,51 +129,6 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
           </BadgeSistema>
         </div>
       </TarjetaSistema>
-
-      {/* PR29-D — Cross-link banner: this taller's current global. */}
-      {edicionGlobalSummary ? (
-        <TarjetaSistema variante="outlined" className="mb-4 p-3 text-sm">
-          <TextoSistema>
-            Esta edición pertenece a la global:{' '}
-            <Link
-              href={`/admin/talleres/ediciones-globales/${edicionGlobalSummary.id}`}
-              className="font-medium text-[var(--brand-primary)] hover:underline"
-            >
-              {edicionGlobalSummary.nombre}
-            </Link>{' '}
-            <BadgeSistema
-              tamaño="sm"
-              variante={
-                edicionGlobalSummary.estado === 'abierto'
-                  ? 'success'
-                  : edicionGlobalSummary.estado === 'borrador'
-                    ? 'info'
-                    : edicionGlobalSummary.estado === 'cancelado'
-                      ? 'error'
-                      : 'default'
-              }
-            >
-              {edicionGlobalSummary.estado}
-            </BadgeSistema>
-          </TextoSistema>
-        </TarjetaSistema>
-      ) : hasCap ? (
-        <TarjetaSistema
-          variante="outlined"
-          className="mb-4 border-yellow-400 bg-yellow-50 p-3 text-sm"
-        >
-          <TextoSistema>
-            <strong>⚠ Sin global asociada</strong> — este taller no está en
-            ninguna edición global.{' '}
-            <Link
-              href="/admin/talleres/ediciones-globales"
-              className="font-medium text-[var(--brand-primary)] hover:underline"
-            >
-              Asociar a una edición global existente →
-            </Link>
-          </TextoSistema>
-        </TarjetaSistema>
-      ) : null}
 
       {hasCap && (
         <div className="mb-6">
