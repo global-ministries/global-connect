@@ -2,6 +2,10 @@
  * PR18 — DT-072 — /talleres/explorar (RSC).
  * PR20 — wires the list into a client component (ExplorarTalleresClient)
  *        so that the FAB can react to selection.
+ * PR38 — each row now carries its own `cohorte_id` (joined server-side
+ *        in `loadParticipanteExplorar`). The page-level `defaultCohorteId`
+ *        lookup is kept as a back-compat fallback for legacy rows
+ *        created before PR37's cohorte backfill ran.
  *
  * Lists talleres currently open for enrollment (`estado='abierto'` or
  * `estado='en_curso'`). Participants see each taller with a flag
@@ -28,10 +32,10 @@ export default async function ExplorarTalleresPage() {
   const ctx = await requireParticipante()
   const talleres = await loadParticipanteExplorar(ctx)
 
-  // For the FAB we need a default cohorte id. The current participante
-  // model doesn't surface it on the listing; we look up the first
-  // active cohorte as a fallback. Future iteration: surface cohorte_id
-  // per-taller on the listing projection.
+  // PR38 — back-compat fallback. Each row already carries its own
+  // `cohorte_id` (joined server-side). This page-level lookup is
+  // only consulted when a row's per-taller cohorte_id is null
+  // (e.g. legacy rows from before PR37's backfill).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
   const cohorteRes = await client
@@ -57,10 +61,7 @@ export default async function ExplorarTalleresPage() {
           </TextoSistema>
         </TarjetaSistema>
         <ExplorarTalleresClient
-          talleres={talleres.map((t) => ({
-            ...t,
-            cohorte_id: defaultCohorteId,
-          }))}
+          talleres={talleres}
           defaultCohorteId={defaultCohorteId}
         />
       </div>

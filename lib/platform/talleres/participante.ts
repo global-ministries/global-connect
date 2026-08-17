@@ -200,15 +200,41 @@ export interface ParticipanteExplorarRow {
   readonly id: string
   readonly nombre: string
   readonly tipo: 'individual' | 'pareja'
-  readonly edicion: string
+  readonly edicion: string | null
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
+  /**
+   * cohorte_id of the cohorte (talleres_crecimiento_cohortes) that was
+   * created for this edicion. Per-row so each taller carries its own
+   * enrollment target (PR37 + PR38 fix). May be null for legacy rows
+   * created before PR37's backfill ran.
+   */
+  readonly cohorte_id: string | null
+  /**
+   * Modality of the abstract taller (talleres.modalidad_default).
+   * Surfaces as a label on the explorar card (PR38 — Issue #2).
+   */
+  readonly modalidad: 'periodo_general' | 'permanente_custom' | null
+  readonly descripcion: string | null
+  readonly fecha_apertura: string | null
+  readonly fecha_cierre: string | null
 }
 
 /**
  * Loads talleres currently open for enrollment (`estado='abierto'`).
  * Used by /talleres/explorar. Flags each taller with `ya_inscrito`
  * when the participant already has an active inscription.
+ *
+ * PR38 — also surfaces:
+ *   - `cohorte_id` (joined from `talleres_crecimiento_cohortes`,
+ *     so the inscribirme action can target the right cohorte
+ *     without an extra round-trip on the page).
+ *   - `modalidad` and `descripcion` (from the parent `talleres`).
+ *   - `fecha_apertura` / `fecha_cierre` (from the linked
+ *     `taller_periodos_generales` row, if any).
+ *
+ * These joins are server-side; the participante surface stays
+ * summary-only (no motivos, no asistencia, no reportes).
  */
 export async function loadParticipanteExplorar(
   ctx: ParticipanteContext
@@ -218,7 +244,12 @@ export async function loadParticipanteExplorar(
   const [talleresRes, inscripcionesRes] = await Promise.all([
     client
       .from('taller_ediciones')
-      .select('id, nombre_snapshot, tipo, estado')
+      .select(
+        `id, nombre_snapshot, tipo, estado,
+         taller:talleres (modalidad_default, descripcion),
+         cohorte:talleres_crecimiento_cohortes (id),
+         periodo:taller_periodos_generales (fecha_apertura_automatica, fecha_cierre_automatico)`,
+      )
       .in('estado', ['abierto', 'en_curso'])
       .order('created_at', { ascending: false }),
     client
@@ -235,20 +266,30 @@ export async function loadParticipanteExplorar(
     ),
   )
 
-  return ((talleresRes.data ?? []) as {
+  return ((talleresRes.data ?? []) as Array<{
     id: string
     nombre_snapshot: string
     tipo: 'individual' | 'pareja'
-    edicion: string
     estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
-  }[]).map((row) => ({
-    id: row.id,
-    nombre: row.nombre_snapshot,
-    tipo: row.tipo,
-    edicion: row.edicion,
-    estado: row.estado,
-    ya_inscrito: inscritosIds.has(row.id),
-  }))
+    taller: { modalidad_default: 'periodo_general' | 'permanente_custom'; descripcion: string | null } | null
+    cohorte: { id: string } | null
+    periodo: { fecha_apertura_automatica: string | null; fecha_cierre_automatico: string | null } | null
+  }>).map((row) => {
+    const cohorteId = row.cohorte?.id ?? null
+    return {
+      id: row.id,
+      nombre: row.nombre_snapshot,
+      tipo: row.tipo,
+      edicion: row.nombre_snapshot,
+      estado: row.estado,
+      ya_inscrito: inscritosIds.has(row.id),
+      cohorte_id: cohorteId,
+      modalidad: row.taller?.modalidad_default ?? null,
+      descripcion: row.taller?.descripcion ?? null,
+      fecha_apertura: row.periodo?.fecha_apertura_automatica ?? null,
+      fecha_cierre: row.periodo?.fecha_cierre_automatico ?? null,
+    }
+  })
 }
 
 /**

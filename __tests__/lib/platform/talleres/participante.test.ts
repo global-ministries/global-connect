@@ -288,6 +288,202 @@ describe('loadParticipanteExplorar — only abierto/en_curso talleres', () => {
   })
 })
 
+/**
+ * PR38 — Issue #1 (cohorte_id lookup) and Issue #2 (card info).
+ * The explorar query must surface per-row cohorte_id, modality
+ * (from `talleres`), and period dates (from `taller_periodos_generales`)
+ * so the client doesn't need a second round-trip and can render
+ * meaningful cards.
+ */
+describe('loadParticipanteExplorar — PR38 enriched projection', () => {
+  it('selects cohorte + taller + periodo via nested joins (server-side)', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.participation.read'],
+    })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    await loadParticipanteExplorar(ctxResult.context)
+
+    const tallerFilters = capturedFiltersFor('taller_ediciones')
+    const selectColumns = tallerFilters[0]?.selectColumns ?? ''
+
+    // Issue #1 — cohorte_id is now a server-side join.
+    expect(selectColumns).toMatch(/cohorte\s*:\s*talleres_crecimiento_cohortes/)
+    // Issue #2 — modality + description from the parent taller.
+    expect(selectColumns).toMatch(/taller\s*:\s*talleres/)
+    expect(selectColumns).toMatch(/modalidad_default/)
+    expect(selectColumns).toMatch(/descripcion/)
+    // Issue #2 — period dates from taller_periodos_generales.
+    expect(selectColumns).toMatch(/periodo\s*:\s*taller_periodos_generales/)
+    expect(selectColumns).toMatch(/fecha_apertura_automatica/)
+    expect(selectColumns).toMatch(/fecha_cierre_automatico/)
+  })
+
+  it('returns per-row cohorte_id, modalidad, fecha_apertura, fecha_cierre', async () => {
+    // The default mock returns `opts.rows?.[0] ?? null` on
+    // maybeSingle/single, but the explorar query uses Promise.all
+    // with two non-maybeSingle paths. We need a dedicated setup that
+    // returns the joined row from `taller_ediciones`.
+    flagsMock.mockReset().mockReturnValue(true)
+    findPersonaByAuthIdMock.mockReset().mockResolvedValue({
+      id: PERSONA_ID,
+      authId: 'auth-1',
+      globalRoles: [],
+    })
+    resolveSessionMock.mockReset().mockResolvedValue({
+      personaId: PERSONA_ID,
+      subjectAuthId: 'auth-1',
+      globalRoles: [],
+      contexts: [],
+      capabilities: [
+        {
+          key: 'talleres_crecimiento.participation.read',
+          experience: 'talleres_crecimiento',
+          scopeType: 'taller',
+          source: 'test',
+        },
+      ],
+    })
+
+    const tallerRow = {
+      id: 'ed-1',
+      nombre_snapshot: 'Septiembre 2026',
+      tipo: 'pareja',
+      estado: 'abierto',
+      taller: { modalidad_default: 'periodo_general', descripcion: 'Un taller de prueba' },
+      cohorte: { id: 'coh-1' },
+      periodo: {
+        fecha_apertura_automatica: '2026-08-20T00:00:00Z',
+        fecha_cierre_automatico: '2026-09-30T23:59:59Z',
+      },
+    }
+    const inscRow = { taller_id: 'ed-1', estado: 'pendiente' }
+
+    const tableResponses: Record<string, { data: unknown; error: null }> = {
+      taller_ediciones: { data: [tallerRow], error: null },
+      taller_inscripciones: { data: [inscRow], error: null },
+    }
+
+    const builderFor = (table: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thenable
+      const b: Record<string, any> = {}
+      b['select'] = jest.fn(() => b)
+      b['eq'] = jest.fn(() => b)
+      b['in'] = jest.fn(() => b)
+      b['order'] = jest.fn(() => b)
+      // Make the chain a thenable so `await Promise.all([b, b])`
+      // resolves to the table-specific response.
+      b['then'] = (
+        resolve: (r: { data: unknown; error: null }) => void,
+      ) => Promise.resolve(tableResponses[table]).then(resolve)
+      return b
+    }
+
+    createSupabaseServerClientMock.mockReset().mockResolvedValue({
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: { id: 'auth-1' } },
+          error: null,
+        }),
+      },
+      from: jest.fn((table: string) => builderFor(table)),
+    })
+
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    const rows = await loadParticipanteExplorar(ctxResult.context)
+
+    expect(rows).toHaveLength(1)
+    const row = rows[0]!
+    // Issue #1 — per-row cohorte_id is now populated.
+    expect(row.cohorte_id).toBe('coh-1')
+    // Issue #2 — modality + descripcion surfaced.
+    expect(row.modalidad).toBe('periodo_general')
+    expect(row.descripcion).toBe('Un taller de prueba')
+    // Issue #2 — period dates surfaced.
+    expect(row.fecha_apertura).toBe('2026-08-20T00:00:00Z')
+    expect(row.fecha_cierre).toBe('2026-09-30T23:59:59Z')
+  })
+
+  it('returns null cohorte_id / modalidad / dates when joins return no rows (back-compat)', async () => {
+    // Same shape as the previous test, but with empty nested joins
+    // (e.g. legacy edicion before PR37 backfill, or taller without
+    // a periodo_general). The interface must accept nulls without
+    // blowing up.
+    flagsMock.mockReset().mockReturnValue(true)
+    findPersonaByAuthIdMock.mockReset().mockResolvedValue({
+      id: PERSONA_ID,
+      authId: 'auth-1',
+      globalRoles: [],
+    })
+    resolveSessionMock.mockReset().mockResolvedValue({
+      personaId: PERSONA_ID,
+      subjectAuthId: 'auth-1',
+      globalRoles: [],
+      contexts: [],
+      capabilities: [
+        {
+          key: 'talleres_crecimiento.participation.read',
+          experience: 'talleres_crecimiento',
+          scopeType: 'taller',
+          source: 'test',
+        },
+      ],
+    })
+
+    const tallerRow = {
+      id: 'ed-1',
+      nombre_snapshot: 'Legacy',
+      tipo: 'individual',
+      estado: 'abierto',
+      taller: null,
+      cohorte: null,
+      periodo: null,
+    }
+
+    const tableResponses: Record<string, { data: unknown; error: null }> = {
+      taller_ediciones: { data: [tallerRow], error: null },
+      taller_inscripciones: { data: [], error: null },
+    }
+
+    const builderFor = (table: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thenable
+      const b: Record<string, any> = {}
+      b['select'] = jest.fn(() => b)
+      b['eq'] = jest.fn(() => b)
+      b['in'] = jest.fn(() => b)
+      b['order'] = jest.fn(() => b)
+      b['then'] = (
+        resolve: (r: { data: unknown; error: null }) => void,
+      ) => Promise.resolve(tableResponses[table]).then(resolve)
+      return b
+    }
+
+    createSupabaseServerClientMock.mockReset().mockResolvedValue({
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: { id: 'auth-1' } },
+          error: null,
+        }),
+      },
+      from: jest.fn((table: string) => builderFor(table)),
+    })
+
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    const rows = await loadParticipanteExplorar(ctxResult.context)
+
+    expect(rows).toHaveLength(1)
+    const row = rows[0]!
+    expect(row.cohorte_id).toBeNull()
+    expect(row.modalidad).toBeNull()
+    expect(row.descripcion).toBeNull()
+    expect(row.fecha_apertura).toBeNull()
+    expect(row.fecha_cierre).toBeNull()
+  })
+})
+
 // ─── Certificado deny-by-default ──────────────────────────────────────────
 
 describe('loadParticipanteCertificado — ownership-scoped', () => {
