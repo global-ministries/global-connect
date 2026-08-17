@@ -35,6 +35,8 @@ import {
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadEdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
 
+import { CloseEdicionButton, OpenEdicionButton } from './open-edicion-button'
+
 export const metadata = { title: 'Edición de Grupo de Corto Plazo' }
 
 interface RouteContext {
@@ -77,9 +79,8 @@ export default async function EdicionLocalDetailPage(ctx: RouteContext) {
 
   // Capability gate (server-side). Same as the abstract detail page:
   // director.write is the day-to-day surface, admin.manage is the
-  // emergency superset. The page itself is projection-only — the
-  // gate is read here so the constraint is auditable in code even
-  // though no mutation happens on this route.
+  // emergency superset. The gate becomes the render gate for the
+  // PR36 transition actions below (edicion state transitions).
   const session = await resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) =>
@@ -87,14 +88,9 @@ export default async function EdicionLocalDetailPage(ctx: RouteContext) {
     capabilitySupabase: supabase,
   })
   const caps = session?.capabilities.map((c) => c.key) ?? []
-  // hasCap is computed for documentation/audit; the gate also fires
-  // at the underlying helpers (openEdicion etc. re-check it). This
-  // page never mutates, but a future PR may surface admin actions
-  // here — at which point this flag becomes the render gate.
   const hasCap =
     caps.includes('talleres_crecimiento.director.write') ||
     caps.includes('talleres_crecimiento.admin.manage')
-  void hasCap
 
   const estadoVariante: 'default' | 'success' | 'info' =
     edicion.estado === 'abierto' || edicion.estado === 'en_curso'
@@ -111,7 +107,7 @@ export default async function EdicionLocalDetailPage(ctx: RouteContext) {
         texto: 'Volver al grupo',
       }}
     >
-      {/* Header — estado badge + edicion label */}
+      {/* Header — estado badge + edicion label + transition actions */}
       <TarjetaSistema variante="elevated" className="mb-4 p-4">
         <div className="flex flex-wrap items-start gap-3">
           <div className="flex-1">
@@ -122,7 +118,28 @@ export default async function EdicionLocalDetailPage(ctx: RouteContext) {
               {edicion.nombre_snapshot}
             </TituloSistema>
           </div>
-          <BadgeSistema variante={estadoVariante}>{edicion.estado}</BadgeSistema>
+          <div className="flex flex-col items-end gap-2">
+            <BadgeSistema variante={estadoVariante}>{edicion.estado}</BadgeSistema>
+            {hasCap && edicion.estado === 'borrador' && (
+              // PR36 — transition borrador → abierto. The action lives
+              // in ./actions.ts; this button is the UI surface for the
+              // existing edicion, distinct from OpenEdicionForm (which
+              // CREATES a new edicion).
+              <OpenEdicionButton edicionId={edicion.id} />
+            )}
+            {hasCap &&
+              (edicion.estado === 'abierto' || edicion.estado === 'en_curso') && (
+                // PR36 — transition open states → cerrado.
+                <CloseEdicionButton edicionId={edicion.id} />
+              )}
+            {hasCap &&
+              (edicion.estado === 'cerrado' ||
+                edicion.estado === 'cancelado') && (
+                <TextoSistema variante="sutil" className="text-xs italic">
+                  Edición cerrada — no editable.
+                </TextoSistema>
+              )}
+          </div>
         </div>
       </TarjetaSistema>
 
