@@ -5,6 +5,9 @@
  * PR38 — adds modality + period dates to the card, fixes the
  *        per-row cohorte_id lookup, and improves the no-cohorte
  *        error message.
+ * PR38 — render the abstract taller name (talleres.nombre) as the
+ *        card title (e.g. "Matrimonio sobre la Roca") and the
+ *        edicion label (e.g. "Septiembre 2026") as the subtitle.
  *
  * Renders the selectable list of talleres. When the user selects one,
  * the FAB appears anchored to bottom-right. Clicking the FAB invokes
@@ -26,13 +29,16 @@ import { inscribirseATaller } from './actions'
 
 interface TallerRow {
   readonly id: string
+  /** Abstract taller name (talleres.nombre) — e.g. "Matrimonio sobre la Roca". */
   readonly nombre: string
+  /** Stable URL-safe slug for the abstract taller (talleres.slug). */
+  readonly slug: string
   readonly tipo: 'individual' | 'pareja'
-  readonly edicion: string | null
+  readonly edicion: string
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
   /**
-   * PR38 — cohorte_id is now surfaced per-row by the RSC page
+   * PR38 — cohorte_id is surfaced per-row by the RSC page
    * (joined server-side in `loadParticipanteExplorar`). This is the
    * PRIMARY source of cohorte_id for the inscribirme action; the
    * page-level `defaultCohorteId` is a back-compat fallback only.
@@ -145,7 +151,7 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
                   <div className="flex-1">
                     <TextoSistema className="font-medium">{t.nombre}</TextoSistema>
                     <TextoSistema variante="sutil" className="mt-1 block text-sm">
-                      {t.edicion ? `Edición ${t.edicion}` : 'Edición'} ·{' '}
+                      Edición {t.edicion} ·{' '}
                       {t.tipo === 'pareja' ? 'Pareja' : 'Individual'}
                     </TextoSistema>
                     <TextoSistema

@@ -197,10 +197,18 @@ export interface ParticipanteCertificado {
 }
 
 export interface ParticipanteExplorarRow {
+  /** edicion id (taller_ediciones.id). */
   readonly id: string
+  /**
+   * Abstract taller name (talleres.nombre) — e.g. "Matrimonio sobre la Roca".
+   * Falls back to the edicion's nombre_snapshot when the abstract taller
+   * could not be joined (legacy data edge case).
+   */
   readonly nombre: string
+  /** Stable URL-safe slug for the abstract taller (talleres.slug). */
+  readonly slug: string
   readonly tipo: 'individual' | 'pareja'
-  readonly edicion: string | null
+  readonly edicion: string
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
   /**
@@ -221,9 +229,9 @@ export interface ParticipanteExplorarRow {
 }
 
 /**
- * Loads talleres currently open for enrollment (`estado='abierto'`).
- * Used by /talleres/explorar. Flags each taller with `ya_inscrito`
- * when the participant already has an active inscription.
+ * Loads talleres currently open for enrollment (`estado='abierto'`
+ * or `en_curso'`). Used by /talleres/explorar. Flags each taller with
+ * `ya_inscrito` when the participant already has an active inscription.
  *
  * PR38 — also surfaces:
  *   - `cohorte_id` (joined from `talleres_crecimiento_cohortes`,
@@ -235,23 +243,64 @@ export interface ParticipanteExplorarRow {
  *
  * These joins are server-side; the participante surface stays
  * summary-only (no motivos, no asistencia, no reportes).
+ *
+ * PR38 — joined-relationship fix. The previous nested-resource select
+ * tried to infer the FK direction from `talleres_crecimiento_cohortes`
+ * (which has a 1:N FK to `taller_ediciones`, not the other way around).
+ * PostgREST nested-resource is brittle when the relationship is 1:N
+ * (returns an array instead of an object) and when both FK directions
+ * exist between two tables. The fix splits the lookup into 4 explicit
+ * queries and joins in TS — no embedded join, no inferred FK.
  */
 export async function loadParticipanteExplorar(
   ctx: ParticipanteContext
 ): Promise<readonly ParticipanteExplorarRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
-  const [talleresRes, inscripcionesRes] = await Promise.all([
+
+  // Query 1 — ediciones with their abstract taller (1:1 via taller_id).
+  // The `taller_id` column on `taller_es` is the explicit FK hint that
+  // disambiguates the embedded-resource join — without it, PostgREST
+  // can pick the wrong FK when both tables have multiple relationships.
+  const edicionesRes = await client
+    .from('taller_ediciones')
+    .select(
+      `id, nombre_snapshot, tipo, estado, taller_id,
+       taller:talleres!taller_id (slug, nombre, modalidad_default, descripcion)`,
+    )
+    .in('estado', ['abierto', 'en_curso'])
+    .order('created_at', { ascending: false })
+
+  if (edicionesRes.error) return []
+  const ediciones = (edicionesRes.data ?? []) as Array<{
+    id: string
+    nombre_snapshot: string
+    tipo: 'individual' | 'pareja'
+    estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
+    taller_id: string
+    taller: {
+      slug: string
+      nombre: string
+      modalidad_default: 'periodo_general' | 'permanente_custom'
+      descripcion: string | null
+    } | null
+  }>
+
+  if (ediciones.length === 0) return []
+
+  // Queries 2-4 — batch fetches keyed by edicion id, fired in parallel
+  // because they don't depend on each other. We only fire them when
+  // there is at least one edicion to feed the .in() filter.
+  const edicionIds = ediciones.map((e) => e.id)
+  const [cohortesRes, periodosRes, inscripcionesRes] = await Promise.all([
     client
-      .from('taller_ediciones')
-      .select(
-        `id, nombre_snapshot, tipo, estado,
-         taller:talleres (modalidad_default, descripcion),
-         cohorte:talleres_crecimiento_cohortes (id),
-         periodo:taller_periodos_generales (fecha_apertura_automatica, fecha_cierre_automatico)`,
-      )
-      .in('estado', ['abierto', 'en_curso'])
-      .order('created_at', { ascending: false }),
+      .from('talleres_crecimiento_cohortes')
+      .select('id, taller_id')
+      .in('taller_id', edicionIds),
+    client
+      .from('taller_periodos_generales')
+      .select('taller_id, fecha_apertura_automatica, fecha_cierre_automatico')
+      .in('taller_id', edicionIds),
     client
       .from('taller_inscripciones')
       .select('taller_id, estado')
@@ -259,35 +308,58 @@ export async function loadParticipanteExplorar(
       .in('estado', ['pendiente', 'aprobado']),
   ])
 
-  if (talleresRes.error) return []
+  // Build per-edicion lookup tables. Each edicion currently has at most
+  // one cohorte + one periodo in production (PR37 guarantee), but the
+  // schema is 1:N — pick the first row defensively in case of legacy
+  // data, and never let a missing batch fetch break the row.
+  const cohorteByEdicion = new Map<string, string>()
+  for (const row of ((cohortesRes.data ?? []) as Array<{
+    id: string
+    taller_id: string
+  }>)) {
+    if (!cohorteByEdicion.has(row.taller_id)) {
+      cohorteByEdicion.set(row.taller_id, row.id)
+    }
+  }
+
+  const periodoByEdicion = new Map<string, {
+    fecha_apertura_automatica: string | null
+    fecha_cierre_automatico: string | null
+  }>()
+  for (const row of ((periodosRes.data ?? []) as Array<{
+    taller_id: string
+    fecha_apertura_automatica: string | null
+    fecha_cierre_automatico: string | null
+  }>)) {
+    if (!periodoByEdicion.has(row.taller_id)) {
+      periodoByEdicion.set(row.taller_id, {
+        fecha_apertura_automatica: row.fecha_apertura_automatica,
+        fecha_cierre_automatico: row.fecha_cierre_automatico,
+      })
+    }
+  }
+
   const inscritosIds = new Set<string>(
     ((inscripcionesRes.data ?? []) as { taller_id: string }[]).map(
       (row) => row.taller_id,
     ),
   )
 
-  return ((talleresRes.data ?? []) as Array<{
-    id: string
-    nombre_snapshot: string
-    tipo: 'individual' | 'pareja'
-    estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
-    taller: { modalidad_default: 'periodo_general' | 'permanente_custom'; descripcion: string | null } | null
-    cohorte: { id: string } | null
-    periodo: { fecha_apertura_automatica: string | null; fecha_cierre_automatico: string | null } | null
-  }>).map((row) => {
-    const cohorteId = row.cohorte?.id ?? null
+  return ediciones.map((row) => {
+    const periodo = periodoByEdicion.get(row.id)
     return {
       id: row.id,
-      nombre: row.nombre_snapshot,
+      nombre: row.taller?.nombre ?? row.nombre_snapshot,
+      slug: row.taller?.slug ?? '',
       tipo: row.tipo,
       edicion: row.nombre_snapshot,
       estado: row.estado,
       ya_inscrito: inscritosIds.has(row.id),
-      cohorte_id: cohorteId,
+      cohorte_id: cohorteByEdicion.get(row.id) ?? null,
       modalidad: row.taller?.modalidad_default ?? null,
       descripcion: row.taller?.descripcion ?? null,
-      fecha_apertura: row.periodo?.fecha_apertura_automatica ?? null,
-      fecha_cierre: row.periodo?.fecha_cierre_automatico ?? null,
+      fecha_apertura: periodo?.fecha_apertura_automatica ?? null,
+      fecha_cierre: periodo?.fecha_cierre_automatico ?? null,
     }
   })
 }
