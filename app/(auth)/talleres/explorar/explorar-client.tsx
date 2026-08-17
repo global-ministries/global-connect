@@ -2,11 +2,14 @@
 
 /**
  * PR20 — Client wrapper for /talleres/explorar list + FAB.
+ * PR38 — adds modality + period dates to the card, fixes the
+ *        per-row cohorte_id lookup, and improves the no-cohorte
+ *        error message.
  *
  * Renders the selectable list of talleres. When the user selects one,
  * the FAB appears anchored to bottom-right. Clicking the FAB invokes
  * the `inscribirseATaller` server action with the selected taller's id
- * (and its cohorte id, looked up from the metadata).
+ * (and its cohorte id, surfaced per-row by the RSC page).
  *
  * This wrapper exists because the page itself is an RSC (data fetched
  * server-side). Splitting the interactive part into a client component
@@ -25,15 +28,51 @@ interface TallerRow {
   readonly id: string
   readonly nombre: string
   readonly tipo: 'individual' | 'pareja'
-  readonly edicion: string
+  readonly edicion: string | null
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
-  readonly cohorte_id?: string
+  /**
+   * PR38 — cohorte_id is now surfaced per-row by the RSC page
+   * (joined server-side in `loadParticipanteExplorar`). This is the
+   * PRIMARY source of cohorte_id for the inscribirme action; the
+   * page-level `defaultCohorteId` is a back-compat fallback only.
+   */
+  readonly cohorte_id: string | null
+  readonly modalidad: 'periodo_general' | 'permanente_custom' | null
+  readonly descripcion: string | null
+  readonly fecha_apertura: string | null
+  readonly fecha_cierre: string | null
 }
 
 interface Input {
   readonly talleres: readonly TallerRow[]
   readonly defaultCohorteId: string
+}
+
+/**
+ * Format a date (ISO string or Date) as a short locale string for
+ * the card subtitle. Returns "—" for invalid/null input.
+ */
+function formatDate(value: string | null): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+/**
+ * Map a modality enum to a human label.
+ */
+function formatModalidad(
+  modalidad: 'periodo_general' | 'permanente_custom' | null,
+): string {
+  if (modalidad === 'periodo_general') return 'Periodo general'
+  if (modalidad === 'permanente_custom') return 'Permanente custom'
+  return 'Sin modalidad'
 }
 
 export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): ReactElement {
@@ -47,7 +86,9 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
     if (!selected) return { ok: false, error: 'no-selection' }
     const cohorteId = selected.cohorte_id ?? defaultCohorteId
     if (!cohorteId) {
-      setFeedback('No se encontró cohorte para este taller.')
+      setFeedback(
+        'Esta edición aún no tiene cohorte asociada. Contactá al admin.',
+      )
       return { ok: false, error: 'no-cohorte' }
     }
     const result = await inscribirseATaller({
@@ -104,8 +145,24 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
                   <div className="flex-1">
                     <TextoSistema className="font-medium">{t.nombre}</TextoSistema>
                     <TextoSistema variante="sutil" className="mt-1 block text-sm">
-                      Edición {t.edicion} · {t.tipo === 'pareja' ? 'Pareja' : 'Individual'}
+                      {t.edicion ? `Edición ${t.edicion}` : 'Edición'} ·{' '}
+                      {t.tipo === 'pareja' ? 'Pareja' : 'Individual'}
                     </TextoSistema>
+                    <TextoSistema
+                      variante="sutil"
+                      className="mt-1 block text-xs"
+                    >
+                      Modalidad: {formatModalidad(t.modalidad)}
+                    </TextoSistema>
+                    {t.fecha_apertura && t.fecha_cierre && (
+                      <TextoSistema
+                        variante="sutil"
+                        className="mt-1 block text-xs"
+                      >
+                        Inscripciones: {formatDate(t.fecha_apertura)} —{' '}
+                        {formatDate(t.fecha_cierre)}
+                      </TextoSistema>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-2">
                       <BadgeSistema>{t.estado}</BadgeSistema>
                       {t.ya_inscrito && (
