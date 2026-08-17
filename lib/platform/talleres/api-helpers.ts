@@ -46,16 +46,16 @@ export async function requireTalleresApi(
     return { ok: false, response: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- eval_talleres_capability is a SQL function not in generated types
-  const { data: hasCap } = await (supabase as any).rpc('eval_talleres_capability', {
-    p_capability: requiredCapability,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- auth_has_talleres_capability is a SQL function not in generated types
+  const { data: hasCap } = await (supabase as any).rpc('auth_has_talleres_capability', {
+    p_capability_key: requiredCapability,
   })
   if (!hasCap) {
     // Director.read is a superset for any read capability — try the
     // superset before returning 403.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- eval_talleres_capability is a SQL function not in generated types
-    const { data: isDirector } = await (supabase as any).rpc('eval_talleres_capability', {
-      p_capability: 'talleres_crecimiento.director.read',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- auth_has_talleres_capability is a SQL function not in generated types
+    const { data: isDirector } = await (supabase as any).rpc('auth_has_talleres_capability', {
+      p_capability_key: 'talleres_crecimiento.director.read',
     })
     if (!isDirector) {
       return { ok: false, response: NextResponse.json({ error: 'forbidden' }, { status: 403 }) }

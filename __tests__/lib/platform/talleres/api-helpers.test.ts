@@ -9,6 +9,12 @@
  *   - 403 when capability is missing and director.read superset is also missing
  *   - 200 (ok: true) when capability is present OR director.read superset holds
  *
+ * Also asserts the RPC contract: the helper must call
+ * `auth_has_talleres_capability` with the argument `p_capability_key`
+ * (the real SQL function signature). PR18 introduced a regression where
+ * the helper called `eval_talleres_capability` (which does not exist);
+ * `pr40_5` locks the contract.
+ *
  * Mocks the supabase server client + the flag module so tests are
  * deterministic. Tests do not hit the database.
  */
@@ -44,10 +50,14 @@ const state: MockState = {
   rpc: () => Promise.resolve({ data: true }),
 }
 
+// Captures every rpc call so the contract test can assert name + args.
+const rpcCalls: Array<{ name: string; args: Record<string, unknown> }> = []
+
 beforeEach(() => {
   // Reset mutable state so tests don't leak.
   state.user = { id: 'user-1' }
   state.rpc = () => Promise.resolve({ data: true })
+  rpcCalls.length = 0
 
   isTalleresEnabledMock.mockReset().mockReturnValue(true)
   createSupabaseServerClientMock.mockReset().mockResolvedValue({
@@ -57,9 +67,11 @@ beforeEach(() => {
         Promise.resolve({ data: { user: state.user }, error: null }),
       ),
     },
-    rpc: jest.fn().mockImplementation((_name: string, args: { p_capability: string }) =>
-      state.rpc(args.p_capability),
-    ),
+    rpc: jest.fn().mockImplementation((name: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ name, args })
+      const cap = args.p_capability_key as string
+      return state.rpc(cap)
+    }),
   })
 })
 
@@ -130,5 +142,49 @@ describe('requireTalleresApi — capability gate', () => {
     }
     expect(calls[0]).toBe('talleres_crecimiento.metrics.read')
     expect(calls[1]).toBe('talleres_crecimiento.director.read')
+  })
+})
+
+describe('requireTalleresApi — RPC contract (pr40_5 regression)', () => {
+  it('calls auth_has_talleres_capability with p_capability_key (never eval_talleres_capability)', async () => {
+    // Force the superset path so we observe both rpc calls.
+    state.rpc = (cap: string) => {
+      if (cap === 'talleres_crecimiento.director.read') return Promise.resolve({ data: true })
+      return Promise.resolve({ data: false })
+    }
+    await requireTalleresApi('talleres_crecimiento.participation.read')
+
+    // Two calls expected: capability check + director.read superset fallback.
+    expect(rpcCalls).toHaveLength(2)
+    for (const call of rpcCalls) {
+      expect(call.name).toBe('auth_has_talleres_capability')
+      expect(call.name).not.toBe('eval_talleres_capability')
+      expect(call.args).toHaveProperty('p_capability_key')
+      expect(call.args).not.toHaveProperty('p_capability')
+    }
+    expect(rpcCalls[0].args.p_capability_key).toBe('talleres_crecimiento.participation.read')
+    expect(rpcCalls[1].args.p_capability_key).toBe('talleres_crecimiento.director.read')
+  })
+
+  it('uses auth_has_talleres_capability on the happy path (capability held)', async () => {
+    await requireTalleresApi('talleres_crecimiento.participation.read')
+
+    expect(rpcCalls).toHaveLength(1)
+    expect(rpcCalls[0].name).toBe('auth_has_talleres_capability')
+    expect(rpcCalls[0].name).not.toBe('eval_talleres_capability')
+    expect(rpcCalls[0].args).toEqual({ p_capability_key: 'talleres_crecimiento.participation.read' })
+  })
+
+  it('uses auth_has_talleres_capability even when the first check is false (forces superset path)', async () => {
+    state.rpc = () => Promise.resolve({ data: false })
+    const result = await requireTalleresApi('talleres_crecimiento.metrics.read')
+    expect(result.ok).toBe(false)
+
+    expect(rpcCalls.map((c) => c.name)).toEqual([
+      'auth_has_talleres_capability',
+      'auth_has_talleres_capability',
+    ])
+    expect(rpcCalls[0].args.p_capability_key).toBe('talleres_crecimiento.metrics.read')
+    expect(rpcCalls[1].args.p_capability_key).toBe('talleres_crecimiento.director.read')
   })
 })
