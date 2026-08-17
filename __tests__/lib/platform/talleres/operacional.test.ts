@@ -24,6 +24,7 @@ import {
   loadEquipoReporte,
   loadCoordInscripcionesPendientes,
   loadDirResumen,
+  loadEdicionLocalDetalle,
 } from '@/lib/platform/talleres/operacional'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
@@ -374,5 +375,224 @@ describe('loadDirResumen — counts across 4 tables', () => {
 
     const certFilters = capturedFiltersFor('taller_certificados')
     expect(certFilters.some((f) => f.column === 'revocado_at' && f.value === null)).toBe(true)
+  })
+})
+
+// ─── PR34 — loadEdicionLocalDetalle ──────────────────────────────────────
+
+/**
+ * Build a thenable supabase mock keyed by table.
+ *
+ * The helper does 6 queries:
+ *   1. taller_ediciones → maybeSingle → row|error
+ *   2. talleres_crecimiento_cohortes → maybeSingle → row|null
+ *   3. taller_periodos_generales → maybeSingle → row|null
+ *   4. taller_inscripciones → head count (total)
+ *   5. taller_inscripciones → head count (aprobadas/pendientes)
+ *   6. taller_certificados → head count
+ *
+ * Each table-specific builder is a thenable (Promise-like) so the
+ * awaited `select({count,head}).eq(...)` chains resolve to the
+ * configured count. taller_inscripciones distinguishes total vs
+ * aprobadas via the last `.in(...)` filter — when present, the
+ * aprobadas count is returned, otherwise the total.
+ */
+function buildEdicionDetalleClientMock(opts: {
+  edicion: unknown
+  cohorte?: unknown
+  periodo?: unknown
+  inscripcionesTotal?: number
+  inscripcionesAprobadas?: number
+  certificados?: number
+}): { from: jest.Mock; calls: string[] } {
+  const calls: string[] = []
+
+  function makeBuilder(table: string): unknown {
+    let lastFilter: { column: string; value: unknown; isIn?: boolean } | null = null
+    const b: Record<string, unknown> = {}
+    b['select'] = jest.fn(() => b)
+    b['eq'] = jest.fn((column: string, value: unknown) => {
+      lastFilter = { column, value }
+      return b
+    })
+    b['in'] = jest.fn((column: string, value: unknown) => {
+      lastFilter = { column, value, isIn: true }
+      return b
+    })
+    b['order'] = jest.fn(() => b)
+    b['limit'] = jest.fn(() => b)
+    b['maybeSingle'] = jest.fn(() => {
+      if (table === 'taller_ediciones') {
+        return Promise.resolve({ data: opts.edicion ?? null, error: null })
+      }
+      if (table === 'talleres_crecimiento_cohortes') {
+        return Promise.resolve({ data: opts.cohorte ?? null, error: null })
+      }
+      if (table === 'taller_periodos_generales') {
+        return Promise.resolve({ data: opts.periodo ?? null, error: null })
+      }
+      return Promise.resolve({ data: null, error: null })
+    })
+    // Make the builder thenable. The helper destructures `{ count }`
+    // from the awaited result of head queries, so when awaited we
+    // return the right count per table.
+    Object.defineProperty(b, 'then', {
+      value: (resolve: (v: unknown) => void) => {
+        if (table === 'taller_certificados') {
+          resolve({ count: opts.certificados ?? 0, error: null })
+          return
+        }
+        if (table === 'taller_inscripciones') {
+          if (lastFilter?.isIn) {
+            resolve({ count: opts.inscripcionesAprobadas ?? 0, error: null })
+            return
+          }
+          resolve({ count: opts.inscripcionesTotal ?? 0, error: null })
+          return
+        }
+        resolve({ count: 0, error: null })
+      },
+    })
+    return b
+  }
+
+  return {
+    calls,
+    from: jest.fn((table: string) => {
+      calls.push(table)
+      return makeBuilder(table)
+    }),
+  }
+}
+
+describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo + counts', () => {
+  const fullEdicion = {
+    id: 'e-1',
+    taller_id: 't-1',
+    nombre_snapshot: 'Otoño 2026',
+    tipo: 'pareja',
+    link_type: 'matrimonio',
+    modalidad_inscripcion: 'periodo_general',
+    estado: 'abierto',
+    sesiones_snapshot: 8,
+    duracion_estimada_minutos_snapshot: 90,
+    firmantes: [
+      { persona_id: 'p-1', rol_etiqueta: 'Director', orden: 1 },
+      { persona_id: 'p-2', rol_etiqueta: 'Coordinador', orden: 2 },
+    ],
+    periodo_general_id: 'pg-1',
+    talleres: {
+      id: 't-1',
+      slug: 'matrimonio-sobre-la-roca',
+      nombre: 'Matrimonio sobre la Roca',
+      estado: 'active',
+    },
+  }
+
+  const fullCohorte = {
+    id: 'c-1',
+    dream_team_equipo_id: 'eq-1',
+    edicion: 'Otoño 2026',
+    started_at: '2026-09-01T00:00:00Z',
+    ended_at: null,
+  }
+
+  const fullPeriodo = {
+    id: 'pg-1',
+    fecha_apertura_automatica: '2026-08-01T00:00:00Z',
+    fecha_cierre_automatica: '2026-11-30T00:00:00Z',
+    fecha_apertura_manual: null,
+    fecha_cierre_manual: null,
+    fecha_cierre_real: null,
+    motivo_cierre: null,
+  }
+
+  it('returns null when taller_ediciones has no row for the given id', async () => {
+    const { from } = buildEdicionDetalleClientMock({ edicion: null })
+    const result = await loadEdicionLocalDetalle({ from }, 'e-1')
+    expect(result).toBeNull()
+  })
+
+  it('returns a fully-hydrated EdicionLocalDetalle when all joins succeed', async () => {
+    const { from } = buildEdicionDetalleClientMock({
+      edicion: fullEdicion,
+      cohorte: fullCohorte,
+      periodo: fullPeriodo,
+      inscripcionesTotal: 12,
+      inscripcionesAprobadas: 8,
+      certificados: 3,
+    })
+    const result = await loadEdicionLocalDetalle({ from }, 'e-1')
+    expect(result).not.toBeNull()
+    if (!result) return
+
+    expect(result.id).toBe('e-1')
+    expect(result.taller_id).toBe('t-1')
+    expect(result.taller_slug).toBe('matrimonio-sobre-la-roca')
+    expect(result.taller_nombre).toBe('Matrimonio sobre la Roca')
+    expect(result.nombre_snapshot).toBe('Otoño 2026')
+    expect(result.tipo).toBe('pareja')
+    expect(result.link_type).toBe('matrimonio')
+    expect(result.modalidad_inscripcion).toBe('periodo_general')
+    expect(result.estado).toBe('abierto')
+    expect(result.sesiones_snapshot).toBe(8)
+    expect(result.duracion_estimada_minutos_snapshot).toBe(90)
+    expect(result.firmantes).toHaveLength(2)
+    expect(result.firmantes[0]?.persona_id).toBe('p-1')
+
+    expect(result.cohorte).not.toBeNull()
+    expect(result.cohorte?.id).toBe('c-1')
+    expect(result.cohorte?.dream_team_equipo_id).toBe('eq-1')
+    expect(result.cohorte?.edicion).toBe('Otoño 2026')
+
+    expect(result.periodo_general).not.toBeNull()
+    expect(result.periodo_general?.id).toBe('pg-1')
+
+    expect(result.inscripciones_count).toBe(12)
+    expect(result.inscripciones_aprobadas_count).toBe(8)
+    expect(result.certificados_count).toBe(3)
+  })
+
+  it('returns cohorte=null and periodo_general=null when those joins miss', async () => {
+    const permanenteEdicion = {
+      ...fullEdicion,
+      id: 'e-2',
+      taller_id: 't-2',
+      nombre_snapshot: 'Permanente',
+      tipo: 'individual' as const,
+      link_type: null,
+      modalidad_inscripcion: 'permanente_custom' as const,
+      estado: 'borrador' as const,
+      sesiones_snapshot: 4,
+      duracion_estimada_minutos_snapshot: 60,
+      firmantes: [],
+      periodo_general_id: null,
+      talleres: {
+        id: 't-2',
+        slug: 'discipulado-1',
+        nombre: 'Discipulado 1',
+        estado: 'active',
+      },
+    }
+    const { from } = buildEdicionDetalleClientMock({
+      edicion: permanenteEdicion,
+      // No cohorte, no periodo.
+      inscripcionesTotal: 0,
+      inscripcionesAprobadas: 0,
+      certificados: 0,
+    })
+
+    const result = await loadEdicionLocalDetalle({ from }, 'e-2')
+    expect(result).not.toBeNull()
+    if (!result) return
+
+    expect(result.cohorte).toBeNull()
+    expect(result.periodo_general).toBeNull()
+    expect(result.firmantes).toEqual([])
+    expect(result.link_type).toBeNull()
+    expect(result.modalidad_inscripcion).toBe('permanente_custom')
+    expect(result.inscripciones_count).toBe(0)
+    expect(result.inscripciones_aprobadas_count).toBe(0)
+    expect(result.certificados_count).toBe(0)
   })
 })

@@ -369,6 +369,179 @@ export async function loadDirPeriodos(
   return (data ?? []) as DirPeriodo[]
 }
 
+/**
+ * PR34 — Local edition detail for /admin/talleres/edicion/[id].
+ *
+ * Projections used by the admin read-only detail page. The page is
+ * preview-only: it joins the edicion with its taller abstract (for the
+ * back-link), the cohorte (if any), the periodo general (if any), and
+ * counts inscripciones + certificados scoped by taller_id.
+ *
+ * Note: cohortes / inscripciones / certificados are joined by
+ * taller_id rather than edicion_id because the cohort is the
+ * instance-level aggregation root that owns a single taller_id, and
+ * one taller_id can have multiple ediciones. This keeps the counts
+ * "edicion-level" in spirit (one edicion per taller at a time per the
+ * open_edicion RPC).
+ */
+export interface EdicionLocalDetalle {
+  readonly id: string
+  readonly taller_id: string
+  readonly taller_nombre: string
+  readonly taller_slug: string
+  readonly nombre_snapshot: string
+  readonly tipo: 'individual' | 'pareja'
+  readonly link_type: 'matrimonio' | 'novios' | null
+  readonly modalidad_inscripcion: 'periodo_general' | 'permanente_custom'
+  readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
+  readonly sesiones_snapshot: number
+  readonly duracion_estimada_minutos_snapshot: number
+  readonly firmantes: ReadonlyArray<{ persona_id: string; rol_etiqueta: string; orden: number }>
+  readonly cohorte: {
+    readonly id: string
+    readonly dream_team_equipo_id: string
+    readonly edicion: string
+    readonly started_at: string | null
+    readonly ended_at: string | null
+  } | null
+  readonly periodo_general: {
+    readonly id: string
+    readonly fecha_apertura_automatica: string | null
+    readonly fecha_cierre_automatica: string | null
+    readonly fecha_apertura_manual: string | null
+    readonly fecha_cierre_manual: string | null
+    readonly fecha_cierre_real: string | null
+    readonly motivo_cierre: string | null
+  } | null
+  readonly inscripciones_count: number
+  readonly inscripciones_aprobadas_count: number
+  readonly certificados_count: number
+}
+
+export async function loadEdicionLocalDetalle(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  client: any,
+  edicionId: string
+): Promise<EdicionLocalDetalle | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client2: any = client
+  const { data: edicionRow, error } = await client2
+    .from('taller_ediciones')
+    .select(
+      `id, taller_id, nombre_snapshot, tipo, link_type, modalidad_inscripcion,
+       estado, sesiones_snapshot, duracion_estimada_minutos_snapshot, firmantes,
+       talleres:talleres!inner(id, slug, nombre, estado)`,
+    )
+    .eq('id', edicionId)
+    .maybeSingle()
+
+  if (error || !edicionRow) return null
+
+  const taller = edicionRow.talleres as { id: string; slug: string; nombre: string; estado: string }
+
+  // Cohort via taller_id (the cohort is owned by the taller, not by
+  // a single edicion row). Order by created_at DESC + limit 1 returns
+  // the latest cohort for this taller — the open_edicion RPC keeps
+  // one-edicion-per-taller per cohort.
+  const { data: cohorteRow } = await client2
+    .from('talleres_crecimiento_cohortes')
+    .select('id, dream_team_equipo_id, edicion, started_at, ended_at')
+    .eq('taller_id', edicionRow.taller_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  // Periodo general via FK on taller_ediciones (periodo_general_id may
+  // be NULL for permanente_custom modality).
+  let periodoRow: unknown = null
+  if (edicionRow.periodo_general_id) {
+    const { data } = await client2
+      .from('taller_periodos_generales')
+      .select('id, fecha_apertura_automatica, fecha_cierre_automatica, fecha_apertura_manual, fecha_cierre_manual, fecha_cierre_real, motivo_cierre')
+      .eq('id', edicionRow.periodo_general_id)
+      .maybeSingle()
+    periodoRow = data
+  }
+
+  // Counts — three independent head queries scoped by taller_id.
+  const { count: totalCount } = await client2
+    .from('taller_inscripciones')
+    .select('id', { count: 'exact', head: true })
+    .eq('taller_id', edicionRow.taller_id)
+
+  const { count: aprobadasCount } = await client2
+    .from('taller_inscripciones')
+    .select('id', { count: 'exact', head: true })
+    .eq('taller_id', edicionRow.taller_id)
+    .in('estado', ['pendiente', 'aprobado'])
+
+  const { count: certificadosCount } = await client2
+    .from('taller_certificados')
+    .select('id', { count: 'exact', head: true })
+    .eq('taller_id', edicionRow.taller_id)
+
+  const periodo = periodoRow as {
+    id: string
+    fecha_apertura_automatica: string | null
+    fecha_cierre_automatica: string | null
+    fecha_apertura_manual: string | null
+    fecha_cierre_manual: string | null
+    fecha_cierre_real: string | null
+    motivo_cierre: string | null
+  } | null
+
+  return {
+    id: edicionRow.id as string,
+    taller_id: edicionRow.taller_id as string,
+    taller_nombre: taller.nombre,
+    taller_slug: taller.slug,
+    nombre_snapshot: edicionRow.nombre_snapshot as string,
+    tipo: edicionRow.tipo as 'individual' | 'pareja',
+    link_type: (edicionRow.link_type as 'matrimonio' | 'novios' | null) ?? null,
+    modalidad_inscripcion: edicionRow.modalidad_inscripcion as
+      | 'periodo_general'
+      | 'permanente_custom',
+    estado: edicionRow.estado as
+      | 'borrador'
+      | 'abierto'
+      | 'en_curso'
+      | 'cerrado'
+      | 'cancelado',
+    sesiones_snapshot: Number(edicionRow.sesiones_snapshot ?? 0),
+    duracion_estimada_minutos_snapshot: Number(
+      edicionRow.duracion_estimada_minutos_snapshot ?? 0
+    ),
+    firmantes: ((edicionRow.firmantes as unknown[]) ?? []) as ReadonlyArray<{
+      persona_id: string
+      rol_etiqueta: string
+      orden: number
+    }>,
+    cohorte: cohorteRow
+      ? {
+          id: cohorteRow.id,
+          dream_team_equipo_id: cohorteRow.dream_team_equipo_id,
+          edicion: cohorteRow.edicion,
+          started_at: cohorteRow.started_at,
+          ended_at: cohorteRow.ended_at,
+        }
+      : null,
+    periodo_general: periodo
+      ? {
+          id: periodo.id,
+          fecha_apertura_automatica: periodo.fecha_apertura_automatica,
+          fecha_cierre_automatica: periodo.fecha_cierre_automatica,
+          fecha_apertura_manual: periodo.fecha_apertura_manual,
+          fecha_cierre_manual: periodo.fecha_cierre_manual,
+          fecha_cierre_real: periodo.fecha_cierre_real,
+          motivo_cierre: periodo.motivo_cierre,
+        }
+      : null,
+    inscripciones_count: totalCount ?? 0,
+    inscripciones_aprobadas_count: aprobadasCount ?? 0,
+    certificados_count: certificadosCount ?? 0,
+  }
+}
+
 export interface DirResumenCounts {
   readonly talleres_activos: number
   readonly inscripciones_pendientes: number
