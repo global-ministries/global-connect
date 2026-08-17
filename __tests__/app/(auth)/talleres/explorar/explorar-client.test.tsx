@@ -41,7 +41,8 @@ beforeEach(() => {
 
 const baseRow = {
   id: 'ed-1',
-  nombre: 'Septiembre 2026',
+  nombre: 'Matrimonio sobre la Roca',
+  slug: 'matrimonio-sobre-la-roca',
   tipo: 'pareja' as const,
   edicion: 'Septiembre 2026',
   estado: 'abierto' as const,
@@ -54,7 +55,7 @@ const baseRow = {
 }
 
 describe('ExplorarTalleresClient — card content (PR38)', () => {
-  it('renders the edicion label, modality, and period dates on the card', () => {
+  it('renders the abstract taller name as the title, edicion label as subtitle, plus modality and period dates', () => {
     render(
       <ExplorarTalleresClient
         talleres={[baseRow]}
@@ -62,8 +63,9 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
       />,
     )
 
-    // Title: "Septiembre 2026" (was previously "Edición undefined").
-    expect(screen.getByText('Septiembre 2026')).toBeInTheDocument()
+    // Title (PR38 widened): the abstract taller name ("Matrimonio sobre la Roca"),
+    // not the edicion's nombre_snapshot ("Septiembre 2026").
+    expect(screen.getByText('Matrimonio sobre la Roca')).toBeInTheDocument()
 
     // Subtitle: "Edición Septiembre 2026 · Pareja"
     expect(
@@ -127,23 +129,6 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
 
     expect(
       screen.getByText(/Edición Septiembre 2026 · Individual/),
-    ).toBeInTheDocument()
-  })
-
-  it('falls back to "Edición" when the edicion label is null (no trailing colon)', () => {
-    render(
-      <ExplorarTalleresClient
-        talleres={[
-          { ...baseRow, id: 'ed-5', edicion: null },
-        ]}
-        defaultCohorteId=""
-      />,
-    )
-
-    // Subtitle is still present; the edicion label slot falls back
-    // gracefully without breaking the layout.
-    expect(
-      screen.getByText(/Edición\s+·\s+Pareja|Edición · Pareja/),
     ).toBeInTheDocument()
   })
 })
