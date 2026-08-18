@@ -50,12 +50,32 @@ export async function inscribirseATaller(input: InscribirseInput): Promise<Inscr
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gate.supabase
+
+  // Resolve auth_id → internal usuarios.id (FK target).
+  // gate.userId is the auth.users.id (auth.uid); the FK
+  // taller_inscripciones.persona_principal_id points to public.usuarios.id,
+  // so we MUST resolve before insert. Canonical pattern matches
+  // lib/actions/support.actions.ts:311, lib/actions/solicitudes-grupo.actions.ts:167,
+  // lib/actions/support-capabilities.actions.ts:46.
+  const { data: usuario, error: usuarioError } = await client
+    .from('usuarios')
+    .select('id')
+    .eq('auth_id', gate.userId)
+    .maybeSingle()
+
+  if (usuarioError) {
+    return { ok: false, error: 'internal', message: `resolve usuario: ${usuarioError.message}` }
+  }
+  if (!usuario?.id) {
+    return { ok: false, error: 'internal', message: 'usuario interno no encontrado para auth.uid' }
+  }
+
   const { data, error } = await client
     .from('taller_inscripciones')
     .insert({
       taller_id: input.tallerId,
       cohorte_id: input.cohorteId,
-      persona_principal_id: gate.userId,
+      persona_principal_id: usuario.id,
       companero_id: input.companeroId ?? null,
       link_type: input.linkType ?? null,
       estado: 'pendiente',
