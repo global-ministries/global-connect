@@ -404,8 +404,9 @@ function buildEdicionDetalleClientMock(opts: {
   inscripcionesTotal?: number
   inscripcionesAprobadas?: number
   certificados?: number
-}): { from: jest.Mock; calls: string[] } {
+}): { from: jest.Mock; calls: string[]; filters: Array<{ table: string; column: string; value: unknown; op: 'eq' | 'in' }> } {
   const calls: string[] = []
+  const filters: Array<{ table: string; column: string; value: unknown; op: 'eq' | 'in' }> = []
 
   function makeBuilder(table: string): unknown {
     let lastFilter: { column: string; value: unknown; isIn?: boolean } | null = null
@@ -413,10 +414,12 @@ function buildEdicionDetalleClientMock(opts: {
     b['select'] = jest.fn(() => b)
     b['eq'] = jest.fn((column: string, value: unknown) => {
       lastFilter = { column, value }
+      filters.push({ table, column, value, op: 'eq' })
       return b
     })
     b['in'] = jest.fn((column: string, value: unknown) => {
       lastFilter = { column, value, isIn: true }
+      filters.push({ table, column, value, op: 'in' })
       return b
     })
     b['order'] = jest.fn(() => b)
@@ -458,6 +461,7 @@ function buildEdicionDetalleClientMock(opts: {
 
   return {
     calls,
+    filters,
     from: jest.fn((table: string) => {
       calls.push(table)
       return makeBuilder(table)
@@ -551,6 +555,33 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     expect(result.inscripciones_count).toBe(12)
     expect(result.inscripciones_aprobadas_count).toBe(8)
     expect(result.certificados_count).toBe(3)
+  })
+
+  it('PR42 — cohorte + inscripciones + certificados queries filter by edicion.id (NOT the abstract taller_id)', async () => {
+    // Bug #3 + #4 — the previous implementation filtered the
+    // cohorte, inscripciones, and certificados queries by
+    // `edicionRow.taller_id` (the *abstract* taller id), which
+    // always returned 0 rows because the FK edge targets
+    // `taller_ediciones(id)`. The fix uses `edicionRow.id` (the
+    // edicion's own primary key).
+    const { from, filters } = buildEdicionDetalleClientMock({
+      edicion: fullEdicion,
+      cohorte: fullCohorte,
+      periodo: fullPeriodo,
+      inscripcionesTotal: 12,
+      inscripcionesAprobadas: 8,
+      certificados: 3,
+    })
+    await loadEdicionLocalDetalle({ from }, 'e-1')
+
+    // The taller_id filter ALWAYS equals the edicion id (e-1), NEITHER
+    // the abstract taller id (t-1) NOR the taller.slug.
+    const tallerIdFilters = filters.filter((f) => f.column === 'taller_id')
+    expect(tallerIdFilters.length).toBeGreaterThanOrEqual(4)
+    for (const f of tallerIdFilters) {
+      expect(f.value).toBe('e-1')
+      expect(f.value).not.toBe('t-1')
+    }
   })
 
   it('returns cohorte=null and periodo_general=null when those joins miss', async () => {

@@ -375,14 +375,14 @@ export async function loadDirPeriodos(
  * Projections used by the admin read-only detail page. The page is
  * preview-only: it joins the edicion with its taller abstract (for the
  * back-link), the cohorte (if any), the periodo general (if any), and
- * counts inscripciones + certificados scoped by taller_id.
+ * counts inscripciones + certificados scoped by edicion.
  *
- * Note: cohortes / inscripciones / certificados are joined by
- * taller_id rather than edicion_id because the cohort is the
- * instance-level aggregation root that owns a single taller_id, and
- * one taller_id can have multiple ediciones. This keeps the counts
- * "edicion-level" in spirit (one edicion per taller at a time per the
- * open_edicion RPC).
+ * PR42 — IMPORTANT: the `taller_id` filter on every related query
+ * (talleres_crecimiento_cohortes, taller_inscripciones, taller_certificados)
+ * refers to the EDICION id, not the abstract `talleres.id`. The FK
+ * relationship from those tables targets `taller_ediciones(id)`. Use
+ * `edicionRow.id` (or `edicionRow.taller_id` for the abstract linkage
+ * back-link) — never mix them up.
  */
 export interface EdicionLocalDetalle {
   readonly id: string
@@ -439,14 +439,16 @@ export async function loadEdicionLocalDetalle(
 
   const taller = edicionRow.talleres as { id: string; slug: string; nombre: string; estado: string }
 
-  // Cohort via taller_id (the cohort is owned by the taller, not by
-  // a single edicion row). Order by created_at DESC + limit 1 returns
-  // the latest cohort for this taller — the open_edicion RPC keeps
-  // one-edicion-per-taller per cohort.
+  // PR42 — Bug #3 + #4 fix. `talleres_crecimiento_cohortes.taller_id`
+  // is a FK to `taller_ediciones(id)` (the *edicion*, not the abstract
+  // taller). The previous implementation filtered by
+  // `edicionRow.taller_id` (the abstract taller's id), which always
+  // returned 0 rows. Use the *edicion* id (the row's own primary key)
+  // for the cohorte + inscripciones + certificados queries below.
   const { data: cohorteRow } = await client2
     .from('talleres_crecimiento_cohortes')
     .select('id, dream_team_equipo_id, edicion, started_at, ended_at')
-    .eq('taller_id', edicionRow.taller_id)
+    .eq('taller_id', edicionRow.id)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -463,22 +465,24 @@ export async function loadEdicionLocalDetalle(
     periodoRow = data
   }
 
-  // Counts — three independent head queries scoped by taller_id.
+  // Counts — three independent head queries scoped by taller_id
+  // (the FK column targets `taller_ediciones(id)` — see PR42 comment
+  // above). The edicion id is the right value to pass here.
   const { count: totalCount } = await client2
     .from('taller_inscripciones')
     .select('id', { count: 'exact', head: true })
-    .eq('taller_id', edicionRow.taller_id)
+    .eq('taller_id', edicionRow.id)
 
   const { count: aprobadasCount } = await client2
     .from('taller_inscripciones')
     .select('id', { count: 'exact', head: true })
-    .eq('taller_id', edicionRow.taller_id)
+    .eq('taller_id', edicionRow.id)
     .in('estado', ['pendiente', 'aprobado'])
 
   const { count: certificadosCount } = await client2
     .from('taller_certificados')
     .select('id', { count: 'exact', head: true })
-    .eq('taller_id', edicionRow.taller_id)
+    .eq('taller_id', edicionRow.id)
 
   const periodo = periodoRow as {
     id: string

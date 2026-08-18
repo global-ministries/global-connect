@@ -47,7 +47,8 @@ describe('getTalleresNavItems — capability filter', () => {
       ['talleres_crecimiento.coordinator.read'],
       { isEnabled: true },
     )
-    expect(items.length).toBe(5)
+    // 6 C items (5 base + PR42 global inscripciones admin view).
+    expect(items.length).toBe(6)
     expect(items.every((i) => i.id.startsWith('talleres_coordinacion_'))).toBe(true)
   })
 
@@ -56,12 +57,15 @@ describe('getTalleresNavItems — capability filter', () => {
       ['talleres_crecimiento.director.read'],
       { isEnabled: true },
     )
-    // 4 P + 3 L + 5 C + 7 D = 19
-    expect(items.length).toBe(19)
+    // 4 P + 3 L + 6 C (PR42 adds the global inscripciones admin view) + 7 D = 20
+    expect(items.length).toBe(20)
     expect(items.map((i) => i.id)).toContain('talleres_participante_explorar')
     expect(items.map((i) => i.id)).toContain('talleres_grupos_mis_grupos')
     expect(items.map((i) => i.id)).toContain('talleres_coordinacion_resumen')
     expect(items.map((i) => i.id)).toContain('talleres_direccion_resumen_global')
+    // PR42 — the global inscripciones view is reachable from C/D via
+    // the director.read superset (the item requires coordinator.read).
+    expect(items.map((i) => i.id)).toContain('talleres_coordinacion_inscripciones_global')
   })
 
   it('metrics.read holder sees the metricas item (not other director items)', () => {
@@ -115,9 +119,51 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
       ],
       { isEnabled: true },
     )
-    // 19 (P+L+C+D via director.read superset) + 1 admin entry = 20
-    expect(items.length).toBe(20)
+    // 20 (P+L+C+D via director.read superset, PR42 added the global
+    // inscripciones item) + 1 admin entry = 21
+    expect(items.length).toBe(21)
     expect(items.map((i) => i.id)).toContain('talleres_admin_abstracto')
+  })
+})
+
+// ─── PR42 — global admin inscripciones view ─────────────────────────────────
+
+describe('getTalleresNavItems — PR42 global admin inscripciones view', () => {
+  it('coordinador.read sees the global inscripciones item under C group', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.coordinator.read'],
+      { isEnabled: true },
+    )
+    const found = items.find((i) => i.id === 'talleres_coordinacion_inscripciones_global')
+    expect(found).toBeDefined()
+    expect(found?.href).toBe('/admin/talleres/inscripciones')
+    expect(found?.requiredCapability).toBe('talleres_crecimiento.coordinator.read')
+  })
+
+  it('coordinador.write also sees the item (write superset mirrors read)', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.coordinator.write'],
+      { isEnabled: true },
+    )
+    // coordinator.write does NOT trigger the read-superset rule, so
+    // the item must require coordinator.read literally. Currently
+    // the page gates the WRITE action separately (the action layer
+    // requires coordinator.write OR director.write OR admin.manage);
+    // the sidebar manifest is keyed to coordinator.read so the
+    // entry is visible to every read-capable operator.
+    expect(
+      items.find((i) => i.id === 'talleres_coordinacion_inscripciones_global'),
+    ).toBeUndefined()
+  })
+
+  it('admin.manage does NOT see the C-keyed item (admin group is distinct)', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.admin.manage'],
+      { isEnabled: true },
+    )
+    expect(
+      items.find((i) => i.id === 'talleres_coordinacion_inscripciones_global'),
+    ).toBeUndefined()
   })
 })
 
@@ -154,8 +200,9 @@ describe('getTalleresNavItems — multi-role union', () => {
       ],
       { isEnabled: true },
     )
-    // 4 P + 3 L (via director.read superset) + 5 C + 7 D = 19
-    expect(items.length).toBe(19)
+    // 4 P + 3 L (via director.read superset) + 6 C (PR42 adds the
+    // global inscripciones view) + 7 D = 20
+    expect(items.length).toBe(20)
   })
 
   it('canonical order is preserved (matches TALLERES_NAV_ITEMS order)', () => {

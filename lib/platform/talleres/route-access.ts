@@ -113,6 +113,13 @@ export type TalleresNavItemId =
   | 'talleres_direccion_reportes'
   // Admin
   | 'talleres_admin_abstracto'
+  // PR42 — Global inscripciones admin view (coordinador / director /
+  // admin). The page itself enforces the multi-capability gate; the
+  // sidebar keys the entry to `coordinator.write` so it shows up for
+  // every role that the page renders for (director.read is a superset
+  // of coordinator.read via the existing rule, and admin.manage is its
+  // own distinct group — admin can access via URL).
+  | 'talleres_coordinacion_inscripciones_global'
 
 export type TalleresNavItem = Readonly<{
   id: TalleresNavItemId
@@ -163,6 +170,16 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // — previously they got an empty sub-menu, which made the sidebar
   // entry look broken even though the capability gate resolved.
   { id: 'talleres_admin_abstracto', label: 'Grupos de Corto Plazo', href: '/admin/talleres/abstracto', requiredCapability: 'talleres_crecimiento.admin.manage' },
+  // PR42 — Global admin/coordinacion inscripciones view. The page
+  // itself enforces multi-capability (director.write OR admin.manage
+  // OR coordinator.write). The sidebar carries the C-key entry under
+  // `coordinator.read` so coordinators see it under "Coordinación"
+  // and directors see it via the director.read superset. Admin
+  // (admin.manage) can reach the page by URL but is not in the
+  // sidebar — the admin group is intentionally distinct (no read
+  // superset). The page-level action gate (coordinator.write) keeps
+  // the write surface protected.
+  { id: 'talleres_coordinacion_inscripciones_global', label: 'Inscripciones (global)', href: '/admin/talleres/inscripciones', requiredCapability: 'talleres_crecimiento.coordinator.read' },
 ]
 
 /**

@@ -32,6 +32,12 @@ jest.mock('@/lib/supabase/client', () => ({
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: () => true,
+  getTalleresFlags: () => ({
+    enabled: true,
+    stage: 'public',
+    killSwitch: false,
+    minAppVersion: null,
+  }),
 }))
 
 interface QueryChain {
@@ -146,5 +152,100 @@ describe('TalleresNavSubmenu — counters fetch behavior', () => {
   it('fetches 1 L counter (mis grupos) when user has lead.read', async () => {
     const count = await runFetchTest(['talleres_crecimiento.lead.read'], 1)
     expect(count).toBeGreaterThanOrEqual(1)
+  })
+})
+
+// ─── PR42 — sidebar mirrors capability, not the participant flag ────────────
+
+describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
+  /**
+   * Helper that overrides the flags mock for the duration of one test.
+   * The component reads `getTalleresFlags()` at render time, so we
+   * swap the mock implementation before mounting.
+   */
+  function withFlags(flags: {
+    enabled: boolean
+    stage: 'off' | 'admin-only' | 'internal' | 'public'
+    killSwitch: boolean
+    minAppVersion: string | null
+  }): void {
+    const flagsModule = jest.requireMock('@/lib/platform/talleres/flags')
+    flagsModule.getTalleresFlags = jest.fn(() => flags)
+    flagsModule.isTalleresEnabled = jest.fn(() => flags.enabled && flags.stage !== 'off' && !flags.killSwitch)
+  }
+
+  beforeEach(() => {
+    // Reset to the default enabled+public state before each test.
+    withFlags({
+      enabled: true,
+      stage: 'public',
+      killSwitch: false,
+      minAppVersion: null,
+    })
+  })
+
+  it('shows the participante Explorar + Mis Talleres items even when the flag is "off"', () => {
+    // The flag going 'off' used to hide every non-admin entry (PR26
+    // behavior). PR42 removed that filter — the pages don't gate on
+    // the flag, so the sidebar shouldn't either.
+    withFlags({
+      enabled: false,
+      stage: 'off',
+      killSwitch: false,
+      minAppVersion: null,
+    })
+    const ref = { count: 0 }
+    createClientMock.mockImplementation(makeBrowserClientMock(ref))
+    render(
+      React.createElement(TalleresNavSubmenu, {
+        sessionCapabilities: ['talleres_crecimiento.participation.read'],
+      }),
+    )
+    // The participante items are rendered as plain text.
+    expect(screen.getByText('Explorar')).toBeDefined()
+    expect(screen.getByText('Mis Talleres')).toBeDefined()
+    expect(screen.getByText('Historial')).toBeDefined()
+    expect(screen.getByText('Certificados')).toBeDefined()
+  })
+
+  it('still filters down to admin-only when the kill switch is ON', () => {
+    // The kill switch is the only flag-driven UI filter that survives
+    // PR42 — when it's ON, the page tree also 404s, so hiding the
+    // menu consistently is correct.
+    withFlags({
+      enabled: true,
+      stage: 'public',
+      killSwitch: true,
+      minAppVersion: null,
+    })
+    const ref = { count: 0 }
+    createClientMock.mockImplementation(makeBrowserClientMock(ref))
+    render(
+      React.createElement(TalleresNavSubmenu, {
+        sessionCapabilities: [
+          'talleres_crecimiento.participation.read',
+          'talleres_crecimiento.admin.manage',
+        ],
+      }),
+    )
+    // Admin keeps the abstracto entry.
+    expect(screen.getByText('Grupos de Corto Plazo')).toBeDefined()
+    // Participant items are HIDDEN under the kill switch.
+    expect(screen.queryByText('Explorar')).toBeNull()
+    expect(screen.queryByText('Mis Talleres')).toBeNull()
+  })
+
+  it('shows the new global inscripciones item to a director.read user', () => {
+    // PR42 — the global admin/coordinacion inscripciones view is an
+    // item under the C bucket, visible to director.read via the
+    // existing superset rule.
+    const ref = { count: 0 }
+    createClientMock.mockImplementation(makeBrowserClientMock(ref))
+    render(
+      React.createElement(TalleresNavSubmenu, {
+        sessionCapabilities: ['talleres_crecimiento.director.read'],
+      }),
+    )
+    expect(screen.getByText('Inscripciones (global)')).toBeDefined()
   })
 })
