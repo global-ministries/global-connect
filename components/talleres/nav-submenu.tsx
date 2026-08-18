@@ -35,7 +35,7 @@ import {
   groupTalleresNavItems,
   type TalleresNavGroup,
 } from '@/lib/platform/talleres/navigation'
-import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { getTalleresFlags } from '@/lib/platform/talleres/flags'
 import { createClient as createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 interface Input {
@@ -165,23 +165,31 @@ export function TalleresNavSubmenu({ sessionCapabilities, counters: propCounters
   const counters = propCounters ?? fetchedCounters
 
   const items = useMemo(() => {
-    // PR26 — The talleres participant-facing feature flag (rolled out
-    // per `lib/platform/talleres/flags.ts`) gates end-user access to
-    // talleres, but the operational admin entry-point
-    // (`talleres_admin_abstracto`) must remain visible to admins even
-    // when the participant flag is off — otherwise admin users with
-    // `talleres_crecimiento.admin.manage` see the parent sidebar
-    // entry but no sub-items, which made the sidebar look broken in
-    // production after PR25.
+    // PR42 — fix inconsistent sidebar vs. page access.
     //
-    // We pass `isEnabled: true` to bypass the flag check inside
-    // `getTalleresNavItems`, then filter out non-admin items locally
-    // when the participant flag is off. The admin group remains
-    // visible to admins in all rollout stages.
-    const all = getTalleresNavItems(sessionCapabilities, { isEnabled: true })
-
-    if (isTalleresEnabled()) return all
-    return all.filter((item) => item.requiredCapability === 'talleres_crecimiento.admin.manage')
+    // The previous logic (PR26) computed `isTalleresEnabled()` and
+    // filtered out every non-admin item when the flag was off — but
+    // the corresponding pages (e.g. /talleres/explorar,
+    // /talleres/mis-talleres) DON'T gate on the flag: they only gate
+    // on `participation.read`. The result was a sidebar that hid
+    // links to pages the user could reach, while the page itself
+    // rendered normally if the user navigated by URL.
+    //
+    // The right policy: the sidebar reflects what the user CAN see
+    // (capability-based), not a UX rollout decision. The flag stays
+    // in charge of the page gate (each RSC checks `isTalleresEnabled`
+    // and 404s if off). The sidebar stays purely capability-driven.
+    //
+    // The PR26 admin-only fallback is preserved for the `killSwitch`
+    // edge case — when the kill switch is ON, the page tree ALSO
+    // 404s, so hiding the menu consistently is correct.
+    const flags = getTalleresFlags()
+    if (flags.killSwitch) {
+      return getTalleresNavItems(sessionCapabilities, { isEnabled: true }).filter(
+        (item) => item.requiredCapability === 'talleres_crecimiento.admin.manage',
+      )
+    }
+    return getTalleresNavItems(sessionCapabilities, { isEnabled: true })
   }, [sessionCapabilities])
 
   const groups = useMemo(() => groupTalleresNavItems(items), [items])

@@ -110,11 +110,21 @@ export async function loadParticipanteActiveTalleres(
 ): Promise<readonly ParticipanteTallerSummary[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
+  // PR42 — joined-relationship fix. The previous embedded join
+  // `taller:taller_ediciones (...)` returned `{ data: null, error: ... }`
+  // because `taller_inscripciones.taller_id` could be inferred against
+  // the wrong FK direction (the column has a FK to `talleres` AND
+  // effectively anchors the row to `taller_ediciones` in the canonical
+  // model). PostgREST's embedded-resource inference is brittle when
+  // multiple FKs exist between two tables. The explicit `!taller_id`
+  // hint forces the join to follow the `taller_inscripciones.taller_id
+  // → taller_ediciones.id` edge — mirroring the PR38 fix that
+  // unblocked `loadParticipanteExplorar`.
   const { data, error } = await client
     .from('taller_inscripciones')
     .select(
       `id, estado, unit_estado, fecha_completitud,
-       taller:taller_ediciones (id, nombre_snapshot, tipo, estado)`,
+       taller:taller_ediciones!taller_id (id, nombre_snapshot, tipo, estado)`,
     )
     .eq('persona_principal_id', ctx.personaId)
     .in('estado', ['pendiente', 'aprobado'])
@@ -159,11 +169,15 @@ export async function loadParticipanteHistorial(
 ): Promise<readonly ParticipanteHistorialRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
+  // PR42 — joined-relationship fix (same as `loadParticipanteActiveTalleres`).
+  // The unhesitant `taller:taller_ediciones (...)` shape is brittle when
+  // multiple FKs exist between two tables; the explicit `!taller_id`
+  // hint forces PostgREST to follow the intended FK edge.
   const { data, error } = await client
     .from('taller_inscripciones')
     .select(
       `id, estado, unit_estado, fecha_completitud, created_at,
-       taller:taller_ediciones (id, nombre_snapshot)`,
+       taller:taller_ediciones!taller_id (id, nombre_snapshot)`,
     )
     .eq('persona_principal_id', ctx.personaId)
     .order('created_at', { ascending: false })

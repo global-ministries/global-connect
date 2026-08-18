@@ -243,6 +243,26 @@ describe('loadParticipanteActiveTalleres — summary projection only', () => {
     expect(selectColumns).not.toMatch(/asistencia/i)
     expect(selectColumns).not.toMatch(/reporte/i)
   })
+
+  it('PR42 — joined-relationship fix: select uses taller:taller_ediciones!taller_id(...)', async () => {
+    // Bug #1 — the embedded join `taller:taller_ediciones (...)` returned
+    // an empty result because `taller_inscripciones.taller_id` has
+    // multiple FK edges (to `talleres` and to `taller_ediciones`).
+    // The PR42 fix forces the join via the explicit `!taller_id` hint.
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.participation.read'],
+    })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    await loadParticipanteActiveTalleres(ctxResult.context)
+
+    const filters = capturedFiltersFor('taller_inscripciones')
+    const selectColumns = filters[0]?.selectColumns ?? ''
+    expect(selectColumns).toMatch(/taller\s*:\s*taller_ediciones!taller_id\s*\(/)
+    // The taller_id column is required so the FK hint resolves.
+    expect(selectColumns).toMatch(/taller_id|nombre_snapshot/)
+  })
 })
 
 describe('loadParticipanteHistorial — full history without motivos/asistencia', () => {
@@ -269,6 +289,23 @@ describe('loadParticipanteHistorial — full history without motivos/asistencia'
     const selectColumns = filters[0]?.selectColumns ?? ''
     expect(selectColumns).not.toMatch(/motivo/i)
     expect(selectColumns).not.toMatch(/asistencia/i)
+  })
+
+  it('PR42 — joined-relationship fix: select uses taller:taller_ediciones!taller_id(...)', async () => {
+    // Bug #1 — same root cause as `loadParticipanteActiveTalleres`,
+    // fixed in the same PR. The two helpers share the same FK
+    // ambiguity problem on `taller_inscripciones.taller_id`.
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.participation.read'],
+    })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    await loadParticipanteHistorial(ctxResult.context)
+
+    const filters = capturedFiltersFor('taller_inscripciones')
+    const selectColumns = filters[0]?.selectColumns ?? ''
+    expect(selectColumns).toMatch(/taller\s*:\s*taller_ediciones!taller_id\s*\(/)
   })
 })
 
