@@ -263,6 +263,32 @@ describe('loadParticipanteActiveTalleres — summary projection only', () => {
     // The taller_id column is required so the FK hint resolves.
     expect(selectColumns).toMatch(/taller_id|nombre_snapshot/)
   })
+
+  it('PR44 — does NOT select fecha_completitud from taller_inscripciones (column does not exist)', async () => {
+    // Bug #3 — the select included `fecha_completitud`, which does NOT
+    // exist on `taller_inscripciones` (it lives on `taller_certificados`).
+    // PostgREST errored → `if (error) return []` → /talleres/mis-talleres
+    // was always empty. The completion date must come from the 1:1
+    // `certificado:taller_certificados!inscripcion_id` embed instead.
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.participation.read'],
+    })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    await loadParticipanteActiveTalleres(ctxResult.context)
+
+    const filters = capturedFiltersFor('taller_inscripciones')
+    const selectColumns = filters[0]?.selectColumns ?? ''
+    // Ghost-column fix: `fecha_completitud` must appear exactly ONCE and
+    // only inside the certificate embed (it is not a root column of
+    // `taller_inscripciones`).
+    const completitudCount = (selectColumns.match(/fecha_completitud/g) ?? []).length
+    expect(completitudCount).toBe(1)
+    expect(selectColumns).toMatch(/certificado\s*:\s*taller_certificados!inscripcion_id\s*\(/)
+    // Abstract taller name comes from the nested embed (PR44 projection fix).
+    expect(selectColumns).toMatch(/abstracto\s*:\s*talleres!taller_id\s*\(/)
+  })
 })
 
 describe('loadParticipanteHistorial — full history without motivos/asistencia', () => {
@@ -306,6 +332,30 @@ describe('loadParticipanteHistorial — full history without motivos/asistencia'
     const filters = capturedFiltersFor('taller_inscripciones')
     const selectColumns = filters[0]?.selectColumns ?? ''
     expect(selectColumns).toMatch(/taller\s*:\s*taller_ediciones!taller_id\s*\(/)
+  })
+
+  it('PR44 — does NOT select fecha_completitud from taller_inscripciones (column does not exist)', async () => {
+    // Same ghost-column bug as `loadParticipanteActiveTalleres` — the
+    // historial select requested `fecha_completitud` from
+    // `taller_inscripciones`. PostgREST rejects the column; the helper
+    // silently returned []. The completion date is resolved from the
+    // certificate embed instead.
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.participation.read'],
+    })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    await loadParticipanteHistorial(ctxResult.context)
+
+    const filters = capturedFiltersFor('taller_inscripciones')
+    const selectColumns = filters[0]?.selectColumns ?? ''
+    // Ghost-column fix: `fecha_completitud` appears exactly ONCE, inside
+    // the certificate embed — never as a root column of
+    // `taller_inscripciones`.
+    const completitudCount = (selectColumns.match(/fecha_completitud/g) ?? []).length
+    expect(completitudCount).toBe(1)
+    expect(selectColumns).toMatch(/certificado\s*:\s*taller_certificados!inscripcion_id\s*\(/)
   })
 })
 

@@ -123,8 +123,12 @@ export async function loadParticipanteActiveTalleres(
   const { data, error } = await client
     .from('taller_inscripciones')
     .select(
-      `id, estado, unit_estado, fecha_completitud,
-       taller:taller_ediciones!taller_id (id, nombre_snapshot, tipo, estado)`,
+      `id, estado, unit_estado,
+       taller:taller_ediciones!taller_id (
+         id, nombre_snapshot, tipo, estado,
+         abstracto:talleres!taller_id (id, nombre)
+       ),
+       certificado:taller_certificados!inscripcion_id (fecha_completitud)`,
     )
     .eq('persona_principal_id', ctx.personaId)
     .in('estado', ['pendiente', 'aprobado'])
@@ -138,12 +142,18 @@ export async function loadParticipanteActiveTalleres(
     return [
       {
         id: t.id as string,
-        nombre: t.nombre_snapshot as string,
+        // PR44 — the abstract taller name is the title; the snapshot is the
+        // edition label ("Septiembre 2026"). `taller_ediciones` has no
+        // `edicion` column, so the previous `t.edicion` was always undefined.
+        nombre: (t.abstracto?.nombre as string | undefined) ?? (t.nombre_snapshot as string),
         tipo: t.tipo as 'individual' | 'pareja',
-        edicion: t.edicion as string,
+        edicion: t.nombre_snapshot as string,
         estado_inscripcion: row.estado as 'pendiente' | 'aprobado',
         unit_estado: (row.unit_estado as 'completado' | 'no_completado' | 'abandono' | null) ?? null,
-        fecha_completitud: (row.fecha_completitud as string | null) ?? null,
+        // PR44 — `taller_inscripciones` has NO `fecha_completitud` column;
+        // the real completion date lives on `taller_certificados` (1:1 via
+        // inscripcion_id). Null for active talleres without a certificate.
+        fecha_completitud: (row.certificado?.fecha_completitud as string | null) ?? null,
         estado_taller: t.estado as 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado',
       },
     ]
@@ -176,8 +186,12 @@ export async function loadParticipanteHistorial(
   const { data, error } = await client
     .from('taller_inscripciones')
     .select(
-      `id, estado, unit_estado, fecha_completitud, created_at,
-       taller:taller_ediciones!taller_id (id, nombre_snapshot)`,
+      `id, estado, unit_estado, created_at,
+       taller:taller_ediciones!taller_id (
+         id, nombre_snapshot,
+         abstracto:talleres!taller_id (id, nombre)
+       ),
+       certificado:taller_certificados!inscripcion_id (fecha_completitud)`,
     )
     .eq('persona_principal_id', ctx.personaId)
     .order('created_at', { ascending: false })
@@ -190,11 +204,14 @@ export async function loadParticipanteHistorial(
     return [
       {
         id: row.id as string,
-        nombre: t.nombre_snapshot as string,
-        edicion: t.edicion as string,
+        // PR44 — abstract taller name is the title; snapshot is the edition.
+        nombre: (t.abstracto?.nombre as string | undefined) ?? (t.nombre_snapshot as string),
+        edicion: t.nombre_snapshot as string,
         estado_inscripcion: row.estado as 'pendiente' | 'aprobado' | 'no_aprobado' | 'completado',
         unit_estado: (row.unit_estado as 'completado' | 'no_completado' | 'abandono' | null) ?? null,
-        fecha_completitud: (row.fecha_completitud as string | null) ?? null,
+        // PR44 — completion date comes from the certificate (1:1), not
+        // from `taller_inscripciones` (column does not exist).
+        fecha_completitud: (row.certificado?.fecha_completitud as string | null) ?? null,
         fecha_inscripcion: row.created_at as string,
       },
     ]
