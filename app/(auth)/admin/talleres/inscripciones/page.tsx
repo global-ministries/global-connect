@@ -1,5 +1,5 @@
 /**
- * PR42 — `/admin/talleres/inscripciones` (RSC).
+ * PR42 + redesign — `/admin/talleres/inscripciones` (RSC).
  *
  * Global admin view of ALL inscripciones across ALL ediciones. The page
  * is restricted to director.write | admin.manage | coordinator.write;
@@ -23,9 +23,12 @@
  *     deterministic).
  *
  * RSC contract: the page is a server component. Filters come from
- * `searchParams` so they're sharable via URL. The buttons are rendered
- * through the `inscripcion-actions.tsx` client component (which calls
- * the server actions in `./actions.ts`).
+ * `searchParams` so they're sharable via URL. The table is rendered
+ * through the shared `<TablaInscripciones>` server component, which
+ * delegates the inline approve/reject UI to
+ * `@/components/talleres/inscripcion-actions`. Server actions live in
+ * `@/lib/platform/talleres/inscripciones-actions` (shared with the
+ * coordinator pendientes surface).
  */
 
 import Link from 'next/link'
@@ -35,9 +38,9 @@ import {
   ContenedorDashboard,
   TarjetaSistema,
   TextoSistema,
-  BadgeSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
+import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -47,11 +50,12 @@ import {
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import {
   loadAdminInscripciones,
-  type AdminInscripcionRow,
   type InscripcionEstado,
 } from '@/lib/platform/talleres/admin-inscripciones'
-
-import { ApproveInscripcionButton, RejectInscripcionButton } from './inscripcion-actions'
+import {
+  approveInscripcionAction,
+  rejectInscripcionAction,
+} from '@/lib/platform/talleres/inscripciones-actions'
 
 export const metadata = { title: 'Inscripciones (global)' }
 
@@ -136,7 +140,7 @@ export default async function AdminInscripcionesPage(ctx: RouteContext) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
-  const { rows, total } = await loadAdminInscripciones(client, filters)
+  const { rows, total } = await loadAdminInscripciones(client, filters);
 
   return (
     <ContenedorDashboard
@@ -152,7 +156,7 @@ export default async function AdminInscripcionesPage(ctx: RouteContext) {
             <TextoSistema variante="sutil" className="mt-1 block text-sm">
               {total === 0
                 ? 'Sin resultados para los filtros actuales.'
-                : `${total} inscripci\u00f3n${total === 1 ? '' : 'es'}`}
+                : `${total} inscripción${total === 1 ? '' : 'es'}`}
             </TextoSistema>
           </div>
           <FiltersBar
@@ -168,15 +172,12 @@ export default async function AdminInscripcionesPage(ctx: RouteContext) {
           <TextoSistema variante="sutil">No hay inscripciones para mostrar.</TextoSistema>
         </TarjetaSistema>
       ) : (
-        <TarjetaSistema variante="elevated" className="overflow-hidden p-0">
-          <ul className="divide-y divide-border">
-            {rows.map((row) => (
-              <li key={row.id} className="p-4">
-                <RowContent row={row} canWrite={hasWrite && row.estado === 'pendiente'} />
-              </li>
-            ))}
-          </ul>
-        </TarjetaSistema>
+        <TablaInscripciones
+          rows={rows}
+          canWrite={hasWrite}
+          onApprove={approveInscripcionAction}
+          onReject={rejectInscripcionAction}
+        />
       )}
     </ContenedorDashboard>
   )
@@ -234,77 +235,4 @@ function FiltersBar({
       })}
     </div>
   )
-}
-
-function RowContent({
-  row,
-  canWrite,
-}: {
-  readonly row: AdminInscripcionRow
-  readonly canWrite: boolean
-}): React.ReactElement {
-  const estadoVariante: 'default' | 'success' | 'warning' | 'error' =
-    row.estado === 'aprobado'
-      ? 'success'
-      : row.estado === 'pendiente'
-        ? 'warning'
-        : row.estado === 'no_aprobado'
-          ? 'error'
-          : 'default'
-
-  return (
-    <div className="flex flex-wrap items-start gap-3">
-      <div className="flex-1 min-w-[260px]">
-        <div className="flex items-center gap-2">
-          <TextoSistema className="font-medium">{row.persona_principal_nombre}</TextoSistema>
-          {row.persona_principal_email && (
-            <TextoSistema variante="sutil" className="text-xs">
-              &lt;{row.persona_principal_email}&gt;
-            </TextoSistema>
-          )}
-        </div>
-        <TextoSistema variante="sutil" className="mt-1 block text-sm">
-          {row.taller_nombre} · {row.edicion_nombre}
-        </TextoSistema>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-          <BadgeSistema variante={estadoVariante}>{row.estado}</BadgeSistema>
-          {row.cohorte_edicion && (
-            <BadgeSistema variante="info">Cohorte: {row.cohorte_edicion}</BadgeSistema>
-          )}
-          {row.link_type && (
-            <BadgeSistema variante="default">
-              {row.link_type === 'matrimonio' ? 'Matrimonio' : 'Novios'}
-            </BadgeSistema>
-          )}
-          {row.companero_nombre && (
-            <TextoSistema variante="sutil">+ {row.companero_nombre}</TextoSistema>
-          )}
-        </div>
-        <TextoSistema variante="sutil" className="mt-2 block text-xs">
-          Creada el {formatFecha(row.created_at)}
-          {row.updated_at !== row.created_at && (
-            <> · Actualizada el {formatFecha(row.updated_at)}</>
-          )}
-        </TextoSistema>
-      </div>
-      {canWrite && (
-        <div className="flex items-start gap-2">
-          <ApproveInscripcionButton inscripcionId={row.id} />
-          <RejectInscripcionButton inscripcionId={row.id} />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function formatFecha(value: string): string {
-  try {
-    return new Date(value).toLocaleDateString('es', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return value
-  }
 }

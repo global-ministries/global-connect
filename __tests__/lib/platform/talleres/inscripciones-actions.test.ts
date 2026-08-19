@@ -1,17 +1,22 @@
 /**
  * @jest-environment node
  *
- * PR42 — Tests for the `/admin/talleres/inscripciones` server actions.
+ * Tests for the shared `inscripciones-actions.ts` module — covers
+ * the server actions used by both `/admin/talleres/inscripciones`
+ * (global admin) and `/talleres/coordinacion/inscripciones`
+ * (coordinator pendientes).
  *
- * Covers:
+ * Coverage:
  *   - approveInscripcionAction: requires one of director.write |
  *     admin.manage | coordinator.write; updates only when the row
- *     is currently `pendiente`; revalidates the page.
+ *     is currently `pendiente`; revalidates BOTH surfaces.
  *   - rejectInscripcionAction: same capability gate; motivo is
  *     REQUIRED (trigger enforcement + client validation); updates
  *     only when pendiente; writes motivo_no_aprobado.
  *   - Error paths: unset user, no session, missing capability,
  *     empty motivo, no-op on already-approved rows.
+ *   - Reusability: both actions are importable from the new
+ *     `lib/platform/talleres/inscripciones-actions` path.
  *
  * Mocks both `flags` and `platformSessionReadOnly` (the auth gate).
  * The supabase client is built per-test via the gate's return value.
@@ -20,7 +25,7 @@
 import {
   approveInscripcionAction,
   rejectInscripcionAction,
-} from '@/app/(auth)/admin/talleres/inscripciones/actions'
+} from '@/lib/platform/talleres/inscripciones-actions'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(),
@@ -116,7 +121,32 @@ beforeEach(() => {
   jest.clearAllMocks()
 })
 
-// ─── approveInscripcionAction — happy path ──────────────────────────────────
+// ─── Reusability: both actions exported from the new module ──────────────
+
+describe('inscripciones-actions module reusability', () => {
+  it('exports approveInscripcionAction and rejectInscripcionAction as functions', () => {
+    expect(typeof approveInscripcionAction).toBe('function')
+    expect(typeof rejectInscripcionAction).toBe('function')
+  })
+
+  it('actions are usable from the global admin page wiring (smoke)', async () => {
+    setupMocks({
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    const ok = await approveInscripcionAction(INSCRIPCION_ID)
+    expect(ok.ok).toBe(true)
+  })
+
+  it('actions are usable from the coordinator pendientes page wiring (smoke)', async () => {
+    setupMocks({
+      capabilities: ['talleres_crecimiento.coordinator.write'],
+    })
+    const ok = await rejectInscripcionAction(INSCRIPCION_ID, 'motivo válido')
+    expect(ok.ok).toBe(true)
+  })
+})
+
+// ─── approveInscripcionAction — happy path ────────────────────────────────
 
 describe('approveInscripcionAction — happy path', () => {
   it('director.write holder approves a pendiente row', async () => {
@@ -147,9 +177,20 @@ describe('approveInscripcionAction — happy path', () => {
     expect(result.ok).toBe(true)
     expect(updateBuilder['eq']).toHaveBeenCalledWith('id', INSCRIPCION_ID)
   })
+
+  it('revalidates the coordinator pendientes surface too', async () => {
+    setupMocks({
+      capabilities: ['talleres_crecimiento.coordinator.write'],
+    })
+    await approveInscripcionAction(INSCRIPCION_ID)
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/talleres/coordinacion/inscripciones',
+    )
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/coordinacion')
+  })
 })
 
-// ─── approveInscripcionAction — rejections ──────────────────────────────────
+// ─── approveInscripcionAction — rejections ────────────────────────────────
 
 describe('approveInscripcionAction — error paths', () => {
   it('returns talleres-disabled when the flag is off', async () => {
@@ -182,14 +223,10 @@ describe('approveInscripcionAction — error paths', () => {
   })
 
   it('returns NOT_FOUND_OR_NOT_PENDIENTE when the UPDATE is a no-op', async () => {
-    // The maybeSingle mock returns null when the WHERE clause
-    // matches nothing (the row is already aprobado, not pendiente).
     setupMocks({
       capabilities: ['talleres_crecimiento.admin.manage'],
     })
     // Override the maybeSingle to return null (no row matched).
-    // We can do this by replacing the mock on the client.
-    // Easier: re-mock the chain.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recursive chain mock
     const updateBuilder: Record<string, any> = {
       eq: jest.fn(),
@@ -253,7 +290,7 @@ describe('approveInscripcionAction — error paths', () => {
   })
 })
 
-// ─── rejectInscripcionAction — happy path ───────────────────────────────────
+// ─── rejectInscripcionAction — happy path ─────────────────────────────────
 
 describe('rejectInscripcionAction — happy path', () => {
   it('writes estado=no_aprobado + motivo_no_aprobado and revalidates', async () => {
@@ -270,7 +307,6 @@ describe('rejectInscripcionAction — happy path', () => {
       })),
     }))
     client.from.mockReturnValue({ update })
-    // Re-create the supabase facade with the custom update chain.
     createSupabaseServerClientMock.mockReset().mockResolvedValue({
       auth: {
         getUser: jest.fn().mockResolvedValue({
@@ -288,6 +324,7 @@ describe('rejectInscripcionAction — happy path', () => {
       motivo_no_aprobado: 'cupo lleno', // trimmed
     })
     expect(revalidatePathMock).toHaveBeenCalledWith('/admin/talleres/inscripciones')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/coordinacion/inscripciones')
   })
 
   it('director.write holder also rejects', async () => {
@@ -319,7 +356,7 @@ describe('rejectInscripcionAction — happy path', () => {
   })
 })
 
-// ─── rejectInscripcionAction — motivo validation ────────────────────────────
+// ─── rejectInscripcionAction — motivo validation ──────────────────────────
 
 describe('rejectInscripcionAction — motivo validation', () => {
   it('returns INVALID_MOTIVO when motivo is empty (no auth gate run)', async () => {
@@ -337,8 +374,6 @@ describe('rejectInscripcionAction — motivo validation', () => {
   })
 
   it('returns INVALID_MOTIVO when motivo is undefined', async () => {
-    // The runtime narrows the parameter to string; passing undefined
-    // tests the defensive fallback.
     const result = await rejectInscripcionAction(
       INSCRIPCION_ID,
       undefined as unknown as string,
@@ -348,7 +383,7 @@ describe('rejectInscripcionAction — motivo validation', () => {
   })
 })
 
-// ─── rejectInscripcionAction — error paths ──────────────────────────────────
+// ─── rejectInscripcionAction — error paths ────────────────────────────────
 
 describe('rejectInscripcionAction — error paths', () => {
   it('returns FORBIDDEN when the user has no write capability', async () => {
@@ -398,7 +433,7 @@ describe('rejectInscripcionAction — error paths', () => {
   })
 })
 
-// ─── empty inscripcionId ─────────────────────────────────────────────────────
+// ─── empty inscripcionId ─────────────────────────────────────────────────
 
 describe('inscripcionId guard', () => {
   it('approve returns NOT_FOUND_OR_NOT_PENDIENTE for empty id', async () => {

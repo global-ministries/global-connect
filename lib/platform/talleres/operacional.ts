@@ -25,6 +25,8 @@ import {
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 
+import type { InscripcionAdminRow } from './inscripciones-types'
+
 export type OperacionalRole = 'L' | 'C' | 'D'
 
 export interface OperacionalContext {
@@ -233,26 +235,162 @@ export async function loadEquipoProximasSesiones(
 
 // ─── Coordinacion (C) ─────────────────────────────────────────────────────
 
-export interface CoordInscripcionRow {
-  readonly id: string
-  readonly taller_id: string
-  readonly estado: 'pendiente' | 'aprobado' | 'no_aprobado' | 'completado'
-  readonly motivo_no_aprobado: string | null
-  readonly created_at: string
-}
+/**
+ * Coord inscripcion row shape.
+ *
+ * Re-exported as an alias for `InscripcionAdminRow` (PR42 unified
+ * shape) so the coordinator surface can share the
+ * `<TablaInscripciones>` component + approve/reject buttons with the
+ * global `/admin/talleres/inscripciones` surface. The old PR19
+ * shape (`id, taller_id, estado, motivo_no_aprobado, created_at`)
+ * is superseded — callers now get persona_nombre + edicion_nombre +
+ * cohorte_edicion + link_type so the table is human-readable.
+ */
+export type CoordInscripcionRow = InscripcionAdminRow
 
+/**
+ * Loads pendiente inscripciones for the coordinator surface.
+ *
+ * Returns up to 50 rows (a coordinator should never see hundreds of
+ * pendientes at once; if there are more, the workflow needs
+ * tightening, not pagination). The shape matches
+ * `InscripcionAdminRow` so the same `<TablaInscripciones>`
+ * component used by the global admin page can render it.
+ *
+ * Query plan:
+ *   1. SELECT base columns + embedded persona_principal/companero
+ *      joins (same dual-FK hint pattern used by `admin-inscripciones.ts`).
+ *   2. Batched lookup of `taller_ediciones` (with embedded abstract
+ *      taller) by collected taller_ids.
+ *   3. Batched lookup of `talleres_crecimiento_cohortes` by collected
+ *      cohorte_ids.
+ *   4. Deny-by-default: rows whose edicion join does not resolve are
+ *      dropped.
+ *
+ * RLS-respecting: the SELECT policy on `taller_inscripciones` allows
+ * coordinator / director / admin to read all rows. The page's
+ * `requireOperacionalRole()` is the outer wall.
+ */
 export async function loadCoordInscripcionesPendientes(
   ctx: OperacionalContext
 ): Promise<readonly CoordInscripcionRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
-  const { data, error } = await client
-    .from('taller_inscripciones')
-    .select('id, taller_id, estado, motivo_no_aprobado, created_at')
-    .eq('estado', 'pendiente')
-    .order('created_at', { ascending: true })
-  if (error) return []
-  return (data ?? []) as CoordInscripcionRow[]
+
+  // Query 1 — inscripciones (pendientes only, with embedded persona
+  // + companero joins so we avoid an extra round-trip for users).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase resolved shape
+  const res: { data: any[] | null; error: { message: string } | null } =
+    await client
+      .from('taller_inscripciones')
+      .select(
+        `id, taller_id, cohorte_id, estado, link_type, created_at, updated_at,
+         persona_principal:usuarios!persona_principal_id (id, nombre, apellido, email),
+         companero:usuarios!companero_id (id, nombre, apellido)`,
+      )
+      .eq('estado', 'pendiente')
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+  if (res.error) return []
+  const inscripciones = (res.data ?? []) as Array<Record<string, unknown>>
+
+  if (inscripciones.length === 0) return []
+
+  // Collect ids for batched lookups.
+  const edicionIds = new Set<string>()
+  const cohorteIds = new Set<string>()
+  for (const row of inscripciones) {
+    if (typeof row.taller_id === 'string') edicionIds.add(row.taller_id)
+    if (typeof row.cohorte_id === 'string') cohorteIds.add(row.cohorte_id)
+  }
+
+  // Query 2 — ediciones by id (with embedded abstract taller).
+  const edicionesById = new Map<
+    string,
+    {
+      id: string
+      nombre_snapshot: string
+      estado: string
+      taller_id: string
+      taller: { id: string; nombre: string; slug: string } | null
+    }
+  >()
+  if (edicionIds.size > 0) {
+    const edRes = await client
+      .from('taller_ediciones')
+      .select(
+        `id, nombre_snapshot, estado, taller_id,
+         taller:talleres (id, nombre, slug)`,
+      )
+      .in('id', Array.from(edicionIds))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resolved shape
+    const edData = ((edRes as any).data ?? []) as any[]
+    for (const e of edData) {
+      edicionesById.set(e.id, e)
+    }
+  }
+
+  // Query 3 — cohortes by id.
+  const cohortesById = new Map<string, { id: string; edicion: string | null }>()
+  if (cohorteIds.size > 0) {
+    const cRes = await client
+      .from('talleres_crecimiento_cohortes')
+      .select('id, edicion')
+      .in('id', Array.from(cohorteIds))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resolved shape
+    const cData = ((cRes as any).data ?? []) as any[]
+    for (const c of cData) {
+      cohortesById.set(c.id, c)
+    }
+  }
+
+  // Build the page rows.
+  const rows: CoordInscripcionRow[] = []
+  const nombreCompleto = (n: string | null, a: string | null): string =>
+    [n, a].filter((x) => x && x.length > 0).join(' ') || '—'
+
+  for (const r of inscripciones) {
+    const edicion = edicionesById.get(r.taller_id as string)
+    if (!edicion) continue
+    const cohorte =
+      typeof r.cohorte_id === 'string' ? cohortesById.get(r.cohorte_id) : null
+    const persona = r.persona_principal as
+      | {
+          id: string
+          nombre: string | null
+          apellido: string | null
+          email: string | null
+        }
+      | null
+    const companero = r.companero as
+      | { id: string; nombre: string | null; apellido: string | null }
+      | null
+    if (!persona) continue
+
+    rows.push({
+      id: r.id as string,
+      edicion_id: edicion.id,
+      edicion_nombre: edicion.nombre_snapshot,
+      edicion_estado: edicion.estado,
+      taller_id: edicion.taller_id,
+      taller_nombre: edicion.taller?.nombre ?? '—',
+      taller_slug: edicion.taller?.slug ?? '',
+      cohorte_id: (r.cohorte_id as string | null) ?? null,
+      cohorte_edicion: cohorte?.edicion ?? null,
+      persona_principal_id: persona.id,
+      persona_principal_nombre: nombreCompleto(persona.nombre, persona.apellido),
+      persona_principal_email: persona.email ?? null,
+      companero_id: companero?.id ?? null,
+      companero_nombre: companero ? nombreCompleto(companero.nombre, companero.apellido) : null,
+      link_type: (r.link_type as 'matrimonio' | 'novios' | null) ?? null,
+      estado: r.estado as InscripcionAdminRow['estado'],
+      created_at: r.created_at as string,
+      updated_at: r.updated_at as string,
+    })
+  }
+
+  return rows
 }
 
 export interface CoordTaller {

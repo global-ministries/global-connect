@@ -1,7 +1,18 @@
 'use server'
 
 /**
- * PR42 — Server actions for `/admin/talleres/inscripciones`.
+ * PR42 + redesign — Shared server actions for the inscripciones
+ * admin + coordination surfaces.
+ *
+ * Used by:
+ *   - `/admin/talleres/inscripciones` (global admin surface)
+ *   - `/talleres/coordinacion/inscripciones` (coord pendientes)
+ *
+ * Both pages share the same `<TablaInscripciones>` component, which
+ * calls these actions via props (`onApprove`, `onReject`) so the
+ * component itself doesn't import them — keeps the component free
+ * of server-action wiring and lets each page decide if it wants to
+ * wrap the actions with extra logging, telemetry, etc.
  *
  * Two actions are exposed:
  *   - approveInscripcionAction(inscripcionId): flip pendiente → aprobado.
@@ -19,6 +30,13 @@
  * so a coordinator can never accidentally re-approve a row that's
  * already `aprobado` (no-op idempotent) or `no_aprobado` (rejected).
  * The trigger rejects motivo_no_aprobado with length 0 / whitespace.
+ *
+ * revalidation: the action revalidates BOTH pages that consume it
+ * (`/admin/talleres/inscripciones` for the global admin surface
+ * and `/talleres/coordinacion/inscripciones` for the coordination
+ * pendientes surface). The coordinator's `/talleres/coordinacion`
+ * index re-renders the pendientes counter on the next request
+ * because that page reads the loader on every navigation.
  */
 
 import { revalidatePath } from 'next/cache'
@@ -30,7 +48,7 @@ import {
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 
-type InscripcionError =
+export type InscripcionError =
   | 'talleres-disabled'
   | 'UNAUTHENTICATED'
   | 'NO_SESSION'
@@ -45,23 +63,23 @@ export interface InscripcionActionResult {
   readonly message?: string
 }
 
-interface AdminGateOk {
+interface InscripcionGateOk {
   readonly ok: true
   readonly supabase: unknown
   readonly userId: string
 }
 
-interface AdminGateErr {
+interface InscripcionGateErr {
   readonly ok: false
   readonly error: InscripcionError
   readonly message?: string
 }
 
-type AdminGateResult = AdminGateOk | AdminGateErr
+type InscripcionGateResult = InscripcionGateOk | InscripcionGateErr
 
 async function requireInscripcionWriteCap(
   inscripcionId: string,
-): Promise<AdminGateResult> {
+): Promise<InscripcionGateResult> {
   if (!inscripcionId) {
     return { ok: false, error: 'NOT_FOUND_OR_NOT_PENDIENTE' }
   }
@@ -97,6 +115,12 @@ async function requireInscripcionWriteCap(
   }
 
   return { ok: true, supabase, userId: user.id }
+}
+
+function revalidateInscripcionSurfaces(): void {
+  revalidatePath('/admin/talleres/inscripciones')
+  revalidatePath('/talleres/coordinacion/inscripciones')
+  revalidatePath('/talleres/coordinacion')
 }
 
 /**
@@ -140,7 +164,7 @@ export async function approveInscripcionAction(
     }
   }
 
-  revalidatePath('/admin/talleres/inscripciones')
+  revalidateInscripcionSurfaces()
   return { ok: true, message: 'Inscripci\u00f3n aprobada.' }
 }
 
@@ -197,6 +221,6 @@ export async function rejectInscripcionAction(
     }
   }
 
-  revalidatePath('/admin/talleres/inscripciones')
+  revalidateInscripcionSurfaces()
   return { ok: true, message: 'Inscripci\u00f3n rechazada.' }
 }
