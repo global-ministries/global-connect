@@ -1,18 +1,26 @@
 'use client'
 
 /**
- * PR42 — Client buttons for the `/admin/talleres/inscripciones` rows.
+ * Client buttons for the shared `<TablaInscripciones>` rows.
  *
  * Two UI surfaces:
- *   - <ApproveInscripcionButton inscripcionId={...} />: pendiente → aprobado.
- *   - <RejectInscripcionButton inscripcionId={...} />: pendiente → no_aprobado.
+ *   - <ApproveInscripcionButton inscripcionId onApprove ... />: pendiente → approved.
+ *   - <RejectInscripcionButton inscripcionId onReject ... />: pendiente → no_aprobado.
  *     The motivo (required by the trigger) is captured inline via a
  *     small form; the action returns INVALID_MOTIVO when the user
  *     submits an empty string.
  *
- * Both buttons share the `useTransition` pattern from the
- * `open-edicion-button.tsx` (PR36) sibling. The action layer
- * (./actions.ts) revalidates the page so the row + counts refresh
+ * Server actions (`onApprove`, `onReject`) are passed as props so the
+ * buttons are page-agnostic — the global admin page and the
+ * coordination page both wire their own actions (currently the same
+ * shared `approveInscripcionAction` / `rejectInscripcionAction`
+ * exported from `@/lib/platform/talleres/inscripciones-actions`,
+ * but the indirection lets each page add telemetry / extra
+ * authorization later without touching the buttons).
+ *
+ * Pattern (PR36 sibling): both buttons use the `useTransition` hook
+ * so the disabled/loading state mirrors the action's progress. The
+ * action layer revalidates the page so the row + counts refresh
  * without a client-side router.refresh().
  */
 
@@ -23,13 +31,29 @@ import {
 } from 'react'
 import { Check, X } from 'lucide-react'
 
-import {
-  approveInscripcionAction,
-  rejectInscripcionAction,
-} from './actions'
+import { BotonSistema } from '@/components/ui/sistema-diseno'
 
-interface BaseProps {
+import type {
+  InscripcionActionResult,
+} from '@/lib/platform/talleres/inscripciones-actions'
+
+export type InscripcionApproveAction = (
+  inscripcionId: string,
+) => Promise<InscripcionActionResult>
+
+export type InscripcionRejectAction = (
+  inscripcionId: string,
+  motivo: string,
+) => Promise<InscripcionActionResult>
+
+interface ApproveProps {
   readonly inscripcionId: string
+  readonly onApprove: InscripcionApproveAction
+}
+
+interface RejectProps {
+  readonly inscripcionId: string
+  readonly onReject: InscripcionRejectAction
 }
 
 type FeedbackState = {
@@ -39,7 +63,10 @@ type FeedbackState = {
 
 const idleFeedback: FeedbackState = { kind: 'idle' }
 
-export function ApproveInscripcionButton({ inscripcionId }: BaseProps): ReactElement {
+export function ApproveInscripcionButton({
+  inscripcionId,
+  onApprove,
+}: ApproveProps): ReactElement {
   const [pending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<FeedbackState>(idleFeedback)
 
@@ -47,7 +74,7 @@ export function ApproveInscripcionButton({ inscripcionId }: BaseProps): ReactEle
     if (pending) return
     setFeedback(idleFeedback)
     startTransition(async () => {
-      const result = await approveInscripcionAction(inscripcionId)
+      const result = await onApprove(inscripcionId)
       if (result.ok) {
         setFeedback({ kind: 'success', message: result.message })
       } else {
@@ -61,16 +88,17 @@ export function ApproveInscripcionButton({ inscripcionId }: BaseProps): ReactEle
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
+      <BotonSistema
         type="button"
+        variante="primario"
+        tamaño="sm"
+        icono={Check}
+        cargando={pending}
         onClick={submit}
-        disabled={pending}
         aria-label="Aprobar inscripci\u00f3n"
-        className="inline-flex items-center gap-1 rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
       >
-        <Check className="h-3.5 w-3.5" />
         {pending ? 'Aprobando…' : 'Aprobar'}
-      </button>
+      </BotonSistema>
       {feedback.kind === 'error' && (
         <p
           role="alert"
@@ -91,7 +119,10 @@ export function ApproveInscripcionButton({ inscripcionId }: BaseProps): ReactEle
   )
 }
 
-export function RejectInscripcionButton({ inscripcionId }: BaseProps): ReactElement {
+export function RejectInscripcionButton({
+  inscripcionId,
+  onReject,
+}: RejectProps): ReactElement {
   const [pending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<FeedbackState>(idleFeedback)
   const [confirming, setConfirming] = useState(false)
@@ -101,7 +132,7 @@ export function RejectInscripcionButton({ inscripcionId }: BaseProps): ReactElem
     if (pending) return
     setFeedback(idleFeedback)
     startTransition(async () => {
-      const result = await rejectInscripcionAction(inscripcionId, motivo)
+      const result = await onReject(inscripcionId, motivo)
       if (result.ok) {
         setFeedback({ kind: 'success', message: result.message })
         setConfirming(false)
@@ -118,18 +149,20 @@ export function RejectInscripcionButton({ inscripcionId }: BaseProps): ReactElem
   if (!confirming) {
     return (
       <div className="flex flex-col items-end gap-1">
-        <button
+        <BotonSistema
           type="button"
+          variante="outline"
+          tamaño="sm"
+          icono={X}
           onClick={() => {
             setFeedback(idleFeedback)
             setConfirming(true)
           }}
           aria-label="Rechazar inscripci\u00f3n"
-          className="inline-flex items-center gap-1 rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+          className="border-red-300 text-red-700 hover:bg-red-50"
         >
-          <X className="h-3.5 w-3.5" />
           Rechazar
-        </button>
+        </BotonSistema>
         {feedback.kind === 'error' && (
           <p
             role="alert"
@@ -154,27 +187,31 @@ export function RejectInscripcionButton({ inscripcionId }: BaseProps): ReactElem
         disabled={pending}
       />
       <div className="flex items-center gap-2">
-        <button
+        <BotonSistema
           type="button"
+          variante="ghost"
+          tamaño="sm"
           onClick={() => {
             setConfirming(false)
             setMotivo('')
             setFeedback(idleFeedback)
           }}
           disabled={pending}
-          className="rounded border px-2 py-1 text-xs disabled:opacity-50"
         >
           Cancelar
-        </button>
-        <button
+        </BotonSistema>
+        <BotonSistema
           type="button"
-          onClick={submit}
+          variante="primario"
+          tamaño="sm"
+          icono={X}
+          cargando={pending}
           disabled={pending || motivo.trim().length === 0}
-          className="inline-flex items-center gap-1 rounded bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          onClick={submit}
+          className="bg-red-600 hover:bg-red-700 focus:ring-red-500"
         >
-          <X className="h-3.5 w-3.5" />
           {pending ? 'Rechazando…' : 'Confirmar rechazo'}
-        </button>
+        </BotonSistema>
       </div>
       {feedback.kind === 'error' && (
         <p

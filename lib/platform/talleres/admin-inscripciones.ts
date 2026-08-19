@@ -30,28 +30,19 @@
  *     WRITES motivo on rejection writes it directly to the DB).
  */
 
-export type InscripcionEstado = 'pendiente' | 'aprobado' | 'no_aprobado' | 'completado'
+// Re-export the shared tipos so existing callers (page A, tests, etc.)
+// keep working without changes. The new shared table component
+// (`components/talleres/tabla-inscripciones.tsx`) imports from
+// `inscripciones-types.ts` directly. We re-export under the historical
+// `AdminInscripcionRow` name too because the page A and the existing
+// tests (PR42) reference it.
+import type {
+  InscripcionEstado as SharedInscripcionEstado,
+  InscripcionAdminRow as SharedInscripcionAdminRow,
+} from './inscripciones-types'
 
-export interface AdminInscripcionRow {
-  readonly id: string
-  readonly edicion_id: string
-  readonly edicion_nombre: string
-  readonly edicion_estado: string
-  readonly taller_id: string
-  readonly taller_nombre: string
-  readonly taller_slug: string
-  readonly cohorte_id: string | null
-  readonly cohorte_edicion: string | null
-  readonly persona_principal_id: string
-  readonly persona_principal_nombre: string
-  readonly persona_principal_email: string | null
-  readonly companero_id: string | null
-  readonly companero_nombre: string | null
-  readonly link_type: 'matrimonio' | 'novios' | null
-  readonly estado: InscripcionEstado
-  readonly created_at: string
-  readonly updated_at: string
-}
+export type { SharedInscripcionAdminRow as AdminInscripcionRow }
+export type InscripcionEstado = SharedInscripcionEstado
 
 export interface AdminInscripcionesFilters {
   readonly estado?: InscripcionEstado
@@ -60,7 +51,7 @@ export interface AdminInscripcionesFilters {
 }
 
 export interface AdminInscripcionesResult {
-  readonly rows: readonly AdminInscripcionRow[]
+  readonly rows: readonly SharedInscripcionAdminRow[]
   readonly total: number
 }
 
@@ -177,7 +168,7 @@ export async function loadAdminInscripciones(
   }
 
   // Build the page rows.
-  const rows: AdminInscripcionRow[] = []
+  const rows: SharedInscripcionAdminRow[] = []
   for (const r of filtered) {
     const edicion = edicionesById.get(r.taller_id as string)
     if (!edicion) continue

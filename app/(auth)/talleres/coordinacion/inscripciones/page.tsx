@@ -1,52 +1,55 @@
 /**
- * PR19 — DT-078 — /talleres/coordinacion/inscripciones (C).
- * Inscripciones pendientes (no_aprobado motivo visible).
+ * PR19 + redesign — DT-078 — /talleres/coordinacion/inscripciones (C).
+ *
+ * Coordinator view of pendiente inscripciones. Restricted via
+ * `requireOperacionalRole()` (PR19). The page renders the same
+ * `<TablaInscripciones>` shared with the global admin surface and
+ * passes the shared approve/reject server actions as props.
+ *
+ * The loader (`loadCoordInscripcionesPendientes`) now returns the
+ * same `InscripcionAdminRow` shape as the admin loader so the
+ * shared table can render both feeds without code duplication.
  */
 import { DashboardPage, EmptyState } from '@/components/talleres/dashboard-page'
-import { TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 
 import {
   loadCoordInscripcionesPendientes,
   requireOperacionalRole,
 } from '@/lib/platform/talleres/operacional'
+import {
+  approveInscripcionAction,
+  rejectInscripcionAction,
+} from '@/lib/platform/talleres/inscripciones-actions'
 
 export const metadata = { title: 'Inscripciones Pendientes' }
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('es', { year: 'numeric', month: 'short', day: 'numeric' })
-  } catch {
-    return iso
-  }
-}
 
 export default async function InscripcionesPage() {
   const ctx = await requireOperacionalRole()
   const rows = await loadCoordInscripcionesPendientes(ctx)
 
+  // The coordinator role holds `coordinator.write` (or `director.write`
+  // / `admin.manage`) — same multi-cap gate as the global page.
+  const hasWrite =
+    ctx.capabilities.includes('talleres_crecimiento.coordinator.write') ||
+    ctx.capabilities.includes('talleres_crecimiento.director.write') ||
+    ctx.capabilities.includes('talleres_crecimiento.admin.manage')
+
   return (
     <DashboardPage
       titulo="Inscripciones Pendientes"
+      subtitulo="Aprobá o rechazá las inscripciones que esperan revisión."
       botonRegreso={{ href: '/talleres/coordinacion', texto: 'Coordinación' }}
     >
       {rows.length === 0 ? (
         <EmptyState message="No hay inscripciones pendientes." />
       ) : (
-        <ul className="grid gap-3">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <TarjetaSistema variante="outlined" className="p-4">
-                <TextoSistema className="font-medium">Inscripción {r.id.slice(0, 8)}…</TextoSistema>
-                <TextoSistema variante="sutil" className="mt-1 block text-sm">
-                  Taller {r.taller_id.slice(0, 8)}… · {formatDate(r.created_at)}
-                </TextoSistema>
-                <div className="mt-2">
-                  <BadgeSistema>{r.estado}</BadgeSistema>
-                </div>
-              </TarjetaSistema>
-            </li>
-          ))}
-        </ul>
+        <TablaInscripciones
+          rows={rows}
+          canWrite={hasWrite}
+          onApprove={approveInscripcionAction}
+          onReject={rejectInscripcionAction}
+        />
       )}
     </DashboardPage>
   )
