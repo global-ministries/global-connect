@@ -3,6 +3,10 @@ import nextTypescript from 'eslint-config-next/typescript'
 import security from 'eslint-plugin-security'
 
 const eslintConfig = [
+  // Coverage reports and other generated artifacts are not source code.
+  {
+    ignores: ['coverage/**', '**/coverage/**'],
+  },
   ...nextCoreWebVitals,
   ...nextTypescript,
   // Security rules for catching common vulnerabilities
