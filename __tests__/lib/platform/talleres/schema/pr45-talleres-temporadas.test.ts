@@ -186,11 +186,10 @@ describe('PR45 migration — talleres_temporadas (global season model)', () => {
     })
 
     it('uses uniquely-suffixed policy names (_select/_insert/_update/_delete) per table', () => {
+      const normalized = content.toLowerCase()
       for (const table of ['talleres_temporadas', 'talleres_temporada_talleres']) {
         for (const suffix of ['select', 'insert', 'update', 'delete']) {
-          expect(content).toMatch(
-            new RegExp(`CREATE\\s+POLICY\\s+"?${table}_${suffix}`, 'i'),
-          )
+          expect(normalized).toContain(`create policy "${table}_${suffix}"`)
         }
       }
     })
