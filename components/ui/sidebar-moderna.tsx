@@ -208,13 +208,28 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     // check is inlined (matches the `isActive` helper defined below
     // on every render) to avoid accessing `isActive` before its
     // declaration inside this useEffect.
+    //
+    // PR51 — the talleres submenu (TalleresNavSubmenu) aggregates links
+    // across the WHOLE talleres route family: the participant tree
+    // (/talleres/*) AND the admin tree (/admin/talleres/*). But the
+    // platform parent's own href is only the participant landing
+    // (/talleres/explorar), so matching solely on that href left an admin
+    // sitting on /admin/talleres/* with the submenu collapsed — hiding the
+    // last sub-item "Grupos de Corto Plazo" (href /admin/talleres/abstracto).
+    // Open the parent whenever the active route is anywhere in the family.
+    const inTalleresFamily =
+      !!pathname &&
+      (pathname === '/talleres' ||
+        pathname.startsWith('/talleres/') ||
+        pathname === '/admin/talleres' ||
+        pathname.startsWith('/admin/talleres/'))
     for (const item of platformNavigationItems) {
       if (!item.id.startsWith('platform-talleres_')) continue
       const href = item.href
       const isMatch =
         pathname === href ||
         (href !== '/dashboard' && !!pathname?.startsWith(href + '/'))
-      if (isMatch) {
+      if (isMatch || inTalleresFamily) {
         newOpen.add(item.id)
       }
     }
@@ -477,7 +492,18 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                           <div
                             className={cn(
                               "overflow-hidden transition-[max-height,opacity] duration-300 ease-expo",
-                              isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                              isOpen
+                                ? isTalleresPlatformItem
+                                  // PR51 — the talleres submenu can hold the
+                                  // full role union (up to ~22 items for a
+                                  // multi-capability admin), which overflows a
+                                  // 500px cap and clips the last item ("Grupos
+                                  // de Corto Plazo"). Bounded by TALLERES_NAV_ITEMS
+                                  // length, so a 1200px cap always fits every item
+                                  // while preserving the expand animation.
+                                  ? "max-h-[1200px] opacity-100"
+                                  : "max-h-[500px] opacity-100"
+                                : "max-h-0 opacity-0"
                             )}
                           >
                             {isTalleresPlatformItem ? (

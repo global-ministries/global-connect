@@ -427,10 +427,13 @@ describe('SidebarModerna platform navigation', () => {
     })
     expect(chevronButton).toHaveAttribute('aria-expanded', 'true')
 
-    // The submenu container must be visible (max-h-[500px] + opacity-100).
+    // The submenu container must be visible. The talleres submenu uses a
+    // taller cap (max-h-[1200px]) than the static submenus (max-h-[500px])
+    // so a multi-capability admin's full item list — including the last
+    // item "Grupos de Corto Plazo" — is never clipped by overflow-hidden.
     const submenuContainer = chevronButton.parentElement?.nextElementSibling as HTMLElement | null
     expect(submenuContainer).not.toBeNull()
-    expect(submenuContainer).toHaveClass('max-h-[500px]')
+    expect(submenuContainer).toHaveClass('max-h-[1200px]')
     expect(submenuContainer).toHaveClass('opacity-100')
 
     // The talleres parent link must be in the DOM at the matching
@@ -481,7 +484,7 @@ describe('SidebarModerna platform navigation', () => {
     })
     expect(openChevron).toHaveAttribute('aria-expanded', 'true')
     const openContainer = openChevron.parentElement?.nextElementSibling as HTMLElement | null
-    expect(openContainer).toHaveClass('max-h-[500px]')
+    expect(openContainer).toHaveClass('max-h-[1200px]')
     expect(openContainer).toHaveClass('opacity-100')
 
     // Click chevron again → submenu closes.
