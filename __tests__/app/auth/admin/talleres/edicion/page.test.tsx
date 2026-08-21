@@ -38,7 +38,7 @@ jest.mock('@/lib/platform/talleres/operacional', () => ({
 // (write-capability + cohorte present) or gated out.
 jest.mock('@/app/(auth)/admin/talleres/edicion/[id]/grupos-section', () => ({
   GruposSection: ({ cohorteId }: { cohorteId: string }) => {
-    const react = require('react') as typeof import('react')
+    const react = jest.requireActual('react') as typeof import('react')
     return react.createElement(
       'div',
       { 'data-testid': 'grupos-section', 'data-cohorte-id': cohorteId },
