@@ -1,7 +1,9 @@
 /**
  * PR15 — DT-057 — /api/talleres/grupos
  *
- * POST: create a new grupo inside a cohorte.
+ * POST: create a new grupo inside a cohorte, then generate its weekly
+ *       sessions (PR47 generate_taller_sesiones, best-effort). Returns
+ *       201 { grupo, sesiones }.
  * GET:  list grupos (filter by cohorte_id query param).
  *
  * Capability `talleres_crecimiento.director.write` (POST) / `.director.read` (GET).
@@ -53,7 +55,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (error) {
     return NextResponse.json({ error: 'internal', message: error.message }, { status: 500 })
   }
-  return NextResponse.json(data, { status: 201 })
+
+  // Under the "1 semana = 1 sesión" model, materialise the grupo's weekly
+  // sessions right after creation via the PR47 SECURITY DEFINER RPC
+  // (generate_taller_sesiones). BEST-EFFORT: the RPC is idempotent, so a
+  // failure here never fails the grupo create — the caller can retry. We
+  // surface the outcome under `sesiones` (null on failure) so the UI can
+  // report how many sessions were generated.
+  const { data: sesiones, error: sesionesError } = await client.rpc(
+    'generate_taller_sesiones',
+    { p_grupo_id: data.id },
+  )
+
+  return NextResponse.json(
+    { grupo: data, sesiones: sesionesError ? null : sesiones },
+    { status: 201 },
+  )
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {

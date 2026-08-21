@@ -17,6 +17,7 @@ import {
   composeCertificatePdf,
   encodeBase32UrlSafe,
   generateCertificateCode,
+  generateCertificateForInscription,
   isValidCertificateCode,
   buildQrSvg,
 } from '@/lib/platform/talleres/certificates'
@@ -111,6 +112,65 @@ describe('buildQrSvg (placeholder, future PR swaps for real QR)', () => {
     expect(svg).toMatch(/^<svg /)
     expect(svg).toContain('https://example.com')
     expect(svg).toContain('</svg>')
+  })
+})
+
+describe('generateCertificateForInscription — RPC wrapper (PR48/PR E)', () => {
+  interface RpcCall {
+    readonly name: string
+    readonly args: { p_inscripcion_id?: string; p_codigo_verificacion?: string }
+  }
+
+  function makeClient(
+    result: { data: unknown; error: { message: string } | null },
+    calls: RpcCall[],
+  ): { rpc: (name: string, args: RpcCall['args']) => Promise<typeof result> } {
+    return {
+      rpc: (name, args) => {
+        calls.push({ name, args })
+        return Promise.resolve(result)
+      },
+    }
+  }
+
+  it('calls emit_taller_certificado with the inscription id and a fresh 16-char code', async () => {
+    const calls: RpcCall[] = []
+    const client = makeClient(
+      { data: { ok: true, created: true, certificado_id: 'cert-1', codigo_verificacion: 'ignored' }, error: null },
+      calls,
+    )
+    await generateCertificateForInscription(client, 'insc-1')
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.name).toBe('emit_taller_certificado')
+    expect(calls[0]?.args.p_inscripcion_id).toBe('insc-1')
+    expect(calls[0]?.args.p_codigo_verificacion).toMatch(/^[abcdefghijkmnpqrstuvwxyz23456789]{16}$/)
+  })
+
+  it('normalises the RPC jsonb into { ok, created, certificadoId, codigoVerificacion }', async () => {
+    const calls: RpcCall[] = []
+    const client = makeClient(
+      { data: { ok: true, created: true, certificado_id: 'cert-1', codigo_verificacion: 'abcdefghijkmnpqr' }, error: null },
+      calls,
+    )
+    const res = await generateCertificateForInscription(client, 'insc-1')
+    expect(res.ok).toBe(true)
+    expect(res.created).toBe(true)
+    expect(res.certificadoId).toBe('cert-1')
+  })
+
+  it('passes the SAME generated code it sent to the RPC through as codigoVerificacion', async () => {
+    const calls: RpcCall[] = []
+    const client = makeClient({ data: { ok: true, created: true, certificado_id: 'c' }, error: null }, calls)
+    const res = await generateCertificateForInscription(client, 'insc-1')
+    expect(res.codigoVerificacion).toBe(calls[0]?.args.p_codigo_verificacion)
+  })
+
+  it('is best-effort — an RPC error returns ok:false with the message, never throws', async () => {
+    const calls: RpcCall[] = []
+    const client = makeClient({ data: null, error: { message: 'permission denied' } }, calls)
+    const res = await generateCertificateForInscription(client, 'insc-1')
+    expect(res.ok).toBe(false)
+    expect(res.error).toContain('permission denied')
   })
 })
 
