@@ -52,20 +52,30 @@ describe('getTalleresNavItems — capability filter', () => {
     expect(items.every((i) => i.id.startsWith('talleres_coordinacion_'))).toBe(true)
   })
 
-  it('director sees all read items via director.read superset', () => {
+  it('director.read alone sees only its own D-group items (no P/L/C superset — PR H)', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.director.read'],
       { isEnabled: true },
     )
-    // 4 P + 3 L + 6 C (PR42 adds the global inscripciones admin view) + 7 D = 20
-    expect(items.length).toBe(20)
-    expect(items.map((i) => i.id)).toContain('talleres_participante_explorar')
-    expect(items.map((i) => i.id)).toContain('talleres_grupos_mis_grupos')
-    expect(items.map((i) => i.id)).toContain('talleres_coordinacion_resumen')
-    expect(items.map((i) => i.id)).toContain('talleres_direccion_resumen_global')
-    // PR42 — the global inscripciones view is reachable from C/D via
-    // the director.read superset (the item requires coordinator.read).
-    expect(items.map((i) => i.id)).toContain('talleres_coordinacion_inscripciones_global')
+    // PR H — the director.read → P/L/C superset is gone. A pure director
+    // now sees ONLY the 7 items keyed to director.read, in canonical order.
+    expect(items.map((i) => i.id)).toEqual([
+      'talleres_direccion_resumen_global',
+      'talleres_direccion_temporadas',
+      'talleres_direccion_talleres',
+      'talleres_direccion_periodos',
+      'talleres_direccion_equipos',
+      'talleres_direccion_solicitudes',
+      'talleres_direccion_reportes',
+    ])
+    // No P / L / C items leak in without their own capability.
+    expect(items.map((i) => i.id)).not.toContain('talleres_participante_explorar')
+    expect(items.map((i) => i.id)).not.toContain('talleres_grupos_mis_grupos')
+    expect(items.map((i) => i.id)).not.toContain('talleres_coordinacion_resumen')
+    // metricas needs metrics.read; the global inscripciones view needs
+    // coordinator.read — neither is inherited by director.read anymore.
+    expect(items.map((i) => i.id)).not.toContain('talleres_direccion_metricas')
+    expect(items.map((i) => i.id)).not.toContain('talleres_coordinacion_inscripciones_global')
   })
 
   it('metrics.read holder sees the metricas item (not other director items)', () => {
@@ -111,7 +121,7 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
     expect(items.some((i) => i.id.startsWith('talleres_participante_'))).toBe(false)
   })
 
-  it('admin.manage combined with director.read yields P+L+C+D+A union', () => {
+  it('admin.manage + director.read sees the D group + the admin entry (no P/L/C superset — PR H)', () => {
     const items = getTalleresNavItems(
       [
         'talleres_crecimiento.admin.manage',
@@ -119,10 +129,16 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
       ],
       { isEnabled: true },
     )
-    // 20 (P+L+C+D via director.read superset, PR42 added the global
-    // inscripciones item) + 1 admin entry = 21
-    expect(items.length).toBe(21)
+    // PR H — no superset. 7 director.read items + 1 admin.manage entry = 8.
+    // (metricas needs metrics.read; the global inscripciones view needs
+    // coordinator.read — neither is held here.)
+    expect(items.length).toBe(8)
     expect(items.map((i) => i.id)).toContain('talleres_admin_abstracto')
+    expect(items.map((i) => i.id)).toContain('talleres_direccion_temporadas')
+    // No P / L / C leak-in.
+    expect(items.map((i) => i.id)).not.toContain('talleres_participante_explorar')
+    expect(items.map((i) => i.id)).not.toContain('talleres_grupos_mis_grupos')
+    expect(items.map((i) => i.id)).not.toContain('talleres_coordinacion_resumen')
   })
 })
 
@@ -167,6 +183,32 @@ describe('getTalleresNavItems — PR42 global admin inscripciones view', () => {
   })
 })
 
+// ─── PR46 — global temporadas Dirección item ────────────────────────────────
+
+describe('getTalleresNavItems — PR46 global temporadas Dirección item', () => {
+  it('director.read sees the Temporadas item under the D group', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.director.read'],
+      { isEnabled: true },
+    )
+    const found = items.find((i) => i.id === 'talleres_direccion_temporadas')
+    expect(found).toBeDefined()
+    expect(found?.label).toBe('Temporadas')
+    expect(found?.href).toBe('/admin/talleres/temporadas')
+    expect(found?.requiredCapability).toBe('talleres_crecimiento.director.read')
+  })
+
+  it('admin.manage alone does NOT see the Temporadas item (D group is distinct)', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.admin.manage'],
+      { isEnabled: true },
+    )
+    expect(
+      items.find((i) => i.id === 'talleres_direccion_temporadas'),
+    ).toBeUndefined()
+  })
+})
+
 describe('getTalleresNavItems — kill switch', () => {
   it('returns empty array when feature flag is off, regardless of caps', () => {
     const items = getTalleresNavItems(
@@ -191,7 +233,7 @@ describe('getTalleresNavItems — multi-role union', () => {
     expect(items.map((i) => i.id)).toContain('talleres_grupos_mis_grupos')
   })
 
-  it('user with P + C + D caps sees all groups (director.read superset covers L too)', () => {
+  it('user with P + C + D caps sees P + C + D groups but NOT L (no superset — PR H)', () => {
     const items = getTalleresNavItems(
       [
         'talleres_crecimiento.participation.read',
@@ -200,9 +242,12 @@ describe('getTalleresNavItems — multi-role union', () => {
       ],
       { isEnabled: true },
     )
-    // 4 P + 3 L (via director.read superset) + 6 C (PR42 adds the
-    // global inscripciones view) + 7 D = 20
-    expect(items.length).toBe(20)
+    // PR H — no superset. 4 P + 6 C + 7 D = 17. The 3 L items are NOT
+    // covered because the user does not hold lead.read.
+    expect(items.length).toBe(17)
+    expect(items.map((i) => i.id)).not.toContain('talleres_grupos_mis_grupos')
+    expect(items.map((i) => i.id)).not.toContain('talleres_sesiones_proximas')
+    expect(items.map((i) => i.id)).not.toContain('talleres_recursos')
   })
 
   it('canonical order is preserved (matches TALLERES_NAV_ITEMS order)', () => {

@@ -22,12 +22,14 @@ describe('resolveTalleresNavViewItems — SSR/RSC smoke', () => {
     expect(groups.map((g) => g.id)).toEqual(['P'])
   })
 
-  it('renders D group when director.read is held (all sub-groups)', () => {
+  it('renders only the D group when director.read is held (PR H — no superset)', () => {
     const groups = resolveTalleresNavViewItems({
       sessionCapabilities: ['talleres_crecimiento.director.read'],
       isEnabled: true,
     })
-    expect(groups.map((g) => g.id).sort()).toEqual(['C', 'D', 'L', 'P'])
+    // PR H — the director.read → P/L/C superset is gone; a pure director
+    // now sees only the Dirección group, not every read sub-group.
+    expect(groups.map((g) => g.id)).toEqual(['D'])
   })
 
   it('returns empty when feature flag is off', () => {

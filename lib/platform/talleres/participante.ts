@@ -239,6 +239,12 @@ export interface ParticipanteExplorarRow {
   /** Stable URL-safe slug for the abstract taller (talleres.slug). */
   readonly slug: string
   readonly tipo: 'individual' | 'pareja'
+  /**
+   * Couple link type for `tipo === 'pareja'` ediciones (null for
+   * individual). Surfaced so the explorar client knows whether to open
+   * the cónyuge picker and which link_type to send on self-enroll (PR G).
+   */
+  readonly link_type: 'matrimonio' | 'novios' | null
   readonly edicion: string
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
@@ -296,7 +302,7 @@ export async function loadParticipanteExplorar(
   const edicionesRes = await client
     .from('taller_ediciones')
     .select(
-      `id, nombre_snapshot, tipo, estado, taller_id,
+      `id, nombre_snapshot, tipo, link_type, estado, taller_id,
        taller:talleres!taller_id (slug, nombre, modalidad_default, descripcion)`,
     )
     .in('estado', ['abierto', 'en_curso'])
@@ -307,6 +313,7 @@ export async function loadParticipanteExplorar(
     id: string
     nombre_snapshot: string
     tipo: 'individual' | 'pareja'
+    link_type: 'matrimonio' | 'novios' | null
     estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
     taller_id: string
     taller: {
@@ -383,6 +390,7 @@ export async function loadParticipanteExplorar(
       nombre: row.taller?.nombre ?? row.nombre_snapshot,
       slug: row.taller?.slug ?? '',
       tipo: row.tipo,
+      link_type: row.link_type ?? null,
       edicion: row.nombre_snapshot,
       estado: row.estado,
       ya_inscrito: inscritosIds.has(row.id),

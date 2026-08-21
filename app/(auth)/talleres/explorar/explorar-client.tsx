@@ -25,6 +25,7 @@ import { TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sist
 import { BookOpen } from 'lucide-react'
 
 import { TallerExplorarFab } from '@/components/talleres/explorar-fab'
+import SelectLeaderModal from '@/components/modals/SelectLeaderModal'
 import { inscribirseATaller } from './actions'
 
 interface TallerRow {
@@ -34,6 +35,12 @@ interface TallerRow {
   /** Stable URL-safe slug for the abstract taller (talleres.slug). */
   readonly slug: string
   readonly tipo: 'individual' | 'pareja'
+  /**
+   * PR G — couple link type for `tipo === 'pareja'` ediciones (null for
+   * individual). Drives the cónyuge picker and is forwarded to
+   * `inscribirseATaller` on self-enroll.
+   */
+  readonly link_type: 'matrimonio' | 'novios' | null
   readonly edicion: string
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
@@ -85,10 +92,20 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<string | null>(null)
+  // PR G — cónyuge picker visibility for `tipo === 'pareja'` talleres.
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const selected = talleres.find((t) => t.id === selectedId) ?? null
 
-  async function handleInscribirse(): Promise<{ ok: boolean; error?: string }> {
+  /**
+   * Fires the enrollment. Individual talleres pass both couple fields as
+   * null; pareja talleres receive the chosen `companeroId` from the
+   * cónyuge picker and the row's `linkType` (matrimonio | novios).
+   */
+  async function enroll(
+    companeroId: string | null,
+    linkType: 'matrimonio' | 'novios' | null,
+  ): Promise<{ ok: boolean; error?: string }> {
     if (!selected) return { ok: false, error: 'no-selection' }
     const cohorteId = selected.cohorte_id ?? defaultCohorteId
     if (!cohorteId) {
@@ -100,6 +117,8 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
     const result = await inscribirseATaller({
       tallerId: selected.id,
       cohorteId,
+      companeroId,
+      linkType,
     })
     if (result.ok) {
       setFeedback('¡Inscripción enviada! Pendiente de aprobación.')
@@ -108,6 +127,29 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
     }
     setFeedback(`Error: ${result.error}`)
     return { ok: false, error: result.error }
+  }
+
+  /**
+   * FAB handler. Pareja talleres open the cónyuge picker first — the
+   * actual enrollment fires from `handleConyugeSelected`. Individual
+   * talleres enroll immediately.
+   */
+  async function handleInscribirse(): Promise<{ ok: boolean; error?: string }> {
+    if (!selected) return { ok: false, error: 'no-selection' }
+    if (selected.tipo === 'pareja') {
+      setPickerOpen(true)
+      return { ok: true }
+    }
+    return enroll(null, null)
+  }
+
+  /**
+   * Cónyuge chosen from the picker → close it and enroll with the
+   * couple fields (the selected row supplies `link_type`).
+   */
+  function handleConyugeSelected(usuario: { id: string }): void {
+    setPickerOpen(false)
+    void enroll(usuario.id, selected?.link_type ?? null)
   }
 
   if (talleres.length === 0) {
@@ -188,6 +230,13 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
           onInscribirse={handleInscribirse}
         />
       )}
+      <SelectLeaderModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onSelect={handleConyugeSelected}
+        title="Seleccionar cónyuge"
+        description="Buscá y seleccioná a tu cónyuge para inscribirse juntos en este taller de pareja."
+      />
       {pending && (
         <div aria-live="polite" className="sr-only">Cargando</div>
       )}
