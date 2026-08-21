@@ -105,6 +105,7 @@ export type TalleresNavItemId =
   | 'talleres_coordinacion_reportes'
   // Director
   | 'talleres_direccion_resumen_global'
+  | 'talleres_direccion_temporadas'
   | 'talleres_direccion_talleres'
   | 'talleres_direccion_periodos'
   | 'talleres_direccion_equipos'
@@ -113,12 +114,13 @@ export type TalleresNavItemId =
   | 'talleres_direccion_reportes'
   // Admin
   | 'talleres_admin_abstracto'
-  // PR42 — Global inscripciones admin view (coordinador / director /
-  // admin). The page itself enforces the multi-capability gate; the
-  // sidebar keys the entry to `coordinator.write` so it shows up for
-  // every role that the page renders for (director.read is a superset
-  // of coordinator.read via the existing rule, and admin.manage is its
-  // own distinct group — admin can access via URL).
+  // PR42 — Global inscripciones admin view. The page itself enforces the
+  // multi-capability write gate (coordinator.write OR director.write OR
+  // admin.manage); the sidebar keys the entry to `coordinator.read` so
+  // every coordinator sees it under "Coordinación". PR H — with the
+  // director.read superset removed, a pure director no longer sees this
+  // C-keyed entry; directors manage enrollment from their own Dirección
+  // surface, and admin.manage reaches the page by URL.
   | 'talleres_coordinacion_inscripciones_global'
 
 export type TalleresNavItem = Readonly<{
@@ -158,6 +160,11 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   { id: 'talleres_coordinacion_reportes', label: 'Reportes', href: '/talleres/coordinacion/reportes', requiredCapability: 'talleres_crecimiento.coordinator.read' },
   // D — Director (director.read OR metrics.read)
   { id: 'talleres_direccion_resumen_global', label: 'Resumen Global', href: '/talleres/direccion', requiredCapability: 'talleres_crecimiento.director.read' },
+  // PR46 — global seasons (talleres_temporadas). The Dirección entry-point
+  // for "abro una temporada → elijo qué talleres abren". Lives under /admin
+  // (the management surface); the page gates mutations on director.write OR
+  // admin.manage, while the list is director.read-viewable (RLS parity).
+  { id: 'talleres_direccion_temporadas', label: 'Temporadas', href: '/admin/talleres/temporadas', requiredCapability: 'talleres_crecimiento.director.read' },
   { id: 'talleres_direccion_talleres', label: 'Talleres', href: '/talleres/direccion/talleres', requiredCapability: 'talleres_crecimiento.director.read' },
   { id: 'talleres_direccion_periodos', label: 'Periodos', href: '/talleres/direccion/periodos', requiredCapability: 'talleres_crecimiento.director.read' },
   { id: 'talleres_direccion_equipos', label: 'Equipos', href: '/talleres/direccion/equipos', requiredCapability: 'talleres_crecimiento.director.read' },
@@ -173,21 +180,28 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // PR42 — Global admin/coordinacion inscripciones view. The page
   // itself enforces multi-capability (director.write OR admin.manage
   // OR coordinator.write). The sidebar carries the C-key entry under
-  // `coordinator.read` so coordinators see it under "Coordinación"
-  // and directors see it via the director.read superset. Admin
-  // (admin.manage) can reach the page by URL but is not in the
-  // sidebar — the admin group is intentionally distinct (no read
-  // superset). The page-level action gate (coordinator.write) keeps
-  // the write surface protected.
+  // `coordinator.read` so coordinators see it under "Coordinación".
+  // PR H — the director.read superset is removed, so a pure director no
+  // longer sees this entry in the sidebar; directors act on enrollment
+  // from their own Dirección surface, and admin.manage reaches the page
+  // by URL. The page-level action gate (coordinator.write) keeps the
+  // write surface protected.
   { id: 'talleres_coordinacion_inscripciones_global', label: 'Inscripciones (global)', href: '/admin/talleres/inscripciones', requiredCapability: 'talleres_crecimiento.coordinator.read' },
 ]
 
 /**
  * Returns the list of talleres sub-items visible to the user based on
  * their capability set. Multi-role users get the union of all matching
- * sub-items. Director.read is treated as a superset for read-only items
- * (mirrors the api-helpers gate). Returns an empty array if the
- * talleres feature flag is off (kill switch).
+ * sub-items — an item shows if and only if the user holds that item's
+ * own `requiredCapability`. Returns an empty array if the talleres
+ * feature flag is off (kill switch).
+ *
+ * PR H — strict capability filtering. The former `director.read`
+ * superset (which implied every non-admin read item) is gone: a pure
+ * director now sees only Dirección + its own items, and each role group
+ * appears only when its own capability is held. This removes the
+ * duplicated same-labeled entries a director used to see under both
+ * Coordinación and Dirección.
  *
  * Order: items are returned in the canonical order declared in
  * `TALLERES_NAV_ITEMS` so the UI renders deterministically.
@@ -200,33 +214,12 @@ export function getTalleresNavItems(
   if (!enabled) return []
 
   const caps = new Set(sessionCapabilities)
-  const hasDirectorRead = caps.has('talleres_crecimiento.director.read')
 
-  return TALLERES_NAV_ITEMS.filter((item) => {
-    if (caps.has(item.requiredCapability)) return true
-    // Director.read superset fallback: every read capability is
-    // implied. Admin items are NOT part of the superset — admin is a
-    // distinct role group (PR25) and admin.manage must be granted
-    // explicitly. Otherwise a user holding director.read would see
-    // the wizard entry-point as if they had admin powers, which
-    // would inflate the visible sub-menu and bypass the admin gate.
-    if (hasDirectorRead && !isAdminCapability(item.requiredCapability)) return true
-    return false
-  }).map((item) => ({
+  return TALLERES_NAV_ITEMS.filter((item) => caps.has(item.requiredCapability)).map((item) => ({
     id: item.id,
     label: item.label,
     href: item.href,
     requiredCapability: item.requiredCapability,
   }))
-}
-
-/**
- * PR25 — Returns true if the capability is an admin.manage grant for
- * the talleres_crecimiento experience. Admin items are NOT part of
- * the director.read superset — admin is a distinct role group and
- * must be granted explicitly.
- */
-function isAdminCapability(capability: string): boolean {
-  return capability === 'talleres_crecimiento.admin.manage'
 }
 

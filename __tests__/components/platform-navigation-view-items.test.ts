@@ -108,6 +108,26 @@ describe('platform navigation view items', () => {
       expect(hrefs).not.toContain('/pastor/usuarios')
     })
   })
+
+  describe('talleres duplicate collapse (PR H)', () => {
+    it('collapses multiple taller-scoped participation grants into one Talleres entry', async () => {
+      // A participant enrolled in more than one taller holds
+      // `participation.read` at multiple taller scopes. The resolver emits
+      // one visibleItem per scope, so without de-duplication the sidebar
+      // would show the same "Talleres" top-level entry twice. PR H collapses
+      // entries that share the same base item id into a single view item.
+      const platformSession = withCapabilities([
+        { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'taller-a', source: 'talleres' },
+        { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'taller-b', source: 'talleres' },
+      ])
+
+      const items = await resolvePlatformNavigationViewItems(platformSession, { enabled: true })
+      const talleresItems = items.filter((item) => item.href === '/talleres/explorar')
+
+      expect(talleresItems).toHaveLength(1)
+      expect(talleresItems[0]?.icon).toBe(ClipboardList)
+    })
+  })
 })
 
 function withCapabilities(capabilities: PlatformSession['capabilities'], contexts: PlatformSession['contexts'] = []): PlatformSession {

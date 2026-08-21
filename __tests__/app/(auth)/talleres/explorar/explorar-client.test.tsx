@@ -15,7 +15,7 @@
  * via @testing-library/react.
  */
 
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 
 const inscribirseActionMock = jest.fn()
@@ -26,10 +26,47 @@ jest.mock('@/app/(auth)/talleres/explorar/actions', () => ({
 }))
 
 jest.mock('@/components/talleres/explorar-fab', () => ({
-  TallerExplorarFab: (props: { tallerId: string }) => {
+  TallerExplorarFab: (props: {
+    tallerId: string
+    onInscribirse: () => Promise<{ ok: boolean; error?: string }>
+    hidden?: boolean
+  }) => {
     fabMock(props)
-    return <div data-testid="explorar-fab" data-taller-id={props.tallerId} />
+    return (
+      <button
+        data-testid="explorar-fab"
+        data-taller-id={props.tallerId}
+        onClick={() => {
+          void props.onInscribirse()
+        }}
+      >
+        Inscribirme
+      </button>
+    )
   },
+}))
+
+// PR G — the cónyuge picker. Mocked so the test drives the selection
+// without the real Dialog / `/api/lideres/buscar` fetch. When open, it
+// exposes a single button that reports a chosen usuario id.
+jest.mock('@/components/modals/SelectLeaderModal', () => ({
+  __esModule: true,
+  default: (props: {
+    open: boolean
+    onClose: () => void
+    onSelect: (usuario: { id: string; nombre: string; apellido: string }) => void
+  }) =>
+    props.open ? (
+      <div data-testid="conyuge-modal">
+        <button
+          onClick={() =>
+            props.onSelect({ id: 'companero-1', nombre: 'Ana', apellido: 'García' })
+          }
+        >
+          pick-conyuge
+        </button>
+      </div>
+    ) : null,
 }))
 
 import { ExplorarTalleresClient } from '@/app/(auth)/talleres/explorar/explorar-client'
@@ -44,6 +81,7 @@ const baseRow = {
   nombre: 'Matrimonio sobre la Roca',
   slug: 'matrimonio-sobre-la-roca',
   tipo: 'pareja' as const,
+  link_type: 'matrimonio' as const,
   edicion: 'Septiembre 2026',
   estado: 'abierto' as const,
   ya_inscrito: false,
@@ -130,5 +168,68 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
     expect(
       screen.getByText(/Edición Septiembre 2026 · Individual/),
     ).toBeInTheDocument()
+  })
+})
+
+describe('ExplorarTalleresClient — spouse self-enroll (PR G)', () => {
+  it('pareja: FAB opens the cónyuge picker, then enrolls with companeroId + linkType', async () => {
+    inscribirseActionMock.mockResolvedValue({ ok: true, inscripcionId: 'insc-1' })
+    render(<ExplorarTalleresClient talleres={[baseRow]} defaultCohorteId="" />)
+
+    // Select the pareja card → FAB appears.
+    fireEvent.click(
+      screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/),
+    )
+    const fab = await screen.findByTestId('explorar-fab')
+
+    // Clicking the FAB on a pareja taller must NOT enroll yet — it opens
+    // the cónyuge picker first.
+    fireEvent.click(fab)
+    expect(screen.getByTestId('conyuge-modal')).toBeInTheDocument()
+    expect(inscribirseActionMock).not.toHaveBeenCalled()
+
+    // Picking a cónyuge fires the enrollment with the couple fields.
+    fireEvent.click(screen.getByText('pick-conyuge'))
+    await waitFor(() =>
+      expect(inscribirseActionMock).toHaveBeenCalledWith({
+        tallerId: 'ed-1',
+        cohorteId: 'coh-1',
+        companeroId: 'companero-1',
+        linkType: 'matrimonio',
+      }),
+    )
+  })
+
+  it('individual: FAB enrolls directly without opening the picker', async () => {
+    inscribirseActionMock.mockResolvedValue({ ok: true, inscripcionId: 'insc-2' })
+    render(
+      <ExplorarTalleresClient
+        talleres={[
+          {
+            ...baseRow,
+            id: 'ed-ind',
+            tipo: 'individual' as const,
+            link_type: null,
+          },
+        ]}
+        defaultCohorteId=""
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/),
+    )
+    const fab = await screen.findByTestId('explorar-fab')
+    fireEvent.click(fab)
+
+    await waitFor(() =>
+      expect(inscribirseActionMock).toHaveBeenCalledWith({
+        tallerId: 'ed-ind',
+        cohorteId: 'coh-1',
+        companeroId: null,
+        linkType: null,
+      }),
+    )
+    expect(screen.queryByTestId('conyuge-modal')).not.toBeInTheDocument()
   })
 })

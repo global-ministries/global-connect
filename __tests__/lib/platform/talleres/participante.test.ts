@@ -781,6 +781,104 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
   })
 })
 
+/**
+ * PR G (spouse self-enroll) — the explorar row must carry the edicion's
+ * `link_type` ('matrimonio' | 'novios' | null) so the client can pass
+ * it to `inscribirseATaller` alongside the chosen cónyuge. It lives on
+ * `taller_ediciones` (not on the abstract `talleres`), so it is a root
+ * column of the Query-1 select.
+ */
+describe('loadParticipanteExplorar — PR G link_type surfacing', () => {
+  it('selects link_type from taller_ediciones', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.participation.read'],
+    })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    await loadParticipanteExplorar(ctxResult.context)
+
+    const tallerFilters = capturedFiltersFor('taller_ediciones')
+    const selectColumns = tallerFilters[0]?.selectColumns ?? ''
+    expect(selectColumns).toMatch(/link_type/)
+  })
+
+  it('surfaces link_type on a pareja row', async () => {
+    flagsMock.mockReset().mockReturnValue(true)
+    findPersonaByAuthIdMock.mockReset().mockResolvedValue({
+      id: PERSONA_ID,
+      authId: 'auth-1',
+      globalRoles: [],
+    })
+    resolveSessionMock.mockReset().mockResolvedValue({
+      personaId: PERSONA_ID,
+      subjectAuthId: 'auth-1',
+      globalRoles: [],
+      contexts: [],
+      capabilities: [
+        {
+          key: 'talleres_crecimiento.participation.read',
+          experience: 'talleres_crecimiento',
+          scopeType: 'taller',
+          source: 'test',
+        },
+      ],
+    })
+
+    const edicionRow = {
+      id: 'ed-1',
+      nombre_snapshot: 'Septiembre 2026',
+      tipo: 'pareja',
+      link_type: 'matrimonio',
+      estado: 'abierto',
+      taller_id: 'taller-1',
+      taller: {
+        slug: 'matrimonio-sobre-la-roca',
+        nombre: 'Matrimonio sobre la Roca',
+        modalidad_default: 'periodo_general',
+        descripcion: null,
+      },
+    }
+
+    const tableResponses: Record<string, { data: unknown; error: null }> = {
+      taller_ediciones: { data: [edicionRow], error: null },
+      talleres_crecimiento_cohortes: { data: [], error: null },
+      taller_periodos_generales: { data: [], error: null },
+      taller_inscripciones: { data: [], error: null },
+    }
+
+    const builderFor = (table: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thenable
+      const b: Record<string, any> = {}
+      b['select'] = jest.fn(() => b)
+      b['eq'] = jest.fn(() => b)
+      b['in'] = jest.fn(() => b)
+      b['order'] = jest.fn(() => b)
+      b['then'] = (
+        resolve: (r: { data: unknown; error: null }) => void,
+      ) => Promise.resolve(tableResponses[table]).then(resolve)
+      return b
+    }
+
+    createSupabaseServerClientMock.mockReset().mockResolvedValue({
+      auth: {
+        getUser: jest.fn().mockResolvedValue({
+          data: { user: { id: 'auth-1' } },
+          error: null,
+        }),
+      },
+      from: jest.fn((table: string) => builderFor(table)),
+    })
+
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    const rows = await loadParticipanteExplorar(ctxResult.context)
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.link_type).toBe('matrimonio')
+  })
+})
+
 // ─── Certificado deny-by-default ──────────────────────────────────────────
 
 describe('loadParticipanteCertificado — ownership-scoped', () => {

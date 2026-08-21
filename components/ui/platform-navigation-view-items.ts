@@ -55,8 +55,9 @@ export async function resolvePlatformNavigationViewItems(
   })
 
   return resolution.mode === 'platform'
-    ? resolution.visibleItems
-      .filter((item) => item.id !== 'lider_triada')
+    ? dedupePlatformNavigationItemsByBaseId(
+        resolution.visibleItems.filter((item) => item.id !== 'lider_triada'),
+      )
       .map(toPlatformNavigationViewItem)
       .filter((item): item is PlatformNavigationViewItem => item !== null)
     : []
@@ -107,4 +108,36 @@ function toPlatformNavigationViewItem(item: PlatformNavigationItem): PlatformNav
     icon,
     href: item.href,
   }
+}
+
+/**
+ * PR H — collapses navigation items sharing the same base `item.id` into
+ * a single entry. The platform capability resolver emits one visibleItem
+ * per matching capability SCOPE, so a user holding the same capability at
+ * multiple scopes (e.g. `talleres_crecimiento.participation.read` for two
+ * different talleres) would otherwise produce duplicate top-level entries
+ * (two "Talleres" links). We keep one entry per base id, preferring a
+ * global-scoped grant over a narrowly-scoped one, else the first seen.
+ */
+function dedupePlatformNavigationItemsByBaseId(
+  items: readonly PlatformNavigationItem[],
+): PlatformNavigationItem[] {
+  const byId = new Map<PlatformNavigationItemId, PlatformNavigationItem>()
+  for (const item of items) {
+    const existing = byId.get(item.id)
+    if (!existing) {
+      byId.set(item.id, item)
+      continue
+    }
+    // Prefer a global-scoped entry when the same base id appears at both
+    // a narrow scope and the global scope.
+    if (!isGlobalScope(existing) && isGlobalScope(item)) {
+      byId.set(item.id, item)
+    }
+  }
+  return [...byId.values()]
+}
+
+function isGlobalScope(item: PlatformNavigationItem): boolean {
+  return item.scope.id === undefined || item.scope.id === 'global'
 }

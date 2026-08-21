@@ -132,8 +132,11 @@ beforeEach(() => {
         Promise.resolve({ data: { user: state.user }, error: null }),
       ),
     },
-    rpc: jest.fn().mockImplementation((_n: string, args: { p_capability: string }) => {
-      const cap = args.p_capability
+    rpc: jest.fn().mockImplementation((_n: string, args: { p_capability_key?: string; p_capability?: string }) => {
+      // requireTalleresApi calls auth_has_talleres_capability({ p_capability_key });
+      // the legacy metricas gate uses eval_talleres_capability({ p_capability }).
+      // Accept either param name so the mock matches whichever gate the route hits.
+      const cap = args.p_capability_key ?? args.p_capability ?? ''
       if (state.capabilities.get(cap) === true) return Promise.resolve({ data: true })
       if (cap === 'talleres_crecimiento.director.read' && state.capabilities.has('talleres_crecimiento.director.read')) {
         return Promise.resolve({ data: state.capabilities.get('talleres_crecimiento.director.read') })

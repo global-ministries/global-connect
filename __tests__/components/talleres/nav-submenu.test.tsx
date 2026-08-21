@@ -235,10 +235,24 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
     expect(screen.queryByText('Mis Talleres')).toBeNull()
   })
 
-  it('shows the new global inscripciones item to a director.read user', () => {
-    // PR42 — the global admin/coordinacion inscripciones view is an
-    // item under the C bucket, visible to director.read via the
-    // existing superset rule.
+  it('shows the global inscripciones item to a coordinator.read user (its own capability)', () => {
+    // The global admin/coordinacion inscripciones view is a C-bucket item
+    // keyed to coordinator.read — visible to any coordinator.
+    const ref = { count: 0 }
+    createClientMock.mockImplementation(makeBrowserClientMock(ref))
+    render(
+      React.createElement(TalleresNavSubmenu, {
+        sessionCapabilities: ['talleres_crecimiento.coordinator.read'],
+      }),
+    )
+    expect(screen.getByText('Inscripciones (global)')).toBeDefined()
+  })
+
+  it('hides the global inscripciones item from a pure director.read user (PR H strict filtering)', () => {
+    // PR H — the director.read → coordinator superset is gone. A user
+    // holding ONLY director.read no longer inherits the C-bucket global
+    // inscripciones view; they reach enrollment approvals via their own
+    // Dirección surface, not this coordinator-keyed entry.
     const ref = { count: 0 }
     createClientMock.mockImplementation(makeBrowserClientMock(ref))
     render(
@@ -246,6 +260,6 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
         sessionCapabilities: ['talleres_crecimiento.director.read'],
       }),
     )
-    expect(screen.getByText('Inscripciones (global)')).toBeDefined()
+    expect(screen.queryByText('Inscripciones (global)')).toBeNull()
   })
 })
