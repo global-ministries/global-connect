@@ -32,10 +32,21 @@ export interface OpenEdicionInput {
   readonly fecha_inicio_periodo: string // ISO
   readonly fecha_fin_periodo: string | null // ISO
   readonly firmantes: ReadonlyArray<{ nombre: string; rol: string }>
+  /**
+   * PR46 — global season (talleres_temporadas) this edición belongs to.
+   * `null` means "not bound to any season" (backward-compatible). Always
+   * sent so the RPC resolves the 11-arg overload (never the 10-arg one).
+   */
+  readonly temporada_id: string | null
 }
 
 export type OpenEdicionResult =
-  | { readonly ok: true; readonly edicionId: string; readonly periodoId: string | null }
+  | {
+      readonly ok: true
+      readonly edicionId: string
+      readonly periodoId: string | null
+      readonly temporadaId: string | null
+    }
   | {
       readonly ok: false
       readonly error: 'forbidden' | 'not-found' | 'unauthorized' | 'invalid-input' | 'internal'
@@ -112,6 +123,9 @@ export async function openEdicion(input: OpenEdicionInput): Promise<OpenEdicionR
     p_fecha_inicio_periodo: input.fecha_inicio_periodo,
     p_fecha_fin_periodo: input.fecha_fin_periodo,
     p_firmantes: firmantesJson,
+    // PR46: always sent (uuid or null) so PostgREST resolves the 11-arg
+    // overload. Never omit — omitting would fall back to the 10-arg one.
+    p_temporada_id: input.temporada_id ?? null,
   })
 
   if (error || !data) {
@@ -122,8 +136,17 @@ export async function openEdicion(input: OpenEdicionInput): Promise<OpenEdicionR
     }
   }
 
-  const result = data as { edicion_id: string; periodo_id: string | null }
-  return { ok: true, edicionId: result.edicion_id, periodoId: result.periodo_id }
+  const result = data as {
+    edicion_id: string
+    periodo_id: string | null
+    temporada_id: string | null
+  }
+  return {
+    ok: true,
+    edicionId: result.edicion_id,
+    periodoId: result.periodo_id,
+    temporadaId: result.temporada_id ?? null,
+  }
 }
 
 export async function redirectToEdicion(tallerSlug: string, edicionId: string): Promise<never> {

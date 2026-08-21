@@ -42,6 +42,11 @@ interface EdicionRow {
   created_at: string
 }
 
+interface TemporadaOption {
+  id: string
+  nombre: string
+}
+
 export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
   if (!isTalleresEnabled()) {
     return (
@@ -103,6 +108,21 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
 
   const ediciones: EdicionRow[] = (edicionesData ?? []) as EdicionRow[]
 
+  // PR46 — open seasons (talleres_temporadas) for the "Temporada" picker in
+  // the open-edición form. RLS-gated (metrics.read OR director.read OR
+  // admin.manage): if the caller lacks read on seasons the list comes back
+  // empty and the form just offers "— Sin temporada —" (graceful degradation).
+  let temporadasAbiertas: TemporadaOption[] = []
+  if (hasCap) {
+    const { data: temporadasData } = await client
+      .from('talleres_temporadas')
+      .select('id, nombre')
+      .eq('estado', 'abierto')
+      .order('fecha_apertura', { ascending: false })
+      .limit(100)
+    temporadasAbiertas = (temporadasData ?? []) as TemporadaOption[]
+  }
+
   return (
     <ContenedorDashboard
       titulo={taller.nombre}
@@ -136,6 +156,7 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
             tallerId={taller.id}
             tallerNombre={taller.nombre}
             defaultModalidad={taller.modalidad_default}
+            temporadasAbiertas={temporadasAbiertas}
           />
         </div>
       )}
