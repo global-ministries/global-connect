@@ -20,12 +20,19 @@ interface Input {
   readonly tallerId: string
   readonly tallerNombre: string
   readonly defaultModalidad: 'periodo_general' | 'permanente_custom'
+  /**
+   * PR46 — open global seasons (talleres_temporadas, estado='abierto') this
+   * edición can be bound to. Empty ⇒ no picker is shown and the edición is
+   * opened with temporada_id=null (backward-compatible).
+   */
+  readonly temporadasAbiertas: ReadonlyArray<{ readonly id: string; readonly nombre: string }>
 }
 
 export function OpenEdicionForm({
   tallerId,
   tallerNombre,
   defaultModalidad,
+  temporadasAbiertas,
 }: Input): ReactElement {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -38,6 +45,7 @@ export function OpenEdicionForm({
   const [sesiones, setSesiones] = useState<number>(1)
   const [duracion, setDuracion] = useState<number>(60)
   const [modalidad, setModalidad] = useState<'periodo_general' | 'permanente_custom'>(defaultModalidad)
+  const [temporadaId, setTemporadaId] = useState<string>('')
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
 
@@ -58,12 +66,15 @@ export function OpenEdicionForm({
         fecha_inicio_periodo: new Date(fechaInicio).toISOString(),
         fecha_fin_periodo: fechaFin ? new Date(fechaFin).toISOString() : null,
         firmantes: [],
+        // PR46 — bind to a global season when one is picked; '' ⇒ null.
+        temporada_id: temporadaId === '' ? null : temporadaId,
       })
       if (result.ok) {
         router.refresh()
         setNombreEdicion('')
         setFechaInicio('')
         setFechaFin('')
+        setTemporadaId('')
         setOpen(false)
       } else {
         setError(result.message ?? result.error)
@@ -131,7 +142,7 @@ export function OpenEdicionForm({
           </select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium">Sesiones *</span>
+          <span className="mb-1 block text-sm font-medium">Duración (semanas) *</span>
           <input
             type="number"
             min={1}
@@ -139,6 +150,7 @@ export function OpenEdicionForm({
             onChange={(e) => setSesiones(Number(e.target.value))}
             className="w-full rounded border px-3 py-2"
           />
+          <span className="mt-1 block text-xs text-muted-foreground">1 semana = 1 sesión.</span>
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium">Duración por sesión (min) *</span>
@@ -162,6 +174,27 @@ export function OpenEdicionForm({
             <option value="permanente_custom">Permanente custom</option>
           </select>
         </label>
+        {temporadasAbiertas.length > 0 && (
+          <label className="block md:col-span-2">
+            <span className="mb-1 block text-sm font-medium">Temporada</span>
+            <select
+              value={temporadaId}
+              onChange={(e) => setTemporadaId(e.target.value)}
+              className="w-full rounded border px-3 py-2"
+            >
+              <option value="">— Sin temporada —</option>
+              {temporadasAbiertas.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nombre}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Vinculá esta edición a una temporada global abierta para agrupar
+              métricas. Opcional.
+            </span>
+          </label>
+        )}
         <label className="block">
           <span className="mb-1 block text-sm font-medium">Fecha inicio *</span>
           <input

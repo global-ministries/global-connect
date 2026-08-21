@@ -108,6 +108,7 @@ const validInput: OpenEdicionInput = {
   fecha_inicio_periodo: '2026-09-01T00:00:00.000Z',
   fecha_fin_periodo: '2026-12-15T00:00:00.000Z',
   firmantes: [],
+  temporada_id: null,
 }
 
 beforeEach(() => {
@@ -225,6 +226,32 @@ describe('openEdicion — happy path', () => {
     expect(rpcCalls[0]?.args['p_tipo']).toBe('pareja')
     expect(rpcCalls[0]?.args['p_nombre_edicion']).toBe('Otoño 2026')
     expect(rpcCalls[0]?.args['p_modalidad_inscripcion']).toBe('periodo_general')
+  })
+
+  it('forwards temporada_id to the RPC as p_temporada_id and echoes it back (PR46)', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+      rpcResponse: {
+        data: { edicion_id: 'e-2', periodo_id: null, temporada_id: 'temp-1' },
+        error: null,
+      },
+    })
+    const result = await openEdicion({ ...validInput, temporada_id: 'temp-1' })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.temporadaId).toBe('temp-1')
+    expect(rpcCalls[0]?.args['p_temporada_id']).toBe('temp-1')
+  })
+
+  it('always sends p_temporada_id (null when no season) so the 11-arg overload resolves (PR46)', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+    })
+    const result = await openEdicion({ ...validInput, temporada_id: null })
+    expect(result.ok).toBe(true)
+    expect(rpcCalls[0]?.args).toHaveProperty('p_temporada_id')
+    expect(rpcCalls[0]?.args['p_temporada_id']).toBeNull()
   })
 })
 
