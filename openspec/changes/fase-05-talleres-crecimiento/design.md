@@ -4,6 +4,8 @@
 
 Decision needed before apply: No | Chained PRs recommended: Yes | Chain: stacked-to-main | 400-line budget risk: High
 
+> **⚠️ See §17 (Amendment 2026-08-19 — GdV-parity restructure).** It reflects the current approved direction and supersedes §1–§16 wherever they conflict (schema renames, the new global `temporada` model, weeks=sessions, spouse self-enroll, leadership, menu filtering, certificate-on-completion). The system is LIVE in production: all migrations are additive, forward-only and idempotent — no destructive DDL, no data loss.
+
 ## 1. Architecture overview
 
 | Concern | Approach | Rationale |
@@ -211,3 +213,49 @@ Rough ordering: capability + adapter → catalog → enrollment → groups + ass
 - OQ-4: `firma_lider_persona_id` required when `estado='borrador'` or only `enviado`.
 
 No blockers for `sdd-design`.
+
+---
+
+## 17. Amendment (2026-08-19) — GdV-parity restructure
+
+Talleres mirrors the Grupos de Vida (GdV) module end-to-end: global season → choose which talleres open → grupos with leaders → attendance by week → completion → certificate; with participant self-enrollment. This section supersedes §1–§16 wherever they conflict. **The system is LIVE in production — every change here is additive, forward-only and idempotent; production data (usuarios, grupos, the ~4 live `taller_ediciones` and their inscripciones) is never dropped, truncated, or destructively mutated.**
+
+### 17.1 Naming reconciliation (schema as-built)
+- The workshop-edition table shipped as `taller_ediciones` (renamed from the `talleres_crecimiento_metadata` in §1/§3). `taller_periodos_generales` remains the enrollment window; `talleres_crecimiento_cohortes` the cohorte.
+- A prior global-season model (`taller_ediciones_globales` + `taller_edicion_global_participantes` + `taller_ediciones.edicion_global_id`, PR29) was **fully dropped** by PR33 (`20260817012303_pr33_rollback_global_ediciones.sql`): `DROP TABLE ... CASCADE`, `DROP COLUMN`, 4 RPCs dropped. All prod rows had `edicion_global_id IS NULL` → no data loss. It is revived here under a cleaner name.
+
+### 17.2 Global season (temporada) — NEW
+- **`talleres_temporadas`** (global season; mirrors GdV `temporadas`): `id`, `nombre` CHECK(len 2..120), `slug` UNIQUE CHECK `^[a-z0-9-]+$`, `descripcion`, `fecha_apertura`, `fecha_cierre` CHECK(cierre>apertura), `estado∈{borrador,abierto,cerrado,cancelado}`, `created_by_persona_id uuid NULL` **(NO FK — auth.uid()=auth.users.id ≠ usuarios.id)**, `created_at`, `updated_at`, `version`. `updated_at` trigger + estado/fecha indexes.
+- **`talleres_temporada_talleres`** (junction — WHICH talleres open per season): `temporada_id FK→talleres_temporadas ON DELETE CASCADE`, `taller_id FK→talleres ON DELETE RESTRICT`, `UNIQUE(temporada_id,taller_id)` + lookup indexes. This is the "elijo qué talleres abren" control surface.
+- **`taller_ediciones.temporada_id uuid NULL FK→talleres_temporadas ON DELETE SET NULL`** (additive column) + partial index `WHERE temporada_id IS NOT NULL`.
+- **RLS** on both new tables (PR29 shipped none): `_select` = `metrics.read | director.read | admin.manage`; `_insert/_update/_delete` = `director.write | admin.manage`. Enables GdV-style server actions under RLS — no SECURITY DEFINER RPC for temporada CRUD.
+- **Backfill:** idempotent legacy temporada (`slug='legacy'`, `ON CONFLICT DO NOTHING`); orphan `taller_ediciones` linked via `temporada_id` **only WHERE temporada_id IS NULL** — never overwrites an existing link.
+- **UI label:** global level = "Temporada"; the per-taller occurrence stays "Edición".
+
+### 17.3 Duration = weeks (1 week = 1 session)
+- `taller_ediciones.sesiones_snapshot` (existing) holds the week count — no schema change; relabel UI "Sesiones" → "Duración (semanas)".
+- New SECURITY DEFINER RPC `generate_taller_sesiones(p_grupo_id)`: creates N sequential per-grupo `taller_sesiones` (respecting the existing `taller_sesiones_validate_insert` sequential trigger), one per week, `estado='programada'`, `fecha_programada = start + (numero-1)*7 days`; idempotent (skips existing). Called at grupo creation (not at edición open — no grupo yet).
+
+### 17.4 Spouse (cónyuge) self-enrollment
+- `taller_inscripciones_insert` RLS relaxed (forward-only DROP+CREATE). Operativa branch (coordinator/director/admin) unchanged. Participant branch: allow `companero_id` when target `taller_ediciones.tipo='pareja'` AND companero is a real usuario AND `link_type` set AND self is `persona_principal_id` — the existing `companero_id IS NULL` individual branch is **preserved**. Marriage link NOT verified in-DB (R9). Couple-unit BEFORE trigger keeps enforcing `link_type ⇔ companero_id`.
+- Server action `inscribirseATaller` already accepts + inserts `{companeroId, linkType}` — only the RLS blocks it today.
+
+### 17.5 Leadership (no new entity)
+- **Director General** = global `dream_team_servicios` `rol='director'` `experiencia='talleres_crecimiento'` → `director.*` / `admin.manage` / `metrics.read`.
+- **Coordinador** (the per-taller "encargado") = `dream_team_servicios` `rol='coordinador'` on the cohort's `dream_team_equipo_id` → `coordinator.*` / `metrics.read`, scoped to the taller.
+- **Líder / Voluntario** = `taller_grupo_asignaciones`, scoped to grupo. No separate per-taller director entity — the capability model already expresses it.
+
+### 17.6 Certificate on completion (+ transition fix)
+- Completion is `unit_estado='completado'` — the inscription `estado` CHECK is `{pendiente,aprobado,no_aprobado}` and does NOT include 'completado'. The transition route (`app/api/talleres/inscripciones/[id]/transition/route.ts`) must set `unit_estado`, and must NOT write the removed `fecha_completitud` column on the inscription (removed in 7f0881c).
+- On completion the route calls `generateCertificateForInscription(client, inscripcionId)` (`lib/platform/talleres/certificates.ts`), which mints the certificate through the **SECURITY DEFINER RPC `emit_taller_certificado(p_inscripcion_id, p_codigo_verificacion)`** (migration `20260820000001`) — NOT a direct INSERT. Rationale: `authenticated` holds only SELECT on `taller_certificados`, and Postgres checks the table GRANT layer BEFORE RLS, so a cookie-bound INSERT is denied regardless of the RLS INSERT policy. The RPC gates internally on `director.write | admin.manage`, requires `unit_estado='completado'`, computes every `*_snapshot` column server-side (normalising `taller_ediciones.firmantes` objects `{persona_id,rol_etiqueta,orden}` into a `firmantes_snapshot string[]` the public verify endpoint can render), and is idempotent (`ON CONFLICT (inscripcion_id) DO NOTHING`). The 16-char verification code is generated in TS (locked ALPHABET) and passed in. The wrapper is BEST-EFFORT — a transient RPC failure never fails the completion (estado stays `aprobado`, so re-triggering is safe). No `fecha_completitud` column is written (ghost column removed in 7f0881c).
+- **KNOWN LIMITATION:** `taller_certificados UNIQUE(inscripcion_id)` issues one certificate per pareja unit (principal only). Follow-up (out of scope now): relax to `(inscripcion_id, persona_id)`.
+
+### 17.7 Menu — strict capability filtering + dedupe
+- `getTalleresNavItems` (`lib/platform/talleres/route-access.ts`, editable) drops the `director.read` implicit superset; a sub-item shows only for a held capability (multi-role union preserved).
+- The top-level renderer (`components/ui/platform-navigation-view-items.ts`, editable) collapses duplicate same-id/href "Talleres" entries emitted once per scope.
+- Protected `lib/platform/navigation.ts` stays byte-identical.
+
+### 17.8 Production safety (hard rule)
+- Additive + forward-only + idempotent only: `CREATE ... IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE`, `ON CONFLICT DO NOTHING`.
+- NEVER `DROP TABLE` / `DROP COLUMN` / `TRUNCATE` / `db reset` on data tables. Policy changes via `DROP POLICY` + `CREATE POLICY` only.
+- Migrations authored + tested on a scratch/local DB; **applying to production is the user's deploy step — not performed here.**

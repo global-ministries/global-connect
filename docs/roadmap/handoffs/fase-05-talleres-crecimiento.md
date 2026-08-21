@@ -6,7 +6,7 @@
 - Fase 2 — Dream Team Global Base: cerrada, mergeada en `main`.
 - Fase 3 — Operating Core: cerrada, mergeada en `main`.
 - Fase 4 — Seguimiento Pastoral: W14–W27 mergeados a `main`, con UI pendiente de validación y recap posterior.
-- Fase 5 — Talleres de Crecimiento: **Levantamiento de requisitos cerrado; SDD formal aún no iniciado.**
+- Fase 5 — Talleres de Crecimiento: **PR1–PR19 del plan + segunda ola PR21–PR43 implementadas y mergeadas en `main`.** SDD change aún activo (sin `sdd-verify`/`sdd-archive`). `tsc --noEmit` limpio; `pnpm test` verde salvo 11 fallas en `pr16.test.ts` por mock desactualizado (código de producción correcto). Ver reconciliación en `openspec/changes/fase-05-talleres-crecimiento/tasks.md`.
 
 ## Objetivo de la fase
 
