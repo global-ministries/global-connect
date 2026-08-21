@@ -23,9 +23,11 @@ import {
   loadEquipoGrupos,
   loadEquipoReporte,
   loadCoordInscripcionesPendientes,
+  loadCoordTalleresAgrupados,
   loadDirResumen,
   loadEdicionLocalDetalle,
 } from '@/lib/platform/talleres/operacional'
+import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(() => true),
@@ -625,5 +627,121 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     expect(result.inscripciones_count).toBe(0)
     expect(result.inscripciones_aprobadas_count).toBe(0)
     expect(result.certificados_count).toBe(0)
+  })
+})
+
+// ─── loadCoordTalleresAgrupados — group ediciones under their abstract taller ──
+//
+// The Coordinación surface must show DISTINCT talleres (the abstract offering),
+// not one card/count per edición. This loader reads taller_ediciones, embeds the
+// abstract talleres(nombre), and groups by taller_id. Orphan ediciones (taller_id
+// NULL — best-effort backfill missed) fall back to their own singleton group.
+
+/**
+ * Thenable client mock: `.from(t).select(cols).order()` awaits to
+ * { data: rows, error }. Records the select columns for assertion.
+ */
+function buildAgrupadosClientMock(
+  rows: unknown[],
+  error: unknown = null
+): { from: jest.Mock; selectCols: string[] } {
+  const selectCols: string[] = []
+  const from = jest.fn(() => {
+    const b: Record<string, unknown> = {}
+    b['select'] = jest.fn((cols: string) => {
+      selectCols.push(cols)
+      return b
+    })
+    b['order'] = jest.fn(() => b)
+    Object.defineProperty(b, 'then', {
+      value: (resolve: (v: unknown) => void) => resolve({ data: rows, error }),
+    })
+    return b
+  }) as jest.Mock
+  return { from, selectCols }
+}
+
+function agrupadosCtx(from: jest.Mock): OperacionalContext {
+  return {
+    supabase: { from },
+    personaId: PERSONA_ID,
+    role: 'C',
+    capabilities: [],
+  } as unknown as OperacionalContext
+}
+
+describe('loadCoordTalleresAgrupados — group ediciones by abstract taller', () => {
+  it('selects taller_id and embeds the abstract talleres(nombre)', async () => {
+    const { from, selectCols } = buildAgrupadosClientMock([])
+    await loadCoordTalleresAgrupados(agrupadosCtx(from))
+    expect(selectCols[0]).toMatch(/taller_id/)
+    expect(selectCols[0]).toMatch(/talleres\s*\(/)
+  })
+
+  it('groups multiple ediciones under one taller (distinct talleres, not ediciones)', async () => {
+    const rows = [
+      {
+        id: 'e-1',
+        taller_id: 't-1',
+        nombre_snapshot: 'Septiembre 2026',
+        tipo: 'individual',
+        estado: 'borrador',
+        talleres: { id: 't-1', nombre: 'Matrimonio sobre la Roca' },
+      },
+      {
+        id: 'e-2',
+        taller_id: 't-1',
+        nombre_snapshot: 'Octubre 2026',
+        tipo: 'pareja',
+        estado: 'abierto',
+        talleres: { id: 't-1', nombre: 'Matrimonio sobre la Roca' },
+      },
+      {
+        id: 'e-3',
+        taller_id: 't-2',
+        nombre_snapshot: 'Cohorte 1',
+        tipo: 'individual',
+        estado: 'borrador',
+        talleres: { id: 't-2', nombre: 'Discipulado 1' },
+      },
+    ]
+    const { from } = buildAgrupadosClientMock(rows)
+    const groups = await loadCoordTalleresAgrupados(agrupadosCtx(from))
+
+    expect(groups).toHaveLength(2) // distinct talleres, NOT 3 ediciones
+    const roca = groups.find((g) => g.taller_id === 't-1')
+    expect(roca?.taller_nombre).toBe('Matrimonio sobre la Roca')
+    expect(roca?.ediciones).toHaveLength(2)
+    expect(roca?.ediciones.map((e) => e.id)).toEqual(['e-1', 'e-2'])
+
+    const disc = groups.find((g) => g.taller_id === 't-2')
+    expect(disc?.ediciones).toHaveLength(1)
+    expect(disc?.ediciones[0]?.estado).toBe('borrador')
+  })
+
+  it('falls back to a singleton group labeled by nombre_snapshot when taller_id is null', async () => {
+    const rows = [
+      {
+        id: 'e-9',
+        taller_id: null,
+        nombre_snapshot: 'Edición huérfana',
+        tipo: 'individual',
+        estado: 'borrador',
+        talleres: null,
+      },
+    ]
+    const { from } = buildAgrupadosClientMock(rows)
+    const groups = await loadCoordTalleresAgrupados(agrupadosCtx(from))
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.taller_nombre).toBe('Edición huérfana')
+    expect(groups[0]?.ediciones).toHaveLength(1)
+  })
+
+  it('returns [] on query error', async () => {
+    const { from } = buildAgrupadosClientMock(null as unknown as unknown[], {
+      message: 'boom',
+    })
+    const groups = await loadCoordTalleresAgrupados(agrupadosCtx(from))
+    expect(groups).toEqual([])
   })
 })

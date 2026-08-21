@@ -414,6 +414,69 @@ export async function loadCoordTalleres(
   return (data ?? []) as CoordTaller[]
 }
 
+export interface CoordEdicionResumen {
+  readonly id: string
+  readonly nombre_snapshot: string
+  readonly tipo: 'individual' | 'pareja'
+  readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
+}
+
+/**
+ * A distinct abstract taller with the ediciones (occurrences) grouped under it.
+ * The Coordinación surface counts/lists these, NOT raw ediciones.
+ */
+export interface CoordTallerAgrupado {
+  readonly taller_id: string
+  readonly taller_nombre: string
+  readonly ediciones: readonly CoordEdicionResumen[]
+}
+
+/**
+ * Group taller_ediciones by their abstract taller for the Coordinación surface.
+ * Embeds talleres(nombre) so the group header is the abstract offering name.
+ * Orphan ediciones (taller_id NULL — best-effort backfill missed) fall back to
+ * their own singleton group keyed by the edición id and labeled with its
+ * nombre_snapshot, so nothing is dropped.
+ */
+export async function loadCoordTalleresAgrupados(
+  ctx: OperacionalContext
+): Promise<readonly CoordTallerAgrupado[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = ctx.supabase
+  const { data, error } = await client
+    .from('taller_ediciones')
+    .select('id, taller_id, nombre_snapshot, tipo, estado, talleres(id, nombre)')
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+
+  const byTaller = new Map<
+    string,
+    { taller_id: string; taller_nombre: string; ediciones: CoordEdicionResumen[] }
+  >()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PostgREST rows
+  for (const row of data as any[]) {
+    const edicion: CoordEdicionResumen = {
+      id: row.id,
+      nombre_snapshot: row.nombre_snapshot,
+      tipo: row.tipo,
+      estado: row.estado,
+    }
+    const key: string = row.taller_id ?? `edicion:${row.id}`
+    const nombre: string = row.talleres?.nombre ?? row.nombre_snapshot
+    const existing = byTaller.get(key)
+    if (existing) {
+      existing.ediciones.push(edicion)
+    } else {
+      byTaller.set(key, {
+        taller_id: key,
+        taller_nombre: nombre,
+        ediciones: [edicion],
+      })
+    }
+  }
+  return Array.from(byTaller.values())
+}
+
 export interface CoordReporte {
   readonly id: string
   readonly grupo_id: string

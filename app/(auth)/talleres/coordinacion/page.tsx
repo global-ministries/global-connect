@@ -7,7 +7,7 @@ import { TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
 import {
   loadCoordInscripcionesPendientes,
-  loadCoordTalleres,
+  loadCoordTalleresAgrupados,
   loadCoordReportes,
   loadCoordSolicitudes,
   requireOperacionalRole,
@@ -19,7 +19,7 @@ export default async function CoordinacionIndexPage() {
   const ctx = await requireOperacionalRole()
   const [inscripciones, talleres, reportes, solicitudes] = await Promise.all([
     loadCoordInscripcionesPendientes(ctx),
-    loadCoordTalleres(ctx),
+    loadCoordTalleresAgrupados(ctx),
     loadCoordReportes(ctx),
     loadCoordSolicitudes(ctx),
   ])
