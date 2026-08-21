@@ -36,6 +36,7 @@ import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadEdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
 
 import { CloseEdicionButton, OpenEdicionButton } from './open-edicion-button'
+import { GruposSection } from './grupos-section'
 
 export const metadata = { title: 'Edición de Grupo de Corto Plazo' }
 
@@ -166,7 +167,7 @@ export default async function EdicionLocalDetailPage(ctx: RouteContext) {
               ? 'Periodo general'
               : 'Permanente custom'}
           </Campo>
-          <Campo titulo="Sesiones (snapshot)">
+          <Campo titulo="Duración (semanas)">
             {edicion.sesiones_snapshot}
           </Campo>
           <Campo titulo="Duración estimada (min)">
@@ -238,6 +239,13 @@ export default async function EdicionLocalDetailPage(ctx: RouteContext) {
           </TextoSistema>
         )}
       </TarjetaSistema>
+
+      {/* Grupos — admin section (write-gated). Mirrors GdV: a cohorte holds
+          grupos with líderes/voluntarios. Creating a grupo generates its
+          weekly sessions (generate_taller_sesiones, PR47). */}
+      {hasCap && edicion.cohorte && (
+        <GruposSection cohorteId={edicion.cohorte.id} />
+      )}
 
       {/* Período general */}
       <TarjetaSistema variante="outlined" className="mb-4 p-4">

@@ -32,6 +32,21 @@ jest.mock('@/lib/platform/talleres/operacional', () => ({
   loadEdicionLocalDetalle: (client: unknown, id: string) => loadEdicionMock(client, id),
 }))
 
+// The Grupos admin section is a client island with its own test suite
+// (grupos-section.test.tsx). Here we stub it to a marker so this page test
+// stays focused on page-level behavior — whether the section is rendered
+// (write-capability + cohorte present) or gated out.
+jest.mock('@/app/(auth)/admin/talleres/edicion/[id]/grupos-section', () => ({
+  GruposSection: ({ cohorteId }: { cohorteId: string }) => {
+    const react = jest.requireActual('react') as typeof import('react')
+    return react.createElement(
+      'div',
+      { 'data-testid': 'grupos-section', 'data-cohorte-id': cohorteId },
+      'Grupos',
+    )
+  },
+}))
+
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags')
   .isTalleresEnabled as jest.Mock
 const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
@@ -180,7 +195,7 @@ describe('EdicionLocalDetailPage — projection', () => {
     expect(html).toContain('Pareja')
     expect(html).toContain('Matrimonio')
     expect(html).toContain('Periodo general')
-    expect(html).toContain('Sesiones (snapshot)')
+    expect(html).toContain('Duración (semanas)')
     expect(html).toContain('Duración estimada (min)')
     // Firmantes — both rows are rendered.
     expect(html).toContain('Director')
@@ -204,6 +219,11 @@ describe('EdicionLocalDetailPage — projection', () => {
     expect(html).toContain('Inscripciones (total)')
     expect(html).toContain('Aprobadas / pendientes')
     expect(html).toContain('Certificados emitidos')
+
+    // Grupos admin section — present when the caller can write and the
+    // edición has a cohorte; keyed by the cohorte id.
+    expect(html).toContain('data-testid="grupos-section"')
+    expect(html).toContain('data-cohorte-id="c-1"')
   })
 
   it('renders empty states when cohorte and periodo_general are null', async () => {
@@ -222,6 +242,24 @@ describe('EdicionLocalDetailPage — projection', () => {
     expect(html).toContain('todavía no tiene cohorte')
     expect(html).toContain('No hay período general asociado')
     expect(html).toContain('Sin firmantes configurados')
+
+    // No cohorte → no Grupos section (nothing to hang grupos off of).
+    expect(html).not.toContain('data-testid="grupos-section"')
+  })
+
+  it('gates the Grupos section behind write capability', async () => {
+    setupPageMock({
+      personaId: 'p-1',
+      // read-only caller: no director.write / admin.manage
+      capabilities: ['talleres_crecimiento.director.read'],
+      edicion: fullEdicion,
+    })
+    const html = await renderPage('e-1')
+
+    // Cohorte is present, but without write capability the admin section
+    // must not render.
+    expect(html).toContain('eq-1')
+    expect(html).not.toContain('data-testid="grupos-section"')
   })
 
   it('renders the not-found path when the projection returns null', async () => {

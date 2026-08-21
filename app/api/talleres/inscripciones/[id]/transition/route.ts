@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { requireTalleresApi } from '@/lib/platform/talleres/api-helpers'
+import { generateCertificateForInscription } from '@/lib/platform/talleres/certificates'
 
 interface RouteContext {
   readonly params: Promise<{ readonly id: string }>
@@ -70,11 +71,19 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
     )
   }
 
+  // `completado` is NOT an `estado` value — the estado CHECK only allows
+  // pendiente|aprobado|no_aprobado. Completion is recorded on the SEPARATE
+  // `unit_estado` column (completado|no_completado|abandono). The FSM above
+  // is keyed on `estado`, so reaching target 'completado' still requires
+  // estado='aprobado'; we then flip unit_estado and leave estado='aprobado'.
   const patch: Record<string, unknown> = {
-    estado: body.target,
     version: undefined,
   }
-  if (body.target === 'completado') patch['fecha_completitud'] = new Date().toISOString()
+  if (body.target === 'completado') {
+    patch['unit_estado'] = 'completado'
+  } else {
+    patch['estado'] = body.target
+  }
   if (body.target === 'no_aprobado') patch['motivo_no_aprobado'] = body.motivo
   if (body.target === 'pendiente') patch['motivo_no_aprobado'] = null
 
@@ -82,10 +91,27 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
     .from('taller_inscripciones')
     .update(patch)
     .eq('id', id)
-    .select('id, estado, version')
+    .select('id, estado, unit_estado, version')
     .single()
   if (error) {
     return NextResponse.json({ error: 'internal', message: error.message }, { status: 500 })
   }
+
+  // On completion, mint the certificate. BEST-EFFORT: emission goes through
+  // the idempotent emit_taller_certificado RPC and never fails the transition
+  // — a transient error is recoverable by re-triggering completion (estado
+  // stays 'aprobado', so target 'completado' remains reachable) and the RPC's
+  // ON CONFLICT (inscripcion_id) DO NOTHING makes a retry safe.
+  if (body.target === 'completado') {
+    try {
+      const certificado = await generateCertificateForInscription(client, id)
+      return NextResponse.json({ ...data, certificado })
+    } catch {
+      // Defensive: the helper is designed not to throw, but never let an
+      // unexpected error mask the successful completion.
+      return NextResponse.json(data)
+    }
+  }
+
   return NextResponse.json(data)
 }

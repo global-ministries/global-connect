@@ -54,6 +54,70 @@ export function generateCertificateCode(): string {
   return encodeBase32UrlSafe(buf, 16)
 }
 
+// ── Certificate issuance (PR48 / PR E) ───────────────────────────────────
+//
+// Minting goes through the SECURITY DEFINER RPC `emit_taller_certificado`
+// (migration 20260820000001), NEVER a direct INSERT: `authenticated` holds
+// only SELECT on taller_certificados, and Postgres checks the table GRANT
+// layer BEFORE RLS, so a cookie-bound INSERT would fail "permission denied"
+// regardless of the RLS INSERT policy. The RPC computes every *_snapshot
+// column from the DB and gates internally on director.write OR admin.manage.
+//
+// The 16-char code is generated HERE (single source of the locked ALPHABET,
+// which isValidCertificateCode enforces) and passed in; the RPC validates
+// its length against the table CHECK. This wrapper is BEST-EFFORT: it never
+// throws — the RPC is idempotent (ON CONFLICT (inscripcion_id) DO NOTHING),
+// so a transient failure is recoverable by simply calling again.
+
+export interface EmitCertificateResult {
+  readonly ok: boolean
+  readonly created?: boolean
+  readonly certificadoId?: string | null
+  /** The authoritative persisted code: the RPC's on-conflict code if present, else the one we generated. */
+  readonly codigoVerificacion?: string
+  readonly error?: string
+}
+
+interface EmitCertificateClient {
+  rpc(
+    name: 'emit_taller_certificado',
+    args: { p_inscripcion_id: string; p_codigo_verificacion: string },
+  ): Promise<{ data: unknown; error: { message: string } | null }>
+}
+
+/**
+ * Mint (or return the existing) completion certificate for an inscription via
+ * the emit_taller_certificado RPC. Best-effort: returns `{ ok: false }` on
+ * error rather than throwing, so a caller (the completion transition) can
+ * complete the unit even if certificate emission transiently fails.
+ */
+export async function generateCertificateForInscription(
+  client: EmitCertificateClient,
+  inscripcionId: string,
+): Promise<EmitCertificateResult> {
+  const code = generateCertificateCode()
+  const { data, error } = await client.rpc('emit_taller_certificado', {
+    p_inscripcion_id: inscripcionId,
+    p_codigo_verificacion: code,
+  })
+  if (error) {
+    return { ok: false, error: error.message, codigoVerificacion: code }
+  }
+  const row = (data ?? {}) as {
+    created?: boolean
+    certificado_id?: string | null
+    codigo_verificacion?: string | null
+  }
+  return {
+    ok: true,
+    created: row.created,
+    certificadoId: row.certificado_id ?? null,
+    // On an idempotent hit the RPC returns the ALREADY-persisted code, which
+    // is authoritative over the one we just generated. Fall back to `code`.
+    codigoVerificacion: row.codigo_verificacion ?? code,
+  }
+}
+
 // ── Minimal hand-rolled PDF ──────────────────────────────────────────────
 //
 // ~600 bytes per page. No external dep. Valid PDF 1.4 with Helvetica
