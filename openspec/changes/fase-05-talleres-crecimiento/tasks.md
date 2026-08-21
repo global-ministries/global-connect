@@ -2,6 +2,20 @@
 
 > force-chained, stacked-to-main, **Apply authorization: BLOQUEADO hasta autorización explícita del usuario**, post-F4-merge; PRs from latest `main`. Hereda F1/F2/F3/F4 byte-identity. F5 añade solo en `lib/platform/talleres/**`, `app/api/talleres/**`, `app/(auth)/talleres/**`, `app/verificar-certificado/**`, `supabase/migrations/<ts>_talleres_*.sql`. Strict RED → GREEN → REFACTOR (Jest 30 + RTL, `pnpm test`). Cap inheritance derived from role + scope; no manual grants. Handoff §16 protegidos byte-idénticos; CI guard global en `tests/byte-identity/protected-files.test.ts`.
 
+## Reconciliation — 2026-08-19
+
+**Estado real vs checkboxes:** todas las PR1–PR19 del plan original están **implementadas y mergeadas en `main`** (verificado por existencia de código, historial git y ejecución de tests+tsc — ver "Salud de tests/tsc" abajo). Los checkboxes de PR7/PR15/PR16/PR17/PR18/PR19 estaban desactualizados (nunca se marcaron al mergear); corregidos a `[x]` en esta reconciliación.
+
+**Trabajo emergente más allá del plan (también mergeado):** segunda ola PR21–PR43 (issues #400–#432): talleres abstractos / "Grupos de Corto Plazo" (`app/(auth)/admin/talleres/**`), ediciones globales (introducidas en PR29 y **revertidas** en PR33), self-enroll (PR41), UI mobile + inline actions (PR43), y múltiples fixes E2E de sidebar/capabilities.
+
+**Divergencias de forma (no de alcance):**
+- API: `inscripciones/[id]/transition` genérico en vez de `/approve|/reject|/resume` separados; `grupos/[id]/asignaciones` en vez de `/assignments`.
+- Módulos: `operacional.ts` / `participante.ts` / `admin-inscripciones.ts` en vez de `enrollment.ts` / `groups.ts` / `attendance.ts`.
+
+**Pendiente para cerrar la fase:** (1) `sdd-verify` + `sdd-archive` — el change sigue activo en `openspec/changes/fase-05-talleres-crecimiento/`, no archivado; (2) rama `test/pr40-cohorte-regression` sin mergear; (3) fix de 1 línea en `pr16.test.ts` (ver abajo). La "Apply authorization: BLOQUEADO" del pie ya es histórica: el código fue aplicado y mergeado.
+
+**Salud de tests/tsc (2026-08-19):** `tsc --noEmit` → **exit 0** (limpio). `pnpm test -- talleres` → **844/855 pass; 11 fallando, todos en `__tests__/app/api/talleres/pr16.test.ts`**. Causa raíz única: el mock de Supabase del test lee `args.p_capability`, pero el helper real `requireTalleresApi` (PR15, `lib/platform/talleres/api-helpers.ts:50`) llama `rpc('auth_has_talleres_capability', { p_capability_key })`. El nombre del parámetro no coincide → el gate devuelve `403` antes de la lógica en las 11 aserciones (404/400/200/201). **Código de producción correcto; el test quedó desactualizado.** Fix = 1 línea en el mock (`args.p_capability` → `args.p_capability_key`, `pr16.test.ts:136`). No aplicado aún: queda fuera del alcance "reconciliar/foto" y pendiente de autorización.
+
 ## Review Workload Forecast
 
 High risk; Chained; 19 work units (PR1–PR19); 7 `size:exception` (PR5, PR6, PR10, PR15, PR16, PR18, PR19); ~7,950 líneas estimadas (incluye DDL, tests, UI). `decision_strategy=force-chained stacked-to-main` → `Decision needed before apply: No` (cached). Capabilities derived from role+scope (no manual grants). Destructive DDL banned (C1). Multi-tenant deferred. Recursos snapshot via `taller_grupos.recursos_snapshot` (R5).
@@ -147,7 +161,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 4: Groups + Attendance
 
-- [ ] **PR7** sesiones + asistencias (immutable+self-FK) + recursos_snapshot + RLS, `type:groups+attendance`, `F(talleres/schema/{sesiones,asistencia,recursos-snapshot})`, `DB`, revert=migration-unapplied, ~400
+- [x] **PR7** sesiones + asistencias (immutable+self-FK) + recursos_snapshot + RLS, `type:groups+attendance`, `F(talleres/schema/{sesiones,asistencia,recursos-snapshot})`, `DB`, revert=migration-unapplied, ~400
   - DT-025: Migration `supabase/migrations/<ts>_talleres_tables_sesiones_asistencia.sql` con `taller_sesiones` (`UNIQUE(grupo_id,numero)`, `meeting_time_override`, `meeting_time_applies_to∈{this_session,this_and_subsequent}`, `estado∈{programada,en_curso,cerrada,cancelada}`, `version`) + `taller_asistencias` (`estado∈{presente,ausente,no_aplica}`, `correccion_de_asistencia_id` self-FK, `UNIQUE(sesion_id,inscripcion_id)`, `version`).
   - DT-026: Trigger BEFORE UPDATE en `taller_asistencias` que rechaza modificación directa + requiere `correccion_de_asistencia_id` apuntando a fila anterior. Append-only pattern.
   - DT-027: Resource snapshot: trigger AFTER UPDATE en `taller_grupos` cuando `estado='completado'` copia recursos activos a `recursos_snapshot jsonb` (R5 — grupos completados NO se actualizan).
@@ -208,7 +222,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 11: API
 
-- [ ] **PR15** `size:exception` API workshops + inscripciones + grupos (8 endpoints), `type:api`, `F(api/talleres/{workshops,inscripciones,grupos})`, `HTTP+R`, revert=404 (kill switch), ~500
+- [x] **PR15** `size:exception` API workshops + inscripciones + grupos (8 endpoints), `type:api`, `F(api/talleres/{workshops,inscripciones,grupos})`, `HTTP+R`, revert=404 (kill switch), ~500
   - **Justificación size:exception:** 8 endpoints REST nuevos (workshops list/create/read/transition; inscripciones list/create/approve/reject/resume; grupos list/create/assignments) + matrix R (401/403/404/409/400 × 8 endpoints = ~40 casos de prueba) supera 400 líneas; unidades inseparables del namespace `/api/talleres/`.
   - DT-055: `app/api/talleres/workshops/route.ts` GET + POST.
   - DT-056: `app/api/talleres/workshops/[id]/route.ts` GET + PATCH.
@@ -219,7 +233,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
   - DT-061: `app/api/talleres/grupos/[id]/assignments/route.ts` POST + PATCH + DELETE.
   - DT-062: Tests R cubren 401/403/404/409/400 por cada endpoint (deny-by-default).
 
-- [ ] **PR16** `size:exception` API sesiones + asistencia + reportes + certificados (7 endpoints), `type:api`, `F(api/talleres/{sesiones,asistencia,reportes,certificados})`, `HTTP+R`, revert=404 (kill switch), ~500
+- [x] **PR16** `size:exception` API sesiones + asistencia + reportes + certificados (7 endpoints), `type:api`, `F(api/talleres/{sesiones,asistencia,reportes,certificados})`, `HTTP+R`, revert=404 (kill switch), ~500
   - **Justificación size:exception:** 7 endpoints REST (sesiones abrir/cerrar; asistencia; reportes enviar/reabrir; certificados) + matrix R (~35 casos) + immutability de asistencia supera 400 líneas; unidades inseparables del namespace operacional.
   - DT-063: `app/api/talleres/sesiones/[id]/{abrir,cerrar}/route.ts` POST (2 endpoints).
   - DT-064: `app/api/talleres/sesiones/[id]/asistencia/route.ts` POST (immutable + self-FK correction).
@@ -229,13 +243,13 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
 
 ## Phase 12: UI
 
-- [ ] **PR17** UI navigation extension + capability filter helper, `type:ui`, `F(ui/talleres-navigation)`, `UI`, revert=group-hide, ~250
+- [x] **PR17** UI navigation extension + capability filter helper, `type:ui`, `F(ui/talleres-navigation)`, `UI`, revert=group-hide, ~250
   - DT-068: `lib/platform/talleres/navigation.ts` con sub-items por rol (design §9): P[Explorar,Mis-Talleres,Historial]; V[Mis-Grupos,Próximas-Sesiones,Recursos]; L[Mis-Grupos,Asistencia,Reportes-Finales,Recursos]; C[Resumen,Inscripciones-Pendientes,Talleres,Equipos,Reportes]; D[Resumen-Global,Talleres,Periodos,Equipos,Solicitudes,Métricas,Reportes].
   - DT-069: `components/ui/platform-navigation-view-items.ts` extension aditiva — agrega grupo `Talleres de Crecimiento` con sub-items capability-filtered. NO edita `sidebar-moderna.tsx` ni `header-movil.tsx` (excepto nuevo `MenuItem` definition).
   - DT-070: `lib/platform/talleres/route-access.ts` con `getTalleresNavItems(sessionCapabilities)` helper (multi-role union).
   - DT-071: Test `F(ui/talleres-navigation)` cubre capability filter + multi-role union + kill switch OFF (no render del grupo).
 
-- [ ] **PR18** `size:exception` UI participante RSC (explorar/mis-talleres/historial/certificados), `type:ui`, `F(ui/talleres-participante)`, `UI+HTTP`, revert=route-stub, ~600
+- [x] **PR18** `size:exception` UI participante RSC (explorar/mis-talleres/historial/certificados), `type:ui`, `F(ui/talleres-participante)`, `UI+HTTP`, revert=route-stub, ~600
   - **Justificación size:exception:** 4 RSC pages + 4 server actions co-located + counter badges (BadgeSistema) + FAB reuse (Grupos de Vida precedent) + capability filter por participante supera 400 líneas; unidades inseparables de la UI del participante.
   - DT-072: `app/(auth)/talleres/explorar/page.tsx` (RSC listado) + `actions.ts` (inscribirse).
   - DT-073: `app/(auth)/talleres/mis-talleres/page.tsx` (RSC inscripciones activas del participante).
@@ -243,7 +257,7 @@ PR1 es raíz sin dependencias. PR2 depende solo de PR1. PR3 depende de PR2. PR4 
   - DT-075: `app/(auth)/talleres/certificados/[id]/page.tsx` (RSC certificado descargable).
   - DT-076: Tests cubren capability filter `participation.read` + kill switch + render + solo resumen/certificado (no detalles administrativos/asistencia).
 
-- [ ] **PR19** `size:exception` UI equipo + coordinacion + direccion dashboards + verification page, `type:ui`, `F(ui/talleres-{equipo,coordinacion,direccion})` + `F(ui/verificar-certificado)`, `UI+HTTP`, revert=route-stub, ~700
+- [x] **PR19** `size:exception` UI equipo + coordinacion + direccion dashboards + verification page, `type:ui`, `F(ui/talleres-{equipo,coordinacion,direccion})` + `F(ui/verificar-certificado)`, `UI+HTTP`, revert=route-stub, ~700
   - **Justificación size:exception:** 13 RSC pages (equipo 4, coordinacion 6, direccion 7) + server actions + verification page pública + counter badges + FAB + capability filter por 3 roles distintos (líder, coordinador, director) supera 400 líneas; unidades inseparables del dashboard operacional.
   - DT-077: `app/(auth)/talleres/equipo/{mis-grupos,mis-grupos/[id]/asistencia,mis-grupos/[id]/reporte,recursos,proximas-sesiones}/page.tsx` (5 pages).
   - DT-078: `app/(auth)/talleres/coordinacion/{resumen,inscripciones,talleres,equipos,reportes,solicitudes}/page.tsx` (6 pages).
