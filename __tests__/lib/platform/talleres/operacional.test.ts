@@ -23,9 +23,11 @@ import {
   loadEquipoGrupos,
   loadEquipoReporte,
   loadCoordInscripcionesPendientes,
+  loadCoordTalleresAgrupados,
   loadDirResumen,
   loadEdicionLocalDetalle,
 } from '@/lib/platform/talleres/operacional'
+import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(() => true),
@@ -67,7 +69,7 @@ function setupSupabaseMock(opts: {
   isEnabled?: boolean
   user?: { id: string } | null
   personaId?: string | null
-  capabilities?: string[]
+  capabilities?: Array<string | { key: string; scopeId?: string }>
 }) {
   flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
   findPersonaByAuthIdMock.mockReset().mockImplementation(() =>
@@ -84,12 +86,17 @@ function setupSupabaseMock(opts: {
           subjectAuthId: 'auth-1',
           globalRoles: [],
           contexts: [],
-          capabilities: (opts.capabilities ?? []).map((key) => ({
-            key,
-            experience: 'talleres_crecimiento',
-            scopeType: 'taller',
-            source: 'test',
-          })),
+          capabilities: (opts.capabilities ?? []).map((c) => {
+            const key = typeof c === 'string' ? c : c.key
+            const scopeId = typeof c === 'string' ? undefined : c.scopeId
+            return {
+              key,
+              experience: 'talleres_crecimiento',
+              scopeType: 'taller',
+              scopeId,
+              source: 'test',
+            }
+          }),
         }
       : null,
   )
@@ -217,14 +224,42 @@ describe('loadOperacionalContext — gate + role resolution', () => {
     if (result.ok) expect(result.context.role).toBe('D')
   })
 
-  it('D role also matches metrics.read', async () => {
+  it('metrics.read alone does NOT resolve D (not a role discriminator)', async () => {
+    // metrics.read is auto-granted to BOTH director and coordinador
+    // (20260810120000_talleres_role_auto_grant.sql:72-82), so on its own
+    // it cannot discriminate the role. Alone ⇒ no operational role.
     setupSupabaseMock({
       personaId: PERSONA_ID,
       capabilities: ['talleres_crecimiento.metrics.read'],
     })
     const result = await loadOperacionalContext()
-    expect(result.ok).toBe(true)
-    if (result.ok) expect(result.context.role).toBe('D')
+    expect(result.ok).toBe(false)
+  })
+
+  it('coordinador con metrics.read NO es D — resuelve C (landmine fix)', async () => {
+    // The landmine: a coordinador is auto-granted metrics.read. If
+    // resolveRole treated metrics.read as a D signal the coordinador would
+    // be promoted to GLOBAL director in the UI. It must stay C.
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: [
+        'talleres_crecimiento.coordinator.read',
+        'talleres_crecimiento.metrics.read',
+      ],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('C')
+  })
+
+  it('D role resolves via admin.manage (global admin)', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('D')
   })
 
   it('multi-role: D > C > L — director caps dominate', async () => {
@@ -252,6 +287,61 @@ describe('loadOperacionalContext — gate + role resolution', () => {
     const result = await loadOperacionalContext()
     if (!result.ok) throw new Error('expected ok')
     expect(result.context.role).toBe('C')
+  })
+})
+
+// ─── scopedEquipoIds — coordinator scope surfaced in context ─────────────
+
+describe('scopedEquipoIds — coordinator scope surfaced in context', () => {
+  it('collects the equipo id from scoped coordinator.* grants', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: [
+        { key: 'talleres_crecimiento.coordinator.read', scopeId: 'equipo-A' },
+        { key: 'talleres_crecimiento.coordinator.write', scopeId: 'equipo-A' },
+        { key: 'talleres_crecimiento.metrics.read', scopeId: 'equipo-A' },
+      ],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('C')
+    expect([...result.context.scopedEquipoIds]).toEqual(['equipo-A'])
+  })
+
+  it('is empty for a global director (no coordinator.* grants)', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.director.read'],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('D')
+    expect([...result.context.scopedEquipoIds]).toEqual([])
+  })
+
+  it('dedupes multiple scoped grants across distinct equipos', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: [
+        { key: 'talleres_crecimiento.coordinator.read', scopeId: 'equipo-A' },
+        { key: 'talleres_crecimiento.coordinator.read', scopeId: 'equipo-B' },
+        { key: 'talleres_crecimiento.coordinator.write', scopeId: 'equipo-A' },
+      ],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect([...result.context.scopedEquipoIds].sort()).toEqual(['equipo-A', 'equipo-B'])
+  })
+
+  it('ignores coordinator.* grants without a scopeId (global-ish)', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.coordinator.read'],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('C')
+    expect([...result.context.scopedEquipoIds]).toEqual([])
   })
 })
 
@@ -625,5 +715,232 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     expect(result.inscripciones_count).toBe(0)
     expect(result.inscripciones_aprobadas_count).toBe(0)
     expect(result.certificados_count).toBe(0)
+  })
+})
+
+// ─── loadCoordTalleresAgrupados — group ediciones under their abstract taller ──
+//
+// The Coordinación surface must show DISTINCT talleres (the abstract offering),
+// not one card/count per edición. This loader reads taller_ediciones, embeds the
+// abstract talleres(nombre), and groups by taller_id. Orphan ediciones (taller_id
+// NULL — best-effort backfill missed) fall back to their own singleton group.
+
+/**
+ * Thenable client mock: `.from(t).select(cols).order()` awaits to
+ * { data: rows, error }. Records the select columns for assertion.
+ */
+function buildAgrupadosClientMock(
+  rows: unknown[],
+  error: unknown = null
+): { from: jest.Mock; selectCols: string[] } {
+  const selectCols: string[] = []
+  const from = jest.fn(() => {
+    const b: Record<string, unknown> = {}
+    b['select'] = jest.fn((cols: string) => {
+      selectCols.push(cols)
+      return b
+    })
+    b['order'] = jest.fn(() => b)
+    Object.defineProperty(b, 'then', {
+      value: (resolve: (v: unknown) => void) => resolve({ data: rows, error }),
+    })
+    return b
+  }) as jest.Mock
+  return { from, selectCols }
+}
+
+function agrupadosCtx(
+  from: jest.Mock,
+  opts?: { role?: 'C' | 'D' | 'L'; scopedEquipoIds?: readonly string[] }
+): OperacionalContext {
+  return {
+    supabase: { from },
+    personaId: PERSONA_ID,
+    // Grouping tests default to the global director path (role 'D', no scope
+    // filter); the scope-filter tests below pass role 'C' with explicit
+    // scopedEquipoIds to exercise the per-taller coordinador confinement.
+    role: opts?.role ?? 'D',
+    capabilities: [],
+    scopedEquipoIds: opts?.scopedEquipoIds ?? [],
+  } as unknown as OperacionalContext
+}
+
+describe('loadCoordTalleresAgrupados — group ediciones by abstract taller', () => {
+  it('selects taller_id, embeds the abstract talleres(nombre) and the cohortes equipo', async () => {
+    const { from, selectCols } = buildAgrupadosClientMock([])
+    await loadCoordTalleresAgrupados(agrupadosCtx(from))
+    expect(selectCols[0]).toMatch(/taller_id/)
+    expect(selectCols[0]).toMatch(/talleres\s*\(/)
+    // The embedded cohortes carry the dream_team equipo id — the only bridge
+    // from an edición to its equipo, used to scope the coordinador view.
+    expect(selectCols[0]).toMatch(/talleres_crecimiento_cohortes\s*\(/)
+    expect(selectCols[0]).toMatch(/dream_team_equipo_id/)
+  })
+
+  it('groups multiple ediciones under one taller (distinct talleres, not ediciones)', async () => {
+    const rows = [
+      {
+        id: 'e-1',
+        taller_id: 't-1',
+        nombre_snapshot: 'Septiembre 2026',
+        tipo: 'individual',
+        estado: 'borrador',
+        talleres: { id: 't-1', nombre: 'Matrimonio sobre la Roca' },
+      },
+      {
+        id: 'e-2',
+        taller_id: 't-1',
+        nombre_snapshot: 'Octubre 2026',
+        tipo: 'pareja',
+        estado: 'abierto',
+        talleres: { id: 't-1', nombre: 'Matrimonio sobre la Roca' },
+      },
+      {
+        id: 'e-3',
+        taller_id: 't-2',
+        nombre_snapshot: 'Cohorte 1',
+        tipo: 'individual',
+        estado: 'borrador',
+        talleres: { id: 't-2', nombre: 'Discipulado 1' },
+      },
+    ]
+    const { from } = buildAgrupadosClientMock(rows)
+    const groups = await loadCoordTalleresAgrupados(agrupadosCtx(from))
+
+    expect(groups).toHaveLength(2) // distinct talleres, NOT 3 ediciones
+    const roca = groups.find((g) => g.taller_id === 't-1')
+    expect(roca?.taller_nombre).toBe('Matrimonio sobre la Roca')
+    expect(roca?.ediciones).toHaveLength(2)
+    expect(roca?.ediciones.map((e) => e.id)).toEqual(['e-1', 'e-2'])
+
+    const disc = groups.find((g) => g.taller_id === 't-2')
+    expect(disc?.ediciones).toHaveLength(1)
+    expect(disc?.ediciones[0]?.estado).toBe('borrador')
+  })
+
+  it('falls back to a singleton group labeled by nombre_snapshot when taller_id is null', async () => {
+    const rows = [
+      {
+        id: 'e-9',
+        taller_id: null,
+        nombre_snapshot: 'Edición huérfana',
+        tipo: 'individual',
+        estado: 'borrador',
+        talleres: null,
+      },
+    ]
+    const { from } = buildAgrupadosClientMock(rows)
+    const groups = await loadCoordTalleresAgrupados(agrupadosCtx(from))
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.taller_nombre).toBe('Edición huérfana')
+    expect(groups[0]?.ediciones).toHaveLength(1)
+  })
+
+  it('returns [] on query error', async () => {
+    const { from } = buildAgrupadosClientMock(null as unknown as unknown[], {
+      message: 'boom',
+    })
+    const groups = await loadCoordTalleresAgrupados(agrupadosCtx(from))
+    expect(groups).toEqual([])
+  })
+})
+
+// ─── loadCoordTalleresAgrupados — coordinador scope confinement (role C) ──────
+//
+// `taller_ediciones` is NOT RLS-scoped, so a per-taller coordinador reading it
+// directly would see EVERY taller. The loader confines role 'C' to its
+// scopedEquipoIds by resolving each edición to its equipo via the embedded
+// cohortes (dream_team_equipo_id). A global director (role 'D', scope_id NULL)
+// bypasses the filter and sees all talleres.
+
+describe('loadCoordTalleresAgrupados — coordinador scope (role C confined to scopedEquipoIds)', () => {
+  const scopedRows = [
+    {
+      id: 'e-A1',
+      taller_id: 't-A',
+      nombre_snapshot: 'Edición A1',
+      tipo: 'individual',
+      estado: 'abierto',
+      talleres: { id: 't-A', nombre: 'Taller A' },
+      talleres_crecimiento_cohortes: [{ dream_team_equipo_id: 'equipo-A' }],
+    },
+    {
+      id: 'e-B1',
+      taller_id: 't-B',
+      nombre_snapshot: 'Edición B1',
+      tipo: 'pareja',
+      estado: 'abierto',
+      talleres: { id: 't-B', nombre: 'Taller B' },
+      talleres_crecimiento_cohortes: [{ dream_team_equipo_id: 'equipo-B' }],
+    },
+  ]
+
+  it('role C: keeps only ediciones whose cohorte equipo is in scopedEquipoIds', async () => {
+    const { from } = buildAgrupadosClientMock(scopedRows)
+    const groups = await loadCoordTalleresAgrupados(
+      agrupadosCtx(from, { role: 'C', scopedEquipoIds: ['equipo-A'] })
+    )
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.taller_id).toBe('t-A')
+    expect(groups[0]?.ediciones.map((e) => e.id)).toEqual(['e-A1'])
+  })
+
+  it('role C: keeps an edición when ANY of its cohortes is in scope', async () => {
+    const rows = [
+      {
+        id: 'e-mix',
+        taller_id: 't-A',
+        nombre_snapshot: 'Edición mixta',
+        tipo: 'individual',
+        estado: 'abierto',
+        talleres: { id: 't-A', nombre: 'Taller A' },
+        talleres_crecimiento_cohortes: [
+          { dream_team_equipo_id: 'equipo-B' },
+          { dream_team_equipo_id: 'equipo-A' },
+        ],
+      },
+    ]
+    const { from } = buildAgrupadosClientMock(rows)
+    const groups = await loadCoordTalleresAgrupados(
+      agrupadosCtx(from, { role: 'C', scopedEquipoIds: ['equipo-A'] })
+    )
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.taller_id).toBe('t-A')
+  })
+
+  it('role C: drops ediciones with no visible cohorte (RLS-hidden embed = empty)', async () => {
+    const rows = [
+      {
+        id: 'e-hidden',
+        taller_id: 't-B',
+        nombre_snapshot: 'Edición ajena',
+        tipo: 'individual',
+        estado: 'abierto',
+        talleres: { id: 't-B', nombre: 'Taller B' },
+        talleres_crecimiento_cohortes: [],
+      },
+    ]
+    const { from } = buildAgrupadosClientMock(rows)
+    const groups = await loadCoordTalleresAgrupados(
+      agrupadosCtx(from, { role: 'C', scopedEquipoIds: ['equipo-A'] })
+    )
+    expect(groups).toEqual([])
+  })
+
+  it('role C with empty scopedEquipoIds sees nothing (fail-closed)', async () => {
+    const { from } = buildAgrupadosClientMock(scopedRows)
+    const groups = await loadCoordTalleresAgrupados(
+      agrupadosCtx(from, { role: 'C', scopedEquipoIds: [] })
+    )
+    expect(groups).toEqual([])
+  })
+
+  it('role D (global director): no scope filter — sees every taller', async () => {
+    const { from } = buildAgrupadosClientMock(scopedRows)
+    const groups = await loadCoordTalleresAgrupados(
+      agrupadosCtx(from, { role: 'D', scopedEquipoIds: [] })
+    )
+    expect(groups).toHaveLength(2)
+    expect(groups.map((g) => g.taller_id).sort()).toEqual(['t-A', 't-B'])
   })
 })

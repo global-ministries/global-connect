@@ -19,6 +19,7 @@ import {
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 
 import { OpenEdicionForm } from './open-edicion-form'
+import { AssignServicioForm } from './assign-servicio-form'
 
 export const metadata = { title: 'Grupo de Corto Plazo' }
 
@@ -113,6 +114,11 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
   // admin.manage): if the caller lacks read on seasons the list comes back
   // empty and the form just offers "— Sin temporada —" (graceful degradation).
   let temporadasAbiertas: TemporadaOption[] = []
+  // Cimiento 4 — the taller's single dream_team equipo (reached via its
+  // ediciones → cohortes bridge) plus its seeded coordinador/director roles,
+  // resolved server-side for the assign-servicio card.
+  let equipoId: string | null = null
+  let equipoRoles: Array<{ id: string; label: string }> = []
   if (hasCap) {
     const { data: temporadasData } = await client
       .from('talleres_temporadas')
@@ -121,6 +127,28 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
       .order('fecha_apertura', { ascending: false })
       .limit(100)
     temporadasAbiertas = (temporadasData ?? []) as TemporadaOption[]
+
+    const edicionIds = ediciones.map((e) => e.id)
+    if (edicionIds.length > 0) {
+      const { data: cohorteData } = await client
+        .from('talleres_crecimiento_cohortes')
+        .select('dream_team_equipo_id')
+        .in('taller_id', edicionIds)
+        .limit(1)
+      equipoId =
+        ((cohorteData ?? []) as Array<{ dream_team_equipo_id: string | null }>)[0]
+          ?.dream_team_equipo_id ?? null
+    }
+
+    if (equipoId) {
+      const { data: rolesData } = await client
+        .from('dream_team_roles')
+        .select('id, label')
+        .eq('equipo_id', equipoId)
+      equipoRoles = ((rolesData ?? []) as Array<{ id: string; label: string }>).filter(
+        (r) => r.label === 'coordinador' || r.label === 'director',
+      )
+    }
   }
 
   return (
@@ -157,6 +185,16 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
             tallerNombre={taller.nombre}
             defaultModalidad={taller.modalidad_default}
             temporadasAbiertas={temporadasAbiertas}
+          />
+        </div>
+      )}
+
+      {hasCap && (
+        <div className="mb-6">
+          <AssignServicioForm
+            tallerId={taller.id}
+            equipoId={equipoId}
+            roles={equipoRoles}
           />
         </div>
       )}

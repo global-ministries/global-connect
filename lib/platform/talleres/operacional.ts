@@ -34,14 +34,31 @@ export interface OperacionalContext {
   readonly personaId: string
   readonly role: OperacionalRole
   readonly capabilities: readonly string[]
+  /**
+   * Equipo ids where the user holds a scoped `coordinator.*` grant.
+   * Empty for a global director (scope_id NULL / role 'D'). Used to
+   * align the coordinador UI with the row-level scope the RLS enforces.
+   */
+  readonly scopedEquipoIds: readonly string[]
 }
 
 /**
  * Resolve the role for the given session. A user can hold multiple
  * roles; we pick the highest (D > C > L).
+ *
+ * `metrics.read` is auto-granted to BOTH director and coordinador
+ * (20260810120000_talleres_role_auto_grant.sql), so it MUST NOT act as
+ * a D discriminator — otherwise a scoped coordinador would be promoted
+ * to global director. Directors resolve via `director.*` / `admin.manage`.
  */
 function resolveRole(capabilities: readonly string[]): OperacionalRole | null {
-  if (capabilities.some((c) => c.startsWith('talleres_crecimiento.director.') || c === 'talleres_crecimiento.metrics.read')) {
+  if (
+    capabilities.some(
+      (c) =>
+        c.startsWith('talleres_crecimiento.director.') ||
+        c === 'talleres_crecimiento.admin.manage',
+    )
+  ) {
     return 'D'
   }
   if (capabilities.some((c) => c.startsWith('talleres_crecimiento.coordinator.'))) {
@@ -87,6 +104,19 @@ export async function loadOperacionalContext(): Promise<
   const role = resolveRole(capabilityKeys)
   if (!role) return { ok: false }
 
+  // Equipos where the user holds a SCOPED coordinator grant. A grant with
+  // no scopeId is not equipo-confined, so it never narrows the UI (the RLS
+  // remains the security wall; this only aligns what we query for 'C').
+  const scopedEquipoIds = Array.from(
+    new Set(
+      session.capabilities
+        .filter(
+          (c) => c.key.startsWith('talleres_crecimiento.coordinator.') && c.scopeId,
+        )
+        .map((c) => c.scopeId as string),
+    ),
+  )
+
   return {
     ok: true,
     context: {
@@ -94,6 +124,7 @@ export async function loadOperacionalContext(): Promise<
       personaId: session.personaId,
       role,
       capabilities: capabilityKeys,
+      scopedEquipoIds,
     },
   }
 }
@@ -267,9 +298,10 @@ export type CoordInscripcionRow = InscripcionAdminRow
  *   4. Deny-by-default: rows whose edicion join does not resolve are
  *      dropped.
  *
- * RLS-respecting: the SELECT policy on `taller_inscripciones` allows
- * coordinator / director / admin to read all rows. The page's
- * `requireOperacionalRole()` is the outer wall.
+ * RLS-respecting: the SELECT policy on `taller_inscripciones` confines a
+ * per-taller coordinador to the inscripciones of its own equipo (via the
+ * scoped `coordinator.read` term); director / admin read all rows globally.
+ * The page's `requireOperacionalRole()` is the outer wall.
  */
 export async function loadCoordInscripcionesPendientes(
   ctx: OperacionalContext
@@ -412,6 +444,98 @@ export async function loadCoordTalleres(
     .order('created_at', { ascending: false })
   if (error) return []
   return (data ?? []) as CoordTaller[]
+}
+
+export interface CoordEdicionResumen {
+  readonly id: string
+  readonly nombre_snapshot: string
+  readonly tipo: 'individual' | 'pareja'
+  readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
+}
+
+/**
+ * A distinct abstract taller with the ediciones (occurrences) grouped under it.
+ * The Coordinación surface counts/lists these, NOT raw ediciones.
+ */
+export interface CoordTallerAgrupado {
+  readonly taller_id: string
+  readonly taller_nombre: string
+  readonly ediciones: readonly CoordEdicionResumen[]
+}
+
+/**
+ * Group taller_ediciones by their abstract taller for the Coordinación surface.
+ * Embeds talleres(nombre) so the group header is the abstract offering name.
+ * Orphan ediciones (taller_id NULL — best-effort backfill missed) fall back to
+ * their own singleton group keyed by the edición id and labeled with its
+ * nombre_snapshot, so nothing is dropped.
+ *
+ * Coordinador scope: `taller_ediciones` is NOT RLS-scoped, so a per-taller
+ * coordinador (role 'C') reading it directly would see EVERY taller. We embed
+ * each edición's cohortes (dream_team_equipo_id) — the only bridge from an
+ * edición to its equipo — and keep only ediciones in one of the coordinador's
+ * scopedEquipoIds. That embed is itself RLS-scoped, so a foreign equipo's
+ * cohorte never even arrives. A global director (role 'D', scope_id NULL)
+ * bypasses the filter and sees all talleres.
+ */
+export async function loadCoordTalleresAgrupados(
+  ctx: OperacionalContext
+): Promise<readonly CoordTallerAgrupado[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = ctx.supabase
+  const { data, error } = await client
+    .from('taller_ediciones')
+    .select(
+      'id, taller_id, nombre_snapshot, tipo, estado, talleres(id, nombre), talleres_crecimiento_cohortes(dream_team_equipo_id)'
+    )
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PostgREST rows
+  let rows = data as any[]
+
+  // Confine the per-taller coordinador to its equipos. Keep an edición only
+  // when at least one of its cohortes lives in a scoped equipo. Empty
+  // scopedEquipoIds ⇒ fail-closed (a scoped coordinador with no equipo sees
+  // nothing). Role 'D'/'L' skip this branch.
+  if (ctx.role === 'C') {
+    const scoped = new Set(ctx.scopedEquipoIds)
+    rows = rows.filter((row) => {
+      const cohortes = (row.talleres_crecimiento_cohortes ?? []) as Array<{
+        dream_team_equipo_id: string | null
+      }>
+      return cohortes.some(
+        (c) => c.dream_team_equipo_id != null && scoped.has(c.dream_team_equipo_id)
+      )
+    })
+  }
+
+  const byTaller = new Map<
+    string,
+    { taller_id: string; taller_nombre: string; ediciones: CoordEdicionResumen[] }
+  >()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PostgREST rows
+  for (const row of rows as any[]) {
+    const edicion: CoordEdicionResumen = {
+      id: row.id,
+      nombre_snapshot: row.nombre_snapshot,
+      tipo: row.tipo,
+      estado: row.estado,
+    }
+    const key: string = row.taller_id ?? `edicion:${row.id}`
+    const nombre: string = row.talleres?.nombre ?? row.nombre_snapshot
+    const existing = byTaller.get(key)
+    if (existing) {
+      existing.ediciones.push(edicion)
+    } else {
+      byTaller.set(key, {
+        taller_id: key,
+        taller_nombre: nombre,
+        ediciones: [edicion],
+      })
+    }
+  }
+  return Array.from(byTaller.values())
 }
 
 export interface CoordReporte {
