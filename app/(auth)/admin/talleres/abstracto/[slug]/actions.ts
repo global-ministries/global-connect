@@ -20,6 +20,8 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
+import { personaId } from '@/lib/platform/dream-team/types'
 
 export interface OpenEdicionInput {
   readonly taller_id: string
@@ -151,4 +153,153 @@ export async function openEdicion(input: OpenEdicionInput): Promise<OpenEdicionR
 
 export async function redirectToEdicion(tallerSlug: string, edicionId: string): Promise<never> {
   redirect(`/admin/talleres/edicion/${edicionId}`)
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Cimiento 4 — assignServicio
+// ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Assign a persona as coordinador/director of an abstract taller.
+ *
+ * The abstract taller has exactly ONE dream_team equipo, reached only via
+ * its ediciones → cohortes bridge (cohortes.dream_team_equipo_id). We
+ * resolve that equipo server-side, resolve the rol id from its LABEL (never
+ * a client-supplied rol_id), then activate a dream_team servicio
+ * (estado='activo'). The `sync_talleres_grants_on_servicio_change` trigger
+ * materializes the scoped capability grants — this action never writes
+ * grants directly.
+ *
+ * Capability gate: `talleres_crecimiento.director.write` OR
+ * `talleres_crecimiento.admin.manage` (same as openEdicion).
+ */
+export interface AssignServicioInput {
+  readonly taller_id: string
+  readonly persona_id: string
+  readonly rol: 'coordinador' | 'director'
+}
+
+export type AssignServicioResult =
+  | {
+      readonly ok: true
+      readonly servicioId: string
+      readonly already?: boolean
+    }
+  | {
+      readonly ok: false
+      readonly error:
+        | 'forbidden'
+        | 'unauthorized'
+        | 'not-found'
+        | 'invalid-input'
+        | 'no-equipo'
+        | 'no-role'
+        | 'internal'
+      readonly message?: string
+    }
+
+const ASSIGN_ROLES = ['coordinador', 'director'] as const
+
+const NO_EQUIPO_MESSAGE =
+  'Este taller todavía no tiene equipo. Abrí una edición primero.'
+
+export async function assignServicio(
+  input: AssignServicioInput,
+): Promise<AssignServicioResult> {
+  if (!isTalleresEnabled()) return { ok: false, error: 'not-found' }
+
+  const supabase = await createSupabaseServerClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const { data: { user } } = await (supabase as any).auth.getUser()
+  if (!user) return { ok: false, error: 'unauthorized' }
+
+  const session = await resolveReadOnlyPlatformSession({
+    subjectAuthId: user.id,
+    findPersonaByAuthId: (authId) =>
+      findPlatformSessionPersonaByAuthId(supabase, authId),
+    capabilitySupabase: supabase,
+  })
+  if (!session) return { ok: false, error: 'unauthorized' }
+
+  const caps = session.capabilities.map((c) => c.key)
+  const hasCap =
+    caps.includes('talleres_crecimiento.director.write') ||
+    caps.includes('talleres_crecimiento.admin.manage')
+  if (!hasCap) return { ok: false, error: 'forbidden' }
+
+  // Defense-in-depth input validation.
+  if (!input.taller_id?.trim() || !input.persona_id?.trim()) {
+    return { ok: false, error: 'invalid-input', message: 'taller_id y persona_id requeridos' }
+  }
+  if (!ASSIGN_ROLES.includes(input.rol)) {
+    return { ok: false, error: 'invalid-input', message: 'rol inválido (coordinador|director)' }
+  }
+
+  try {
+    // taller_ediciones / talleres_crecimiento_cohortes are not in the
+    // generated Database types → raw any-cast client (matches page.tsx).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+    const client: any = supabase
+
+    // Resolve the taller's single equipo: ediciones of this taller, then the
+    // dream_team_equipo_id linked through any of their cohortes.
+    const { data: edicionesData } = await client
+      .from('taller_ediciones')
+      .select('id')
+      .eq('taller_id', input.taller_id)
+    const edicionIds = ((edicionesData ?? []) as Array<{ id: string }>).map((e) => e.id)
+    if (edicionIds.length === 0) {
+      return { ok: false, error: 'no-equipo', message: NO_EQUIPO_MESSAGE }
+    }
+
+    const { data: cohorteData } = await client
+      .from('talleres_crecimiento_cohortes')
+      .select('dream_team_equipo_id')
+      .in('taller_id', edicionIds)
+      .limit(1)
+    const equipoId =
+      ((cohorteData ?? []) as Array<{ dream_team_equipo_id: string | null }>)[0]
+        ?.dream_team_equipo_id ?? null
+    if (!equipoId) {
+      return { ok: false, error: 'no-equipo', message: NO_EQUIPO_MESSAGE }
+    }
+
+    const repo = createSupabaseDreamTeamRepository(supabase)
+
+    // Resolve the rol id from its LABEL — never trust a client rol_id.
+    const roles = await repo.listRolesPorEquipo(equipoId)
+    const rol = roles.find((r) => r.label === input.rol)
+    if (!rol) {
+      return {
+        ok: false,
+        error: 'no-role',
+        message: `El equipo no tiene el rol "${input.rol}" configurado.`,
+      }
+    }
+
+    // Idempotency: an existing active servicio for this persona on this
+    // equipo already carries the grants — return it instead of duplicating.
+    const existing = await repo.listServicios({
+      equipoId,
+      personaId: personaId(input.persona_id),
+      estado: 'activo',
+    })
+    const [existingServicio] = existing
+    if (existingServicio) {
+      return { ok: true, servicioId: existingServicio.id, already: true }
+    }
+
+    const servicio = await repo.createServicio({
+      personaId: personaId(input.persona_id),
+      equipoId,
+      rolId: rol.id,
+      estado: 'activo',
+      fechaInicio: new Date().toISOString(),
+      motivoActual: 'admin_asignacion',
+    })
+    return { ok: true, servicioId: servicio.id }
+  } catch (error) {
+    console.error('[assignServicio] error:', error)
+    return { ok: false, error: 'internal', message: (error as Error)?.message }
+  }
 }
