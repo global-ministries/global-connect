@@ -69,7 +69,7 @@ function setupSupabaseMock(opts: {
   isEnabled?: boolean
   user?: { id: string } | null
   personaId?: string | null
-  capabilities?: string[]
+  capabilities?: Array<string | { key: string; scopeId?: string }>
 }) {
   flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
   findPersonaByAuthIdMock.mockReset().mockImplementation(() =>
@@ -86,12 +86,17 @@ function setupSupabaseMock(opts: {
           subjectAuthId: 'auth-1',
           globalRoles: [],
           contexts: [],
-          capabilities: (opts.capabilities ?? []).map((key) => ({
-            key,
-            experience: 'talleres_crecimiento',
-            scopeType: 'taller',
-            source: 'test',
-          })),
+          capabilities: (opts.capabilities ?? []).map((c) => {
+            const key = typeof c === 'string' ? c : c.key
+            const scopeId = typeof c === 'string' ? undefined : c.scopeId
+            return {
+              key,
+              experience: 'talleres_crecimiento',
+              scopeType: 'taller',
+              scopeId,
+              source: 'test',
+            }
+          }),
         }
       : null,
   )
@@ -219,14 +224,42 @@ describe('loadOperacionalContext — gate + role resolution', () => {
     if (result.ok) expect(result.context.role).toBe('D')
   })
 
-  it('D role also matches metrics.read', async () => {
+  it('metrics.read alone does NOT resolve D (not a role discriminator)', async () => {
+    // metrics.read is auto-granted to BOTH director and coordinador
+    // (20260810120000_talleres_role_auto_grant.sql:72-82), so on its own
+    // it cannot discriminate the role. Alone ⇒ no operational role.
     setupSupabaseMock({
       personaId: PERSONA_ID,
       capabilities: ['talleres_crecimiento.metrics.read'],
     })
     const result = await loadOperacionalContext()
-    expect(result.ok).toBe(true)
-    if (result.ok) expect(result.context.role).toBe('D')
+    expect(result.ok).toBe(false)
+  })
+
+  it('coordinador con metrics.read NO es D — resuelve C (landmine fix)', async () => {
+    // The landmine: a coordinador is auto-granted metrics.read. If
+    // resolveRole treated metrics.read as a D signal the coordinador would
+    // be promoted to GLOBAL director in the UI. It must stay C.
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: [
+        'talleres_crecimiento.coordinator.read',
+        'talleres_crecimiento.metrics.read',
+      ],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('C')
+  })
+
+  it('D role resolves via admin.manage (global admin)', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('D')
   })
 
   it('multi-role: D > C > L — director caps dominate', async () => {
@@ -254,6 +287,61 @@ describe('loadOperacionalContext — gate + role resolution', () => {
     const result = await loadOperacionalContext()
     if (!result.ok) throw new Error('expected ok')
     expect(result.context.role).toBe('C')
+  })
+})
+
+// ─── scopedEquipoIds — coordinator scope surfaced in context ─────────────
+
+describe('scopedEquipoIds — coordinator scope surfaced in context', () => {
+  it('collects the equipo id from scoped coordinator.* grants', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: [
+        { key: 'talleres_crecimiento.coordinator.read', scopeId: 'equipo-A' },
+        { key: 'talleres_crecimiento.coordinator.write', scopeId: 'equipo-A' },
+        { key: 'talleres_crecimiento.metrics.read', scopeId: 'equipo-A' },
+      ],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('C')
+    expect([...result.context.scopedEquipoIds]).toEqual(['equipo-A'])
+  })
+
+  it('is empty for a global director (no coordinator.* grants)', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.director.read'],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('D')
+    expect([...result.context.scopedEquipoIds]).toEqual([])
+  })
+
+  it('dedupes multiple scoped grants across distinct equipos', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: [
+        { key: 'talleres_crecimiento.coordinator.read', scopeId: 'equipo-A' },
+        { key: 'talleres_crecimiento.coordinator.read', scopeId: 'equipo-B' },
+        { key: 'talleres_crecimiento.coordinator.write', scopeId: 'equipo-A' },
+      ],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect([...result.context.scopedEquipoIds].sort()).toEqual(['equipo-A', 'equipo-B'])
+  })
+
+  it('ignores coordinator.* grants without a scopeId (global-ish)', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.coordinator.read'],
+    })
+    const result = await loadOperacionalContext()
+    if (!result.ok) throw new Error('expected ok')
+    expect(result.context.role).toBe('C')
+    expect([...result.context.scopedEquipoIds]).toEqual([])
   })
 })
 

@@ -34,14 +34,31 @@ export interface OperacionalContext {
   readonly personaId: string
   readonly role: OperacionalRole
   readonly capabilities: readonly string[]
+  /**
+   * Equipo ids where the user holds a scoped `coordinator.*` grant.
+   * Empty for a global director (scope_id NULL / role 'D'). Used to
+   * align the coordinador UI with the row-level scope the RLS enforces.
+   */
+  readonly scopedEquipoIds: readonly string[]
 }
 
 /**
  * Resolve the role for the given session. A user can hold multiple
  * roles; we pick the highest (D > C > L).
+ *
+ * `metrics.read` is auto-granted to BOTH director and coordinador
+ * (20260810120000_talleres_role_auto_grant.sql), so it MUST NOT act as
+ * a D discriminator — otherwise a scoped coordinador would be promoted
+ * to global director. Directors resolve via `director.*` / `admin.manage`.
  */
 function resolveRole(capabilities: readonly string[]): OperacionalRole | null {
-  if (capabilities.some((c) => c.startsWith('talleres_crecimiento.director.') || c === 'talleres_crecimiento.metrics.read')) {
+  if (
+    capabilities.some(
+      (c) =>
+        c.startsWith('talleres_crecimiento.director.') ||
+        c === 'talleres_crecimiento.admin.manage',
+    )
+  ) {
     return 'D'
   }
   if (capabilities.some((c) => c.startsWith('talleres_crecimiento.coordinator.'))) {
@@ -87,6 +104,19 @@ export async function loadOperacionalContext(): Promise<
   const role = resolveRole(capabilityKeys)
   if (!role) return { ok: false }
 
+  // Equipos where the user holds a SCOPED coordinator grant. A grant with
+  // no scopeId is not equipo-confined, so it never narrows the UI (the RLS
+  // remains the security wall; this only aligns what we query for 'C').
+  const scopedEquipoIds = Array.from(
+    new Set(
+      session.capabilities
+        .filter(
+          (c) => c.key.startsWith('talleres_crecimiento.coordinator.') && c.scopeId,
+        )
+        .map((c) => c.scopeId as string),
+    ),
+  )
+
   return {
     ok: true,
     context: {
@@ -94,6 +124,7 @@ export async function loadOperacionalContext(): Promise<
       personaId: session.personaId,
       role,
       capabilities: capabilityKeys,
+      scopedEquipoIds,
     },
   }
 }
