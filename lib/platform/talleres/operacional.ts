@@ -298,9 +298,10 @@ export type CoordInscripcionRow = InscripcionAdminRow
  *   4. Deny-by-default: rows whose edicion join does not resolve are
  *      dropped.
  *
- * RLS-respecting: the SELECT policy on `taller_inscripciones` allows
- * coordinator / director / admin to read all rows. The page's
- * `requireOperacionalRole()` is the outer wall.
+ * RLS-respecting: the SELECT policy on `taller_inscripciones` confines a
+ * per-taller coordinador to the inscripciones of its own equipo (via the
+ * scoped `coordinator.read` term); director / admin read all rows globally.
+ * The page's `requireOperacionalRole()` is the outer wall.
  */
 export async function loadCoordInscripcionesPendientes(
   ctx: OperacionalContext
@@ -468,6 +469,14 @@ export interface CoordTallerAgrupado {
  * Orphan ediciones (taller_id NULL — best-effort backfill missed) fall back to
  * their own singleton group keyed by the edición id and labeled with its
  * nombre_snapshot, so nothing is dropped.
+ *
+ * Coordinador scope: `taller_ediciones` is NOT RLS-scoped, so a per-taller
+ * coordinador (role 'C') reading it directly would see EVERY taller. We embed
+ * each edición's cohortes (dream_team_equipo_id) — the only bridge from an
+ * edición to its equipo — and keep only ediciones in one of the coordinador's
+ * scopedEquipoIds. That embed is itself RLS-scoped, so a foreign equipo's
+ * cohorte never even arrives. A global director (role 'D', scope_id NULL)
+ * bypasses the filter and sees all talleres.
  */
 export async function loadCoordTalleresAgrupados(
   ctx: OperacionalContext
@@ -476,16 +485,37 @@ export async function loadCoordTalleresAgrupados(
   const client: any = ctx.supabase
   const { data, error } = await client
     .from('taller_ediciones')
-    .select('id, taller_id, nombre_snapshot, tipo, estado, talleres(id, nombre)')
+    .select(
+      'id, taller_id, nombre_snapshot, tipo, estado, talleres(id, nombre), talleres_crecimiento_cohortes(dream_team_equipo_id)'
+    )
     .order('created_at', { ascending: false })
   if (error || !data) return []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PostgREST rows
+  let rows = data as any[]
+
+  // Confine the per-taller coordinador to its equipos. Keep an edición only
+  // when at least one of its cohortes lives in a scoped equipo. Empty
+  // scopedEquipoIds ⇒ fail-closed (a scoped coordinador with no equipo sees
+  // nothing). Role 'D'/'L' skip this branch.
+  if (ctx.role === 'C') {
+    const scoped = new Set(ctx.scopedEquipoIds)
+    rows = rows.filter((row) => {
+      const cohortes = (row.talleres_crecimiento_cohortes ?? []) as Array<{
+        dream_team_equipo_id: string | null
+      }>
+      return cohortes.some(
+        (c) => c.dream_team_equipo_id != null && scoped.has(c.dream_team_equipo_id)
+      )
+    })
+  }
 
   const byTaller = new Map<
     string,
     { taller_id: string; taller_nombre: string; ediciones: CoordEdicionResumen[] }
   >()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PostgREST rows
-  for (const row of data as any[]) {
+  for (const row of rows as any[]) {
     const edicion: CoordEdicionResumen = {
       id: row.id,
       nombre_snapshot: row.nombre_snapshot,
