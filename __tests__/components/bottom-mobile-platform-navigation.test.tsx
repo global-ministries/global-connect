@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 
 import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 import { resolvePlatformNavigation } from '@/lib/platform/navigation'
@@ -193,8 +193,7 @@ describe('MenuInferiorMovil platform navigation', () => {
 
     render(<MenuInferiorMovil />)
 
-    await waitForPlatformNavigationToSettle()
-    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('link')).not.toBeInTheDocument())
     expect(screen.queryByLabelText('Navegar a Dashboard')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Ayuda')).not.toBeInTheDocument()
@@ -217,8 +216,7 @@ describe('MenuInferiorMovil platform navigation', () => {
     ])
     rerender(<MenuInferiorMovil />)
 
-    await waitForPlatformNavigationToSettle(2)
-    expect(screen.queryAllByRole('link')).toHaveLength(0)
+    await waitFor(() => expect(screen.queryAllByRole('link')).toHaveLength(0))
     expect(screen.queryByLabelText('Navegar a Grupos de Vida — Adultos')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a DPS Música')).not.toBeInTheDocument()
@@ -235,12 +233,4 @@ function restoreEnv(key: string, value: string | undefined) {
 
 function withCapabilities(capabilities: PlatformSession['capabilities'], contexts: PlatformSession['contexts'] = []): PlatformSession {
   return { ...basePlatformSession, contexts, capabilities }
-}
-
-async function waitForPlatformNavigationToSettle(expectedCalls = 1) {
-  await waitFor(() => expect(resolvePlatformNavigationMock).toHaveBeenCalledTimes(expectedCalls))
-  await act(async () => {
-    await Promise.all(resolvePlatformNavigationMock.mock.results.map((result) => result.value))
-    await Promise.resolve()
-  })
 }

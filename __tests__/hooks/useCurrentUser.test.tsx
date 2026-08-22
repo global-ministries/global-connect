@@ -30,12 +30,22 @@ type Deferred<T> = {
   promise: Promise<T>
   resolve: (value: T) => void
 }
+type CapabilityGrantRow = {
+  capability_key: string
+  experience: string
+  scope_type: string
+  scope_id: string | null
+  source: string
+  granted_at: string
+  revoked_at: string | null
+}
 type SupabaseMockStep = {
   user: MockAuthUser | null
   cacheAuthUser?: MockAuthUser | null
   usuario?: MockUsuario | null
   roles?: unknown[]
   supportCapabilities?: string[]
+  capabilityGrants?: CapabilityGrantRow[]
   getUserDeferred?: Deferred<GetUserResponse>
 }
 
@@ -712,6 +722,9 @@ function setupSupabaseClient(steps: SupabaseMockStep[]) {
   const maybeSingle = jest.fn()
   const rolesRpc = jest.fn()
   const supportCapabilitiesResolver = jest.fn()
+  // PR21.6: resolveClientPlatformSession also reads dream_team_capability_grants.
+  // Default to no grants (capabilities → []); per-step overrides queue rows below.
+  const capabilityGrantsResolver = jest.fn().mockResolvedValue({ data: [], error: null })
 
   for (const step of steps) {
     if (step.getUserDeferred) {
@@ -732,6 +745,12 @@ function setupSupabaseClient(steps: SupabaseMockStep[]) {
         data: supportCapabilityRows(step.supportCapabilities ?? []),
         error: null,
       })
+      if (step.capabilityGrants) {
+        capabilityGrantsResolver.mockResolvedValueOnce({
+          data: step.capabilityGrants,
+          error: null,
+        })
+      }
     }
   }
 
@@ -745,6 +764,11 @@ function setupSupabaseClient(steps: SupabaseMockStep[]) {
     eq: jest.fn().mockReturnThis(),
     is: supportCapabilitiesResolver,
   }
+  const capabilityGrantsQuery = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    is: capabilityGrantsResolver,
+  }
   const client = {
     auth: {
       getUser,
@@ -756,13 +780,14 @@ function setupSupabaseClient(steps: SupabaseMockStep[]) {
     from: jest.fn((table: string) => {
       if (table === 'usuarios') return usuariosQuery
       if (table === 'support_user_capabilities') return supportCapabilitiesQuery
+      if (table === 'dream_team_capability_grants') return capabilityGrantsQuery
       throw new Error(`Unexpected table ${table}`)
     }),
     rpc: rolesRpc,
   }
   createClient.mockReturnValue(client)
 
-  return { client, usuariosQuery, supportCapabilitiesQuery, triggerAuthStateChange }
+  return { client, usuariosQuery, supportCapabilitiesQuery, capabilityGrantsQuery, triggerAuthStateChange }
 }
 
 function triggerAuthStateChange(event: AuthStateEvent, session: unknown | null) {
