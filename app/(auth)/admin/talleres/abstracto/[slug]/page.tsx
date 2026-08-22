@@ -115,8 +115,13 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
   // empty and the form just offers "— Sin temporada —" (graceful degradation).
   let temporadasAbiertas: TemporadaOption[] = []
   // Cimiento 4 — the taller's single dream_team equipo (reached via its
-  // ediciones → cohortes bridge) plus its seeded coordinador/director roles,
-  // resolved server-side for the assign-servicio card.
+  // ediciones → cohortes bridge) plus its seeded coordinador role, resolved
+  // server-side for the assign-servicio card. The `director` role is
+  // deliberately excluded here: the Director General is GLOBAL (one
+  // scope-less grant over all talleres), not a per-taller assignment.
+  // Assigning "director" on a single equipo would mint director/admin.manage
+  // grants that the flat RLS gate treats as global anyway — so this card only
+  // assigns coordinadores.
   let equipoId: string | null = null
   let equipoRoles: Array<{ id: string; label: string }> = []
   if (hasCap) {
@@ -146,7 +151,7 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
         .select('id, label')
         .eq('equipo_id', equipoId)
       equipoRoles = ((rolesData ?? []) as Array<{ id: string; label: string }>).filter(
-        (r) => r.label === 'coordinador' || r.label === 'director',
+        (r) => r.label === 'coordinador',
       )
     }
   }
