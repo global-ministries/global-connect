@@ -41,8 +41,14 @@ describe('PastoralTimeline', () => {
   })
 
   it('renders date for each item', () => {
-    render(<PastoralTimeline items={items} />)
-    expect(screen.getByText(/ene/i)).toBeInTheDocument()
+    // TZ-independent: `items` are two January dates. In a UTC runner both
+    // format to "…ene…" (two matches → getByText throws); in a UTC-behind
+    // zone the first shifts to December. Assert the real intent instead —
+    // one non-empty <time> per item — so the check holds in any timezone.
+    const { container } = render(<PastoralTimeline items={items} />)
+    const times = container.querySelectorAll('time')
+    expect(times).toHaveLength(items.length)
+    times.forEach((el) => expect((el.textContent ?? '').trim().length).toBeGreaterThan(0))
   })
 
   it('renders triada_created type', () => {
