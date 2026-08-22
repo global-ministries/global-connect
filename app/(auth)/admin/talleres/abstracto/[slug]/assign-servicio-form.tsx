@@ -3,7 +3,7 @@
 /**
  * Cimiento 4 — Assign servicio form (client card).
  *
- * Lets a director/admin assign a persona as coordinador or director of an
+ * Lets a director/admin assign a persona as coordinador of an
  * abstract taller. Searches usuarios via the admin search endpoint, then
  * calls the `assignServicio` server action, which activates a dream_team
  * servicio (estado='activo') on the taller's equipo. The capability
@@ -33,7 +33,7 @@ interface Input {
   readonly tallerId: string
   /** The taller's single dream_team equipo. `null` ⇒ no equipo yet. */
   readonly equipoId: string | null
-  /** Roles seeded on the equipo (filtered to coordinador/director). */
+  /** Roles seeded on the equipo (filtered to coordinador). */
   readonly roles: ReadonlyArray<{ readonly id: string; readonly label: string }>
 }
 
@@ -63,9 +63,7 @@ export function AssignServicioForm({ tallerId, equipoId, roles }: Input): ReactE
   const [results, setResults] = useState<UsuarioResult[]>([])
   const [searching, setSearching] = useState(false)
   const [picked, setPicked] = useState<UsuarioResult | null>(null)
-  const [rol, setRol] = useState<AssignRol>(() =>
-    roles.some((r) => r.label === 'coordinador') ? 'coordinador' : 'director',
-  )
+  const [rol, setRol] = useState<AssignRol>('coordinador')
 
   const requestSeqRef = useRef(0)
 
@@ -108,7 +106,7 @@ export function AssignServicioForm({ tallerId, equipoId, roles }: Input): ReactE
     }
   }, [query, picked])
 
-  const availableRoles = (['coordinador', 'director'] as const).filter((r) =>
+  const availableRoles = (['coordinador'] as const).filter((r) =>
     roles.some((role) => role.label === r),
   )
 
@@ -145,12 +143,12 @@ export function AssignServicioForm({ tallerId, equipoId, roles }: Input): ReactE
     return (
       <TarjetaSistema variante="outlined" className="p-5">
         <TextoSistema className="text-lg font-medium">
-          Asignar coordinador o director
+          Asignar coordinador
         </TextoSistema>
         <TextoSistema variante="sutil" className="mt-1 block text-sm">
           Este taller todavía no tiene equipo. Abrí una edición primero: al abrir
           la primera edición se crea el equipo del taller y después vas a poder
-          asignar coordinadores y el director acá.
+          asignar coordinadores acá.
         </TextoSistema>
       </TarjetaSistema>
     )
@@ -163,7 +161,7 @@ export function AssignServicioForm({ tallerId, equipoId, roles }: Input): ReactE
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-2 rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white"
       >
-        <UserPlus className="h-4 w-4" /> Asignar coordinador / director
+        <UserPlus className="h-4 w-4" /> Asignar coordinador
       </button>
     )
   }
@@ -171,11 +169,10 @@ export function AssignServicioForm({ tallerId, equipoId, roles }: Input): ReactE
   return (
     <TarjetaSistema variante="elevated" className="p-5">
       <TextoSistema className="text-lg font-medium">
-        Asignar coordinador o director
+        Asignar coordinador
       </TextoSistema>
       <TextoSistema variante="sutil" className="mt-1 block text-sm">
-        Buscá a la persona, elegí el rol y confirmá. El coordinador queda al mando
-        de este taller; el director es el responsable general del taller.
+        Buscá a la persona y confirmá. El coordinador queda al mando de este taller.
       </TextoSistema>
 
       <div className="mt-4 grid gap-4">
