@@ -180,7 +180,14 @@ describe('SidebarModerna platform navigation', () => {
       { key: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'dream-team' },
       { key: 'dps.admin.manage', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'unsafe' },
       { key: 'nextgen.admin.manage', experience: 'nextgen', scopeType: 'experience', source: 'unsafe' },
-      { key: 'talleres_crecimiento.admin.manage', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+      // NOTE: talleres_crecimiento.admin.manage is intentionally NOT in this
+      // "no access" fixture. Unlike dps_admin / nextgen_admin (which have no
+      // availableHref and so never render a link), talleres_participation HAS
+      // an href and admin.manage legitimately reveals its section-header
+      // parent — see navigation.test.ts "admin.manage (grants global scope)"
+      // and the PR25 component tests below. This mirrors the resolver-level
+      // sibling ("does not expose global access without explicit allowlisted
+      // scope"), which likewise omits talleres admin.manage from its fixture.
       { key: 'uno_a_uno.global.read', experience: 'the_living_room', scopeType: 'experience', source: 'unsafe' },
     ], [
       { experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', label: 'Grupos de Vida — Adultos' },
