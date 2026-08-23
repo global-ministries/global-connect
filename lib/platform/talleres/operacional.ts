@@ -309,16 +309,18 @@ export async function loadCoordInscripcionesPendientes(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
 
-  // Query 1 — inscripciones (pendientes only, with embedded persona
-  // + companero joins so we avoid an extra round-trip for users).
+  // Query 1 — inscripciones (pendientes only). Scalar FK columns
+  // only — NO `usuarios` embed. A coordinador is RLS-scoped to SEE
+  // the inscripcion but NOT the participant `usuarios` row, so an
+  // embed resolves to null and the row would be dropped (bug #3).
+  // Names come from the SECURITY DEFINER RPC in Query 1b.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase resolved shape
   const res: { data: any[] | null; error: { message: string } | null } =
     await client
       .from('taller_inscripciones')
       .select(
         `id, taller_id, cohorte_id, estado, link_type, created_at, updated_at,
-         persona_principal:usuarios!persona_principal_id (id, nombre, apellido, email),
-         companero:usuarios!companero_id (id, nombre, apellido)`,
+         persona_principal_id, companero_id`,
       )
       .eq('estado', 'pendiente')
       .order('created_at', { ascending: false })
@@ -332,9 +334,45 @@ export async function loadCoordInscripcionesPendientes(
   // Collect ids for batched lookups.
   const edicionIds = new Set<string>()
   const cohorteIds = new Set<string>()
+  const inscripcionIds: string[] = []
   for (const row of inscripciones) {
     if (typeof row.taller_id === 'string') edicionIds.add(row.taller_id)
     if (typeof row.cohorte_id === 'string') cohorteIds.add(row.cohorte_id)
+    if (typeof row.id === 'string') inscripcionIds.push(row.id)
+  }
+
+  // Query 1b — persona names via the SECURITY DEFINER RPC. It re-applies
+  // the exact `taller_inscripciones_select` policy internally (fail-closed)
+  // and bypasses only the `usuarios` RLS for the name join, so a
+  // scoped coordinador gets names for the inscripciones they already
+  // see without a broad `usuarios` read grant.
+  const personasByInscripcion = new Map<
+    string,
+    {
+      pp_nombre: string | null
+      pp_apellido: string | null
+      pp_email: string | null
+      comp_nombre: string | null
+      comp_apellido: string | null
+    }
+  >()
+  if (inscripcionIds.length > 0) {
+    const pRes = await client.rpc('talleres_coord_inscripciones_personas', {
+      p_inscripcion_ids: inscripcionIds,
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resolved shape
+    const pData = ((pRes as any).data ?? []) as any[]
+    for (const p of pData) {
+      if (typeof p.inscripcion_id === 'string') {
+        personasByInscripcion.set(p.inscripcion_id, {
+          pp_nombre: p.pp_nombre ?? null,
+          pp_apellido: p.pp_apellido ?? null,
+          pp_email: p.pp_email ?? null,
+          comp_nombre: p.comp_nombre ?? null,
+          comp_apellido: p.comp_apellido ?? null,
+        })
+      }
+    }
   }
 
   // Query 2 — ediciones by id (with embedded abstract taller).
@@ -387,18 +425,12 @@ export async function loadCoordInscripcionesPendientes(
     if (!edicion) continue
     const cohorte =
       typeof r.cohorte_id === 'string' ? cohortesById.get(r.cohorte_id) : null
-    const persona = r.persona_principal as
-      | {
-          id: string
-          nombre: string | null
-          apellido: string | null
-          email: string | null
-        }
-      | null
-    const companero = r.companero as
-      | { id: string; nombre: string | null; apellido: string | null }
-      | null
-    if (!persona) continue
+    // Never drop on a missing persona: the row is already RLS-visible
+    // (Query 1). If the RPC yields no name (deleted usuario, race),
+    // surface a masked name instead of hiding an authorized row.
+    const personas =
+      typeof r.id === 'string' ? personasByInscripcion.get(r.id) : undefined
+    const companeroId = (r.companero_id as string | null) ?? null
 
     rows.push({
       id: r.id as string,
@@ -410,11 +442,15 @@ export async function loadCoordInscripcionesPendientes(
       taller_slug: edicion.taller?.slug ?? '',
       cohorte_id: (r.cohorte_id as string | null) ?? null,
       cohorte_edicion: cohorte?.edicion ?? null,
-      persona_principal_id: persona.id,
-      persona_principal_nombre: nombreCompleto(persona.nombre, persona.apellido),
-      persona_principal_email: persona.email ?? null,
-      companero_id: companero?.id ?? null,
-      companero_nombre: companero ? nombreCompleto(companero.nombre, companero.apellido) : null,
+      persona_principal_id: r.persona_principal_id as string,
+      persona_principal_nombre: personas
+        ? nombreCompleto(personas.pp_nombre, personas.pp_apellido)
+        : '—',
+      persona_principal_email: personas?.pp_email ?? null,
+      companero_id: companeroId,
+      companero_nombre: companeroId
+        ? nombreCompleto(personas?.comp_nombre ?? null, personas?.comp_apellido ?? null)
+        : null,
       link_type: (r.link_type as 'matrimonio' | 'novios' | null) ?? null,
       estado: r.estado as InscripcionAdminRow['estado'],
       created_at: r.created_at as string,
