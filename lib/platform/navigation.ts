@@ -149,32 +149,66 @@ async function applyAdapters(session: PlatformNavigationSession, adapters: reado
   }
   return { ok: true, session: merged } as const
 }
+// Talleres exposes exactly ONE icon-bearing top-level parent
+// (`talleres_participation`) that behaves as a SECTION HEADER — its real
+// per-role links live in a capability-filtered submenu (TalleresNavSubmenu).
+// A user with a genuine talleres role (coordinador/director/líder) holds
+// coordinator.read / director.read / lead.read but NOT participation.read, so
+// without this override the whole section would be hidden even though they have
+// accessible sub-items. `volunteer.read` is deliberately EXCLUDED: it has no
+// submenu group, so revealing the parent for it would render an empty section.
+// `metrics.read` stays — a global analytics reader legitimately holds it
+// (director keeps it; a future metrics-only role would too).
+const TALLERES_PARENT_OVERRIDE_CAPABILITIES: ReadonlySet<string> = new Set([
+  'talleres_crecimiento.metrics.read',
+  'talleres_crecimiento.director.read',
+  'talleres_crecimiento.coordinator.read',
+  'talleres_crecimiento.lead.read',
+])
+
 function resolveNavigationDefinition(definition: PlatformNavigationDefinition, session: PlatformNavigationSession) {
   const matchingCapabilities = session.capabilities.filter((capability) => capability.key === definition.capability)
 
-  // PR21.8: admin override for global-scope items. If the user has any
-  // admin.manage cap for this experience and the item's fallbackScope
-  // is 'global' (e.g. talleres_participation), grant them the item even
-  // if they don't have the item-specific cap. This is required because
-  // some "global" items (e.g. talleres_participation) have items that
-  // are conceptually global, not scoped to a specific taller.
+  // PR21.8 + PR52: override for global-scope section-header items. Some
+  // "global" items (e.g. talleres_participation) are the single icon-bearing
+  // parent for a whole experience section whose real links live in a
+  // capability-filtered submenu. Reveal the parent when the user holds either:
+  //   - `${experience}.admin.manage` for this experience (any experience), or
+  //   - one of the talleres section caps (director/coordinator/lead read, or
+  //     the global metrics.read analytics gate) — see
+  //     TALLERES_PARENT_OVERRIDE_CAPABILITIES.
+  // Without this, a coordinador/director/líder (who never receive
+  // participation.read) would see no Talleres section at all.
   const isGlobalItem = definition.fallbackScope.id === 'global'
-  const adminCap = isGlobalItem
+  const overrideCap = isGlobalItem
     ? session.capabilities.find(
         (c) =>
           c.experience === definition.experience &&
           (c.key === `${definition.experience}.admin.manage` ||
-            (definition.experience === 'talleres_crecimiento' && c.key === 'talleres_crecimiento.metrics.read')),
+            (definition.experience === 'talleres_crecimiento' &&
+              TALLERES_PARENT_OVERRIDE_CAPABILITIES.has(c.key))),
       )
     : undefined
 
-  if (matchingCapabilities.length === 0 && !adminCap) {
+  if (matchingCapabilities.length === 0 && !overrideCap) {
     return { visibleItems: [], deniedItem: denyByCapability(definition, session, definition.fallbackScope) }
   }
 
-  if (matchingCapabilities.length === 0 && adminCap) {
-    // Use the admin's cap as the visibleItem's source.
-    return { visibleItems: [toNavigationItem(definition, adminCap, session.contexts)!].filter(Boolean), deniedItem: undefined }
+  if (matchingCapabilities.length === 0 && overrideCap) {
+    // The override reveals a SECTION-HEADER parent. Emit it at GLOBAL scope
+    // (scopeId undefined) regardless of the triggering cap's own scope, so the
+    // label stays clean ("Talleres", not "Talleres — <equipo-uuid>") and the
+    // consumer dedupe treats it as the global-preferred entry. The submenu
+    // does the real per-capability, per-scope filtering.
+    const globalScopedCap: PlatformSessionCapability = {
+      ...overrideCap,
+      scopeType: definition.fallbackScope.type ?? overrideCap.scopeType,
+      scopeId: undefined,
+    }
+    return {
+      visibleItems: [toNavigationItem(definition, globalScopedCap, session.contexts)!].filter(Boolean),
+      deniedItem: undefined,
+    }
   }
 
   const visibleItems: PlatformNavigationItem[] = []
