@@ -1,0 +1,67 @@
+-- ════════════════════════════════════════════════════════════════════
+-- Close the coordinador metrics.read SCOPE LEAK at its root.
+--
+-- ROOT CAUSE (proven E2E on staging ebwtdjtajclzciwipevw; latent in prod):
+--   The role→capability seed in 20260810120000_talleres_role_auto_grant.sql
+--   grants the coordinador role 'talleres_crecimiento.metrics.read'. That
+--   capability is a GLOBAL analytics gate: 3 SELECT policies
+--   (talleres_crecimiento_cohortes_select, taller_grupos_select,
+--   taller_sesiones_select) honor a FLAT, unscoped
+--       OR auth_has_talleres_capability('talleres_crecimiento.metrics.read')
+--   term. So the moment a coordinador is activated (Cimiento 4), the
+--   auto-grant mints them metrics.read and that flat term unlocks EVERY
+--   taller's cohortes / grupos / sesiones — defeating the per-taller
+--   coordinador scope that 20260821000004 (Cimiento 3a) established.
+--
+--   E2E gate diagnostic on staging, coordinador of taller A:
+--       flat_metrics_read   = true   ← the leak
+--       scoped_coord_read_A = true    (correct: sees own taller)
+--       scoped_coord_read_B = false   (correct: blind to taller B)
+--   The row-filter proof returned BOTH talleres until this row was removed;
+--   after removal it returns ONLY taller A. Director General (global grant,
+--   scope_id NULL) still sees both, as intended.
+--
+--   Dormant in prod today only because prod has 0 dream_team_servicios ⇒ 0
+--   coordinador grants. It arms on the FIRST coordinador activation.
+--
+-- FIX (Option A — remove the wrong mapping, the root cause):
+--   Delete the coordinador→metrics.read row from talleres_role_capability_map.
+--   metrics.read stays exactly as designed: a GLOBAL analytics capability for
+--   whoever legitimately holds it (director keeps it; a future metrics reader
+--   role would too). The only defect is that coordinador — a per-taller,
+--   scoped role — was ever given a global capability. Removing that mapping
+--   fixes both this RLS leak AND the app landmine (resolveRole classifying a
+--   metrics.read holder as global director) at the source.
+--
+--   REJECTED Option B (scope the 3 flat metrics.read RLS terms): it is not
+--   just more surface for a scoped-metrics feature that does not exist — it is
+--   semantically WRONG. metrics.read is meant to be global; scoping it would
+--   break a real cross-taller metrics/analytics reader. The bug is the grant,
+--   not the gate. If per-taller coordinator metrics are ever wanted, add a NEW
+--   distinct capability (e.g. coordinator.metrics.read) and scope THAT — never
+--   overload the global one.
+--
+-- WHY NO GRANT CLEANUP HERE (deliberate, for prod safety):
+--   Prod has 0 servicios ⇒ 0 metrics.read grants, so there is nothing to
+--   revoke. This migration is sequenced to land BEFORE the first coordinador
+--   is activated. A blanket "revoke all role-auto-grant metrics.read" would be
+--   UNSAFE: the grant row does not record which role minted it, and the
+--   DIRECTOR role also maps metrics.read — so a blanket revoke would strip
+--   directors of a capability they legitimately hold. If this is ever applied
+--   after coordinadores already hold metrics.read grants, revoke them with a
+--   role-aware query (only personas whose ACTIVE servicio for that equipo is
+--   coordinador and NOT director), never a blanket delete.
+--
+-- SAFETY: forward-only for future activations; idempotent (re-running deletes
+--   nothing once the row is gone). Touches ONE reference/config row in a
+--   capability map — no user data, no grants, no policies. Reversible.
+--
+-- ROLLBACK: re-insert the mapping row —
+--   INSERT INTO public.talleres_role_capability_map (rol, capability_key, scope_type)
+--   VALUES ('coordinador', 'talleres_crecimiento.metrics.read', 'taller')
+--   ON CONFLICT DO NOTHING;
+-- ════════════════════════════════════════════════════════════════════
+
+DELETE FROM public.talleres_role_capability_map
+ WHERE rol = 'coordinador'
+   AND capability_key = 'talleres_crecimiento.metrics.read';
