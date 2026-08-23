@@ -285,6 +285,98 @@ describe('Platform navigation resolver', () => {
         .map((item) => item.id)
       expect(talleresIds).toContain('talleres_participation')
     })
+
+    // PR52: coordinador/director/líder hold coordinator.read/director.read/
+    // lead.read but NOT participation.read; the section-header override must
+    // still reveal the "Talleres" parent for them (their real links live in
+    // the capability-filtered submenu). The parent is emitted at GLOBAL scope
+    // so the label stays clean and the consumer dedupe prefers it.
+    it('shows talleres_participation with a clean global-scope label for a pure coordinador (coordinator.read only, scoped to one equipo)', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'talleres_crecimiento.coordinator.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'e9010000-0000-4000-8000-00000000000b', source: 'role-auto-grant' },
+          { key: 'talleres_crecimiento.coordinator.write', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'e9010000-0000-4000-8000-00000000000b', source: 'role-auto-grant' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const talleresItem = result.visibleItems.find((item) => item.id === 'talleres_participation')
+      // Emitted at GLOBAL scope: label is the clean 'Talleres' (NOT
+      // 'Talleres — e9010000-...') and the scope carries no id.
+      expect(talleresItem).toMatchObject({
+        id: 'talleres_participation',
+        label: 'Talleres',
+        href: '/talleres/explorar',
+        experience: 'talleres_crecimiento',
+        scope: { type: 'taller' },
+      })
+      expect(talleresItem?.scope.id).toBeUndefined()
+    })
+
+    it('shows talleres_participation with a clean label for a director (director.read, scoped)', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'talleres_crecimiento.director.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'e9010000-0000-4000-8000-00000000000a', source: 'role-auto-grant' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const talleresItem = result.visibleItems.find((item) => item.id === 'talleres_participation')
+      expect(talleresItem).toMatchObject({ id: 'talleres_participation', label: 'Talleres', scope: { type: 'taller' } })
+      expect(talleresItem?.scope.id).toBeUndefined()
+    })
+
+    it('shows talleres_participation for a líder (lead.read)', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'talleres_crecimiento.lead.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'e9010000-0000-4000-8000-00000000000a', source: 'role-auto-grant' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const talleresIds = result.visibleItems
+        .filter((item) => item.experience === 'talleres_crecimiento')
+        .map((item) => item.id)
+      expect(talleresIds).toContain('talleres_participation')
+    })
+
+    it('shows talleres_participation for a global metrics reader (metrics.read stays in the override set)', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'talleres_crecimiento.metrics.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'role-auto-grant' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const talleresIds = result.visibleItems
+        .filter((item) => item.experience === 'talleres_crecimiento')
+        .map((item) => item.id)
+      expect(talleresIds).toContain('talleres_participation')
+    })
+
+    it('does NOT show talleres_participation for a volunteer.read holder (no submenu group would render an empty section)', async () => {
+      const session: PlatformSession = {
+        ...baseSession,
+        capabilities: [
+          { key: 'talleres_crecimiento.volunteer.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'e9010000-0000-4000-8000-00000000000b', source: 'role-auto-grant' },
+        ],
+      }
+
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
+
+      const talleresIds = result.visibleItems
+        .filter((item) => item.experience === 'talleres_crecimiento')
+        .map((item) => item.id)
+      expect(talleresIds).not.toContain('talleres_participation')
+    })
   })
 })
 
