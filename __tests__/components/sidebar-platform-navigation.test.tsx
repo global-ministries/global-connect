@@ -180,14 +180,12 @@ describe('SidebarModerna platform navigation', () => {
       { key: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'dream-team' },
       { key: 'dps.admin.manage', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'unsafe' },
       { key: 'nextgen.admin.manage', experience: 'nextgen', scopeType: 'experience', source: 'unsafe' },
-      // NOTE: talleres_crecimiento.admin.manage is intentionally NOT in this
-      // "no access" fixture. Unlike dps_admin / nextgen_admin (which have no
-      // availableHref and so never render a link), talleres_participation HAS
-      // an href and admin.manage legitimately reveals its section-header
-      // parent — see navigation.test.ts "admin.manage (grants global scope)"
-      // and the PR25 component tests below. This mirrors the resolver-level
-      // sibling ("does not expose global access without explicit allowlisted
-      // scope"), which likewise omits talleres admin.manage from its fixture.
+      // NOTE: this fixture holds NO talleres capability at all. Since
+      // finding #1, that no longer keeps the talleres section hidden:
+      // talleres_participation is the open self-enroll landing and is
+      // revealed for ANY authenticated user, so the "Talleres" parent link
+      // renders here regardless (asserted below as PRESENT). dps_admin /
+      // nextgen_admin have no availableHref and still never render a link.
       { key: 'uno_a_uno.global.read', experience: 'the_living_room', scopeType: 'experience', source: 'unsafe' },
     ], [
       { experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', label: 'Grupos de Vida — Adultos' },
@@ -199,7 +197,14 @@ describe('SidebarModerna platform navigation', () => {
     expect(screen.queryByRole('link', { name: 'DPS Música' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Administración DPS' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Administración NextGen' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Talleres' })).not.toBeInTheDocument()
+    // finding #1: the talleres_participation parent is open to any
+    // authenticated user, so its link renders even without a talleres cap.
+    // Match by href (not accessible name) — the platform item's SVG icon
+    // title interferes with name lookups (same reason as the PR25 tests).
+    await waitFor(() => {
+      const talleresLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/explorar')
+      expect(talleresLinks.length).toBeGreaterThanOrEqual(1)
+    })
     expect(screen.queryByRole('link', { name: '1:1 Global' })).not.toBeInTheDocument()
   })
 

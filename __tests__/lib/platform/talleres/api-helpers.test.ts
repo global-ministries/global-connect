@@ -19,7 +19,10 @@
  * deterministic. Tests do not hit the database.
  */
 
-import { requireTalleresApi } from '@/lib/platform/talleres/api-helpers'
+import {
+  requireTalleresApi,
+  requireTalleresApiAuthenticated,
+} from '@/lib/platform/talleres/api-helpers'
 
 jest.mock('@/lib/platform/talleres/flags', () => {
   const actual = jest.requireActual('@/lib/platform/talleres/flags') as Record<string, unknown>
@@ -186,5 +189,47 @@ describe('requireTalleresApi — RPC contract (pr40_5 regression)', () => {
     ])
     expect(rpcCalls[0].args.p_capability_key).toBe('talleres_crecimiento.metrics.read')
     expect(rpcCalls[1].args.p_capability_key).toBe('talleres_crecimiento.director.read')
+  })
+})
+
+// ─── Finding #1 (Option B) — any-authenticated gate for self-enroll ─────────
+//
+// The self-enroll gate must NOT require any talleres capability: enrolling
+// is HOW a user becomes a participant (chicken-and-egg). It only checks the
+// kill switch and an authenticated session, and never consults
+// auth_has_talleres_capability.
+
+describe('requireTalleresApiAuthenticated — any authenticated user', () => {
+  it('returns 404 when the talleres feature flag is off', async () => {
+    isTalleresEnabledMock.mockReturnValue(false)
+    const result = await requireTalleresApiAuthenticated()
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.response.status).toBe(404)
+      const body = await result.response.json()
+      expect(body.error).toBe('not-found')
+    }
+  })
+
+  it('returns 401 when there is no authed user', async () => {
+    state.user = null
+    const result = await requireTalleresApiAuthenticated()
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.response.status).toBe(401)
+      const body = await result.response.json()
+      expect(body.error).toBe('unauthorized')
+    }
+  })
+
+  it('returns ok:true for ANY authenticated user without calling a capability RPC', async () => {
+    const result = await requireTalleresApiAuthenticated()
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.userId).toBe('user-1')
+      expect(result.supabase).toBeDefined()
+    }
+    // The gate must not consult auth_has_talleres_capability at all.
+    expect(rpcCalls).toHaveLength(0)
   })
 })

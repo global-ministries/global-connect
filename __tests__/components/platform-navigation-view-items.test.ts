@@ -38,6 +38,14 @@ describe('platform navigation view items', () => {
         icon: UserCheck,
         href: '/grupos-vida',
       },
+      // finding #1: the talleres_participation parent is revealed for any
+      // authenticated session at global scope (id suffix '-global').
+      {
+        id: 'platform-talleres_participation-taller-global',
+        label: 'Talleres',
+        icon: ClipboardList,
+        href: '/talleres/explorar',
+      },
     ])
   })
 
@@ -53,7 +61,8 @@ describe('platform navigation view items', () => {
       { initialProps: { session: platformSession } }
     )
 
-    await waitFor(() => expect(result.current).toHaveLength(1))
+    // finding #1: grupos + the always-revealed talleres parent = 2 items.
+    await waitFor(() => expect(result.current).toHaveLength(2))
     const resolvedItems = result.current
 
     rerender({ session: { ...platformSession } })

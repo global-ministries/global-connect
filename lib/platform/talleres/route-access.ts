@@ -114,14 +114,12 @@ export type TalleresNavItemId =
   | 'talleres_direccion_reportes'
   // Admin
   | 'talleres_admin_abstracto'
-  // PR42 — Global inscripciones admin view. The page itself enforces the
-  // multi-capability write gate (coordinator.write OR director.write OR
-  // admin.manage); the sidebar keys the entry to `coordinator.read` so
-  // every coordinator sees it under "Coordinación". PR H — with the
-  // director.read superset removed, a pure director no longer sees this
-  // C-keyed entry; directors manage enrollment from their own Dirección
-  // surface, and admin.manage reaches the page by URL.
-  | 'talleres_coordinacion_inscripciones_global'
+  // Finding #5 — Global inscripciones view belongs to the administrator /
+  // director general, NOT the coordinador. Keyed to `admin.manage` and
+  // grouped under "Administración" (A). Previously it was coordinator.read-
+  // keyed under Coordinación (C), which leaked an admin page into the
+  // coordinador's menu; the page guard now also drops coordinator.read.
+  | 'talleres_admin_inscripciones_global'
 
 export type TalleresNavItem = Readonly<{
   id: TalleresNavItemId
@@ -177,16 +175,13 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // — previously they got an empty sub-menu, which made the sidebar
   // entry look broken even though the capability gate resolved.
   { id: 'talleres_admin_abstracto', label: 'Grupos de Corto Plazo', href: '/admin/talleres/abstracto', requiredCapability: 'talleres_crecimiento.admin.manage' },
-  // PR42 — Global admin/coordinacion inscripciones view. The page
-  // itself enforces multi-capability (director.write OR admin.manage
-  // OR coordinator.write). The sidebar carries the C-key entry under
-  // `coordinator.read` so coordinators see it under "Coordinación".
-  // PR H — the director.read superset is removed, so a pure director no
-  // longer sees this entry in the sidebar; directors act on enrollment
-  // from their own Dirección surface, and admin.manage reaches the page
-  // by URL. The page-level action gate (coordinator.write) keeps the
-  // write surface protected.
-  { id: 'talleres_coordinacion_inscripciones_global', label: 'Inscripciones (global)', href: '/admin/talleres/inscripciones', requiredCapability: 'talleres_crecimiento.coordinator.read' },
+  // Finding #5 — Global inscripciones view. This page belongs to the
+  // administrator / director general, NOT the coordinador. Keyed to
+  // `admin.manage` so admin + director-general (who holds admin.manage)
+  // see it under "Administración" and the coordinador does not — and the
+  // page guard drops coordinator.read so it is unreachable by URL too. The
+  // page's write actions still gate on director.write OR admin.manage.
+  { id: 'talleres_admin_inscripciones_global', label: 'Inscripciones (global)', href: '/admin/talleres/inscripciones', requiredCapability: 'talleres_crecimiento.admin.manage' },
 ]
 
 /**

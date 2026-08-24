@@ -68,6 +68,10 @@ type PlatformNavigationDefinition = {
   availableHref?: string
   experience: string
   fallbackScope: PlatformScopeInput
+  // finding #1: when true AND this is a global item, the section-header parent
+  // is revealed for ANY authenticated session (no capability required). Used
+  // for open self-enroll landings like /talleres/explorar.
+  revealForAnyAuthenticated?: boolean
 }
 
 const ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION = {
@@ -86,7 +90,7 @@ const PLATFORM_NAVIGATION_DEFINITIONS = [
   { id: 'dps_team_service', capability: 'dps.team.serve', label: 'DPS', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'required' } },
   { id: 'ninos_room_context', capability: 'ninos.room.read', label: 'Niños', experience: 'ninos', fallbackScope: { experience: 'ninos', type: 'salon', id: 'required' } },
   { id: 'estudiantes_room_context', capability: 'estudiantes.room.read', label: 'Estudiantes', experience: 'estudiantes', fallbackScope: { experience: 'estudiantes', type: 'salon', id: 'required' } },
-  { id: 'talleres_participation', capability: 'talleres_crecimiento.participation.read', label: 'Talleres', availableHref: '/talleres/explorar', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' } },
+  { id: 'talleres_participation', capability: 'talleres_crecimiento.participation.read', label: 'Talleres', availableHref: '/talleres/explorar', experience: 'talleres_crecimiento', fallbackScope: { experience: 'talleres_crecimiento', type: 'taller', id: 'global' }, revealForAnyAuthenticated: true },
   { id: 'dps_admin', capability: 'dps.admin.manage', label: 'Administración DPS', experience: 'dps', fallbackScope: { experience: 'dps', type: 'equipo', id: 'global' } },
   { id: 'nextgen_admin', capability: 'nextgen.admin.manage', label: 'Administración NextGen', experience: 'nextgen', fallbackScope: { experience: 'nextgen', type: 'experience' } },
   { id: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.itemId, capability: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.capability, label: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.label, experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, fallbackScope: { experience: ONE_ON_ONE_THE_LIVING_ROOM_NAVIGATION.experience, type: 'experience' } },
@@ -152,13 +156,15 @@ async function applyAdapters(session: PlatformNavigationSession, adapters: reado
 // Talleres exposes exactly ONE icon-bearing top-level parent
 // (`talleres_participation`) that behaves as a SECTION HEADER — its real
 // per-role links live in a capability-filtered submenu (TalleresNavSubmenu).
-// A user with a genuine talleres role (coordinador/director/líder) holds
-// coordinator.read / director.read / lead.read but NOT participation.read, so
-// without this override the whole section would be hidden even though they have
-// accessible sub-items. `volunteer.read` is deliberately EXCLUDED: it has no
-// submenu group, so revealing the parent for it would render an empty section.
-// `metrics.read` stays — a global analytics reader legitimately holds it
-// (director keeps it; a future metrics-only role would too).
+// Since finding #1 the parent is revealed for ANY authenticated user via the
+// `revealForAnyAuthenticated` flag on its definition (/talleres/explorar is the
+// open self-enroll landing). This override set is now a NARROWER,
+// defense-in-depth path: a talleres role-holder (coordinador/director/líder
+// holds coordinator.read / director.read / lead.read, never participation.read)
+// still resolves the parent even if the reveal flag were ever removed.
+// `volunteer.read` is intentionally NOT listed — the reveal flag already covers
+// it (and every other authenticated session), so adding it here would be
+// redundant. `metrics.read` stays for the same defense-in-depth reason.
 const TALLERES_PARENT_OVERRIDE_CAPABILITIES: ReadonlySet<string> = new Set([
   'talleres_crecimiento.metrics.read',
   'talleres_crecimiento.director.read',
@@ -190,25 +196,28 @@ function resolveNavigationDefinition(definition: PlatformNavigationDefinition, s
       )
     : undefined
 
-  if (matchingCapabilities.length === 0 && !overrideCap) {
-    return { visibleItems: [], deniedItem: denyByCapability(definition, session, definition.fallbackScope) }
-  }
-
-  if (matchingCapabilities.length === 0 && overrideCap) {
-    // The override reveals a SECTION-HEADER parent. Emit it at GLOBAL scope
-    // (scopeId undefined) regardless of the triggering cap's own scope, so the
-    // label stays clean ("Talleres", not "Talleres — <equipo-uuid>") and the
-    // consumer dedupe treats it as the global-preferred entry. The submenu
-    // does the real per-capability, per-scope filtering.
-    const globalScopedCap: PlatformSessionCapability = {
-      ...overrideCap,
-      scopeType: definition.fallbackScope.type ?? overrideCap.scopeType,
-      scopeId: undefined,
+  if (matchingCapabilities.length === 0) {
+    // Reveal a SECTION-HEADER parent (scopeId undefined ⇒ clean global label,
+    // e.g. "Talleres" not "Talleres — <equipo-uuid>"; the submenu does the real
+    // per-capability, per-scope filtering) when EITHER:
+    //   - an override cap grants it (admin.manage / a talleres section cap), or
+    //   - it is a global item flagged `revealForAnyAuthenticated` (finding #1:
+    //     /talleres/explorar is the open self-enroll landing, so any
+    //     authenticated session sees the parent even with zero talleres caps).
+    // Reaching this resolver already proves an authenticated session — the gate
+    // (resolvePlatformNavigationGate) requires persona + subjectAuth first — so
+    // the reveal needs no real capability. `source: 'section-header-authenticated'`
+    // is free-form and never leaks to output (toNavigationItem emits only
+    // id/label/href/experience/scope).
+    const headerCap: PlatformSessionCapability | undefined = overrideCap
+      ? { ...overrideCap, scopeType: definition.fallbackScope.type ?? overrideCap.scopeType, scopeId: undefined }
+      : isGlobalItem && definition.revealForAnyAuthenticated
+        ? { key: definition.capability, experience: definition.experience, scopeType: definition.fallbackScope.type ?? 'experience', scopeId: undefined, source: 'section-header-authenticated' }
+        : undefined
+    if (!headerCap) {
+      return { visibleItems: [], deniedItem: denyByCapability(definition, session, definition.fallbackScope) }
     }
-    return {
-      visibleItems: [toNavigationItem(definition, globalScopedCap, session.contexts)!].filter(Boolean),
-      deniedItem: undefined,
-    }
+    return { visibleItems: [toNavigationItem(definition, headerCap, session.contexts)!].filter(Boolean), deniedItem: undefined }
   }
 
   const visibleItems: PlatformNavigationItem[] = []

@@ -12,14 +12,17 @@
  * indicating whether they're already inscribed. The inscribirse action
  * is exposed as a server action imported from `./actions.ts`.
  *
- * Capability gate: participation.read (via requireParticipante).
+ * Finding #1 (Option B) — visible + enrollable by ANY authenticated
+ * user, with any role or none. The page guard is `requireExplorarViewer`
+ * (no `participation.read` requirement); the RLS layer confines what a
+ * viewer can actually read/insert.
  */
 
 import { ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
 import {
   loadParticipanteExplorar,
-  requireParticipante,
+  requireExplorarViewer,
 } from '@/lib/platform/talleres/participante'
 
 import { ExplorarTalleresClient } from './explorar-client'
@@ -29,7 +32,7 @@ export const metadata = {
 }
 
 export default async function ExplorarTalleresPage() {
-  const ctx = await requireParticipante()
+  const ctx = await requireExplorarViewer()
   const talleres = await loadParticipanteExplorar(ctx)
 
   // PR38 — back-compat fallback. Each row already carries its own

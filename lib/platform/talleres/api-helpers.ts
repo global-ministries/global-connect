@@ -64,3 +64,30 @@ export async function requireTalleresApi(
 
   return { ok: true, supabase, userId: user.id as string }
 }
+
+/**
+ * Finding #1 (Option B) — self-enroll gate for ANY authenticated user.
+ *
+ * Enrolling in a taller is HOW a user becomes a participant, so gating
+ * self-enroll on `participation.read` is a chicken-and-egg trap: you'd
+ * need the capability you're trying to earn. This gate therefore checks
+ * only the kill switch and an authenticated session — it never consults
+ * `auth_has_talleres_capability`. Security is preserved downstream: the
+ * RLS `WITH CHECK` term forces `estado='pendiente'` + persona=self +
+ * pareja validation, and approval still requires a write capability.
+ */
+export async function requireTalleresApiAuthenticated(): Promise<TalleresApiGate> {
+  if (!isTalleresEnabled()) {
+    return { ok: false, response: NextResponse.json({ error: 'not-found' }, { status: 404 }) }
+  }
+
+  const supabase = await createSupabaseServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    return { ok: false, response: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
+  }
+
+  return { ok: true, supabase, userId: user.id as string }
+}

@@ -73,6 +73,10 @@ describe('Platform navigation resolver', () => {
     expect(result).toMatchObject({ mode: 'platform', legacyFallback: false, audit: { decision: 'allowed', flow: PLATFORM_NAVIGATION_FLOW } })
     expect(result.visibleItems).toEqual([
       { id: 'grupos_vida_stage', label: 'Grupos de Vida — Adultos', href: '/grupos-vida', experience: 'grupos_vida', scope: { type: 'etapa', id: 'segmento-adultos' } },
+      // finding #1: the talleres_participation parent is revealed for ANY
+      // authenticated session (open self-enroll landing), at clean global
+      // scope even though this session holds zero talleres capabilities.
+      { id: 'talleres_participation', label: 'Talleres', href: '/talleres/explorar', experience: 'talleres_crecimiento', scope: { type: 'taller' } },
     ])
     expect(deniedReasons(result)).toMatchObject({ dps_team_service: 'route_unavailable' })
     expect(JSON.stringify(result)).not.toContain('auth-1')
@@ -119,7 +123,11 @@ describe('Platform navigation resolver', () => {
 
     const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
 
-    expect(result.visibleItems).toEqual([])
+    // finding #1: talleres_participation reveals for any authenticated
+    // session regardless of the (conflicting) dps grant.
+    expect(result.visibleItems).toEqual([
+      { id: 'talleres_participation', label: 'Talleres', href: '/talleres/explorar', experience: 'talleres_crecimiento', scope: { type: 'taller' } },
+    ])
     expect(deniedReasons(result)).toMatchObject({ dps_team_service: 'conflicting_scope' })
   })
 
@@ -155,7 +163,12 @@ describe('Platform navigation resolver', () => {
 
     const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
 
-    expect(result.visibleItems).toEqual([])
+    // finding #1: talleres_participation is the sole revealed item — it is
+    // open to any authenticated user. The unsafe dps/nextgen/1:1 grants are
+    // still correctly denied (asserted below).
+    expect(result.visibleItems).toEqual([
+      { id: 'talleres_participation', label: 'Talleres', href: '/talleres/explorar', experience: 'talleres_crecimiento', scope: { type: 'taller' } },
+    ])
     expect(deniedReasons(result)).toMatchObject({
       dps_team_service: 'grant_scope_missing',
       dps_admin: 'unknown_capability',
@@ -362,7 +375,11 @@ describe('Platform navigation resolver', () => {
       expect(talleresIds).toContain('talleres_participation')
     })
 
-    it('does NOT show talleres_participation for a volunteer.read holder (no submenu group would render an empty section)', async () => {
+    it('shows talleres_participation for a volunteer.read holder (finding #1 — the parent is open to any authenticated user)', async () => {
+      // finding #1 inverted the prior rule: /talleres/explorar is the open
+      // self-enroll landing, so the parent links straight there for ANY
+      // authenticated session — a volunteer with no submenu group included.
+      // The parent is a real navigable link, not an empty section header.
       const session: PlatformSession = {
         ...baseSession,
         capabilities: [
@@ -375,7 +392,27 @@ describe('Platform navigation resolver', () => {
       const talleresIds = result.visibleItems
         .filter((item) => item.experience === 'talleres_crecimiento')
         .map((item) => item.id)
-      expect(talleresIds).not.toContain('talleres_participation')
+      expect(talleresIds).toContain('talleres_participation')
+    })
+
+    it('shows talleres_participation at clean global scope for any authenticated user with ZERO talleres capabilities (finding #1)', async () => {
+      // The core of finding #1: a plain authenticated session (no talleres
+      // role, no talleres cap of any kind) still sees the "Talleres" parent,
+      // because enrolling is HOW you become a participant. It is emitted at
+      // global scope — clean 'Talleres' label, no scope id — and links to
+      // the participant landing. baseSession carries persona/subjectAuth
+      // (authenticated) with an empty capabilities array.
+      const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: baseSession })
+
+      const talleresItem = result.visibleItems.find((item) => item.id === 'talleres_participation')
+      expect(talleresItem).toMatchObject({
+        id: 'talleres_participation',
+        label: 'Talleres',
+        href: '/talleres/explorar',
+        experience: 'talleres_crecimiento',
+        scope: { type: 'taller' },
+      })
+      expect(talleresItem?.scope.id).toBeUndefined()
     })
   })
 })

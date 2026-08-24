@@ -30,15 +30,23 @@ export interface ParticipanteContext {
 }
 
 /**
- * Loads the participante context used by every page in `app/(auth)/talleres/**`.
+ * Shared viewer-context resolver for the participante surface.
+ *
  * Returns `{ ok: false }` when:
- *   - the talleres feature flag is off (404 via notFound())
- *   - the user is not authenticated (redirect to /login)
- *   - the user lacks `participation.read` (404 via notFound() — deny-by-default)
+ *   - the talleres feature flag is off (kill switch)
+ *   - the user is not authenticated
+ *   - the session/persona cannot be resolved
+ *   - `requireParticipationRead` is true AND the user lacks
+ *     `participation.read` (deny-by-default for the participant-only pages)
+ *
+ * When `requireParticipationRead` is false the gate opens for ANY
+ * authenticated user with a resolvable persona, preserving whatever
+ * capabilities they hold (finding #1, Option B — self-enroll must be
+ * reachable before you are a participant).
  */
-export async function loadParticipanteContext(): Promise<
-  { ok: true; context: ParticipanteContext } | { ok: false }
-> {
+async function resolveViewerContext(
+  requireParticipationRead: boolean,
+): Promise<{ ok: true; context: ParticipanteContext } | { ok: false }> {
   if (!isTalleresEnabled()) return { ok: false }
 
   const supabase = await createSupabaseServerClient()
@@ -54,10 +62,12 @@ export async function loadParticipanteContext(): Promise<
   })
   if (!session) return { ok: false }
 
-  const hasParticipationRead = session.capabilities.some(
-    (c) => c.key === 'talleres_crecimiento.participation.read',
-  )
-  if (!hasParticipationRead) return { ok: false }
+  if (requireParticipationRead) {
+    const hasParticipationRead = session.capabilities.some(
+      (c) => c.key === 'talleres_crecimiento.participation.read',
+    )
+    if (!hasParticipationRead) return { ok: false }
+  }
 
   return {
     ok: true,
@@ -70,6 +80,37 @@ export async function loadParticipanteContext(): Promise<
 }
 
 /**
+ * Loads the participante context used by the participant-only pages in
+ * `app/(auth)/talleres/**` (mis-talleres, historial, certificados).
+ * Returns `{ ok: false }` when:
+ *   - the talleres feature flag is off (404 via notFound())
+ *   - the user is not authenticated (redirect to /login)
+ *   - the user lacks `participation.read` (404 via notFound() — deny-by-default)
+ */
+export async function loadParticipanteContext(): Promise<
+  { ok: true; context: ParticipanteContext } | { ok: false }
+> {
+  return resolveViewerContext(true)
+}
+
+/**
+ * Finding #1 (Option B) — viewer context for `/talleres/explorar`.
+ *
+ * Same shape as `loadParticipanteContext` but WITHOUT the
+ * `participation.read` requirement: /talleres/explorar must be reachable
+ * by any authenticated user, with any role or none, because enrolling is
+ * how a user becomes a participant. The RLS layer is the real security
+ * wall (SELECT scoped to open/active rows, INSERT forced to a pending
+ * self-enroll). The capability set is preserved so downstream reads still
+ * reflect whatever the viewer holds.
+ */
+export async function loadExplorarViewerContext(): Promise<
+  { ok: true; context: ParticipanteContext } | { ok: false }
+> {
+  return resolveViewerContext(false)
+}
+
+/**
  * Triggers the Next.js not-found page when the participant context
  * cannot be loaded. Use in page components: `await
  * requireParticipante()` and let it short-circuit.
@@ -78,6 +119,24 @@ export async function requireParticipante(): Promise<ParticipanteContext> {
   const result = await loadParticipanteContext()
   if (!result.ok) {
     // Distinguish: no session → redirect to login; otherwise → 404.
+    const supabase = await createSupabaseServerClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+    const { data: { user } } = await (supabase as any).auth.getUser()
+    if (!user) redirect('/login')
+    notFound()
+  }
+  return result.context
+}
+
+/**
+ * Finding #1 (Option B) — page guard for `/talleres/explorar`. Mirrors
+ * `requireParticipante()` (redirect to /login when unauthenticated,
+ * notFound() otherwise) but uses the any-authenticated viewer context so
+ * a user with no talleres capability can still reach the enroll page.
+ */
+export async function requireExplorarViewer(): Promise<ParticipanteContext> {
+  const result = await loadExplorarViewerContext()
+  if (!result.ok) {
     const supabase = await createSupabaseServerClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
     const { data: { user } } = await (supabase as any).auth.getUser()
