@@ -235,9 +235,23 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
     expect(screen.queryByText('Mis Talleres')).toBeNull()
   })
 
-  it('shows the global inscripciones item to a coordinator.read user (its own capability)', () => {
-    // The global admin/coordinacion inscripciones view is a C-bucket item
-    // keyed to coordinator.read — visible to any coordinator.
+  it('shows the global inscripciones item to an admin.manage user (its new home — Finding #5)', () => {
+    // Finding #5 — the global inscripciones view is keyed to `admin.manage`
+    // (administrator / director general), NOT the coordinador.
+    const ref = { count: 0 }
+    createClientMock.mockImplementation(makeBrowserClientMock(ref))
+    render(
+      React.createElement(TalleresNavSubmenu, {
+        sessionCapabilities: ['talleres_crecimiento.admin.manage'],
+      }),
+    )
+    expect(screen.getByText('Inscripciones (global)')).toBeDefined()
+  })
+
+  it('hides the global inscripciones item from a coordinator.read user (Finding #5 closed the leak)', () => {
+    // Finding #5 — a pure coordinator.read user must NOT see the global
+    // inscripciones view; it is an admin.manage-keyed admin surface. This
+    // is the exact leak Finding #5 closed (it used to be coordinator-keyed).
     const ref = { count: 0 }
     createClientMock.mockImplementation(makeBrowserClientMock(ref))
     render(
@@ -245,7 +259,7 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
         sessionCapabilities: ['talleres_crecimiento.coordinator.read'],
       }),
     )
-    expect(screen.getByText('Inscripciones (global)')).toBeDefined()
+    expect(screen.queryByText('Inscripciones (global)')).toBeNull()
   })
 
   it('hides the global inscripciones item from a pure director.read user (PR H strict filtering)', () => {
