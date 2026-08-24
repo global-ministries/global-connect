@@ -599,6 +599,7 @@ export async function loadCoordReportes(
 export interface CoordSolicitudRow {
   readonly id: string
   readonly inscripcion_id: string
+  readonly tipo: 'participante_retiro' | 'equipo_retiro_definitivo'
   readonly estado: 'pendiente' | 'aprobada' | 'rechazada'
   readonly motivo: string
   readonly created_at: string
@@ -611,7 +612,7 @@ export async function loadCoordSolicitudes(
   const client: any = ctx.supabase
   const { data, error } = await client
     .from('taller_solicitudes_retiro')
-    .select('id, inscripcion_id, estado, motivo, created_at')
+    .select('id, inscripcion_id, tipo, estado, motivo, created_at')
     .order('created_at', { ascending: false })
   if (error) return []
   return (data ?? []) as CoordSolicitudRow[]

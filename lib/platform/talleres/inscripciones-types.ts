@@ -30,6 +30,7 @@ export type InscripcionEstado =
   | 'aprobado'
   | 'no_aprobado'
   | 'completado'
+  | 'retirado'
 
 /**
  * Row shape for the admin + coordinator inscripciones tables.

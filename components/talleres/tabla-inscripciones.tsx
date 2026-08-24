@@ -63,6 +63,7 @@ function estadoVariante(
       return 'warning'
     case 'no_aprobado':
       return 'error'
+    case 'retirado':
     case 'completado':
     default:
       return 'default'
@@ -79,6 +80,8 @@ function estadoLabel(estado: InscripcionAdminRow['estado']): string {
       return 'No aprobado'
     case 'completado':
       return 'Completado'
+    case 'retirado':
+      return 'Retirado'
     default:
       return estado
   }
