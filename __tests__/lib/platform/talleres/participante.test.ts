@@ -18,6 +18,7 @@
 
 import {
   loadParticipanteContext,
+  loadExplorarViewerContext,
   loadParticipanteActiveTalleres,
   loadParticipanteHistorial,
   loadParticipanteExplorar,
@@ -208,6 +209,65 @@ describe('loadParticipanteContext — gate', () => {
       expect(result.context.personaId).toBe(PERSONA_ID)
       expect(result.context.capabilities).toContain(
         'talleres_crecimiento.participation.read',
+      )
+    }
+  })
+})
+
+// ─── loadExplorarViewerContext — any authenticated user (finding #1) ───────
+//
+// Option B (chicken-and-egg fix): /talleres/explorar must be reachable by
+// ANY authenticated user, with any role or none. Enrolling is HOW a user
+// becomes a participant, so the viewer gate drops the participation.read
+// requirement. Only the kill switch + an authenticated session + a
+// resolvable persona are required. The RLS layer is the real security wall.
+
+describe('loadExplorarViewerContext — any authenticated user (finding #1)', () => {
+  it('returns ok:false when feature flag is off (kill switch)', async () => {
+    setupSupabaseMock({
+      isEnabled: false,
+      personaId: PERSONA_ID,
+      capabilities: [],
+    })
+    const result = await loadExplorarViewerContext()
+    expect(result.ok).toBe(false)
+  })
+
+  it('returns ok:false when user is unauthenticated', async () => {
+    setupSupabaseMock({ user: null })
+    const result = await loadExplorarViewerContext()
+    expect(result.ok).toBe(false)
+  })
+
+  it('returns ok:false when persona/session cannot be resolved', async () => {
+    setupSupabaseMock({ personaId: null })
+    const result = await loadExplorarViewerContext()
+    expect(result.ok).toBe(false)
+  })
+
+  it('returns ok:true for an authenticated user WITHOUT participation.read', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: [],
+    })
+    const result = await loadExplorarViewerContext()
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.context.personaId).toBe(PERSONA_ID)
+      expect(result.context.capabilities).toEqual([])
+    }
+  })
+
+  it('returns ok:true and preserves capabilities for a user who has caps', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.coordinator.read'],
+    })
+    const result = await loadExplorarViewerContext()
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.context.capabilities).toContain(
+        'talleres_crecimiento.coordinator.read',
       )
     }
   })

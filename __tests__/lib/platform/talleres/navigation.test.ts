@@ -47,8 +47,10 @@ describe('getTalleresNavItems — capability filter', () => {
       ['talleres_crecimiento.coordinator.read'],
       { isEnabled: true },
     )
-    // 6 C items (5 base + PR42 global inscripciones admin view).
-    expect(items.length).toBe(6)
+    // 5 C items. Finding #5 — the global inscripciones view is now
+    // admin-keyed (moved out of Coordinación), so a pure coordinador
+    // no longer sees it.
+    expect(items.length).toBe(5)
     expect(items.every((i) => i.id.startsWith('talleres_coordinacion_'))).toBe(true)
   })
 
@@ -72,10 +74,10 @@ describe('getTalleresNavItems — capability filter', () => {
     expect(items.map((i) => i.id)).not.toContain('talleres_participante_explorar')
     expect(items.map((i) => i.id)).not.toContain('talleres_grupos_mis_grupos')
     expect(items.map((i) => i.id)).not.toContain('talleres_coordinacion_resumen')
-    // metricas needs metrics.read; the global inscripciones view needs
-    // coordinator.read — neither is inherited by director.read anymore.
+    // metricas needs metrics.read; the global inscripciones view is now
+    // admin-keyed (admin.manage) — neither is inherited by director.read.
     expect(items.map((i) => i.id)).not.toContain('talleres_direccion_metricas')
-    expect(items.map((i) => i.id)).not.toContain('talleres_coordinacion_inscripciones_global')
+    expect(items.map((i) => i.id)).not.toContain('talleres_admin_inscripciones_global')
   })
 
   it('metrics.read holder sees the metricas item (not other director items)', () => {
@@ -94,16 +96,19 @@ describe('getTalleresNavItems — capability filter', () => {
 // ─── PR25 — admin-only sub-item ───────────────────────────────────────────
 
 describe('getTalleresNavItems — admin.manage (PR25)', () => {
-  it('user with ONLY admin.manage sees the wizard entry-point item', () => {
+  it('user with ONLY admin.manage sees the admin entry-points', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.admin.manage'],
       { isEnabled: true },
     )
-    // PR25: previously this returned [] — now it must include at least
-    // the abstracto entry-point so the sidebar shows a meaningful
-    // sub-menu for admin-only users.
-    expect(items.length).toBe(1)
-    expect(items.map((i) => i.id)).toEqual(['talleres_admin_abstracto'])
+    // PR25: the abstracto wizard entry-point. Finding #5: the global
+    // inscripciones view moved from Coordinación to Administración, so
+    // admin.manage now also sees it. Both live under group A.
+    expect(items.length).toBe(2)
+    expect(items.map((i) => i.id)).toEqual([
+      'talleres_admin_abstracto',
+      'talleres_admin_inscripciones_global',
+    ])
     expect(items[0]?.href).toBe('/admin/talleres/abstracto')
     expect(items[0]?.requiredCapability).toBe('talleres_crecimiento.admin.manage')
   })
@@ -121,7 +126,7 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
     expect(items.some((i) => i.id.startsWith('talleres_participante_'))).toBe(false)
   })
 
-  it('admin.manage + director.read sees the D group + the admin entry (no P/L/C superset — PR H)', () => {
+  it('admin.manage + director.read sees the D group + the admin entries (no P/L/C superset — PR H)', () => {
     const items = getTalleresNavItems(
       [
         'talleres_crecimiento.admin.manage',
@@ -129,11 +134,12 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
       ],
       { isEnabled: true },
     )
-    // PR H — no superset. 7 director.read items + 1 admin.manage entry = 8.
-    // (metricas needs metrics.read; the global inscripciones view needs
-    // coordinator.read — neither is held here.)
-    expect(items.length).toBe(8)
+    // PR H — no superset. 7 director.read items + 2 admin.manage entries
+    // (abstracto + the admin-keyed global inscripciones view) = 9.
+    // (metricas needs metrics.read; not held here.)
+    expect(items.length).toBe(9)
     expect(items.map((i) => i.id)).toContain('talleres_admin_abstracto')
+    expect(items.map((i) => i.id)).toContain('talleres_admin_inscripciones_global')
     expect(items.map((i) => i.id)).toContain('talleres_direccion_temporadas')
     // No P / L / C leak-in.
     expect(items.map((i) => i.id)).not.toContain('talleres_participante_explorar')
@@ -142,44 +148,41 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
   })
 })
 
-// ─── PR42 — global admin inscripciones view ─────────────────────────────────
+// ─── PR42 → finding #5 — global inscripciones view is admin-keyed ────────────
 
-describe('getTalleresNavItems — PR42 global admin inscripciones view', () => {
-  it('coordinador.read sees the global inscripciones item under C group', () => {
+describe('getTalleresNavItems — global inscripciones view (finding #5)', () => {
+  it('coordinador.read does NOT see the global inscripciones item (admin-only page)', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.coordinator.read'],
       { isEnabled: true },
     )
-    const found = items.find((i) => i.id === 'talleres_coordinacion_inscripciones_global')
-    expect(found).toBeDefined()
-    expect(found?.href).toBe('/admin/talleres/inscripciones')
-    expect(found?.requiredCapability).toBe('talleres_crecimiento.coordinator.read')
+    // Finding #5 — /admin/talleres/inscripciones belongs to the
+    // administrator / director general, NOT the coordinador. The item
+    // is keyed to admin.manage and lives under group A now.
+    expect(
+      items.find((i) => i.id === 'talleres_admin_inscripciones_global'),
+    ).toBeUndefined()
   })
 
-  it('coordinador.write also sees the item (write superset mirrors read)', () => {
+  it('coordinador.write does NOT see the global inscripciones item either', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.coordinator.write'],
       { isEnabled: true },
     )
-    // coordinator.write does NOT trigger the read-superset rule, so
-    // the item must require coordinator.read literally. Currently
-    // the page gates the WRITE action separately (the action layer
-    // requires coordinator.write OR director.write OR admin.manage);
-    // the sidebar manifest is keyed to coordinator.read so the
-    // entry is visible to every read-capable operator.
     expect(
-      items.find((i) => i.id === 'talleres_coordinacion_inscripciones_global'),
+      items.find((i) => i.id === 'talleres_admin_inscripciones_global'),
     ).toBeUndefined()
   })
 
-  it('admin.manage does NOT see the C-keyed item (admin group is distinct)', () => {
+  it('admin.manage sees the global inscripciones item under group A', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.admin.manage'],
       { isEnabled: true },
     )
-    expect(
-      items.find((i) => i.id === 'talleres_coordinacion_inscripciones_global'),
-    ).toBeUndefined()
+    const found = items.find((i) => i.id === 'talleres_admin_inscripciones_global')
+    expect(found).toBeDefined()
+    expect(found?.href).toBe('/admin/talleres/inscripciones')
+    expect(found?.requiredCapability).toBe('talleres_crecimiento.admin.manage')
   })
 })
 
@@ -242,9 +245,11 @@ describe('getTalleresNavItems — multi-role union', () => {
       ],
       { isEnabled: true },
     )
-    // PR H — no superset. 4 P + 6 C + 7 D = 17. The 3 L items are NOT
-    // covered because the user does not hold lead.read.
-    expect(items.length).toBe(17)
+    // PR H — no superset. 4 P + 5 C + 7 D = 16. Finding #5 — the global
+    // inscripciones view is admin-keyed, so it is NOT among the 5 C items
+    // here (this user has no admin.manage). The 3 L items are NOT covered
+    // because the user does not hold lead.read.
+    expect(items.length).toBe(16)
     expect(items.map((i) => i.id)).not.toContain('talleres_grupos_mis_grupos')
     expect(items.map((i) => i.id)).not.toContain('talleres_sesiones_proximas')
     expect(items.map((i) => i.id)).not.toContain('talleres_recursos')
@@ -303,7 +308,7 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(groups[0]?.id).toBe('P')
   })
 
-  it('PR25: admin.manage produces an "Administración" group with the abstracto item', () => {
+  it('PR25 + finding #5: admin.manage produces an "Administración" group with the admin items', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.admin.manage'],
       { isEnabled: true },
@@ -312,7 +317,10 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(groups.length).toBe(1)
     expect(groups[0]?.id).toBe('A')
     expect(groups[0]?.title).toBe('Administración')
-    expect(groups[0]?.items.map((i) => i.id)).toEqual(['talleres_admin_abstracto'])
+    expect(groups[0]?.items.map((i) => i.id)).toEqual([
+      'talleres_admin_abstracto',
+      'talleres_admin_inscripciones_global',
+    ])
   })
 
   it('preserves canonical order within each group', () => {

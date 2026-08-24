@@ -43,7 +43,7 @@ jest.mock('@/lib/platform/talleres/flags', () => ({
 }))
 
 jest.mock('@/lib/platform/talleres/api-helpers', () => ({
-  requireTalleresApi: jest.fn(),
+  requireTalleresApiAuthenticated: jest.fn(),
 }))
 
 jest.mock('next/cache', () => ({
@@ -52,9 +52,9 @@ jest.mock('next/cache', () => ({
 
 const isTalleresEnabledMock = jest.requireMock('@/lib/platform/talleres/flags')
   .isTalleresEnabled as jest.Mock
-const requireTalleresApiMock = jest.requireMock(
+const requireTalleresApiAuthenticatedMock = jest.requireMock(
   '@/lib/platform/talleres/api-helpers',
-).requireTalleresApi as jest.Mock
+).requireTalleresApiAuthenticated as jest.Mock
 const revalidatePathMock = jest.requireMock('next/cache')
   .revalidatePath as jest.Mock
 
@@ -65,7 +65,7 @@ const COHORTE_ID = 'cohorte-1'
 
 beforeEach(() => {
   isTalleresEnabledMock.mockReset().mockReturnValue(true)
-  requireTalleresApiMock.mockReset()
+  requireTalleresApiAuthenticatedMock.mockReset()
   revalidatePathMock.mockReset()
 })
 
@@ -101,7 +101,7 @@ describe('inscribirseATaller — FK resolution contract', () => {
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    requireTalleresApiMock.mockResolvedValue({
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({
       ok: true,
       supabase: { from: fromMock },
       userId: AUTH_UID,
@@ -173,7 +173,7 @@ describe('inscribirseATaller — FK resolution contract', () => {
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    requireTalleresApiMock.mockResolvedValue({
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({
       ok: true,
       supabase: { from: fromMock },
       userId: AUTH_UID,
@@ -217,7 +217,7 @@ describe('inscribirseATaller — error paths', () => {
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    requireTalleresApiMock.mockResolvedValue({
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({
       ok: true,
       supabase: { from: fromMock },
       userId: AUTH_UID,
@@ -261,7 +261,7 @@ describe('inscribirseATaller — error paths', () => {
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    requireTalleresApiMock.mockResolvedValue({
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({
       ok: true,
       supabase: { from: fromMock },
       userId: AUTH_UID,
@@ -311,7 +311,7 @@ describe('inscribirseATaller — error paths', () => {
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    requireTalleresApiMock.mockResolvedValue({
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({
       ok: true,
       supabase: { from: fromMock },
       userId: AUTH_UID,

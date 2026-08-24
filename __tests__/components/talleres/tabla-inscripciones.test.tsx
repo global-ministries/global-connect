@@ -75,7 +75,7 @@ function makeRow(overrides: Partial<{
   edicion_nombre: string
   persona_principal_id: string
   persona_principal_nombre: string
-  estado: 'pendiente' | 'aprobado' | 'no_aprobado' | 'completado'
+  estado: 'pendiente' | 'aprobado' | 'no_aprobado' | 'completado' | 'retirado'
   link_type: 'matrimonio' | 'novios' | null
   cohorte_edicion: string | null
   cohorte_id: string | null
@@ -257,5 +257,27 @@ describe('TablaInscripciones — estado badge variants', () => {
     })
     const badges = screen.getAllByText('Completado')
     expect(badges.length).toBeGreaterThan(0)
+  })
+
+  it('renders retirado badge variant for withdrawn rows', () => {
+    // A participante_retiro that was APPROVED lands the inscripción in the
+    // terminal 'retirado' estado (additive CHECK widen). The badge must
+    // read "Retirado" (not the raw lowercase estado) and never expose an
+    // approve/reject control (terminal state).
+    renderTabla({
+      rows: [makeRow({ id: 'insc-ret', estado: 'retirado' })],
+      canWrite: false,
+    })
+    const badges = screen.getAllByText('Retirado')
+    expect(badges.length).toBeGreaterThan(0)
+  })
+
+  it('hides Approve + Reject when estado=retirado (terminal)', () => {
+    renderTabla({
+      rows: [makeRow({ id: 'insc-ret2', estado: 'retirado' })],
+      canWrite: true,
+    })
+    expect(screen.queryByTestId('approve-insc-ret2')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('reject-insc-ret2')).not.toBeInTheDocument()
   })
 })

@@ -6,12 +6,12 @@
  * Currently exposes one action:
  *   - `inscribirseATaller({ tallerId, cohorteId, companeroId?, linkType? })`
  *
- * Capability gate: participation.read (every participante can self-enroll).
- * The action delegates to the API route handler `POST
- * /api/talleres/inscripciones` defined in PR15 — the route enforces
- * its own auth + capability check (coordinator.write). The participant
- * path uses participation.read; the route accepts either capability via
- * the gate's superset fallback.
+ * Capability gate: NONE beyond an authenticated session (finding #1,
+ * Option B). Self-enroll is how a user becomes a participant, so gating
+ * it on `participation.read` was a chicken-and-egg trap. The gate is
+ * `requireTalleresApiAuthenticated` (kill switch + auth only); the RLS
+ * `WITH CHECK` term is the security wall — it forces `estado='pendiente'`
+ * + persona=self + pareja validation. Approval still needs a write cap.
  *
  * Revalidates /talleres/explorar and /talleres/mis-talleres after
  * success so the participant's view reflects the new inscription.
@@ -19,7 +19,7 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { requireTalleresApi } from '@/lib/platform/talleres/api-helpers'
+import { requireTalleresApiAuthenticated } from '@/lib/platform/talleres/api-helpers'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 
 export interface InscribirseInput {
@@ -39,7 +39,7 @@ export async function inscribirseATaller(input: InscribirseInput): Promise<Inscr
     return { ok: false, error: 'invalid-input' }
   }
 
-  const gate = await requireTalleresApi('talleres_crecimiento.participation.read')
+  const gate = await requireTalleresApiAuthenticated()
   if (!gate.ok) {
     // Map the gate's response status to our domain error code.
     if (gate.response.status === 404) return { ok: false, error: 'not-found' }

@@ -185,7 +185,7 @@ describe('MenuInferiorMovil platform navigation', () => {
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
   })
 
-  it('does not fall back to legacy global links when no platform route is available for the session', async () => {
+  it('does not fall back to legacy global links when the only platform route is the shared Talleres entry', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPlatformSession = withCapabilities([
       { key: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'dream-team' },
@@ -193,14 +193,17 @@ describe('MenuInferiorMovil platform navigation', () => {
 
     render(<MenuInferiorMovil />)
 
-    await waitFor(() => expect(screen.queryByRole('link')).not.toBeInTheDocument())
+    // finding #1: every authenticated session resolves the shared "Talleres"
+    // parent (/talleres/explorar), so the bottom nav shows exactly that platform
+    // link and must NOT fall back to the legacy global links.
+    expect(await screen.findByLabelText('Navegar a Talleres')).toHaveAttribute('href', '/talleres/explorar')
     expect(screen.queryByLabelText('Navegar a Dashboard')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Ayuda')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a DPS Música')).not.toBeInTheDocument()
   })
 
-  it('does not retain stale platform links while transitioning to a session with no visible items', async () => {
+  it('drops stale platform links while transitioning, keeping only the shared Talleres entry', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPlatformSession = withCapabilities([
       { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
@@ -216,7 +219,15 @@ describe('MenuInferiorMovil platform navigation', () => {
     ])
     rerender(<MenuInferiorMovil />)
 
-    await waitFor(() => expect(screen.queryAllByRole('link')).toHaveLength(0))
+    // finding #1: the stale grupos link is dropped on transition; the only
+    // platform link that survives is the always-revealed shared "Talleres"
+    // parent (/talleres/explorar) — never a legacy fallback, never a retained
+    // grupos link.
+    await waitFor(() => {
+      const links = screen.queryAllByRole('link')
+      expect(links).toHaveLength(1)
+      expect(links[0]).toHaveAttribute('href', '/talleres/explorar')
+    })
     expect(screen.queryByLabelText('Navegar a Grupos de Vida — Adultos')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a DPS Música')).not.toBeInTheDocument()

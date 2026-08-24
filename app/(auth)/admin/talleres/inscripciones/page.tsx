@@ -100,9 +100,10 @@ export default async function AdminInscripcionesPage(ctx: RouteContext) {
     redirect('/login')
   }
 
-  // Capability gate (owner-confirmed audience: director / admin /
-  // coordinator). The same gate is also enforced by the SELECT
-  // RLS policy on `taller_inscripciones`, so this is defense-in-depth.
+  // Capability gate (finding #5 — audience: director general / admin
+  // only; the coordinador is NOT allowed here). The same gate is also
+  // enforced by the SELECT RLS policy on `taller_inscripciones`, so this
+  // is defense-in-depth.
   const session = await resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) =>
@@ -112,8 +113,7 @@ export default async function AdminInscripcionesPage(ctx: RouteContext) {
   const caps = session?.capabilities.map((c) => c.key) ?? []
   const hasRead =
     caps.includes('talleres_crecimiento.director.read') ||
-    caps.includes('talleres_crecimiento.admin.manage') ||
-    caps.includes('talleres_crecimiento.coordinator.read')
+    caps.includes('talleres_crecimiento.admin.manage')
   if (!hasRead) {
     return (
       <ContenedorDashboard titulo="Inscripciones (global)">
