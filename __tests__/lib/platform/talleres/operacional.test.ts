@@ -26,6 +26,7 @@ import {
   loadCoordTalleresAgrupados,
   loadDirResumen,
   loadEdicionLocalDetalle,
+  coordPuedeGestionarEquipo,
 } from '@/lib/platform/talleres/operacional'
 import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
 
@@ -942,5 +943,46 @@ describe('loadCoordTalleresAgrupados — coordinador scope (role C confined to s
     )
     expect(groups).toHaveLength(2)
     expect(groups.map((g) => g.taller_id).sort()).toEqual(['t-A', 't-B'])
+  })
+})
+
+describe('coordPuedeGestionarEquipo — fail-closed equipo scope gate', () => {
+  const EQUIPO_A = 'equipo-A'
+  const EQUIPO_B = 'equipo-B'
+
+  it("role 'D' (global director/admin) may manage any equipo", () => {
+    expect(coordPuedeGestionarEquipo({ role: 'D', scopedEquipoIds: [] }, EQUIPO_A)).toBe(true)
+    expect(
+      coordPuedeGestionarEquipo({ role: 'D', scopedEquipoIds: [EQUIPO_B] }, EQUIPO_A),
+    ).toBe(true)
+  })
+
+  it("role 'C' may manage an equipo that is in scopedEquipoIds", () => {
+    expect(
+      coordPuedeGestionarEquipo({ role: 'C', scopedEquipoIds: [EQUIPO_A, EQUIPO_B] }, EQUIPO_A),
+    ).toBe(true)
+  })
+
+  it("role 'C' may NOT manage an equipo outside scopedEquipoIds", () => {
+    expect(
+      coordPuedeGestionarEquipo({ role: 'C', scopedEquipoIds: [EQUIPO_A] }, EQUIPO_B),
+    ).toBe(false)
+  })
+
+  it("role 'C' with an empty scope set manages nothing (fail-closed)", () => {
+    expect(coordPuedeGestionarEquipo({ role: 'C', scopedEquipoIds: [] }, EQUIPO_A)).toBe(false)
+  })
+
+  it("role 'C' with a null/undefined equipoId is denied (fail-closed)", () => {
+    expect(coordPuedeGestionarEquipo({ role: 'C', scopedEquipoIds: [EQUIPO_A] }, null)).toBe(false)
+    expect(
+      coordPuedeGestionarEquipo({ role: 'C', scopedEquipoIds: [EQUIPO_A] }, undefined),
+    ).toBe(false)
+  })
+
+  it("role 'L' (lead) may never manage an equipo", () => {
+    expect(coordPuedeGestionarEquipo({ role: 'L', scopedEquipoIds: [EQUIPO_A] }, EQUIPO_A)).toBe(
+      false,
+    )
   })
 })

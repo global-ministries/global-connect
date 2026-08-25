@@ -4,6 +4,8 @@
  * Lists the DISTINCT abstract talleres, with their ediciones (occurrences)
  * grouped underneath — not one card per edición.
  */
+import Link from 'next/link'
+
 import { DashboardPage, EmptyState } from '@/components/talleres/dashboard-page'
 import { TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 
@@ -37,14 +39,16 @@ export default async function TalleresPage() {
                 </TextoSistema>
                 <ul className="mt-3 space-y-2">
                   {t.ediciones.map((e) => (
-                    <li
-                      key={e.id}
-                      className="flex items-center justify-between gap-2 border-t border-black/5 pt-2"
-                    >
-                      <TextoSistema variante="sutil" className="text-sm">
-                        {e.nombre_snapshot} · {e.tipo === 'pareja' ? 'Pareja' : 'Individual'}
-                      </TextoSistema>
-                      <BadgeSistema>{e.estado}</BadgeSistema>
+                    <li key={e.id} className="border-t border-black/5 pt-2">
+                      <Link
+                        href={`/talleres/coordinacion/talleres/${e.id}`}
+                        className="-mx-1 flex items-center justify-between gap-2 rounded-md px-1 py-1 transition-colors hover:bg-black/5"
+                      >
+                        <TextoSistema variante="sutil" className="text-sm">
+                          {e.nombre_snapshot} · {e.tipo === 'pareja' ? 'Pareja' : 'Individual'}
+                        </TextoSistema>
+                        <BadgeSistema>{e.estado}</BadgeSistema>
+                      </Link>
                     </li>
                   ))}
                 </ul>

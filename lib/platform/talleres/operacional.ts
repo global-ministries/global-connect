@@ -146,6 +146,32 @@ export async function requireOperacionalRole(): Promise<OperacionalContext> {
   return result.context
 }
 
+/**
+ * Fail-closed gate: may this operacional user MANAGE (create/edit/cancel
+ * grupos, assign/remove líderes) the grupos of an edición whose cohorte
+ * belongs to `equipoId`?
+ *
+ *   - 'D' (global director/admin): always — their grants are scope_id NULL,
+ *     so RLS lets them touch every equipo.
+ *   - 'C' (coordinador): only when `equipoId` is one of their scoped equipos.
+ *     An empty scope set or a null/undefined `equipoId` denies (fail-closed).
+ *   - anything else ('L' lead): denied — grupo configuration is a
+ *     coordinator/director surface, not a líder one.
+ *
+ * RLS + the /api/talleres/grupos* capability gates remain the real security
+ * wall; this only aligns the coordinador UI so they never land on a page whose
+ * grupos their row-level scope would forbid them to edit.
+ */
+export function coordPuedeGestionarEquipo(
+  ctx: Pick<OperacionalContext, 'role' | 'scopedEquipoIds'>,
+  equipoId: string | null | undefined,
+): boolean {
+  if (ctx.role === 'D') return true
+  if (ctx.role !== 'C') return false
+  if (!equipoId) return false
+  return ctx.scopedEquipoIds.includes(equipoId)
+}
+
 // ─── Equipo (L) — mis-grupos / asistencia / reporte ───────────────────────
 
 export interface EquipoGrupo {
