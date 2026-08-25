@@ -219,6 +219,35 @@ describe('PR F — POST /api/talleres/grupos creates grupo + generates sessions'
   })
 })
 
+// ─── Scoped coordinator administers their own taller ───────────────────────
+//
+// A coordinator holds coordinator.write (scope_id = equipo), NOT director.*.
+// The endpoint honours it via requireTalleresApi's alsoAccept, so a
+// coordinator can create/list grupos in their own cohorte. RLS confines the
+// write to the coordinator's equipo — this app gate only lets the request
+// through.
+describe('PR — scoped coordinator (coordinator.write) may create + list grupos', () => {
+  it('POST returns 201 for a coordinator.write-only caller (no director.*)', async () => {
+    state.capabilities.set('talleres_crecimiento.coordinator.write', true)
+    const res = await crearGrupo(
+      makeReq({ cohorte_id: 'c-1', nombre: 'Grupo Coord', capacidad: 8 }),
+    )
+    expect(res.status).toBe(201)
+    expect(state.lastInsert).toMatchObject({ cohorte_id: 'c-1', estado: 'activo' })
+  })
+
+  it('GET returns 200 for a coordinator (coordinator.read) with no director.*', async () => {
+    state.capabilities.set('talleres_crecimiento.coordinator.read', true)
+    state.listRows = [
+      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Alfa', capacidad: 12, estado: 'activo', completed_at: null },
+    ]
+    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.count).toBe(1)
+  })
+})
+
 // ─── GET — list (unchanged contract) ───────────────────────────────────────
 
 describe('PR F — GET /api/talleres/grupos', () => {

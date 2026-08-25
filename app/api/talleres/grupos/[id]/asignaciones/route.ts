@@ -22,7 +22,13 @@ interface Body {
 const VALID_ROLES = new Set(['lider', 'voluntario'])
 
 export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
-  const gate = await requireTalleresApi('talleres_crecimiento.director.write')
+  // director.write is the primary gate; a scoped coordinator (coordinator.write)
+  // and a global admin (admin.manage) may also assign líderes — RLS confines the
+  // coordinator's write to their own equipo.
+  const gate = await requireTalleresApi('talleres_crecimiento.director.write', [
+    'talleres_crecimiento.admin.manage',
+    'talleres_crecimiento.coordinator.write',
+  ])
   if (!gate.ok) return gate.response
 
   const { id: grupoId } = await ctx.params
@@ -63,4 +69,38 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
     return NextResponse.json({ error: 'internal', message: error.message }, { status: 500 })
   }
   return NextResponse.json(data, { status: 201 })
+}
+
+/**
+ * GET /api/talleres/grupos/[id]/asignaciones — list a grupo's ACTIVE asignaciones.
+ *
+ * Read gate: director.read primary; a scoped coordinator (coordinator.read or
+ * coordinator.write) and a global admin (admin.manage) may also read — RLS
+ * confines the coordinator's read to their own equipo. Only activo=true rows
+ * are returned: a retired líder (soft-removed, activo=false) is history, not a
+ * current member, so the UI's "Quitar" list stays clean.
+ */
+export async function GET(_req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
+  const gate = await requireTalleresApi('talleres_crecimiento.director.read', [
+    'talleres_crecimiento.admin.manage',
+    'talleres_crecimiento.coordinator.read',
+    'talleres_crecimiento.coordinator.write',
+  ])
+  if (!gate.ok) return gate.response
+
+  const { id: grupoId } = await ctx.params
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gate.supabase
+  const { data, error } = await client
+    .from('taller_grupo_asignaciones')
+    .select('id, grupo_id, persona_id, rol, activo, started_at')
+    .eq('grupo_id', grupoId)
+    .eq('activo', true)
+    .order('started_at', { ascending: true })
+
+  if (error) {
+    return NextResponse.json({ error: 'internal', message: error.message }, { status: 500 })
+  }
+  return NextResponse.json({ asignaciones: data ?? [], count: (data ?? []).length })
 }

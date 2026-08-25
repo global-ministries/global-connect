@@ -148,6 +148,58 @@ describe('requireTalleresApi — capability gate', () => {
   })
 })
 
+// ─── alsoAccept widening — scoped coordinator administers their own taller ──
+//
+// The grupos endpoints are gated on the DIRECTOR capability (director.write /
+// director.read). A scoped coordinator holds coordinator.write (scope_id =
+// equipo), not director.*, so the bare gate 403s them on create/list/assign.
+// `alsoAccept` lets an endpoint declare the extra capabilities it honours
+// (mirrors inscripciones-actions.ts: director.write || admin.manage ||
+// coordinator.write). This app gate is deliberately coarse — RLS is the
+// security wall that confines the write to the coordinator's own equipo.
+describe('requireTalleresApi — alsoAccept widening (scoped coordinator)', () => {
+  it('accepts an additional capability (coordinator.write) via alsoAccept when neither the requested cap nor director.read is held', async () => {
+    state.rpc = (cap: string) =>
+      Promise.resolve({ data: cap === 'talleres_crecimiento.coordinator.write' })
+    const result = await requireTalleresApi('talleres_crecimiento.director.write', [
+      'talleres_crecimiento.coordinator.write',
+    ])
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.userId).toBe('user-1')
+  })
+
+  it('accepts admin.manage via alsoAccept', async () => {
+    state.rpc = (cap: string) =>
+      Promise.resolve({ data: cap === 'talleres_crecimiento.admin.manage' })
+    const result = await requireTalleresApi('talleres_crecimiento.director.write', [
+      'talleres_crecimiento.admin.manage',
+      'talleres_crecimiento.coordinator.write',
+    ])
+    expect(result.ok).toBe(true)
+  })
+
+  it('still 403s a coordinator.write-only caller on a BARE director.write gate (widening is opt-in per endpoint)', async () => {
+    state.rpc = (cap: string) =>
+      Promise.resolve({ data: cap === 'talleres_crecimiento.coordinator.write' })
+    const result = await requireTalleresApi('talleres_crecimiento.director.write')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.response.status).toBe(403)
+  })
+
+  it('short-circuits: does not consult alsoAccept when the requested capability is already held', async () => {
+    const calls: string[] = []
+    state.rpc = (cap: string) => {
+      calls.push(cap)
+      return Promise.resolve({ data: cap === 'talleres_crecimiento.director.write' })
+    }
+    const result = await requireTalleresApi('talleres_crecimiento.director.write', [
+      'talleres_crecimiento.coordinator.write',
+    ])
+    expect(result.ok).toBe(true)
+    expect(calls).toEqual(['talleres_crecimiento.director.write'])
+  })
+})
+
 describe('requireTalleresApi — RPC contract (pr40_5 regression)', () => {
   it('calls auth_has_talleres_capability with p_capability_key (never eval_talleres_capability)', async () => {
     // Force the superset path so we observe both rpc calls.

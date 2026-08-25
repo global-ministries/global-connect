@@ -20,7 +20,13 @@ interface Body {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const gate = await requireTalleresApi('talleres_crecimiento.director.write')
+  // director.write is the primary gate; a scoped coordinator (coordinator.write)
+  // and a global admin (admin.manage) may also create grupos — RLS confines the
+  // coordinator's insert to their own equipo.
+  const gate = await requireTalleresApi('talleres_crecimiento.director.write', [
+    'talleres_crecimiento.admin.manage',
+    'talleres_crecimiento.coordinator.write',
+  ])
   if (!gate.ok) return gate.response
 
   let body: Body
@@ -74,7 +80,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const gate = await requireTalleresApi('talleres_crecimiento.director.read')
+  // director.read is the primary gate; a scoped coordinator (coordinator.read or
+  // coordinator.write) and a global admin (admin.manage) may also list grupos —
+  // RLS confines the coordinator's read to their own equipo.
+  const gate = await requireTalleresApi('talleres_crecimiento.director.read', [
+    'talleres_crecimiento.admin.manage',
+    'talleres_crecimiento.coordinator.read',
+    'talleres_crecimiento.coordinator.write',
+  ])
   if (!gate.ok) return gate.response
 
   const cohorteId = req.nextUrl.searchParams.get('cohorte_id')
