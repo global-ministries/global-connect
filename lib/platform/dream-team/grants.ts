@@ -56,19 +56,34 @@ export interface GrantsTransitionContext {
 
 // ── Role → generic capability mapping (hybrid model) ─────────────────
 
+// Keys are pre-normalized with normalizeLabel so lookups below stay a plain object read.
 const ROLE_TO_GENERIC_CAPABILITIES: Record<string, readonly string[]> = {
-  Voluntario: ['dream_team.serve'],
-  'Voluntario de Cámara': ['dream_team.serve'],
-  Líder: ['dream_team.serve', 'dream_team.lead'],
-  'Líder de grupo': ['dream_team.serve', 'dream_team.lead', 'dream_team.gdv.lead'],
-  Coordinador: ['dream_team.serve', 'dream_team.coordinate'],
-  Director: ['dream_team.serve', 'dream_team.director.coordinate'],
+  [normalizeLabel('Voluntario')]: ['dream_team.serve'],
+  [normalizeLabel('Voluntario de Cámara')]: ['dream_team.serve'],
+  [normalizeLabel('Líder')]: ['dream_team.serve', 'dream_team.lead'],
+  [normalizeLabel('Líder de grupo')]: ['dream_team.serve', 'dream_team.lead', 'dream_team.gdv.lead'],
+  [normalizeLabel('Coordinador')]: ['dream_team.serve', 'dream_team.coordinate'],
+  // Director mints the equipo-scoped dream_team.direct (area director), NOT the global
+  // dream_team.director.coordinate. That capability is declared with scopeType 'experience', so
+  // scopeIdForGrant() always returns undefined for it — a grant with scope_id = NULL means GLOBAL
+  // scope to auth_has_dream_team_capability_in_tree. Assigning it through this flow gave every area
+  // director authority over the whole church. dream_team.director.coordinate now stays a global
+  // capability granted by hand only, for the actual person in charge of Dream Team as a whole.
+  [normalizeLabel('Director')]: ['dream_team.serve', 'dream_team.direct'],
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
+// Case- and diacritic-insensitive: the talleres_role_capability_map SQL trigger seeds
+// roles as lowercase, no-diacritic labels ('coordinador', 'director'), while role labels
+// shown in the UI are capitalized and accented ('Coordinador', 'Director'). Both must
+// resolve to the same generic/experience-specific capabilities.
 function normalizeLabel(label: string): string {
-  return label.trim()
+  return label
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 }
 
 function capabilityDefinition(key: string) {
@@ -83,8 +98,10 @@ function resolveExperienceSpecificCapability(
 ): string | undefined {
   const label = normalizeLabel(roleLabel)
   const isLead =
-    label === 'Líder' || label === 'Líder de grupo' || label === 'Coordinador'
-  const isDirector = label === 'Director'
+    label === normalizeLabel('Líder') ||
+    label === normalizeLabel('Líder de grupo') ||
+    label === normalizeLabel('Coordinador')
+  const isDirector = label === normalizeLabel('Director')
 
   switch (experience) {
     case 'dps':
