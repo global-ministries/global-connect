@@ -190,24 +190,44 @@ async function isCurrentAuthUser(authUserId: string | null): Promise<boolean> {
 
 const CurrentUserContext = createContext<CurrentUserData | null>(null)
 
-export function CurrentUserProvider({ children }: { children: ReactNode }) {
-  const [authUserId, setAuthUserId] = useState<string | null>(null)
-  const [usuario, setUsuario] = useState<Usuario | null>(null)
-  const [roles, setRoles] = useState<string[]>([])
-  const [supportCapabilities, setSupportCapabilities] = useState<string[]>([])
-  const [platformSession, setPlatformSession] = useState<PlatformSession | null>(null)
-  const [loading, setLoading] = useState(true)
+export function CurrentUserProvider({ children, initial }: { children: ReactNode; initial?: CurrentUserResult }) {
+  // `initial` is the server-resolved snapshot the layout hands down (see
+  // lib/auth/currentUserSnapshot.ts) — when present, the SSR pass already
+  // ran the same lookups this hook runs on the client, so state starts
+  // populated and `loading` starts false instead of true. Every existing
+  // caller omits this prop, so `initial` is undefined and every field below
+  // initializes exactly as it always has — this is purely additive.
+  const [authUserId, setAuthUserId] = useState<string | null>(initial?.authUserId ?? null)
+  const [usuario, setUsuario] = useState<Usuario | null>(initial?.usuario ?? null)
+  const [roles, setRoles] = useState<string[]>(initial?.roles ?? [])
+  const [supportCapabilities, setSupportCapabilities] = useState<string[]>(initial?.supportCapabilities ?? [])
+  const [platformSession, setPlatformSession] = useState<PlatformSession | null>(initial?.platformSession ?? null)
+  const [loading, setLoading] = useState(initial === undefined)
   const [error, setError] = useState<string | null>(null)
   const authGenerationRef = useRef(0)
   const signedInDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Whether the very first mount fetch below should behave like the
+  // talleres:refresh-session listener further down — a background
+  // revalidation that only ever updates state on success — instead of a
+  // normal loading fetch. Read once: only the initial mount (not a later
+  // SIGNED_IN refetch) is a candidate for silence, and only when the layout
+  // already gave us real data to show while it revalidates.
+  const hasServerSnapshotRef = useRef(initial !== undefined)
 
   useEffect(() => {
-    const fetchCurrentUser = async () => {
+    const fetchCurrentUser = async (options: { silent?: boolean } = {}) => {
       const authGeneration = authGenerationRef.current + 1
       authGenerationRef.current = authGeneration
 
       try {
-        setLoading(true)
+        // A silent run must never flip `loading` to true — that would undo
+        // the entire point of `initial`: the sidebar would show its
+        // role-gated items on first paint, then hide them again for the
+        // duration of this background revalidation. Every non-silent path
+        // (no `initial`, or a later SIGNED_IN refetch) is unaffected.
+        if (!options.silent) {
+          setLoading(true)
+        }
         setError(null)
 
         const result = await tryFetchCurrentUserData()
@@ -215,6 +235,12 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
         if (authGeneration !== authGenerationRef.current) return
 
         if (result.kind === 'timeout') {
+          if (options.silent) {
+            // A stalled background revalidation must not erase a perfectly
+            // good server-rendered snapshot — same reasoning as the
+            // talleres:refresh-session handler below: leave state as-is.
+            return
+          }
           // Fetch timed out — treat as unauthenticated and fail silently
           // (a stalled network should not surface an error toast to the user).
           setAuthUserId(null)
@@ -229,6 +255,14 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
           setSupportCapabilities(result.data.supportCapabilities)
           setPlatformSession(result.data.platformSession)
         } else {
+          if (options.silent) {
+            // Same reasoning as the timeout branch above — a background
+            // revalidation failure must not blank out a good initial
+            // snapshot. Still logged for ops even though it isn't surfaced
+            // as a user-facing toast here.
+            console.error('Error en useCurrentUser (revalidación en segundo plano):', result.error)
+            return
+          }
           // Real error from loadCurrentUserData (DB outage, RPC failure,
           // auth error). Surface through setError so the user gets a toast
           // and ops gets a Sentry report. Silent failure is reserved for
@@ -249,7 +283,7 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    fetchCurrentUser()
+    fetchCurrentUser({ silent: hasServerSnapshotRef.current })
 
     // Escuchar cambios en la autenticación
     const supabase = createClient()
