@@ -8,6 +8,7 @@
  * through these helpers.
  */
 import type { DreamTeamEstado, DreamTeamMotivo } from '@/lib/platform/dream-team/types'
+import type { RolLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import { PLATFORM_EXPERIENCE_CATALOG } from '@/lib/platform/experiences'
 
 export const ESTADO_LABELS: Record<DreamTeamEstado, string> = {
@@ -95,3 +96,22 @@ export const ROL_BADGE_VARIANTE: Readonly<Record<string, BadgeVariante>> = {
 export function rolBadgeVariante(label: string): BadgeVariante {
   return ROL_BADGE_VARIANTE[label.toLowerCase()] ?? 'default'
 }
+
+/**
+ * Spanish display label for a Grupos de Vida leader/co-leader surfaced
+ * read-only in the servidores/mi-equipo screens (see
+ * lib/platform/dream-team/lideres-gdv.ts). These are Grupos de Vida roles
+ * projected in, not one of the four Dream Team roles above — kept as a
+ * separate map rather than folded into ROL_LABELS.
+ */
+export const ROL_LIDER_GDV_LABELS: Readonly<Record<RolLiderGdv, string>> = {
+  lider: 'Líder de grupo',
+  colider: 'Colíder de grupo',
+}
+
+/**
+ * Badge copy marking a servidor row as sourced from Grupos de Vida rather
+ * than a Dream Team servicio — shown next to the role on both listing
+ * screens so it reads as read-only at a glance.
+ */
+export const ORIGEN_GRUPOS_VIDA_LABEL = 'Grupos de Vida'

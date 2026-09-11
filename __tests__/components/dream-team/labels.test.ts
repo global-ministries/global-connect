@@ -9,8 +9,19 @@
  *     letter of an unknown role label
  *   - ROL_BADGE_VARIANTE follows the Grupos de Vida hierarchy convention:
  *     the top role gets `warning`, the next gets `info`, the rest `default`
+ *   - ROL_LIDER_GDV_LABELS labels the two Grupos de Vida leadership roles
+ *     surfaced read-only in the servidores/mi-equipo screens
+ *   - ORIGEN_GRUPOS_VIDA_LABEL is the badge copy marking those rows as
+ *     coming from Grupos de Vida, not Dream Team
  */
-import { experienciaLabel, rolLabel, ROL_LABELS, ROL_BADGE_VARIANTE } from '@/components/dream-team/labels'
+import {
+  experienciaLabel,
+  rolLabel,
+  ROL_LABELS,
+  ROL_BADGE_VARIANTE,
+  ROL_LIDER_GDV_LABELS,
+  ORIGEN_GRUPOS_VIDA_LABEL,
+} from '@/components/dream-team/labels'
 
 describe('experienciaLabel', () => {
   it('resolves known experience catalog keys to their Spanish label', () => {
@@ -49,5 +60,18 @@ describe('ROL_BADGE_VARIANTE', () => {
     expect(ROL_BADGE_VARIANTE.coordinador).toBe('info')
     expect(ROL_BADGE_VARIANTE.lider).toBe('default')
     expect(ROL_BADGE_VARIANTE.voluntario).toBe('default')
+  })
+})
+
+describe('ROL_LIDER_GDV_LABELS', () => {
+  it('labels the two Grupos de Vida leadership roles', () => {
+    expect(ROL_LIDER_GDV_LABELS.lider).toBe('Líder de grupo')
+    expect(ROL_LIDER_GDV_LABELS.colider).toBe('Colíder de grupo')
+  })
+})
+
+describe('ORIGEN_GRUPOS_VIDA_LABEL', () => {
+  it('is the Spanish badge copy for a servidor sourced from Grupos de Vida', () => {
+    expect(ORIGEN_GRUPOS_VIDA_LABEL).toBe('Grupos de Vida')
   })
 })

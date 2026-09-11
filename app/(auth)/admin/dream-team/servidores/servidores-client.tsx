@@ -17,11 +17,16 @@
  * SelectLeaderModal.tsx: debounced persona search with `AbortController`,
  * a flattened-tree node selector, then a role selector for that node.
  *
- * Per row, the shared `<AvanceEtapaControl>` (see
- * components/dream-team/avance-etapa-control.tsx) is the single "Cambiar
- * etapa" action — both call `router.refresh()` on success instead of
- * reconciling local state, since the server component re-fetches the
- * RLS-scoped truth.
+ * Each row's `servidor` (see lib/platform/dream-team/servidores.ts) is
+ * either a Dream Team servicio or a Grupos de Vida leader/co-leader
+ * surfaced read-only (see lib/platform/dream-team/lideres-gdv.ts). A
+ * `dream_team` row gets the shared `<AvanceEtapaControl>` (see
+ * components/dream-team/avance-etapa-control.tsx) as its "Cambiar etapa"
+ * action, which calls `router.refresh()` on success instead of reconciling
+ * local state, since the server component re-fetches the RLS-scoped truth.
+ * A `grupos_vida` row never gets that control — its lifecycle is managed in
+ * Grupos de Vida, not here — and shows muted "Se gestiona en Grupos de
+ * Vida" text plus an 'Grupos de Vida' badge in its place.
  */
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -42,17 +47,32 @@ import { BotonFlotante } from '@/components/ui/BotonFlotante'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
-import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, rolLabel } from '@/components/dream-team/labels'
+import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, ORIGEN_GRUPOS_VIDA_LABEL, rolLabel } from '@/components/dream-team/labels'
 
 import { DREAM_TEAM_ESTADOS } from '@/lib/platform/dream-team/types'
-import type { DreamTeamEstado, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
+import type { DreamTeamEstado, DreamTeamRol } from '@/lib/platform/dream-team/types'
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
+import { claveDeServidor, equipoIdDeServidor, estadoDeServidor, type Servidor } from '@/lib/platform/dream-team/servidores'
 
 export interface ServidorRow {
-  readonly servicio: DreamTeamServicio
+  readonly servidor: Servidor
   readonly personaNombre: string
   readonly equipoLabel: string
   readonly rolLabel: string
+}
+
+/** The date a servidor started — `fechaInicio` for a servicio, `desde` for a GdV leader. */
+function fechaInicioDeServidor(servidor: Servidor): string {
+  return servidor.origen === 'dream_team' ? servidor.servicio.fechaInicio : servidor.lider.desde
+}
+
+/**
+ * The humanized rol text for a row. A dream_team row's `rolLabel` is the raw
+ * catalog key (e.g. `coordinador`) and needs `rolLabel()`; a grupos_vida
+ * row's is already the final Spanish text from `ROL_LIDER_GDV_LABELS`.
+ */
+function etiquetaRolDeFila(row: ServidorRow): string {
+  return row.servidor.origen === 'dream_team' ? rolLabel(row.rolLabel) : row.rolLabel
 }
 
 export interface ServidoresClientProps {
@@ -152,14 +172,14 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
       inactivo: 0,
       retirado: 0,
     }
-    for (const row of rows) conteo[row.servicio.estado] += 1
+    for (const row of rows) conteo[estadoDeServidor(row.servidor)] += 1
     return conteo
   }, [rows])
 
   const filasFiltradas = useMemo(() => {
     const texto = textoFiltro.trim().toLowerCase()
     return rows.filter((row) => {
-      if (estadoFiltro !== FILTRO_TODOS && row.servicio.estado !== estadoFiltro) return false
+      if (estadoFiltro !== FILTRO_TODOS && estadoDeServidor(row.servidor) !== estadoFiltro) return false
       if (texto && !row.personaNombre.toLowerCase().includes(texto)) return false
       return true
     })
@@ -266,9 +286,12 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filasFiltradas.map((row) => {
-                    const ruta = rutasAncestros.get(row.servicio.equipoId) ?? []
+                    const servidor = row.servidor
+                    const esGdv = servidor.origen === 'grupos_vida'
+                    const estado = estadoDeServidor(servidor)
+                    const ruta = rutasAncestros.get(equipoIdDeServidor(servidor)) ?? []
                     return (
-                      <tr key={row.servicio.id} className="hover:bg-muted/30">
+                      <tr key={claveDeServidor(servidor)} className="hover:bg-muted/30">
                         <td className="px-4 py-3 text-sm text-foreground">{row.personaNombre}</td>
                         <td className="px-4 py-3">
                           <div className="text-sm text-foreground">{row.equipoLabel}</div>
@@ -276,24 +299,46 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
                             <div className="text-xs text-muted-foreground/70">{ruta.join(' · ')}</div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{rolLabel(row.rolLabel)}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{etiquetaRolDeFila(row)}</span>
+                            {esGdv && servidor.origen === 'grupos_vida' && (
+                              <>
+                                <BadgeSistema variante="default" tamaño="sm">
+                                  {ORIGEN_GRUPOS_VIDA_LABEL}
+                                </BadgeSistema>
+                                {servidor.lider.grupos > 1 && (
+                                  <TextoSistema variante="sutil" tamaño="sm">
+                                    · {servidor.lider.grupos} grupos
+                                  </TextoSistema>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-4 py-3">
-                          <BadgeSistema variante={ESTADO_BADGE_VARIANTE[row.servicio.estado]} tamaño="sm">
-                            {ESTADO_LABELS[row.servicio.estado]}
+                          <BadgeSistema variante={ESTADO_BADGE_VARIANTE[estado]} tamaño="sm">
+                            {ESTADO_LABELS[estado]}
                           </BadgeSistema>
                         </td>
                         <td className="hidden px-4 py-3 text-sm text-muted-foreground lg:table-cell">
-                          {formatFecha(row.servicio.fechaInicio)}
+                          {formatFecha(fechaInicioDeServidor(servidor))}
                         </td>
                         {puedeEditar && (
                           <td className="px-4 py-3">
-                            <AvanceEtapaControl
-                              servicioId={row.servicio.id}
-                              estadoActual={row.servicio.estado}
-                              version={row.servicio.version}
-                              puedeEditar={puedeEditar}
-                              onSuccess={() => router.refresh()}
-                            />
+                            {esGdv ? (
+                              <TextoSistema variante="sutil" tamaño="sm">
+                                Se gestiona en Grupos de Vida
+                              </TextoSistema>
+                            ) : servidor.origen === 'dream_team' ? (
+                              <AvanceEtapaControl
+                                servicioId={servidor.servicio.id}
+                                estadoActual={servidor.servicio.estado}
+                                version={servidor.servicio.version}
+                                puedeEditar={puedeEditar}
+                                onSuccess={() => router.refresh()}
+                              />
+                            ) : null}
                           </td>
                         )}
                       </tr>
@@ -307,33 +352,54 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
           {/* Mobile — cards */}
           <div className="space-y-3 md:hidden">
             {filasFiltradas.map((row) => {
-              const ruta = rutasAncestros.get(row.servicio.equipoId) ?? []
+              const servidor = row.servidor
+              const esGdv = servidor.origen === 'grupos_vida'
+              const estado = estadoDeServidor(servidor)
+              const ruta = rutasAncestros.get(equipoIdDeServidor(servidor)) ?? []
               return (
-                <TarjetaSistema key={row.servicio.id} className="p-4">
+                <TarjetaSistema key={claveDeServidor(servidor)} className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <TextoSistema className="text-sm font-medium">{row.personaNombre}</TextoSistema>
                       <TextoSistema variante="sutil" className="mt-1 block text-xs">
                         {row.equipoLabel}
-                        {ruta.length > 0 && ` · ${ruta.join(' · ')}`} · {rolLabel(row.rolLabel)}
+                        {ruta.length > 0 && ` · ${ruta.join(' · ')}`} · {etiquetaRolDeFila(row)}
                       </TextoSistema>
+                      {esGdv && servidor.origen === 'grupos_vida' && (
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <BadgeSistema variante="default" tamaño="sm">
+                            {ORIGEN_GRUPOS_VIDA_LABEL}
+                          </BadgeSistema>
+                          {servidor.lider.grupos > 1 && (
+                            <TextoSistema variante="sutil" tamaño="sm">
+                              · {servidor.lider.grupos} grupos
+                            </TextoSistema>
+                          )}
+                        </div>
+                      )}
                       <TextoSistema variante="sutil" className="mt-1 block text-xs">
-                        Desde {formatFecha(row.servicio.fechaInicio)}
+                        Desde {formatFecha(fechaInicioDeServidor(servidor))}
                       </TextoSistema>
                     </div>
-                    <BadgeSistema variante={ESTADO_BADGE_VARIANTE[row.servicio.estado]} tamaño="sm">
-                      {ESTADO_LABELS[row.servicio.estado]}
+                    <BadgeSistema variante={ESTADO_BADGE_VARIANTE[estado]} tamaño="sm">
+                      {ESTADO_LABELS[estado]}
                     </BadgeSistema>
                   </div>
                   {puedeEditar && (
                     <div className="mt-3">
-                      <AvanceEtapaControl
-                        servicioId={row.servicio.id}
-                        estadoActual={row.servicio.estado}
-                        version={row.servicio.version}
-                        puedeEditar={puedeEditar}
-                        onSuccess={() => router.refresh()}
-                      />
+                      {esGdv ? (
+                        <TextoSistema variante="sutil" tamaño="sm">
+                          Se gestiona en Grupos de Vida
+                        </TextoSistema>
+                      ) : servidor.origen === 'dream_team' ? (
+                        <AvanceEtapaControl
+                          servicioId={servidor.servicio.id}
+                          estadoActual={servidor.servicio.estado}
+                          version={servidor.servicio.version}
+                          puedeEditar={puedeEditar}
+                          onSuccess={() => router.refresh()}
+                        />
+                      ) : null}
                     </div>
                   )}
                 </TarjetaSistema>

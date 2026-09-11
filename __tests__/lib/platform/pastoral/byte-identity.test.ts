@@ -81,13 +81,21 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   //                       parent as a root, which is the normal shape of a
   //                       scoped read.
   //   personas.ts       — new: one bulk name lookup for the listing screens.
+  //   lideres-gdv.ts    — new (2026-09-11): reads Grupos de Vida leaders via
+  //                       the dream_team_lideres_gdv() RPC, surfaced
+  //                       read-only in the servidores/mi-equipo screens.
+  //   servidores.ts     — new (2026-09-11): pure Servidor union + helpers so
+  //                       both screens share one notion of "a person
+  //                       serving" across the two sources.
   'lib/platform/dream-team/arbol.ts',
   'lib/platform/dream-team/grants.ts',
+  'lib/platform/dream-team/lideres-gdv.ts',
   'lib/platform/dream-team/personas.ts',
   'lib/platform/dream-team/repository-fake.ts',
   'lib/platform/dream-team/repository-supabase.ts',
   'lib/platform/dream-team/repository.ts',
   'lib/platform/dream-team/route-access.ts',
+  'lib/platform/dream-team/servidores.ts',
   'lib/platform/dream-team/types.ts',
 
   // PR24 (2026-08-14): fix sidebar 404 — talleres admin href /admin/talleres

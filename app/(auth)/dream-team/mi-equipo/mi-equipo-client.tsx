@@ -13,6 +13,14 @@
  * badge, etapa badge, and "Cambiar etapa" when `puedeEditar`); an empty
  * node gets one muted "Sin servidores" line instead of its own card, so a
  * director can scan for gaps without eight near-empty cards.
+ *
+ * Each member row's `servidor` (see lib/platform/dream-team/servidores.ts)
+ * is either a Dream Team servicio or a Grupos de Vida leader/co-leader
+ * surfaced read-only (see lib/platform/dream-team/lideres-gdv.ts). A
+ * `grupos_vida` row is always shown as Activo, gets the 'Grupos de Vida'
+ * badge next to its rol, and never gets "Cambiar etapa" — its lifecycle is
+ * managed in Grupos de Vida — showing muted "Se gestiona en Grupos de
+ * Vida" text instead when `puedeEditar`.
  */
 import { useMemo, useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
@@ -22,16 +30,26 @@ import { BadgeSistema, ContenedorDashboard, TarjetaSistema, TextoSistema } from 
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { NodoFila, NODO_FILA_INDENTACION_PX_MAXIMA, NODO_FILA_INDENTACION_PX_POR_NIVEL } from '@/components/dream-team/nodo-fila'
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
-import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, rolBadgeVariante, rolLabel } from '@/components/dream-team/labels'
+import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, ORIGEN_GRUPOS_VIDA_LABEL, rolBadgeVariante, rolLabel } from '@/components/dream-team/labels'
 
 import { DREAM_TEAM_ESTADOS } from '@/lib/platform/dream-team/types'
-import type { DreamTeamEstado, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
+import type { DreamTeamEstado, DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { contarPorRama, type NodoArbol } from '@/lib/platform/dream-team/arbol'
+import { claveDeServidor, estadoDeServidor, type Servidor } from '@/lib/platform/dream-team/servidores'
 
 export interface MiEquipoServicioRow {
-  readonly servicio: DreamTeamServicio
+  readonly servidor: Servidor
   readonly personaNombre: string
   readonly rolLabel: string
+}
+
+/**
+ * The humanized rol text for a row. A dream_team row's `rolLabel` is the raw
+ * catalog key (e.g. `coordinador`) and needs `rolLabel()`; a grupos_vida
+ * row's is already the final Spanish text from `ROL_LIDER_GDV_LABELS`.
+ */
+function etiquetaRolDeFila(fila: MiEquipoServicioRow): string {
+  return fila.servidor.origen === 'dream_team' ? rolLabel(fila.rolLabel) : fila.rolLabel
 }
 
 export interface MiEquipoClientProps {
@@ -73,7 +91,7 @@ export function MiEquipoClient({
       retirado: 0,
     }
     for (const filas of Object.values(serviciosPorEquipo)) {
-      for (const fila of filas) conteo[fila.servicio.estado] += 1
+      for (const fila of filas) conteo[estadoDeServidor(fila.servidor)] += 1
     }
     return conteo
   }, [serviciosPorEquipo])
@@ -129,33 +147,57 @@ export function MiEquipoClient({
               </TextoSistema>
             ) : filas.length === 0 ? null : (
               <ul className="grid gap-2 border-l border-border pl-3">
-                {filas.map((fila) => (
-                  <li
-                    key={fila.servicio.id}
-                    className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 first:border-t-0 first:pt-0"
-                  >
-                    <div className="min-w-0">
-                      <TextoSistema className="text-sm font-medium">{fila.personaNombre}</TextoSistema>
-                      <BadgeSistema variante={rolBadgeVariante(fila.rolLabel)} tamaño="sm" className="mt-1">
-                        {rolLabel(fila.rolLabel)}
-                      </BadgeSistema>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <BadgeSistema variante={ESTADO_BADGE_VARIANTE[fila.servicio.estado]} tamaño="sm">
-                        {ESTADO_LABELS[fila.servicio.estado]}
-                      </BadgeSistema>
-                      {puedeEditar && (
-                        <AvanceEtapaControl
-                          servicioId={fila.servicio.id}
-                          estadoActual={fila.servicio.estado}
-                          version={fila.servicio.version}
-                          puedeEditar={puedeEditar}
-                          onSuccess={() => router.refresh()}
-                        />
-                      )}
-                    </div>
-                  </li>
-                ))}
+                {filas.map((fila) => {
+                  const servidor = fila.servidor
+                  const esGdv = servidor.origen === 'grupos_vida'
+                  const estado = estadoDeServidor(servidor)
+                  return (
+                    <li
+                      key={claveDeServidor(servidor)}
+                      className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 first:border-t-0 first:pt-0"
+                    >
+                      <div className="min-w-0">
+                        <TextoSistema className="text-sm font-medium">{fila.personaNombre}</TextoSistema>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <BadgeSistema variante={rolBadgeVariante(fila.rolLabel)} tamaño="sm">
+                            {etiquetaRolDeFila(fila)}
+                          </BadgeSistema>
+                          {esGdv && servidor.origen === 'grupos_vida' && (
+                            <>
+                              <BadgeSistema variante="default" tamaño="sm">
+                                {ORIGEN_GRUPOS_VIDA_LABEL}
+                              </BadgeSistema>
+                              {servidor.lider.grupos > 1 && (
+                                <TextoSistema variante="sutil" tamaño="sm">
+                                  · {servidor.lider.grupos} grupos
+                                </TextoSistema>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <BadgeSistema variante={ESTADO_BADGE_VARIANTE[estado]} tamaño="sm">
+                          {ESTADO_LABELS[estado]}
+                        </BadgeSistema>
+                        {puedeEditar &&
+                          (esGdv ? (
+                            <TextoSistema variante="sutil" tamaño="sm">
+                              Se gestiona en Grupos de Vida
+                            </TextoSistema>
+                          ) : servidor.origen === 'dream_team' ? (
+                            <AvanceEtapaControl
+                              servicioId={servidor.servicio.id}
+                              estadoActual={servidor.servicio.estado}
+                              version={servidor.servicio.version}
+                              puedeEditar={puedeEditar}
+                              onSuccess={() => router.refresh()}
+                            />
+                          ) : null)}
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>

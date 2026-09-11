@@ -4,7 +4,9 @@
  * Third of the three Dream Team screens: the operative view for an area
  * director (outside /admin — reached by direct URL only, not wired into
  * navigation). Shows the branch of the org tree the caller reaches and, per
- * node, who serves there with their current stage.
+ * node, who serves there with their current stage — Dream Team servicios
+ * PLUS Grupos de Vida leaders/co-leaders surfaced read-only (see
+ * lib/platform/dream-team/lideres-gdv.ts, lib/platform/dream-team/servidores.ts).
  */
 import { notFound, redirect } from 'next/navigation'
 
@@ -18,7 +20,10 @@ import {
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import { ROL_LIDER_GDV_LABELS } from '@/components/dream-team/labels'
+import { equipoIdDeServidor, personaIdDeServidor, type Servidor } from '@/lib/platform/dream-team/servidores'
 
 import { MiEquipoClient, type MiEquipoServicioRow } from './mi-equipo-client'
 
@@ -47,8 +52,11 @@ export default async function DreamTeamMiEquipoPage() {
 
   // listServicios({}) once (RLS-scoped to the same branch) and group locally
   // by equipoId, instead of one listServicios({ equipoId }) call per node —
-  // avoids N+1 over the branch's equipo count.
-  const [servicios, entradasRoles] = await Promise.all([
+  // avoids N+1 over the branch's equipo count. fetchLideresGdv() applies its
+  // own tree-authority check server-side (see its docstring) — a director
+  // without reach into the Grupos de Vida node gets zero rows back, same
+  // shape as the RLS-scoped queries above.
+  const [servicios, entradasRoles, lideresGdv] = await Promise.all([
     repo.listServicios({}),
     Promise.all(
       equipos.map(async (equipo): Promise<readonly [string, readonly DreamTeamRol[]]> => [
@@ -56,6 +64,7 @@ export default async function DreamTeamMiEquipoPage() {
         await repo.listRolesPorEquipo(equipo.id),
       ]),
     ),
+    fetchLideresGdv(supabase),
   ])
 
   const rolLabelPorId = new Map(entradasRoles.flatMap(([, roles]) => roles).map((rol) => [rol.id, rol.label]))
@@ -65,21 +74,32 @@ export default async function DreamTeamMiEquipoPage() {
 
   // Same reasoning as servidores/page.tsx: usuarios is not a dream-team
   // table, so persona names are resolved here with a single bulk lookup
-  // rather than added to the repository.
-  const personaNombrePorId = await fetchNombresPersonas(
-    supabase,
-    servicios.map((servicio) => servicio.personaId),
-  )
+  // rather than added to the repository — over servicio persona ids PLUS
+  // GdV leader persona ids.
+  const personaNombrePorId = await fetchNombresPersonas(supabase, [
+    ...servicios.map((servicio) => servicio.personaId),
+    ...lideresGdv.map((lider) => lider.personaId),
+  ])
+
+  const servidores: readonly Servidor[] = [
+    ...servicios.map((servicio): Servidor => ({ origen: 'dream_team', servicio })),
+    ...lideresGdv.map((lider): Servidor => ({ origen: 'grupos_vida', lider })),
+  ]
 
   const serviciosPorEquipo: Record<string, MiEquipoServicioRow[]> = {}
-  for (const servicio of servicios) {
-    if (!equipoIds.has(servicio.equipoId)) continue
+  for (const servidor of servidores) {
+    const equipoId = equipoIdDeServidor(servidor)
+    if (!equipoIds.has(equipoId)) continue
+    const personaId = personaIdDeServidor(servidor)
     const fila: MiEquipoServicioRow = {
-      servicio,
-      personaNombre: personaNombrePorId.get(servicio.personaId) ?? 'Persona no encontrada',
-      rolLabel: rolLabelPorId.get(servicio.rolId) ?? 'Rol no encontrado',
+      servidor,
+      personaNombre: personaNombrePorId.get(personaId) ?? 'Persona no encontrada',
+      rolLabel:
+        servidor.origen === 'dream_team'
+          ? (rolLabelPorId.get(servidor.servicio.rolId) ?? 'Rol no encontrado')
+          : ROL_LIDER_GDV_LABELS[servidor.lider.rol],
     }
-    ;(serviciosPorEquipo[servicio.equipoId] ??= []).push(fila)
+    ;(serviciosPorEquipo[equipoId] ??= []).push(fila)
   }
 
   const puedeEditar = hasDreamTeamWriteCapability(session)

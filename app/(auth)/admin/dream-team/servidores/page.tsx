@@ -1,11 +1,14 @@
 /**
  * Dream Team — /admin/dream-team/servidores (RSC).
  *
- * Second of the three Dream Team screens: the pool of servicios (who serves,
- * where, in which role, in which stage). Server component loads equipos +
- * roles + servicios and resolves display labels server-side; the client
- * island (./servidores-client.tsx) only renders + filters + drives the
- * assigner and stage-advance API calls.
+ * Second of the three Dream Team screens: the pool of servidores (who
+ * serves, where, in which role, in which stage) — Dream Team servicios PLUS
+ * Grupos de Vida leaders/co-leaders surfaced read-only (see
+ * lib/platform/dream-team/lideres-gdv.ts, lib/platform/dream-team/servidores.ts).
+ * Server component loads equipos + roles + servicios + GdV leaders and
+ * resolves display labels server-side; the client island
+ * (./servidores-client.tsx) only renders + filters + drives the assigner
+ * and stage-advance API calls.
  *
  * Not wired into the sidebar/navigation yet — reached by direct URL only.
  */
@@ -21,7 +24,9 @@ import {
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import { ROL_LIDER_GDV_LABELS } from '@/components/dream-team/labels'
 
 import { ServidoresClient, type ServidorRow } from './servidores-client'
 
@@ -44,7 +49,14 @@ export default async function DreamTeamServidoresPage() {
   // estructura/page.tsx). listServicios({}) is called once, unfiltered: the
   // estado filter lives client-side so the "count per etapa" header can show
   // totals across all 6 states regardless of the currently applied filter.
-  const [servicios, equipos] = await Promise.all([repo.listServicios({}), repo.listEquipos()])
+  // fetchLideresGdv() applies its own tree-authority check server-side (see
+  // its docstring) — a caller without authority over the Grupos de Vida node
+  // simply gets zero rows back, same shape as the RLS-scoped queries above.
+  const [servicios, equipos, lideresGdv] = await Promise.all([
+    repo.listServicios({}),
+    repo.listEquipos(),
+    fetchLideresGdv(supabase),
+  ])
   const arbol = construirArbol(equipos)
 
   // Same tradeoff as estructura/page.tsx: listRolesPorEquipo() is per-equipo,
@@ -66,20 +78,33 @@ export default async function DreamTeamServidoresPage() {
   // Persona display names are not part of DreamTeamServicio (it only carries
   // personaId, see types.ts) and the repository has no join for them.
   // Resolving them here with a single bulk `usuarios.in(id)` lookup (see
-  // lib/platform/dream-team/personas.ts) avoids an N+1 over servicios.length
-  // while keeping the dream-team repository free of a cross-domain concern
-  // — usuarios is not a dream-team table.
-  const personaNombrePorId = await fetchNombresPersonas(
-    supabase,
-    servicios.map((servicio) => servicio.personaId),
-  )
+  // lib/platform/dream-team/personas.ts) avoids an N+1 over
+  // servicios.length + lideresGdv.length while keeping the dream-team
+  // repository free of a cross-domain concern — usuarios is not a
+  // dream-team table.
+  const personaNombrePorId = await fetchNombresPersonas(supabase, [
+    ...servicios.map((servicio) => servicio.personaId),
+    ...lideresGdv.map((lider) => lider.personaId),
+  ])
 
-  const rows: readonly ServidorRow[] = servicios.map((servicio) => ({
-    servicio,
-    personaNombre: personaNombrePorId.get(servicio.personaId) ?? 'Persona no encontrada',
-    equipoLabel: equipoLabelPorId.get(servicio.equipoId) ?? 'Equipo no encontrado',
-    rolLabel: rolLabelPorId.get(servicio.rolId) ?? 'Rol no encontrado',
-  }))
+  const rows: readonly ServidorRow[] = [
+    ...servicios.map(
+      (servicio): ServidorRow => ({
+        servidor: { origen: 'dream_team', servicio },
+        personaNombre: personaNombrePorId.get(servicio.personaId) ?? 'Persona no encontrada',
+        equipoLabel: equipoLabelPorId.get(servicio.equipoId) ?? 'Equipo no encontrado',
+        rolLabel: rolLabelPorId.get(servicio.rolId) ?? 'Rol no encontrado',
+      }),
+    ),
+    ...lideresGdv.map(
+      (lider): ServidorRow => ({
+        servidor: { origen: 'grupos_vida', lider },
+        personaNombre: personaNombrePorId.get(lider.personaId) ?? 'Persona no encontrada',
+        equipoLabel: equipoLabelPorId.get(lider.equipoId) ?? 'Equipo no encontrado',
+        rolLabel: ROL_LIDER_GDV_LABELS[lider.rol],
+      }),
+    ),
+  ]
 
   const puedeEditar = hasDreamTeamWriteCapability(session)
 
