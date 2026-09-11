@@ -26,7 +26,7 @@ import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, rolBadgeVariante, rolLabel } from
 
 import { DREAM_TEAM_ESTADOS } from '@/lib/platform/dream-team/types'
 import type { DreamTeamEstado, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
-import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
+import { contarPorRama, type NodoArbol } from '@/lib/platform/dream-team/arbol'
 
 export interface MiEquipoServicioRow {
   readonly servicio: DreamTeamServicio
@@ -53,6 +53,15 @@ export function MiEquipoClient({
 }: MiEquipoClientProps): ReactElement {
   const router = useRouter()
   const [colapsados, setColapsados] = useState<ReadonlySet<string>>(new Set())
+
+  // Branch headcount: a parent's people live in its descendants. Counting only
+  // the node itself told a director "Experiencia · Sin servidores" while three
+  // people served beneath it.
+  const totalesPorRama = useMemo(() => {
+    const propios: Record<string, number> = {}
+    for (const [equipoId, filas] of Object.entries(serviciosPorEquipo)) propios[equipoId] = filas.length
+    return contarPorRama(arbol, propios)
+  }, [arbol, serviciosPorEquipo])
 
   const conteoPorEstado = useMemo(() => {
     const conteo: Record<DreamTeamEstado, number> = {
@@ -95,6 +104,7 @@ export function MiEquipoClient({
       const { equipo, hijos, nivel } = nodo
       const roles = rolesPorEquipo[equipo.id] ?? []
       const filas = serviciosPorEquipo[equipo.id] ?? []
+      const totalRama = totalesPorRama.get(equipo.id) ?? filas.length
       const expandido = !colapsados.has(equipo.id)
 
       const bloque = (
@@ -108,16 +118,16 @@ export function MiEquipoClient({
             onToggleExpandido={() => toggleColapsado(equipo.id)}
             accesorio={
               <TextoSistema variante="sutil" tamaño="sm" className="whitespace-nowrap">
-                {filas.length} {filas.length === 1 ? 'persona' : 'personas'}
+                {etiquetaConteo(totalRama, hijos.length > 0)}
               </TextoSistema>
             }
           />
           <div style={{ marginLeft: indentacionPx(nivel) + 44 }} className="pb-2">
-            {filas.length === 0 ? (
+            {totalRama === 0 ? (
               <TextoSistema variante="sutil" tamaño="sm" className="text-muted-foreground/70">
                 Sin servidores
               </TextoSistema>
-            ) : (
+            ) : filas.length === 0 ? null : (
               <ul className="grid gap-2 border-l border-border pl-3">
                 {filas.map((fila) => (
                   <li
@@ -171,4 +181,13 @@ export function MiEquipoClient({
       </TarjetaSistema>
     </ContenedorDashboard>
   )
+}
+
+/**
+ * A leaf shows its own people; a parent shows its whole branch and says so,
+ * so "3 en la rama" is never mistaken for three people serving directly there.
+ */
+function etiquetaConteo(total: number, tieneHijos: boolean): string {
+  if (tieneHijos) return `${total} en la rama`
+  return `${total} ${total === 1 ? 'persona' : 'personas'}`
 }

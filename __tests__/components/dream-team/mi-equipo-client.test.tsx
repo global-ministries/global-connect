@@ -55,6 +55,35 @@ const arbolConUnNodo: readonly NodoArbol[] = [
 ]
 
 describe('MiEquipoClient', () => {
+  // Reproduces the preview screenshot: a parent with nobody directly under it
+  // but people in its descendants showed "0 personas · Sin servidores".
+  it('counts the whole branch on a parent and never says "Sin servidores" when descendants serve', () => {
+    const arbol: readonly NodoArbol[] = [
+      {
+        equipo: { id: 'experiencia', label: 'Dirección de Experiencia', experiencia: 'experiencia', activo: true },
+        nivel: 0,
+        hijos: [
+          { equipo: { id: 'camaras', label: 'Cámaras', experiencia: 'dps', activo: true, parentEquipoId: 'experiencia' }, hijos: [], nivel: 1 },
+        ],
+      },
+    ]
+    const filas: readonly MiEquipoServicioRow[] = [
+      { servicio: servicio({ id: 's-1', equipoId: 'camaras' }), personaNombre: 'Ana Pérez', rolLabel: 'voluntario' },
+      { servicio: servicio({ id: 's-2', equipoId: 'camaras', personaId: personaId('p-2') }), personaNombre: 'Luis Gómez', rolLabel: 'voluntario' },
+    ]
+
+    render(
+      <MiEquipoClient arbol={arbol} rolesPorEquipo={{}} serviciosPorEquipo={{ camaras: filas }} puedeEditar={false} />,
+    )
+
+    // parent: branch total, labelled as such
+    expect(screen.getByText('2 en la rama')).toBeInTheDocument()
+    // leaf: its own people
+    expect(screen.getByText('2 personas')).toBeInTheDocument()
+    // nobody in this branch is missing, so the empty line must not appear
+    expect(screen.queryByText('Sin servidores')).not.toBeInTheDocument()
+  })
+
   it('renders the branch with persona, humanized rol and estado per servicio', () => {
     const filas: readonly MiEquipoServicioRow[] = [
       { servicio: servicio({ id: 's-1' }), personaNombre: 'Ana Pérez', rolLabel: 'coordinador' },

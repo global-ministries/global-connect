@@ -1,4 +1,4 @@
-import { construirArbol, type NodoArbol } from '@/lib/platform/dream-team/arbol'
+import { construirArbol, contarPorRama, type NodoArbol } from '@/lib/platform/dream-team/arbol'
 import type { DreamTeamEquipo } from '@/lib/platform/dream-team/types'
 
 function equipo(overrides: Partial<DreamTeamEquipo> & Pick<DreamTeamEquipo, 'id' | 'label'>): DreamTeamEquipo {
@@ -104,5 +104,52 @@ describe('construirArbol', () => {
 
     // The only acyclic root ('c', no parent) must still be present.
     expect(arbol.some((n) => n.equipo.id === 'c')).toBe(true)
+  })
+})
+
+/**
+ * contarPorRama — subtree headcount, regression.
+ *
+ * "Mi equipo" showed each node's DIRECT headcount only. On the preview the
+ * admin saw "Dirección de Experiencia · 0 personas · Sin servidores" while the
+ * page header said "Activo: 6" — three of them serve in Cámaras, Media and
+ * Sonido, all under Experiencia. With the branch folded, a director would read
+ * that Experiencia was empty.
+ */
+describe('contarPorRama', () => {
+  const eq = (id: string, parentEquipoId?: string): DreamTeamEquipo => ({
+    id,
+    experiencia: 'dps',
+    label: id,
+    activo: true,
+    ...(parentEquipoId ? { parentEquipoId } : {}),
+  })
+
+  // Experiencia → DPS → { Cámaras, Media }
+  const arbol = construirArbol([
+    eq('experiencia'),
+    eq('dps', 'experiencia'),
+    eq('camaras', 'dps'),
+    eq('media', 'dps'),
+  ])
+
+  it('rolls descendants up into every ancestor', () => {
+    const totales = contarPorRama(arbol, { camaras: 2, media: 1 })
+    expect(totales.get('camaras')).toBe(2)
+    expect(totales.get('media')).toBe(1)
+    expect(totales.get('dps')).toBe(3)
+    expect(totales.get('experiencia')).toBe(3)
+  })
+
+  it('adds a node own people to its descendants', () => {
+    const totales = contarPorRama(arbol, { dps: 1, camaras: 2 })
+    expect(totales.get('dps')).toBe(3)
+    expect(totales.get('experiencia')).toBe(3)
+  })
+
+  it('is zero only when the whole branch is empty', () => {
+    const totales = contarPorRama(arbol, {})
+    expect(totales.get('experiencia')).toBe(0)
+    expect(totales.get('camaras')).toBe(0)
   })
 })

@@ -62,3 +62,33 @@ export function construirArbol(equipos: readonly DreamTeamEquipo[]): readonly No
 
   return ordenarPorLabel(raices).map((raiz) => construirNodo(raiz, 0))
 }
+
+/**
+ * Headcount per node for the WHOLE branch below it, not just the node itself.
+ *
+ * A node's own servicios are only part of the picture: the people serving in
+ * Cámaras, Media and Sonido also belong to DPS and to Dirección de Experiencia.
+ * Showing only the direct count told a director "Experiencia · 0 personas ·
+ * Sin servidores" while three people served beneath it — and with the branch
+ * folded, that reads as an empty area.
+ *
+ * Returns `nodeId → own people + every descendant's people`. Pure; walks the
+ * already-built tree, so it inherits construirArbol's cycle guard.
+ */
+export function contarPorRama(
+  arbol: readonly NodoArbol[],
+  propiosPorEquipo: Readonly<Record<string, number>>,
+): ReadonlyMap<string, number> {
+  const totales = new Map<string, number>()
+
+  function visitar(nodo: NodoArbol): number {
+    const propios = propiosPorEquipo[nodo.equipo.id] ?? 0
+    const deLaRama = nodo.hijos.reduce((suma, hijo) => suma + visitar(hijo), 0)
+    const total = propios + deLaRama
+    totales.set(nodo.equipo.id, total)
+    return total
+  }
+
+  for (const raiz of arbol) visitar(raiz)
+  return totales
+}
