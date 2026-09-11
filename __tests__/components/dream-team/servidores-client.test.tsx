@@ -2,17 +2,19 @@
  * `<ServidoresClient>` — island for /admin/dream-team/servidores (the pool).
  *
  * Covers:
- *   - renders the list: persona, equipo, rol, estado
- *   - filters the list by estado
- *   - hides the assigner + stage-advance controls without write capability
+ *   - renders the list: persona, equipo, rol (humanized), estado
+ *   - filters the list by estado and by persona nombre text
+ *   - the primary "Asignar servicio" action (header + mobile FAB) renders
+ *     only with write capability
+ *   - the Filtros Sheet opens and exposes the etapa filter
+ *   - the Equipo column shows the node label plus its visible ancestor path
  *   - offers a stage-advance control only for a non-terminal servicio
  *     (retirado has no valid transitions, per TRANSICIONES_VALIDAS)
  *
- * The component renders a desktop table AND mobile cards simultaneously
- * (see components/talleres/tabla-inscripciones.tsx) — jsdom does not apply
- * the `hidden sm:block` / `sm:hidden` breakpoints, so every row's content
- * appears twice. Assertions use getAllBy* accordingly (same convention as
- * __tests__/components/talleres/tabla-inscripciones.test.tsx).
+ * The component renders a desktop table AND mobile cards simultaneously —
+ * jsdom does not apply the `hidden md:table-cell` / `md:hidden` breakpoints,
+ * so every row's content appears twice. Assertions use getAllBy*
+ * accordingly (same convention as __tests__/components/talleres/tabla-inscripciones.test.tsx).
  */
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -26,6 +28,28 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: jest.fn(), refresh: jest.fn(), push: jest.fn() }),
   usePathname: () => '/admin/dream-team/servidores',
   useSearchParams: () => new URLSearchParams(),
+}))
+
+// Same convention as __tests__/app/dashboard-page.test.tsx: ContenedorDashboard
+// lazy-loads its header behind Suspense (async, doesn't resolve synchronously
+// under jsdom) — swap it for a synchronous test double, keep everything else real.
+jest.mock('@/components/ui/sistema-diseno', () => ({
+  ...jest.requireActual('@/components/ui/sistema-diseno'),
+  ContenedorDashboard: ({
+    children,
+    titulo,
+    accionPrincipal,
+  }: {
+    children: React.ReactNode
+    titulo?: string
+    accionPrincipal?: React.ReactNode
+  }) => (
+    <section>
+      <h1>{titulo}</h1>
+      {accionPrincipal}
+      {children}
+    </section>
+  ),
 }))
 
 function servicio(overrides: Partial<DreamTeamServicio> = {}): DreamTeamServicio {
@@ -46,26 +70,51 @@ const arbol: readonly NodoArbol[] = [
   { equipo: { id: 'equipo-dps', label: 'DPS', experiencia: 'dps', activo: true }, hijos: [], nivel: 0 },
 ]
 
+// Three levels deep: DPS > Producción Técnica > Cámaras — for the ancestor
+// path assertion ("DPS · Producción Técnica" for the "Cámaras" leaf).
+const arbolAnidado: readonly NodoArbol[] = [
+  {
+    equipo: { id: 'equipo-dps', label: 'DPS', experiencia: 'dps', activo: true },
+    nivel: 0,
+    hijos: [
+      {
+        equipo: { id: 'equipo-produccion', label: 'Producción Técnica', experiencia: 'dps', activo: true },
+        nivel: 1,
+        hijos: [
+          {
+            equipo: { id: 'equipo-camaras', label: 'Cámaras', experiencia: 'dps', activo: true },
+            nivel: 2,
+            hijos: [],
+          },
+        ],
+      },
+    ],
+  },
+]
+
 describe('ServidoresClient', () => {
-  it('renders the list with persona, equipo, rol and estado', () => {
+  it('renders the list with persona, equipo, humanized rol and estado', () => {
     const rows: ServidorRow[] = [
-      { servicio: servicio({ id: 's-1' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'Cámara' },
+      { servicio: servicio({ id: 's-1' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' },
     ]
     render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
 
     expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
     expect(screen.getAllByText('DPS').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Cámara').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Coordinador').length).toBeGreaterThan(0)
+    expect(screen.queryByText('coordinador')).not.toBeInTheDocument()
     expect(screen.getAllByText('Activo').length).toBeGreaterThan(0)
   })
 
   it('filters the list by estado', () => {
     const rows: ServidorRow[] = [
-      { servicio: servicio({ id: 's-1', estado: 'activo' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'Cámara' },
-      { servicio: servicio({ id: 's-2', estado: 'postulado' }), personaNombre: 'Luis Gómez', equipoLabel: 'DPS', rolLabel: 'Cámara' },
+      { servicio: servicio({ id: 's-1', estado: 'activo' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' },
+      { servicio: servicio({ id: 's-2', estado: 'postulado' }), personaNombre: 'Luis Gómez', equipoLabel: 'DPS', rolLabel: 'coordinador' },
     ]
     render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
 
+    fireEvent.change(screen.getByLabelText('Buscar por nombre'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros' }))
     fireEvent.change(screen.getByLabelText('Filtrar por etapa'), { target: { value: 'postulado' } })
 
     expect(screen.queryByText('Ana Pérez')).not.toBeInTheDocument()
@@ -74,8 +123,8 @@ describe('ServidoresClient', () => {
 
   it('filters the list by persona nombre text', () => {
     const rows: ServidorRow[] = [
-      { servicio: servicio({ id: 's-1' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'Cámara' },
-      { servicio: servicio({ id: 's-2' }), personaNombre: 'Luis Gómez', equipoLabel: 'DPS', rolLabel: 'Cámara' },
+      { servicio: servicio({ id: 's-1' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' },
+      { servicio: servicio({ id: 's-2' }), personaNombre: 'Luis Gómez', equipoLabel: 'DPS', rolLabel: 'coordinador' },
     ]
     render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
 
@@ -85,27 +134,56 @@ describe('ServidoresClient', () => {
     expect(screen.queryByText('Luis Gómez')).not.toBeInTheDocument()
   })
 
-  it('hides the assigner and stage-advance controls without write capability', () => {
+  it('hides the "Asignar servicio" action and stage-advance controls without write capability', () => {
     const rows: ServidorRow[] = [
-      { servicio: servicio({ id: 's-1', estado: 'activo' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'Cámara' },
+      { servicio: servicio({ id: 's-1', estado: 'activo' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' },
     ]
     render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
 
-    expect(screen.queryByRole('button', { name: 'Asignar servicio' })).not.toBeInTheDocument()
+    expect(screen.queryAllByRole('button', { name: 'Asignar servicio' }).length).toBe(0)
     expect(screen.queryByRole('button', { name: 'Cambiar etapa' })).not.toBeInTheDocument()
   })
 
-  it('shows the assigner with write capability', () => {
+  it('shows the "Asignar servicio" action (header + mobile FAB) with write capability', () => {
     const rows: ServidorRow[] = []
     render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={true} />)
 
-    expect(screen.getByRole('button', { name: 'Asignar servicio' })).toBeInTheDocument()
+    // Header accionPrincipal + mobile BotonFlotante — both accessible as
+    // "Asignar servicio", each opening the same assigner dialog.
+    expect(screen.getAllByRole('button', { name: 'Asignar servicio' }).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('opens the assigner dialog from the primary action', () => {
+    render(<ServidoresClient rows={[]} arbol={arbol} rolesPorEquipo={{}} puedeEditar={true} />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Asignar servicio' })[0])
+
+    expect(screen.getByRole('heading', { name: 'Asignar servicio' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Buscar persona')).toBeInTheDocument()
+  })
+
+  it('opens the Filtros sheet with the etapa select', () => {
+    render(<ServidoresClient rows={[]} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filtros' }))
+
+    expect(screen.getByLabelText('Filtrar por etapa')).toBeInTheDocument()
+  })
+
+  it('shows the visible ancestor path under the equipo label in the Equipo column', () => {
+    const rows: ServidorRow[] = [
+      { servicio: servicio({ id: 's-1', equipoId: 'equipo-camaras' }), personaNombre: 'Ana Pérez', equipoLabel: 'Cámaras', rolLabel: 'coordinador' },
+    ]
+    render(<ServidoresClient rows={rows} arbol={arbolAnidado} rolesPorEquipo={{}} puedeEditar={false} />)
+
+    expect(screen.getAllByText('Cámaras').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('DPS · Producción Técnica').length).toBeGreaterThan(0)
   })
 
   it('offers a stage-advance control only for a non-terminal servicio', () => {
     const rows: ServidorRow[] = [
-      { servicio: servicio({ id: 's-1', estado: 'activo' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'Cámara' },
-      { servicio: servicio({ id: 's-2', estado: 'retirado' }), personaNombre: 'Luis Gómez', equipoLabel: 'DPS', rolLabel: 'Cámara' },
+      { servicio: servicio({ id: 's-1', estado: 'activo' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' },
+      { servicio: servicio({ id: 's-2', estado: 'retirado' }), personaNombre: 'Luis Gómez', equipoLabel: 'DPS', rolLabel: 'coordinador' },
     ]
     render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={true} />)
 
@@ -113,5 +191,16 @@ describe('ServidoresClient', () => {
     // (non-terminal) row, and never for the retirado one.
     const cambiarButtons = screen.queryAllByRole('button', { name: 'Cambiar etapa' })
     expect(cambiarButtons.length).toBe(2)
+  })
+
+  it('renders EstadoVacio when no servicio matches the applied filter', () => {
+    const rows: ServidorRow[] = [
+      { servicio: servicio({ id: 's-1', estado: 'activo' }), personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' },
+    ]
+    render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
+
+    fireEvent.change(screen.getByLabelText('Buscar por nombre'), { target: { value: 'nadie-coincide' } })
+
+    expect(screen.getByText('No hay servicios registrados')).toBeInTheDocument()
   })
 })

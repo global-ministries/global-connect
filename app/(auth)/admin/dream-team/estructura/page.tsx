@@ -10,7 +10,6 @@
 
 import { notFound, redirect } from 'next/navigation'
 
-import { DashboardPage } from '@/components/talleres/dashboard-page'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   isDreamTeamEnabled,
@@ -60,12 +59,5 @@ export default async function DreamTeamEstructuraPage() {
   // screen to see their branch, but reshaping the tree is not theirs to do.
   const puedeEditar = hasDreamTeamOrgManageCapability(session)
 
-  return (
-    <DashboardPage
-      titulo="Estructura"
-      subtitulo="Árbol organizativo de Dream Team: equipos y roles por rama."
-    >
-      <EstructuraClient arbol={arbol} rolesPorEquipo={rolesPorEquipo} puedeEditar={puedeEditar} />
-    </DashboardPage>
-  )
+  return <EstructuraClient arbol={arbol} rolesPorEquipo={rolesPorEquipo} puedeEditar={puedeEditar} />
 }

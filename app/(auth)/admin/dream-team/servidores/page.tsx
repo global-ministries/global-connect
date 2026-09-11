@@ -11,7 +11,6 @@
  */
 import { notFound, redirect } from 'next/navigation'
 
-import { DashboardPage } from '@/components/talleres/dashboard-page'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   isDreamTeamEnabled,
@@ -84,12 +83,5 @@ export default async function DreamTeamServidoresPage() {
 
   const puedeEditar = hasDreamTeamWriteCapability(session)
 
-  return (
-    <DashboardPage
-      titulo="Servidores"
-      subtitulo="Pool de servicios de Dream Team: quién sirve, dónde, y en qué etapa."
-    >
-      <ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={rolesPorEquipo} puedeEditar={puedeEditar} />
-    </DashboardPage>
-  )
+  return <ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={rolesPorEquipo} puedeEditar={puedeEditar} />
 }

@@ -8,7 +8,6 @@
  */
 import { notFound, redirect } from 'next/navigation'
 
-import { DashboardPage } from '@/components/talleres/dashboard-page'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   isDreamTeamEnabled,
@@ -60,6 +59,9 @@ export default async function DreamTeamMiEquipoPage() {
   ])
 
   const rolLabelPorId = new Map(entradasRoles.flatMap(([, roles]) => roles).map((rol) => [rol.id, rol.label]))
+  // Passed through so <NodoFila> (shared with estructura-client.tsx) can
+  // render the same read-only rol badges per node on this screen too.
+  const rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>> = Object.fromEntries(entradasRoles)
 
   // Same reasoning as servidores/page.tsx: usuarios is not a dream-team
   // table, so persona names are resolved here with a single bulk lookup
@@ -83,8 +85,11 @@ export default async function DreamTeamMiEquipoPage() {
   const puedeEditar = hasDreamTeamWriteCapability(session)
 
   return (
-    <DashboardPage titulo="Mi equipo" subtitulo="Tu rama de Dream Team: quién sirve en cada nodo y en qué etapa.">
-      <MiEquipoClient arbol={arbol} serviciosPorEquipo={serviciosPorEquipo} puedeEditar={puedeEditar} />
-    </DashboardPage>
+    <MiEquipoClient
+      arbol={arbol}
+      rolesPorEquipo={rolesPorEquipo}
+      serviciosPorEquipo={serviciosPorEquipo}
+      puedeEditar={puedeEditar}
+    />
   )
 }

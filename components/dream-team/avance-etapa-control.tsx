@@ -5,7 +5,11 @@
  *
  * Used by both /admin/dream-team/servidores (the pool) and
  * /dream-team/mi-equipo (the area director view) so the transition UX and
- * its rules live in exactly one place instead of being duplicated.
+ * its rules live in exactly one place instead of being duplicated. Renders
+ * a small outline button (icon always visible, label `hidden sm:inline`,
+ * matching the GrupoDetailClient.tsx secondary-action pattern) that opens a
+ * `Dialog` with the transition + motivo — not an always-expanded inline
+ * form.
  *
  * Offered target states are derived from `TRANSICIONES_VALIDAS` (see
  * lib/platform/dream-team/state-machine.ts) — never hardcoded here. From a
@@ -17,7 +21,9 @@
  * gets a clear message inviting a reload, never a generic error.
  */
 import { useState, type ReactElement } from 'react'
+import { ArrowRightLeft } from 'lucide-react'
 
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { BotonSistema, SelectSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { TRANSICIONES_VALIDAS } from '@/lib/platform/dream-team/state-machine'
 import { DREAM_TEAM_MOTIVOS } from '@/lib/platform/dream-team/types'
@@ -91,52 +97,66 @@ export function AvanceEtapaControl({
     }
   }
 
-  if (!abierto) {
-    return (
-      <BotonSistema type="button" variante="outline" tamaño="sm" onClick={() => setAbierto(true)}>
-        Cambiar etapa
-      </BotonSistema>
-    )
-  }
-
   return (
-    <div className="grid min-w-[16rem] gap-2">
-      <SelectSistema
-        label="Nueva etapa"
-        opciones={transicionesValidas.map((estado) => ({ valor: estado, etiqueta: ESTADO_LABELS[estado] }))}
-        placeholder="Elegí la nueva etapa"
-        value={estadoNuevo}
-        onValueChange={(v) => setEstadoNuevo(v as DreamTeamEstado)}
-        disabled={enviando}
-      />
-      <SelectSistema
-        label="Motivo"
-        opciones={DREAM_TEAM_MOTIVOS.map((m) => ({ valor: m, etiqueta: MOTIVO_LABELS[m] }))}
-        placeholder="Elegí un motivo"
-        value={motivo}
-        onValueChange={(v) => setMotivo(v as DreamTeamMotivo)}
-        disabled={enviando}
-      />
-      <div className="flex gap-2">
-        <BotonSistema
-          type="button"
-          tamaño="sm"
-          disabled={!estadoNuevo || !motivo || enviando}
-          onClick={() => {
-            void enviar()
-          }}
-        >
-          Confirmar
-        </BotonSistema>
-        <BotonSistema type="button" variante="ghost" tamaño="sm" disabled={enviando} onClick={cerrar}>
-          Cancelar
-        </BotonSistema>
-      </div>
-      {error && (
-        <TextoSistema role="alert" tamaño="sm" className="text-red-500 dark:text-red-400">
-          {error}
-        </TextoSistema>
-      )}
-    </div>
+    <>
+      <BotonSistema
+        type="button"
+        variante="outline"
+        tamaño="sm"
+        icono={ArrowRightLeft}
+        onClick={() => setAbierto(true)}
+      >
+        <span className="hidden sm:inline">Cambiar etapa</span>
+      </BotonSistema>
+
+      <Dialog open={abierto} onOpenChange={(open) => !open && cerrar()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar etapa</DialogTitle>
+            <DialogDescription>Elegí la nueva etapa y el motivo del cambio.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3">
+            <SelectSistema
+              label="Nueva etapa"
+              opciones={transicionesValidas.map((estado) => ({ valor: estado, etiqueta: ESTADO_LABELS[estado] }))}
+              placeholder="Elegí la nueva etapa"
+              value={estadoNuevo}
+              onValueChange={(v) => setEstadoNuevo(v as DreamTeamEstado)}
+              disabled={enviando}
+            />
+            <SelectSistema
+              label="Motivo"
+              opciones={DREAM_TEAM_MOTIVOS.map((m) => ({ valor: m, etiqueta: MOTIVO_LABELS[m] }))}
+              placeholder="Elegí un motivo"
+              value={motivo}
+              onValueChange={(v) => setMotivo(v as DreamTeamMotivo)}
+              disabled={enviando}
+            />
+            {error && (
+              <TextoSistema role="alert" tamaño="sm" className="text-red-500 dark:text-red-400">
+                {error}
+              </TextoSistema>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <BotonSistema type="button" variante="outline" tamaño="sm" disabled={enviando} onClick={cerrar}>
+              Cancelar
+            </BotonSistema>
+            <BotonSistema
+              type="button"
+              tamaño="sm"
+              disabled={!estadoNuevo || !motivo || enviando}
+              onClick={() => {
+                void enviar()
+              }}
+            >
+              {enviando ? 'Guardando…' : 'Confirmar'}
+            </BotonSistema>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
