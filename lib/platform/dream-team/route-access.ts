@@ -36,6 +36,12 @@ export async function requireDreamTeamSession() {
   return resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+    // Without this, resolveReadOnlyPlatformSession builds no capability lookup at
+    // all and returns a session whose capabilities array is silently EMPTY — not
+    // an error, just empty, which reads downstream exactly like "this person has
+    // no permissions". Every Dream Team gate denied regardless of what the
+    // database held.
+    capabilitySupabase: supabase,
   })
 }
 
