@@ -198,14 +198,24 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
   })
 
   describe('generic dream_team capabilities', () => {
-    it('resolves dream_team.serve with experience scope', () => {
-      const input = makeInput('dream_team.serve', { experience: 'dream_team', type: 'experience' }, [
-        { key: 'dream_team.serve', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
+    // dream_team.serve is equipo-scoped: serving always happens somewhere in the
+    // org tree. It used to be experience-wide, which made every activated
+    // volunteer able to read the whole tree.
+    it('resolves dream_team.serve with equipo scope', () => {
+      const input = makeInput('dream_team.serve', { experience: 'dream_team', type: 'equipo', id: 'camara' }, [
+        { key: 'dream_team.serve', scope: { experience: 'dream_team', type: 'equipo', id: 'camara' }, source: 'dream-team' },
       ])
       const result = resolvePlatformCapability(input)
       expect(result.ok).toBe(true)
       if (!result.ok) return
-      expect(result.grant.scope).toEqual({ experience: 'dream_team', type: 'experience' })
+      expect(result.grant.scope).toEqual({ experience: 'dream_team', type: 'equipo', id: 'camara' })
+    })
+
+    it('no longer resolves dream_team.serve as experience-wide', () => {
+      const input = makeInput('dream_team.serve', { experience: 'dream_team', type: 'experience' }, [
+        { key: 'dream_team.serve', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
+      ])
+      expect(resolvePlatformCapability(input).ok).toBe(false)
     })
 
     it('resolves dream_team.lead with equipo scope', () => {
@@ -390,7 +400,7 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
       personaId: 'ana',
       allowedFlows: ['dashboard'],
       grants: [
-        { key: 'dream_team.serve', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
+        { key: 'dream_team.serve', scope: { experience: 'dream_team', type: 'equipo', id: 'camara' }, source: 'dream-team' },
         { key: 'dream_team.lead', scope: { experience: 'dream_team', type: 'equipo', id: 'camara' }, source: 'dream-team' },
         { key: 'dps.team.serve', scope: { experience: 'dps', type: 'equipo', id: 'camara' }, source: 'dream-team' },
         { key: 'estudiantes.team.lead', scope: { experience: 'estudiantes', type: 'equipo', id: 'transit' }, source: 'dream-team' },
@@ -399,7 +409,7 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
 
     it('allows all four Ana grants independently with only matching signatures evaluated', () => {
       const cases: Array<[string, { experience: string; type: string; id?: string }, string]> = [
-        ['dream_team.serve', { experience: 'dream_team', type: 'experience' }, 'dream_team:experience'],
+        ['dream_team.serve', { experience: 'dream_team', type: 'equipo', id: 'camara' }, 'dream_team:equipo:camara'],
         ['dream_team.lead', { experience: 'dream_team', type: 'equipo', id: 'camara' }, 'dream_team:equipo:camara'],
         ['dps.team.serve', { experience: 'dps', type: 'equipo', id: 'camara' }, 'dps:equipo:camara'],
         ['estudiantes.team.lead', { experience: 'estudiantes', type: 'equipo', id: 'transit' }, 'estudiantes:equipo:transit'],

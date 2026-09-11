@@ -36,11 +36,14 @@ describe('DreamTeamServiceGrant builder', () => {
       'dream_team.serve',
       'dps.team.serve',
     ])
+    // dream_team.serve is born scoped to the equipo where the person serves.
+    // Until the org tree existed it was experience-wide (scopeId undefined),
+    // which the tree read policies turned into visibility over the whole church.
     expect(grants[0]).toMatchObject({
       capabilityKey: 'dream_team.serve',
       experience: 'dream_team',
-      scopeType: 'experience',
-      scopeId: undefined,
+      scopeType: 'equipo',
+      scopeId: 'equipo-dps-camara',
     })
     expect(grants[1]).toMatchObject({
       capabilityKey: 'dps.team.serve',
@@ -429,5 +432,46 @@ describe('Role label matching is case- and diacritic-insensitive', () => {
     const grantsVoluntarioCamara = buildGrantsForServicio(equipoDps, { id: 'rol-z', label: 'VOLUNTARIO DE CÁMARA' })
       .map((grant) => grant.capabilityKey)
     expect(grantsVoluntarioCamara).toEqual(['dream_team.serve', 'dps.team.serve'])
+  })
+})
+
+/**
+ * dream_team.serve must be born scoped to the node — regression.
+ *
+ * EVERY role mints dream_team.serve (voluntario, líder, coordinador, director).
+ * It was declared scopeType 'experience', so scopeIdForGrant() returned
+ * undefined and the grant was born GLOBAL. The org-tree read policies accept
+ * serve through the tree gate, where scope_id NULL means global — so anyone
+ * activated through the real assignment flow saw the entire church tree.
+ *
+ * The staging acceptance test passed anyway, for the wrong reason: the fixture
+ * handed the DPS director dream_team.direct by hand and never went through the
+ * flow that would ALSO have minted a global serve.
+ */
+describe('dream_team.serve scoping', () => {
+  const camaras = { id: 'equipo-camaras', experiencia: 'dps' }
+
+  it.each([
+    ['voluntario'],
+    ['lider'],
+    ['coordinador'],
+    ['director'],
+  ])('a %s gets dream_team.serve scoped to the equipo where they serve', (label) => {
+    const grants = buildGrantsForServicio(camaras, { id: `rol-${label}`, label })
+    const serve = grants.find((g) => g.capabilityKey === 'dream_team.serve')
+
+    expect(serve).toBeDefined()
+    expect(serve?.scopeType).toBe('equipo')
+    expect(serve?.scopeId).toBe('equipo-camaras')
+  })
+
+  it('no role mints any dream_team.* capability with a null scope', () => {
+    for (const label of ['voluntario', 'lider', 'coordinador', 'director']) {
+      const grants = buildGrantsForServicio(camaras, { id: `rol-${label}`, label })
+      const globales = grants.filter(
+        (g) => g.capabilityKey.startsWith('dream_team.') && g.scopeId === undefined,
+      )
+      expect(globales).toEqual([])
+    }
   })
 })

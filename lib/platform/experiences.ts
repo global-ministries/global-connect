@@ -49,7 +49,11 @@ export const PLATFORM_CAPABILITIES = {
   'family.minor.read': { experience: 'family', scopeType: 'experience' },
   'family.minor.consent': { experience: 'family', scopeType: 'experience' },
   // Generic Dream Team capabilities (hybrid model)
-  'dream_team.serve': { experience: 'dream_team', scopeType: 'experience' },
+  // Every role mints dream_team.serve. Declared 'experience' it was born global
+  // (scopeIdForGrant returns undefined for that type), so anyone activated through
+  // the assignment flow could read the whole org tree. 'equipo' scopes it to the
+  // node where the person actually serves.
+  'dream_team.serve': { experience: 'dream_team', scopeType: 'equipo' },
   'dream_team.lead': { experience: 'dream_team', scopeType: 'equipo' },
   'dream_team.coordinate': { experience: 'dream_team', scopeType: 'equipo' },
   'dream_team.director.coordinate': { experience: 'dream_team', scopeType: 'experience' },
