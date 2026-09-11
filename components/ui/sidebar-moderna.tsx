@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -23,7 +23,9 @@ import {
   BarChart3,
   House,
   ShieldAlert,
-  ClipboardList
+  ClipboardList,
+  HeartHandshake,
+  Network
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
@@ -34,6 +36,7 @@ import { ThemeToggle } from './theme-toggle'
 import { useBranding } from '@/hooks/useBranding'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
 import { canAccess } from '@/lib/navigation/canAccess'
+import { getDreamTeamNavItems, isDreamTeamEnabledClient } from '@/lib/platform/dream-team/navigation'
 
 interface SidebarModernaProps {
   className?: string
@@ -127,6 +130,14 @@ const footerItems: MenuItem[] = [
   },
 ]
 
+// Icons for the Dream Team children (see lib/platform/dream-team/navigation.ts
+// for the id/label/href list itself — this sidebar owns the icon choice).
+const DREAM_TEAM_CHILD_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'dt-mi-equipo': Users,
+  'dt-servidores': UserCheck,
+  'dt-estructura': Network,
+}
+
 // ─── Active indicator pill ───
 function ActivePill() {
   return (
@@ -159,7 +170,44 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const effectiveSupportCapabilities = useCachedAccessCredentials({ values: supportCapabilities, loading, isSignedIn: !!usuario })
   const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
   const branding = useBranding()
-  const primaryMenuItems = [...menuItems, ...platformNavigationItems]
+
+  // Dream Team — see lib/platform/dream-team/navigation.ts for why the flag
+  // must be read as this literal `process.env.NEXT_PUBLIC_*` expression
+  // instead of through isDreamTeamEnabled() (server-only-safe, but always
+  // false in the browser bundle). getDreamTeamNavItems() applies the same
+  // hasDreamTeamReadCapability() gate the three Dream Team pages use, so the
+  // entry appears exactly for sessions that can open at least one of them.
+  const dreamTeamEnabled = isDreamTeamEnabledClient()
+  const dreamTeamNavItems = useMemo(
+    () => getDreamTeamNavItems(platformSession, dreamTeamEnabled),
+    [platformSession, dreamTeamEnabled]
+  )
+  const dreamTeamMenuItem: MenuItem | null = useMemo(() => {
+    if (dreamTeamNavItems.length === 0) return null
+    return {
+      id: 'dream-team',
+      label: 'Dream Team',
+      icon: HeartHandshake,
+      href: dreamTeamNavItems[0].href,
+      children: dreamTeamNavItems.map((item) => ({
+        id: item.id,
+        label: item.label,
+        href: item.href,
+        icon: DREAM_TEAM_CHILD_ICONS[item.id],
+      })),
+    }
+  }, [dreamTeamNavItems])
+
+  // Inserted right after 'grupos-vida' (before the platform navigation
+  // items), the same slot it occupies in the design.
+  const primaryMenuItems = useMemo(() => {
+    const items = [...menuItems]
+    if (dreamTeamMenuItem) {
+      const gruposVidaIndex = items.findIndex((item) => item.id === 'grupos-vida')
+      items.splice(gruposVidaIndex + 1, 0, dreamTeamMenuItem)
+    }
+    return [...items, ...platformNavigationItems]
+  }, [dreamTeamMenuItem, platformNavigationItems])
 
 
   // ─── Tooltip hover handlers (collapsed mode) ───
@@ -181,6 +229,17 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         if (isChildActive) {
           newOpen.add(item.id)
         }
+      }
+    }
+    // Dream Team isn't part of the static `menuItems` array above (it's
+    // built dynamically from the session, see dreamTeamMenuItem), so it
+    // needs its own auto-expand check with the same child-route logic.
+    if (dreamTeamMenuItem?.children) {
+      const isDreamTeamChildActive = dreamTeamMenuItem.children.some(child =>
+        pathname === child.href || pathname?.startsWith(child.href + '/')
+      )
+      if (isDreamTeamChildActive) {
+        newOpen.add(dreamTeamMenuItem.id)
       }
     }
     // PR25 + PR27 — also auto-expand the talleres sub-menu when the
@@ -240,7 +299,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
       newOpen.forEach(id => merged.add(id))
       return merged
     })
-  }, [pathname, platformNavigationItems])
+  }, [pathname, platformNavigationItems, dreamTeamMenuItem])
 
   // PR21.2 + PR21.3: When the browser tab becomes visible again (user
   // switches back to the tab), refresh the server tree AND dispatch a

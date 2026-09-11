@@ -87,9 +87,18 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   //   servidores.ts     — new (2026-09-11): pure Servidor union + helpers so
   //                       both screens share one notion of "a person
   //                       serving" across the two sources.
+  //   capabilities.ts   — new (2026-09-11): the pure capability gates moved
+  //                       out of route-access.ts so the client-side sidebar
+  //                       can import them without pulling in
+  //                       createSupabaseServerClient.
+  //   navigation.ts     — new (2026-09-11): the sidebar's Dream Team entry
+  //                       (three items) and the client-safe flag reader that
+  //                       backs it.
   'lib/platform/dream-team/arbol.ts',
+  'lib/platform/dream-team/capabilities.ts',
   'lib/platform/dream-team/grants.ts',
   'lib/platform/dream-team/lideres-gdv.ts',
+  'lib/platform/dream-team/navigation.ts',
   'lib/platform/dream-team/personas.ts',
   'lib/platform/dream-team/repository-fake.ts',
   'lib/platform/dream-team/repository-supabase.ts',

@@ -5,7 +5,9 @@
  * loads equipos + roles and hands a pre-built tree to the client island;
  * mutations live in ./actions.ts (server actions).
  *
- * Not wired into the sidebar/navigation yet — reached by direct URL only.
+ * Linked from the desktop sidebar's Dream Team entry
+ * (components/ui/sidebar-moderna.tsx); the mobile bottom nav doesn't link it
+ * yet.
  */
 
 import { notFound, redirect } from 'next/navigation'

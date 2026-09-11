@@ -68,7 +68,11 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   //                       structure admin was hitting notFound on every
   //                       screen), plus a presence check for the equipo-scoped
   //                       dream_team.direct, which can never resolve without a
-  //                       node id.
+  //                       node id. Later (2026-09-11) the pure capability
+  //                       gates moved out to the new capabilities.ts so the
+  //                       client-side sidebar can import them without pulling
+  //                       in createSupabaseServerClient; route-access.ts now
+  //                       re-exports them so this file's callers are unaffected.
   //   grants.ts         — role labels now match case- and diacritic-insensitively
   //                       (the SQL trigger seeds lowercase, the map expected
   //                       capitalized, so generic capabilities were never

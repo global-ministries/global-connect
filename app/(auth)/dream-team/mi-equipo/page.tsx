@@ -2,8 +2,9 @@
  * Dream Team — /dream-team/mi-equipo (RSC).
  *
  * Third of the three Dream Team screens: the operative view for an area
- * director (outside /admin — reached by direct URL only, not wired into
- * navigation). Shows the branch of the org tree the caller reaches and, per
+ * director (outside /admin). Linked from the desktop sidebar's Dream Team
+ * entry (components/ui/sidebar-moderna.tsx); the mobile bottom nav doesn't
+ * link it yet. Shows the branch of the org tree the caller reaches and, per
  * node, who serves there with their current stage — Dream Team servicios
  * PLUS Grupos de Vida leaders/co-leaders surfaced read-only (see
  * lib/platform/dream-team/lideres-gdv.ts, lib/platform/dream-team/servidores.ts).

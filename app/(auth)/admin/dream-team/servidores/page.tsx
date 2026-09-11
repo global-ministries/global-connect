@@ -10,7 +10,9 @@
  * (./servidores-client.tsx) only renders + filters + drives the assigner
  * and stage-advance API calls.
  *
- * Not wired into the sidebar/navigation yet — reached by direct URL only.
+ * Linked from the desktop sidebar's Dream Team entry
+ * (components/ui/sidebar-moderna.tsx); the mobile bottom nav doesn't link it
+ * yet.
  */
 import { notFound, redirect } from 'next/navigation'
 
