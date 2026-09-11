@@ -103,3 +103,39 @@ describe('hasDreamTeamMetricsCapability is unaffected by dream_team.direct', () 
     expect(hasDreamTeamMetricsCapability(makeSession([metricsCap]))).toBe(true)
   })
 })
+
+/**
+ * dream_team.org.manage gate — regression.
+ *
+ * org.manage is the capability that governs writing the org tree: it is wired into
+ * every RLS policy and into dream_team_apply_servicio_grants, and it is what the
+ * structure admin holds. It was missing from both route capability lists, so the
+ * very person who administers the tree hit notFound() on every Dream Team screen.
+ * It is scopeType 'experience', so it resolves through hasCapability() normally —
+ * no presence check needed.
+ */
+describe('dream_team.org.manage route gate', () => {
+  const orgManageCap: PlatformSessionCapability = {
+    key: 'dream_team.org.manage',
+    experience: 'dream_team',
+    scopeType: 'experience',
+    source: 'manual',
+  }
+
+  it('grants read access to a holder of org.manage alone', () => {
+    expect(hasDreamTeamReadCapability(makeSession([orgManageCap]))).toBe(true)
+  })
+
+  it('grants write access to a holder of org.manage alone', () => {
+    expect(hasDreamTeamWriteCapability(makeSession([orgManageCap]))).toBe(true)
+  })
+
+  it('does not grant the metrics gate to org.manage', () => {
+    expect(hasDreamTeamMetricsCapability(makeSession([orgManageCap]))).toBe(false)
+  })
+
+  it('still denies a session with no dream team capabilities', () => {
+    expect(hasDreamTeamReadCapability(makeSession([]))).toBe(false)
+    expect(hasDreamTeamWriteCapability(makeSession([]))).toBe(false)
+  })
+})

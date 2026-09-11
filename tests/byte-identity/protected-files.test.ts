@@ -57,6 +57,34 @@ const PROTECTED_PATHS = [
 // Allowlist: paths that may change in this PR with a documented rationale.
 // Re-evaluate on every change.
 const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
+  //
+  // feature/dream-team-base (2026-09-10): this branch turns Dream Team from an
+  // empty scaffold into the working volunteer umbrella for the whole church.
+  // The guard was written while Dream Team was frozen scaffolding; this is
+  // exactly the kind of deliberate change it exists to surface, so every
+  // touched path is declared here rather than weakening the guard.
+  //
+  //   route-access.ts   — org.manage added to both capability lists (the
+  //                       structure admin was hitting notFound on every
+  //                       screen), plus a presence check for the equipo-scoped
+  //                       dream_team.direct, which can never resolve without a
+  //                       node id.
+  //   grants.ts         — role labels now match case- and diacritic-insensitively
+  //                       (the SQL trigger seeds lowercase, the map expected
+  //                       capitalized, so generic capabilities were never
+  //                       minted); the director role mints the equipo-scoped
+  //                       dream_team.direct instead of the global capability.
+  //   repository*.ts    — createEquipo/createRol/updateEquipo/updateRol (the
+  //                       org tree could only be seeded by hand-written
+  //                       migrations) and applyServicioGrants.
+  //   types.ts          — experiencia typed as PlatformExperienceKey so the
+  //                       catalog and the database cannot drift apart.
+  //   arbol.ts          — new: builds the org tree, treating an unresolvable
+  //                       parent as a root, which is the normal shape of a
+  //                       scoped read.
+  //   personas.ts       — new: one bulk name lookup for the listing screens.
+  'lib/platform/dream-team/route-access.ts',
+
   // PR24 (2026-08-14): fix sidebar 404 — talleres_admin href /admin/talleres
   // (404) -> /talleres/direccion/talleres (real route). Sidebar was
   // pointing at a page removed in PR21.1. One-line string change.

@@ -4,8 +4,13 @@ import { PLATFORM_CAPABILITIES, resolvePlatformCapability } from '@/lib/platform
 import { getDreamTeamFlags } from '@/lib/platform/flags'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
-const READ_CAPABILITIES = ['dream_team.metrics.read', 'dream_team.requirements.manage', 'dream_team.director.coordinate']
-const WRITE_CAPABILITIES = ['dream_team.requirements.manage', 'dream_team.director.coordinate']
+// dream_team.org.manage governs writing the org tree: it is the capability wired into every
+// RLS policy and into dream_team_apply_servicio_grants, and it is what a structure admin
+// holds. Leaving it out of these lists meant the very person who administers the tree hit
+// notFound() on every Dream Team screen. It is scopeType 'experience', so it resolves
+// through hasCapability() normally.
+const READ_CAPABILITIES = ['dream_team.metrics.read', 'dream_team.requirements.manage', 'dream_team.director.coordinate', 'dream_team.org.manage']
+const WRITE_CAPABILITIES = ['dream_team.requirements.manage', 'dream_team.director.coordinate', 'dream_team.org.manage']
 
 // dream_team.direct is scopeType 'equipo'. hasCapability() below resolves capabilities through
 // resolvePlatformCapability(), whose normalizeScope() fails closed with reason:'missing' when the
