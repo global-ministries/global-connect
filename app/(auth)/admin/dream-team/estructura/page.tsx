@@ -16,7 +16,7 @@ import {
   isDreamTeamEnabled,
   requireDreamTeamSession,
   hasDreamTeamReadCapability,
-  hasDreamTeamWriteCapability,
+  hasDreamTeamOrgManageCapability,
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
@@ -56,7 +56,9 @@ export default async function DreamTeamEstructuraPage() {
   )
   const rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>> = Object.fromEntries(entradasRoles)
 
-  const puedeEditar = hasDreamTeamWriteCapability(session)
+  // Structure editing belongs to org.manage. An area director reaches this
+  // screen to see their branch, but reshaping the tree is not theirs to do.
+  const puedeEditar = hasDreamTeamOrgManageCapability(session)
 
   return (
     <DashboardPage

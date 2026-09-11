@@ -80,3 +80,11 @@ export const hasDreamTeamWriteCapability = (session: PlatformSession) =>
 
 export const hasDreamTeamMetricsCapability = (session: PlatformSession) =>
   hasCapability(session, 'dream_team.metrics.read')
+
+// Reshaping the org tree (create, rename, deactivate nodes and roles) is
+// RLS-gated on dream_team.org.manage — NOT on the generic write gate. An area
+// director passes hasDreamTeamWriteCapability through dream_team.direct, but
+// their UPDATE on dream_team_equipos matches zero rows. Gate structure editing
+// here so the screen never offers an action the database will always refuse.
+export const hasDreamTeamOrgManageCapability = (session: PlatformSession) =>
+  hasCapability(session, 'dream_team.org.manage')

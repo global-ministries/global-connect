@@ -21,7 +21,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   isDreamTeamEnabled,
   requireDreamTeamSession,
-  hasDreamTeamWriteCapability,
+  hasDreamTeamOrgManageCapability,
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import type { DreamTeamRepository } from '@/lib/platform/dream-team/repository'
@@ -50,7 +50,9 @@ async function resolveWriteContext(): Promise<WriteContext> {
   const session = await requireDreamTeamSession()
   if (!session) return { ok: false, error: 'unauthorized' }
 
-  if (!hasDreamTeamWriteCapability(session)) return { ok: false, error: 'forbidden' }
+  // Refuse early and clearly. RLS would also refuse — but silently, as an
+  // UPDATE that matches zero rows, surfacing as an opaque error.
+  if (!hasDreamTeamOrgManageCapability(session)) return { ok: false, error: 'forbidden' }
 
   const supabase = await createSupabaseServerClient()
   return { ok: true, repo: createSupabaseDreamTeamRepository(supabase) }

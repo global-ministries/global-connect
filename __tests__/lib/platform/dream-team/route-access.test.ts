@@ -12,6 +12,7 @@ import {
   hasDreamTeamReadCapability,
   hasDreamTeamWriteCapability,
   hasDreamTeamMetricsCapability,
+  hasDreamTeamOrgManageCapability,
 } from '@/lib/platform/dream-team/route-access'
 import type { PlatformSession, PlatformSessionCapability } from '@/lib/platform/session/types'
 
@@ -137,5 +138,44 @@ describe('dream_team.org.manage route gate', () => {
   it('still denies a session with no dream team capabilities', () => {
     expect(hasDreamTeamReadCapability(makeSession([]))).toBe(false)
     expect(hasDreamTeamWriteCapability(makeSession([]))).toBe(false)
+  })
+})
+
+/**
+ * Structure editing is gated on org.manage specifically — regression.
+ *
+ * The structure screen gated its edit buttons on hasDreamTeamWriteCapability,
+ * which an area director passes (dream_team.direct, by presence). But reshaping
+ * the org tree is RLS-gated on dream_team.org.manage: an area director's UPDATE
+ * matches zero rows and the action fails with an opaque error. The screen was
+ * offering buttons the database would always refuse.
+ */
+describe('hasDreamTeamOrgManageCapability', () => {
+  const orgManage: PlatformSessionCapability = {
+    key: 'dream_team.org.manage',
+    experience: 'dream_team',
+    scopeType: 'experience',
+    source: 'manual',
+  }
+  const areaDirector: PlatformSessionCapability = {
+    key: 'dream_team.direct',
+    experience: 'dream_team',
+    scopeType: 'equipo',
+    scopeId: 'equipo-dps',
+    source: 'dream-team',
+  }
+
+  it('is true for a structure admin', () => {
+    expect(hasDreamTeamOrgManageCapability(makeSession([orgManage]))).toBe(true)
+  })
+
+  it('is false for an area director, even though they pass the generic write gate', () => {
+    const session = makeSession([areaDirector])
+    expect(hasDreamTeamWriteCapability(session)).toBe(true)
+    expect(hasDreamTeamOrgManageCapability(session)).toBe(false)
+  })
+
+  it('is false with no capabilities', () => {
+    expect(hasDreamTeamOrgManageCapability(makeSession([]))).toBe(false)
   })
 })
