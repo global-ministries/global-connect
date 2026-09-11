@@ -24,6 +24,8 @@ const equipoDPS = { id: 'equipo-dps', experiencia: 'dps' as const, label: 'DPS P
 const rolCámara = { id: 'rol-cam', equipoId: 'equipo-dps', label: 'Cámara', activo: true }
 const reqCámara = { id: 'req-cam', equipoId: 'equipo-dps', rolId: 'rol-cam', codigo: 'capacitacion-dps', label: 'Capacitación DPS', tipo: 'capacitacion' as const, obligatoriedad: 'requerido' as const }
 const servicioPostulado = { id: 'srv-postulado', personaId: actorPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam', estado: 'postulado' as const, fechaInicio: new Date().toISOString(), motivoActual: 'admin_asignacion' as const, version: 1 }
+const servicioEnOrientacion = { id: 'srv-orientacion', personaId: actorPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam', estado: 'en_orientacion' as const, fechaInicio: new Date().toISOString(), motivoActual: 'admin_promocion' as const, version: 1 }
+const servicioActivo = { id: 'srv-activo', personaId: actorPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam', estado: 'activo' as const, fechaInicio: new Date().toISOString(), motivoActual: 'admin_promocion' as const, version: 1 }
 const historialInicial = { id: 'hist-1', servicioId: 'srv-postulado', estadoAnterior: 'postulado' as const, estadoNuevo: 'postulado' as const, motivo: 'admin_asignacion' as const, actorPersonaId, fecha: new Date().toISOString() }
 const verificacionInicial = { id: 'ver-1', servicioId: 'srv-postulado', requisitoId: 'req-cam', estado: 'pendiente' as const }
 
@@ -37,7 +39,9 @@ function auth(caps: Record<string, unknown>[], user: { id: string; email: string
 }
 
 function repo() {
-  createRepo.mockReturnValue(createInMemoryDreamTeamRepository({ seed: { equipos: [equipoDPS], roles: [rolCámara], requisitos: [reqCámara], servicios: [servicioPostulado], historial: [historialInicial], requisitoVerificaciones: [verificacionInicial] } }))
+  const fake = createInMemoryDreamTeamRepository({ seed: { equipos: [equipoDPS], roles: [rolCámara], requisitos: [reqCámara], servicios: [servicioPostulado, servicioEnOrientacion, servicioActivo], historial: [historialInicial], requisitoVerificaciones: [verificacionInicial] } })
+  createRepo.mockReturnValue(fake)
+  return fake
 }
 
 function ctx(id: string) {
@@ -74,5 +78,48 @@ describe('PATCH /api/dream-team/servicios/[id]', () => {
     expect(b.servicio.version).toBe(2)
     expect(b.historial).toHaveLength(2)
     expect(b.historial[b.historial.length - 1].estadoNuevo).toBe('en_orientacion')
+  })
+})
+
+// Fase 4.1 — transitionWithGrants wiring: activating/pausing a servicio must
+// mint/revoke the platform capabilities derived from its equipo + rol.
+describe('PATCH /api/dream-team/servicios/[id] — grants wiring', () => {
+  const expectedGrant = { capabilityKey: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'equipo-dps' }
+
+  it('becoming activo mints the role-derived capabilities via applyServicioGrants(grant)', async () => {
+    auth([directorCap])
+    const fake = repo()
+
+    const res = await PATCH(request('/api/dream-team/servicios/srv-orientacion', { method: 'PATCH', body: JSON.stringify({ estado: 'activo', motivo: 'admin_promocion', expectedVersion: 1 }) }), ctx('srv-orientacion'))
+    expect(res.status).toBe(200)
+
+    const calls = fake.getAppliedServicioGrantsCalls()
+    expect(calls).toHaveLength(1)
+    expect(calls[0].personaId).toBe(actorPersonaId)
+    expect(calls[0].accion).toBe('grant')
+    expect(calls[0].grants).toEqual([expectedGrant])
+  })
+
+  it('activo → en_pausa revokes the role-derived capabilities via applyServicioGrants(revoke)', async () => {
+    auth([directorCap])
+    const fake = repo()
+
+    const res = await PATCH(request('/api/dream-team/servicios/srv-activo', { method: 'PATCH', body: JSON.stringify({ estado: 'en_pausa', motivo: 'admin_pausa', expectedVersion: 1 }) }), ctx('srv-activo'))
+    expect(res.status).toBe(200)
+
+    const calls = fake.getAppliedServicioGrantsCalls()
+    expect(calls).toHaveLength(1)
+    expect(calls[0].accion).toBe('revoke')
+    expect(calls[0].grants).toEqual([expectedGrant])
+  })
+
+  it('a grant-irrelevant transition does not call applyServicioGrants', async () => {
+    auth([directorCap])
+    const fake = repo()
+
+    const res = await PATCH(request('/api/dream-team/servicios/srv-orientacion', { method: 'PATCH', body: JSON.stringify({ estado: 'inactivo', motivo: 'otro', expectedVersion: 1 }) }), ctx('srv-orientacion'))
+    expect(res.status).toBe(200)
+
+    expect(fake.getAppliedServicioGrantsCalls()).toHaveLength(0)
   })
 })
