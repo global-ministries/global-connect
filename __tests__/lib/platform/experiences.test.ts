@@ -1,4 +1,4 @@
-import { PLATFORM_EXPERIENCE_CATALOG, resolvePlatformCapability } from '@/lib/platform/experiences'
+import { PLATFORM_CAPABILITIES, PLATFORM_EXPERIENCE_CATALOG, resolvePlatformCapability } from '@/lib/platform/experiences'
 import type { PlatformCapabilityActor, PlatformCapabilityResolutionInput } from '@/lib/platform/experiences'
 
 const gdvStageGrant = {
@@ -234,6 +234,23 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
       expect(result.ok).toBe(true)
     })
 
+    it('is registered in the catalog with experience dream_team and scopeType equipo (scoped area director, distinct from the global dream_team.director.coordinate)', () => {
+      expect(PLATFORM_CAPABILITIES).toHaveProperty(['dream_team.direct'])
+      const definition = (PLATFORM_CAPABILITIES as Record<string, { experience: string; scopeType: string }>)['dream_team.direct']
+      expect(definition.experience).toBe('dream_team')
+      expect(definition.scopeType).toBe('equipo')
+    })
+
+    it('resolves dream_team.direct with equipo scope', () => {
+      const input = makeInput('dream_team.direct', { experience: 'dream_team', type: 'equipo', id: 'produccion-tecnica' }, [
+        { key: 'dream_team.direct', scope: { experience: 'dream_team', type: 'equipo', id: 'produccion-tecnica' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.grant.scope).toEqual({ experience: 'dream_team', type: 'equipo', id: 'produccion-tecnica' })
+    })
+
     it('resolves dream_team.requirements.manage with experience scope', () => {
       const input = makeInput('dream_team.requirements.manage', { experience: 'dream_team', type: 'experience' }, [
         { key: 'dream_team.requirements.manage', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
@@ -349,6 +366,25 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
     })
   })
 
+  describe('dream_team.org.manage (Step 1 — org tree writable)', () => {
+    it('is registered in the catalog with experience dream_team and scopeType experience', () => {
+      expect(PLATFORM_CAPABILITIES).toHaveProperty(['dream_team.org.manage'])
+      const definition = (PLATFORM_CAPABILITIES as Record<string, { experience: string; scopeType: string }>)['dream_team.org.manage']
+      expect(definition.experience).toBe('dream_team')
+      expect(definition.scopeType).toBe('experience')
+    })
+
+    it('resolves dream_team.org.manage with experience scope', () => {
+      const input = makeInput('dream_team.org.manage', { experience: 'dream_team', type: 'experience' }, [
+        { key: 'dream_team.org.manage', scope: { experience: 'dream_team', type: 'experience' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      expect(result.grant.scope).toEqual({ experience: 'dream_team', type: 'experience' })
+    })
+  })
+
   describe('Ana integration case', () => {
     const ana: PlatformCapabilityActor = {
       personaId: 'ana',
@@ -376,5 +412,40 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
         expect(result.audit.evaluatedGrantSignatures).toEqual([`${key}|${signature}`])
       }
     })
+  })
+})
+
+describe('Organigrama seed experience keys (Experiencia, Atracción, Servicios Ministeriales)', () => {
+  const newExperienceKeys = ['experiencia', 'atraccion', 'servicios_ministeriales'] as const
+  const expectedLabels: Record<(typeof newExperienceKeys)[number], string> = {
+    experiencia: 'Experiencia',
+    atraccion: 'Atracción',
+    servicios_ministeriales: 'Servicios Ministeriales',
+  }
+
+  it('registers each new key in the catalog with its label and experience+equipo scope types', () => {
+    for (const key of newExperienceKeys) {
+      expect(PLATFORM_EXPERIENCE_CATALOG).toHaveProperty(key)
+      const entry = (PLATFORM_EXPERIENCE_CATALOG as Record<string, { label: string; scopeTypes: readonly string[] }>)[key]
+      expect(entry.label).toBe(expectedLabels[key])
+      expect(entry.scopeTypes).toEqual(['experience', 'equipo'])
+    }
+  })
+
+  it('no longer fails closed as unknown_required_scope for equipo-scoped requests (normalizeScope now recognizes them and fails closed only on the more specific conflicting_scope, since no capability targets these experiences yet)', () => {
+    const actor: PlatformCapabilityActor = { personaId: 'persona-1', allowedFlows: ['dashboard'], grants: [] }
+    for (const experience of newExperienceKeys) {
+      const result = resolvePlatformCapability({
+        actor,
+        flow: 'dashboard',
+        required: {
+          key: 'dream_team.lead',
+          scope: { experience, type: 'equipo', id: 'equipo-x' },
+        },
+      })
+      expect(result.ok).toBe(false)
+      if (result.ok) continue
+      expect(result.reason).toBe('conflicting_scope')
+    }
   })
 })

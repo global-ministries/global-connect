@@ -19,6 +19,53 @@ import type {
   PersonaId,
 } from '@/lib/platform/dream-team/types'
 import type { DreamTeamRepository } from '@/lib/platform/dream-team/repository'
+import type { DreamTeamServiceGrant } from '@/lib/platform/dream-team/grants'
+import { mapServiceGrantToRpcGrant } from '@/lib/platform/dream-team/repository-supabase'
+
+// ── camelCase → snake_case grant mapping ─────────────────────────────
+//
+// This is a plain unit test of a pure, exported function — not a mock of the
+// Supabase client. It is intentionally NOT gated by RUN_INTEGRATION: it needs
+// no network access, and the staging integration suite below CANNOT exercise
+// this mapping meaningfully. `dream_team_apply_servicio_grants` resolves and
+// checks the calling actor (`auth.uid()`) before it ever inspects `p_grants`,
+// and the admin client used below authenticates with the service_role key
+// (no user JWT), so every call fails at the actor check regardless of whether
+// `p_grants` was mapped correctly or not — a staging round-trip would pass
+// even with a broken mapping. Testing the pure mapper directly is the only
+// way to actually cover this translation.
+describe('mapServiceGrantToRpcGrant (camelCase → snake_case mapping)', () => {
+  it('maps every camelCase field to its snake_case RPC counterpart', () => {
+    const grant: DreamTeamServiceGrant = {
+      capabilityKey: 'dps.team.lead',
+      experience: 'dps',
+      scopeType: 'equipo',
+      scopeId: 'equipo-dps-camara',
+    }
+
+    expect(mapServiceGrantToRpcGrant(grant)).toEqual({
+      capability_key: 'dps.team.lead',
+      experience: 'dps',
+      scope_type: 'equipo',
+      scope_id: 'equipo-dps-camara',
+    })
+  })
+
+  it('maps a missing scopeId to a null scope_id (experience-wide capability)', () => {
+    const grant: DreamTeamServiceGrant = {
+      capabilityKey: 'dream_team.serve',
+      experience: 'dream_team',
+      scopeType: 'experience',
+    }
+
+    expect(mapServiceGrantToRpcGrant(grant)).toEqual({
+      capability_key: 'dream_team.serve',
+      experience: 'dream_team',
+      scope_type: 'experience',
+      scope_id: null,
+    })
+  })
+})
 
 const RUN_INTEGRATION = Boolean(process.env.RUN_INTEGRATION)
 const STAGING_URL = process.env.SUPABASE_STAGING_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL
@@ -176,6 +223,8 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
   let repo: import('@/lib/platform/dream-team/repository').DreamTeamRepository
   let ConcurrencyConflictError: ConcurrencyConflictErrorClass
   const createdServicioIds: string[] = []
+  const createdRolIds: string[] = []
+  const createdEquipoIds: string[] = []
 
   beforeAll(async () => {
     client = makeAdminClient()
@@ -187,6 +236,15 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
   afterEach(async () => {
     await cleanupAll(client, createdServicioIds)
     createdServicioIds.length = 0
+
+    if (createdRolIds.length > 0) {
+      await client.from('dream_team_roles').delete().in('id', createdRolIds)
+      createdRolIds.length = 0
+    }
+    if (createdEquipoIds.length > 0) {
+      await client.from('dream_team_equipos').delete().in('id', createdEquipoIds)
+      createdEquipoIds.length = 0
+    }
   })
 
   describe('createServicio + getServicioById', () => {
@@ -446,6 +504,88 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
     })
   })
 
+  describe('createEquipo + createRol + updateEquipo + updateRol (org tree writable — Step 1)', () => {
+    it('creates a root equipo and lists it via listEquipos', async () => {
+      const equipo = await repo.createEquipo({
+        experiencia: 'dps',
+        label: makeTestId('equipo-root'),
+        activo: true,
+      })
+      createdEquipoIds.push(equipo.id)
+
+      const list = await repo.listEquipos()
+
+      expect(list.map((e) => e.id)).toContain(equipo.id)
+      expect(equipo.parentEquipoId).toBeUndefined()
+    })
+
+    it('creates a child equipo linked to its parentEquipoId', async () => {
+      const parent = await repo.createEquipo({
+        experiencia: 'dps',
+        label: makeTestId('equipo-parent'),
+        activo: true,
+      })
+      createdEquipoIds.push(parent.id)
+
+      const child = await repo.createEquipo({
+        experiencia: 'dps',
+        label: makeTestId('equipo-child'),
+        activo: true,
+        parentEquipoId: parent.id,
+      })
+      createdEquipoIds.push(child.id)
+
+      expect(child.parentEquipoId).toBe(parent.id)
+    })
+
+    it('creates a rol inside an equipo', async () => {
+      const equipo = await repo.createEquipo({
+        experiencia: 'dps',
+        label: makeTestId('equipo-for-rol'),
+        activo: true,
+      })
+      createdEquipoIds.push(equipo.id)
+
+      const rol = await repo.createRol({ equipoId: equipo.id, label: makeTestId('rol'), activo: true })
+      createdRolIds.push(rol.id)
+
+      const list = await repo.listRolesPorEquipo(equipo.id)
+      expect(list.map((r) => r.id)).toContain(rol.id)
+    })
+
+    it('renames and deactivates an equipo via updateEquipo', async () => {
+      const equipo = await repo.createEquipo({
+        experiencia: 'dps',
+        label: makeTestId('equipo-update'),
+        activo: true,
+      })
+      createdEquipoIds.push(equipo.id)
+
+      const renamed = await repo.updateEquipo(equipo.id, { label: 'Renamed equipo' })
+      expect(renamed.label).toBe('Renamed equipo')
+
+      const deactivated = await repo.updateEquipo(equipo.id, { activo: false })
+      expect(deactivated.activo).toBe(false)
+    })
+
+    it('renames and deactivates a rol via updateRol', async () => {
+      const equipo = await repo.createEquipo({
+        experiencia: 'dps',
+        label: makeTestId('equipo-for-rol-update'),
+        activo: true,
+      })
+      createdEquipoIds.push(equipo.id)
+      const rol = await repo.createRol({ equipoId: equipo.id, label: makeTestId('rol-update'), activo: true })
+      createdRolIds.push(rol.id)
+
+      const renamed = await repo.updateRol(rol.id, { label: 'Renamed rol' })
+      expect(renamed.label).toBe('Renamed rol')
+
+      const deactivated = await repo.updateRol(rol.id, { activo: false })
+      expect(deactivated.activo).toBe(false)
+    })
+  })
+
   describe('participation events', () => {
     it('appends and lists events by servicio and persona', async () => {
       const { servicio } = await seedServicio(client, repo)
@@ -467,6 +607,34 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
       expect(byServicio[0].tipoEvento).toBe('service_state_changed')
       expect(byPersona).toHaveLength(1)
       expect(byPersona[0].personaId).toBe(servicio.personaId)
+    })
+  })
+
+  describe('applyServicioGrants', () => {
+    it('propagates the RPC error when there is no authenticated actor session', async () => {
+      const { equipo, servicio } = await seedServicio(client, repo)
+      createdServicioIds.push(servicio.id)
+
+      const grants: DreamTeamServiceGrant[] = [
+        { capabilityKey: 'dps.team.serve', experience: equipo.experiencia, scopeType: 'equipo', scopeId: equipo.id },
+      ]
+
+      // The admin client used throughout this suite authenticates with the
+      // service_role key, so it carries no user JWT and `auth.uid()` resolves
+      // to NULL inside the RPC. `dream_team_apply_servicio_grants` rejects
+      // that ("sin sesion valida") before it ever inspects `p_grants`. This
+      // proves the repository method is wired to the real RPC name and
+      // parameter names (p_persona_id / p_accion / p_grants) — a typo there
+      // would surface as a Postgres "function does not exist" error instead —
+      // and that the error is propagated rather than swallowed, matching
+      // every other method on this repository. It does NOT exercise the
+      // authorized happy path, which needs a real user session with granted
+      // authority that this integration harness does not set up; see
+      // `mapServiceGrantToRpcGrant` above for the camelCase→snake_case
+      // mapping coverage instead.
+      await expect(repo.applyServicioGrants(servicio.personaId, 'grant', grants)).rejects.toThrow(
+        /sin sesion valida/,
+      )
     })
   })
 

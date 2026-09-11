@@ -11,7 +11,22 @@ import type {
   DreamTeamServicio,
   PersonaId,
 } from './types'
-import type { DreamTeamRepository, DreamTeamServicioFiltros, DreamTeamServicioUpdate } from './repository'
+import type {
+  DreamTeamEquipoUpdate,
+  DreamTeamRepository,
+  DreamTeamRolUpdate,
+  DreamTeamServicioFiltros,
+  DreamTeamServicioUpdate,
+} from './repository'
+import type { DreamTeamServiceGrant } from './grants'
+
+// Records one call to `applyServicioGrants` verbatim, so tests can assert
+// exactly what was requested (persona, accion, and the grants themselves).
+export interface AppliedServicioGrantsCall {
+  readonly personaId: string
+  readonly accion: 'grant' | 'revoke'
+  readonly grants: readonly DreamTeamServiceGrant[]
+}
 
 export class ConcurrencyConflictError extends Error {
   readonly code = 'CONCURRENCY_CONFLICT' as const
@@ -39,7 +54,9 @@ export interface InMemoryDreamTeamRepositoryOptions {
 
 export function createInMemoryDreamTeamRepository(
   options: InMemoryDreamTeamRepositoryOptions = {},
-): DreamTeamRepository {
+): DreamTeamRepository & {
+  getAppliedServicioGrantsCalls(): readonly AppliedServicioGrantsCall[]
+} {
   const equipos: DreamTeamEquipo[] = [...(options.seed?.equipos ?? [])]
   const roles: DreamTeamRol[] = [...(options.seed?.roles ?? [])]
   const servicios: DreamTeamServicio[] = [...(options.seed?.servicios ?? [])]
@@ -51,11 +68,28 @@ export function createInMemoryDreamTeamRepository(
   const participationEvents: DreamTeamParticipationEvent[] = [
     ...(options.seed?.participationEvents ?? []),
   ]
+  const appliedServicioGrantsCalls: AppliedServicioGrantsCall[] = []
 
   function requireServicio(id: string): DreamTeamServicio {
     const found = servicios.find((s) => s.id === id)
     if (!found) {
       throw new Error(`Servicio ${id} not found`)
+    }
+    return found
+  }
+
+  function requireEquipo(id: string): DreamTeamEquipo {
+    const found = equipos.find((e) => e.id === id)
+    if (!found) {
+      throw new Error(`Equipo ${id} not found`)
+    }
+    return found
+  }
+
+  function requireRol(id: string): DreamTeamRol {
+    const found = roles.find((r) => r.id === id)
+    if (!found) {
+      throw new Error(`Rol ${id} not found`)
     }
     return found
   }
@@ -156,8 +190,60 @@ export function createInMemoryDreamTeamRepository(
       return equipos
     },
 
+    async createEquipo(input) {
+      if (!input.experiencia) throw new Error('experiencia is required')
+      if (!input.label) throw new Error('label is required')
+
+      const created: DreamTeamEquipo = {
+        ...input,
+        id: randomUUID(),
+      }
+      equipos.push(created)
+      return created
+    },
+
+    async updateEquipo(id: string, patch: DreamTeamEquipoUpdate) {
+      const current = requireEquipo(id)
+      const updated: DreamTeamEquipo = {
+        ...current,
+        ...(patch.label !== undefined ? { label: patch.label } : {}),
+        ...(patch.activo !== undefined ? { activo: patch.activo } : {}),
+        ...(patch.parentEquipoId !== undefined ? { parentEquipoId: patch.parentEquipoId ?? undefined } : {}),
+      }
+
+      const index = equipos.findIndex((e) => e.id === id)
+      equipos[index] = updated
+      return updated
+    },
+
     async listRolesPorEquipo(equipoId) {
       return roles.filter((r) => r.equipoId === equipoId)
+    },
+
+    async createRol(input) {
+      if (!input.equipoId) throw new Error('equipoId is required')
+      if (!input.label) throw new Error('label is required')
+
+      const created: DreamTeamRol = {
+        ...input,
+        id: randomUUID(),
+      }
+      roles.push(created)
+      return created
+    },
+
+    async updateRol(id: string, patch: DreamTeamRolUpdate) {
+      const current = requireRol(id)
+      const updated: DreamTeamRol = {
+        ...current,
+        ...(patch.label !== undefined ? { label: patch.label } : {}),
+        ...(patch.activo !== undefined ? { activo: patch.activo } : {}),
+        ...(patch.parentRolId !== undefined ? { parentRolId: patch.parentRolId ?? undefined } : {}),
+      }
+
+      const index = roles.findIndex((r) => r.id === id)
+      roles[index] = updated
+      return updated
     },
 
     async listRequisitosPorRol(rolId) {
@@ -213,6 +299,15 @@ export function createInMemoryDreamTeamRepository(
 
     async listParticipationEventsByPersona(personaId) {
       return participationEvents.filter((e) => e.personaId === personaId)
+    },
+
+    async applyServicioGrants(personaId, accion, grants) {
+      appliedServicioGrantsCalls.push({ personaId, accion, grants })
+      return grants.length
+    },
+
+    getAppliedServicioGrantsCalls() {
+      return appliedServicioGrantsCalls.slice()
     },
   }
 }

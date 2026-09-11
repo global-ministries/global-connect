@@ -73,3 +73,6 @@ Propuesta_Comercial_GlobalConnect.docx
 
 # Local pastor working notes (never commit)
 /docs/MINI_REPORTE_PASTOR.md
+
+# CodeGraph local index (per-checkout, never shared)
+.codegraph/
