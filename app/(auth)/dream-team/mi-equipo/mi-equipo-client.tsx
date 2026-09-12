@@ -16,11 +16,17 @@
  *
  * Each member row's `servidor` (see lib/platform/dream-team/servidores.ts)
  * is either a Dream Team servicio or a Grupos de Vida leader/co-leader
- * surfaced read-only (see lib/platform/dream-team/lideres-gdv.ts). A
- * `grupos_vida` row is always shown as Activo, gets the 'Grupos de Vida'
- * badge next to its rol, and never gets "Cambiar etapa" — its lifecycle is
- * managed in Grupos de Vida — showing muted "Se gestiona en Grupos de
- * Vida" text instead when `puedeEditar`.
+ * surfaced read-only (see lib/platform/dream-team/lideres-gdv.ts) — grouped
+ * under the GROUP node they lead, a virtual node from
+ * lib/platform/dream-team/estructura-gdv.ts. A `grupos_vida` row is always
+ * shown as Activo, gets the 'Grupos de Vida' badge next to its rol, and
+ * never gets "Cambiar etapa" — its lifecycle is managed in Grupos de Vida —
+ * showing muted "Se gestiona en Grupos de Vida" text instead when
+ * `puedeEditar`.
+ *
+ * Every Grupos de Vida segmento starts collapsed, same reasoning and same
+ * mechanism (the initial `colapsados` state) as estructura-client.tsx — see
+ * estructura-arbol.ts's `idsSegmentosColapsadosPorDefecto`.
  */
 import { useMemo, useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
@@ -35,6 +41,7 @@ import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, ORIGEN_GRUPOS_VIDA_LABEL, rolBadg
 import { DREAM_TEAM_ESTADOS } from '@/lib/platform/dream-team/types'
 import type { DreamTeamEstado, DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { contarPorRama, type NodoArbol } from '@/lib/platform/dream-team/arbol'
+import { idsSegmentosColapsadosPorDefecto, type NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { claveDeServidor, estadoDeServidor, type Servidor } from '@/lib/platform/dream-team/servidores'
 
 export interface MiEquipoServicioRow {
@@ -53,7 +60,7 @@ function etiquetaRolDeFila(fila: MiEquipoServicioRow): string {
 }
 
 export interface MiEquipoClientProps {
-  readonly arbol: readonly NodoArbol[]
+  readonly arbol: readonly NodoArbol<NodoEquipoArbol>[]
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
   readonly serviciosPorEquipo: Readonly<Record<string, readonly MiEquipoServicioRow[]>>
   readonly puedeEditar: boolean
@@ -70,7 +77,7 @@ export function MiEquipoClient({
   puedeEditar,
 }: MiEquipoClientProps): ReactElement {
   const router = useRouter()
-  const [colapsados, setColapsados] = useState<ReadonlySet<string>>(new Set())
+  const [colapsados, setColapsados] = useState<ReadonlySet<string>>(() => idsSegmentosColapsadosPorDefecto(arbol))
 
   // Branch headcount: a parent's people live in its descendants. Counting only
   // the node itself told a director "Experiencia · Sin servidores" while three
@@ -117,7 +124,7 @@ export function MiEquipoClient({
     )
   }
 
-  function renderFilas(nodos: readonly NodoArbol[]): ReactElement[] {
+  function renderFilas(nodos: readonly NodoArbol<NodoEquipoArbol>[]): ReactElement[] {
     return nodos.flatMap((nodo) => {
       const { equipo, hijos, nivel } = nodo
       const roles = rolesPorEquipo[equipo.id] ?? []
@@ -163,16 +170,9 @@ export function MiEquipoClient({
                             {etiquetaRolDeFila(fila)}
                           </BadgeSistema>
                           {esGdv && servidor.origen === 'grupos_vida' && (
-                            <>
-                              <BadgeSistema variante="default" tamaño="sm">
-                                {ORIGEN_GRUPOS_VIDA_LABEL}
-                              </BadgeSistema>
-                              {servidor.lider.grupos > 1 && (
-                                <TextoSistema variante="sutil" tamaño="sm">
-                                  · {servidor.lider.grupos} grupos
-                                </TextoSistema>
-                              )}
-                            </>
+                            <BadgeSistema variante="default" tamaño="sm">
+                              {ORIGEN_GRUPOS_VIDA_LABEL}
+                            </BadgeSistema>
                           )}
                         </div>
                       </div>

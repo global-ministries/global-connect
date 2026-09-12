@@ -94,8 +94,30 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   //   navigation.ts     — new (2026-09-11): the sidebar's Dream Team entry
   //                       (three items) and the client-safe flag reader that
   //                       backs it.
+  //
+  // 20260911140000_dream_team_estructura_gdv.sql (2026-09-11): the Grupos de
+  // Vida branch gets its real hierarchy (Dirección → Segmentos → Grupos) and
+  // every node gets its responsables, instead of 110 leaders hanging flat off
+  // the root.
+  //
+  //   arbol.ts            — construirArbol generalized (generic over the
+  //                         node shape) so it also builds the tree merged
+  //                         with the virtual Grupos de Vida branch, WITHOUT
+  //                         changing its existing real-only behaviour.
+  //   estructura-gdv.ts   — new: reads the virtual branch (dirección,
+  //                         segmentos, grupos vigentes) with their
+  //                         responsables via dream_team_estructura_gdv().
+  //   estructura-arbol.ts — new: merges real equipos with the virtual
+  //                         branch into the tree builder's input, and
+  //                         derives director/coordinador responsables for
+  //                         real nodes from dream_team_servicios.
+  //   lideres-gdv.ts      — dream_team_lideres_gdv() changed shape (one row
+  //                         per person AND GROUP, `equipoId` now the group's
+  //                         id); the `grupos` count column is gone.
   'lib/platform/dream-team/arbol.ts',
   'lib/platform/dream-team/capabilities.ts',
+  'lib/platform/dream-team/estructura-arbol.ts',
+  'lib/platform/dream-team/estructura-gdv.ts',
   'lib/platform/dream-team/grants.ts',
   'lib/platform/dream-team/lideres-gdv.ts',
   'lib/platform/dream-team/navigation.ts',

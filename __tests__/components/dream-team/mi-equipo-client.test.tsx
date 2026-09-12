@@ -16,12 +16,16 @@
  *     badge, counts as Activo, and never offers a stage-advance control —
  *     even with write capability — showing muted "Se gestiona en Grupos de
  *     Vida" text instead; an ordinary Dream Team row keeps its control
+ *   - a virtual Grupos de Vida node's branch total includes its own
+ *     servidores (the visible-equipo check covers virtual nodes too)
+ *   - every Grupos de Vida segmento starts collapsed by default
  */
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 import { MiEquipoClient, type MiEquipoServicioRow } from '@/app/(auth)/dream-team/mi-equipo/mi-equipo-client'
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
+import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import type { DreamTeamServicio } from '@/lib/platform/dream-team/types'
 import { personaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
@@ -61,7 +65,6 @@ function liderGdv(overrides: Partial<DreamTeamLiderGdv> = {}): DreamTeamLiderGdv
     personaId: personaId('p-gdv-1'),
     equipoId: 'equipo-gdv',
     rol: 'lider',
-    grupos: 1,
     desde: '2026-03-01T00:00:00.000Z',
     ...overrides,
   }
@@ -75,20 +78,43 @@ function filaGdv(liderOverrides: Partial<DreamTeamLiderGdv>, resto: Omit<MiEquip
   return { servidor: { origen: 'grupos_vida', lider: liderGdv(liderOverrides) }, ...resto }
 }
 
-const arbolConUnNodo: readonly NodoArbol[] = [
-  { equipo: { id: 'equipo-dps', label: 'DPS', experiencia: 'dps', activo: true }, hijos: [], nivel: 0 },
+const arbolConUnNodo: readonly NodoArbol<NodoEquipoArbol>[] = [
+  {
+    equipo: { origen: 'dream_team', id: 'equipo-dps', label: 'DPS', experiencia: 'dps', activo: true, responsables: [] },
+    hijos: [],
+    nivel: 0,
+  },
 ]
 
 describe('MiEquipoClient', () => {
   // Reproduces the preview screenshot: a parent with nobody directly under it
   // but people in its descendants showed "0 personas · Sin servidores".
   it('counts the whole branch on a parent and never says "Sin servidores" when descendants serve', () => {
-    const arbol: readonly NodoArbol[] = [
+    const arbol: readonly NodoArbol<NodoEquipoArbol>[] = [
       {
-        equipo: { id: 'experiencia', label: 'Dirección de Experiencia', experiencia: 'experiencia', activo: true },
+        equipo: {
+          origen: 'dream_team',
+          id: 'experiencia',
+          label: 'Dirección de Experiencia',
+          experiencia: 'experiencia',
+          activo: true,
+          responsables: [],
+        },
         nivel: 0,
         hijos: [
-          { equipo: { id: 'camaras', label: 'Cámaras', experiencia: 'dps', activo: true, parentEquipoId: 'experiencia' }, hijos: [], nivel: 1 },
+          {
+            equipo: {
+              origen: 'dream_team',
+              id: 'camaras',
+              label: 'Cámaras',
+              experiencia: 'dps',
+              activo: true,
+              parentEquipoId: 'experiencia',
+              responsables: [],
+            },
+            hijos: [],
+            nivel: 1,
+          },
         ],
       },
     ]
@@ -231,18 +257,62 @@ describe('MiEquipoClient', () => {
     expect(screen.getByText('Activo: 2')).toBeInTheDocument()
   })
 
-  it('shows a muted group count for a Grupos de Vida leader of more than one group, and omits it for exactly one', () => {
-    const filas: readonly MiEquipoServicioRow[] = [
-      filaGdv({ grupos: 2 }, { personaNombre: 'Marta Ruiz', rolLabel: 'Líder de grupo' }),
+  // ── Grupos de Vida virtual branch ──────────────────────────────────────
+
+  it('renders a virtual Grupos de Vida grupo node — origin marker, responsables in the header, and its own servidor rows counted in the branch total', () => {
+    const arbol: readonly NodoArbol<NodoEquipoArbol>[] = [
+      {
+        equipo: {
+          origen: 'grupos_vida',
+          tipo: 'grupo',
+          id: 'grupo-1',
+          label: 'Barquisimeto Matrimonios 1',
+          activo: true,
+          responsables: [{ personaId: personaId('p-gdv-1'), nombre: 'Marta Ruiz', rol: 'lider' }],
+        },
+        hijos: [],
+        nivel: 0,
+      },
     ]
+    const filas: readonly MiEquipoServicioRow[] = [filaGdv({}, { personaNombre: 'Marta Ruiz', rolLabel: 'Líder de grupo' })]
+
     render(
-      <MiEquipoClient
-        arbol={arbolConUnNodo}
-        rolesPorEquipo={{}}
-        serviciosPorEquipo={{ 'equipo-dps': filas }}
-        puedeEditar={false}
-      />,
+      <MiEquipoClient arbol={arbol} rolesPorEquipo={{}} serviciosPorEquipo={{ 'grupo-1': filas }} puedeEditar={false} />,
     )
-    expect(screen.getByText('· 2 grupos')).toBeInTheDocument()
+
+    expect(screen.getByText('Barquisimeto Matrimonios 1')).toBeInTheDocument()
+    expect(screen.getAllByText('Grupos de Vida').length).toBeGreaterThan(0)
+    expect(screen.getByText('Marta Ruiz — Líder')).toBeInTheDocument()
+    // The visible-equipo check includes the virtual grupo id: its own
+    // servidor is counted, not silently dropped as "outside the tree".
+    expect(screen.getByText('1 persona')).toBeInTheDocument()
+  })
+
+  it('starts every Grupos de Vida segmento collapsed by default, while a Dream Team branch keeps expanding by default', () => {
+    const grupo: NodoArbol<NodoEquipoArbol> = {
+      equipo: { origen: 'grupos_vida', tipo: 'grupo', id: 'grupo-1', label: 'Grupo 1', activo: true, responsables: [] },
+      hijos: [],
+      nivel: 2,
+    }
+    const segmento: NodoArbol<NodoEquipoArbol> = {
+      equipo: { origen: 'grupos_vida', tipo: 'segmento', id: 'segmento-1', label: 'Matrimonios', activo: true, responsables: [] },
+      hijos: [grupo],
+      nivel: 1,
+    }
+    const gdvRaiz: NodoArbol<NodoEquipoArbol> = {
+      equipo: { origen: 'dream_team', id: 'gdv-root', label: 'Dirección de Grupos de Vida', experiencia: 'dps', activo: true, responsables: [] },
+      hijos: [segmento],
+      nivel: 0,
+    }
+
+    render(
+      <MiEquipoClient arbol={[gdvRaiz, arbolConUnNodo[0]]} rolesPorEquipo={{}} serviciosPorEquipo={{}} puedeEditar={false} />,
+    )
+
+    expect(screen.getByText('Matrimonios')).toBeInTheDocument()
+    expect(screen.queryByText('Grupo 1')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir Matrimonios' }))
+    expect(screen.getByText('Grupo 1')).toBeInTheDocument()
   })
 })

@@ -4,9 +4,11 @@
  * Second of the three Dream Team screens: the pool of servidores (who
  * serves, where, in which role, in which stage) — Dream Team servicios PLUS
  * Grupos de Vida leaders/co-leaders surfaced read-only (see
- * lib/platform/dream-team/lideres-gdv.ts, lib/platform/dream-team/servidores.ts).
- * Server component loads equipos + roles + servicios + GdV leaders and
- * resolves display labels server-side; the client island
+ * lib/platform/dream-team/lideres-gdv.ts, lib/platform/dream-team/servidores.ts),
+ * now grouped under the GROUP node they lead — a virtual node from
+ * lib/platform/dream-team/estructura-gdv.ts. Server component loads
+ * equipos + roles + servicios + GdV leaders + the virtual Grupos de Vida
+ * branch and resolves display labels server-side; the client island
  * (./servidores-client.tsx) only renders + filters + drives the assigner
  * and stage-advance API calls.
  *
@@ -25,6 +27,8 @@ import {
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
+import { construirNodosArbol, responsablesDreamTeamPorEquipo } from '@/lib/platform/dream-team/estructura-arbol'
+import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
@@ -51,15 +55,16 @@ export default async function DreamTeamServidoresPage() {
   // estructura/page.tsx). listServicios({}) is called once, unfiltered: the
   // estado filter lives client-side so the "count per etapa" header can show
   // totals across all 6 states regardless of the currently applied filter.
-  // fetchLideresGdv() applies its own tree-authority check server-side (see
-  // its docstring) — a caller without authority over the Grupos de Vida node
-  // simply gets zero rows back, same shape as the RLS-scoped queries above.
-  const [servicios, equipos, lideresGdv] = await Promise.all([
+  // fetchLideresGdv()/fetchEstructuraGdv() apply their own tree-authority
+  // check server-side (see their docstrings) — a caller without authority
+  // over the Grupos de Vida node simply gets zero rows back, same shape as
+  // the RLS-scoped queries above.
+  const [servicios, equipos, lideresGdv, nodosGdv] = await Promise.all([
     repo.listServicios({}),
     repo.listEquipos(),
     fetchLideresGdv(supabase),
+    fetchEstructuraGdv(supabase),
   ])
-  const arbol = construirArbol(equipos)
 
   // Same tradeoff as estructura/page.tsx: listRolesPorEquipo() is per-equipo,
   // not bulk, so this is N parallel queries via Promise.all instead of one —
@@ -73,9 +78,8 @@ export default async function DreamTeamServidoresPage() {
     ]),
   )
   const rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>> = Object.fromEntries(entradasRoles)
-
-  const equipoLabelPorId = new Map(equipos.map((equipo) => [equipo.id, equipo.label]))
-  const rolLabelPorId = new Map(entradasRoles.flatMap(([, roles]) => roles).map((rol) => [rol.id, rol.label]))
+  const roles = entradasRoles.flatMap(([, rolesDelEquipo]) => rolesDelEquipo)
+  const rolLabelPorId = new Map(roles.map((rol) => [rol.id, rol.label]))
 
   // Persona display names are not part of DreamTeamServicio (it only carries
   // personaId, see types.ts) and the repository has no join for them.
@@ -88,6 +92,17 @@ export default async function DreamTeamServidoresPage() {
     ...servicios.map((servicio) => servicio.personaId),
     ...lideresGdv.map((lider) => lider.personaId),
   ])
+
+  // Merge the real tree with the virtual Grupos de Vida branch (item 3) plus
+  // who holds director/coordinador on each real node (item 4). This is what
+  // makes a Grupos de Vida row's `equipoLabel` resolve to its group name
+  // below — before this feature `equipoLabelPorId` only knew about real
+  // equipos, so a GdV row (grouped under a group id, not a real equipo id)
+  // always fell back to "Equipo no encontrado".
+  const responsablesDreamTeam = responsablesDreamTeamPorEquipo(servicios, roles, personaNombrePorId)
+  const nodosCombinados = construirNodosArbol(equipos, nodosGdv, responsablesDreamTeam)
+  const arbol = construirArbol(nodosCombinados)
+  const equipoLabelPorId = new Map(nodosCombinados.map((nodo) => [nodo.id, nodo.label]))
 
   const rows: readonly ServidorRow[] = [
     ...servicios.map(

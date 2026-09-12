@@ -1,16 +1,36 @@
 import type { DreamTeamEquipo } from './types'
 
 /**
- * A single node of the Dream Team org tree, built from a flat list of
- * `DreamTeamEquipo` rows (see `construirArbol` below).
+ * The minimal shape `construirArbol`/`contarPorRama` need from a node: an id
+ * to key and dedupe on, an optional parent id to link siblings, and a label
+ * to sort them by. `DreamTeamEquipo` satisfies this trivially — every real
+ * Dream Team equipo already carries these three fields. `NodoEquipoArbol`
+ * (estructura-arbol.ts) is the other shape the tree is built for: the same
+ * real equipos PLUS the virtual Grupos de Vida branch merged in. Neither
+ * file needs to know about the other's extra fields (experiencia, activo,
+ * responsables, …) — only these three matter for building the tree shape
+ * itself.
  */
-export interface NodoArbol {
-  readonly equipo: DreamTeamEquipo
-  readonly hijos: readonly NodoArbol[]
+export interface NodoArbolEquipo {
+  readonly id: string
+  readonly parentEquipoId?: string
+  readonly label: string
+}
+
+/**
+ * A single node of the Dream Team org tree, built from a flat list of nodes
+ * (see `construirArbol` below). Generic over the node's own shape — defaults
+ * to `DreamTeamEquipo` so every existing `NodoArbol` usage (the real-only
+ * tree) keeps working unchanged; screens that merge in the virtual Grupos de
+ * Vida branch instantiate it as `NodoArbol<NodoEquipoArbol>` instead.
+ */
+export interface NodoArbol<T extends NodoArbolEquipo = DreamTeamEquipo> {
+  readonly equipo: T
+  readonly hijos: readonly NodoArbol<T>[]
   readonly nivel: number
 }
 
-function ordenarPorLabel(equipos: readonly DreamTeamEquipo[]): DreamTeamEquipo[] {
+function ordenarPorLabel<T extends NodoArbolEquipo>(equipos: readonly T[]): T[] {
   return [...equipos].sort((a, b) => a.label.localeCompare(b.label, 'es'))
 }
 
@@ -30,11 +50,16 @@ function ordenarPorLabel(equipos: readonly DreamTeamEquipo[]): DreamTeamEquipo[]
  * for roots. The database prevents cycles with a trigger, but this pure
  * function defends itself too: it never visits the same equipo id twice, so
  * a corrupted or hand-built input can't cause infinite recursion.
+ *
+ * Generic over `T` (see `NodoArbolEquipo` above) so the same tree-building
+ * rules serve both the real-only tree and the tree merged with the virtual
+ * Grupos de Vida branch (estructura-arbol.ts) — the logic itself never
+ * changes with the richer node shape.
  */
-export function construirArbol(equipos: readonly DreamTeamEquipo[]): readonly NodoArbol[] {
+export function construirArbol<T extends NodoArbolEquipo>(equipos: readonly T[]): readonly NodoArbol<T>[] {
   const idsConocidos = new Set(equipos.map((equipo) => equipo.id))
-  const hijosPorPadre = new Map<string, DreamTeamEquipo[]>()
-  const raices: DreamTeamEquipo[] = []
+  const hijosPorPadre = new Map<string, T[]>()
+  const raices: T[] = []
 
   for (const equipo of equipos) {
     const parentId = equipo.parentEquipoId
@@ -52,7 +77,7 @@ export function construirArbol(equipos: readonly DreamTeamEquipo[]): readonly No
 
   const visitados = new Set<string>()
 
-  function construirNodo(equipo: DreamTeamEquipo, nivel: number): NodoArbol {
+  function construirNodo(equipo: T, nivel: number): NodoArbol<T> {
     visitados.add(equipo.id)
     const hijos = ordenarPorLabel(hijosPorPadre.get(equipo.id) ?? [])
       .filter((hijo) => !visitados.has(hijo.id))
@@ -73,15 +98,16 @@ export function construirArbol(equipos: readonly DreamTeamEquipo[]): readonly No
  * folded, that reads as an empty area.
  *
  * Returns `nodeId → own people + every descendant's people`. Pure; walks the
- * already-built tree, so it inherits construirArbol's cycle guard.
+ * already-built tree, so it inherits construirArbol's cycle guard. Generic
+ * for the same reason as `construirArbol` — only `.id` matters here.
  */
-export function contarPorRama(
-  arbol: readonly NodoArbol[],
+export function contarPorRama<T extends NodoArbolEquipo>(
+  arbol: readonly NodoArbol<T>[],
   propiosPorEquipo: Readonly<Record<string, number>>,
 ): ReadonlyMap<string, number> {
   const totales = new Map<string, number>()
 
-  function visitar(nodo: NodoArbol): number {
+  function visitar(nodo: NodoArbol<T>): number {
     const propios = propiosPorEquipo[nodo.equipo.id] ?? 0
     const deLaRama = nodo.hijos.reduce((suma, hijo) => suma + visitar(hijo), 0)
     const total = propios + deLaRama

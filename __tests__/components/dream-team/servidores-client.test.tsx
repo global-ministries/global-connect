@@ -15,6 +15,8 @@
  *     badge, counts as Activo, and never offers a stage-advance control —
  *     even with write capability — showing muted "Se gestiona en Grupos de
  *     Vida" text instead; an ordinary Dream Team row keeps its control
+ *   - the "Equipo" select offered by the assigner never lists a virtual
+ *     Grupos de Vida node — a new servicio can only ever target a real equipo
  *
  * The component renders a desktop table AND mobile cards simultaneously —
  * jsdom does not apply the `hidden md:table-cell` / `md:hidden` breakpoints,
@@ -26,6 +28,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 
 import { ServidoresClient, type ServidorRow } from '@/app/(auth)/admin/dream-team/servidores/servidores-client'
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
+import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import type { DreamTeamServicio } from '@/lib/platform/dream-team/types'
 import { personaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
@@ -77,7 +80,6 @@ function liderGdv(overrides: Partial<DreamTeamLiderGdv> = {}): DreamTeamLiderGdv
     personaId: personaId('p-gdv-1'),
     equipoId: 'equipo-gdv',
     rol: 'lider',
-    grupos: 1,
     desde: '2026-03-01T00:00:00.000Z',
     ...overrides,
   }
@@ -91,23 +93,41 @@ function filaGdv(liderOverrides: Partial<DreamTeamLiderGdv>, resto: Omit<Servido
   return { servidor: { origen: 'grupos_vida', lider: liderGdv(liderOverrides) }, ...resto }
 }
 
-const arbol: readonly NodoArbol[] = [
-  { equipo: { id: 'equipo-dps', label: 'DPS', experiencia: 'dps', activo: true }, hijos: [], nivel: 0 },
+const arbol: readonly NodoArbol<NodoEquipoArbol>[] = [
+  {
+    equipo: { origen: 'dream_team', id: 'equipo-dps', label: 'DPS', experiencia: 'dps', activo: true, responsables: [] },
+    hijos: [],
+    nivel: 0,
+  },
 ]
 
 // Three levels deep: DPS > Producción Técnica > Cámaras — for the ancestor
 // path assertion ("DPS · Producción Técnica" for the "Cámaras" leaf).
-const arbolAnidado: readonly NodoArbol[] = [
+const arbolAnidado: readonly NodoArbol<NodoEquipoArbol>[] = [
   {
-    equipo: { id: 'equipo-dps', label: 'DPS', experiencia: 'dps', activo: true },
+    equipo: { origen: 'dream_team', id: 'equipo-dps', label: 'DPS', experiencia: 'dps', activo: true, responsables: [] },
     nivel: 0,
     hijos: [
       {
-        equipo: { id: 'equipo-produccion', label: 'Producción Técnica', experiencia: 'dps', activo: true },
+        equipo: {
+          origen: 'dream_team',
+          id: 'equipo-produccion',
+          label: 'Producción Técnica',
+          experiencia: 'dps',
+          activo: true,
+          responsables: [],
+        },
         nivel: 1,
         hijos: [
           {
-            equipo: { id: 'equipo-camaras', label: 'Cámaras', experiencia: 'dps', activo: true },
+            equipo: {
+              origen: 'dream_team',
+              id: 'equipo-camaras',
+              label: 'Cámaras',
+              experiencia: 'dps',
+              activo: true,
+              responsables: [],
+            },
             nivel: 2,
             hijos: [],
           },
@@ -248,14 +268,22 @@ describe('ServidoresClient', () => {
     expect(screen.getAllByText('Activo: 2').length).toBeGreaterThan(0)
   })
 
-  it('shows a muted group count for a Grupos de Vida leader of more than one group, and omits it for exactly one', () => {
-    const rows: ServidorRow[] = [
-      filaGdv({ personaId: personaId('p-uno'), grupos: 1 }, { personaNombre: 'Un Grupo', equipoLabel: 'Grupos de Vida', rolLabel: 'Líder de grupo' }),
-      filaGdv({ personaId: personaId('p-tres'), grupos: 3 }, { personaNombre: 'Tres Grupos', equipoLabel: 'Grupos de Vida', rolLabel: 'Líder de grupo' }),
+  it('never lists a virtual Grupos de Vida node in the assigner\'s "Equipo" select — only real equipos can receive a new servicio', () => {
+    const arbolConGdv: readonly NodoArbol<NodoEquipoArbol>[] = [
+      ...arbol,
+      {
+        equipo: { origen: 'grupos_vida', tipo: 'segmento', id: 'segmento-1', label: 'Matrimonios', activo: true, responsables: [] },
+        hijos: [],
+        nivel: 0,
+      },
     ]
-    render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
 
-    expect(screen.getAllByText('· 3 grupos').length).toBeGreaterThan(0)
-    expect(screen.queryByText('· 1 grupos')).not.toBeInTheDocument()
+    render(<ServidoresClient rows={[]} arbol={arbolConGdv} rolesPorEquipo={{}} puedeEditar={true} />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Asignar servicio' })[0])
+
+    const select = screen.getByLabelText('Equipo') as HTMLSelectElement
+    const opciones = Array.from(select.options).map((o) => o.text)
+    expect(opciones).toContain('DPS')
+    expect(opciones).not.toContain('Matrimonios')
   })
 })

@@ -19,14 +19,23 @@
  *
  * Each row's `servidor` (see lib/platform/dream-team/servidores.ts) is
  * either a Dream Team servicio or a Grupos de Vida leader/co-leader
- * surfaced read-only (see lib/platform/dream-team/lideres-gdv.ts). A
- * `dream_team` row gets the shared `<AvanceEtapaControl>` (see
+ * surfaced read-only (see lib/platform/dream-team/lideres-gdv.ts), grouped
+ * under the GROUP node they lead — a virtual node from
+ * lib/platform/dream-team/estructura-gdv.ts, so its label resolves through
+ * the merged tree the same way a real equipo's does. A `dream_team` row
+ * gets the shared `<AvanceEtapaControl>` (see
  * components/dream-team/avance-etapa-control.tsx) as its "Cambiar etapa"
  * action, which calls `router.refresh()` on success instead of reconciling
  * local state, since the server component re-fetches the RLS-scoped truth.
  * A `grupos_vida` row never gets that control — its lifecycle is managed in
  * Grupos de Vida, not here — and shows muted "Se gestiona en Grupos de
  * Vida" text plus an 'Grupos de Vida' badge in its place.
+ *
+ * The assigner's "Equipo" select only ever lists REAL (`origen: 'dream_team'`)
+ * nodes — creating a new servicio against a virtual Grupos de Vida id would
+ * be meaningless (it isn't a `dream_team_equipos` row to assign into), so
+ * `aplanarArbol` filters those out even though the merged `arbol` prop
+ * carries both.
  */
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -52,6 +61,7 @@ import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, ORIGEN_GRUPOS_VIDA_LABEL, rolLabe
 import { DREAM_TEAM_ESTADOS } from '@/lib/platform/dream-team/types'
 import type { DreamTeamEstado, DreamTeamRol } from '@/lib/platform/dream-team/types'
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
+import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { claveDeServidor, equipoIdDeServidor, estadoDeServidor, type Servidor } from '@/lib/platform/dream-team/servidores'
 
 export interface ServidorRow {
@@ -77,7 +87,7 @@ function etiquetaRolDeFila(row: ServidorRow): string {
 
 export interface ServidoresClientProps {
   readonly rows: readonly ServidorRow[]
-  readonly arbol: readonly NodoArbol[]
+  readonly arbol: readonly NodoArbol<NodoEquipoArbol>[]
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
   readonly puedeEditar: boolean
 }
@@ -98,11 +108,21 @@ const FILTRO_TODOS = 'todos' as const
 const MIN_QUERY_LENGTH = 2
 const DEBOUNCE_MS = 300
 
-function aplanarArbol(nodos: readonly NodoArbol[]): NodoPlano[] {
+/**
+ * Flattens the tree into the assigner's "Equipo" select options — REAL
+ * equipos only. A virtual Grupos de Vida node is never offered: assigning a
+ * new servicio against it would target an id that isn't a `dream_team_equipos`
+ * row (see this file's header comment). Its children are still walked (a
+ * dream_team descendant under a virtual ancestor can't happen today, but
+ * this stays correct if it ever did) — only the push is filtered.
+ */
+function aplanarArbol(nodos: readonly NodoArbol<NodoEquipoArbol>[]): NodoPlano[] {
   const resultado: NodoPlano[] = []
-  function visitar(nodo: NodoArbol): void {
-    const prefijo = nodo.nivel > 0 ? `${'—'.repeat(nodo.nivel)} ` : ''
-    resultado.push({ id: nodo.equipo.id, etiqueta: `${prefijo}${nodo.equipo.label}` })
+  function visitar(nodo: NodoArbol<NodoEquipoArbol>): void {
+    if (nodo.equipo.origen === 'dream_team') {
+      const prefijo = nodo.nivel > 0 ? `${'—'.repeat(nodo.nivel)} ` : ''
+      resultado.push({ id: nodo.equipo.id, etiqueta: `${prefijo}${nodo.equipo.label}` })
+    }
     nodo.hijos.forEach(visitar)
   }
   nodos.forEach(visitar)
@@ -110,9 +130,9 @@ function aplanarArbol(nodos: readonly NodoArbol[]): NodoPlano[] {
 }
 
 /** Maps every equipoId to the labels of its visible ancestors, root-first (not including itself). */
-function construirRutasAncestros(nodos: readonly NodoArbol[]): Map<string, readonly string[]> {
+function construirRutasAncestros(nodos: readonly NodoArbol<NodoEquipoArbol>[]): Map<string, readonly string[]> {
   const mapa = new Map<string, readonly string[]>()
-  function visitar(nodo: NodoArbol, ancestros: readonly string[]): void {
+  function visitar(nodo: NodoArbol<NodoEquipoArbol>, ancestros: readonly string[]): void {
     mapa.set(nodo.equipo.id, ancestros)
     nodo.hijos.forEach((hijo) => visitar(hijo, [...ancestros, nodo.equipo.label]))
   }
@@ -303,16 +323,9 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
                           <div className="flex flex-wrap items-center gap-2">
                             <span>{etiquetaRolDeFila(row)}</span>
                             {esGdv && servidor.origen === 'grupos_vida' && (
-                              <>
-                                <BadgeSistema variante="default" tamaño="sm">
-                                  {ORIGEN_GRUPOS_VIDA_LABEL}
-                                </BadgeSistema>
-                                {servidor.lider.grupos > 1 && (
-                                  <TextoSistema variante="sutil" tamaño="sm">
-                                    · {servidor.lider.grupos} grupos
-                                  </TextoSistema>
-                                )}
-                              </>
+                              <BadgeSistema variante="default" tamaño="sm">
+                                {ORIGEN_GRUPOS_VIDA_LABEL}
+                              </BadgeSistema>
                             )}
                           </div>
                         </td>
@@ -370,11 +383,6 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
                           <BadgeSistema variante="default" tamaño="sm">
                             {ORIGEN_GRUPOS_VIDA_LABEL}
                           </BadgeSistema>
-                          {servidor.lider.grupos > 1 && (
-                            <TextoSistema variante="sutil" tamaño="sm">
-                              · {servidor.lider.grupos} grupos
-                            </TextoSistema>
-                          )}
                         </div>
                       )}
                       <TextoSistema variante="sutil" className="mt-1 block text-xs">

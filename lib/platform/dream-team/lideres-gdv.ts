@@ -10,7 +10,6 @@ export interface DreamTeamLiderGdv {
   readonly personaId: PersonaId
   readonly equipoId: string
   readonly rol: RolLiderGdv
-  readonly grupos: number
   readonly desde: string
 }
 
@@ -18,7 +17,6 @@ interface LiderGdvRow {
   readonly persona_id: string
   readonly equipo_id: string
   readonly rol: string
-  readonly grupos: number
   readonly desde: string
 }
 
@@ -29,7 +27,7 @@ function esRolLiderGdv(value: string): value is RolLiderGdv {
 /**
  * Reads Grupos de Vida leaders/co-leaders projected as Dream Team "servers",
  * through the `dream_team_lideres_gdv()` RPC (no arguments — see
- * supabase/migrations/20260911120000_dream_team_lideres_gdv.sql).
+ * supabase/migrations/20260911140000_dream_team_estructura_gdv.sql).
  *
  * This stays outside `DreamTeamRepository` for the same reason
  * `fetchNombresPersonas` does (see personas.ts): it is a cross-domain read
@@ -39,11 +37,15 @@ function esRolLiderGdv(value: string): value is RolLiderGdv {
  * caller without authority over the Grupos de Vida node gets zero rows back,
  * not an error, so there is nothing to scope here.
  *
- * One row per person who currently leads or co-leads at least one active
- * Grupo de Vida — a person leading several groups still comes back as a
- * single row, with the count in `grupos`. A row whose `rol` is anything
- * other than 'lider'/'colider' is dropped defensively rather than trusted
- * blindly from an untyped RPC response.
+ * One row per person AND GROUP they currently lead or co-lead — `equipoId`
+ * is the id of that group, a virtual node from `dream_team_estructura_gdv()`
+ * (see estructura-gdv.ts). A person leading two groups comes back as two
+ * rows, one per group: two places where they serve, not one. This replaced
+ * the earlier one-row-per-person shape (with a `grupos` count column) so a
+ * leader hangs off the group they actually lead instead of the Grupos de
+ * Vida root. A row whose `rol` is anything other than 'lider'/'colider' is
+ * dropped defensively rather than trusted blindly from an untyped RPC
+ * response.
  */
 export async function fetchLideresGdv(client: DbClient): Promise<readonly DreamTeamLiderGdv[]> {
   // The RPC is not in the generated database types yet, so the call is
@@ -60,7 +62,6 @@ export async function fetchLideresGdv(client: DbClient): Promise<readonly DreamT
       personaId: row.persona_id as PersonaId,
       equipoId: row.equipo_id,
       rol: row.rol,
-      grupos: row.grupos,
       desde: row.desde,
     })
   }

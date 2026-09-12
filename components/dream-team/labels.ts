@@ -9,6 +9,7 @@
  */
 import type { DreamTeamEstado, DreamTeamMotivo } from '@/lib/platform/dream-team/types'
 import type { RolLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
+import type { RolResponsableGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { PLATFORM_EXPERIENCE_CATALOG } from '@/lib/platform/experiences'
 
 export const ESTADO_LABELS: Record<DreamTeamEstado, string> = {
@@ -107,6 +108,34 @@ export function rolBadgeVariante(label: string): BadgeVariante {
 export const ROL_LIDER_GDV_LABELS: Readonly<Record<RolLiderGdv, string>> = {
   lider: 'Líder de grupo',
   colider: 'Colíder de grupo',
+}
+
+/**
+ * Spanish display labels for the four Grupos de Vida structure "responsable"
+ * roles surfaced read-only on org-tree rows (see
+ * lib/platform/dream-team/estructura-gdv.ts, components/dream-team/nodo-fila.tsx).
+ * Distinct from `ROL_LIDER_GDV_LABELS`: that one labels a person's row in the
+ * servidores/mi-equipo listings ("Líder de grupo"), this one labels the
+ * per-node "who's responsible" line on the tree itself, where the node
+ * already says which group it is — "Líder" alone reads better there.
+ */
+export const ROL_RESPONSABLE_GDV_LABELS: Readonly<Record<RolResponsableGdv, string>> = {
+  director_general: 'Director general',
+  director_etapa: 'Director de etapa',
+  lider: 'Líder',
+  colider: 'Colíder',
+}
+
+/**
+ * Resolves a Grupos de Vida structure responsable role to its Spanish label.
+ * `rol` arrives as a plain `string` (see estructura-arbol.ts's
+ * `ResponsableNodo`), so this stays defensive like `rolLabel()`: an
+ * unrecognized key falls back to capitalizing just its first letter rather
+ * than rendering the raw key.
+ */
+export function rolResponsableGdvLabel(rol: string): string {
+  const conocido = (ROL_RESPONSABLE_GDV_LABELS as Readonly<Record<string, string>>)[rol]
+  return conocido ?? rolLabel(rol)
 }
 
 /**

@@ -13,13 +13,22 @@
  *     again shows them
  *   - renders EstadoVacio when the tree is empty
  *   - the edit dialog opens pre-filled with the current name
+ *   - a virtual Grupos de Vida node (see
+ *     lib/platform/dream-team/estructura-arbol.ts) renders its origin
+ *     marker and responsables, and offers NONE of the edit actions even
+ *     with puedeEditar — it isn't a row this screen owns
+ *   - every Grupos de Vida segmento starts collapsed by default (its grupos
+ *     stay hidden until opened), while a Dream Team branch keeps expanding
+ *     by default exactly as before this feature
  */
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 import { EstructuraClient } from '@/app/(auth)/admin/dream-team/estructura/estructura-client'
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
+import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import { personaId } from '@/lib/platform/dream-team/types'
 
 jest.mock('@/app/(auth)/admin/dream-team/estructura/actions', () => ({
   crearEquipo: jest.fn(),
@@ -60,13 +69,27 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
   ),
 }))
 
+type ArbolConEstructura = NodoArbol<NodoEquipoArbol>
+
 function nodo(
-  overrides: Partial<NodoArbol['equipo']> & Pick<NodoArbol['equipo'], 'id' | 'label'>,
-  hijos: NodoArbol[] = [],
+  overrides: Partial<Extract<NodoEquipoArbol, { origen: 'dream_team' }>> & Pick<NodoEquipoArbol, 'id' | 'label'>,
+  hijos: ArbolConEstructura[] = [],
   nivel = 0,
-): NodoArbol {
+): ArbolConEstructura {
   return {
-    equipo: { experiencia: 'dps', activo: true, ...overrides },
+    equipo: { origen: 'dream_team', experiencia: 'dps', activo: true, responsables: [], ...overrides },
+    hijos,
+    nivel,
+  }
+}
+
+function nodoGdv(
+  overrides: Partial<Extract<NodoEquipoArbol, { origen: 'grupos_vida' }>> & Pick<NodoEquipoArbol, 'id' | 'label'>,
+  hijos: ArbolConEstructura[] = [],
+  nivel = 0,
+): ArbolConEstructura {
+  return {
+    equipo: { origen: 'grupos_vida', tipo: 'segmento', activo: true, responsables: [], ...overrides },
     hijos,
     nivel,
   }
@@ -195,5 +218,56 @@ describe('EstructuraClient', () => {
 
     expect(screen.getByRole('heading', { name: 'Agregar sub-equipo' })).toBeInTheDocument()
     expect(screen.getByLabelText('Nombre del sub-equipo')).toBeInTheDocument()
+  })
+
+  // ── Grupos de Vida virtual branch ──────────────────────────────────────
+
+  it('renders a virtual Grupos de Vida node with its origin marker, responsables, and no edit actions even with puedeEditar', () => {
+    const segmento = nodoGdv({
+      id: 'segmento-1',
+      label: 'Matrimonios',
+      responsables: [
+        { personaId: personaId('p-dg'), nombre: 'Ana Pérez', rol: 'director_general' },
+        { personaId: personaId('p-de'), nombre: 'Luis Gómez', rol: 'director_etapa' },
+      ],
+    })
+    const raiz = nodo({ id: 'gdv-root', label: 'Dirección de Grupos de Vida' }, [segmento])
+
+    render(<EstructuraClient arbol={[raiz]} rolesPorEquipo={{}} puedeEditar={true} />)
+
+    expect(screen.getByText('Matrimonios')).toBeInTheDocument()
+    expect(screen.getByText('Grupos de Vida')).toBeInTheDocument()
+    expect(screen.getByText('Ana Pérez — Director general')).toBeInTheDocument()
+    expect(screen.getByText('Luis Gómez — Director de etapa')).toBeInTheDocument()
+
+    // The real Dream Team root still gets its edit actions...
+    expect(screen.getByRole('button', { name: 'Editar equipo Dirección de Grupos de Vida' })).toBeInTheDocument()
+    // ...but the virtual segmento never does, even though puedeEditar is true.
+    expect(screen.queryByRole('button', { name: 'Editar equipo Matrimonios' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Agregar sub-equipo a Matrimonios' })).not.toBeInTheDocument()
+  })
+
+  it('starts every Grupos de Vida segmento collapsed by default, while a Dream Team branch keeps expanding by default', () => {
+    const grupo = nodoGdv({ id: 'grupo-1', label: 'Grupo 1', tipo: 'grupo' }, [], 2)
+    const segmento = nodoGdv({ id: 'segmento-1', label: 'Matrimonios' }, [grupo], 1)
+    const gdvRaiz = nodo({ id: 'gdv-root', label: 'Dirección de Grupos de Vida' }, [segmento])
+
+    const dtHijo = nodo({ id: 'dps-escenario', label: 'DPS Escenario' }, [], 1)
+    const dtRaiz = nodo({ id: 'dps', label: 'DPS' }, [dtHijo])
+
+    render(<EstructuraClient arbol={[dtRaiz, gdvRaiz]} rolesPorEquipo={{}} puedeEditar={false} />)
+
+    // The segmento itself is visible (its parent, the direction node, is
+    // expanded by default)...
+    expect(screen.getByText('Matrimonios')).toBeInTheDocument()
+    // ...but its grupo is not: the segmento starts collapsed.
+    expect(screen.queryByText('Grupo 1')).not.toBeInTheDocument()
+
+    // A Dream Team branch is unaffected — still expanded by default.
+    expect(screen.getByText('DPS Escenario')).toBeInTheDocument()
+
+    // Opening the segmento reveals its grupo.
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir Matrimonios' }))
+    expect(screen.getByText('Grupo 1')).toBeInTheDocument()
   })
 })

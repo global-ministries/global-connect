@@ -8,14 +8,21 @@
  * cards. Each row is the shared `<NodoFila>` (see
  * components/dream-team/nodo-fila.tsx), collapsible with a chevron (a plain
  * `useState` set of collapsed ids, same pattern as
- * GruposList.client.tsx:143 — everything starts expanded). When
- * `puedeEditar` is true, exactly two icon actions sit on the right of every
- * row (Editar equipo, Agregar sub-equipo a), each opening a `Dialog`
- * instead of always-on inline forms. Every action's success or failure goes
- * through `useNotificaciones()` (see docs/sistema-diseno.md's "Notificaciones"
- * section) — never `alert()`. Nothing here submits an invalid form (every
- * submit button is disabled until its input is non-empty), so there is no
- * separate inline field-validation error to show.
+ * GruposList.client.tsx:143 — everything starts expanded, EXCEPT every
+ * Grupos de Vida segmento: with ~95 grupos in staging, expanding all five
+ * segments by default would flood the tree, so they seed the initial
+ * collapsed set instead — see estructura-arbol.ts's
+ * `idsSegmentosColapsadosPorDefecto`). When `puedeEditar` is true, exactly
+ * two icon actions sit on the right of every REAL (`origen: 'dream_team'`)
+ * row (Editar equipo, Agregar sub-equipo a), each opening a `Dialog` instead
+ * of always-on inline forms. A virtual Grupos de Vida node never gets these
+ * — it isn't a `dream_team_equipos` row this screen can edit, it's a
+ * read-only projection (see lib/platform/dream-team/estructura-arbol.ts).
+ * Every action's success or failure goes through `useNotificaciones()` (see
+ * docs/sistema-diseno.md's "Notificaciones" section) — never `alert()`.
+ * Nothing here submits an invalid form (every submit button is disabled
+ * until its input is non-empty), so there is no separate inline
+ * field-validation error to show.
  */
 
 import { useMemo, useState, useTransition, type FormEvent, type ReactElement } from 'react'
@@ -38,6 +45,7 @@ import { NodoFila } from '@/components/dream-team/nodo-fila'
 import { rolBadgeVariante, rolLabel } from '@/components/dream-team/labels'
 
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
+import { idsSegmentosColapsadosPorDefecto, type NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import type { DreamTeamEquipo, DreamTeamRol } from '@/lib/platform/dream-team/types'
 
 import {
@@ -52,7 +60,7 @@ import {
 } from './actions'
 
 export interface EstructuraClientProps {
-  readonly arbol: readonly NodoArbol[]
+  readonly arbol: readonly NodoArbol<NodoEquipoArbol>[]
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
   readonly puedeEditar: boolean
 }
@@ -80,13 +88,13 @@ function iconButtonClass(): string {
 
 export function EstructuraClient({ arbol, rolesPorEquipo, puedeEditar }: EstructuraClientProps): ReactElement {
   const toast = useNotificaciones()
-  const [colapsados, setColapsados] = useState<ReadonlySet<string>>(new Set())
+  const [colapsados, setColapsados] = useState<ReadonlySet<string>>(() => idsSegmentosColapsadosPorDefecto(arbol))
   const [editandoEquipoId, setEditandoEquipoId] = useState<string | null>(null)
   const [subequipoDeId, setSubequipoDeId] = useState<string | null>(null)
 
   const nodosPorId = useMemo(() => {
-    const mapa = new Map<string, NodoArbol>()
-    function visitar(nodo: NodoArbol): void {
+    const mapa = new Map<string, NodoArbol<NodoEquipoArbol>>()
+    function visitar(nodo: NodoArbol<NodoEquipoArbol>): void {
       mapa.set(nodo.equipo.id, nodo)
       nodo.hijos.forEach(visitar)
     }
@@ -115,11 +123,15 @@ export function EstructuraClient({ arbol, rolesPorEquipo, puedeEditar }: Estruct
     )
   }
 
-  function renderFilas(nodos: readonly NodoArbol[]): ReactElement[] {
+  function renderFilas(nodos: readonly NodoArbol<NodoEquipoArbol>[]): ReactElement[] {
     return nodos.flatMap((nodo) => {
       const { equipo, hijos, nivel } = nodo
       const roles = rolesPorEquipo[equipo.id] ?? []
       const expandido = !colapsados.has(equipo.id)
+      // A virtual Grupos de Vida node is never editable here — it isn't a
+      // dream_team_equipos row (see estructura-arbol.ts) — regardless of
+      // puedeEditar.
+      const puedeEditarEsteNodo = puedeEditar && equipo.origen === 'dream_team'
 
       const fila = (
         <NodoFila
@@ -131,7 +143,7 @@ export function EstructuraClient({ arbol, rolesPorEquipo, puedeEditar }: Estruct
           expandido={expandido}
           onToggleExpandido={() => toggleColapsado(equipo.id)}
           accesorio={
-            puedeEditar ? (
+            puedeEditarEsteNodo ? (
               <>
                 <button
                   type="button"
@@ -189,7 +201,11 @@ export function EstructuraClient({ arbol, rolesPorEquipo, puedeEditar }: Estruct
 // ── Editar equipo (renombrar, activar/desactivar, gestionar roles) ───────
 
 interface EditarEquipoDialogProps {
-  readonly equipo: DreamTeamEquipo
+  // Only id/label/activo — never the full DreamTeamEquipo — so this dialog
+  // (only ever opened for a real, `origen: 'dream_team'` node; see
+  // renderFilas above) doesn't need to know about NodoEquipoArbol's virtual
+  // side of the union at all.
+  readonly equipo: Pick<DreamTeamEquipo, 'id' | 'label' | 'activo'>
   readonly roles: readonly DreamTeamRol[]
   readonly onClose: () => void
   readonly toast: Toast
@@ -432,7 +448,8 @@ function RolEditableFila({ rol, toast }: RolEditableFilaProps): ReactElement {
 // ── Agregar sub-equipo ─────────────────────────────────────────────────
 
 interface AgregarSubequipoDialogProps {
-  readonly equipoPadre: DreamTeamEquipo
+  // Only id/label — see EditarEquipoDialogProps above for why.
+  readonly equipoPadre: Pick<DreamTeamEquipo, 'id' | 'label'>
   readonly onClose: () => void
   readonly toast: Toast
 }

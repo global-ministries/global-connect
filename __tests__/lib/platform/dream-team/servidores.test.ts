@@ -34,7 +34,6 @@ function lider(overrides: Partial<DreamTeamLiderGdv> = {}): DreamTeamLiderGdv {
     personaId: personaId('p-gdv-1'),
     equipoId: 'equipo-gdv',
     rol: 'lider',
-    grupos: 1,
     desde: '2026-03-01T00:00:00.000Z',
     ...overrides,
   }

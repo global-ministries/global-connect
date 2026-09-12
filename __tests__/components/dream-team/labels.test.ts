@@ -20,6 +20,8 @@ import {
   ROL_LABELS,
   ROL_BADGE_VARIANTE,
   ROL_LIDER_GDV_LABELS,
+  ROL_RESPONSABLE_GDV_LABELS,
+  rolResponsableGdvLabel,
   ORIGEN_GRUPOS_VIDA_LABEL,
 } from '@/components/dream-team/labels'
 
@@ -67,6 +69,25 @@ describe('ROL_LIDER_GDV_LABELS', () => {
   it('labels the two Grupos de Vida leadership roles', () => {
     expect(ROL_LIDER_GDV_LABELS.lider).toBe('Líder de grupo')
     expect(ROL_LIDER_GDV_LABELS.colider).toBe('Colíder de grupo')
+  })
+})
+
+describe('ROL_RESPONSABLE_GDV_LABELS / rolResponsableGdvLabel', () => {
+  it('labels the four Grupos de Vida structure responsable roles', () => {
+    expect(ROL_RESPONSABLE_GDV_LABELS.director_general).toBe('Director general')
+    expect(ROL_RESPONSABLE_GDV_LABELS.director_etapa).toBe('Director de etapa')
+    expect(ROL_RESPONSABLE_GDV_LABELS.lider).toBe('Líder')
+    expect(ROL_RESPONSABLE_GDV_LABELS.colider).toBe('Colíder')
+  })
+
+  it('resolves each known key through rolResponsableGdvLabel', () => {
+    for (const [key, label] of Object.entries(ROL_RESPONSABLE_GDV_LABELS)) {
+      expect(rolResponsableGdvLabel(key)).toBe(label)
+    }
+  })
+
+  it('falls back to rolLabel-style capitalization for an unrecognized key, never the raw key', () => {
+    expect(rolResponsableGdvLabel('mentor')).toBe('Mentor')
   })
 })
 
