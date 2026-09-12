@@ -18,7 +18,14 @@
  *     Vida" text instead; an ordinary Dream Team row keeps its control
  *   - a virtual Grupos de Vida node's branch total includes its own
  *     servidores (the visible-equipo check covers virtual nodes too)
- *   - every Grupos de Vida segmento starts collapsed by default
+ *   - an equipo de dirección (`tipo: 'directores'`) renders with the badge
+ *     naming what it is
+ *   - a node's responsables line is suppressed WHEN it has person rows of
+ *     its own (those rows already name the same people with their rol
+ *     badges), and still renders when it has none — otherwise the
+ *     information would disappear
+ *   - every Grupos de Vida segmento AND equipo de dirección starts collapsed
+ *     by default
  */
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -85,6 +92,24 @@ const arbolConUnNodo: readonly NodoArbol<NodoEquipoArbol>[] = [
     nivel: 0,
   },
 ]
+
+/**
+ * ONE virtual grupo node carrying a responsable, reused by the duplication
+ * tests below so "with rows" and "without rows" are demonstrably the same
+ * node — only `serviciosPorEquipo` differs between the two.
+ */
+const arbolGrupoConLideres: NodoArbol<NodoEquipoArbol> = {
+  equipo: {
+    origen: 'grupos_vida',
+    tipo: 'grupo',
+    id: 'grupo-1',
+    label: 'Barquisimeto Matrimonios 1',
+    activo: true,
+    responsables: [{ personaId: personaId('p-gdv-1'), nombre: 'Marta Ruiz', rol: 'lider' }],
+  },
+  hijos: [],
+  nivel: 0,
+}
 
 describe('MiEquipoClient', () => {
   // Reproduces the preview screenshot: a parent with nobody directly under it
@@ -259,21 +284,8 @@ describe('MiEquipoClient', () => {
 
   // ── Grupos de Vida virtual branch ──────────────────────────────────────
 
-  it('renders a virtual Grupos de Vida grupo node — origin marker, responsables in the header, and its own servidor rows counted in the branch total', () => {
-    const arbol: readonly NodoArbol<NodoEquipoArbol>[] = [
-      {
-        equipo: {
-          origen: 'grupos_vida',
-          tipo: 'grupo',
-          id: 'grupo-1',
-          label: 'Barquisimeto Matrimonios 1',
-          activo: true,
-          responsables: [{ personaId: personaId('p-gdv-1'), nombre: 'Marta Ruiz', rol: 'lider' }],
-        },
-        hijos: [],
-        nivel: 0,
-      },
-    ]
+  it('renders a virtual Grupos de Vida grupo node — origin marker, and its own servidor rows counted in the branch total', () => {
+    const arbol = [arbolGrupoConLideres]
     const filas: readonly MiEquipoServicioRow[] = [filaGdv({}, { personaNombre: 'Marta Ruiz', rolLabel: 'Líder de grupo' })]
 
     render(
@@ -282,21 +294,131 @@ describe('MiEquipoClient', () => {
 
     expect(screen.getByText('Barquisimeto Matrimonios 1')).toBeInTheDocument()
     expect(screen.getAllByText('Grupos de Vida').length).toBeGreaterThan(0)
-    expect(screen.getByText('Marta Ruiz — Líder')).toBeInTheDocument()
     // The visible-equipo check includes the virtual grupo id: its own
     // servidor is counted, not silently dropped as "outside the tree".
     expect(screen.getByText('1 persona')).toBeInTheDocument()
   })
 
-  it('starts every Grupos de Vida segmento collapsed by default, while a Dream Team branch keeps expanding by default', () => {
+  it('renders an equipo de dirección with the badge naming what it is', () => {
+    const arbol: readonly NodoArbol<NodoEquipoArbol>[] = [
+      {
+        equipo: {
+          origen: 'grupos_vida',
+          tipo: 'directores',
+          id: 'equipo-1',
+          label: 'Morela Ocampo y Santiago Villegas',
+          activo: true,
+          responsables: [],
+        },
+        hijos: [],
+        nivel: 0,
+      },
+    ]
+
+    render(<MiEquipoClient arbol={arbol} rolesPorEquipo={{}} serviciosPorEquipo={{}} puedeEditar={false} />)
+
+    expect(screen.getByText('Morela Ocampo y Santiago Villegas')).toBeInTheDocument()
+    expect(screen.getByText('Equipo de dirección')).toBeInTheDocument()
+  })
+
+  // ── No duplicated people: responsables line vs. the node's own rows ────
+
+  /**
+   * Reproduces the preview complaint verbatim: a Grupos de Vida grupo node
+   * showed "Domingo Escobar — Líder · Sol Escobar — Líder" on the row and
+   * then listed the same two people as person rows right below it, with
+   * their rol badges. The rows are the richer rendering (estado badge,
+   * origin badge), so the line above them is the one that goes.
+   */
+  it('suppresses the responsables line on a node that has person rows of its own', () => {
+    const filas: readonly MiEquipoServicioRow[] = [
+      filaGdv({ personaId: personaId('p-gdv-1') }, { personaNombre: 'Marta Ruiz', rolLabel: 'Líder de grupo' }),
+    ]
+
+    render(
+      <MiEquipoClient
+        arbol={[arbolGrupoConLideres]}
+        rolesPorEquipo={{}}
+        serviciosPorEquipo={{ 'grupo-1': filas }}
+        puedeEditar={false}
+      />,
+    )
+
+    // The person row still names her, with her rol badge.
+    expect(screen.getByText('Marta Ruiz')).toBeInTheDocument()
+    expect(screen.getByText('Líder de grupo')).toBeInTheDocument()
+    // ...and the row's responsables line no longer repeats it.
+    expect(screen.queryByText('Marta Ruiz — Líder')).not.toBeInTheDocument()
+  })
+
+  /**
+   * The SAME node with no rows keeps its line: a segmento with its director
+   * general, or a Dream Team node with no servicios, would otherwise lose
+   * the only mention of who is responsible for it.
+   */
+  it('keeps the responsables line on the same node when it has no person rows', () => {
+    render(
+      <MiEquipoClient arbol={[arbolGrupoConLideres]} rolesPorEquipo={{}} serviciosPorEquipo={{}} puedeEditar={false} />,
+    )
+
+    expect(screen.getByText('Marta Ruiz — Líder')).toBeInTheDocument()
+  })
+
+  it('keeps the responsables line on a parent whose people all live in its descendants', () => {
     const grupo: NodoArbol<NodoEquipoArbol> = {
       equipo: { origen: 'grupos_vida', tipo: 'grupo', id: 'grupo-1', label: 'Grupo 1', activo: true, responsables: [] },
       hijos: [],
+      nivel: 1,
+    }
+    const segmento: NodoArbol<NodoEquipoArbol> = {
+      equipo: {
+        origen: 'grupos_vida',
+        tipo: 'segmento',
+        id: 'segmento-1',
+        label: 'Matrimonios',
+        activo: true,
+        responsables: [{ personaId: personaId('p-dg'), nombre: 'Ana Pérez', rol: 'director_general' }],
+      },
+      hijos: [grupo],
+      nivel: 0,
+    }
+    const filas: readonly MiEquipoServicioRow[] = [filaGdv({}, { personaNombre: 'Marta Ruiz', rolLabel: 'Líder de grupo' })]
+
+    render(
+      <MiEquipoClient
+        arbol={[segmento]}
+        rolesPorEquipo={{}}
+        serviciosPorEquipo={{ 'grupo-1': filas }}
+        puedeEditar={false}
+      />,
+    )
+
+    // The segmento has a branch total of 1 but zero rows of its own, so
+    // nothing below it duplicates its director general.
+    expect(screen.getByText('Ana Pérez — Director general')).toBeInTheDocument()
+  })
+
+  it('starts every Grupos de Vida segmento AND equipo de dirección collapsed by default, while a Dream Team branch keeps expanding by default', () => {
+    const grupo: NodoArbol<NodoEquipoArbol> = {
+      equipo: { origen: 'grupos_vida', tipo: 'grupo', id: 'grupo-1', label: 'Grupo 1', activo: true, responsables: [] },
+      hijos: [],
+      nivel: 3,
+    }
+    const equipoDirectores: NodoArbol<NodoEquipoArbol> = {
+      equipo: {
+        origen: 'grupos_vida',
+        tipo: 'directores',
+        id: 'equipo-1',
+        label: 'Morela Ocampo y Santiago Villegas',
+        activo: true,
+        responsables: [],
+      },
+      hijos: [grupo],
       nivel: 2,
     }
     const segmento: NodoArbol<NodoEquipoArbol> = {
       equipo: { origen: 'grupos_vida', tipo: 'segmento', id: 'segmento-1', label: 'Matrimonios', activo: true, responsables: [] },
-      hijos: [grupo],
+      hijos: [equipoDirectores],
       nivel: 1,
     }
     const gdvRaiz: NodoArbol<NodoEquipoArbol> = {
@@ -310,9 +432,16 @@ describe('MiEquipoClient', () => {
     )
 
     expect(screen.getByText('Matrimonios')).toBeInTheDocument()
+    expect(screen.queryByText('Morela Ocampo y Santiago Villegas')).not.toBeInTheDocument()
     expect(screen.queryByText('Grupo 1')).not.toBeInTheDocument()
 
+    // Opening the segmento reveals its teams, not their grupos.
     fireEvent.click(screen.getByRole('button', { name: 'Expandir Matrimonios' }))
+    expect(screen.getByText('Morela Ocampo y Santiago Villegas')).toBeInTheDocument()
+    expect(screen.queryByText('Grupo 1')).not.toBeInTheDocument()
+
+    // Opening the team then reveals the grupos it supervises.
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir Morela Ocampo y Santiago Villegas' }))
     expect(screen.getByText('Grupo 1')).toBeInTheDocument()
   })
 })

@@ -17,9 +17,15 @@
  *     lib/platform/dream-team/estructura-arbol.ts) renders its origin
  *     marker and responsables, and offers NONE of the edit actions even
  *     with puedeEditar — it isn't a row this screen owns
- *   - every Grupos de Vida segmento starts collapsed by default (its grupos
- *     stay hidden until opened), while a Dream Team branch keeps expanding
- *     by default exactly as before this feature
+ *   - an equipo de dirección (`tipo: 'directores'`) is just as read-only,
+ *     and gets the badge naming what it is
+ *   - this screen lists no people as rows, so EVERY node keeps rendering its
+ *     responsables line — the suppression mi-equipo applies (see that
+ *     screen's test) must not leak here, or the information would vanish
+ *   - every Grupos de Vida segmento AND equipo de dirección starts collapsed
+ *     by default (opening a segmento reveals its teams, opening a team
+ *     reveals its grupos), while a Dream Team branch keeps expanding by
+ *     default exactly as before this feature
  */
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -247,9 +253,64 @@ describe('EstructuraClient', () => {
     expect(screen.queryByRole('button', { name: 'Agregar sub-equipo a Matrimonios' })).not.toBeInTheDocument()
   })
 
-  it('starts every Grupos de Vida segmento collapsed by default, while a Dream Team branch keeps expanding by default', () => {
-    const grupo = nodoGdv({ id: 'grupo-1', label: 'Grupo 1', tipo: 'grupo' }, [], 2)
-    const segmento = nodoGdv({ id: 'segmento-1', label: 'Matrimonios' }, [grupo], 1)
+  it('renders an equipo de dirección with its own badge and no edit actions even with puedeEditar', () => {
+    const equipoDirectores = nodoGdv(
+      { id: 'equipo-1', label: 'Morela Ocampo y Santiago Villegas', tipo: 'directores' },
+      [],
+      2,
+    )
+    const segmento = nodoGdv({ id: 'segmento-1', label: 'Matrimonios' }, [equipoDirectores], 1)
+    const raiz = nodo({ id: 'gdv-root', label: 'Dirección de Grupos de Vida' }, [segmento])
+
+    render(<EstructuraClient arbol={[raiz]} rolesPorEquipo={{}} puedeEditar={true} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir Matrimonios' }))
+
+    expect(screen.getByText('Morela Ocampo y Santiago Villegas')).toBeInTheDocument()
+    expect(screen.getByText('Equipo de dirección')).toBeInTheDocument()
+
+    // The virtual branch stays read-only all the way down: a directores node
+    // is as unreachable by an edit action as the segmento above it.
+    expect(screen.queryByRole('button', { name: 'Editar equipo Morela Ocampo y Santiago Villegas' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Agregar sub-equipo a Morela Ocampo y Santiago Villegas' }),
+    ).not.toBeInTheDocument()
+  })
+
+  /**
+   * The counterpart of mi-equipo's suppression rule: this screen lists no
+   * people as rows of its own, so the responsables line is the ONLY place a
+   * node's people appear here and must always render.
+   */
+  it('keeps rendering the responsables line on every node — this screen has no person rows to duplicate', () => {
+    const grupo = nodoGdv(
+      {
+        id: 'grupo-1',
+        label: 'Cabudare Matrimonios 1',
+        tipo: 'grupo',
+        responsables: [
+          { personaId: personaId('p-lider'), nombre: 'Domingo Escobar', rol: 'lider' },
+          { personaId: personaId('p-colider'), nombre: 'Sol Escobar', rol: 'colider' },
+        ],
+      },
+      [],
+      1,
+    )
+    const raiz = nodo({ id: 'gdv-root', label: 'Dirección de Grupos de Vida' }, [grupo])
+
+    render(<EstructuraClient arbol={[raiz]} rolesPorEquipo={{}} puedeEditar={false} />)
+
+    expect(screen.getByText('Domingo Escobar — Líder')).toBeInTheDocument()
+    expect(screen.getByText('Sol Escobar — Colíder')).toBeInTheDocument()
+  })
+
+  it('starts every Grupos de Vida segmento AND equipo de dirección collapsed by default, while a Dream Team branch keeps expanding by default', () => {
+    const grupo = nodoGdv({ id: 'grupo-1', label: 'Grupo 1', tipo: 'grupo' }, [], 3)
+    const equipoDirectores = nodoGdv(
+      { id: 'equipo-1', label: 'Morela Ocampo y Santiago Villegas', tipo: 'directores' },
+      [grupo],
+      2,
+    )
+    const segmento = nodoGdv({ id: 'segmento-1', label: 'Matrimonios' }, [equipoDirectores], 1)
     const gdvRaiz = nodo({ id: 'gdv-root', label: 'Dirección de Grupos de Vida' }, [segmento])
 
     const dtHijo = nodo({ id: 'dps-escenario', label: 'DPS Escenario' }, [], 1)
@@ -260,14 +321,20 @@ describe('EstructuraClient', () => {
     // The segmento itself is visible (its parent, the direction node, is
     // expanded by default)...
     expect(screen.getByText('Matrimonios')).toBeInTheDocument()
-    // ...but its grupo is not: the segmento starts collapsed.
+    // ...but neither its teams nor their grupos are: the segmento starts collapsed.
+    expect(screen.queryByText('Morela Ocampo y Santiago Villegas')).not.toBeInTheDocument()
     expect(screen.queryByText('Grupo 1')).not.toBeInTheDocument()
 
     // A Dream Team branch is unaffected — still expanded by default.
     expect(screen.getByText('DPS Escenario')).toBeInTheDocument()
 
-    // Opening the segmento reveals its grupo.
+    // Opening the segmento reveals its TEAMS, not the dozens of grupos under them.
     fireEvent.click(screen.getByRole('button', { name: 'Expandir Matrimonios' }))
+    expect(screen.getByText('Morela Ocampo y Santiago Villegas')).toBeInTheDocument()
+    expect(screen.queryByText('Grupo 1')).not.toBeInTheDocument()
+
+    // Opening the team then reveals the grupos it supervises.
+    fireEvent.click(screen.getByRole('button', { name: 'Expandir Morela Ocampo y Santiago Villegas' }))
     expect(screen.getByText('Grupo 1')).toBeInTheDocument()
   })
 })

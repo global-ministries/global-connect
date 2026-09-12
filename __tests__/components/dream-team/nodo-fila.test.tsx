@@ -10,8 +10,14 @@
  *     "Grupos de Vida" origin marker
  *   - a grupos_vida-origin node shows the "Grupos de Vida" origin marker
  *     instead of an experiencia badge
+ *   - an equipo de dirección (`tipo: 'directores'`) also gets a badge naming
+ *     what it is, next to that origin marker — its label is people's names,
+ *     so on its own the row is ambiguous in a tree of teams and groups. A
+ *     segmento and a grupo get no such badge.
  *   - responsables render as "Nombre — Rol", humanized per origin (never a
  *     raw rol key), and nothing renders when there are none
+ *   - `mostrarResponsables={false}` suppresses that line, for a caller that
+ *     already lists the same people as rows of its own (mi-equipo)
  */
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -78,6 +84,73 @@ describe('NodoFila', () => {
 
     expect(screen.getByText('Matrimonios')).toBeInTheDocument()
     expect(screen.getByText('Grupos de Vida')).toBeInTheDocument()
+  })
+
+  it('badges an equipo de dirección with what it is, next to the Grupos de Vida origin marker', () => {
+    render(
+      <NodoFila
+        equipo={nodoGdv({
+          tipo: 'directores',
+          id: 'equipo-1',
+          label: 'Morela Ocampo de Villegas y Santiago Adolfo Villegas Delgado',
+        })}
+        roles={[]}
+        nivel={1}
+        tieneHijos={true}
+        expandido={false}
+        onToggleExpandido={noop}
+      />,
+    )
+
+    expect(screen.getByText('Morela Ocampo de Villegas y Santiago Adolfo Villegas Delgado')).toBeInTheDocument()
+    expect(screen.getByText('Grupos de Vida')).toBeInTheDocument()
+    expect(screen.getByText('Equipo de dirección')).toBeInTheDocument()
+  })
+
+  it('does not badge a segmento or a grupo — their label and position already say what they are', () => {
+    const { unmount } = render(
+      <NodoFila
+        equipo={nodoGdv({ tipo: 'segmento', id: 'segmento-1', label: 'Matrimonios' })}
+        roles={[]}
+        nivel={1}
+        tieneHijos={true}
+        expandido={false}
+        onToggleExpandido={noop}
+      />,
+    )
+    expect(screen.queryByText('Equipo de dirección')).not.toBeInTheDocument()
+    unmount()
+
+    render(
+      <NodoFila
+        equipo={nodoGdv({ tipo: 'grupo', label: 'Cabudare Matrimonios 1' })}
+        roles={[]}
+        nivel={2}
+        tieneHijos={false}
+        expandido={false}
+        onToggleExpandido={noop}
+      />,
+    )
+    expect(screen.queryByText('Equipo de dirección')).not.toBeInTheDocument()
+  })
+
+  it('suppresses the responsables line when the caller passes mostrarResponsables={false}', () => {
+    render(
+      <NodoFila
+        equipo={nodoGdv({
+          responsables: [{ personaId: personaId('p-lider'), nombre: 'Marta Ruiz', rol: 'lider' }],
+        })}
+        roles={[]}
+        nivel={0}
+        tieneHijos={false}
+        expandido={false}
+        onToggleExpandido={noop}
+        mostrarResponsables={false}
+      />,
+    )
+
+    expect(screen.getByText('Barquisimeto Matrimonios 1')).toBeInTheDocument()
+    expect(screen.queryByText('Marta Ruiz — Líder')).not.toBeInTheDocument()
   })
 
   it('renders nothing extra when a node has no responsables', () => {

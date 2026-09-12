@@ -269,11 +269,33 @@ describe('ServidoresClient', () => {
   })
 
   it('never lists a virtual Grupos de Vida node in the assigner\'s "Equipo" select — only real equipos can receive a new servicio', () => {
+    // Every virtual tipo, including the equipo de dirección level: a
+    // 'directores' node is a grouping Grupos de Vida draws, not a
+    // dream_team_equipos row, so it must be as unreachable by the assigner
+    // as the segmento and the grupo already are.
+    const equipoDirectores: NodoArbol<NodoEquipoArbol> = {
+      equipo: {
+        origen: 'grupos_vida',
+        tipo: 'directores',
+        id: 'equipo-1',
+        label: 'Morela Ocampo y Santiago Villegas',
+        activo: true,
+        responsables: [],
+      },
+      hijos: [
+        {
+          equipo: { origen: 'grupos_vida', tipo: 'grupo', id: 'grupo-1', label: 'Cabudare Matrimonios 1', activo: true, responsables: [] },
+          hijos: [],
+          nivel: 2,
+        },
+      ],
+      nivel: 1,
+    }
     const arbolConGdv: readonly NodoArbol<NodoEquipoArbol>[] = [
       ...arbol,
       {
         equipo: { origen: 'grupos_vida', tipo: 'segmento', id: 'segmento-1', label: 'Matrimonios', activo: true, responsables: [] },
-        hijos: [],
+        hijos: [equipoDirectores],
         nivel: 0,
       },
     ]
@@ -285,5 +307,7 @@ describe('ServidoresClient', () => {
     const opciones = Array.from(select.options).map((o) => o.text)
     expect(opciones).toContain('DPS')
     expect(opciones).not.toContain('Matrimonios')
+    expect(opciones).not.toContain('Morela Ocampo y Santiago Villegas')
+    expect(opciones).not.toContain('Cabudare Matrimonios 1')
   })
 })

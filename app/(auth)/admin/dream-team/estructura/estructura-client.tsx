@@ -9,10 +9,11 @@
  * components/dream-team/nodo-fila.tsx), collapsible with a chevron (a plain
  * `useState` set of collapsed ids, same pattern as
  * GruposList.client.tsx:143 — everything starts expanded, EXCEPT every
- * Grupos de Vida segmento: with ~95 grupos in staging, expanding all five
- * segments by default would flood the tree, so they seed the initial
- * collapsed set instead — see estructura-arbol.ts's
- * `idsSegmentosColapsadosPorDefecto`). When `puedeEditar` is true, exactly
+ * Grupos de Vida segmento and equipo de dirección: with ~95 grupos in
+ * staging, expanding all five segments by default would flood the tree, and
+ * so would expanding all thirteen director teams, so both levels seed the
+ * initial collapsed set — see estructura-arbol.ts's
+ * `idsColapsadosPorDefecto`). When `puedeEditar` is true, exactly
  * two icon actions sit on the right of every REAL (`origen: 'dream_team'`)
  * row (Editar equipo, Agregar sub-equipo a), each opening a `Dialog` instead
  * of always-on inline forms. A virtual Grupos de Vida node never gets these
@@ -45,7 +46,7 @@ import { NodoFila } from '@/components/dream-team/nodo-fila'
 import { rolBadgeVariante, rolLabel } from '@/components/dream-team/labels'
 
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
-import { idsSegmentosColapsadosPorDefecto, type NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
+import { idsColapsadosPorDefecto, type NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import type { DreamTeamEquipo, DreamTeamRol } from '@/lib/platform/dream-team/types'
 
 import {
@@ -88,7 +89,7 @@ function iconButtonClass(): string {
 
 export function EstructuraClient({ arbol, rolesPorEquipo, puedeEditar }: EstructuraClientProps): ReactElement {
   const toast = useNotificaciones()
-  const [colapsados, setColapsados] = useState<ReadonlySet<string>>(() => idsSegmentosColapsadosPorDefecto(arbol))
+  const [colapsados, setColapsados] = useState<ReadonlySet<string>>(() => idsColapsadosPorDefecto(arbol))
   const [editandoEquipoId, setEditandoEquipoId] = useState<string | null>(null)
   const [subequipoDeId, setSubequipoDeId] = useState<string | null>(null)
 

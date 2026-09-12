@@ -1,6 +1,7 @@
 /**
  * Dream Team — shared Spanish copy + badge color mapping for `DreamTeamEstado`,
- * `DreamTeamMotivo`, org-tree experiencia keys, and rol labels. Used across
+ * `DreamTeamMotivo`, org-tree experiencia keys, rol labels, and the org-tree
+ * node-kind badges of the virtual Grupos de Vida branch. Used across
  * all three Dream Team screens (estructura, servidores, mi-equipo) plus the
  * shared `<AvanceEtapaControl>` and `<NodoFila>`, so labels and colors stay
  * identical everywhere a servicio's estado, an equipo's experiencia, or a
@@ -144,3 +145,17 @@ export function rolResponsableGdvLabel(rol: string): string {
  * screens so it reads as read-only at a glance.
  */
 export const ORIGEN_GRUPOS_VIDA_LABEL = 'Grupos de Vida'
+
+/**
+ * Badge copy naming what an org-tree node of `tipo: 'directores'` IS (see
+ * lib/platform/dream-team/estructura-gdv.ts): the team of stage directors a
+ * set of grupos hangs off — a married couple, or a lone director when no
+ * spouse is registered as a director of that same segmento.
+ *
+ * That node's label is people's NAMES, so without this the row reads as
+ * ambiguous in a tree whose other rows are areas and groups. A `'segmento'`
+ * and a `'grupo'` deliberately get NO such badge: their label and their
+ * position in the tree already say what they are, and a badge repeated on
+ * each of the ~95 grupo rows would be noise rather than information.
+ */
+export const TIPO_DIRECTORES_GDV_LABEL = 'Equipo de dirección'

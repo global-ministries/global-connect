@@ -9,11 +9,13 @@
  * diverging. Renders ONE row: an optional collapse chevron, the equipo
  * name, an origin-appropriate badge (its experiencia for a Dream Team node,
  * the "Grupos de Vida" marker for a virtual node — see
- * lib/platform/dream-team/estructura-arbol.ts), an "Inactiva" badge when the
+ * lib/platform/dream-team/estructura-arbol.ts), a second badge naming the
+ * node kind for the one virtual kind whose label doesn't say it (an equipo
+ * de dirección is labeled with people's names), an "Inactiva" badge when the
  * equipo is deactivated, a "who is responsible for this node" line when it
- * has any responsables, its roles as small read-only badges (always via
- * `rolLabel`), and a trailing `accesorio` slot for whatever the caller needs
- * on the right.
+ * has any responsables and the caller hasn't suppressed it, its roles as
+ * small read-only badges (always via `rolLabel`), and a trailing `accesorio`
+ * slot for whatever the caller needs on the right.
  *
  * A virtual Grupos de Vida node is read-only by construction: it is never a
  * `dream_team_equipos` row, so it never HAS roles of its own (the `roles`
@@ -32,7 +34,14 @@ import { Fragment, type ReactElement, type ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 import { BadgeSistema, TextoSistema } from '@/components/ui/sistema-diseno'
-import { experienciaLabel, rolLabel, rolBadgeVariante, rolResponsableGdvLabel, ORIGEN_GRUPOS_VIDA_LABEL } from './labels'
+import {
+  experienciaLabel,
+  rolLabel,
+  rolBadgeVariante,
+  rolResponsableGdvLabel,
+  ORIGEN_GRUPOS_VIDA_LABEL,
+  TIPO_DIRECTORES_GDV_LABEL,
+} from './labels'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 
@@ -48,6 +57,19 @@ export interface NodoFilaProps {
   readonly onToggleExpandido: () => void
   /** Trailing content on the right of the row: edit actions, a person count, etc. */
   readonly accesorio?: ReactNode
+  /**
+   * Whether to render the "who is responsible for this node" line. Defaults
+   * to `true`, which is every caller that doesn't list people of its own.
+   *
+   * A screen that ALSO renders the node's people as rows below it (see
+   * mi-equipo-client.tsx) passes `false` for those nodes: the rows already
+   * name the same people with their rol badges, so the line above them would
+   * repeat it verbatim. The CALLER decides rather than this component,
+   * because only the caller knows whether it renders rows for a given node —
+   * same division of responsibility as the `accesorio` slot and the edit
+   * actions, which this row also never decides for itself.
+   */
+  readonly mostrarResponsables?: boolean
 }
 
 export function NodoFila({
@@ -58,10 +80,16 @@ export function NodoFila({
   expandido,
   onToggleExpandido,
   accesorio,
+  mostrarResponsables = true,
 }: NodoFilaProps): ReactElement {
   const indentacion = Math.min(nivel * NODO_FILA_INDENTACION_PX_POR_NIVEL, NODO_FILA_INDENTACION_PX_MAXIMA)
   const ChevronIcon = expandido ? ChevronDown : ChevronRight
   const esGrupoVida = equipo.origen === 'grupos_vida'
+  // An equipo de dirección is labeled with people's NAMES, so on its own the
+  // row is ambiguous among rows that name areas and groups — it gets a badge
+  // saying what it is. A segmento and a grupo don't: their label and their
+  // position already say it (see labels.ts).
+  const esEquipoDirectores = equipo.origen === 'grupos_vida' && equipo.tipo === 'directores'
 
   return (
     <div
@@ -96,6 +124,11 @@ export function NodoFila({
                 {experienciaLabel(equipo.experiencia)}
               </BadgeSistema>
             )}
+            {esEquipoDirectores && (
+              <BadgeSistema variante="info" tamaño="sm">
+                {TIPO_DIRECTORES_GDV_LABEL}
+              </BadgeSistema>
+            )}
             {!equipo.activo && (
               <BadgeSistema variante="default" tamaño="sm">
                 Inactiva
@@ -103,7 +136,7 @@ export function NodoFila({
             )}
           </div>
 
-          {equipo.responsables.length > 0 && (
+          {mostrarResponsables && equipo.responsables.length > 0 && (
             <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
               {equipo.responsables.map((responsable, indice) => (
                 <Fragment key={`${responsable.personaId}-${responsable.rol}`}>

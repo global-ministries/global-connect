@@ -1,8 +1,9 @@
 /**
  * `fetchEstructuraGdv` — read-only projection of the Grupos de Vida real
- * hierarchy (Dirección → Segmentos → Grupos vigentes) with each branch's
- * responsables, via the `dream_team_estructura_gdv()` RPC (see
- * supabase/migrations/20260911140000_dream_team_estructura_gdv.sql).
+ * hierarchy (Dirección → Segmentos → Equipos de dirección → Grupos
+ * vigentes) with each branch's responsables, via the
+ * `dream_team_estructura_gdv()` RPC (see
+ * supabase/migrations/20260912120000_dream_team_estructura_gdv_directores.sql).
  *
  * Same shape of contract as lideres-gdv.ts: the RPC applies its own tree
  * authority check server-side and takes no arguments — a caller without
@@ -65,17 +66,14 @@ describe('fetchEstructuraGdv', () => {
     ])
   })
 
-  it('maps a segmento row hanging off the direccion node, with mixed responsable roles', async () => {
+  it('maps a segmento row hanging off the direccion node, keeping only its director general', async () => {
     const { client } = makeClient([
       {
         nodo_id: 'segmento-1',
         parent_id: 'gdv-root',
         tipo: 'segmento',
         label: 'Matrimonios',
-        responsables: [
-          { persona_id: 'p-1', nombre: 'Ana Pérez', rol: 'director_general' },
-          { persona_id: 'p-2', nombre: 'Luis Gómez', rol: 'director_etapa' },
-        ],
+        responsables: [{ persona_id: 'p-1', nombre: 'Ana Pérez', rol: 'director_general' }],
       },
     ])
 
@@ -83,7 +81,81 @@ describe('fetchEstructuraGdv', () => {
 
     expect(result[0].tipo).toBe('segmento')
     expect(result[0].parentId).toBe('gdv-root')
-    expect(result[0].responsables.map((r) => r.rol)).toEqual(['director_general', 'director_etapa'])
+    expect(result[0].responsables.map((r) => r.rol)).toEqual(['director_general'])
+  })
+
+  /**
+   * The fourth tipo: one node per team of stage directors (a married couple,
+   * or a single director with no spouse registered as a director of that same
+   * segmento). Its `label` already names them, so its `responsables` is empty
+   * ON PURPOSE — repeating the names in the same row would say the same thing
+   * twice. The mapper must accept the tipo and pass that emptiness through,
+   * not treat it as a malformed row.
+   */
+  it('maps a directores row hanging off its segmento, with the names as label and no responsables', async () => {
+    const { client } = makeClient([
+      {
+        nodo_id: 'equipo-1',
+        parent_id: 'segmento-1',
+        tipo: 'directores',
+        label: 'Morela Ocampo de Villegas y Santiago Adolfo Villegas Delgado',
+        responsables: [],
+      },
+    ])
+
+    const result = await fetchEstructuraGdv(client)
+
+    expect(result).toEqual([
+      {
+        nodoId: 'equipo-1',
+        parentId: 'segmento-1',
+        tipo: 'directores',
+        label: 'Morela Ocampo de Villegas y Santiago Adolfo Villegas Delgado',
+        responsables: [],
+      },
+    ])
+  })
+
+  it('maps a grupo row hanging off its equipo de dirección instead of its segmento', async () => {
+    const { client } = makeClient([
+      {
+        nodo_id: 'grupo-1',
+        parent_id: 'equipo-1',
+        tipo: 'grupo',
+        label: 'Cabudare Matrimonios 1',
+        responsables: [{ persona_id: 'p-3', nombre: 'Marta Ruiz', rol: 'lider' }],
+      },
+    ])
+
+    const result = await fetchEstructuraGdv(client)
+
+    expect(result[0].parentId).toBe('equipo-1')
+  })
+
+  /**
+   * A grupo supervised from more than one team hangs off the team that
+   * contributes most of its directores, and the remaining ones arrive in its
+   * own `responsables` with `rol: 'director_etapa'` — so no supervision is
+   * lost. `director_etapa` therefore still has to survive the mapper, now on
+   * a grupo row rather than on a segmento one.
+   */
+  it('keeps a grupo\'s extra supervisor, arriving as a director_etapa responsable', async () => {
+    const { client } = makeClient([
+      {
+        nodo_id: 'grupo-1',
+        parent_id: 'equipo-1',
+        tipo: 'grupo',
+        label: 'Cabudare Matrimonios 1',
+        responsables: [
+          { persona_id: 'p-3', nombre: 'Marta Ruiz', rol: 'lider' },
+          { persona_id: 'p-5', nombre: 'Luis Gómez', rol: 'director_etapa' },
+        ],
+      },
+    ])
+
+    const result = await fetchEstructuraGdv(client)
+
+    expect(result[0].responsables.map((r) => r.rol)).toEqual(['lider', 'director_etapa'])
   })
 
   it('maps a grupo row hanging off its segmento, with líder/colíder responsables', async () => {
@@ -114,7 +186,7 @@ describe('fetchEstructuraGdv', () => {
     })
   })
 
-  it('drops a row whose tipo is not direccion/segmento/grupo', async () => {
+  it('drops a row whose tipo is not direccion/segmento/directores/grupo', async () => {
     const { client } = makeClient([
       { nodo_id: 'x', parent_id: null, tipo: 'inventado', label: 'X', responsables: [] },
       { nodo_id: 'gdv-root', parent_id: null, tipo: 'direccion', label: 'Dirección', responsables: [] },

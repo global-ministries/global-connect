@@ -7,12 +7,12 @@
  *      flat node list `construirArbol` (arbol.ts) builds a tree from.
  *   2. `responsablesDreamTeamPorEquipo` — who holds director/coordinador on
  *      a real equipo, from dream_team_servicios.
- *   3. `idsSegmentosColapsadosPorDefecto` — which nodes start collapsed.
+ *   3. `idsColapsadosPorDefecto` — which nodes start collapsed.
  */
 import {
   construirNodosArbol,
   responsablesDreamTeamPorEquipo,
-  idsSegmentosColapsadosPorDefecto,
+  idsColapsadosPorDefecto,
   type NodoEquipoArbol,
   type ResponsableNodo,
 } from '@/lib/platform/dream-team/estructura-arbol'
@@ -67,6 +67,31 @@ describe('construirNodosArbol', () => {
     expect(segmento?.origen).toBe('grupos_vida')
     expect(segmento?.parentEquipoId).toBe('gdv-root')
     expect((segmento as Extract<NodoEquipoArbol, { origen: 'grupos_vida' }>).tipo).toBe('segmento')
+  })
+
+  it('adds an equipo de dirección as a grupos_vida-origin node hanging off its segmento', () => {
+    const nodosGdv = [
+      nodoGdv({
+        nodoId: 'equipo-1',
+        parentId: 'segmento-1',
+        tipo: 'directores',
+        label: 'Morela Ocampo de Villegas y Santiago Adolfo Villegas Delgado',
+      }),
+    ]
+
+    const nodos = construirNodosArbol([], nodosGdv)
+
+    expect(nodos).toEqual([
+      {
+        origen: 'grupos_vida',
+        tipo: 'directores',
+        id: 'equipo-1',
+        parentEquipoId: 'segmento-1',
+        label: 'Morela Ocampo de Villegas y Santiago Adolfo Villegas Delgado',
+        activo: true,
+        responsables: [],
+      },
+    ])
   })
 
   it('adds a grupo as a grupos_vida-origin node hanging off its segmento, with its responsables', () => {
@@ -144,17 +169,42 @@ describe('construirNodosArbol', () => {
     const equipos = [equipo({ id: 'gdv-root', label: 'Dirección de Grupos de Vida' })]
     const nodosGdv = [
       nodoGdv({ nodoId: 'segmento-1', parentId: 'gdv-root', tipo: 'segmento', label: 'Matrimonios' }),
-      nodoGdv({ nodoId: 'grupo-1', parentId: 'segmento-1', tipo: 'grupo', label: 'Grupo 1' }),
+      nodoGdv({ nodoId: 'equipo-1', parentId: 'segmento-1', tipo: 'directores', label: 'Morela Ocampo y Santiago Villegas' }),
+      nodoGdv({ nodoId: 'grupo-1', parentId: 'equipo-1', tipo: 'grupo', label: 'Grupo 1' }),
     ]
 
     const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv))
 
+    // Four levels now: dirección → segmento → equipo de dirección → grupo.
     expect(arbol).toHaveLength(1)
     expect(arbol[0].equipo.id).toBe('gdv-root')
     expect(arbol[0].hijos).toHaveLength(1)
     expect(arbol[0].hijos[0].equipo.id).toBe('segmento-1')
     expect(arbol[0].hijos[0].hijos).toHaveLength(1)
-    expect(arbol[0].hijos[0].hijos[0].equipo.id).toBe('grupo-1')
+    expect(arbol[0].hijos[0].hijos[0].equipo.id).toBe('equipo-1')
+    expect(arbol[0].hijos[0].hijos[0].hijos).toHaveLength(1)
+    expect(arbol[0].hijos[0].hijos[0].hijos[0].equipo.id).toBe('grupo-1')
+  })
+
+  /**
+   * The awkward case the migration resolves in the open: a vigente grupo with
+   * no director assigned hangs off its segmento directly, alongside the teams.
+   */
+  it('keeps a grupo with no equipo de dirección hanging off its segmento, next to the teams', () => {
+    const nodosGdv = [
+      nodoGdv({ nodoId: 'segmento-1', parentId: 'gdv-root', tipo: 'segmento', label: 'Matrimonios' }),
+      nodoGdv({ nodoId: 'equipo-1', parentId: 'segmento-1', tipo: 'directores', label: 'Morela Ocampo y Santiago Villegas' }),
+      nodoGdv({ nodoId: 'grupo-huerfano', parentId: 'segmento-1', tipo: 'grupo', label: 'Barquisimeto Matrimonios 7' }),
+    ]
+
+    const arbol = construirArbol(construirNodosArbol([], nodosGdv))
+    const segmento = arbol[0]
+
+    expect(segmento.equipo.id).toBe('segmento-1')
+    // Both hang off the segmento. Sibling ORDER is construirArbol's own
+    // alphabetical-by-label concern (see arbol.ts), not this function's, so
+    // this asserts membership rather than pinning that ordering twice.
+    expect([...segmento.hijos.map((hijo) => hijo.equipo.id)].sort()).toEqual(['equipo-1', 'grupo-huerfano'])
   })
 })
 
@@ -243,27 +293,50 @@ describe('responsablesDreamTeamPorEquipo', () => {
   })
 })
 
-describe('idsSegmentosColapsadosPorDefecto', () => {
-  it('collects only grupos_vida segmento ids, not grupo or dream_team ids, at any depth', () => {
+describe('idsColapsadosPorDefecto', () => {
+  it('collects grupos_vida segmento AND directores ids, not grupo or dream_team ids, at any depth', () => {
     const equipos = [equipo({ id: 'gdv-root', label: 'Dirección de Grupos de Vida' })]
     const nodosGdv = [
       nodoGdv({ nodoId: 'segmento-1', parentId: 'gdv-root', tipo: 'segmento', label: 'Matrimonios' }),
       nodoGdv({ nodoId: 'segmento-2', parentId: 'gdv-root', tipo: 'segmento', label: 'Jóvenes' }),
-      nodoGdv({ nodoId: 'grupo-1', parentId: 'segmento-1', tipo: 'grupo', label: 'Grupo 1' }),
+      nodoGdv({ nodoId: 'equipo-1', parentId: 'segmento-1', tipo: 'directores', label: 'Morela Ocampo y Santiago Villegas' }),
+      nodoGdv({ nodoId: 'grupo-1', parentId: 'equipo-1', tipo: 'grupo', label: 'Grupo 1' }),
     ]
     const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv))
 
-    const ids = idsSegmentosColapsadosPorDefecto(arbol)
+    const ids = idsColapsadosPorDefecto(arbol)
 
     expect(ids.has('segmento-1')).toBe(true)
     expect(ids.has('segmento-2')).toBe(true)
+    expect(ids.has('equipo-1')).toBe(true)
     expect(ids.has('grupo-1')).toBe(false)
     expect(ids.has('gdv-root')).toBe(false)
-    expect(ids.size).toBe(2)
+    expect(ids.size).toBe(3)
+  })
+
+  /**
+   * The two levels collapse INDEPENDENTLY: opening a segmento reveals its
+   * teams (not their dozens of grupos), and opening a team then reveals its
+   * grupos — so neither level dumps dozens of rows at once.
+   */
+  it('seeds both levels so opening a segmento reveals only its teams', () => {
+    const nodosGdv = [
+      nodoGdv({ nodoId: 'segmento-1', parentId: 'gdv-root', tipo: 'segmento', label: 'Matrimonios' }),
+      nodoGdv({ nodoId: 'equipo-1', parentId: 'segmento-1', tipo: 'directores', label: 'Morela Ocampo y Santiago Villegas' }),
+      nodoGdv({ nodoId: 'grupo-1', parentId: 'equipo-1', tipo: 'grupo', label: 'Grupo 1' }),
+    ]
+    const arbol = construirArbol(construirNodosArbol([], nodosGdv))
+
+    const ids = idsColapsadosPorDefecto(arbol)
+
+    // Un-collapsing the segmento alone leaves the team still collapsed.
+    const trasAbrirSegmento = new Set(ids)
+    trasAbrirSegmento.delete('segmento-1')
+    expect(trasAbrirSegmento.has('equipo-1')).toBe(true)
   })
 
   it('returns an empty set for a tree with no Grupos de Vida branch', () => {
     const arbol = construirArbol(construirNodosArbol([equipo({ id: 'dps', label: 'DPS' })], []))
-    expect(idsSegmentosColapsadosPorDefecto(arbol).size).toBe(0)
+    expect(idsColapsadosPorDefecto(arbol).size).toBe(0)
   })
 })

@@ -24,9 +24,21 @@
  * showing muted "Se gestiona en Grupos de Vida" text instead when
  * `puedeEditar`.
  *
- * Every Grupos de Vida segmento starts collapsed, same reasoning and same
- * mechanism (the initial `colapsados` state) as estructura-client.tsx — see
- * estructura-arbol.ts's `idsSegmentosColapsadosPorDefecto`.
+ * Every Grupos de Vida segmento and equipo de dirección starts collapsed,
+ * same reasoning and same mechanism (the initial `colapsados` state) as
+ * estructura-client.tsx — see estructura-arbol.ts's
+ * `idsColapsadosPorDefecto`.
+ *
+ * A node's responsables line is suppressed WHEN that node has person rows
+ * of its own: those rows already name the same people with their rol badges,
+ * so the line above them repeated the information verbatim ("Domingo
+ * Escobar — Líder · Sol Escobar — Líder" over two rows saying exactly that).
+ * A node with no rows still shows the line — a segmento with its director
+ * general, a Dream Team node with no servicios — because otherwise the
+ * information would simply disappear. The decision lives here, not in
+ * `<NodoFila>`: this screen is the one that knows whether a node has rows.
+ * /admin/dream-team/estructura lists no people at all, so it keeps rendering
+ * responsables on every row.
  */
 import { useMemo, useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
@@ -41,7 +53,7 @@ import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, ORIGEN_GRUPOS_VIDA_LABEL, rolBadg
 import { DREAM_TEAM_ESTADOS } from '@/lib/platform/dream-team/types'
 import type { DreamTeamEstado, DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { contarPorRama, type NodoArbol } from '@/lib/platform/dream-team/arbol'
-import { idsSegmentosColapsadosPorDefecto, type NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
+import { idsColapsadosPorDefecto, type NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { claveDeServidor, estadoDeServidor, type Servidor } from '@/lib/platform/dream-team/servidores'
 
 export interface MiEquipoServicioRow {
@@ -77,7 +89,7 @@ export function MiEquipoClient({
   puedeEditar,
 }: MiEquipoClientProps): ReactElement {
   const router = useRouter()
-  const [colapsados, setColapsados] = useState<ReadonlySet<string>>(() => idsSegmentosColapsadosPorDefecto(arbol))
+  const [colapsados, setColapsados] = useState<ReadonlySet<string>>(() => idsColapsadosPorDefecto(arbol))
 
   // Branch headcount: a parent's people live in its descendants. Counting only
   // the node itself told a director "Experiencia · Sin servidores" while three
@@ -141,6 +153,13 @@ export function MiEquipoClient({
             tieneHijos={hijos.length > 0}
             expandido={expandido}
             onToggleExpandido={() => toggleColapsado(equipo.id)}
+            // The person rows rendered just below already name these people,
+            // each with its rol badge, so the row's responsables line would
+            // repeat them verbatim — see this file's header comment. With no
+            // rows of its own (a segmento with its director general, a node
+            // whose people all live in its descendants) the line is the only
+            // mention there is, so it stays.
+            mostrarResponsables={filas.length === 0}
             accesorio={
               <TextoSistema variante="sutil" tamaño="sm" className="whitespace-nowrap">
                 {etiquetaConteo(totalRama, hijos.length > 0)}

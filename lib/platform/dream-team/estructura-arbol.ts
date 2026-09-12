@@ -16,8 +16,8 @@ import type { NodoEstructuraGdv, ResponsableGdv } from './estructura-gdv'
  *      `NodoEstructuraGdv[]` (virtual, read-only) into one flat list.
  *   2. `responsablesDreamTeamPorEquipo` — derives responsables for REAL
  *      nodes from `dream_team_servicios` whose role is director/coordinador.
- *   3. `idsSegmentosColapsadosPorDefecto` — which nodes a screen should
- *      start with collapsed (the ~95 grupos would otherwise flood the tree).
+ *   3. `idsColapsadosPorDefecto` — which nodes a screen should start with
+ *      collapsed (the ~95 grupos would otherwise flood the tree).
  */
 
 // ── The unified node shape the tree builder and <NodoFila> consume ──────
@@ -56,7 +56,7 @@ interface NodoEquipoArbolBase {
  */
 export type NodoEquipoArbol =
   | (NodoEquipoArbolBase & { readonly origen: 'dream_team'; readonly experiencia: PlatformExperienceKey })
-  | (NodoEquipoArbolBase & { readonly origen: 'grupos_vida'; readonly tipo: 'segmento' | 'grupo' })
+  | (NodoEquipoArbolBase & { readonly origen: 'grupos_vida'; readonly tipo: 'segmento' | 'directores' | 'grupo' })
 
 // ── 1. Merging real equipos with the virtual Grupos de Vida branch ──────
 
@@ -114,15 +114,18 @@ export function construirNodosArbol(
       origen: 'grupos_vida',
       tipo: nodo.tipo,
       id: nodo.nodoId,
-      // A segmento's parent is the real GdV root equipo id; a grupo's is its
-      // segmento id — both arrive as non-null in practice, but `?? undefined`
-      // matches construirArbol's "no parent" convention if one ever isn't.
+      // A segmento's parent is the real GdV root equipo id; an equipo de
+      // dirección's is its segmento id; a grupo's is its equipo de dirección
+      // id, or its segmento id when no director is assigned to it — all
+      // arrive as non-null in practice, but `?? undefined` matches
+      // construirArbol's "no parent" convention if one ever isn't.
       parentEquipoId: nodo.parentId ?? undefined,
       label: nodo.label,
       // Virtual nodes have no "activo" concept of their own — a segmento
-      // always shows, a grupo only exists here because it's already vigente
-      // (see estructura-gdv.ts) — so this is always true, never `!activo`
-      // styling for a Grupos de Vida row.
+      // always shows, an equipo de dirección exists as long as its directors
+      // do, and a grupo only exists here because it's already vigente (see
+      // estructura-gdv.ts) — so this is always true, never `!activo` styling
+      // for a Grupos de Vida row.
       activo: true,
       responsables: nodo.responsables.map(toResponsableNodo),
     })
@@ -211,22 +214,34 @@ export function responsablesDreamTeamPorEquipo(
   return porEquipo
 }
 
-// ── 3. Default collapse: the Grupos de Vida segments start collapsed ────
+// ── 3. Default collapse: the Grupos de Vida inner levels start collapsed ─
 
 /**
- * Ids of every 'segmento' virtual node in an already-built tree — the
+ * Ids of every virtual node that groups others — a 'segmento' or an
+ * 'directores' equipo de dirección — in an already-built tree. This is the
  * initial collapsed set estructura-client.tsx and mi-equipo-client.tsx both
- * seed their `colapsados` state with. Segments, not the direction node,
- * because "Dirección → 5 segmentos" is the useful default view; opening a
- * segment then reveals its (up to dozens of) grupos. No Dream Team node is
- * ever in this set, so those branches keep expanding by default exactly as
- * before this feature existed.
+ * seed their `colapsados` state with.
+ *
+ * BOTH levels, so neither one dumps dozens of rows at once: "Dirección → 5
+ * segmentos" is the useful default view, opening a segmento reveals its
+ * teams of stage directors (13 in staging, not their 68 grupos), and opening
+ * a team then reveals the grupos it supervises. Collapsing only the segmento
+ * would put every grupo of a segmento on screen the moment it opened, which
+ * is the flood this seed exists to prevent.
+ *
+ * Not the direction node and never a 'grupo' (a leaf here — its people are
+ * rows, not child nodes). No Dream Team node is ever in this set either, so
+ * those branches keep expanding by default exactly as before this feature
+ * existed.
  */
-export function idsSegmentosColapsadosPorDefecto(arbol: readonly NodoArbol<NodoEquipoArbol>[]): ReadonlySet<string> {
+export function idsColapsadosPorDefecto(arbol: readonly NodoArbol<NodoEquipoArbol>[]): ReadonlySet<string> {
   const ids = new Set<string>()
 
   function visitar(nodo: NodoArbol<NodoEquipoArbol>): void {
-    if (nodo.equipo.origen === 'grupos_vida' && nodo.equipo.tipo === 'segmento') ids.add(nodo.equipo.id)
+    const equipo = nodo.equipo
+    if (equipo.origen === 'grupos_vida' && (equipo.tipo === 'segmento' || equipo.tipo === 'directores')) {
+      ids.add(equipo.id)
+    }
     nodo.hijos.forEach(visitar)
   }
 

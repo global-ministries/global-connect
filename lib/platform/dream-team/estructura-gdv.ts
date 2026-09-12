@@ -4,7 +4,7 @@ import type { PersonaId } from './types'
 
 type DbClient = SupabaseClient<Database, 'public'>
 
-export type TipoNodoGdv = 'direccion' | 'segmento' | 'grupo'
+export type TipoNodoGdv = 'direccion' | 'segmento' | 'directores' | 'grupo'
 export type RolResponsableGdv = 'director_general' | 'director_etapa' | 'lider' | 'colider'
 
 export interface ResponsableGdv {
@@ -17,9 +17,17 @@ export interface ResponsableGdv {
  * One row of the virtual Grupos de Vida branch: the direction node itself
  * (`tipo: 'direccion'`, `parentId: null` — see `fetchEstructuraGdv` below for
  * why it never becomes a tree node of its own), a segmento hanging off it,
- * or a vigente grupo hanging off its segmento. `nodoId`/`parentId` are real
- * Grupos de Vida ids (segmento.id, grupos.id), never invented, so callers
- * can key on them unambiguously alongside real `dream_team_equipos` ids.
+ * an equipo de dirección (`tipo: 'directores'`) hanging off its segmento, or
+ * a vigente grupo hanging off that team — off its segmento directly when it
+ * has no director assigned.
+ *
+ * `nodoId`/`parentId` are real Grupos de Vida ids (segmento.id, grupos.id)
+ * for every tipo EXCEPT `'directores'`, whose id is derived deterministically
+ * from its segmento and its one or two director ids (see the migration): a
+ * team of stage directors is not a row in any table, it's the grouping
+ * Grupos de Vida's own segmento screen draws. Either way the id is stable
+ * across reads and can never collide with a real `dream_team_equipos` id, so
+ * callers keep keying on `nodoId` unambiguously.
  */
 export interface NodoEstructuraGdv {
   readonly nodoId: string
@@ -44,7 +52,7 @@ interface NodoEstructuraGdvRow {
 }
 
 function esTipoNodoGdv(value: string): value is TipoNodoGdv {
-  return value === 'direccion' || value === 'segmento' || value === 'grupo'
+  return value === 'direccion' || value === 'segmento' || value === 'directores' || value === 'grupo'
 }
 
 function esRolResponsableGdv(value: string): value is RolResponsableGdv {
@@ -73,10 +81,18 @@ function mapResponsables(value: unknown): readonly ResponsableGdv[] {
 }
 
 /**
- * Reads the real Grupos de Vida hierarchy (Dirección → Segmentos → Grupos
- * vigentes) with each branch's responsables, through the
- * `dream_team_estructura_gdv()` RPC (no arguments — see
- * supabase/migrations/20260911140000_dream_team_estructura_gdv.sql).
+ * Reads the real Grupos de Vida hierarchy (Dirección → Segmentos → Equipos
+ * de dirección → Grupos vigentes) with each branch's responsables, through
+ * the `dream_team_estructura_gdv()` RPC (no arguments — see
+ * supabase/migrations/20260912120000_dream_team_estructura_gdv_directores.sql).
+ *
+ * The equipo de dirección level exists because a segmento listing all eight
+ * of its stage directors on one line said nothing about WHICH groups each of
+ * them supervises. Grupos de Vida already groups them by couple and assigns
+ * groups per director, so the tree mirrors that instead of inventing its own
+ * arrangement. A `'directores'` row's `responsables` is empty on purpose:
+ * its `label` already names the couple (or the lone director), and repeating
+ * them in the same row would say the same thing twice.
  *
  * Stays outside `DreamTeamRepository` for the same cross-domain reason as
  * `fetchLideresGdv`/`fetchNombresPersonas` (see lideres-gdv.ts, personas.ts):
