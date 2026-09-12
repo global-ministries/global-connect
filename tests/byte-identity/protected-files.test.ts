@@ -100,6 +100,24 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // read-only list with no way to create or edit talleres. Same
   // protected file, same one-line string change, mirror of PR24.
   'lib/platform/navigation.ts',
+  //
+  // (2026-09-12): regenerated from STAGING. The file had zero `taller`
+  // entries — it was never regenerated after the talleres domain shipped —
+  // so every talleres query is an `any` cast. Regenerating is the point of
+  // the guard, not a violation of it.
+  //
+  // Staging, not production, and deliberately: this file has to type every
+  // query the code makes, so its source must be the environment that has
+  // every table the code targets. Production does not have the pastoral
+  // domain (frozen by product decision), so types generated from production
+  // drop nine tables that ten pastoral files query — 27 type errors and a
+  // failing build. Staging has both domains. The talleres half is honest
+  // about production anyway: the eighteen `taller*` tables were compared
+  // column by column (name, type, nullability, default) and are identical
+  // in both. The only talleres object that differs is the compat view
+  // `v_taller_periodos_generales_compat`, which exists in production, not in
+  // staging, and which no application code queries.
+  'lib/supabase/database.types.ts',
 ])
 
 describe('Byte-identity — protected files unchanged', () => {

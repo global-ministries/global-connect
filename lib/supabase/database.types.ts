@@ -2385,6 +2385,565 @@ export type Database = {
         }
         Relationships: []
       }
+      operating_core_capacity_overrides: {
+        Row: {
+          capacity_base_snapshot: number
+          capacity_operativa: number
+          event_id: string
+          reason: string
+          set_at: string
+          set_by_persona_id: string
+        }
+        Insert: {
+          capacity_base_snapshot: number
+          capacity_operativa: number
+          event_id: string
+          reason: string
+          set_at?: string
+          set_by_persona_id: string
+        }
+        Update: {
+          capacity_base_snapshot?: number
+          capacity_operativa?: number
+          event_id?: string
+          reason?: string
+          set_at?: string
+          set_by_persona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operating_core_capacity_overrides_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "operating_core_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operating_core_event_instances: {
+        Row: {
+          capacity_operativa: number
+          created_at: string
+          end_time: string
+          estado: Database["public"]["Enums"]["operating_core_event_estado"]
+          event_id: string
+          horizon_days: number
+          id: string
+          instance_date: string
+          lifecycle: Database["public"]["Enums"]["operating_core_instance_lifecycle"]
+          metadata: Json
+          recurrence_rule: Json | null
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          capacity_operativa?: number
+          created_at?: string
+          end_time: string
+          estado?: Database["public"]["Enums"]["operating_core_event_estado"]
+          event_id: string
+          horizon_days?: number
+          id?: string
+          instance_date: string
+          lifecycle?: Database["public"]["Enums"]["operating_core_instance_lifecycle"]
+          metadata?: Json
+          recurrence_rule?: Json | null
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          capacity_operativa?: number
+          created_at?: string
+          end_time?: string
+          estado?: Database["public"]["Enums"]["operating_core_event_estado"]
+          event_id?: string
+          horizon_days?: number
+          id?: string
+          instance_date?: string
+          lifecycle?: Database["public"]["Enums"]["operating_core_instance_lifecycle"]
+          metadata?: Json
+          recurrence_rule?: Json | null
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operating_core_event_instances_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operating_core_events: {
+        Row: {
+          created_at: string
+          estado: Database["public"]["Enums"]["operating_core_event_estado"]
+          id: string
+          kind: Database["public"]["Enums"]["operating_core_event_kind"]
+          metadata: Json
+          parent_event_id: string | null
+          recurrence_rule: Json | null
+          responsible_dream_team_servicio_id: string | null
+          service_id: string | null
+          start_date: string
+          title: string
+          updated_at: string
+          visibility_scope: string
+        }
+        Insert: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["operating_core_event_estado"]
+          id?: string
+          kind: Database["public"]["Enums"]["operating_core_event_kind"]
+          metadata?: Json
+          parent_event_id?: string | null
+          recurrence_rule?: Json | null
+          responsible_dream_team_servicio_id?: string | null
+          service_id?: string | null
+          start_date: string
+          title: string
+          updated_at?: string
+          visibility_scope?: string
+        }
+        Update: {
+          created_at?: string
+          estado?: Database["public"]["Enums"]["operating_core_event_estado"]
+          id?: string
+          kind?: Database["public"]["Enums"]["operating_core_event_kind"]
+          metadata?: Json
+          parent_event_id?: string | null
+          recurrence_rule?: Json | null
+          responsible_dream_team_servicio_id?: string | null
+          service_id?: string | null
+          start_date?: string
+          title?: string
+          updated_at?: string
+          visibility_scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operating_core_events_parent_event_id_fkey"
+            columns: ["parent_event_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operating_core_events_responsible_dream_team_servicio_id_fkey"
+            columns: ["responsible_dream_team_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operating_core_events_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operating_core_form_submissions: {
+        Row: {
+          answers: Json
+          form_id: string
+          form_version_at_submission: number
+          id: string
+          submitted_at: string
+          submitted_by_persona_id: string
+        }
+        Insert: {
+          answers?: Json
+          form_id: string
+          form_version_at_submission: number
+          id?: string
+          submitted_at?: string
+          submitted_by_persona_id: string
+        }
+        Update: {
+          answers?: Json
+          form_id?: string
+          form_version_at_submission?: number
+          id?: string
+          submitted_at?: string
+          submitted_by_persona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operating_core_form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operating_core_forms: {
+        Row: {
+          created_at: string
+          created_by_persona_id: string
+          description: string | null
+          fields: Json
+          id: string
+          lifecycle: Database["public"]["Enums"]["operating_core_form_lifecycle"]
+          owner_experience_id: string
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by_persona_id: string
+          description?: string | null
+          fields?: Json
+          id?: string
+          lifecycle?: Database["public"]["Enums"]["operating_core_form_lifecycle"]
+          owner_experience_id: string
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by_persona_id?: string
+          description?: string | null
+          fields?: Json
+          id?: string
+          lifecycle?: Database["public"]["Enums"]["operating_core_form_lifecycle"]
+          owner_experience_id?: string
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      operating_core_notification_outbox: {
+        Row: {
+          attempt_count: number
+          available_at: string
+          created_at: string
+          dispatched_at: string | null
+          id: string
+          kind: string
+          last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          next_retry_at: string | null
+          payload: Json
+          sent_at: string | null
+          status: Database["public"]["Enums"]["operating_core_notification_outbox_status"]
+          subject_id: string | null
+          target_address: string
+          target_kind: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          available_at?: string
+          created_at?: string
+          dispatched_at?: string | null
+          id?: string
+          kind: string
+          last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["operating_core_notification_outbox_status"]
+          subject_id?: string | null
+          target_address: string
+          target_kind: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          available_at?: string
+          created_at?: string
+          dispatched_at?: string | null
+          id?: string
+          kind?: string
+          last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload?: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["operating_core_notification_outbox_status"]
+          subject_id?: string | null
+          target_address?: string
+          target_kind?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      operating_core_participation_eventos: {
+        Row: {
+          actor_persona_id: string
+          capture_source: string
+          corrects_event_id: string | null
+          created_at: string
+          event_id: string | null
+          event_instance_id: string | null
+          experience: string
+          id: string
+          kind: Database["public"]["Enums"]["operating_core_participation_kind"]
+          metadata: Json
+          occurred_at: string
+          sensitivity: string
+          service_id: string | null
+          status: Database["public"]["Enums"]["operating_core_participation_status"]
+          subject_id: string
+        }
+        Insert: {
+          actor_persona_id: string
+          capture_source: string
+          corrects_event_id?: string | null
+          created_at?: string
+          event_id?: string | null
+          event_instance_id?: string | null
+          experience: string
+          id?: string
+          kind: Database["public"]["Enums"]["operating_core_participation_kind"]
+          metadata?: Json
+          occurred_at?: string
+          sensitivity?: string
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["operating_core_participation_status"]
+          subject_id: string
+        }
+        Update: {
+          actor_persona_id?: string
+          capture_source?: string
+          corrects_event_id?: string | null
+          created_at?: string
+          event_id?: string | null
+          event_instance_id?: string | null
+          experience?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["operating_core_participation_kind"]
+          metadata?: Json
+          occurred_at?: string
+          sensitivity?: string
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["operating_core_participation_status"]
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operating_core_participation_eventos_corrects_event_id_fkey"
+            columns: ["corrects_event_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_participation_eventos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operating_core_participation_eventos_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operating_core_participation_eventos_event_instance_id_fkey"
+            columns: ["event_instance_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_event_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operating_core_participation_eventos_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operating_core_public_tokens: {
+        Row: {
+          captured_by_persona_id: string | null
+          consumed_at: string | null
+          consumed_by_persona_id: string | null
+          created_at: string
+          expires_at: string
+          metadata: Json
+          persona_id: string | null
+          resource_id: string
+          resource_type: string
+          token_hash: string
+        }
+        Insert: {
+          captured_by_persona_id?: string | null
+          consumed_at?: string | null
+          consumed_by_persona_id?: string | null
+          created_at?: string
+          expires_at: string
+          metadata?: Json
+          persona_id?: string | null
+          resource_id: string
+          resource_type: string
+          token_hash: string
+        }
+        Update: {
+          captured_by_persona_id?: string | null
+          consumed_at?: string | null
+          consumed_by_persona_id?: string | null
+          created_at?: string
+          expires_at?: string
+          metadata?: Json
+          persona_id?: string | null
+          resource_id?: string
+          resource_type?: string
+          token_hash?: string
+        }
+        Relationships: []
+      }
+      operating_core_registrations: {
+        Row: {
+          captured_by_persona_id: string | null
+          confirmation_mode: Database["public"]["Enums"]["operating_core_registration_confirmation_mode"]
+          created_at: string
+          estado: Database["public"]["Enums"]["operating_core_registration_estado"]
+          event_id: string
+          id: string
+          persona_id: string
+          reason: string | null
+          updated_at: string
+          version: number
+          waitlist_position: number | null
+        }
+        Insert: {
+          captured_by_persona_id?: string | null
+          confirmation_mode?: Database["public"]["Enums"]["operating_core_registration_confirmation_mode"]
+          created_at?: string
+          estado?: Database["public"]["Enums"]["operating_core_registration_estado"]
+          event_id: string
+          id?: string
+          persona_id: string
+          reason?: string | null
+          updated_at?: string
+          version?: number
+          waitlist_position?: number | null
+        }
+        Update: {
+          captured_by_persona_id?: string | null
+          confirmation_mode?: Database["public"]["Enums"]["operating_core_registration_confirmation_mode"]
+          created_at?: string
+          estado?: Database["public"]["Enums"]["operating_core_registration_estado"]
+          event_id?: string
+          id?: string
+          persona_id?: string
+          reason?: string | null
+          updated_at?: string
+          version?: number
+          waitlist_position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operating_core_registrations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operating_core_services: {
+        Row: {
+          capacity_base: number
+          created_at: string
+          estado: Database["public"]["Enums"]["operating_core_service_estado"]
+          experiencia: string
+          id: string
+          kind: Database["public"]["Enums"]["operating_core_event_kind"]
+          label: string
+          metadata: Json
+          start_time: string
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          capacity_base?: number
+          created_at?: string
+          estado?: Database["public"]["Enums"]["operating_core_service_estado"]
+          experiencia: string
+          id?: string
+          kind?: Database["public"]["Enums"]["operating_core_event_kind"]
+          label: string
+          metadata?: Json
+          start_time: string
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          capacity_base?: number
+          created_at?: string
+          estado?: Database["public"]["Enums"]["operating_core_service_estado"]
+          experiencia?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["operating_core_event_kind"]
+          label?: string
+          metadata?: Json
+          start_time?: string
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: []
+      }
+      operating_core_system_notifications: {
+        Row: {
+          body: string
+          created_at: string
+          expires_at: string
+          id: string
+          kind: string
+          outbox_id: string | null
+          persona_id: string
+          read_at: string | null
+          target_url: string | null
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          kind: string
+          outbox_id?: string | null
+          persona_id: string
+          read_at?: string | null
+          target_url?: string | null
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          kind?: string
+          outbox_id?: string | null
+          persona_id?: string
+          read_at?: string | null
+          target_url?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operating_core_system_notifications_outbox_id_fkey"
+            columns: ["outbox_id"]
+            isOneToOne: false
+            referencedRelation: "operating_core_notification_outbox"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       paises: {
         Row: {
           id: string
@@ -2429,6 +2988,299 @@ export type Database = {
             columns: ["municipio_id"]
             isOneToOne: false
             referencedRelation: "municipios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_crisis_detection_log: {
+        Row: {
+          actor_persona_id: string
+          categoria: string
+          detected_at: string
+          detected_at_minute: string
+          id: string
+          keyword: string
+          one_on_one_id: string
+          scan_nota_id: string | null
+          scan_resumen: boolean
+        }
+        Insert: {
+          actor_persona_id: string
+          categoria: string
+          detected_at?: string
+          detected_at_minute: string
+          id?: string
+          keyword: string
+          one_on_one_id: string
+          scan_nota_id?: string | null
+          scan_resumen?: boolean
+        }
+        Update: {
+          actor_persona_id?: string
+          categoria?: string
+          detected_at?: string
+          detected_at_minute?: string
+          id?: string
+          keyword?: string
+          one_on_one_id?: string
+          scan_nota_id?: string | null
+          scan_resumen?: boolean
+        }
+        Relationships: []
+      }
+      pastoral_crisis_keyword_catalog: {
+        Row: {
+          activo: boolean
+          categoria: string
+          id: string
+          termino: string
+          version: number
+        }
+        Insert: {
+          activo?: boolean
+          categoria: string
+          id?: string
+          termino: string
+          version?: number
+        }
+        Update: {
+          activo?: boolean
+          categoria?: string
+          id?: string
+          termino?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      pastoral_one_on_one: {
+        Row: {
+          autor_persona_id: string
+          completed_at: string | null
+          created_at: string
+          estado: Database["public"]["Enums"]["pastoral_one_on_one_estado"]
+          id: string
+          mentor_oficial_persona_id: string
+          motivo_cancelacion: string | null
+          motivo_no_realizado: string | null
+          resumen: string | null
+          scheduled_at: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          autor_persona_id: string
+          completed_at?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["pastoral_one_on_one_estado"]
+          id?: string
+          mentor_oficial_persona_id: string
+          motivo_cancelacion?: string | null
+          motivo_no_realizado?: string | null
+          resumen?: string | null
+          scheduled_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          autor_persona_id?: string
+          completed_at?: string | null
+          created_at?: string
+          estado?: Database["public"]["Enums"]["pastoral_one_on_one_estado"]
+          id?: string
+          mentor_oficial_persona_id?: string
+          motivo_cancelacion?: string | null
+          motivo_no_realizado?: string | null
+          resumen?: string | null
+          scheduled_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      pastoral_one_on_one_notas: {
+        Row: {
+          autor_persona_id: string
+          contenido: string
+          created_at: string
+          id: string
+          one_on_one_id: string
+        }
+        Insert: {
+          autor_persona_id: string
+          contenido: string
+          created_at?: string
+          id?: string
+          one_on_one_id: string
+        }
+        Update: {
+          autor_persona_id?: string
+          contenido?: string
+          created_at?: string
+          id?: string
+          one_on_one_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_one_on_one_notas_one_on_one_id_fkey"
+            columns: ["one_on_one_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_one_on_one"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_one_on_one_participantes: {
+        Row: {
+          created_at: string
+          id: string
+          one_on_one_id: string
+          persona_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          one_on_one_id: string
+          persona_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          one_on_one_id?: string
+          persona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_one_on_one_participantes_one_on_one_id_fkey"
+            columns: ["one_on_one_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_one_on_one"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_role_capability_map: {
+        Row: {
+          capability_key: string
+          rol: string
+          scope_type: string
+        }
+        Insert: {
+          capability_key: string
+          rol: string
+          scope_type: string
+        }
+        Update: {
+          capability_key?: string
+          rol?: string
+          scope_type?: string
+        }
+        Relationships: []
+      }
+      pastoral_triada: {
+        Row: {
+          autor_persona_id: string
+          contexto: Database["public"]["Enums"]["pastoral_triada_contexto"]
+          created_at: string
+          estado: Database["public"]["Enums"]["pastoral_triada_estado"]
+          id: string
+          mentor_oficial_persona_id: string
+          motivo_disolucion:
+            | Database["public"]["Enums"]["pastoral_triada_motivo_disolucion"]
+            | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          autor_persona_id: string
+          contexto: Database["public"]["Enums"]["pastoral_triada_contexto"]
+          created_at?: string
+          estado?: Database["public"]["Enums"]["pastoral_triada_estado"]
+          id?: string
+          mentor_oficial_persona_id: string
+          motivo_disolucion?:
+            | Database["public"]["Enums"]["pastoral_triada_motivo_disolucion"]
+            | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          autor_persona_id?: string
+          contexto?: Database["public"]["Enums"]["pastoral_triada_contexto"]
+          created_at?: string
+          estado?: Database["public"]["Enums"]["pastoral_triada_estado"]
+          id?: string
+          mentor_oficial_persona_id?: string
+          motivo_disolucion?:
+            | Database["public"]["Enums"]["pastoral_triada_motivo_disolucion"]
+            | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      pastoral_triada_eventos: {
+        Row: {
+          actor_persona_id: string
+          created_at: string
+          id: string
+          payload: Json
+          tipo_evento: Database["public"]["Enums"]["pastoral_triada_evento_tipo"]
+          triada_id: string
+        }
+        Insert: {
+          actor_persona_id: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          tipo_evento: Database["public"]["Enums"]["pastoral_triada_evento_tipo"]
+          triada_id: string
+        }
+        Update: {
+          actor_persona_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          tipo_evento?: Database["public"]["Enums"]["pastoral_triada_evento_tipo"]
+          triada_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_triada_eventos_triada_id_fkey"
+            columns: ["triada_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_triada"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pastoral_triada_miembros: {
+        Row: {
+          created_at: string
+          id: string
+          persona_id: string
+          rol_en_triada: string
+          triada_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          persona_id: string
+          rol_en_triada: string
+          triada_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          persona_id?: string
+          rol_en_triada?: string
+          triada_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pastoral_triada_miembros_triada_id_fkey"
+            columns: ["triada_id"]
+            isOneToOne: false
+            referencedRelation: "pastoral_triada"
             referencedColumns: ["id"]
           },
         ]
@@ -3519,6 +4371,1365 @@ export type Database = {
           },
         ]
       }
+      taller_asistencias: {
+        Row: {
+          correccion_de_asistencia_id: string | null
+          created_at: string
+          estado: string
+          id: string
+          inscripcion_id: string
+          persona_id: string
+          sesion_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          correccion_de_asistencia_id?: string | null
+          created_at?: string
+          estado: string
+          id?: string
+          inscripcion_id: string
+          persona_id: string
+          sesion_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          correccion_de_asistencia_id?: string | null
+          created_at?: string
+          estado?: string
+          id?: string
+          inscripcion_id?: string
+          persona_id?: string
+          sesion_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_asistencias_correccion_de_asistencia_id_fkey"
+            columns: ["correccion_de_asistencia_id"]
+            isOneToOne: false
+            referencedRelation: "taller_asistencias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_asistencias_inscripcion_id_fkey"
+            columns: ["inscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "taller_inscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_asistencias_sesion_id_fkey"
+            columns: ["sesion_id"]
+            isOneToOne: false
+            referencedRelation: "taller_sesiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_catalogo_etiquetas: {
+        Row: {
+          created_at: string
+          etiqueta: string
+          taller_id: string
+        }
+        Insert: {
+          created_at?: string
+          etiqueta: string
+          taller_id: string
+        }
+        Update: {
+          created_at?: string
+          etiqueta?: string
+          taller_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_catalogo_etiquetas_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "taller_ediciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_certificados: {
+        Row: {
+          codigo_verificacion: string
+          created_at: string
+          fecha_completitud: string
+          firmantes_snapshot: Json
+          id: string
+          inscripcion_id: string
+          motivo_revocacion: string | null
+          nombre_participante_snapshot: string
+          nombre_taller_snapshot: string
+          pdf_storage_path: string | null
+          persona_id: string
+          revocado_at: string | null
+          taller_id: string
+          version: number
+        }
+        Insert: {
+          codigo_verificacion: string
+          created_at?: string
+          fecha_completitud?: string
+          firmantes_snapshot?: Json
+          id?: string
+          inscripcion_id: string
+          motivo_revocacion?: string | null
+          nombre_participante_snapshot: string
+          nombre_taller_snapshot: string
+          pdf_storage_path?: string | null
+          persona_id: string
+          revocado_at?: string | null
+          taller_id: string
+          version?: number
+        }
+        Update: {
+          codigo_verificacion?: string
+          created_at?: string
+          fecha_completitud?: string
+          firmantes_snapshot?: Json
+          id?: string
+          inscripcion_id?: string
+          motivo_revocacion?: string | null
+          nombre_participante_snapshot?: string
+          nombre_taller_snapshot?: string
+          pdf_storage_path?: string | null
+          persona_id?: string
+          revocado_at?: string | null
+          taller_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_certificados_inscripcion_id_fkey"
+            columns: ["inscripcion_id"]
+            isOneToOne: true
+            referencedRelation: "taller_inscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_certificados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_certificados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_certificados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_certificados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_certificados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_certificados_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "taller_ediciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_ediciones: {
+        Row: {
+          created_at: string
+          duracion_estimada_minutos_snapshot: number
+          estado: string
+          firmantes: Json
+          id: string
+          link_type: string | null
+          modalidad_inscripcion: string
+          modalidad_inscripcion_snapshot: string
+          nombre_snapshot: string
+          operating_core_event_id: string
+          periodo_general_id: string | null
+          recurrence_rule: Json | null
+          sesiones_snapshot: number
+          taller_id: string | null
+          temporada_id: string | null
+          tipo: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          duracion_estimada_minutos_snapshot: number
+          estado: string
+          firmantes?: Json
+          id?: string
+          link_type?: string | null
+          modalidad_inscripcion: string
+          modalidad_inscripcion_snapshot: string
+          nombre_snapshot: string
+          operating_core_event_id: string
+          periodo_general_id?: string | null
+          recurrence_rule?: Json | null
+          sesiones_snapshot: number
+          taller_id?: string | null
+          temporada_id?: string | null
+          tipo: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          duracion_estimada_minutos_snapshot?: number
+          estado?: string
+          firmantes?: Json
+          id?: string
+          link_type?: string | null
+          modalidad_inscripcion?: string
+          modalidad_inscripcion_snapshot?: string
+          nombre_snapshot?: string
+          operating_core_event_id?: string
+          periodo_general_id?: string | null
+          recurrence_rule?: Json | null
+          sesiones_snapshot?: number
+          taller_id?: string | null
+          temporada_id?: string | null
+          tipo?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_ediciones_operating_core_event_id_fkey"
+            columns: ["operating_core_event_id"]
+            isOneToOne: true
+            referencedRelation: "operating_core_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_periodo_general_id_fkey"
+            columns: ["periodo_general_id"]
+            isOneToOne: false
+            referencedRelation: "taller_periodos_generales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "talleres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_temporada_id_fkey"
+            columns: ["temporada_id"]
+            isOneToOne: false
+            referencedRelation: "talleres_temporadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_eventos: {
+        Row: {
+          actor_persona_id: string
+          cohorte_id: string | null
+          created_at: string
+          emitted_to_outbox: boolean
+          grupo_id: string | null
+          id: string
+          occurred_at: string
+          payload: Json
+          persona_id: string
+          schema_version: string
+          taller_id: string
+          version: number
+        }
+        Insert: {
+          actor_persona_id: string
+          cohorte_id?: string | null
+          created_at?: string
+          emitted_to_outbox?: boolean
+          grupo_id?: string | null
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          persona_id: string
+          schema_version: string
+          taller_id: string
+          version?: number
+        }
+        Update: {
+          actor_persona_id?: string
+          cohorte_id?: string | null
+          created_at?: string
+          emitted_to_outbox?: boolean
+          grupo_id?: string | null
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          persona_id?: string
+          schema_version?: string
+          taller_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_eventos_actor_persona_id_fkey"
+            columns: ["actor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_actor_persona_id_fkey"
+            columns: ["actor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_actor_persona_id_fkey"
+            columns: ["actor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_actor_persona_id_fkey"
+            columns: ["actor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_actor_persona_id_fkey"
+            columns: ["actor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_cohorte_id_fkey"
+            columns: ["cohorte_id"]
+            isOneToOne: false
+            referencedRelation: "talleres_crecimiento_cohortes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "taller_grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_eventos_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "taller_ediciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_grupo_asignaciones: {
+        Row: {
+          activo: boolean
+          approved_by_director_id: string | null
+          created_at: string
+          ended_at: string | null
+          grupo_id: string
+          id: string
+          motivo_retiro: string | null
+          persona_id: string
+          rol: string
+          started_at: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          activo?: boolean
+          approved_by_director_id?: string | null
+          created_at?: string
+          ended_at?: string | null
+          grupo_id: string
+          id?: string
+          motivo_retiro?: string | null
+          persona_id: string
+          rol: string
+          started_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          activo?: boolean
+          approved_by_director_id?: string | null
+          created_at?: string
+          ended_at?: string | null
+          grupo_id?: string
+          id?: string
+          motivo_retiro?: string | null
+          persona_id?: string
+          rol?: string
+          started_at?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_grupo_asignaciones_approved_by_director_id_fkey"
+            columns: ["approved_by_director_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_approved_by_director_id_fkey"
+            columns: ["approved_by_director_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_approved_by_director_id_fkey"
+            columns: ["approved_by_director_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_approved_by_director_id_fkey"
+            columns: ["approved_by_director_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_approved_by_director_id_fkey"
+            columns: ["approved_by_director_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "taller_grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_grupo_asignaciones_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      taller_grupos: {
+        Row: {
+          capacidad: number
+          cohorte_id: string
+          completed_at: string | null
+          created_at: string
+          estado: string
+          id: string
+          nombre: string
+          recursos_snapshot: Json | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          capacidad: number
+          cohorte_id: string
+          completed_at?: string | null
+          created_at?: string
+          estado: string
+          id?: string
+          nombre: string
+          recursos_snapshot?: Json | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          capacidad?: number
+          cohorte_id?: string
+          completed_at?: string | null
+          created_at?: string
+          estado?: string
+          id?: string
+          nombre?: string
+          recursos_snapshot?: Json | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_grupos_cohorte_id_fkey"
+            columns: ["cohorte_id"]
+            isOneToOne: false
+            referencedRelation: "talleres_crecimiento_cohortes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_inscripciones: {
+        Row: {
+          cohorte_id: string
+          companero_id: string | null
+          created_at: string
+          estado: string
+          id: string
+          link_type: string | null
+          motivo_no_aprobado: string | null
+          ocurrencia_objetivo: string | null
+          persona_principal_id: string
+          taller_id: string
+          unit_estado: string | null
+          unit_estado_report_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          cohorte_id: string
+          companero_id?: string | null
+          created_at?: string
+          estado: string
+          id?: string
+          link_type?: string | null
+          motivo_no_aprobado?: string | null
+          ocurrencia_objetivo?: string | null
+          persona_principal_id: string
+          taller_id: string
+          unit_estado?: string | null
+          unit_estado_report_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          cohorte_id?: string
+          companero_id?: string | null
+          created_at?: string
+          estado?: string
+          id?: string
+          link_type?: string | null
+          motivo_no_aprobado?: string | null
+          ocurrencia_objetivo?: string | null
+          persona_principal_id?: string
+          taller_id?: string
+          unit_estado?: string | null
+          unit_estado_report_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_inscripciones_cohorte_id_fkey"
+            columns: ["cohorte_id"]
+            isOneToOne: false
+            referencedRelation: "talleres_crecimiento_cohortes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_companero_id_fkey"
+            columns: ["companero_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_companero_id_fkey"
+            columns: ["companero_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_companero_id_fkey"
+            columns: ["companero_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_companero_id_fkey"
+            columns: ["companero_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_companero_id_fkey"
+            columns: ["companero_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_persona_principal_id_fkey"
+            columns: ["persona_principal_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_persona_principal_id_fkey"
+            columns: ["persona_principal_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_persona_principal_id_fkey"
+            columns: ["persona_principal_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_persona_principal_id_fkey"
+            columns: ["persona_principal_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_persona_principal_id_fkey"
+            columns: ["persona_principal_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "taller_ediciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_periodos_generales: {
+        Row: {
+          created_at: string
+          edicion_label: string
+          fecha_apertura_automatica: string | null
+          fecha_apertura_manual: string | null
+          fecha_cierre_automatico: string | null
+          fecha_cierre_manual: string | null
+          fecha_cierre_real: string | null
+          id: string
+          motivo_cierre: string | null
+          taller_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          edicion_label: string
+          fecha_apertura_automatica?: string | null
+          fecha_apertura_manual?: string | null
+          fecha_cierre_automatico?: string | null
+          fecha_cierre_manual?: string | null
+          fecha_cierre_real?: string | null
+          id?: string
+          motivo_cierre?: string | null
+          taller_id: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          edicion_label?: string
+          fecha_apertura_automatica?: string | null
+          fecha_apertura_manual?: string | null
+          fecha_cierre_automatico?: string | null
+          fecha_cierre_manual?: string | null
+          fecha_cierre_real?: string | null
+          id?: string
+          motivo_cierre?: string | null
+          taller_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_periodos_generales_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "taller_ediciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_reporte_correcciones: {
+        Row: {
+          autor_persona_id: string
+          contenido_anterior: Json
+          contenido_nuevo: Json
+          created_at: string
+          id: string
+          motivo: string
+          reporte_id: string
+        }
+        Insert: {
+          autor_persona_id: string
+          contenido_anterior: Json
+          contenido_nuevo: Json
+          created_at?: string
+          id?: string
+          motivo: string
+          reporte_id: string
+        }
+        Update: {
+          autor_persona_id?: string
+          contenido_anterior?: Json
+          contenido_nuevo?: Json
+          created_at?: string
+          id?: string
+          motivo?: string
+          reporte_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_reporte_correcciones_autor_persona_id_fkey"
+            columns: ["autor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_reporte_correcciones_autor_persona_id_fkey"
+            columns: ["autor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_reporte_correcciones_autor_persona_id_fkey"
+            columns: ["autor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_reporte_correcciones_autor_persona_id_fkey"
+            columns: ["autor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_reporte_correcciones_autor_persona_id_fkey"
+            columns: ["autor_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_reporte_correcciones_reporte_id_fkey"
+            columns: ["reporte_id"]
+            isOneToOne: false
+            referencedRelation: "taller_reportes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_reportes: {
+        Row: {
+          created_at: string
+          estado: string
+          firma_lider_fecha: string | null
+          firma_lider_persona_id: string | null
+          grupo_id: string
+          id: string
+          observaciones_generales: string
+          reabierto_motivo: string | null
+          reabierto_por_persona_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          estado: string
+          firma_lider_fecha?: string | null
+          firma_lider_persona_id?: string | null
+          grupo_id: string
+          id?: string
+          observaciones_generales: string
+          reabierto_motivo?: string | null
+          reabierto_por_persona_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          firma_lider_fecha?: string | null
+          firma_lider_persona_id?: string | null
+          grupo_id?: string
+          id?: string
+          observaciones_generales?: string
+          reabierto_motivo?: string | null
+          reabierto_por_persona_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_reportes_firma_lider_persona_id_fkey"
+            columns: ["firma_lider_persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_firma_lider_persona_id_fkey"
+            columns: ["firma_lider_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_firma_lider_persona_id_fkey"
+            columns: ["firma_lider_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_firma_lider_persona_id_fkey"
+            columns: ["firma_lider_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_firma_lider_persona_id_fkey"
+            columns: ["firma_lider_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "taller_grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_reabierto_por_persona_id_fkey"
+            columns: ["reabierto_por_persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_reabierto_por_persona_id_fkey"
+            columns: ["reabierto_por_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_reabierto_por_persona_id_fkey"
+            columns: ["reabierto_por_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_reabierto_por_persona_id_fkey"
+            columns: ["reabierto_por_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_reportes_reabierto_por_persona_id_fkey"
+            columns: ["reabierto_por_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      taller_sesiones: {
+        Row: {
+          created_at: string
+          estado: string
+          fecha_programada: string
+          fecha_realizada: string | null
+          grupo_id: string
+          id: string
+          meeting_time_applies_to: string | null
+          meeting_time_override: string | null
+          numero: number
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          fecha_programada: string
+          fecha_realizada?: string | null
+          grupo_id: string
+          id?: string
+          meeting_time_applies_to?: string | null
+          meeting_time_override?: string | null
+          numero: number
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          fecha_programada?: string
+          fecha_realizada?: string | null
+          grupo_id?: string
+          id?: string
+          meeting_time_applies_to?: string | null
+          meeting_time_override?: string | null
+          numero?: number
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_sesiones_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "taller_grupos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_solicitudes_retiro: {
+        Row: {
+          created_at: string
+          estado: string
+          grupo_asignacion_id: string | null
+          id: string
+          inscripcion_id: string | null
+          motivo: string
+          solicitante_persona_id: string
+          tipo: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          estado: string
+          grupo_asignacion_id?: string | null
+          id?: string
+          inscripcion_id?: string | null
+          motivo: string
+          solicitante_persona_id: string
+          tipo: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          grupo_asignacion_id?: string | null
+          id?: string
+          inscripcion_id?: string | null
+          motivo?: string
+          solicitante_persona_id?: string
+          tipo?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_solicitudes_retiro_grupo_asignacion_id_fkey"
+            columns: ["grupo_asignacion_id"]
+            isOneToOne: false
+            referencedRelation: "taller_grupo_asignaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_solicitudes_retiro_inscripcion_id_fkey"
+            columns: ["inscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "taller_inscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_solicitudes_retiro_solicitante_persona_id_fkey"
+            columns: ["solicitante_persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_solicitudes_retiro_solicitante_persona_id_fkey"
+            columns: ["solicitante_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_solicitudes_retiro_solicitante_persona_id_fkey"
+            columns: ["solicitante_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_solicitudes_retiro_solicitante_persona_id_fkey"
+            columns: ["solicitante_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_solicitudes_retiro_solicitante_persona_id_fkey"
+            columns: ["solicitante_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      talleres: {
+        Row: {
+          created_at: string
+          created_by_persona_id: string | null
+          descripcion: string | null
+          estado: string
+          id: string
+          modalidad_default: string
+          nombre: string
+          slug: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by_persona_id?: string | null
+          descripcion?: string | null
+          estado?: string
+          id?: string
+          modalidad_default?: string
+          nombre: string
+          slug: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by_persona_id?: string | null
+          descripcion?: string | null
+          estado?: string
+          id?: string
+          modalidad_default?: string
+          nombre?: string
+          slug?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talleres_created_by_persona_id_fkey"
+            columns: ["created_by_persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talleres_created_by_persona_id_fkey"
+            columns: ["created_by_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "talleres_created_by_persona_id_fkey"
+            columns: ["created_by_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "talleres_created_by_persona_id_fkey"
+            columns: ["created_by_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "talleres_created_by_persona_id_fkey"
+            columns: ["created_by_persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      talleres_crecimiento_cohortes: {
+        Row: {
+          created_at: string
+          dream_team_equipo_id: string
+          edicion: string
+          ended_at: string | null
+          id: string
+          started_at: string | null
+          taller_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          dream_team_equipo_id: string
+          edicion: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string | null
+          taller_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          dream_team_equipo_id?: string
+          edicion?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string | null
+          taller_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talleres_crecimiento_cohortes_dream_team_equipo_id_fkey"
+            columns: ["dream_team_equipo_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talleres_crecimiento_cohortes_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "taller_ediciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talleres_role_capability_map: {
+        Row: {
+          capability_key: string
+          rol: string
+          scope_type: string
+        }
+        Insert: {
+          capability_key: string
+          rol: string
+          scope_type: string
+        }
+        Update: {
+          capability_key?: string
+          rol?: string
+          scope_type?: string
+        }
+        Relationships: []
+      }
+      talleres_temporada_talleres: {
+        Row: {
+          created_at: string
+          id: string
+          taller_id: string
+          temporada_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          taller_id: string
+          temporada_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          taller_id?: string
+          temporada_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talleres_temporada_talleres_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "talleres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talleres_temporada_talleres_temporada_id_fkey"
+            columns: ["temporada_id"]
+            isOneToOne: false
+            referencedRelation: "talleres_temporadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talleres_temporadas: {
+        Row: {
+          created_at: string
+          created_by_persona_id: string | null
+          descripcion: string | null
+          estado: string
+          fecha_apertura: string
+          fecha_cierre: string
+          id: string
+          nombre: string
+          slug: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by_persona_id?: string | null
+          descripcion?: string | null
+          estado?: string
+          fecha_apertura: string
+          fecha_cierre: string
+          id?: string
+          nombre: string
+          slug: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by_persona_id?: string | null
+          descripcion?: string | null
+          estado?: string
+          fecha_apertura?: string
+          fecha_cierre?: string
+          id?: string
+          nombre?: string
+          slug?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       temporadas: {
         Row: {
           activa: boolean
@@ -4039,281 +6250,6 @@ export type Database = {
             columns: ["profesion_id"]
             isOneToOne: false
             referencedRelation: "profesiones"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      pastoral_crisis_detection_log: {
-        Row: {
-          actor_persona_id: string
-          categoria: string
-          detected_at: string
-          detected_at_minute: string
-          id: string
-          keyword: string
-          one_on_one_id: string
-          scan_nota_id: string | null
-          scan_resumen: boolean
-        }
-        Insert: {
-          actor_persona_id: string
-          categoria: string
-          detected_at?: string
-          detected_at_minute: string
-          id?: string
-          keyword: string
-          one_on_one_id: string
-          scan_nota_id?: string | null
-          scan_resumen?: boolean
-        }
-        Update: {
-          actor_persona_id?: string
-          categoria?: string
-          detected_at?: string
-          detected_at_minute?: string
-          id?: string
-          keyword?: string
-          one_on_one_id?: string
-          scan_nota_id?: string | null
-          scan_resumen?: boolean
-        }
-        Relationships: []
-      }
-      pastoral_crisis_keyword_catalog: {
-        Row: {
-          activo: boolean
-          categoria: string
-          id: string
-          termino: string
-          version: number
-        }
-        Insert: {
-          activo?: boolean
-          categoria: string
-          id?: string
-          termino: string
-          version?: number
-        }
-        Update: {
-          activo?: boolean
-          categoria?: string
-          id?: string
-          termino?: string
-          version?: number
-        }
-        Relationships: []
-      }
-      pastoral_one_on_one: {
-        Row: {
-          autor_persona_id: string
-          completed_at: string | null
-          created_at: string
-          estado: Database["public"]["Enums"]["pastoral_one_on_one_estado"]
-          id: string
-          mentor_oficial_persona_id: string
-          motivo_cancelacion: string | null
-          motivo_no_realizado: string | null
-          resumen: string | null
-          scheduled_at: string | null
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          autor_persona_id: string
-          completed_at?: string | null
-          created_at?: string
-          estado?: Database["public"]["Enums"]["pastoral_one_on_one_estado"]
-          id?: string
-          mentor_oficial_persona_id: string
-          motivo_cancelacion?: string | null
-          motivo_no_realizado?: string | null
-          resumen?: string | null
-          scheduled_at?: string | null
-          updated_at?: string
-          version?: number
-        }
-        Update: {
-          autor_persona_id?: string
-          completed_at?: string | null
-          created_at?: string
-          estado?: Database["public"]["Enums"]["pastoral_one_on_one_estado"]
-          id?: string
-          mentor_oficial_persona_id?: string
-          motivo_cancelacion?: string | null
-          motivo_no_realizado?: string | null
-          resumen?: string | null
-          scheduled_at?: string | null
-          updated_at?: string
-          version?: number
-        }
-        Relationships: []
-      }
-      pastoral_one_on_one_notas: {
-        Row: {
-          autor_persona_id: string
-          contenido: string
-          created_at: string
-          id: string
-          one_on_one_id: string
-        }
-        Insert: {
-          autor_persona_id: string
-          contenido: string
-          created_at?: string
-          id?: string
-          one_on_one_id: string
-        }
-        Update: {
-          autor_persona_id?: string
-          contenido?: string
-          created_at?: string
-          id?: string
-          one_on_one_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pastoral_one_on_one_notas_one_on_one_id_fkey"
-            columns: ["one_on_one_id"]
-            isOneToOne: false
-            referencedRelation: "pastoral_one_on_one"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      pastoral_one_on_one_participantes: {
-        Row: {
-          created_at: string
-          id: string
-          one_on_one_id: string
-          persona_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          one_on_one_id: string
-          persona_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          one_on_one_id?: string
-          persona_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pastoral_one_on_one_participantes_one_on_one_id_fkey"
-            columns: ["one_on_one_id"]
-            isOneToOne: false
-            referencedRelation: "pastoral_one_on_one"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      pastoral_triada: {
-        Row: {
-          autor_persona_id: string
-          contexto: Database["public"]["Enums"]["pastoral_triada_contexto"]
-          created_at: string
-          estado: Database["public"]["Enums"]["pastoral_triada_estado"]
-          id: string
-          mentor_oficial_persona_id: string
-          motivo_disolucion:
-            | Database["public"]["Enums"]["pastoral_triada_motivo_disolucion"]
-            | null
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          autor_persona_id: string
-          contexto: Database["public"]["Enums"]["pastoral_triada_contexto"]
-          created_at?: string
-          estado?: Database["public"]["Enums"]["pastoral_triada_estado"]
-          id?: string
-          mentor_oficial_persona_id: string
-          motivo_disolucion?:
-            | Database["public"]["Enums"]["pastoral_triada_motivo_disolucion"]
-            | null
-          updated_at?: string
-          version?: number
-        }
-        Update: {
-          autor_persona_id?: string
-          contexto?: Database["public"]["Enums"]["pastoral_triada_contexto"]
-          created_at?: string
-          estado?: Database["public"]["Enums"]["pastoral_triada_estado"]
-          id?: string
-          mentor_oficial_persona_id?: string
-          motivo_disolucion?:
-            | Database["public"]["Enums"]["pastoral_triada_motivo_disolucion"]
-            | null
-          updated_at?: string
-          version?: number
-        }
-        Relationships: []
-      }
-      pastoral_triada_eventos: {
-        Row: {
-          actor_persona_id: string
-          created_at: string
-          id: string
-          payload: Json
-          tipo_evento: Database["public"]["Enums"]["pastoral_triada_evento_tipo"]
-          triada_id: string
-        }
-        Insert: {
-          actor_persona_id: string
-          created_at?: string
-          id?: string
-          payload?: Json
-          tipo_evento: Database["public"]["Enums"]["pastoral_triada_evento_tipo"]
-          triada_id: string
-        }
-        Update: {
-          actor_persona_id?: string
-          created_at?: string
-          id?: string
-          payload?: Json
-          tipo_evento?: Database["public"]["Enums"]["pastoral_triada_evento_tipo"]
-          triada_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pastoral_triada_eventos_triada_id_fkey"
-            columns: ["triada_id"]
-            isOneToOne: false
-            referencedRelation: "pastoral_triada"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      pastoral_triada_miembros: {
-        Row: {
-          created_at: string
-          id: string
-          persona_id: string
-          rol_en_triada: string
-          triada_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          persona_id: string
-          rol_en_triada: string
-          triada_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          persona_id?: string
-          rol_en_triada?: string
-          triada_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pastoral_triada_miembros_triada_id_fkey"
-            columns: ["triada_id"]
-            isOneToOne: false
-            referencedRelation: "pastoral_triada"
             referencedColumns: ["id"]
           },
         ]
@@ -4855,12 +6791,48 @@ export type Database = {
         }
         Returns: Json
       }
+      assign_pastoral_capabilities_for_role: {
+        Args: { p_persona_id: string; p_rol: string }
+        Returns: number
+      }
       assign_support_ticket: {
         Args: { p_assignee_usuario_id: string; p_ticket_id: string }
         Returns: undefined
       }
+      assign_talleres_capabilities_for_role: {
+        Args: { p_persona_id: string; p_rol: string; p_taller_id: string }
+        Returns: number
+      }
       auth_has_dream_team_capability: {
         Args: { p_capability_key: string }
+        Returns: boolean
+      }
+      auth_has_dream_team_capability_in_tree: {
+        Args: { p_capability_key: string; p_equipo_id: string }
+        Returns: boolean
+      }
+      auth_has_operating_core_capability: {
+        Args: { p_capability: string }
+        Returns: boolean
+      }
+      auth_has_pastoral_capability: {
+        Args: { p_capability_key: string }
+        Returns: boolean
+      }
+      auth_has_talleres_capability: {
+        Args: { p_capability_key: string }
+        Returns: boolean
+      }
+      auth_has_talleres_capability_scoped: {
+        Args: { p_capability_key: string; p_equipo_id: string }
+        Returns: boolean
+      }
+      auth_user_is_pastoral_actor: {
+        Args: { actor_pastoral_id: string }
+        Returns: boolean
+      }
+      auth_user_is_pastoral_actor_for_triada: {
+        Args: { p_triada_id: string }
         Returns: boolean
       }
       buscar_usuarios_para_grupo: {
@@ -4918,6 +6890,35 @@ export type Database = {
         Args: { p_auth_id: string; p_grupo_id: string }
         Returns: boolean
       }
+      claim_operating_core_notification_outbox_batch: {
+        Args: { p_limit?: number; p_lock_timeout?: string }
+        Returns: {
+          attempt_count: number
+          available_at: string
+          created_at: string
+          dispatched_at: string | null
+          id: string
+          kind: string
+          last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          next_retry_at: string | null
+          payload: Json
+          sent_at: string | null
+          status: Database["public"]["Enums"]["operating_core_notification_outbox_status"]
+          subject_id: string | null
+          target_address: string
+          target_kind: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "operating_core_notification_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_support_event_outbox_batch: {
         Args: { p_limit?: number; p_lock_timeout?: string }
         Returns: {
@@ -4940,6 +6941,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      cohort_belongs_to_talleres_experience: {
+        Args: { p_cohorte_id: string }
+        Returns: boolean
       }
       contar_solicitudes_pendientes: {
         Args: { p_auth_id: string }
@@ -4994,6 +6999,66 @@ export type Database = {
         }
         Returns: Json
       }
+      create_taller_abstract: {
+        Args: {
+          p_descripcion: string
+          p_modalidad_default: string
+          p_nombre: string
+          p_slug: string
+        }
+        Returns: Json
+      }
+      create_taller_with_initial_state: {
+        Args: {
+          p_cohorte_edicion_label: string
+          p_cohorte_ended_at: string
+          p_cohorte_started_at: string
+          p_duracion_estimada_minutos: number
+          p_edicion: string
+          p_equipo_id: string
+          p_equipo_label: string
+          p_fecha_fin_periodo: string
+          p_fecha_inicio_periodo: string
+          p_firmantes: Json
+          p_link_type: string
+          p_modalidad_inscripcion: string
+          p_nombre: string
+          p_sesiones_estimadas: number
+          p_tipo: string
+        }
+        Returns: Json
+      }
+      dream_team_apply_servicio_grants: {
+        Args: { p_accion: string; p_grants: Json; p_persona_id: string }
+        Returns: number
+      }
+      dream_team_estructura_gdv: {
+        Args: never
+        Returns: {
+          label: string
+          nodo_id: string
+          parent_id: string
+          responsables: Json
+          tipo: string
+        }[]
+      }
+      dream_team_lideres_gdv: {
+        Args: never
+        Returns: {
+          desde: string
+          equipo_id: string
+          persona_id: string
+          rol: string
+        }[]
+      }
+      dream_team_resolver_nombres: {
+        Args: { p_persona_ids: string[] }
+        Returns: {
+          apellido: string
+          id: string
+          nombre: string
+        }[]
+      }
       eliminar_miembro_de_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string; p_usuario_id: string }
         Returns: Json
@@ -5004,6 +7069,10 @@ export type Database = {
       }
       eliminar_relacion_familiar_segura: {
         Args: { p_auth_id: string; p_relacion_id: string }
+        Returns: Json
+      }
+      emit_taller_certificado: {
+        Args: { p_codigo_verificacion: string; p_inscripcion_id: string }
         Returns: Json
       }
       es_admin_o_pastor: { Args: { p_auth_id: string }; Returns: boolean }
@@ -5022,7 +7091,14 @@ export type Database = {
       es_lider_usuario: { Args: { target_user_id: string }; Returns: boolean }
       es_superadmin: { Args: { p_auth_uid: string }; Returns: boolean }
       expirar_solicitudes_vencidas: { Args: never; Returns: number }
+      generate_taller_sesiones: { Args: { p_grupo_id: string }; Returns: Json }
       get_my_internal_id: { Args: never; Returns: string }
+      get_personas_under_me: {
+        Args: { p_auth_id: string }
+        Returns: {
+          persona_id: string
+        }[]
+      }
       grant_support_capability: {
         Args: { p_capability: string; p_target_usuario_id: string }
         Returns: undefined
@@ -5073,6 +7149,14 @@ export type Database = {
           telefono: string
           total_count: number
         }[]
+      }
+      mark_operating_core_notification_outbox_dispatched: {
+        Args: { p_dispatched_at?: string; p_id: string }
+        Returns: undefined
+      }
+      mark_operating_core_notification_outbox_failed: {
+        Args: { p_id: string; p_last_error: string; p_next_attempt_at: string }
+        Returns: undefined
       }
       mi_campus_principal: { Args: { p_auth_uid: string }; Returns: string }
       mis_campus_ids: { Args: { p_auth_uid: string }; Returns: string[] }
@@ -5373,6 +7457,123 @@ export type Database = {
           nombre: string
         }[]
       }
+      open_edicion:
+        | {
+            Args: {
+              p_duracion_estimada_minutos: number
+              p_fecha_fin_periodo: string
+              p_fecha_inicio_periodo: string
+              p_firmantes: Json
+              p_link_type: string
+              p_modalidad_inscripcion: string
+              p_nombre_edicion: string
+              p_sesiones_estimadas: number
+              p_taller_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_duracion_estimada_minutos: number
+              p_fecha_fin_periodo: string
+              p_fecha_inicio_periodo: string
+              p_firmantes: Json
+              p_link_type: string
+              p_modalidad_inscripcion: string
+              p_nombre_edicion: string
+              p_sesiones_estimadas: number
+              p_taller_id: string
+              p_tipo: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_duracion_estimada_minutos: number
+              p_fecha_fin_periodo: string
+              p_fecha_inicio_periodo: string
+              p_firmantes: Json
+              p_link_type: string
+              p_modalidad_inscripcion: string
+              p_nombre_edicion: string
+              p_sesiones_estimadas: number
+              p_taller_id: string
+              p_temporada_id: string
+              p_tipo: string
+            }
+            Returns: Json
+          }
+      operating_core_claim_public_token: {
+        Args: { p_consuming_persona_id?: string; p_token_hash: string }
+        Returns: {
+          captured_by_persona_id: string | null
+          consumed_at: string | null
+          consumed_by_persona_id: string | null
+          created_at: string
+          expires_at: string
+          metadata: Json
+          persona_id: string | null
+          resource_id: string
+          resource_type: string
+          token_hash: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "operating_core_public_tokens"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      operating_core_materialize_event_instances: {
+        Args: {
+          p_event_id: string
+          p_horizon_days?: number
+          p_now_iso?: string
+        }
+        Returns: {
+          capacity_operativa: number
+          created_at: string
+          end_time: string
+          estado: Database["public"]["Enums"]["operating_core_event_estado"]
+          event_id: string
+          horizon_days: number
+          id: string
+          instance_date: string
+          lifecycle: Database["public"]["Enums"]["operating_core_instance_lifecycle"]
+          metadata: Json
+          recurrence_rule: Json | null
+          start_time: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "operating_core_event_instances"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      operating_core_promote_waitlist: {
+        Args: { p_event_id: string; p_slot_released?: number }
+        Returns: {
+          captured_by_persona_id: string | null
+          confirmation_mode: Database["public"]["Enums"]["operating_core_registration_confirmation_mode"]
+          created_at: string
+          estado: Database["public"]["Enums"]["operating_core_registration_estado"]
+          event_id: string
+          id: string
+          persona_id: string
+          reason: string | null
+          updated_at: string
+          version: number
+          waitlist_position: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "operating_core_registrations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       procesar_aprobacion_casa_anfitriona: {
         Args: {
           p_accion: string
@@ -5429,6 +7630,10 @@ export type Database = {
         Args: { p_auth_id: string; p_grupo_id: string }
         Returns: boolean
       }
+      puede_editar_taller_grupo: {
+        Args: { p_taller_id: string }
+        Returns: boolean
+      }
       puede_editar_usuario: {
         Args: { p_auth_id: string; p_target_user_id: string }
         Returns: boolean
@@ -5436,6 +7641,10 @@ export type Database = {
       puede_gestionar_casas: { Args: { p_auth_id: string }; Returns: boolean }
       puede_gestionar_miembros: {
         Args: { p_auth_id: string; p_grupo_id: string }
+        Returns: boolean
+      }
+      puede_gestionar_participantes_taller_grupo: {
+        Args: { p_taller_id: string }
         Returns: boolean
       }
       puede_gestionar_relacion_familiar: {
@@ -5465,6 +7674,10 @@ export type Database = {
           p_usuario1_id: string
           p_usuario2_id: string
         }
+        Returns: boolean
+      }
+      puede_ver_taller_grupo: {
+        Args: { p_taller_id: string }
         Returns: boolean
       }
       puede_ver_usuario: {
@@ -5518,6 +7731,43 @@ export type Database = {
           p_ubicacion: string
         }
         Returns: string
+      }
+      taller_emit_overdue_event: {
+        Args: { p_current_date?: string; p_taller_id: string }
+        Returns: number
+      }
+      talleres_coord_inscripciones_personas: {
+        Args: { p_inscripcion_ids: string[] }
+        Returns: {
+          comp_apellido: string
+          comp_nombre: string
+          companero_id: string
+          inscripcion_id: string
+          persona_principal_id: string
+          pp_apellido: string
+          pp_email: string
+          pp_nombre: string
+        }[]
+      }
+      talleres_equipo_de_cohorte: {
+        Args: { p_cohorte_id: string }
+        Returns: string
+      }
+      talleres_equipo_de_grupo: {
+        Args: { p_grupo_id: string }
+        Returns: string
+      }
+      talleres_equipo_de_inscripcion: {
+        Args: { p_inscripcion_id: string }
+        Returns: string
+      }
+      talleres_equipo_de_solicitud: {
+        Args: { p_grupo_asignacion_id: string; p_inscripcion_id: string }
+        Returns: string
+      }
+      talleres_resolver_solicitud_retiro: {
+        Args: { p_accion: string; p_motivo?: string; p_solicitud_id: string }
+        Returns: Json
       }
       tiene_rol_de_liderazgo: { Args: { p_auth_id: string }; Returns: boolean }
       update_support_ticket_status: {
@@ -5579,6 +7829,66 @@ export type Database = {
         | "tutor"
         | "hermano"
         | "otro_familiar"
+      operating_core_capacity_source: "base" | "override"
+      operating_core_event_estado: "active" | "cancelled"
+      operating_core_event_kind:
+        | "service"
+        | "group_meeting"
+        | "workshop"
+        | "activity"
+        | "custom"
+      operating_core_form_lifecycle: "draft" | "published" | "archived"
+      operating_core_instance_lifecycle:
+        | "scheduled"
+        | "ongoing"
+        | "completed"
+        | "cancelled"
+      operating_core_notification_outbox_status:
+        | "pending"
+        | "processing"
+        | "dispatched"
+        | "failed"
+      operating_core_participation_kind:
+        | "visitor_capture"
+        | "registration"
+        | "cancellation"
+        | "check_in"
+        | "check_out"
+        | "attendance"
+        | "attendance_update"
+        | "service_assignment"
+        | "requirement_update"
+        | "transition"
+        | "document_received"
+        | "pastoral_one_on_one_logged"
+        | "pastoral_one_on_one_completed"
+        | "pastoral_one_on_one_cancelled"
+        | "pastoral_one_on_one_note_logged"
+        | "pastoral_one_on_one_followup_set"
+        | "pastoral_one_on_one_followup_completed"
+        | "pastoral_one_on_one_step_validated"
+        | "pastoral_triada_formed"
+        | "pastoral_triada_member_added"
+        | "pastoral_triada_member_removed"
+        | "pastoral_triada_disbanded"
+        | "pastoral_triada_step_suggested"
+        | "pastoral_triada_step_validated"
+        | "pastoral_crisis_detected"
+      operating_core_participation_status:
+        | "recorded"
+        | "corrected"
+        | "superseded"
+        | "rejected"
+      operating_core_recurrence_freq: "daily" | "weekly" | "monthly" | "yearly"
+      operating_core_registration_confirmation_mode: "automatic" | "manual"
+      operating_core_registration_estado:
+        | "pendiente"
+        | "confirmada"
+        | "asistida"
+        | "no_asistio"
+        | "cancelada"
+        | "rechazada"
+      operating_core_service_estado: "active" | "disabled" | "removed"
       pastoral_one_on_one_estado:
         | "pending_participant"
         | "scheduled"
@@ -5611,7 +7921,6 @@ export type Database = {
         | "cambio_de_temporada"
         | "pastoral_decision"
         | "otro"
-
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5627,12 +7936,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5656,11 +7965,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5681,11 +7990,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5706,11 +8015,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5723,11 +8032,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5793,6 +8102,109 @@ export const Constants = {
         "tutor",
         "hermano",
         "otro_familiar",
+      ],
+      operating_core_capacity_source: ["base", "override"],
+      operating_core_event_estado: ["active", "cancelled"],
+      operating_core_event_kind: [
+        "service",
+        "group_meeting",
+        "workshop",
+        "activity",
+        "custom",
+      ],
+      operating_core_form_lifecycle: ["draft", "published", "archived"],
+      operating_core_instance_lifecycle: [
+        "scheduled",
+        "ongoing",
+        "completed",
+        "cancelled",
+      ],
+      operating_core_notification_outbox_status: [
+        "pending",
+        "processing",
+        "dispatched",
+        "failed",
+      ],
+      operating_core_participation_kind: [
+        "visitor_capture",
+        "registration",
+        "cancellation",
+        "check_in",
+        "check_out",
+        "attendance",
+        "attendance_update",
+        "service_assignment",
+        "requirement_update",
+        "transition",
+        "document_received",
+        "pastoral_one_on_one_logged",
+        "pastoral_one_on_one_completed",
+        "pastoral_one_on_one_cancelled",
+        "pastoral_one_on_one_note_logged",
+        "pastoral_one_on_one_followup_set",
+        "pastoral_one_on_one_followup_completed",
+        "pastoral_one_on_one_step_validated",
+        "pastoral_triada_formed",
+        "pastoral_triada_member_added",
+        "pastoral_triada_member_removed",
+        "pastoral_triada_disbanded",
+        "pastoral_triada_step_suggested",
+        "pastoral_triada_step_validated",
+        "pastoral_crisis_detected",
+      ],
+      operating_core_participation_status: [
+        "recorded",
+        "corrected",
+        "superseded",
+        "rejected",
+      ],
+      operating_core_recurrence_freq: ["daily", "weekly", "monthly", "yearly"],
+      operating_core_registration_confirmation_mode: ["automatic", "manual"],
+      operating_core_registration_estado: [
+        "pendiente",
+        "confirmada",
+        "asistida",
+        "no_asistio",
+        "cancelada",
+        "rechazada",
+      ],
+      operating_core_service_estado: ["active", "disabled", "removed"],
+      pastoral_one_on_one_estado: [
+        "pending_participant",
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "no_realizado",
+      ],
+      pastoral_triada_contexto: [
+        "nuevo_paso",
+        "simultaneidad",
+        "inicial",
+        "reformada",
+      ],
+      pastoral_triada_estado: [
+        "pending_confirmation",
+        "active",
+        "en_pausa",
+        "disbanded",
+      ],
+      pastoral_triada_evento_tipo: [
+        "formada",
+        "miembro_anadido",
+        "miembro_removido",
+        "pausada",
+        "reactivada",
+        "disuelta",
+        "paso_sugerido",
+        "paso_validado",
+      ],
+      pastoral_triada_motivo_disolucion: [
+        "gdv_liderazgo_removed",
+        "servicio_retirado",
+        "cambio_de_temporada",
+        "pastoral_decision",
+        "otro",
       ],
     },
   },

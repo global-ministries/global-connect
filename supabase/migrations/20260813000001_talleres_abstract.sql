@@ -151,6 +151,24 @@ CREATE POLICY "talleres_delete_director" ON public.talleres
 -- ║ 4) RPC: create_taller_abstract                                   ║
 -- ╚══════════════════════════════════════════════════════════════════╝
 
+-- FIXED AFTER THE FACT (2026-09-12): as written, this file could not
+-- execute. `jsonb_build_object` closed with a trailing comma after
+-- `'estado', v_taller.estado,`, so the whole migration died on a syntax
+-- error and every migration after it was never reached by `db reset`.
+-- The function exists in production because it was applied by hand.
+--
+-- The body below is now byte-identical to what production stores
+-- (`pg_get_functiondef`). Two other differences were found and closed:
+-- `v_taller` is declared `public.talleres%ROWTYPE` (production
+-- schema-qualifies it), and the two inline comments that used to sit
+-- inside the body are now here, because production's stored body has
+-- none and the body is the part that has to match.
+--
+--   Slug: if not provided, derived from nombre. Normalized to
+--   lowercase, non-alphanumerics replaced with '-', runs collapsed.
+--   The INSERT relies on the UNIQUE constraint on slug: a duplicate
+--   updates nombre/descripcion and returns the existing row.
+
 CREATE OR REPLACE FUNCTION public.create_taller_abstract(
   p_nombre            text,
   p_descripcion       text,
@@ -165,7 +183,7 @@ AS $func$
 DECLARE
   v_user_id      uuid;
   v_cap_ok       boolean;
-  v_taller       talleres%ROWTYPE;
+  v_taller       public.talleres%ROWTYPE;
   v_normalized   text;
 BEGIN
   v_user_id := auth.uid();
@@ -193,8 +211,6 @@ BEGIN
     RAISE EXCEPTION 'INVALID_MODALIDAD: %', p_modalidad_default USING ERRCODE = '22023';
   END IF;
 
-  -- Slug: if not provided, derive from nombre. Normalize: lowercase,
-  -- replace non-alphanumeric with '-', collapse multiple '-'.
   IF p_slug IS NULL OR trim(p_slug) = '' THEN
     v_normalized := lower(regexp_replace(regexp_replace(trim(p_nombre), '[^a-z0-9-]+', '-', 'gi'), '-+', '-', 'g'));
     v_normalized := trim(BOTH '-' FROM v_normalized);
@@ -209,7 +225,6 @@ BEGIN
     END IF;
   END IF;
 
-  -- Insert (UNIQUE constraint on slug; if duplicate, return existing).
   INSERT INTO public.talleres (slug, nombre, descripcion, modalidad_default, estado)
   VALUES (v_normalized, trim(p_nombre), NULLIF(trim(p_descripcion), ''), p_modalidad_default, 'active')
   ON CONFLICT (slug) DO UPDATE
@@ -222,7 +237,7 @@ BEGIN
     'slug', v_taller.slug,
     'nombre', v_taller.nombre,
     'modalidad_default', v_taller.modalidad_default,
-    'estado', v_taller.estado,
+    'estado', v_taller.estado
   );
 END;
 $func$;

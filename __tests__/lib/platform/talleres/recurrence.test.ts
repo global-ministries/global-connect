@@ -124,8 +124,27 @@ describe('I-6 additive invariant — migration contains no destructive DDL', () 
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.taller_emit_overdue_event')
   })
 
-  it('guards pg_cron setup behind extension presence check', () => {
+  // The pg_cron block this migration used to carry could never run: its call
+  // to `pg_cron.schedule(...)` was missing a closing parenthesis, and pg_cron
+  // installs its functions in schema `cron`, not `pg_cron`. The job that does
+  // exist in production was scheduled by hand, counts rows instead of closing
+  // anything, and reads a table that no longer exists under that name. It is
+  // unscheduled by 20260912140100; scheduling it again from here would put it
+  // straight back.
+  it('no longer schedules the job it could never schedule', () => {
+    // Only what Postgres executes: the header now explains the removal, so it
+    // names both the old schema-qualified call and the renamed-away table.
+    const executable = fs
+      .readFileSync(MIGRATION, 'utf-8')
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('--'))
+      .join('\n')
+    expect(executable).not.toMatch(/cron\.schedule/i)
+    expect(executable).not.toContain('talleres_crecimiento_metadata')
+  })
+
+  it('still leaves the helper available for application-level scheduling', () => {
     const sql = fs.readFileSync(MIGRATION, 'utf-8')
-    expect(sql).toContain("SELECT 1 FROM pg_extension WHERE extname = 'pg_cron'")
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.taller_emit_overdue_event(uuid, date) TO service_role')
   })
 })

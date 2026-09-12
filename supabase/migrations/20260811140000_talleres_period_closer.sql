@@ -7,10 +7,7 @@
 -- DT-041(b)  Helper function taller_emit_overdue_event(taller_id, current_date)
 --           that emits an internal participation_eventos row of kind
 --           'taller_session_overdue'. NEVER auto-closes — R5 closed decision.
--- DT-041(c)  pg_cron scheduled job 'talleres_period_closer' that runs daily
---           at 00:00 UTC and invokes the helper. Conditional on the
---           pg_cron extension being enabled (some Supabase projects may
---           not have it; the DO $$ block no-ops gracefully).
+-- DT-041(c)  REMOVED AFTER THE FACT (2026-09-12). See section 3 below.
 -- ══════════════════════════════════════════════════════════════════════════════
 
 -- 1) Index for the scheduler scan. Plain (no partial predicate):
@@ -60,38 +57,31 @@ $$;
 REVOKE ALL ON FUNCTION public.taller_emit_overdue_event(uuid, date) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.taller_emit_overdue_event(uuid, date) TO service_role;
 
--- 3) pg_cron job (conditional on pg_cron extension availability).
---    Even when present, this job ONLY emits events; never closes talleres.
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_extension WHERE extname = 'pg_cron'
-  ) THEN
-    -- Unschedule any prior job with the same name to avoid duplicates on re-apply.
-    BEGIN
-      PERFORM pg_cron.unschedule(jobname => 'talleres_period_closer');
-    EXCEPTION WHEN OTHERS THEN
-      -- ignore: job may not exist yet on first apply
-      NULL;
-    END;
-
-    PERFORM pg_cron.schedule(
-      jobname := 'talleres_period_closer',
-      schedule := '0 0 * * *', -- daily at 00:00 UTC
-      command := $job$
-        SELECT COUNT(*)
-          FROM public.talleres_crecimiento_metadata m
-         WHERE m.estado = 'en_curso'
-           AND EXISTS (
-             SELECT 1 FROM public.taller_periodos_generales p
-              WHERE p.taller_id = m.id
-                AND p.fecha_cierre_real < CURRENT_DATE
-           );
-      $job$;
-  ELSE
-    -- pg_cron not enabled: silent no-op. The helper function + index remain
-    -- available for application-level scheduling (Vercel Cron / cron-job.org).
-    RAISE NOTICE 'pg_cron extension not enabled; talleres_period_closer scheduler skipped (helper still available)';
-  END IF;
-END
-$$;
+-- 3) The pg_cron job — REMOVED AFTER THE FACT (2026-09-12).
+--
+--    What was wrong, in the order it mattered:
+--
+--    a) The block could not execute. The call to `schedule(...)` was missing
+--       its closing parenthesis — the `$job$` dollar-quote was followed
+--       straight by `;` — so the DO block was a syntax error and this whole
+--       migration aborted. Every migration after it was unreachable by a
+--       `db reset`.
+--    b) Even balanced, it called `pg_cron.schedule`. pg_cron installs its
+--       functions in schema `cron`, so it would have failed with
+--       `schema "pg_cron" does not exist`.
+--    c) The command it scheduled closed nothing. It was a `SELECT COUNT(*)`:
+--       it counted the ediciones whose periodo had lapsed, discarded the
+--       number and returned. No UPDATE, no state transition, no event — and
+--       it never called `taller_emit_overdue_event` either. The real closing
+--       logic was never implemented, and inventing it here is a separate
+--       decision that has not been made.
+--    d) It read `talleres_crecimiento_metadata`, renamed away to
+--       `taller_ediciones`, so the copy that runs in production errors every
+--       night.
+--
+--    The job that exists in production was scheduled by hand with the same
+--    command; 20260912140100 unschedules it. The block is removed here rather
+--    than repaired so that a `db reset` does not schedule it straight back.
+--
+--    The helper function and the index above stay: they are what an
+--    application-level scheduler (Vercel Cron / cron-job.org) would call.
