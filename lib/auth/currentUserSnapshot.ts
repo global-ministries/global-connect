@@ -5,7 +5,7 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import type { Database } from '@/lib/supabase/database.types'
-import type { PlatformSession } from '@/lib/platform/session/types'
+import type { PlatformSession, PlatformSessionPersona } from '@/lib/platform/session/types'
 
 type Usuario = Database['public']['Tables']['usuarios']['Row']
 
@@ -72,6 +72,15 @@ type SnapshotSupabaseClient = Awaited<ReturnType<typeof createSupabaseServerClie
  * with the actual authUserId and just that field left empty: "signed in,
  * nothing resolved yet" is true there, and the client-side background
  * revalidation in CurrentUserProvider fills it in.
+ *
+ * Round-trip shape: getUser() → usuarios select → ONE parallel stage with
+ * the roles RPC, the platform session and support_user_capabilities
+ * together. The platform session is fed a findPersonaByAuthId that reuses
+ * the usuarios row already fetched above (see toSnapshotPlatformPersona
+ * below, mirroring toClientPlatformPersona in hooks/useCurrentUser.tsx)
+ * instead of findPlatformSessionPersonaByAuthId re-querying the exact same
+ * row by auth_id — that fallback only fires when the row is missing or
+ * (defensively) mismatched.
  */
 export async function resolveCurrentUserSnapshot(
   supabaseClient?: SnapshotSupabaseClient
@@ -88,20 +97,34 @@ export async function resolveCurrentUserSnapshot(
     if (authError) return null
     if (!user) return SIGNED_OUT_SNAPSHOT
 
-    // The usuario row, the legacy roles RPC and the platform session are
-    // independent of one another — resolving them with Promise.all (instead
-    // of the client hook's sequential chain) is the entire point of this
-    // module. The platformSession branch still makes two round trips of its
-    // own inside resolveReadOnlyPlatformSession (persona lookup, then
-    // capability lookup keyed by the resolved persona id) since the second
-    // genuinely depends on the first; that dependency is internal to
-    // buildPlatformSession and out of scope here.
-    const [usuarioResult, rolesResult, platformSessionBase] = await Promise.all([
-      supabase.from('usuarios').select('*').eq('auth_id', user.id).maybeSingle(),
+    // The usuario row is fetched first (not folded into the Promise.all
+    // below) specifically so its result can be handed to the platform
+    // session as an already-resolved persona — see toSnapshotPlatformPersona
+    // below. Querying it separately here, instead of letting
+    // resolveReadOnlyPlatformSession's own persona lookup re-select the same
+    // row by auth_id, is what collapses that would-be extra round trip.
+    const usuarioResult = await supabase.from('usuarios').select('*').eq('auth_id', user.id).maybeSingle()
+    const usuario = usuarioResult.error ? null : usuarioResult.data ?? null
+
+    // The legacy roles RPC, the platform session and support_user_capabilities
+    // are independent of one another once the usuario row above is known —
+    // resolving them with Promise.all (instead of the client hook's fully
+    // sequential chain) is the entire point of this module.
+    const [rolesResult, platformSessionBase, supportResult] = await Promise.all([
       supabase.rpc('obtener_roles_usuario', { p_auth_id: user.id }),
       resolveReadOnlyPlatformSession({
         subjectAuthId: user.id,
-        findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+        findPersonaByAuthId: async (authId) => {
+          // Reuse the usuario row already fetched above when it matches —
+          // this is the only reason usuarios was queried ahead of this
+          // Promise.all instead of inside it. Falls back to the real lookup
+          // (one more round trip) only when the row is missing or, as a
+          // defensive check mirroring toClientPlatformPersona in
+          // hooks/useCurrentUser.tsx, its auth_id doesn't match.
+          const persona = toSnapshotPlatformPersona(usuario, authId)
+          if (persona) return persona
+          return findPlatformSessionPersonaByAuthId(supabase, authId)
+        },
         // Without this, resolveReadOnlyPlatformSession builds no capability
         // lookup at all and the session comes back with an EMPTY
         // capabilities array — not an error, just silently empty. See the
@@ -109,29 +132,23 @@ export async function resolveCurrentUserSnapshot(
         // lib/platform/dream-team/route-access.ts.
         capabilitySupabase: supabase,
       }),
+      // support_user_capabilities is keyed by usuario.id (not auth_id).
+      // Skip the query entirely (rather than issuing and discarding it)
+      // when there is no linked usuario to key it by.
+      usuario?.id
+        ? supabase.from('support_user_capabilities').select('capability').eq('usuario_id', usuario.id).is('revoked_at', null)
+        : Promise.resolve({ data: [] as { capability: string }[], error: null }),
     ])
 
-    const usuario = usuarioResult.error ? null : usuarioResult.data ?? null
     const roles = rolesResult.error ? [] : normalizeLegacyRoles(rolesResult.data)
 
-    // support_user_capabilities is keyed by usuario.id (not auth_id), so it
-    // can only be looked up once the usuarios row above has resolved — it
-    // stays independent of roles and platformSession, both resolved above.
     let supportCapabilities: string[] = []
-    if (usuario?.id) {
-      const { data: capabilitiesData, error: capabilitiesError } = await supabase
-        .from('support_user_capabilities')
-        .select('capability')
-        .eq('usuario_id', usuario.id)
-        .is('revoked_at', null)
-
-      if (!capabilitiesError && capabilitiesData) {
-        supportCapabilities = capabilitiesData
-          .map((row: { capability: string }) => row.capability)
-          .filter((capability): capability is SupportCapability =>
-            SUPPORT_CAPABILITIES.includes(capability as SupportCapability)
-          )
-      }
+    if (!supportResult.error && supportResult.data) {
+      supportCapabilities = supportResult.data
+        .map((row: { capability: string }) => row.capability)
+        .filter((capability): capability is SupportCapability =>
+          SUPPORT_CAPABILITIES.includes(capability as SupportCapability)
+        )
     }
 
     // resolveReadOnlyPlatformSession only stamps globalRoles from whatever
@@ -149,4 +166,15 @@ export async function resolveCurrentUserSnapshot(
     // above. `null` tells the caller "unresolved", not "signed out".
     return null
   }
+}
+
+// Mirrors toClientPlatformPersona in hooks/useCurrentUser.tsx: turns the
+// usuarios row already fetched by resolveCurrentUserSnapshot into a
+// PlatformSessionPersona, without a second query, whenever its auth_id
+// matches. Returns null (letting the caller fall back to
+// findPlatformSessionPersonaByAuthId) when there is no linked row or, as a
+// defensive check, its auth_id doesn't match the id being looked up.
+function toSnapshotPlatformPersona(usuario: Usuario | null, authId: string): PlatformSessionPersona | null {
+  if (!usuario?.id || usuario.auth_id !== authId) return null
+  return { id: usuario.id, authId: usuario.auth_id }
 }

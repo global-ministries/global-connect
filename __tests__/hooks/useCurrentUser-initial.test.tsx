@@ -174,3 +174,136 @@ describe('CurrentUserProvider with a server-resolved `initial` snapshot', () => 
     expect(loadingHistory.every((value) => value === false)).toBe(true)
   })
 })
+
+/**
+ * A silent (initial-provided) revalidation must distinguish a genuine
+ * auth failure from a data/RPC failure.
+ *
+ * A client-detected sign-out (auth.getUser() resolves with {user: null} and
+ * NO error) already flows through `kind: 'ok'` with a signed-out payload and
+ * correctly clears state — untouched by this fix.
+ *
+ * The gap this closes: supabase.auth.getUser() itself failing (e.g. an
+ * invalidated/expired session returning a 401 AuthApiError) makes
+ * loadCurrentUserData throw, which the silent branch used to swallow
+ * unconditionally — the sidebar kept showing role-gated items from the SSR
+ * snapshot until the next navigation. Middleware and RLS still gate real
+ * access, so this was UI staleness, not an authorization bypass — but it
+ * asserted something false. A data/RPC failure (not an auth failure) must
+ * still degrade silently, preserving the good initial snapshot exactly as
+ * a stalled network timeout does.
+ */
+describe('CurrentUserProvider silent revalidation: auth failure vs data failure', () => {
+  beforeEach(() => {
+    createClient.mockReset()
+  })
+
+  afterEach(() => {
+    __resetCurrentUserCacheForTesting()
+    jest.restoreAllMocks()
+  })
+
+  it('clears state on a silent run when auth.getUser() itself reports an error', async () => {
+    const getUser = jest.fn().mockResolvedValue({
+      data: { user: null },
+      error: { message: 'invalid_grant: refresh token revoked' },
+    })
+    const client = {
+      auth: {
+        getUser,
+        onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+      },
+      from: jest.fn(() => {
+        throw new Error('Unexpected from() call — auth.getUser() already failed')
+      }),
+      rpc: jest.fn(),
+    }
+    createClient.mockReturnValue(client)
+
+    const { result } = renderHook(() => useCurrentUser(), {
+      wrapper: ({ children }) => <CurrentUserProvider initial={INITIAL_SNAPSHOT}>{children}</CurrentUserProvider>,
+    })
+
+    expect(result.current.loading).toBe(false)
+    expect(result.current.usuario).toEqual(INITIAL_SNAPSHOT.usuario)
+
+    await act(async () => {
+      await flushPendingPromises()
+    })
+
+    // The session itself is no longer valid — the stale SSR snapshot must
+    // not linger past this background revalidation.
+    expect(result.current.authUserId).toBeNull()
+    expect(result.current.usuario).toBeNull()
+    expect(result.current.roles).toEqual([])
+    expect(result.current.supportCapabilities).toEqual([])
+    expect(result.current.platformSession).toBeNull()
+    // Still silent: no user-facing toast for a background revalidation.
+    expect(result.current.error).toBeNull()
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('preserves state on a silent run when a data/RPC query fails, not auth.getUser() itself', async () => {
+    const getUser = jest.fn().mockResolvedValue(getUserResponse({ id: 'auth-1' }))
+    const maybeSingle = jest.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'connection terminated' },
+    })
+    const client = {
+      auth: {
+        getUser,
+        onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+      },
+      from: jest.fn((table: string) => {
+        if (table === 'usuarios') return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), maybeSingle }
+        throw new Error(`Unexpected table ${table}`)
+      }),
+      rpc: jest.fn(),
+    }
+    createClient.mockReturnValue(client)
+
+    const { result } = renderHook(() => useCurrentUser(), {
+      wrapper: ({ children }) => <CurrentUserProvider initial={INITIAL_SNAPSHOT}>{children}</CurrentUserProvider>,
+    })
+
+    await act(async () => {
+      await flushPendingPromises()
+    })
+
+    // A data/RPC failure is not proof the session is invalid — the good
+    // initial snapshot must survive, same reasoning as a stalled timeout.
+    expect(result.current.authUserId).toBe('auth-1')
+    expect(result.current.usuario).toEqual(INITIAL_SNAPSHOT.usuario)
+    expect(result.current.roles).toEqual(INITIAL_SNAPSHOT.roles)
+    expect(result.current.loading).toBe(false)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('surfaces an auth.getUser() failure through setError on a non-silent run, same as before this fix', async () => {
+    // No `initial` — a normal, non-silent load. This pins that adding the
+    // `auth_error` kind did not change the existing toast/setError path for
+    // a real auth failure (also covered by the pre-existing test
+    // "surfaces an auth error from loadCurrentUserData through setError" in
+    // __tests__/hooks/useCurrentUser.test.tsx, kept untouched).
+    const getUser = jest.fn().mockResolvedValue({
+      data: { user: null },
+      error: { message: 'invalid_grant: refresh token revoked' },
+    })
+    createClient.mockReturnValue({
+      auth: {
+        getUser,
+        onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+      },
+      from: jest.fn(),
+      rpc: jest.fn(),
+    })
+
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.usuario).toBeNull()
+    expect(result.current.roles).toEqual([])
+    expect(result.current.platformSession).toBeNull()
+    expect(result.current.error).toMatch(/autenticaci/i)
+  })
+})

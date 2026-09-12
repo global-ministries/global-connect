@@ -21,9 +21,17 @@
  * the signed-out snapshot; an inner per-query error (usuarios/roles/etc.
  * reporting `error` without throwing) → still a real snapshot with the
  * actual authUserId, distinguishing "signed in, nothing resolved yet" from
- * "unresolved" and from "signed out"; signed-in → populated snapshot; and
- * that the independent queries (usuario, roles, platformSession) are issued
- * concurrently rather than one after another.
+ * "unresolved" and from "signed out"; signed-in → populated snapshot.
+ *
+ * Round-trip shape: getUser() → usuarios select → ONE parallel stage with
+ * the roles RPC, the platform session and support_user_capabilities
+ * together. The platform session is fed a findPersonaByAuthId that reuses
+ * the usuarios row already fetched above instead of re-querying it by
+ * auth_id (mirroring toClientPlatformPersona in hooks/useCurrentUser.tsx) —
+ * findPlatformSessionPersonaByAuthId is only a fallback for when that row
+ * is missing or mismatched. Tests below pin both the "usuarios precedes,
+ * the rest overlap" shape and that the persona re-query disappears in the
+ * normal case.
  */
 
 const resolveReadOnlyPlatformSession = jest.fn()
@@ -258,10 +266,11 @@ describe('resolveCurrentUserSnapshot', () => {
     expect(client.auth.getUser).toHaveBeenCalledTimes(1)
   })
 
-  it('issues the usuario, roles and platform session queries in parallel, not sequentially', async () => {
+  it('resolves the usuarios row before issuing roles, platform session and support capabilities — which then overlap', async () => {
     const usuarioDeferred = createDeferred<QueryResult<unknown>>()
     const rolesDeferred = createDeferred<QueryResult<unknown>>()
     const platformSessionDeferred = createDeferred<unknown>()
+    const supportDeferred = createDeferred<QueryResult<unknown>>()
     const callLog: string[] = []
 
     const maybeSingle = jest.fn(() => {
@@ -285,22 +294,35 @@ describe('resolveCurrentUserSnapshot', () => {
         return value
       })
     })
+    const supportIs = jest.fn(() => {
+      callLog.push('support:start')
+      return supportDeferred.promise.then((value) => {
+        callLog.push('support:end')
+        return value
+      })
+    })
 
-    const { client } = buildClient({ maybeSingle, rpc })
+    const { client } = buildClient({ maybeSingle, rpc, supportIs })
     createSupabaseServerClient.mockResolvedValue(client)
 
     const snapshotPromise = resolveCurrentUserSnapshot()
 
-    // Let the leading auth.getUser() await settle so execution reaches the
-    // point where the three independent queries are issued, without
-    // resolving any of them yet.
+    await flushMicrotasks()
+    // Only the usuarios query has started — roles, the platform session and
+    // support capabilities all wait on the usuarios row (support capabilities
+    // needs its id; the platform session needs it to skip the persona
+    // re-query — see the tests below).
+    expect(callLog).toEqual(['usuario:start'])
+
+    usuarioDeferred.resolve({ data: DEFAULT_USUARIO, error: null })
     await flushMicrotasks()
 
-    expect(callLog).toEqual(['usuario:start', 'roles:start', 'platformSession:start'])
+    // All three later queries have now started together — none waited for
+    // one of the others to finish first.
+    expect(callLog).toEqual(['usuario:start', 'usuario:end', 'roles:start', 'platformSession:start', 'support:start'])
 
-    // Resolve out of dependency order — if the implementation were
-    // sequential, later stubs would not even have been called yet, and
-    // resolving them here would have no effect on a pending call.
+    // Resolve out of dependency order — if any of the three depended on
+    // another, resolving them like this would either hang or have no effect.
     platformSessionDeferred.resolve({
       personaId: 'usuario-1',
       subjectAuthId: 'auth-1',
@@ -308,12 +330,55 @@ describe('resolveCurrentUserSnapshot', () => {
       contexts: [],
       capabilities: [],
     })
+    supportDeferred.resolve({ data: [{ capability: 'support.view' }], error: null })
     rolesDeferred.resolve({ data: ['admin'], error: null })
-    usuarioDeferred.resolve({ data: DEFAULT_USUARIO, error: null })
 
     const snapshot = await snapshotPromise
     expect(snapshot).not.toBeNull()
     expect(snapshot?.roles).toEqual(['admin'])
     expect(snapshot?.usuario).toEqual(DEFAULT_USUARIO)
+    expect(snapshot?.supportCapabilities).toEqual(['support.view'])
+  })
+
+  it('does not re-query the persona when the usuarios row already has a matching auth_id', async () => {
+    const { client } = buildClient()
+    createSupabaseServerClient.mockResolvedValue(client)
+    // Exercise the real findPersonaByAuthId seam resolveCurrentUserSnapshot
+    // hands to resolveReadOnlyPlatformSession, the way the real function
+    // would call it.
+    resolveReadOnlyPlatformSession.mockImplementation(async (input: {
+      subjectAuthId: string
+      findPersonaByAuthId: (authId: string) => Promise<{ id: string; authId: string | null } | null>
+    }) => {
+      const persona = await input.findPersonaByAuthId(input.subjectAuthId)
+      return persona
+        ? { personaId: persona.id, subjectAuthId: input.subjectAuthId, globalRoles: [], contexts: [], capabilities: [] }
+        : null
+    })
+
+    const snapshot = await resolveCurrentUserSnapshot()
+
+    expect(findPlatformSessionPersonaByAuthId).not.toHaveBeenCalled()
+    expect(snapshot?.platformSession?.personaId).toBe(DEFAULT_USUARIO.id)
+  })
+
+  it('falls back to findPlatformSessionPersonaByAuthId when the usuarios row is missing', async () => {
+    const { client } = buildClient({ maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }) })
+    createSupabaseServerClient.mockResolvedValue(client)
+    findPlatformSessionPersonaByAuthId.mockResolvedValue({ id: 'persona-fallback', authId: 'auth-1' })
+    resolveReadOnlyPlatformSession.mockImplementation(async (input: {
+      subjectAuthId: string
+      findPersonaByAuthId: (authId: string) => Promise<{ id: string; authId: string | null } | null>
+    }) => {
+      const persona = await input.findPersonaByAuthId(input.subjectAuthId)
+      return persona
+        ? { personaId: persona.id, subjectAuthId: input.subjectAuthId, globalRoles: [], contexts: [], capabilities: [] }
+        : null
+    })
+
+    const snapshot = await resolveCurrentUserSnapshot()
+
+    expect(findPlatformSessionPersonaByAuthId).toHaveBeenCalledWith(client, 'auth-1')
+    expect(snapshot?.platformSession?.personaId).toBe('persona-fallback')
   })
 })

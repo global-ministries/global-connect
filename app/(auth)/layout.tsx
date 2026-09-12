@@ -5,7 +5,7 @@ import { CampusProvider } from "@/hooks/useCampus"
 import { BrandingProvider } from "@/hooks/useBranding"
 import { CurrentUserProvider } from "@/hooks/useCurrentUser"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseServerClient, createSupabaseServerClientOrNull } from "@/lib/supabase/server"
 import { resolveCurrentUserSnapshot } from "@/lib/auth/currentUserSnapshot"
 
 interface PropiedadesLayoutTablero {
@@ -14,9 +14,11 @@ interface PropiedadesLayoutTablero {
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>
 
+const DEFAULT_BRANDING = { logoLightUrl: null as string | null, logoDarkUrl: null as string | null, faviconUrl: null as string | null }
+
 async function resolveBranding(supabase: SupabaseServerClient) {
   // Obtener datos de branding para pasar a sidebar/header
-  let branding = { logoLightUrl: null as string | null, logoDarkUrl: null as string | null, faviconUrl: null as string | null }
+  let branding = DEFAULT_BRANDING
   try {
     const { data } = await supabase
       .from("configuracion_plataforma")
@@ -37,15 +39,24 @@ async function resolveBranding(supabase: SupabaseServerClient) {
 }
 
 export default async function LayoutTablero({ children }: PropiedadesLayoutTablero) {
-  const supabase = await createSupabaseServerClient()
+  // This layout renders for every authenticated page, so building the
+  // Supabase client must degrade instead of crashing the whole (auth) route
+  // group if it ever throws (a missing cookies() context, a misconfigured
+  // env) — createSupabaseServerClient() used to live inside resolveBranding's
+  // own try/catch for exactly this reason. `null` here means default
+  // branding and no `initial` snapshot: resolveCurrentUserSnapshot(undefined)
+  // still tries to build its own client and, per its own contract, degrades
+  // to `null` (not a throw) if that also fails — CurrentUserProvider then
+  // falls back to its normal client-side load.
+  const supabase = await createSupabaseServerClientOrNull()
   // Branding and the current-user snapshot (see lib/auth/currentUserSnapshot.ts)
   // are independent server reads that both used to happen — one here, one on
   // the client — so resolve them together instead of one after another. The
   // snapshot reuses this same client instead of creating a second one; see
   // resolveCurrentUserSnapshot's doc comment.
   const [branding, initialCurrentUser] = await Promise.all([
-    resolveBranding(supabase),
-    resolveCurrentUserSnapshot(supabase),
+    supabase ? resolveBranding(supabase) : Promise.resolve(DEFAULT_BRANDING),
+    resolveCurrentUserSnapshot(supabase ?? undefined),
   ])
 
   return (

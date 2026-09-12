@@ -23,3 +23,21 @@ export async function createSupabaseServerClient() {
     }
   )
 }
+
+/**
+ * Same as createSupabaseServerClient, but degrades to `null` instead of
+ * throwing when construction fails (a missing cookies() request context, a
+ * misconfigured env). Some callers — like app/(auth)/layout.tsx, which
+ * renders for every authenticated page — must keep rendering with sane
+ * defaults instead of crashing the whole route group if this ever throws.
+ * Most callers should keep using createSupabaseServerClient directly and
+ * let a genuine construction failure surface normally; reach for this one
+ * only where "render with defaults" is the correct fallback.
+ */
+export async function createSupabaseServerClientOrNull() {
+  try {
+    return await createSupabaseServerClient()
+  } catch {
+    return null
+  }
+}

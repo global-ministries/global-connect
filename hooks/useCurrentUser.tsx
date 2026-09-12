@@ -69,10 +69,28 @@ export function __resetCurrentUserCacheForTesting() {
 // single `null` return with `.catch(() => null)` — ops could not tell the
 // two apart and users got neither a toast nor a retry prompt. See Finding 1
 // in the 4R review.
+//
+// 'auth_error' is split out from the generic 'error' kind because a silent
+// background revalidation (see hasServerSnapshotRef below) treats them
+// differently: supabase.auth.getUser() itself failing (e.g. an
+// invalidated/expired session returning a 401 AuthApiError) means the
+// session is genuinely no longer valid, so even a silent run must clear
+// state — unlike a data/RPC query failure, which silently preserves the
+// good SSR snapshot. The two kinds still behave identically on a
+// non-silent run (setError + clear state, same toast path as before).
 export type CurrentUserFetchResult =
   | { kind: 'ok'; data: CurrentUserResult }
   | { kind: 'timeout' }
+  | { kind: 'auth_error'; error: unknown }
   | { kind: 'error'; error: unknown }
+
+// Thrown by loadCurrentUserData specifically when supabase.auth.getUser()
+// itself reports an error — kept as a distinct class (checked via
+// `instanceof` below), NOT by matching the error message text, so
+// tryFetchCurrentUserData can reliably tell "auth genuinely failed" apart
+// from "a data/RPC query failed" regardless of what either error happens to
+// say.
+class AuthLookupError extends Error {}
 
 async function tryFetchCurrentUserData(): Promise<CurrentUserFetchResult> {
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null
@@ -106,7 +124,8 @@ async function tryFetchCurrentUserData(): Promise<CurrentUserFetchResult> {
     })
   })().then(
     (value): CurrentUserFetchResult => ({ kind: 'ok', data: value }),
-    (error): CurrentUserFetchResult => ({ kind: 'error', error })
+    (error): CurrentUserFetchResult =>
+      error instanceof AuthLookupError ? { kind: 'auth_error', error } : { kind: 'error', error }
   )
   try {
     const result = await Promise.race([work, timeoutPromise])
@@ -135,7 +154,7 @@ async function loadCurrentUserData(supabase: ReturnType<typeof createClient>): P
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError) {
-    throw new Error('Error de autenticación: ' + authError.message)
+    throw new AuthLookupError('Error de autenticación: ' + authError.message)
   }
 
   if (!user) {
@@ -254,19 +273,43 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
           setRoles(result.data.roles)
           setSupportCapabilities(result.data.supportCapabilities)
           setPlatformSession(result.data.platformSession)
+        } else if (result.kind === 'auth_error') {
+          // Unlike a data/RPC error below, a failed auth.getUser() means the
+          // session itself is no longer valid (e.g. an invalidated/expired
+          // session returning a 401 AuthApiError) — the SSR snapshot is now
+          // stale and must be cleared even during a silent background
+          // revalidation. Middleware and RLS still gate real access, so
+          // this is about not asserting a false "still signed in" UI, not
+          // an authorization gap.
+          if (options.silent) {
+            console.error('Error en useCurrentUser (revalidación en segundo plano):', result.error)
+          } else {
+            // Non-silent: identical to the generic error path below —
+            // surface through setError so the user gets a toast and ops
+            // gets a Sentry report. See Finding 1 in the 4R review.
+            const err = result.error
+            console.error('Error en useCurrentUser:', err)
+            setError(err instanceof Error ? err.message : 'Error desconocido')
+          }
+          setAuthUserId(null)
+          setUsuario(null)
+          setRoles([])
+          setSupportCapabilities([])
+          setPlatformSession(null)
         } else {
           if (options.silent) {
-            // Same reasoning as the timeout branch above — a background
-            // revalidation failure must not blank out a good initial
-            // snapshot. Still logged for ops even though it isn't surfaced
-            // as a user-facing toast here.
+            // Same reasoning as the timeout branch above — a data/RPC
+            // failure (not an auth failure — see the 'auth_error' branch
+            // above) must not blank out a good initial snapshot. Still
+            // logged for ops even though it isn't surfaced as a user-facing
+            // toast here.
             console.error('Error en useCurrentUser (revalidación en segundo plano):', result.error)
             return
           }
-          // Real error from loadCurrentUserData (DB outage, RPC failure,
-          // auth error). Surface through setError so the user gets a toast
-          // and ops gets a Sentry report. Silent failure is reserved for
-          // genuine timeouts. See Finding 1 in the 4R review.
+          // Real error from loadCurrentUserData (DB outage, RPC failure).
+          // Surface through setError so the user gets a toast and ops gets
+          // a Sentry report. Silent failure is reserved for genuine
+          // timeouts. See Finding 1 in the 4R review.
           const err = result.error
           console.error('Error en useCurrentUser:', err)
           setError(err instanceof Error ? err.message : 'Error desconocido')
