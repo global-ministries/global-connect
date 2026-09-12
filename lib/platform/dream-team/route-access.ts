@@ -1,11 +1,17 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { findPlatformSessionPersonaByAuthId, resolveReadOnlyPlatformSession } from '@/lib/auth/platformSessionReadOnly'
-import { PLATFORM_CAPABILITIES, resolvePlatformCapability } from '@/lib/platform/experiences'
 import { getDreamTeamFlags } from '@/lib/platform/flags'
-import type { PlatformSession } from '@/lib/platform/session/types'
 
-const READ_CAPABILITIES = ['dream_team.metrics.read', 'dream_team.requirements.manage', 'dream_team.director.coordinate']
-const WRITE_CAPABILITIES = ['dream_team.requirements.manage', 'dream_team.director.coordinate']
+// The capability gates below moved to capabilities.ts — they touch nothing
+// server-only, so a client component (the desktop sidebar) can import them
+// directly without pulling in createSupabaseServerClient. Re-exported here
+// so existing callers of this module are unaffected.
+export {
+  hasDreamTeamReadCapability,
+  hasDreamTeamWriteCapability,
+  hasDreamTeamMetricsCapability,
+  hasDreamTeamOrgManageCapability,
+} from './capabilities'
 
 export const isDreamTeamEnabled = (env: NodeJS.ProcessEnv = process.env) =>
   getDreamTeamFlags(env).enabled || env.NEXT_PUBLIC_DREAM_TEAM_ENABLED === 'on'
@@ -17,36 +23,11 @@ export async function requireDreamTeamSession() {
   return resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
+    // Without this, resolveReadOnlyPlatformSession builds no capability lookup at
+    // all and returns a session whose capabilities array is silently EMPTY — not
+    // an error, just empty, which reads downstream exactly like "this person has
+    // no permissions". Every Dream Team gate denied regardless of what the
+    // database held.
+    capabilitySupabase: supabase,
   })
 }
-
-function toActor(session: PlatformSession) {
-  return {
-    personaId: session.personaId,
-    allowedFlows: ['dream_team.api'],
-    grants: session.capabilities.map((c) => ({
-      key: c.key,
-      scope: { experience: c.experience, type: c.scopeType, ...(c.scopeId ? { id: c.scopeId } : {}) },
-      source: c.source,
-    })),
-  }
-}
-
-function hasCapability(session: PlatformSession, key: string) {
-  const def = PLATFORM_CAPABILITIES[key as keyof typeof PLATFORM_CAPABILITIES]
-  if (!def) return false
-  return resolvePlatformCapability({
-    actor: toActor(session),
-    flow: 'dream_team.api',
-    required: { key, scope: { experience: def.experience, type: def.scopeType } },
-  }).ok
-}
-
-export const hasDreamTeamReadCapability = (session: PlatformSession) =>
-  READ_CAPABILITIES.some((key) => hasCapability(session, key))
-
-export const hasDreamTeamWriteCapability = (session: PlatformSession) =>
-  WRITE_CAPABILITIES.some((key) => hasCapability(session, key))
-
-export const hasDreamTeamMetricsCapability = (session: PlatformSession) =>
-  hasCapability(session, 'dream_team.metrics.read')

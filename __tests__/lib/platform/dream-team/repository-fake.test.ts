@@ -12,6 +12,7 @@ import type {
   DreamTeamRol,
   DreamTeamServicio,
 } from '@/lib/platform/dream-team/types'
+import type { DreamTeamServiceGrant } from '@/lib/platform/dream-team/grants'
 
 function makePersonaId(name: string) {
   return personaId(name)
@@ -441,6 +442,173 @@ describe('InMemoryDreamTeamRepository', () => {
 
       expect(result).toHaveLength(2)
       expect(result.map((r) => r.id)).toEqual(['rol-a', 'rol-b'])
+    })
+  })
+
+  describe('Equipos and Roles writes (org tree writable — Step 1)', () => {
+    it('creates a root equipo with an auto-generated id', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+
+      const created = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
+
+      expect(created.id).toMatch(/^[0-9a-fA-F-]{36}$/)
+      expect(created.experiencia).toBe('dps')
+      expect(created.label).toBe('Dirección DPS')
+      expect(created.activo).toBe(true)
+      expect(created.parentEquipoId).toBeUndefined()
+      const list = await repo.listEquipos()
+      expect(list).toContainEqual(created)
+    })
+
+    it('creates a child equipo linked to its parentEquipoId', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const parent = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
+
+      const child = await repo.createEquipo({
+        experiencia: 'dps',
+        label: 'Equipo de Cámara',
+        activo: true,
+        parentEquipoId: parent.id,
+      })
+
+      expect(child.parentEquipoId).toBe(parent.id)
+      const list = await repo.listEquipos()
+      expect(list.map((e) => e.id)).toEqual(expect.arrayContaining([parent.id, child.id]))
+    })
+
+    it('creates a rol inside an equipo', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const equipo = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
+
+      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Voluntario', activo: true })
+
+      expect(rol.id).toMatch(/^[0-9a-fA-F-]{36}$/)
+      expect(rol.equipoId).toBe(equipo.id)
+      expect(rol.label).toBe('Voluntario')
+      const list = await repo.listRolesPorEquipo(equipo.id)
+      expect(list).toContainEqual(rol)
+    })
+
+    it('renames an equipo via updateEquipo', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const equipo = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
+
+      const updated = await repo.updateEquipo(equipo.id, { label: 'Dirección DPS (renombrada)' })
+
+      expect(updated.label).toBe('Dirección DPS (renombrada)')
+      expect(updated.activo).toBe(true)
+      const list = await repo.listEquipos()
+      expect(list.find((e) => e.id === equipo.id)?.label).toBe('Dirección DPS (renombrada)')
+    })
+
+    it('deactivates an equipo via updateEquipo without removing it from listEquipos', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const equipo = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
+
+      const updated = await repo.updateEquipo(equipo.id, { activo: false })
+
+      expect(updated.activo).toBe(false)
+      const list = await repo.listEquipos()
+      expect(list).toHaveLength(1)
+      expect(list[0].activo).toBe(false)
+    })
+
+    it('detaches an equipo from its parent when parentEquipoId patch is null', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const parent = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
+      const child = await repo.createEquipo({
+        experiencia: 'dps',
+        label: 'Equipo de Cámara',
+        activo: true,
+        parentEquipoId: parent.id,
+      })
+
+      const updated = await repo.updateEquipo(child.id, { parentEquipoId: null })
+
+      expect(updated.parentEquipoId).toBeUndefined()
+    })
+
+    it('renames a rol via updateRol', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const equipo = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
+      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Voluntario', activo: true })
+
+      const updated = await repo.updateRol(rol.id, { label: 'Voluntario Senior' })
+
+      expect(updated.label).toBe('Voluntario Senior')
+      const list = await repo.listRolesPorEquipo(equipo.id)
+      expect(list[0].label).toBe('Voluntario Senior')
+    })
+
+    it('deactivates a rol via updateRol without removing it from listRolesPorEquipo', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const equipo = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
+      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Voluntario', activo: true })
+
+      const updated = await repo.updateRol(rol.id, { activo: false })
+
+      expect(updated.activo).toBe(false)
+      const list = await repo.listRolesPorEquipo(equipo.id)
+      expect(list).toHaveLength(1)
+      expect(list[0].activo).toBe(false)
+    })
+
+    it('throws when updating an unknown equipo id', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      await expect(repo.updateEquipo('does-not-exist', { activo: false })).rejects.toThrow()
+    })
+
+    it('throws when updating an unknown rol id', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      await expect(repo.updateRol('does-not-exist', { activo: false })).rejects.toThrow()
+    })
+  })
+
+  describe('applyServicioGrants (Fase 4.1 — grants persistence)', () => {
+    function makeGrant(overrides: Partial<DreamTeamServiceGrant> = {}): DreamTeamServiceGrant {
+      return {
+        capabilityKey: 'dps.team.serve',
+        experience: 'dps',
+        scopeType: 'equipo',
+        scopeId: 'equipo-dps-camara',
+        ...overrides,
+      }
+    }
+
+    it('returns the number of grants applied', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const persona = makePersonaId('persona-ana')
+      const grants = [makeGrant(), makeGrant({ capabilityKey: 'dream_team.serve', scopeType: 'experience', scopeId: undefined })]
+
+      const count = await repo.applyServicioGrants(persona, 'grant', grants)
+
+      expect(count).toBe(2)
+    })
+
+    it('records the exact call (personaId, accion, grants) for test assertions', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const persona = makePersonaId('persona-ana')
+      const grants = [makeGrant()]
+
+      await repo.applyServicioGrants(persona, 'grant', grants)
+
+      const calls = repo.getAppliedServicioGrantsCalls()
+      expect(calls).toHaveLength(1)
+      expect(calls[0]).toEqual({ personaId: persona, accion: 'grant', grants })
+    })
+
+    it('records a revoke call independently from a grant call', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const persona = makePersonaId('persona-ana')
+      const grants = [makeGrant()]
+
+      await repo.applyServicioGrants(persona, 'grant', grants)
+      await repo.applyServicioGrants(persona, 'revoke', grants)
+
+      const calls = repo.getAppliedServicioGrantsCalls()
+      expect(calls).toHaveLength(2)
+      expect(calls[0].accion).toBe('grant')
+      expect(calls[1].accion).toBe('revoke')
     })
   })
 

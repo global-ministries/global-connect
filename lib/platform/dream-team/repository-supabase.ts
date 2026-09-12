@@ -14,10 +14,13 @@ import type {
   PersonaId,
 } from './types'
 import type {
+  DreamTeamEquipoUpdate,
   DreamTeamRepository,
+  DreamTeamRolUpdate,
   DreamTeamServicioFiltros,
   DreamTeamServicioUpdate,
 } from './repository'
+import type { DreamTeamServiceGrant } from './grants'
 
 export class ConcurrencyConflictError extends Error {
   readonly code = 'CONCURRENCY_CONFLICT' as const
@@ -50,6 +53,10 @@ type DbParticipationEvent =
 type DbServicioUpdate = Database['public']['Tables']['dream_team_servicios']['Update']
 type DbEstadoHistorialInsert =
   Database['public']['Tables']['dream_team_estados_historial']['Insert']
+type DbEquipoInsert = Database['public']['Tables']['dream_team_equipos']['Insert']
+type DbEquipoUpdate = Database['public']['Tables']['dream_team_equipos']['Update']
+type DbRolInsert = Database['public']['Tables']['dream_team_roles']['Insert']
+type DbRolUpdate = Database['public']['Tables']['dream_team_roles']['Update']
 
 // ── Mappers ─────────────────────────────────────────────────────────
 
@@ -145,6 +152,24 @@ function mapParticipationEvent(row: DbParticipationEvent): DreamTeamParticipatio
     tipoEvento: row.tipo_evento as DreamTeamParticipationEvent['tipoEvento'],
     payload: typeof row.payload === 'object' && row.payload !== null ? (row.payload as Record<string, unknown>) : {},
     fecha: row.fecha,
+  }
+}
+
+// Maps one camelCase `DreamTeamServiceGrant` to the snake_case shape the
+// `dream_team_apply_servicio_grants` RPC's `p_grants` jsonb array expects.
+// Exported so it can be unit-tested directly (see repository-supabase.test.ts) —
+// this is where a field-name typo would most easily slip through.
+export function mapServiceGrantToRpcGrant(grant: DreamTeamServiceGrant): {
+  capability_key: string
+  experience: string
+  scope_type: string
+  scope_id: string | null
+} {
+  return {
+    capability_key: grant.capabilityKey,
+    experience: grant.experience,
+    scope_type: grant.scopeType,
+    scope_id: grant.scopeId ?? null,
   }
 }
 
@@ -280,10 +305,72 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
     return (data ?? []).map(mapEquipo)
   }
 
+  async function createEquipo(input: Omit<DreamTeamEquipo, 'id'>): Promise<DreamTeamEquipo> {
+    const insert: DbEquipoInsert = {
+      experiencia: input.experiencia,
+      label: input.label,
+      activo: input.activo,
+      parent_equipo_id: input.parentEquipoId ?? null,
+    }
+
+    const { data, error } = await client.from('dream_team_equipos').insert(insert).select().single()
+
+    if (error) throw error
+    return mapEquipo(data)
+  }
+
+  async function updateEquipo(id: string, patch: DreamTeamEquipoUpdate): Promise<DreamTeamEquipo> {
+    const updates: DbEquipoUpdate = {}
+    if (patch.label !== undefined) updates.label = patch.label
+    if (patch.activo !== undefined) updates.activo = patch.activo
+    if (patch.parentEquipoId !== undefined) updates.parent_equipo_id = patch.parentEquipoId
+
+    const { data, error } = await client
+      .from('dream_team_equipos')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return mapEquipo(data)
+  }
+
   async function listRolesPorEquipo(equipoId: string): Promise<readonly DreamTeamRol[]> {
     const { data, error } = await client.from('dream_team_roles').select().eq('equipo_id', equipoId)
     if (error) throw error
     return (data ?? []).map(mapRol)
+  }
+
+  async function createRol(input: Omit<DreamTeamRol, 'id'>): Promise<DreamTeamRol> {
+    const insert: DbRolInsert = {
+      equipo_id: input.equipoId,
+      label: input.label,
+      activo: input.activo,
+      parent_rol_id: input.parentRolId ?? null,
+    }
+
+    const { data, error } = await client.from('dream_team_roles').insert(insert).select().single()
+
+    if (error) throw error
+    return mapRol(data)
+  }
+
+  async function updateRol(id: string, patch: DreamTeamRolUpdate): Promise<DreamTeamRol> {
+    const updates: DbRolUpdate = {}
+    if (patch.label !== undefined) updates.label = patch.label
+    if (patch.activo !== undefined) updates.activo = patch.activo
+    if (patch.parentRolId !== undefined) updates.parent_rol_id = patch.parentRolId
+
+    const { data, error } = await client
+      .from('dream_team_roles')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return mapRol(data)
   }
 
   async function listRequisitosPorRol(rolId: string): Promise<readonly DreamTeamRequisito[]> {
@@ -417,13 +504,39 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
     return (data ?? []).map(mapParticipationEvent)
   }
 
+  // `dream_team_apply_servicio_grants` is not in the generated Database types
+  // yet (migration applied directly to staging); `as any` mirrors the same
+  // not-yet-generated-RPC pattern used elsewhere (see
+  // public-token-repository-supabase.ts). It is SECURITY DEFINER and grants to
+  // `authenticated`, so it must be called with the normal user client, never
+  // the service-role key.
+  async function applyServicioGrants(
+    personaId: string,
+    accion: 'grant' | 'revoke',
+    grants: readonly DreamTeamServiceGrant[],
+  ): Promise<number> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (client as any).rpc('dream_team_apply_servicio_grants', {
+      p_persona_id: personaId,
+      p_accion: accion,
+      p_grants: grants.map(mapServiceGrantToRpcGrant),
+    })
+
+    if (error) throw error
+    return (data as number) ?? 0
+  }
+
   return {
     createServicio,
     getServicioById,
     listServicios,
     updateServicio,
     listEquipos,
+    createEquipo,
+    updateEquipo,
     listRolesPorEquipo,
+    createRol,
+    updateRol,
     listRequisitosPorRol,
     upsertRequisito,
     listRequisitoVerificaciones,
@@ -434,5 +547,6 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
     appendParticipationEvent,
     listParticipationEvents,
     listParticipationEventsByPersona,
+    applyServicioGrants,
   }
 }

@@ -36,11 +36,14 @@ describe('DreamTeamServiceGrant builder', () => {
       'dream_team.serve',
       'dps.team.serve',
     ])
+    // dream_team.serve is born scoped to the equipo where the person serves.
+    // Until the org tree existed it was experience-wide (scopeId undefined),
+    // which the tree read policies turned into visibility over the whole church.
     expect(grants[0]).toMatchObject({
       capabilityKey: 'dream_team.serve',
       experience: 'dream_team',
-      scopeType: 'experience',
-      scopeId: undefined,
+      scopeType: 'equipo',
+      scopeId: 'equipo-dps-camara',
     })
     expect(grants[1]).toMatchObject({
       capabilityKey: 'dps.team.serve',
@@ -322,5 +325,153 @@ describe('Caso Ana: mixed services and pause/resume lifecycle', () => {
     expect(restoreDecision.action).toBe('restore')
     if (restoreDecision.action !== 'restore') throw new Error('expected restore')
     expect(restoreDecision.grants).toEqual(estudiantesGrants)
+  })
+})
+
+describe('Director mints the scoped dream_team.direct, not the global dream_team.director.coordinate', () => {
+  // Regression test for the area-director-gets-global-authority defect: dream_team.director.coordinate
+  // is declared with scopeType 'experience', so scopeIdForGrant() always returns undefined for it —
+  // a grant with scope_id = NULL means GLOBAL scope in auth_has_dream_team_capability_in_tree. Director
+  // must instead mint dream_team.direct (scopeType 'equipo'), which scopeIdForGrant() scopes to equipo.id.
+
+  it('mints dream_team.direct with scopeId equal to the equipo id, and never mints dream_team.director.coordinate', () => {
+    const grants = buildGrantsForServicio(equipoDps, { id: 'rol-director', label: 'Director' })
+    const keys = grants.map((grant) => grant.capabilityKey)
+
+    expect(keys).not.toContain('dream_team.director.coordinate')
+    expect(keys).toContain('dream_team.direct')
+
+    const directGrant = grants.find((grant) => grant.capabilityKey === 'dream_team.direct')
+    expect(directGrant).toMatchObject({
+      capabilityKey: 'dream_team.direct',
+      experience: 'dream_team',
+      scopeType: 'equipo',
+      scopeId: equipoDps.id,
+    })
+  })
+
+  it('still mints dream_team.lead and dream_team.coordinate with their own scopeId for lider/coordinador', () => {
+    const liderGrants = buildGrantsForServicio(equipoDps, { id: 'rol-lider', label: 'Líder' })
+    const liderGrant = liderGrants.find((grant) => grant.capabilityKey === 'dream_team.lead')
+    expect(liderGrant).toMatchObject({
+      capabilityKey: 'dream_team.lead',
+      experience: 'dream_team',
+      scopeType: 'equipo',
+      scopeId: equipoDps.id,
+    })
+
+    const coordinadorGrants = buildGrantsForServicio(equipoDps, { id: 'rol-coord', label: 'Coordinador' })
+    const coordinadorGrant = coordinadorGrants.find((grant) => grant.capabilityKey === 'dream_team.coordinate')
+    expect(coordinadorGrant).toMatchObject({
+      capabilityKey: 'dream_team.coordinate',
+      experience: 'dream_team',
+      scopeType: 'equipo',
+      scopeId: equipoDps.id,
+    })
+  })
+})
+
+describe('Role label matching is case- and diacritic-insensitive', () => {
+  // The talleres_role_capability_map SQL trigger seeds roles as lowercase, no-diacritic
+  // labels ('coordinador', 'director', 'lider', 'voluntario'), while ROLE_TO_GENERIC_CAPABILITIES
+  // uses capitalized, accented labels. Both conventions must resolve to the same capabilities.
+
+  it('resolves coordinador/Coordinador/COORDINADOR to the same capabilities', () => {
+    const canonical = buildGrantsForServicio(equipoDps, { id: 'rol-x', label: 'Coordinador' })
+      .map((grant) => grant.capabilityKey)
+
+    for (const label of ['coordinador', 'Coordinador', 'COORDINADOR']) {
+      const grants = buildGrantsForServicio(equipoDps, { id: 'rol-x', label }).map((grant) => grant.capabilityKey)
+      expect(grants).toEqual(canonical)
+    }
+    expect(canonical).toEqual(['dream_team.serve', 'dream_team.coordinate', 'dps.team.lead'])
+  })
+
+  it('resolves lider/líder/Líder/LÍDER to the same capabilities as canonical "Líder"', () => {
+    const canonical = buildGrantsForServicio(equipoDps, { id: 'rol-x', label: 'Líder' })
+      .map((grant) => grant.capabilityKey)
+
+    for (const label of ['lider', 'líder', 'Líder', 'LÍDER']) {
+      const grants = buildGrantsForServicio(equipoDps, { id: 'rol-x', label }).map((grant) => grant.capabilityKey)
+      expect(grants).toEqual(canonical)
+    }
+    expect(canonical).toEqual(['dream_team.serve', 'dream_team.lead', 'dps.team.lead'])
+  })
+
+  it('resolves director/DIRECTOR to the same capabilities as canonical "Director"', () => {
+    const canonical = buildGrantsForServicio(equipoDps, { id: 'rol-x', label: 'Director' })
+      .map((grant) => grant.capabilityKey)
+
+    for (const label of ['director', 'DIRECTOR']) {
+      const grants = buildGrantsForServicio(equipoDps, { id: 'rol-x', label }).map((grant) => grant.capabilityKey)
+      expect(grants).toEqual(canonical)
+    }
+    // Director now mints the equipo-scoped dream_team.direct, never the global
+    // dream_team.director.coordinate (see grants.ts ROLE_TO_GENERIC_CAPABILITIES comment).
+    expect(canonical).toEqual(['dream_team.serve', 'dream_team.direct', 'dps.team.director'])
+  })
+
+  it('resolves voluntario to the same capabilities as canonical "Voluntario"', () => {
+    const canonical = buildGrantsForServicio(equipoDps, rolVoluntario).map((grant) => grant.capabilityKey)
+    const grants = buildGrantsForServicio(equipoDps, { id: 'rol-x', label: 'voluntario' }).map((grant) => grant.capabilityKey)
+
+    expect(grants).toEqual(canonical)
+    expect(canonical).toEqual(['dream_team.serve', 'dps.team.serve'])
+  })
+
+  it('keeps multi-word labels ("Líder de grupo", "Voluntario de Cámara") resolving correctly regardless of case', () => {
+    const grantsLiderDeGrupo = buildGrantsForServicio(equipoEstudiantes, { id: 'rol-y', label: 'líder de grupo' })
+      .map((grant) => grant.capabilityKey)
+    expect(grantsLiderDeGrupo).toEqual([
+      'dream_team.serve',
+      'dream_team.lead',
+      'dream_team.gdv.lead',
+      'estudiantes.team.lead',
+    ])
+
+    const grantsVoluntarioCamara = buildGrantsForServicio(equipoDps, { id: 'rol-z', label: 'VOLUNTARIO DE CÁMARA' })
+      .map((grant) => grant.capabilityKey)
+    expect(grantsVoluntarioCamara).toEqual(['dream_team.serve', 'dps.team.serve'])
+  })
+})
+
+/**
+ * dream_team.serve must be born scoped to the node — regression.
+ *
+ * EVERY role mints dream_team.serve (voluntario, líder, coordinador, director).
+ * It was declared scopeType 'experience', so scopeIdForGrant() returned
+ * undefined and the grant was born GLOBAL. The org-tree read policies accept
+ * serve through the tree gate, where scope_id NULL means global — so anyone
+ * activated through the real assignment flow saw the entire church tree.
+ *
+ * The staging acceptance test passed anyway, for the wrong reason: the fixture
+ * handed the DPS director dream_team.direct by hand and never went through the
+ * flow that would ALSO have minted a global serve.
+ */
+describe('dream_team.serve scoping', () => {
+  const camaras = { id: 'equipo-camaras', experiencia: 'dps' }
+
+  it.each([
+    ['voluntario'],
+    ['lider'],
+    ['coordinador'],
+    ['director'],
+  ])('a %s gets dream_team.serve scoped to the equipo where they serve', (label) => {
+    const grants = buildGrantsForServicio(camaras, { id: `rol-${label}`, label })
+    const serve = grants.find((g) => g.capabilityKey === 'dream_team.serve')
+
+    expect(serve).toBeDefined()
+    expect(serve?.scopeType).toBe('equipo')
+    expect(serve?.scopeId).toBe('equipo-camaras')
+  })
+
+  it('no role mints any dream_team.* capability with a null scope', () => {
+    for (const label of ['voluntario', 'lider', 'coordinador', 'director']) {
+      const grants = buildGrantsForServicio(camaras, { id: `rol-${label}`, label })
+      const globales = grants.filter(
+        (g) => g.capabilityKey.startsWith('dream_team.') && g.scopeId === undefined,
+      )
+      expect(globales).toEqual([])
+    }
   })
 })

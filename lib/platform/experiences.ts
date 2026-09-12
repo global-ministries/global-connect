@@ -13,6 +13,10 @@ export const PLATFORM_EXPERIENCE_CATALOG = {
   dream_team: { label: 'Dream Team', scopeTypes: ['experience', 'equipo'] },
   operating_core: { label: 'Operating Core', scopeTypes: ['experience'] },
   pastoral: { label: 'Pastoral', scopeTypes: ['one_on_one', 'triada', 'experience'] },
+  // Organigrama seed (Dirección de Línea 1 nodes) — see dream_team_equipos tree.
+  experiencia: { label: 'Experiencia', scopeTypes: ['experience', 'equipo'] },
+  atraccion: { label: 'Atracción', scopeTypes: ['experience', 'equipo'] },
+  servicios_ministeriales: { label: 'Servicios Ministeriales', scopeTypes: ['experience', 'equipo'] },
 } satisfies Record<string, { label: string; scopeTypes: readonly PlatformScopeType[] }>
 
 export type PlatformExperienceKey = keyof typeof PLATFORM_EXPERIENCE_CATALOG
@@ -45,13 +49,21 @@ export const PLATFORM_CAPABILITIES = {
   'family.minor.read': { experience: 'family', scopeType: 'experience' },
   'family.minor.consent': { experience: 'family', scopeType: 'experience' },
   // Generic Dream Team capabilities (hybrid model)
-  'dream_team.serve': { experience: 'dream_team', scopeType: 'experience' },
+  // Every role mints dream_team.serve. Declared 'experience' it was born global
+  // (scopeIdForGrant returns undefined for that type), so anyone activated through
+  // the assignment flow could read the whole org tree. 'equipo' scopes it to the
+  // node where the person actually serves.
+  'dream_team.serve': { experience: 'dream_team', scopeType: 'equipo' },
   'dream_team.lead': { experience: 'dream_team', scopeType: 'equipo' },
   'dream_team.coordinate': { experience: 'dream_team', scopeType: 'equipo' },
   'dream_team.director.coordinate': { experience: 'dream_team', scopeType: 'experience' },
+  // Area director — scoped to their own equipo node (unlike dream_team.director.coordinate above, which is global).
+  'dream_team.direct': { experience: 'dream_team', scopeType: 'equipo' },
   'dream_team.requirements.manage': { experience: 'dream_team', scopeType: 'experience' },
   'dream_team.metrics.read': { experience: 'dream_team', scopeType: 'experience' },
   'dream_team.gdv.lead': { experience: 'grupos_vida', scopeType: 'grupo' },
+  // Governs write access to the org tree (equipos and roles).
+  'dream_team.org.manage': { experience: 'dream_team', scopeType: 'experience' },
   // Domain-specific team capabilities
   'dps.team.lead': { experience: 'dps', scopeType: 'equipo' },
   'dps.team.director': { experience: 'dps', scopeType: 'equipo' },

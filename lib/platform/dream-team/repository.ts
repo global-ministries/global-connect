@@ -12,6 +12,7 @@ import type {
   DreamTeamServicio,
   PersonaId,
 } from './types'
+import type { DreamTeamServiceGrant } from './grants'
 
 // ──────────────────────────────────────────────
 // Repository principal (read + write)
@@ -33,6 +34,20 @@ export interface DreamTeamServicioUpdate {
   readonly expectedVersion: number
 }
 
+// Un nodo del árbol organizativo se desactiva con `activo = false`, nunca se
+// borra: no hay (ni debe haber) un método de borrado en este repositorio.
+export interface DreamTeamEquipoUpdate {
+  readonly label?: string
+  readonly activo?: boolean
+  readonly parentEquipoId?: string | null
+}
+
+export interface DreamTeamRolUpdate {
+  readonly label?: string
+  readonly activo?: boolean
+  readonly parentRolId?: string | null
+}
+
 export interface DreamTeamRepository {
   // Servicios
   createServicio(input: Omit<DreamTeamServicio, 'id' | 'version'>): Promise<DreamTeamServicio>
@@ -42,9 +57,13 @@ export interface DreamTeamRepository {
 
   // Equipos
   listEquipos(): Promise<readonly DreamTeamEquipo[]>
+  createEquipo(input: Omit<DreamTeamEquipo, 'id'>): Promise<DreamTeamEquipo>
+  updateEquipo(id: string, patch: DreamTeamEquipoUpdate): Promise<DreamTeamEquipo>
 
   // Roles
   listRolesPorEquipo(equipoId: string): Promise<readonly DreamTeamRol[]>
+  createRol(input: Omit<DreamTeamRol, 'id'>): Promise<DreamTeamRol>
+  updateRol(id: string, patch: DreamTeamRolUpdate): Promise<DreamTeamRol>
 
   // Requisitos (config)
   listRequisitosPorRol(rolId: string): Promise<readonly DreamTeamRequisito[]>
@@ -65,6 +84,13 @@ export interface DreamTeamRepository {
   appendParticipationEvent(event: Omit<DreamTeamParticipationEvent, 'id'>): Promise<DreamTeamParticipationEvent>
   listParticipationEvents(servicioId: string): Promise<readonly DreamTeamParticipationEvent[]>
   listParticipationEventsByPersona(personaId: PersonaId): Promise<readonly DreamTeamParticipationEvent[]>
+
+  // Grants (capacidades de plataforma derivadas del ciclo del servicio — Fase 4.1)
+  applyServicioGrants(
+    personaId: string,
+    accion: 'grant' | 'revoke',
+    grants: readonly DreamTeamServiceGrant[],
+  ): Promise<number>
 }
 
 // ──────────────────────────────────────────────

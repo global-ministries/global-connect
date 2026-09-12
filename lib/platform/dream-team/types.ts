@@ -1,4 +1,5 @@
 import type { DreamTeamError } from './errors'
+import type { PlatformExperienceKey } from '@/lib/platform/experiences'
 
 export const DREAM_TEAM_ESTADOS = ['postulado', 'en_orientacion', 'activo', 'en_pausa', 'inactivo', 'retirado'] as const
 export type DreamTeamEstado = (typeof DREAM_TEAM_ESTADOS)[number]
@@ -14,7 +15,7 @@ export const personaId = (v: string): PersonaId => v as PersonaId
 
 export interface DreamTeamEquipo {
   readonly id: string
-  readonly experiencia: 'grupos_vida' | 'dps' | 'ninos' | 'estudiantes' | 'the_living_room' | 'talleres_crecimiento'
+  readonly experiencia: PlatformExperienceKey
   readonly parentEquipoId?: string
   readonly label: string
   readonly activo: boolean
