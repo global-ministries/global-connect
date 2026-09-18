@@ -68,7 +68,10 @@ const rules = [
   {
     id: 'truncate',
     severity: SEVERITY.ERROR,
-    pattern: /(?:^|\s)TRUNCATE\s/im,
+    // A TRUNCATE statement starts its line. Anchoring there keeps the rule from
+    // firing on comments and on the privilege name in GRANT/REVOKE lists
+    // (`grant select, …, truncate on table …` deletes nothing).
+    pattern: /^\s*TRUNCATE\s/im,
     message: 'TRUNCATE in migration — this deletes all data without logging. Use DELETE with WHERE instead',
   },
   {
