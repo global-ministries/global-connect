@@ -26,6 +26,10 @@ export interface CreateTallerAbstractInput {
   readonly descripcion: string | null
   readonly modalidad_default: 'periodo_general' | 'permanente_custom'
   readonly slug?: string
+  /** T3 — link an existing eligible org-chart node. Exactly one of equipoId/parentEquipoId is required. */
+  readonly equipoId?: string | null
+  /** T3 — create a new node under this active parent. Exactly one of equipoId/parentEquipoId is required. */
+  readonly parentEquipoId?: string | null
 }
 
 export type CreateTallerAbstractResult =
@@ -35,6 +39,32 @@ export type CreateTallerAbstractResult =
       readonly error: 'forbidden' | 'not-found' | 'unauthorized' | 'invalid-input' | 'internal'
       readonly message?: string
     }
+
+/**
+ * T3 — friendly Spanish translations for the RPC's documented error
+ * codes (see 20260918160000_create_taller_abstract_equipo_choice.sql,
+ * the errcode table in its header comment). Keyed by the message
+ * prefix before the first ':' — an unrecognized code falls back to the
+ * raw RPC message.
+ */
+const RPC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  MUST_CHOOSE_EXACTLY_ONE_MODE:
+    'Elegí un nodo del árbol para vincular, o un padre para crear uno nuevo — no ambos ni ninguno.',
+  EQUIPO_NOT_FOUND: 'El equipo elegido ya no existe.',
+  EQUIPO_INACTIVE: 'El equipo elegido está inactivo.',
+  EQUIPO_WRONG_EXPERIENCE: 'Ese nodo no pertenece a talleres — elegí otro.',
+  EQUIPO_IS_ROOT: 'No podés vincular un nodo raíz del organigrama.',
+  EQUIPO_HAS_CHILDREN: 'Ese nodo tiene hijos — elegí una hoja del árbol.',
+  EQUIPO_ALREADY_LINKED: 'Ese equipo ya está vinculado a otro taller.',
+  PARENT_EQUIPO_NOT_FOUND: 'El nodo padre elegido ya no existe.',
+  PARENT_EQUIPO_INACTIVE: 'El nodo padre elegido está inactivo.',
+}
+
+function friendlyRpcMessage(rawMessage: string | undefined | null): string | undefined {
+  if (!rawMessage) return undefined
+  const code = rawMessage.split(':')[0]?.trim()
+  return (code && RPC_ERROR_MESSAGES[code]) || rawMessage
+}
 
 export async function createTallerAbstract(
   input: CreateTallerAbstractInput
@@ -74,6 +104,19 @@ export async function createTallerAbstract(
     return { ok: false, error: 'invalid-input' }
   }
 
+  // T3 — exactly one of equipoId (vincular) / parentEquipoId (nuevo).
+  // Mirrors the RPC's own (p_equipo_id IS NULL) = (p_parent_equipo_id
+  // IS NULL) check, so a malformed call never spends a round-trip.
+  const equipoId = input.equipoId?.trim() || null
+  const parentEquipoId = input.parentEquipoId?.trim() || null
+  if ((equipoId === null) === (parentEquipoId === null)) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: RPC_ERROR_MESSAGES['MUST_CHOOSE_EXACTLY_ONE_MODE'],
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
   const { data, error } = await client.rpc('create_taller_abstract', {
@@ -81,13 +124,15 @@ export async function createTallerAbstract(
     p_descripcion: input.descripcion?.trim() ?? '',
     p_modalidad_default: input.modalidad_default,
     p_slug: input.slug?.trim() ?? '',
+    p_equipo_id: equipoId,
+    p_parent_equipo_id: parentEquipoId,
   })
 
   if (error || !data) {
     return {
       ok: false,
       error: 'internal',
-      message: (error?.message as string) ?? 'unknown error',
+      message: friendlyRpcMessage(error?.message as string | undefined) ?? 'unknown error',
     }
   }
 

@@ -104,6 +104,7 @@ const validInput: CreateTallerAbstractInput = {
   nombre: 'Matrimonio sobre la Roca',
   descripcion: 'Programa de 8 sesiones para parejas',
   modalidad_default: 'periodo_general',
+  equipoId: 'equipo-1',
 }
 
 beforeEach(() => {
@@ -212,6 +213,74 @@ describe('createTallerAbstract — input validation', () => {
   })
 })
 
+// ─── equipo choice (T3) ─────────────────────────────────────────────
+
+describe('createTallerAbstract — equipo choice', () => {
+  beforeEach(() => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+    })
+  })
+
+  it('rejects when neither equipoId nor parentEquipoId is given', async () => {
+    const result = await createTallerAbstract({
+      nombre: 'Punto de Partida',
+      descripcion: null,
+      modalidad_default: 'periodo_general',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+    expect(rpcCalls.length).toBe(0)
+  })
+
+  it('rejects when both equipoId and parentEquipoId are given', async () => {
+    const result = await createTallerAbstract({
+      nombre: 'Punto de Partida',
+      descripcion: null,
+      modalidad_default: 'periodo_general',
+      equipoId: 'equipo-1',
+      parentEquipoId: 'parent-1',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+    expect(rpcCalls.length).toBe(0)
+  })
+
+  it('rejects a blank equipoId (whitespace only)', async () => {
+    const result = await createTallerAbstract({
+      nombre: 'Punto de Partida',
+      descripcion: null,
+      modalidad_default: 'periodo_general',
+      equipoId: '   ',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+    expect(rpcCalls.length).toBe(0)
+  })
+
+  it('passes p_equipo_id and a null p_parent_equipo_id for vincular mode', async () => {
+    const result = await createTallerAbstract({ ...validInput, equipoId: 'equipo-1', parentEquipoId: undefined })
+    expect(result.ok).toBe(true)
+    const call = rpcCalls[0]
+    expect(call?.args['p_equipo_id']).toBe('equipo-1')
+    expect(call?.args['p_parent_equipo_id']).toBeNull()
+  })
+
+  it('passes p_parent_equipo_id and a null p_equipo_id for nuevo mode', async () => {
+    const result = await createTallerAbstract({
+      nombre: 'Nuevo bajo DPS',
+      descripcion: null,
+      modalidad_default: 'periodo_general',
+      parentEquipoId: 'parent-1',
+    })
+    expect(result.ok).toBe(true)
+    const call = rpcCalls[0]
+    expect(call?.args['p_equipo_id']).toBeNull()
+    expect(call?.args['p_parent_equipo_id']).toBe('parent-1')
+  })
+})
+
 // ─── happy path ─────────────────────────────────────────────────────
 
 describe('createTallerAbstract — happy path', () => {
@@ -232,6 +301,8 @@ describe('createTallerAbstract — happy path', () => {
     expect(call?.args['p_nombre']).toBe('Matrimonio sobre la Roca')
     expect(call?.args['p_modalidad_default']).toBe('periodo_general')
     expect(call?.args['p_slug']).toBe('')
+    expect(call?.args['p_equipo_id']).toBe('equipo-1')
+    expect(call?.args['p_parent_equipo_id']).toBeNull()
   })
 
   it('passes null for empty descripcion (RPC handles NULLIF)', async () => {
@@ -263,5 +334,52 @@ describe('createTallerAbstract — RPC error', () => {
       expect(result.error).toBe('internal')
       expect(result.message).toBe('NOMBRE_REQUIRED')
     }
+  })
+
+  it('maps EQUIPO_ALREADY_LINKED to a friendly Spanish message', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+      rpcResponse: {
+        data: null,
+        error: { code: 'P0002', message: 'EQUIPO_ALREADY_LINKED: 11111111-1111-1111-1111-111111111111' },
+      },
+    })
+    const result = await createTallerAbstract(validInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('internal')
+      expect(result.message).toBe('Ese equipo ya está vinculado a otro taller.')
+    }
+  })
+
+  it('maps MUST_CHOOSE_EXACTLY_ONE_MODE to a friendly Spanish message', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+      rpcResponse: {
+        data: null,
+        error: { code: 'P0003', message: 'MUST_CHOOSE_EXACTLY_ONE_MODE: se requiere exactamente uno de p_equipo_id o p_parent_equipo_id' },
+      },
+    })
+    const result = await createTallerAbstract(validInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toBe('Elegí un nodo del árbol para vincular, o un padre para crear uno nuevo — no ambos ni ninguno.')
+    }
+  })
+
+  it('falls back to the raw message for an unrecognized error code', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+      rpcResponse: {
+        data: null,
+        error: { message: 'SOME_UNKNOWN_ERROR: detail' },
+      },
+    })
+    const result = await createTallerAbstract(validInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.message).toBe('SOME_UNKNOWN_ERROR: detail')
   })
 })

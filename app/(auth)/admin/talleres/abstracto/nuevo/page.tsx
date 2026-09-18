@@ -7,11 +7,18 @@
 
 import { ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchOpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
+
 import { CrearTallerAbstractoForm } from './crear-form'
 
 export const metadata = { title: 'Crear Grupo de Corto Plazo' }
 
-export default function CrearTallerAbstractoPage() {
+export default async function CrearTallerAbstractoPage() {
+  const supabase = await createSupabaseServerClient()
+  // T3 — the form's equipo picker needs both option lists up front.
+  const opciones = await fetchOpcionesEquipoTaller(supabase)
+
   return (
     <ContenedorDashboard
       titulo="Crear Grupo de Corto Plazo"
@@ -24,7 +31,7 @@ export default function CrearTallerAbstractoPage() {
           desde la página del grupo — eso es PR23.2.
         </TextoSistema>
       </TarjetaSistema>
-      <CrearTallerAbstractoForm />
+      <CrearTallerAbstractoForm opciones={opciones} />
     </ContenedorDashboard>
   )
 }

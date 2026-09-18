@@ -19,6 +19,7 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { fetchOpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
 
 import { CrearTallerAbstractoForm } from './nuevo/crear-form'
 
@@ -89,6 +90,11 @@ export default async function TalleresAbstractosIndex() {
 
   const talleres: TallerRow[] = (talleresData ?? []) as TallerRow[]
 
+  // T3 — the create form needs both option lists (vincular / crear
+  // bajo) up front; only fetched when the user actually has the
+  // capability to see the form (hasCap below).
+  const opciones = hasCap ? await fetchOpcionesEquipoTaller(supabase) : { vincular: [], crearBajo: [] }
+
   return (
     <ContenedorDashboard
       titulo="Grupos de Corto Plazo"
@@ -108,7 +114,7 @@ export default async function TalleresAbstractosIndex() {
 
       {hasCap ? (
         <div className="mb-6">
-          <CrearTallerAbstractoForm />
+          <CrearTallerAbstractoForm opciones={opciones} />
         </div>
       ) : (
         <TarjetaSistema variante="outlined" className="mb-4 p-3 text-sm">

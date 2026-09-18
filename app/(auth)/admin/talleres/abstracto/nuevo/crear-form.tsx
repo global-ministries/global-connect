@@ -1,67 +1,121 @@
 'use client'
 
 /**
- * PR23.1 — Create taller abstracto form (client wrapper).
+ * T3 — Create taller abstracto form (client wrapper).
  *
- * Renders an inline form to create a new abstract taller. Calls the
- * server action `createTallerAbstract` and on success redirects to
- * the taller detail page (PR23.2 will provide this; until then,
- * a 404 is acceptable — the form still works and the taller is
- * created in the DB).
+ * Renders an inline form to create a new abstract taller. The equipo
+ * choice is mandatory: "vincular" picks one of the eligible existing
+ * org-chart nodes (`opciones.vincular`), "nuevo" mints a fresh one
+ * under a chosen active parent (`opciones.crearBajo`) — see
+ * lib/platform/talleres/equipo-organigrama.ts for how both lists are
+ * built and odd/tasks/talleres-equipo-en-organigrama.md for why the
+ * choice is required.
+ *
+ * Field-level problems (nombre too short, no equipo chosen) show as
+ * inline errors under each control; the RPC's own result (success or
+ * failure) is the only thing that goes through useNotificaciones() —
+ * matches the pattern in app/(auth)/admin/dream-team/servidores/
+ * servidores-client.tsx.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
-import { TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import {
+  BotonSistema,
+  InputSistema,
+  SelectSistema,
+  TarjetaSistema,
+  TextareaSistema,
+  TextoSistema,
+} from '@/components/ui/sistema-diseno'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
+import type { OpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
 
 import { createTallerAbstract } from './actions'
 
-export function CrearTallerAbstractoForm(): ReactElement {
+type ModoEquipo = 'vincular' | 'nuevo'
+
+const MODO_OPCIONES = [
+  { valor: 'vincular', etiqueta: 'Vincular un equipo que ya existe' },
+  { valor: 'nuevo', etiqueta: 'Crear un equipo nuevo bajo…' },
+]
+
+interface Props {
+  readonly opciones: OpcionesEquipoTaller
+}
+
+export function CrearTallerAbstractoForm({ opciones }: Props): ReactElement {
   const router = useRouter()
+  const toast = useNotificaciones()
   const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
 
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')
   const [modalidad, setModalidad] = useState<'periodo_general' | 'permanente_custom'>('periodo_general')
   const [slug, setSlug] = useState('')
+  const [modo, setModo] = useState<ModoEquipo>('vincular')
+  const [equipoId, setEquipoId] = useState('')
+  const [parentEquipoId, setParentEquipoId] = useState('')
 
-  const canSubmit = nombre.trim().length >= 2 && !pending
+  const [erroresCampo, setErroresCampo] = useState<Record<string, string>>({})
+
+  function validar(): Record<string, string> {
+    const errores: Record<string, string> = {}
+    if (nombre.trim().length < 2) {
+      errores.nombre = 'El nombre debe tener al menos 2 caracteres.'
+    }
+    if (modo === 'vincular' && !equipoId) {
+      errores.equipoId = 'Elegí un nodo del árbol.'
+    }
+    if (modo === 'nuevo' && !parentEquipoId) {
+      errores.parentEquipoId = 'Elegí bajo qué nodo colgarlo.'
+    }
+    return errores
+  }
+
+  function limpiar(): void {
+    setNombre('')
+    setDescripcion('')
+    setSlug('')
+    setModo('vincular')
+    setEquipoId('')
+    setParentEquipoId('')
+    setErroresCampo({})
+  }
 
   function submit(): void {
-    if (!canSubmit) return
-    setError(null)
+    const errores = validar()
+    setErroresCampo(errores)
+    if (Object.keys(errores).length > 0) return
+
     startTransition(async () => {
       const result = await createTallerAbstract({
         nombre,
         descripcion: descripcion.trim() === '' ? null : descripcion,
         modalidad_default: modalidad,
         slug: slug.trim() === '' ? undefined : slug,
+        equipoId: modo === 'vincular' ? equipoId : undefined,
+        parentEquipoId: modo === 'nuevo' ? parentEquipoId : undefined,
       })
       if (result.ok) {
+        toast.success('Taller creado.')
         router.refresh()
-        setNombre('')
-        setDescripcion('')
-        setSlug('')
+        limpiar()
         setOpen(false)
       } else {
-        setError(result.message ?? result.error)
+        toast.error(result.message ?? 'No se pudo crear el taller.')
       }
     })
   }
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white"
-      >
-        <Plus className="h-4 w-4" /> Crear grupo de corto plazo
-      </button>
+      <BotonSistema type="button" icono={Plus} onClick={() => setOpen(true)}>
+        Crear grupo de corto plazo
+      </BotonSistema>
     )
   }
 
@@ -69,78 +123,95 @@ export function CrearTallerAbstractoForm(): ReactElement {
     <TarjetaSistema variante="elevated" className="p-5">
       <TextoSistema className="text-lg font-medium">Nuevo grupo de corto plazo</TextoSistema>
       <TextoSistema variante="sutil" className="mt-1 block text-sm">
-        El slug se genera automáticamente del nombre si lo dejás vacío. Una
-        vez creado, podés abrir ediciones específicas (otoño 2026, etc.) — eso
-        es PR23.2.
+        El slug se genera automáticamente del nombre si lo dejás vacío. Elegí
+        dónde vive este taller en el organigrama de Dream Team — es
+        obligatorio y no se puede cambiar después desde acá.
       </TextoSistema>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Nombre *</span>
-          <input
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            className="w-full rounded border px-3 py-2"
-            placeholder="Ej. Matrimonio sobre la Roca"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Slug (opcional)</span>
-          <input
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            className="w-full rounded border px-3 py-2 font-mono text-sm"
-            placeholder="auto: matrimoniosobrela-roca"
-          />
-        </label>
-        <label className="block md:col-span-2">
-          <span className="mb-1 block text-sm font-medium">Descripción (opcional)</span>
-          <textarea
+        <InputSistema
+          label="Nombre *"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          placeholder="Ej. Matrimonio sobre la Roca"
+          error={erroresCampo.nombre}
+        />
+        <InputSistema
+          label="Slug (opcional)"
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+          placeholder="auto: matrimonio-sobre-la-roca"
+          className="font-mono text-sm"
+        />
+        <div className="md:col-span-2">
+          <TextareaSistema
+            label="Descripción (opcional)"
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
-            className="w-full rounded border px-3 py-2"
-            rows={3}
             placeholder="Descripción del taller, objetivos, público objetivo..."
           />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Modalidad default</span>
-          <select
-            value={modalidad}
-            onChange={(e) => setModalidad(e.target.value as 'periodo_general' | 'permanente_custom')}
-            className="w-full rounded border px-3 py-2"
-          >
-            <option value="periodo_general">Periodo general</option>
-            <option value="permanente_custom">Permanente custom</option>
-          </select>
-        </label>
+        </div>
+        <SelectSistema
+          label="Modalidad default"
+          opciones={[
+            { valor: 'periodo_general', etiqueta: 'Periodo general' },
+            { valor: 'permanente_custom', etiqueta: 'Permanente custom' },
+          ]}
+          value={modalidad}
+          onValueChange={(v) => setModalidad(v as 'periodo_general' | 'permanente_custom')}
+        />
+
+        <SelectSistema
+          label="Dónde vive en el organigrama *"
+          opciones={MODO_OPCIONES}
+          value={modo}
+          onValueChange={(v) => setModo(v as ModoEquipo)}
+        />
+
+        {modo === 'vincular' && (
+          <div className="md:col-span-2">
+            <SelectSistema
+              label="Equipo *"
+              opciones={opciones.vincular.map((o) => ({ valor: o.id, etiqueta: o.ruta }))}
+              placeholder={
+                opciones.vincular.length === 0 ? 'No hay nodos disponibles para vincular' : 'Elegí un nodo del árbol'
+              }
+              value={equipoId}
+              onValueChange={setEquipoId}
+              error={erroresCampo.equipoId}
+              disabled={opciones.vincular.length === 0}
+            />
+          </div>
+        )}
+
+        {modo === 'nuevo' && (
+          <div className="md:col-span-2">
+            <SelectSistema
+              label="Crear bajo *"
+              opciones={opciones.crearBajo.map((o) => ({ valor: o.id, etiqueta: o.ruta }))}
+              placeholder="Elegí el padre del nuevo equipo"
+              value={parentEquipoId}
+              onValueChange={setParentEquipoId}
+              error={erroresCampo.parentEquipoId}
+            />
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="mt-3 rounded border border-red-300 bg-red-50 p-2 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
       <div className="mt-4 flex items-center justify-end gap-2">
-        <button
+        <BotonSistema
           type="button"
+          variante="outline"
           onClick={() => {
             setOpen(false)
-            setError(null)
+            setErroresCampo({})
           }}
-          className="rounded border px-3 py-1.5 text-sm"
         >
           Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!canSubmit}
-          className="rounded bg-[var(--brand-primary)] px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-        >
-          {pending ? 'Creando…' : 'Crear taller'}
-        </button>
+        </BotonSistema>
+        <BotonSistema type="button" onClick={submit} cargando={pending}>
+          Crear taller
+        </BotonSistema>
       </div>
     </TarjetaSistema>
   )
