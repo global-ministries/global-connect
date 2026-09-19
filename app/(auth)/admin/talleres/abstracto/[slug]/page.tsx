@@ -17,6 +17,7 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { fetchCoordinadorRoles } from '@/lib/platform/talleres/equipo-organigrama'
 
 import { OpenEdicionForm } from './open-edicion-form'
 import { AssignServicioForm } from './assign-servicio-form'
@@ -34,6 +35,7 @@ interface TallerRow {
   descripcion: string | null
   modalidad_default: 'periodo_general' | 'permanente_custom'
   estado: 'active' | 'archived'
+  dream_team_equipo_id: string | null
 }
 
 interface EdicionRow {
@@ -78,7 +80,7 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
   const client: any = supabase
   const { data: tallerData, error: tallerError } = await client
     .from('talleres')
-    .select('id, slug, nombre, descripcion, modalidad_default, estado')
+    .select('id, slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id')
     .eq('slug', slug)
     .maybeSingle()
 
@@ -114,16 +116,19 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
   // admin.manage): if the caller lacks read on seasons the list comes back
   // empty and the form just offers "— Sin temporada —" (graceful degradation).
   let temporadasAbiertas: TemporadaOption[] = []
-  // Cimiento 4 — the taller's single dream_team equipo (reached via its
-  // ediciones → cohortes bridge) plus its seeded coordinador role, resolved
-  // server-side for the assign-servicio card. The `director` role is
-  // deliberately excluded here: the Director General is GLOBAL (one
-  // scope-less grant over all talleres), not a per-taller assignment.
-  // Assigning "director" on a single equipo would mint director/admin.manage
-  // grants that the flat RLS gate treats as global anyway — so this card only
-  // assigns coordinadores.
-  let equipoId: string | null = null
-  let equipoRoles: Array<{ id: string; label: string }> = []
+  // T4b — the taller's single dream_team equipo is read directly off
+  // `talleres.dream_team_equipo_id` (fetched with the taller row
+  // above), not walked via ediciones → cohortes. That walk used to
+  // gate this entirely on `ediciones.length > 0`, so a brand-new
+  // taller (which now already has its equipo from T3, before its
+  // first edición) never showed the assign-servicio card. The
+  // `director` role is deliberately excluded here: the Director
+  // General is GLOBAL (one scope-less grant over all talleres), not a
+  // per-taller assignment. Assigning "director" on a single equipo
+  // would mint director/admin.manage grants that the flat RLS gate
+  // treats as global anyway — so this card only assigns coordinadores.
+  const equipoId: string | null = taller.dream_team_equipo_id
+  let equipoRoles: ReadonlyArray<{ id: string; label: string }> = []
   if (hasCap) {
     const { data: temporadasData } = await client
       .from('talleres_temporadas')
@@ -133,26 +138,8 @@ export default async function TallerAbstractoDetailPage(ctx: RouteContext) {
       .limit(100)
     temporadasAbiertas = (temporadasData ?? []) as TemporadaOption[]
 
-    const edicionIds = ediciones.map((e) => e.id)
-    if (edicionIds.length > 0) {
-      const { data: cohorteData } = await client
-        .from('talleres_crecimiento_cohortes')
-        .select('dream_team_equipo_id')
-        .in('taller_id', edicionIds)
-        .limit(1)
-      equipoId =
-        ((cohorteData ?? []) as Array<{ dream_team_equipo_id: string | null }>)[0]
-          ?.dream_team_equipo_id ?? null
-    }
-
     if (equipoId) {
-      const { data: rolesData } = await client
-        .from('dream_team_roles')
-        .select('id, label')
-        .eq('equipo_id', equipoId)
-      equipoRoles = ((rolesData ?? []) as Array<{ id: string; label: string }>).filter(
-        (r) => r.label === 'coordinador',
-      )
+      equipoRoles = await fetchCoordinadorRoles(client, equipoId)
     }
   }
 

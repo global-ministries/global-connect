@@ -179,10 +179,17 @@ export async function redirectToEdicion(tallerSlug: string, edicionId: string): 
 /**
  * Assign a persona as coordinador/director of an abstract taller.
  *
- * The abstract taller has exactly ONE dream_team equipo, reached only via
- * its ediciones → cohortes bridge (cohortes.dream_team_equipo_id). We
- * resolve that equipo server-side, resolve the rol id from its LABEL (never
- * a client-supplied rol_id), then activate a dream_team servicio
+ * T4b — the taller's equipo is read directly off `talleres.dream_team_equipo_id`
+ * (chosen once at creation time — T3), never walked via
+ * `taller_ediciones → talleres_crecimiento_cohortes`. That walk predates
+ * T2/T3/T4: it assumed the only way to know a taller's equipo was through a
+ * cohorte, which was true before `open_edicion` stopped minting equipos.
+ * A brand-new taller with zero ediciones now already has its equipo (and
+ * roles) from `create_taller_abstract` — reading the column directly means
+ * assigning a coordinador works before the first edición ever opens.
+ *
+ * We resolve that equipo server-side, resolve the rol id from its LABEL
+ * (never a client-supplied rol_id), then activate a dream_team servicio
  * (estado='activo'). The `sync_talleres_grants_on_servicio_change` trigger
  * materializes the scoped capability grants — this action never writes
  * grants directly.
@@ -218,7 +225,7 @@ export type AssignServicioResult =
 const ASSIGN_ROLES = ['coordinador', 'director'] as const
 
 const NO_EQUIPO_MESSAGE =
-  'Este taller todavía no tiene equipo. Abrí una edición primero.'
+  'Este taller todavía no tiene un equipo en el organigrama de Dream Team. Un admin debe vincularlo o crear uno desde el catálogo.'
 
 export async function assignServicio(
   input: AssignServicioInput,
@@ -253,30 +260,17 @@ export async function assignServicio(
   }
 
   try {
-    // taller_ediciones / talleres_crecimiento_cohortes are not in the
-    // generated Database types → raw any-cast client (matches page.tsx).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
     const client: any = supabase
 
-    // Resolve the taller's single equipo: ediciones of this taller, then the
-    // dream_team_equipo_id linked through any of their cohortes.
-    const { data: edicionesData } = await client
-      .from('taller_ediciones')
-      .select('id')
-      .eq('taller_id', input.taller_id)
-    const edicionIds = ((edicionesData ?? []) as Array<{ id: string }>).map((e) => e.id)
-    if (edicionIds.length === 0) {
-      return { ok: false, error: 'no-equipo', message: NO_EQUIPO_MESSAGE }
-    }
-
-    const { data: cohorteData } = await client
-      .from('talleres_crecimiento_cohortes')
+    // T4b — the taller's equipo, read directly (see the docstring above).
+    const { data: tallerData } = await client
+      .from('talleres')
       .select('dream_team_equipo_id')
-      .in('taller_id', edicionIds)
-      .limit(1)
-    const equipoId =
-      ((cohorteData ?? []) as Array<{ dream_team_equipo_id: string | null }>)[0]
-        ?.dream_team_equipo_id ?? null
+      .eq('id', input.taller_id)
+      .maybeSingle()
+    const equipoId = (tallerData as { dream_team_equipo_id: string | null } | null)
+      ?.dream_team_equipo_id ?? null
     if (!equipoId) {
       return { ok: false, error: 'no-equipo', message: NO_EQUIPO_MESSAGE }
     }

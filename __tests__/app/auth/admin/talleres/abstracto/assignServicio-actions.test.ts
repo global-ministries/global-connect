@@ -16,7 +16,13 @@
  *   - unauthorized when no user is signed in
  *   - forbidden when caps are insufficient
  *   - invalid-input when ids are empty or rol is out of the set
- *   - no-equipo when the taller has no cohorte-linked equipo yet
+ *   - no-equipo when talleres.dream_team_equipo_id is null, with a
+ *     friendly message that does NOT say "Abrí una edición primero"
+ *     (T4b — open_edicion no longer mints an equipo, so that copy is
+ *     false; the taller needs an admin to link/create its equipo)
+ *   - succeeds for a taller with dream_team_equipo_id set even with
+ *     ZERO ediciones (T4b — the equipo is read directly off the
+ *     taller row, not walked via taller_ediciones → cohortes)
  *   - no-role when the requested rol label is not seeded on the equipo
  *   - success: creates a servicio with estado='activo' (rol resolved
  *     server-side from the label, never a client rol_id)
@@ -77,8 +83,8 @@ interface SetupOpts {
   user?: { id: string } | null
   hasSession?: boolean
   capabilities?: string[]
-  edicionRows?: Array<{ id: string }>
-  cohorteRows?: Array<{ dream_team_equipo_id: string }>
+  /** talleres.dream_team_equipo_id for the target taller. `null` ⇒ no equipo linked. */
+  equipoId?: string | null
   roles?: RoleStub[]
   existingServicios?: ServicioStub[]
 }
@@ -124,8 +130,7 @@ function setup(opts: SetupOpts): void {
       : null,
   )
 
-  const edicionRows = opts.edicionRows ?? [{ id: 'ed-1' }]
-  const cohorteRows = opts.cohorteRows ?? [{ dream_team_equipo_id: 'eq-1' }]
+  const equipoId = opts.equipoId === undefined ? 'eq-1' : opts.equipoId
 
   createSupabaseServerClientMock.mockReset().mockResolvedValue({
     auth: {
@@ -135,11 +140,8 @@ function setup(opts: SetupOpts): void {
       }),
     },
     from: jest.fn((table: string) => {
-      if (table === 'taller_ediciones') {
-        return makeThenable({ data: edicionRows, error: null })
-      }
-      if (table === 'talleres_crecimiento_cohortes') {
-        return makeThenable({ data: cohorteRows, error: null })
+      if (table === 'talleres') {
+        return makeThenable({ data: { dream_team_equipo_id: equipoId }, error: null })
       }
       return makeThenable({ data: [], error: null })
     }),
@@ -223,24 +225,31 @@ describe('assignServicio — input validation', () => {
 })
 
 describe('assignServicio — equipo & role resolution', () => {
-  it('returns no-equipo when the taller has no ediciones (hence no equipo)', async () => {
+  it('succeeds for a taller with dream_team_equipo_id set even with ZERO ediciones (T4b)', async () => {
     setup({
       capabilities: ['talleres_crecimiento.director.write'],
-      edicionRows: [],
+      equipoId: 'eq-1',
     })
     const result = await assignServicio(validInput)
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('no-equipo')
+    expect(result.ok).toBe(true)
+    expect(createServicioArg?.['equipoId']).toBe('eq-1')
   })
 
-  it('returns no-equipo when no cohorte links an equipo yet', async () => {
+  it('returns no-equipo with a friendly message when talleres.dream_team_equipo_id is null', async () => {
     setup({
       capabilities: ['talleres_crecimiento.director.write'],
-      cohorteRows: [],
+      equipoId: null,
     })
     const result = await assignServicio(validInput)
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('no-equipo')
+    if (!result.ok) {
+      expect(result.error).toBe('no-equipo')
+      // T4b — open_edicion no longer mints an equipo, so this copy would be false.
+      expect(result.message).not.toMatch(/edici[oó]n/i)
+      expect(result.message).toBe(
+        'Este taller todavía no tiene un equipo en el organigrama de Dream Team. Un admin debe vincularlo o crear uno desde el catálogo.',
+      )
+    }
   })
 
   it('returns no-role when the requested rol label is not seeded', async () => {
