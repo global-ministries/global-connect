@@ -7012,8 +7012,10 @@ export type Database = {
       create_taller_abstract: {
         Args: {
           p_descripcion: string
+          p_equipo_id: string | null
           p_modalidad_default: string
           p_nombre: string
+          p_parent_equipo_id: string | null
           p_slug: string
         }
         Returns: Json
