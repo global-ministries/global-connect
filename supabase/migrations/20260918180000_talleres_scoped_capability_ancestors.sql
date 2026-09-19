@@ -40,22 +40,41 @@
 --
 -- NOT DONE (investigated, reported instead of guessed)
 --   The task also asked to revoke anon/PUBLIC EXECUTE on these helpers
---   and resolvers. Checking first (as instructed) found this would
---   break more than the one anon-facing case already known
---   (taller_certificados_select_anon): several roles={public} RLS
---   policies — e.g. taller_ediciones_select, talleres_crecimiento_
---   cohortes_select — call auth_has_talleres_capability /
---   auth_has_talleres_capability_scoped as NON-LAST branches of their OR
---   expression, and anon already holds ordinary table-level grants on
---   every talleres table. Today an anon query against those tables
---   evaluates every branch to false (auth.uid() is null) and silently
---   returns zero rows. Revoking anon's EXECUTE would turn that into a
---   hard "permission denied for function" error on any anon attempt to
---   query those tables — a behavior change none of the six acceptance
---   criteria call for, and one T4 ("nothing that worked keeps working")
---   forbids introducing. Left the grants exactly as they are; flagged
---   for a product decision (narrow those policies to `TO authenticated`
---   first, or accept the anon error-vs-empty change) before revoking.
+--   and resolvers. Checking first (as instructed) found two DIFFERENT
+--   environments with two different reasons not to, verified via
+--   has_table_privilege('anon', <table>, 'SELECT') on taller_ediciones,
+--   talleres_crecimiento_cohortes, taller_grupos and taller_inscripciones
+--   in both:
+--     - PRODUCTION: anon holds NO table-level grant on any of them
+--       (has_table_privilege = false on all four checked). An anon query
+--       is rejected with "permission denied for relation" before
+--       Postgres ever reaches RLS, let alone these functions — anon can
+--       never call them today regardless of their EXECUTE grant, so
+--       revoking would be a pure no-op there.
+--     - STAGING: anon DOES hold ordinary table-level grants on the same
+--       four tables (has_table_privilege = true on all four) — this is
+--       environment drift from production, not intended design, and
+--       out of this migration's scope to fix. Several roles={public} RLS
+--       policies that exist only on this branch's staging schema so far
+--       (e.g. taller_ediciones_select, talleres_crecimiento_cohortes_
+--       select) call auth_has_talleres_capability /
+--       auth_has_talleres_capability_scoped as NON-LAST branches of
+--       their OR expression. Today an anon query there evaluates every
+--       branch to false (auth.uid() is null) and silently returns zero
+--       rows. Revoking anon's EXECUTE would turn that into a hard
+--       "permission denied for function" error on any anon attempt to
+--       query those tables on staging specifically — a behavior change
+--       none of the six acceptance criteria call for, and one T4
+--       ("nothing that worked keeps working") forbids introducing.
+--   Net effect either way: anon already has zero usable access to
+--   talleres data in BOTH environments (blocked at the table grant on
+--   production, blocked by RLS always evaluating false on staging) —
+--   revoking EXECUTE would tighten nothing real anywhere, and on
+--   staging would only change a no-access caller's error shape from
+--   empty to a hard failure. Left the grants exactly as they are;
+--   flagged for a product decision (align staging's table grants with
+--   production's, and/or narrow the affected policies to `TO
+--   authenticated`, before revoking) rather than guessed.
 --
 -- SAFETY
 --   Additive/redefinition only: no table is dropped, no column is
