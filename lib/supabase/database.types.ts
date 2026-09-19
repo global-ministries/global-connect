@@ -5513,6 +5513,7 @@ export type Database = {
           created_at: string
           created_by_persona_id: string | null
           descripcion: string | null
+          dream_team_equipo_id: string | null
           estado: string
           id: string
           modalidad_default: string
@@ -5525,6 +5526,7 @@ export type Database = {
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
+          dream_team_equipo_id?: string | null
           estado?: string
           id?: string
           modalidad_default?: string
@@ -5537,6 +5539,7 @@ export type Database = {
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
+          dream_team_equipo_id?: string | null
           estado?: string
           id?: string
           modalidad_default?: string
@@ -5580,6 +5583,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_solicitudes_pendientes"
             referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "talleres_dream_team_equipo_id_fkey"
+            columns: ["dream_team_equipo_id"]
+            isOneToOne: true
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
           },
         ]
       }
