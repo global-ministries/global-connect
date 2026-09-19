@@ -120,3 +120,26 @@ export async function fetchOpcionesEquipoTaller(
 
   return construirOpcionesEquipoTaller(equipos, equipoIdsYaVinculados)
 }
+
+/**
+ * T4b — the coordinador role seeded on a taller's equipo, for the
+ * "assign coordinador" card on the taller detail page
+ * (app/(auth)/admin/talleres/abstracto/[slug]/page.tsx). Extracted so
+ * it's unit-testable: the page itself now reads
+ * `taller.dream_team_equipo_id` directly (with the taller row) instead
+ * of gating this call on how many ediciones the taller has.
+ */
+export async function fetchCoordinadorRoles(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client, matches this lib's other loaders
+  supabase: any,
+  equipoId: string,
+): Promise<ReadonlyArray<{ readonly id: string; readonly label: string }>> {
+  const { data } = await supabase
+    .from('dream_team_roles')
+    .select('id, label')
+    .eq('equipo_id', equipoId)
+
+  return ((data ?? []) as Array<{ id: string; label: string }>).filter(
+    (r) => r.label === 'coordinador',
+  )
+}

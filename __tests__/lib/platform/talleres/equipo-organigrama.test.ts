@@ -8,6 +8,7 @@
 
 import {
   construirOpcionesEquipoTaller,
+  fetchCoordinadorRoles,
   type EquipoOrganigramaRaw,
 } from '@/lib/platform/talleres/equipo-organigrama'
 
@@ -109,5 +110,51 @@ describe('construirOpcionesEquipoTaller', () => {
       const opciones = construirOpcionesEquipoTaller(equipos, new Set(['ya-vinculado']))
       expect(opciones.crearBajo.map((o) => o.id)).toContain('ya-vinculado')
     })
+  })
+})
+
+/**
+ * T4b — fetchCoordinadorRoles: the taller detail page's "assign
+ * coordinador" card needs the equipo's coordinador role id. Extracted
+ * out of app/(auth)/admin/talleres/abstracto/[slug]/page.tsx so it's
+ * unit-testable without a full RSC harness. The page now reads
+ * `taller.dream_team_equipo_id` directly (fetched with the taller row
+ * itself) instead of gating this call on `ediciones.length > 0` —
+ * the bug this replaces: a brand-new taller with zero ediciones
+ * always had its equipoId resolve to null, hiding the assign card
+ * even though T3 already gives every new taller an equipo with a
+ * seeded coordinador role.
+ */
+describe('fetchCoordinadorRoles', () => {
+  function fakeClient(rolesData: unknown) {
+    return {
+      from: jest.fn(() => ({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => Promise.resolve({ data: rolesData, error: null })),
+        })),
+      })),
+    }
+  }
+
+  it('returns only the coordinador role, filtering out others', async () => {
+    const client = fakeClient([
+      { id: 'rol-dir', label: 'director' },
+      { id: 'rol-coord', label: 'coordinador' },
+      { id: 'rol-lider', label: 'lider' },
+    ])
+    const roles = await fetchCoordinadorRoles(client, 'equipo-1')
+    expect(roles).toEqual([{ id: 'rol-coord', label: 'coordinador' }])
+  })
+
+  it('returns an empty array when the equipo has no coordinador role', async () => {
+    const client = fakeClient([{ id: 'rol-dir', label: 'director' }])
+    const roles = await fetchCoordinadorRoles(client, 'equipo-1')
+    expect(roles).toEqual([])
+  })
+
+  it('returns an empty array when the query errors or returns null', async () => {
+    const client = fakeClient(null)
+    const roles = await fetchCoordinadorRoles(client, 'equipo-1')
+    expect(roles).toEqual([])
   })
 })

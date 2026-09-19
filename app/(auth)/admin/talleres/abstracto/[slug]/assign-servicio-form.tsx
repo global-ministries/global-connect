@@ -9,8 +9,11 @@
  * servicio (estado='activo') on the taller's equipo. The capability
  * auto-grant trigger materializes the scoped grants.
  *
- * When the taller has no equipo yet (equipoId === null) the card is purely
- * informational: the equipo is minted when the first edición is opened.
+ * T4b — when the taller has no equipo yet (equipoId === null) the card is
+ * purely informational. This is no longer a transient "before the first
+ * edición" state: since T3/T4, every taller gets its equipo at creation
+ * time, and open_edicion never mints one. A null equipoId here means an
+ * admin needs to link or create the equipo from the catalog.
  */
 
 import { useEffect, useRef, useState, useTransition, type ReactElement } from 'react'
@@ -146,9 +149,9 @@ export function AssignServicioForm({ tallerId, equipoId, roles }: Input): ReactE
           Asignar coordinador
         </TextoSistema>
         <TextoSistema variante="sutil" className="mt-1 block text-sm">
-          Este taller todavía no tiene equipo. Abrí una edición primero: al abrir
-          la primera edición se crea el equipo del taller y después vas a poder
-          asignar coordinadores acá.
+          Este taller todavía no tiene un equipo en el organigrama de Dream
+          Team. Un admin debe vincularlo a un nodo existente o crear uno nuevo
+          desde el catálogo antes de poder asignar coordinadores acá.
         </TextoSistema>
       </TarjetaSistema>
     )
