@@ -269,4 +269,34 @@ describe('openEdicion — RPC error', () => {
       expect(result.message).toBe('TALLER_NOT_FOUND_OR_INACTIVE')
     }
   })
+
+  it('maps TALLER_MISSING_EQUIPO (T4) to a friendly Spanish message', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+      rpcResponse: {
+        data: null,
+        error: { code: 'P0002', message: 'TALLER_MISSING_EQUIPO: 11111111-1111-1111-1111-111111111111' },
+      },
+    })
+    const result = await openEdicion(validInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('internal')
+      expect(result.message).toBe(
+        'Este taller no tiene un equipo asignado en el organigrama. Volvé al catálogo y vinculalo o creá uno antes de abrir una edición.',
+      )
+    }
+  })
+
+  it('falls back to the raw message for an unrecognized error code', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+      rpcResponse: { data: null, error: { message: 'SOME_UNKNOWN_ERROR: detail' } },
+    })
+    const result = await openEdicion(validInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.message).toBe('SOME_UNKNOWN_ERROR: detail')
+  })
 })
