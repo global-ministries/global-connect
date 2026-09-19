@@ -19,6 +19,7 @@ import {
   type RouteAccessError,
 } from './errors'
 import { isTalleresEnabled } from './flags'
+import { PLATFORM_CAPABILITIES, type PlatformCapabilityKey } from '@/lib/platform/experiences'
 
 /**
  * Checks if the user has access to talleres routes based on capabilities.
@@ -80,6 +81,22 @@ export function canAccessTalleres(params: {
 
 export { isRouteAccessDenied, isRouteNotFound, isFlagDisabled }
 export type { RouteAccessError }
+
+// ─── T1 — canonical capability list ────────────────────────────────────────
+//
+// odd/tasks/talleres-consolidar-pantallas.md, T0: the old
+// lib/platform/talleres/capabilities.ts (a dead module — no importer
+// outside its own cluster/tests) hard-coded this same 13-key array by
+// hand. Rather than resurrect it, this derives the list LIVE from
+// lib/platform/experiences.ts's PLATFORM_CAPABILITIES — the actual
+// registry every capability grant is validated against — so it can never
+// drift from what's really registered.
+
+export type TalleresCapabilityKey = Extract<PlatformCapabilityKey, `talleres_crecimiento.${string}`>
+
+export const TALLERES_CAPABILITY_KEYS: readonly TalleresCapabilityKey[] = (
+  Object.keys(PLATFORM_CAPABILITIES) as PlatformCapabilityKey[]
+).filter((key): key is TalleresCapabilityKey => key.startsWith('talleres_crecimiento.'))
 
 // ─── PR17 — DT-070 — Navigation sub-items ──────────────────────────────────
 
@@ -198,6 +215,40 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // page's write actions still gate on director.write OR admin.manage.
   { id: 'talleres_admin_inscripciones_global', label: 'Inscripciones (global)', href: '/admin/talleres/inscripciones', requiredCapability: 'talleres_crecimiento.admin.manage' },
 ]
+
+// ─── T1 — route-access.ts as the single source of "which capability does
+// this route need" ──────────────────────────────────────────────────────
+//
+// docs/talleres-de-punta-a-punta.md §9, "Navegación": "route-access.ts es
+// hoy una segunda fuente de verdad que sólo controla la visibilidad del
+// menú. Nada garantiza que la capacidad declarada ahí coincida con el
+// portón real de la página. Al consolidar, ese catálogo debe pasar a ser
+// la única fuente: la ruta declara su capacidad y el portón la lee de
+// ahí." This map is that single source: a page's own guard can import
+// `getRequiredCapabilityForRoute` instead of hard-coding its capability
+// key a second time. No existing page is rewired to consume this in T1
+// — that migration happens page-by-page as each screen is rebuilt
+// (T2–T9); this only makes the lookup available and keeps it correct by
+// construction (derived from TALLERES_NAV_ITEMS, never hand-duplicated).
+
+/**
+ * href → requiredCapability, derived from TALLERES_NAV_ITEMS. `null` means
+ * the route is open to any authenticated user (the P/participante items).
+ */
+export const TALLERES_ROUTE_CAPABILITY_MAP: Readonly<Record<string, string | null>> =
+  Object.fromEntries(TALLERES_NAV_ITEMS.map((item) => [item.href, item.requiredCapability]))
+
+/**
+ * Looks up the capability a route needs. Returns `null` when the route is
+ * open to anyone, or `undefined` when the route isn't in the nav catalog
+ * at all (a page NOT yet listed in TALLERES_NAV_ITEMS — the caller should
+ * treat an unknown route conservatively, not as "open").
+ */
+export function getRequiredCapabilityForRoute(href: string): string | null | undefined {
+  return Object.prototype.hasOwnProperty.call(TALLERES_ROUTE_CAPABILITY_MAP, href)
+    ? TALLERES_ROUTE_CAPABILITY_MAP[href]
+    : undefined
+}
 
 /**
  * Returns the list of talleres sub-items visible to the user based on

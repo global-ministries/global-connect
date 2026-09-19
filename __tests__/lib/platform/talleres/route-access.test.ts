@@ -8,6 +8,10 @@ import {
   isRouteAccessDenied,
   isRouteNotFound,
   isFlagDisabled,
+  TALLERES_NAV_ITEMS,
+  TALLERES_CAPABILITY_KEYS,
+  TALLERES_ROUTE_CAPABILITY_MAP,
+  getRequiredCapabilityForRoute,
 } from '@/lib/platform/talleres/route-access'
 
 describe('assertTalleresRouteAccess', () => {
@@ -114,5 +118,44 @@ describe('type guards', () => {
   it('isFlagDisabled returns true for FLAG_DISABLED', () => {
     const error = { code: 'FLAG_DISABLED' as const, message: '' }
     expect(isFlagDisabled(error)).toBe(true)
+  })
+})
+
+// ─── T1 — route-access.ts as the single source of "which capability does
+// this route need" (docs/talleres-de-punta-a-punta.md §9: "al consolidar,
+// ese catálogo debe pasar a ser la única fuente: la ruta declara su
+// capacidad y el portón la lee de ahí") ────────────────────────────────
+
+describe('TALLERES_CAPABILITY_KEYS — canonical live capability list', () => {
+  it('is derived from the platform capability registry, not a hand-copied array', () => {
+    // 13 canonical talleres_crecimiento.* keys per lib/platform/experiences.ts.
+    expect(TALLERES_CAPABILITY_KEYS.length).toBe(13)
+    expect(TALLERES_CAPABILITY_KEYS.every((k) => k.startsWith('talleres_crecimiento.'))).toBe(true)
+  })
+
+  it('every non-null TALLERES_NAV_ITEMS.requiredCapability is one of TALLERES_CAPABILITY_KEYS', () => {
+    for (const item of TALLERES_NAV_ITEMS) {
+      if (item.requiredCapability === null) continue
+      expect(TALLERES_CAPABILITY_KEYS).toContain(item.requiredCapability)
+    }
+  })
+})
+
+describe('TALLERES_ROUTE_CAPABILITY_MAP / getRequiredCapabilityForRoute — route→capability lookup', () => {
+  it('maps every nav item href to its requiredCapability', () => {
+    for (const item of TALLERES_NAV_ITEMS) {
+      expect(TALLERES_ROUTE_CAPABILITY_MAP[item.href]).toBe(item.requiredCapability)
+    }
+  })
+
+  it('getRequiredCapabilityForRoute returns the mapped capability for a known route', () => {
+    expect(getRequiredCapabilityForRoute('/talleres/coordinacion')).toBe(
+      'talleres_crecimiento.coordinator.read',
+    )
+    expect(getRequiredCapabilityForRoute('/talleres/explorar')).toBeNull()
+  })
+
+  it('getRequiredCapabilityForRoute returns undefined for a route outside the catalog', () => {
+    expect(getRequiredCapabilityForRoute('/talleres/does-not-exist')).toBeUndefined()
   })
 })
