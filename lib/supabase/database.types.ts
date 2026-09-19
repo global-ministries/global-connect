@@ -7008,26 +7008,6 @@ export type Database = {
         }
         Returns: Json
       }
-      create_taller_with_initial_state: {
-        Args: {
-          p_cohorte_edicion_label: string
-          p_cohorte_ended_at: string
-          p_cohorte_started_at: string
-          p_duracion_estimada_minutos: number
-          p_edicion: string
-          p_equipo_id: string
-          p_equipo_label: string
-          p_fecha_fin_periodo: string
-          p_fecha_inicio_periodo: string
-          p_firmantes: Json
-          p_link_type: string
-          p_modalidad_inscripcion: string
-          p_nombre: string
-          p_sesiones_estimadas: number
-          p_tipo: string
-        }
-        Returns: Json
-      }
       dream_team_apply_servicio_grants: {
         Args: { p_accion: string; p_grants: Json; p_persona_id: string }
         Returns: number
