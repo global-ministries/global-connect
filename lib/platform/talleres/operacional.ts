@@ -34,12 +34,6 @@ export interface OperacionalContext {
   readonly personaId: string
   readonly role: OperacionalRole
   readonly capabilities: readonly string[]
-  /**
-   * Equipo ids where the user holds a scoped `coordinator.*` grant.
-   * Empty for a global director (scope_id NULL / role 'D'). Used to
-   * align the coordinador UI with the row-level scope the RLS enforces.
-   */
-  readonly scopedEquipoIds: readonly string[]
 }
 
 /**
@@ -104,19 +98,6 @@ export async function loadOperacionalContext(): Promise<
   const role = resolveRole(capabilityKeys)
   if (!role) return { ok: false }
 
-  // Equipos where the user holds a SCOPED coordinator grant. A grant with
-  // no scopeId is not equipo-confined, so it never narrows the UI (the RLS
-  // remains the security wall; this only aligns what we query for 'C').
-  const scopedEquipoIds = Array.from(
-    new Set(
-      session.capabilities
-        .filter(
-          (c) => c.key.startsWith('talleres_crecimiento.coordinator.') && c.scopeId,
-        )
-        .map((c) => c.scopeId as string),
-    ),
-  )
-
   return {
     ok: true,
     context: {
@@ -124,7 +105,6 @@ export async function loadOperacionalContext(): Promise<
       personaId: session.personaId,
       role,
       capabilities: capabilityKeys,
-      scopedEquipoIds,
     },
   }
 }
@@ -506,13 +486,15 @@ export interface CoordTallerAgrupado {
  * their own singleton group keyed by the edición id and labeled with its
  * nombre_snapshot, so nothing is dropped.
  *
- * Coordinador scope: `taller_ediciones` is NOT RLS-scoped, so a per-taller
- * coordinador (role 'C') reading it directly would see EVERY taller. We embed
- * each edición's cohortes (dream_team_equipo_id) — the only bridge from an
- * edición to its equipo — and keep only ediciones in one of the coordinador's
- * scopedEquipoIds. That embed is itself RLS-scoped, so a foreign equipo's
- * cohorte never even arrives. A global director (role 'D', scope_id NULL)
- * bypasses the filter and sees all talleres.
+ * Coordinador scope: talleres-autoridad-arbol (T2) scoped taller_ediciones_
+ * select directly on the row via talleres_equipo_de_edicion (edición ->
+ * taller -> its own equipo), walking ancestors the same way every other
+ * talleres RLS branch does. RLS is the security wall here and it already
+ * expands a parent-node grant down to every descendant equipo, so no
+ * client-side re-filtering is applied (or even possible correctly — a flat
+ * list of the coordinador's own scope_ids has no way to know which equipos
+ * are its descendants). Whatever rows the query returns are already the
+ * rows this persona — coordinador or director alike — is authorized to see.
  */
 export async function loadCoordTalleresAgrupados(
   ctx: OperacionalContext
@@ -521,30 +503,12 @@ export async function loadCoordTalleresAgrupados(
   const client: any = ctx.supabase
   const { data, error } = await client
     .from('taller_ediciones')
-    .select(
-      'id, taller_id, nombre_snapshot, tipo, estado, talleres(id, nombre), talleres_crecimiento_cohortes(dream_team_equipo_id)'
-    )
+    .select('id, taller_id, nombre_snapshot, tipo, estado, talleres(id, nombre)')
     .order('created_at', { ascending: false })
   if (error || !data) return []
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- PostgREST rows
-  let rows = data as any[]
-
-  // Confine the per-taller coordinador to its equipos. Keep an edición only
-  // when at least one of its cohortes lives in a scoped equipo. Empty
-  // scopedEquipoIds ⇒ fail-closed (a scoped coordinador with no equipo sees
-  // nothing). Role 'D'/'L' skip this branch.
-  if (ctx.role === 'C') {
-    const scoped = new Set(ctx.scopedEquipoIds)
-    rows = rows.filter((row) => {
-      const cohortes = (row.talleres_crecimiento_cohortes ?? []) as Array<{
-        dream_team_equipo_id: string | null
-      }>
-      return cohortes.some(
-        (c) => c.dream_team_equipo_id != null && scoped.has(c.dream_team_equipo_id)
-      )
-    })
-  }
+  const rows = data as any[]
 
   const byTaller = new Map<
     string,
