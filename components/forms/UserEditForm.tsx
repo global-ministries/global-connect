@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -110,6 +111,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const toast = useNotificaciones()
+  const router = useRouter()
 
   // Obtener los IDs correctos para los selects de dirección
   const parroquiaObj = usuario?.direccion?.parroquia
@@ -192,7 +194,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
 
       if (esPerfil) {
         toast.success('Perfil actualizado exitosamente')
-        window.location.href = '/perfil'
+        router.push('/perfil')
       }
 
     } catch (err: unknown) {
