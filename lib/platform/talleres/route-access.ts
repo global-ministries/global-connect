@@ -96,7 +96,6 @@ export type TalleresNavItemId =
   // Líder / Voluntario
   | 'talleres_grupos_mis_grupos'
   | 'talleres_sesiones_proximas'
-  | 'talleres_recursos'
   // Coordinador
   | 'talleres_coordinacion_resumen'
   | 'talleres_coordinacion_inscripciones_pendientes'
@@ -159,9 +158,13 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   { id: 'talleres_participante_historial', label: 'Historial', href: '/talleres/historial', requiredCapability: null },
   { id: 'talleres_participante_certificados', label: 'Certificados', href: '/talleres/certificados', requiredCapability: null },
   // L / V — Líder + Voluntario (lead.read OR volunteer.read)
-  { id: 'talleres_grupos_mis_grupos', label: 'Mis Grupos', href: '/talleres/grupos', requiredCapability: 'talleres_crecimiento.lead.read' },
-  { id: 'talleres_sesiones_proximas', label: 'Próximas Sesiones', href: '/talleres/sesiones', requiredCapability: 'talleres_crecimiento.lead.read' },
-  { id: 'talleres_recursos', label: 'Recursos', href: '/talleres/recursos', requiredCapability: 'talleres_crecimiento.lead.read' },
+  // T0 — repointed at the real pages (previously /talleres/grupos and
+  // /talleres/sesiones, neither of which existed — a silent 404). Recursos
+  // is deleted in this consolidation (odd/tasks/talleres-consolidar-
+  // pantallas.md, decisiones): it rendered a placeholder with no real
+  // resource data, so the nav item is dropped rather than repointed.
+  { id: 'talleres_grupos_mis_grupos', label: 'Mis Grupos', href: '/talleres/equipo/mis-grupos', requiredCapability: 'talleres_crecimiento.lead.read' },
+  { id: 'talleres_sesiones_proximas', label: 'Próximas Sesiones', href: '/talleres/equipo/proximas-sesiones', requiredCapability: 'talleres_crecimiento.lead.read' },
   // C — Coordinador
   { id: 'talleres_coordinacion_resumen', label: 'Resumen', href: '/talleres/coordinacion', requiredCapability: 'talleres_crecimiento.coordinator.read' },
   { id: 'talleres_coordinacion_inscripciones_pendientes', label: 'Inscripciones Pendientes', href: '/talleres/coordinacion/inscripciones', requiredCapability: 'talleres_crecimiento.coordinator.read' },
