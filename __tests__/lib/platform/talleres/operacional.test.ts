@@ -290,61 +290,6 @@ describe('loadOperacionalContext — gate + role resolution', () => {
   })
 })
 
-// ─── scopedEquipoIds — coordinator scope surfaced in context ─────────────
-
-describe('scopedEquipoIds — coordinator scope surfaced in context', () => {
-  it('collects the equipo id from scoped coordinator.* grants', async () => {
-    setupSupabaseMock({
-      personaId: PERSONA_ID,
-      capabilities: [
-        { key: 'talleres_crecimiento.coordinator.read', scopeId: 'equipo-A' },
-        { key: 'talleres_crecimiento.coordinator.write', scopeId: 'equipo-A' },
-        { key: 'talleres_crecimiento.metrics.read', scopeId: 'equipo-A' },
-      ],
-    })
-    const result = await loadOperacionalContext()
-    if (!result.ok) throw new Error('expected ok')
-    expect(result.context.role).toBe('C')
-    expect([...result.context.scopedEquipoIds]).toEqual(['equipo-A'])
-  })
-
-  it('is empty for a global director (no coordinator.* grants)', async () => {
-    setupSupabaseMock({
-      personaId: PERSONA_ID,
-      capabilities: ['talleres_crecimiento.director.read'],
-    })
-    const result = await loadOperacionalContext()
-    if (!result.ok) throw new Error('expected ok')
-    expect(result.context.role).toBe('D')
-    expect([...result.context.scopedEquipoIds]).toEqual([])
-  })
-
-  it('dedupes multiple scoped grants across distinct equipos', async () => {
-    setupSupabaseMock({
-      personaId: PERSONA_ID,
-      capabilities: [
-        { key: 'talleres_crecimiento.coordinator.read', scopeId: 'equipo-A' },
-        { key: 'talleres_crecimiento.coordinator.read', scopeId: 'equipo-B' },
-        { key: 'talleres_crecimiento.coordinator.write', scopeId: 'equipo-A' },
-      ],
-    })
-    const result = await loadOperacionalContext()
-    if (!result.ok) throw new Error('expected ok')
-    expect([...result.context.scopedEquipoIds].sort()).toEqual(['equipo-A', 'equipo-B'])
-  })
-
-  it('ignores coordinator.* grants without a scopeId (global-ish)', async () => {
-    setupSupabaseMock({
-      personaId: PERSONA_ID,
-      capabilities: ['talleres_crecimiento.coordinator.read'],
-    })
-    const result = await loadOperacionalContext()
-    if (!result.ok) throw new Error('expected ok')
-    expect(result.context.role).toBe('C')
-    expect([...result.context.scopedEquipoIds]).toEqual([])
-  })
-})
-
 // ─── Equipo (L) ──────────────────────────────────────────────────────────
 
 describe('loadEquipoGrupos — owner-scoped via asignaciones', () => {
@@ -751,30 +696,25 @@ function buildAgrupadosClientMock(
 
 function agrupadosCtx(
   from: jest.Mock,
-  opts?: { role?: 'C' | 'D' | 'L'; scopedEquipoIds?: readonly string[] }
+  opts?: { role?: 'C' | 'D' | 'L' }
 ): OperacionalContext {
   return {
     supabase: { from },
     personaId: PERSONA_ID,
-    // Grouping tests default to the global director path (role 'D', no scope
-    // filter); the scope-filter tests below pass role 'C' with explicit
-    // scopedEquipoIds to exercise the per-taller coordinador confinement.
+    // taller_ediciones is RLS-scoped at the row level (talleres-autoridad-
+    // arbol T2), so the loader no longer filters by role client-side — the
+    // role here only documents which persona-shape a test simulates.
     role: opts?.role ?? 'D',
     capabilities: [],
-    scopedEquipoIds: opts?.scopedEquipoIds ?? [],
   } as unknown as OperacionalContext
 }
 
 describe('loadCoordTalleresAgrupados — group ediciones by abstract taller', () => {
-  it('selects taller_id, embeds the abstract talleres(nombre) and the cohortes equipo', async () => {
+  it('selects taller_id and embeds the abstract talleres(nombre)', async () => {
     const { from, selectCols } = buildAgrupadosClientMock([])
     await loadCoordTalleresAgrupados(agrupadosCtx(from))
     expect(selectCols[0]).toMatch(/taller_id/)
     expect(selectCols[0]).toMatch(/talleres\s*\(/)
-    // The embedded cohortes carry the dream_team equipo id — the only bridge
-    // from an edición to its equipo, used to scope the coordinador view.
-    expect(selectCols[0]).toMatch(/talleres_crecimiento_cohortes\s*\(/)
-    expect(selectCols[0]).toMatch(/dream_team_equipo_id/)
   })
 
   it('groups multiple ediciones under one taller (distinct talleres, not ediciones)', async () => {
@@ -845,16 +785,20 @@ describe('loadCoordTalleresAgrupados — group ediciones by abstract taller', ()
   })
 })
 
-// ─── loadCoordTalleresAgrupados — coordinador scope confinement (role C) ──────
+// ─── loadCoordTalleresAgrupados — no client-side scope filtering ─────────────
 //
-// `taller_ediciones` is NOT RLS-scoped, so a per-taller coordinador reading it
-// directly would see EVERY taller. The loader confines role 'C' to its
-// scopedEquipoIds by resolving each edición to its equipo via the embedded
-// cohortes (dream_team_equipo_id). A global director (role 'D', scope_id NULL)
-// bypasses the filter and sees all talleres.
+// talleres-autoridad-arbol T2 scoped taller_ediciones_select directly on the
+// row (via talleres_equipo_de_edicion, which walks ancestors like every
+// other talleres RLS branch). The loader used to re-filter role 'C' rows by
+// an exact-match scopedEquipoIds set — a workaround from when
+// taller_ediciones carried no RLS scope at all — but that workaround broke
+// ancestor-scoped grants (a coordinator granted on a PARENT node has no flat
+// list of every descendant equipo to match against) and is now redundant:
+// RLS already decided which rows this persona may see. These tests assert
+// the loader passes rows through unchanged regardless of role.
 
-describe('loadCoordTalleresAgrupados — coordinador scope (role C confined to scopedEquipoIds)', () => {
-  const scopedRows = [
+describe('loadCoordTalleresAgrupados — trusts RLS, no app-side re-filtering', () => {
+  const rows = [
     {
       id: 'e-A1',
       taller_id: 't-A',
@@ -862,7 +806,6 @@ describe('loadCoordTalleresAgrupados — coordinador scope (role C confined to s
       tipo: 'individual',
       estado: 'abierto',
       talleres: { id: 't-A', nombre: 'Taller A' },
-      talleres_crecimiento_cohortes: [{ dream_team_equipo_id: 'equipo-A' }],
     },
     {
       id: 'e-B1',
@@ -871,75 +814,19 @@ describe('loadCoordTalleresAgrupados — coordinador scope (role C confined to s
       tipo: 'pareja',
       estado: 'abierto',
       talleres: { id: 't-B', nombre: 'Taller B' },
-      talleres_crecimiento_cohortes: [{ dream_team_equipo_id: 'equipo-B' }],
     },
   ]
 
-  it('role C: keeps only ediciones whose cohorte equipo is in scopedEquipoIds', async () => {
-    const { from } = buildAgrupadosClientMock(scopedRows)
-    const groups = await loadCoordTalleresAgrupados(
-      agrupadosCtx(from, { role: 'C', scopedEquipoIds: ['equipo-A'] })
-    )
-    expect(groups).toHaveLength(1)
-    expect(groups[0]?.taller_id).toBe('t-A')
-    expect(groups[0]?.ediciones.map((e) => e.id)).toEqual(['e-A1'])
-  })
-
-  it('role C: keeps an edición when ANY of its cohortes is in scope', async () => {
-    const rows = [
-      {
-        id: 'e-mix',
-        taller_id: 't-A',
-        nombre_snapshot: 'Edición mixta',
-        tipo: 'individual',
-        estado: 'abierto',
-        talleres: { id: 't-A', nombre: 'Taller A' },
-        talleres_crecimiento_cohortes: [
-          { dream_team_equipo_id: 'equipo-B' },
-          { dream_team_equipo_id: 'equipo-A' },
-        ],
-      },
-    ]
+  it('role C: every row the query returns is kept (RLS already scoped it, incl. ancestor-granted branches)', async () => {
     const { from } = buildAgrupadosClientMock(rows)
-    const groups = await loadCoordTalleresAgrupados(
-      agrupadosCtx(from, { role: 'C', scopedEquipoIds: ['equipo-A'] })
-    )
-    expect(groups).toHaveLength(1)
-    expect(groups[0]?.taller_id).toBe('t-A')
+    const groups = await loadCoordTalleresAgrupados(agrupadosCtx(from, { role: 'C' }))
+    expect(groups).toHaveLength(2)
+    expect(groups.map((g) => g.taller_id).sort()).toEqual(['t-A', 't-B'])
   })
 
-  it('role C: drops ediciones with no visible cohorte (RLS-hidden embed = empty)', async () => {
-    const rows = [
-      {
-        id: 'e-hidden',
-        taller_id: 't-B',
-        nombre_snapshot: 'Edición ajena',
-        tipo: 'individual',
-        estado: 'abierto',
-        talleres: { id: 't-B', nombre: 'Taller B' },
-        talleres_crecimiento_cohortes: [],
-      },
-    ]
+  it('role D (global director): also sees every returned row', async () => {
     const { from } = buildAgrupadosClientMock(rows)
-    const groups = await loadCoordTalleresAgrupados(
-      agrupadosCtx(from, { role: 'C', scopedEquipoIds: ['equipo-A'] })
-    )
-    expect(groups).toEqual([])
-  })
-
-  it('role C with empty scopedEquipoIds sees nothing (fail-closed)', async () => {
-    const { from } = buildAgrupadosClientMock(scopedRows)
-    const groups = await loadCoordTalleresAgrupados(
-      agrupadosCtx(from, { role: 'C', scopedEquipoIds: [] })
-    )
-    expect(groups).toEqual([])
-  })
-
-  it('role D (global director): no scope filter — sees every taller', async () => {
-    const { from } = buildAgrupadosClientMock(scopedRows)
-    const groups = await loadCoordTalleresAgrupados(
-      agrupadosCtx(from, { role: 'D', scopedEquipoIds: [] })
-    )
+    const groups = await loadCoordTalleresAgrupados(agrupadosCtx(from, { role: 'D' }))
     expect(groups).toHaveLength(2)
     expect(groups.map((g) => g.taller_id).sort()).toEqual(['t-A', 't-B'])
   })
