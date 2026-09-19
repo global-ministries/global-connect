@@ -7449,52 +7449,22 @@ export type Database = {
           nombre: string
         }[]
       }
-      open_edicion:
-        | {
-            Args: {
-              p_duracion_estimada_minutos: number
-              p_fecha_fin_periodo: string
-              p_fecha_inicio_periodo: string
-              p_firmantes: Json
-              p_link_type: string
-              p_modalidad_inscripcion: string
-              p_nombre_edicion: string
-              p_sesiones_estimadas: number
-              p_taller_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_duracion_estimada_minutos: number
-              p_fecha_fin_periodo: string
-              p_fecha_inicio_periodo: string
-              p_firmantes: Json
-              p_link_type: string
-              p_modalidad_inscripcion: string
-              p_nombre_edicion: string
-              p_sesiones_estimadas: number
-              p_taller_id: string
-              p_tipo: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_duracion_estimada_minutos: number
-              p_fecha_fin_periodo: string
-              p_fecha_inicio_periodo: string
-              p_firmantes: Json
-              p_link_type: string
-              p_modalidad_inscripcion: string
-              p_nombre_edicion: string
-              p_sesiones_estimadas: number
-              p_taller_id: string
-              p_temporada_id: string
-              p_tipo: string
-            }
-            Returns: Json
-          }
+      open_edicion: {
+        Args: {
+          p_duracion_estimada_minutos: number
+          p_fecha_fin_periodo: string
+          p_fecha_inicio_periodo: string
+          p_firmantes: Json
+          p_link_type: string
+          p_modalidad_inscripcion: string
+          p_nombre_edicion: string
+          p_sesiones_estimadas: number
+          p_taller_id: string
+          p_temporada_id: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
       operating_core_claim_public_token: {
         Args: { p_consuming_persona_id?: string; p_token_hash: string }
         Returns: {
@@ -7622,10 +7592,6 @@ export type Database = {
         Args: { p_auth_id: string; p_grupo_id: string }
         Returns: boolean
       }
-      puede_editar_taller_grupo: {
-        Args: { p_taller_id: string }
-        Returns: boolean
-      }
       puede_editar_usuario: {
         Args: { p_auth_id: string; p_target_user_id: string }
         Returns: boolean
@@ -7633,10 +7599,6 @@ export type Database = {
       puede_gestionar_casas: { Args: { p_auth_id: string }; Returns: boolean }
       puede_gestionar_miembros: {
         Args: { p_auth_id: string; p_grupo_id: string }
-        Returns: boolean
-      }
-      puede_gestionar_participantes_taller_grupo: {
-        Args: { p_taller_id: string }
         Returns: boolean
       }
       puede_gestionar_relacion_familiar: {
@@ -7666,10 +7628,6 @@ export type Database = {
           p_usuario1_id: string
           p_usuario2_id: string
         }
-        Returns: boolean
-      }
-      puede_ver_taller_grupo: {
-        Args: { p_taller_id: string }
         Returns: boolean
       }
       puede_ver_usuario: {
