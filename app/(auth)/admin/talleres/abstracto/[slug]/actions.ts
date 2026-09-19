@@ -55,6 +55,23 @@ export type OpenEdicionResult =
       readonly message?: string
     }
 
+/**
+ * T4 — friendly Spanish translation for open_edicion's new errcode
+ * (see 20260918170000_open_edicion_uses_taller_equipo.sql). Keyed by
+ * the message prefix before the first ':' — an unrecognized code
+ * falls back to the raw RPC message.
+ */
+const RPC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  TALLER_MISSING_EQUIPO:
+    'Este taller no tiene un equipo asignado en el organigrama. Volvé al catálogo y vinculalo o creá uno antes de abrir una edición.',
+}
+
+function friendlyRpcMessage(rawMessage: string | undefined | null): string | undefined {
+  if (!rawMessage) return undefined
+  const code = rawMessage.split(':')[0]?.trim()
+  return (code && RPC_ERROR_MESSAGES[code]) || rawMessage
+}
+
 export async function openEdicion(input: OpenEdicionInput): Promise<OpenEdicionResult> {
   if (!isTalleresEnabled()) return { ok: false, error: 'not-found' }
 
@@ -134,7 +151,7 @@ export async function openEdicion(input: OpenEdicionInput): Promise<OpenEdicionR
     return {
       ok: false,
       error: 'internal',
-      message: (error?.message as string) ?? 'unknown error',
+      message: friendlyRpcMessage(error?.message as string | undefined) ?? 'unknown error',
     }
   }
 
