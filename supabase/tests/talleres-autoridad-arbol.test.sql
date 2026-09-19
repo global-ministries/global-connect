@@ -92,7 +92,8 @@ INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_d
   ('a6000000-0000-4000-8000-000000000009', 'authenticated', 'authenticated', 't2-fixture-coordconexion@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
   ('a6000000-0000-4000-8000-00000000000b'::uuid, 'authenticated', 'authenticated', 't2-fixture-coorddps@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
   ('a6000000-0000-4000-8000-00000000000d', 'authenticated', 'authenticated', 't2-fixture-member@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
-  ('a6000000-0000-4000-8000-00000000000f', 'authenticated', 'authenticated', 't2-fixture-dpsparticipant@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now())
+  ('a6000000-0000-4000-8000-00000000000f', 'authenticated', 'authenticated', 't2-fixture-dpsparticipant@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
+  ('a6000000-0000-4000-8000-000000000070', 'authenticated', 'authenticated', 't2-fixture-member2@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero) VALUES
@@ -101,7 +102,8 @@ INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil,
   ('a6000000-0000-4000-8000-00000000000a'::uuid, 'a6000000-0000-4000-8000-000000000009', 'T2 Fixture', 'CoordConexion', 't2-fixture-coordconexion@example.test', 'Soltero', 'Otro'),
   ('a6000000-0000-4000-8000-00000000000c'::uuid, 'a6000000-0000-4000-8000-00000000000b'::uuid, 'T2 Fixture', 'CoordDps', 't2-fixture-coorddps@example.test', 'Soltero', 'Otro'),
   ('a6000000-0000-4000-8000-00000000000e', 'a6000000-0000-4000-8000-00000000000d', 'T2 Fixture', 'Member', 't2-fixture-member@example.test', 'Soltero', 'Otro'),
-  ('a6000000-0000-4000-8000-000000000010', 'a6000000-0000-4000-8000-00000000000f', 'T2 Fixture', 'DpsParticipant', 't2-fixture-dpsparticipant@example.test', 'Soltero', 'Otro');
+  ('a6000000-0000-4000-8000-000000000010', 'a6000000-0000-4000-8000-00000000000f', 'T2 Fixture', 'DpsParticipant', 't2-fixture-dpsparticipant@example.test', 'Soltero', 'Otro'),
+  ('a6000000-0000-4000-8000-000000000071', 'a6000000-0000-4000-8000-000000000070', 'T2 Fixture', 'Member2', 't2-fixture-member2@example.test', 'Soltero', 'Otro');
 
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id) VALUES
   ('a6000000-0000-4000-8000-000000000006', 'talleres_crecimiento.admin.manage', 'talleres_crecimiento', 'experience', NULL),
@@ -153,6 +155,29 @@ BEGIN
     ('cohorte_dps', (v_resultado ->> 'cohorte_id')::uuid);
 END;
 $ediciones$;
+
+-- A second Conexión edición, opened 'abierto' (AC4 self-enroll coverage
+-- needs an open edición — the self-enroll WITH CHECK branch requires
+-- estado IN (abierto, en_curso)). The baseline edicion_conexion above
+-- stays 'borrador' so every earlier-established assertion in this file
+-- (e.g. "taller_ediciones/plain member sees neither") is unaffected.
+DO $edicion_abierta$
+DECLARE
+  v_resultado jsonb;
+BEGIN
+  v_resultado := public.open_edicion(
+    p_taller_id => 'a6000000-0000-4000-8000-000000000003',
+    p_tipo => 'individual', p_nombre_edicion => 'ZZ T2 Fixture Edición Conexión Abierta', p_link_type => NULL,
+    p_sesiones_estimadas => 1, p_duracion_estimada_minutos => 60, p_modalidad_inscripcion => 'permanente_custom',
+    p_fecha_inicio_periodo => now(), p_fecha_fin_periodo => NULL, p_firmantes => '[]'::jsonb, p_temporada_id => NULL
+  );
+  INSERT INTO t2_fixture (key, id) VALUES
+    ('edicion_conexion_abierta', (v_resultado ->> 'edicion_id')::uuid),
+    ('cohorte_conexion_abierta', (v_resultado ->> 'cohorte_id')::uuid);
+
+  UPDATE public.taller_ediciones SET estado = 'abierto' WHERE id = (v_resultado ->> 'edicion_id')::uuid;
+END;
+$edicion_abierta$;
 
 -- ── the rest of the object graph (direct inserts, bypassing RLS) ──────
 
@@ -348,6 +373,63 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_member();
 SELECT pg_temp.check_count('inscripciones/plain member sees only their own',
   (SELECT count(*) FROM public.taller_inscripciones WHERE id IN ('a6000000-0000-4000-8000-000000000024','a6000000-0000-4000-8000-000000000025')), 1);
+RESET ROLE;
+
+-- ══ taller_inscripciones — SELF self-enroll (AC4) ═══════════════════
+-- Covers acceptance criterion 4: a member with no grants can still
+-- self-enroll into an open edición's own cohorte and see it, cannot
+-- self-enroll into a closed (borrador) edición or with a mismatched
+-- cohorte, and never sees another member's inscripción. This branch of
+-- taller_inscripciones_insert/select is SELF-only and untouched by T2 —
+-- this is regression coverage for existing, already-correct behavior.
+
+-- (a) CAN self-enroll pendiente into an abierto edición with its own cohorte.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_member();
+SELECT pg_temp.check_write('self-enroll/member allowed enrolling pendiente into an abierto edición with its own cohorte',
+  format($$INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES ('a6000000-0000-4000-8000-000000000060', %L, %L, 'a6000000-0000-4000-8000-00000000000e', 'pendiente')$$,
+    (SELECT id FROM t2_fixture WHERE key='edicion_conexion_abierta'),
+    (SELECT id FROM t2_fixture WHERE key='cohorte_conexion_abierta')),
+  true);
+SELECT pg_temp.check_count('self-enroll/member sees the row it just self-enrolled',
+  (SELECT count(*) FROM public.taller_inscripciones WHERE id = 'a6000000-0000-4000-8000-000000000060'), 1);
+RESET ROLE;
+
+-- (b) CANNOT self-enroll into a borrador edición (uses member2 — member
+-- already has a row on edicion_conexion/cohorte_conexion, and reusing
+-- that exact triple would hit the unique constraint instead of RLS).
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', 'a6000000-0000-4000-8000-000000000070', true),
+       set_config('request.jwt.claim.role', 'authenticated', true);
+SELECT pg_temp.check_write('self-enroll/member2 denied enrolling into a borrador edición',
+  format($$INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES ('a6000000-0000-4000-8000-000000000062', %L, %L, 'a6000000-0000-4000-8000-000000000071', 'pendiente')$$,
+    (SELECT id FROM t2_fixture WHERE key='edicion_conexion'),
+    (SELECT id FROM t2_fixture WHERE key='cohorte_conexion')),
+  false);
+
+-- (c) CANNOT use a cohorte belonging to a DIFFERENT edición (cohorte_dps
+-- belongs to edicion_dps, not the abierta edición being enrolled into).
+SELECT pg_temp.check_write('self-enroll/member2 denied enrolling with a cohorte from another edición',
+  format($$INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES ('a6000000-0000-4000-8000-000000000063', %L, %L, 'a6000000-0000-4000-8000-000000000071', 'pendiente')$$,
+    (SELECT id FROM t2_fixture WHERE key='edicion_conexion_abierta'),
+    (SELECT id FROM t2_fixture WHERE key='cohorte_dps')),
+  false);
+
+-- (d) sees no other member's inscripción: member2 legitimately self-
+-- enrolls into the SAME abierto edición/cohorte member used in (a), as
+-- its own separate row — then member must see only its own two
+-- inscripciones, never member2's, even within the same branch.
+SELECT pg_temp.check_write('self-enroll/member2 allowed enrolling into the same abierto edición (its own row)',
+  format($$INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES ('a6000000-0000-4000-8000-000000000061', %L, %L, 'a6000000-0000-4000-8000-000000000071', 'pendiente')$$,
+    (SELECT id FROM t2_fixture WHERE key='edicion_conexion_abierta'),
+    (SELECT id FROM t2_fixture WHERE key='cohorte_conexion_abierta')),
+  true);
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_member();
+SELECT pg_temp.check_count('self-enroll/member sees only its own two inscripciones, not member2''s (same branch, different person)',
+  (SELECT count(*) FROM public.taller_inscripciones WHERE id IN ('a6000000-0000-4000-8000-000000000024','a6000000-0000-4000-8000-000000000060','a6000000-0000-4000-8000-000000000061')), 2);
 RESET ROLE;
 
 -- ══ taller_asistencias ═══════════════════════════════════════════════
