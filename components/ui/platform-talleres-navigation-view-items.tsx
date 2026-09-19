@@ -32,7 +32,12 @@ export type TalleresNavViewGroup = TalleresNavGroup
 export type TalleresNavViewItem = TalleresNavItem
 
 interface Input {
-  /** Capabilities the current session holds. Empty array → empty menu. */
+  /**
+   * Capabilities the current session holds. An empty array still returns
+   * the P (participante) group — those items are open to any authenticated
+   * caller (odd/tasks/talleres-autoinscripcion.md, criterion 7). Every
+   * other role group requires its own capability and is empty otherwise.
+   */
   readonly sessionCapabilities: readonly string[]
   /**
    * Optional override for the feature flag. When omitted the hook reads

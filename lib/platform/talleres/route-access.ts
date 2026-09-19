@@ -125,14 +125,22 @@ export type TalleresNavItem = Readonly<{
   id: TalleresNavItemId
   label: string
   href: string
-  requiredCapability: string
+  /**
+   * The capability required to see this item, or `null` when the item is
+   * open to ANY authenticated user (odd/tasks/talleres-autoinscripcion.md,
+   * acceptance criterion 7 — the participant items must be reachable by a
+   * member with zero talleres capabilities). `null` is an explicit marker,
+   * not a magic string, so `getTalleresNavItems` never has to compare
+   * against a sentinel capability key.
+   */
+  requiredCapability: string | null
 }>
 
 interface NavItemSpec {
   readonly id: TalleresNavItemId
   readonly label: string
   readonly href: string
-  readonly requiredCapability: string
+  readonly requiredCapability: string | null
 }
 
 /**
@@ -141,11 +149,15 @@ interface NavItemSpec {
  * UI renders in a deterministic order.
  */
 export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
-  // P — Participante
-  { id: 'talleres_participante_explorar', label: 'Explorar', href: '/talleres/explorar', requiredCapability: 'talleres_crecimiento.participation.read' },
-  { id: 'talleres_participante_mis_talleres', label: 'Mis Talleres', href: '/talleres/mis-talleres', requiredCapability: 'talleres_crecimiento.participation.read' },
-  { id: 'talleres_participante_historial', label: 'Historial', href: '/talleres/historial', requiredCapability: 'talleres_crecimiento.participation.read' },
-  { id: 'talleres_participante_certificados', label: 'Certificados', href: '/talleres/certificados', requiredCapability: 'talleres_crecimiento.participation.read' },
+  // P — Participante. requiredCapability: null — odd/tasks/talleres-
+  // autoinscripcion.md acceptance criterion 7: any authenticated member,
+  // with zero talleres capabilities, must see "Para Mí" and reach these
+  // four pages. The pages themselves no longer require participation.read
+  // either (lib/platform/talleres/participante.ts); RLS is the real wall.
+  { id: 'talleres_participante_explorar', label: 'Explorar', href: '/talleres/explorar', requiredCapability: null },
+  { id: 'talleres_participante_mis_talleres', label: 'Mis Talleres', href: '/talleres/mis-talleres', requiredCapability: null },
+  { id: 'talleres_participante_historial', label: 'Historial', href: '/talleres/historial', requiredCapability: null },
+  { id: 'talleres_participante_certificados', label: 'Certificados', href: '/talleres/certificados', requiredCapability: null },
   // L / V — Líder + Voluntario (lead.read OR volunteer.read)
   { id: 'talleres_grupos_mis_grupos', label: 'Mis Grupos', href: '/talleres/grupos', requiredCapability: 'talleres_crecimiento.lead.read' },
   { id: 'talleres_sesiones_proximas', label: 'Próximas Sesiones', href: '/talleres/sesiones', requiredCapability: 'talleres_crecimiento.lead.read' },
@@ -188,8 +200,10 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
  * Returns the list of talleres sub-items visible to the user based on
  * their capability set. Multi-role users get the union of all matching
  * sub-items — an item shows if and only if the user holds that item's
- * own `requiredCapability`. Returns an empty array if the talleres
- * feature flag is off (kill switch).
+ * own `requiredCapability`, OR that item's `requiredCapability` is `null`
+ * (open to any authenticated caller — the P/participante items; criterion
+ * 7). Returns an empty array if the talleres feature flag is off (kill
+ * switch).
  *
  * PR H — strict capability filtering. The former `director.read`
  * superset (which implied every non-admin read item) is gone: a pure
@@ -210,7 +224,9 @@ export function getTalleresNavItems(
 
   const caps = new Set(sessionCapabilities)
 
-  return TALLERES_NAV_ITEMS.filter((item) => caps.has(item.requiredCapability)).map((item) => ({
+  return TALLERES_NAV_ITEMS.filter(
+    (item) => item.requiredCapability === null || caps.has(item.requiredCapability),
+  ).map((item) => ({
     id: item.id,
     label: item.label,
     href: item.href,

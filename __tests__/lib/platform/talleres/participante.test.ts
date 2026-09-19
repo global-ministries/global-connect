@@ -6,8 +6,13 @@
  * Covers:
  *   - kill switch: loadParticipanteContext returns ok:false when the
  *     talleres flag is off
- *   - capability gate: returns ok:false when the user lacks
- *     `participation.read`
+ *   - open gate (odd/tasks/talleres-autoinscripcion.md, acceptance
+ *     criterion 7): loadParticipanteContext/requireParticipante() succeed
+ *     for ANY authenticated member with a resolvable persona, regardless
+ *     of talleres capabilities — a member joins with zero capabilities and
+ *     self-enrolling is how they become a participant. The RLS layer is
+ *     the real security wall (every query below is already scoped to the
+ *     caller's own persona_id).
  *   - summary projection (design §9): queries never select motivos,
  *     asistencia rows, attendance data, group notes, or correction
  *     history. Each load* helper is asserted to project only the
@@ -19,6 +24,7 @@
 import {
   loadParticipanteContext,
   loadExplorarViewerContext,
+  requireParticipante,
   loadParticipanteActiveTalleres,
   loadParticipanteHistorial,
   loadParticipanteExplorar,
@@ -145,7 +151,13 @@ function setupSupabaseMock(opts: {
   createSupabaseServerClientMock.mockReset().mockResolvedValue({
     auth: {
       getUser: jest.fn().mockResolvedValue({
-        data: { user: opts.user ?? { id: 'auth-1' } },
+        // `opts.user` is `{ id: string } | null | undefined`: undefined
+        // means "not specified, use the default authenticated user";
+        // explicit `null` means "genuinely unauthenticated" and must be
+        // preserved as null (a `??` here would collapse null back to the
+        // default and make an "unauthenticated" test exercise the wrong
+        // code path).
+        data: { user: 'user' in opts ? opts.user : { id: 'auth-1' } },
         error: null,
       }),
     },
@@ -189,13 +201,30 @@ describe('loadParticipanteContext — gate', () => {
     expect(result.ok).toBe(false)
   })
 
-  it('returns ok:false when capability participation.read is missing', async () => {
+  it('returns ok:true even with ZERO talleres capabilities (acceptance criterion 7)', async () => {
+    // odd/tasks/talleres-autoinscripcion.md — a member with NO talleres
+    // capability must still reach mis-talleres/historial/certificados.
+    // participation.read is no longer required to open this gate; the RLS
+    // layer (persona_principal_id / persona_id = caller) is the real wall.
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: [],
+    })
+    const result = await loadParticipanteContext()
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.context.personaId).toBe(PERSONA_ID)
+      expect(result.context.capabilities).toEqual([])
+    }
+  })
+
+  it('returns ok:true regardless of which (unrelated) capability is present', async () => {
     setupSupabaseMock({
       personaId: PERSONA_ID,
       capabilities: ['talleres_crecimiento.director.read'],
     })
     const result = await loadParticipanteContext()
-    expect(result.ok).toBe(false)
+    expect(result.ok).toBe(true)
   })
 
   it('returns ok:true when capability is present', async () => {
@@ -211,6 +240,63 @@ describe('loadParticipanteContext — gate', () => {
         'talleres_crecimiento.participation.read',
       )
     }
+  })
+})
+
+// ─── requireParticipante() — page guard (redirect / notFound / open) ──────
+//
+// requireParticipante() is called directly by the participant page
+// components (mis-talleres, historial, certificados, certificados/[id]).
+// It must: resolve normally for an authenticated member with ZERO
+// capabilities (criterion 7), still redirect unauthenticated visitors to
+// /login, and still 404 when the kill switch is off.
+
+const mockRedirect = jest.fn((path: string) => {
+  throw new Error(`redirect:${path}`)
+})
+const mockNotFound = jest.fn(() => {
+  throw new Error('notFound')
+})
+
+jest.mock('next/navigation', () => ({
+  redirect: (path: string) => mockRedirect(path),
+  notFound: () => mockNotFound(),
+}))
+
+describe('requireParticipante() — page guard', () => {
+  beforeEach(() => {
+    mockRedirect.mockClear()
+    mockNotFound.mockClear()
+  })
+
+  it('resolves the context for an authenticated member with ZERO capabilities', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: [],
+    })
+    const context = await requireParticipante()
+    expect(context.personaId).toBe(PERSONA_ID)
+    expect(context.capabilities).toEqual([])
+    expect(mockRedirect).not.toHaveBeenCalled()
+    expect(mockNotFound).not.toHaveBeenCalled()
+  })
+
+  it('redirects to /login when unauthenticated', async () => {
+    setupSupabaseMock({ user: null })
+    await expect(requireParticipante()).rejects.toThrow('redirect:/login')
+    expect(mockRedirect).toHaveBeenCalledWith('/login')
+    expect(mockNotFound).not.toHaveBeenCalled()
+  })
+
+  it('404s when the kill switch is off, even for an authenticated member', async () => {
+    setupSupabaseMock({
+      isEnabled: false,
+      personaId: PERSONA_ID,
+      capabilities: [],
+    })
+    await expect(requireParticipante()).rejects.toThrow('notFound')
+    expect(mockNotFound).toHaveBeenCalled()
+    expect(mockRedirect).not.toHaveBeenCalled()
   })
 })
 

@@ -36,17 +36,20 @@ export interface ParticipanteContext {
  *   - the talleres feature flag is off (kill switch)
  *   - the user is not authenticated
  *   - the session/persona cannot be resolved
- *   - `requireParticipationRead` is true AND the user lacks
- *     `participation.read` (deny-by-default for the participant-only pages)
  *
- * When `requireParticipationRead` is false the gate opens for ANY
- * authenticated user with a resolvable persona, preserving whatever
- * capabilities they hold (finding #1, Option B — self-enroll must be
- * reachable before you are a participant).
+ * No talleres capability is required — deliberately. Per
+ * odd/tasks/talleres-autoinscripcion.md (acceptance criterion 7), the
+ * WHOLE participante surface (explorar, mis-talleres, historial,
+ * certificados) is reachable by ANY authenticated user with a resolvable
+ * persona: a member joins with zero capabilities, and self-enrolling is
+ * how they become a participant (finding #1, Option B). The RLS layer is
+ * the real security wall — every query in this module is already scoped to
+ * `persona_principal_id` / `persona_id` = the caller's own persona, so a
+ * capability-less viewer only ever sees their own rows.
  */
-async function resolveViewerContext(
-  requireParticipationRead: boolean,
-): Promise<{ ok: true; context: ParticipanteContext } | { ok: false }> {
+async function resolveViewerContext(): Promise<
+  { ok: true; context: ParticipanteContext } | { ok: false }
+> {
   if (!isTalleresEnabled()) return { ok: false }
 
   const supabase = await createSupabaseServerClient()
@@ -61,13 +64,6 @@ async function resolveViewerContext(
     capabilitySupabase: supabase,
   })
   if (!session) return { ok: false }
-
-  if (requireParticipationRead) {
-    const hasParticipationRead = session.capabilities.some(
-      (c) => c.key === 'talleres_crecimiento.participation.read',
-    )
-    if (!hasParticipationRead) return { ok: false }
-  }
 
   return {
     ok: true,
@@ -85,29 +81,29 @@ async function resolveViewerContext(
  * Returns `{ ok: false }` when:
  *   - the talleres feature flag is off (404 via notFound())
  *   - the user is not authenticated (redirect to /login)
- *   - the user lacks `participation.read` (404 via notFound() — deny-by-default)
+ *   - the session/persona cannot be resolved (404 via notFound())
+ *
+ * No talleres capability is required (acceptance criterion 7) — see
+ * `resolveViewerContext` for the rationale.
  */
 export async function loadParticipanteContext(): Promise<
   { ok: true; context: ParticipanteContext } | { ok: false }
 > {
-  return resolveViewerContext(true)
+  return resolveViewerContext()
 }
 
 /**
  * Finding #1 (Option B) — viewer context for `/talleres/explorar`.
  *
- * Same shape as `loadParticipanteContext` but WITHOUT the
- * `participation.read` requirement: /talleres/explorar must be reachable
- * by any authenticated user, with any role or none, because enrolling is
- * how a user becomes a participant. The RLS layer is the real security
- * wall (SELECT scoped to open/active rows, INSERT forced to a pending
- * self-enroll). The capability set is preserved so downstream reads still
- * reflect whatever the viewer holds.
+ * Same gate as `loadParticipanteContext` now that acceptance criterion 7
+ * opened the whole participante surface to any authenticated user; kept as
+ * a separate named export so callers document intent (explorar is the
+ * self-enroll landing) even though the underlying resolver is shared.
  */
 export async function loadExplorarViewerContext(): Promise<
   { ok: true; context: ParticipanteContext } | { ok: false }
 > {
-  return resolveViewerContext(false)
+  return resolveViewerContext()
 }
 
 /**
