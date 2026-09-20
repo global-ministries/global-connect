@@ -9,7 +9,12 @@
  * contract (never throws — returns the safe all-false fallback on error).
  */
 
-import { cargarPermisos, PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
+import {
+  cargarPermisos,
+  cargarPermisosPorEquipos,
+  PERMISOS_TALLER_ALL_FALSE,
+  type PermisosTaller,
+} from '@/lib/platform/talleres/permisos'
 
 interface RpcCall {
   readonly name: string
@@ -108,5 +113,74 @@ describe('cargarPermisos — talleres_mis_permisos RPC wrapper', () => {
     const client = makeClient({ data: null, error: null }, calls)
     const result = await cargarPermisos(client, 'equipo-1')
     expect(result).toEqual(PERMISOS_TALLER_ALL_FALSE)
+  })
+})
+
+/**
+ * T6 (odd/tasks/talleres-consolidar-pantallas.md) — `/talleres/pendientes`
+ * aggregates rows from several equipos in one page (a coordinador/director
+ * sees inscripciones + solicitudes across every taller they reach). A
+ * single `cargarPermisos(client, equipoId)` call is wrong there — the
+ * task's own instruction: "resolve permissions per distinct equipo
+ * present in the rows... and use them per row". This batches the RPC:
+ * one call per DISTINCT equipo id (never once per row), deduped and
+ * cached in the returned Map.
+ */
+describe('cargarPermisosPorEquipos — batched by distinct equipo id', () => {
+  it('calls the RPC once per distinct equipo id, not once per row', async () => {
+    const calls: RpcCall[] = []
+    const client = makeClient({ data: FULL_TRUE_ROW, error: null }, calls)
+    await cargarPermisosPorEquipos(client, ['eq-1', 'eq-2', 'eq-1', 'eq-1', 'eq-2'])
+    expect(calls).toHaveLength(2)
+    expect(calls.map((c) => c.args.p_equipo_id).sort()).toEqual(['eq-1', 'eq-2'])
+  })
+
+  it('returns a Map keyed by equipo id with each equipo\'s own permisos', async () => {
+    const calls: RpcCall[] = []
+    const responsesByEquipo: Record<string, unknown> = {
+      'eq-1': FULL_TRUE_ROW,
+      'eq-2': { ...FULL_TRUE_ROW, aprobar_inscripciones: false, resolver_retiros: false },
+    }
+    const client = {
+      rpc: (_name: string, args: { p_equipo_id: string | null }) => {
+        calls.push({ name: 'talleres_mis_permisos', args })
+        return Promise.resolve({ data: responsesByEquipo[args.p_equipo_id ?? ''], error: null })
+      },
+    }
+    const result = await cargarPermisosPorEquipos(client, ['eq-1', 'eq-2'])
+    expect(result.get('eq-1')).toEqual(FULL_TRUE_EXPECTED)
+    expect(result.get('eq-2')).toEqual({
+      ...FULL_TRUE_EXPECTED,
+      aprobarInscripciones: false,
+      resolverRetiros: false,
+    })
+  })
+
+  it('treats null equipo id as its own distinct key (mirrors cargarPermisos\' NULL semantics)', async () => {
+    const calls: RpcCall[] = []
+    const client = makeClient({ data: PERMISOS_TALLER_ALL_FALSE, error: null }, calls)
+    const result = await cargarPermisosPorEquipos(client, ['eq-1', null])
+    expect(calls).toHaveLength(2)
+    expect(result.has(null)).toBe(true)
+  })
+
+  it('returns an empty Map and makes no RPC call for an empty input list', async () => {
+    const calls: RpcCall[] = []
+    const client = makeClient({ data: FULL_TRUE_ROW, error: null }, calls)
+    const result = await cargarPermisosPorEquipos(client, [])
+    expect(calls).toHaveLength(0)
+    expect(result.size).toBe(0)
+  })
+
+  it('never throws — a per-equipo RPC failure resolves to the safe all-false fallback for that equipo only', async () => {
+    const client = {
+      rpc: (_name: string, args: { p_equipo_id: string | null }) => {
+        if (args.p_equipo_id === 'eq-bad') return Promise.reject(new Error('network down'))
+        return Promise.resolve({ data: FULL_TRUE_ROW, error: null })
+      },
+    }
+    const result = await cargarPermisosPorEquipos(client, ['eq-1', 'eq-bad'])
+    expect(result.get('eq-1')).toEqual(FULL_TRUE_EXPECTED)
+    expect(result.get('eq-bad')).toEqual(PERMISOS_TALLER_ALL_FALSE)
   })
 })

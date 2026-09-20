@@ -84,3 +84,28 @@ export async function cargarPermisos(
     return PERMISOS_TALLER_ALL_FALSE
   }
 }
+
+/**
+ * T6 (odd/tasks/talleres-consolidar-pantallas.md) — `/talleres/pendientes`
+ * is a cross-taller inbox: its rows belong to several distinct equipos,
+ * so a single `cargarPermisos(client, equipoId)` call is wrong (the task's
+ * own instruction: resolve permissions PER DISTINCT equipo present in the
+ * rows, then use them per row — never a flat `caps.includes(...)`).
+ *
+ * This calls the RPC once per DISTINCT equipo id (deduped — a page with,
+ * say, 30 pendiente rows across 3 equipos still only makes 3 RPC calls),
+ * in parallel via `Promise.all`, and returns a Map the caller indexes by
+ * each row's own equipo id. `cargarPermisos` itself already never throws
+ * (best-effort, all-false fallback), so a failure for one equipo cannot
+ * affect any other equipo's entry in the returned Map.
+ */
+export async function cargarPermisosPorEquipos(
+  client: MisPermisosClient,
+  equipoIds: readonly (string | null)[],
+): Promise<ReadonlyMap<string | null, PermisosTaller>> {
+  const distinct = Array.from(new Set(equipoIds))
+  const entries = await Promise.all(
+    distinct.map(async (equipoId) => [equipoId, await cargarPermisos(client, equipoId)] as const),
+  )
+  return new Map(entries)
+}
