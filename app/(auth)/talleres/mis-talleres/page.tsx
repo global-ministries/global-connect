@@ -10,6 +10,7 @@
  */
 
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import Link from 'next/link'
 import { GraduationCap } from 'lucide-react'
 
 import {
@@ -35,9 +36,9 @@ export default async function MisTalleresPage() {
           <TarjetaSistema variante="outlined" className="p-6 text-center">
             <TextoSistema variante="sutil">
               No tienes talleres activos. Visita{' '}
-              <a href="/talleres/explorar" className="underline">
+              <Link href="/talleres/explorar" className="underline">
                 Explorar
-              </a>{' '}
+              </Link>{' '}
               para ver los disponibles.
             </TextoSistema>
           </TarjetaSistema>
