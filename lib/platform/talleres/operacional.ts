@@ -562,7 +562,15 @@ export async function loadCoordReportes(
 
 export interface CoordSolicitudRow {
   readonly id: string
-  readonly inscripcion_id: string
+  // Exactly one of (inscripcion_id, grupo_asignacion_id) is non-null per
+  // row (the table's own xor CHECK constraint) — a `participante_retiro`
+  // targets an inscripcion, an `equipo_retiro_definitivo` targets a grupo
+  // assignment. T6 (odd/tasks/talleres-consolidar-pantallas.md) needs
+  // BOTH columns to resolve a row's owning equipo via the SECURITY
+  // DEFINER RPC `talleres_equipo_de_solicitud(inscripcion_id,
+  // grupo_asignacion_id)` — see lib/platform/talleres/pendientes.ts.
+  readonly inscripcion_id: string | null
+  readonly grupo_asignacion_id: string | null
   readonly tipo: 'participante_retiro' | 'equipo_retiro_definitivo'
   readonly estado: 'pendiente' | 'aprobada' | 'rechazada'
   readonly motivo: string
@@ -576,7 +584,7 @@ export async function loadCoordSolicitudes(
   const client: any = ctx.supabase
   const { data, error } = await client
     .from('taller_solicitudes_retiro')
-    .select('id, inscripcion_id, tipo, estado, motivo, created_at')
+    .select('id, inscripcion_id, grupo_asignacion_id, tipo, estado, motivo, created_at')
     .order('created_at', { ascending: false })
   if (error) return []
   return (data ?? []) as CoordSolicitudRow[]
