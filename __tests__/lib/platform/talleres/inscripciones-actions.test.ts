@@ -205,6 +205,16 @@ describe('approveInscripcionAction — happy path', () => {
       'page',
     )
   })
+
+  // T6 (odd/tasks/talleres-consolidar-pantallas.md) — the merged
+  // pendientes inbox also renders <TablaInscripciones> cross-taller.
+  it('revalidates /talleres/pendientes too', async () => {
+    setupMocks({
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    await approveInscripcionAction(INSCRIPCION_ID)
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/pendientes')
+  })
 })
 
 // ─── approveInscripcionAction — rejections ────────────────────────────────

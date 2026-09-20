@@ -111,6 +111,14 @@ describe('TALLERES_RUTAS_ANTIGUAS — old→new route map', () => {
     }
   })
 
+  it('T6 resolves the /admin/talleres/inscripciones destino to the pendientes inbox (was null, "decisión pendiente para T6/T10")', () => {
+    // Only the "pendiente cross-edición" half is covered — the admin
+    // page's full multi-estado audit filter has no 1:1 replacement here.
+    const entry = TALLERES_RUTAS_ANTIGUAS.find((e) => e.origen === '/admin/talleres/inscripciones')
+    expect(entry?.destino).toBe('/talleres/pendientes')
+    expect(entry?.activa).toBe(false)
+  })
+
   it('includes the deleted screens (Recursos, Métricas) with destino: null', () => {
     const recursos = TALLERES_RUTAS_ANTIGUAS.find((e) => e.origen === '/talleres/equipo/recursos')
     const metricas = TALLERES_RUTAS_ANTIGUAS.find((e) => e.origen === '/talleres/direccion/metricas')

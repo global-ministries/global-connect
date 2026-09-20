@@ -59,6 +59,9 @@ const REVALIDATED_SURFACES = [
   '/talleres/coordinacion/solicitudes',
   '/talleres/direccion/solicitudes',
   '/talleres/coordinacion',
+  // T6 (odd/tasks/talleres-consolidar-pantallas.md) — the merged inbox
+  // also renders these rows and must refresh on resolve.
+  '/talleres/pendientes',
 ]
 
 interface SetupOptions {

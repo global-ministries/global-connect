@@ -127,6 +127,9 @@ function revalidateInscripcionSurfaces(): void {
   // since this action only knows the inscripcionId, not which
   // taller/edición it belongs to.
   revalidatePath('/talleres/[taller]/[edicion]', 'page')
+  // T6 (odd/tasks/talleres-consolidar-pantallas.md) — the merged
+  // pendientes inbox also renders <TablaInscripciones> cross-taller.
+  revalidatePath('/talleres/pendientes')
 }
 
 /**

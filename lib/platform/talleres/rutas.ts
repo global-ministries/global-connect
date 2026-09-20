@@ -151,7 +151,12 @@ export const TALLERES_RUTAS_ANTIGUAS: readonly RutaAntigua[] = [
   { origen: '/admin/talleres/abstracto/nuevo', destino: '/talleres', activa: false, nota: DESTINO_AUN_NO_EXISTE },
   { origen: '/admin/talleres/abstracto/[slug]', destino: null, activa: false, nota: DESTINO_AUN_NO_EXISTE + ' — mismo slug, sin lookup, pero /talleres/[taller] aún no existe' },
   { origen: '/admin/talleres/edicion/[id]', destino: null, activa: false, nota: REQUIERE_PUENTE },
-  { origen: '/admin/talleres/inscripciones', destino: null, activa: false, nota: 'destino aún no definido por el plan (¿pendientes? ¿sección de la edición?) — decisión pendiente para T6/T10' },
+  // T6 — resolves the decision this comment used to defer. Only the
+  // "pendiente cruzado por taller" half moves to /talleres/pendientes;
+  // the admin page's full multi-estado audit filter (todas/aprobadas/no
+  // aprobadas/completadas) has no 1:1 replacement here and stays open —
+  // still to be decided at T10.
+  { origen: '/admin/talleres/inscripciones', destino: '/talleres/pendientes', activa: false, nota: 'cubre sólo el subconjunto "pendiente"; la vista completa por estado (auditoría) no tiene reemplazo 1:1 — decisión pendiente para T10' },
   { origen: '/admin/talleres/temporadas', destino: '/talleres/temporadas', activa: false, nota: DESTINO_AUN_NO_EXISTE },
   { origen: '/admin/talleres/temporadas/[id]', destino: null, activa: false, nota: DESTINO_AUN_NO_EXISTE + ' — mismo id, sin lookup, pero el destino aún no existe' },
   { origen: '/admin/talleres/temporadas/crear', destino: '/talleres/temporadas/nueva', activa: false, nota: DESTINO_AUN_NO_EXISTE },
