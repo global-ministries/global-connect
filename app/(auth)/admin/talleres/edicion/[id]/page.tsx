@@ -247,7 +247,7 @@ export default async function EdicionLocalDetailPage(ctx: RouteContext) {
           grupos with líderes/voluntarios. Creating a grupo generates its
           weekly sessions (generate_taller_sesiones, PR47). */}
       {hasCap && edicion.cohorte && (
-        <GruposSection cohorteId={edicion.cohorte.id} />
+        <GruposSection cohorteId={edicion.cohorte.id} tallerSlug={edicion.taller_slug} edicionId={edicion.id} />
       )}
 
       {/* Período general */}

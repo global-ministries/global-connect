@@ -355,6 +355,8 @@ describe('EdicionDetallePage — permission wiring', () => {
     const grupos = findByType(element, GruposSection)
     expect(grupos).not.toBeNull()
     expect(grupos?.props.cohorteId).toBe('c-1')
+    expect(grupos?.props.tallerSlug).toBe('matrimonio-sobre-la-roca')
+    expect(grupos?.props.edicionId).toBe('e-1')
   })
 
   it('hides GruposSection when gestionarGrupos is denied', async () => {

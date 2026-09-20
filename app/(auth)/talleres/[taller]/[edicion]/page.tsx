@@ -203,7 +203,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
 
       {/* Grupos */}
       {permisos.gestionarGrupos && edicion.cohorte && (
-        <GruposSection cohorteId={edicion.cohorte.id} />
+        <GruposSection cohorteId={edicion.cohorte.id} tallerSlug={taller.slug} edicionId={edicion.id} />
       )}
 
       {/* Ventana */}
