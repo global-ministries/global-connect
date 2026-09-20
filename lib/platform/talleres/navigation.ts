@@ -99,6 +99,13 @@ function groupIdForItemId(id: TalleresNavItemId): TalleresNavGroupId | null {
   if (id === 'talleres_pendientes') return 'B'
   // T7 — same reasoning for talleres_reportes.
   if (id === 'talleres_reportes') return 'R'
+  // T8 — talleres_temporadas groups under the EXISTING 'D' bucket (not a
+  // new lettered one like B/R): unlike pendientes/reportes, temporadas
+  // has no coordinador/lead branch to share with — it belongs to
+  // Dirección alone. It just doesn't reuse the `talleres_direccion_`
+  // id prefix, because that prefix already names the OLD
+  // /admin/talleres/temporadas item (route-access.ts).
+  if (id === 'talleres_temporadas') return 'D'
   if (id.startsWith('talleres_coordinacion_')) return 'C'
   if (id.startsWith('talleres_direccion_')) return 'D'
   // PR25 — Admin group is the wizard entry-point under `/admin/...`.

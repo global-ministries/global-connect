@@ -136,6 +136,14 @@ export type TalleresNavItemId =
   // Director
   | 'talleres_direccion_resumen_global'
   | 'talleres_direccion_temporadas'
+  // T8 (odd/tasks/talleres-consolidar-pantallas.md) — the consolidated
+  // /talleres/temporadas list, a straight move out of /admin (not a
+  // merge like talleres_pendientes/talleres_reportes above). It does NOT
+  // reuse the `talleres_direccion_` id prefix — that prefix already
+  // names the OLD item right above, still alive until T10 — so it is a
+  // third exact-id exception in groupIdForItemId, grouped under the
+  // existing D bucket by meaning (see its own comment there).
+  | 'talleres_temporadas'
   | 'talleres_direccion_talleres'
   | 'talleres_direccion_periodos'
   | 'talleres_direccion_equipos'
@@ -230,6 +238,19 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // (the management surface); the page gates mutations on director.write OR
   // admin.manage, while the list is director.read-viewable (RLS parity).
   { id: 'talleres_direccion_temporadas', label: 'Temporadas', href: '/admin/talleres/temporadas', requiredCapability: 'talleres_crecimiento.director.read' },
+  // T8 — /talleres/temporadas. Same requiredCapability as the OLD item
+  // right above (director.read is literally one of the three qualifying
+  // capabilities on talleres_temporadas_select's RLS, alongside
+  // metrics.read and admin.manage — supabase/migrations/20260819000001_
+  // pr45_talleres_temporadas.sql:128-135), kept unchanged rather than
+  // switched to metrics.read like talleres_pendientes/talleres_reportes:
+  // those two are genuinely shared by coordinador AND director (no
+  // single role's own capability covers both), while temporadas has no
+  // coordinador/lead branch in its RLS at all — it is a Dirección-only
+  // concept, so there is no cross-role sharing problem to solve here.
+  // The OLD item is left completely alone (still pointing at
+  // /admin/talleres/temporadas) until T10 deletes it.
+  { id: 'talleres_temporadas', label: 'Temporadas', href: '/talleres/temporadas', requiredCapability: 'talleres_crecimiento.director.read' },
   { id: 'talleres_direccion_talleres', label: 'Talleres', href: '/talleres/direccion/talleres', requiredCapability: 'talleres_crecimiento.director.read' },
   { id: 'talleres_direccion_periodos', label: 'Periodos', href: '/talleres/direccion/periodos', requiredCapability: 'talleres_crecimiento.director.read' },
   { id: 'talleres_direccion_equipos', label: 'Equipos', href: '/talleres/direccion/equipos', requiredCapability: 'talleres_crecimiento.director.read' },

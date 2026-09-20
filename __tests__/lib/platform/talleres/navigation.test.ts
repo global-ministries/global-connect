@@ -81,6 +81,12 @@ describe('getTalleresNavItems — capability filter', () => {
       'talleres_participante_certificados',
       'talleres_direccion_resumen_global',
       'talleres_direccion_temporadas',
+      // T8 — /talleres/temporadas, the consolidated Dirección item. It
+      // sits in the D group (not its own bucket like T6/T7's shared C/D
+      // items) because temporadas is a single-role concept — no
+      // coordinator.read/lead.read branch can even read it (see
+      // route-access.ts's own comment on this entry).
+      'talleres_temporadas',
       'talleres_direccion_talleres',
       'talleres_direccion_periodos',
       'talleres_direccion_equipos',
@@ -190,14 +196,16 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
       ],
       { isEnabled: true },
     )
-    // PR H — no L/C superset. 4 P (criterion 7) + 7 director.read items +
-    // 2 admin.manage entries (abstracto + the admin-keyed global
-    // inscripciones view) = 13. (metricas needs metrics.read; not held
-    // here.)
-    expect(items.length).toBe(13)
+    // PR H — no L/C superset. 4 P (criterion 7) + 8 director.read items
+    // (T8 adds talleres_temporadas alongside the old talleres_direccion_
+    // temporadas) + 2 admin.manage entries (abstracto + the admin-keyed
+    // global inscripciones view) = 14. (metricas needs metrics.read; not
+    // held here.)
+    expect(items.length).toBe(14)
     expect(items.map((i) => i.id)).toContain('talleres_admin_abstracto')
     expect(items.map((i) => i.id)).toContain('talleres_admin_inscripciones_global')
     expect(items.map((i) => i.id)).toContain('talleres_direccion_temporadas')
+    expect(items.map((i) => i.id)).toContain('talleres_temporadas')
     expect(items.map((i) => i.id)).toContain('talleres_participante_explorar')
     // No L / C leak-in.
     expect(items.map((i) => i.id)).not.toContain('talleres_grupos_mis_grupos')
@@ -269,6 +277,54 @@ describe('getTalleresNavItems — PR46 global temporadas Dirección item', () =>
   })
 })
 
+// ─── T8 — /talleres/temporadas Dirección item ─────────────────────────────
+
+describe('getTalleresNavItems — T8 /talleres/temporadas item', () => {
+  it('director.read sees the new item pointing at /talleres/temporadas', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.director.read'],
+      { isEnabled: true },
+    )
+    const found = items.find((i) => i.id === 'talleres_temporadas')
+    expect(found).toBeDefined()
+    expect(found?.label).toBe('Temporadas')
+    expect(found?.href).toBe('/talleres/temporadas')
+    expect(found?.requiredCapability).toBe('talleres_crecimiento.director.read')
+  })
+
+  it('the OLD talleres_direccion_temporadas item stays alive, unmodified, alongside the new one', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.director.read'],
+      { isEnabled: true },
+    )
+    const oldItem = items.find((i) => i.id === 'talleres_direccion_temporadas')
+    expect(oldItem?.href).toBe('/admin/talleres/temporadas')
+  })
+
+  it('admin.manage alone does NOT see the new item (director.read-keyed, not admin.manage)', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.admin.manage'],
+      { isEnabled: true },
+    )
+    expect(items.find((i) => i.id === 'talleres_temporadas')).toBeUndefined()
+  })
+})
+
+describe('groupTalleresNavItems — T8 talleres_temporadas groups under Dirección', () => {
+  it('groups the new item under the existing D "Dirección" bucket, not its own bucket', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.director.read'],
+      { isEnabled: true },
+    )
+    const groups = groupTalleresNavItems(items)
+    const byId = Object.fromEntries(groups.map((g) => [g.id, g]))
+    expect(byId['D']?.title).toBe('Dirección')
+    expect(byId['D']?.items.map((i) => i.id)).toContain('talleres_temporadas')
+    // No new lettered bucket was invented for it.
+    expect(groups.map((g) => g.id)).not.toContain('S')
+  })
+})
+
 describe('getTalleresNavItems — kill switch', () => {
   it('returns empty array when feature flag is off, regardless of caps', () => {
     const items = getTalleresNavItems(
@@ -307,11 +363,12 @@ describe('getTalleresNavItems — multi-role union', () => {
       ],
       { isEnabled: true },
     )
-    // PR H — no superset. 4 P + 5 C + 7 D = 16. Finding #5 — the global
-    // inscripciones view is admin-keyed, so it is NOT among the 5 C items
-    // here (this user has no admin.manage). The 3 L items are NOT covered
-    // because the user does not hold lead.read.
-    expect(items.length).toBe(16)
+    // PR H — no superset. 4 P + 5 C + 8 D = 17 (T8 adds talleres_
+    // temporadas to the D group). Finding #5 — the global inscripciones
+    // view is admin-keyed, so it is NOT among the 5 C items here (this
+    // user has no admin.manage). The 3 L items are NOT covered because
+    // the user does not hold lead.read.
+    expect(items.length).toBe(17)
     expect(items.map((i) => i.id)).not.toContain('talleres_grupos_mis_grupos')
     expect(items.map((i) => i.id)).not.toContain('talleres_sesiones_proximas')
   })
@@ -513,8 +570,17 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
     // belongs to neither Coordinación nor Dirección alone — see
     // groupIdForItemId's own exact-id branch in navigation.ts). T7 —
     // talleres_reportes is the same kind of exception, for the same
-    // reason (shared C/D item, keyed to metrics.read).
-    const exactIdExceptions = new Set<TalleresNavItemId>(['talleres_pendientes', 'talleres_reportes'])
+    // reason (shared C/D item, keyed to metrics.read). T8 —
+    // talleres_temporadas is a THIRD exact-id exception: it belongs to D
+    // by MEANING (a single-role Dirección concept), not by id prefix (it
+    // deliberately does not reuse `talleres_direccion_` — that prefix
+    // already names the OLD /admin/talleres/temporadas item, still alive
+    // until T10).
+    const exactIdExceptions = new Set<TalleresNavItemId>([
+      'talleres_pendientes',
+      'talleres_reportes',
+      'talleres_temporadas',
+    ])
     for (const id of allIds) {
       const matches = groupPrefixes.some((p) => id.startsWith(p)) || exactIdExceptions.has(id)
       expect(matches).toBe(true)
