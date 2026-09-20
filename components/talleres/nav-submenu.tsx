@@ -50,7 +50,10 @@ function flattenGroups(groups: readonly TalleresNavGroup[]): readonly TalleresNa
 export function counterVariantFor(itemId: string): 'info' | 'warning' {
   if (
     itemId === 'talleres_coordinacion_inscripciones_pendientes' ||
-    itemId === 'talleres_direccion_solicitudes'
+    itemId === 'talleres_direccion_solicitudes' ||
+    // T6 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/pendientes
+    // is the merged pendientes inbox; same "needs attention" convention.
+    itemId === 'talleres_pendientes'
   ) {
     return 'warning'
   }
@@ -101,6 +104,10 @@ function useTalleresCounters(
           ])
           next['talleres_coordinacion_inscripciones_pendientes'] = insc.count ?? 0
           next['talleres_direccion_solicitudes'] = solic.count ?? 0
+          // T6 — /talleres/pendientes merges both into one inbox; its badge
+          // must agree with the page's own two sections, so it's derived
+          // from the SAME two counts above rather than a 3rd query.
+          next['talleres_pendientes'] = (insc.count ?? 0) + (solic.count ?? 0)
         }
         if (
           sessionCapabilities.includes('talleres_crecimiento.director.read') ||

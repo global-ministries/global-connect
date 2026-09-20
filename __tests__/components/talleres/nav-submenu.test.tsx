@@ -91,6 +91,8 @@ describe('counterVariantFor', () => {
   it('returns warning for pending approvals', () => {
     expect(counterVariantFor('talleres_coordinacion_inscripciones_pendientes')).toBe('warning')
     expect(counterVariantFor('talleres_direccion_solicitudes')).toBe('warning')
+    // T6 — the merged /talleres/pendientes inbox is a pendientes counter too.
+    expect(counterVariantFor('talleres_pendientes')).toBe('warning')
   })
 
   it('returns info for everything else', () => {
@@ -188,6 +190,38 @@ describe('TalleresNavSubmenu — counters target the live schema', () => {
     await waitFor(() => {
       expect(screen.getByText('7')).toBeDefined()
     })
+  })
+})
+
+// ─── T6 — /talleres/pendientes counter agrees with the page's own data ─────
+
+describe('TalleresNavSubmenu — talleres_pendientes counter (T6)', () => {
+  it('sums the same inscripciones-pendientes + solicitudes-pendientes counts the two old items already fetch (no extra query)', async () => {
+    const queriedTables: string[] = []
+    createClientMock.mockImplementation(() => ({
+      auth: {
+        getUser: () => Promise.resolve({ data: { user: { id: 'user-1' } }, error: null }),
+      },
+      from: (table: string) => {
+        queriedTables.push(table)
+        if (table === 'taller_inscripciones') return makeQueryChain(3)
+        if (table === 'taller_solicitudes_retiro') return makeQueryChain(2)
+        return makeQueryChain(0)
+      },
+    }))
+
+    render(
+      React.createElement(TalleresNavSubmenu, {
+        sessionCapabilities: ['talleres_crecimiento.metrics.read'],
+      }),
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('5')).toBeDefined()
+    })
+    // Exactly the 2 queries the existing counters already made — the
+    // combined badge is derived from their results, not a 3rd query.
+    expect(queriedTables.filter((t) => t === 'taller_inscripciones' || t === 'taller_solicitudes_retiro')).toHaveLength(2)
   })
 })
 
