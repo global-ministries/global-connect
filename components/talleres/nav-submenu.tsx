@@ -106,9 +106,14 @@ function useTalleresCounters(
           sessionCapabilities.includes('talleres_crecimiento.director.read') ||
           sessionCapabilities.includes('talleres_crecimiento.metrics.read')
         ) {
+          // T0 — `talleres_crecimiento_metadata` was renamed to
+          // `taller_ediciones` (schema-truth work); querying the old name
+          // 404s in Postgrest and the badge silently showed 0. Same filter
+          // as `loadDirResumen` (lib/platform/talleres/operacional.ts) —
+          // count of ediciones in an active state.
           const [talleres, certs] = await Promise.all([
             client
-              .from('talleres_crecimiento_metadata')
+              .from('taller_ediciones')
               .select('id', { count: 'exact', head: true })
               .in('estado', ['abierto', 'en_curso']),
             client
@@ -146,8 +151,14 @@ function useTalleresCounters(
         }
 
         if (!cancelled) setCounters(next)
-      } catch {
-        // Silent failure — submenu renders without counters.
+      } catch (error) {
+        // T0 — surface the failure in development instead of swallowing it
+        // silently (this is exactly how the talleres_crecimiento_metadata
+        // rename went unnoticed: the badge just showed 0). The UI still
+        // degrades gracefully — counters stay empty, nothing throws.
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('[TalleresNavSubmenu] failed to load counters', error)
+        }
       }
     })()
 

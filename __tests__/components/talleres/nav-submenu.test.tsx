@@ -155,6 +155,42 @@ describe('TalleresNavSubmenu — counters fetch behavior', () => {
   })
 })
 
+// ─── T0 — counters query taller_ediciones, not the renamed-away table ──────
+
+describe('TalleresNavSubmenu — counters target the live schema', () => {
+  it('queries taller_ediciones (never talleres_crecimiento_metadata, which does not exist) for the director talleres counter', async () => {
+    const queriedTables: string[] = []
+    createClientMock.mockImplementation(() => ({
+      auth: {
+        getUser: () => Promise.resolve({ data: { user: { id: 'user-1' } }, error: null }),
+      },
+      from: (table: string) => {
+        queriedTables.push(table)
+        return makeQueryChain(table === 'taller_ediciones' ? 7 : 0)
+      },
+    }))
+
+    render(
+      React.createElement(TalleresNavSubmenu, {
+        sessionCapabilities: ['talleres_crecimiento.director.read'],
+      }),
+    )
+
+    await waitFor(() => {
+      expect(queriedTables.length).toBeGreaterThanOrEqual(4)
+    })
+
+    expect(queriedTables).not.toContain('talleres_crecimiento_metadata')
+    expect(queriedTables).toContain('taller_ediciones')
+
+    // The badge for "Talleres" (talleres_direccion_talleres) reflects the
+    // real count returned by the correct table.
+    await waitFor(() => {
+      expect(screen.getByText('7')).toBeDefined()
+    })
+  })
+})
+
 // ─── PR42 — sidebar mirrors capability, not the participant flag ────────────
 
 describe('TalleresNavSubmenu — PR42 capability-only filter', () => {

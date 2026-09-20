@@ -30,9 +30,10 @@ describe('getTalleresNavItems — capability filter', () => {
     expect(items.every((i) => i.id.startsWith('talleres_participante_'))).toBe(true)
   })
 
-  it('lider sees P (always) + L items (Mis-Grupos, Próximas Sesiones, Recursos)', () => {
+  it('lider sees P (always) + L items (Mis-Grupos, Próximas Sesiones)', () => {
     // Criterion 7 — the P group is open to any authenticated caller, so it
     // rides along with every other role group now, not just a bare [].
+    // T0 — Recursos is deleted (placeholder screen with no real data).
     const items = getTalleresNavItems(
       ['talleres_crecimiento.lead.read'],
       { isEnabled: true },
@@ -44,7 +45,6 @@ describe('getTalleresNavItems — capability filter', () => {
       'talleres_participante_certificados',
       'talleres_grupos_mis_grupos',
       'talleres_sesiones_proximas',
-      'talleres_recursos',
     ])
   })
 
@@ -131,7 +131,6 @@ describe('getTalleresNavItems — capability filter', () => {
     const ids = items.map((i) => i.id)
     expect(ids.some((id) => id.startsWith('talleres_grupos_'))).toBe(false)
     expect(ids.some((id) => id.startsWith('talleres_sesiones_'))).toBe(false)
-    expect(ids).not.toContain('talleres_recursos')
     expect(ids.some((id) => id.startsWith('talleres_coordinacion_'))).toBe(false)
     expect(ids.some((id) => id.startsWith('talleres_direccion_'))).toBe(false)
     expect(ids.some((id) => id.startsWith('talleres_admin_'))).toBe(false)
@@ -286,7 +285,7 @@ describe('getTalleresNavItems — multi-role union', () => {
       ],
       { isEnabled: true },
     )
-    expect(items.length).toBe(4 + 3)
+    expect(items.length).toBe(4 + 2)
     expect(items.map((i) => i.id)).toContain('talleres_participante_explorar')
     expect(items.map((i) => i.id)).toContain('talleres_grupos_mis_grupos')
   })
@@ -307,7 +306,6 @@ describe('getTalleresNavItems — multi-role union', () => {
     expect(items.length).toBe(16)
     expect(items.map((i) => i.id)).not.toContain('talleres_grupos_mis_grupos')
     expect(items.map((i) => i.id)).not.toContain('talleres_sesiones_proximas')
-    expect(items.map((i) => i.id)).not.toContain('talleres_recursos')
   })
 
   it('canonical order is preserved (matches TALLERES_NAV_ITEMS order)', () => {
@@ -399,7 +397,6 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(lGroup?.items.map((i) => i.id)).toEqual([
       'talleres_grupos_mis_grupos',
       'talleres_sesiones_proximas',
-      'talleres_recursos',
     ])
   })
 })
@@ -476,7 +473,6 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
       'talleres_participante_',
       'talleres_grupos_',
       'talleres_sesiones_',
-      'talleres_recursos',
       'talleres_coordinacion_',
       'talleres_direccion_',
       'talleres_admin_',

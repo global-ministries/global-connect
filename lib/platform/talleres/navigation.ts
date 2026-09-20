@@ -9,7 +9,7 @@
  *
  * Per design §9 the sub-items are grouped by role:
  *   P — Participante:      Explorar / Mis-Talleres / Historial / Certificados
- *   L — Líder:             Mis-Grupos / Próximas-Sesiones / Recursos
+ *   L — Líder:             Mis-Grupos / Próximas-Sesiones (Recursos deleted, T0 — placeholder screen)
  *   V — Voluntario:        (same as L; subset via `lead.read | volunteer.read`)
  *   C — Coordinador:       Resumen / Inscripciones-Pendientes / Talleres / Equipos / Reportes
  *   D — Director:          Resumen-Global / Talleres / Periodos / Equipos / Solicitudes / Métricas / Reportes
@@ -82,7 +82,7 @@ export function groupTalleresNavItems(
 
 function groupIdForItemId(id: TalleresNavItemId): TalleresNavGroupId | null {
   if (id.startsWith('talleres_participante_')) return 'P'
-  if (id.startsWith('talleres_grupos_') || id.startsWith('talleres_sesiones_') || id === 'talleres_recursos') return 'L'
+  if (id.startsWith('talleres_grupos_') || id.startsWith('talleres_sesiones_')) return 'L'
   if (id.startsWith('talleres_coordinacion_')) return 'C'
   if (id.startsWith('talleres_direccion_')) return 'D'
   // PR25 — Admin group is the wizard entry-point under `/admin/...`.
