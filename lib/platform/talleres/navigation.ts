@@ -8,7 +8,9 @@
  * (`components/ui/platform-navigation-view-items.ts` extension).
  *
  * Per design §9 the sub-items are grouped by role:
- *   P — Participante:      Explorar / Mis-Talleres / Historial / Certificados
+ *   P — Participante:      Explorar / Mi-Recorrido (T9 — merges the old
+ *                           Mis-Talleres / Historial / Certificados trio
+ *                           into one tabbed screen)
  *   L — Líder:             Mis-Grupos / Próximas-Sesiones (Recursos deleted, T0 — placeholder screen)
  *   V — Voluntario:        (same as L; subset via `lead.read | volunteer.read`)
  *   C — Coordinador:       Resumen / Inscripciones-Pendientes / Talleres / Equipos / Reportes

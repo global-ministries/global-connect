@@ -170,6 +170,24 @@ describe('TALLERES_NAV_ITEMS — /talleres/reportes (T7)', () => {
   })
 })
 
+// ─── T9 — /talleres/mi-recorrido nav item (merges 3 old participant items) ─
+
+describe('TALLERES_NAV_ITEMS — /talleres/mi-recorrido (T9)', () => {
+  it('is declared, open to any authenticated user (criterion 7 — requiredCapability: null)', () => {
+    const item = TALLERES_NAV_ITEMS.find((i) => i.href === '/talleres/mi-recorrido')
+    expect(item).toBeDefined()
+    expect(item?.id).toBe('talleres_participante_mi_recorrido')
+    expect(item?.requiredCapability).toBeNull()
+  })
+
+  it('replaces the three old participant items — none of them remain in the catalog (unlike T6/T7/T8, which ADD alongside an old item still serving a distinct audience, this is the exact same participant on the exact same merged screen)', () => {
+    const ids = TALLERES_NAV_ITEMS.map((i) => i.id)
+    expect(ids).not.toContain('talleres_participante_mis_talleres')
+    expect(ids).not.toContain('talleres_participante_historial')
+    expect(ids).not.toContain('talleres_participante_certificados')
+  })
+})
+
 describe('TALLERES_ROUTE_CAPABILITY_MAP / getRequiredCapabilityForRoute — route→capability lookup', () => {
   it('maps every nav item href to its requiredCapability', () => {
     for (const item of TALLERES_NAV_ITEMS) {

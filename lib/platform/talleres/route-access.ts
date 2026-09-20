@@ -107,9 +107,10 @@ export const TALLERES_CAPABILITY_KEYS: readonly TalleresCapabilityKey[] = (
 export type TalleresNavItemId =
   // Participante
   | 'talleres_participante_explorar'
-  | 'talleres_participante_mis_talleres'
-  | 'talleres_participante_historial'
-  | 'talleres_participante_certificados'
+  // T9 (odd/tasks/talleres-consolidar-pantallas.md) — mis_talleres/
+  // historial/certificados merge into this one id. See
+  // TALLERES_NAV_ITEMS's own comment below.
+  | 'talleres_participante_mi_recorrido'
   // Líder / Voluntario
   | 'talleres_grupos_mis_grupos'
   | 'talleres_sesiones_proximas'
@@ -190,12 +191,21 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // P — Participante. requiredCapability: null — odd/tasks/talleres-
   // autoinscripcion.md acceptance criterion 7: any authenticated member,
   // with zero talleres capabilities, must see "Para Mí" and reach these
-  // four pages. The pages themselves no longer require participation.read
+  // pages. The pages themselves no longer require participation.read
   // either (lib/platform/talleres/participante.ts); RLS is the real wall.
   { id: 'talleres_participante_explorar', label: 'Explorar', href: '/talleres/explorar', requiredCapability: null },
-  { id: 'talleres_participante_mis_talleres', label: 'Mis Talleres', href: '/talleres/mis-talleres', requiredCapability: null },
-  { id: 'talleres_participante_historial', label: 'Historial', href: '/talleres/historial', requiredCapability: null },
-  { id: 'talleres_participante_certificados', label: 'Certificados', href: '/talleres/certificados', requiredCapability: null },
+  // T9 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/mi-recorrido
+  // REPLACES the three items that used to live here (Mis Talleres /
+  // Historial / Certificados — now one tabbed screen). Unlike T6/T7/T8
+  // (which ADDED a new item alongside an old one still serving a distinct
+  // role audience, kept until T10 deletes the old screen), this is the
+  // exact same participant on the exact same merged page: three stale
+  // menu entries beside the new one would just be three redundant links
+  // to content that now lives on one screen. The three old PAGES stay
+  // alive, unmodified, reachable by direct URL, until T10 deletes them —
+  // only the MENU entries are gone (see lib/platform/talleres/rutas.ts's
+  // old→new inventory, unchanged by this task).
+  { id: 'talleres_participante_mi_recorrido', label: 'Mi Recorrido', href: '/talleres/mi-recorrido', requiredCapability: null },
   // L / V — Líder + Voluntario (lead.read OR volunteer.read)
   // T0 — repointed at the real pages (previously /talleres/grupos and
   // /talleres/sesiones, neither of which existed — a silent 404). Recursos

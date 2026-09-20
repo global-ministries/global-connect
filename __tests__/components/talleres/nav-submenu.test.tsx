@@ -254,10 +254,14 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
     })
   })
 
-  it('shows the participante Explorar + Mis Talleres items even when the flag is "off"', () => {
+  it('shows the participante Explorar + Mi Recorrido items even when the flag is "off"', () => {
     // The flag going 'off' used to hide every non-admin entry (PR26
     // behavior). PR42 removed that filter — the pages don't gate on
     // the flag, so the sidebar shouldn't either.
+    // T9 — Mi Recorrido merges the old Mis Talleres + Historial +
+    // Certificados trio into one tabbed screen; those three labels no
+    // longer appear in the menu (their pages stay alive, unmodified,
+    // until T10 deletes them).
     withFlags({
       enabled: false,
       stage: 'off',
@@ -273,9 +277,10 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
     )
     // The participante items are rendered as plain text.
     expect(screen.getByText('Explorar')).toBeDefined()
-    expect(screen.getByText('Mis Talleres')).toBeDefined()
-    expect(screen.getByText('Historial')).toBeDefined()
-    expect(screen.getByText('Certificados')).toBeDefined()
+    expect(screen.getByText('Mi Recorrido')).toBeDefined()
+    expect(screen.queryByText('Mis Talleres')).toBeNull()
+    expect(screen.queryByText('Historial')).toBeNull()
+    expect(screen.queryByText('Certificados')).toBeNull()
   })
 
   it('still filters down to admin-only when the kill switch is ON', () => {
@@ -302,7 +307,7 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
     expect(screen.getByText('Grupos de Corto Plazo')).toBeDefined()
     // Participant items are HIDDEN under the kill switch.
     expect(screen.queryByText('Explorar')).toBeNull()
-    expect(screen.queryByText('Mis Talleres')).toBeNull()
+    expect(screen.queryByText('Mi Recorrido')).toBeNull()
   })
 
   it('shows the global inscripciones item to an admin.manage user (its new home — Finding #5)', () => {
