@@ -188,6 +188,23 @@ describe('approveInscripcionAction — happy path', () => {
     )
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/coordinacion')
   })
+
+  // T4 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/[taller]/[edicion]
+  // also renders <TablaInscripciones> scoped to one edición; approving/
+  // rejecting from there must revalidate it too, or its Inscritos section
+  // shows stale data until the router cache naturally expires. The dynamic
+  // route pattern (not a specific taller/edición id — the action only
+  // receives an inscripcionId) revalidates every matching page in one call.
+  it('revalidates the new /talleres/[taller]/[edicion] route too', async () => {
+    setupMocks({
+      capabilities: ['talleres_crecimiento.admin.manage'],
+    })
+    await approveInscripcionAction(INSCRIPCION_ID)
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/talleres/[taller]/[edicion]',
+      'page',
+    )
+  })
 })
 
 // ─── approveInscripcionAction — rejections ────────────────────────────────

@@ -23,6 +23,12 @@
  * NOTE (follow-up): SelectLeaderModal searches system-role `lider` users only,
  * so the "voluntario" pool is currently drawn from that same set. Broadening it
  * needs a gated generic user-search endpoint — tracked as a follow-up.
+ *
+ * T4 (odd/tasks/talleres-consolidar-pantallas.md) — moved here from
+ * app/(auth)/admin/talleres/edicion/[id]/ so /talleres/[taller]/[edicion]
+ * can reuse it too (the old page keeps working, just its import path
+ * changes). Gated there by permisos.gestionarGrupos, scoped to the
+ * taller's dream_team_equipo_id — never a flat capability check.
  */
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
@@ -243,6 +249,9 @@ export function GruposSection({ cohorteId }: GruposSectionProps): React.ReactEle
       ) : (
         <ul className="space-y-3">
           {grupos.map((grupo) => (
+            // T5: link to rutaGrupo(taller.slug, edicion.id, grupo.id) once
+            // /talleres/[taller]/[edicion]/[grupo] exists — kept
+            // non-interactive for now, exactly as T2/T3 left their rows.
             <li
               key={grupo.id}
               className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-4"

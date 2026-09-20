@@ -37,12 +37,12 @@
  * does not invent one; if/when such a control is added, it must read
  * `permisos.editarTaller`, never a flat capability check.
  *
- * Ediciones are rendered non-interactive on purpose — see the `// T4`
- * comment below — the same way T2 left the catalog's ediciones
- * non-clickable, because /talleres/[taller]/[edicion] does not exist yet.
+ * T4 (odd/tasks/talleres-consolidar-pantallas.md) — ediciones now link to
+ * rutaEdicion(taller.slug, edicion.id): /talleres/[taller]/[edicion] exists.
  */
 
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 
 import {
   ContenedorDashboard,
@@ -70,7 +70,7 @@ import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
 import { fetchCoordinadorRoles, fetchRutaEquipo } from '@/lib/platform/talleres/equipo-organigrama'
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
-import { rutaCatalogo } from '@/lib/platform/talleres/rutas'
+import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
 import { Layers } from 'lucide-react'
 
 export const metadata = { title: 'Taller' }
@@ -178,24 +178,26 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         ) : (
           <ul className="mt-3 grid gap-3">
             {taller.ediciones.map((edicion) => (
-              // T4: link to rutaEdicion(taller.slug, edicion.id) once
-              // /talleres/[taller]/[edicion] exists — kept non-interactive
-              // for now, exactly as T2 left the catalog's ediciones.
               <li key={edicion.id}>
-                <TarjetaSistema variante="elevated" className="p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="min-w-0 break-words font-medium text-foreground">
-                      {edicion.nombre_snapshot}
-                    </span>
-                    <BadgeSistema variante={edicionEstadoBadgeVariante(edicion.estado)} tamaño="sm">
-                      {edicionEstadoLabel(edicion.estado)}
-                    </BadgeSistema>
-                  </div>
-                  <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                    {edicion.total_inscripciones}{' '}
-                    {edicion.total_inscripciones === 1 ? 'inscrito' : 'inscritos'}
-                  </TextoSistema>
-                </TarjetaSistema>
+                <Link href={rutaEdicion(taller.slug, edicion.id)} className="block">
+                  <TarjetaSistema
+                    variante="elevated"
+                    className="p-4 transition-colors hover:bg-muted/30"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="min-w-0 break-words font-medium text-foreground">
+                        {edicion.nombre_snapshot}
+                      </span>
+                      <BadgeSistema variante={edicionEstadoBadgeVariante(edicion.estado)} tamaño="sm">
+                        {edicionEstadoLabel(edicion.estado)}
+                      </BadgeSistema>
+                    </div>
+                    <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                      {edicion.total_inscripciones}{' '}
+                      {edicion.total_inscripciones === 1 ? 'inscrito' : 'inscritos'}
+                    </TextoSistema>
+                  </TarjetaSistema>
+                </Link>
               </li>
             ))}
           </ul>

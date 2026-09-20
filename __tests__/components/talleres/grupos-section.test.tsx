@@ -3,7 +3,11 @@
  *
  * PR F (restructure §7) — Grupos admin section (client island).
  *
- * The section lives inside the edición detail page. Given a cohorte id it:
+ * T4 (odd/tasks/talleres-consolidar-pantallas.md) — moved from
+ * __tests__/app/(auth)/admin/talleres/edicion/ alongside the component's
+ * move to components/talleres/grupos-section.tsx; both
+ * /admin/talleres/edicion/[id] and /talleres/[taller]/[edicion] render it.
+ * Given a cohorte id it:
  *   - lists the cohorte's grupos       (GET  /api/talleres/grupos?cohorte_id=)
  *   - creates a grupo                  (POST /api/talleres/grupos → { grupo, sesiones })
  *     and surfaces how many weekly sessions generate_taller_sesiones made
@@ -44,7 +48,7 @@ jest.mock('@/components/modals/SelectLeaderModal', () => ({
     ) : null,
 }))
 
-import { GruposSection } from '@/app/(auth)/admin/talleres/edicion/[id]/grupos-section'
+import { GruposSection } from '@/components/talleres/grupos-section'
 
 interface GrupoRow {
   id: string

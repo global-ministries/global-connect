@@ -4,6 +4,11 @@
  * PR36 — Tests for the OpenEdicionButton / CloseEdicionButton client
  * components (Bug #2 fix).
  *
+ * T4 (odd/tasks/talleres-consolidar-pantallas.md) — moved from
+ * __tests__/app/auth/admin/talleres/edicion/ alongside the component's
+ * move to components/talleres/open-edicion-button.tsx; both
+ * /admin/talleres/edicion/[id] and /talleres/[taller]/[edicion] render it.
+ *
  * The buttons call the matching server actions in
  *   app/(auth)/admin/talleres/edicion/[id]/actions.ts
  *
@@ -32,7 +37,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import {
   CloseEdicionButton,
   OpenEdicionButton,
-} from '@/app/(auth)/admin/talleres/edicion/[id]/open-edicion-button'
+} from '@/components/talleres/open-edicion-button'
 
 beforeEach(() => {
   openActionMock.mockReset()
