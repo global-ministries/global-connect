@@ -128,3 +128,65 @@ export function temporadaEstadoLabel(estado: string): string {
 export function temporadaEstadoBadgeVariante(estado: string): BadgeVariante {
   return (TEMPORADA_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
 }
+
+/**
+ * T9 (odd/tasks/talleres-consolidar-pantallas.md) — a `taller_inscripciones`
+ * row's own participant-facing `estado`. The old mis-talleres page colored
+ * aprobado as success and everything else default; historial colored
+ * completado as success, no_aprobado as error, and everything else
+ * default — two different colors for the same `aprobado` value depending
+ * on which old screen rendered it. This is the single shared map the
+ * merged /talleres/mi-recorrido screen uses for both its "en curso" and
+ * "historial" tabs.
+ */
+export type InscripcionEstado = 'pendiente' | 'aprobado' | 'no_aprobado' | 'completado'
+
+export const INSCRIPCION_ESTADO_LABELS: Record<InscripcionEstado, string> = {
+  pendiente: 'Pendiente',
+  aprobado: 'Aprobado',
+  no_aprobado: 'No aprobado',
+  completado: 'Completado',
+}
+
+export const INSCRIPCION_ESTADO_BADGE_VARIANTE: Record<InscripcionEstado, BadgeVariante> = {
+  pendiente: 'warning',
+  aprobado: 'success',
+  no_aprobado: 'error',
+  completado: 'info',
+}
+
+/** Never render a raw `taller_inscripciones.estado` key — always go through this. */
+export function inscripcionEstadoLabel(estado: string): string {
+  return (INSCRIPCION_ESTADO_LABELS as Readonly<Record<string, string>>)[estado] ?? estado
+}
+
+export function inscripcionEstadoBadgeVariante(estado: string): BadgeVariante {
+  return (INSCRIPCION_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
+}
+
+/**
+ * T9 — a `taller_inscripciones` row's own `unit_estado` (the per-unit
+ * completion outcome, distinct from the inscripcion `estado` above).
+ */
+export type UnitEstado = 'completado' | 'no_completado' | 'abandono'
+
+export const UNIT_ESTADO_LABELS: Record<UnitEstado, string> = {
+  completado: 'Completado',
+  no_completado: 'No completado',
+  abandono: 'Abandonó',
+}
+
+export const UNIT_ESTADO_BADGE_VARIANTE: Record<UnitEstado, BadgeVariante> = {
+  completado: 'success',
+  no_completado: 'default',
+  abandono: 'error',
+}
+
+/** Never render a raw `taller_inscripciones.unit_estado` key — always go through this. */
+export function unitEstadoLabel(estado: string): string {
+  return (UNIT_ESTADO_LABELS as Readonly<Record<string, string>>)[estado] ?? estado
+}
+
+export function unitEstadoBadgeVariante(estado: string): BadgeVariante {
+  return (UNIT_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
+}
