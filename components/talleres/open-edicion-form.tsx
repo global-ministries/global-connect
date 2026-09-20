@@ -6,6 +6,15 @@
  * Renders the form to open a new edicion of the abstract taller.
  * Calls the server action `openEdicion` and on success redirects to
  * the edicion detail page.
+ *
+ * T3 (odd/tasks/talleres-consolidar-pantallas.md) — moved here from
+ * app/(auth)/admin/talleres/abstracto/[slug]/open-edicion-form.tsx so the
+ * new /talleres/[taller] page can reuse it without importing across an
+ * app/ route folder — same move-and-share approach T2 used for
+ * CrearTallerAbstractoForm. The old [slug]/page.tsx now imports it from
+ * this shared location too; this is a move, not a copy. The server action
+ * (openEdicion) stays in its original location — only the client form
+ * component moved.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -14,7 +23,7 @@ import { Plus, Send } from 'lucide-react'
 
 import { TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
-import { openEdicion } from './actions'
+import { openEdicion } from '@/app/(auth)/admin/talleres/abstracto/[slug]/actions'
 
 interface Input {
   readonly tallerId: string

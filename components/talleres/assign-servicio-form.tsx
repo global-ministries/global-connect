@@ -14,6 +14,15 @@
  * edición" state: since T3/T4, every taller gets its equipo at creation
  * time, and open_edicion never mints one. A null equipoId here means an
  * admin needs to link or create the equipo from the catalog.
+ *
+ * T3 (odd/tasks/talleres-consolidar-pantallas.md) — moved here from
+ * app/(auth)/admin/talleres/abstracto/[slug]/assign-servicio-form.tsx so
+ * the new /talleres/[taller] page can reuse it without importing across an
+ * app/ route folder — same move-and-share approach T2 used for
+ * CrearTallerAbstractoForm. The old [slug]/page.tsx now imports it from
+ * this shared location too; this is a move, not a copy. The server action
+ * (assignServicio) stays in its original location — only the client form
+ * component moved.
  */
 
 import { useEffect, useRef, useState, useTransition, type ReactElement } from 'react'
@@ -22,7 +31,7 @@ import { Search, Send, UserPlus, X } from 'lucide-react'
 
 import { TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
-import { assignServicio } from './actions'
+import { assignServicio } from '@/app/(auth)/admin/talleres/abstracto/[slug]/actions'
 
 interface UsuarioResult {
   readonly id: string

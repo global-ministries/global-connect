@@ -19,8 +19,11 @@ import {
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { fetchCoordinadorRoles } from '@/lib/platform/talleres/equipo-organigrama'
 
-import { OpenEdicionForm } from './open-edicion-form'
-import { AssignServicioForm } from './assign-servicio-form'
+// T3 (odd/tasks/talleres-consolidar-pantallas.md) — both forms moved to
+// components/talleres/ so /talleres/[taller] can share them; this page
+// keeps working unchanged until T10 deletes it.
+import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
+import { AssignServicioForm } from '@/components/talleres/assign-servicio-form'
 
 export const metadata = { title: 'Grupo de Corto Plazo' }
 
