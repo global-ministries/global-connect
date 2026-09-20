@@ -121,6 +121,12 @@ function revalidateInscripcionSurfaces(): void {
   revalidatePath('/admin/talleres/inscripciones')
   revalidatePath('/talleres/coordinacion/inscripciones')
   revalidatePath('/talleres/coordinacion')
+  // T4 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/[taller]/
+  // [edicion] also renders <TablaInscripciones> scoped to one edición.
+  // The dynamic-segment form revalidates every matching page in one call
+  // since this action only knows the inscripcionId, not which
+  // taller/edición it belongs to.
+  revalidatePath('/talleres/[taller]/[edicion]', 'page')
 }
 
 /**
