@@ -96,3 +96,35 @@ export function reporteEstadoLabel(estado: string): string {
 export function reporteEstadoBadgeVariante(estado: string): BadgeVariante {
   return (REPORTE_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
 }
+
+/**
+ * T8 (odd/tasks/talleres-consolidar-pantallas.md) — a `talleres_temporadas`
+ * row's own `estado`. The old app/(auth)/admin/talleres/temporadas screens
+ * rendered `t.estado` raw inside a `BadgeSistema` (no label, a local
+ * `estadoBadgeVariante` duplicated in two files) — this is the single
+ * shared map the T2/T7 header rule requires.
+ */
+export type TemporadaEstado = 'borrador' | 'abierto' | 'cerrado' | 'cancelado'
+
+export const TEMPORADA_ESTADO_LABELS: Record<TemporadaEstado, string> = {
+  borrador: 'Borrador',
+  abierto: 'Abierta',
+  cerrado: 'Cerrada',
+  cancelado: 'Cancelada',
+}
+
+export const TEMPORADA_ESTADO_BADGE_VARIANTE: Record<TemporadaEstado, BadgeVariante> = {
+  borrador: 'info',
+  abierto: 'success',
+  cerrado: 'default',
+  cancelado: 'error',
+}
+
+/** Never render a raw `talleres_temporadas.estado` key — always go through this. */
+export function temporadaEstadoLabel(estado: string): string {
+  return (TEMPORADA_ESTADO_LABELS as Readonly<Record<string, string>>)[estado] ?? estado
+}
+
+export function temporadaEstadoBadgeVariante(estado: string): BadgeVariante {
+  return (TEMPORADA_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
+}
