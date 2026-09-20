@@ -141,6 +141,24 @@ describe('TALLERES_CAPABILITY_KEYS — canonical live capability list', () => {
   })
 })
 
+// ─── T6 — /talleres/pendientes nav item ────────────────────────────────
+
+describe('TALLERES_NAV_ITEMS — /talleres/pendientes (T6)', () => {
+  it('is declared, capability-gated (never null — RLS alone is not enough for a menu entry) and not shown to any authenticated user', () => {
+    const item = TALLERES_NAV_ITEMS.find((i) => i.href === '/talleres/pendientes')
+    expect(item).toBeDefined()
+    expect(item?.requiredCapability).not.toBeNull()
+    // Coordinador and director are both auto-granted metrics.read
+    // (supabase/migrations/20260810120000_talleres_role_auto_grant.sql) —
+    // the one capability the two mutually-exclusive roles share, so a
+    // single nav item (one href -> one requiredCapability, per the
+    // invariant this file already asserts below) can gate a page meant
+    // for both. director.read/coordinator.read alone would each hide it
+    // from the other role.
+    expect(item?.requiredCapability).toBe('talleres_crecimiento.metrics.read')
+  })
+})
+
 describe('TALLERES_ROUTE_CAPABILITY_MAP / getRequiredCapabilityForRoute — route→capability lookup', () => {
   it('maps every nav item href to its requiredCapability', () => {
     for (const item of TALLERES_NAV_ITEMS) {

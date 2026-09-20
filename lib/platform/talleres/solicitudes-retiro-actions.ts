@@ -111,6 +111,9 @@ function revalidateSolicitudSurfaces(): void {
   revalidatePath('/talleres/coordinacion/solicitudes')
   revalidatePath('/talleres/direccion/solicitudes')
   revalidatePath('/talleres/coordinacion')
+  // T6 (odd/tasks/talleres-consolidar-pantallas.md) — the merged
+  // pendientes inbox also renders these rows.
+  revalidatePath('/talleres/pendientes')
 }
 
 /**

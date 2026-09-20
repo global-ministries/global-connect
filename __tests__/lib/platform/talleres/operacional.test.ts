@@ -23,6 +23,7 @@ import {
   loadEquipoGrupos,
   loadEquipoReporte,
   loadCoordInscripcionesPendientes,
+  loadCoordSolicitudes,
   loadCoordTalleresAgrupados,
   loadDirResumen,
   loadEdicionLocalDetalle,
@@ -64,6 +65,13 @@ interface CapturedFilter {
 }
 
 const captured: CapturedFilter[] = []
+
+interface CapturedSelect {
+  readonly table: string
+  readonly columns: string
+}
+
+const capturedSelects: CapturedSelect[] = []
 
 function setupSupabaseMock(opts: {
   isEnabled?: boolean
@@ -107,6 +115,7 @@ function setupSupabaseMock(opts: {
     const b: Record<string, jest.Mock> = {} as Record<string, jest.Mock>
     b['select'] = jest.fn((cols: string) => {
       currentCols = cols
+      capturedSelects.push({ table: currentTable, columns: cols })
       return b
     })
     b['eq'] = jest.fn((column: string, value: unknown) => {
@@ -144,7 +153,12 @@ function setupSupabaseMock(opts: {
 
 beforeEach(() => {
   captured.length = 0
+  capturedSelects.length = 0
 })
+
+function capturedSelectsFor(table: string): CapturedSelect[] {
+  return capturedSelects.filter((s) => s.table === table)
+}
 
 function capturedFiltersFor(table: string): CapturedFilter[] {
   return captured.filter((q) => q.table === table)
@@ -326,6 +340,30 @@ describe('loadEquipoReporte — single latest reporte by grupo', () => {
     const selectColumns = filters[0]?.selectColumns ?? ''
     expect(selectColumns).toMatch(/observaciones_generales/)
     expect(selectColumns).not.toMatch(/firmantes_snapshot/)
+  })
+})
+
+describe('loadCoordSolicitudes — selects grupo_asignacion_id alongside inscripcion_id', () => {
+  // T6 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/pendientes
+  // resolves each solicitud's equipo via the SECURITY DEFINER RPC
+  // talleres_equipo_de_solicitud(inscripcion_id, grupo_asignacion_id),
+  // which needs BOTH columns (exactly one is non-null per row, per the
+  // table's xor CHECK constraint — equipo_retiro_definitivo solicitudes
+  // carry grupo_asignacion_id, not inscripcion_id). The old two solicitudes
+  // pages never rendered this column, so it was never selected.
+  it('includes grupo_asignacion_id in the taller_solicitudes_retiro select', async () => {
+    setupSupabaseMock({
+      personaId: PERSONA_ID,
+      capabilities: ['talleres_crecimiento.coordinator.read'],
+    })
+    const ctxResult = await loadOperacionalContext()
+    if (!ctxResult.ok) throw new Error('expected ok')
+    await loadCoordSolicitudes(ctxResult.context)
+
+    const selects = capturedSelectsFor('taller_solicitudes_retiro')
+    expect(selects).toHaveLength(1)
+    expect(selects[0]?.columns).toMatch(/grupo_asignacion_id/)
+    expect(selects[0]?.columns).toMatch(/inscripcion_id/)
   })
 })
 

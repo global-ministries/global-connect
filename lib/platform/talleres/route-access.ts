@@ -113,6 +113,13 @@ export type TalleresNavItemId =
   // Líder / Voluntario
   | 'talleres_grupos_mis_grupos'
   | 'talleres_sesiones_proximas'
+  // T6 (odd/tasks/talleres-consolidar-pantallas.md) — the coordinator's
+  // cross-taller inbox. Shared by coordinador AND director (it replaces
+  // both /talleres/coordinacion/inscripciones + /talleres/coordinacion/
+  // solicitudes and /talleres/direccion/solicitudes), so it cannot key
+  // off either role's own `.read` capability alone without hiding it
+  // from the other. See its `requiredCapability` below for why.
+  | 'talleres_pendientes'
   // Coordinador
   | 'talleres_coordinacion_resumen'
   | 'talleres_coordinacion_inscripciones_pendientes'
@@ -182,6 +189,20 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // resource data, so the nav item is dropped rather than repointed.
   { id: 'talleres_grupos_mis_grupos', label: 'Mis Grupos', href: '/talleres/equipo/mis-grupos', requiredCapability: 'talleres_crecimiento.lead.read' },
   { id: 'talleres_sesiones_proximas', label: 'Próximas Sesiones', href: '/talleres/equipo/proximas-sesiones', requiredCapability: 'talleres_crecimiento.lead.read' },
+  // T6 — /talleres/pendientes. `TalleresNavItem.requiredCapability` is a
+  // single string (one href -> one capability — see the
+  // TALLERES_ROUTE_CAPABILITY_MAP invariant test), so this cannot be
+  // "coordinator.read OR director.read". `metrics.read` is the ONE
+  // capability the auto-grant trigger gives to BOTH roles identically
+  // (supabase/migrations/20260810120000_talleres_role_auto_grant.sql) —
+  // and per that same migration, a director/coordinador role assignment
+  // is mutually exclusive (a persona is granted one row's capability set,
+  // never both), so this never doubles up with a same-href duplicate the
+  // way two separate coordinator/director-keyed entries would. The page
+  // itself gates on flag+session only (RLS decides content per docs/
+  // talleres-de-punta-a-punta.md §9's "el rol deja de vivir en la URL");
+  // this capability only controls the MENU entry's visibility.
+  { id: 'talleres_pendientes', label: 'Pendientes', href: '/talleres/pendientes', requiredCapability: 'talleres_crecimiento.metrics.read' },
   // C — Coordinador
   { id: 'talleres_coordinacion_resumen', label: 'Resumen', href: '/talleres/coordinacion', requiredCapability: 'talleres_crecimiento.coordinator.read' },
   { id: 'talleres_coordinacion_inscripciones_pendientes', label: 'Inscripciones Pendientes', href: '/talleres/coordinacion/inscripciones', requiredCapability: 'talleres_crecimiento.coordinator.read' },

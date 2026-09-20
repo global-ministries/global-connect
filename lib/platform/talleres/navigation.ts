@@ -31,7 +31,7 @@ import type { TalleresNavItem, TalleresNavItemId } from './route-access'
  * Group identifier for the renderer. The renderer maps each group to a
  * sub-section header in the menu.
  */
-export type TalleresNavGroupId = 'P' | 'L' | 'V' | 'C' | 'D' | 'A'
+export type TalleresNavGroupId = 'P' | 'L' | 'V' | 'B' | 'C' | 'D' | 'A'
 
 export interface TalleresNavGroup {
   readonly id: TalleresNavGroupId
@@ -58,6 +58,7 @@ export function groupTalleresNavItems(
     P: [],
     L: [],
     V: [],
+    B: [],
     C: [],
     D: [],
     A: [],
@@ -71,6 +72,11 @@ export function groupTalleresNavItems(
   if (buckets.P.length > 0) groups.push({ id: 'P', title: 'Para Mí', items: buckets.P })
   if (buckets.L.length > 0) groups.push({ id: 'L', title: 'Como Líder', items: buckets.L })
   if (buckets.V.length > 0) groups.push({ id: 'V', title: 'Como Voluntario', items: buckets.V })
+  // T6 — the cross-taller pendientes inbox is shared by coordinador and
+  // director alike; it gets its own section rather than living under
+  // either role-specific group (see route-access.ts's comment on
+  // 'talleres_pendientes' for why one nav item can't be "C or D").
+  if (buckets.B.length > 0) groups.push({ id: 'B', title: 'Pendientes', items: buckets.B })
   if (buckets.C.length > 0) groups.push({ id: 'C', title: 'Coordinación', items: buckets.C })
   if (buckets.D.length > 0) groups.push({ id: 'D', title: 'Dirección', items: buckets.D })
   // PR25 — Admin group. Title rendered only when the user actually has
@@ -83,6 +89,9 @@ export function groupTalleresNavItems(
 function groupIdForItemId(id: TalleresNavItemId): TalleresNavGroupId | null {
   if (id.startsWith('talleres_participante_')) return 'P'
   if (id.startsWith('talleres_grupos_') || id.startsWith('talleres_sesiones_')) return 'L'
+  // T6 — talleres_pendientes matches no role-specific prefix by design
+  // (it belongs to neither Coordinación nor Dirección alone).
+  if (id === 'talleres_pendientes') return 'B'
   if (id.startsWith('talleres_coordinacion_')) return 'C'
   if (id.startsWith('talleres_direccion_')) return 'D'
   // PR25 — Admin group is the wizard entry-point under `/admin/...`.
