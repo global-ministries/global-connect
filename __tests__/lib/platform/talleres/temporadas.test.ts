@@ -149,12 +149,12 @@ describe('loadTemporadaDetalle', () => {
   const talleresRows = [{ id: 't-1', nombre: 'Matrimonio', slug: 'matrimonio' }]
   const junctionRows = [{ taller_id: 't-1' }]
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub
   function buildDetalleClientMock(opts: {
     temporada?: unknown | null
     temporadaError?: unknown
     talleres?: unknown[] | null
     junction?: unknown[] | null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub
   }): any {
     return {
       from: jest.fn((table: string) => {
