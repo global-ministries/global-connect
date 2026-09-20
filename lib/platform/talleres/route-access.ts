@@ -120,6 +120,13 @@ export type TalleresNavItemId =
   // off either role's own `.read` capability alone without hiding it
   // from the other. See its `requiredCapability` below for why.
   | 'talleres_pendientes'
+  // T7 (odd/tasks/talleres-consolidar-pantallas.md) — the consolidated
+  // reportes list. Shared by coordinador AND director (it replaces both
+  // /talleres/coordinacion/reportes and /talleres/direccion/reportes), so
+  // it is keyed to metrics.read for the exact same reason as
+  // talleres_pendientes above: it is the one capability both mutually-
+  // exclusive roles are auto-granted.
+  | 'talleres_reportes'
   // Coordinador
   | 'talleres_coordinacion_resumen'
   | 'talleres_coordinacion_inscripciones_pendientes'
@@ -203,6 +210,13 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // talleres-de-punta-a-punta.md §9's "el rol deja de vivir en la URL");
   // this capability only controls the MENU entry's visibility.
   { id: 'talleres_pendientes', label: 'Pendientes', href: '/talleres/pendientes', requiredCapability: 'talleres_crecimiento.metrics.read' },
+  // T7 — /talleres/reportes. Same reasoning as talleres_pendientes above
+  // (one href -> one requiredCapability; metrics.read is the one
+  // capability both coordinador and director are auto-granted). The old
+  // talleres_coordinacion_reportes / talleres_direccion_reportes items
+  // below stay untouched — their pages keep working until T10 deletes
+  // them and this item alongside.
+  { id: 'talleres_reportes', label: 'Reportes', href: '/talleres/reportes', requiredCapability: 'talleres_crecimiento.metrics.read' },
   // C — Coordinador
   { id: 'talleres_coordinacion_resumen', label: 'Resumen', href: '/talleres/coordinacion', requiredCapability: 'talleres_crecimiento.coordinator.read' },
   { id: 'talleres_coordinacion_inscripciones_pendientes', label: 'Inscripciones Pendientes', href: '/talleres/coordinacion/inscripciones', requiredCapability: 'talleres_crecimiento.coordinator.read' },

@@ -96,12 +96,13 @@ describe('getTalleresNavItems — capability filter', () => {
     expect(items.map((i) => i.id)).not.toContain('talleres_admin_inscripciones_global')
   })
 
-  it('metrics.read holder sees P (always) + talleres_pendientes (T6, shared C/D item) + the metricas item', () => {
+  it('metrics.read holder sees P (always) + talleres_pendientes (T6) + talleres_reportes (T7, both shared C/D items) + the metricas item', () => {
     // T6 (odd/tasks/talleres-consolidar-pantallas.md) — talleres_pendientes
     // (/talleres/pendientes) is keyed to metrics.read: the one capability
     // BOTH coordinador and director are auto-granted, so one nav item
     // (one href -> one requiredCapability) can gate a page meant for
-    // either role.
+    // either role. T7 — talleres_reportes (/talleres/reportes) reuses the
+    // exact same reasoning.
     const items = getTalleresNavItems(
       ['talleres_crecimiento.metrics.read'],
       { isEnabled: true },
@@ -112,6 +113,7 @@ describe('getTalleresNavItems — capability filter', () => {
       'talleres_participante_historial',
       'talleres_participante_certificados',
       'talleres_pendientes',
+      'talleres_reportes',
       'talleres_direccion_metricas',
     ])
   })
@@ -394,6 +396,19 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(byId['B']?.items.map((i) => i.id)).toEqual(['talleres_pendientes'])
   })
 
+  it('T7 — groups talleres_reportes under its own "Reportes" bucket, separate from Pendientes', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.metrics.read'],
+      { isEnabled: true },
+    )
+    const groups = groupTalleresNavItems(items)
+    const byId = Object.fromEntries(groups.map((g) => [g.id, g]))
+    expect(byId['R']?.title).toBe('Reportes')
+    expect(byId['R']?.items.map((i) => i.id)).toEqual(['talleres_reportes'])
+    // Pendientes stays exactly as T6 left it — reportes does not leak in.
+    expect(byId['B']?.items.map((i) => i.id)).toEqual(['talleres_pendientes'])
+  })
+
   it('preserves canonical order within each group', () => {
     const items = getTalleresNavItems(
       [
@@ -496,8 +511,10 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
     ]
     // T6 — talleres_pendientes is an intentional exact-id exception (it
     // belongs to neither Coordinación nor Dirección alone — see
-    // groupIdForItemId's own exact-id branch in navigation.ts).
-    const exactIdExceptions = new Set<TalleresNavItemId>(['talleres_pendientes'])
+    // groupIdForItemId's own exact-id branch in navigation.ts). T7 —
+    // talleres_reportes is the same kind of exception, for the same
+    // reason (shared C/D item, keyed to metrics.read).
+    const exactIdExceptions = new Set<TalleresNavItemId>(['talleres_pendientes', 'talleres_reportes'])
     for (const id of allIds) {
       const matches = groupPrefixes.some((p) => id.startsWith(p)) || exactIdExceptions.has(id)
       expect(matches).toBe(true)
