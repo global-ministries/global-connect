@@ -26,7 +26,9 @@ describe('getTalleresNavItems — capability filter', () => {
       ['talleres_crecimiento.participation.read'],
       { isEnabled: true },
     )
-    expect(items.length).toBe(4)
+    // T9 — the P group is now 2 items (Explorar + Mi Recorrido, which
+    // merges the old mis-talleres/historial/certificados trio).
+    expect(items.length).toBe(2)
     expect(items.every((i) => i.id.startsWith('talleres_participante_'))).toBe(true)
   })
 
@@ -40,9 +42,7 @@ describe('getTalleresNavItems — capability filter', () => {
     )
     expect(items.map((i) => i.id)).toEqual([
       'talleres_participante_explorar',
-      'talleres_participante_mis_talleres',
-      'talleres_participante_historial',
-      'talleres_participante_certificados',
+      'talleres_participante_mi_recorrido',
       'talleres_grupos_mis_grupos',
       'talleres_sesiones_proximas',
     ])
@@ -53,10 +53,10 @@ describe('getTalleresNavItems — capability filter', () => {
       ['talleres_crecimiento.coordinator.read'],
       { isEnabled: true },
     )
-    // 4 P (criterion 7) + 5 C items. Finding #5 — the global inscripciones
-    // view is now admin-keyed (moved out of Coordinación), so a pure
-    // coordinador still does not see it.
-    expect(items.length).toBe(4 + 5)
+    // T9 — 2 P (criterion 7) + 5 C items. Finding #5 — the global
+    // inscripciones view is now admin-keyed (moved out of Coordinación),
+    // so a pure coordinador still does not see it.
+    expect(items.length).toBe(2 + 5)
     expect(
       items.every(
         (i) =>
@@ -72,13 +72,11 @@ describe('getTalleresNavItems — capability filter', () => {
       { isEnabled: true },
     )
     // PR H — the director.read → L/C superset is gone. A pure director
-    // sees the 4 P items (criterion 7 — always present) + the 7 items
+    // sees the 2 P items (T9 — criterion 7, always present) + the 8 items
     // keyed to director.read, in canonical order.
     expect(items.map((i) => i.id)).toEqual([
       'talleres_participante_explorar',
-      'talleres_participante_mis_talleres',
-      'talleres_participante_historial',
-      'talleres_participante_certificados',
+      'talleres_participante_mi_recorrido',
       'talleres_direccion_resumen_global',
       'talleres_direccion_temporadas',
       // T8 — /talleres/temporadas, the consolidated Dirección item. It
@@ -115,28 +113,24 @@ describe('getTalleresNavItems — capability filter', () => {
     )
     expect(items.map((i) => i.id)).toEqual([
       'talleres_participante_explorar',
-      'talleres_participante_mis_talleres',
-      'talleres_participante_historial',
-      'talleres_participante_certificados',
+      'talleres_participante_mi_recorrido',
       'talleres_pendientes',
       'talleres_reportes',
       'talleres_direccion_metricas',
     ])
   })
 
-  it('user with no capabilities sees only the 4 P items (odd/tasks/talleres-autoinscripcion.md, criterion 7)', () => {
-    // The participant items (Explorar / Mis Talleres / Historial /
-    // Certificados) are open to ANY authenticated member — a member joins
-    // with zero talleres capabilities and self-enrolling is how they
-    // become a participant. Every other role group still requires its own
-    // capability, unchanged.
+  it('user with no capabilities sees only the 2 P items (odd/tasks/talleres-autoinscripcion.md, criterion 7)', () => {
+    // The participant items (Explorar / Mi Recorrido — T9 merges the old
+    // Mis Talleres + Historial + Certificados trio into Mi Recorrido) are
+    // open to ANY authenticated member — a member joins with zero talleres
+    // capabilities and self-enrolling is how they become a participant.
+    // Every other role group still requires its own capability, unchanged.
     const items = getTalleresNavItems([], { isEnabled: true })
-    expect(items.length).toBe(4)
+    expect(items.length).toBe(2)
     expect(items.map((i) => i.id)).toEqual([
       'talleres_participante_explorar',
-      'talleres_participante_mis_talleres',
-      'talleres_participante_historial',
-      'talleres_participante_certificados',
+      'talleres_participante_mi_recorrido',
     ])
   })
 
@@ -162,8 +156,8 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
     // PR25: the abstracto wizard entry-point. Finding #5: the global
     // inscripciones view moved from Coordinación to Administración, so
     // admin.manage now also sees it. Both live under group A. Criterion 7:
-    // the 4 P items ride along too (canonical order puts P before A).
-    expect(items.length).toBe(4 + 2)
+    // the 2 P items (T9) ride along too (canonical order puts P before A).
+    expect(items.length).toBe(2 + 2)
     const adminItems = items.filter((i) => i.id.startsWith('talleres_admin_'))
     expect(adminItems.map((i) => i.id)).toEqual([
       'talleres_admin_abstracto',
@@ -185,7 +179,7 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
     )
     expect(items.some((i) => i.id.startsWith('talleres_direccion_'))).toBe(false)
     expect(items.some((i) => i.id.startsWith('talleres_coordinacion_'))).toBe(false)
-    expect(items.filter((i) => i.id.startsWith('talleres_participante_')).length).toBe(4)
+    expect(items.filter((i) => i.id.startsWith('talleres_participante_')).length).toBe(2)
   })
 
   it('admin.manage + director.read sees P (always) + the D group + the admin entries (no L/C superset — PR H)', () => {
@@ -196,12 +190,12 @@ describe('getTalleresNavItems — admin.manage (PR25)', () => {
       ],
       { isEnabled: true },
     )
-    // PR H — no L/C superset. 4 P (criterion 7) + 8 director.read items
-    // (T8 adds talleres_temporadas alongside the old talleres_direccion_
-    // temporadas) + 2 admin.manage entries (abstracto + the admin-keyed
-    // global inscripciones view) = 14. (metricas needs metrics.read; not
-    // held here.)
-    expect(items.length).toBe(14)
+    // PR H — no L/C superset. 2 P (T9 — criterion 7) + 8 director.read
+    // items (T8 adds talleres_temporadas alongside the old
+    // talleres_direccion_temporadas) + 2 admin.manage entries (abstracto +
+    // the admin-keyed global inscripciones view) = 12. (metricas needs
+    // metrics.read; not held here.)
+    expect(items.length).toBe(12)
     expect(items.map((i) => i.id)).toContain('talleres_admin_abstracto')
     expect(items.map((i) => i.id)).toContain('talleres_admin_inscripciones_global')
     expect(items.map((i) => i.id)).toContain('talleres_direccion_temporadas')
@@ -349,7 +343,7 @@ describe('getTalleresNavItems — multi-role union', () => {
       ],
       { isEnabled: true },
     )
-    expect(items.length).toBe(4 + 2)
+    expect(items.length).toBe(2 + 2)
     expect(items.map((i) => i.id)).toContain('talleres_participante_explorar')
     expect(items.map((i) => i.id)).toContain('talleres_grupos_mis_grupos')
   })
@@ -363,12 +357,12 @@ describe('getTalleresNavItems — multi-role union', () => {
       ],
       { isEnabled: true },
     )
-    // PR H — no superset. 4 P + 5 C + 8 D = 17 (T8 adds talleres_
+    // PR H — no superset. 2 P (T9) + 5 C + 8 D = 15 (T8 adds talleres_
     // temporadas to the D group). Finding #5 — the global inscripciones
     // view is admin-keyed, so it is NOT among the 5 C items here (this
     // user has no admin.manage). The 3 L items are NOT covered because
     // the user does not hold lead.read.
-    expect(items.length).toBe(17)
+    expect(items.length).toBe(15)
     expect(items.map((i) => i.id)).not.toContain('talleres_grupos_mis_grupos')
     expect(items.map((i) => i.id)).not.toContain('talleres_sesiones_proximas')
   })
@@ -479,9 +473,7 @@ describe('groupTalleresNavItems — role grouping', () => {
     const lGroup = groups.find((g) => g.id === 'L')
     expect(pGroup?.items.map((i) => i.id)).toEqual([
       'talleres_participante_explorar',
-      'talleres_participante_mis_talleres',
-      'talleres_participante_historial',
-      'talleres_participante_certificados',
+      'talleres_participante_mi_recorrido',
     ])
     expect(lGroup?.items.map((i) => i.id)).toEqual([
       'talleres_grupos_mis_grupos',
@@ -531,7 +523,9 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
     const participantItems = TALLERES_NAV_ITEMS.filter((i) =>
       i.id.startsWith('talleres_participante_'),
     )
-    expect(participantItems.length).toBe(4)
+    // T9 — Explorar + Mi Recorrido (which merges the old mis-talleres/
+    // historial/certificados trio into one tabbed screen).
+    expect(participantItems.length).toBe(2)
     for (const item of participantItems) {
       expect(item.requiredCapability).toBeNull()
     }

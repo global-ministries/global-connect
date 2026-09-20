@@ -92,6 +92,13 @@ export async function inscribirseATaller(input: InscribirseInput): Promise<Inscr
   }
 
   revalidatePath('/talleres/explorar')
+  // T9 (odd/tasks/talleres-consolidar-pantallas.md) — the old
+  // /talleres/mis-talleres stays alive (unmodified) until T10, so it keeps
+  // getting revalidated; the "Para Mí" nav now points at the merged
+  // /talleres/mi-recorrido, so that one needs revalidating too — otherwise
+  // a participant who enrolls and then clicks through the menu would see
+  // stale data on the screen they actually land on.
   revalidatePath('/talleres/mis-talleres')
+  revalidatePath('/talleres/mi-recorrido')
   return { ok: true, inscripcionId: data.id as string }
 }

@@ -23,6 +23,14 @@ import {
   TEMPORADA_ESTADO_BADGE_VARIANTE,
   temporadaEstadoLabel,
   temporadaEstadoBadgeVariante,
+  INSCRIPCION_ESTADO_LABELS,
+  INSCRIPCION_ESTADO_BADGE_VARIANTE,
+  inscripcionEstadoLabel,
+  inscripcionEstadoBadgeVariante,
+  UNIT_ESTADO_LABELS,
+  UNIT_ESTADO_BADGE_VARIANTE,
+  unitEstadoLabel,
+  unitEstadoBadgeVariante,
 } from '@/components/talleres/labels'
 
 describe('edición estado labels', () => {
@@ -148,5 +156,80 @@ describe('temporada estado labels', () => {
   it('temporadaEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
     expect(temporadaEstadoBadgeVariante('borrador')).toBe('info')
     expect(temporadaEstadoBadgeVariante('algo-desconocido')).toBe('default')
+  })
+})
+
+// T9 (odd/tasks/talleres-consolidar-pantallas.md) — taller_inscripciones.estado
+// (participant-facing) gets the same treatment: the old mis-talleres page
+// rendered aprobado as success/pendiente as default, while historial
+// rendered completado as success/no_aprobado as error/else default — two
+// different colors for the same `aprobado` value depending on which old
+// screen rendered it. This is the single shared map the merged
+// /talleres/mi-recorrido screen uses for both its "en curso" and
+// "historial" tabs.
+describe('inscripcion estado labels', () => {
+  it('has a Spanish label for every known estado', () => {
+    expect(INSCRIPCION_ESTADO_LABELS).toEqual({
+      pendiente: 'Pendiente',
+      aprobado: 'Aprobado',
+      no_aprobado: 'No aprobado',
+      completado: 'Completado',
+    })
+  })
+
+  it('maps every estado to a valid BadgeSistema variante', () => {
+    const validVariantes = new Set(['default', 'success', 'warning', 'error', 'info'])
+    for (const variante of Object.values(INSCRIPCION_ESTADO_BADGE_VARIANTE)) {
+      expect(validVariantes.has(variante)).toBe(true)
+    }
+  })
+
+  it('no_aprobado reads as error, aprobado as success', () => {
+    expect(INSCRIPCION_ESTADO_BADGE_VARIANTE.no_aprobado).toBe('error')
+    expect(INSCRIPCION_ESTADO_BADGE_VARIANTE.aprobado).toBe('success')
+  })
+
+  it('inscripcionEstadoLabel resolves a known key and falls back to the raw key otherwise', () => {
+    expect(inscripcionEstadoLabel('aprobado')).toBe('Aprobado')
+    expect(inscripcionEstadoLabel('algo-desconocido')).toBe('algo-desconocido')
+  })
+
+  it('inscripcionEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
+    expect(inscripcionEstadoBadgeVariante('pendiente')).toBe('warning')
+    expect(inscripcionEstadoBadgeVariante('algo-desconocido')).toBe('default')
+  })
+})
+
+// T9 — taller_inscripciones.unit_estado (the per-unit completion outcome,
+// distinct from the inscripcion's own estado above).
+describe('unit estado labels', () => {
+  it('has a Spanish label for every known estado', () => {
+    expect(UNIT_ESTADO_LABELS).toEqual({
+      completado: 'Completado',
+      no_completado: 'No completado',
+      abandono: 'Abandonó',
+    })
+  })
+
+  it('maps every estado to a valid BadgeSistema variante', () => {
+    const validVariantes = new Set(['default', 'success', 'warning', 'error', 'info'])
+    for (const variante of Object.values(UNIT_ESTADO_BADGE_VARIANTE)) {
+      expect(validVariantes.has(variante)).toBe(true)
+    }
+  })
+
+  it('completado reads as success, abandono as error', () => {
+    expect(UNIT_ESTADO_BADGE_VARIANTE.completado).toBe('success')
+    expect(UNIT_ESTADO_BADGE_VARIANTE.abandono).toBe('error')
+  })
+
+  it('unitEstadoLabel resolves a known key and falls back to the raw key otherwise', () => {
+    expect(unitEstadoLabel('abandono')).toBe('Abandonó')
+    expect(unitEstadoLabel('algo-desconocido')).toBe('algo-desconocido')
+  })
+
+  it('unitEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
+    expect(unitEstadoBadgeVariante('no_completado')).toBe('default')
+    expect(unitEstadoBadgeVariante('algo-desconocido')).toBe('default')
   })
 })
