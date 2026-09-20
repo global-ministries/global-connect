@@ -18,7 +18,7 @@
  * already uses for persona/edicion/cohorte names.
  */
 
-import { loadCatalogoTalleres, loadMisGruposResumen } from '@/lib/platform/talleres/catalogo'
+import { loadCatalogoTalleres, loadMisGruposResumen, loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
 
 jest.mock('@/lib/platform/talleres/operacional', () => ({
@@ -128,6 +128,78 @@ describe('loadCatalogoTalleres', () => {
     const { client } = buildCatalogoClientMock(null, { message: 'boom' })
     const result = await loadCatalogoTalleres(client)
     expect(result).toEqual([])
+  })
+})
+
+// ─── loadTallerDetalle ──────────────────────────────────────────────────
+
+/** Thenable `.from(t).select(cols).eq(col, val).maybeSingle()` client mock. */
+function buildTallerDetalleClientMock(
+  row: unknown | null,
+  error: unknown = null,
+): { client: { from: jest.Mock }; eqCalls: Array<[string, string]>; selectCols: string[] } {
+  const eqCalls: Array<[string, string]> = []
+  const selectCols: string[] = []
+  const from = jest.fn(() => {
+    const b: Record<string, unknown> = {}
+    b['select'] = jest.fn((cols: string) => {
+      selectCols.push(cols)
+      return b
+    })
+    b['eq'] = jest.fn((col: string, val: string) => {
+      eqCalls.push([col, val])
+      return b
+    })
+    b['maybeSingle'] = jest.fn(() => Promise.resolve({ data: row, error }))
+    return b
+  })
+  return { client: { from }, eqCalls, selectCols }
+}
+
+describe('loadTallerDetalle', () => {
+  it('queries FROM talleres by slug with taller_ediciones nested', async () => {
+    const { client, eqCalls, selectCols } = buildTallerDetalleClientMock(null)
+    await loadTallerDetalle(client, 'matrimonio-sobre-la-roca')
+    expect(client.from).toHaveBeenCalledWith('talleres')
+    expect(eqCalls).toEqual([['slug', 'matrimonio-sobre-la-roca']])
+    expect(selectCols[0]).toMatch(/taller_ediciones/)
+  })
+
+  it('maps the row with its nested ediciones and inscripciones counts, same shape as loadCatalogoTalleres', async () => {
+    const row = {
+      id: 't-1',
+      slug: 'matrimonio-sobre-la-roca',
+      nombre: 'Matrimonio sobre la Roca',
+      estado: 'active',
+      dream_team_equipo_id: 'eq-1',
+      ediciones: [
+        {
+          id: 'e-1',
+          nombre_snapshot: 'Septiembre 2026',
+          tipo: 'pareja',
+          estado: 'abierto',
+          inscripciones: [{ id: 'i-1' }],
+        },
+      ],
+    }
+    const { client } = buildTallerDetalleClientMock(row)
+    const result = await loadTallerDetalle(client, 'matrimonio-sobre-la-roca')
+    expect(result?.id).toBe('t-1')
+    expect(result?.dream_team_equipo_id).toBe('eq-1')
+    expect(result?.ediciones).toHaveLength(1)
+    expect(result?.ediciones[0]?.total_inscripciones).toBe(1)
+  })
+
+  it('returns null when no taller matches the slug', async () => {
+    const { client } = buildTallerDetalleClientMock(null)
+    const result = await loadTallerDetalle(client, 'no-existe')
+    expect(result).toBeNull()
+  })
+
+  it('returns null on a query error', async () => {
+    const { client } = buildTallerDetalleClientMock(null, { message: 'boom' })
+    const result = await loadTallerDetalle(client, 'matrimonio-sobre-la-roca')
+    expect(result).toBeNull()
   })
 })
 
