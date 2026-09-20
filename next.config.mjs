@@ -25,19 +25,43 @@ const nextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: [
-        'http://localhost:3000', 
-        'http://localhost:3001', 
+        'http://localhost:3000',
+        'http://localhost:3001',
         'http://127.0.0.1:58303',
         'http://127.0.0.1:57901',
         'http://0.0.0.0:3000',
         'http://0.0.0.0:3001',
-        'localhost:3000', 
-        'localhost:3001', 
+        'localhost:3000',
+        'localhost:3001',
         '127.0.0.1:58303',
         '127.0.0.1:57901'
       ],
       bodySizeLimit: '10mb', // Aumentar límite a 10MB para fotos
     },
+  },
+  // T1 (odd/tasks/talleres-consolidar-pantallas.md) — talleres nav-link
+  // fixes only. These 2 old paths never had a real page (they 404'd —
+  // see the sibling fix in lib/platform/talleres/route-access.ts's
+  // TALLERES_NAV_ITEMS) and their stopgap target already exists TODAY.
+  // Every other old→new mapping (the full 30-screen consolidation) is
+  // deferred to T10, once the new /talleres/[taller]/... tree actually
+  // exists to redirect to — seeing lib/platform/talleres/rutas.ts's
+  // TALLERES_RUTAS_ANTIGUAS for the full map and why each entry waits.
+  // `permanent: false` (307) on purpose: these are stopgaps, not the
+  // final destination, so browsers must not cache them past T10.
+  async redirects() {
+    return [
+      {
+        source: '/talleres/grupos',
+        destination: '/talleres/equipo/mis-grupos',
+        permanent: false,
+      },
+      {
+        source: '/talleres/sesiones',
+        destination: '/talleres/equipo/proximas-sesiones',
+        permanent: false,
+      },
+    ]
   },
 }
 
