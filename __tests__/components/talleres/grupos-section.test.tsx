@@ -14,6 +14,12 @@
  *   - assigns a líder/voluntario       (POST /api/talleres/grupos/[id]/asignaciones)
  *     through the shared SelectLeaderModal persona picker
  *
+ * T5 (odd/tasks/talleres-consolidar-pantallas.md) — each grupo row now
+ * links to /talleres/[taller]/[edicion]/[grupo] (rutaGrupo), replacing the
+ * `// T5` marker T4 left in place of an interactive row. tallerSlug and
+ * edicionId are required props for that link — every render() call below
+ * passes them.
+ *
  * We stub SelectLeaderModal (so the assign flow never touches
  * /api/lideres/buscar) and mock global.fetch, mirroring the harness in
  * app/(auth)/talleres/explorar/explorar-client.test.tsx.
@@ -117,15 +123,25 @@ describe('GruposSection — list (PR F)', () => {
     state.grupos = [
       { id: 'g-1', cohorte_id: 'c-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo' },
     ]
-    render(<GruposSection cohorteId="c-1" />)
+    render(<GruposSection cohorteId="c-1" tallerSlug="matrimonio-sobre-la-roca" edicionId="e-1" />)
 
     expect(await screen.findByText('Grupo Alfa')).toBeInTheDocument()
     expect(fetchCalls[0]?.url).toContain('/api/talleres/grupos?cohorte_id=c-1')
   })
 
+  it('links each grupo row to /talleres/[taller]/[edicion]/[grupo] (T5)', async () => {
+    state.grupos = [
+      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo' },
+    ]
+    render(<GruposSection cohorteId="c-1" tallerSlug="matrimonio-sobre-la-roca" edicionId="e-1" />)
+
+    const link = await screen.findByRole('link', { name: /Grupo Alfa/i })
+    expect(link).toHaveAttribute('href', '/talleres/matrimonio-sobre-la-roca/e-1/g-1')
+  })
+
   it('renders an empty state when the cohorte has no grupos', async () => {
     state.grupos = []
-    render(<GruposSection cohorteId="c-1" />)
+    render(<GruposSection cohorteId="c-1" tallerSlug="matrimonio-sobre-la-roca" edicionId="e-1" />)
 
     expect(await screen.findByText(/todavía no tiene grupos/i)).toBeInTheDocument()
   })
@@ -134,7 +150,7 @@ describe('GruposSection — list (PR F)', () => {
 describe('GruposSection — create grupo (PR F)', () => {
   it('POSTs the grupo and surfaces the generated-session count', async () => {
     state.grupos = []
-    render(<GruposSection cohorteId="c-1" />)
+    render(<GruposSection cohorteId="c-1" tallerSlug="matrimonio-sobre-la-roca" edicionId="e-1" />)
     await screen.findByText(/todavía no tiene grupos/i)
 
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Grupo Beta' } })
@@ -160,7 +176,7 @@ describe('GruposSection — assign persona (PR F)', () => {
     state.grupos = [
       { id: 'g-1', cohorte_id: 'c-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo' },
     ]
-    render(<GruposSection cohorteId="c-1" />)
+    render(<GruposSection cohorteId="c-1" tallerSlug="matrimonio-sobre-la-roca" edicionId="e-1" />)
     await screen.findByText('Grupo Alfa')
 
     // Default rol is 'lider'. Open the picker for the grupo…

@@ -29,8 +29,15 @@
  * can reuse it too (the old page keeps working, just its import path
  * changes). Gated there by permisos.gestionarGrupos, scoped to the
  * taller's dream_team_equipo_id — never a flat capability check.
+ *
+ * T5 (odd/tasks/talleres-consolidar-pantallas.md) — each grupo row now
+ * links to /talleres/[taller]/[edicion]/[grupo] via rutaGrupo(), replacing
+ * the `// T5` marker T4 left here. tallerSlug/edicionId are the two extra
+ * segments rutaGrupo needs beyond the grupo's own id, which the row
+ * already has.
  */
 
+import Link from 'next/link'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 
 import SelectLeaderModal from '@/components/modals/SelectLeaderModal'
@@ -42,9 +49,12 @@ import {
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
+import { rutaGrupo } from '@/lib/platform/talleres/rutas'
 
 interface GruposSectionProps {
   readonly cohorteId: string
+  readonly tallerSlug: string
+  readonly edicionId: string
 }
 
 interface GrupoRow {
@@ -68,7 +78,7 @@ const ROL_OPCIONES = [
   { valor: 'voluntario', etiqueta: 'Voluntario' },
 ]
 
-export function GruposSection({ cohorteId }: GruposSectionProps): React.ReactElement {
+export function GruposSection({ cohorteId, tallerSlug, edicionId }: GruposSectionProps): React.ReactElement {
   const [grupos, setGrupos] = useState<GrupoRow[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -249,15 +259,17 @@ export function GruposSection({ cohorteId }: GruposSectionProps): React.ReactEle
       ) : (
         <ul className="space-y-3">
           {grupos.map((grupo) => (
-            // T5: link to rutaGrupo(taller.slug, edicion.id, grupo.id) once
-            // /talleres/[taller]/[edicion]/[grupo] exists — kept
-            // non-interactive for now, exactly as T2/T3 left their rows.
             <li
               key={grupo.id}
               className="flex items-center justify-between gap-4 rounded-lg border border-border/60 p-4"
             >
               <div>
-                <TextoSistema className="font-medium">{grupo.nombre}</TextoSistema>
+                <Link
+                  href={rutaGrupo(tallerSlug, edicionId, grupo.id)}
+                  className="font-medium text-foreground hover:underline"
+                >
+                  {grupo.nombre}
+                </Link>
                 <TextoSistema variante="muted" className="text-sm">
                   Capacidad {grupo.capacidad} · {grupo.estado}
                 </TextoSistema>
