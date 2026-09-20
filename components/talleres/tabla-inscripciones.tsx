@@ -25,7 +25,13 @@
  *   - rows: readonly InscripcionAdminRow[] (shared shape).
  *   - canWrite: whether the current user holds an inscripcion
  *     write capability. When false, the buttons are suppressed and
- *     only the state badge is shown in the actions column.
+ *     only the state badge is shown in the actions column. Either a
+ *     plain boolean (applies to every row — every existing caller) or
+ *     a per-row resolver `(row) => boolean` — T6's cross-taller
+ *     /talleres/pendientes inbox needs the latter: rows come from
+ *     several equipos, each with its own permisos, so a flat boolean
+ *     cannot show buttons for one taller's rows and the read-only badge
+ *     for another's in the SAME table.
  *   - onApprove: server action (id) => result.
  *   - onReject: server action (id, motivo) => result.
  */
@@ -44,11 +50,17 @@ import {
 
 import type { InscripcionAdminRow } from '@/lib/platform/talleres/inscripciones-types'
 
+export type CanWriteInscripcion = boolean | ((row: InscripcionAdminRow) => boolean)
+
 export interface TablaInscripcionesProps {
   readonly rows: readonly InscripcionAdminRow[]
-  readonly canWrite: boolean
+  readonly canWrite: CanWriteInscripcion
   readonly onApprove: InscripcionApproveAction
   readonly onReject: InscripcionRejectAction
+}
+
+function resolveCanWrite(canWrite: CanWriteInscripcion, row: InscripcionAdminRow): boolean {
+  return typeof canWrite === 'function' ? canWrite(row) : canWrite
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────
@@ -150,6 +162,7 @@ export function TablaInscripciones({
             <tbody className="divide-y divide-border">
               {rows.map((row) => {
                 const linkLabel = linkTypeLabel(row.link_type)
+                const rowCanWrite = resolveCanWrite(canWrite, row)
                 return (
                   <tr key={row.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3">
@@ -189,7 +202,7 @@ export function TablaInscripciones({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        {canWrite && row.estado === 'pendiente' ? (
+                        {rowCanWrite && row.estado === 'pendiente' ? (
                           <>
                             <ApproveInscripcionButton
                               inscripcionId={row.id}
@@ -219,6 +232,7 @@ export function TablaInscripciones({
       <div className="sm:hidden space-y-3">
         {rows.map((row) => {
           const linkLabel = linkTypeLabel(row.link_type)
+          const rowCanWrite = resolveCanWrite(canWrite, row)
           return (
             <TarjetaSistema key={row.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
@@ -257,7 +271,7 @@ export function TablaInscripciones({
               <TextoSistema variante="sutil" className="mt-2 block text-xs">
                 Creada el {formatFecha(row.created_at)}
               </TextoSistema>
-              {canWrite && row.estado === 'pendiente' && (
+              {rowCanWrite && row.estado === 'pendiente' && (
                 <div className="mt-3 flex items-center justify-end gap-2">
                   <ApproveInscripcionButton
                     inscripcionId={row.id}

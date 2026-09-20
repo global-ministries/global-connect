@@ -213,6 +213,44 @@ describe('TablaInscripciones — actions gating', () => {
   })
 })
 
+// T6 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/pendientes
+// aggregates rows from several equipos, each with its OWN permisos. A
+// single flat `canWrite: boolean` cannot express "row A shows buttons,
+// row B (a different equipo the viewer can't act on) shows its estado
+// badge instead" — the exact fallback this component already has for
+// `canWrite === false`. `canWrite` now additionally accepts a per-row
+// resolver function; a plain boolean keeps working unchanged for every
+// existing caller.
+describe('TablaInscripciones — per-row canWrite (T6)', () => {
+  it('accepts a function and resolves it PER ROW instead of once for the whole table', () => {
+    renderTabla({
+      rows: [
+        makeRow({ id: 'insc-a', taller_id: 't-a', estado: 'pendiente' }),
+        makeRow({ id: 'insc-b', taller_id: 't-b', estado: 'pendiente' }),
+      ],
+      canWrite: (row) => row.taller_id === 't-a',
+    })
+    expect(screen.getAllByTestId('approve-insc-a').length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('approve-insc-b')).not.toBeInTheDocument()
+    // The row without write access falls back to the estado badge —
+    // TablaInscripciones's existing canWrite=false behavior, just now
+    // resolved per row instead of for the whole table.
+    expect(screen.getAllByText('Pendiente').length).toBeGreaterThan(0)
+  })
+
+  it('a plain boolean still applies uniformly to every row (backward compatible)', () => {
+    renderTabla({
+      rows: [
+        makeRow({ id: 'insc-a', estado: 'pendiente' }),
+        makeRow({ id: 'insc-b', estado: 'pendiente' }),
+      ],
+      canWrite: true,
+    })
+    expect(screen.getAllByTestId('approve-insc-a').length).toBeGreaterThan(0)
+    expect(screen.getAllByTestId('approve-insc-b').length).toBeGreaterThan(0)
+  })
+})
+
 describe('TablaInscripciones — empty rows', () => {
   it('renders nothing crash-y when rows is empty', () => {
     const { container } = renderTabla({ rows: [] })
