@@ -144,6 +144,19 @@ describe('CatalogoTalleresClient — Catálogo + crear taller', () => {
     expect(screen.getByText('Cerrada')).toBeInTheDocument()
     expect(screen.getByText(/12 inscrit/)).toBeInTheDocument()
   })
+
+  it('T3 — links each taller row to /talleres/[taller] now that the page exists', () => {
+    render(
+      <CatalogoTalleresClient
+        catalogo={[TALLER_ABIERTO]}
+        misGrupos={[]}
+        puedeCrear={false}
+        opciones={OPCIONES_VACIAS}
+      />,
+    )
+    const link = screen.getByRole('link', { name: /Matrimonio sobre la Roca/ })
+    expect(link).toHaveAttribute('href', '/talleres/matrimonio-sobre-la-roca')
+  })
 })
 
 describe('CatalogoTalleresClient — filtro "abiertas"', () => {
