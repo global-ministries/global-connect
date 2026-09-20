@@ -2,16 +2,34 @@
 -- talleres_mis_permisos(p_equipo_id) returns the right booleans per node.
 --
 -- Run against STAGING after applying
--- 20260919120000_talleres_mis_permisos.sql.
+-- 20260919120000_talleres_mis_permisos.sql and
+-- 20260919140000_talleres_mis_permisos_admin_manage.sql.
 --
 -- Covers: a global admin (scope_id IS NULL), a director scoped to a
--- PARENT node (authority must reach every descendant), a coordinator
--- scoped to ONE specific taller equipo (authority must NOT reach a
--- sibling equipo under the same parent, and must NOT reach upward to
--- that parent), and a member with zero grants (everything false). Each
--- identity is checked against its own branch AND a completely unrelated
--- sibling branch. Also covers p_equipo_id = NULL (only a truly global
--- grant — scope_id IS NULL — can satisfy any boolean).
+-- PARENT node (authority must reach every descendant), an admin-only
+-- identity (admin.manage, NO director.*) ALSO scoped to a PARENT node
+-- (same tree-scoping shape as director — added when
+-- 20260919140000_talleres_mis_permisos_admin_manage.sql fixed
+-- editar_taller to accept admin.manage too), a coordinator scoped to
+-- ONE specific taller equipo (authority must NOT reach a sibling equipo
+-- under the same parent, and must NOT reach upward to that parent), and
+-- a member with zero grants (everything false). Each identity is
+-- checked against its own branch AND a completely unrelated sibling
+-- branch. Also covers p_equipo_id = NULL (only a truly global grant —
+-- scope_id IS NULL — can satisfy any boolean).
+--
+-- Every assertion below runs under `SET LOCAL ROLE authenticated` —
+-- the staging MCP connection runs as `postgres`, which has BYPASSRLS.
+-- talleres_mis_permisos is SECURITY DEFINER and its own body never
+-- touches an RLS-gated table as the CALLER (auth_has_talleres_
+-- capability_scoped reads dream_team_capability_grants under its own
+-- SECURITY DEFINER privileges, keyed off auth.uid() — a session GUC,
+-- not the calling role), so this particular function's result would be
+-- identical either way. It's done anyway, as a standing rule recorded
+-- for every future permissions test in this codebase (see
+-- talleres-catalogo-admin-manage.test.sql, where the same switch is
+-- NOT optional: that test exercises raw RLS-gated UPDATE/DELETE, which
+-- BYPASSRLS silently defeats).
 --
 -- BEGIN…ROLLBACK — nothing here is kept; every fixture id is under this
 -- file's own a8000000-... namespace, no ambient staging row is touched.
@@ -26,6 +44,7 @@ BEGIN;
 SET LOCAL search_path TO pg_temp, public;
 
 CREATE TEMP TABLE t1_failures (case_name text) ON COMMIT DROP;
+GRANT INSERT ON t1_failures TO authenticated;
 
 -- Compares every key in p_expected against the same key in p_actual
 -- (both jsonb booleans), recording one failure row per mismatched key.
@@ -59,7 +78,8 @@ $$;
 
 -- ── fixtures ─────────────────────────────────────────────────────────
 -- Rama A (under the real "Grupos de Corto Plazo" node):
---   a8...01  Rama A Parent          — director's grant lives HERE
+--   a8...01  Rama A Parent          — director's AND admin-only's grants
+--                                     both live HERE (distinct personas)
 --   a8...02  Rama A Child           — descendant of the parent (no grant
 --                                     of its own — must inherit from 01)
 --   a8...03  Rama A Equipo Coord    — descendant of the parent, sibling
@@ -78,14 +98,17 @@ INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_d
   ('a8000000-0000-4000-8000-000000000010', 'authenticated', 'authenticated', 't1-fixture-admin@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
   ('a8000000-0000-4000-8000-000000000012', 'authenticated', 'authenticated', 't1-fixture-director@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
   ('a8000000-0000-4000-8000-000000000014', 'authenticated', 'authenticated', 't1-fixture-coordinador@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
-  ('a8000000-0000-4000-8000-000000000016', 'authenticated', 'authenticated', 't1-fixture-miembro@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now())
+  ('a8000000-0000-4000-8000-000000000016', 'authenticated', 'authenticated', 't1-fixture-miembro@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
+  ('a8000000-0000-4000-8000-000000000018', 'authenticated', 'authenticated', 't1-fixture-adminonly@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero) VALUES
   ('a8000000-0000-4000-8000-000000000011', 'a8000000-0000-4000-8000-000000000010', 'T1 Fixture', 'Admin', 't1-fixture-admin@example.test', 'Soltero', 'Otro'),
   ('a8000000-0000-4000-8000-000000000013', 'a8000000-0000-4000-8000-000000000012', 'T1 Fixture', 'Director', 't1-fixture-director@example.test', 'Soltero', 'Otro'),
   ('a8000000-0000-4000-8000-000000000015', 'a8000000-0000-4000-8000-000000000014', 'T1 Fixture', 'Coordinador', 't1-fixture-coordinador@example.test', 'Soltero', 'Otro'),
-  ('a8000000-0000-4000-8000-000000000017', 'a8000000-0000-4000-8000-000000000016', 'T1 Fixture', 'Miembro', 't1-fixture-miembro@example.test', 'Soltero', 'Otro');
+  ('a8000000-0000-4000-8000-000000000017', 'a8000000-0000-4000-8000-000000000016', 'T1 Fixture', 'Miembro', 't1-fixture-miembro@example.test', 'Soltero', 'Otro'),
+  ('a8000000-0000-4000-8000-000000000019', 'a8000000-0000-4000-8000-000000000018', 'T1 Fixture', 'AdminOnly', 't1-fixture-adminonly@example.test', 'Soltero', 'Otro')
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id) VALUES
   -- Global admin — truly global grant (scope_id IS NULL).
@@ -98,7 +121,13 @@ INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, exp
   -- CHILD, not the parent. Must not reach a8...01 (its own parent),
   -- a8...02 (its sibling) or a8...04 (unrelated branch).
   ('a8000000-0000-4000-8000-000000000015', 'talleres_crecimiento.coordinator.read', 'talleres_crecimiento', 'taller', 'a8000000-0000-4000-8000-000000000003'),
-  ('a8000000-0000-4000-8000-000000000015', 'talleres_crecimiento.coordinator.write', 'talleres_crecimiento', 'taller', 'a8000000-0000-4000-8000-000000000003');
+  ('a8000000-0000-4000-8000-000000000015', 'talleres_crecimiento.coordinator.write', 'talleres_crecimiento', 'taller', 'a8000000-0000-4000-8000-000000000003'),
+  -- Admin-only — admin.manage ONLY (no director.*), scoped to the SAME
+  -- PARENT node as director (a8...01), NOT global. Must reach a8...02
+  -- and a8...03 (descendants) but not a8...04 (unrelated branch) — the
+  -- same tree-scoping shape director already proves, now proving
+  -- editar_taller specifically accepts admin.manage too.
+  ('a8000000-0000-4000-8000-000000000019', 'talleres_crecimiento.admin.manage', 'talleres_crecimiento', 'taller', 'a8000000-0000-4000-8000-000000000001');
   -- Miembro (a8...17) — zero grants, on purpose.
 
 CREATE OR REPLACE FUNCTION pg_temp.as_admin() RETURNS void LANGUAGE sql AS $$
@@ -115,6 +144,10 @@ CREATE OR REPLACE FUNCTION pg_temp.as_coordinador() RETURNS void LANGUAGE sql AS
 $$;
 CREATE OR REPLACE FUNCTION pg_temp.as_miembro() RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claim.sub', 'a8000000-0000-4000-8000-000000000016', true),
+         set_config('request.jwt.claim.role', 'authenticated', true);
+$$;
+CREATE OR REPLACE FUNCTION pg_temp.as_adminonly() RETURNS void LANGUAGE sql AS $$
+  SELECT set_config('request.jwt.claim.sub', 'a8000000-0000-4000-8000-000000000018', true),
          set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
@@ -138,28 +171,33 @@ $$;
 
 -- ══ Global admin — scope_id IS NULL reaches every node, including NULL ══
 
+SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_admin();
--- admin.manage drives everything EXCEPT editar_taller (director.write
--- only, per the live talleres_update_director RLS) and ver_metricas
--- (metrics.read only) — see the migration header for why.
+-- admin.manage now drives EVERYTHING except ver_metricas (metrics.read
+-- only) — editar_taller was fixed in
+-- 20260919140000_talleres_mis_permisos_admin_manage.sql to also accept
+-- admin.manage, matching the live talleres_update_director RLS
+-- (20260919130000_talleres_catalogo_admin_manage.sql).
 SELECT pg_temp.check_permisos(
   'admin @ Rama A Parent',
   public.talleres_mis_permisos('a8000000-0000-4000-8000-000000000001'),
-  pg_temp.exp(true, false, true, true, true, true, true, true, true, false)
+  pg_temp.exp(true, true, true, true, true, true, true, true, true, false)
 );
 SELECT pg_temp.check_permisos(
   'admin @ Rama B Sibling (unrelated branch — global grant still reaches it)',
   public.talleres_mis_permisos('a8000000-0000-4000-8000-000000000004'),
-  pg_temp.exp(true, false, true, true, true, true, true, true, true, false)
+  pg_temp.exp(true, true, true, true, true, true, true, true, true, false)
 );
 SELECT pg_temp.check_permisos(
   'admin @ NULL node (only the global grant itself can satisfy this)',
   public.talleres_mis_permisos(NULL),
-  pg_temp.exp(true, false, true, true, true, true, true, true, true, false)
+  pg_temp.exp(true, true, true, true, true, true, true, true, true, false)
 );
+RESET ROLE;
 
 -- ══ Director scoped to the PARENT node — reaches every descendant ═══════
 
+SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_director();
 SELECT pg_temp.check_permisos(
   'director @ own node (Rama A Parent)',
@@ -181,9 +219,40 @@ SELECT pg_temp.check_permisos(
   public.talleres_mis_permisos('a8000000-0000-4000-8000-000000000004'),
   pg_temp.all_false()
 );
+RESET ROLE;
+
+-- ══ Admin-only (admin.manage, NO director.*) scoped to the PARENT node ══
+-- Same tree-scoping shape as director above — proves editar_taller (and
+-- every other admin.manage-eligible boolean) accepts a SCOPED admin.manage
+-- grant, not just the global one already covered above.
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_adminonly();
+SELECT pg_temp.check_permisos(
+  'admin-only @ own node (Rama A Parent)',
+  public.talleres_mis_permisos('a8000000-0000-4000-8000-000000000001'),
+  pg_temp.exp(true, true, true, true, true, true, true, true, true, false)
+);
+SELECT pg_temp.check_permisos(
+  'admin-only @ Rama A Child (descendant — authority flows down the tree)',
+  public.talleres_mis_permisos('a8000000-0000-4000-8000-000000000002'),
+  pg_temp.exp(true, true, true, true, true, true, true, true, true, false)
+);
+SELECT pg_temp.check_permisos(
+  'admin-only @ Rama A Equipo Coord (also a descendant)',
+  public.talleres_mis_permisos('a8000000-0000-4000-8000-000000000003'),
+  pg_temp.exp(true, true, true, true, true, true, true, true, true, false)
+);
+SELECT pg_temp.check_permisos(
+  'admin-only @ Rama B Sibling (unrelated branch — must be all false)',
+  public.talleres_mis_permisos('a8000000-0000-4000-8000-000000000004'),
+  pg_temp.all_false()
+);
+RESET ROLE;
 
 -- ══ Coordinador scoped to ONE specific taller equipo (not the parent) ═══
 
+SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_coordinador();
 SELECT pg_temp.check_permisos(
   'coordinador @ own equipo (Rama A Equipo Coord)',
@@ -205,9 +274,11 @@ SELECT pg_temp.check_permisos(
   public.talleres_mis_permisos('a8000000-0000-4000-8000-000000000004'),
   pg_temp.all_false()
 );
+RESET ROLE;
 
 -- ══ Miembro sin permisos — all false everywhere, including NULL ═════════
 
+SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_miembro();
 SELECT pg_temp.check_permisos(
   'miembro @ Rama A Parent',
@@ -219,6 +290,7 @@ SELECT pg_temp.check_permisos(
   public.talleres_mis_permisos(NULL),
   pg_temp.all_false()
 );
+RESET ROLE;
 
 SELECT pg_temp.report();
 

@@ -3,6 +3,15 @@
 /**
  * T3 — Create taller abstracto form (client wrapper).
  *
+ * T2 (odd/tasks/talleres-consolidar-pantallas.md) — moved here from
+ * app/(auth)/admin/talleres/abstracto/nuevo/crear-form.tsx so the new
+ * /talleres catalog can reuse it without importing across an app/ route
+ * folder. The old abstracto/page.tsx and abstracto/nuevo/page.tsx now
+ * import it from this shared location too — this is a move, not a copy,
+ * so there is exactly one implementation. The server action it calls
+ * (createTallerAbstract) stays in its original location; only the
+ * client form component moved.
+ *
  * Renders an inline form to create a new abstract taller. The equipo
  * choice is mandatory: "vincular" picks one of the eligible existing
  * org-chart nodes (`opciones.vincular`), "nuevo" mints a fresh one
@@ -33,7 +42,7 @@ import {
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import type { OpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
 
-import { createTallerAbstract } from './actions'
+import { createTallerAbstract } from '@/app/(auth)/admin/talleres/abstracto/nuevo/actions'
 
 type ModoEquipo = 'vincular' | 'nuevo'
 
