@@ -39,27 +39,26 @@ const nextConfig = {
       bodySizeLimit: '10mb', // Aumentar límite a 10MB para fotos
     },
   },
-  // T1 (odd/tasks/talleres-consolidar-pantallas.md) — talleres nav-link
-  // fixes only. These 2 old paths never had a real page (they 404'd —
-  // see the sibling fix in lib/platform/talleres/route-access.ts's
-  // TALLERES_NAV_ITEMS) and their stopgap target already exists TODAY.
-  // Every other old→new mapping (the full 30-screen consolidation) is
-  // deferred to T10, once the new /talleres/[taller]/... tree actually
-  // exists to redirect to — seeing lib/platform/talleres/rutas.ts's
-  // TALLERES_RUTAS_ANTIGUAS for the full map and why each entry waits.
-  // `permanent: false` (307) on purpose: these are stopgaps, not the
-  // final destination, so browsers must not cache them past T10.
+  // T10 (odd/tasks/talleres-consolidar-pantallas.md) — repointed straight
+  // at their FINAL destination /talleres (see
+  // lib/platform/talleres/rutas.ts's TALLERES_RUTAS_ANTIGUAS). They used
+  // to target /talleres/equipo/{mis-grupos,proximas-sesiones}, old routes
+  // T10 deletes — chaining through a soon-to-be-gone route is the exact
+  // trap T10's own guard test now prohibits
+  // (__tests__/lib/platform/talleres/rutas.test.ts, "no destino is itself
+  // an origen"). `permanent: true` (308): this is the final mapping, not
+  // a stopgap, so it's safe for browsers to cache.
   async redirects() {
     return [
       {
         source: '/talleres/grupos',
-        destination: '/talleres/equipo/mis-grupos',
-        permanent: false,
+        destination: '/talleres',
+        permanent: true,
       },
       {
         source: '/talleres/sesiones',
-        destination: '/talleres/equipo/proximas-sesiones',
-        permanent: false,
+        destination: '/talleres',
+        permanent: true,
       },
     ]
   },

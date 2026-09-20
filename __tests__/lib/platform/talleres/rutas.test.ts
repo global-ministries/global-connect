@@ -99,14 +99,31 @@ describe('TALLERES_RUTAS_ANTIGUAS — old→new route map', () => {
     }
   })
 
-  it('an entry marked activa:true matches one of the next.config.mjs redirects (T1 scope)', () => {
+  it('T10 trap disarmed: the 2 stopgap redirects no longer chain into a route T10 deletes', () => {
+    // odd/tasks/talleres-consolidar-pantallas.md, T10: /talleres/grupos and
+    // /talleres/sesiones used to point at /talleres/equipo/mis-grupos and
+    // /talleres/equipo/proximas-sesiones — both old routes T10 removes.
+    // Resolved to their final destination (/talleres, which now carries
+    // both "mis grupos" and "próximas sesiones" as catalog sections) so
+    // deleting those two old routes can never re-break these menu items.
     const activas = TALLERES_RUTAS_ANTIGUAS.filter((e) => e.activa)
-    expect(activas.map((e) => [e.origen, e.destino]).sort()).toEqual(
-      [
-        ['/talleres/grupos', '/talleres/equipo/mis-grupos'],
-        ['/talleres/sesiones', '/talleres/equipo/proximas-sesiones'],
-      ].sort(),
-    )
+    const grupos = activas.find((e) => e.origen === '/talleres/grupos')
+    const sesiones = activas.find((e) => e.origen === '/talleres/sesiones')
+    expect(grupos?.destino).toBe('/talleres')
+    expect(sesiones?.destino).toBe('/talleres')
+  })
+
+  it('T10 guard: no destino is itself an origen (no redirect chains through another old route)', () => {
+    // odd/tasks/talleres-consolidar-pantallas.md, T10: the exact trap the
+    // parent caught before this task ran — /talleres/grupos redirected to
+    // /talleres/equipo/mis-grupos, an old route T10 deletes. Every destino
+    // must be a FINAL destination, never another entry's origen, or
+    // deleting that origen's route 404s the redirect all over again.
+    const origenes = new Set(TALLERES_RUTAS_ANTIGUAS.map((e) => e.origen))
+    const chained = TALLERES_RUTAS_ANTIGUAS.filter(
+      (e) => e.destino !== null && origenes.has(e.destino),
+    ).map((e) => `${e.origen} -> ${e.destino}`)
+    expect(chained).toEqual([])
   })
 
   it('every entry not yet active carries a non-empty nota explaining the deferral', () => {

@@ -118,9 +118,13 @@ const REQUIERE_PUENTE = 'la URL vieja lleva un id; resolver su slug requiere una
 const PANTALLA_ELIMINADA = 'pantalla eliminada en esta consolidación (sin datos reales) — sin destino'
 
 export const TALLERES_RUTAS_ANTIGUAS: readonly RutaAntigua[] = [
-  // Ya activos (T0 + T1) — el destino ya existe hoy.
-  { origen: '/talleres/grupos', destino: '/talleres/equipo/mis-grupos', activa: true, nota: '' },
-  { origen: '/talleres/sesiones', destino: '/talleres/equipo/proximas-sesiones', activa: true, nota: '' },
+  // Ya activos (T0 + T1). T10 — repuntados a su destino FINAL: apuntaban a
+  // /talleres/equipo/{mis-grupos,proximas-sesiones}, rutas viejas que T10
+  // borra. Encadenar a través de un origen que desaparece es exactamente
+  // la trampa que T0 arregló la primera vez — ver el guard de arriba
+  // ("no destino is itself an origen").
+  { origen: '/talleres/grupos', destino: '/talleres', activa: true, nota: '' },
+  { origen: '/talleres/sesiones', destino: '/talleres', activa: true, nota: '' },
 
   // Dirección
   { origen: '/talleres/direccion', destino: '/talleres', activa: false, nota: DESTINO_AUN_NO_EXISTE },
