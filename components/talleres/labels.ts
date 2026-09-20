@@ -64,3 +64,35 @@ export function tallerEstadoLabel(estado: string): string {
 export function tallerEstadoBadgeVariante(estado: string): BadgeVariante {
   return (TALLER_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
 }
+
+/**
+ * T7 (odd/tasks/talleres-consolidar-pantallas.md) — a `taller_reportes`
+ * row's own `estado`. The old coordinacion/reportes + direccion/reportes
+ * pages rendered `r.estado` raw with no label or variante at all
+ * (`<BadgeSistema>{r.estado}</BadgeSistema>`) — a violation of this
+ * file's own header rule, fixed here for the consolidated screen.
+ */
+export type ReporteEstado = 'borrador' | 'enviado' | 'reabierto' | 'cerrado'
+
+export const REPORTE_ESTADO_LABELS: Record<ReporteEstado, string> = {
+  borrador: 'Borrador',
+  enviado: 'Enviado',
+  reabierto: 'Reabierto',
+  cerrado: 'Cerrado',
+}
+
+export const REPORTE_ESTADO_BADGE_VARIANTE: Record<ReporteEstado, BadgeVariante> = {
+  borrador: 'default',
+  enviado: 'success',
+  reabierto: 'warning',
+  cerrado: 'info',
+}
+
+/** Never render a raw `taller_reportes.estado` key — always go through this. */
+export function reporteEstadoLabel(estado: string): string {
+  return (REPORTE_ESTADO_LABELS as Readonly<Record<string, string>>)[estado] ?? estado
+}
+
+export function reporteEstadoBadgeVariante(estado: string): BadgeVariante {
+  return (REPORTE_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
+}

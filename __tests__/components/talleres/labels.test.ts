@@ -15,6 +15,10 @@ import {
   TALLER_ESTADO_BADGE_VARIANTE,
   tallerEstadoLabel,
   tallerEstadoBadgeVariante,
+  REPORTE_ESTADO_LABELS,
+  REPORTE_ESTADO_BADGE_VARIANTE,
+  reporteEstadoLabel,
+  reporteEstadoBadgeVariante,
 } from '@/components/talleres/labels'
 
 describe('edición estado labels', () => {
@@ -73,5 +77,36 @@ describe('taller estado labels', () => {
   it('tallerEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
     expect(tallerEstadoBadgeVariante('archived')).toBe('default')
     expect(tallerEstadoBadgeVariante('algo-desconocido')).toBe('default')
+  })
+})
+
+// T7 (odd/tasks/talleres-consolidar-pantallas.md) — taller_reportes.estado
+// gets the same treatment: the old coordinacion/reportes + direccion/reportes
+// pages rendered `r.estado` raw, with no label or variante mapping at all.
+describe('reporte estado labels', () => {
+  it('has a Spanish label for every known estado', () => {
+    expect(REPORTE_ESTADO_LABELS).toEqual({
+      borrador: 'Borrador',
+      enviado: 'Enviado',
+      reabierto: 'Reabierto',
+      cerrado: 'Cerrado',
+    })
+  })
+
+  it('maps every estado to a valid BadgeSistema variante', () => {
+    const validVariantes = new Set(['default', 'success', 'warning', 'error', 'info'])
+    for (const variante of Object.values(REPORTE_ESTADO_BADGE_VARIANTE)) {
+      expect(validVariantes.has(variante)).toBe(true)
+    }
+  })
+
+  it('reporteEstadoLabel resolves a known key and falls back to the raw key otherwise', () => {
+    expect(reporteEstadoLabel('enviado')).toBe('Enviado')
+    expect(reporteEstadoLabel('algo-desconocido')).toBe('algo-desconocido')
+  })
+
+  it('reporteEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
+    expect(reporteEstadoBadgeVariante('enviado')).toBe('success')
+    expect(reporteEstadoBadgeVariante('algo-desconocido')).toBe('default')
   })
 })

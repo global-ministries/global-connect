@@ -159,6 +159,17 @@ describe('TALLERES_NAV_ITEMS — /talleres/pendientes (T6)', () => {
   })
 })
 
+// ─── T7 — /talleres/reportes nav item ──────────────────────────────────
+
+describe('TALLERES_NAV_ITEMS — /talleres/reportes (T7)', () => {
+  it('is declared, capability-gated (never null) and shared by coordinador + director via metrics.read (same reasoning as T6\'s pendientes item)', () => {
+    const item = TALLERES_NAV_ITEMS.find((i) => i.href === '/talleres/reportes')
+    expect(item).toBeDefined()
+    expect(item?.requiredCapability).not.toBeNull()
+    expect(item?.requiredCapability).toBe('talleres_crecimiento.metrics.read')
+  })
+})
+
 describe('TALLERES_ROUTE_CAPABILITY_MAP / getRequiredCapabilityForRoute — route→capability lookup', () => {
   it('maps every nav item href to its requiredCapability', () => {
     for (const item of TALLERES_NAV_ITEMS) {

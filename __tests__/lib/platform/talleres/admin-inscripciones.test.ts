@@ -1,7 +1,8 @@
 /**
  * @jest-environment node
  *
- * PR42 — Tests for the `/admin/talleres/inscripciones` global loader.
+ * PR42 — Tests for the `/admin/talleres/inscripciones` global loader,
+ * also consumed by `/talleres/[taller]/[edicion]` (T4).
  *
  * Covers:
  *   - The loader does NOT enforce the capability gate (that's the
@@ -11,6 +12,21 @@
  *   - Filters translate to `.eq()` clauses on the SQL side.
  *   - The tall taller_id value used by the FK joins is the *edicion*
  *     id, not the abstract taller id.
+ *
+ * T6b (odd/tasks/talleres-consolidar-pantallas.md) — bug fix: the loader
+ * used to embed `usuarios!persona_principal_id` directly in its SELECT.
+ * That embed runs under the CALLER's own `usuarios` RLS
+ * (`puede_ver_usuario`), which denies it for any viewer who is not the
+ * target, an admin/pastor, or a Grupos de Vida leader/director sharing a
+ * group with them. A plain taller coordinador matches none of those, so
+ * the embed resolved to `null` and the old `if (!persona) continue`
+ * silently dropped every row — since this loader is called by
+ * `/talleres/[taller]/[edicion]`, that coordinador's own "Inscritos"
+ * section rendered EMPTY. Names now come from the SECURITY DEFINER RPC
+ * `talleres_coord_inscripciones_personas` (same fix as
+ * `loadCoordInscripcionesPendientes`, operacional.ts, T6): a row is
+ * NEVER dropped for a missing persona — a name the viewer cannot read
+ * degrades to '—' instead.
  */
 
 import {
@@ -24,14 +40,21 @@ interface CapturedFilter {
   readonly op: 'eq' | 'in'
 }
 
+interface CapturedRpc {
+  readonly fn: string
+  readonly args: unknown
+}
+
 const captured: CapturedFilter[] = []
+const capturedRpc: CapturedRpc[] = []
+let selectColumnsByTable: Record<string, string> = {}
+let rpcData: unknown[] = []
 
 function makeBuilder(table: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thenable + chain
   const b: Record<string, any> = {}
-  let currentCols = ''
   b['select'] = jest.fn((cols: string) => {
-    currentCols = cols
+    selectColumnsByTable[table] = cols
     return b
   })
   b['eq'] = jest.fn((column: string, value: unknown) => {
@@ -57,6 +80,10 @@ function buildClientMock(responses: Record<string, { data: unknown; error: { mes
       ) => Promise.resolve(responses[table] ?? { data: [], error: null }).then(resolve)
       return b
     }),
+    rpc: jest.fn((fn: string, args: unknown) => {
+      capturedRpc.push({ fn, args })
+      return Promise.resolve({ data: rpcData, error: null })
+    }),
   }
 }
 
@@ -72,13 +99,8 @@ const FULL_EDICION = {
   },
 }
 
-const FULL_USUARIO = {
-  id: 'u-1',
-  nombre: 'Isaac',
-  apellido: 'Páez',
-  email: 'isaac@example.com',
-}
-
+// Scalar FK columns only — the `usuarios` embed is gone (T6b). Names are
+// resolved by the RPC below, keyed by inscripcion_id.
 const FULL_INSCRIPCION = {
   id: 'insc-1',
   taller_id: 'ed-1',
@@ -87,8 +109,17 @@ const FULL_INSCRIPCION = {
   created_at: '2026-08-15T12:00:00Z',
   updated_at: '2026-08-15T12:00:00Z',
   cohorte_id: 'coh-1',
-  persona_principal: FULL_USUARIO,
-  companero: null,
+  persona_principal_id: 'u-1',
+  companero_id: null,
+}
+
+const RPC_PERSONA = {
+  inscripcion_id: 'insc-1',
+  pp_nombre: 'Isaac',
+  pp_apellido: 'Páez',
+  pp_email: 'isaac@example.com',
+  comp_nombre: null,
+  comp_apellido: null,
 }
 
 const FULL_COHORTE = {
@@ -98,10 +129,14 @@ const FULL_COHORTE = {
 
 beforeEach(() => {
   captured.length = 0
+  capturedRpc.length = 0
+  selectColumnsByTable = {}
+  rpcData = []
 })
 
 describe('loadAdminInscripciones — joins', () => {
-  it('queries taller_inscripciones with the embedded persona + companero dual-join', async () => {
+  it('queries taller_inscripciones with scalar FK columns and resolves names via the RPC', async () => {
+    rpcData = [RPC_PERSONA]
     const client = buildClientMock({
       taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
       taller_ediciones: { data: [FULL_EDICION], error: null },
@@ -128,21 +163,33 @@ describe('loadAdminInscripciones — joins', () => {
     expect(result.total).toBe(1)
   })
 
-  it('emits the persona_principal + companero FK hints in the SELECT (two distinct edges to `usuarios`)', async () => {
+  it('selects scalar FK columns (no usuarios embed) and calls the RPC with the RLS-visible inscripcion ids', async () => {
+    rpcData = [RPC_PERSONA]
     const client = buildClientMock({
       taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
       taller_ediciones: { data: [FULL_EDICION], error: null },
       talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
     })
     await loadAdminInscripciones(client, {})
-    const callArgs = (client.from as jest.Mock).mock.calls
-      .map((c) => c[0])
+
+    const inscSelect = selectColumnsByTable['taller_inscripciones']
+    expect(inscSelect).toBeDefined()
+    expect(inscSelect).not.toMatch(/usuarios/)
+    expect(inscSelect).toMatch(/persona_principal_id/)
+    expect(inscSelect).toMatch(/companero_id/)
+
+    expect(capturedRpc).toHaveLength(1)
+    expect(capturedRpc[0]?.fn).toBe('talleres_coord_inscripciones_personas')
+    expect(capturedRpc[0]?.args).toEqual({ p_inscripcion_ids: ['insc-1'] })
+
+    const callArgs = (client.from as jest.Mock).mock.calls.map((c) => c[0])
     expect(callArgs).toContain('taller_inscripciones')
     expect(callArgs).toContain('taller_ediciones')
     expect(callArgs).toContain('talleres_crecimiento_cohortes')
   })
 
   it('PR42 — taller_id filter on the lookup queries uses the edicion id (not the abstract taller id)', async () => {
+    rpcData = [RPC_PERSONA]
     const client = buildClientMock({
       taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
       taller_ediciones: { data: [FULL_EDICION], error: null },
@@ -190,6 +237,7 @@ describe('loadAdminInscripciones — filters', () => {
   })
 
   it('taller_id filter (abstract id) is applied as a post-query filter on the edicion set', async () => {
+    rpcData = [RPC_PERSONA]
     const client = buildClientMock({
       taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
       taller_ediciones: { data: [FULL_EDICION], error: null },
@@ -229,12 +277,15 @@ describe('loadAdminInscripciones — empty + error', () => {
     expect(result.total).toBe(0)
   })
 
-  it('returns empty when taller_inscripciones returns an error', async () => {
+  it('makes no RPC call when there are zero inscripciones', async () => {
     const client = buildClientMock({
-      taller_inscripciones: { data: null, error: { message: 'sql fail' } },
+      taller_inscripciones: { data: [], error: null },
     })
-    // The mock is thenable with { data, error: null } — we need a
-    // separate mock that returns the error. Override:
+    await loadAdminInscripciones(client, {})
+    expect(capturedRpc).toHaveLength(0)
+  })
+
+  it('returns empty when taller_inscripciones returns an error', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock
     const erroringClient: any = {
       from: jest.fn(() => ({
@@ -251,6 +302,7 @@ describe('loadAdminInscripciones — empty + error', () => {
   })
 
   it('skips rows whose edicion join resolves to null (deny-by-default)', async () => {
+    rpcData = [RPC_PERSONA]
     const client = buildClientMock({
       // The inscripcion references an edicion that doesn't exist in
       // the joined edicion set. The loader must drop the row.
@@ -262,23 +314,34 @@ describe('loadAdminInscripciones — empty + error', () => {
     expect(result.rows).toHaveLength(0)
   })
 
-  it('skips rows whose persona_principal join is null (no internal profile)', async () => {
-    const orphanInscripcion = {
-      ...FULL_INSCRIPCION,
-      persona_principal: null,
-    }
+  // T6b — regression guard for the production bug: a plain taller
+  // coordinador (full talleres capabilities, no Grupos de Vida
+  // leadership) cannot read `usuarios` for anyone but themselves. The
+  // pre-fix loader embedded `usuarios!persona_principal_id`, which
+  // resolved to `null` for that viewer, and `if (!persona) continue`
+  // dropped the row — the coordinador's own "Inscritos" section
+  // (rendered by /talleres/[taller]/[edicion], T4) showed EMPTY even
+  // though the enrollment was fully RLS-visible. The row must survive
+  // and degrade its name to '—' instead.
+  it('T6b — never drops a row when the RPC yields no persona (masked name instead of hiding the enrollment)', async () => {
+    rpcData = [] // The RPC found no match — same shape a denied-embed viewer sees.
     const client = buildClientMock({
-      taller_inscripciones: { data: [orphanInscripcion], error: null },
+      taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
       taller_ediciones: { data: [FULL_EDICION], error: null },
       talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
     })
     const result = await loadAdminInscripciones(client, {})
-    expect(result.rows).toHaveLength(0)
+    expect(result.rows).toHaveLength(1)
+    expect(result.rows[0]?.persona_principal_id).toBe('u-1')
+    expect(result.rows[0]?.persona_principal_nombre).toBe('—')
+    expect(result.rows[0]?.persona_principal_email).toBeNull()
+    expect(result.total).toBe(1)
   })
 })
 
 describe('loadAdminInscripciones — cohort + companero', () => {
   it('surfaces cohorte_edicion when the cohorte join lands', async () => {
+    rpcData = [RPC_PERSONA]
     const client = buildClientMock({
       taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
       taller_ediciones: { data: [FULL_EDICION], error: null },
@@ -289,6 +352,7 @@ describe('loadAdminInscripciones — cohort + companero', () => {
   })
 
   it('null cohorte on the inscripcion surfaces as null cohorte_id + cohorte_edicion', async () => {
+    rpcData = [RPC_PERSONA]
     const legacyInscripcion = {
       ...FULL_INSCRIPCION,
       cohorte_id: null,
@@ -307,12 +371,14 @@ describe('loadAdminInscripciones — cohort + companero', () => {
     const parejaInscripcion = {
       ...FULL_INSCRIPCION,
       link_type: 'matrimonio' as const,
-      companero: {
-        id: 'u-2',
-        nombre: 'Mar\u00eda',
-        apellido: 'P\u00e9rez',
-      },
+      companero_id: 'u-2',
     }
+    const parejaRpc = {
+      ...RPC_PERSONA,
+      comp_nombre: 'María',
+      comp_apellido: 'Pérez',
+    }
+    rpcData = [parejaRpc]
     const client = buildClientMock({
       taller_inscripciones: { data: [parejaInscripcion], error: null },
       taller_ediciones: { data: [FULL_EDICION], error: null },
@@ -321,6 +387,18 @@ describe('loadAdminInscripciones — cohort + companero', () => {
     const result = await loadAdminInscripciones(client, {})
     expect(result.rows[0]?.link_type).toBe('matrimonio')
     expect(result.rows[0]?.companero_id).toBe('u-2')
-    expect(result.rows[0]?.companero_nombre).toBe('Mar\u00eda P\u00e9rez')
+    expect(result.rows[0]?.companero_nombre).toBe('María Pérez')
+  })
+
+  it('companero_nombre stays null when companero_id is null, even if the RPC row carries stray comp_* fields', async () => {
+    rpcData = [{ ...RPC_PERSONA, comp_nombre: 'Should not surface', comp_apellido: 'X' }]
+    const client = buildClientMock({
+      taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
+      taller_ediciones: { data: [FULL_EDICION], error: null },
+      talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
+    })
+    const result = await loadAdminInscripciones(client, {})
+    expect(result.rows[0]?.companero_id).toBeNull()
+    expect(result.rows[0]?.companero_nombre).toBeNull()
   })
 })

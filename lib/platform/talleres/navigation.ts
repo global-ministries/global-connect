@@ -31,7 +31,7 @@ import type { TalleresNavItem, TalleresNavItemId } from './route-access'
  * Group identifier for the renderer. The renderer maps each group to a
  * sub-section header in the menu.
  */
-export type TalleresNavGroupId = 'P' | 'L' | 'V' | 'B' | 'C' | 'D' | 'A'
+export type TalleresNavGroupId = 'P' | 'L' | 'V' | 'B' | 'R' | 'C' | 'D' | 'A'
 
 export interface TalleresNavGroup {
   readonly id: TalleresNavGroupId
@@ -59,6 +59,7 @@ export function groupTalleresNavItems(
     L: [],
     V: [],
     B: [],
+    R: [],
     C: [],
     D: [],
     A: [],
@@ -77,6 +78,10 @@ export function groupTalleresNavItems(
   // either role-specific group (see route-access.ts's comment on
   // 'talleres_pendientes' for why one nav item can't be "C or D").
   if (buckets.B.length > 0) groups.push({ id: 'B', title: 'Pendientes', items: buckets.B })
+  // T7 — the consolidated reportes list is shared by coordinador and
+  // director alike (see route-access.ts's comment on 'talleres_reportes'
+  // for why one nav item can't be "C or D"), same pattern as bucket B.
+  if (buckets.R.length > 0) groups.push({ id: 'R', title: 'Reportes', items: buckets.R })
   if (buckets.C.length > 0) groups.push({ id: 'C', title: 'Coordinación', items: buckets.C })
   if (buckets.D.length > 0) groups.push({ id: 'D', title: 'Dirección', items: buckets.D })
   // PR25 — Admin group. Title rendered only when the user actually has
@@ -92,6 +97,8 @@ function groupIdForItemId(id: TalleresNavItemId): TalleresNavGroupId | null {
   // T6 — talleres_pendientes matches no role-specific prefix by design
   // (it belongs to neither Coordinación nor Dirección alone).
   if (id === 'talleres_pendientes') return 'B'
+  // T7 — same reasoning for talleres_reportes.
+  if (id === 'talleres_reportes') return 'R'
   if (id.startsWith('talleres_coordinacion_')) return 'C'
   if (id.startsWith('talleres_direccion_')) return 'D'
   // PR25 — Admin group is the wizard entry-point under `/admin/...`.

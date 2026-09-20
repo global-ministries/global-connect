@@ -28,6 +28,23 @@
  *     surfaced here — that field is RLS-protected for the
  *     participant and the page UI doesn't need it (the action that
  *     WRITES motivo on rejection writes it directly to the DB).
+ *
+ * T6b (odd/tasks/talleres-consolidar-pantallas.md) — persona names come
+ * from the SECURITY DEFINER RPC `talleres_coord_inscripciones_personas`,
+ * not from an embedded `usuarios!persona_principal_id` join. The embed
+ * used to run under the CALLER's own `usuarios` RLS
+ * (`puede_ver_usuario`), which denies it for any viewer who is not the
+ * target, an admin/pastor, or a Grupos de Vida leader/director sharing a
+ * group with them. A plain taller coordinador matches none of those, so
+ * the embed resolved to `null` for every enrolled person and the old
+ * `if (!persona) continue` silently dropped every row — this loader is
+ * called by `/talleres/[taller]/[edicion]` (T4), the very screen built
+ * for that coordinador, so its "Inscritos" section rendered EMPTY. Same
+ * fix as `loadCoordInscripcionesPendientes` (operacional.ts, T6): select
+ * scalar FK columns, resolve names via the RPC (which re-applies
+ * `taller_inscripciones_select` internally, fail-closed), and NEVER
+ * drop a row for a missing persona — a name the viewer cannot read
+ * degrades to '—', it is not a reason to hide the enrollment.
  */
 
 // Re-export the shared tipos so existing callers (page A, tests, etc.)
@@ -74,13 +91,14 @@ export async function loadAdminInscripciones(
   // embedded join because `taller_id` is ambiguous across the two
   // parent tables; the explicit FK hint (`taller_id!edicion_id`) is
   // not supported by PostgREST — instead we resolve the join in TS.
+  //
+  // Scalar FK columns only — NO `usuarios` embed (see this file's
+  // header, T6b). Names are resolved via the RPC in Query 1b below.
   let query = client
     .from('taller_inscripciones')
     .select(
       `id, taller_id, estado, link_type, created_at, updated_at,
-       cohorte_id,
-       persona_principal:usuarios!persona_principal_id (id, nombre, apellido, email),
-       companero:usuarios!companero_id (id, nombre, apellido)`,
+       cohorte_id, persona_principal_id, companero_id`,
     )
     .order('created_at', { ascending: false })
     .limit(500)
@@ -107,13 +125,46 @@ export async function loadAdminInscripciones(
   // Collect ids for the batched lookups.
   const edicionIds = new Set<string>()
   const cohorteIds = new Set<string>()
+  const inscripcionIds: string[] = []
   for (const row of inscripciones) {
     if (typeof row.taller_id === 'string') edicionIds.add(row.taller_id)
     if (typeof row.cohorte_id === 'string') cohorteIds.add(row.cohorte_id)
+    if (typeof row.id === 'string') inscripcionIds.push(row.id)
   }
-  // persona_principal is an embedded object (id, nombre, apellido, email).
-  // compa\u00f1ero is similarly embedded. No extra lookup needed for
-  // those — they're already in the row.
+
+  // Query 1b — persona names via the SECURITY DEFINER RPC (T6b, see this
+  // file's header). It re-applies the exact `taller_inscripciones_select`
+  // policy internally (fail-closed) and bypasses only the `usuarios` RLS
+  // for the name join, so a scoped viewer gets names for the
+  // inscripciones they already see without a broad `usuarios` read grant.
+  const personasByInscripcion = new Map<
+    string,
+    {
+      pp_nombre: string | null
+      pp_apellido: string | null
+      pp_email: string | null
+      comp_nombre: string | null
+      comp_apellido: string | null
+    }
+  >()
+  if (inscripcionIds.length > 0) {
+    const pRes = await client.rpc('talleres_coord_inscripciones_personas', {
+      p_inscripcion_ids: inscripcionIds,
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resolved shape
+    const pData = ((pRes as any)?.data ?? []) as any[]
+    for (const p of pData) {
+      if (typeof p.inscripcion_id === 'string') {
+        personasByInscripcion.set(p.inscripcion_id, {
+          pp_nombre: p.pp_nombre ?? null,
+          pp_apellido: p.pp_apellido ?? null,
+          pp_email: p.pp_email ?? null,
+          comp_nombre: p.comp_nombre ?? null,
+          comp_apellido: p.comp_apellido ?? null,
+        })
+      }
+    }
+  }
 
   // Query 2 — ediciones (with abstract taller) by ids.
   const edicionesById = new Map<
@@ -174,13 +225,12 @@ export async function loadAdminInscripciones(
     if (!edicion) continue
     const cohorte =
       typeof r.cohorte_id === 'string' ? cohortesById.get(r.cohorte_id) : null
-    const persona = r.persona_principal as
-      | { id: string; nombre: string | null; apellido: string | null; email: string | null }
-      | null
-    const companero = r.companero as
-      | { id: string; nombre: string | null; apellido: string | null }
-      | null
-    if (!persona) continue
+    // Never drop on a missing persona: the row is already RLS-visible
+    // (Query 1) — a name the viewer cannot read degrades to '—' instead
+    // of hiding the enrollment (T6b, see this file's header).
+    const personas =
+      typeof r.id === 'string' ? personasByInscripcion.get(r.id) : undefined
+    const companeroId = (r.companero_id as string | null) ?? null
 
     const nombreCompleto = (n: string | null, a: string | null) =>
       [n, a].filter((x) => x && x.length > 0).join(' ') || '—'
@@ -195,11 +245,15 @@ export async function loadAdminInscripciones(
       taller_slug: edicion.taller?.slug ?? '',
       cohorte_id: (r.cohorte_id as string | null) ?? null,
       cohorte_edicion: cohorte?.edicion ?? null,
-      persona_principal_id: persona.id,
-      persona_principal_nombre: nombreCompleto(persona.nombre, persona.apellido),
-      persona_principal_email: persona.email ?? null,
-      companero_id: companero?.id ?? null,
-      companero_nombre: companero ? nombreCompleto(companero.nombre, companero.apellido) : null,
+      persona_principal_id: r.persona_principal_id as string,
+      persona_principal_nombre: personas
+        ? nombreCompleto(personas.pp_nombre, personas.pp_apellido)
+        : '—',
+      persona_principal_email: personas?.pp_email ?? null,
+      companero_id: companeroId,
+      companero_nombre: companeroId
+        ? nombreCompleto(personas?.comp_nombre ?? null, personas?.comp_apellido ?? null)
+        : null,
       link_type: (r.link_type as 'matrimonio' | 'novios' | null) ?? null,
       estado: r.estado as InscripcionEstado,
       created_at: r.created_at as string,
