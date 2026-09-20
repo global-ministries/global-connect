@@ -21,7 +21,7 @@ import {
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { fetchOpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
 
-import { CrearTallerAbstractoForm } from './nuevo/crear-form'
+import { CrearTallerAbstractoForm } from '@/components/talleres/crear-taller-form'
 
 export const metadata = { title: 'Grupos de Corto Plazo' }
 

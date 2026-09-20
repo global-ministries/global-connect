@@ -26,7 +26,7 @@
  */
 
 import CrearTallerAbstractoPage from '@/app/(auth)/admin/talleres/abstracto/nuevo/page'
-import { CrearTallerAbstractoForm } from '@/app/(auth)/admin/talleres/abstracto/nuevo/crear-form'
+import { CrearTallerAbstractoForm } from '@/components/talleres/crear-taller-form'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(),
