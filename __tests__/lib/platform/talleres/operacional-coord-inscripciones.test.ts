@@ -197,10 +197,10 @@ const FULL_COHORTE = {
   edicion: 'Septiembre 2026',
 }
 
-async function loadAsCoord() {
+async function loadAsCoord(estados?: readonly string[]) {
   const ctxRes = await loadOperacionalContext()
   if (!ctxRes.ok) throw new Error('expected coord context')
-  return loadCoordInscripcionesPendientes(ctxRes.context)
+  return loadCoordInscripcionesPendientes(ctxRes.context, estados)
 }
 
 describe('loadCoordInscripcionesPendientes — joins', () => {
@@ -267,6 +267,34 @@ describe('loadCoordInscripcionesPendientes — joins', () => {
       },
     })
     await loadAsCoord()
+    const estadoFilter = captured.find(
+      (f) => f.table === 'taller_inscripciones' && f.column === 'estado',
+    )
+    expect(estadoFilter?.op).toBe('eq')
+    expect(estadoFilter?.value).toBe('pendiente')
+  })
+
+  it('T10 (odd/tasks/talleres-consolidar-pantallas.md): an explicit estados list filters by .in(estado, ...) — /talleres/pendientes\' cross-edición audit filter', async () => {
+    setupMocks({
+      responses: {
+        taller_inscripciones: { data: [], error: null },
+      },
+    })
+    await loadAsCoord(['pendiente', 'aprobado', 'no_aprobado', 'retirado'])
+    const estadoFilter = captured.find(
+      (f) => f.table === 'taller_inscripciones' && f.column === 'estado',
+    )
+    expect(estadoFilter?.op).toBe('in')
+    expect(estadoFilter?.value).toEqual(['pendiente', 'aprobado', 'no_aprobado', 'retirado'])
+  })
+
+  it('T10: an empty estados array still falls back to the pendiente default (never an unfiltered query)', async () => {
+    setupMocks({
+      responses: {
+        taller_inscripciones: { data: [], error: null },
+      },
+    })
+    await loadAsCoord([])
     const estadoFilter = captured.find(
       (f) => f.table === 'taller_inscripciones' && f.column === 'estado',
     )

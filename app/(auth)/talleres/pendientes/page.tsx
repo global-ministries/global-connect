@@ -44,6 +44,7 @@
  */
 
 import { LogOut, Users as UsersIcon } from 'lucide-react'
+import Link from 'next/link'
 
 import { ContenedorDashboard, BadgeSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
@@ -74,7 +75,47 @@ import {
 
 export const metadata = { title: 'Pendientes' }
 
-export default async function PendientesPage() {
+// ─── T10 (odd/tasks/talleres-consolidar-pantallas.md) — estado filter ──────
+//
+// Parent's decision: /admin/talleres/inscripciones's full multi-estado
+// audit (todas/aprobadas/no aprobadas/completadas) had no 1:1 replacement
+// in this consolidation — the only gap was auditing by estado ACROSS
+// ediciones (per-edición auditing already lives in the Inscritos section
+// of /talleres/[taller]/[edicion], T4). Closing that gap with a filter
+// here, defaulting to "pendiente", avoids adding a 13th route to the
+// approved tree while keeping the full view one click away.
+const ESTADO_FILTRO_VALUES = ['pendiente', 'aprobado', 'no_aprobado', 'retirado', 'todas'] as const
+type EstadoFiltro = (typeof ESTADO_FILTRO_VALUES)[number]
+
+const ESTADO_FILTRO_LABELS: Record<EstadoFiltro, string> = {
+  pendiente: 'Pendientes',
+  aprobado: 'Aprobadas',
+  no_aprobado: 'No aprobadas',
+  retirado: 'Retiradas',
+  todas: 'Todas',
+}
+
+/** Every real `taller_inscripciones.estado` value (the table's own CHECK constraint) — what "todas" expands to. */
+const TODOS_LOS_ESTADOS_REALES = ['pendiente', 'aprobado', 'no_aprobado', 'retirado'] as const
+
+function esEstadoFiltroValido(value: string | undefined): value is EstadoFiltro {
+  return (ESTADO_FILTRO_VALUES as readonly string[]).includes(value ?? '')
+}
+
+/** An unrecognized or missing value NEVER falls through to an unfiltered query — it defaults to "pendiente", same as before this filter existed. */
+function parseEstadoFiltro(value: string | undefined): EstadoFiltro {
+  return esEstadoFiltroValido(value) ? value : 'pendiente'
+}
+
+function estadosParaLoader(filtro: EstadoFiltro): readonly string[] {
+  return filtro === 'todas' ? TODOS_LOS_ESTADOS_REALES : [filtro]
+}
+
+interface RouteContext {
+  readonly searchParams?: Promise<{ readonly estado?: string }>
+}
+
+export default async function PendientesPage(ctx?: RouteContext) {
   if (!isTalleresEnabled()) {
     return (
       <ContenedorDashboard titulo="Pendientes">
@@ -116,8 +157,11 @@ export default async function PendientesPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
 
+  const sp = ctx?.searchParams ? await ctx.searchParams : {}
+  const estadoFiltro = parseEstadoFiltro(sp.estado)
+
   const [inscripciones, solicitudes] = await Promise.all([
-    loadPendientesInscripciones(client),
+    loadPendientesInscripciones(client, estadosParaLoader(estadoFiltro)),
     loadPendientesSolicitudes(client),
   ])
 
@@ -141,12 +185,31 @@ export default async function PendientesPage() {
   }
 
   const nadaPendiente = inscripciones.rows.length === 0 && solicitudes.length === 0
+  const inscripcionesHeading =
+    estadoFiltro === 'pendiente' ? 'Inscripciones por aprobar' : 'Inscripciones'
 
   return (
     <ContenedorDashboard
       titulo="Pendientes"
       subtitulo="Lo que espera tu decisión, en todos tus talleres."
     >
+      <nav aria-label="Filtrar inscripciones por estado" className="mb-4 flex flex-wrap gap-2">
+        {ESTADO_FILTRO_VALUES.map((valor) => (
+          <Link
+            key={valor}
+            href={`/talleres/pendientes?estado=${valor}`}
+            aria-current={estadoFiltro === valor ? 'true' : undefined}
+            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+              estadoFiltro === valor
+                ? 'border-[var(--brand-primary)] bg-[var(--brand-accent)] font-medium text-[var(--brand-primary)]'
+                : 'border-border text-muted-foreground hover:bg-[var(--brand-accent)] hover:text-foreground'
+            }`}
+          >
+            {ESTADO_FILTRO_LABELS[valor]}
+          </Link>
+        ))}
+      </nav>
+
       {nadaPendiente ? (
         <EstadoVacio
           icono={UsersIcon}
@@ -157,11 +220,18 @@ export default async function PendientesPage() {
         <div className="space-y-6">
           <section aria-labelledby="inscripciones-heading">
             <h2 id="inscripciones-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
-              Inscripciones por aprobar
+              {inscripcionesHeading}
             </h2>
             <div className="mt-3">
               {inscripciones.rows.length === 0 ? (
-                <EstadoVacio icono={UsersIcon} titulo="No hay inscripciones pendientes" />
+                <EstadoVacio
+                  icono={UsersIcon}
+                  titulo={
+                    estadoFiltro === 'pendiente'
+                      ? 'No hay inscripciones pendientes'
+                      : `No hay inscripciones en estado "${ESTADO_FILTRO_LABELS[estadoFiltro].toLowerCase()}"`
+                  }
+                />
               ) : (
                 <TablaInscripciones
                   rows={inscripciones.rows}

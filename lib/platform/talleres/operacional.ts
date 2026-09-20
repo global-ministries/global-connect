@@ -282,29 +282,42 @@ export type CoordInscripcionRow = InscripcionAdminRow
  * per-taller coordinador to the inscripciones of its own equipo (via the
  * scoped `coordinator.read` term); director / admin read all rows globally.
  * The page's `requireOperacionalRole()` is the outer wall.
+ *
+ * T10 (odd/tasks/talleres-consolidar-pantallas.md) — `estados` is an
+ * optional filter override for /talleres/pendientes' cross-edición audit
+ * filter (rutas.ts: "/admin/talleres/inscripciones" had no 1:1
+ * replacement for its multi-estado audit; the filter here closes that
+ * gap without a new route). Every existing caller keeps calling this
+ * with one argument, unchanged: an empty or omitted list still means
+ * "pendiente only" — this NEVER silently turns into an unfiltered query.
  */
 export async function loadCoordInscripcionesPendientes(
-  ctx: OperacionalContext
+  ctx: OperacionalContext,
+  estados?: readonly string[],
 ): Promise<readonly CoordInscripcionRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = ctx.supabase
 
-  // Query 1 — inscripciones (pendientes only). Scalar FK columns
-  // only — NO `usuarios` embed. A coordinador is RLS-scoped to SEE
-  // the inscripcion but NOT the participant `usuarios` row, so an
-  // embed resolves to null and the row would be dropped (bug #3).
-  // Names come from the SECURITY DEFINER RPC in Query 1b.
+  // Query 1 — inscripciones. Scalar FK columns only — NO `usuarios`
+  // embed. A coordinador is RLS-scoped to SEE the inscripcion but NOT
+  // the participant `usuarios` row, so an embed resolves to null and
+  // the row would be dropped (bug #3). Names come from the SECURITY
+  // DEFINER RPC in Query 1b.
+  let query = client
+    .from('taller_inscripciones')
+    .select(
+      `id, taller_id, cohorte_id, estado, link_type, created_at, updated_at,
+       persona_principal_id, companero_id`,
+    )
+  query =
+    estados && estados.length > 0
+      ? query.in('estado', estados)
+      : query.eq('estado', 'pendiente')
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- supabase resolved shape
-  const res: { data: any[] | null; error: { message: string } | null } =
-    await client
-      .from('taller_inscripciones')
-      .select(
-        `id, taller_id, cohorte_id, estado, link_type, created_at, updated_at,
-         persona_principal_id, companero_id`,
-      )
-      .eq('estado', 'pendiente')
-      .order('created_at', { ascending: false })
-      .limit(50)
+  const res: { data: any[] | null; error: { message: string } | null } = await query
+    .order('created_at', { ascending: false })
+    .limit(50)
 
   if (res.error) return []
   const inscripciones = (res.data ?? []) as Array<Record<string, unknown>>

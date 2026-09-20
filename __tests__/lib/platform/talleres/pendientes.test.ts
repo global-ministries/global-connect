@@ -132,6 +132,16 @@ describe('loadPendientesInscripciones', () => {
     expect(loadCoordInscripcionesPendientesMock).toHaveBeenCalledTimes(1)
   })
 
+  it('T10 (odd/tasks/talleres-consolidar-pantallas.md): forwards an explicit estados filter unchanged', async () => {
+    loadCoordInscripcionesPendientesMock.mockResolvedValue([])
+    const { client } = makeClient({})
+    await loadPendientesInscripciones(client, ['pendiente', 'aprobado', 'no_aprobado', 'retirado'])
+    expect(loadCoordInscripcionesPendientesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      ['pendiente', 'aprobado', 'no_aprobado', 'retirado'],
+    )
+  })
+
   it('returns the rows unchanged', async () => {
     const row = makeInscripcionRow()
     loadCoordInscripcionesPendientesMock.mockResolvedValue([row])
