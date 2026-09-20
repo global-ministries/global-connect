@@ -109,6 +109,20 @@ export async function loadCatalogoTalleres(
 
 // ─── Un taller (T3 — /talleres/[taller]) ────────────────────────────────
 
+/**
+ * CatalogoTaller plus the two fields only the single-taller detail screen
+ * needs: `descripcion` for its info card, `modalidad_default` as
+ * OpenEdicionForm's starting value (matches the old
+ * app/(auth)/admin/talleres/abstracto/[slug]/page.tsx behavior — a taller
+ * configured for `permanente_custom` must not silently default its "abrir
+ * edición" form to `periodo_general`). The catalog list itself never
+ * needed either field, so they stay off CatalogoTaller/loadCatalogoTalleres.
+ */
+export interface TallerDetalle extends CatalogoTaller {
+  readonly descripcion: string | null
+  readonly modalidad_default: 'periodo_general' | 'permanente_custom'
+}
+
 interface TallerDetalleQueryClient {
   from(table: 'talleres'): {
     select(columns: string): {
@@ -120,7 +134,8 @@ interface TallerDetalleQueryClient {
 }
 
 /**
- * Same embedded shape as loadCatalogoTalleres, looked up by slug instead of
+ * Same embedded shape as loadCatalogoTalleres (plus descripcion/
+ * modalidad_default — see TallerDetalle), looked up by slug instead of
  * listed — the taller detail page (/talleres/[taller]) needs exactly one
  * row with its ediciones nested. `null` covers both "no row" (a truly
  * unknown slug — the page calls notFound()) and a query error; RLS on the
@@ -132,15 +147,20 @@ interface TallerDetalleQueryClient {
 export async function loadTallerDetalle(
   client: TallerDetalleQueryClient,
   slug: string,
-): Promise<CatalogoTaller | null> {
+): Promise<TallerDetalle | null> {
   const { data, error } = await client
     .from('talleres')
-    .select(TALLER_CON_EDICIONES_SELECT)
+    .select(`${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default`)
     .eq('slug', slug)
     .maybeSingle()
 
   if (error || !data) return null
-  return mapCatalogoTallerRow(data as Record<string, unknown>)
+  const row = data as Record<string, unknown>
+  return {
+    ...mapCatalogoTallerRow(row),
+    descripcion: (row.descripcion as string | null) ?? null,
+    modalidad_default: row.modalidad_default as TallerDetalle['modalidad_default'],
+  }
 }
 
 // ─── Mis grupos (líder) ─────────────────────────────────────────────────

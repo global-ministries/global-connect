@@ -157,19 +157,23 @@ function buildTallerDetalleClientMock(
 }
 
 describe('loadTallerDetalle', () => {
-  it('queries FROM talleres by slug with taller_ediciones nested', async () => {
+  it('queries FROM talleres by slug with taller_ediciones nested, plus descripcion/modalidad_default', async () => {
     const { client, eqCalls, selectCols } = buildTallerDetalleClientMock(null)
     await loadTallerDetalle(client, 'matrimonio-sobre-la-roca')
     expect(client.from).toHaveBeenCalledWith('talleres')
     expect(eqCalls).toEqual([['slug', 'matrimonio-sobre-la-roca']])
     expect(selectCols[0]).toMatch(/taller_ediciones/)
+    expect(selectCols[0]).toMatch(/descripcion/)
+    expect(selectCols[0]).toMatch(/modalidad_default/)
   })
 
-  it('maps the row with its nested ediciones and inscripciones counts, same shape as loadCatalogoTalleres', async () => {
+  it('maps the row with its nested ediciones, inscripciones counts, descripcion and modalidad_default', async () => {
     const row = {
       id: 't-1',
       slug: 'matrimonio-sobre-la-roca',
       nombre: 'Matrimonio sobre la Roca',
+      descripcion: 'Un taller de ejemplo.',
+      modalidad_default: 'permanente_custom',
       estado: 'active',
       dream_team_equipo_id: 'eq-1',
       ediciones: [
@@ -186,8 +190,20 @@ describe('loadTallerDetalle', () => {
     const result = await loadTallerDetalle(client, 'matrimonio-sobre-la-roca')
     expect(result?.id).toBe('t-1')
     expect(result?.dream_team_equipo_id).toBe('eq-1')
+    expect(result?.descripcion).toBe('Un taller de ejemplo.')
+    expect(result?.modalidad_default).toBe('permanente_custom')
     expect(result?.ediciones).toHaveLength(1)
     expect(result?.ediciones[0]?.total_inscripciones).toBe(1)
+  })
+
+  it('defaults descripcion to null when missing', async () => {
+    const row = {
+      id: 't-2', slug: 'sin-descripcion', nombre: 'Sin Descripción', estado: 'active',
+      dream_team_equipo_id: null, modalidad_default: 'periodo_general', ediciones: [],
+    }
+    const { client } = buildTallerDetalleClientMock(row)
+    const result = await loadTallerDetalle(client, 'sin-descripcion')
+    expect(result?.descripcion).toBeNull()
   })
 
   it('returns null when no taller matches the slug', async () => {
