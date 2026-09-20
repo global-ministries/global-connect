@@ -111,54 +111,20 @@ export type TalleresNavItemId =
   // historial/certificados merge into this one id. See
   // TALLERES_NAV_ITEMS's own comment below.
   | 'talleres_participante_mi_recorrido'
-  // Líder / Voluntario
-  | 'talleres_grupos_mis_grupos'
-  | 'talleres_sesiones_proximas'
   // T6 (odd/tasks/talleres-consolidar-pantallas.md) — the coordinator's
-  // cross-taller inbox. Shared by coordinador AND director (it replaces
-  // both /talleres/coordinacion/inscripciones + /talleres/coordinacion/
-  // solicitudes and /talleres/direccion/solicitudes), so it cannot key
-  // off either role's own `.read` capability alone without hiding it
+  // cross-taller inbox. Shared by coordinador AND director, so it cannot
+  // key off either role's own `.read` capability alone without hiding it
   // from the other. See its `requiredCapability` below for why.
   | 'talleres_pendientes'
   // T7 (odd/tasks/talleres-consolidar-pantallas.md) — the consolidated
-  // reportes list. Shared by coordinador AND director (it replaces both
-  // /talleres/coordinacion/reportes and /talleres/direccion/reportes), so
+  // reportes list. Shared by coordinador AND director, so
   // it is keyed to metrics.read for the exact same reason as
   // talleres_pendientes above: it is the one capability both mutually-
   // exclusive roles are auto-granted.
   | 'talleres_reportes'
-  // Coordinador
-  | 'talleres_coordinacion_resumen'
-  | 'talleres_coordinacion_inscripciones_pendientes'
-  | 'talleres_coordinacion_talleres'
-  | 'talleres_coordinacion_equipos'
-  | 'talleres_coordinacion_reportes'
-  // Director
-  | 'talleres_direccion_resumen_global'
-  | 'talleres_direccion_temporadas'
   // T8 (odd/tasks/talleres-consolidar-pantallas.md) — the consolidated
-  // /talleres/temporadas list, a straight move out of /admin (not a
-  // merge like talleres_pendientes/talleres_reportes above). It does NOT
-  // reuse the `talleres_direccion_` id prefix — that prefix already
-  // names the OLD item right above, still alive until T10 — so it is a
-  // third exact-id exception in groupIdForItemId, grouped under the
-  // existing D bucket by meaning (see its own comment there).
+  // /talleres/temporadas list, a straight move out of /admin.
   | 'talleres_temporadas'
-  | 'talleres_direccion_talleres'
-  | 'talleres_direccion_periodos'
-  | 'talleres_direccion_equipos'
-  | 'talleres_direccion_solicitudes'
-  | 'talleres_direccion_metricas'
-  | 'talleres_direccion_reportes'
-  // Admin
-  | 'talleres_admin_abstracto'
-  // Finding #5 — Global inscripciones view belongs to the administrator /
-  // director general, NOT the coordinador. Keyed to `admin.manage` and
-  // grouped under "Administración" (A). Previously it was coordinator.read-
-  // keyed under Coordinación (C), which leaked an admin page into the
-  // coordinador's menu; the page guard now also drops coordinator.read.
-  | 'talleres_admin_inscripciones_global'
 
 export type TalleresNavItem = Readonly<{
   id: TalleresNavItemId
@@ -186,6 +152,14 @@ interface NavItemSpec {
  * Master sub-item table. The renderer filters this list against the
  * user's capability set. Order within a role group is preserved so the
  * UI renders in a deterministic order.
+ *
+ * T10 (odd/tasks/talleres-consolidar-pantallas.md) — this used to carry
+ * every role-prefixed old item (Coordinación, Dirección, the líder's
+ * Mis Grupos/Próximas Sesiones, the admin wizard) alongside the new
+ * consolidated ones, since the old screens stayed reachable by direct
+ * URL until this task. T10 deletes every old screen, so this table now
+ * holds ONLY the ~5 items backing the approved ~12-route tree — the
+ * URL no longer encodes the role (docs/talleres-de-punta-a-punta.md §9).
  */
 export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // P — Participante. requiredCapability: null — odd/tasks/talleres-
@@ -194,28 +168,16 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // pages. The pages themselves no longer require participation.read
   // either (lib/platform/talleres/participante.ts); RLS is the real wall.
   { id: 'talleres_participante_explorar', label: 'Explorar', href: '/talleres/explorar', requiredCapability: null },
-  // T9 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/mi-recorrido
-  // REPLACES the three items that used to live here (Mis Talleres /
-  // Historial / Certificados — now one tabbed screen). Unlike T6/T7/T8
-  // (which ADDED a new item alongside an old one still serving a distinct
-  // role audience, kept until T10 deletes the old screen), this is the
-  // exact same participant on the exact same merged page: three stale
-  // menu entries beside the new one would just be three redundant links
-  // to content that now lives on one screen. The three old PAGES stay
-  // alive, unmodified, reachable by direct URL, until T10 deletes them —
-  // only the MENU entries are gone (see lib/platform/talleres/rutas.ts's
-  // old→new inventory, unchanged by this task).
+  // T9 — /talleres/mi-recorrido REPLACES the three items that used to
+  // live here (Mis Talleres / Historial / Certificados — now one tabbed
+  // screen, deleted in T10).
   { id: 'talleres_participante_mi_recorrido', label: 'Mi Recorrido', href: '/talleres/mi-recorrido', requiredCapability: null },
-  // L / V — Líder + Voluntario (lead.read OR volunteer.read)
-  // T0 — repointed at the real pages (previously /talleres/grupos and
-  // /talleres/sesiones, neither of which existed — a silent 404). Recursos
-  // is deleted in this consolidation (odd/tasks/talleres-consolidar-
-  // pantallas.md, decisiones): it rendered a placeholder with no real
-  // resource data, so the nav item is dropped rather than repointed.
-  { id: 'talleres_grupos_mis_grupos', label: 'Mis Grupos', href: '/talleres/equipo/mis-grupos', requiredCapability: 'talleres_crecimiento.lead.read' },
-  { id: 'talleres_sesiones_proximas', label: 'Próximas Sesiones', href: '/talleres/equipo/proximas-sesiones', requiredCapability: 'talleres_crecimiento.lead.read' },
-  // T6 — /talleres/pendientes. `TalleresNavItem.requiredCapability` is a
-  // single string (one href -> one capability — see the
+  // T6 — /talleres/pendientes, the cross-taller inbox (replaces the
+  // líder's own Mis Grupos/Próximas Sesiones nav entries too — both
+  // sections now live inside the catalog, /talleres, which every
+  // authenticated user already reaches via the platform's top-level
+  // talleres_participation entry). `TalleresNavItem.requiredCapability`
+  // is a single string (one href -> one capability — see the
   // TALLERES_ROUTE_CAPABILITY_MAP invariant test), so this cannot be
   // "coordinator.read OR director.read". `metrics.read` is the ONE
   // capability the auto-grant trigger gives to BOTH roles identically
@@ -230,56 +192,16 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   { id: 'talleres_pendientes', label: 'Pendientes', href: '/talleres/pendientes', requiredCapability: 'talleres_crecimiento.metrics.read' },
   // T7 — /talleres/reportes. Same reasoning as talleres_pendientes above
   // (one href -> one requiredCapability; metrics.read is the one
-  // capability both coordinador and director are auto-granted). The old
-  // talleres_coordinacion_reportes / talleres_direccion_reportes items
-  // below stay untouched — their pages keep working until T10 deletes
-  // them and this item alongside.
+  // capability both coordinador and director are auto-granted).
   { id: 'talleres_reportes', label: 'Reportes', href: '/talleres/reportes', requiredCapability: 'talleres_crecimiento.metrics.read' },
-  // C — Coordinador
-  { id: 'talleres_coordinacion_resumen', label: 'Resumen', href: '/talleres/coordinacion', requiredCapability: 'talleres_crecimiento.coordinator.read' },
-  { id: 'talleres_coordinacion_inscripciones_pendientes', label: 'Inscripciones Pendientes', href: '/talleres/coordinacion/inscripciones', requiredCapability: 'talleres_crecimiento.coordinator.read' },
-  { id: 'talleres_coordinacion_talleres', label: 'Talleres', href: '/talleres/coordinacion/talleres', requiredCapability: 'talleres_crecimiento.coordinator.read' },
-  { id: 'talleres_coordinacion_equipos', label: 'Equipos', href: '/talleres/coordinacion/equipos', requiredCapability: 'talleres_crecimiento.coordinator.read' },
-  { id: 'talleres_coordinacion_reportes', label: 'Reportes', href: '/talleres/coordinacion/reportes', requiredCapability: 'talleres_crecimiento.coordinator.read' },
-  // D — Director (director.read OR metrics.read)
-  { id: 'talleres_direccion_resumen_global', label: 'Resumen Global', href: '/talleres/direccion', requiredCapability: 'talleres_crecimiento.director.read' },
-  // PR46 — global seasons (talleres_temporadas). The Dirección entry-point
-  // for "abro una temporada → elijo qué talleres abren". Lives under /admin
-  // (the management surface); the page gates mutations on director.write OR
-  // admin.manage, while the list is director.read-viewable (RLS parity).
-  { id: 'talleres_direccion_temporadas', label: 'Temporadas', href: '/admin/talleres/temporadas', requiredCapability: 'talleres_crecimiento.director.read' },
-  // T8 — /talleres/temporadas. Same requiredCapability as the OLD item
-  // right above (director.read is literally one of the three qualifying
-  // capabilities on talleres_temporadas_select's RLS, alongside
-  // metrics.read and admin.manage — supabase/migrations/20260819000001_
-  // pr45_talleres_temporadas.sql:128-135), kept unchanged rather than
-  // switched to metrics.read like talleres_pendientes/talleres_reportes:
-  // those two are genuinely shared by coordinador AND director (no
-  // single role's own capability covers both), while temporadas has no
-  // coordinador/lead branch in its RLS at all — it is a Dirección-only
-  // concept, so there is no cross-role sharing problem to solve here.
-  // The OLD item is left completely alone (still pointing at
-  // /admin/talleres/temporadas) until T10 deletes it.
+  // T8 — /talleres/temporadas, a straight move out of /admin. director.read
+  // is one of the three qualifying capabilities on talleres_temporadas_
+  // select's RLS (alongside metrics.read and admin.manage —
+  // supabase/migrations/20260819000001_pr45_talleres_temporadas.sql:
+  // 128-135): temporadas has no coordinador/lead branch in its RLS at
+  // all, so there is no cross-role sharing problem to solve the way
+  // talleres_pendientes/talleres_reportes need metrics.read for.
   { id: 'talleres_temporadas', label: 'Temporadas', href: '/talleres/temporadas', requiredCapability: 'talleres_crecimiento.director.read' },
-  { id: 'talleres_direccion_talleres', label: 'Talleres', href: '/talleres/direccion/talleres', requiredCapability: 'talleres_crecimiento.director.read' },
-  { id: 'talleres_direccion_periodos', label: 'Periodos', href: '/talleres/direccion/periodos', requiredCapability: 'talleres_crecimiento.director.read' },
-  { id: 'talleres_direccion_equipos', label: 'Equipos', href: '/talleres/direccion/equipos', requiredCapability: 'talleres_crecimiento.director.read' },
-  { id: 'talleres_direccion_solicitudes', label: 'Solicitudes', href: '/talleres/direccion/solicitudes', requiredCapability: 'talleres_crecimiento.director.read' },
-  { id: 'talleres_direccion_metricas', label: 'Métricas', href: '/talleres/direccion/metricas', requiredCapability: 'talleres_crecimiento.metrics.read' },
-  { id: 'talleres_direccion_reportes', label: 'Reportes', href: '/talleres/direccion/reportes', requiredCapability: 'talleres_crecimiento.director.read' },
-  // A — Admin (admin.manage). PR25: admin-only sub-item pointing at the
-  // wizard entry-point (`/admin/talleres/abstracto`). Users with ONLY
-  // this cap (no participation.read) need at least one sub-menu entry
-  // — previously they got an empty sub-menu, which made the sidebar
-  // entry look broken even though the capability gate resolved.
-  { id: 'talleres_admin_abstracto', label: 'Grupos de Corto Plazo', href: '/admin/talleres/abstracto', requiredCapability: 'talleres_crecimiento.admin.manage' },
-  // Finding #5 — Global inscripciones view. This page belongs to the
-  // administrator / director general, NOT the coordinador. Keyed to
-  // `admin.manage` so admin + director-general (who holds admin.manage)
-  // see it under "Administración" and the coordinador does not — and the
-  // page guard drops coordinator.read so it is unreachable by URL too. The
-  // page's write actions still gate on director.write OR admin.manage.
-  { id: 'talleres_admin_inscripciones_global', label: 'Inscripciones (global)', href: '/admin/talleres/inscripciones', requiredCapability: 'talleres_crecimiento.admin.manage' },
 ]
 
 // ─── T1 — route-access.ts as the single source of "which capability does

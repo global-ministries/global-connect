@@ -118,9 +118,11 @@ async function requireInscripcionWriteCap(
 }
 
 function revalidateInscripcionSurfaces(): void {
-  revalidatePath('/admin/talleres/inscripciones')
-  revalidatePath('/talleres/coordinacion/inscripciones')
-  revalidatePath('/talleres/coordinacion')
+  // T10 (odd/tasks/talleres-consolidar-pantallas.md) — /admin/talleres/
+  // inscripciones, /talleres/coordinacion/inscripciones and /talleres/
+  // coordinacion (the old surfaces this used to revalidate alongside the
+  // ones below) are deleted; their pages are gone, so revalidating them
+  // did nothing useful even before this cleanup.
   // T4 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/[taller]/
   // [edicion] also renders <TablaInscripciones> scoped to one edición.
   // The dynamic-segment form revalidates every matching page in one call

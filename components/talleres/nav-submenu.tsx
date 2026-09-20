@@ -49,10 +49,8 @@ function flattenGroups(groups: readonly TalleresNavGroup[]): readonly TalleresNa
 
 export function counterVariantFor(itemId: string): 'info' | 'warning' {
   if (
-    itemId === 'talleres_coordinacion_inscripciones_pendientes' ||
-    itemId === 'talleres_direccion_solicitudes' ||
     // T6 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/pendientes
-    // is the merged pendientes inbox; same "needs attention" convention.
+    // is the merged pendientes inbox; "needs attention" convention.
     itemId === 'talleres_pendientes'
   ) {
     return 'warning'
@@ -64,6 +62,13 @@ export function counterVariantFor(itemId: string): 'info' | 'warning' {
  * Fetches the live counter map for the sub-menu. Only runs when
  * sessionCapabilities grant at least one counter. Errors silently
  * leave counters empty (graceful degradation).
+ *
+ * T10 (odd/tasks/talleres-consolidar-pantallas.md) — this used to also
+ * compute the OLD Dirección (talleres/reportes counts) and líder (mis
+ * grupos) counters; both items are deleted (their pages redirect to the
+ * /talleres catalog now, which is not a TalleresNavSubmenu item and has
+ * no badge slot), so those 2 queries and the persona lookup they needed
+ * are gone too — only talleres_pendientes survives.
  */
 function useTalleresCounters(
   sessionCapabilities: readonly string[]
@@ -74,9 +79,7 @@ function useTalleresCounters(
     const has =
       sessionCapabilities.includes('talleres_crecimiento.coordinator.read') ||
       sessionCapabilities.includes('talleres_crecimiento.director.read') ||
-      sessionCapabilities.includes('talleres_crecimiento.metrics.read') ||
-      sessionCapabilities.includes('talleres_crecimiento.lead.read') ||
-      sessionCapabilities.includes('talleres_crecimiento.volunteer.read')
+      sessionCapabilities.includes('talleres_crecimiento.metrics.read')
     if (!has) return
 
     let cancelled = false
@@ -85,76 +88,22 @@ function useTalleresCounters(
         const supabase = createSupabaseBrowserClient()
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- browser client
         const client: any = supabase
-        const next: Record<string, number> = {}
 
-        if (
-          sessionCapabilities.includes('talleres_crecimiento.coordinator.read') ||
-          sessionCapabilities.includes('talleres_crecimiento.director.read') ||
-          sessionCapabilities.includes('talleres_crecimiento.metrics.read')
-        ) {
-          const [insc, solic] = await Promise.all([
-            client
-              .from('taller_inscripciones')
-              .select('id', { count: 'exact', head: true })
-              .eq('estado', 'pendiente'),
-            client
-              .from('taller_solicitudes_retiro')
-              .select('id', { count: 'exact', head: true })
-              .eq('estado', 'pendiente'),
-          ])
-          next['talleres_coordinacion_inscripciones_pendientes'] = insc.count ?? 0
-          next['talleres_direccion_solicitudes'] = solic.count ?? 0
-          // T6 — /talleres/pendientes merges both into one inbox; its badge
-          // must agree with the page's own two sections, so it's derived
-          // from the SAME two counts above rather than a 3rd query.
-          next['talleres_pendientes'] = (insc.count ?? 0) + (solic.count ?? 0)
-        }
-        if (
-          sessionCapabilities.includes('talleres_crecimiento.director.read') ||
-          sessionCapabilities.includes('talleres_crecimiento.metrics.read')
-        ) {
-          // T0 — `talleres_crecimiento_metadata` was renamed to
-          // `taller_ediciones` (schema-truth work); querying the old name
-          // 404s in Postgrest and the badge silently showed 0. Same filter
-          // as `loadDirResumen` (lib/platform/talleres/operacional.ts) —
-          // count of ediciones in an active state.
-          const [talleres, certs] = await Promise.all([
-            client
-              .from('taller_ediciones')
-              .select('id', { count: 'exact', head: true })
-              .in('estado', ['abierto', 'en_curso']),
-            client
-              .from('taller_certificados')
-              .select('id', { count: 'exact', head: true })
-              .is('revocado_at', null),
-          ])
-          next['talleres_direccion_talleres'] = talleres.count ?? 0
-          next['talleres_direccion_reportes'] = certs.count ?? 0
-        }
-
-        // L role — count my grupos where I'm the leader.
-        // (The 'talleres_sesiones_proximas' counter is a placeholder for
-        // MVP — a full impl would join taller_sesiones through
-        // taller_grupo_asignaciones.)
-        if (
-          sessionCapabilities.includes('talleres_crecimiento.lead.read') ||
-          sessionCapabilities.includes('talleres_crecimiento.volunteer.read')
-        ) {
-          // For the L counter we need the persona_id. In the browser
-          // context the user is signed in but the supabase auth.getUser()
-          // is async. We pull it from the existing client.
-          const { data: userData } = await client.auth.getUser()
-          const personaId = userData?.user?.id
-          if (personaId) {
-            const grupos = await client
-              .from('taller_grupo_asignaciones')
-              .select('id', { count: 'exact', head: true })
-              .eq('persona_id', personaId)
-              .eq('activo', true)
-              .eq('rol', 'lider')
-            next['talleres_grupos_mis_grupos'] = grupos.count ?? 0
-            next['talleres_sesiones_proximas'] = 0
-          }
+        const [insc, solic] = await Promise.all([
+          client
+            .from('taller_inscripciones')
+            .select('id', { count: 'exact', head: true })
+            .eq('estado', 'pendiente'),
+          client
+            .from('taller_solicitudes_retiro')
+            .select('id', { count: 'exact', head: true })
+            .eq('estado', 'pendiente'),
+        ])
+        // /talleres/pendientes' badge must agree with the page's own two
+        // sections, so it's derived from the SAME two counts the page
+        // itself queries, not a 3rd one.
+        const next: Record<string, number> = {
+          talleres_pendientes: (insc.count ?? 0) + (solic.count ?? 0),
         }
 
         if (!cancelled) setCounters(next)
@@ -198,15 +147,16 @@ export function TalleresNavSubmenu({ sessionCapabilities, counters: propCounters
     // in charge of the page gate (each RSC checks `isTalleresEnabled`
     // and 404s if off). The sidebar stays purely capability-driven.
     //
-    // The PR26 admin-only fallback is preserved for the `killSwitch`
-    // edge case — when the kill switch is ON, the page tree ALSO
-    // 404s, so hiding the menu consistently is correct.
+    // T10 (odd/tasks/talleres-consolidar-pantallas.md) — the PR26
+    // admin-only killSwitch fallback (an admin.manage-keyed item that
+    // bypassed the kill switch) is gone: the one item that ever needed
+    // it, `/admin/talleres/abstracto`, is deleted. Every surviving page
+    // gates on `isTalleresEnabled()`, directly or via
+    // `requireParticipante()` (participante.ts) — which already folds
+    // in `killSwitch` — so when the kill switch is ON every page 404s
+    // and the menu should show nothing at all, with no exception.
     const flags = getTalleresFlags()
-    if (flags.killSwitch) {
-      return getTalleresNavItems(sessionCapabilities, { isEnabled: true }).filter(
-        (item) => item.requiredCapability === 'talleres_crecimiento.admin.manage',
-      )
-    }
+    if (flags.killSwitch) return []
     return getTalleresNavItems(sessionCapabilities, { isEnabled: true })
   }, [sessionCapabilities])
 

@@ -196,8 +196,8 @@ describe('TALLERES_ROUTE_CAPABILITY_MAP / getRequiredCapabilityForRoute — rout
   })
 
   it('getRequiredCapabilityForRoute returns the mapped capability for a known route', () => {
-    expect(getRequiredCapabilityForRoute('/talleres/coordinacion')).toBe(
-      'talleres_crecimiento.coordinator.read',
+    expect(getRequiredCapabilityForRoute('/talleres/pendientes')).toBe(
+      'talleres_crecimiento.metrics.read',
     )
     expect(getRequiredCapabilityForRoute('/talleres/explorar')).toBeNull()
   })

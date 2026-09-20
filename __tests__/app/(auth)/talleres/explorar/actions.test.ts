@@ -134,13 +134,11 @@ describe('inscribirseATaller — FK resolution contract', () => {
     expect(insertPayload.persona_principal_id).not.toBe(AUTH_UID)
     expect(insertPayload.persona_principal_id).toBe(USUARIO_INTERNAL_ID)
 
-    // revalidate the lists so the participant sees the new row. Keeps
-    // revalidating the old /talleres/mis-talleres (still a live, working
-    // page until T10 deletes it) AND the new merged /talleres/mi-recorrido
-    // (T9 — the "Para Mí" nav now points there, so a participant clicking
-    // through right after enrolling must not see stale data).
+    // revalidate the lists so the participant sees the new row. T10
+    // (odd/tasks/talleres-consolidar-pantallas.md): /talleres/mis-talleres
+    // is deleted; the "Para Mí" nav points at the merged /talleres/
+    // mi-recorrido (T9), so only that one is revalidated now.
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/explorar')
-    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/mis-talleres')
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/mi-recorrido')
   })
 
