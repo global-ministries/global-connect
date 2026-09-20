@@ -31,9 +31,15 @@
  * estado badge, one muted metadata line, then its ediciones nested
  * underneath with the tree indentation/border convention the doc names
  * this exact catalog as the reference example for.
+ *
+ * T3 — a taller's name now links to /talleres/[taller] (that page didn't
+ * exist yet in T2, so the row was deliberately non-interactive then). The
+ * nested ediciones sub-rows stay non-interactive: /talleres/[taller]/[edicion]
+ * is T4's job.
  */
 
 import { useState, type ReactElement } from 'react'
+import Link from 'next/link'
 import { Calendar, LayoutGrid, Users } from 'lucide-react'
 
 import { BadgeSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
@@ -47,6 +53,7 @@ import {
 } from './labels'
 import type { CatalogoTaller, MiGrupoResumen } from '@/lib/platform/talleres/catalogo'
 import type { OpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
+import { rutaTaller } from '@/lib/platform/talleres/rutas'
 
 type Filtro = 'todas' | 'abiertas'
 const ESTADOS_ABIERTOS = new Set(['abierto', 'en_curso'])
@@ -176,7 +183,13 @@ export function CatalogoTalleresClient({
               <li key={t.id}>
                 <TarjetaSistema variante="outlined" className="p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="min-w-0 break-words font-medium text-foreground">{t.nombre}</span>
+                    {/* T3 — /talleres/[taller] now exists; link the row. */}
+                    <Link
+                      href={rutaTaller(t.slug)}
+                      className="min-w-0 break-words font-medium text-foreground hover:underline"
+                    >
+                      {t.nombre}
+                    </Link>
                     <BadgeSistema variante={tallerEstadoBadgeVariante(t.estado)} tamaño="sm">
                       {tallerEstadoLabel(t.estado)}
                     </BadgeSistema>

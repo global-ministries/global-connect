@@ -9,6 +9,8 @@
 import {
   construirOpcionesEquipoTaller,
   fetchCoordinadorRoles,
+  fetchRutaEquipo,
+  resolverRutaEquipo,
   type EquipoOrganigramaRaw,
 } from '@/lib/platform/talleres/equipo-organigrama'
 
@@ -110,6 +112,79 @@ describe('construirOpcionesEquipoTaller', () => {
       const opciones = construirOpcionesEquipoTaller(equipos, new Set(['ya-vinculado']))
       expect(opciones.crearBajo.map((o) => o.id)).toContain('ya-vinculado')
     })
+  })
+})
+
+/**
+ * T3 — resolverRutaEquipo: the /talleres/[taller] header's "org-chart node"
+ * line needs one equipo's full root-first path, given the WHOLE
+ * dream_team_equipos snapshot (however much of it RLS handed back).
+ * Unlike construirOpcionesEquipoTaller's lists (which filter to
+ * activo/leaf/experiencia for a completely different purpose — "where can
+ * a NEW taller attach"), this resolves whatever equipo IS linked, active
+ * or not, leaf or not, any experiencia.
+ */
+describe('resolverRutaEquipo', () => {
+  function arbol(): EquipoOrganigramaRaw[] {
+    return [
+      equipo({ id: 'raiz', label: 'Dirección de Conexión', parent_equipo_id: null }),
+      equipo({ id: 'medio', label: 'Grupos de Corto Plazo', parent_equipo_id: 'raiz' }),
+      equipo({ id: 'hoja', label: 'Punto de Partida', parent_equipo_id: 'medio' }),
+    ]
+  }
+
+  it('returns the full root-first path for a nested node', () => {
+    expect(resolverRutaEquipo(arbol(), 'hoja')).toBe(
+      'Dirección de Conexión › Grupos de Corto Plazo › Punto de Partida',
+    )
+  })
+
+  it('returns just the label for a root node', () => {
+    expect(resolverRutaEquipo(arbol(), 'raiz')).toBe('Dirección de Conexión')
+  })
+
+  it('resolves a node even when inactive (unlike construirOpcionesEquipoTaller\'s lists)', () => {
+    const equipos = arbol()
+    equipos.push(equipo({ id: 'inactivo', label: 'Archivado', parent_equipo_id: 'medio', activo: false }))
+    expect(resolverRutaEquipo(equipos, 'inactivo')).toBe(
+      'Dirección de Conexión › Grupos de Corto Plazo › Archivado',
+    )
+  })
+
+  it('resolves a node of any experiencia (unlike vincular\'s talleres_crecimiento-only filter)', () => {
+    const equipos = arbol()
+    equipos.push(equipo({ id: 'dps-hoja', label: 'Próximo Paso', experiencia: 'dps', parent_equipo_id: 'raiz' }))
+    expect(resolverRutaEquipo(equipos, 'dps-hoja')).toBe('Dirección de Conexión › Próximo Paso')
+  })
+
+  it('returns null when the equipo id is not in the snapshot at all', () => {
+    expect(resolverRutaEquipo(arbol(), 'no-existe')).toBeNull()
+  })
+})
+
+describe('fetchRutaEquipo', () => {
+  function fakeClient(equiposData: unknown) {
+    return {
+      from: jest.fn(() => ({
+        select: jest.fn(() => Promise.resolve({ data: equiposData, error: null })),
+      })),
+    }
+  }
+
+  it('fetches the whole dream_team_equipos snapshot and resolves the given id', async () => {
+    const client = fakeClient([
+      { id: 'raiz', label: 'Dirección de Conexión', experiencia: 'talleres_crecimiento', activo: true, parent_equipo_id: null },
+      { id: 'hoja', label: 'Punto de Partida', experiencia: 'talleres_crecimiento', activo: true, parent_equipo_id: 'raiz' },
+    ])
+    const ruta = await fetchRutaEquipo(client, 'hoja')
+    expect(client.from).toHaveBeenCalledWith('dream_team_equipos')
+    expect(ruta).toBe('Dirección de Conexión › Punto de Partida')
+  })
+
+  it('returns null when RLS hands back nothing (e.g. the caller has no dream_team read capability)', async () => {
+    const client = fakeClient(null)
+    const ruta = await fetchRutaEquipo(client, 'hoja')
+    expect(ruta).toBeNull()
   })
 })
 

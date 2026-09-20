@@ -51,6 +51,38 @@ export interface CatalogoTaller {
   readonly ediciones: readonly CatalogoEdicion[]
 }
 
+const TALLER_CON_EDICIONES_SELECT = `id, slug, nombre, estado, dream_team_equipo_id,
+       ediciones:taller_ediciones (
+         id, nombre_snapshot, tipo, estado,
+         inscripciones:taller_inscripciones (id)
+       )`
+
+/** Shared row → CatalogoTaller mapping for both loaders below (T2's list query and T3's single-slug lookup select the exact same shape). */
+function mapCatalogoTallerRow(row: Record<string, unknown>): CatalogoTaller {
+  const edicionesRaw = (row.ediciones ?? []) as unknown[]
+  const ediciones: CatalogoEdicion[] = edicionesRaw
+    .map((e) => {
+      const edicion = e as Record<string, unknown>
+      return {
+        id: edicion.id as string,
+        nombre_snapshot: edicion.nombre_snapshot as string,
+        tipo: edicion.tipo as CatalogoEdicion['tipo'],
+        estado: edicion.estado as CatalogoEdicion['estado'],
+        total_inscripciones: ((edicion.inscripciones as unknown[]) ?? []).length,
+      }
+    })
+    .sort((a, b) => a.nombre_snapshot.localeCompare(b.nombre_snapshot))
+
+  return {
+    id: row.id as string,
+    slug: row.slug as string,
+    nombre: row.nombre as string,
+    estado: row.estado as CatalogoTaller['estado'],
+    dream_team_equipo_id: (row.dream_team_equipo_id as string | null) ?? null,
+    ediciones,
+  }
+}
+
 interface CatalogoQueryClient {
   from(table: 'talleres'): {
     select(columns: string): {
@@ -67,42 +99,68 @@ export async function loadCatalogoTalleres(
 ): Promise<readonly CatalogoTaller[]> {
   const { data, error } = await client
     .from('talleres')
-    .select(
-      `id, slug, nombre, estado, dream_team_equipo_id,
-       ediciones:taller_ediciones (
-         id, nombre_snapshot, tipo, estado,
-         inscripciones:taller_inscripciones (id)
-       )`,
-    )
+    .select(TALLER_CON_EDICIONES_SELECT)
     .order('nombre', { ascending: true })
 
   if (error) return []
 
-  return ((data ?? []) as unknown[]).map((row) => {
-    const r = row as Record<string, unknown>
-    const edicionesRaw = (r.ediciones ?? []) as unknown[]
-    const ediciones: CatalogoEdicion[] = edicionesRaw
-      .map((e) => {
-        const edicion = e as Record<string, unknown>
-        return {
-          id: edicion.id as string,
-          nombre_snapshot: edicion.nombre_snapshot as string,
-          tipo: edicion.tipo as CatalogoEdicion['tipo'],
-          estado: edicion.estado as CatalogoEdicion['estado'],
-          total_inscripciones: ((edicion.inscripciones as unknown[]) ?? []).length,
-        }
-      })
-      .sort((a, b) => a.nombre_snapshot.localeCompare(b.nombre_snapshot))
+  return ((data ?? []) as unknown[]).map((row) => mapCatalogoTallerRow(row as Record<string, unknown>))
+}
 
-    return {
-      id: r.id as string,
-      slug: r.slug as string,
-      nombre: r.nombre as string,
-      estado: r.estado as CatalogoTaller['estado'],
-      dream_team_equipo_id: (r.dream_team_equipo_id as string | null) ?? null,
-      ediciones,
+// ─── Un taller (T3 — /talleres/[taller]) ────────────────────────────────
+
+/**
+ * CatalogoTaller plus the two fields only the single-taller detail screen
+ * needs: `descripcion` for its info card, `modalidad_default` as
+ * OpenEdicionForm's starting value (matches the old
+ * app/(auth)/admin/talleres/abstracto/[slug]/page.tsx behavior — a taller
+ * configured for `permanente_custom` must not silently default its "abrir
+ * edición" form to `periodo_general`). The catalog list itself never
+ * needed either field, so they stay off CatalogoTaller/loadCatalogoTalleres.
+ */
+export interface TallerDetalle extends CatalogoTaller {
+  readonly descripcion: string | null
+  readonly modalidad_default: 'periodo_general' | 'permanente_custom'
+}
+
+interface TallerDetalleQueryClient {
+  from(table: 'talleres'): {
+    select(columns: string): {
+      eq(column: string, value: string): {
+        maybeSingle(): PromiseLike<{ data: unknown | null; error: { message: string } | null }>
+      }
     }
-  })
+  }
+}
+
+/**
+ * Same embedded shape as loadCatalogoTalleres (plus descripcion/
+ * modalidad_default — see TallerDetalle), looked up by slug instead of
+ * listed — the taller detail page (/talleres/[taller]) needs exactly one
+ * row with its ediciones nested. `null` covers both "no row" (a truly
+ * unknown slug — the page calls notFound()) and a query error; RLS on the
+ * embedded taller_ediciones still applies per-row exactly as it does for
+ * the catalog (talleres itself is world-readable, so a resolvable slug
+ * always returns the taller row — only its ediciones list narrows by
+ * scope).
+ */
+export async function loadTallerDetalle(
+  client: TallerDetalleQueryClient,
+  slug: string,
+): Promise<TallerDetalle | null> {
+  const { data, error } = await client
+    .from('talleres')
+    .select(`${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default`)
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error || !data) return null
+  const row = data as Record<string, unknown>
+  return {
+    ...mapCatalogoTallerRow(row),
+    descripcion: (row.descripcion as string | null) ?? null,
+    modalidad_default: row.modalidad_default as TallerDetalle['modalidad_default'],
+  }
 }
 
 // ─── Mis grupos (líder) ─────────────────────────────────────────────────
