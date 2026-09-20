@@ -97,6 +97,30 @@ cuando entra. Un taller es corto plazo: abre, se llena, arranca y cierra. Son do
 ritmos distintos, y por eso **talleres tiene sus propias temporadas** y **Grupos
 de Vida no se toca**.
 
+Y una temporada de talleres **no es de toda la iglesia: es de una dirección**
+(decisión del usuario, 2026-09-20). Cada dirección que tiene talleres arma las
+suyas, con sus fechas, porque el calendario de Conexión no tiene por qué ser el
+de Crecimiento. Más todavía: **hay direcciones que no se manejan por temporada
+en absoluto**. Eso obliga a una regla que es fácil romper sin darse cuenta: la
+temporada **agrupa**, nunca **habilita**. Si abrir una edición exigiera una
+temporada, las direcciones que no las usan no podrían abrir nada. La temporada
+es una comodidad para decir "estos talleres abren juntos", no un portón.
+
+Consecuencias concretas, para el paso 6:
+
+- `talleres_temporadas` necesita dueño: una columna que apunte al nodo de la
+  dirección en el organigrama, igual que `talleres.dream_team_equipo_id`. Hoy
+  **no tiene ninguna**, así que es implícitamente de toda la iglesia.
+- Con ese dueño, su RLS pasa a acotarse por árbol como todo lo demás desde el
+  paso 3, y el agujero actual —cualquier director de cualquier rama puede crear,
+  editar y borrar temporadas de todo el programa— se cierra **por construcción**,
+  no con una regla especial.
+- La pantalla `/talleres/temporadas` muestra las de las direcciones sobre las que
+  quien mira tiene autoridad, y crear una pregunta a qué dirección pertenece.
+- Momento oportuno: producción tiene **0 temporadas y 0 vínculos** (verificado el
+  2026-09-20). Nadie la usó nunca, así que el modelo se corrige sin migrar un
+  solo dato. Es ahora o se paga después.
+
 Pero ni siquiera todos los talleres siguen el mismo ritmo entre ellos. Cada
 taller declara cómo se abre:
 

@@ -55,14 +55,11 @@ const mockRevalidatePath = revalidatePath as jest.MockedFunction<
 const AUTH_UID = 'auth-uid-1'
 const SOLICITUD_ID = 'sol-1'
 
-const REVALIDATED_SURFACES = [
-  '/talleres/coordinacion/solicitudes',
-  '/talleres/direccion/solicitudes',
-  '/talleres/coordinacion',
-  // T6 (odd/tasks/talleres-consolidar-pantallas.md) — the merged inbox
-  // also renders these rows and must refresh on resolve.
-  '/talleres/pendientes',
-]
+// T10 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/
+// coordinacion/solicitudes, /talleres/direccion/solicitudes and
+// /talleres/coordinacion are deleted; only the merged inbox is left to
+// revalidate (T6).
+const REVALIDATED_SURFACES = ['/talleres/pendientes']
 
 interface SetupOptions {
   readonly flagEnabled?: boolean

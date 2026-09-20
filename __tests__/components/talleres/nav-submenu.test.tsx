@@ -3,7 +3,13 @@
  *
  * Covers:
  *   - counterVariantFor: warning for pendientes, info otherwise
- *   - counters fetch behavior (4 capability profiles)
+ *   - counters fetch behavior
+ *
+ * T10 (odd/tasks/talleres-consolidar-pantallas.md) — rewritten. Every
+ * old role-prefixed item (and its own counter query) is deleted: the
+ * Dirección talleres/reportes counters, the líder Mis Grupos counter,
+ * and the admin-only killSwitch carve-out are all gone along with the
+ * screens they backed. Only talleres_pendientes' counter survives.
  */
 
 import { render, screen, waitFor } from '@testing-library/react'
@@ -48,14 +54,6 @@ interface QueryChain {
   then<T>(onFulfilled: (value: { count: number }) => T): Promise<T>
 }
 
-interface QueryChain {
-  select: jest.Mock
-  eq: jest.Mock
-  in: jest.Mock
-  is: jest.Mock
-  then<T>(onFulfilled: (value: { count: number }) => T): Promise<T>
-}
-
 function makeQueryChain(count: number): QueryChain {
   const chain: QueryChain = {
     select: jest.fn(() => chain),
@@ -88,25 +86,20 @@ function makeBrowserClientMock(queryCountRef: { count: number }) {
 // ─── counterVariantFor — pure helper ──────────────────────────────────────
 
 describe('counterVariantFor', () => {
-  it('returns warning for pending approvals', () => {
-    expect(counterVariantFor('talleres_coordinacion_inscripciones_pendientes')).toBe('warning')
-    expect(counterVariantFor('talleres_direccion_solicitudes')).toBe('warning')
-    // T6 — the merged /talleres/pendientes inbox is a pendientes counter too.
+  it('returns warning for the pendientes inbox', () => {
     expect(counterVariantFor('talleres_pendientes')).toBe('warning')
   })
 
   it('returns info for everything else', () => {
-    expect(counterVariantFor('talleres_grupos_mis_grupos')).toBe('info')
-    expect(counterVariantFor('talleres_direccion_talleres')).toBe('info')
-    expect(counterVariantFor('talleres_direccion_reportes')).toBe('info')
-    expect(counterVariantFor('talleres_direccion_resumen_global')).toBe('info')
+    expect(counterVariantFor('talleres_reportes')).toBe('info')
+    expect(counterVariantFor('talleres_temporadas')).toBe('info')
+    expect(counterVariantFor('talleres_participante_explorar')).toBe('info')
   })
 })
 
 // ─── useTalleresCounters — fetch behavior ─────────────────────────────────
 
 describe('TalleresNavSubmenu — counters fetch behavior', () => {
-  // Helper to render a single test, capturing queryCount via the mock.
   async function runFetchTest(
     sessionCapabilities: readonly string[],
     expectedQueries: number
@@ -131,14 +124,19 @@ describe('TalleresNavSubmenu — counters fetch behavior', () => {
     return ref.count
   }
 
-  it('fetches 2 C/D counters when user has coordinator.read', async () => {
+  it('fetches the 2 pendientes queries when user has coordinator.read', async () => {
     const count = await runFetchTest(['talleres_crecimiento.coordinator.read'], 2)
     expect(count).toBeGreaterThanOrEqual(2)
   })
 
-  it('fetches 4 counters when user has director.read (2 C/D + 2 D)', async () => {
-    const count = await runFetchTest(['talleres_crecimiento.director.read'], 4)
-    expect(count).toBeGreaterThanOrEqual(4)
+  it('fetches the 2 pendientes queries when user has director.read too (T10: the old extra 2 Dirección queries are gone)', async () => {
+    const count = await runFetchTest(['talleres_crecimiento.director.read'], 2)
+    expect(count).toBe(2)
+  })
+
+  it('fetches the 2 pendientes queries when user has metrics.read', async () => {
+    const count = await runFetchTest(['talleres_crecimiento.metrics.read'], 2)
+    expect(count).toBe(2)
   })
 
   it('does NOT fetch counters when user has only participation.read', async () => {
@@ -151,52 +149,16 @@ describe('TalleresNavSubmenu — counters fetch behavior', () => {
     expect(count).toBe(0)
   })
 
-  it('fetches 1 L counter (mis grupos) when user has lead.read', async () => {
-    const count = await runFetchTest(['talleres_crecimiento.lead.read'], 1)
-    expect(count).toBeGreaterThanOrEqual(1)
-  })
-})
-
-// ─── T0 — counters query taller_ediciones, not the renamed-away table ──────
-
-describe('TalleresNavSubmenu — counters target the live schema', () => {
-  it('queries taller_ediciones (never talleres_crecimiento_metadata, which does not exist) for the director talleres counter', async () => {
-    const queriedTables: string[] = []
-    createClientMock.mockImplementation(() => ({
-      auth: {
-        getUser: () => Promise.resolve({ data: { user: { id: 'user-1' } }, error: null }),
-      },
-      from: (table: string) => {
-        queriedTables.push(table)
-        return makeQueryChain(table === 'taller_ediciones' ? 7 : 0)
-      },
-    }))
-
-    render(
-      React.createElement(TalleresNavSubmenu, {
-        sessionCapabilities: ['talleres_crecimiento.director.read'],
-      }),
-    )
-
-    await waitFor(() => {
-      expect(queriedTables.length).toBeGreaterThanOrEqual(4)
-    })
-
-    expect(queriedTables).not.toContain('talleres_crecimiento_metadata')
-    expect(queriedTables).toContain('taller_ediciones')
-
-    // The badge for "Talleres" (talleres_direccion_talleres) reflects the
-    // real count returned by the correct table.
-    await waitFor(() => {
-      expect(screen.getByText('7')).toBeDefined()
-    })
+  it('does NOT fetch counters for lead.read alone (T10: the old líder Mis Grupos counter is gone)', async () => {
+    const count = await runFetchTest(['talleres_crecimiento.lead.read'], 0)
+    expect(count).toBe(0)
   })
 })
 
 // ─── T6 — /talleres/pendientes counter agrees with the page's own data ─────
 
 describe('TalleresNavSubmenu — talleres_pendientes counter (T6)', () => {
-  it('sums the same inscripciones-pendientes + solicitudes-pendientes counts the two old items already fetch (no extra query)', async () => {
+  it('sums the same inscripciones-pendientes + solicitudes-pendientes counts, and queries nothing else', async () => {
     const queriedTables: string[] = []
     createClientMock.mockImplementation(() => ({
       auth: {
@@ -219,9 +181,12 @@ describe('TalleresNavSubmenu — talleres_pendientes counter (T6)', () => {
     await waitFor(() => {
       expect(screen.getByText('5')).toBeDefined()
     })
-    // Exactly the 2 queries the existing counters already made — the
-    // combined badge is derived from their results, not a 3rd query.
-    expect(queriedTables.filter((t) => t === 'taller_inscripciones' || t === 'taller_solicitudes_retiro')).toHaveLength(2)
+    // T10: exactly these 2 queries total — the old Dirección
+    // talleres/reportes counters and the líder grupos counter are gone.
+    expect(queriedTables).toEqual(
+      expect.arrayContaining(['taller_inscripciones', 'taller_solicitudes_retiro']),
+    )
+    expect(queriedTables).toHaveLength(2)
   })
 })
 
@@ -258,10 +223,6 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
     // The flag going 'off' used to hide every non-admin entry (PR26
     // behavior). PR42 removed that filter — the pages don't gate on
     // the flag, so the sidebar shouldn't either.
-    // T9 — Mi Recorrido merges the old Mis Talleres + Historial +
-    // Certificados trio into one tabbed screen; those three labels no
-    // longer appear in the menu (their pages stay alive, unmodified,
-    // until T10 deletes them).
     withFlags({
       enabled: false,
       stage: 'off',
@@ -275,18 +236,11 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
         sessionCapabilities: ['talleres_crecimiento.participation.read'],
       }),
     )
-    // The participante items are rendered as plain text.
     expect(screen.getByText('Explorar')).toBeDefined()
     expect(screen.getByText('Mi Recorrido')).toBeDefined()
-    expect(screen.queryByText('Mis Talleres')).toBeNull()
-    expect(screen.queryByText('Historial')).toBeNull()
-    expect(screen.queryByText('Certificados')).toBeNull()
   })
 
-  it('still filters down to admin-only when the kill switch is ON', () => {
-    // The kill switch is the only flag-driven UI filter that survives
-    // PR42 — when it's ON, the page tree also 404s, so hiding the
-    // menu consistently is correct.
+  it('T10: shows nothing when the kill switch is ON — no admin-only carve-out survives (the item it existed for is deleted)', () => {
     withFlags({
       enabled: true,
       stage: 'public',
@@ -295,24 +249,20 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
     })
     const ref = { count: 0 }
     createClientMock.mockImplementation(makeBrowserClientMock(ref))
-    render(
+    const { container } = render(
       React.createElement(TalleresNavSubmenu, {
         sessionCapabilities: [
           'talleres_crecimiento.participation.read',
           'talleres_crecimiento.admin.manage',
+          'talleres_crecimiento.director.read',
+          'talleres_crecimiento.metrics.read',
         ],
       }),
     )
-    // Admin keeps the abstracto entry.
-    expect(screen.getByText('Grupos de Corto Plazo')).toBeDefined()
-    // Participant items are HIDDEN under the kill switch.
-    expect(screen.queryByText('Explorar')).toBeNull()
-    expect(screen.queryByText('Mi Recorrido')).toBeNull()
+    expect(container.firstChild).toBeNull()
   })
 
-  it('shows the global inscripciones item to an admin.manage user (its new home — Finding #5)', () => {
-    // Finding #5 — the global inscripciones view is keyed to `admin.manage`
-    // (administrator / director general), NOT the coordinador.
+  it('T10: an admin.manage-only user sees only the 2 P items — the admin wizard entry is deleted', () => {
     const ref = { count: 0 }
     createClientMock.mockImplementation(makeBrowserClientMock(ref))
     render(
@@ -320,35 +270,9 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
         sessionCapabilities: ['talleres_crecimiento.admin.manage'],
       }),
     )
-    expect(screen.getByText('Inscripciones (global)')).toBeDefined()
-  })
-
-  it('hides the global inscripciones item from a coordinator.read user (Finding #5 closed the leak)', () => {
-    // Finding #5 — a pure coordinator.read user must NOT see the global
-    // inscripciones view; it is an admin.manage-keyed admin surface. This
-    // is the exact leak Finding #5 closed (it used to be coordinator-keyed).
-    const ref = { count: 0 }
-    createClientMock.mockImplementation(makeBrowserClientMock(ref))
-    render(
-      React.createElement(TalleresNavSubmenu, {
-        sessionCapabilities: ['talleres_crecimiento.coordinator.read'],
-      }),
-    )
-    expect(screen.queryByText('Inscripciones (global)')).toBeNull()
-  })
-
-  it('hides the global inscripciones item from a pure director.read user (PR H strict filtering)', () => {
-    // PR H — the director.read → coordinator superset is gone. A user
-    // holding ONLY director.read no longer inherits the C-bucket global
-    // inscripciones view; they reach enrollment approvals via their own
-    // Dirección surface, not this coordinator-keyed entry.
-    const ref = { count: 0 }
-    createClientMock.mockImplementation(makeBrowserClientMock(ref))
-    render(
-      React.createElement(TalleresNavSubmenu, {
-        sessionCapabilities: ['talleres_crecimiento.director.read'],
-      }),
-    )
+    expect(screen.getByText('Explorar')).toBeDefined()
+    expect(screen.getByText('Mi Recorrido')).toBeDefined()
+    expect(screen.queryByText('Grupos de Corto Plazo')).toBeNull()
     expect(screen.queryByText('Inscripciones (global)')).toBeNull()
   })
 })

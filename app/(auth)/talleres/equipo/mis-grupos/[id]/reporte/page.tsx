@@ -1,68 +1,33 @@
 /**
- * PR19 — DT-077 — /talleres/equipo/mis-grupos/[id]/reporte (L).
- * Reporte final del grupo que lidera. Solo lectura para L.
+ * T10 (odd/tasks/talleres-consolidar-pantallas.md) — REQUIERE_PUENTE
+ * bridge, replacing the old líder-only reporte final screen.
+ *
+ * Parent's control before deleting the old content (2026-09-20): this
+ * screen was read-only (wrote nothing). The new grupo home
+ * (`/talleres/[taller]/[edicion]/[grupo]`, T5) is its replacement per
+ * the "Decisiones" tree ("su gente · clases · asistencia · reporte"),
+ * so redirecting there loses no real functionality.
  */
-import { DashboardPage, EmptyState } from '@/components/talleres/dashboard-page'
-import { TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 
-import {
-  loadEquipoGrupos,
-  loadEquipoReporte,
-  requireOperacionalRole,
-} from '@/lib/platform/talleres/operacional'
+import { redirect } from 'next/navigation'
 
-export const metadata = { title: 'Reporte Final' }
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { resolveGrupoBridge } from '@/lib/platform/talleres/bridges'
+import { rutaCatalogo } from '@/lib/platform/talleres/rutas'
 
 interface RouteContext {
   readonly params: Promise<{ readonly id: string }>
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleDateString('es', { year: 'numeric', month: 'short', day: 'numeric' })
-  } catch {
-    return iso
-  }
-}
+export default async function ReporteBridgePage(ctx: RouteContext) {
+  const { id } = await ctx.params
 
-export default async function ReportePage(ctx: RouteContext) {
-  const participant = await requireOperacionalRole()
-  const { id: grupoId } = await ctx.params
-
-  // Verify the leader owns this grupo.
-  const grupos = await loadEquipoGrupos(participant)
-  const ownsGrupo = grupos.some((g) => g.id === grupoId)
-  if (!ownsGrupo) {
-    return (
-      <DashboardPage titulo="Reporte Final">
-        <EmptyState message="No lideras este grupo." />
-      </DashboardPage>
-    )
+  if (isTalleresEnabled()) {
+    const supabase = await createSupabaseServerClient()
+    const destino = await resolveGrupoBridge(supabase, id)
+    if (destino) redirect(destino)
   }
 
-  const reporte = await loadEquipoReporte(participant, grupoId)
-  return (
-    <DashboardPage titulo="Reporte Final" subtitulo={`Grupo ${grupoId}`}>
-      {!reporte ? (
-        <EmptyState message="Aún no hay reporte para este grupo." />
-      ) : (
-        <TarjetaSistema variante="elevated" className="p-4">
-          <TextoSistema className="font-medium">Reporte {reporte.id}</TextoSistema>
-          <TextoSistema variante="sutil" className="mt-1 block text-sm">
-            {reporte.observaciones_generales || '(sin observaciones)'}
-          </TextoSistema>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <BadgeSistema>{reporte.estado}</BadgeSistema>
-            {reporte.firma_lider_fecha && (
-              <BadgeSistema variante="success">Firmado {formatDate(reporte.firma_lider_fecha)}</BadgeSistema>
-            )}
-            {reporte.reabierto_motivo && (
-              <BadgeSistema variante="error">Reabierto</BadgeSistema>
-            )}
-          </div>
-        </TarjetaSistema>
-      )}
-    </DashboardPage>
-  )
+  redirect(rutaCatalogo())
 }

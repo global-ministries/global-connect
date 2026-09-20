@@ -224,6 +224,55 @@ describe('PendientesPage — nothing pending', () => {
   })
 })
 
+describe('PendientesPage — T10 estado filter (odd/tasks/talleres-consolidar-pantallas.md)', () => {
+  // T10: /admin/talleres/inscripciones's full multi-estado audit had no
+  // 1:1 replacement — this filter closes that gap without a new route.
+  // Default (no ?estado=, or an unrecognized value) stays "pendiente",
+  // so the plain inbox view is unchanged for everyone who never touches
+  // the filter.
+
+  function searchParamsOf(estado: string | undefined) {
+    return { searchParams: Promise.resolve(estado === undefined ? {} : { estado }) }
+  }
+
+  it('defaults to estado=pendiente when no filter is given', async () => {
+    setup({})
+    await PendientesPage(searchParamsOf(undefined))
+    expect(loadPendientesInscripcionesMock).toHaveBeenCalledWith(expect.anything(), ['pendiente'])
+  })
+
+  it('?estado=aprobado filters to that single estado', async () => {
+    setup({})
+    await PendientesPage(searchParamsOf('aprobado'))
+    expect(loadPendientesInscripcionesMock).toHaveBeenCalledWith(expect.anything(), ['aprobado'])
+  })
+
+  it('?estado=todas requests every real estado (the cross-edición audit view)', async () => {
+    setup({})
+    await PendientesPage(searchParamsOf('todas'))
+    expect(loadPendientesInscripcionesMock).toHaveBeenCalledWith(
+      expect.anything(),
+      ['pendiente', 'aprobado', 'no_aprobado', 'retirado'],
+    )
+  })
+
+  it('an unrecognized ?estado= value falls back to pendiente instead of crashing or querying unfiltered', async () => {
+    setup({})
+    await PendientesPage(searchParamsOf('not-a-real-estado'))
+    expect(loadPendientesInscripcionesMock).toHaveBeenCalledWith(expect.anything(), ['pendiente'])
+  })
+
+  it('renders every filter option as a link carrying its own ?estado= value', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await PendientesPage(searchParamsOf(undefined))) as any
+    const text = extractText(element)
+    for (const label of ['Pendientes', 'Aprobadas', 'No aprobadas', 'Retiradas', 'Todas']) {
+      expect(text).toContain(label)
+    }
+  })
+})
+
 describe('PendientesPage — per-row permission resolution (the heart of T6)', () => {
   it('shows controls for taller A rows and hides them for taller B rows, in the same table', async () => {
     const rowA = makeInscripcionRow({ id: 'insc-a', taller_id: 't-a' })

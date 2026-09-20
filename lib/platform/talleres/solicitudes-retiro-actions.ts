@@ -108,11 +108,11 @@ function mapRpcError(error: RpcError): SolicitudRetiroActionResult {
 }
 
 function revalidateSolicitudSurfaces(): void {
-  revalidatePath('/talleres/coordinacion/solicitudes')
-  revalidatePath('/talleres/direccion/solicitudes')
-  revalidatePath('/talleres/coordinacion')
-  // T6 (odd/tasks/talleres-consolidar-pantallas.md) — the merged
-  // pendientes inbox also renders these rows.
+  // T10 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/
+  // coordinacion/solicitudes, /talleres/direccion/solicitudes and
+  // /talleres/coordinacion (the old surfaces this used to revalidate
+  // alongside the one below) are deleted; their pages are gone.
+  // T6 — the merged pendientes inbox also renders these rows.
   revalidatePath('/talleres/pendientes')
 }
 

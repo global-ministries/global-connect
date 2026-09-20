@@ -93,8 +93,15 @@ export interface PendientesInscripcionesResult {
 
 export async function loadPendientesInscripciones(
   client: AnyClient,
+  /**
+   * T10 (odd/tasks/talleres-consolidar-pantallas.md) — the cross-edición
+   * audit filter on /talleres/pendientes. Forwarded unchanged to
+   * loadCoordInscripcionesPendientes, whose own default (omitted or
+   * empty) is "pendiente only".
+   */
+  estados?: readonly string[],
 ): Promise<PendientesInscripcionesResult> {
-  const rows = await loadCoordInscripcionesPendientes(toLegacyCtx(client))
+  const rows = await loadCoordInscripcionesPendientes(toLegacyCtx(client), estados)
 
   const tallerIds = Array.from(new Set(rows.map((r) => r.taller_id)))
   const equipoIdByTallerId = new Map<string, string | null>()

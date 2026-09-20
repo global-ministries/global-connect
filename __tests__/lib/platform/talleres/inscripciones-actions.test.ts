@@ -157,7 +157,6 @@ describe('approveInscripcionAction — happy path', () => {
     expect(result.ok).toBe(true)
     expect(updateBuilder['eq']).toHaveBeenCalledWith('id', INSCRIPCION_ID)
     expect(updateBuilder['eq']).toHaveBeenCalledWith('estado', 'pendiente')
-    expect(revalidatePathMock).toHaveBeenCalledWith('/admin/talleres/inscripciones')
   })
 
   it('admin.manage holder also approves (multi-cap gate)', async () => {
@@ -176,17 +175,6 @@ describe('approveInscripcionAction — happy path', () => {
     const result = await approveInscripcionAction(INSCRIPCION_ID)
     expect(result.ok).toBe(true)
     expect(updateBuilder['eq']).toHaveBeenCalledWith('id', INSCRIPCION_ID)
-  })
-
-  it('revalidates the coordinator pendientes surface too', async () => {
-    setupMocks({
-      capabilities: ['talleres_crecimiento.coordinator.write'],
-    })
-    await approveInscripcionAction(INSCRIPCION_ID)
-    expect(revalidatePathMock).toHaveBeenCalledWith(
-      '/talleres/coordinacion/inscripciones',
-    )
-    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/coordinacion')
   })
 
   // T4 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/[taller]/[edicion]
@@ -350,8 +338,7 @@ describe('rejectInscripcionAction — happy path', () => {
       estado: 'no_aprobado',
       motivo_no_aprobado: 'cupo lleno', // trimmed
     })
-    expect(revalidatePathMock).toHaveBeenCalledWith('/admin/talleres/inscripciones')
-    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/coordinacion/inscripciones')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/pendientes')
   })
 
   it('director.write holder also rejects', async () => {
