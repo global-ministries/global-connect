@@ -16,7 +16,7 @@ import {
   rutaReportes,
   rutaTemporadas,
   rutaTemporada,
-  rutaTemporadaNueva,
+  rutaTemporadaCrear,
   rutaExplorar,
   rutaMiRecorrido,
   rutaCertificado,
@@ -50,10 +50,14 @@ describe('rutas — pure URL builders', () => {
     expect(rutaReportes()).toBe('/talleres/reportes')
   })
 
-  it('rutaTemporadas / rutaTemporada / rutaTemporadaNueva', () => {
+  it('rutaTemporadas / rutaTemporada / rutaTemporadaCrear', () => {
     expect(rutaTemporadas()).toBe('/talleres/temporadas')
     expect(rutaTemporada('temp-1')).toBe('/talleres/temporadas/temp-1')
-    expect(rutaTemporadaNueva()).toBe('/talleres/temporadas/nueva')
+    // T8 — "crear", not "nueva": 4 of the app's 6 creation routes use
+    // "crear", and the same object in Grupos de Vida is already
+    // grupos-vida/temporadas/crear. The docs/talleres-de-punta-a-punta.md
+    // tree said "nueva"; the doc was fixed, not the app.
+    expect(rutaTemporadaCrear()).toBe('/talleres/temporadas/crear')
   })
 
   it('rutaExplorar', () => {

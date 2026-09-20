@@ -9,7 +9,7 @@
  *   /talleres/[taller]/[edicion]/[grupo]
  *   /talleres/pendientes
  *   /talleres/reportes
- *   /talleres/temporadas (+ /[id], /nueva)
+ *   /talleres/temporadas (+ /[id], /crear)
  *   /talleres/explorar
  *   /talleres/mi-recorrido (+ /certificados/[id])
  *
@@ -65,8 +65,15 @@ export function rutaTemporada(temporadaId: string): string {
   return `/talleres/temporadas/${segment(temporadaId, 'temporadaId')}`
 }
 
-export function rutaTemporadaNueva(): string {
-  return '/talleres/temporadas/nueva'
+/**
+ * T8 (odd/tasks/talleres-consolidar-pantallas.md) — "crear", not "nueva".
+ * Parent decision, 2026-09-20: 4 of the app's 6 creation routes already use
+ * "crear", and the SAME object in Grupos de Vida is already
+ * `grupos-vida/temporadas/crear`. The tree in docs/talleres-de-punta-a-
+ * punta.md said "nueva"; the doc was corrected, not the app.
+ */
+export function rutaTemporadaCrear(): string {
+  return '/talleres/temporadas/crear'
 }
 
 export function rutaExplorar(): string {
@@ -159,5 +166,5 @@ export const TALLERES_RUTAS_ANTIGUAS: readonly RutaAntigua[] = [
   { origen: '/admin/talleres/inscripciones', destino: '/talleres/pendientes', activa: false, nota: 'cubre sólo el subconjunto "pendiente"; la vista completa por estado (auditoría) no tiene reemplazo 1:1 — decisión pendiente para T10' },
   { origen: '/admin/talleres/temporadas', destino: '/talleres/temporadas', activa: false, nota: DESTINO_AUN_NO_EXISTE },
   { origen: '/admin/talleres/temporadas/[id]', destino: null, activa: false, nota: DESTINO_AUN_NO_EXISTE + ' — mismo id, sin lookup, pero el destino aún no existe' },
-  { origen: '/admin/talleres/temporadas/crear', destino: '/talleres/temporadas/nueva', activa: false, nota: DESTINO_AUN_NO_EXISTE },
+  { origen: '/admin/talleres/temporadas/crear', destino: '/talleres/temporadas/crear', activa: false, nota: DESTINO_AUN_NO_EXISTE },
 ]

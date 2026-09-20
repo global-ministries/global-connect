@@ -19,6 +19,10 @@ import {
   REPORTE_ESTADO_BADGE_VARIANTE,
   reporteEstadoLabel,
   reporteEstadoBadgeVariante,
+  TEMPORADA_ESTADO_LABELS,
+  TEMPORADA_ESTADO_BADGE_VARIANTE,
+  temporadaEstadoLabel,
+  temporadaEstadoBadgeVariante,
 } from '@/components/talleres/labels'
 
 describe('edición estado labels', () => {
@@ -108,5 +112,41 @@ describe('reporte estado labels', () => {
   it('reporteEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
     expect(reporteEstadoBadgeVariante('enviado')).toBe('success')
     expect(reporteEstadoBadgeVariante('algo-desconocido')).toBe('default')
+  })
+})
+
+// T8 (odd/tasks/talleres-consolidar-pantallas.md) — talleres_temporadas.estado
+// gets the same treatment as every other domain in this file: the old
+// admin/talleres/temporadas screens rendered `t.estado` raw, no label map.
+describe('temporada estado labels', () => {
+  it('has a Spanish label for every known estado', () => {
+    expect(TEMPORADA_ESTADO_LABELS).toEqual({
+      borrador: 'Borrador',
+      abierto: 'Abierta',
+      cerrado: 'Cerrada',
+      cancelado: 'Cancelada',
+    })
+  })
+
+  it('maps every estado to a valid BadgeSistema variante', () => {
+    const validVariantes = new Set(['default', 'success', 'warning', 'error', 'info'])
+    for (const variante of Object.values(TEMPORADA_ESTADO_BADGE_VARIANTE)) {
+      expect(validVariantes.has(variante)).toBe(true)
+    }
+  })
+
+  it('abierto reads as success, cancelado as error', () => {
+    expect(TEMPORADA_ESTADO_BADGE_VARIANTE.abierto).toBe('success')
+    expect(TEMPORADA_ESTADO_BADGE_VARIANTE.cancelado).toBe('error')
+  })
+
+  it('temporadaEstadoLabel resolves a known key and falls back to the raw key otherwise', () => {
+    expect(temporadaEstadoLabel('abierto')).toBe('Abierta')
+    expect(temporadaEstadoLabel('algo-desconocido')).toBe('algo-desconocido')
+  })
+
+  it('temporadaEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
+    expect(temporadaEstadoBadgeVariante('borrador')).toBe('info')
+    expect(temporadaEstadoBadgeVariante('algo-desconocido')).toBe('default')
   })
 })
