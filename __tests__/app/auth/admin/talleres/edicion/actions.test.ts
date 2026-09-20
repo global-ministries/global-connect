@@ -79,7 +79,10 @@ interface UpdateRecorder {
     | { data: null; error: { message: string } | null }
 }
 
-function makeMockClient(rec: UpdateRecorder) {
+function makeMockClient(
+  rec: UpdateRecorder,
+  tallerSlug: string | null = 'yoga-basico',
+) {
   return {
     auth: {
       getUser: jest.fn().mockResolvedValue({
@@ -87,7 +90,25 @@ function makeMockClient(rec: UpdateRecorder) {
         error: null,
       }),
     },
-    from(_table: string) {
+    from(table: string) {
+      if (table === 'talleres') {
+        return {
+          select(_columns: string) {
+            return {
+              eq(_column: string, _value: unknown) {
+                return {
+                  maybeSingle: () =>
+                    Promise.resolve(
+                      tallerSlug
+                        ? { data: { slug: tallerSlug }, error: null }
+                        : { data: null, error: null },
+                    ),
+                }
+              },
+            }
+          },
+        }
+      }
       return {
         update(payload: Record<string, unknown>) {
           rec.updatePayload = { ...payload }
@@ -259,6 +280,25 @@ describe('openExistingEdicionAction — happy path', () => {
     expect(revalidatePathMock).toHaveBeenCalledWith(
       '/admin/talleres/edicion/e-1',
     )
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/talleres/yoga-basico/e-1',
+    )
+  })
+
+  it('only revalidates the admin path when the taller slug cannot be resolved', async () => {
+    const rec = freshRecorder({
+      data: { id: 'e-1', taller_id: 't-1', estado: 'abierto' },
+      error: null,
+    })
+    createSupabaseServerClientMock.mockReset().mockResolvedValueOnce(
+      makeMockClient(rec, null),
+    )
+    const result = await openExistingEdicionAction('e-1')
+    expect(result.ok).toBe(true)
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/admin/talleres/edicion/e-1',
+    )
+    expect(revalidatePathMock).toHaveBeenCalledTimes(1)
   })
 
   it('returns NOT_FOUND_OR_NOT_BORRADOR when the UPDATE returns null (predicate mismatch)', async () => {
@@ -344,6 +384,9 @@ describe('closeExistingEdicionAction — happy path', () => {
     })
     expect(revalidatePathMock).toHaveBeenCalledWith(
       '/admin/talleres/edicion/e-1',
+    )
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/talleres/yoga-basico/e-1',
     )
   })
 

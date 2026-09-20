@@ -123,6 +123,32 @@ async function requireAdminOrDirector(
 }
 
 /**
+ * Revalidate every screen that shows this edicion's estado badge:
+ * the old admin detail page (lives until T10 retires it) and the
+ * new consolidated /talleres/[taller]/[edicion] page. The new path
+ * needs the taller's slug, which the UPDATE's `taller_id` lets us
+ * resolve with one extra read.
+ */
+async function revalidateEdicionScreens(
+  client: unknown,
+  edicionId: string,
+  tallerId: string,
+): Promise<void> {
+  revalidatePath(`/admin/talleres/edicion/${edicionId}`)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const { data: taller } = await (client as any)
+    .from('talleres')
+    .select('slug')
+    .eq('id', tallerId)
+    .maybeSingle()
+
+  if (taller?.slug) {
+    revalidatePath(`/talleres/${taller.slug}/${edicionId}`)
+  }
+}
+
+/**
  * Transition an existing edicion from `borrador` to `abierto`.
  *
  * WHERE clause includes the state predicate so we never accidentally
@@ -164,10 +190,7 @@ export async function openExistingEdicionAction(
     }
   }
 
-  // Revalidate the edicion detail page so the badge/state refresh.
-  // Also revalidate the taller abstract page so the directory view
-  // reflects the new state (the abstract page lists editions).
-  revalidatePath(`/admin/talleres/edicion/${edicionId}`)
+  await revalidateEdicionScreens(auth.supabase, edicionId, data.taller_id)
 
   return {
     ok: true,
@@ -217,7 +240,7 @@ export async function closeExistingEdicionAction(
     }
   }
 
-  revalidatePath(`/admin/talleres/edicion/${edicionId}`)
+  await revalidateEdicionScreens(auth.supabase, edicionId, data.taller_id)
 
   return { ok: true, message: 'Edición cerrada.' }
 }
