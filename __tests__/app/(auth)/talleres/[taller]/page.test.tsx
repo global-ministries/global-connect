@@ -31,7 +31,8 @@ import { AssignServicioForm } from '@/components/talleres/assign-servicio-form'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
-import { rutaCatalogo } from '@/lib/platform/talleres/rutas'
+import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
+import Link from 'next/link'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(),
@@ -286,5 +287,17 @@ describe('TallerDetallePage — content', () => {
     setup({ taller: { ...TALLER, dream_team_equipo_id: null } })
     await TallerDetallePage(params())
     expect(fetchRutaEquipoMock).not.toHaveBeenCalled()
+  })
+
+  // T4 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/[taller]/
+  // [edicion] now exists, so the ediciones rows T3 left non-interactive
+  // (the `// T4` comment) link there.
+  it('links each edición row to /talleres/[taller]/[edicion]', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const link = findByType(element, Link)
+    expect(link).not.toBeNull()
+    expect(link?.props.href).toBe(rutaEdicion('matrimonio-sobre-la-roca', 'e-1'))
   })
 })
