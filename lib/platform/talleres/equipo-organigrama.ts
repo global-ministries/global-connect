@@ -122,6 +122,61 @@ export async function fetchOpcionesEquipoTaller(
 }
 
 /**
+ * T3 — resolves one equipo's full root-first tree path (e.g. "Dirección de
+ * Conexión › Grupos de Corto Plazo › Punto de Partida"), for the header of
+ * /talleres/[taller] (docs/talleres-de-punta-a-punta.md §8: "su equipo del
+ * organigrama"). Pure — walks the same construirArbol tree
+ * construirOpcionesEquipoTaller builds, but for ONE id regardless of
+ * activo/experiencia/leaf-ness: a header shows whatever equipo IS linked
+ * (even an archived one, or a non-leaf), unlike `crearBajo`/`vincular`,
+ * whose filters answer a different question ("where can a NEW taller
+ * attach").
+ */
+export function resolverRutaEquipo(
+  equiposRaw: readonly EquipoOrganigramaRaw[],
+  equipoId: string,
+): string | null {
+  const arbol = construirArbol(equiposRaw.map(toNodoArbol))
+
+  function buscar(nodo: NodoArbol<NodoConMetadata>, ancestros: readonly string[]): string | null {
+    const ruta = [...ancestros, nodo.equipo.label].join(RUTA_SEPARADOR)
+    if (nodo.equipo.id === equipoId) return ruta
+    for (const hijo of nodo.hijos) {
+      const encontrada = buscar(hijo, [...ancestros, nodo.equipo.label])
+      if (encontrada !== null) return encontrada
+    }
+    return null
+  }
+
+  for (const raiz of arbol) {
+    const encontrada = buscar(raiz, [])
+    if (encontrada !== null) return encontrada
+  }
+  return null
+}
+
+/**
+ * Server-side wrapper: reads the whole dream_team_equipos table RLS hands
+ * back and resolves `equipoId`'s path from it. Returns `null` both when the
+ * id truly doesn't exist and when RLS hands back an empty/partial snapshot
+ * that doesn't include it (e.g. a talleres-only viewer with no dream_team
+ * read capability at all — dream_team_equipos_read requires one) — the
+ * caller (the page header) treats both the same way: omit the line.
+ */
+export async function fetchRutaEquipo(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client, matches this lib's other loaders
+  supabase: any,
+  equipoId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from('dream_team_equipos')
+    .select('id, label, experiencia, activo, parent_equipo_id')
+
+  const equipos = (data ?? []) as EquipoOrganigramaRaw[]
+  return resolverRutaEquipo(equipos, equipoId)
+}
+
+/**
  * T4b — the coordinador role seeded on a taller's equipo, for the
  * "assign coordinador" card on the taller detail page
  * (app/(auth)/admin/talleres/abstracto/[slug]/page.tsx). Extracted so
