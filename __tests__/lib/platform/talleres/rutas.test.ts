@@ -7,6 +7,9 @@
  * segment (slug, edicionId, grupoId) is passed in by the caller.
  */
 
+import fs from 'node:fs'
+import path from 'node:path'
+
 import {
   rutaCatalogo,
   rutaTaller,
@@ -93,9 +96,14 @@ describe('TALLERES_RUTAS_ANTIGUAS — old→new route map', () => {
     expect(new Set(origenes).size).toBe(origenes.length)
   })
 
-  it('an entry marked activa:true always has a non-null destino', () => {
+  it('T10: every entry is activa (acceptance criterion 1 — no old URL 404s)', () => {
+    const inactivas = TALLERES_RUTAS_ANTIGUAS.filter((e) => !e.activa).map((e) => e.origen)
+    expect(inactivas).toEqual([])
+  })
+
+  it('puente:true iff destino is null (a bridge page resolves it at request time instead)', () => {
     for (const entry of TALLERES_RUTAS_ANTIGUAS) {
-      if (entry.activa) expect(entry.destino).not.toBeNull()
+      expect(entry.puente).toBe(entry.destino === null)
     }
   })
 
@@ -126,24 +134,139 @@ describe('TALLERES_RUTAS_ANTIGUAS — old→new route map', () => {
     expect(chained).toEqual([])
   })
 
-  it('every entry not yet active carries a non-empty nota explaining the deferral', () => {
-    for (const entry of TALLERES_RUTAS_ANTIGUAS) {
-      if (!entry.activa) expect(entry.nota.length).toBeGreaterThan(0)
-    }
-  })
-
-  it('T6 resolves the /admin/talleres/inscripciones destino to the pendientes inbox (was null, "decisión pendiente para T6/T10")', () => {
-    // Only the "pendiente cross-edición" half is covered — the admin
-    // page's full multi-estado audit filter has no 1:1 replacement here.
+  it('T10: /admin/talleres/inscripciones now covers the cross-edición audit via the pendientes filter', () => {
+    // T6 resolved the "pendiente cruzado por taller" half; T10 closes the
+    // rest — the state filter on /talleres/pendientes (default "pendiente")
+    // covers the cross-edición audit that had no 1:1 replacement before.
     const entry = TALLERES_RUTAS_ANTIGUAS.find((e) => e.origen === '/admin/talleres/inscripciones')
     expect(entry?.destino).toBe('/talleres/pendientes')
-    expect(entry?.activa).toBe(false)
+    expect(entry?.activa).toBe(true)
   })
 
-  it('includes the deleted screens (Recursos, Métricas) with destino: null', () => {
+  it('the deleted screens (Recursos, Métricas) still redirect — no destino-less dead end', () => {
     const recursos = TALLERES_RUTAS_ANTIGUAS.find((e) => e.origen === '/talleres/equipo/recursos')
     const metricas = TALLERES_RUTAS_ANTIGUAS.find((e) => e.origen === '/talleres/direccion/metricas')
-    expect(recursos?.destino).toBeNull()
-    expect(metricas?.destino).toBeNull()
+    expect(recursos?.destino).not.toBeNull()
+    expect(metricas?.destino).not.toBeNull()
+  })
+})
+
+// ─── T10 — every origen actually resolves ──────────────────────────────
+//
+// Two independent checks, matching the two mechanisms rutas.ts documents:
+//   1. A `puente:true` entry's own ORIGEN must exist as a real page.tsx
+//      (the bridge page replacing the old content, doing the lookup +
+//      redirect at request time).
+//   2. A `puente:false` entry's DESTINO must exist as a real page.tsx,
+//      AND next.config.mjs's `redirects()` must contain a matching
+//      source/destination pair (so the mapping isn't just documented in
+//      rutas.ts but actually wired).
+//
+// Route existence reuses talleres-nav-routes-exist.test.ts's own
+// technique (walk app/, strip route-group segments) rather than
+// importing a shared helper — same one-file-per-guard convention as
+// every other __tests__/invariants/talleres-*.test.ts file.
+
+const REPO_ROOT = path.resolve(__dirname, '../../../..')
+const APP_DIR = path.join(REPO_ROOT, 'app')
+const NEXT_CONFIG_PATH = path.join(REPO_ROOT, 'next.config.mjs')
+
+const EXCLUDED_DIR_SEGMENTS = new Set(['node_modules', '.next', '.git'])
+const PAGE_FILENAMES = new Set(['page.tsx', 'page.ts'])
+
+function isRouteGroupSegment(segment: string): boolean {
+  return segment.startsWith('(') && segment.endsWith(')')
+}
+
+async function* walk(dir: string): AsyncGenerator<string> {
+  let entries: fs.Dirent[]
+  try {
+    entries = await fs.promises.readdir(dir, { withFileTypes: true })
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    if (EXCLUDED_DIR_SEGMENTS.has(entry.name)) continue
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      yield* walk(full)
+    } else if (entry.isFile() && PAGE_FILENAMES.has(entry.name)) {
+      yield full
+    }
+  }
+}
+
+/** Every concrete URL path served by an app/ page file, with `[x]` segments normalized to `[*]` (the param's own name doesn't matter for existence). */
+async function buildNormalizedRouteSet(): Promise<Set<string>> {
+  const routes = new Set<string>()
+  for await (const pageFile of walk(APP_DIR)) {
+    const relativeToApp = path.relative(APP_DIR, path.dirname(pageFile))
+    const segments = relativeToApp === '' ? [] : relativeToApp.split(path.sep)
+    const urlSegments = segments.filter((segment) => !isRouteGroupSegment(segment))
+    routes.add(normalizeBrackets('/' + urlSegments.join('/')))
+  }
+  return routes
+}
+
+/** Replaces every `[name]` dynamic segment with the literal `[*]`, and strips a trailing `?query`. */
+function normalizeBrackets(urlPath: string): string {
+  return urlPath.split('?')[0]!.replace(/\[[^\]]+\]/g, '[*]')
+}
+
+/** `[name]` -> `:name`, Next.js's own redirect path-matching syntax. */
+function toNextConfigToken(urlPath: string): string {
+  return urlPath.replace(/\[([^\]]+)\]/g, ':$1')
+}
+
+/** Extracts every `{ source: '...', destination: '...' }` pair from next.config.mjs's `redirects()`, in order. Text-based on purpose — importing next.config.mjs pulls in the Sentry webpack plugin's own module-load side effects. */
+function readNextConfigRedirects(): ReadonlyArray<{ source: string; destination: string }> {
+  const content = fs.readFileSync(NEXT_CONFIG_PATH, 'utf-8')
+  const sourceRe = /source:\s*'([^']+)'/g
+  const destinationRe = /destination:\s*'([^']+)'/g
+  const sources = [...content.matchAll(sourceRe)].map((m) => m[1]!)
+  const destinations = [...content.matchAll(destinationRe)].map((m) => m[1]!)
+  expect(sources.length).toBe(destinations.length)
+  return sources.map((source, i) => ({ source, destination: destinations[i]! }))
+}
+
+describe('TALLERES_RUTAS_ANTIGUAS — T10: every origen actually resolves', () => {
+  it('every puente:true origen has its own bridge page.tsx (the redirect-resolving replacement)', async () => {
+    const routes = await buildNormalizedRouteSet()
+    const missing = TALLERES_RUTAS_ANTIGUAS.filter((e) => e.puente)
+      .filter((e) => !routes.has(normalizeBrackets(e.origen)))
+      .map((e) => e.origen)
+    expect(missing).toEqual([])
+  })
+
+  it('every non-puente destino resolves to a real page.tsx', async () => {
+    const routes = await buildNormalizedRouteSet()
+    const missing = TALLERES_RUTAS_ANTIGUAS.filter((e) => !e.puente)
+      .filter((e) => !routes.has(normalizeBrackets(e.destino!)))
+      .map((e) => `${e.origen} -> ${e.destino}`)
+    expect(missing).toEqual([])
+  })
+
+  it('every non-puente entry has a matching next.config.mjs redirect (source AND destination)', () => {
+    const configRedirects = readNextConfigRedirects()
+    const configSet = new Set(configRedirects.map((r) => `${r.source} -> ${r.destination}`))
+
+    const missing = TALLERES_RUTAS_ANTIGUAS.filter((e) => !e.puente)
+      .map((e) => `${toNextConfigToken(e.origen)} -> ${toNextConfigToken(e.destino!)}`)
+      .filter((pair) => !configSet.has(pair))
+    expect(missing).toEqual([])
+  })
+
+  it('next.config.mjs carries no extra talleres redirect absent from the inventory (single source of truth)', () => {
+    const configRedirects = readNextConfigRedirects()
+    const expected = new Set(
+      TALLERES_RUTAS_ANTIGUAS.filter((e) => !e.puente).map(
+        (e) => `${toNextConfigToken(e.origen)} -> ${toNextConfigToken(e.destino!)}`,
+      ),
+    )
+    const extra = configRedirects
+      .filter((r) => r.source.startsWith('/talleres/') || r.source.startsWith('/admin/talleres/'))
+      .map((r) => `${r.source} -> ${r.destination}`)
+      .filter((pair) => !expected.has(pair))
+    expect(extra).toEqual([])
   })
 })
