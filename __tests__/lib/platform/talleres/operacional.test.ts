@@ -536,10 +536,18 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     ended_at: null,
   }
 
+  // T4 (odd/tasks/talleres-consolidar-pantallas.md) — the real DB column is
+  // `fecha_cierre_automatico` (masculine, matching "cierre"), not
+  // `fecha_cierre_automatica` (see supabase/migrations/
+  // 20260811130000_talleres_tables_certificados_periodos.sql). The loader
+  // used to select the wrong column name, so this join silently errored
+  // and `periodo_general` was always null in production. This fixture
+  // mirrors the REAL row shape so the bug shows up as a failing
+  // assertion instead of a silent no-op.
   const fullPeriodo = {
     id: 'pg-1',
     fecha_apertura_automatica: '2026-08-01T00:00:00Z',
-    fecha_cierre_automatica: '2026-11-30T00:00:00Z',
+    fecha_cierre_automatico: '2026-11-30T00:00:00Z',
     fecha_apertura_manual: null,
     fecha_cierre_manual: null,
     fecha_cierre_real: null,
@@ -586,6 +594,11 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
 
     expect(result.periodo_general).not.toBeNull()
     expect(result.periodo_general?.id).toBe('pg-1')
+    // T4 — reads the real `fecha_cierre_automatico` DB column (masculine),
+    // exposed on the TS type under its existing name for backward
+    // compatibility with the old page's rendering code.
+    expect(result.periodo_general?.fecha_apertura_automatica).toBe('2026-08-01T00:00:00Z')
+    expect(result.periodo_general?.fecha_cierre_automatica).toBe('2026-11-30T00:00:00Z')
 
     expect(result.inscripciones_count).toBe(12)
     expect(result.inscripciones_aprobadas_count).toBe(8)

@@ -718,11 +718,18 @@ export async function loadEdicionLocalDetalle(
 
   // Periodo general via FK on taller_ediciones (periodo_general_id may
   // be NULL for permanente_custom modality).
+  //
+  // T4 — the real column is `fecha_cierre_automatico` (masculine, matches
+  // "cierre"); `fecha_apertura_automatica` (feminine, matches "apertura")
+  // is correct as-is. Selecting the wrong name used to make this query
+  // error silently (the `{ data }` destructure below ignores `error`),
+  // so `periodo_general` was always null in practice. See
+  // supabase/migrations/20260811130000_talleres_tables_certificados_periodos.sql.
   let periodoRow: unknown = null
   if (edicionRow.periodo_general_id) {
     const { data } = await client2
       .from('taller_periodos_generales')
-      .select('id, fecha_apertura_automatica, fecha_cierre_automatica, fecha_apertura_manual, fecha_cierre_manual, fecha_cierre_real, motivo_cierre')
+      .select('id, fecha_apertura_automatica, fecha_cierre_automatico, fecha_apertura_manual, fecha_cierre_manual, fecha_cierre_real, motivo_cierre')
       .eq('id', edicionRow.periodo_general_id)
       .maybeSingle()
     periodoRow = data
@@ -747,10 +754,14 @@ export async function loadEdicionLocalDetalle(
     .select('id', { count: 'exact', head: true })
     .eq('taller_id', edicionRow.id)
 
+  // The raw DB row uses `fecha_cierre_automatico` (masculine) — see the
+  // select() above. It's remapped to `fecha_cierre_automatica` below to
+  // keep EdicionLocalDetalle's public field name unchanged (the old
+  // page's rendering code already reads that name).
   const periodo = periodoRow as {
     id: string
     fecha_apertura_automatica: string | null
-    fecha_cierre_automatica: string | null
+    fecha_cierre_automatico: string | null
     fecha_apertura_manual: string | null
     fecha_cierre_manual: string | null
     fecha_cierre_real: string | null
@@ -796,7 +807,7 @@ export async function loadEdicionLocalDetalle(
       ? {
           id: periodo.id,
           fecha_apertura_automatica: periodo.fecha_apertura_automatica,
-          fecha_cierre_automatica: periodo.fecha_cierre_automatica,
+          fecha_cierre_automatica: periodo.fecha_cierre_automatico,
           fecha_apertura_manual: periodo.fecha_apertura_manual,
           fecha_cierre_manual: periodo.fecha_cierre_manual,
           fecha_cierre_real: periodo.fecha_cierre_real,
