@@ -8,9 +8,17 @@
  *   - <CloseEdicionButton edicionId={...} /> : abierto|en_curso → cerrado
  *
  * Both call the matching server action exported from
- * `./actions.ts`. They share the same useTransition pattern as the
- * legacy OpenEdicionForm (PR23.2a) and render inline loading /
- * error feedback.
+ * `app/(auth)/admin/talleres/edicion/[id]/actions.ts`. They share the
+ * same useTransition pattern as the legacy OpenEdicionForm (PR23.2a) and
+ * render inline loading / error feedback.
+ *
+ * T4 (odd/tasks/talleres-consolidar-pantallas.md) — moved here from
+ * app/(auth)/admin/talleres/edicion/[id]/ so /talleres/[taller]/[edicion]
+ * can reuse it too, mirroring how T3 moved OpenEdicionForm/
+ * AssignServicioForm: only the client UI moves, the server action stays
+ * in the old route folder (still imported by its absolute path) — the
+ * old page keeps working unmodified in its data flow, just its import
+ * path changes.
  *
  * Visual style: same primary / danger tones as the rest of the
  * admin /talleres/* surfaces, rendered inline next to the badge.
@@ -26,7 +34,7 @@ import { Lock, RotateCw, Send } from 'lucide-react'
 import {
   closeExistingEdicionAction,
   openExistingEdicionAction,
-} from './actions'
+} from '@/app/(auth)/admin/talleres/edicion/[id]/actions'
 
 interface BaseProps {
   readonly edicionId: string

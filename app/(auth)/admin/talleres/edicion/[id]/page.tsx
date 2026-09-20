@@ -35,8 +35,11 @@ import {
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadEdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
 
-import { CloseEdicionButton, OpenEdicionButton } from './open-edicion-button'
-import { GruposSection } from './grupos-section'
+// T4 (odd/tasks/talleres-consolidar-pantallas.md) — these two moved to
+// components/talleres/ so /talleres/[taller]/[edicion] can reuse them;
+// this page's own data flow and gate are unchanged.
+import { CloseEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
+import { GruposSection } from '@/components/talleres/grupos-section'
 
 export const metadata = { title: 'Edición de Grupo de Corto Plazo' }
 

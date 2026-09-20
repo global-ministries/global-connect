@@ -33,10 +33,16 @@ jest.mock('@/lib/platform/talleres/operacional', () => ({
 }))
 
 // The Grupos admin section is a client island with its own test suite
-// (grupos-section.test.tsx). Here we stub it to a marker so this page test
-// stays focused on page-level behavior — whether the section is rendered
-// (write-capability + cohorte present) or gated out.
-jest.mock('@/app/(auth)/admin/talleres/edicion/[id]/grupos-section', () => ({
+// (__tests__/components/talleres/grupos-section.test.tsx). Here we stub
+// it to a marker so this page test stays focused on page-level behavior
+// — whether the section is rendered (write-capability + cohorte present)
+// or gated out.
+//
+// T4 (odd/tasks/talleres-consolidar-pantallas.md) — the component moved
+// to components/talleres/grupos-section.tsx so /talleres/[taller]/[edicion]
+// can reuse it too; this page's own import path (and this mock target)
+// updated to match, behavior unchanged.
+jest.mock('@/components/talleres/grupos-section', () => ({
   GruposSection: ({ cohorteId }: { cohorteId: string }) => {
     const react = jest.requireActual('react') as typeof import('react')
     return react.createElement(
