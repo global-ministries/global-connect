@@ -64,6 +64,7 @@ import {
   loadGrupoSesiones,
   loadAsistenciaPorClase,
   loadGrupoReporte,
+  loadGrupoInscripciones,
 } from '@/lib/platform/talleres/grupo-detalle'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
 import { rutaTaller, rutaEdicion, rutaGrupo } from '@/lib/platform/talleres/rutas'
@@ -162,6 +163,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
 
   const permisos = await cargarPermisos(client, taller.dream_team_equipo_id)
   const asignaciones = await loadGrupoAsignaciones(client, grupoId)
+  // T4 (odd/tasks/talleres-inscripcion-a-grupo.md) — "su gente" real: the
+  // inscripciones actually placed in this grupo, not the equipo roster
+  // above (which is a different concept — líder/voluntario team, T1's
+  // Decisiones). Retiradas are kept for history but never counted.
+  const inscripcionesGrupo = await loadGrupoInscripciones(client, grupoId)
   const sesiones = await loadGrupoSesiones(client, grupoId)
   const reporte = await loadGrupoReporte(client, grupoId)
 
@@ -225,10 +231,12 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </div>
       </TarjetaSistema>
 
-      {/* Su gente */}
-      <section aria-labelledby="gente-heading">
-        <h2 id="gente-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
-          Su gente
+      {/* Equipo (líder/voluntario — taller_grupo_asignaciones, distinto de
+          "su gente" abajo: T1's Decisiones, odd/tasks/talleres-
+          inscripcion-a-grupo.md) */}
+      <section aria-labelledby="equipo-heading">
+        <h2 id="equipo-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+          Equipo
         </h2>
         <div className="mt-3">
           {asignaciones.length === 0 ? (
@@ -247,6 +255,59 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+      </section>
+
+      {/* Su gente (T4, odd/tasks/talleres-inscripcion-a-grupo.md) — the
+          inscripciones actually placed in this grupo. Aprobadas is the
+          roster; retiradas are kept for history, shown apart, muted, and
+          never counted (Decisiones). */}
+      <section aria-labelledby="gente-heading">
+        <h2 id="gente-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+          Su gente
+        </h2>
+        <div className="mt-3">
+          {inscripcionesGrupo.aprobadas.length === 0 && inscripcionesGrupo.retiradas.length === 0 ? (
+            <EstadoVacio icono={Users} titulo="No hay participantes todavía" />
+          ) : (
+            <div className="space-y-4">
+              {inscripcionesGrupo.aprobadas.length === 0 ? (
+                <TextoSistema variante="sutil" className="text-sm">
+                  No hay participantes aprobados todavía.
+                </TextoSistema>
+              ) : (
+                <ul className="space-y-2">
+                  {inscripcionesGrupo.aprobadas.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border/60 p-3"
+                    >
+                      <TextoSistema className="text-sm">{p.nombre}</TextoSistema>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {inscripcionesGrupo.retiradas.length > 0 && (
+                <div>
+                  <TextoSistema variante="sutil" className="mb-2 block text-xs uppercase tracking-wide">
+                    Retirados
+                  </TextoSistema>
+                  <ul className="space-y-2">
+                    {inscripcionesGrupo.retiradas.map((p) => (
+                      <li
+                        key={p.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border/40 p-3 opacity-60"
+                      >
+                        <TextoSistema variante="sutil" className="text-sm">
+                          {p.nombre}
+                        </TextoSistema>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </section>

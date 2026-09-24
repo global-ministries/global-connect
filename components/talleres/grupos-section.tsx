@@ -64,6 +64,15 @@ interface GrupoRow {
   readonly capacidad: number
   readonly estado: string
   readonly completed_at?: string | null
+  /**
+   * T3 (odd/tasks/talleres-inscripcion-a-grupo.md) — count of
+   * estado='aprobado' inscripciones currently placed in this grupo,
+   * attached by GET /api/talleres/grupos (T2). Capacity is advisory:
+   * ocupacion may exceed capacidad — this never blocks anything, it's
+   * shown in a visible warning (Decisiones, "manualmente siempre se
+   * pueda... agregar alguien más").
+   */
+  readonly ocupacion?: number
 }
 
 type Rol = 'lider' | 'voluntario'
@@ -273,6 +282,21 @@ export function GruposSection({ cohorteId, tallerSlug, edicionId }: GruposSectio
                 <TextoSistema variante="muted" className="text-sm">
                   Capacidad {grupo.capacidad} · {grupo.estado}
                 </TextoSistema>
+                {typeof grupo.ocupacion === 'number' && (
+                  <TextoSistema
+                    variante={grupo.ocupacion > grupo.capacidad ? undefined : 'muted'}
+                    className={
+                      grupo.ocupacion > grupo.capacidad
+                        ? 'text-sm font-medium text-warning'
+                        : 'text-sm'
+                    }
+                    role={grupo.ocupacion > grupo.capacidad ? 'status' : undefined}
+                  >
+                    {grupo.ocupacion} / {grupo.capacidad}
+                    {grupo.ocupacion > grupo.capacidad &&
+                      ` · ${grupo.ocupacion - grupo.capacidad} por encima de la capacidad`}
+                  </TextoSistema>
+                )}
               </div>
               <BotonSistema
                 variante="outline"

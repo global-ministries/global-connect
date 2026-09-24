@@ -38,6 +38,7 @@ import type {
   GrupoSesion,
   AsistenciaPersonaRow,
   GrupoReporte,
+  GrupoInscripciones,
 } from '@/lib/platform/talleres/grupo-detalle'
 import { rutaEdicion } from '@/lib/platform/talleres/rutas'
 
@@ -70,6 +71,7 @@ jest.mock('@/lib/platform/talleres/grupo-detalle', () => ({
   loadGrupoSesiones: jest.fn(),
   loadAsistenciaPorClase: jest.fn(),
   loadGrupoReporte: jest.fn(),
+  loadGrupoInscripciones: jest.fn(),
 }))
 
 jest.mock('@/lib/platform/talleres/permisos', () => {
@@ -94,6 +96,7 @@ const grupoDetalleModule = jest.requireMock('@/lib/platform/talleres/grupo-detal
   loadGrupoSesiones: jest.Mock
   loadAsistenciaPorClase: jest.Mock
   loadGrupoReporte: jest.Mock
+  loadGrupoInscripciones: jest.Mock
 }
 const cargarPermisosMock = jest.requireMock('@/lib/platform/talleres/permisos')
   .cargarPermisos as jest.Mock
@@ -174,6 +177,7 @@ interface SetupOpts {
   sesiones?: readonly GrupoSesion[]
   asistencia?: readonly AsistenciaPersonaRow[]
   reporte?: GrupoReporte | null
+  inscripcionesGrupo?: GrupoInscripciones
 }
 
 function setup(opts: SetupOpts): void {
@@ -209,6 +213,9 @@ function setup(opts: SetupOpts): void {
   grupoDetalleModule.loadGrupoSesiones.mockReset().mockResolvedValue(opts.sesiones ?? SESIONES)
   grupoDetalleModule.loadAsistenciaPorClase.mockReset().mockResolvedValue(opts.asistencia ?? ASISTENCIA)
   grupoDetalleModule.loadGrupoReporte.mockReset().mockResolvedValue(opts.reporte === undefined ? REPORTE : opts.reporte)
+  grupoDetalleModule.loadGrupoInscripciones
+    .mockReset()
+    .mockResolvedValue(opts.inscripcionesGrupo ?? { aprobadas: [], retiradas: [] })
 
   cargarPermisosMock.mockReset().mockResolvedValue({ ...PERMISOS_TALLER_ALL_FALSE, ...opts.permisos })
 }
@@ -317,7 +324,7 @@ describe('GrupoDetallePage — gate', () => {
 })
 
 describe('GrupoDetallePage — full access', () => {
-  it('shows su gente with names and rol badges', async () => {
+  it('shows the equipo (líder/voluntario roster) with names and rol badges', async () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
@@ -355,7 +362,7 @@ describe('GrupoDetallePage — full access', () => {
   })
 
   it('shows an empty state when there is no reporte yet and permisos.verReportes is granted', async () => {
-    setup({ reporte: null, permisos: { verReportes: true } })
+    setup({ reporte: null, permisos: { verReportes: true }, inscripcionesGrupo: { aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }], retiradas: [] } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     const vacio = findByType(element, EstadoVacio)
@@ -363,7 +370,7 @@ describe('GrupoDetallePage — full access', () => {
   })
 
   it('shows a permission-denied empty state for the reporte when verReportes is false', async () => {
-    setup({ reporte: null, permisos: { verReportes: false } })
+    setup({ reporte: null, permisos: { verReportes: false }, inscripcionesGrupo: { aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }], retiradas: [] } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     const vacio = findByType(element, EstadoVacio)
@@ -386,6 +393,55 @@ describe('GrupoDetallePage — full access', () => {
       href: rutaEdicion('proximo-paso', 'e-1'),
       texto: 'Octubre 2026',
     })
+  })
+})
+
+// T4 (odd/tasks/talleres-inscripcion-a-grupo.md) — "su gente" real: the
+// inscripciones actually placed in this grupo (taller_inscripciones.
+// grupo_id), aprobadas as the main list, retiradas apart and not counted.
+describe('GrupoDetallePage — su gente (T4, participantes reales)', () => {
+  it('lists aprobadas as the main roster', async () => {
+    setup({
+      inscripcionesGrupo: {
+        aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }],
+        retiradas: [],
+      },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Carla Ruiz/)
+  })
+
+  it('lists retiradas in a separate, muted list', async () => {
+    setup({
+      inscripcionesGrupo: {
+        aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }],
+        retiradas: [{ id: 'i-2', personaId: 'p-2', nombre: 'Pedro Soto' }],
+      },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).toMatch(/Carla Ruiz/)
+    expect(text).toMatch(/Pedro Soto/)
+    expect(text).toMatch(/Retirad/)
+  })
+
+  it('shows EstadoVacio when there are no participantes at all', async () => {
+    setup({ inscripcionesGrupo: { aprobadas: [], retiradas: [] } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    // Equipo's own roster (ASIGNACIONES) is non-empty and reporte is set
+    // (REPORTE, not null) by default, so the only EstadoVacio in the tree
+    // here is su gente's.
+    const vacio = findByType(element, EstadoVacio)
+    expect(vacio?.props.titulo).toMatch(/no hay participantes/i)
+  })
+
+  it('calls loadGrupoInscripciones with the grupo id', async () => {
+    setup({})
+    await GrupoDetallePage(params())
+    expect(grupoDetalleModule.loadGrupoInscripciones).toHaveBeenCalledWith(expect.anything(), 'g-1')
   })
 })
 
