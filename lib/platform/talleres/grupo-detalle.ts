@@ -261,6 +261,97 @@ export async function loadGrupoAsignaciones(
   })
 }
 
+// ─── Su gente real (T2, odd/tasks/talleres-inscripcion-a-grupo.md) ──────
+
+export interface GrupoInscripcionPersona {
+  readonly id: string
+  readonly personaId: string
+  /** Degrades to '—' when the RPC can't resolve a name — never drops the row (T6b rule). */
+  readonly nombre: string
+}
+
+export interface GrupoInscripciones {
+  readonly aprobadas: readonly GrupoInscripcionPersona[]
+  readonly retiradas: readonly GrupoInscripcionPersona[]
+}
+
+interface GrupoInscripcionesClient {
+  from(table: 'taller_inscripciones'): {
+    select(columns: string): {
+      eq(column: string, value: unknown): {
+        order(column: string, opts?: { ascending?: boolean }): PromiseLike<{
+          data: unknown[] | null
+          error: { message: string } | null
+        }>
+      }
+    }
+  }
+  rpc(
+    name: 'talleres_coord_inscripciones_personas',
+    args: { p_inscripcion_ids: readonly string[] },
+  ): Promise<{ data: unknown; error: { message: string } | null }>
+}
+
+/**
+ * "Su gente" — the inscripciones actually placed in this grupo
+ * (taller_inscripciones.grupo_id, T1 of this task), split into aprobadas
+ * (the group's current roster, counted toward ocupación by the caller)
+ * and retiradas (kept for history — grupo_id is never cleared on
+ * retiro — shown separately and never counted). Any other estado
+ * (pendiente, no_aprobado, completado) never carries a grupo_id per the
+ * RPC's own guard, so this query naturally excludes them.
+ *
+ * Names resolve via the existing talleres_coord_inscripciones_personas
+ * RPC (same one admin-inscripciones.ts / operacional.ts already call) —
+ * a missing resolution degrades to '—' rather than dropping the row.
+ */
+export async function loadGrupoInscripciones(
+  client: GrupoInscripcionesClient,
+  grupoId: string,
+): Promise<GrupoInscripciones> {
+  const { data, error } = await client
+    .from('taller_inscripciones')
+    .select('id, persona_principal_id, companero_id, estado')
+    .eq('grupo_id', grupoId)
+    .order('created_at', { ascending: true })
+
+  if (error || !data) return { aprobadas: [], retiradas: [] }
+
+  const rows = data as Array<{
+    id: string
+    persona_principal_id: string
+    companero_id: string | null
+    estado: string
+  }>
+
+  const inscripcionIds = rows.map((r) => r.id)
+  const personasByInscripcion = new Map<string, string>()
+  if (inscripcionIds.length > 0) {
+    const { data: personasData } = await client.rpc('talleres_coord_inscripciones_personas', {
+      p_inscripcion_ids: inscripcionIds,
+    })
+    const personas = (personasData ?? []) as Array<{
+      inscripcion_id: string
+      pp_nombre: string | null
+      pp_apellido: string | null
+    }>
+    for (const p of personas) {
+      personasByInscripcion.set(p.inscripcion_id, nombreCompleto(p.pp_nombre, p.pp_apellido))
+    }
+  }
+
+  const toPersona = (r: (typeof rows)[number]): GrupoInscripcionPersona => ({
+    id: r.id,
+    personaId: r.persona_principal_id,
+    nombre: personasByInscripcion.get(r.id) || '—',
+  })
+
+  return {
+    aprobadas: rows.filter((r) => r.estado === 'aprobado').map(toPersona),
+    retiradas: rows.filter((r) => r.estado === 'retirado').map(toPersona),
+  }
+}
+
 // ─── Clases ──────────────────────────────────────────────────────────────
 
 export interface GrupoSesion {

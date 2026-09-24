@@ -98,7 +98,7 @@ export async function loadAdminInscripciones(
     .from('taller_inscripciones')
     .select(
       `id, taller_id, estado, link_type, created_at, updated_at,
-       cohorte_id, persona_principal_id, companero_id`,
+       cohorte_id, persona_principal_id, companero_id, grupo_id`,
     )
     .order('created_at', { ascending: false })
     .limit(500)
@@ -192,6 +192,27 @@ export async function loadAdminInscripciones(
     }
   }
 
+  // Query 2b — grupo names for placed inscripciones (T2, odd/tasks/
+  // talleres-inscripcion-a-grupo.md). Batched like the rest of this
+  // loader; a grupo_id whose lookup misses degrades its name to '—'
+  // rather than dropping the row (T6b rule — see this file's header).
+  const grupoIds = new Set<string>()
+  for (const row of inscripciones) {
+    if (typeof row.grupo_id === 'string') grupoIds.add(row.grupo_id)
+  }
+  const gruposById = new Map<string, { id: string; nombre: string }>()
+  if (grupoIds.size > 0) {
+    const gRes = await client
+      .from('taller_grupos')
+      .select('id, nombre')
+      .in('id', Array.from(grupoIds))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resolved shape
+    const gData = (gRes.data ?? []) as any[]
+    for (const g of gData) {
+      gruposById.set(g.id, g)
+    }
+  }
+
   // Query 3 — cohortes by ids.
   const cohortesById = new Map<string, { id: string; edicion: string | null }>()
   if (cohorteIds.size > 0) {
@@ -231,6 +252,8 @@ export async function loadAdminInscripciones(
     const personas =
       typeof r.id === 'string' ? personasByInscripcion.get(r.id) : undefined
     const companeroId = (r.companero_id as string | null) ?? null
+    const grupoId = (r.grupo_id as string | null) ?? null
+    const grupoNombre = grupoId ? (gruposById.get(grupoId)?.nombre ?? '—') : null
 
     const nombreCompleto = (n: string | null, a: string | null) =>
       [n, a].filter((x) => x && x.length > 0).join(' ') || '—'
@@ -258,6 +281,8 @@ export async function loadAdminInscripciones(
       estado: r.estado as InscripcionEstado,
       created_at: r.created_at as string,
       updated_at: r.updated_at as string,
+      grupo_id: grupoId,
+      grupo_nombre: grupoNombre,
     })
   }
 

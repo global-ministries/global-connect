@@ -402,3 +402,51 @@ describe('loadAdminInscripciones — cohort + companero', () => {
     expect(result.rows[0]?.companero_nombre).toBeNull()
   })
 })
+
+// T2 (odd/tasks/talleres-inscripcion-a-grupo.md) — grupo_id + grupo_nombre.
+describe('loadAdminInscripciones — grupo', () => {
+  it('exposes grupo_id and resolves the grupo nombre when the row is placed', async () => {
+    rpcData = [RPC_PERSONA]
+    const client = buildClientMock({
+      taller_inscripciones: {
+        data: [{ ...FULL_INSCRIPCION, grupo_id: 'grp-1' }],
+        error: null,
+      },
+      taller_ediciones: { data: [FULL_EDICION], error: null },
+      talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
+      taller_grupos: { data: [{ id: 'grp-1', nombre: 'Grupo Alfa' }], error: null },
+    })
+    const result = await loadAdminInscripciones(client, {})
+    expect(result.rows[0]?.grupo_id).toBe('grp-1')
+    expect(result.rows[0]?.grupo_nombre).toBe('Grupo Alfa')
+  })
+
+  it('grupo_id and grupo_nombre are both null when the row is unplaced', async () => {
+    rpcData = [RPC_PERSONA]
+    const client = buildClientMock({
+      taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
+      taller_ediciones: { data: [FULL_EDICION], error: null },
+      talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
+    })
+    const result = await loadAdminInscripciones(client, {})
+    expect(result.rows[0]?.grupo_id).toBeNull()
+    expect(result.rows[0]?.grupo_nombre).toBeNull()
+  })
+
+  it('grupo_nombre degrades to — when grupo_id is set but the grupo lookup misses (never drops the row)', async () => {
+    rpcData = [RPC_PERSONA]
+    const client = buildClientMock({
+      taller_inscripciones: {
+        data: [{ ...FULL_INSCRIPCION, grupo_id: 'grp-missing' }],
+        error: null,
+      },
+      taller_ediciones: { data: [FULL_EDICION], error: null },
+      talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
+      taller_grupos: { data: [], error: null },
+    })
+    const result = await loadAdminInscripciones(client, {})
+    expect(result.rows).toHaveLength(1)
+    expect(result.rows[0]?.grupo_id).toBe('grp-missing')
+    expect(result.rows[0]?.grupo_nombre).toBe('—')
+  })
+})
