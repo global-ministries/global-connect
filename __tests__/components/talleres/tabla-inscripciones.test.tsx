@@ -237,13 +237,21 @@ describe('TablaInscripciones — actions gating', () => {
 // resolver function; a plain boolean keeps working unchanged for every
 // existing caller.
 describe('TablaInscripciones — per-row canWrite (T6)', () => {
-  it('accepts a function and resolves it PER ROW instead of once for the whole table', () => {
+  // CORRECTION (post-T4 review, item 1): canWrite used to also accept a
+  // function `(row) => boolean`. TablaInscripciones is now `'use client'`
+  // (T3), and Next.js refuses to pass a function prop from a server
+  // component into a client component ("Functions cannot be passed
+  // directly to Client Components") — /talleres/pendientes (a server
+  // component) crashed at render. Jest never crosses the RSC boundary, so
+  // the old test passed anyway. Fixed by making canWrite serializable:
+  // a plain boolean, or the array of writable row ids.
+  it('accepts an array of writable ids and resolves it PER ROW instead of once for the whole table', () => {
     renderTabla({
       rows: [
         makeRow({ id: 'insc-a', taller_id: 't-a', estado: 'pendiente' }),
         makeRow({ id: 'insc-b', taller_id: 't-b', estado: 'pendiente' }),
       ],
-      canWrite: (row) => row.taller_id === 't-a',
+      canWrite: ['insc-a'],
     })
     expect(screen.getAllByTestId('approve-insc-a').length).toBeGreaterThan(0)
     expect(screen.queryByTestId('approve-insc-b')).not.toBeInTheDocument()

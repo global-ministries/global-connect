@@ -69,7 +69,18 @@ import { useNotificaciones } from '@/hooks/use-notificaciones'
 
 import type { InscripcionAdminRow } from '@/lib/platform/talleres/inscripciones-types'
 
-export type CanWriteInscripcion = boolean | ((row: InscripcionAdminRow) => boolean)
+/**
+ * CORRECTION (post-T4 review, item 1): this used to also accept a
+ * function `(row) => boolean`. TablaInscripciones is `'use client'`
+ * (T3's bulk-selection state) — Next.js refuses a function prop crossing
+ * from a server component into a client component ("Functions cannot be
+ * passed directly to Client Components"), so a server-rendered caller
+ * passing a per-row resolver function (/talleres/pendientes, T6) crashed
+ * at render. Jest never exercises the RSC serialization boundary, so the
+ * old test passed anyway. canWrite must stay JSON-serializable: a flat
+ * boolean, or the array of writable row ids (resolved server-side).
+ */
+export type CanWriteInscripcion = boolean | readonly string[]
 
 export interface GrupoOpcion {
   readonly id: string
@@ -90,7 +101,7 @@ export interface TablaInscripcionesProps {
 }
 
 function resolveCanWrite(canWrite: CanWriteInscripcion, row: InscripcionAdminRow): boolean {
-  return typeof canWrite === 'function' ? canWrite(row) : canWrite
+  return typeof canWrite === 'boolean' ? canWrite : canWrite.includes(row.id)
 }
 
 interface AsignarGrupoResponse {
