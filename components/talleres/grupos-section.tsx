@@ -287,7 +287,7 @@ export function GruposSection({ cohorteId, tallerSlug, edicionId }: GruposSectio
                     variante={grupo.ocupacion > grupo.capacidad ? undefined : 'muted'}
                     className={
                       grupo.ocupacion > grupo.capacidad
-                        ? 'text-sm font-medium text-amber-600 dark:text-amber-400'
+                        ? 'text-sm font-medium text-warning'
                         : 'text-sm'
                     }
                     role={grupo.ocupacion > grupo.capacidad ? 'status' : undefined}
