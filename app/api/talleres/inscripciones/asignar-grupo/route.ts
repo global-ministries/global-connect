@@ -28,12 +28,25 @@
  *   22023 → MISSING_IDS          (sin_inscripciones)
  *   else (including 42883 "function does not exist") → FAILED
  *
- * Revalidates the edición route always, and the grupo route too when
- * `grupo_id` is present (assign) — mirrors ae4bfb7's fix for the edición
- * open/close actions: resolve the taller's slug from the already-known
- * ids (a couple of extra reads) so BOTH the new /talleres/[taller]/
- * [edicion] route and (when applicable) /talleres/[taller]/[edicion]/
- * [grupo] refresh, not just one of them.
+ * CORRECTION (post-T4 review, item 2): the original version only
+ * revalidated when `grupo_id` was truthy (assign) — unassign revalidated
+ * NOTHING, and a reassign never revalidated the PREVIOUS grupo's page,
+ * so its roster/Grupo column stayed stale. Fixed: before calling the
+ * RPC, the route reads every affected inscripción's CURRENT `taller_id`
+ * (== edición id, same non-obvious FK the rest of this codebase already
+ * documents) and `grupo_id`. After a successful call it revalidates the
+ * edición route always, plus every DISTINCT grupo route touched — the
+ * old grupo(s) it read before the call, union the new `grupo_id` when
+ * assigning. Mirrors ae4bfb7's fix for the edición open/close actions
+ * (resolve the taller's slug from already-known ids, a couple of extra
+ * reads, to hit BOTH the new and old routes).
+ *
+ * Item 5 (dedupe): duplicate ids in `inscripcion_ids` used to fail
+ * P0002 in the RPC (its "every id must exist" check compares the input
+ * length against the count of DISTINCT rows found, so 3x the same id
+ * looks like 2 missing rows). The route dedupes before calling the RPC;
+ * the RPC itself is ALSO fixed to dedupe (T1 correction migration
+ * 20260924140000) so any other caller is safe too.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -86,48 +99,79 @@ function mapRpcError(error: RpcError): { error: string; message: string } {
   }
 }
 
+interface PreviaRow {
+  readonly id: string
+  readonly taller_id: string
+  readonly grupo_id: string | null
+}
+
 /**
- * Resolves and revalidates every screen that shows this grupo's
- * ocupación / roster: the edición route always, the grupo route too
- * when `grupoId` is known.
+ * Reads the CURRENT (pre-update) taller_id (== edición id) and grupo_id
+ * of every affected inscripción — must run BEFORE the RPC call, since
+ * the RPC overwrites grupo_id.
  */
-async function revalidarPantallasDeGrupo(
+async function leerEstadoPrevio(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   client: any,
-  grupoId: string,
-): Promise<void> {
-  const { data: grupo } = await client
-    .from('taller_grupos')
-    .select('cohorte_id')
-    .eq('id', grupoId)
-    .maybeSingle()
-  if (!grupo?.cohorte_id) return
+  ids: readonly string[],
+): Promise<readonly PreviaRow[]> {
+  const { data } = await client
+    .from('taller_inscripciones')
+    .select('id, taller_id, grupo_id')
+    .in('id', ids)
+  return (data ?? []) as PreviaRow[]
+}
 
-  const { data: cohorte } = await client
-    .from('talleres_crecimiento_cohortes')
-    .select('taller_id')
-    .eq('id', grupo.cohorte_id)
-    .maybeSingle()
-  const edicionId = cohorte?.taller_id
-  if (!edicionId) return
-
+/** Resolves the taller slug for an edición id, or null if it can't resolve. */
+async function resolverSlugDeEdicion(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  client: any,
+  edicionId: string,
+): Promise<string | null> {
   const { data: edicion } = await client
     .from('taller_ediciones')
     .select('taller_id')
     .eq('id', edicionId)
     .maybeSingle()
   const tallerAbstractoId = edicion?.taller_id
-  if (!tallerAbstractoId) return
+  if (!tallerAbstractoId) return null
 
   const { data: taller } = await client
     .from('talleres')
     .select('slug')
     .eq('id', tallerAbstractoId)
     .maybeSingle()
-  if (!taller?.slug) return
+  return taller?.slug ?? null
+}
 
-  revalidatePath(`/talleres/${taller.slug}/${edicionId}`)
-  revalidatePath(`/talleres/${taller.slug}/${edicionId}/${grupoId}`)
+/**
+ * Revalidates every screen touched by this write: the edición route
+ * always, plus every DISTINCT grupo route affected — the grupo(s) the
+ * inscripciones were in BEFORE the call, union the new target grupo
+ * (when assigning). `previas` must have been read before the RPC call.
+ */
+async function revalidarPantallas(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  client: any,
+  previas: readonly PreviaRow[],
+  nuevoGrupoId: string | null,
+): Promise<void> {
+  const edicionId = previas[0]?.taller_id
+  if (!edicionId) return
+  const slug = await resolverSlugDeEdicion(client, edicionId)
+  if (!slug) return
+
+  revalidatePath(`/talleres/${slug}/${edicionId}`)
+
+  const gruposTocados = new Set<string>()
+  for (const p of previas) {
+    if (p.grupo_id) gruposTocados.add(p.grupo_id)
+  }
+  if (nuevoGrupoId) gruposTocados.add(nuevoGrupoId)
+
+  for (const grupoId of gruposTocados) {
+    revalidatePath(`/talleres/${slug}/${edicionId}/${grupoId}`)
+  }
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -147,11 +191,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     )
   }
   const grupoId = body.grupo_id ?? null
+  // Item 5 — dedupe before calling the RPC (duplicates otherwise fail
+  // P0002 there; the RPC is also fixed independently, see this file's
+  // header).
+  const ids = Array.from(new Set(body.inscripcion_ids))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gate.supabase
+
+  // Read the PRE-update state before the RPC runs — it's the only way to
+  // learn the previous grupo(s), needed to revalidate their routes too.
+  const previas = await leerEstadoPrevio(client, ids)
+
   const { data, error } = await client.rpc('talleres_asignar_inscripciones_a_grupo', {
-    p_inscripcion_ids: body.inscripcion_ids,
+    p_inscripcion_ids: ids,
     p_grupo_id: grupoId,
   })
 
@@ -160,9 +213,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(mapped, { status: 422 })
   }
 
-  if (grupoId) {
-    await revalidarPantallasDeGrupo(client, grupoId)
-  }
+  await revalidarPantallas(client, previas, grupoId)
 
   return NextResponse.json({
     asignadas: data?.asignadas ?? 0,

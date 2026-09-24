@@ -72,7 +72,7 @@ interface GrupoRow {
    * shown in a visible warning (Decisiones, "manualmente siempre se
    * pueda... agregar alguien más").
    */
-  readonly ocupacion?: number
+  readonly ocupacion?: number | null
 }
 
 type Rol = 'lider' | 'voluntario'
@@ -282,18 +282,31 @@ export function GruposSection({ cohorteId, tallerSlug, edicionId }: GruposSectio
                 <TextoSistema variante="muted" className="text-sm">
                   Capacidad {grupo.capacidad} · {grupo.estado}
                 </TextoSistema>
-                {typeof grupo.ocupacion === 'number' && (
+                {grupo.ocupacion !== undefined && (
                   <TextoSistema
-                    variante={grupo.ocupacion > grupo.capacidad ? undefined : 'muted'}
+                    variante={
+                      typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
+                        ? undefined
+                        : 'muted'
+                    }
                     className={
-                      grupo.ocupacion > grupo.capacidad
+                      typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
                         ? 'text-sm font-medium text-warning'
                         : 'text-sm'
                     }
-                    role={grupo.ocupacion > grupo.capacidad ? 'status' : undefined}
+                    role={
+                      typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
+                        ? 'status'
+                        : undefined
+                    }
                   >
-                    {grupo.ocupacion} / {grupo.capacidad}
-                    {grupo.ocupacion > grupo.capacidad &&
+                    {/* CORRECTION (post-T4 review, item 6): ocupacion: null
+                        means the count query errored server-side — render
+                        an explicit unknown ("—"), never 0 (which would
+                        misreport a genuinely empty grupo). */}
+                    {grupo.ocupacion === null ? '—' : grupo.ocupacion} / {grupo.capacidad}
+                    {typeof grupo.ocupacion === 'number' &&
+                      grupo.ocupacion > grupo.capacidad &&
                       ` · ${grupo.ocupacion - grupo.capacidad} por encima de la capacidad`}
                   </TextoSistema>
                 )}

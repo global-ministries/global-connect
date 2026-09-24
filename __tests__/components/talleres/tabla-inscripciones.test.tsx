@@ -40,6 +40,11 @@ const fetchMock = jest.fn()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test global fetch stub
 ;(global as any).fetch = fetchMock
 
+const refreshMock = jest.fn()
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: refreshMock }),
+}))
+
 jest.mock('@/components/talleres/inscripcion-actions', () => ({
   ApproveInscripcionButton: ({
     inscripcionId,
@@ -237,13 +242,21 @@ describe('TablaInscripciones — actions gating', () => {
 // resolver function; a plain boolean keeps working unchanged for every
 // existing caller.
 describe('TablaInscripciones — per-row canWrite (T6)', () => {
-  it('accepts a function and resolves it PER ROW instead of once for the whole table', () => {
+  // CORRECTION (post-T4 review, item 1): canWrite used to also accept a
+  // function `(row) => boolean`. TablaInscripciones is now `'use client'`
+  // (T3), and Next.js refuses to pass a function prop from a server
+  // component into a client component ("Functions cannot be passed
+  // directly to Client Components") — /talleres/pendientes (a server
+  // component) crashed at render. Jest never crosses the RSC boundary, so
+  // the old test passed anyway. Fixed by making canWrite serializable:
+  // a plain boolean, or the array of writable row ids.
+  it('accepts an array of writable ids and resolves it PER ROW instead of once for the whole table', () => {
     renderTabla({
       rows: [
         makeRow({ id: 'insc-a', taller_id: 't-a', estado: 'pendiente' }),
         makeRow({ id: 'insc-b', taller_id: 't-b', estado: 'pendiente' }),
       ],
-      canWrite: (row) => row.taller_id === 't-a',
+      canWrite: ['insc-a'],
     })
     expect(screen.getAllByTestId('approve-insc-a').length).toBeGreaterThan(0)
     expect(screen.queryByTestId('approve-insc-b')).not.toBeInTheDocument()
@@ -413,6 +426,63 @@ describe('TablaInscripciones — bulk selection (T3)', () => {
       }),
     )
     expect(successMock).toHaveBeenCalled()
+  })
+
+  // CORRECTION (post-T4 review, item 2): the bulk bar never called
+  // router.refresh() after a successful assign/unassign, so the Grupo
+  // column stayed stale on screen even though the server revalidated the
+  // path (revalidatePath only invalidates the cache — a client
+  // navigation/refresh is what actually re-fetches).
+  it('calls router.refresh() after a successful "Asignar a grupo"', async () => {
+    const user = userEvent.setup()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ asignadas: 1, ocupacion: 2, capacidad: 10 }),
+    })
+    renderTabla({
+      rows: [makeRow({ id: 'insc-a', estado: 'aprobado' })],
+      seleccion: { grupos: GRUPOS },
+    })
+    await user.click(screen.getAllByTestId('checkbox-insc-a')[0]!)
+    const select = screen.getAllByLabelText(/grupo/i)[0] as HTMLSelectElement
+    await user.selectOptions(select, 'g-1')
+    await user.click(screen.getAllByText('Asignar a grupo')[0]!)
+
+    expect(refreshMock).toHaveBeenCalled()
+  })
+
+  it('calls router.refresh() after a successful "Quitar del grupo"', async () => {
+    const user = userEvent.setup()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ asignadas: 1, ocupacion: null, capacidad: null }),
+    })
+    renderTabla({
+      rows: [makeRow({ id: 'insc-a', estado: 'aprobado', grupo_id: 'g-1', grupo_nombre: 'Grupo Alfa' })],
+      seleccion: { grupos: GRUPOS },
+    })
+    await user.click(screen.getAllByTestId('checkbox-insc-a')[0]!)
+    await user.click(screen.getAllByText('Quitar del grupo')[0]!)
+
+    expect(refreshMock).toHaveBeenCalled()
+  })
+
+  it('does NOT call router.refresh() when the request fails', async () => {
+    const user = userEvent.setup()
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'FORBIDDEN', message: 'No tenés permiso.' }),
+    })
+    renderTabla({
+      rows: [makeRow({ id: 'insc-a', estado: 'aprobado' })],
+      seleccion: { grupos: GRUPOS },
+    })
+    await user.click(screen.getAllByTestId('checkbox-insc-a')[0]!)
+    const select = screen.getAllByLabelText(/grupo/i)[0] as HTMLSelectElement
+    await user.selectOptions(select, 'g-1')
+    await user.click(screen.getAllByText('Asignar a grupo')[0]!)
+
+    expect(refreshMock).not.toHaveBeenCalled()
   })
 
   it('shows the excess in the success feedback when over capacity', async () => {

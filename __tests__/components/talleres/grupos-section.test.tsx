@@ -216,4 +216,17 @@ describe('GruposSection — ocupación (T3)', () => {
     expect(await screen.findByText(/13 \/ 12/)).toBeInTheDocument()
     expect(await screen.findByText(/1 por encima/i)).toBeInTheDocument()
   })
+
+  // CORRECTION (post-T4 review, item 6): the API reports ocupacion: null
+  // when its count query errored — this must render as an explicit
+  // unknown ("—"), never as 0 (which would misreport an empty grupo).
+  it('renders ocupación as — (unknown), never 0, when the API reports ocupacion: null', async () => {
+    state.grupos = [
+      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo', ocupacion: null } as unknown as GrupoRow,
+    ]
+    render(<GruposSection cohorteId="c-1" tallerSlug="matrimonio-sobre-la-roca" edicionId="e-1" />)
+    await screen.findByText('Grupo Alfa')
+    expect(screen.queryByText(/0 \/ 12/)).not.toBeInTheDocument()
+    expect(await screen.findByText(/— \/ 12/)).toBeInTheDocument()
+  })
 })

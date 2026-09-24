@@ -63,7 +63,6 @@ import {
   type PendienteSolicitudRow,
 } from '@/lib/platform/talleres/pendientes'
 import { cargarPermisosPorEquipos, PERMISOS_TALLER_ALL_FALSE } from '@/lib/platform/talleres/permisos'
-import type { InscripcionAdminRow } from '@/lib/platform/talleres/inscripciones-types'
 import {
   approveInscripcionAction,
   rejectInscripcionAction,
@@ -188,6 +187,20 @@ export default async function PendientesPage(ctx?: RouteContext) {
   const inscripcionesHeading =
     estadoFiltro === 'pendiente' ? 'Inscripciones por aprobar' : 'Inscripciones'
 
+  // CORRECTION (post-T4 review, item 1) — resolved server-side into a
+  // plain array of ids, NEVER a function: TablaInscripciones is a client
+  // component (T3), and a function prop crossing from this server
+  // component into it crashes at render ("Functions cannot be passed
+  // directly to Client Components"). See tabla-inscripciones.tsx's
+  // CanWriteInscripcion doc for the full story.
+  const writableInscripcionIds: readonly string[] = inscripciones.rows
+    .filter(
+      (row) =>
+        permisosParaEquipo(inscripciones.equipoIdByTallerId.get(row.taller_id) ?? null)
+          .aprobarInscripciones,
+    )
+    .map((row) => row.id)
+
   return (
     <ContenedorDashboard
       titulo="Pendientes"
@@ -235,10 +248,7 @@ export default async function PendientesPage(ctx?: RouteContext) {
               ) : (
                 <TablaInscripciones
                   rows={inscripciones.rows}
-                  canWrite={(row: InscripcionAdminRow) =>
-                    permisosParaEquipo(inscripciones.equipoIdByTallerId.get(row.taller_id) ?? null)
-                      .aprobarInscripciones
-                  }
+                  canWrite={writableInscripcionIds}
                   onApprove={approveInscripcionAction}
                   onReject={rejectInscripcionAction}
                 />

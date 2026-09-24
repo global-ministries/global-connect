@@ -9,7 +9,17 @@
  * route's own header), so these tests cover: 401 with no session, body
  * validation, the RPC error → Spanish message mapping (including the
  * fail-soft default for an RPC that doesn't exist yet), the happy path
- * response shape, and revalidation of both the edición and grupo routes.
+ * response shape, id deduplication, and revalidation of both the edición
+ * and every affected grupo route (old and new).
+ *
+ * CORRECTION (post-T4 review, item 2): the original version only
+ * revalidated the edición+grupo routes when `grupo_id` was truthy
+ * (assign). Unassign revalidated NOTHING, and a reassign never
+ * revalidated the PREVIOUS grupo's page — so its Grupo column / roster
+ * stayed stale. The route now reads each inscripción's CURRENT
+ * (pre-update) `taller_id` (== edición id) and `grupo_id` before calling
+ * the RPC, and revalidates the edición route always, plus every distinct
+ * grupo route touched (old grupo(s) ∪ new grupo).
  */
 
 import { NextRequest } from 'next/server'
@@ -30,12 +40,18 @@ const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
   .createSupabaseServerClient as jest.Mock
 const revalidatePathMock = jest.requireMock('next/cache').revalidatePath as jest.Mock
 
+interface PreviaRow {
+  readonly id: string
+  readonly taller_id: string
+  readonly grupo_id: string | null
+}
+
 interface MockState {
   user: { id: string } | null
   rpcResult: { data: unknown; error: { code?: string; message?: string } | null }
   rpcArgs: unknown
-  grupoRow: { cohorte_id: string } | null
-  cohorteRow: { taller_id: string } | null
+  /** taller_inscripciones rows BEFORE the RPC runs (the route reads these first). */
+  previas: readonly PreviaRow[]
   edicionRow: { taller_id: string } | null
   tallerRow: { slug: string } | null
 }
@@ -44,8 +60,7 @@ const state: MockState = {
   user: { id: 'user-1' },
   rpcResult: { data: { asignadas: 2, ocupacion: 2, capacidad: 10 }, error: null },
   rpcArgs: null,
-  grupoRow: { cohorte_id: 'coh-1' },
-  cohorteRow: { taller_id: 'ed-1' },
+  previas: [{ id: 'i-1', taller_id: 'ed-1', grupo_id: null }],
   edicionRow: { taller_id: 't-1' },
   tallerRow: { slug: 'matrimonio-sobre-la-roca' },
 }
@@ -54,8 +69,7 @@ function reset(): void {
   state.user = { id: 'user-1' }
   state.rpcResult = { data: { asignadas: 2, ocupacion: 2, capacidad: 10 }, error: null }
   state.rpcArgs = null
-  state.grupoRow = { cohorte_id: 'coh-1' }
-  state.cohorteRow = { taller_id: 'ed-1' }
+  state.previas = [{ id: 'i-1', taller_id: 'ed-1', grupo_id: null }]
   state.edicionRow = { taller_id: 't-1' }
   state.tallerRow = { slug: 'matrimonio-sobre-la-roca' }
 }
@@ -65,41 +79,35 @@ beforeEach(() => {
   flagsMock.mockReset().mockReturnValue(true)
   revalidatePathMock.mockReset()
 
-  const rowByTable: Record<string, unknown> = {
-    taller_grupos: state.grupoRow,
-    talleres_crecimiento_cohortes: state.cohorteRow,
-    taller_ediciones: state.edicionRow,
-    talleres: state.tallerRow,
-  }
-
   createSupabaseServerClientMock.mockReset().mockResolvedValue({
     auth: {
       getUser: jest.fn(() => Promise.resolve({ data: { user: state.user }, error: null })),
     },
-    rpc: jest.fn((name: string, args: unknown) => {
+    rpc: jest.fn((_name: string, args: unknown) => {
       state.rpcArgs = args
       return Promise.resolve(state.rpcResult)
     }),
-    from: jest.fn((table: string) => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: () =>
-            Promise.resolve({
-              data:
-                table === 'taller_grupos'
-                  ? state.grupoRow
-                  : table === 'talleres_crecimiento_cohortes'
-                    ? state.cohorteRow
-                    : table === 'taller_ediciones'
-                      ? state.edicionRow
-                      : state.tallerRow,
-              error: null,
-            }),
+    from: jest.fn((table: string) => {
+      if (table === 'taller_inscripciones') {
+        return {
+          select: () => ({
+            in: () => Promise.resolve({ data: state.previas, error: null }),
+          }),
+        }
+      }
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: () =>
+              Promise.resolve({
+                data: table === 'taller_ediciones' ? state.edicionRow : state.tallerRow,
+                error: null,
+              }),
+          }),
         }),
-      }),
-    })),
+      }
+    }),
   })
-  void rowByTable
 })
 
 function makeReq(body?: unknown): NextRequest {
@@ -147,18 +155,65 @@ describe('POST /api/talleres/inscripciones/asignar-grupo — happy path', () => 
     expect(state.rpcArgs).toEqual({ p_inscripcion_ids: ['i-1'], p_grupo_id: null })
   })
 
-  it('revalidates both the edición and grupo routes when assigning', async () => {
-    await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: 'g-1' }))
+  // CORRECTION (item 5) — duplicate ids used to fail P0002 (the RPC's
+  // "every id must exist" check counts duplicates against DISTINCT rows
+  // found). The route now dedupes before calling the RPC.
+  it('dedupes inscripcion_ids before calling the RPC', async () => {
+    await asignarGrupo(makeReq({ inscripcion_ids: ['i-1', 'i-1', 'i-1'], grupo_id: 'g-1' }))
+    expect(state.rpcArgs).toEqual({ p_inscripcion_ids: ['i-1'], p_grupo_id: 'g-1' })
+  })
+})
+
+describe('POST /api/talleres/inscripciones/asignar-grupo — revalidation (item 2)', () => {
+  it('assign: revalidates the edición route and the NEW grupo route', async () => {
+    state.previas = [{ id: 'i-1', taller_id: 'ed-1', grupo_id: null }]
+    await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: 'g-new' }))
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/matrimonio-sobre-la-roca/ed-1')
     expect(revalidatePathMock).toHaveBeenCalledWith(
-      '/talleres/matrimonio-sobre-la-roca/ed-1',
-    )
-    expect(revalidatePathMock).toHaveBeenCalledWith(
-      '/talleres/matrimonio-sobre-la-roca/ed-1/g-1',
+      '/talleres/matrimonio-sobre-la-roca/ed-1/g-new',
     )
   })
 
-  it('does not revalidate the grupo route when unassigning (no single grupo target)', async () => {
+  it('reassign: revalidates the edición route, the OLD grupo route, AND the new grupo route', async () => {
+    state.previas = [{ id: 'i-1', taller_id: 'ed-1', grupo_id: 'g-old' }]
+    await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: 'g-new' }))
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/matrimonio-sobre-la-roca/ed-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/talleres/matrimonio-sobre-la-roca/ed-1/g-old',
+    )
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/talleres/matrimonio-sobre-la-roca/ed-1/g-new',
+    )
+  })
+
+  it('unassign: revalidates the edición route AND the previous grupo route (used to revalidate nothing)', async () => {
+    state.previas = [{ id: 'i-1', taller_id: 'ed-1', grupo_id: 'g-old' }]
     await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: null }))
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/matrimonio-sobre-la-roca/ed-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith(
+      '/talleres/matrimonio-sobre-la-roca/ed-1/g-old',
+    )
+  })
+
+  it('unassign across several previous grupos revalidates every distinct one', async () => {
+    state.previas = [
+      { id: 'i-1', taller_id: 'ed-1', grupo_id: 'g-a' },
+      { id: 'i-2', taller_id: 'ed-1', grupo_id: 'g-b' },
+    ]
+    await asignarGrupo(makeReq({ inscripcion_ids: ['i-1', 'i-2'], grupo_id: null }))
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/matrimonio-sobre-la-roca/ed-1/g-a')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/matrimonio-sobre-la-roca/ed-1/g-b')
+  })
+
+  it('a genuinely unplaced-before-and-after row (no previous grupo, no new grupo) still revalidates the edición route', async () => {
+    state.previas = [{ id: 'i-1', taller_id: 'ed-1', grupo_id: null }]
+    await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: null }))
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/matrimonio-sobre-la-roca/ed-1')
+  })
+
+  it('never revalidates on an RPC error', async () => {
+    state.rpcResult = { data: null, error: { code: '42501', message: 'sin_permisos_para_este_grupo' } }
+    await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: 'g-1' }))
     expect(revalidatePathMock).not.toHaveBeenCalled()
   })
 })

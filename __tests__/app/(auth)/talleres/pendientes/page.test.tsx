@@ -296,10 +296,56 @@ describe('PendientesPage — per-row permission resolution (the heart of T6)', (
     const element = (await PendientesPage()) as any
     const tabla = findByType(element, TablaInscripciones)
     expect(tabla).not.toBeNull()
-    const canWrite = tabla?.props.canWrite as (row: InscripcionAdminRow) => boolean
-    expect(typeof canWrite).toBe('function')
-    expect(canWrite(rowA)).toBe(true)
-    expect(canWrite(rowB)).toBe(false)
+    // CORRECTION (post-T4 review, item 1): canWrite must be a plain,
+    // JSON-serializable array of ids, never a function — TablaInscripciones
+    // is a client component (T3), and Next.js refuses a function prop
+    // crossing from this server component into it ("Functions cannot be
+    // passed directly to Client Components"), crashing the page at render.
+    const canWrite = tabla?.props.canWrite
+    expect(Array.isArray(canWrite)).toBe(true)
+    expect(canWrite).toContain('insc-a')
+    expect(canWrite).not.toContain('insc-b')
+  })
+
+  // CORRECTION (post-T4 review, item 1) — a REGRESSION GUARD: this page
+  // is a server component; TablaInscripciones is a client component
+  // (T3). Next.js refuses ANY function prop crossing that boundary
+  // (server actions are the one sanctioned exception — onApprove/
+  // onReject are intentional and excluded below). Jest never crosses the
+  // real RSC serialization boundary, so a regression here would NOT show
+  // up as a thrown error in this suite — this test exists specifically
+  // to catch it structurally instead.
+  it('REGRESSION GUARD — every non-server-action prop passed to TablaInscripciones is JSON-serializable (no functions)', async () => {
+    const rowA = makeInscripcionRow({ id: 'insc-a', taller_id: 't-a' })
+    setup({
+      inscripciones: {
+        rows: [rowA],
+        equipoIdByTallerId: new Map([['t-a', 'eq-a']]),
+      },
+      permisosPorEquipo: new Map([['eq-a', PERMISOS_FULL]]),
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await PendientesPage()) as any
+    const tabla = findByType(element, TablaInscripciones)
+    expect(tabla).not.toBeNull()
+    const SERVER_ACTION_PROPS = new Set(['onApprove', 'onReject'])
+    for (const [key, value] of Object.entries(tabla!.props)) {
+      if (SERVER_ACTION_PROPS.has(key)) continue
+      expect(() => JSON.stringify(value)).not.toThrow()
+      expect(typeof value).not.toBe('function')
+      const serialized = JSON.stringify(value)
+      // JSON.stringify silently drops function-valued object properties —
+      // walk the structure to catch a function nested one level deep too
+      // (e.g. an array of per-row resolvers).
+      const containsFunction = (v: unknown): boolean => {
+        if (typeof v === 'function') return true
+        if (Array.isArray(v)) return v.some(containsFunction)
+        if (v && typeof v === 'object') return Object.values(v).some(containsFunction)
+        return false
+      }
+      expect(containsFunction(value)).toBe(false)
+      void serialized
+    }
   })
 
   it('resolves permisos once per DISTINCT equipo, not once per row', async () => {
