@@ -76,6 +76,25 @@ EXCEPTION
 END;
 $$;
 
+-- Runs p_sql and expects it to raise exactly p_expected_sqlstate AND
+-- SQLERRM = p_expected_message. Comparing SQLSTATE alone is not enough
+-- when two distinct failure reasons share a SQLSTATE — 42501 is raised
+-- both by 'usuario_no_encontrado' (auth_id not found in usuarios) and by
+-- 'sin_permisos_para_este_grupo' (found, but not authorized on this
+-- node). A test that only checks the code can pass for the wrong reason.
+CREATE OR REPLACE FUNCTION pg_temp.assert_sqlstate_msg(p_case text, p_sql text, p_expected_sqlstate text, p_expected_message text)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  EXECUTE p_sql;
+  PERFORM pg_temp.fail(p_case, 'expected ' || p_expected_sqlstate || ' ' || p_expected_message || ', got no exception');
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLSTATE IS DISTINCT FROM p_expected_sqlstate OR SQLERRM IS DISTINCT FROM p_expected_message THEN
+      PERFORM pg_temp.fail(p_case, 'expected ' || p_expected_sqlstate || ' ' || p_expected_message || ', got ' || SQLSTATE || ' ' || SQLERRM);
+    END IF;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION pg_temp.assert_rows(p_case text, p_sql text, p_expected int)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
@@ -261,28 +280,28 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('a6000000-0000-4000-8000-000000000022');
 
-SELECT pg_temp.assert_sqlstate('criterion 2: RPC into grupo of another cohorte (same branch, so this is the trigger, not authority)',
+SELECT pg_temp.assert_sqlstate_msg('criterion 2: RPC into grupo of another cohorte (same branch, so this is the trigger, not authority)',
   $$SELECT public.talleres_asignar_inscripciones_a_grupo(
       ARRAY['a6000000-0000-4000-8000-000000000062']::uuid[],
       'a6000000-0000-4000-8000-000000000032'::uuid)$$,
-  'P0001');
+  'P0001', 'GRUPO_DE_OTRA_COHORTE');
 
 RESET ROLE;
 
-SELECT pg_temp.assert_sqlstate('criterion 2: raw UPDATE as postgres also blocked by the trigger',
+SELECT pg_temp.assert_sqlstate_msg('criterion 2: raw UPDATE as postgres also blocked by the trigger',
   $$UPDATE public.taller_inscripciones SET grupo_id = 'a6000000-0000-4000-8000-000000000032' WHERE id = 'a6000000-0000-4000-8000-000000000062'$$,
-  'P0001');
+  'P0001', 'GRUPO_DE_OTRA_COHORTE');
 
 -- ══ Criterion 3 — pendiente cannot be placed; retirado keeps grupo_id ══
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('a6000000-0000-4000-8000-000000000022');
 
-SELECT pg_temp.assert_sqlstate('criterion 3: pendiente inscripcion rejected',
+SELECT pg_temp.assert_sqlstate_msg('criterion 3: pendiente inscripcion rejected',
   $$SELECT public.talleres_asignar_inscripciones_a_grupo(
       ARRAY['a6000000-0000-4000-8000-000000000063']::uuid[],
       'a6000000-0000-4000-8000-000000000030'::uuid)$$,
-  'P0001');
+  'P0001', 'INSCRIPCION_NO_APROBADA');
 
 SELECT pg_temp.assert_jsonb_field('criterion 3: assign 64 before retiro',
   $$SELECT public.talleres_asignar_inscripciones_a_grupo(
@@ -303,11 +322,11 @@ SELECT pg_temp.assert_rows('criterion 3: retirado inscripcion keeps grupo_id',
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('a6000000-0000-4000-8000-000000000026');
 
-SELECT pg_temp.assert_sqlstate('criterion 4: coordinador B cannot assign into grupo A1',
+SELECT pg_temp.assert_sqlstate_msg('criterion 4: coordinador B cannot assign into grupo A1',
   $$SELECT public.talleres_asignar_inscripciones_a_grupo(
       ARRAY['a6000000-0000-4000-8000-000000000062']::uuid[],
       'a6000000-0000-4000-8000-000000000030'::uuid)$$,
-  '42501');
+  '42501', 'sin_permisos_para_este_grupo');
 
 RESET ROLE;
 
@@ -316,11 +335,11 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('a6000000-0000-4000-8000-000000000028');
 
-SELECT pg_temp.assert_sqlstate('criterion 5: sin-permisos member cannot execute',
+SELECT pg_temp.assert_sqlstate_msg('criterion 5: sin-permisos member cannot execute',
   $$SELECT public.talleres_asignar_inscripciones_a_grupo(
       ARRAY['a6000000-0000-4000-8000-000000000062']::uuid[],
       'a6000000-0000-4000-8000-000000000030'::uuid)$$,
-  '42501');
+  '42501', 'sin_permisos_para_este_grupo');
 
 RESET ROLE;
 
