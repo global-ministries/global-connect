@@ -17,6 +17,7 @@
  */
 
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import React from 'react'
 
 import {
@@ -28,6 +29,16 @@ import type {
   InscripcionRejectAction,
 } from '@/components/talleres/inscripcion-actions'
 import type { InscripcionAdminRow } from '@/lib/platform/talleres/inscripciones-types'
+
+const successMock = jest.fn()
+const errorMock = jest.fn()
+jest.mock('@/hooks/use-notificaciones', () => ({
+  useNotificaciones: () => ({ success: successMock, error: errorMock, info: jest.fn() }),
+}))
+
+const fetchMock = jest.fn()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test global fetch stub
+;(global as any).fetch = fetchMock
 
 jest.mock('@/components/talleres/inscripcion-actions', () => ({
   ApproveInscripcionButton: ({
@@ -65,6 +76,8 @@ const BASE_ROW = {
   companero_nombre: null,
   link_type: null,
   updated_at: '2026-08-15T12:00:00Z',
+  grupo_id: null,
+  grupo_nombre: null,
 } as const
 
 function makeRow(overrides: Partial<{
@@ -81,6 +94,8 @@ function makeRow(overrides: Partial<{
   cohorte_id: string | null
   companero_nombre: string | null
   created_at: string
+  grupo_id: string | null
+  grupo_nombre: string | null
 }>) {
   return {
     id: 'insc-1',
@@ -317,5 +332,144 @@ describe('TablaInscripciones — estado badge variants', () => {
     })
     expect(screen.queryByTestId('approve-insc-ret2')).not.toBeInTheDocument()
     expect(screen.queryByTestId('reject-insc-ret2')).not.toBeInTheDocument()
+  })
+})
+
+// T3 (odd/tasks/talleres-inscripcion-a-grupo.md) — Grupo column, always
+// rendered (em-dash when unplaced), independent of the seleccion feature.
+describe('TablaInscripciones — Grupo column', () => {
+  it('renders the Grupo header and the grupo nombre when placed', () => {
+    renderTabla({ rows: [makeRow({ grupo_id: 'g-1', grupo_nombre: 'Grupo Alfa' })] })
+    expect(screen.getAllByText('Grupo').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Grupo Alfa').length).toBeGreaterThan(0)
+  })
+
+  it('renders an em-dash when the row is unplaced', () => {
+    renderTabla({ rows: [makeRow({ grupo_id: null, grupo_nombre: null })] })
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+})
+
+// T3 — bulk selection: checkboxes on aprobado rows only, gated by the
+// `seleccion` prop (hide-not-disable: the prop itself is only passed by
+// the page when the viewer holds gestionar_grupos).
+describe('TablaInscripciones — bulk selection (T3)', () => {
+  const GRUPOS = [
+    { id: 'g-1', nombre: 'Grupo Alfa' },
+    { id: 'g-2', nombre: 'Grupo Beta' },
+  ]
+
+  it('renders no checkboxes and no bulk bar when seleccion is not passed', () => {
+    renderTabla({ rows: [makeRow({ id: 'insc-a', estado: 'aprobado' })] })
+    expect(screen.queryByTestId('checkbox-insc-a')).not.toBeInTheDocument()
+    expect(screen.queryByText('Asignar a grupo')).not.toBeInTheDocument()
+  })
+
+  it('renders a checkbox only for aprobado rows when seleccion is passed', () => {
+    renderTabla({
+      rows: [
+        makeRow({ id: 'insc-a', estado: 'aprobado' }),
+        makeRow({ id: 'insc-p', estado: 'pendiente' }),
+        makeRow({ id: 'insc-r', estado: 'retirado' }),
+      ],
+      seleccion: { grupos: GRUPOS },
+    })
+    expect(screen.getAllByTestId('checkbox-insc-a').length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('checkbox-insc-p')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('checkbox-insc-r')).not.toBeInTheDocument()
+  })
+
+  it('shows the selection count and enables the bulk bar as rows are checked', async () => {
+    const user = userEvent.setup()
+    renderTabla({
+      rows: [makeRow({ id: 'insc-a', estado: 'aprobado' })],
+      seleccion: { grupos: GRUPOS },
+    })
+    const boxes = screen.getAllByTestId('checkbox-insc-a')
+    await user.click(boxes[0]!)
+    expect(screen.getAllByText(/1 seleccionad/i).length).toBeGreaterThan(0)
+  })
+
+  it('"Asignar a grupo" posts the selected ids and chosen grupo_id, reports success', async () => {
+    const user = userEvent.setup()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ asignadas: 1, ocupacion: 2, capacidad: 10 }),
+    })
+    renderTabla({
+      rows: [makeRow({ id: 'insc-a', estado: 'aprobado' })],
+      seleccion: { grupos: GRUPOS },
+    })
+    await user.click(screen.getAllByTestId('checkbox-insc-a')[0]!)
+    const select = screen.getAllByLabelText(/grupo/i)[0] as HTMLSelectElement
+    await user.selectOptions(select, 'g-1')
+    await user.click(screen.getAllByText('Asignar a grupo')[0]!)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/talleres/inscripciones/asignar-grupo',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ inscripcion_ids: ['insc-a'], grupo_id: 'g-1' }),
+      }),
+    )
+    expect(successMock).toHaveBeenCalled()
+  })
+
+  it('shows the excess in the success feedback when over capacity', async () => {
+    const user = userEvent.setup()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ asignadas: 1, ocupacion: 13, capacidad: 12 }),
+    })
+    renderTabla({
+      rows: [makeRow({ id: 'insc-a', estado: 'aprobado' })],
+      seleccion: { grupos: GRUPOS },
+    })
+    await user.click(screen.getAllByTestId('checkbox-insc-a')[0]!)
+    const select = screen.getAllByLabelText(/grupo/i)[0] as HTMLSelectElement
+    await user.selectOptions(select, 'g-1')
+    await user.click(screen.getAllByText('Asignar a grupo')[0]!)
+
+    expect(successMock).toHaveBeenCalledWith(expect.stringMatching(/13.*12|por encima/))
+  })
+
+  it('"Quitar del grupo" posts grupo_id: null', async () => {
+    const user = userEvent.setup()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ asignadas: 1, ocupacion: null, capacidad: null }),
+    })
+    renderTabla({
+      rows: [makeRow({ id: 'insc-a', estado: 'aprobado', grupo_id: 'g-1', grupo_nombre: 'Grupo Alfa' })],
+      seleccion: { grupos: GRUPOS },
+    })
+    await user.click(screen.getAllByTestId('checkbox-insc-a')[0]!)
+    await user.click(screen.getAllByText('Quitar del grupo')[0]!)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/talleres/inscripciones/asignar-grupo',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ inscripcion_ids: ['insc-a'], grupo_id: null }),
+      }),
+    )
+  })
+
+  it('reports the mapped Spanish error message on failure and never crashes', async () => {
+    const user = userEvent.setup()
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'FORBIDDEN', message: 'No tenés permiso para esto.' }),
+    })
+    renderTabla({
+      rows: [makeRow({ id: 'insc-a', estado: 'aprobado' })],
+      seleccion: { grupos: GRUPOS },
+    })
+    await user.click(screen.getAllByTestId('checkbox-insc-a')[0]!)
+    const select = screen.getAllByLabelText(/grupo/i)[0] as HTMLSelectElement
+    await user.selectOptions(select, 'g-1')
+    await user.click(screen.getAllByText('Asignar a grupo')[0]!)
+
+    expect(errorMock).toHaveBeenCalledWith('No tenés permiso para esto.')
   })
 })

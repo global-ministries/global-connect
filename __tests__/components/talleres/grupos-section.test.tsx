@@ -197,3 +197,23 @@ describe('GruposSection — assign persona (PR F)', () => {
     })
   })
 })
+
+// T3 (odd/tasks/talleres-inscripcion-a-grupo.md) — ocupación display.
+describe('GruposSection — ocupación (T3)', () => {
+  it('shows "n / capacidad" for a grupo within capacity', async () => {
+    state.grupos = [
+      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo', ocupacion: 5 } as GrupoRow,
+    ]
+    render(<GruposSection cohorteId="c-1" tallerSlug="matrimonio-sobre-la-roca" edicionId="e-1" />)
+    expect(await screen.findByText(/5 \/ 12/)).toBeInTheDocument()
+  })
+
+  it('renders a visible warning with the excess when ocupación exceeds capacidad', async () => {
+    state.grupos = [
+      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo', ocupacion: 13 } as GrupoRow,
+    ]
+    render(<GruposSection cohorteId="c-1" tallerSlug="matrimonio-sobre-la-roca" edicionId="e-1" />)
+    expect(await screen.findByText(/13 \/ 12/)).toBeInTheDocument()
+    expect(await screen.findByText(/1 por encima/i)).toBeInTheDocument()
+  })
+})

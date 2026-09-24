@@ -352,6 +352,44 @@ export async function loadGrupoInscripciones(
   }
 }
 
+// ─── Grupos de una cohorte (T3, opciones del selector de asignación) ────
+
+export interface GrupoOpcion {
+  readonly id: string
+  readonly nombre: string
+}
+
+interface GruposDeCohorteClient {
+  from(table: 'taller_grupos'): {
+    select(columns: string): {
+      eq(column: string, value: unknown): {
+        order(column: string, opts?: { ascending?: boolean }): PromiseLike<{
+          data: unknown[] | null
+          error: { message: string } | null
+        }>
+      }
+    }
+  }
+}
+
+/**
+ * The grupos of one cohorte, for the Inscritos bulk-assign selector
+ * (T3, odd/tasks/talleres-inscripcion-a-grupo.md). Ordered by nombre.
+ */
+export async function loadGruposDeCohorte(
+  client: GruposDeCohorteClient,
+  cohorteId: string,
+): Promise<readonly GrupoOpcion[]> {
+  const { data, error } = await client
+    .from('taller_grupos')
+    .select('id, nombre')
+    .eq('cohorte_id', cohorteId)
+    .order('nombre', { ascending: true })
+
+  if (error || !data) return []
+  return data as GrupoOpcion[]
+}
+
 // ─── Clases ──────────────────────────────────────────────────────────────
 
 export interface GrupoSesion {

@@ -61,6 +61,10 @@ jest.mock('@/lib/platform/talleres/admin-inscripciones', () => ({
   loadAdminInscripciones: jest.fn(),
 }))
 
+jest.mock('@/lib/platform/talleres/grupo-detalle', () => ({
+  loadGruposDeCohorte: jest.fn(),
+}))
+
 jest.mock('@/lib/platform/talleres/inscripciones-actions', () => ({
   approveInscripcionAction: jest.fn(),
   rejectInscripcionAction: jest.fn(),
@@ -91,6 +95,8 @@ const loadEdicionLocalDetalleMock = jest.requireMock('@/lib/platform/talleres/op
   .loadEdicionLocalDetalle as jest.Mock
 const loadAdminInscripcionesMock = jest.requireMock('@/lib/platform/talleres/admin-inscripciones')
   .loadAdminInscripciones as jest.Mock
+const loadGruposDeCohorteMock = jest.requireMock('@/lib/platform/talleres/grupo-detalle')
+  .loadGruposDeCohorte as jest.Mock
 const cargarPermisosMock = jest.requireMock('@/lib/platform/talleres/permisos')
   .cargarPermisos as jest.Mock
 
@@ -203,6 +209,9 @@ function setup(opts: SetupOpts): void {
   loadAdminInscripcionesMock
     .mockReset()
     .mockResolvedValue(opts.inscripciones ?? { rows: [INSCRIPCION_ROW], total: 1 })
+  loadGruposDeCohorteMock
+    .mockReset()
+    .mockResolvedValue([{ id: 'g-1', nombre: 'Grupo Alfa' }])
 }
 
 function params(taller = 'matrimonio-sobre-la-roca', edicion = 'e-1') {
@@ -386,6 +395,26 @@ describe('EdicionDetallePage — permission wiring', () => {
       expect.anything(),
       expect.objectContaining({ edicion_id: 'e-1' }),
     )
+  })
+
+  // T3 (odd/tasks/talleres-inscripcion-a-grupo.md) — the bulk-assign
+  // seleccion prop is gated on gestionarGrupos, hide-not-disable.
+  it('passes seleccion.grupos to TablaInscripciones when gestionarGrupos is granted', async () => {
+    setup({ permisos: { gestionarGrupos: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    const tabla = findByType(element, TablaInscripciones)
+    expect(tabla?.props.seleccion).toEqual({ grupos: [{ id: 'g-1', nombre: 'Grupo Alfa' }] })
+    expect(loadGruposDeCohorteMock).toHaveBeenCalledWith(expect.anything(), 'c-1')
+  })
+
+  it('does not pass seleccion to TablaInscripciones when gestionarGrupos is denied', async () => {
+    setup({ permisos: { gestionarGrupos: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    const tabla = findByType(element, TablaInscripciones)
+    expect(tabla?.props.seleccion).toBeUndefined()
+    expect(loadGruposDeCohorteMock).not.toHaveBeenCalled()
   })
 })
 

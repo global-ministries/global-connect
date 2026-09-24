@@ -48,6 +48,7 @@ import {
   loadGrupoReporte,
   resolveEquipoDeGrupo,
   loadGrupoInscripciones,
+  loadGruposDeCohorte,
 } from '@/lib/platform/talleres/grupo-detalle'
 
 // ─── loadGrupoDetalle ───────────────────────────────────────────────────
@@ -417,5 +418,32 @@ describe('loadGrupoInscripciones', () => {
       'g-42',
     )
     expect(eqCalls).toEqual([['grupo_id', 'g-42']])
+  })
+})
+
+// ─── loadGruposDeCohorte (T3, the bulk-assign selector's option list) ───
+
+describe('loadGruposDeCohorte', () => {
+  it('lists grupos for a cohorte ordered by nombre', async () => {
+    const { client } = buildListClientMock([
+      { id: 'g-1', nombre: 'Grupo Alfa' },
+      { id: 'g-2', nombre: 'Grupo Beta' },
+    ])
+    const result = await loadGruposDeCohorte(client, 'coh-1')
+    expect(result).toEqual([
+      { id: 'g-1', nombre: 'Grupo Alfa' },
+      { id: 'g-2', nombre: 'Grupo Beta' },
+    ])
+  })
+
+  it('scopes to cohorte_id', async () => {
+    const { client, eqCalls } = buildListClientMock([])
+    await loadGruposDeCohorte(client, 'coh-1')
+    expect(eqCalls).toEqual([['cohorte_id', 'coh-1']])
+  })
+
+  it('returns [] on a query error', async () => {
+    const { client } = buildListClientMock(null, { message: 'boom' })
+    expect(await loadGruposDeCohorte(client, 'coh-1')).toEqual([])
   })
 })

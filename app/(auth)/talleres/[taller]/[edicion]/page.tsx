@@ -77,6 +77,7 @@ import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import { loadEdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
 import { loadAdminInscripciones } from '@/lib/platform/talleres/admin-inscripciones'
+import { loadGruposDeCohorte } from '@/lib/platform/talleres/grupo-detalle'
 import {
   approveInscripcionAction,
   rejectInscripcionAction,
@@ -147,6 +148,14 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   const permisos = await cargarPermisos(client, taller.dream_team_equipo_id)
   const inscripciones = await loadAdminInscripciones(client, { edicion_id: edicion.id })
 
+  // T3 (odd/tasks/talleres-inscripcion-a-grupo.md) — bulk-assign selector
+  // options, gated on gestionarGrupos (hide, never disable — house rule).
+  // Only fetched when the section will actually render.
+  const grupos =
+    permisos.gestionarGrupos && edicion.cohorte
+      ? await loadGruposDeCohorte(client, edicion.cohorte.id)
+      : []
+
   return (
     <ContenedorDashboard
       titulo={edicion.nombre_snapshot}
@@ -196,6 +205,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
               canWrite={permisos.aprobarInscripciones}
               onApprove={approveInscripcionAction}
               onReject={rejectInscripcionAction}
+              seleccion={permisos.gestionarGrupos ? { grupos } : undefined}
             />
           )}
         </div>
