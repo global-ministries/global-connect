@@ -448,6 +448,12 @@ export async function loadCoordInscripcionesPendientes(
       estado: r.estado as InscripcionAdminRow['estado'],
       created_at: r.created_at as string,
       updated_at: r.updated_at as string,
+      // T2 (odd/tasks/talleres-inscripcion-a-grupo.md) — this pendientes
+      // inbox never renders a Grupo column (that's /talleres/[taller]/
+      // [edicion]'s Inscritos section, loadAdminInscripciones), so this
+      // loader doesn't select grupo_id at all — always null here.
+      grupo_id: null,
+      grupo_nombre: null,
     })
   }
 

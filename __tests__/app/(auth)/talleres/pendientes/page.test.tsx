@@ -92,6 +92,8 @@ function makeInscripcionRow(overrides: Partial<InscripcionAdminRow> = {}): Inscr
     estado: 'pendiente',
     created_at: '2026-09-10T00:00:00Z',
     updated_at: '2026-09-10T00:00:00Z',
+    grupo_id: null,
+    grupo_nombre: null,
     ...overrides,
   }
 }

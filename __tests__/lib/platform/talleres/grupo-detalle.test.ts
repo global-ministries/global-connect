@@ -47,6 +47,7 @@ import {
   loadAsistenciaPorClase,
   loadGrupoReporte,
   resolveEquipoDeGrupo,
+  loadGrupoInscripciones,
 } from '@/lib/platform/talleres/grupo-detalle'
 
 // ─── loadGrupoDetalle ───────────────────────────────────────────────────
@@ -359,5 +360,62 @@ describe('loadGrupoReporte', () => {
       taller_reportes: { data: null, error: null },
     })
     expect(await loadGrupoReporte(client, 'g-1')).toBeNull()
+  })
+})
+
+// ─── loadGrupoInscripciones ("su gente" real, T2 of inscripcion-a-grupo) ──
+
+describe('loadGrupoInscripciones', () => {
+  it('splits aprobadas and retiradas, resolving names via the RPC, and excludes other estados', async () => {
+    const { client } = buildAsistenciaClientMock(
+      [
+        { id: 'i-1', persona_principal_id: 'p-1', companero_id: null, estado: 'aprobado' },
+        { id: 'i-2', persona_principal_id: 'p-2', companero_id: null, estado: 'retirado' },
+        { id: 'i-3', persona_principal_id: 'p-3', companero_id: null, estado: 'pendiente' },
+      ],
+      [
+        { inscripcion_id: 'i-1', pp_nombre: 'Ana', pp_apellido: 'Gómez' },
+        { inscripcion_id: 'i-2', pp_nombre: 'Luis', pp_apellido: 'Ruiz' },
+        { inscripcion_id: 'i-3', pp_nombre: 'Sin', pp_apellido: 'Aprobar' },
+      ],
+    )
+    const result = await loadGrupoInscripciones(client, 'g-1')
+    expect(result.aprobadas).toEqual([{ id: 'i-1', personaId: 'p-1', nombre: 'Ana Gómez' }])
+    expect(result.retiradas).toEqual([{ id: 'i-2', personaId: 'p-2', nombre: 'Luis Ruiz' }])
+  })
+
+  it('degrades a missing name to — instead of dropping the row (T6b rule)', async () => {
+    const { client } = buildAsistenciaClientMock(
+      [{ id: 'i-1', persona_principal_id: 'p-1', companero_id: null, estado: 'aprobado' }],
+      [],
+    )
+    const result = await loadGrupoInscripciones(client, 'g-1')
+    expect(result.aprobadas).toEqual([{ id: 'i-1', personaId: 'p-1', nombre: '—' }])
+  })
+
+  it('returns empty lists on a query error', async () => {
+    const { client } = buildAsistenciaClientMock(null, [])
+    const result = await loadGrupoInscripciones(client, 'g-1')
+    expect(result).toEqual({ aprobadas: [], retiradas: [] })
+  })
+
+  it('scopes the query to grupo_id', async () => {
+    const eqCalls: Array<[string, unknown]> = []
+    const from = jest.fn(() => {
+      const b: Record<string, unknown> = {}
+      b['select'] = jest.fn(() => b)
+      b['eq'] = jest.fn((col: string, val: unknown) => {
+        eqCalls.push([col, val])
+        return b
+      })
+      b['order'] = jest.fn(() => Promise.resolve({ data: [], error: null }))
+      return b
+    })
+    const rpc = jest.fn().mockResolvedValue({ data: [], error: null })
+    await loadGrupoInscripciones(
+      { from, rpc } as unknown as Parameters<typeof loadGrupoInscripciones>[0],
+      'g-42',
+    )
+    expect(eqCalls).toEqual([['grupo_id', 'g-42']])
   })
 })

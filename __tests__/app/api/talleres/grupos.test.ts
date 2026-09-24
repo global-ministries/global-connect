@@ -49,6 +49,8 @@ interface MockState {
   newGrupoId: string
   /** rows returned by the GET list query */
   listRows: unknown[]
+  /** taller_inscripciones rows returned by the ocupación count query (T2) */
+  ocupacionRows: unknown[]
   /** recorded rpc invocations (capability gate + generate_taller_sesiones) */
   rpcCalls: RpcCall[]
   /** result the generate_taller_sesiones rpc resolves to */
@@ -61,6 +63,7 @@ const state: MockState = {
   lastInsert: null,
   newGrupoId: 'grupo-new',
   listRows: [],
+  ocupacionRows: [],
   rpcCalls: [],
   sesionesResult: {
     data: { ok: true, grupo_id: 'grupo-new', total: 8, created: 8 },
@@ -74,6 +77,7 @@ function reset(): void {
   state.lastInsert = null
   state.newGrupoId = 'grupo-new'
   state.listRows = []
+  state.ocupacionRows = []
   state.rpcCalls = []
   state.sesionesResult = {
     data: { ok: true, grupo_id: 'grupo-new', total: 8, created: 8 },
@@ -93,6 +97,11 @@ beforeEach(() => {
     chain['order'] = jest.fn(() =>
       Promise.resolve({ data: state.listRows, error: null }),
     )
+    // Ocupación query (T2): taller_inscripciones.select(...).in(...).eq(...)
+    chain['in'] = jest.fn(() => chain)
+    if (_table === 'taller_inscripciones') {
+      chain['eq'] = jest.fn(() => Promise.resolve({ data: state.ocupacionRows, error: null }))
+    }
     // POST path: .insert(payload).select(...).single()
     chain['insert'] = jest.fn((payload: Record<string, unknown>) => {
       state.lastInsert = payload
@@ -244,5 +253,38 @@ describe('PR F — GET /api/talleres/grupos', () => {
     const body = await res.json()
     expect(body.count).toBe(2)
     expect(body.grupos).toHaveLength(2)
+  })
+
+  // T2 (odd/tasks/talleres-inscripcion-a-grupo.md) — ocupación per grupo.
+  it('attaches ocupacion = count of aprobado inscripciones per grupo, never retiradas', async () => {
+    state.capabilities.set('talleres_crecimiento.director.read', true)
+    state.listRows = [
+      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Alfa', capacidad: 2, estado: 'activo', completed_at: null },
+      { id: 'g-2', cohorte_id: 'c-1', nombre: 'Beta', capacidad: 10, estado: 'activo', completed_at: null },
+    ]
+    state.ocupacionRows = [
+      { grupo_id: 'g-1' },
+      { grupo_id: 'g-1' },
+      { grupo_id: 'g-1' },
+      { grupo_id: 'g-2' },
+    ]
+    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    const g1 = body.grupos.find((g: { id: string }) => g.id === 'g-1')
+    const g2 = body.grupos.find((g: { id: string }) => g.id === 'g-2')
+    expect(g1.ocupacion).toBe(3)
+    expect(g2.ocupacion).toBe(1)
+  })
+
+  it('ocupacion is 0 for a grupo with no aprobadas', async () => {
+    state.capabilities.set('talleres_crecimiento.director.read', true)
+    state.listRows = [
+      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Alfa', capacidad: 2, estado: 'activo', completed_at: null },
+    ]
+    state.ocupacionRows = []
+    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
+    const body = await res.json()
+    expect(body.grupos[0].ocupacion).toBe(0)
   })
 })

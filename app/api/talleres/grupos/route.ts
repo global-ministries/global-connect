@@ -93,5 +93,32 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (error) {
     return NextResponse.json({ error: 'internal', message: error.message }, { status: 500 })
   }
-  return NextResponse.json({ grupos: data ?? [], count: (data ?? []).length })
+
+  const grupos = (data ?? []) as Array<Record<string, unknown>>
+
+  // T2 (odd/tasks/talleres-inscripcion-a-grupo.md) — ocupación per grupo:
+  // the count of aprobado inscripciones currently placed in it. Retirados
+  // keep their grupo_id (history) but are never counted (Decisiones).
+  // One batched query for every grupo in this cohorte, grouped in TS.
+  const grupoIds = grupos
+    .map((g) => g.id)
+    .filter((id): id is string => typeof id === 'string')
+  const ocupacionByGrupo = new Map<string, number>()
+  if (grupoIds.length > 0) {
+    const { data: aprobadas } = await client
+      .from('taller_inscripciones')
+      .select('grupo_id')
+      .in('grupo_id', grupoIds)
+      .eq('estado', 'aprobado')
+    for (const row of (aprobadas ?? []) as Array<{ grupo_id: string }>) {
+      ocupacionByGrupo.set(row.grupo_id, (ocupacionByGrupo.get(row.grupo_id) ?? 0) + 1)
+    }
+  }
+
+  const gruposConOcupacion = grupos.map((g) => ({
+    ...g,
+    ocupacion: typeof g.id === 'string' ? (ocupacionByGrupo.get(g.id) ?? 0) : 0,
+  }))
+
+  return NextResponse.json({ grupos: gruposConOcupacion, count: gruposConOcupacion.length })
 }

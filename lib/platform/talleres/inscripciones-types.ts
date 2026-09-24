@@ -60,4 +60,13 @@ export interface InscripcionAdminRow {
   readonly estado: InscripcionEstado
   readonly created_at: string
   readonly updated_at: string
+  /**
+   * T2 (odd/tasks/talleres-inscripcion-a-grupo.md) — the grupo this
+   * inscripción is placed in, or null when unplaced. `grupo_nombre` is
+   * null exactly when `grupo_id` is null; when `grupo_id` is set but the
+   * grupo lookup can't resolve a name, it degrades to '—' (T6b rule:
+   * never drop the row, never invent a name).
+   */
+  readonly grupo_id: string | null
+  readonly grupo_nombre: string | null
 }
