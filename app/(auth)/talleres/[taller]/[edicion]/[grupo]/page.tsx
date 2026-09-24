@@ -34,6 +34,19 @@
  * only drives the reporte section's honest empty-state copy ("aún no hay
  * reporte" vs. "no tenés permiso para verlo") since RLS already decides
  * what data arrives either way.
+ *
+ * T2 (odd/tasks/talleres-lider-identidad.md): a grupo member (líder or
+ * voluntario, via T1's talleres_es_miembro_del_grupo) reads by relation,
+ * not by capability. Once T1's RLS lets taller_grupos resolve for them,
+ * this page's existing grupo != null branch already renders the full
+ * view — no separate membership gate needed there. esMiembro is its own
+ * boolean (loadEsMiembroDelGrupo — deliberately NOT folded into
+ * cargarPermisos/talleres_mis_permisos, which answers a different
+ * question for a different kind of node) used only to keep the
+ * asistencia/reporte empty-state copy honest: `permisos.ver/verReportes
+ * || esMiembro`, so a capability-less member sees "aún no hay ..." and
+ * never a false "no tenés permiso". Fails soft to false (RPC missing,
+ * e.g. production pre-T3), which just keeps pre-T2 behaviour.
  */
 
 import { notFound } from 'next/navigation'
@@ -65,6 +78,7 @@ import {
   loadAsistenciaPorClase,
   loadGrupoReporte,
   loadGrupoInscripciones,
+  loadEsMiembroDelGrupo,
 } from '@/lib/platform/talleres/grupo-detalle'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
 import { rutaTaller, rutaEdicion, rutaGrupo } from '@/lib/platform/talleres/rutas'
@@ -134,7 +148,20 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   let edicion: EdicionLocalDetalle | null = null
   let modoLimitado = false
 
+  // T2 (odd/tasks/talleres-lider-identidad.md): "soy miembro de este
+  // grupo" is its OWN boolean, resolved via talleres_es_miembro_del_grupo
+  // (T1's migration) — never folded into cargarPermisos/talleres_mis_
+  // permisos, which answers a different question (what can I do at this
+  // org-chart node; a grupo is not a node). Fails soft to false when the
+  // RPC doesn't exist yet (production, pre-T3), so this never crashes the
+  // page — it just leaves the honest copy exactly as it was before T2.
+  const esMiembro = await loadEsMiembroDelGrupo(client, grupoId)
+
   if (grupo) {
+    // T1's RLS membership branch already lets an assigned líder/voluntario
+    // read taller_grupos directly (staging) — once that's true, grupo
+    // resolves here and the full read view renders below, no degraded
+    // state, for a member exactly as for a capability holder.
     edicion = await loadEdicionLocalDetalle(client, grupo.edicionId)
     if (!edicion || edicion.id !== edicionIdParam || edicion.taller_slug !== taller.slug) {
       notFound()
@@ -154,6 +181,12 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
     if (!equipoDeGrupo || equipoDeGrupo !== taller.dream_team_equipo_id) {
       notFound()
     }
+    // An own asignación row means genuine membership even in this branch
+    // (an environment where taller_grupos' SELECT policy doesn't have the
+    // membership OR branch yet, e.g. production pre-T3) — the cabecera
+    // fields still can't be read, so the state stays limited, but the
+    // reporte/asistencia sections below get the honest "not yet" copy
+    // rather than a false "no permission" one.
     modoLimitado = true
     // Best-effort: the edición may still resolve on its own carve-out
     // (any authenticated user, when abierto/en_curso) even though the
@@ -374,7 +407,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
             <EstadoVacio
               icono={ClipboardList}
               titulo={
-                permisos.ver
+                // A grupo member reads this by relation (T2), not by
+                // capability — RLS already decided what data arrives, so
+                // an empty result for a member is honestly "nothing yet",
+                // never "no permission".
+                permisos.ver || esMiembro
                   ? 'Aún no hay asistencia registrada para esta clase'
                   : 'No tenés permiso para ver la asistencia de esta clase'
               }
@@ -414,7 +451,8 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
             <EstadoVacio
               icono={FileText}
               titulo={
-                permisos.verReportes
+                // Same relation-vs-capability honesty as asistencia above.
+                permisos.verReportes || esMiembro
                   ? 'Aún no hay reporte para este grupo'
                   : 'No tenés permiso para ver el reporte de este grupo'
               }

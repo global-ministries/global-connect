@@ -72,6 +72,7 @@ jest.mock('@/lib/platform/talleres/grupo-detalle', () => ({
   loadAsistenciaPorClase: jest.fn(),
   loadGrupoReporte: jest.fn(),
   loadGrupoInscripciones: jest.fn(),
+  loadEsMiembroDelGrupo: jest.fn(),
 }))
 
 jest.mock('@/lib/platform/talleres/permisos', () => {
@@ -97,6 +98,7 @@ const grupoDetalleModule = jest.requireMock('@/lib/platform/talleres/grupo-detal
   loadAsistenciaPorClase: jest.Mock
   loadGrupoReporte: jest.Mock
   loadGrupoInscripciones: jest.Mock
+  loadEsMiembroDelGrupo: jest.Mock
 }
 const cargarPermisosMock = jest.requireMock('@/lib/platform/talleres/permisos')
   .cargarPermisos as jest.Mock
@@ -178,6 +180,7 @@ interface SetupOpts {
   asistencia?: readonly AsistenciaPersonaRow[]
   reporte?: GrupoReporte | null
   inscripcionesGrupo?: GrupoInscripciones
+  esMiembro?: boolean
 }
 
 function setup(opts: SetupOpts): void {
@@ -216,6 +219,7 @@ function setup(opts: SetupOpts): void {
   grupoDetalleModule.loadGrupoInscripciones
     .mockReset()
     .mockResolvedValue(opts.inscripcionesGrupo ?? { aprobadas: [], retiradas: [] })
+  grupoDetalleModule.loadEsMiembroDelGrupo.mockReset().mockResolvedValue(opts.esMiembro ?? false)
 
   cargarPermisosMock.mockReset().mockResolvedValue({ ...PERMISOS_TALLER_ALL_FALSE, ...opts.permisos })
 }
@@ -442,6 +446,76 @@ describe('GrupoDetallePage — su gente (T4, participantes reales)', () => {
     setup({})
     await GrupoDetallePage(params())
     expect(grupoDetalleModule.loadGrupoInscripciones).toHaveBeenCalledWith(expect.anything(), 'g-1')
+  })
+})
+
+// T2 (odd/tasks/talleres-lider-identidad.md) — the líder gets identity in
+// the app: membership (talleres_es_miembro_del_grupo) renders the full
+// read view instead of the degraded state, and drives honest copy in
+// sections that would otherwise say "no tenés permiso" to someone who
+// genuinely can read by relation, just holds zero capabilities.
+describe('GrupoDetallePage — miembro sin capacidades (T2)', () => {
+  it('renders the full read view (no modoLimitado banner) for a member without any capability', async () => {
+    setup({ grupo: GRUPO, esMiembro: true, permisos: {} })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).not.toMatch(/todavía no tenés el permiso/i)
+    expect(text).toMatch(/Juan Pérez/)
+    expect(text).toMatch(/Clase\s*1/)
+  })
+
+  it('shows the honest "aún no hay" copy for asistencia when a member has no capabilities', async () => {
+    setup({
+      grupo: GRUPO,
+      esMiembro: true,
+      permisos: {},
+      asistencia: [],
+      inscripcionesGrupo: { aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }], retiradas: [] },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const vacio = findByType(element, EstadoVacio)
+    expect(vacio?.props.titulo).toMatch(/aún no hay asistencia/i)
+  })
+
+  it('shows the honest "aún no hay reporte" copy for a member with no capabilities', async () => {
+    setup({
+      grupo: GRUPO,
+      esMiembro: true,
+      permisos: {},
+      reporte: null,
+      inscripcionesGrupo: { aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }], retiradas: [] },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const vacio = findByType(element, EstadoVacio)
+    expect(vacio?.props.titulo).toMatch(/aún no hay reporte/i)
+  })
+
+  it('still shows the permission-denied copy for a non-member without capabilities', async () => {
+    setup({
+      grupo: GRUPO,
+      esMiembro: false,
+      permisos: {},
+      reporte: null,
+      inscripcionesGrupo: { aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }], retiradas: [] },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const vacio = findByType(element, EstadoVacio)
+    expect(vacio?.props.titulo).toMatch(/no tenés permiso/i)
+  })
+
+  it('does not crash and keeps the degraded state when talleres_es_miembro_del_grupo is missing (fails soft to false)', async () => {
+    setup({
+      grupo: null,
+      miAsignacion: { id: 'a-own', rol: 'lider', activo: true },
+      esMiembro: false,
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/todavía no.*ver|no.*permiso/i)
   })
 })
 

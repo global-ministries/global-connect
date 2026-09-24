@@ -31,17 +31,16 @@
  *     taller_grupos — resolveEquipoDeGrupo below wraps it so the page's
  *     gate can confirm "this grupo belongs to this taller" even in the
  *     degraded/limited render path, with no new grant.
- *   - usuarios visibility for a fellow team member (not self) is FALSE for
- *     every viewer this task could construct, including a full director:
- *     puede_ver_usuario is entirely a Grupos de Vida concept
+ *   - usuarios visibility for a fellow team member (not self) was FALSE
+ *     for every viewer this task could construct, including a full
+ *     director: puede_ver_usuario is entirely a Grupos de Vida concept
  *     (grupo_miembros / es_lider_de_grupo / es_director_de_grupo),
- *     unrelated to talleres. loadGrupoAsignaciones therefore degrades a
- *     row's name to null instead of throwing or inventing one — fixing
- *     this for real needs a new SECURITY DEFINER name-resolution RPC (the
- *     same class of gap T2 already found and fixed for inscripciones,
- *     talleres_coord_inscripciones_personas), which is out of this task's
- *     scope ("Base: sólo la función nueva de permisos por nodo", already
- *     delivered in T1 — talleres_mis_permisos).
+ *     unrelated to talleres. Fixed in T2 of odd/tasks/talleres-lider-
+ *     identidad.md: loadGrupoAsignaciones now resolves names through the
+ *     talleres_grupo_equipo_personas(uuid) RPC (T1 of that same task,
+ *     migration 20260924150000_talleres_lider_identidad.sql) instead of
+ *     the usuarios(...) embed — a missing name still degrades to '—'
+ *     rather than being invented, but the row is never dropped.
  *
  * loadAsistenciaPorClase resolves participant names through the EXISTING
  * talleres_coord_inscripciones_personas RPC (operacional.ts's
@@ -179,29 +178,56 @@ export async function resolveEquipoDeGrupo(
   return data
 }
 
-// ─── Su gente ────────────────────────────────────────────────────────────
+// ─── Es miembro del grupo (T2, odd/tasks/talleres-lider-identidad.md) ───
+
+interface EsMiembroClient {
+  rpc(
+    name: 'talleres_es_miembro_del_grupo',
+    args: { p_grupo_id: string },
+  ): Promise<{ data: unknown; error: { message: string } | null }>
+}
+
+/**
+ * Wraps talleres_es_miembro_del_grupo(uuid) (T1, migration
+ * 20260924150000_talleres_lider_identidad.sql): true when the caller has
+ * an ACTIVE taller_grupo_asignaciones row for this grupo (líder or
+ * voluntario). STAGING only until T3 ships it to production — fails soft
+ * to false on any error, including 42883 "function does not exist" on an
+ * environment that doesn't have it yet, and on a rejected client call, so
+ * the page never crashes and simply keeps the degraded state.
+ *
+ * Deliberately its own boolean, not folded into talleres_mis_permisos:
+ * that RPC answers "what can I do at this org-chart node", and a grupo is
+ * not a node (T1's Decisiones) — two different questions, two functions.
+ */
+export async function loadEsMiembroDelGrupo(
+  client: EsMiembroClient,
+  grupoId: string,
+): Promise<boolean> {
+  try {
+    const { data, error } = await client.rpc('talleres_es_miembro_del_grupo', { p_grupo_id: grupoId })
+    if (error || typeof data !== 'boolean') return false
+    return data
+  } catch {
+    return false
+  }
+}
+
+// ─── Su gente (equipo: líder/voluntarios) ───────────────────────────────
 
 export interface GrupoAsignacionPersona {
   readonly id: string
   readonly personaId: string
   readonly rol: 'lider' | 'voluntario'
-  /** null when the usuarios embed doesn't resolve (RLS) — never invented. */
-  readonly nombre: string | null
+  /** Degrades to '—' when the RPC can't resolve a name — never drops the row (T6b rule). */
+  readonly nombre: string
 }
 
-interface ListQueryClient {
-  from(table: string): {
-    select(columns: string): {
-      eq(column: string, value: unknown): {
-        eq(column: string, value: unknown): {
-          order(column: string, opts?: { ascending?: boolean }): PromiseLike<{
-            data: unknown[] | null
-            error: { message: string } | null
-          }>
-        }
-      }
-    }
-  }
+interface GrupoEquipoClient {
+  rpc(
+    name: 'talleres_grupo_equipo_personas',
+    args: { p_grupo_id: string },
+  ): Promise<{ data: unknown; error: { message: string } | null }>
 }
 
 interface SesionesQueryClient {
@@ -224,41 +250,39 @@ function nombreCompleto(nombre: unknown, apellido: unknown): string {
 }
 
 /**
- * "Su gente" — the people assigned to the grupo. Embeds usuarios for the
- * display name; when the embed doesn't resolve (RLS hides that usuarios
- * row — see this file's header), the row's nombre degrades to null
- * instead of throwing or inventing one. The rol badge (lider/voluntario)
- * always resolves — it comes from taller_grupo_asignaciones itself, which
- * the caller can always read for at least their own row.
+ * "Equipo" (líder/voluntarios). Names resolve through the
+ * talleres_grupo_equipo_personas(uuid) RPC (T1, migration
+ * 20260924150000_talleres_lider_identidad.sql), which mirrors
+ * taller_grupo_asignaciones_select — replacing the old usuarios(...)
+ * embed, which degraded to nothing for every viewer this task could
+ * construct (puede_ver_usuario is a Grupos de Vida concept, unrelated to
+ * talleres). A missing name degrades to '—' — the row is never dropped
+ * (T6b rule, same as loadGrupoInscripciones/loadAsistenciaPorClase
+ * below). Inactive asignaciones (activo=false) are filtered out
+ * client-side — the RPC itself doesn't filter on it.
  */
 export async function loadGrupoAsignaciones(
-  client: ListQueryClient,
+  client: GrupoEquipoClient,
   grupoId: string,
 ): Promise<readonly GrupoAsignacionPersona[]> {
-  const { data, error } = await client
-    .from('taller_grupo_asignaciones')
-    .select('id, persona_id, rol, usuario:usuarios(nombre, apellido)')
-    .eq('grupo_id', grupoId)
-    .eq('activo', true)
-    .order('rol', { ascending: true })
+  const { data, error } = await client.rpc('talleres_grupo_equipo_personas', { p_grupo_id: grupoId })
+  if (error || !Array.isArray(data)) return []
 
-  if (error || !data) return []
-
-  return data.map((row) => {
-    const r = row as {
-      id: string
-      persona_id: string
-      rol: 'lider' | 'voluntario'
-      usuario: { nombre: unknown; apellido: unknown } | null
-    }
-    const nombre = r.usuario ? nombreCompleto(r.usuario.nombre, r.usuario.apellido) : ''
-    return {
-      id: r.id,
-      personaId: r.persona_id,
-      rol: r.rol,
-      nombre: nombre.length > 0 ? nombre : null,
-    }
-  })
+  return (data as Array<{
+    asignacion_id: string
+    persona_id: string
+    rol: 'lider' | 'voluntario'
+    activo: boolean
+    nombre: unknown
+    apellido: unknown
+  }>)
+    .filter((row) => row.activo)
+    .map((row) => ({
+      id: row.asignacion_id,
+      personaId: row.persona_id,
+      rol: row.rol,
+      nombre: nombreCompleto(row.nombre, row.apellido) || '—',
+    }))
 }
 
 // ─── Su gente real (T2, odd/tasks/talleres-inscripcion-a-grupo.md) ──────

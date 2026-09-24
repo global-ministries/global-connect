@@ -49,6 +49,7 @@ import {
   resolveEquipoDeGrupo,
   loadGrupoInscripciones,
   loadGruposDeCohorte,
+  loadEsMiembroDelGrupo,
 } from '@/lib/platform/talleres/grupo-detalle'
 
 // ─── loadGrupoDetalle ───────────────────────────────────────────────────
@@ -201,7 +202,14 @@ describe('resolveEquipoDeGrupo', () => {
   })
 })
 
-// ─── loadGrupoAsignaciones ──────────────────────────────────────────────
+// ─── loadGrupoAsignaciones (T2, odd/tasks/talleres-lider-identidad.md) ──
+//
+// Now resolves names via the talleres_grupo_equipo_personas(uuid) RPC
+// (migration 20260924150000_talleres_lider_identidad.sql) instead of the
+// usuarios(...) embed — no viewer, not even a director, could read a
+// fellow team member's usuarios row directly (see this file's own header
+// history), so the embed always degraded to null. The RPC mirrors
+// taller_grupo_asignaciones_select and resolves the name server-side.
 
 function buildListClientMock(rows: unknown[] | null, error: unknown = null): {
   client: { from: jest.Mock }
@@ -221,39 +229,79 @@ function buildListClientMock(rows: unknown[] | null, error: unknown = null): {
   return { client: { from }, eqCalls }
 }
 
+function buildRpcClientMock(rows: unknown[] | null, error: unknown = null): {
+  client: { rpc: jest.Mock }
+} {
+  const rpc = jest.fn().mockResolvedValue({ data: rows, error })
+  return { client: { rpc } }
+}
+
 describe('loadGrupoAsignaciones', () => {
-  it('lists active asignaciones with a resolved display name when the embed resolves', async () => {
-    const { client } = buildListClientMock([
-      { id: 'a-1', persona_id: 'p-1', rol: 'lider', usuario: { nombre: 'Juan', apellido: 'Pérez' } },
+  it('lists active asignaciones with names resolved via talleres_grupo_equipo_personas', async () => {
+    const { client } = buildRpcClientMock([
+      { asignacion_id: 'a-1', persona_id: 'p-1', rol: 'lider', activo: true, nombre: 'Juan', apellido: 'Pérez' },
     ])
     const result = await loadGrupoAsignaciones(client, 'g-1')
+    expect(client.rpc).toHaveBeenCalledWith('talleres_grupo_equipo_personas', { p_grupo_id: 'g-1' })
     expect(result).toEqual([
       { id: 'a-1', personaId: 'p-1', rol: 'lider', nombre: 'Juan Pérez' },
     ])
   })
 
-  it('degrades to a null name (never throws, never invents one) when the usuario embed does not resolve', async () => {
-    const { client } = buildListClientMock([
-      { id: 'a-2', persona_id: 'p-2', rol: 'voluntario', usuario: null },
+  it("degrades to '—' (never drops the row) when the RPC can't resolve a name", async () => {
+    const { client } = buildRpcClientMock([
+      { asignacion_id: 'a-2', persona_id: 'p-2', rol: 'voluntario', activo: true, nombre: null, apellido: null },
     ])
     const result = await loadGrupoAsignaciones(client, 'g-1')
     expect(result).toEqual([
-      { id: 'a-2', personaId: 'p-2', rol: 'voluntario', nombre: null },
+      { id: 'a-2', personaId: 'p-2', rol: 'voluntario', nombre: '—' },
     ])
   })
 
-  it('scopes to grupo_id and activo=true', async () => {
-    const { client, eqCalls } = buildListClientMock([])
-    await loadGrupoAsignaciones(client, 'g-1')
-    expect(eqCalls).toEqual([
-      ['grupo_id', 'g-1'],
-      ['activo', true],
+  it('filters out inactive asignaciones', async () => {
+    const { client } = buildRpcClientMock([
+      { asignacion_id: 'a-1', persona_id: 'p-1', rol: 'lider', activo: true, nombre: 'Ana', apellido: 'Gómez' },
+      { asignacion_id: 'a-2', persona_id: 'p-2', rol: 'voluntario', activo: false, nombre: 'Luis', apellido: 'Ruiz' },
     ])
+    const result = await loadGrupoAsignaciones(client, 'g-1')
+    expect(result).toEqual([{ id: 'a-1', personaId: 'p-1', rol: 'lider', nombre: 'Ana Gómez' }])
   })
 
-  it('returns [] on a query error', async () => {
-    const { client } = buildListClientMock(null, { message: 'boom' })
+  it('returns [] on an RPC error (missing function included — fails soft)', async () => {
+    const { client } = buildRpcClientMock(null, { message: '42883: function does not exist' })
     expect(await loadGrupoAsignaciones(client, 'g-1')).toEqual([])
+  })
+})
+
+// ─── loadEsMiembroDelGrupo (T2, odd/tasks/talleres-lider-identidad.md) ──
+//
+// Wraps talleres_es_miembro_del_grupo(uuid) (T1's migration
+// 20260924150000_talleres_lider_identidad.sql, STAGING only until T3).
+// Fails soft to false on any error, including a missing function on an
+// environment (production) that doesn't have it yet — the page must
+// never crash on it.
+
+describe('loadEsMiembroDelGrupo', () => {
+  it('calls the talleres_es_miembro_del_grupo RPC with p_grupo_id and returns its boolean', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: true, error: null })
+    const result = await loadEsMiembroDelGrupo({ rpc }, 'g-1')
+    expect(rpc).toHaveBeenCalledWith('talleres_es_miembro_del_grupo', { p_grupo_id: 'g-1' })
+    expect(result).toBe(true)
+  })
+
+  it('returns false when the caller is not an active member', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: false, error: null })
+    expect(await loadEsMiembroDelGrupo({ rpc }, 'g-1')).toBe(false)
+  })
+
+  it('fails soft to false on an RPC error (including a missing function, 42883)', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: null, error: { message: '42883: function does not exist' } })
+    expect(await loadEsMiembroDelGrupo({ rpc }, 'g-1')).toBe(false)
+  })
+
+  it('fails soft to false when the RPC rejects outright', async () => {
+    const rpc = jest.fn().mockRejectedValue(new Error('network error'))
+    await expect(loadEsMiembroDelGrupo({ rpc }, 'g-1')).resolves.toBe(false)
   })
 })
 
