@@ -51,6 +51,7 @@
  */
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import {
   BadgeSistema,
@@ -124,6 +125,7 @@ function useSeleccionGrupo() {
   const [grupoId, setGrupoId] = useState<string>('')
   const [pending, setPending] = useState(false)
   const notificaciones = useNotificaciones()
+  const router = useRouter()
 
   const toggle = (id: string): void => {
     setSelectedIds((prev) => {
@@ -161,6 +163,11 @@ function useSeleccionGrupo() {
       }
       notificaciones.success(mensaje)
       clear()
+      // CORRECTION (post-T4 review, item 2): revalidatePath on the server
+      // only invalidates Next's cache — it does not, by itself, re-fetch
+      // this already-rendered client tree. Without this, the Grupo
+      // column / ocupación stayed stale until an unrelated navigation.
+      router.refresh()
     } catch {
       notificaciones.error('No se pudo asignar el grupo. Intentá de nuevo.')
     } finally {
