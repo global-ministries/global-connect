@@ -51,6 +51,8 @@ interface MockState {
   listRows: unknown[]
   /** taller_inscripciones rows returned by the ocupación count query (T2) */
   ocupacionRows: unknown[]
+  /** error the ocupación count query resolves to (item 6 correction) */
+  ocupacionError: { message: string } | null
   /** recorded rpc invocations (capability gate + generate_taller_sesiones) */
   rpcCalls: RpcCall[]
   /** result the generate_taller_sesiones rpc resolves to */
@@ -64,6 +66,7 @@ const state: MockState = {
   newGrupoId: 'grupo-new',
   listRows: [],
   ocupacionRows: [],
+  ocupacionError: null,
   rpcCalls: [],
   sesionesResult: {
     data: { ok: true, grupo_id: 'grupo-new', total: 8, created: 8 },
@@ -78,6 +81,7 @@ function reset(): void {
   state.newGrupoId = 'grupo-new'
   state.listRows = []
   state.ocupacionRows = []
+  state.ocupacionError = null
   state.rpcCalls = []
   state.sesionesResult = {
     data: { ok: true, grupo_id: 'grupo-new', total: 8, created: 8 },
@@ -100,7 +104,9 @@ beforeEach(() => {
     // Ocupación query (T2): taller_inscripciones.select(...).in(...).eq(...)
     chain['in'] = jest.fn(() => chain)
     if (_table === 'taller_inscripciones') {
-      chain['eq'] = jest.fn(() => Promise.resolve({ data: state.ocupacionRows, error: null }))
+      chain['eq'] = jest.fn(() =>
+        Promise.resolve({ data: state.ocupacionError ? null : state.ocupacionRows, error: state.ocupacionError }),
+      )
     }
     // POST path: .insert(payload).select(...).single()
     chain['insert'] = jest.fn((payload: Record<string, unknown>) => {
@@ -286,5 +292,20 @@ describe('PR F — GET /api/talleres/grupos', () => {
     const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
     const body = await res.json()
     expect(body.grupos[0].ocupacion).toBe(0)
+  })
+
+  // CORRECTION (post-T4 review, item 6): an ocupación query error used to
+  // be silently swallowed and reported as ocupacion: 0 — indistinguishable
+  // from a real empty grupo. It must surface as unknown (null), never 0.
+  it('reports ocupacion: null (never 0) when the ocupación query errors', async () => {
+    state.capabilities.set('talleres_crecimiento.director.read', true)
+    state.listRows = [
+      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Alfa', capacidad: 2, estado: 'activo', completed_at: null },
+    ]
+    state.ocupacionError = { message: 'boom' }
+    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.grupos[0].ocupacion).toBeNull()
   })
 })

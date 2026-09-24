@@ -104,20 +104,30 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .map((g) => g.id)
     .filter((id): id is string => typeof id === 'string')
   const ocupacionByGrupo = new Map<string, number>()
+  // CORRECTION (post-T4 review, item 6): a failed ocupación query used to
+  // be silently swallowed — every grupo then reported ocupacion: 0,
+  // indistinguishable from a real empty grupo. Track the failure and
+  // report null (unknown) instead; the UI renders that as "—", never 0.
+  let ocupacionDesconocida = false
   if (grupoIds.length > 0) {
-    const { data: aprobadas } = await client
+    const { data: aprobadas, error: ocupacionError } = await client
       .from('taller_inscripciones')
       .select('grupo_id')
       .in('grupo_id', grupoIds)
       .eq('estado', 'aprobado')
-    for (const row of (aprobadas ?? []) as Array<{ grupo_id: string }>) {
-      ocupacionByGrupo.set(row.grupo_id, (ocupacionByGrupo.get(row.grupo_id) ?? 0) + 1)
+    if (ocupacionError) {
+      ocupacionDesconocida = true
+    } else {
+      for (const row of (aprobadas ?? []) as Array<{ grupo_id: string }>) {
+        ocupacionByGrupo.set(row.grupo_id, (ocupacionByGrupo.get(row.grupo_id) ?? 0) + 1)
+      }
     }
   }
 
   const gruposConOcupacion = grupos.map((g) => ({
     ...g,
-    ocupacion: typeof g.id === 'string' ? (ocupacionByGrupo.get(g.id) ?? 0) : 0,
+    ocupacion:
+      ocupacionDesconocida || typeof g.id !== 'string' ? null : (ocupacionByGrupo.get(g.id) ?? 0),
   }))
 
   return NextResponse.json({ grupos: gruposConOcupacion, count: gruposConOcupacion.length })
