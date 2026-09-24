@@ -364,6 +364,65 @@ SELECT pg_temp.assert_jsonb_field('criterion 6: capacidad still reported as 2',
 
 RESET ROLE;
 
+-- ══ CORRECTION criteria (post-T4 independent review, migration
+-- 20260924140000) ══
+
+-- ── Item 3 — the coherence trigger now also fires on UPDATE OF
+-- cohorte_id. Inscripción 61 is placed in grupo A1 (cohorte A); moving
+-- its OWN cohorte_id to cohorte A2 (grupo_id untouched) must still be
+-- blocked — this is exactly the gap the old `UPDATE OF grupo_id`-only
+-- trigger missed. ══
+
+SELECT pg_temp.assert_sqlstate_msg('correction item 3: UPDATE OF cohorte_id alone is caught by the widened trigger',
+  format($f$UPDATE public.taller_inscripciones SET cohorte_id = %L WHERE id = 'a6000000-0000-4000-8000-000000000061'$f$,
+    (SELECT id FROM t1_fixture WHERE key = 'cohorteA2')),
+  'P0001', 'GRUPO_DE_OTRA_COHORTE');
+
+-- ── Item 4 — the unassign branch (p_grupo_id NULL), untested until now.
+-- Inscripción 60 is placed in grupo A1; CoordA (authorized) unassigns it. ══
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('a6000000-0000-4000-8000-000000000022');
+
+SELECT pg_temp.assert_jsonb_field('correction item 4: authorized unassign succeeds (asignadas)',
+  $$SELECT public.talleres_asignar_inscripciones_a_grupo(
+      ARRAY['a6000000-0000-4000-8000-000000000060']::uuid[], NULL::uuid)$$,
+  'asignadas', '1');
+
+RESET ROLE;
+
+SELECT pg_temp.assert_rows('correction item 4: grupo_id is actually NULL after unassign',
+  $$SELECT 1 FROM public.taller_inscripciones WHERE id = 'a6000000-0000-4000-8000-000000000060' AND grupo_id IS NULL$$, 1);
+
+-- Cross-branch unassign denied: inscripción 61 is still placed in grupo
+-- A1 (branch A's equipo); CoordB has no capability on that equipo.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('a6000000-0000-4000-8000-000000000026');
+
+SELECT pg_temp.assert_sqlstate_msg('correction item 4: cross-branch unassign denied with the correct message',
+  $$SELECT public.talleres_asignar_inscripciones_a_grupo(
+      ARRAY['a6000000-0000-4000-8000-000000000061']::uuid[], NULL::uuid)$$,
+  '42501', 'sin_permisos_para_este_grupo');
+
+RESET ROLE;
+
+-- ── Item 5 — duplicate ids in p_inscripcion_ids used to wrongly fail
+-- P0002 (array_length counted duplicates, the existence COUNT counted
+-- DISTINCT rows). Inscripción 62 is already aprobado + placed in grupo
+-- A1; a duplicated-id reassign to the SAME grupo must succeed once
+-- deduped, not fail "not found". ══
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('a6000000-0000-4000-8000-000000000022');
+
+SELECT pg_temp.assert_jsonb_field('correction item 5: duplicate ids are deduped, not reported as not-found',
+  $$SELECT public.talleres_asignar_inscripciones_a_grupo(
+      ARRAY['a6000000-0000-4000-8000-000000000062','a6000000-0000-4000-8000-000000000062','a6000000-0000-4000-8000-000000000062']::uuid[],
+      'a6000000-0000-4000-8000-000000000030'::uuid)$$,
+  'asignadas', '1');
+
+RESET ROLE;
+
 SELECT pg_temp.report();
 
 ROLLBACK;
