@@ -395,7 +395,7 @@ describe('loadAsistenciaPorClase', () => {
       p_inscripcion_ids: ['i-1'],
     })
     expect(result).toEqual([
-      { id: 'as-1', personaId: 'p-1', nombre: 'Ana Gómez', estado: 'presente', motivo: null },
+      { id: 'as-1', inscripcionId: 'i-1', personaId: 'p-1', nombre: 'Ana Gómez', estado: 'presente', motivo: null },
     ])
   })
 

@@ -28,12 +28,20 @@
  * naming what's missing — never a broken page, and never a new grant).
  *
  * PERMISSIONS: one cargarPermisos(client, taller.dream_team_equipo_id)
- * call for the whole page. There are no write controls on this page
- * (asistencia marking is paso 7's job, adopting AttendanceRegister from
- * Grupos de Vida — see the `// paso 7` marker below); permisos.verReportes
- * only drives the reporte section's honest empty-state copy ("aún no hay
- * reporte" vs. "no tenés permiso para verlo") since RLS already decides
- * what data arrives either way.
+ * call for the whole page. permisos.verReportes only drives the reporte
+ * section's honest empty-state copy ("aún no hay reporte" vs. "no tenés
+ * permiso para verlo") since RLS already decides what data arrives either
+ * way.
+ *
+ * T3 (odd/tasks/talleres-asistencia-lider.md): the WRITE controls live
+ * here too. Who may pass list / close a clase is a RELATIONSHIP question
+ * answered by talleres_rol_en_grupo (miRol), with permisos.gestionarGrupos
+ * as the supervisor fallback (criterio 8) — never the capability tree
+ * alone, because an assigned líder can hold ZERO talleres capabilities.
+ * Both controls are gated by permission AND by `clase.estado !== 'cerrada'`
+ * and rendered HIDDEN, never disabled (Decisiones, §9). The route then
+ * re-checks nothing: talleres_registrar_asistencia / talleres_cerrar_clase
+ * are the authorization authority.
  *
  * T2 (odd/tasks/talleres-lider-identidad.md): a grupo member (líder or
  * voluntario, via T1's talleres_es_miembro_del_grupo) reads by relation,
@@ -61,6 +69,11 @@ import {
 } from '@/components/ui/sistema-diseno'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia-clase.client'
+import {
+  RegistroAsistenciaClase,
+  type RegistroAsistenciaMarca,
+} from '@/components/talleres/registro-asistencia-clase.client'
+import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -80,6 +93,8 @@ import {
   loadGrupoReporte,
   loadGrupoInscripciones,
   loadEsMiembroDelGrupo,
+  loadRolEnGrupo,
+  type AsistenciaPersonaRow,
 } from '@/lib/platform/talleres/grupo-detalle'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
 import { rutaTaller, rutaEdicion, rutaGrupo } from '@/lib/platform/talleres/rutas'
@@ -158,6 +173,13 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   // page — it just leaves the honest copy exactly as it was before T2.
   const esMiembro = await loadEsMiembroDelGrupo(client, grupoId)
 
+  // T3: talleres_rol_en_grupo answers the same kind of RELATIONSHIP
+  // question as esMiembro — 'lider' | 'voluntario' | NULL for THIS caller
+  // in THIS grupo — and is what decides who may pass list / close a clase.
+  // Fails soft to NULL (an outsider) when the RPC isn't deployed yet, so
+  // the page keeps rendering the read view exactly as before.
+  const miRol = await loadRolEnGrupo(client, grupoId)
+
   if (grupo) {
     // T1's RLS membership branch already lets an assigned líder/voluntario
     // read taller_grupos directly (staging) — once that's true, grupo
@@ -196,6 +218,16 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   }
 
   const permisos = await cargarPermisos(client, taller.dream_team_equipo_id)
+
+  // T3 — who may ACT on this screen. miRol is the relationship answer;
+  // permisos.gestionarGrupos is the supervisor fallback (coordinador/
+  // director with scope over this taller) — criterio 8, never the
+  // capability tree alone: an assigned líder with ZERO capabilities must
+  // still pass list. modoLimitado means even the cabecera is hidden, so no
+  // write control is offered there either.
+  const puedePasarLista = !modoLimitado && (miRol !== null || permisos.gestionarGrupos)
+  const puedeCerrarClase = !modoLimitado && (miRol === 'lider' || permisos.gestionarGrupos)
+
   const asignaciones = await loadGrupoAsignaciones(client, grupoId)
   // T4 (odd/tasks/talleres-inscripcion-a-grupo.md) — "su gente" real: the
   // inscripciones actually placed in this grupo, not the equipo roster
@@ -216,6 +248,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   const asistencia = claseSeleccionada
     ? await loadAsistenciaPorClase(client, claseSeleccionada.id)
     : []
+
+  // T3 — an editable clase shows the register (todos presentes por defecto,
+  // previous marks restoring what was already marked); a `cerrada` one shows
+  // ONLY the read view, with the controls gone entirely (Decisiones).
+  const puedeEditarClase = puedePasarLista && claseSeleccionada?.estado !== 'cerrada'
 
   const lideres = asignaciones.filter((a) => a.rol === 'lider')
 
@@ -373,26 +410,47 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
               {sesiones.map((s) => (
                 <li
                   key={s.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border/60 p-3"
+                  className="rounded-lg border border-border/60 p-3"
                 >
-                  {/* The selector keeps the plain "Clase {numero}" so a long
-                      list stays scannable; the clase's name (taller_sesiones.
-                      tema, T1/T2) shows as the title of the read view below. */}
-                  <Link
-                    href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
-                    className={
-                      s.id === claseSeleccionadaId
-                        ? 'text-sm font-medium text-foreground underline'
-                        : 'text-sm font-medium text-foreground hover:underline'
-                    }
-                  >
-                    Clase {s.numero}
-                  </Link>
-                  <div className="flex items-center gap-2">
-                    <TextoSistema variante="sutil" tamaño="sm">
-                      {formatFecha(s.fechaProgramada)}
-                    </TextoSistema>
-                    <BadgeSistema tamaño="sm">{s.estado}</BadgeSistema>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-wrap items-center gap-3">
+                      {/* The selector keeps the plain "Clase {numero}" so a long
+                          list stays scannable; the clase's name (taller_sesiones.
+                          tema, T1/T2) shows as the title of the read view below. */}
+                      <Link
+                        href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
+                        className={
+                          s.id === claseSeleccionadaId
+                            ? 'text-sm font-medium text-foreground underline'
+                            : 'text-sm font-medium text-foreground hover:underline'
+                        }
+                      >
+                        Clase {s.numero}
+                      </Link>
+                      <TextoSistema variante="sutil" tamaño="sm">
+                        {formatFecha(s.fechaProgramada)}
+                      </TextoSistema>
+                      <BadgeSistema tamaño="sm">{s.estado}</BadgeSistema>
+                    </div>
+
+                    {/* T3 — each clase carries its own "Pasar lista" link
+                        (selects the clase below) and "Cerrar clase" button.
+                        Both are HIDDEN once the clase is cerrada (never a
+                        disabled control), and only for someone who may act:
+                        miRol (relación con este grupo) o gestión con alcance. */}
+                    {(puedePasarLista || puedeCerrarClase) && s.estado !== 'cerrada' && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {puedePasarLista && (
+                          <Link
+                            href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
+                            className="inline-flex min-h-[44px] items-center rounded-lg border-2 border-border px-3 text-sm font-medium text-foreground hover:bg-accent"
+                          >
+                            Pasar lista
+                          </Link>
+                        )}
+                        {puedeCerrarClase && <CerrarClase sesionId={s.id} />}
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}
@@ -401,9 +459,10 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </div>
       </section>
 
-      {/* Asistencia — read-only: LecturaAsistenciaClase (T2) renders the
-          marked clase; marking itself is paso 7 (adopts
-          components/grupos/AttendanceRegister.client.tsx). */}
+      {/* Asistencia — T3 makes this section writable for whoever may act:
+          the register (registro-asistencia-clase.client) replaces the read
+          view while the selected clase is editable; once it is `cerrada`
+          the read view is all that remains. */}
       <section aria-labelledby="asistencia-heading">
         <h2 id="asistencia-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
           Asistencia
@@ -411,6 +470,17 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         <div className="mt-3">
           {sesiones.length === 0 || !claseSeleccionada ? (
             <TextoSistema variante="sutil">Elegí una clase para ver su asistencia.</TextoSistema>
+          ) : puedeEditarClase ? (
+            <RegistroAsistenciaClase
+              // A different clase is a different form: re-seed "todos
+              // presentes / previous marks" instead of carrying state over.
+              key={claseSeleccionada.id}
+              sesionId={claseSeleccionada.id}
+              numero={claseSeleccionada.numero}
+              tema={claseSeleccionada.tema}
+              filas={inscripcionesGrupo.aprobadas.map((p) => ({ id: p.id, nombre: p.nombre }))}
+              marcasPrevias={marcasPreviasDe(asistencia)}
+            />
           ) : asistencia.length === 0 ? (
             <EstadoVacio
               icono={ClipboardList}
@@ -431,10 +501,6 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
               filas={asistencia}
             />
           )}
-          {/* paso 7: acá va el registro/marcado de asistencia, adoptando
-              components/grupos/AttendanceRegister.client.tsx de Grupos de
-              Vida (todos presentes por defecto, atajos en lote, motivo
-              sólo al marcar ausente). No construir el formulario en T5. */}
         </div>
       </section>
 
@@ -472,6 +538,23 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
       </section>
     </ContenedorDashboard>
   )
+}
+
+/**
+ * T3 — the previous marks the register restores. Only presente/ausente can
+ * be re-sent (talleres_registrar_asistencia's domain); a legacy
+ * `no_aplica` row is not representable in the register, so it is left out
+ * and that person falls back to the default "presente" — never invented as
+ * a mark of our own.
+ */
+function marcasPreviasDe(rows: readonly AsistenciaPersonaRow[]): RegistroAsistenciaMarca[] {
+  const marcas: RegistroAsistenciaMarca[] = []
+  for (const row of rows) {
+    if (row.estado === 'presente' || row.estado === 'ausente') {
+      marcas.push({ inscripcionId: row.inscripcionId, estado: row.estado, motivo: row.motivo })
+    }
+  }
+  return marcas
 }
 
 function reporteEstadoLabel(estado: string): string {

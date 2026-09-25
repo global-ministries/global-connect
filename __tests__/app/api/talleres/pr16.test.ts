@@ -2,8 +2,17 @@
  * @jest-environment node
  *
  * PR16 — DT-067 — Tests R covering 401/403/404/409/400 + immutability of
- * asistencia + sequential progression (skip-ahead → 400) + couple unit
- * (1 reporte por unidad).
+ * asistencia + sequential progression + couple unit (1 reporte por unidad).
+ *
+ * T3 (odd/tasks/talleres-asistencia-lider.md) reshaped three of the original
+ * assertions, because `cerrar` and `asistencia` now wrap T1's SQL functions
+ * instead of writing tables directly:
+ *   - the 403 matrix no longer lists them: they gate only on kill switch +
+ *     session and delegate authorization to the function (covered in
+ *     __tests__/app/api/talleres/sesiones-asistencia.test.ts);
+ *   - "immutability" became "delegation": the route issues ZERO
+ *     insert/update/delete on taller_asistencias;
+ *   - skip-ahead is the function's call now; the route must simply delegate.
  *
  * Strategy: each test instantiates a fresh mock client and exercises
  * the route handler directly. The deny-by-default matrix validates that
@@ -11,10 +20,6 @@
  *   - 403 when capability missing
  *   - 404 when flag off OR the resource doesn't exist
  *   - 400 when body invalid OR transition invalid OR attendance state wrong
- * The immutability test asserts the route handler never calls update()
- * or delete() on `taller_asistencias`.
- * The sequential-progression test asserts that programar → cerrar (skip
- * en_curso) returns 400.
  * The couple-unit test asserts that two reportes for the same grupo in
  * non-terminal states cannot coexist.
  */
@@ -36,6 +41,12 @@ jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: jest.fn(),
 }))
 
+// T3: cerrar/asistencia revalidate the grupo screen on success; the real
+// revalidatePath needs a request-scoped static generation store.
+jest.mock('next/cache', () => ({
+  revalidatePath: jest.fn(),
+}))
+
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags')
   .isTalleresEnabled as jest.Mock
 const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
@@ -55,6 +66,10 @@ interface MockState {
   singleResult: { data: unknown; error: null }
   /** counts of method calls for invariants */
   callCounts: { update: number; delete: number; insert: number }
+  /** every rpc() the routes issued (T3: which function did they delegate to?) */
+  rpcCalls: Array<{ name: string; args: Record<string, unknown> }>
+  /** what a non-capability rpc() resolves with (T3's business functions) */
+  rpcResult: { data: unknown; error: { message: string; code?: string } | null }
 }
 const state: MockState = {
   user: { id: 'user-1' },
@@ -64,6 +79,8 @@ const state: MockState = {
   rowsByTable: new Map(),
   singleResult: { data: null, error: null },
   callCounts: { update: 0, delete: 0, insert: 0 },
+  rpcCalls: [],
+  rpcResult: { data: null, error: null },
 }
 
 function reset() {
@@ -74,6 +91,8 @@ function reset() {
   state.rowsByTable = new Map()
   state.singleResult = { data: null, error: null }
   state.callCounts = { update: 0, delete: 0, insert: 0 }
+  state.rpcCalls = []
+  state.rpcResult = { data: null, error: null }
 }
 
 beforeEach(() => {
@@ -132,7 +151,14 @@ beforeEach(() => {
         Promise.resolve({ data: { user: state.user }, error: null }),
       ),
     },
-    rpc: jest.fn().mockImplementation((_n: string, args: { p_capability_key?: string; p_capability?: string }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- plain mock client
+    rpc: jest.fn().mockImplementation((name: string, args: Record<string, any> = {}) => {
+      state.rpcCalls.push({ name, args })
+      // T3: talleres_registrar_asistencia / talleres_cerrar_clase are business
+      // functions — they answer whatever the test configured in rpcResult.
+      if (name !== 'auth_has_talleres_capability' && name !== 'eval_talleres_capability') {
+        return Promise.resolve(state.rpcResult)
+      }
       // requireTalleresApi calls auth_has_talleres_capability({ p_capability_key });
       // the legacy metricas gate uses eval_talleres_capability({ p_capability }).
       // Accept either param name so the mock matches whichever gate the route hits.
@@ -169,7 +195,7 @@ describe('PR16 — deny-by-default 401 path', () => {
     [
       'asistencia',
       () => registrarAsistencia(
-        makeReq({ inscripcion_id: 'i-1', persona_id: 'p-1', estado: 'presente' }),
+        makeReq({ marcas: [{ inscripcion_id: 'i-1', estado: 'presente' }] }),
         { params: Promise.resolve({ id: 's-1' }) },
       ),
     ],
@@ -194,21 +220,15 @@ describe('PR16 — deny-by-default 401 path', () => {
 })
 
 describe('PR16 — deny-by-default 403 path', () => {
+  // NOTE (T3): `cerrar` and `asistencia` are deliberately ABSENT from this
+  // matrix. Both now wrap talleres_cerrar_clase / talleres_registrar_asistencia
+  // and gate only on the kill switch + session — the DB decides authorization,
+  // so a caller with no capability reaches the function (see
+  // __tests__/app/api/talleres/sesiones-asistencia.test.ts).
   it.each([
     [
       'abrir (coordinator.write)',
       () => abrir(makeReq({}), { params: Promise.resolve({ id: 's-1' }) }),
-    ],
-    [
-      'cerrar (coordinator.write)',
-      () => cerrar(makeReq(), { params: Promise.resolve({ id: 's-1' }) }),
-    ],
-    [
-      'asistencia (coordinator.write)',
-      () => registrarAsistencia(
-        makeReq({ inscripcion_id: 'i-1', persona_id: 'p-1', estado: 'presente' }),
-        { params: Promise.resolve({ id: 's-1' }) },
-      ),
     ],
     [
       'reporte/enviar (coordinator.write)',
@@ -263,13 +283,17 @@ describe('PR16 — deny-by-default 404 path', () => {
 // ─── Sequential progression ───────────────────────────────────────────────
 
 describe('PR16 — sequential progression (skip-ahead → 400)', () => {
-  it('cerrar rejects programda → cerrada (skip en_curso)', async () => {
-    state.capabilities.set('talleres_crecimiento.coordinator.write', true)
-    state.singleResult = { data: { id: 's-1', estado: 'programada' }, error: null }
+  // T3: the route no longer decides the transition — talleres_cerrar_clase
+  // does (it closes from any state the líder is allowed to close). What the
+  // route still owns is DELEGATION: one rpc, no direct table writes.
+  it('cerrar delegates the transition to talleres_cerrar_clase', async () => {
+    state.rpcResult = { data: { sesion_id: 's-1', estado: 'cerrada' }, error: null }
     const res = await cerrar(makeReq(), { params: Promise.resolve({ id: 's-1' }) })
-    expect(res.status).toBe(400)
-    const body = await res.json()
-    expect(body.error).toBe('invalid-transition')
+    expect(res.status).toBe(200)
+    expect(state.rpcCalls).toEqual([
+      { name: 'talleres_cerrar_clase', args: { p_sesion_id: 's-1' } },
+    ])
+    expect(state.callCounts.update).toBe(0)
   })
 
   it('abrir accepts programada → en_curso', async () => {
@@ -291,46 +315,47 @@ describe('PR16 — sequential progression (skip-ahead → 400)', () => {
 // ─── Immutability of attendance ───────────────────────────────────────────
 
 describe('PR16 — attendance immutability', () => {
-  it('attendance route never calls update() or delete() on taller_asistencias', async () => {
-    state.capabilities.set('talleres_crecimiento.coordinator.write', true)
-    state.singleResult = { data: { id: 's-1', estado: 'en_curso' }, error: null }
+  // T3: "inmutable" no longer means "the route only inserts" — it means the
+  // route never touches taller_asistencias at all. Every write flows through
+  // talleres_registrar_asistencia, whose SECURITY DEFINER body owns the
+  // constraint, the estado domain and the audit fields.
+  it('attendance route never writes taller_asistencias itself (delegates to the RPC)', async () => {
+    state.rpcResult = { data: { presentes: 1, ausentes: 0, total: 1 }, error: null }
     const res = await registrarAsistencia(
-      makeReq({ inscripcion_id: 'i-1', persona_id: 'p-1', estado: 'presente' }),
+      makeReq({ marcas: [{ inscripcion_id: 'i-1', estado: 'presente' }] }),
       { params: Promise.resolve({ id: 's-1' }) },
     )
     expect(res.status).toBe(201)
+    expect(state.callCounts.insert).toBe(0)
     expect(state.callCounts.update).toBe(0)
     expect(state.callCounts.delete).toBe(0)
-    expect(state.callCounts.insert).toBe(1)
-    expect(state.lastInsert?.['estado']).toBe('presente')
+    expect(state.rpcCalls).toEqual([
+      {
+        name: 'talleres_registrar_asistencia',
+        args: {
+          p_sesion_id: 's-1',
+          p_marcas: [{ inscripcion_id: 'i-1', estado: 'presente' }],
+        },
+      },
+    ])
   })
 
-  it('attendance rejects invalid estado', async () => {
-    state.capabilities.set('talleres_crecimiento.coordinator.write', true)
+  it('attendance rejects invalid estado before reaching the RPC', async () => {
     const res = await registrarAsistencia(
-      makeReq({ inscripcion_id: 'i-1', persona_id: 'p-1', estado: 'no-aplica' }),
+      makeReq({ marcas: [{ inscripcion_id: 'i-1', estado: 'no-aplica' }] }),
       { params: Promise.resolve({ id: 's-1' }) },
     )
     expect(res.status).toBe(400)
+    expect(state.rpcCalls).toHaveLength(0)
+    expect(state.callCounts.insert).toBe(0)
   })
 
-  it('correction rejects when target row does not exist', async () => {
-    state.capabilities.set('talleres_crecimiento.coordinator.write', true)
-    // sesion validation succeeds; correccion validation returns null → 400
-    state.singleResult = { data: null, error: null }
-    const res = await registrarAsistencia(
-      makeReq({
-        inscripcion_id: 'i-1',
-        persona_id: 'p-1',
-        estado: 'ausente',
-        correccion_de_asistencia_id: 'orig-does-not-exist',
-      }),
-      { params: Promise.resolve({ id: 's-1' }) },
-    )
-    // 404 (sesion not found) is acceptable here — both 400 and 404
-    // prove deny-by-default. The key invariant: NO insert happens
-    // when validation fails.
-    expect([400, 404]).toContain(res.status)
+  it('rejects a batch with no marca entries without calling the RPC', async () => {
+    const res = await registrarAsistencia(makeReq({ marcas: [] }), {
+      params: Promise.resolve({ id: 's-1' }),
+    })
+    expect(res.status).toBe(400)
+    expect(state.rpcCalls).toHaveLength(0)
     expect(state.callCounts.insert).toBe(0)
   })
 })

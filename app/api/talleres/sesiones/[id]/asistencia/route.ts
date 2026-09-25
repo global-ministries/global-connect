@@ -1,42 +1,48 @@
 /**
- * PR16 — DT-064 — POST /api/talleres/sesiones/[id]/asistencia
+ * T3 — POST /api/talleres/sesiones/[id]/asistencia
  *
- * Records attendance for a session. Each (sesion_id, inscripcion_id)
- * tuple is logically unique — corrections are recorded as a NEW row
- * with `correccion_de_asistencia_id` pointing to the original row
- * (self-FK). Original rows are never updated/deleted; this guarantees
- * the immutability invariant for attendance history (auditor trail).
+ * Records attendance for one clase. This is a thin wrapper over
+ * talleres_registrar_asistencia (T1), the ONLY write path for
+ * taller_asistencias: the function owns authorization, the estado domain,
+ * the motivo rules and the programada → en_curso transition. The route only
  *
- * Capability: `talleres_crecimiento.coordinator.write`.
+ *   1. applies the kill switch + session gate (no capability consultation —
+ *      an assigned líder with ZERO capabilities must be able to pass list,
+ *      criterio 1);
+ *   2. validates the batch shape before touching the DB;
+ *   3. translates whatever the function refused into HTTP + Spanish.
  *
- * Body: { inscripcion_id: string; persona_id: string; estado:
- * 'presente'|'ausente'|'no_aplica'; correccion_de_asistencia_id?:
- * string }
+ * Body: { marcas: [{ inscripcion_id, estado: 'presente' | 'ausente',
+ * motivo? }] } — motivo only makes sense for ausente.
  *
- *  - When `correccion_de_asistencia_id` is set, the new row is
- *    treated as a correction. The referenced row must exist.
- *  - When omitted, the new row is a fresh attendance record.
+ * Success → 201 { presentes, ausentes, total } + revalidatePath(grupo).
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 
-import { requireTalleresApi } from '@/lib/platform/talleres/api-helpers'
+import { requireTalleresApiAuthenticated } from '@/lib/platform/talleres/api-helpers'
+import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 
 interface RouteContext {
   readonly params: Promise<{ readonly id: string }>
 }
 
-interface Body {
+interface Marca {
   readonly inscripcion_id: string
-  readonly persona_id: string
-  readonly estado: 'presente' | 'ausente' | 'no_aplica'
-  readonly correccion_de_asistencia_id?: string
+  readonly estado: 'presente' | 'ausente'
+  readonly motivo?: string
 }
 
-const VALID_ESTADOS = new Set(['presente', 'ausente', 'no_aplica'])
+interface Body {
+  readonly marcas: readonly Marca[]
+}
+
+const ESTADOS = new Set(['presente', 'ausente'])
+const RUTA_GRUPO = '/talleres/[taller]/[edicion]/[grupo]'
 
 export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
-  const gate = await requireTalleresApi('talleres_crecimiento.coordinator.write')
+  const gate = await requireTalleresApiAuthenticated()
   if (!gate.ok) return gate.response
 
   const { id: sesionId } = await ctx.params
@@ -47,78 +53,43 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
   } catch {
     return NextResponse.json({ error: 'invalid-body' }, { status: 400 })
   }
-  if (!body?.inscripcion_id || !body?.persona_id || !body?.estado) {
+
+  const marcas = body?.marcas
+  if (!Array.isArray(marcas) || marcas.length === 0) {
     return NextResponse.json(
-      {
-        error: 'missing-fields',
-        required: ['inscripcion_id', 'persona_id', 'estado'],
-      },
+      { error: 'missing-fields', required: ['marcas'] },
       { status: 400 },
     )
   }
-  if (!VALID_ESTADOS.has(body.estado)) {
-    return NextResponse.json(
-      { error: 'invalid-estado', allowed: ['presente', 'ausente', 'no_aplica'] },
-      { status: 400 },
-    )
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
-  const client: any = gate.supabase
-
-  // Validate sesion exists and is in a state that accepts attendance.
-  const { data: sesion, error: sesErr } = await client
-    .from('taller_sesiones')
-    .select('id, estado')
-    .eq('id', sesionId)
-    .maybeSingle()
-  if (sesErr) {
-    return NextResponse.json({ error: 'internal', message: sesErr.message }, { status: 500 })
-  }
-  if (!sesion) {
-    return NextResponse.json({ error: 'not-found' }, { status: 404 })
-  }
-  if (sesion.estado !== 'en_curso' && sesion.estado !== 'cerrada') {
-    return NextResponse.json(
-      { error: 'invalid-sesion-estado', estado: sesion.estado },
-      { status: 400 },
-    )
-  }
-
-  // If this is a correction, verify the original row exists.
-  if (body.correccion_de_asistencia_id) {
-    const { data: original, error: origErr } = await client
-      .from('taller_asistencias')
-      .select('id')
-      .eq('id', body.correccion_de_asistencia_id)
-      .maybeSingle()
-    if (origErr) {
-      return NextResponse.json({ error: 'internal', message: origErr.message }, { status: 500 })
-    }
-    if (!original) {
+  for (const marca of marcas) {
+    const inscripcionId = marca?.inscripcion_id
+    if (typeof inscripcionId !== 'string' || inscripcionId.length === 0) {
       return NextResponse.json(
-        { error: 'correccion-target-not-found' },
+        { error: 'invalid-marcas', required: ['inscripcion_id'] },
+        { status: 400 },
+      )
+    }
+    if (!ESTADOS.has(marca?.estado)) {
+      return NextResponse.json(
+        { error: 'invalid-estado', allowed: ['presente', 'ausente'] },
         { status: 400 },
       )
     }
   }
 
-  // Insert. We do NOT touch existing rows (immutability).
-  const insert = {
-    sesion_id: sesionId,
-    inscripcion_id: body.inscripcion_id,
-    persona_id: body.persona_id,
-    estado: body.estado,
-    correccion_de_asistencia_id: body.correccion_de_asistencia_id ?? null,
-    version: undefined,
-  }
-  const { data, error } = await client
-    .from('taller_asistencias')
-    .insert(insert)
-    .select('id, sesion_id, inscripcion_id, persona_id, estado, correccion_de_asistencia_id, version')
-    .single()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SQL function not in generated types
+  const client: any = gate.supabase
+  const { data, error } = await client.rpc('talleres_registrar_asistencia', {
+    p_sesion_id: sesionId,
+    p_marcas: marcas,
+  })
   if (error) {
-    return NextResponse.json({ error: 'internal', message: error.message }, { status: 500 })
+    const traducido = traducirErrorTalleres(error, 'No se pudo guardar la asistencia.')
+    return NextResponse.json({ error: traducido.error, message: traducido.message }, {
+      status: traducido.status,
+    })
   }
+
+  revalidatePath(RUTA_GRUPO, 'page')
   return NextResponse.json(data, { status: 201 })
 }
