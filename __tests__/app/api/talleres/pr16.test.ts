@@ -14,6 +14,12 @@
  *     insert/update/delete on taller_asistencias;
  *   - skip-ahead is the function's call now; the route must simply delegate.
  *
+ * T4 did the same to `reporte/enviar`: it now wraps talleres_enviar_reporte
+ * (kill switch + session only, authorization inside the function — covered
+ * in __tests__/app/api/talleres/reporte-enviar.test.ts), so it left the 403
+ * matrix and its 404 now comes from the translated REPORTE_NO_ENCONTRADO
+ * the function raises instead of from a pre-flight table read.
+ *
  * Strategy: each test instantiates a fresh mock client and exercises
  * the route handler directly. The deny-by-default matrix validates that
  *   - 401 when no user
@@ -225,14 +231,13 @@ describe('PR16 — deny-by-default 403 path', () => {
   // and gate only on the kill switch + session — the DB decides authorization,
   // so a caller with no capability reaches the function (see
   // __tests__/app/api/talleres/sesiones-asistencia.test.ts).
+  // NOTE (T4): `reporte/enviar` left this matrix for the same reason — it
+  // wraps talleres_enviar_reporte, and the assigned líder with ZERO
+  // capabilities must reach it (criterio 7).
   it.each([
     [
       'abrir (coordinator.write)',
       () => abrir(makeReq({}), { params: Promise.resolve({ id: 's-1' }) }),
-    ],
-    [
-      'reporte/enviar (coordinator.write)',
-      () => enviarReporte(makeReq({}), { params: Promise.resolve({ id: 'g-1' }) }),
     ],
     [
       'reporte/reabrir (director.write)',
@@ -261,8 +266,9 @@ describe('PR16 — deny-by-default 404 path', () => {
   })
 
   it('reporte no encontrado → 404 on enviar', async () => {
-    state.capabilities.set('talleres_crecimiento.coordinator.write', true)
-    state.singleResult = { data: null, error: null }
+    // T4: the route no longer pre-reads taller_reportes — the function
+    // raises REPORTE_NO_ENCONTRADO and the route translates it to 404.
+    state.rpcResult = { data: null, error: { message: 'REPORTE_NO_ENCONTRADO', code: 'P0001' } }
     const res = await enviarReporte(makeReq({}), { params: Promise.resolve({ id: 'g-1' }) })
     expect(res.status).toBe(404)
   })
@@ -364,8 +370,11 @@ describe('PR16 — attendance immutability', () => {
 
 describe('PR16 — couple unit (1 reporte por grupo)', () => {
   it('enviar rejects when no active reporte exists for the grupo', async () => {
-    state.capabilities.set('talleres_crecimiento.coordinator.write', true)
-    state.singleResult = { data: null, error: null }
+    // T4: no pre-flight read either — talleres_enviar_reporte raises
+    // REPORTE_NO_ENCONTRADO, the route translates it, and taller_reportes
+    // is never written by the route itself (the couple-unit invariant is
+    // now the DB's: taller_reportes_lock_after_send).
+    state.rpcResult = { data: null, error: { message: 'REPORTE_NO_ENCONTRADO', code: 'P0001' } }
     const res = await enviarReporte(makeReq({}), { params: Promise.resolve({ id: 'g-1' }) })
     expect(res.status).toBe(404)
     expect(state.callCounts.update).toBe(0)

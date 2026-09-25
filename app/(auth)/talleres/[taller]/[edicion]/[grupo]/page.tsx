@@ -43,6 +43,18 @@
  * re-checks nothing: talleres_registrar_asistencia / talleres_cerrar_clase
  * are the authorization authority.
  *
+ * T4 (odd/tasks/talleres-asistencia-lider.md): the reporte is sent from
+ * HERE too. `puedeEnviarReporte` repeats the T3 relationship-or-capability
+ * rule (miRol === 'lider', or permisos.gestionarGrupos as the scoped
+ * supervisor fallback — criterio 8), and the control follows the same two
+ * honesty rules: HIDDEN, never disabled (§9), and only when the caller can
+ * actually send. While any clase of the grupo is still open the button is
+ * replaced by copy that COUNTS what is missing ("Faltan 2 clases por
+ * cerrar…"), mirroring talleres_enviar_reporte's own CLASES_ABIERTAS check
+ * (criterio 7). An already-`enviado` reporte and a missing one offer
+ * nothing to send — the function creates no reportes, and the DB refuses a
+ * second envío.
+ *
  * T2 (odd/tasks/talleres-lider-identidad.md): a grupo member (líder or
  * voluntario, via T1's talleres_es_miembro_del_grupo) reads by relation,
  * not by capability. Once T1's RLS lets taller_grupos resolve for them,
@@ -74,6 +86,7 @@ import {
   type RegistroAsistenciaMarca,
 } from '@/components/talleres/registro-asistencia-clase.client'
 import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
+import { EnviarReporte } from '@/components/talleres/enviar-reporte.client'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -227,6 +240,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   // write control is offered there either.
   const puedePasarLista = !modoLimitado && (miRol !== null || permisos.gestionarGrupos)
   const puedeCerrarClase = !modoLimitado && (miRol === 'lider' || permisos.gestionarGrupos)
+  // T4 — sending the reporte is a líder act (criterio 7/8): the same
+  // relationship-or-capability rule as cerrar una clase, never the
+  // capability tree alone. The FUNCTION re-checks it anyway; this only
+  // decides whether the control is offered at all.
+  const puedeEnviarReporte = !modoLimitado && (miRol === 'lider' || permisos.gestionarGrupos)
 
   const asignaciones = await loadGrupoAsignaciones(client, grupoId)
   // T4 (odd/tasks/talleres-inscripcion-a-grupo.md) — "su gente" real: the
@@ -236,6 +254,21 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   const inscripcionesGrupo = await loadGrupoInscripciones(client, grupoId)
   const sesiones = await loadGrupoSesiones(client, grupoId)
   const reporte = await loadGrupoReporte(client, grupoId)
+
+  // T4 — mirror of talleres_enviar_reporte's own precondition: sending
+  // requires EVERY clase `cerrada` o `cancelada` (criterio 7). Counting
+  // them here is what lets the UI hide the button and say HOW MANY are
+  // still missing instead of a vague "no disponible".
+  const clasesAbiertas = sesiones.filter(
+    (s) => s.estado !== 'cerrada' && s.estado !== 'cancelada',
+  ).length
+  // Nothing to send when there is no reporte (the function creates none)
+  // or when it is already `enviado`/`cerrado` (the DB refuses a second
+  // envío) — offering a button that can only fail would be a lie.
+  const reporteListoParaEnviar =
+    puedeEnviarReporte &&
+    reporte !== null &&
+    (reporte.estado === 'borrador' || reporte.estado === 'reabierto')
 
   const claseSeleccionadaId = sp.clase ?? sesiones[0]?.id ?? null
   // T2 (odd/tasks/talleres-asistencia-lider.md): the read view titles the
@@ -537,6 +570,23 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
               </div>
             </TarjetaSistema>
           )}
+
+          {/* T4 — "Enviar reporte". HIDDEN (never disabled) while any clase
+              is still open, with honest copy counting what is missing
+              (criterio 7), and offered only to whoever can actually send.
+              The button itself is the client island that POSTs to
+              .../reporte/enviar → talleres_enviar_reporte. */}
+          {reporteListoParaEnviar && (
+            <div className="mt-3">
+              {clasesAbiertas > 0 ? (
+                <TextoSistema variante="sutil" tamaño="sm" role="status">
+                  {mensajeClasesAbiertas(clasesAbiertas)}
+                </TextoSistema>
+              ) : (
+                <EnviarReporte grupoId={grupoId} />
+              )}
+            </div>
+          )}
         </div>
       </section>
     </ContenedorDashboard>
@@ -558,6 +608,18 @@ function marcasPreviasDe(rows: readonly AsistenciaPersonaRow[]): RegistroAsisten
     }
   }
   return marcas
+}
+
+/**
+ * T4 — the honest copy that replaces the "Enviar reporte" button while the
+ * grupo still has open clases. It names the exact number that is missing
+ * (Decisiones: never a vague "no disponible"), matching what
+ * talleres_enviar_reporte would answer with CLASES_ABIERTAS.
+ */
+function mensajeClasesAbiertas(faltan: number): string {
+  return faltan === 1
+    ? 'Falta 1 clase por cerrar antes de poder enviar el reporte.'
+    : `Faltan ${faltan} clases por cerrar antes de poder enviar el reporte.`
 }
 
 function reporteEstadoLabel(estado: string): string {

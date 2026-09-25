@@ -30,6 +30,7 @@ import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia-clase.client'
 import { RegistroAsistenciaClase } from '@/components/talleres/registro-asistencia-clase.client'
 import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
+import { EnviarReporte } from '@/components/talleres/enviar-reporte.client'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
@@ -754,5 +755,112 @@ describe('GrupoDetallePage — pasar lista / cerrar clase (T3)', () => {
     })
     // The form replaces the read view while the clase is editable.
     expect(findByType(element, LecturaAsistenciaClase)).toBeNull()
+  })
+})
+
+// T4 (odd/tasks/talleres-asistencia-lider.md) — the líder closes the taller
+// by sending the reporte from this same screen. Two rules, both from
+// Decisiones/Criterio 7: the control is HIDDEN (never disabled) while any
+// clase of the grupo is still open, with honest copy counting what is
+// missing — never a vague "no disponible"; and it is offered ONLY to
+// someone who can actually send (talleres_rol_en_grupo = 'lider', or the
+// scoped capability of criterio 8).
+describe('GrupoDetallePage — enviar reporte (T4)', () => {
+  const SESIONES_CERRADAS: readonly GrupoSesion[] = [
+    { ...SESIONES[0], estado: 'cerrada' },
+    { ...SESIONES[1], estado: 'cancelada' },
+  ]
+
+  it('hides the button while clases are open and says HOW MANY are missing', async () => {
+    // Both SESIONES are `programada` → 2 open. Criterio 7 + Decisiones:
+    // hidden, never disabled, and the copy is honest about the count.
+    setup({ miRol: 'lider', reporte: REPORTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, EnviarReporte)).toBeNull()
+    const text = extractText(element)
+    expect(text).toMatch(/Faltan 2 clases por cerrar antes de poder enviar el reporte/)
+    expect(text).not.toMatch(/Enviar reporte/)
+  })
+
+  it('counts singular when exactly one clase is still open', async () => {
+    setup({
+      miRol: 'lider',
+      reporte: REPORTE,
+      sesiones: [{ ...SESIONES[0], estado: 'cerrada' }, SESIONES[1]],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, EnviarReporte)).toBeNull()
+    expect(extractText(element)).toMatch(/Falta 1 clase por cerrar antes de poder enviar el reporte/)
+  })
+
+  it('shows the button when every clase is cerrada or cancelada', async () => {
+    setup({ miRol: 'lider', reporte: REPORTE, sesiones: SESIONES_CERRADAS })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, EnviarReporte)).not.toBeNull()
+    expect(extractText(element)).not.toMatch(/Faltan? \d+ clase/)
+  })
+
+  it('hides the button AND the copy from someone with no relationship and no capability', async () => {
+    setup({ miRol: null, permisos: {}, reporte: REPORTE, sesiones: SESIONES_CERRADAS })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, EnviarReporte)).toBeNull()
+    // The honest count is for whoever could act — an outsider gets neither.
+    expect(extractText(element)).not.toMatch(/clases? por cerrar/)
+    // Hiding the control never hides the data: the reporte card renders.
+    expect(extractText(element)).toMatch(/Buen avance\./)
+  })
+
+  it('hides it from an assigned voluntario (criterio 3: sólo el líder envía)', async () => {
+    setup({ miRol: 'voluntario', reporte: REPORTE, sesiones: SESIONES_CERRADAS })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, EnviarReporte)).toBeNull()
+    expect(extractText(element)).not.toMatch(/clases? por cerrar/)
+  })
+
+  it('shows it to a coordinador con alcance (criterio 8, capacity over relation)', async () => {
+    setup({
+      miRol: null,
+      permisos: { gestionarGrupos: true },
+      reporte: REPORTE,
+      sesiones: SESIONES_CERRADAS,
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, EnviarReporte)).not.toBeNull()
+  })
+
+  it('passes a plain-JSON prop across the RSC boundary (frontera RSC)', async () => {
+    setup({ miRol: 'lider', reporte: REPORTE, sesiones: SESIONES_CERRADAS })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const { grupoId } = findByType(element, EnviarReporte)?.props as { grupoId: string }
+    expect(grupoId).toBe('g-1')
+    expect(JSON.parse(JSON.stringify({ grupoId }))).toEqual({ grupoId })
+  })
+
+  it('offers nothing to send when the reporte was already sent (the DB refuses it)', async () => {
+    setup({
+      miRol: 'lider',
+      reporte: { ...REPORTE, estado: 'enviado', firmaLiderFecha: '2026-10-20T00:00:00Z' },
+      sesiones: SESIONES_CERRADAS,
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, EnviarReporte)).toBeNull()
+    expect(extractText(element)).not.toMatch(/clases? por cerrar/)
+    // The badge still tells the truth.
+    expect(extractText(element)).toMatch(/Enviado/)
+  })
+
+  it('offers nothing to send when there is no reporte yet (creation is out of scope)', async () => {
+    setup({ miRol: 'lider', reporte: null, sesiones: SESIONES_CERRADAS })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, EnviarReporte)).toBeNull()
   })
 })

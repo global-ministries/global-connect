@@ -1,31 +1,50 @@
 /**
- * PR16 — DT-065 — POST /api/talleres/grupos/[id]/reporte/enviar
+ * T4 (odd/tasks/talleres-asistencia-lider.md) — POST
+ * /api/talleres/grupos/[id]/reporte/enviar
  *
- * Submits (sends) the final report for a grupo:
- *   borrador → enviado   (with firma_lider_persona_id + firma_lider_fecha)
+ * Sends the grupo's reporte (borrador/reabierto → enviado). This is a thin
+ * wrapper over talleres_enviar_reporte (T1), the ONLY write path for the
+ * envío transition: the function owns authorization (the grupo's líder, or
+ * the supervisor with a capability scoped to the grupo's equipo), the
+ * "every clase must be cerrada/cancelada" rule and the signature. The
+ * route only:
  *
- * 1 reporte por unidad (couple unit): if the taller is `pareja`, the
- * inscripcion has both persona_principal + companero. The report is
- * tied to a single grupo, so this endpoint enforces "one report per
- * grupo per inscripcion unit" via the inscripcion count for that grupo.
+ *   1. applies the kill switch + session gate (no capability consultation —
+ *      an assigned líder holding ZERO talleres capabilities must be able to
+ *      send, criterio 7, same conclusion as T3's asistencia/cerrar);
+ *   2. forwards the optional observaciones;
+ *   3. translates whatever the function (or taller_reportes_lock_after_send)
+ *      refused into HTTP + Spanish.
  *
- * Capability: `talleres_crecimiento.coordinator.write`.
+ * The firma is NEVER taken from the body: talleres_enviar_reporte signs
+ * with auth.uid() (criterio 3 — the líder signs their own send), so the old
+ * `firma_lider_persona_id` field is gone. Reporte CREATION stays where it
+ * was: this function does not create reportes.
+ *
+ * Body: {} or { observaciones?: string }.
+ *
+ * Success → 200 { reporte_id, estado } + revalidatePath(grupo) so the
+ * screen shows `enviado` at once.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 
-import { requireTalleresApi } from '@/lib/platform/talleres/api-helpers'
+import { requireTalleresApiAuthenticated } from '@/lib/platform/talleres/api-helpers'
+import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 
 interface RouteContext {
   readonly params: Promise<{ readonly id: string }>
 }
 
 interface Body {
-  readonly firma_lider_persona_id?: string
+  readonly observaciones?: unknown
 }
 
+const RUTA_GRUPO = '/talleres/[taller]/[edicion]/[grupo]'
+
 export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextResponse> {
-  const gate = await requireTalleresApi('talleres_crecimiento.coordinator.write')
+  const gate = await requireTalleresApiAuthenticated()
   if (!gate.ok) return gate.response
 
   const { id: grupoId } = await ctx.params
@@ -36,49 +55,21 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
   } catch {
     body = {}
   }
+  const observaciones = typeof body?.observaciones === 'string' ? body.observaciones : null
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SQL function not in generated types
   const client: any = gate.supabase
-
-  // Validate the current reporte state for this grupo. There can be at
-  // most one (borrador|enviado|reabierto) reporte per grupo at a time
-  // due to the trigger taller_reportes_lock_after_send.
-  const { data: current, error: curErr } = await client
-    .from('taller_reportes')
-    .select('id, estado')
-    .eq('grupo_id', grupoId)
-    .in('estado', ['borrador', 'enviado', 'reabierto'])
-    .maybeSingle()
-  if (curErr) {
-    return NextResponse.json({ error: 'internal', message: curErr.message }, { status: 500 })
-  }
-  if (!current) {
-    return NextResponse.json({ error: 'no-active-reporte' }, { status: 404 })
-  }
-  if (current.estado !== 'borrador') {
-    return NextResponse.json(
-      { error: 'invalid-transition', from: current.estado, to: 'enviado' },
-      { status: 400 },
-    )
-  }
-
-  const update: Record<string, unknown> = {
-    estado: 'enviado',
-    firma_lider_fecha: new Date().toISOString(),
-    version: undefined,
-  }
-  if (body.firma_lider_persona_id) {
-    update['firma_lider_persona_id'] = body.firma_lider_persona_id
-  }
-
-  const { data, error } = await client
-    .from('taller_reportes')
-    .update(update)
-    .eq('id', current.id)
-    .select('id, grupo_id, estado, firma_lider_persona_id, firma_lider_fecha, version')
-    .single()
+  const { data, error } = await client.rpc('talleres_enviar_reporte', {
+    p_grupo_id: grupoId,
+    p_observaciones: observaciones,
+  })
   if (error) {
-    return NextResponse.json({ error: 'internal', message: error.message }, { status: 500 })
+    const traducido = traducirErrorTalleres(error, 'No se pudo enviar el reporte.')
+    return NextResponse.json({ error: traducido.error, message: traducido.message }, {
+      status: traducido.status,
+    })
   }
-  return NextResponse.json(data)
+
+  revalidatePath(RUTA_GRUPO, 'page')
+  return NextResponse.json(data, { status: 200 })
 }
