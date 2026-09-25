@@ -385,6 +385,19 @@ describe('GrupoDetallePage — full access', () => {
     expect(text).toMatch(/Clase\s*2/)
   })
 
+  it('names each clase with its tema in the list, falling back when tema is NULL', async () => {
+    // Decisiones (Interfaz): "Clase {numero} · {tema}". Deferred from T2 with
+    // an explicit "decidir si entra en T3" — it does: same section, one line,
+    // and never invents a name for the clase without tema.
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).toMatch(/Clase\s*1.*Introducción/)
+    expect(text).toMatch(/Clase\s*2/)
+    expect(text).not.toMatch(/Clase\s*2.*·/)
+  })
+
   it('shows asistencia for the default (first) clase by person name', async () => {
     setup({})
     await GrupoDetallePage(params())

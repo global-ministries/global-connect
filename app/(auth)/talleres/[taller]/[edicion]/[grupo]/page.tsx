@@ -414,9 +414,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex min-w-0 flex-wrap items-center gap-3">
-                      {/* The selector keeps the plain "Clase {numero}" so a long
-                          list stays scannable; the clase's name (taller_sesiones.
-                          tema, T1/T2) shows as the title of the read view below. */}
+                      {/* Decisiones (Interfaz): "Clase {numero} · {tema}".
+                          Deferred from T2 with an explicit "decidir si entra
+                          en T3" — it does, since the same section renders the
+                          tema everywhere else. A clase without tema keeps the
+                          bare "Clase {numero}"; we never invent a name. */}
                       <Link
                         href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
                         className={
@@ -426,6 +428,7 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                         }
                       >
                         Clase {s.numero}
+                        {s.tema ? ` · ${s.tema}` : ''}
                       </Link>
                       <TextoSistema variante="sutil" tamaño="sm">
                         {formatFecha(s.fechaProgramada)}
