@@ -27,6 +27,7 @@
 
 import GrupoDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/[grupo]/page'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia-clase.client'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
@@ -149,12 +150,13 @@ const ASIGNACIONES: readonly GrupoAsignacionPersona[] = [
 ]
 
 const SESIONES: readonly GrupoSesion[] = [
-  { id: 's-1', numero: 1, fechaProgramada: '2026-10-06', fechaRealizada: null, estado: 'programada' },
-  { id: 's-2', numero: 2, fechaProgramada: '2026-10-13', fechaRealizada: null, estado: 'programada' },
+  { id: 's-1', numero: 1, fechaProgramada: '2026-10-06', fechaRealizada: null, estado: 'programada', tema: 'Introducción' },
+  { id: 's-2', numero: 2, fechaProgramada: '2026-10-13', fechaRealizada: null, estado: 'programada', tema: null },
 ]
 
 const ASISTENCIA: readonly AsistenciaPersonaRow[] = [
-  { id: 'as-1', personaId: 'p-part', nombre: 'Ana López', estado: 'presente' },
+  { id: 'as-1', personaId: 'p-part', nombre: 'Ana López', estado: 'presente', motivo: null },
+  { id: 'as-2', personaId: 'p-part2', nombre: 'Luis Ruiz', estado: 'ausente', motivo: 'Viaje de trabajo' },
 ]
 
 const REPORTE: GrupoReporte = {
@@ -259,6 +261,28 @@ function findByType(node: unknown, type: unknown): { props: Record<string, unkno
     return findByType(el.props?.children, type)
   }
   return null
+}
+
+/**
+ * Every element of the given type, WITHOUT executing it. The page renders
+ * several EstadoVacio (participantes AND asistencia), so "the first one"
+ * is not necessarily the section under test.
+ */
+function findAllByType(node: unknown, type: unknown): Array<{ props: Record<string, unknown> }> {
+  if (node === null || node === undefined || typeof node === 'boolean') return []
+  if (Array.isArray(node)) {
+    const found: Array<{ props: Record<string, unknown> }> = []
+    for (const child of node) found.push(...findAllByType(child, type))
+    return found
+  }
+  if (typeof node === 'object' && node !== null && 'type' in node) {
+    const el = node as { type: unknown; props?: { children?: unknown } }
+    const found: Array<{ props: Record<string, unknown> }> = []
+    if (el.type === type) found.push(el as { props: Record<string, unknown> })
+    found.push(...findAllByType(el.props?.children, type))
+    return found
+  }
+  return []
 }
 
 describe('GrupoDetallePage — gate', () => {
@@ -546,5 +570,65 @@ describe('GrupoDetallePage — degraded/limited access (real líder, zero capabi
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     expect(extractText(element).length).toBeGreaterThan(0)
+  })
+})
+
+// T2 (odd/tasks/talleres-asistencia-lider.md) — read view of ONE marked
+// clase, the AttendanceList pattern re-implemented under talleres' own
+// components. The page composes it with two plain props (numero, tema) and
+// the rows themselves — every value crossing into the 'use client' island
+// is JSON-serializable (lección del paso 5: Jest no cruza la frontera
+// RSC), asserted below by round-tripping the props through JSON.
+describe('GrupoDetallePage — lectura de una clase marcada (T2)', () => {
+  it('renders the read view for the selected clase with its número, tema and rows', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const vista = findByType(element, LecturaAsistenciaClase)
+    expect(vista).not.toBeNull()
+    expect(vista?.props.numero).toBe(1)
+    expect(vista?.props.tema).toBe('Introducción')
+    expect(vista?.props.filas).toEqual(ASISTENCIA)
+  })
+
+  it('passes serializable props across the RSC boundary (nothing survives JSON that should)', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const vista = findByType(element, LecturaAsistenciaClase)
+    const { numero, tema, filas } = vista?.props as {
+      numero: number
+      tema: string | null
+      filas: readonly AsistenciaPersonaRow[]
+    }
+    expect(JSON.parse(JSON.stringify({ numero, tema, filas }))).toEqual({ numero, tema, filas })
+  })
+
+  it('passes tema through as NULL for the clase without one (read view falls back to "Clase {numero}")', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params('proximo-paso', 'e-1', 'g-1', 's-2'))) as any
+    const vista = findByType(element, LecturaAsistenciaClase)
+    expect(vista?.props.numero).toBe(2)
+    expect(vista?.props.tema).toBeNull()
+  })
+
+  it('does not render the read view while the clase has no asistencia yet', async () => {
+    // `ver` granted (like the reporte empty-state tests) so the empty copy
+    // is the "nothing yet" branch, not the capability-denied one.
+    setup({ asistencia: [], permisos: { ver: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, LecturaAsistenciaClase)).toBeNull()
+    // Several EstadoVacio exist on this page (participantes section first);
+    // assert the one the asistencia section actually renders.
+    const vacios = findAllByType(element, EstadoVacio)
+    expect(vacios.some((e) => /aún no hay asistencia/i.test(String(e.props.titulo)))).toBe(true)
+  })
+
+  it('does not load asistencia for a ?clase= that does not belong to this grupo', async () => {
+    setup({})
+    await GrupoDetallePage(params('proximo-paso', 'e-1', 'g-1', 's-de-otro-grupo'))
+    expect(grupoDetalleModule.loadAsistenciaPorClase).not.toHaveBeenCalled()
   })
 })

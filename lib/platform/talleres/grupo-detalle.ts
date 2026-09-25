@@ -422,13 +422,16 @@ export interface GrupoSesion {
   readonly fechaProgramada: string
   readonly fechaRealizada: string | null
   readonly estado: 'programada' | 'en_curso' | 'cerrada' | 'cancelada'
+  /** taller_sesiones.tema (T1, 20260925090000) — the clase's own name; NULL until the líder writes one. */
+  readonly tema: string | null
 }
 
 /**
- * The grupo's clases, ordered by número. taller_sesiones has NO nombre/
- * tema column today (verified against staging's information_schema) —
- * unlike Grupos de Vida's asistencia, which already has `tema` (docs
- * §9). The page renders "Clase {numero}" and does not invent a name.
+ * The grupo's clases, ordered by número. `tema` is taller_sesiones' class
+ * name (T1, odd/tasks/talleres-asistencia-lider.md) — added because docs
+ * §9 asks the UI to show "Clase {numero} · {tema}"; it is NULL for a
+ * clase the líder hasn't named yet, and the read view falls back to
+ * "Clase {numero}" rather than inventing a name.
  */
 export async function loadGrupoSesiones(
   client: SesionesQueryClient,
@@ -436,7 +439,7 @@ export async function loadGrupoSesiones(
 ): Promise<readonly GrupoSesion[]> {
   const { data, error } = await client
     .from('taller_sesiones')
-    .select('id, numero, fecha_programada, fecha_realizada, estado')
+    .select('id, numero, fecha_programada, fecha_realizada, estado, tema')
     .eq('grupo_id', grupoId)
     .order('numero', { ascending: true })
 
@@ -448,6 +451,7 @@ export async function loadGrupoSesiones(
       fecha_programada: string
       fecha_realizada: string | null
       estado: GrupoSesion['estado']
+      tema: string | null
     }
     return {
       id: r.id,
@@ -455,6 +459,7 @@ export async function loadGrupoSesiones(
       fechaProgramada: r.fecha_programada,
       fechaRealizada: r.fecha_realizada,
       estado: r.estado,
+      tema: r.tema ?? null,
     }
   })
 }
@@ -466,6 +471,8 @@ export interface AsistenciaPersonaRow {
   readonly personaId: string
   readonly nombre: string
   readonly estado: 'presente' | 'ausente' | 'no_aplica'
+  /** taller_asistencias.motivo (T1) — only meaningful when estado='ausente' (DB CHECK); NULL otherwise. */
+  readonly motivo: string | null
 }
 
 interface AsistenciaQueryClient {
@@ -490,6 +497,12 @@ interface AsistenciaQueryClient {
  * identifier — reusing the EXISTING talleres_coord_inscripciones_personas
  * RPC (operacional.ts's loadCoordInscripcionesPendientes already calls
  * it) rather than a new DB function.
+ *
+ * T2 (odd/tasks/talleres-asistencia-lider.md): also exposes
+ * taller_asistencias.motivo (T1's column, the absence reason the read
+ * view shows under an ausente, mirroring Grupos de Vida's AttendanceList).
+ * The DB CHECK only allows a motivo when estado='ausente', so any other
+ * row is mapped to NULL, never to a stale string.
  */
 export async function loadAsistenciaPorClase(
   client: AsistenciaQueryClient,
@@ -497,7 +510,7 @@ export async function loadAsistenciaPorClase(
 ): Promise<readonly AsistenciaPersonaRow[]> {
   const { data, error } = await client
     .from('taller_asistencias')
-    .select('id, persona_id, inscripcion_id, estado')
+    .select('id, persona_id, inscripcion_id, estado, motivo')
     .eq('sesion_id', sesionId)
     .order('created_at', { ascending: true })
 
@@ -508,6 +521,7 @@ export async function loadAsistenciaPorClase(
     persona_id: string
     inscripcion_id: string
     estado: AsistenciaPersonaRow['estado']
+    motivo: string | null
   }>
   const inscripcionIds = Array.from(new Set(rows.map((r) => r.inscripcion_id)))
 
@@ -528,6 +542,7 @@ export async function loadAsistenciaPorClase(
     personaId: r.persona_id,
     nombre: nombreByInscripcion.get(r.inscripcion_id) || '—',
     estado: r.estado,
+    motivo: r.estado === 'ausente' ? r.motivo ?? null : null,
   }))
 }
 

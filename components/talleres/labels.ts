@@ -190,3 +190,33 @@ export function unitEstadoLabel(estado: string): string {
 export function unitEstadoBadgeVariante(estado: string): BadgeVariante {
   return (UNIT_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
 }
+
+/**
+ * T2 (odd/tasks/talleres-asistencia-lider.md) — a `taller_asistencias.
+ * estado` row (presente / ausente / no_aplica). The read view of a clase
+ * (components/talleres/lectura-asistencia-clase.client.tsx) renders every
+ * row through this map instead of the raw key, and T3's register form
+ * reuses it — one map, one place to change (docs §9, "Color y estado").
+ */
+export type AsistenciaEstado = 'presente' | 'ausente' | 'no_aplica'
+
+export const ASISTENCIA_ESTADO_LABELS: Record<AsistenciaEstado, string> = {
+  presente: 'Presente',
+  ausente: 'Ausente',
+  no_aplica: 'No aplica',
+}
+
+export const ASISTENCIA_ESTADO_BADGE_VARIANTE: Record<AsistenciaEstado, BadgeVariante> = {
+  presente: 'success',
+  ausente: 'error',
+  no_aplica: 'default',
+}
+
+/** Never render a raw `taller_asistencias.estado` key — always go through this. */
+export function asistenciaEstadoLabel(estado: string): string {
+  return (ASISTENCIA_ESTADO_LABELS as Readonly<Record<string, string>>)[estado] ?? estado
+}
+
+export function asistenciaEstadoBadgeVariante(estado: string): BadgeVariante {
+  return (ASISTENCIA_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
+}

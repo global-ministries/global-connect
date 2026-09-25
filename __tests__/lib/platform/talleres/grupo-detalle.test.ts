@@ -314,13 +314,56 @@ describe('loadGrupoSesiones', () => {
     ])
     const result = await loadGrupoSesiones(client, 'g-1')
     expect(result).toEqual([
-      { id: 's-1', numero: 1, fechaProgramada: '2026-10-01', fechaRealizada: null, estado: 'programada' },
+      {
+        id: 's-1',
+        numero: 1,
+        fechaProgramada: '2026-10-01',
+        fechaRealizada: null,
+        estado: 'programada',
+        // The fixture doesn't select tema; the loader maps it to null
+        // rather than undefined (the read view's fallback branch).
+        tema: null,
+      },
     ])
   })
 
   it('returns [] on a query error (RLS-hidden or genuinely empty look the same)', async () => {
     const { client } = buildListClientMock(null, { message: 'boom' })
     expect(await loadGrupoSesiones(client, 'g-1')).toEqual([])
+  })
+
+  // T2 (odd/tasks/talleres-asistencia-lider.md) — taller_sesiones.tema is
+  // the class's name: the read view titles the clase
+  // "Clase {numero} · {tema}" when it exists and falls back to
+  // "Clase {numero}" when the column is NULL.
+  it('exposes the taller_sesiones.tema column', async () => {
+    const { client } = buildListClientMock([
+      {
+        id: 's-1',
+        numero: 1,
+        fecha_programada: '2026-10-01',
+        fecha_realizada: null,
+        estado: 'programada',
+        tema: 'Introducción',
+      },
+    ])
+    const result = await loadGrupoSesiones(client, 'g-1')
+    expect(result[0]?.tema).toBe('Introducción')
+  })
+
+  it('keeps tema as null when the column is NULL (the read view falls back to "Clase {numero}")', async () => {
+    const { client } = buildListClientMock([
+      {
+        id: 's-1',
+        numero: 1,
+        fecha_programada: '2026-10-01',
+        fecha_realizada: null,
+        estado: 'programada',
+        tema: null,
+      },
+    ])
+    const result = await loadGrupoSesiones(client, 'g-1')
+    expect(result[0]?.tema).toBeNull()
   })
 })
 
@@ -352,7 +395,7 @@ describe('loadAsistenciaPorClase', () => {
       p_inscripcion_ids: ['i-1'],
     })
     expect(result).toEqual([
-      { id: 'as-1', personaId: 'p-1', nombre: 'Ana Gómez', estado: 'presente' },
+      { id: 'as-1', personaId: 'p-1', nombre: 'Ana Gómez', estado: 'presente', motivo: null },
     ])
   })
 
@@ -375,6 +418,46 @@ describe('loadAsistenciaPorClase', () => {
   it('returns [] on a query error', async () => {
     const { client } = buildAsistenciaClientMock(null, [])
     expect(await loadAsistenciaPorClase(client, 's-1')).toEqual([])
+  })
+
+  // T2 (odd/tasks/talleres-asistencia-lider.md) — taller_asistencias.motivo
+  // (T1's migration) is what the read view shows under an absent person,
+  // mirroring Grupos de Vida's AttendanceList. The DB CHECK only allows a
+  // motivo when estado='ausente', so any other row must come back null.
+  it('exposes the taller_asistencias.motivo column for an ausente row', async () => {
+    const { client } = buildAsistenciaClientMock(
+      [
+        {
+          id: 'as-1',
+          persona_id: 'p-1',
+          inscripcion_id: 'i-1',
+          estado: 'ausente',
+          motivo: 'Viaje de trabajo',
+        },
+      ],
+      [{ inscripcion_id: 'i-1', pp_nombre: 'Ana', pp_apellido: 'Gómez' }],
+    )
+    const result = await loadAsistenciaPorClase(client, 's-1')
+    expect(result[0]?.motivo).toBe('Viaje de trabajo')
+  })
+
+  it('keeps motivo as null for a presente row (CHECK: motivo only with ausente)', async () => {
+    const { client } = buildAsistenciaClientMock(
+      [
+        {
+          id: 'as-1',
+          persona_id: 'p-1',
+          inscripcion_id: 'i-1',
+          estado: 'presente',
+          // A motivo that somehow rides along with a non-ausente row must
+          // never reach the UI — the mapping enforces the DB CHECK.
+          motivo: 'legacy motivo',
+        },
+      ],
+      [{ inscripcion_id: 'i-1', pp_nombre: 'Ana', pp_apellido: 'Gómez' }],
+    )
+    const result = await loadAsistenciaPorClase(client, 's-1')
+    expect(result[0]?.motivo).toBeNull()
   })
 })
 
