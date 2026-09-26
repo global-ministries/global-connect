@@ -20,9 +20,14 @@
  * uses); its onSelect yields a usuarios.id, which is exactly what
  * taller_grupo_asignaciones.persona_id expects.
  *
- * NOTE (follow-up): SelectLeaderModal searches system-role `lider` users only,
- * so the "voluntario" pool is currently drawn from that same set. Broadening it
- * needs a gated generic user-search endpoint — tracked as a follow-up.
+ * BUGFIX (talleres-buscar-personas) — SelectLeaderModal used to hardcode
+ * /api/lideres/buscar, which searches Grupos-de-Vida's system-role `lider`
+ * users only, so the líder/voluntario pool here was wrongly narrowed to
+ * that same set (a talleres facilitator need not be a GdV leader). It now
+ * points the picker at /api/talleres/admin/usuarios/buscar via the
+ * `searchEndpoint` prop, backed by the capability-gated
+ * talleres_buscar_personas RPC — GdV's own screens keep the default
+ * /api/lideres/buscar untouched.
  *
  * T4 (odd/tasks/talleres-consolidar-pantallas.md) — moved here from
  * app/(auth)/admin/talleres/edicion/[id]/ so /talleres/[taller]/[edicion]
@@ -332,6 +337,7 @@ export function GruposSection({ cohorteId, tallerSlug, edicionId }: GruposSectio
         }}
         title="Seleccionar persona"
         description={`Asignar como ${rolLabel} al grupo.`}
+        searchEndpoint="/api/talleres/admin/usuarios/buscar"
       />
     </TarjetaSistema>
   )
