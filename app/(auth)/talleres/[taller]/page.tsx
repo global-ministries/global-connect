@@ -153,6 +153,12 @@ export default async function TallerDetallePage(ctx: RouteContext) {
     loadPlantillaGrupos(client, taller.id),
   ])
 
+  // "Abrir edición" no longer asks for sesiones estimadas (Decisiones):
+  // derived from the active plantilla clases, or the form's previous
+  // default (1) when the taller has no plantilla yet — open_edicion still
+  // requires the parameter, it just no longer comes from user input.
+  const sesionesEstimadas = plantillaClases.filter((clase) => clase.activo).length || 1
+
   return (
     <ContenedorDashboard
       titulo={taller.nombre}
@@ -289,6 +295,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             tallerNombre={taller.nombre}
             defaultModalidad={taller.modalidad_default}
             temporadasAbiertas={temporadasAbiertas}
+            sesionesEstimadas={sesionesEstimadas}
           />
         </div>
       )}

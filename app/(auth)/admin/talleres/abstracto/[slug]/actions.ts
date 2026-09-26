@@ -40,12 +40,31 @@ export interface OpenEdicionInput {
   readonly temporada_id: string | null
 }
 
+/** One instantiated grupo, per open_edicion's `grupos_creados` (T2, migration 20260927100000_talleres_instanciar_edicion.sql). */
+export interface OpenEdicionGrupoCreado {
+  readonly grupoId: string
+  readonly nombre: string
+  readonly facilitadoresAsignados: number
+}
+
+/** A plantilla facilitador skipped at instantiation time because they are no longer an active servidor of the taller's node (per open_edicion's `facilitadores_omitidos`). */
+export interface OpenEdicionFacilitadorOmitido {
+  readonly personaId: string
+  readonly nombre: string | null
+  readonly apellido: string | null
+  readonly plantillaGrupo: string
+}
+
 export type OpenEdicionResult =
   | {
       readonly ok: true
       readonly edicionId: string
       readonly periodoId: string | null
       readonly temporadaId: string | null
+      /** T3 — instantiated from the taller's plantilla in the same open_edicion transaction. */
+      readonly gruposCreados: readonly OpenEdicionGrupoCreado[]
+      readonly facilitadoresOmitidos: readonly OpenEdicionFacilitadorOmitido[]
+      readonly clasesPorGrupo: number
     }
   | {
       readonly ok: false
@@ -157,12 +176,32 @@ export async function openEdicion(input: OpenEdicionInput): Promise<OpenEdicionR
     edicion_id: string
     periodo_id: string | null
     temporada_id: string | null
+    grupos_creados?: ReadonlyArray<{ grupo_id: string; nombre: string; facilitadores_asignados: number }>
+    facilitadores_omitidos?: ReadonlyArray<{
+      persona_id: string
+      nombre: string | null
+      apellido: string | null
+      plantilla_grupo: string
+    }>
+    clases_por_grupo?: number
   }
   return {
     ok: true,
     edicionId: result.edicion_id,
     periodoId: result.periodo_id,
     temporadaId: result.temporada_id ?? null,
+    gruposCreados: (result.grupos_creados ?? []).map((g) => ({
+      grupoId: g.grupo_id,
+      nombre: g.nombre,
+      facilitadoresAsignados: g.facilitadores_asignados,
+    })),
+    facilitadoresOmitidos: (result.facilitadores_omitidos ?? []).map((f) => ({
+      personaId: f.persona_id,
+      nombre: f.nombre,
+      apellido: f.apellido,
+      plantillaGrupo: f.plantilla_grupo,
+    })),
+    clasesPorGrupo: result.clases_por_grupo ?? 0,
   }
 }
 
