@@ -17,11 +17,15 @@
  * component moved.
  *
  * T3 (odd/tasks/talleres-configuracion-del-taller.md) — the "Duración
- * (semanas)" field (sesiones_estimadas) is gone (Decisiones: "sesiones_
- * estimadas deja de pedirse en el formulario"). The page now derives it
- * from the taller's active plantilla clases (or the form's previous
- * default of 1 when there is no plantilla) and passes it down as
- * `sesionesEstimadas` — a plain number, never user-editable here.
+ * (semanas)" field (sesiones_estimadas) is gone ONLY when the taller has
+ * an active plantilla (Decisiones: "sesiones_estimadas deja de pedirse
+ * en el formulario"): the page derives the count from it and passes a
+ * plain number as `sesionesEstimadas`, never user-editable. A taller
+ * with NO active plantilla clases keeps behaving exactly as before
+ * (acceptance criterion 8) — the page passes `sesionesEstimadas: null`,
+ * and this component falls back to its own original numeric field
+ * (label, min=1, default=1, "1 semana = 1 sesión" helper text), sending
+ * whatever the user types.
  *
  * After a successful open, open_edicion's instantiation summary (T2,
  * migration 20260927100000_talleres_instanciar_edicion.sql) is shown:
@@ -49,12 +53,12 @@ interface Input {
    */
   readonly temporadasAbiertas: ReadonlyArray<{ readonly id: string; readonly nombre: string }>
   /**
-   * T3 — number of active plantilla clases (or the previous default of 1
-   * when the taller has none yet). Sent verbatim as `sesiones_estimadas`;
-   * open_edicion still requires the parameter, it just no longer comes
-   * from user input.
+   * T3 — number of active plantilla clases, or `null` when the taller
+   * has none yet (acceptance criterion 8: keep the old form). A number
+   * is sent verbatim as `sesiones_estimadas`, hiding the field; `null`
+   * shows the field again and sends whatever the user types.
    */
-  readonly sesionesEstimadas: number
+  readonly sesionesEstimadas: number | null
 }
 
 type Resumen = Extract<OpenEdicionResult, { ok: true }>
@@ -79,6 +83,7 @@ export function OpenEdicionForm({
   const [nombreEdicion, setNombreEdicion] = useState('')
   const [tipo, setTipo] = useState<'individual' | 'pareja'>('pareja')
   const [linkType, setLinkType] = useState<'matrimonio' | 'novios' | ''>('')
+  const [sesiones, setSesiones] = useState<number>(1)
   const [duracion, setDuracion] = useState<number>(60)
   const [modalidad, setModalidad] = useState<'periodo_general' | 'permanente_custom'>(defaultModalidad)
   const [temporadaId, setTemporadaId] = useState<string>('')
@@ -96,7 +101,7 @@ export function OpenEdicionForm({
         tipo,
         nombre_edicion: nombreEdicion.trim(),
         link_type: tipo === 'pareja' && linkType !== '' ? (linkType as 'matrimonio' | 'novios') : null,
-        sesiones_estimadas: sesionesEstimadas,
+        sesiones_estimadas: sesionesEstimadas ?? sesiones,
         duracion_estimada_minutos: duracion,
         modalidad_inscripcion: modalidad,
         fecha_inicio_periodo: new Date(fechaInicio).toISOString(),
@@ -199,6 +204,19 @@ export function OpenEdicionForm({
             <option value="novios">Novios</option>
           </select>
         </label>
+        {sesionesEstimadas === null && (
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium">Duración (semanas) *</span>
+            <input
+              type="number"
+              min={1}
+              value={sesiones}
+              onChange={(e) => setSesiones(Number(e.target.value))}
+              className="w-full rounded border px-3 py-2"
+            />
+            <span className="mt-1 block text-xs text-muted-foreground">1 semana = 1 sesión.</span>
+          </label>
+        )}
         <label className="block">
           <span className="mb-1 block text-sm font-medium">Duración por sesión (min) *</span>
           <input

@@ -153,11 +153,13 @@ export default async function TallerDetallePage(ctx: RouteContext) {
     loadPlantillaGrupos(client, taller.id),
   ])
 
-  // "Abrir edición" no longer asks for sesiones estimadas (Decisiones):
-  // derived from the active plantilla clases, or the form's previous
-  // default (1) when the taller has no plantilla yet — open_edicion still
-  // requires the parameter, it just no longer comes from user input.
-  const sesionesEstimadas = plantillaClases.filter((clase) => clase.activo).length || 1
+  // "Abrir edición" derives sesiones estimadas from the active plantilla
+  // clases when the taller has one (Decisiones). A taller with NO active
+  // plantilla clases keeps today's form untouched (acceptance criterion
+  // 8): `null` tells OpenEdicionForm to show its own "sesiones" field
+  // again, exactly as before — there is no silent numeric fallback here.
+  const clasesActivas = plantillaClases.filter((clase) => clase.activo).length
+  const sesionesEstimadas = clasesActivas > 0 ? clasesActivas : null
 
   return (
     <ContenedorDashboard

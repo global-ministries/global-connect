@@ -420,11 +420,21 @@ describe('TallerDetallePage — permission wiring', () => {
     expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBe(2)
   })
 
-  it('falls back sesionesEstimadas to 1 when the taller has no plantilla clases (acceptance criterion 8)', async () => {
+  it('passes sesionesEstimadas as null when the taller has no active plantilla clases, so OpenEdicionForm keeps the old sesiones field (acceptance criterion 8)', async () => {
     setup({ permisos: { abrirEdicion: true }, plantillaClases: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBe(1)
+    expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBeNull()
+  })
+
+  it('passes sesionesEstimadas as null when every plantilla clase is inactive', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      plantillaClases: [{ id: 'c-1', numero: 1, tema: 'Sígueme', activo: false }],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBeNull()
   })
 
   it('passes taller.dream_team_equipo_id to cargarPermisos', async () => {

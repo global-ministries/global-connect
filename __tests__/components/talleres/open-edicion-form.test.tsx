@@ -1,12 +1,16 @@
 /**
  * @jest-environment jsdom
  *
- * T3 (odd/tasks/talleres-configuracion-del-taller.md) — OpenEdicionForm no
- * longer asks for "sesiones estimadas": the taller screen derives
- * `sesionesEstimadas` from the plantilla's active clases (or the form's
- * previous default of 1 when the taller has none) and passes it down as a
- * plain prop — the form just forwards it to the openEdicion RPC call, it
- * never lets the user type a class count anymore.
+ * T3 (odd/tasks/talleres-configuracion-del-taller.md) — OpenEdicionForm
+ * asks for "sesiones estimadas" ONLY when the taller has no active
+ * plantilla clases (acceptance criterion 8: a taller with no plantilla
+ * keeps behaving exactly as before). The page passes `sesionesEstimadas`
+ * as `null` in that case — the form then shows its own original
+ * "Duración (semanas)" field (label, min=1, default=1, the "1 semana = 1
+ * sesión" helper text) and sends whatever the user types. When the
+ * taller DOES have an active plantilla, the page passes the derived
+ * count as a number, the field is hidden, and that number is sent
+ * as-is — never a user-typed value.
  *
  * After a successful open, the form shows the instantiation summary
  * open_edicion now returns (T2, migration 20260927100000_talleres_
@@ -84,6 +88,38 @@ describe('OpenEdicionForm — no "sesiones estimadas" field', () => {
       expect(openEdicionMock).toHaveBeenCalledWith(expect.objectContaining({ sesiones_estimadas: 4 })),
     )
     await screen.findByText(/0 grupos/i)
+  })
+})
+
+describe('OpenEdicionForm — no plantilla yet (sesionesEstimadas: null)', () => {
+  it('shows the old sesiones field, defaulting to 1, with its helper text', () => {
+    render(<OpenEdicionForm {...baseProps({ sesionesEstimadas: null })} />)
+    openForm()
+    const sesionesInput = screen.getByLabelText(/duración \(semanas\)/i)
+    expect(sesionesInput).toHaveValue(1)
+    expect(sesionesInput).toHaveAttribute('min', '1')
+    expect(screen.getByText(/1 semana = 1 sesión/i)).toBeInTheDocument()
+  })
+
+  it('sends the user-entered value as sesiones_estimadas', async () => {
+    openEdicionMock.mockResolvedValue({
+      ok: true,
+      edicionId: 'e-1',
+      periodoId: null,
+      temporadaId: null,
+      gruposCreados: [],
+      facilitadoresOmitidos: [],
+      clasesPorGrupo: 0,
+    })
+    render(<OpenEdicionForm {...baseProps({ sesionesEstimadas: null })} />)
+    openForm()
+    fireEvent.change(screen.getByPlaceholderText(/Otoño 2026/i), { target: { value: 'Primavera 2027' } })
+    fireEvent.change(screen.getByLabelText(/duración \(semanas\)/i), { target: { value: '8' } })
+    fireEvent.change(screen.getByLabelText(/fecha inicio/i), { target: { value: '2027-03-01' } })
+    fireEvent.click(screen.getByRole('button', { name: /^abrir edición$/i }))
+    await waitFor(() =>
+      expect(openEdicionMock).toHaveBeenCalledWith(expect.objectContaining({ sesiones_estimadas: 8 })),
+    )
   })
 })
 
