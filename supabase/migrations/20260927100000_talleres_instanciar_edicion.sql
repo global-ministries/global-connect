@@ -29,21 +29,37 @@
 --       sesiones row per number from 1 to that snapshot, one week apart,
 --       with no tema.
 --
+-- CORRECTION (post-T2 parent review): the first cut of this migration
+-- used the plantilla's own `numero` verbatim as the instantiated clase's
+-- numero. That is a real defect, not an accepted limitation: deactivating
+-- any plantilla row except the last one leaves a gap (e.g. active
+-- numero 1,3,4), and taller_sesiones' own trg_taller_sesiones_validate_
+-- insert requires strictly sequential numero per grupo — inserting
+-- numero=3 with no numero=2 row for that grupo raises that trigger's
+-- exception outright, so a taller with a deactivated middle clase could
+-- not open an edición at all. Fixed below: the plantilla's `numero`
+-- column is now an ORDERING KEY ONLY; the instantiated clase's own
+-- numero (and its date offset) is its POSITION among the active
+-- plantilla rows (`row_number() OVER (ORDER BY numero)`), which is
+-- always contiguous from 1 by construction.
+--
 -- WHAT
 --   1. generate_taller_sesiones(p_grupo_id) — SAME signature, SAME
 --      overall contract. Now also resolves the owning taller_id (via the
 --      same join it already had) and checks taller_plantilla_clases for
 --      active rows there:
 --        - taller HAS an active plantilla: one taller_sesiones row per
---          active plantilla row, using the plantilla's own numero and
---          tema, fecha_programada = anchor + (numero-1)*talleres.
---          cadencia_dias (COALESCE'd to 7 if somehow NULL). Active
---          plantilla numero is expected to stay contiguous from 1 (the
---          plantilla CRUD's job, not this function's) — taller_sesiones'
---          own trg_taller_sesiones_validate_insert already requires
---          strictly sequential numero per grupo (verified via
---          pg_get_functiondef before writing this), so a gap surfaces as
---          that trigger's exception, never a silent skip.
+--          active plantilla row, ordered by the plantilla's own numero
+--          but renumbered by POSITION among the active rows
+--          (`row_number() OVER (ORDER BY numero)`) — that position is
+--          both the instantiated clase's own `numero` and its date
+--          offset: fecha_programada = anchor + (position-1)*talleres.
+--          cadencia_dias (COALESCE'd to 7 if somehow NULL). The tema
+--          still comes from the matching plantilla row. This makes the
+--          instantiated numbering contiguous from 1 REGARDLESS of gaps
+--          in the plantilla's own numero (a deactivated middle clase, a
+--          renumbered plantilla, etc.) — the plantilla's numero is
+--          purely an ordering key from here on, never copied verbatim.
 --          taller_sesiones has no duration column (verified via
 --          information_schema.columns before writing this) — talleres.
 --          duracion_minutos is therefore read nowhere in this function;
@@ -214,8 +230,14 @@ BEGIN
      WHERE t.id = v_taller_id;
     v_cadencia_dias := COALESCE(v_cadencia_dias, 7);
 
+    -- The plantilla's own `numero` is an ORDERING KEY ONLY: the
+    -- instantiated clase's numero (and its date offset) is its POSITION
+    -- among the active rows, so a deactivated/missing plantilla numero
+    -- never produces a gap here — taller_sesiones_validate_insert
+    -- requires strictly sequential numero per grupo, and position is
+    -- always contiguous from 1 by construction.
     FOR v_plantilla IN
-      SELECT numero, tema
+      SELECT tema, (row_number() OVER (ORDER BY numero))::integer AS pos
         FROM public.taller_plantilla_clases
        WHERE taller_id = v_taller_id AND activo = true
        ORDER BY numero
@@ -223,8 +245,8 @@ BEGIN
       INSERT INTO public.taller_sesiones (
         grupo_id, numero, tema, fecha_programada, estado
       ) VALUES (
-        p_grupo_id, v_plantilla.numero, v_plantilla.tema,
-        v_anchor + ((v_plantilla.numero - 1) * v_cadencia_dias), 'programada'
+        p_grupo_id, v_plantilla.pos, v_plantilla.tema,
+        v_anchor + ((v_plantilla.pos - 1) * v_cadencia_dias), 'programada'
       )
       ON CONFLICT (grupo_id, numero) DO NOTHING;
 

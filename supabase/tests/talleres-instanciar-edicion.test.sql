@@ -467,6 +467,68 @@ SELECT pg_temp.assert_rows('(i) Grupo B is unchanged by the refused attempt',
      WHERE id = (SELECT id FROM t_tie_fixture WHERE key = 'grupo_b')
        AND nombre = 'Grupo B Renombrado' AND capacidad = 8$$, 1);
 
+-- ══ (i2) FIX (post-parent-review): generate_taller_sesiones numbers the
+-- instantiated clase by its POSITION among the ACTIVE plantilla rows,
+-- never by the plantilla's own `numero` verbatim. Deactivate plantilla
+-- clase 2 (numero=2), leaving active numero 1,3,4 — a fresh grupo must
+-- still get exactly 3 contiguous clases numbered 1,2,3, with temas from
+-- plantilla numero 1,3,4 and dates spaced by cadencia_dias FROM THE
+-- POSITION (clase "2" = anchor+14, not anchor+28 which plantilla numero
+-- 3 would give verbatim). Still running: RESET ROLE (postgres) ══
+
+UPDATE public.taller_plantilla_clases
+   SET activo = false
+ WHERE taller_id = 'af000000-0000-4000-8000-000000000010' AND numero = 2;
+
+DO $grupo_reordenado$
+DECLARE
+  v_id uuid;
+BEGIN
+  INSERT INTO public.taller_grupos (id, cohorte_id, nombre, estado, capacidad)
+  VALUES (gen_random_uuid(), (SELECT id FROM t_tie_fixture WHERE key = 'cohorte_con_plantilla'), 'ZZ TIE Grupo Reordenado', 'activo', 10)
+  RETURNING id INTO v_id;
+  INSERT INTO t_tie_fixture (key, id) VALUES ('grupo_reordenado', v_id);
+END;
+$grupo_reordenado$;
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('af000000-0000-4000-8000-000000000020');
+
+DO $generar_reordenado$
+DECLARE
+  v_resultado jsonb;
+BEGIN
+  v_resultado := public.generate_taller_sesiones((SELECT id FROM t_tie_fixture WHERE key = 'grupo_reordenado'));
+  INSERT INTO t_tie_resultado (key, valor) VALUES ('generar_reordenado', v_resultado);
+END;
+$generar_reordenado$;
+
+SELECT pg_temp.assert_rows('(i2) exactly 3 of 3 created (4 active minus the 1 just deactivated)',
+  $$SELECT 1 FROM t_tie_resultado
+     WHERE key = 'generar_reordenado'
+       AND (valor ->> 'total')::int = 3 AND (valor ->> 'created')::int = 3$$, 1);
+SELECT pg_temp.assert_rows('(i2) exactly 3 taller_sesiones rows',
+  $$SELECT id FROM public.taller_sesiones
+     WHERE grupo_id = (SELECT id FROM t_tie_fixture WHERE key = 'grupo_reordenado')$$, 3);
+SELECT pg_temp.assert_rows('(i2) numero 1 = Sigueme (plantilla numero 1), position 1, anchor date',
+  $$SELECT 1 FROM public.taller_sesiones
+     WHERE grupo_id = (SELECT id FROM t_tie_fixture WHERE key = 'grupo_reordenado')
+       AND numero = 1 AND tema = 'Sigueme' AND fecha_programada = DATE '2026-01-05'$$, 1);
+SELECT pg_temp.assert_rows('(i2) numero 2 = Companerismo (plantilla numero 3), position 2, anchor+14',
+  $$SELECT 1 FROM public.taller_sesiones
+     WHERE grupo_id = (SELECT id FROM t_tie_fixture WHERE key = 'grupo_reordenado')
+       AND numero = 2 AND tema = 'Companerismo' AND fecha_programada = DATE '2026-01-19'$$, 1);
+SELECT pg_temp.assert_rows('(i2) numero 3 = Influencia (plantilla numero 4), position 3, anchor+28',
+  $$SELECT 1 FROM public.taller_sesiones
+     WHERE grupo_id = (SELECT id FROM t_tie_fixture WHERE key = 'grupo_reordenado')
+       AND numero = 3 AND tema = 'Influencia' AND fecha_programada = DATE '2026-02-02'$$, 1);
+SELECT pg_temp.assert_rows('(i2) no gap: nothing was inserted at position/numero 4',
+  $$SELECT id FROM public.taller_sesiones
+     WHERE grupo_id = (SELECT id FROM t_tie_fixture WHERE key = 'grupo_reordenado')
+       AND numero = 4$$, 0);
+
+RESET ROLE;
+
 -- ══ (j) a taller WITHOUT plantilla: open_edicion creates no grupos; the
 -- fallback (sesiones_snapshot, hardcoded weekly) still works for a
 -- manually-created grupo (the "Crear grupo" exception) ══
