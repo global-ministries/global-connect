@@ -135,10 +135,10 @@ export function GruposSection({
     })
   }
 
-  function quitar(facilitadorId: string): void {
+  function quitar(facilitadorId: string, grupoId: string): void {
     setFeedback(null)
     startTransition(async () => {
-      const result = await quitarFacilitadorGrupo({ tallerSlug, edicionId, facilitadorId })
+      const result = await quitarFacilitadorGrupo({ tallerSlug, edicionId, grupoId, facilitadorId })
       if (result.ok) {
         router.refresh()
       } else {
@@ -317,7 +317,7 @@ export function GruposSection({
                         type="button"
                         aria-label={`Quitar a ${nombreCompleto(f.nombre, f.apellido)}`}
                         className={BOTON_ICONO}
-                        onClick={() => quitar(f.id)}
+                        onClick={() => quitar(f.id, grupo.id)}
                       >
                         <UserMinus className="h-4 w-4" />
                       </button>

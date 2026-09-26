@@ -144,7 +144,7 @@ describe('editarGrupoInstanciado — input validation', () => {
 })
 
 describe('editarGrupoInstanciado — happy path', () => {
-  it('calls talleres_editar_grupo and revalidates the edición page', async () => {
+  it('calls talleres_editar_grupo and revalidates the edición AND grupo pages', async () => {
     const { rpc } = setupRpc({})
     const result = await editarGrupoInstanciado(validGrupoInput)
     expect(result.ok).toBe(true)
@@ -154,6 +154,7 @@ describe('editarGrupoInstanciado — happy path', () => {
       p_capacidad: 12,
     })
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1/g-1')
   })
 })
 
@@ -196,13 +197,14 @@ describe('agregarFacilitadorGrupo — input validation', () => {
 })
 
 describe('agregarFacilitadorGrupo — happy path', () => {
-  it('inserts into taller_grupo_asignaciones and revalidates', async () => {
+  it('inserts into taller_grupo_asignaciones and revalidates the edición AND grupo pages', async () => {
     const { from, insert } = setupInsert({})
     const result = await agregarFacilitadorGrupo(validFacilitadorInput)
     expect(result.ok).toBe(true)
     expect(from).toHaveBeenCalledWith('taller_grupo_asignaciones')
     expect(insert).toHaveBeenCalledWith({ grupo_id: 'g-1', persona_id: 'p-1', rol: 'lider' })
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1/g-1')
   })
 })
 
@@ -222,22 +224,29 @@ describe('agregarFacilitadorGrupo — servidor inactivo', () => {
 })
 
 describe('quitarFacilitadorGrupo', () => {
-  it('deletes the asignación by id and revalidates', async () => {
+  it('deletes the asignación by id and revalidates the edición AND grupo pages', async () => {
     const { from, eq } = setupDelete({})
     const result = await quitarFacilitadorGrupo({
       tallerSlug: 'proximo-paso',
       edicionId: 'e-1',
+      grupoId: 'g-1',
       facilitadorId: 'a-1',
     })
     expect(result.ok).toBe(true)
     expect(from).toHaveBeenCalledWith('taller_grupo_asignaciones')
     expect(eq).toHaveBeenCalledWith('id', 'a-1')
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1/g-1')
   })
 
   it('returns not-found when the talleres flag is off', async () => {
     setupDelete({ isEnabled: false })
-    const result = await quitarFacilitadorGrupo({ tallerSlug: 'proximo-paso', edicionId: 'e-1', facilitadorId: 'a-1' })
+    const result = await quitarFacilitadorGrupo({
+      tallerSlug: 'proximo-paso',
+      edicionId: 'e-1',
+      grupoId: 'g-1',
+      facilitadorId: 'a-1',
+    })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toBe('not-found')
   })
