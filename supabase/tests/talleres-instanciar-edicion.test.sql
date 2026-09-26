@@ -76,8 +76,15 @@
 --       returns grupos_creados=[], facilitadores_omitidos=[],
 --       clases_por_grupo=0 (criterion 8) — then a manually-created grupo
 --       (the "Crear grupo" exception) still gets 3 clases via
---       generate_taller_sesiones's fallback, spaced 7 days apart (NOT
---       this taller's own cadencia_dias=21), tema NULL throughout.
+--       generate_taller_sesiones's fallback, tema NULL throughout, spaced
+--       by THIS taller's own cadencia_dias=21 (A5 hardening, T7,
+--       20260927130000_talleres_configuracion_hardening.sql — the
+--       fallback used to hardcode 7 regardless of cadencia_dias; this case
+--       used to assert exactly that hardcoded 7-day spacing, now inverted).
+--   (a4) A4 hardening (T7) — the con_plantilla open_edicion call above is
+--       deliberately given a WRONG p_sesiones_estimadas (9, taller af…10
+--       has 4 active plantilla clases): sesiones_snapshot must be the live
+--       active count (4), never the caller-supplied number.
 --
 -- The MCP connection is `postgres`, which has BYPASSRLS — every
 -- authorization assertion below runs under `SET LOCAL ROLE authenticated`
@@ -299,10 +306,14 @@ DO $abrir$
 DECLARE
   v_resultado jsonb;
 BEGIN
+  -- A4 hardening (T7, 20260927130000_talleres_configuracion_hardening.sql):
+  -- p_sesiones_estimadas => 9 is DELIBERATELY wrong for this taller (it has
+  -- 4 active plantilla clases) — open_edicion must ignore it outright and
+  -- snapshot the LIVE active count instead. See '(a4)' below.
   v_resultado := public.open_edicion(
     p_taller_id => 'af000000-0000-4000-8000-000000000010',
     p_tipo => 'individual', p_nombre_edicion => 'ZZ TIE Con Plantilla Edicion', p_link_type => NULL,
-    p_sesiones_estimadas => 2, p_duracion_estimada_minutos => 60, p_modalidad_inscripcion => 'periodo_general',
+    p_sesiones_estimadas => 9, p_duracion_estimada_minutos => 60, p_modalidad_inscripcion => 'periodo_general',
     p_fecha_inicio_periodo => '2026-01-05 00:00:00+00'::timestamptz,
     p_fecha_fin_periodo => '2026-06-01 00:00:00+00'::timestamptz,
     p_firmantes => '[]'::jsonb, p_temporada_id => NULL
@@ -310,10 +321,20 @@ BEGIN
   INSERT INTO t_tie_resultado (key, valor) VALUES ('con_plantilla', v_resultado);
   INSERT INTO t_tie_fixture (key, id) VALUES
     ('cohorte_con_plantilla', (v_resultado ->> 'cohorte_id')::uuid),
+    ('edicion_con_plantilla', (v_resultado ->> 'edicion_id')::uuid),
     ('grupo_a', (v_resultado -> 'grupos_creados' -> 0 ->> 'grupo_id')::uuid),
     ('grupo_b', (v_resultado -> 'grupos_creados' -> 1 ->> 'grupo_id')::uuid);
 END;
 $abrir$;
+
+-- (a4) A4 hardening — sesiones_snapshot is the LIVE active plantilla count
+-- (4), NOT the caller-supplied p_sesiones_estimadas (9). Both grupos still
+-- get exactly 4 clases each (proven again below in (e)), so the snapshot
+-- and the actually-instantiated count can never disagree.
+SELECT pg_temp.assert_rows('(a4) sesiones_snapshot is the live active plantilla count (4), not p_sesiones_estimadas (9)',
+  $$SELECT 1 FROM public.taller_ediciones
+     WHERE id = (SELECT id FROM t_tie_fixture WHERE key = 'edicion_con_plantilla')
+       AND sesiones_snapshot = 4$$, 1);
 
 -- (a) exactly 2 grupos, right nombre/capacidad/estado, in the new cohorte
 SELECT pg_temp.assert_rows('(a) exactly 2 taller_grupos created',
@@ -597,12 +618,16 @@ SELECT pg_temp.assert_rows('(j) 3 clases created, all with NULL tema',
   $$SELECT id FROM public.taller_sesiones
      WHERE grupo_id = (SELECT id FROM t_tie_fixture WHERE key = 'grupo_manual_sin_plantilla')
        AND tema IS NULL$$, 3);
-SELECT pg_temp.assert_rows('(j) spaced 7 days apart (hardcoded), NOT this taller''s cadencia_dias=21',
+-- A5 hardening (T7, 20260927130000_talleres_configuracion_hardening.sql):
+-- the fallback branch now reads THIS taller's own cadencia_dias (21, set by
+-- this file's own fixture) instead of a hardcoded 7 — was asserted as
+-- "hardcoded 7, NOT cadencia_dias=21" before this fix; now the opposite.
+SELECT pg_temp.assert_rows('(j) spaced 21 days apart (this taller''s own cadencia_dias, no longer hardcoded 7)',
   $$SELECT 1 FROM public.taller_sesiones s1
      JOIN public.taller_sesiones s2
        ON s2.grupo_id = s1.grupo_id AND s2.numero = s1.numero + 1
      WHERE s1.grupo_id = (SELECT id FROM t_tie_fixture WHERE key = 'grupo_manual_sin_plantilla')
-       AND s2.fecha_programada - s1.fecha_programada = 7$$, 2);
+       AND s2.fecha_programada - s1.fecha_programada = 21$$, 2);
 
 -- ══ structural asserts — no anon in proacl of the 2 new functions ══
 

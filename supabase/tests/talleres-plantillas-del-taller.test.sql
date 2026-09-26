@@ -58,6 +58,11 @@
 -- for fixtures are resolved BEFORE the first role switch. Scenario (d)'s
 -- postgres-identity inserts are deliberate: they prove the trigger, not
 -- RLS, is what blocks the paused persona.
+--
+-- T7 correction round (20260927130000_talleres_configuracion_hardening.sql)
+-- adds (A1) both triggers also firing on UPDATE OF their own FK column
+-- (moving a row, not just changing persona_id) and (A2) the helper itself
+-- being refused for a direct call by an ordinary authenticated user.
 
 BEGIN;
 
@@ -163,10 +168,37 @@ $$;
 
 INSERT INTO public.dream_team_equipos (id, experiencia, label, parent_equipo_id, activo) VALUES
   ('ae000000-0000-4000-8000-000000000001', 'talleres_crecimiento', 'ZZ PTT Equipo Taller', 'e524ea89-d3a7-45fc-be00-5a6e7452434e', true),
-  ('ae000000-0000-4000-8000-000000000002', 'talleres_crecimiento', 'ZZ PTT Equipo Hijo',   'ae000000-0000-4000-8000-000000000001', true);
+  ('ae000000-0000-4000-8000-000000000002', 'talleres_crecimiento', 'ZZ PTT Equipo Hijo',   'ae000000-0000-4000-8000-000000000001', true),
+  -- A1 hardening (T7) — a SIBLING tree (not an ancestor/descendant of
+  -- ae...001/002) whose only purpose is to be "another taller whose node
+  -- the persona does not serve" for the UPDATE-moves-the-FK tests below.
+  ('ae000000-0000-4000-8000-000000000003', 'talleres_crecimiento', 'ZZ PTT Equipo Otro Taller', 'e524ea89-d3a7-45fc-be00-5a6e7452434e', true);
 
 INSERT INTO public.talleres (id, slug, nombre, dream_team_equipo_id) VALUES
-  ('ae000000-0000-4000-8000-000000000010', 'zz-ptt-fixture', 'ZZ PTT Fixture Taller', 'ae000000-0000-4000-8000-000000000001');
+  ('ae000000-0000-4000-8000-000000000010', 'zz-ptt-fixture', 'ZZ PTT Fixture Taller', 'ae000000-0000-4000-8000-000000000001'),
+  ('ae000000-0000-4000-8000-000000000012', 'zz-ptt-fixture-otro', 'ZZ PTT Fixture Otro Taller', 'ae000000-0000-4000-8000-000000000003');
+
+-- A1 hardening (T7) — the minimal operating_core_events -> taller_ediciones
+-- -> talleres_crecimiento_cohortes -> taller_grupos chain FOR THE OTHER
+-- TALLER, built directly (as postgres, bypassing RLS — this fixture's own
+-- authoring path is not what's under test here; open_edicion already has
+-- its own dedicated test file). Only its cohorte's dream_team_equipo_id
+-- (what talleres_equipo_de_grupo actually reads, verified via
+-- pg_get_functiondef before writing this) matters for the move tests below.
+INSERT INTO public.operating_core_events (id, kind, estado, title, start_date, visibility_scope, metadata) VALUES
+  ('ae000000-0000-4000-8000-000000000070', 'workshop', 'active', 'ZZ PTT Otro Evento', '2026-01-01', 'talleres_crecimiento', '{}'::jsonb);
+
+INSERT INTO public.taller_ediciones (id, operating_core_event_id, taller_id, tipo, modalidad_inscripcion, estado, nombre_snapshot, sesiones_snapshot, duracion_estimada_minutos_snapshot, modalidad_inscripcion_snapshot) VALUES
+  ('ae000000-0000-4000-8000-000000000071', 'ae000000-0000-4000-8000-000000000070', 'ae000000-0000-4000-8000-000000000012', 'individual', 'permanente_custom', 'borrador', 'ZZ PTT Otro Edicion', 1, 60, 'permanente_custom');
+
+INSERT INTO public.talleres_crecimiento_cohortes (id, taller_id, dream_team_equipo_id, edicion) VALUES
+  ('ae000000-0000-4000-8000-000000000072', 'ae000000-0000-4000-8000-000000000071', 'ae000000-0000-4000-8000-000000000003', 'ZZ PTT Otro Cohorte');
+
+INSERT INTO public.taller_grupos (id, cohorte_id, nombre, estado, capacidad) VALUES
+  ('ae000000-0000-4000-8000-000000000073', 'ae000000-0000-4000-8000-000000000072', 'ZZ PTT Otro Grupo', 'activo', 10);
+
+INSERT INTO public.taller_plantilla_grupos (id, taller_id, nombre, capacidad) VALUES
+  ('ae000000-0000-4000-8000-000000000074', 'ae000000-0000-4000-8000-000000000012', 'ZZ PTT Otro Grupo Plantilla', 12);
 
 INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
   ('ae000000-0000-4000-8000-000000000011', 'ae000000-0000-4000-8000-000000000001', 'Líder',      true),
@@ -375,6 +407,70 @@ SELECT pg_temp.assert_rows('(d) the accepted insert is there',
      WHERE grupo_id = (SELECT id FROM t_ptt_fixture WHERE key = 'grupo_edicion')
        AND persona_id = 'ae000000-0000-4000-8000-000000000023' AND rol = 'lider'$$, 1);
 
+-- ══ (A1) T7 hardening — UPDATE OF grupo_id/plantilla_grupo_id also
+-- re-checks servidor-activo (moving the row, not just changing persona_id).
+-- Still as postgres, same reasoning as (d): the trigger, not RLS, is what
+-- must block this. ══
+
+DO $mover_asignacion$
+DECLARE
+  v_id uuid;
+BEGIN
+  INSERT INTO public.taller_grupo_asignaciones (grupo_id, persona_id, rol) VALUES (
+    (SELECT id FROM t_ptt_fixture WHERE key = 'grupo_edicion'),
+    'ae000000-0000-4000-8000-000000000025', 'voluntario')
+  RETURNING id INTO v_id;
+  INSERT INTO t_ptt_fixture (key, id) VALUES ('asignacion_para_mover', v_id);
+END;
+$mover_asignacion$;
+
+SELECT pg_temp.assert_sqlstate_msg('(A1) moving an asignacion to another taller''s grupo re-checks servidor-activo',
+  $$UPDATE public.taller_grupo_asignaciones
+       SET grupo_id = 'ae000000-0000-4000-8000-000000000073'
+     WHERE id = (SELECT id FROM t_ptt_fixture WHERE key = 'asignacion_para_mover')$$,
+  'P0001', 'NO_ES_SERVIDOR_ACTIVO_DEL_TALLER');
+SELECT pg_temp.assert_rows('(A1) the rejected move left grupo_id unchanged',
+  $$SELECT 1 FROM public.taller_grupo_asignaciones
+     WHERE id = (SELECT id FROM t_ptt_fixture WHERE key = 'asignacion_para_mover')
+       AND grupo_id = (SELECT id FROM t_ptt_fixture WHERE key = 'grupo_edicion')$$, 1);
+
+DO $capturar_facilitador$
+DECLARE
+  v_id uuid;
+BEGIN
+  SELECT id INTO v_id FROM public.taller_plantilla_facilitadores
+   WHERE plantilla_grupo_id = (SELECT id FROM t_ptt_fixture WHERE key = 'plantilla_grupo')
+     AND persona_id = 'ae000000-0000-4000-8000-000000000023';
+  INSERT INTO t_ptt_fixture (key, id) VALUES ('facilitador_lider', v_id);
+END;
+$capturar_facilitador$;
+
+SELECT pg_temp.assert_sqlstate_msg('(A1) moving a plantilla facilitador to another taller''s grupo re-checks servidor-activo',
+  $$UPDATE public.taller_plantilla_facilitadores
+       SET plantilla_grupo_id = 'ae000000-0000-4000-8000-000000000074'
+     WHERE id = (SELECT id FROM t_ptt_fixture WHERE key = 'facilitador_lider')$$,
+  'P0001', 'NO_ES_SERVIDOR_ACTIVO_DEL_TALLER');
+SELECT pg_temp.assert_rows('(A1) the rejected move left plantilla_grupo_id unchanged',
+  $$SELECT 1 FROM public.taller_plantilla_facilitadores
+     WHERE id = (SELECT id FROM t_ptt_fixture WHERE key = 'facilitador_lider')
+       AND plantilla_grupo_id = (SELECT id FROM t_ptt_fixture WHERE key = 'plantilla_grupo')$$, 1);
+
+-- ══ (A2) T7 hardening — the helper is not a public RPC: a direct call by
+-- an ordinary authenticated user (even the director, who has every other
+-- capability here) is refused. The trigger itself keeps working (proven
+-- all through (b) above and again here) because it runs SECURITY DEFINER
+-- as its owner, `postgres`, which keeps its own EXECUTE grant. ══
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('ae000000-0000-4000-8000-000000000020');
+
+SELECT pg_temp.assert_sqlstate('(A2) a direct call to the helper is refused for an ordinary authenticated user',
+  $$SELECT public.talleres_es_servidor_activo_del_taller(
+      'ae000000-0000-4000-8000-000000000010', 'ae000000-0000-4000-8000-000000000023')$$,
+  '42501');
+
+RESET ROLE;
+
 -- ══ (f), part 2 — cadencia_dias rejects 0 ══
 
 SELECT pg_temp.assert_sqlstate('(f) cadencia_dias rejects 0 (check_violation)',
@@ -400,6 +496,18 @@ SELECT pg_temp.assert_rows('structural: both enforcement triggers exist',
   $$SELECT tgname FROM pg_trigger
      WHERE tgname IN ('trg_taller_plantilla_facilitadores_servidor_activo', 'trg_taller_grupo_asignaciones_servidor_activo')
        AND NOT tgisinternal$$, 2);
+SELECT pg_temp.assert_rows('structural (A1): both triggers also fire on UPDATE OF their own FK column',
+  $$SELECT tgname FROM pg_trigger
+     WHERE tgname = 'trg_taller_grupo_asignaciones_servidor_activo'
+       AND pg_get_triggerdef(oid) LIKE '%UPDATE OF persona_id, grupo_id%'
+     UNION ALL
+     SELECT tgname FROM pg_trigger
+     WHERE tgname = 'trg_taller_plantilla_facilitadores_servidor_activo'
+       AND pg_get_triggerdef(oid) LIKE '%UPDATE OF persona_id, plantilla_grupo_id%'$$, 2);
+SELECT pg_temp.assert_rows('structural (A2): talleres_es_servidor_activo_del_taller has no authenticated in proacl',
+  $$SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public' AND p.proname = 'talleres_es_servidor_activo_del_taller'
+       AND NOT (p.proacl::text LIKE '%authenticated=%')$$, 1);
 
 -- report() runs as postgres again: it reads the temp table and raises.
 RESET ROLE;

@@ -24,6 +24,8 @@
 --   (d) structural: talleres_mover_plantilla_clase has no anon in proacl.
 --   (e) no leftover out-of-range numero (>= 1000000, the temp-swap
 --       marker) survives on any of this fixture's clases.
+--   (f) A3 hardening (T7) — the function body takes a per-taller
+--       pg_advisory_xact_lock before reading a neighbour (structural).
 
 BEGIN;
 
@@ -191,6 +193,16 @@ SELECT pg_temp.assert_rows('(d) talleres_mover_plantilla_clase has no anon in pr
   $$SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public' AND p.proname = 'talleres_mover_plantilla_clase'
        AND NOT (p.proacl::text LIKE '%anon=%')$$, 1);
+
+-- ══ (f) A3 hardening (T7, 20260927130000_talleres_configuracion_hardening.sql)
+-- — a transaction-scoped advisory lock, keyed per taller, serializes
+-- concurrent reorders of the SAME taller's plantilla. Structural: the
+-- function body itself calls pg_advisory_xact_lock. ══
+
+SELECT pg_temp.assert_rows('(f) talleres_mover_plantilla_clase takes a per-taller advisory xact lock',
+  $$SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public' AND p.proname = 'talleres_mover_plantilla_clase'
+       AND pg_get_functiondef(p.oid) LIKE '%pg_advisory_xact_lock%'$$, 1);
 
 -- report() runs as postgres again: it reads the temp table and raises.
 SELECT pg_temp.report();
