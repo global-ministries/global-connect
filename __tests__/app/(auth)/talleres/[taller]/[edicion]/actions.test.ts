@@ -87,9 +87,13 @@ interface DeleteSetup {
   deleteResult?: { data: unknown; error: { message?: string; code?: string } | null }
 }
 
-function setupDelete(opts: DeleteSetup): { eq: jest.Mock; from: jest.Mock } {
+function setupDelete(opts: DeleteSetup): { eq: jest.Mock; select: jest.Mock; from: jest.Mock } {
   flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
-  const eq = jest.fn().mockResolvedValue(opts.deleteResult ?? { data: null, error: null })
+  // B1 correction (T7) — quitarFacilitadorGrupo now chains `.select('id')`
+  // after `.eq(...)` so an RLS-filtered-to-empty DELETE can be told apart
+  // from a genuine delete; the default here is a realistic 1-row success.
+  const select = jest.fn().mockResolvedValue(opts.deleteResult ?? { data: [{ id: 'a-1' }], error: null })
+  const eq = jest.fn().mockReturnValue({ select })
   const del = jest.fn().mockReturnValue({ eq })
   const from = jest.fn().mockReturnValue({ delete: del })
 
@@ -102,7 +106,7 @@ function setupDelete(opts: DeleteSetup): { eq: jest.Mock; from: jest.Mock } {
     },
     from,
   })
-  return { eq, from }
+  return { eq, select, from }
 }
 
 beforeEach(() => {
@@ -165,7 +169,7 @@ describe('editarGrupoInstanciado — RLS denial', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error).toBe('forbidden')
-      expect(result.message).toMatch(/no tenés permisos/i)
+      expect(result.message).toMatch(/no tienes permisos/i)
     }
   })
 })
@@ -217,7 +221,7 @@ describe('agregarFacilitadorGrupo — servidor inactivo', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.message).toBe(
-        'Esa persona no es un servidor activo de este taller. Asignala primero en Dream Team → Servidores.',
+        'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
       )
     }
   })
@@ -249,5 +253,24 @@ describe('quitarFacilitadorGrupo', () => {
     })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toBe('not-found')
+  })
+
+  // B1 correction (T7, odd/tasks/talleres-configuracion-del-taller.md) —
+  // RLS's USING clause silently filters a DELETE to zero affected rows
+  // instead of raising an error; this must NOT report success.
+  it('reports forbidden, not success, when RLS silently filters the row', async () => {
+    setupDelete({ deleteResult: { data: [], error: null } })
+    const result = await quitarFacilitadorGrupo({
+      tallerSlug: 'proximo-paso',
+      edicionId: 'e-1',
+      grupoId: 'g-1',
+      facilitadorId: 'a-1',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('forbidden')
+      expect(result.message).toMatch(/permisos/i)
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled()
   })
 })

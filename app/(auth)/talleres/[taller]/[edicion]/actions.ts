@@ -32,6 +32,19 @@ export type EdicionActionResult<T> =
   | { readonly ok: false; readonly error: string; readonly message: string }
 
 /**
+ * B1 correction (odd/tasks/talleres-configuracion-del-taller.md T7) — same
+ * reasoning as app/(auth)/talleres/[taller]/actions.ts's own forbiddenByRls:
+ * RLS's USING clause silently filters an UPDATE/DELETE to zero affected
+ * rows instead of raising an error, so quitarFacilitadorGrupo's DELETE
+ * (which goes straight through RLS, never an RPC) needs its own empty-
+ * result check.
+ */
+function forbiddenByRls(mensajePorDefecto: string): { readonly error: string; readonly message: string } {
+  const traducido = traducirErrorTalleres({ code: '42501' }, mensajePorDefecto)
+  return { error: traducido.error, message: traducido.message }
+}
+
+/**
  * Thin, shared gate: flag + authenticated session. Never checks a
  * capability — every mutation this file exposes is authorized by the DB
  * (the RPC's own check, or RLS plus the servidor-activo trigger).
@@ -46,7 +59,7 @@ async function gate(): Promise<{ ok: true; supabase: any } | { ok: false; result
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
-    return { ok: false, result: { ok: false, error: 'unauthorized', message: 'Necesitás iniciar sesión.' } }
+    return { ok: false, result: { ok: false, error: 'unauthorized', message: 'Necesitas iniciar sesión.' } }
   }
 
   return { ok: true, supabase }
@@ -166,11 +179,18 @@ export async function quitarFacilitadorGrupo(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
-  const { error } = await client.from('taller_grupo_asignaciones').delete().eq('id', input.facilitadorId)
+  const { data, error } = await client
+    .from('taller_grupo_asignaciones')
+    .delete()
+    .eq('id', input.facilitadorId)
+    .select('id')
 
   if (error) {
     const traducido = traducirErrorTalleres(error, 'No se pudo quitar el facilitador.')
     return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo quitar el facilitador.') }
   }
 
   // T5 — same reasoning as agregarFacilitadorGrupo/editarGrupoInstanciado:

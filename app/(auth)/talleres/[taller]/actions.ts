@@ -33,6 +33,23 @@ export type TallerActionResult<T> =
   | ({ readonly ok: true } & T)
   | { readonly ok: false; readonly error: string; readonly message: string }
 
+/**
+ * B1 correction (odd/tasks/talleres-configuracion-del-taller.md T7) — RLS's
+ * USING clause silently filters an UPDATE/DELETE to zero affected rows
+ * instead of raising an error, so a forbidden write against one of the
+ * plantilla tables looked exactly like a successful no-op (the row exists,
+ * it just didn't belong to this caller's node). Every mutation below that
+ * goes through RLS directly (never through an RPC, which raises its own
+ * explicit exception) chains `.select('id')` and, when the result comes
+ * back empty, treats it the same as an explicit 42501 denial — reusing
+ * traducirErrorTalleres's own generic-42501 message so there is one place
+ * that phrases it.
+ */
+function forbiddenByRls(mensajePorDefecto: string): { readonly error: string; readonly message: string } {
+  const traducido = traducirErrorTalleres({ code: '42501' }, mensajePorDefecto)
+  return { error: traducido.error, message: traducido.message }
+}
+
 const NOMBRE_MIN_LENGTH = 2
 const NOMBRE_MAX_LENGTH = 200
 const DESCRIPCION_MAX_LENGTH = 2000
@@ -53,7 +70,7 @@ async function gate(): Promise<{ ok: true; supabase: any } | { ok: false; result
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
-    return { ok: false, result: { ok: false, error: 'unauthorized', message: 'Necesitás iniciar sesión.' } }
+    return { ok: false, result: { ok: false, error: 'unauthorized', message: 'Necesitas iniciar sesión.' } }
   }
 
   return { ok: true, supabase }
@@ -177,14 +194,18 @@ export async function updateCadenciaYDuracion(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
-  const { error } = await client
+  const { data, error } = await client
     .from('talleres')
     .update({ cadencia_dias: input.cadenciaDias, duracion_minutos: input.duracionMinutos })
     .eq('id', input.tallerId)
+    .select('id')
 
   if (error) {
     const traducido = traducirErrorTalleres(error, 'No se pudo actualizar la cadencia.')
     return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo actualizar la cadencia.') }
   }
 
   revalidatePath(rutaTaller(input.tallerSlug))
@@ -256,11 +277,18 @@ export async function editarPlantillaClaseTema(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
-  const { error } = await client.from('taller_plantilla_clases').update({ tema }).eq('id', input.claseId)
+  const { data, error } = await client
+    .from('taller_plantilla_clases')
+    .update({ tema })
+    .eq('id', input.claseId)
+    .select('id')
 
   if (error) {
     const traducido = traducirErrorTalleres(error, 'No se pudo editar la clase.')
     return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo editar la clase.') }
   }
 
   revalidatePath(rutaTaller(input.tallerSlug))
@@ -281,14 +309,18 @@ export async function toggleActivoPlantillaClase(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
-  const { error } = await client
+  const { data, error } = await client
     .from('taller_plantilla_clases')
     .update({ activo: input.activo })
     .eq('id', input.claseId)
+    .select('id')
 
   if (error) {
     const traducido = traducirErrorTalleres(error, 'No se pudo actualizar la clase.')
     return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo actualizar la clase.') }
   }
 
   revalidatePath(rutaTaller(input.tallerSlug))
@@ -418,14 +450,18 @@ export async function editarPlantillaGrupo(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
-  const { error } = await client
+  const { data, error } = await client
     .from('taller_plantilla_grupos')
     .update({ nombre, capacidad: input.capacidad })
     .eq('id', input.grupoId)
+    .select('id')
 
   if (error) {
     const traducido = traducirErrorTalleres(error, 'No se pudo editar el grupo.')
     return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo editar el grupo.') }
   }
 
   revalidatePath(rutaTaller(input.tallerSlug))
@@ -446,14 +482,18 @@ export async function toggleActivoPlantillaGrupo(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
-  const { error } = await client
+  const { data, error } = await client
     .from('taller_plantilla_grupos')
     .update({ activo: input.activo })
     .eq('id', input.grupoId)
+    .select('id')
 
   if (error) {
     const traducido = traducirErrorTalleres(error, 'No se pudo actualizar el grupo.')
     return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo actualizar el grupo.') }
   }
 
   revalidatePath(rutaTaller(input.tallerSlug))
@@ -524,11 +564,18 @@ export async function quitarFacilitador(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
-  const { error } = await client.from('taller_plantilla_facilitadores').delete().eq('id', input.facilitadorId)
+  const { data, error } = await client
+    .from('taller_plantilla_facilitadores')
+    .delete()
+    .eq('id', input.facilitadorId)
+    .select('id')
 
   if (error) {
     const traducido = traducirErrorTalleres(error, 'No se pudo quitar el facilitador.')
     return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo quitar el facilitador.') }
   }
 
   revalidatePath(rutaTaller(input.tallerSlug))
