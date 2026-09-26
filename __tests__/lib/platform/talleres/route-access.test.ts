@@ -188,6 +188,16 @@ describe('TALLERES_NAV_ITEMS — /talleres/mi-recorrido (T9)', () => {
   })
 })
 
+// ─── fix/talleres-nav-catalogo — /talleres catalog nav item ────────────
+
+describe('TALLERES_NAV_ITEMS — /talleres catalog (fix/talleres-nav-catalogo)', () => {
+  it('is declared as the first item, open to any authenticated user (T2: RLS decides what it shows)', () => {
+    expect(TALLERES_NAV_ITEMS[0]?.id).toBe('talleres_catalogo')
+    expect(TALLERES_NAV_ITEMS[0]?.href).toBe('/talleres')
+    expect(TALLERES_NAV_ITEMS[0]?.requiredCapability).toBeNull()
+  })
+})
+
 describe('TALLERES_ROUTE_CAPABILITY_MAP / getRequiredCapabilityForRoute — route→capability lookup', () => {
   it('maps every nav item href to its requiredCapability', () => {
     for (const item of TALLERES_NAV_ITEMS) {
