@@ -488,7 +488,7 @@ export async function agregarFacilitador(
   if (!gated.ok) return gated.result
 
   if (!input.personaId?.trim()) {
-    return { ok: false, error: 'invalid-input', message: 'Elegí una persona.' }
+    return { ok: false, error: 'invalid-input', message: 'Elige una persona.' }
   }
   if (!ROLES_FACILITADOR.includes(input.rol)) {
     return { ok: false, error: 'invalid-input', message: 'Rol inválido (líder o voluntario).' }
