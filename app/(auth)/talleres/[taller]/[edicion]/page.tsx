@@ -49,6 +49,14 @@
  * GruposSection itself (components/talleres/grupos-section.tsx, moved
  * there in the same feature) — since
  * /talleres/[taller]/[edicion]/[grupo] does not exist yet.
+ *
+ * T4 (odd/tasks/talleres-configuracion-del-taller.md), step 1: GruposSection
+ * now also receives the edición's own INSTANCIADOS grupos
+ * (loadGruposInstanciados, nombre/capacidad/facilitadores) as a prop,
+ * fetched only under the same gestionarGrupos + cohorte gate the section's
+ * own visibility already uses (T3's "fetch only what will actually
+ * render" discipline). The bounded facilitador picker lands in the next
+ * work unit.
  */
 
 import { notFound } from 'next/navigation'
@@ -77,7 +85,7 @@ import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import { loadEdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
 import { loadAdminInscripciones } from '@/lib/platform/talleres/admin-inscripciones'
-import { loadGruposDeCohorte } from '@/lib/platform/talleres/grupo-detalle'
+import { loadGruposDeCohorte, loadGruposInstanciados } from '@/lib/platform/talleres/grupo-detalle'
 import {
   approveInscripcionAction,
   rejectInscripcionAction,
@@ -156,6 +164,14 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
       ? await loadGruposDeCohorte(client, edicion.cohorte.id)
       : []
 
+  // T4 (odd/tasks/talleres-configuracion-del-taller.md) — GruposSection's
+  // own instanciados grupos (nombre, capacidad, facilitadores), same gate
+  // as above: only fetched when the section will actually render.
+  const gruposInstanciados =
+    permisos.gestionarGrupos && edicion.cohorte
+      ? await loadGruposInstanciados(client, edicion.cohorte.id)
+      : []
+
   return (
     <ContenedorDashboard
       titulo={edicion.nombre_snapshot}
@@ -213,7 +229,13 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
 
       {/* Grupos */}
       {permisos.gestionarGrupos && edicion.cohorte && (
-        <GruposSection cohorteId={edicion.cohorte.id} tallerSlug={taller.slug} edicionId={edicion.id} />
+        <GruposSection
+          cohorteId={edicion.cohorte.id}
+          tallerSlug={taller.slug}
+          edicionId={edicion.id}
+          grupos={gruposInstanciados}
+          puedeEditar={permisos.gestionarGrupos}
+        />
       )}
 
       {/* Ventana */}

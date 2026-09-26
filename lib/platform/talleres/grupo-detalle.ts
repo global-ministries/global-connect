@@ -444,6 +444,105 @@ export async function loadGruposDeCohorte(
   return data as GrupoOpcion[]
 }
 
+// ─── Grupos instanciados de una edición (T4, odd/tasks/talleres-configuracion-del-taller.md) ───
+
+export interface GrupoInstanciadoFacilitador {
+  readonly id: string
+  readonly personaId: string
+  readonly rol: string
+  readonly nombre: string | null
+  readonly apellido: string | null
+}
+
+export interface GrupoInstanciado {
+  readonly id: string
+  readonly nombre: string
+  readonly capacidad: number
+  readonly estado: string
+  /** null = the ocupación count query errored — an explicit "unknown", never a misreported 0 (same rule as GET /api/talleres/grupos). */
+  readonly ocupacion: number | null
+  readonly facilitadores: readonly GrupoInstanciadoFacilitador[]
+}
+
+const GRUPO_INSTANCIADO_SELECT = `
+  id, nombre, capacidad, estado,
+  facilitadores:taller_grupo_asignaciones (
+    id, persona_id, rol, activo,
+    usuarios ( nombre, apellido )
+  )
+`
+
+/**
+ * The edición's own instantiated grupos (nombre, capacidad, estado) with
+ * their active facilitadores, read straight from taller_grupo_asignaciones
+ * joined to usuarios — never the talleres_grupo_equipo_personas RPC the
+ * grupo detail screen uses, since this loader needs the asignación's OWN
+ * id (to quitar a facilitador), which that RPC also exposes but under a
+ * different shape this screen doesn't otherwise need.
+ *
+ * Ocupación mirrors GET /api/talleres/grupos' own batched query: one
+ * `taller_inscripciones` lookup for every grupo id in this cohorte,
+ * counted client-side. A failed ocupación query degrades every grupo's
+ * ocupación to `null` (unknown, rendered "—"), never a misreported 0.
+ *
+ * Best-effort on the grupos query itself, same contract as loadPlantillaGrupos:
+ * a query error degrades to an empty array rather than throwing.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client, embeds two unrelated tables
+export async function loadGruposInstanciados(client: any, cohorteId: string): Promise<readonly GrupoInstanciado[]> {
+  const { data, error } = await client
+    .from('taller_grupos')
+    .select(GRUPO_INSTANCIADO_SELECT)
+    .eq('cohorte_id', cohorteId)
+    .order('nombre', { ascending: true })
+
+  if (error || !data) return []
+
+  const rows = data as Array<Record<string, unknown>>
+  const grupoIds = rows.map((r) => r.id as string)
+
+  const ocupacionByGrupo = new Map<string, number>()
+  let ocupacionDesconocida = false
+  if (grupoIds.length > 0) {
+    const { data: aprobadas, error: ocupacionError } = await client
+      .from('taller_inscripciones')
+      .select('grupo_id')
+      .in('grupo_id', grupoIds)
+      .eq('estado', 'aprobado')
+    if (ocupacionError) {
+      ocupacionDesconocida = true
+    } else {
+      for (const row of (aprobadas ?? []) as Array<{ grupo_id: string }>) {
+        ocupacionByGrupo.set(row.grupo_id, (ocupacionByGrupo.get(row.grupo_id) ?? 0) + 1)
+      }
+    }
+  }
+
+  return rows.map((row) => {
+    const facilitadoresRaw = (row.facilitadores ?? []) as unknown[]
+    return {
+      id: row.id as string,
+      nombre: row.nombre as string,
+      capacidad: row.capacidad as number,
+      estado: row.estado as string,
+      ocupacion: ocupacionDesconocida ? null : ocupacionByGrupo.get(row.id as string) ?? 0,
+      facilitadores: facilitadoresRaw
+        .map((f) => f as Record<string, unknown>)
+        .filter((f) => f.activo === true)
+        .map((f) => {
+          const usuario = (f.usuarios ?? null) as Record<string, unknown> | null
+          return {
+            id: f.id as string,
+            personaId: f.persona_id as string,
+            rol: f.rol as string,
+            nombre: (usuario?.nombre as string | null) ?? null,
+            apellido: (usuario?.apellido as string | null) ?? null,
+          }
+        }),
+    }
+  })
+}
+
 // ─── Clases ──────────────────────────────────────────────────────────────
 
 export interface GrupoSesion {
