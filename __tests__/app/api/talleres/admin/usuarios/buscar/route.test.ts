@@ -21,8 +21,12 @@
  *   - 200 with the matching usuarios when authorized, calling the RPC with
  *     the trimmed query and the route's fixed limit
  *   - [] when the query is shorter than 2 characters (no RPC call)
- *   - [] (not 500) when the RPC itself denies with 42501 — a write-capable
- *     caller whose capability isn't on the RPC's own narrower list
+ *   - CORRECTION (post-review): a 42501 from the RPC used to degrade to []
+ *     (200) — that reintroduces the exact bug this change exists to kill:
+ *     an authorization problem rendered as "no results", indistinguishable
+ *     from "nobody matched". It now surfaces as a visible 403 with a fixed
+ *     error/message body. Any OTHER RPC error stays 500 with a generic
+ *     Spanish message and never leaks the SQLSTATE/detail in the response.
  */
 import { NextRequest } from 'next/server'
 
@@ -141,22 +145,29 @@ describe('GET /api/talleres/admin/usuarios/buscar', () => {
     expect(rpcMock).not.toHaveBeenCalled()
   })
 
-  it('returns [] (not 500) when the RPC denies with 42501', async () => {
+  it('403 with a visible authority error when the RPC denies with 42501', async () => {
     setup({
       capabilities: ['talleres_crecimiento.director.write'],
       rpcError: { code: '42501', message: 'sin_autoridad_para_buscar' },
     })
     const res = await GET(request('ana'))
-    expect(res.status).toBe(200)
-    expect(await res.json()).toEqual([])
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({
+      error: 'sin_autoridad_para_buscar',
+      message: 'No tenés autoridad para buscar personas.',
+    })
   })
 
-  it('500 when the RPC fails for a reason other than 42501', async () => {
+  it('500 with a generic message (no leaked SQLSTATE) when the RPC fails for any other reason', async () => {
     setup({
       capabilities: ['talleres_crecimiento.director.write'],
       rpcError: { code: '22023', message: 'boom' },
     })
     const res = await GET(request('ana'))
     expect(res.status).toBe(500)
+    const body = await res.json()
+    expect(body).toEqual({ error: 'Error interno' })
+    expect(JSON.stringify(body)).not.toContain('22023')
+    expect(JSON.stringify(body)).not.toContain('boom')
   })
 })

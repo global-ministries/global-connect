@@ -25,11 +25,16 @@
  *   - Dream Team session (auth user + persona) → 401 when absent
  *   - any Dream Team write capability (hasDreamTeamWriteCapability) → 403
  *     otherwise — searching personas is only useful to assign a servicio
- *   - the RPC re-checks authority on its own narrower capability list; a
- *     caller who only holds `dream_team.requirements.manage` (part of
- *     hasDreamTeamWriteCapability's set, but not of the RPC's) gets 42501
- *     from the RPC — degraded here to an empty result, matching the old
- *     RLS-filtered "no rows" behavior instead of a hard 500
+ *   - the RPC re-checks authority on its own capability list too (defense
+ *     in depth — CORRECTION post-review: this list now also includes
+ *     `dream_team.requirements.manage`, see 20260926130000_talleres_
+ *     buscar_personas_requirements.sql, closing the one gap where it used
+ *     to diverge from hasDreamTeamWriteCapability's set). A 42501 from it
+ *     surfaces as a visible 403 below — NEVER as an empty result, which
+ *     would be indistinguishable from "nobody matched" and reintroduce the
+ *     exact "Sin resultados" bug this route exists to fix. Any other RPC
+ *     error is a genuine 500 with a generic message, no SQLSTATE or detail
+ *     leaked to the client.
  */
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -68,11 +73,16 @@ export async function GET(req: NextRequest) {
     })
 
     if (error) {
-      // A write-capable Dream Team caller whose specific capability isn't
-      // on the RPC's own (narrower) list gets 42501 here — degrade to an
-      // empty result instead of a 500, same as the RLS-filtered "no rows"
-      // this route used to silently return.
-      if (error.code === '42501') return NextResponse.json([])
+      // A 42501 from the RPC is a real authorization denial — surface it as
+      // a visible 403, never as an empty result (an empty result would be
+      // indistinguishable from "nobody matched" and reintroduce the exact
+      // "Sin resultados" bug this route exists to fix).
+      if (error.code === '42501') {
+        return NextResponse.json(
+          { error: 'sin_autoridad_para_buscar', message: 'No tenés autoridad para buscar personas.' },
+          { status: 403 },
+        )
+      }
       console.error('[dream-team/usuarios/buscar GET] error:', error)
       return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }

@@ -19,10 +19,12 @@
  *   - readonly platform session (auth user + persona) → 401 when absent
  *   - capability gate `talleres_crecimiento.director.write` OR
  *     `talleres_crecimiento.admin.manage` → 403 otherwise
- *   - the RPC re-checks authority on its own (broader) capability list, so
- *     it never denies a caller who already passed the gate above; kept as
- *     defense in depth — see the dream-team sibling route for the one case
- *     where the two lists actually diverge.
+ *   - the RPC re-checks authority on its own capability list too (defense
+ *     in depth); a 42501 from it surfaces as a visible 403 below — NEVER as
+ *     an empty result, which would be indistinguishable from "nobody
+ *     matched" and reintroduce the exact bug this route exists to fix. Any
+ *     other RPC error is a genuine 500 with a generic message, no SQLSTATE
+ *     or detail leaked to the client.
  *
  * Query mechanics: minimum query length of 2 (shorter → `[]`, no RPC call)
  * and a limit of 20 (the RPC clamps this to 50 regardless).
@@ -74,10 +76,16 @@ export async function GET(req: NextRequest) {
     })
 
     if (error) {
-      // A write-capable caller whose specific capability isn't on the RPC's
-      // own list gets 42501 here — degrade to an empty result instead of a
-      // 500, same as the RLS-filtered "no rows" this route used to return.
-      if (error.code === '42501') return NextResponse.json([])
+      // A 42501 from the RPC is a real authorization denial — surface it as
+      // a visible 403, never as an empty result (an empty result would be
+      // indistinguishable from "nobody matched" and reintroduce the exact
+      // "Sin resultados" bug this route exists to fix).
+      if (error.code === '42501') {
+        return NextResponse.json(
+          { error: 'sin_autoridad_para_buscar', message: 'No tenés autoridad para buscar personas.' },
+          { status: 403 },
+        )
+      }
       console.error('[talleres/admin/usuarios/buscar GET] error:', error)
       return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
