@@ -20,6 +20,11 @@
 --      for less than the floor (LEAST(GREATEST(p_limit,1),50)).
 --   5. The row shape returned is exactly {id, nombre, apellido, email} —
 --      no phone, no address, nothing else.
+--   6. A persona holding ONLY dream_team.requirements.manage (added by
+--      20260926130000_talleres_buscar_personas_requirements.sql — it is
+--      one of hasDreamTeamWriteCapability's accepted keys, so a caller
+--      with only this capability must not be denied by the RPC after
+--      passing the route's own gate) finds people too.
 --
 -- The MCP connection is `postgres`, which has BYPASSRLS — every
 -- authorization assertion below runs under `SET LOCAL ROLE authenticated`
@@ -93,7 +98,8 @@ $$;
 
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) VALUES
   ('ad000000-0000-4000-8000-000000000020', 'authenticated', 'authenticated', 'ad-fixture-director@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
-  ('ad000000-0000-4000-8000-000000000022', 'authenticated', 'authenticated', 'ad-fixture-member@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now())
+  ('ad000000-0000-4000-8000-000000000022', 'authenticated', 'authenticated', 'ad-fixture-member@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
+  ('ad000000-0000-4000-8000-000000000026', 'authenticated', 'authenticated', 'ad-fixture-requirements@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now())
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero) VALUES
@@ -102,13 +108,17 @@ INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil,
   ('ad000000-0000-4000-8000-000000000021', 'ad000000-0000-4000-8000-000000000020', 'AD', 'Director', 'ad-fixture-director@example.test', 'Soltero', 'Otro'),
   -- Member: a real usuarios row, zero capability grants.
   ('ad000000-0000-4000-8000-000000000023', 'ad000000-0000-4000-8000-000000000022', 'AD', 'Member', 'ad-fixture-member@example.test', 'Soltero', 'Otro'),
+  -- Requirements-only: holds ONLY dream_team.requirements.manage — one of
+  -- hasDreamTeamWriteCapability's accepted keys at the route level.
+  ('ad000000-0000-4000-8000-000000000027', 'ad000000-0000-4000-8000-000000000026', 'AD', 'Requirements', 'ad-fixture-requirements@example.test', 'Soltero', 'Otro'),
   -- Searchable target: nombre/apellido/email each carry a substring unique
   -- to that field alone, so a match proves the specific ILIKE branch.
   ('ad000000-0000-4000-8000-000000000030', NULL, 'ZzadNombreUno', 'ZzadApellidoUno', 'zzad-email-uno@example.test', 'Soltero', 'Otro')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id) VALUES
-  ('ad000000-0000-4000-8000-000000000021', 'dream_team.direct', 'dream_team', 'equipo', 'ad000000-0000-4000-8000-000000000099');
+  ('ad000000-0000-4000-8000-000000000021', 'dream_team.direct', 'dream_team', 'equipo', 'ad000000-0000-4000-8000-000000000099'),
+  ('ad000000-0000-4000-8000-000000000027', 'dream_team.requirements.manage', 'dream_team', 'experience', NULL);
 
 -- 55 fixture usuarios sharing a common "zzadcap" token, to prove the
 -- p_limit cap (needs strictly more than 50 matches to observe the clamp).
@@ -198,6 +208,18 @@ BEGIN
   END IF;
 END;
 $$;
+
+RESET ROLE;
+
+-- ══ Criterion 6 — a persona holding ONLY dream_team.requirements.manage
+-- finds people (added by 20260926130000_talleres_buscar_personas_
+-- requirements.sql) ══
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('ad000000-0000-4000-8000-000000000026');
+
+SELECT pg_temp.assert_rows('criterion 6: requirements.manage-only persona finds the target',
+  $$SELECT * FROM public.talleres_buscar_personas('zzadnombreuno', 20) WHERE id = 'ad000000-0000-4000-8000-000000000030'$$, 1);
 
 RESET ROLE;
 
