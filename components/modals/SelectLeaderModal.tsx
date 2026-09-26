@@ -28,6 +28,22 @@ interface SelectLeaderModalProps {
   segmentoId?: string;
   title?: string;
   description?: string;
+  /**
+   * BUGFIX (talleres-buscar-personas) — this picker used to hardcode
+   * /api/lideres/buscar, which filters by the Grupos-de-Vida 'lider' system
+   * role. talleres/grupos-section.tsx reused it as-is to assign líder/
+   * voluntario to a grupo, which made most talleres people unfindable (a
+   * facilitator need not be a GdV leader). Defaults to /api/lideres/buscar
+   * so every Grupos de Vida caller is untouched; talleres passes
+   * /api/talleres/admin/usuarios/buscar instead.
+   *
+   * That endpoint's response is a plain array of {id, nombre, apellido,
+   * email} rather than GdV's `{ lideres: [...] }` of full LiderConEstado
+   * rows — `buscar()` below accepts either shape and defaults the GdV-only
+   * fields (estado, grupos_*, foto_perfil_url, en_segmento_actual) so this
+   * same picker UI renders both without crashing.
+   */
+  searchEndpoint?: string;
 }
 
 const ESTADO_CONFIG = {
@@ -45,6 +61,7 @@ export default function SelectLeaderModal({
   segmentoId,
   title = 'Seleccionar Líder',
   description = 'Busca entre los líderes del sistema. Los disponibles aparecen primero.',
+  searchEndpoint = '/api/lideres/buscar',
 }: SelectLeaderModalProps) {
   const [query, setQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
@@ -64,7 +81,7 @@ export default function SelectLeaderModal({
       try {
         const params = new URLSearchParams({ q, limit: '200' });
         if (segmentoId) params.set('segmento_id', segmentoId);
-        const res = await fetch(`/api/lideres/buscar?${params.toString()}`, {
+        const res = await fetch(`${searchEndpoint}?${params.toString()}`, {
           cache: 'no-store',
           signal: controller.signal,
         });
@@ -74,7 +91,25 @@ export default function SelectLeaderModal({
           return;
         }
         const data = await res.json();
-        setLideres(Array.isArray(data.lideres) ? data.lideres : []);
+        // Accept either GdV's `{ lideres: [...] }` (full LiderConEstado rows)
+        // or a plain array (e.g. talleres' usuarios search, which only has
+        // id/nombre/apellido/email) — default the GdV-only fields so both
+        // shapes render through the same list below.
+        const rows: Array<Partial<LiderConEstado> & { id: string; nombre: string; apellido: string }> =
+          Array.isArray(data) ? data : Array.isArray(data.lideres) ? data.lideres : [];
+        setLideres(
+          rows.map((u) => ({
+            id: u.id,
+            nombre: u.nombre,
+            apellido: u.apellido,
+            email: u.email ?? null,
+            foto_perfil_url: u.foto_perfil_url ?? null,
+            estado: u.estado ?? 'disponible',
+            grupos_activos: u.grupos_activos ?? [],
+            grupos_planificacion: u.grupos_planificacion ?? [],
+            en_segmento_actual: u.en_segmento_actual ?? false,
+          })),
+        );
       } catch (e: unknown) {
         if (e instanceof Error && e.name !== 'AbortError') {
           setError('Fallo en la búsqueda');

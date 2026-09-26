@@ -30,18 +30,26 @@ import React from 'react'
 
 // Stub the shared picker: when open, expose a single button that selects a
 // known usuario. This lets us drive the assign flow deterministically.
+// Also captures `searchEndpoint` so we can assert grupos-section points the
+// picker at talleres' own people search (not /api/lideres/buscar, which is
+// Grupos de Vida's and stays untouched by this component).
+let capturedSearchEndpoint: string | undefined
+
 jest.mock('@/components/modals/SelectLeaderModal', () => ({
   __esModule: true,
   default: ({
     open,
     onSelect,
     onClose,
+    searchEndpoint,
   }: {
     open: boolean
     onSelect: (u: { id: string; nombre: string; apellido: string }) => void
     onClose: () => void
-  }) =>
-    open ? (
+    searchEndpoint?: string
+  }) => {
+    capturedSearchEndpoint = searchEndpoint
+    return open ? (
       <button
         type="button"
         onClick={() => {
@@ -51,7 +59,8 @@ jest.mock('@/components/modals/SelectLeaderModal', () => ({
       >
         stub-pick-persona
       </button>
-    ) : null,
+    ) : null
+  },
 }))
 
 import { GruposSection } from '@/components/talleres/grupos-section'
@@ -84,6 +93,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 beforeEach(() => {
   state.grupos = []
   fetchCalls.length = 0
+  capturedSearchEndpoint = undefined
 
   ;(global as unknown as { fetch: jest.Mock }).fetch = jest.fn(
     (url: string, init?: RequestInit) => {
@@ -172,6 +182,18 @@ describe('GruposSection — create grupo (PR F)', () => {
 })
 
 describe('GruposSection — assign persona (PR F)', () => {
+  it('points the picker at talleres own people search, not /api/lideres/buscar', async () => {
+    state.grupos = [
+      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo' },
+    ]
+    render(<GruposSection cohorteId="c-1" tallerSlug="matrimonio-sobre-la-roca" edicionId="e-1" />)
+    await screen.findByText('Grupo Alfa')
+
+    fireEvent.click(screen.getByRole('button', { name: /asignar/i }))
+
+    expect(capturedSearchEndpoint).toBe('/api/talleres/admin/usuarios/buscar')
+  })
+
   it('assigns the picked usuario with the selected rol via the asignaciones route', async () => {
     state.grupos = [
       { id: 'g-1', cohorte_id: 'c-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo' },
