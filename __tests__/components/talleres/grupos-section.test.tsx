@@ -212,6 +212,7 @@ describe('GruposSection — quitar facilitador', () => {
     expect(quitarFacilitadorGrupoMock).toHaveBeenCalledWith({
       tallerSlug: 'matrimonio-sobre-la-roca',
       edicionId: 'e-1',
+      grupoId: 'g-1',
       facilitadorId: 'a-1',
     })
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())

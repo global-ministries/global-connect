@@ -25,7 +25,7 @@ import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
-import { rutaEdicion } from '@/lib/platform/talleres/rutas'
+import { rutaEdicion, rutaGrupo } from '@/lib/platform/talleres/rutas'
 
 export type EdicionActionResult<T> =
   | ({ readonly ok: true } & T)
@@ -89,7 +89,11 @@ export async function editarGrupoInstanciado(
     return { ok: false, error: traducido.error, message: traducido.message }
   }
 
+  // T5 (odd/tasks/talleres-configuracion-del-taller.md) — the grupo's
+  // nombre/capacidad also render on its own page (grupo-detalle.ts's
+  // "Equipo" section header), not just the edición's grupos list.
   revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
+  revalidatePath(rutaGrupo(input.tallerSlug, input.edicionId, input.grupoId))
   return { ok: true }
 }
 
@@ -140,13 +144,17 @@ export async function agregarFacilitadorGrupo(
     return { ok: false, error: traducido.error, message: traducido.message }
   }
 
+  // T5 — the grupo's own page (grupo-detalle.ts's "Equipo" section) lists
+  // the same taller_grupo_asignaciones rows as the edición's grupos list.
   revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
+  revalidatePath(rutaGrupo(input.tallerSlug, input.edicionId, input.grupoId))
   return { ok: true }
 }
 
 export interface QuitarFacilitadorGrupoInput {
   readonly tallerSlug: string
   readonly edicionId: string
+  readonly grupoId: string
   readonly facilitadorId: string
 }
 
@@ -165,6 +173,9 @@ export async function quitarFacilitadorGrupo(
     return { ok: false, error: traducido.error, message: traducido.message }
   }
 
+  // T5 — same reasoning as agregarFacilitadorGrupo/editarGrupoInstanciado:
+  // the grupo's own page shows the same facilitadores list.
   revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
+  revalidatePath(rutaGrupo(input.tallerSlug, input.edicionId, input.grupoId))
   return { ok: true }
 }
