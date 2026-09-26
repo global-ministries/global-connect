@@ -3,6 +3,11 @@
  * RAISE EXCEPTION messages of talleres-asistencia-lider's SQL functions into
  * an HTTP status plus a Spanish, user-facing message.
  *
+ * T4 widens it one step: `reporte/enviar` also faces taller_reportes_lock_
+ * after_send (the BEFORE UPDATE trigger that refuses to re-send an already
+ * `enviado` reporte), whose message is English by design — it is translated
+ * here too, so no RAISE text ever reaches the browser.
+ *
  * The DB is the authorization authority: routes never re-implement who may
  * pass list or close a class, they only translate what the function refused.
  * The machine-readable `error` code mirrors what the rest of the talleres
@@ -59,6 +64,13 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     status: 404,
     error: 'not-found',
     message: 'No existe ese reporte.',
+  },
+  // taller_reportes_lock_after_send Rule 1 — a second send of a reporte
+  // that is already `enviado` (English by design, translated here).
+  'enviado can only transition to reabierto or cerrado': {
+    status: 409,
+    error: 'conflict',
+    message: 'Este reporte ya fue enviado.',
   },
   SESION_NO_ENCONTRADA: {
     status: 404,
