@@ -169,13 +169,21 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   // own instanciados grupos (nombre, capacidad, facilitadores) and the
   // bounded picker's servidores list, same gate as above: only fetched
   // when the section will actually render.
-  const [gruposInstanciados, servidoresDelTaller] =
+  const [gruposInstanciados, cargaServidoresDelTaller] =
     permisos.gestionarGrupos && edicion.cohorte
       ? await Promise.all([
           loadGruposInstanciados(client, edicion.cohorte.id),
           loadServidoresDelTaller(client, taller.id),
         ])
-      : [[], []]
+      : [[], { ok: true, servidores: [] } as const]
+
+  // B2 correction (T7) — loadServidoresDelTaller now returns a
+  // discriminated result (see lib/platform/talleres/servidores-del-
+  // taller.ts). This picker only needs the plain list; a 42501 here
+  // degrades to an empty option list, same as before — the access-state
+  // distinction matters for the taller page's own Equipo section, not
+  // this bulk picker.
+  const servidoresDelTaller = cargaServidoresDelTaller.ok ? cargaServidoresDelTaller.servidores : []
 
   return (
     <ContenedorDashboard

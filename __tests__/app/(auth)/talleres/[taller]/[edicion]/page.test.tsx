@@ -224,7 +224,7 @@ function setup(opts: SetupOpts): void {
     .mockReset()
     .mockResolvedValue([{ id: 'g-1', nombre: 'Grupo Alfa' }])
   loadGruposInstanciadosMock.mockReset().mockResolvedValue([])
-  loadServidoresDelTallerMock.mockReset().mockResolvedValue([])
+  loadServidoresDelTallerMock.mockReset().mockResolvedValue({ ok: true, servidores: [] })
 }
 
 function params(taller = 'matrimonio-sobre-la-roca', edicion = 'e-1') {
@@ -404,7 +404,7 @@ describe('EdicionDetallePage — permission wiring', () => {
     const servidores = [{ personaId: 'p-1', nombre: 'Ana', apellido: 'Gómez' }]
     setup({ permisos: { gestionarGrupos: true } })
     loadGruposInstanciadosMock.mockResolvedValue(gruposInstanciados)
-    loadServidoresDelTallerMock.mockResolvedValue(servidores)
+    loadServidoresDelTallerMock.mockResolvedValue({ ok: true, servidores })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
     const grupos = findByType(element, GruposSection)
