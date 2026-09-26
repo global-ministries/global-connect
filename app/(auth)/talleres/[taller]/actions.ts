@@ -35,6 +35,7 @@ export type TallerActionResult<T> =
 
 const NOMBRE_MIN_LENGTH = 2
 const NOMBRE_MAX_LENGTH = 200
+const DESCRIPCION_MAX_LENGTH = 2000
 
 /**
  * Thin, shared gate: flag + authenticated session. Never checks a
@@ -95,6 +96,55 @@ export async function updateTallerNombre(
 
   revalidatePath(rutaTaller(input.tallerSlug))
   return { ok: true, nombre: (data as { nombre: string }).nombre }
+}
+
+export interface UpdateTallerDescripcionInput {
+  readonly tallerId: string
+  readonly tallerSlug: string
+  readonly descripcion: string
+}
+
+/**
+ * T3 correction — same in-place-edit pattern and write path as
+ * updateTallerNombre: a plain `talleres` table UPDATE, gated by the same
+ * talleres_update_director RLS policy (there is no `editar_taller` RPC —
+ * see this file's header). An empty/whitespace-only value clears the
+ * description (stored as NULL, not an empty string) — the table's own
+ * CHECK (descripcion IS NULL OR length(descripcion) <= 2000) allows
+ * either, but NULL is the cleaner "no description" state.
+ */
+export async function updateTallerDescripcion(
+  input: UpdateTallerDescripcionInput,
+): Promise<TallerActionResult<{ descripcion: string | null }>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  const trimmed = input.descripcion.trim()
+  if (trimmed.length > DESCRIPCION_MAX_LENGTH) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: `La descripción no puede superar los ${DESCRIPCION_MAX_LENGTH} caracteres.`,
+    }
+  }
+  const descripcion = trimmed.length === 0 ? null : trimmed
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client
+    .from('talleres')
+    .update({ descripcion })
+    .eq('id', input.tallerId)
+    .select('descripcion')
+    .single()
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo actualizar la descripción.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true, descripcion: (data as { descripcion: string | null }).descripcion }
 }
 
 // ─── Clases (plantilla) ──────────────────────────────────────────────────

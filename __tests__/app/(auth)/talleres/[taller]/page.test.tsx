@@ -28,6 +28,7 @@
 import TallerDetallePage from '@/app/(auth)/talleres/[taller]/page'
 import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
 import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
+import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcion-taller'
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
@@ -84,6 +85,10 @@ jest.mock('@/components/talleres/open-edicion-form', () => ({
 
 jest.mock('@/components/talleres/editar-nombre-taller', () => ({
   EditarNombreTaller: () => null,
+}))
+
+jest.mock('@/components/talleres/editar-descripcion-taller', () => ({
+  EditarDescripcionTaller: () => null,
 }))
 
 jest.mock('@/components/talleres/plantilla-clases-section', () => ({
@@ -291,6 +296,27 @@ describe('TallerDetallePage — cabecera', () => {
     const element = (await TallerDetallePage(params())) as any
     expect(findByType(element, EditarNombreTaller)).toBeNull()
     expect(extractText(element)).toMatch(/Matrimonio sobre la Roca/)
+  })
+
+  it('shows EditarDescripcionTaller when cargarPermisos grants editarTaller', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const editar = findByType(element, EditarDescripcionTaller)
+    expect(editar).not.toBeNull()
+    expect(editar?.props).toEqual({
+      tallerId: 't-1',
+      tallerSlug: 'matrimonio-sobre-la-roca',
+      descripcion: 'Un taller de ejemplo.',
+    })
+  })
+
+  it('shows the plain descripcion (never EditarDescripcionTaller) for a read-only viewer', async () => {
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, EditarDescripcionTaller)).toBeNull()
+    expect(extractText(element)).toMatch(/Un taller de ejemplo\./)
   })
 })
 

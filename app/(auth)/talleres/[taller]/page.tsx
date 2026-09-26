@@ -38,7 +38,7 @@
  * PERMISSIONS: every control below reads cargarPermisos(client,
  * taller.dream_team_equipo_id) for THIS taller's node — never a flat
  * `caps.includes(...)` check (docs §9, "Permisos en la interfaz").
- * `editarTaller` gates the cabecera's nombre edit AND the plantilla edit
+ * `editarTaller` gates the cabecera's nombre/descripcion edit AND the plantilla edit
  * controls (Decisiones: "edición de plantillas con editar_taller") — the
  * same predicate RLS itself enforces on `talleres` and the three
  * `taller_plantilla_*` tables, so a denied write here can only ever be a
@@ -63,6 +63,7 @@ import {
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
 import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
+import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcion-taller'
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import {
@@ -177,8 +178,16 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
               <code>{taller.slug}</code>
             </TextoSistema>
-            {taller.descripcion && (
-              <TextoSistema className="mt-2 block">{taller.descripcion}</TextoSistema>
+            {permisos.editarTaller ? (
+              <EditarDescripcionTaller
+                tallerId={taller.id}
+                tallerSlug={taller.slug}
+                descripcion={taller.descripcion}
+              />
+            ) : (
+              taller.descripcion && (
+                <TextoSistema className="mt-2 block">{taller.descripcion}</TextoSistema>
+              )
             )}
             {rutaEquipo && (
               <TextoSistema variante="sutil" tamaño="sm" className="mt-2 block">

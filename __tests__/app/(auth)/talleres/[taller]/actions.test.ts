@@ -9,12 +9,17 @@
  * authorization stays in the DB (RLS on the plantilla tables, the
  * NO_ES_SERVIDOR_ACTIVO_DEL_TALLER trigger), never re-implemented here.
  *
- * This file only covers updateTallerNombre; the plantilla clase/grupo/
+ * This file covers updateTallerNombre and updateTallerDescripcion — the
+ * two cabecera fields, both plain `talleres` table UPDATEs gated by the
+ * SAME talleres_update_director RLS policy (there is no dedicated
+ * `editar_taller` RPC — verified empty on staging via `pg_proc`;
+ * "editar_taller" is only the capability-boolean field name
+ * talleres_mis_permisos() returns). The plantilla clase/grupo/
  * facilitador actions are added alongside their own components later in
  * T3 (see the components' own tests for that coverage).
  */
 
-import { updateTallerNombre } from '@/app/(auth)/talleres/[taller]/actions'
+import { updateTallerDescripcion, updateTallerNombre } from '@/app/(auth)/talleres/[taller]/actions'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(() => true),
@@ -118,6 +123,79 @@ describe('updateTallerNombre — RLS denial', () => {
       },
     })
     const result = await updateTallerNombre(validInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('forbidden')
+      expect(result.message).toMatch(/permisos/i)
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+})
+
+const validDescripcionInput = {
+  tallerId: 't-1',
+  tallerSlug: 'proximo-paso',
+  descripcion: 'Un taller de ejemplo.',
+}
+
+describe('updateTallerDescripcion — kill switch & auth', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    setup({ isEnabled: false, updateResult: { data: { descripcion: 'x' }, error: null } })
+    const result = await updateTallerDescripcion(validDescripcionInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+  })
+
+  it('returns unauthorized when there is no session', async () => {
+    setup({ user: null, updateResult: { data: { descripcion: 'x' }, error: null } })
+    const result = await updateTallerDescripcion(validDescripcionInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+  })
+})
+
+describe('updateTallerDescripcion — input validation', () => {
+  it('rejects a descripcion longer than 2000 characters (the DB CHECK)', async () => {
+    setup({ updateResult: { data: { descripcion: 'x' }, error: null } })
+    const result = await updateTallerDescripcion({ ...validDescripcionInput, descripcion: 'a'.repeat(2001) })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('normalizes an empty/whitespace-only descripcion to null (clears it)', async () => {
+    setup({ updateResult: { data: { descripcion: null }, error: null } })
+    await updateTallerDescripcion({ ...validDescripcionInput, descripcion: '   ' })
+    const client = await createSupabaseServerClientMock.mock.results[0].value
+    expect(client.from('talleres').update).toHaveBeenCalledWith({ descripcion: null })
+  })
+
+  it('trims the descripcion before sending it', async () => {
+    setup({ updateResult: { data: { descripcion: 'Un taller de ejemplo.' }, error: null } })
+    await updateTallerDescripcion({ ...validDescripcionInput, descripcion: '  Un taller de ejemplo.  ' })
+    const client = await createSupabaseServerClientMock.mock.results[0].value
+    expect(client.from('talleres').update).toHaveBeenCalledWith({ descripcion: 'Un taller de ejemplo.' })
+  })
+})
+
+describe('updateTallerDescripcion — happy path', () => {
+  it('updates the row and revalidates the taller page', async () => {
+    setup({ updateResult: { data: { descripcion: 'Un taller de ejemplo.' }, error: null } })
+    const result = await updateTallerDescripcion(validDescripcionInput)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.descripcion).toBe('Un taller de ejemplo.')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+})
+
+describe('updateTallerDescripcion — RLS denial', () => {
+  it('maps a bare 42501 to a friendly forbidden message', async () => {
+    setup({
+      updateResult: {
+        data: null,
+        error: { code: '42501', message: 'new row violates row-level security policy' },
+      },
+    })
+    const result = await updateTallerDescripcion(validDescripcionInput)
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error).toBe('forbidden')
