@@ -147,37 +147,56 @@ describe('toggleActivoPlantillaClase', () => {
 })
 
 describe('moverPlantillaClase', () => {
-  const CLASES = [
-    { id: 'c-1', numero: 1, tema: 'Sígueme', activo: true },
-    { id: 'c-2', numero: 2, tema: 'Intimidad con Dios', activo: true },
-    { id: 'c-3', numero: 3, tema: 'Compañerismo', activo: true },
-  ]
+  /**
+   * T3 correction — moverPlantillaClase now calls the atomic RPC
+   * talleres_mover_plantilla_clase(p_clase_id, p_direccion) (migration
+   * 20260927110000_talleres_mover_plantilla_clase.sql) in ONE round
+   * trip, instead of reading the ordered list client-side and issuing
+   * three sequential UPDATEs. `direccion: 'subir'|'bajar'` (the
+   * component's own vocabulary, unchanged) maps to the RPC's
+   * 'arriba'|'abajo'.
+   */
+  function setupRpc(rpcResult: { data: unknown; error: unknown }) {
+    const rpc = jest.fn().mockResolvedValue(rpcResult)
+    createSupabaseServerClientMock.mockReset().mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } }, error: null }) },
+      rpc,
+    })
+    return { rpc }
+  }
 
-  it('swaps numero with the previous clase on subir', async () => {
-    setup([{ data: CLASES, error: null }, OK, OK, OK])
+  it('calls the RPC with p_direccion="arriba" for subir and revalidates on moved:true', async () => {
+    const { rpc } = setupRpc({ data: { moved: true, clase_id: 'c-2', numero: 2 }, error: null })
     const result = await moverPlantillaClase({
       tallerId: 't-1',
       tallerSlug: 'proximo-paso',
       claseId: 'c-2',
       direccion: 'subir',
     })
+    expect(rpc).toHaveBeenCalledWith('talleres_mover_plantilla_clase', {
+      p_clase_id: 'c-2',
+      p_direccion: 'arriba',
+    })
     expect(result.ok).toBe(true)
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
   })
 
-  it('swaps numero with the next clase on bajar', async () => {
-    setup([{ data: CLASES, error: null }, OK, OK, OK])
-    const result = await moverPlantillaClase({
+  it('calls the RPC with p_direccion="abajo" for bajar', async () => {
+    const { rpc } = setupRpc({ data: { moved: true, clase_id: 'c-2', numero: 3 }, error: null })
+    await moverPlantillaClase({
       tallerId: 't-1',
       tallerSlug: 'proximo-paso',
       claseId: 'c-2',
       direccion: 'bajar',
     })
-    expect(result.ok).toBe(true)
+    expect(rpc).toHaveBeenCalledWith('talleres_mover_plantilla_clase', {
+      p_clase_id: 'c-2',
+      p_direccion: 'abajo',
+    })
   })
 
-  it('no-ops when already first and asked to subir', async () => {
-    setup([{ data: CLASES, error: null }])
+  it('no-ops (no revalidate) when the RPC returns moved:false', async () => {
+    setupRpc({ data: { moved: false, clase_id: 'c-1', numero: 1 }, error: null })
     const result = await moverPlantillaClase({
       tallerId: 't-1',
       tallerSlug: 'proximo-paso',
@@ -189,16 +208,17 @@ describe('moverPlantillaClase', () => {
     expect(revalidatePathMock).not.toHaveBeenCalled()
   })
 
-  it('no-ops when already last and asked to bajar', async () => {
-    setup([{ data: CLASES, error: null }])
+  it('maps a 42501 RPC error to forbidden', async () => {
+    setupRpc({ data: null, error: { code: '42501', message: 'sin_permisos_para_este_taller' } })
     const result = await moverPlantillaClase({
       tallerId: 't-1',
       tallerSlug: 'proximo-paso',
-      claseId: 'c-3',
-      direccion: 'bajar',
+      claseId: 'c-1',
+      direccion: 'subir',
     })
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('no-op')
+    if (!result.ok) expect(result.error).toBe('forbidden')
+    expect(revalidatePathMock).not.toHaveBeenCalled()
   })
 })
 

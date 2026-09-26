@@ -28,7 +28,6 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
-import { loadPlantillaClases } from '@/lib/platform/talleres/plantilla'
 
 export type TallerActionResult<T> =
   | ({ readonly ok: true } & T)
@@ -254,70 +253,45 @@ export interface MoverPlantillaClaseInput {
 }
 
 /**
- * Swaps `numero` between the target clase and its immediate neighbor
- * (previous for "subir", next for "bajar") among ALL of the taller's
- * plantilla clases, active or not — `numero` is a single taller-wide
- * sequence (UNIQUE (taller_id, numero)), never scoped by `activo`.
+ * T3 correction — swaps `numero` between the target clase and its
+ * immediate neighbor (previous for "subir", next for "bajar") among ALL
+ * of the taller's plantilla clases, active or not. Delegates the whole
+ * swap to the atomic RPC talleres_mover_plantilla_clase(p_clase_id,
+ * p_direccion) (migration 20260927110000_talleres_mover_plantilla_
+ * clase.sql) in ONE round trip — the function itself either commits both
+ * swapped rows or rolls back entirely, replacing this action's earlier
+ * three-sequential-UPDATE version (flagged as a non-atomic compromise:
+ * a failure between steps could leave one row on a temporary numero).
  *
- * No dedicated RPC exists for this (T3 is app-only, no new migrations),
- * so the swap is three sequential UPDATEs through a temporary out-of-range
- * `numero` — the only way to avoid the UNIQUE constraint tripping mid-swap
- * without a transaction. A failure between steps can leave one row on the
- * temporary value; recorded as a known limitation, acceptable for this
- * low-traffic admin reorder action (a future RPC could make it atomic).
+ * `direccion` keeps this action's own vocabulary ('subir'/'bajar',
+ * matching the UI's Up/Down buttons) and translates it to the RPC's
+ * ('arriba'/'abajo') at the boundary — no UI/component change needed.
  */
 export async function moverPlantillaClase(
   input: MoverPlantillaClaseInput,
-): Promise<TallerActionResult<object>> {
+): Promise<TallerActionResult<{ numero: number }>> {
   const gated = await gate()
   if (!gated.ok) return gated.result
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
-  const clases = await loadPlantillaClases(client, input.tallerId)
-  const ordenadas = [...clases].sort((a, b) => a.numero - b.numero)
-  const index = ordenadas.findIndex((c) => c.id === input.claseId)
-  if (index === -1) {
-    return { ok: false, error: 'not-found', message: 'No se encontró la clase.' }
+  const { data, error } = await client.rpc('talleres_mover_plantilla_clase', {
+    p_clase_id: input.claseId,
+    p_direccion: input.direccion === 'subir' ? 'arriba' : 'abajo',
+  })
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo reordenar la clase.')
+    return { ok: false, error: traducido.error, message: traducido.message }
   }
 
-  const vecinoIndex = input.direccion === 'subir' ? index - 1 : index + 1
-  const vecino = ordenadas[vecinoIndex]
-  if (!vecino) {
+  const resultado = data as { moved: boolean; clase_id: string; numero: number }
+  if (!resultado.moved) {
     return { ok: false, error: 'no-op', message: 'No hay una clase adyacente en esa dirección.' }
   }
 
-  const actual = ordenadas[index]!
-  const TEMP_OFFSET = 1000000
-  const { error: errorTemp } = await client
-    .from('taller_plantilla_clases')
-    .update({ numero: actual.numero + TEMP_OFFSET })
-    .eq('id', actual.id)
-  if (errorTemp) {
-    const traducido = traducirErrorTalleres(errorTemp, 'No se pudo reordenar la clase.')
-    return { ok: false, error: traducido.error, message: traducido.message }
-  }
-
-  const { error: errorVecino } = await client
-    .from('taller_plantilla_clases')
-    .update({ numero: actual.numero })
-    .eq('id', vecino.id)
-  if (errorVecino) {
-    const traducido = traducirErrorTalleres(errorVecino, 'No se pudo reordenar la clase.')
-    return { ok: false, error: traducido.error, message: traducido.message }
-  }
-
-  const { error: errorActual } = await client
-    .from('taller_plantilla_clases')
-    .update({ numero: vecino.numero })
-    .eq('id', actual.id)
-  if (errorActual) {
-    const traducido = traducirErrorTalleres(errorActual, 'No se pudo reordenar la clase.')
-    return { ok: false, error: traducido.error, message: traducido.message }
-  }
-
   revalidatePath(rutaTaller(input.tallerSlug))
-  return { ok: true }
+  return { ok: true, numero: resultado.numero }
 }
 
 // ─── Grupos (plantilla) ──────────────────────────────────────────────────
