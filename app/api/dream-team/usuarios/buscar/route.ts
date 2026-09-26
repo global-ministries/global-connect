@@ -3,18 +3,33 @@
  *
  * Persona search backing the "assign servicio" admin card on
  * /admin/dream-team/servidores. Mirrors
- * app/api/talleres/admin/usuarios/buscar/route.ts in mechanics (ilike
- * nombre/apellido/email, minimum query length 2, limit 20), but is NOT that
- * route reused: this one is gated by Dream Team's own flag/session/capability
- * chain, not talleres'. A scoped area director holds `dream_team.direct` but
- * never a `talleres_crecimiento.*` capability, so reusing the talleres route
- * would 403 them out of their own assigner.
+ * app/api/talleres/admin/usuarios/buscar/route.ts in mechanics (calls the
+ * shared talleres_buscar_personas RPC, minimum query length 2, limit 20),
+ * but is NOT that route reused: this one is gated by Dream Team's own
+ * flag/session/capability chain, not talleres'. A scoped area director
+ * holds `dream_team.direct` but never a `talleres_crecimiento.*`
+ * capability, so reusing the talleres route would 403 them out of their
+ * own assigner.
+ *
+ * BUGFIX — this route used to query `usuarios` directly through the
+ * caller's own server client, which hit `usuarios`' own row-level security:
+ * only admin/pastor/Grupos-de-Vida leaders can see other people's rows
+ * there, so an area director assigning a servidor got a silent
+ * "Sin resultados" (verified in staging with a real area director). It now
+ * calls the talleres_buscar_personas RPC (SECURITY DEFINER, its own
+ * capability gate independent of `usuarios` RLS), mapped back to this
+ * route's existing response shape.
  *
  * Auth:
  *   - Dream Team feature flag → 404 when off
  *   - Dream Team session (auth user + persona) → 401 when absent
  *   - any Dream Team write capability (hasDreamTeamWriteCapability) → 403
  *     otherwise — searching personas is only useful to assign a servicio
+ *   - the RPC re-checks authority on its own narrower capability list; a
+ *     caller who only holds `dream_team.requirements.manage` (part of
+ *     hasDreamTeamWriteCapability's set, but not of the RPC's) gets 42501
+ *     from the RPC — degraded here to an empty result, matching the old
+ *     RLS-filtered "no rows" behavior instead of a hard 500
  */
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -45,20 +60,37 @@ export async function GET(req: NextRequest) {
     if (q.length < MIN_QUERY_LENGTH) return NextResponse.json([])
 
     const supabase = await createSupabaseServerClient()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client, usuarios select shape kept loose like the talleres sibling route
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client, rpc return shape kept loose like the talleres sibling route
     const client: any = supabase
-    const { data, error } = await client
-      .from('usuarios')
-      .select('id, email, nombre, apellido, auth_id')
-      .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%`)
-      .limit(RESULT_LIMIT)
+    const { data, error } = await client.rpc('talleres_buscar_personas', {
+      p_q: q,
+      p_limit: RESULT_LIMIT,
+    })
 
     if (error) {
+      // A write-capable Dream Team caller whose specific capability isn't
+      // on the RPC's own (narrower) list gets 42501 here — degrade to an
+      // empty result instead of a 500, same as the RLS-filtered "no rows"
+      // this route used to silently return.
+      if (error.code === '42501') return NextResponse.json([])
       console.error('[dream-team/usuarios/buscar GET] error:', error)
       return NextResponse.json({ error: 'Error interno' }, { status: 500 })
     }
 
-    return NextResponse.json(data ?? [])
+    const usuarios = ((data ?? []) as Array<{
+      id: string
+      nombre: string | null
+      apellido: string | null
+      email: string | null
+    }>).map((u) => ({
+      id: u.id,
+      email: u.email,
+      nombre: u.nombre,
+      apellido: u.apellido,
+      auth_id: null,
+    }))
+
+    return NextResponse.json(usuarios)
   } catch (error) {
     console.error('[dream-team/usuarios/buscar GET] error:', error)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
