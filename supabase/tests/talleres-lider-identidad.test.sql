@@ -209,6 +209,24 @@ BEGIN
 END;
 $trg$;
 
+-- talleres_grupo_asignaciones_exige_servidor_activo (T1 of
+-- talleres-configuracion-del-taller) now requires every assignee to be
+-- an active dream_team_servicios of the taller's node — even a8...31
+-- below, whose ASSIGNMENT is activo=false: the new gate checks
+-- dream_team_servicios, not this row's own activo column. Fixture-only,
+-- added minimally to keep this file's OLD assertions true under the
+-- NEW gate; no assertion below changes. 'Líder' is not in
+-- talleres_role_capability_map, so this mints zero capability grants
+-- (verified read-only beforehand).
+INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
+  ('a8000000-0000-4000-8000-000000000900', 'a8000000-0000-4000-8000-000000000001', 'Líder', true);
+
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado) VALUES
+  ('a8000000-0000-4000-8000-000000000901', 'a8000000-0000-4000-8000-000000000023', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo'),
+  ('a8000000-0000-4000-8000-000000000902', 'a8000000-0000-4000-8000-000000000025', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo'),
+  ('a8000000-0000-4000-8000-000000000903', 'a8000000-0000-4000-8000-000000000027', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo'),
+  ('a8000000-0000-4000-8000-000000000904', 'a8000000-0000-4000-8000-000000000031', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo');
+
 INSERT INTO public.taller_grupo_asignaciones (id, grupo_id, persona_id, rol, activo) VALUES
   ('a8000000-0000-4000-8000-000000000050', 'a8000000-0000-4000-8000-000000000040', 'a8000000-0000-4000-8000-000000000023', 'lider', true),
   ('a8000000-0000-4000-8000-000000000051', 'a8000000-0000-4000-8000-000000000040', 'a8000000-0000-4000-8000-000000000025', 'voluntario', true),
@@ -376,6 +394,13 @@ SELECT pg_temp.assert_rows('criterion 8: trigger no longer exists on taller_grup
   $$SELECT 1 FROM pg_trigger WHERE tgname = 'trg_sync_talleres_grants_on_grupo_asignacion_change'$$, 0);
 SELECT pg_temp.assert_rows('criterion 8: function no longer exists',
   $$SELECT 1 FROM pg_proc WHERE proname = 'sync_talleres_grants_on_grupo_asignacion_change'$$, 0);
+
+-- the new servidor-activo gate also applies to this INSERT, so the
+-- miembro (a8...29) needs an active dream_team_servicios row on the
+-- taller's node too — reusing the 'Líder' rol minted above, fixture-
+-- only, no assertion below changes.
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado) VALUES
+  ('a8000000-0000-4000-8000-000000000905', 'a8000000-0000-4000-8000-000000000029', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo');
 
 SELECT pg_temp.assert_no_error('criterion 8: INSERT into taller_grupo_asignaciones as postgres succeeds (was 42883)',
   $$INSERT INTO public.taller_grupo_asignaciones (id, grupo_id, persona_id, rol, activo) VALUES

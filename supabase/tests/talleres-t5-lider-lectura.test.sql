@@ -155,8 +155,38 @@ INSERT INTO public.taller_grupos (id, cohorte_id, nombre, estado, capacidad) VAL
   ('a5000000-0000-4000-8000-000000000030', (SELECT id FROM t5_fixture WHERE key='cohorte'), 'ZZ T5 Grupo', 'activo', 10);
 
 -- Finding 6 — disable the broken auto-grant trigger only for this
--- fixture INSERT; never touched outside this transaction.
-ALTER TABLE public.taller_grupo_asignaciones DISABLE TRIGGER trg_sync_talleres_grants_on_grupo_asignacion_change;
+-- fixture INSERT; never touched outside this transaction. Guarded
+-- (unlike this file's original unconditional ALTER) because
+-- 20260924150000_talleres_lider_identidad.sql has since DROPped this
+-- trigger for good on staging — verified read-only before writing this
+-- guard, same pattern supabase/tests/talleres-lider-identidad.test.sql
+-- already uses, so this file runs unmodified whether or not the
+-- trigger is present.
+DO $trg$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'trg_sync_talleres_grants_on_grupo_asignacion_change'
+      AND tgrelid = 'public.taller_grupo_asignaciones'::regclass
+  ) THEN
+    ALTER TABLE public.taller_grupo_asignaciones DISABLE TRIGGER trg_sync_talleres_grants_on_grupo_asignacion_change;
+  END IF;
+END;
+$trg$;
+
+-- talleres_grupo_asignaciones_exige_servidor_activo (T1 of
+-- talleres-configuracion-del-taller) now requires every assignee to be
+-- an active dream_team_servicios of the taller's node. Fixture-only,
+-- added minimally to keep this file's OLD assertions true under the
+-- NEW gate; no assertion below changes. 'Líder' is not in
+-- talleres_role_capability_map, so this mints zero capability grants
+-- (verified read-only beforehand).
+INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
+  ('a5000000-0000-4000-8000-000000000900', 'a5000000-0000-4000-8000-000000000001', 'Líder', true);
+
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado) VALUES
+  ('a5000000-0000-4000-8000-000000000901', 'a5000000-0000-4000-8000-000000000023', 'a5000000-0000-4000-8000-000000000001', 'a5000000-0000-4000-8000-000000000900', 'activo'),
+  ('a5000000-0000-4000-8000-000000000902', 'a5000000-0000-4000-8000-000000000025', 'a5000000-0000-4000-8000-000000000001', 'a5000000-0000-4000-8000-000000000900', 'activo');
 
 INSERT INTO public.taller_grupo_asignaciones (id, grupo_id, persona_id, rol, activo) VALUES
   ('a5000000-0000-4000-8000-000000000040', 'a5000000-0000-4000-8000-000000000030', 'a5000000-0000-4000-8000-000000000023', 'lider', true),

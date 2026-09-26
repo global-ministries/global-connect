@@ -237,6 +237,21 @@ INSERT INTO public.taller_grupos (id, cohorte_id, nombre, estado, capacidad) VAL
   ('ad000000-0000-4000-8000-000000000040', (SELECT id FROM t_al_fixture WHERE key = 'cohorte'), 'ZZ TAL Grupo A1', 'activo', 10),
   ('ad000000-0000-4000-8000-000000000041', (SELECT id FROM t_al_fixture WHERE key = 'cohorte'), 'ZZ TAL Grupo A2', 'activo', 10);
 
+-- talleres_grupo_asignaciones_exige_servidor_activo (T1 of
+-- talleres-configuracion-del-taller) now requires every assignee to be
+-- an active dream_team_servicios of the taller's node. This role/
+-- servicio block is fixture-only, added minimally to keep this file's
+-- OLD assertions true under the NEW gate; it does not change any
+-- assertion below. 'Líder' is not in talleres_role_capability_map, so
+-- this mints zero capability grants (verified read-only beforehand).
+INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
+  ('ad000000-0000-4000-8000-000000000900', 'ad000000-0000-4000-8000-000000000001', 'Líder', true);
+
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado) VALUES
+  ('ad000000-0000-4000-8000-000000000901', 'ad000000-0000-4000-8000-000000000023', 'ad000000-0000-4000-8000-000000000001', 'ad000000-0000-4000-8000-000000000900', 'activo'),
+  ('ad000000-0000-4000-8000-000000000902', 'ad000000-0000-4000-8000-000000000025', 'ad000000-0000-4000-8000-000000000001', 'ad000000-0000-4000-8000-000000000900', 'activo'),
+  ('ad000000-0000-4000-8000-000000000903', 'ad000000-0000-4000-8000-000000000027', 'ad000000-0000-4000-8000-000000000001', 'ad000000-0000-4000-8000-000000000900', 'activo');
+
 INSERT INTO public.taller_grupo_asignaciones (id, grupo_id, persona_id, rol, activo) VALUES
   ('ad000000-0000-4000-8000-000000000050', 'ad000000-0000-4000-8000-000000000040', 'ad000000-0000-4000-8000-000000000023', 'lider', true),
   ('ad000000-0000-4000-8000-000000000051', 'ad000000-0000-4000-8000-000000000040', 'ad000000-0000-4000-8000-000000000025', 'voluntario', true),
