@@ -101,7 +101,7 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     status: 409,
     error: 'conflict',
     message:
-      'Esa persona no es un servidor activo de este taller. Asignala primero en Dream Team → Servidores.',
+      'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
   },
 }
 
@@ -137,7 +137,7 @@ export function traducirErrorTalleres(
   // the specific-message loop so an already-mapped 42501 (like
   // sin_permisos_para_este_grupo) keeps its own friendlier message.
   if (error?.code === '42501') {
-    return { status: 403, error: 'forbidden', message: 'No tenés permisos para hacer este cambio.' }
+    return { status: 403, error: 'forbidden', message: 'No tienes permisos para hacer este cambio.' }
   }
   // A duplicate insert against one of the plantilla tables' UNIQUE
   // constraints (e.g. the same facilitador added twice to a grupo, or a

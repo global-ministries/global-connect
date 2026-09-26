@@ -35,7 +35,7 @@ async function gate(): Promise<{ ok: true; supabase: any } | { ok: false; result
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
-    return { ok: false, result: { ok: false, error: 'unauthorized', message: 'Necesitás iniciar sesión.' } }
+    return { ok: false, result: { ok: false, error: 'unauthorized', message: 'Necesitas iniciar sesión.' } }
   }
 
   return { ok: true, supabase }

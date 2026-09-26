@@ -142,13 +142,13 @@ describe('PlantillaGruposSection — editor: facilitador picker is bounded', () 
     agregarFacilitadorMock.mockResolvedValue({
       ok: false,
       error: 'conflict',
-      message: 'Esa persona no es un servidor activo de este taller. Asignala primero en Dream Team → Servidores.',
+      message: 'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
     })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
     fireEvent.click(screen.getAllByRole('button', { name: /agregar facilitador/i })[0]!)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Esa persona no es un servidor activo de este taller. Asignala primero en Dream Team → Servidores.',
+      'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
     )
   })
 })

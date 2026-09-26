@@ -6,9 +6,10 @@
  * "Equipo" section of /talleres/[taller] and the bounded facilitador
  * picker in the Grupos (plantilla) section — one loader, two consumers.
  *
- * Best-effort, same contract as cargarPermisos: never throws. Any RPC
- * error (including 42501 for a viewer with no visibility) degrades to an
- * empty array rather than crashing the page.
+ * B2 correction (T7) — never throws, but a 42501 no longer collapses to
+ * the SAME empty result as a taller with genuinely zero active
+ * servidores: it returns a discriminated result so the taller page can
+ * tell "no team yet" apart from "you can't see this team".
  */
 
 import {
@@ -37,18 +38,21 @@ describe('loadServidoresDelTaller', () => {
     const result = await loadServidoresDelTaller(client, 't-1')
 
     expect(client.rpc).toHaveBeenCalledWith('talleres_servidores_del_taller', { p_taller_id: 't-1' })
-    expect(result).toEqual([
-      {
-        personaId: 'p-1',
-        nombre: 'Ana',
-        apellido: 'Gómez',
-        rolServicio: 'Líder',
-        equipoLabel: 'Próximo Paso',
-      },
-    ])
+    expect(result).toEqual({
+      ok: true,
+      servidores: [
+        {
+          personaId: 'p-1',
+          nombre: 'Ana',
+          apellido: 'Gómez',
+          rolServicio: 'Líder',
+          equipoLabel: 'Próximo Paso',
+        },
+      ],
+    })
   })
 
-  it('degrades to an empty array on an RPC error (e.g. 42501 for a viewer with no visibility)', async () => {
+  it('returns sin_autoridad on a 42501 RPC error (a viewer with no visibility)', async () => {
     const client = {
       rpc: jest.fn().mockResolvedValue({
         data: null,
@@ -57,19 +61,31 @@ describe('loadServidoresDelTaller', () => {
     }
 
     const result = await loadServidoresDelTaller(client, 't-1')
-    expect(result).toEqual([])
+    expect(result).toEqual({ ok: false, reason: 'sin_autoridad' })
   })
 
-  it('degrades to an empty array when the client throws', async () => {
+  it('returns a generic error for a non-42501 RPC error', async () => {
+    const client = {
+      rpc: jest.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'internal error', code: '500' },
+      }),
+    }
+
+    const result = await loadServidoresDelTaller(client, 't-1')
+    expect(result).toEqual({ ok: false, reason: 'error' })
+  })
+
+  it('returns a generic error when the client throws', async () => {
     const client = { rpc: jest.fn().mockRejectedValue(new Error('network')) }
     const result = await loadServidoresDelTaller(client, 't-1')
-    expect(result).toEqual([])
+    expect(result).toEqual({ ok: false, reason: 'error' })
   })
 
-  it('degrades to an empty array when data is not an array', async () => {
+  it('returns a generic error when data is not an array', async () => {
     const client = { rpc: jest.fn().mockResolvedValue({ data: null, error: null }) }
     const result = await loadServidoresDelTaller(client, 't-1')
-    expect(result).toEqual([])
+    expect(result).toEqual({ ok: false, reason: 'error' })
   })
 })
 

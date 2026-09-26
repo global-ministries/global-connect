@@ -161,12 +161,12 @@ describe('GruposSection — editar grupo en su lugar', () => {
     editarGrupoInstanciadoMock.mockResolvedValue({
       ok: false,
       error: 'forbidden',
-      message: 'No tenés permisos para hacer este cambio.',
+      message: 'No tienes permisos para hacer este cambio.',
     })
     render(<GruposSection {...baseProps({ puedeEditar: true })} />)
     fireEvent.click(screen.getAllByRole('button', { name: /editar grupo/i })[0]!)
     fireEvent.click(screen.getByRole('button', { name: /guardar grupo/i }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('No tenés permisos para hacer este cambio.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('No tienes permisos para hacer este cambio.')
   })
 })
 
@@ -194,12 +194,12 @@ describe('GruposSection — agregar facilitador (bounded picker)', () => {
     agregarFacilitadorGrupoMock.mockResolvedValue({
       ok: false,
       error: 'conflict',
-      message: 'Esa persona no es un servidor activo de este taller. Asignala primero en Dream Team → Servidores.',
+      message: 'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
     })
     render(<GruposSection {...baseProps({ puedeEditar: true })} />)
     fireEvent.click(screen.getAllByRole('button', { name: /agregar facilitador/i })[0]!)
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Esa persona no es un servidor activo de este taller. Asignala primero en Dream Team → Servidores.',
+      'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
     )
   })
 })
