@@ -31,6 +31,10 @@ import {
   UNIT_ESTADO_BADGE_VARIANTE,
   unitEstadoLabel,
   unitEstadoBadgeVariante,
+  ASISTENCIA_ESTADO_LABELS,
+  ASISTENCIA_ESTADO_BADGE_VARIANTE,
+  asistenciaEstadoLabel,
+  asistenciaEstadoBadgeVariante,
 } from '@/components/talleres/labels'
 
 describe('edición estado labels', () => {
@@ -231,5 +235,41 @@ describe('unit estado labels', () => {
   it('unitEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
     expect(unitEstadoBadgeVariante('no_completado')).toBe('default')
     expect(unitEstadoBadgeVariante('algo-desconocido')).toBe('default')
+  })
+})
+
+// T2 (odd/tasks/talleres-asistencia-lider.md) — taller_asistencias.estado,
+// the third domain of this file: the read view of a clase never renders the
+// raw key, always this map (docs §9, "Color y estado").
+describe('asistencia estado labels', () => {
+  it('has a Spanish label for every known estado', () => {
+    expect(ASISTENCIA_ESTADO_LABELS).toEqual({
+      presente: 'Presente',
+      ausente: 'Ausente',
+      no_aplica: 'No aplica',
+    })
+  })
+
+  it('maps every estado to a valid BadgeSistema variante', () => {
+    const validVariantes = new Set(['default', 'success', 'warning', 'error', 'info'])
+    for (const variante of Object.values(ASISTENCIA_ESTADO_BADGE_VARIANTE)) {
+      expect(validVariantes.has(variante)).toBe(true)
+    }
+  })
+
+  it('presente reads as success, ausente as error, no_aplica as default', () => {
+    expect(ASISTENCIA_ESTADO_BADGE_VARIANTE.presente).toBe('success')
+    expect(ASISTENCIA_ESTADO_BADGE_VARIANTE.ausente).toBe('error')
+    expect(ASISTENCIA_ESTADO_BADGE_VARIANTE.no_aplica).toBe('default')
+  })
+
+  it('asistenciaEstadoLabel resolves a known key and falls back to the raw key otherwise', () => {
+    expect(asistenciaEstadoLabel('ausente')).toBe('Ausente')
+    expect(asistenciaEstadoLabel('algo-desconocido')).toBe('algo-desconocido')
+  })
+
+  it('asistenciaEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
+    expect(asistenciaEstadoBadgeVariante('presente')).toBe('success')
+    expect(asistenciaEstadoBadgeVariante('algo-desconocido')).toBe('default')
   })
 })

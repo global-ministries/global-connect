@@ -60,6 +60,7 @@ import {
   TextoSistema,
 } from '@/components/ui/sistema-diseno'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia-clase.client'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -205,8 +206,15 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   const reporte = await loadGrupoReporte(client, grupoId)
 
   const claseSeleccionadaId = sp.clase ?? sesiones[0]?.id ?? null
-  const asistencia = claseSeleccionadaId
-    ? await loadAsistenciaPorClase(client, claseSeleccionadaId)
+  // T2 (odd/tasks/talleres-asistencia-lider.md): the read view titles the
+  // clase ("Clase {numero} · {tema}"), so it can only render for a clase
+  // that belongs to THIS grupo — an id that is not in the list (a stale or
+  // hand-edited ?clase=) resolves to no selected clase at all instead of
+  // loading rows this page could not title. RLS still decides what data
+  // arrives either way; this just keeps the view honest.
+  const claseSeleccionada = sesiones.find((s) => s.id === claseSeleccionadaId) ?? null
+  const asistencia = claseSeleccionada
+    ? await loadAsistenciaPorClase(client, claseSeleccionada.id)
     : []
 
   const lideres = asignaciones.filter((a) => a.rol === 'lider')
@@ -367,10 +375,9 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                   key={s.id}
                   className="flex items-center justify-between gap-3 rounded-lg border border-border/60 p-3"
                 >
-                  {/* taller_sesiones has no nombre/tema column today (verified
-                      against staging's information_schema) — unlike Grupos de
-                      Vida's asistencia, which already has `tema`. Rendered as
-                      "Clase {numero}"; no name is invented. */}
+                  {/* The selector keeps the plain "Clase {numero}" so a long
+                      list stays scannable; the clase's name (taller_sesiones.
+                      tema, T1/T2) shows as the title of the read view below. */}
                   <Link
                     href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
                     className={
@@ -394,14 +401,15 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </div>
       </section>
 
-      {/* Asistencia — read-only. Marking form is paso 7 (adopts
+      {/* Asistencia — read-only: LecturaAsistenciaClase (T2) renders the
+          marked clase; marking itself is paso 7 (adopts
           components/grupos/AttendanceRegister.client.tsx). */}
       <section aria-labelledby="asistencia-heading">
         <h2 id="asistencia-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
           Asistencia
         </h2>
         <div className="mt-3">
-          {sesiones.length === 0 ? (
+          {sesiones.length === 0 || !claseSeleccionada ? (
             <TextoSistema variante="sutil">Elegí una clase para ver su asistencia.</TextoSistema>
           ) : asistencia.length === 0 ? (
             <EstadoVacio
@@ -417,22 +425,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
               }
             />
           ) : (
-            <ul className="space-y-2">
-              {asistencia.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border/60 p-3"
-                >
-                  <TextoSistema className="text-sm">{a.nombre}</TextoSistema>
-                  <BadgeSistema
-                    variante={a.estado === 'presente' ? 'success' : a.estado === 'ausente' ? 'error' : 'default'}
-                    tamaño="sm"
-                  >
-                    {a.estado === 'presente' ? 'Presente' : a.estado === 'ausente' ? 'Ausente' : 'No aplica'}
-                  </BadgeSistema>
-                </li>
-              ))}
-            </ul>
+            <LecturaAsistenciaClase
+              numero={claseSeleccionada.numero}
+              tema={claseSeleccionada.tema}
+              filas={asistencia}
+            />
           )}
           {/* paso 7: acá va el registro/marcado de asistencia, adoptando
               components/grupos/AttendanceRegister.client.tsx de Grupos de
