@@ -28,6 +28,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
+import { loadPlantillaClases } from '@/lib/platform/talleres/plantilla'
 
 export type TallerActionResult<T> =
   | ({ readonly ok: true } & T)
@@ -95,4 +96,417 @@ export async function updateTallerNombre(
 
   revalidatePath(rutaTaller(input.tallerSlug))
   return { ok: true, nombre: (data as { nombre: string }).nombre }
+}
+
+// ─── Clases (plantilla) ──────────────────────────────────────────────────
+//
+// taller_plantilla_clases is written directly through RLS (T1, migration
+// 20260926150000_talleres_plantillas_del_taller.sql): director.write OR
+// admin.manage, tree-scoped — the same predicate `editar_taller` already
+// tests. Every action below only performs the write; a denial surfaces as
+// a plain 42501, translated by errores-api.ts's generic fallback.
+
+export interface UpdateCadenciaYDuracionInput {
+  readonly tallerId: string
+  readonly tallerSlug: string
+  readonly cadenciaDias: number
+  readonly duracionMinutos: number | null
+}
+
+export async function updateCadenciaYDuracion(
+  input: UpdateCadenciaYDuracionInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  if (!Number.isInteger(input.cadenciaDias) || input.cadenciaDias < 1) {
+    return { ok: false, error: 'invalid-input', message: 'La cadencia debe ser de al menos 1 día.' }
+  }
+  if (input.duracionMinutos !== null && (!Number.isInteger(input.duracionMinutos) || input.duracionMinutos <= 0)) {
+    return { ok: false, error: 'invalid-input', message: 'La duración debe ser un número positivo de minutos.' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { error } = await client
+    .from('talleres')
+    .update({ cadencia_dias: input.cadenciaDias, duracion_minutos: input.duracionMinutos })
+    .eq('id', input.tallerId)
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo actualizar la cadencia.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+export interface CrearPlantillaClaseInput {
+  readonly tallerId: string
+  readonly tallerSlug: string
+  readonly tema: string
+}
+
+/** Reads the current max `numero` for the taller (any activo status — numero is a taller-wide sequence) and returns the next one, or 1 when there are none yet. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+async function nextNumeroClase(client: any, tallerId: string): Promise<number> {
+  const { data } = await client
+    .from('taller_plantilla_clases')
+    .select('numero')
+    .eq('taller_id', tallerId)
+    .order('numero', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return ((data as { numero: number } | null)?.numero ?? 0) + 1
+}
+
+export async function crearPlantillaClase(
+  input: CrearPlantillaClaseInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  const tema = input.tema.trim()
+  if (tema.length === 0) {
+    return { ok: false, error: 'invalid-input', message: 'El tema es obligatorio.' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const numero = await nextNumeroClase(client, input.tallerId)
+  const { error } = await client
+    .from('taller_plantilla_clases')
+    .insert({ taller_id: input.tallerId, numero, tema })
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo agregar la clase.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+export interface EditarPlantillaClaseTemaInput {
+  readonly tallerSlug: string
+  readonly claseId: string
+  readonly tema: string
+}
+
+export async function editarPlantillaClaseTema(
+  input: EditarPlantillaClaseTemaInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  const tema = input.tema.trim()
+  if (tema.length === 0) {
+    return { ok: false, error: 'invalid-input', message: 'El tema es obligatorio.' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { error } = await client.from('taller_plantilla_clases').update({ tema }).eq('id', input.claseId)
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo editar la clase.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+export interface ToggleActivoPlantillaClaseInput {
+  readonly tallerSlug: string
+  readonly claseId: string
+  readonly activo: boolean
+}
+
+export async function toggleActivoPlantillaClase(
+  input: ToggleActivoPlantillaClaseInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { error } = await client
+    .from('taller_plantilla_clases')
+    .update({ activo: input.activo })
+    .eq('id', input.claseId)
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo actualizar la clase.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+export interface MoverPlantillaClaseInput {
+  readonly tallerId: string
+  readonly tallerSlug: string
+  readonly claseId: string
+  readonly direccion: 'subir' | 'bajar'
+}
+
+/**
+ * Swaps `numero` between the target clase and its immediate neighbor
+ * (previous for "subir", next for "bajar") among ALL of the taller's
+ * plantilla clases, active or not — `numero` is a single taller-wide
+ * sequence (UNIQUE (taller_id, numero)), never scoped by `activo`.
+ *
+ * No dedicated RPC exists for this (T3 is app-only, no new migrations),
+ * so the swap is three sequential UPDATEs through a temporary out-of-range
+ * `numero` — the only way to avoid the UNIQUE constraint tripping mid-swap
+ * without a transaction. A failure between steps can leave one row on the
+ * temporary value; recorded as a known limitation, acceptable for this
+ * low-traffic admin reorder action (a future RPC could make it atomic).
+ */
+export async function moverPlantillaClase(
+  input: MoverPlantillaClaseInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const clases = await loadPlantillaClases(client, input.tallerId)
+  const ordenadas = [...clases].sort((a, b) => a.numero - b.numero)
+  const index = ordenadas.findIndex((c) => c.id === input.claseId)
+  if (index === -1) {
+    return { ok: false, error: 'not-found', message: 'No se encontró la clase.' }
+  }
+
+  const vecinoIndex = input.direccion === 'subir' ? index - 1 : index + 1
+  const vecino = ordenadas[vecinoIndex]
+  if (!vecino) {
+    return { ok: false, error: 'no-op', message: 'No hay una clase adyacente en esa dirección.' }
+  }
+
+  const actual = ordenadas[index]!
+  const TEMP_OFFSET = 1000000
+  const { error: errorTemp } = await client
+    .from('taller_plantilla_clases')
+    .update({ numero: actual.numero + TEMP_OFFSET })
+    .eq('id', actual.id)
+  if (errorTemp) {
+    const traducido = traducirErrorTalleres(errorTemp, 'No se pudo reordenar la clase.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  const { error: errorVecino } = await client
+    .from('taller_plantilla_clases')
+    .update({ numero: actual.numero })
+    .eq('id', vecino.id)
+  if (errorVecino) {
+    const traducido = traducirErrorTalleres(errorVecino, 'No se pudo reordenar la clase.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  const { error: errorActual } = await client
+    .from('taller_plantilla_clases')
+    .update({ numero: vecino.numero })
+    .eq('id', actual.id)
+  if (errorActual) {
+    const traducido = traducirErrorTalleres(errorActual, 'No se pudo reordenar la clase.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+// ─── Grupos (plantilla) ──────────────────────────────────────────────────
+
+export interface CrearPlantillaGrupoInput {
+  readonly tallerId: string
+  readonly tallerSlug: string
+  readonly nombre: string
+  readonly capacidad: number
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+async function nextOrdenGrupo(client: any, tallerId: string): Promise<number> {
+  const { data } = await client
+    .from('taller_plantilla_grupos')
+    .select('orden')
+    .eq('taller_id', tallerId)
+    .order('orden', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return ((data as { orden: number } | null)?.orden ?? 0) + 1
+}
+
+export async function crearPlantillaGrupo(
+  input: CrearPlantillaGrupoInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  const nombre = input.nombre.trim()
+  if (nombre.length === 0) {
+    return { ok: false, error: 'invalid-input', message: 'El nombre es obligatorio.' }
+  }
+  if (!Number.isInteger(input.capacidad) || input.capacidad <= 0) {
+    return { ok: false, error: 'invalid-input', message: 'La capacidad debe ser un número positivo.' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const orden = await nextOrdenGrupo(client, input.tallerId)
+  const { error } = await client
+    .from('taller_plantilla_grupos')
+    .insert({ taller_id: input.tallerId, nombre, capacidad: input.capacidad, orden })
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo agregar el grupo.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+export interface EditarPlantillaGrupoInput {
+  readonly tallerSlug: string
+  readonly grupoId: string
+  readonly nombre: string
+  readonly capacidad: number
+}
+
+export async function editarPlantillaGrupo(
+  input: EditarPlantillaGrupoInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  const nombre = input.nombre.trim()
+  if (nombre.length === 0) {
+    return { ok: false, error: 'invalid-input', message: 'El nombre es obligatorio.' }
+  }
+  if (!Number.isInteger(input.capacidad) || input.capacidad <= 0) {
+    return { ok: false, error: 'invalid-input', message: 'La capacidad debe ser un número positivo.' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { error } = await client
+    .from('taller_plantilla_grupos')
+    .update({ nombre, capacidad: input.capacidad })
+    .eq('id', input.grupoId)
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo editar el grupo.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+export interface ToggleActivoPlantillaGrupoInput {
+  readonly tallerSlug: string
+  readonly grupoId: string
+  readonly activo: boolean
+}
+
+export async function toggleActivoPlantillaGrupo(
+  input: ToggleActivoPlantillaGrupoInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { error } = await client
+    .from('taller_plantilla_grupos')
+    .update({ activo: input.activo })
+    .eq('id', input.grupoId)
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo actualizar el grupo.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+// ─── Facilitadores (plantilla) ───────────────────────────────────────────
+
+const ROLES_FACILITADOR = ['lider', 'voluntario'] as const
+type RolFacilitador = (typeof ROLES_FACILITADOR)[number]
+
+export interface AgregarFacilitadorInput {
+  readonly tallerSlug: string
+  readonly plantillaGrupoId: string
+  readonly personaId: string
+  readonly rol: RolFacilitador
+}
+
+/**
+ * Insert-only — the DB is the whole security wall here. RLS requires
+ * editar_taller (director.write/admin.manage scoped to the taller's
+ * node); the BEFORE INSERT trigger `taller_plantilla_facilitadores_
+ * exige_servidor_activo` requires the target persona to be an active
+ * servidor of the taller's node tree, raising P0001
+ * NO_ES_SERVIDOR_ACTIVO_DEL_TALLER otherwise — mapped to a friendly
+ * Spanish message by errores-api.ts.
+ */
+export async function agregarFacilitador(
+  input: AgregarFacilitadorInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  if (!input.personaId?.trim()) {
+    return { ok: false, error: 'invalid-input', message: 'Elegí una persona.' }
+  }
+  if (!ROLES_FACILITADOR.includes(input.rol)) {
+    return { ok: false, error: 'invalid-input', message: 'Rol inválido (líder o voluntario).' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { error } = await client.from('taller_plantilla_facilitadores').insert({
+    plantilla_grupo_id: input.plantillaGrupoId,
+    persona_id: input.personaId,
+    rol: input.rol,
+  })
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo agregar el facilitador.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+export interface QuitarFacilitadorInput {
+  readonly tallerSlug: string
+  readonly facilitadorId: string
+}
+
+export async function quitarFacilitador(
+  input: QuitarFacilitadorInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { error } = await client.from('taller_plantilla_facilitadores').delete().eq('id', input.facilitadorId)
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo quitar el facilitador.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
 }

@@ -96,6 +96,8 @@ const TALLER: TallerDetalle = {
   modalidad_default: 'periodo_general',
   estado: 'active',
   dream_team_equipo_id: 'eq-1',
+  cadencia_dias: 7,
+  duracion_minutos: null,
   ediciones: [],
 }
 

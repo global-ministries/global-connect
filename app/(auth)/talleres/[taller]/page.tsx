@@ -4,8 +4,8 @@
  * through editar_taller, ruta del organigrama, estado), Equipo (the
  * node's real active servidores read from talleres_servidores_del_taller
  * — "Asignar coordinador" is gone, superseded by Dream Team → Servidores),
- * Clases/Grupos (plantilla — a later T3 commit adds these two sections)
- * and Ediciones.
+ * Clases/Grupos (plantilla, editable in place — PlantillaClasesSection/
+ * PlantillaGruposSection) and Ediciones.
  *
  * Originally built as T3 of odd/tasks/talleres-consolidar-pantallas.md
  * (see git history for that version, which rendered OpenEdicionForm and
@@ -63,6 +63,8 @@ import {
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
 import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
+import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
+import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import {
   edicionEstadoBadgeVariante,
   edicionEstadoLabel,
@@ -80,6 +82,7 @@ import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
 import { fetchRutaEquipo } from '@/lib/platform/talleres/equipo-organigrama'
 import { loadServidoresDelTaller, nombreCompletoServidor } from '@/lib/platform/talleres/servidores-del-taller'
+import { loadPlantillaClases, loadPlantillaGrupos } from '@/lib/platform/talleres/plantilla'
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
 import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
 
@@ -142,10 +145,12 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   const permisos = await cargarPermisos(client, taller.dream_team_equipo_id)
   const equipoId = taller.dream_team_equipo_id
 
-  const [rutaEquipo, temporadasAbiertas, servidores] = await Promise.all([
+  const [rutaEquipo, temporadasAbiertas, servidores, plantillaClases, plantillaGrupos] = await Promise.all([
     equipoId ? fetchRutaEquipo(client, equipoId) : Promise.resolve(null),
     permisos.abrirEdicion ? loadTemporadasAbiertas(client) : Promise.resolve([]),
     equipoId ? loadServidoresDelTaller(client, taller.id) : Promise.resolve([]),
+    loadPlantillaClases(client, taller.id),
+    loadPlantillaGrupos(client, taller.id),
   ])
 
   return (
@@ -217,6 +222,23 @@ export default async function TallerDetallePage(ctx: RouteContext) {
           </ul>
         )}
       </section>
+
+      <PlantillaClasesSection
+        tallerId={taller.id}
+        tallerSlug={taller.slug}
+        clases={plantillaClases}
+        cadenciaDias={taller.cadencia_dias}
+        duracionMinutos={taller.duracion_minutos}
+        puedeEditar={permisos.editarTaller}
+      />
+
+      <PlantillaGruposSection
+        tallerId={taller.id}
+        tallerSlug={taller.slug}
+        grupos={plantillaGrupos}
+        servidores={servidores}
+        puedeEditar={permisos.editarTaller}
+      />
 
       <section aria-labelledby="ediciones-heading">
         <h2 id="ediciones-heading" className="text-lg font-semibold tracking-tight sm:text-xl">

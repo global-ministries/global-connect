@@ -28,6 +28,8 @@
 import TallerDetallePage from '@/app/(auth)/talleres/[taller]/page'
 import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
 import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
+import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
+import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
@@ -67,6 +69,11 @@ jest.mock('@/lib/platform/talleres/servidores-del-taller', () => {
   return { ...actual, loadServidoresDelTaller: jest.fn() }
 })
 
+jest.mock('@/lib/platform/talleres/plantilla', () => ({
+  loadPlantillaClases: jest.fn(),
+  loadPlantillaGrupos: jest.fn(),
+}))
+
 jest.mock('@/lib/platform/talleres/temporadas', () => ({
   loadTemporadasAbiertas: jest.fn(),
 }))
@@ -77,6 +84,14 @@ jest.mock('@/components/talleres/open-edicion-form', () => ({
 
 jest.mock('@/components/talleres/editar-nombre-taller', () => ({
   EditarNombreTaller: () => null,
+}))
+
+jest.mock('@/components/talleres/plantilla-clases-section', () => ({
+  PlantillaClasesSection: () => null,
+}))
+
+jest.mock('@/components/talleres/plantilla-grupos-section', () => ({
+  PlantillaGruposSection: () => null,
 }))
 
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags').isTalleresEnabled as jest.Mock
@@ -92,6 +107,10 @@ const fetchRutaEquipoMock = jest.requireMock('@/lib/platform/talleres/equipo-org
   .fetchRutaEquipo as jest.Mock
 const loadServidoresDelTallerMock = jest.requireMock('@/lib/platform/talleres/servidores-del-taller')
   .loadServidoresDelTaller as jest.Mock
+const loadPlantillaClasesMock = jest.requireMock('@/lib/platform/talleres/plantilla')
+  .loadPlantillaClases as jest.Mock
+const loadPlantillaGruposMock = jest.requireMock('@/lib/platform/talleres/plantilla')
+  .loadPlantillaGrupos as jest.Mock
 const loadTemporadasAbiertasMock = jest.requireMock('@/lib/platform/talleres/temporadas')
   .loadTemporadasAbiertas as jest.Mock
 
@@ -103,6 +122,8 @@ const TALLER: TallerDetalle = {
   modalidad_default: 'periodo_general',
   estado: 'active',
   dream_team_equipo_id: 'eq-1',
+  cadencia_dias: 7,
+  duracion_minutos: null,
   ediciones: [
     { id: 'e-1', nombre_snapshot: 'Septiembre 2026', tipo: 'pareja', estado: 'abierto', total_inscripciones: 3 },
   ],
@@ -123,6 +144,15 @@ interface SetupOpts {
   taller?: TallerDetalle | null
   permisos?: Partial<PermisosTaller>
   servidores?: readonly ServidorDelTaller[]
+  plantillaClases?: readonly { id: string; numero: number; tema: string; activo: boolean }[]
+  plantillaGrupos?: readonly {
+    id: string
+    nombre: string
+    orden: number
+    capacidad: number
+    activo: boolean
+    facilitadores: readonly unknown[]
+  }[]
 }
 
 function setup(opts: SetupOpts): void {
@@ -154,6 +184,8 @@ function setup(opts: SetupOpts): void {
   cargarPermisosMock.mockReset().mockResolvedValue({ ...PERMISOS_TALLER_ALL_FALSE, ...opts.permisos })
   fetchRutaEquipoMock.mockReset().mockResolvedValue(null)
   loadServidoresDelTallerMock.mockReset().mockResolvedValue(opts.servidores ?? [])
+  loadPlantillaClasesMock.mockReset().mockResolvedValue(opts.plantillaClases ?? [])
+  loadPlantillaGruposMock.mockReset().mockResolvedValue(opts.plantillaGrupos ?? [])
   loadTemporadasAbiertasMock.mockReset().mockResolvedValue([])
 }
 
@@ -301,6 +333,59 @@ describe('TallerDetallePage — Equipo', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(extractText(element)).not.toMatch(/Asignar coordinador/i)
+  })
+})
+
+describe('TallerDetallePage — Clases y Grupos (plantilla)', () => {
+  it('passes the loaded plantilla clases, cadencia and duracion to PlantillaClasesSection', async () => {
+    setup({
+      plantillaClases: [
+        { id: 'c-1', numero: 1, tema: 'Sígueme', activo: true },
+        { id: 'c-2', numero: 2, tema: 'Intimidad con Dios', activo: true },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const clasesSection = findByType(element, PlantillaClasesSection)
+    expect(clasesSection?.props.clases).toHaveLength(2)
+    expect(clasesSection?.props.cadenciaDias).toBe(7)
+    expect(clasesSection?.props.duracionMinutos).toBeNull()
+  })
+
+  it('gates plantilla edit controls with permisos.editarTaller, not a flat capability', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    let element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PlantillaClasesSection)?.props.puedeEditar).toBe(true)
+    expect(findByType(element, PlantillaGruposSection)?.props.puedeEditar).toBe(true)
+
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PlantillaClasesSection)?.props.puedeEditar).toBe(false)
+    expect(findByType(element, PlantillaGruposSection)?.props.puedeEditar).toBe(false)
+  })
+
+  it('passes the loaded plantilla grupos and the shared servidores list (for the picker) to PlantillaGruposSection', async () => {
+    setup({
+      servidores: [SERVIDOR_LIDER],
+      plantillaGrupos: [
+        { id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const gruposSection = findByType(element, PlantillaGruposSection)
+    expect(gruposSection?.props.grupos).toHaveLength(1)
+    expect(gruposSection?.props.servidores).toEqual([SERVIDOR_LIDER])
+  })
+
+  it('still renders both plantilla sections (empty) when the taller has no plantilla yet', async () => {
+    setup({ plantillaClases: [], plantillaGrupos: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PlantillaClasesSection)).not.toBeNull()
+    expect(findByType(element, PlantillaGruposSection)).not.toBeNull()
   })
 })
 
