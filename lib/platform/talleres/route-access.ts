@@ -105,6 +105,12 @@ export const TALLERES_CAPABILITY_KEYS: readonly TalleresCapabilityKey[] = (
  * for the rendering layer; routes use these as `id` keys.
  */
 export type TalleresNavItemId =
+  // fix/talleres-nav-catalogo — the catalog itself, /talleres, where a
+  // director creates/edits talleres, opens ediciones and assigns the
+  // team, and a líder sees "mis grupos". T10 deleted every old
+  // role-prefixed item but never added an entry for this T2 screen,
+  // leaving it reachable only by typing the URL.
+  | 'talleres_catalogo'
   // Participante
   | 'talleres_participante_explorar'
   // T9 (odd/tasks/talleres-consolidar-pantallas.md) — mis_talleres/
@@ -158,10 +164,21 @@ interface NavItemSpec {
  * Mis Grupos/Próximas Sesiones, the admin wizard) alongside the new
  * consolidated ones, since the old screens stayed reachable by direct
  * URL until this task. T10 deletes every old screen, so this table now
- * holds ONLY the ~5 items backing the approved ~12-route tree — the
+ * holds ONLY the items backing the approved ~12-route tree — the
  * URL no longer encodes the role (docs/talleres-de-punta-a-punta.md §9).
+ *
+ * fix/talleres-nav-catalogo — T10's cleanup also dropped the one entry
+ * that points at the catalog itself, /talleres (T2), leaving a director
+ * with no menu path to create/edit talleres, open ediciones or assign
+ * the team, and a líder with no menu path to "mis grupos". Restored
+ * below as the first item — the home of the module.
  */
 export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
+  // fix/talleres-nav-catalogo — /talleres, the catalog. requiredCapability:
+  // null per T2's own decision ("la pantalla se abre a cualquier usuario
+  // con sesión; RLS decide qué ve") — a member sees the talleres list, a
+  // líder sees "mis grupos".
+  { id: 'talleres_catalogo', label: 'Catálogo', href: '/talleres', requiredCapability: null },
   // P — Participante. requiredCapability: null — odd/tasks/talleres-
   // autoinscripcion.md acceptance criterion 7: any authenticated member,
   // with zero talleres capabilities, must see "Para Mí" and reach these

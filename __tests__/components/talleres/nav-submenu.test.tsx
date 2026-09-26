@@ -94,6 +94,8 @@ describe('counterVariantFor', () => {
     expect(counterVariantFor('talleres_reportes')).toBe('info')
     expect(counterVariantFor('talleres_temporadas')).toBe('info')
     expect(counterVariantFor('talleres_participante_explorar')).toBe('info')
+    // fix/talleres-nav-catalogo
+    expect(counterVariantFor('talleres_catalogo')).toBe('info')
   })
 })
 
@@ -219,10 +221,12 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
     })
   })
 
-  it('shows the participante Explorar + Mi Recorrido items even when the flag is "off"', () => {
+  it('shows the Catálogo + participante Explorar + Mi Recorrido items even when the flag is "off"', () => {
     // The flag going 'off' used to hide every non-admin entry (PR26
     // behavior). PR42 removed that filter — the pages don't gate on
-    // the flag, so the sidebar shouldn't either.
+    // the flag, so the sidebar shouldn't either. fix/talleres-nav-catalogo
+    // — Catálogo (/talleres) is open to any authenticated user the same
+    // way, so it survives the flag going off too.
     withFlags({
       enabled: false,
       stage: 'off',
@@ -236,6 +240,7 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
         sessionCapabilities: ['talleres_crecimiento.participation.read'],
       }),
     )
+    expect(screen.getByText('Catálogo')).toBeDefined()
     expect(screen.getByText('Explorar')).toBeDefined()
     expect(screen.getByText('Mi Recorrido')).toBeDefined()
   })
@@ -262,7 +267,7 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('T10: an admin.manage-only user sees only the 2 P items — the admin wizard entry is deleted', () => {
+  it('T10: an admin.manage-only user sees only the 3 P items — the admin wizard entry is deleted', () => {
     const ref = { count: 0 }
     createClientMock.mockImplementation(makeBrowserClientMock(ref))
     render(
@@ -270,6 +275,7 @@ describe('TalleresNavSubmenu — PR42 capability-only filter', () => {
         sessionCapabilities: ['talleres_crecimiento.admin.manage'],
       }),
     )
+    expect(screen.getByText('Catálogo')).toBeDefined()
     expect(screen.getByText('Explorar')).toBeDefined()
     expect(screen.getByText('Mi Recorrido')).toBeDefined()
     expect(screen.queryByText('Grupos de Corto Plazo')).toBeNull()

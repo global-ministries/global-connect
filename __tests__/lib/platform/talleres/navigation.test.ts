@@ -12,6 +12,11 @@
  * now holds only the 5 items backing the approved ~12-route tree:
  * talleres_participante_explorar, talleres_participante_mi_recorrido,
  * talleres_pendientes, talleres_reportes, talleres_temporadas.
+ *
+ * fix/talleres-nav-catalogo — T10 also dropped the entry pointing at
+ * the catalog itself, /talleres (T2), leaving it reachable only by
+ * typing the URL. `talleres_catalogo` restores it as the first item,
+ * open to any authenticated user, grouped under P alongside it.
  */
 
 import {
@@ -29,12 +34,15 @@ import {
 // ─── getTalleresNavItems — capability filter ──────────────────────────────
 
 describe('getTalleresNavItems — capability filter', () => {
-  it('user with no capabilities sees only the 2 P items (odd/tasks/talleres-autoinscripcion.md, criterion 7)', () => {
-    // The participant items (Explorar / Mi Recorrido) are open to ANY
-    // authenticated member — a member joins with zero talleres
+  it('user with no capabilities sees only the 3 P items (odd/tasks/talleres-autoinscripcion.md, criterion 7)', () => {
+    // The participant items (Catálogo / Explorar / Mi Recorrido) are open
+    // to ANY authenticated member — a member joins with zero talleres
     // capabilities and self-enrolling is how they become a participant.
+    // fix/talleres-nav-catalogo — Catálogo (/talleres) restores the entry
+    // T10 dropped for the T2 screen.
     const items = getTalleresNavItems([], { isEnabled: true })
     expect(items.map((i) => i.id)).toEqual([
+      'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
     ])
@@ -49,6 +57,7 @@ describe('getTalleresNavItems — capability filter', () => {
       { isEnabled: true },
     )
     expect(items.map((i) => i.id)).toEqual([
+      'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
       'talleres_pendientes',
@@ -62,40 +71,44 @@ describe('getTalleresNavItems — capability filter', () => {
       { isEnabled: true },
     )
     expect(items.map((i) => i.id)).toEqual([
+      'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
       'talleres_temporadas',
     ])
   })
 
-  it('admin.manage alone sees only the 2 P items — no admin-only item exists anymore (the abstracto wizard is deleted)', () => {
+  it('admin.manage alone sees only the 3 P items — no admin-only item exists anymore (the abstracto wizard is deleted)', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.admin.manage'],
       { isEnabled: true },
     )
     expect(items.map((i) => i.id)).toEqual([
+      'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
     ])
   })
 
-  it('coordinator.read alone sees only the 2 P items — every old Coordinación item is deleted', () => {
+  it('coordinator.read alone sees only the 3 P items — every old Coordinación item is deleted', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.coordinator.read'],
       { isEnabled: true },
     )
     expect(items.map((i) => i.id)).toEqual([
+      'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
     ])
   })
 
-  it('lead.read alone sees only the 2 P items — Mis Grupos/Próximas Sesiones are deleted (their content lives in the /talleres catalog now)', () => {
+  it('lead.read alone sees only the 3 P items — Mis Grupos/Próximas Sesiones are deleted (their content lives in the /talleres catalog now)', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.lead.read'],
       { isEnabled: true },
     )
     expect(items.map((i) => i.id)).toEqual([
+      'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
     ])
@@ -107,6 +120,7 @@ describe('getTalleresNavItems — capability filter', () => {
       { isEnabled: true },
     )
     expect(items.map((i) => i.id)).toEqual([
+      'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
       'talleres_pendientes',
@@ -212,11 +226,12 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(groupIds.sort()).toEqual(['B', 'D', 'P', 'R'].sort())
   })
 
-  it('preserves canonical order within the P group', () => {
+  it('preserves canonical order within the P group, catalog first (fix/talleres-nav-catalogo)', () => {
     const items = getTalleresNavItems([], { isEnabled: true })
     const groups = groupTalleresNavItems(items)
     const pGroup = groups.find((g) => g.id === 'P')
     expect(pGroup?.items.map((i) => i.id)).toEqual([
+      'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
     ])
@@ -247,8 +262,9 @@ describe('resolveTalleresNavViewItems — SSR / RSC variant', () => {
 // ─── Table invariants ─────────────────────────────────────────────────────
 
 describe('TALLERES_NAV_ITEMS — table invariants', () => {
-  it('holds exactly the 5 items backing the approved ~12-route tree (T10)', () => {
+  it('holds exactly the 6 items backing the approved ~12-route tree (T10 + fix/talleres-nav-catalogo)', () => {
     expect(TALLERES_NAV_ITEMS.map((i) => i.id)).toEqual([
+      'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
       'talleres_pendientes',
@@ -280,16 +296,20 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
     }
   })
 
-  it('no non-participant item has requiredCapability: null', () => {
+  it('no non-participant item has requiredCapability: null, except the catalog itself', () => {
     for (const item of TALLERES_NAV_ITEMS) {
       if (item.id.startsWith('talleres_participante_')) continue
+      // fix/talleres-nav-catalogo — talleres_catalogo is also open to any
+      // authenticated user (T2's own decision), same as the participante
+      // items, despite not sharing their id prefix.
+      if (item.id === 'talleres_catalogo') continue
       expect(item.requiredCapability).not.toBeNull()
     }
   })
 
-  it('every href starts with /talleres/ — no /admin/talleres/... item survives T10', () => {
+  it('every href is /talleres (the catalog) or starts with /talleres/ — no /admin/talleres/... item survives T10', () => {
     for (const item of TALLERES_NAV_ITEMS) {
-      expect(item.href.startsWith('/talleres/')).toBe(true)
+      expect(item.href === '/talleres' || item.href.startsWith('/talleres/')).toBe(true)
     }
   })
 
@@ -301,8 +321,12 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
     // T6/T7/T8 — talleres_pendientes, talleres_reportes and
     // talleres_temporadas are exact-id exceptions (see groupIdForItemId
     // in navigation.ts): none of them belongs to a single role-prefixed
-    // bucket by id shape, only by meaning.
+    // bucket by id shape, only by meaning. fix/talleres-nav-catalogo adds
+    // talleres_catalogo for the same reason — it groups under P by
+    // meaning (the module's home), not by the `talleres_participante_`
+    // id prefix.
     const exactIdExceptions = new Set<TalleresNavItemId>([
+      'talleres_catalogo',
       'talleres_pendientes',
       'talleres_reportes',
       'talleres_temporadas',

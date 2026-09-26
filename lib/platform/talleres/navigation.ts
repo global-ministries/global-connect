@@ -8,7 +8,9 @@
  * (`components/ui/platform-navigation-view-items.ts` extension).
  *
  * Per design §9 the sub-items are grouped by role:
- *   P — Participante:      Explorar / Mi-Recorrido (T9 — merges the old
+ *   P — Participante:      Catálogo (fix/talleres-nav-catalogo — the
+ *                           module's home, /talleres) / Explorar /
+ *                           Mi-Recorrido (T9 — merges the old
  *                           Mis-Talleres / Historial / Certificados trio
  *                           into one tabbed screen)
  *   L — Líder:             Mis-Grupos / Próximas-Sesiones (Recursos deleted, T0 — placeholder screen)
@@ -94,6 +96,11 @@ export function groupTalleresNavItems(
 }
 
 function groupIdForItemId(id: TalleresNavItemId): TalleresNavGroupId | null {
+  // fix/talleres-nav-catalogo — the catalog is the home of the module;
+  // group it under P (Para Mí), same as the participant items. It is
+  // declared first in TALLERES_NAV_ITEMS, so bucket iteration order
+  // keeps it first within the P group without any extra sort here.
+  if (id === 'talleres_catalogo') return 'P'
   if (id.startsWith('talleres_participante_')) return 'P'
   if (id.startsWith('talleres_grupos_') || id.startsWith('talleres_sesiones_')) return 'L'
   // T6 — talleres_pendientes matches no role-specific prefix by design
