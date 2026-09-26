@@ -213,6 +213,36 @@ export async function loadEsMiembroDelGrupo(
   }
 }
 
+interface RolEnGrupoClient {
+  rpc(
+    name: 'talleres_rol_en_grupo',
+    args: { p_grupo_id: string },
+  ): Promise<{ data: unknown; error: { message: string } | null }>
+}
+
+/**
+ * T3 — wraps talleres_rol_en_grupo(uuid) (T1): 'lider' | 'voluntario' | NULL
+ * for the CALLER in this grupo. This is what decides who may pass list and
+ * who may close a class; the capability tree is consulted only as a
+ * supervisor fallback (`permisos.gestionarGrupos`).
+ *
+ * Fails soft to `null` (an outsider), never throws: the page renders the
+ * read view either way, and a missing function on an environment without
+ * T1 must not blank the screen.
+ */
+export async function loadRolEnGrupo(
+  client: RolEnGrupoClient,
+  grupoId: string,
+): Promise<'lider' | 'voluntario' | null> {
+  try {
+    const { data, error } = await client.rpc('talleres_rol_en_grupo', { p_grupo_id: grupoId })
+    if (error || (data !== 'lider' && data !== 'voluntario')) return null
+    return data
+  } catch {
+    return null
+  }
+}
+
 // ─── Su gente (equipo: líder/voluntarios) ───────────────────────────────
 
 export interface GrupoAsignacionPersona {
@@ -468,6 +498,8 @@ export async function loadGrupoSesiones(
 
 export interface AsistenciaPersonaRow {
   readonly id: string
+  /** taller_asistencias.inscripcion_id — the RPC's batch key (T3). */
+  readonly inscripcionId: string
   readonly personaId: string
   readonly nombre: string
   readonly estado: 'presente' | 'ausente' | 'no_aplica'
@@ -539,6 +571,7 @@ export async function loadAsistenciaPorClase(
 
   return rows.map((r) => ({
     id: r.id,
+    inscripcionId: r.inscripcion_id,
     personaId: r.persona_id,
     nombre: nombreByInscripcion.get(r.inscripcion_id) || '—',
     estado: r.estado,

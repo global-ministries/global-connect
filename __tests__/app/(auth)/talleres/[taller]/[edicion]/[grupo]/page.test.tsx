@@ -28,6 +28,8 @@
 import GrupoDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/[grupo]/page'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia-clase.client'
+import { RegistroAsistenciaClase } from '@/components/talleres/registro-asistencia-clase.client'
+import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
@@ -74,6 +76,7 @@ jest.mock('@/lib/platform/talleres/grupo-detalle', () => ({
   loadGrupoReporte: jest.fn(),
   loadGrupoInscripciones: jest.fn(),
   loadEsMiembroDelGrupo: jest.fn(),
+  loadRolEnGrupo: jest.fn(),
 }))
 
 jest.mock('@/lib/platform/talleres/permisos', () => {
@@ -100,6 +103,7 @@ const grupoDetalleModule = jest.requireMock('@/lib/platform/talleres/grupo-detal
   loadGrupoReporte: jest.Mock
   loadGrupoInscripciones: jest.Mock
   loadEsMiembroDelGrupo: jest.Mock
+  loadRolEnGrupo: jest.Mock
 }
 const cargarPermisosMock = jest.requireMock('@/lib/platform/talleres/permisos')
   .cargarPermisos as jest.Mock
@@ -155,9 +159,17 @@ const SESIONES: readonly GrupoSesion[] = [
 ]
 
 const ASISTENCIA: readonly AsistenciaPersonaRow[] = [
-  { id: 'as-1', personaId: 'p-part', nombre: 'Ana López', estado: 'presente', motivo: null },
-  { id: 'as-2', personaId: 'p-part2', nombre: 'Luis Ruiz', estado: 'ausente', motivo: 'Viaje de trabajo' },
+  { id: 'as-1', inscripcionId: 'i-1', personaId: 'p-part', nombre: 'Ana López', estado: 'presente', motivo: null },
+  { id: 'as-2', inscripcionId: 'i-2', personaId: 'p-part2', nombre: 'Luis Ruiz', estado: 'ausente', motivo: 'Viaje de trabajo' },
 ]
+
+const GENTE: GrupoInscripciones = {
+  aprobadas: [
+    { id: 'i-1', personaId: 'p-part', nombre: 'Ana López' },
+    { id: 'i-2', personaId: 'p-part2', nombre: 'Luis Ruiz' },
+  ],
+  retiradas: [],
+}
 
 const REPORTE: GrupoReporte = {
   id: 'r-1',
@@ -183,6 +195,8 @@ interface SetupOpts {
   reporte?: GrupoReporte | null
   inscripcionesGrupo?: GrupoInscripciones
   esMiembro?: boolean
+  /** talleres_rol_en_grupo for the caller: 'lider' | 'voluntario' | null. */
+  miRol?: 'lider' | 'voluntario' | null
 }
 
 function setup(opts: SetupOpts): void {
@@ -222,6 +236,7 @@ function setup(opts: SetupOpts): void {
     .mockReset()
     .mockResolvedValue(opts.inscripcionesGrupo ?? { aprobadas: [], retiradas: [] })
   grupoDetalleModule.loadEsMiembroDelGrupo.mockReset().mockResolvedValue(opts.esMiembro ?? false)
+  grupoDetalleModule.loadRolEnGrupo.mockReset().mockResolvedValue(opts.miRol ?? null)
 
   cargarPermisosMock.mockReset().mockResolvedValue({ ...PERMISOS_TALLER_ALL_FALSE, ...opts.permisos })
 }
@@ -368,6 +383,19 @@ describe('GrupoDetallePage — full access', () => {
     const text = extractText(element)
     expect(text).toMatch(/Clase\s*1/)
     expect(text).toMatch(/Clase\s*2/)
+  })
+
+  it('names each clase with its tema in the list, falling back when tema is NULL', async () => {
+    // Decisiones (Interfaz): "Clase {numero} · {tema}". Deferred from T2 with
+    // an explicit "decidir si entra en T3" — it does: same section, one line,
+    // and never invents a name for the clase without tema.
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).toMatch(/Clase\s*1.*Introducción/)
+    expect(text).toMatch(/Clase\s*2/)
+    expect(text).not.toMatch(/Clase\s*2.*·/)
   })
 
   it('shows asistencia for the default (first) clase by person name', async () => {
@@ -630,5 +658,101 @@ describe('GrupoDetallePage — lectura de una clase marcada (T2)', () => {
     setup({})
     await GrupoDetallePage(params('proximo-paso', 'e-1', 'g-1', 's-de-otro-grupo'))
     expect(grupoDetalleModule.loadAsistenciaPorClase).not.toHaveBeenCalled()
+  })
+})
+
+// T3 (odd/tasks/talleres-asistencia-lider.md) — the WRITE side of the same
+// screen. Who may pass list is a relationship question answered by
+// talleres_rol_en_grupo (or, for a coordinator/director with scope, by
+// permisos.gestionarGrupos — criterio 8), and a `cerrada` clase freezes the
+// attendance: the control is HIDDEN, never disabled (Decisiones, Interfaz).
+describe('GrupoDetallePage — pasar lista / cerrar clase (T3)', () => {
+  it('shows the "Pasar lista" entry for the assigned líder', async () => {
+    setup({ miRol: 'lider', inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Pasar lista/)
+  })
+
+  it('shows the "Pasar lista" entry for an assigned voluntario too', async () => {
+    setup({ miRol: 'voluntario', inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Pasar lista/)
+  })
+
+  it('hides the "Pasar lista" entry from someone with no relationship and no capability', async () => {
+    setup({ miRol: null, permisos: {}, inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).not.toMatch(/Pasar lista/)
+    expect(findByType(element, CerrarClase)).toBeNull()
+    expect(findByType(element, RegistroAsistenciaClase)).toBeNull()
+    // The read view still renders — hiding the control never hides the data.
+    expect(findByType(element, LecturaAsistenciaClase)).not.toBeNull()
+  })
+
+  it('shows it for a capability holder with no assignment (coordinador con alcance)', async () => {
+    setup({ miRol: null, permisos: { gestionarGrupos: true }, inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Pasar lista/)
+    expect(findByType(element, CerrarClase)).not.toBeNull()
+  })
+
+  it('shows "Cerrar clase" only to the líder, never to a voluntario', async () => {
+    setup({ miRol: 'voluntario', inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const voluntario = (await GrupoDetallePage(params())) as any
+    expect(findByType(voluntario, CerrarClase)).toBeNull()
+
+    setup({ miRol: 'lider', inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const lider = (await GrupoDetallePage(params())) as any
+    expect(findByType(lider, CerrarClase)).not.toBeNull()
+  })
+
+  it('hides "Pasar lista" and the register form when the clase is cerrada', async () => {
+    setup({
+      miRol: 'lider',
+      sesiones: SESIONES.map((s) => ({ ...s, estado: 'cerrada' })),
+      inscripcionesGrupo: GENTE,
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).not.toMatch(/Pasar lista/)
+    expect(findByType(element, CerrarClase)).toBeNull()
+    expect(findByType(element, RegistroAsistenciaClase)).toBeNull()
+    // Criterion 6: after closing, the READ view is what remains.
+    expect(findByType(element, LecturaAsistenciaClase)).not.toBeNull()
+  })
+
+  it('renders the register form for the líder with plain-JSON props (frontera RSC)', async () => {
+    setup({ miRol: 'lider', inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const registro = findByType(element, RegistroAsistenciaClase)
+    expect(registro).not.toBeNull()
+    expect(registro?.props.sesionId).toBe('s-1')
+    expect(registro?.props.numero).toBe(1)
+    expect(registro?.props.tema).toBe('Introducción')
+    expect(registro?.props.filas).toEqual([
+      { id: 'i-1', nombre: 'Ana López' },
+      { id: 'i-2', nombre: 'Luis Ruiz' },
+    ])
+    expect(registro?.props.marcasPrevias).toEqual([
+      { inscripcionId: 'i-1', estado: 'presente', motivo: null },
+      { inscripcionId: 'i-2', estado: 'ausente', motivo: 'Viaje de trabajo' },
+    ])
+    const { sesionId, numero, tema, filas, marcasPrevias } = registro?.props as Record<string, unknown>
+    expect(JSON.parse(JSON.stringify({ sesionId, numero, tema, filas, marcasPrevias }))).toEqual({
+      sesionId,
+      numero,
+      tema,
+      filas,
+      marcasPrevias,
+    })
+    // The form replaces the read view while the clase is editable.
+    expect(findByType(element, LecturaAsistenciaClase)).toBeNull()
   })
 })
