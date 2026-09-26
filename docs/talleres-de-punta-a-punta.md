@@ -641,3 +641,55 @@ No son decisiones técnicas.
 > **La regla que sostiene todo esto:** una sola maquinaria de talleres, y el
 > organigrama decidiendo quién administra qué. Nada de duplicar el modelo por
 > dirección, y nada de una capacidad global que vea la iglesia entera.
+
+## 12. El taller por dentro: diseñado vs. construido (auditoría del 2026-09-26)
+
+Hecha cruzando este documento, los documentos de cada paso, la memoria del
+proyecto y la base de producción. Lo que está **hecho** y lo que **falta**, sin
+adornos, para que la configuración del taller se construya sobre verdad.
+
+### 12.1 La cadena y dónde vive cada cosa
+
+Taller → Temporada → Edición → Grupo → Clase → Asistencia → Reporte →
+Certificado, y la persona tiene una Inscripción.
+
+| Cosa | Tabla | Estado real |
+|---|---|---|
+| Taller | `talleres` | `slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id`. **No guarda cuántas clases tiene ni cómo se llaman.** |
+| Edición | `taller_ediciones` | Guarda `sesiones_snapshot` (cuántas clases), `firmantes`, `temporada_id` (nullable), `recurrence_rule` (**inerte: nadie la lee**). Su `estado` es manual. |
+| Cohorte | `talleres_crecimiento_cohortes` | 1:1 con la edición en la práctica; `open_edicion` la crea sola. Capa vestigial. |
+| Grupo | `taller_grupos` | Cuelga de la cohorte (**nace dentro de cada edición**). `capacidad` orientativa. Sin día/hora. |
+| Equipo del grupo | `taller_grupo_asignaciones` | líder/voluntario. **Tabla propia, sin relación con `dream_team_servicios`**: hoy se puede asignar a cualquier persona de la iglesia. |
+| Clase | `taller_sesiones` | `numero`, fechas, `estado`, `tema` (columna nueva del 25-sep; **nadie la escribe todavía**). |
+| Asistencia | `taller_asistencias` | `presente/ausente/no_aplica` + `motivo`. Upsert por el líder/voluntario. `correccion_de_asistencia_id` quedó huérfana. |
+| Reporte | `taller_reportes` | borrador → enviado → reabierto → cerrado. **Nadie crea el borrador**: "Enviar" exige que ya exista. |
+| Certificado | `taller_certificados` | 1 por inscripción (en pareja, sólo la persona principal). Exige `unit_estado = 'completado'`. |
+| Inscripción | `taller_inscripciones` | estado + `unit_estado` (completado / no_completado / abandono). **`unit_estado` no lo calcula nadie**: sólo una ruta de API manual sin pantalla. |
+| Temporada | `talleres_temporadas` | Sin dueño (dirección). Decisión del usuario: por dirección; agrupa, nunca habilita. **Paso 6 sin hacer.** |
+| Ventana | `taller_periodos_generales` | Existe con fechas manuales/automáticas; **siempre nula en la práctica** (nada crea filas). Sin cupo a nivel edición. |
+
+### 12.2 El ciclo, tal como corre hoy
+
+1. **Crear taller** eligiendo su nodo del organigrama (hecho, paso 2).
+2. **Abrir edición**: se pide "sesiones estimadas" **cada vez** (debería ser del taller); crea la cohorte; no valida ventana ni cupo; el estado se pone a mano.
+3. **Inscribirse** sin capacidad, en edición abierta (hecho, paso 1). Aprobación en Pendientes (hecho, paso 4).
+4. **Armar grupos**: se crean a mano dentro de la edición, y al crearlos se generan N clases numeradas sin nombre, una por semana (hecho, paso 5 + generador previo).
+5. **Facilitadores**: se asignan con búsqueda libre entre todos los miembros (hecho hoy mismo), **sin exigir que sirvan en el nodo**.
+6. **Pasar lista, cerrar clase, enviar reporte** por el líder (hecho, paso 7) — pero el reporte a enviar no lo crea nadie.
+7. **Cierre de edición**: manual; no marca completados; **ningún certificado puede emitirse desde una pantalla**.
+
+### 12.3 Lo que falta, ordenado
+
+- **Configuración del taller** (paso nuevo, siguiente): clases con nombre y
+  grupos con facilitadores como **plantilla del taller**, instanciados al abrir
+  cada edición; facilitadores sólo entre servidores activos del nodo; edición
+  en su lugar; pantalla del taller al patrón del sistema mostrando el equipo del
+  nodo (el coordinador se asigna en Servidores, no aquí); el borrador del
+  reporte nace con el grupo.
+- **Paso 6**: temporadas por dirección, ventana relativa, cupo con exceso
+  visible, estados derivados de fechas, ediciones adelantadas de Próximo Paso.
+- **Cierre de edición** (paso nuevo, explícito): calcular `completado` /
+  `no_completado` / `abandono` desde la asistencia con la regla del taller,
+  emitir certificados (y resolver el certificado de la pareja), cerrar en
+  cadena grupos, clases y reportes.
+- Paso 8 (sin cuenta) y paso 9 (Crecimiento), como estaban.
