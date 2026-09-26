@@ -219,7 +219,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             <EstadoVacio
               icono={Users}
               titulo="Sin servidores activos en este equipo"
-              subtitulo="Asigná servidores en Dream Team → Servidores para que aparezcan acá."
+              subtitulo="Asigna servidores en Dream Team → Servidores para que aparezcan acá."
             />
           </div>
         ) : (
@@ -267,7 +267,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             <EstadoVacio
               icono={Layers}
               titulo="Este taller todavía no tiene ediciones"
-              subtitulo="Usá «Abrir edición» más abajo para abrir la primera."
+              subtitulo="Usa «Abrir edición» más abajo para abrir la primera."
             />
           </div>
         ) : (
