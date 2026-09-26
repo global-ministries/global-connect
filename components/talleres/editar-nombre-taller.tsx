@@ -4,8 +4,8 @@
  * T3 (odd/tasks/talleres-configuracion-del-taller.md) — cabecera's inline
  * "editar nombre" control. The page only renders this when
  * permisos.editarTaller is granted (same gating pattern as
- * OpenEdicionForm/AssignServicioForm) — this component never re-derives a
- * capability, it just is-or-isn't on the tree.
+ * OpenEdicionForm) — this component never re-derives a capability, it
+ * just is-or-isn't on the tree.
  */
 
 import { useEffect, useState, useTransition, type ReactElement } from 'react'

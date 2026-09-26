@@ -14,11 +14,10 @@
  * [slug]/actions.ts — duplicated Dream Team → Servidores (docs/talleres-
  * de-punta-a-punta.md §12: "tiene un 'Asignar coordinador' que duplica a
  * Dream Team → Servidores (dos verdades)"); both are deleted, not merely
- * unused (verified via rg: assignServicio had no other caller). The
- * `fetchCoordinadorRoles` helper (lib/platform/talleres/equipo-
- * organigrama.ts) that fed it is left in place — it is independently
- * unit-tested and harmless unused, and deleting it was out of this
- * task's explicit scope.
+ * unused (verified via rg: assignServicio had no other caller). T5
+ * (Limpieza) later removed the `fetchCoordinadorRoles` helper (lib/
+ * platform/talleres/equipo-organigrama.ts) that fed AssignServicioForm too
+ * — it had gone fully callerless once this screen stopped rendering it.
  *
  * `[taller]` is the taller's SLUG (docs/talleres-de-punta-a-punta.md §8's
  * "de 32 a once" tree), resolved via lib/platform/talleres/rutas.ts's
