@@ -1,42 +1,55 @@
 'use client'
 
 /**
- * PR F (restructure §7) — Grupos admin section for an edición's cohorte.
+ * T4 (odd/tasks/talleres-configuracion-del-taller.md) — the edición
+ * screen's "Grupos" section, redesigned: the grupos are already
+ * INSTANCIADOS by open_edicion (nombre/capacidad copied from the taller's
+ * plantilla, facilitadores pre-assigned from active servidores) — so this
+ * component now receives them as a prop, loaded server-side by the page
+ * (lib/platform/talleres/grupo-detalle.ts's loadGruposInstanciados), the
+ * same loader-then-props architecture T3's PlantillaGruposSection already
+ * uses, instead of fetching the list itself via GET /api/talleres/grupos.
  *
- * T4 (odd/tasks/talleres-configuracion-del-taller.md) — STEP 1: the grupos
- * are already INSTANCIADOS by open_edicion (nombre/capacidad copied from
- * the taller's plantilla, facilitadores pre-assigned from active
- * servidores), so this component now receives them as a prop, loaded
- * server-side by the page (lib/platform/talleres/grupo-detalle.ts's
- * loadGruposInstanciados) instead of fetching the LIST itself — each
- * facilitador's "Nombre Apellido · Rol" comes straight from that prop.
+ * Every mutation but one goes through a server action and `router.refresh()`
+ * (never local fetch-driven state) — errors are already translated Spanish
+ * strings from lib/platform/talleres/errores-api.ts, this component only
+ * surfaces them:
+ *   - editar grupo en su lugar (nombre, capacidad)  → talleres_editar_grupo
+ *   - agregar/quitar facilitador                    → taller_grupo_
+ *     asignaciones insert/delete, through the SAME bounded picker T3 built
+ *     for the plantilla (components/talleres/facilitador-picker.tsx) —
+ *     never SelectLeaderModal/talleres_buscar_personas.
  *
- * "Asignar {rol}" still uses the free SelectLeaderModal picker for now —
- * the bounded picker (components/talleres/facilitador-picker.tsx) and the
- * grupo/facilitador in-place edit controls land in the next work unit,
- * which also drops SelectLeaderModal from this file for good (Decisiones:
- * "grupos-section deja el picker libre por el acotado").
+ * "Crear grupo" is the DECLARED EXCEPTION (Decisiones: "'Crear grupo' queda
+ * como excepción: un grupo extra sólo en esta edición") and keeps the
+ * ORIGINAL flow: POST /api/talleres/grupos, which also runs
+ * generate_taller_sesiones (PR47) best-effort and reports how many weekly
+ * sessions were materialised — moved visually BELOW the list, with copy
+ * naming it as the exception it is.
  *
- *   - POST /api/talleres/grupos               → create a grupo ("Crear
- *       grupo" is the declared exception; the RPC then runs
- *       generate_taller_sesiones (PR47) best-effort).
- *   - POST /api/talleres/grupos/[id]/asignaciones → assign a líder/
- *       voluntario, via the shared SelectLeaderModal picker (temporary).
+ * puedeEditar (permisos.gestionarGrupos) gates every control; a read-only
+ * viewer still sees the full list — nombre, capacidad, ocupación and each
+ * facilitador's "Nombre Apellido · Rol" — with no edit affordance at all.
  */
 
-import { useCallback, useState, type FormEvent, type ReactElement } from 'react'
-import { useRouter } from 'next/navigation'
-
-import SelectLeaderModal from '@/components/modals/SelectLeaderModal'
 import Link from 'next/link'
+import { useCallback, useState, useTransition, type FormEvent, type ReactElement } from 'react'
+import { useRouter } from 'next/navigation'
+import { Check, Pencil, UserMinus, X } from 'lucide-react'
+
 import {
   BotonSistema,
   InputSistema,
-  SelectSistema,
   TarjetaSistema,
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
+import { FacilitadorPicker, type ServidorPickerVM } from '@/components/talleres/facilitador-picker'
+import {
+  agregarFacilitadorGrupo,
+  editarGrupoInstanciado,
+  quitarFacilitadorGrupo,
+} from '@/app/(auth)/talleres/[taller]/[edicion]/actions'
 import { rutaGrupo } from '@/lib/platform/talleres/rutas'
 
 export interface GrupoInstanciadoFacilitadorVM {
@@ -62,21 +75,18 @@ interface GruposSectionProps {
   readonly edicionId: string
   readonly cohorteId: string
   readonly grupos: readonly GrupoInstanciadoVM[]
+  readonly servidores: readonly ServidorPickerVM[]
   readonly puedeEditar: boolean
 }
-
-type Rol = 'lider' | 'voluntario'
 
 interface Feedback {
   readonly kind: 'error' | 'success'
   readonly message: string
 }
 
-const ROL_OPCIONES = [
-  { valor: 'lider', etiqueta: 'Líder' },
-  { valor: 'voluntario', etiqueta: 'Voluntario' },
-]
 const ROL_LABELS: Record<string, string> = { lider: 'Líder', voluntario: 'Voluntario' }
+const BOTON_ICONO =
+  'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground'
 
 function nombreCompleto(nombre: string | null, apellido: string | null): string {
   return (
@@ -90,24 +100,57 @@ export function GruposSection({
   edicionId,
   cohorteId,
   grupos,
+  servidores,
   puedeEditar,
 }: GruposSectionProps): ReactElement {
   const router = useRouter()
+  const [, startTransition] = useTransition()
+  const [feedback, setFeedback] = useState<Feedback | null>(null)
 
-  const [nombre, setNombre] = useState('')
-  const [capacidad, setCapacidad] = useState('')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [nombreEditado, setNombreEditado] = useState('')
+  const [capacidadEditada, setCapacidadEditada] = useState('')
+
+  // "Crear grupo" — the declared exception, keeps the original fetch flow.
+  const [nombreNuevo, setNombreNuevo] = useState('')
+  const [capacidadNueva, setCapacidadNueva] = useState('')
   const [creating, setCreating] = useState(false)
 
-  const [rol, setRol] = useState<Rol>('lider')
-  const [pickerGrupoId, setPickerGrupoId] = useState<string | null>(null)
-  const [assigning, setAssigning] = useState(false)
+  function guardarGrupo(grupoId: string): void {
+    setFeedback(null)
+    startTransition(async () => {
+      const result = await editarGrupoInstanciado({
+        tallerSlug,
+        edicionId,
+        grupoId,
+        nombre: nombreEditado,
+        capacidad: Number(capacidadEditada),
+      })
+      if (result.ok) {
+        setEditandoId(null)
+        router.refresh()
+      } else {
+        setFeedback({ kind: 'error', message: result.message })
+      }
+    })
+  }
 
-  const [feedback, setFeedback] = useState<Feedback | null>(null)
+  function quitar(facilitadorId: string): void {
+    setFeedback(null)
+    startTransition(async () => {
+      const result = await quitarFacilitadorGrupo({ tallerSlug, edicionId, facilitadorId })
+      if (result.ok) {
+        router.refresh()
+      } else {
+        setFeedback({ kind: 'error', message: result.message })
+      }
+    })
+  }
 
   const crearGrupo = useCallback(
     async (event: FormEvent): Promise<void> => {
       event.preventDefault()
-      if (!nombre.trim() || !capacidad) return
+      if (!nombreNuevo.trim() || !capacidadNueva) return
       setCreating(true)
       setFeedback(null)
       try {
@@ -116,8 +159,8 @@ export function GruposSection({
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             cohorte_id: cohorteId,
-            nombre: nombre.trim(),
-            capacidad: Number(capacidad),
+            nombre: nombreNuevo.trim(),
+            capacidad: Number(capacidadNueva),
           }),
         })
         const body = (await res.json()) as {
@@ -136,8 +179,8 @@ export function GruposSection({
               ? `Grupo creado — ${total} sesiones generadas.`
               : 'Grupo creado. Las sesiones se generarán al reintentar.',
         })
-        setNombre('')
-        setCapacidad('')
+        setNombreNuevo('')
+        setCapacidadNueva('')
         router.refresh()
       } catch {
         setFeedback({ kind: 'error', message: 'No se pudo crear el grupo.' })
@@ -145,38 +188,8 @@ export function GruposSection({
         setCreating(false)
       }
     },
-    [cohorteId, nombre, capacidad, router],
+    [cohorteId, nombreNuevo, capacidadNueva, router],
   )
-
-  const asignar = useCallback(
-    async (usuarioId: string): Promise<void> => {
-      const grupoId = pickerGrupoId
-      if (!grupoId) return
-      setAssigning(true)
-      setFeedback(null)
-      try {
-        const res = await fetch(`/api/talleres/grupos/${grupoId}/asignaciones`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ persona_id: usuarioId, rol }),
-        })
-        const body = (await res.json()) as { error?: string }
-        if (!res.ok) {
-          setFeedback({ kind: 'error', message: body.error ?? 'No se pudo crear la asignación.' })
-          return
-        }
-        setFeedback({ kind: 'success', message: 'Asignación creada.' })
-        router.refresh()
-      } catch {
-        setFeedback({ kind: 'error', message: 'No se pudo crear la asignación.' })
-      } finally {
-        setAssigning(false)
-      }
-    },
-    [pickerGrupoId, rol, router],
-  )
-
-  const rolLabel = rol === 'lider' ? 'líder' : 'voluntario'
 
   return (
     <TarjetaSistema className="space-y-6">
@@ -186,43 +199,6 @@ export function GruposSection({
           Los grupos de esta edición, con sus facilitadores.
         </TextoSistema>
       </div>
-
-      {puedeEditar && (
-        <>
-          {/* Crear grupo */}
-          <form onSubmit={crearGrupo} className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-            <InputSistema
-              label="Nombre"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Grupo Alfa"
-              required
-            />
-            <InputSistema
-              label="Capacidad"
-              type="number"
-              min={1}
-              value={capacidad}
-              onChange={(e) => setCapacidad(e.target.value)}
-              placeholder="12"
-              required
-            />
-            <BotonSistema type="submit" cargando={creating} disabled={!nombre.trim() || !capacidad}>
-              Crear grupo
-            </BotonSistema>
-          </form>
-
-          {/* Rol para la próxima asignación */}
-          <div className="max-w-xs">
-            <SelectSistema
-              label="Rol a asignar"
-              value={rol}
-              onValueChange={(valor) => setRol(valor as Rol)}
-              opciones={ROL_OPCIONES}
-            />
-          </div>
-        </>
-      )}
 
       {feedback && (
         <TextoSistema
@@ -242,60 +218,110 @@ export function GruposSection({
               key={grupo.id}
               className="rounded-lg border border-border/60 p-4"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <Link
-                    href={rutaGrupo(tallerSlug, edicionId, grupo.id)}
-                    className="font-medium text-foreground hover:underline"
-                  >
-                    {grupo.nombre}
-                  </Link>
-                  <TextoSistema variante="muted" className="text-sm">
-                    Capacidad {grupo.capacidad} · {grupo.estado}
-                  </TextoSistema>
-                  {grupo.ocupacion !== undefined && (
-                    <TextoSistema
-                      variante={
-                        typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
-                          ? undefined
-                          : 'muted'
-                      }
-                      className={
-                        typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
-                          ? 'text-sm font-medium text-warning'
-                          : 'text-sm'
-                      }
-                      role={
-                        typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
-                          ? 'status'
-                          : undefined
-                      }
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {editandoId === grupo.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      value={nombreEditado}
+                      onChange={(e) => setNombreEditado(e.target.value)}
+                      className="min-h-[44px] rounded-lg border border-border bg-card/50 px-3 py-2"
+                      autoFocus
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      value={capacidadEditada}
+                      onChange={(e) => setCapacidadEditada(e.target.value)}
+                      className="min-h-[44px] w-24 rounded-lg border border-border bg-card/50 px-3 py-2"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Guardar grupo"
+                      className={BOTON_ICONO}
+                      onClick={() => guardarGrupo(grupo.id)}
                     >
-                      {grupo.ocupacion === null ? '—' : grupo.ocupacion} / {grupo.capacidad}
-                      {typeof grupo.ocupacion === 'number' &&
-                        grupo.ocupacion > grupo.capacidad &&
-                        ` · ${grupo.ocupacion - grupo.capacidad} por encima de la capacidad`}
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Cancelar edición del grupo"
+                      className={BOTON_ICONO}
+                      onClick={() => setEditandoId(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <Link
+                      href={rutaGrupo(tallerSlug, edicionId, grupo.id)}
+                      className="font-medium text-foreground hover:underline"
+                    >
+                      {grupo.nombre}
+                    </Link>
+                    <TextoSistema variante="muted" className="text-sm">
+                      Capacidad {grupo.capacidad} · {grupo.estado}
                     </TextoSistema>
-                  )}
-                </div>
-                {puedeEditar && (
-                  <BotonSistema
-                    variante="outline"
-                    tamaño="sm"
-                    onClick={() => setPickerGrupoId(grupo.id)}
-                    disabled={assigning}
+                    {grupo.ocupacion !== undefined && (
+                      <TextoSistema
+                        variante={
+                          typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
+                            ? undefined
+                            : 'muted'
+                        }
+                        className={
+                          typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
+                            ? 'text-sm font-medium text-warning'
+                            : 'text-sm'
+                        }
+                        role={
+                          typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
+                            ? 'status'
+                            : undefined
+                        }
+                      >
+                        {grupo.ocupacion === null ? '—' : grupo.ocupacion} / {grupo.capacidad}
+                        {typeof grupo.ocupacion === 'number' &&
+                          grupo.ocupacion > grupo.capacidad &&
+                          ` · ${grupo.ocupacion - grupo.capacidad} por encima de la capacidad`}
+                      </TextoSistema>
+                    )}
+                  </div>
+                )}
+
+                {puedeEditar && editandoId !== grupo.id && (
+                  <button
+                    type="button"
+                    aria-label="Editar grupo"
+                    className={BOTON_ICONO}
+                    onClick={() => {
+                      setEditandoId(grupo.id)
+                      setNombreEditado(grupo.nombre)
+                      setCapacidadEditada(String(grupo.capacidad))
+                      setFeedback(null)
+                    }}
                   >
-                    Asignar {rolLabel}
-                  </BotonSistema>
+                    <Pencil className="h-4 w-4" />
+                  </button>
                 )}
               </div>
 
               <ul className="mt-3 grid gap-1">
                 {grupo.facilitadores.map((f) => (
-                  <li key={f.id}>
+                  <li key={f.id} className="flex items-center justify-between gap-2">
                     <TextoSistema tamaño="sm">
                       {nombreCompleto(f.nombre, f.apellido)} · {ROL_LABELS[f.rol] ?? f.rol}
                     </TextoSistema>
+                    {puedeEditar && (
+                      <button
+                        type="button"
+                        aria-label={`Quitar a ${nombreCompleto(f.nombre, f.apellido)}`}
+                        className={BOTON_ICONO}
+                        onClick={() => quitar(f.id)}
+                      >
+                        <UserMinus className="h-4 w-4" />
+                      </button>
+                    )}
                   </li>
                 ))}
                 {grupo.facilitadores.length === 0 && (
@@ -304,21 +330,53 @@ export function GruposSection({
                   </TextoSistema>
                 )}
               </ul>
+
+              {puedeEditar && servidores.length > 0 && (
+                <FacilitadorPicker
+                  servidores={servidores}
+                  onAgregar={(personaId, rol) =>
+                    agregarFacilitadorGrupo({ tallerSlug, edicionId, grupoId: grupo.id, personaId, rol })
+                  }
+                  onAgregado={() => router.refresh()}
+                  onError={(message) => setFeedback({ kind: 'error', message })}
+                />
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      <SelectLeaderModal
-        open={pickerGrupoId !== null}
-        onClose={() => setPickerGrupoId(null)}
-        onSelect={(usuario) => {
-          void asignar(usuario.id)
-        }}
-        title="Seleccionar persona"
-        description={`Asignar como ${rolLabel} al grupo.`}
-        searchEndpoint="/api/talleres/admin/usuarios/buscar"
-      />
+      {/* "Crear grupo" — the declared exception: an extra grupo only for
+          this edición, never touching the taller's plantilla. */}
+      {puedeEditar && (
+        <div className="border-t border-border/60 pt-4">
+          <TextoSistema variante="muted" className="mb-2 block text-sm">
+            Crea un grupo adicional sólo para esta edición — no cambia la plantilla del taller. Genera
+            sus sesiones semanales al crearse (1 semana = 1 sesión).
+          </TextoSistema>
+          <form onSubmit={crearGrupo} className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+            <InputSistema
+              label="Nombre"
+              value={nombreNuevo}
+              onChange={(e) => setNombreNuevo(e.target.value)}
+              placeholder="Grupo Alfa"
+              required
+            />
+            <InputSistema
+              label="Capacidad"
+              type="number"
+              min={1}
+              value={capacidadNueva}
+              onChange={(e) => setCapacidadNueva(e.target.value)}
+              placeholder="12"
+              required
+            />
+            <BotonSistema type="submit" cargando={creating} disabled={!nombreNuevo.trim() || !capacidadNueva}>
+              Crear grupo
+            </BotonSistema>
+          </form>
+        </div>
+      )}
     </TarjetaSistema>
   )
 }
