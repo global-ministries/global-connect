@@ -81,7 +81,15 @@ function setup(responses: readonly Result[]) {
   return client
 }
 
-const OK: Result = { data: {}, error: null }
+const OK: Result = { data: [{ id: 'row-1' }], error: null }
+/**
+ * B1 correction (odd/tasks/talleres-configuracion-del-taller.md T7) — the
+ * exact shape an UPDATE/DELETE chaining `.select('id')` gets back when RLS's
+ * USING clause silently filtered the row out: no error, just an empty
+ * array. Used below to prove each mutation now treats that the same as an
+ * explicit 42501, instead of reporting success.
+ */
+const RLS_FILTERED: Result = { data: [], error: null }
 
 beforeEach(() => {
   revalidatePathMock.mockReset()
@@ -131,6 +139,24 @@ describe('editarPlantillaClaseTema', () => {
     const result = await editarPlantillaClaseTema({ tallerSlug: 'proximo-paso', claseId: 'c-2', tema: '' })
     expect(result.ok).toBe(false)
   })
+
+  // B1 correction (T7) — RLS filtered the row (belongs to a different
+  // taller's node): no error, just an empty result. This must NOT report
+  // success.
+  it('reports forbidden, not success, when RLS silently filters the row', async () => {
+    setup([RLS_FILTERED])
+    const result = await editarPlantillaClaseTema({
+      tallerSlug: 'proximo-paso',
+      claseId: 'c-2',
+      tema: 'Intimidad con Dios',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('forbidden')
+      expect(result.message).toMatch(/permisos/i)
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('toggleActivoPlantillaClase', () => {
@@ -143,6 +169,19 @@ describe('toggleActivoPlantillaClase', () => {
     })
     expect(result.ok).toBe(true)
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+
+  // B1 correction (T7) — same RLS-filtered-to-empty defect, this action's own case.
+  it('reports forbidden, not success, when RLS silently filters the row', async () => {
+    setup([RLS_FILTERED])
+    const result = await toggleActivoPlantillaClase({
+      tallerSlug: 'proximo-paso',
+      claseId: 'c-3',
+      activo: false,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
+    expect(revalidatePathMock).not.toHaveBeenCalled()
   })
 })
 
@@ -246,6 +285,20 @@ describe('updateCadenciaYDuracion', () => {
     expect(result.ok).toBe(true)
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
   })
+
+  // B1 correction (T7) — same RLS-filtered-to-empty defect, this action's own case.
+  it('reports forbidden, not success, when RLS silently filters the row', async () => {
+    setup([RLS_FILTERED])
+    const result = await updateCadenciaYDuracion({
+      tallerId: 't-1',
+      tallerSlug: 'proximo-paso',
+      cadenciaDias: 14,
+      duracionMinutos: 90,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('crearPlantillaGrupo', () => {
@@ -286,6 +339,20 @@ describe('editarPlantillaGrupo', () => {
     expect(result.ok).toBe(true)
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
   })
+
+  // B1 correction (T7) — same RLS-filtered-to-empty defect, this action's own case.
+  it('reports forbidden, not success, when RLS silently filters the row', async () => {
+    setup([RLS_FILTERED])
+    const result = await editarPlantillaGrupo({
+      tallerSlug: 'proximo-paso',
+      grupoId: 'g-1',
+      nombre: 'Grupo Alfa',
+      capacidad: 15,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('toggleActivoPlantillaGrupo', () => {
@@ -297,6 +364,19 @@ describe('toggleActivoPlantillaGrupo', () => {
       activo: false,
     })
     expect(result.ok).toBe(true)
+  })
+
+  // B1 correction (T7) — same RLS-filtered-to-empty defect, this action's own case.
+  it('reports forbidden, not success, when RLS silently filters the row', async () => {
+    setup([RLS_FILTERED])
+    const result = await toggleActivoPlantillaGrupo({
+      tallerSlug: 'proximo-paso',
+      grupoId: 'g-1',
+      activo: false,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
+    expect(revalidatePathMock).not.toHaveBeenCalled()
   })
 })
 
@@ -349,5 +429,14 @@ describe('quitarFacilitador', () => {
     const result = await quitarFacilitador({ tallerSlug: 'proximo-paso', facilitadorId: 'f-1' })
     expect(result.ok).toBe(true)
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+
+  // B1 correction (T7) — same RLS-filtered-to-empty defect, DELETE's own case.
+  it('reports forbidden, not success, when RLS silently filters the row', async () => {
+    setup([RLS_FILTERED])
+    const result = await quitarFacilitador({ tallerSlug: 'proximo-paso', facilitadorId: 'f-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
+    expect(revalidatePathMock).not.toHaveBeenCalled()
   })
 })
