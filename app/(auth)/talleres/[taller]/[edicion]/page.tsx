@@ -69,6 +69,7 @@ import {
   BadgeSistema,
   TarjetaSistema,
   TextoSistema,
+  TituloSistema,
 } from '@/components/ui/sistema-diseno'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
@@ -120,7 +121,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
     return (
       <ContenedorDashboard titulo="Edición">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
+          <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
@@ -222,9 +223,9 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
 
       {/* Inscritos */}
       <section aria-labelledby="inscritos-heading">
-        <h2 id="inscritos-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+        <TituloSistema nivel={2} id="inscritos-heading">
           Inscritos
-        </h2>
+        </TituloSistema>
         <div className="mt-3">
           {inscripciones.rows.length === 0 ? (
             <EstadoVacio icono={Users} titulo="No hay inscritos todavía" />
@@ -254,9 +255,9 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
 
       {/* Ventana */}
       <section aria-labelledby="ventana-heading">
-        <h2 id="ventana-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+        <TituloSistema nivel={2} id="ventana-heading">
           Ventana
-        </h2>
+        </TituloSistema>
         <TarjetaSistema variante="outlined" className="mt-3 p-4">
           {edicion.periodo_general ? (
             <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
