@@ -7868,6 +7868,17 @@ export type Database = {
         }[]
       }
       talleres_cerrar_clase: { Args: { p_sesion_id: string }; Returns: Json }
+      talleres_cohorte_equipo_personas: {
+        Args: { p_cohorte_id: string }
+        Returns: {
+          activo: boolean
+          apellido: string
+          grupo_id: string
+          nombre: string
+          persona_id: string
+          rol: string
+        }[]
+      }
       talleres_coord_inscripciones_personas: {
         Args: { p_inscripcion_ids: string[] }
         Returns: {
@@ -7948,6 +7959,16 @@ export type Database = {
       talleres_mover_plantilla_clase: {
         Args: { p_clase_id: string; p_direccion: string }
         Returns: Json
+      }
+      talleres_plantilla_facilitadores_personas: {
+        Args: { p_taller_id: string }
+        Returns: {
+          apellido: string
+          nombre: string
+          persona_id: string
+          plantilla_grupo_id: string
+          rol: string
+        }[]
       }
       talleres_registrar_asistencia: {
         Args: { p_marcas: Json; p_sesion_id: string }

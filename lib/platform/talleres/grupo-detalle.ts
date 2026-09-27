@@ -467,18 +467,31 @@ export interface GrupoInstanciado {
 const GRUPO_INSTANCIADO_SELECT = `
   id, nombre, capacidad, estado,
   facilitadores:taller_grupo_asignaciones (
-    id, persona_id, rol, activo,
-    usuarios ( nombre, apellido )
+    id, persona_id, rol, activo
   )
 `
 
 /**
  * The edición's own instantiated grupos (nombre, capacidad, estado) with
- * their active facilitadores, read straight from taller_grupo_asignaciones
- * joined to usuarios — never the talleres_grupo_equipo_personas RPC the
- * grupo detail screen uses, since this loader needs the asignación's OWN
- * id (to quitar a facilitador), which that RPC also exposes but under a
- * different shape this screen doesn't otherwise need.
+ * their active facilitadores, read from taller_grupo_asignaciones with
+ * names resolved through talleres_cohorte_equipo_personas(p_cohorte_id)
+ * (migration 20260927140000_talleres_plantilla_personas.sql) — never a
+ * usuarios(...) embed. That embed used to sit straight on top of
+ * taller_grupo_asignaciones and silently degraded to null for every
+ * facilitador a talleres director had no Grupos de Vida relation to
+ * (usuarios carries its own, unrelated RLS — see this file's header and
+ * lib/platform/talleres/plantilla.ts's loadPlantillaGrupos for the same
+ * fix at the plantilla level). The RPC mirrors
+ * talleres_grupo_equipo_personas' predicate evaluated once at the
+ * cohorte's own node; a facilitador the RPC doesn't return a match for
+ * keeps its row with nombre/apellido null — never dropped.
+ *
+ * This loader still needs the asignación's OWN id (to quitar a
+ * facilitador), which the RPC doesn't expose under this shape — so the
+ * facilitador list itself keeps coming from the taller_grupos embed
+ * (id, persona_id, rol, activo; both tables are RLS-safe for this walk),
+ * and only nombre/apellido are merged in from the RPC by (grupo_id,
+ * persona_id).
  *
  * Ocupación mirrors GET /api/talleres/grupos' own batched query: one
  * `taller_inscripciones` lookup for every grupo id in this cohorte,
@@ -488,7 +501,7 @@ const GRUPO_INSTANCIADO_SELECT = `
  * Best-effort on the grupos query itself, same contract as loadPlantillaGrupos:
  * a query error degrades to an empty array rather than throwing.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client, embeds two unrelated tables
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client, embeds two unrelated tables plus an rpc call
 export async function loadGruposInstanciados(client: any, cohorteId: string): Promise<readonly GrupoInstanciado[]> {
   const { data, error } = await client
     .from('taller_grupos')
@@ -518,25 +531,43 @@ export async function loadGruposInstanciados(client: any, cohorteId: string): Pr
     }
   }
 
+  const { data: personasData } = await client.rpc('talleres_cohorte_equipo_personas', {
+    p_cohorte_id: cohorteId,
+  })
+  const personasByKey = new Map<string, { nombre: string | null; apellido: string | null }>()
+  for (const persona of (personasData ?? []) as Array<{
+    grupo_id: string
+    persona_id: string
+    nombre: string | null
+    apellido: string | null
+  }>) {
+    personasByKey.set(`${persona.grupo_id}:${persona.persona_id}`, {
+      nombre: persona.nombre,
+      apellido: persona.apellido,
+    })
+  }
+
   return rows.map((row) => {
+    const grupoId = row.id as string
     const facilitadoresRaw = (row.facilitadores ?? []) as unknown[]
     return {
-      id: row.id as string,
+      id: grupoId,
       nombre: row.nombre as string,
       capacidad: row.capacidad as number,
       estado: row.estado as string,
-      ocupacion: ocupacionDesconocida ? null : ocupacionByGrupo.get(row.id as string) ?? 0,
+      ocupacion: ocupacionDesconocida ? null : ocupacionByGrupo.get(grupoId) ?? 0,
       facilitadores: facilitadoresRaw
         .map((f) => f as Record<string, unknown>)
         .filter((f) => f.activo === true)
         .map((f) => {
-          const usuario = (f.usuarios ?? null) as Record<string, unknown> | null
+          const personaId = f.persona_id as string
+          const persona = personasByKey.get(`${grupoId}:${personaId}`) ?? null
           return {
             id: f.id as string,
-            personaId: f.persona_id as string,
+            personaId,
             rol: f.rol as string,
-            nombre: (usuario?.nombre as string | null) ?? null,
-            apellido: (usuario?.apellido as string | null) ?? null,
+            nombre: persona?.nombre ?? null,
+            apellido: persona?.apellido ?? null,
           }
         }),
     }
