@@ -210,7 +210,9 @@ export function TallerTemporadaForm({ direcciones }: Props): ReactElement {
       </div>
 
       {error && (
-        <div className="mt-3 rounded border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</div>
+        <TextoSistema role="alert" className="mt-3 block text-destructive">
+          {error}
+        </TextoSistema>
       )}
 
       <div className="mt-4 flex items-center justify-end gap-2">

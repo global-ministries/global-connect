@@ -153,7 +153,9 @@ export function TemporadaDetailClient({
   return (
     <div className="grid gap-4">
       {error && (
-        <div className="rounded border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</div>
+        <TextoSistema role="alert" className="block text-destructive">
+          {error}
+        </TextoSistema>
       )}
 
       {canWrite && transitions.length > 0 && (
