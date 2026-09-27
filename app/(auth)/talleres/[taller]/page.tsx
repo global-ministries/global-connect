@@ -111,7 +111,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
     return (
       <ContenedorDashboard titulo="Talleres">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
+          <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
