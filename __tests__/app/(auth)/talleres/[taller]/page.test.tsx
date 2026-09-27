@@ -600,6 +600,94 @@ describe('TallerDetallePage — permission wiring', () => {
   })
 })
 
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — a
+// "Pasos para abrir una edición" checklist right under the header, so a
+// director sees at a glance what's left before creating one. Only for
+// editarTaller (the same capacity that gates the plantilla edit controls).
+describe('TallerDetallePage — T11: Pasos para abrir una edición', () => {
+  it('shows the checklist when editarTaller is granted', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Pasos para abrir una edición/i)
+  })
+
+  it('hides the checklist when editarTaller is denied', async () => {
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).not.toMatch(/Pasos para abrir una edición/i)
+  })
+
+  it('marks Equipo del nodo Listo when there is at least one servidor activo', async () => {
+    setup({ permisos: { editarTaller: true }, servidores: [SERVIDOR_LIDER] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Equipo del nodo\s+Listo/)
+  })
+
+  it('marks Equipo del nodo Pendiente when there are no servidores activos', async () => {
+    setup({ permisos: { editarTaller: true }, servidores: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Equipo del nodo\s+Pendiente/)
+  })
+
+  it('marks Plantilla de clases Listo when there is at least one active plantilla clase', async () => {
+    setup({
+      permisos: { editarTaller: true },
+      plantillaClases: [{ id: 'c-1', numero: 1, tema: 'Sígueme', activo: true }],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Plantilla de clases\s+Listo/)
+  })
+
+  it('marks Plantilla de clases Pendiente when there is none active', async () => {
+    setup({ permisos: { editarTaller: true }, plantillaClases: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Plantilla de clases\s+Pendiente/)
+  })
+
+  it('marks Plantilla de grupos Listo when there is at least one active plantilla grupo', async () => {
+    setup({
+      permisos: { editarTaller: true },
+      plantillaGrupos: [
+        { id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Plantilla de grupos\s+Listo/)
+  })
+
+  it('marks Plantilla de grupos Pendiente when there is none active', async () => {
+    setup({ permisos: { editarTaller: true }, plantillaGrupos: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Plantilla de grupos\s+Pendiente/)
+  })
+
+  it('links its "Crear edición" row to #ediciones', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const links = findAllByType(element, Link)
+    const crearEdicion = links.find((l) => extractText(l).trim() === 'Crear edición')
+    expect(crearEdicion?.props.href).toBe('#ediciones')
+  })
+
+  it('the Ediciones section carries id="ediciones" for the checklist anchor', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const sections = findAllByType(element, 'section')
+    const ediciones = sections.find((s) => s.props['aria-labelledby'] === 'ediciones-heading')
+    expect(ediciones?.props.id).toBe('ediciones')
+  })
+})
+
 describe('TallerDetallePage — headings (design audit)', () => {
   // T10 — "Equipo" and "Ediciones" used to be hand-rolled `<h2>`s; both are
   // now TituloSistema nivel={2}, and no raw h2 is left on the page.

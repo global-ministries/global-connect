@@ -229,6 +229,39 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         </div>
       </TarjetaSistema>
 
+      {/* T11 (flow audit) — "Pasos para abrir una edición": right under the
+          header, so a director sees at a glance what's left before "Crear
+          edición" makes sense to press. Only for editarTaller — the same
+          capacity that gates the plantilla edit controls below. */}
+      {permisos.editarTaller && (
+        <TarjetaSistema className="p-0">
+          <div className="p-4 pb-0">
+            <TituloSistema nivel={2}>Pasos para abrir una edición</TituloSistema>
+          </div>
+          <div className="divide-y divide-border">
+            {[
+              { etiqueta: 'Equipo del nodo', listo: servidores.length > 0 },
+              { etiqueta: 'Plantilla de clases', listo: clasesActivas > 0 },
+              { etiqueta: 'Plantilla de grupos', listo: gruposPlantillaActivosList.length > 0 },
+            ].map((paso) => (
+              <div key={paso.etiqueta} className="flex items-center justify-between gap-3 p-4">
+                <TextoSistema>{paso.etiqueta}</TextoSistema>
+                <BadgeSistema variante={paso.listo ? 'success' : 'warning'}>
+                  {paso.listo ? 'Listo' : 'Pendiente'}
+                </BadgeSistema>
+              </div>
+            ))}
+            <Link
+              href="#ediciones"
+              className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-accent"
+            >
+              <TextoSistema className="font-medium">Crear edición</TextoSistema>
+              <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+            </Link>
+          </div>
+        </TarjetaSistema>
+      )}
+
       <section aria-labelledby="equipo-heading">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -298,7 +331,8 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         puedeEditar={permisos.editarTaller}
       />
 
-      <section aria-labelledby="ediciones-heading">
+      {/* T11 — id="ediciones" is the checklist's "Crear edición" #ediciones anchor landing target. */}
+      <section aria-labelledby="ediciones-heading" id="ediciones">
         <TituloSistema nivel={2} id="ediciones-heading">
           Ediciones
         </TituloSistema>

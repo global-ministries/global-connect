@@ -25,6 +25,7 @@
  * and degrade to an honest limited state instead of a hard 404.
  */
 
+import Link from 'next/link'
 import GrupoDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/[grupo]/page'
 import { ContenedorDashboard, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia-clase.client'
@@ -658,6 +659,18 @@ describe('GrupoDetallePage — degraded/limited access (real líder, zero capabi
     expect(extractText(element)).toMatch(/Próximo Paso/)
   })
 
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+  // limited-mode banner used to only say the state would resolve itself; it
+  // now names WHO fixes it and WHERE (the WHO/WHERE the audit asked for).
+  it('names who resolves the limited mode and where', async () => {
+    setup({ grupo: null, miAsignacion: { id: 'a-own', rol: 'lider', activo: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).toMatch(
+      /tu líder o el coordinador del taller te asigna a este grupo desde la pantalla de la edición\./i,
+    )
+  })
+
   it('does not crash when asignaciones/sesiones/reporte all resolve empty in the limited state', async () => {
     setup({
       grupo: null,
@@ -829,6 +842,60 @@ describe('GrupoDetallePage — pasar lista / cerrar clase (T3)', () => {
   })
 })
 
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+// "Pasar lista" links straight to the register (?clase=<id>#asistencia,
+// the section itself carries id="asistencia" scroll-mt-24 so a sticky
+// header doesn't hide it on landing), and "Cerrar clase N" moved from a
+// per-row control in the Clases list into the register block for the
+// SELECTED clase only — it now renders once, never once per row.
+describe('GrupoDetallePage — T11: pasar lista anchor, asistencia anchor, cerrar clase moved', () => {
+  it('"Pasar lista" links to ?clase=<id>#asistencia', async () => {
+    setup({ miRol: 'lider', inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const links = findAllByType(element, Link)
+    const pasarLista = links.find((l) => extractText(l).trim() === 'Pasar lista')
+    expect(pasarLista?.props.href).toBe(
+      '/talleres/proximo-paso/e-1/g-1?clase=s-1#asistencia',
+    )
+  })
+
+  it('the Asistencia section carries id="asistencia" and scroll-mt-24', async () => {
+    setup({ miRol: 'lider', inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const sections = findAllByType(element, 'section')
+    const asistencia = sections.find((s) => s.props['aria-labelledby'] === 'asistencia-heading')
+    expect(asistencia?.props.id).toBe('asistencia')
+    expect(asistencia?.props.className).toMatch(/scroll-mt-24/)
+  })
+
+  it('renders CerrarClase exactly once (inside the register, not once per row)', async () => {
+    setup({ miRol: 'lider', inscripcionesGrupo: GENTE }) // both SESIONES rows are open
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findAllByType(element, CerrarClase)).toHaveLength(1)
+  })
+
+  it('CerrarClase targets the SELECTED clase, with its número for the "Cerrar clase N" label', async () => {
+    setup({ miRol: 'lider', inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params('proximo-paso', 'e-1', 'g-1', 's-2'))) as any
+    const cerrar = findByType(element, CerrarClase)
+    expect(cerrar?.props.sesionId).toBe('s-2')
+    expect(cerrar?.props.numero).toBe(2)
+  })
+
+  it('never renders CerrarClase for a clase that is not the selected one', async () => {
+    setup({ miRol: 'lider', inscripcionesGrupo: GENTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params('proximo-paso', 'e-1', 'g-1', 's-1'))) as any
+    const cerrar = findByType(element, CerrarClase)
+    expect(cerrar?.props.sesionId).toBe('s-1')
+    expect(cerrar?.props.sesionId).not.toBe('s-2')
+  })
+})
+
 // T4 (odd/tasks/talleres-asistencia-lider.md) — the líder closes the taller
 // by sending the reporte from this same screen. Two rules, both from
 // Decisiones/Criterio 7: the control is HIDDEN (never disabled) while any
@@ -933,6 +1000,38 @@ describe('GrupoDetallePage — enviar reporte (T4)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     expect(findByType(element, EnviarReporte)).toBeNull()
+  })
+
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — a
+  // "K de M clases cerradas" counter next to the Reporte heading, so the
+  // líder sees progress without counting rows themselves.
+  it('shows "0 de 2 clases cerradas" when no clase is closed yet', async () => {
+    setup({ miRol: 'lider', reporte: REPORTE })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/0\s+de\s+2\s+clases cerradas/)
+  })
+
+  it('shows "1 de 2 clases cerradas" when one of two is closed', async () => {
+    setup({
+      miRol: 'lider',
+      reporte: REPORTE,
+      sesiones: [{ ...SESIONES[0], estado: 'cerrada' }, SESIONES[1]],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/1\s+de\s+2\s+clases cerradas/)
+  })
+
+  it('shows "2 de 2 clases cerradas" when every clase is closed', async () => {
+    setup({
+      miRol: 'lider',
+      reporte: REPORTE,
+      sesiones: [{ ...SESIONES[0], estado: 'cerrada' }, { ...SESIONES[1], estado: 'cerrada' }],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/2\s+de\s+2\s+clases cerradas/)
   })
 })
 

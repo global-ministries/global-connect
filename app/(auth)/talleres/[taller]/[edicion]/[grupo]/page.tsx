@@ -287,6 +287,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   const clasesAbiertas = sesiones.filter(
     (s) => s.estado !== 'cerrada' && s.estado !== 'cancelada',
   ).length
+  // T11 — "K de M clases cerradas" next to the Reporte heading: literal
+  // closed count over total, distinct from clasesAbiertas above (which also
+  // treats `cancelada` as "not blocking" — a cancelled clase is neither
+  // open nor closed, so it counts toward M but not toward K here).
+  const clasesCerradas = sesiones.filter((s) => s.estado === 'cerrada').length
   // Nothing to send when there is no reporte (the function creates none)
   // or when it is already `enviado`/`cerrado` (the DB refuses a second
   // envío) — offering a button that can only fail would be a lie.
@@ -326,9 +331,8 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
       {modoLimitado && (
         <TarjetaSistema variante="outlined" className="p-4">
           <TextoSistema role="status">
-            Vemos que lideras este grupo, pero todavía no tienes el permiso para ver toda su
-            información (nombre, clases, asistencia y reporte). Esto se resuelve cuando se te
-            asigne el permiso de líder.
+            Tu líder o el coordinador del taller te asigna a este grupo desde la pantalla de la
+            edición.
           </TextoSistema>
         </TarjetaSistema>
       )}
@@ -495,22 +499,25 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                         </BadgeSistema>
                       </div>
 
-                      {/* T3 — each clase carries its own "Pasar lista" link
-                          (selects the clase below) and "Cerrar clase" button.
-                          Both are HIDDEN once the clase is cerrada (never a
-                          disabled control), and only for someone who may act:
-                          miRol (relación con este grupo) o gestión con alcance. */}
-                      {(puedePasarLista || puedeCerrarClase) && s.estado !== 'cerrada' && (
+                      {/* T3 — each open clase carries its own "Pasar lista"
+                          link, which selects the clase below AND jumps to
+                          the register (T11: `#asistencia`, the section
+                          itself carries `scroll-mt-24` so a sticky header
+                          doesn't hide it on landing). HIDDEN once the clase
+                          is cerrada (never a disabled control), and only for
+                          someone who may act: miRol (relación con este
+                          grupo) o gestión con alcance. "Cerrar clase N"
+                          moved into the register block below (T11) — it
+                          renders once, for the SELECTED clase, not once per
+                          row here. */}
+                      {puedePasarLista && s.estado !== 'cerrada' && (
                         <div className="flex flex-wrap items-center gap-2">
-                          {puedePasarLista && (
-                            <Link
-                              href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
-                              className="inline-flex min-h-[44px] items-center rounded-lg border-2 border-border px-3 text-sm font-medium text-foreground hover:bg-accent"
-                            >
-                              Pasar lista
-                            </Link>
-                          )}
-                          {puedeCerrarClase && <CerrarClase sesionId={s.id} />}
+                          <Link
+                            href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}#asistencia`}
+                            className="inline-flex min-h-[44px] items-center rounded-lg border-2 border-border px-3 text-sm font-medium text-foreground hover:bg-accent"
+                          >
+                            Pasar lista
+                          </Link>
                         </div>
                       )}
 
@@ -543,8 +550,10 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
       {/* Asistencia — T3 makes this section writable for whoever may act:
           the register (registro-asistencia-clase.client) replaces the read
           view while the selected clase is editable; once it is `cerrada`
-          the read view is all that remains. */}
-      <section aria-labelledby="asistencia-heading">
+          the read view is all that remains. T11: `id="asistencia"` +
+          `scroll-mt-24` is the landing target for "Pasar lista"'s
+          `#asistencia` anchor, offset so a sticky header doesn't hide it. */}
+      <section aria-labelledby="asistencia-heading" id="asistencia" className="scroll-mt-24">
         <TituloSistema nivel={2} id="asistencia-heading">
           Asistencia
         </TituloSistema>
@@ -552,16 +561,25 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
           {sesiones.length === 0 || !claseSeleccionada ? (
             <TextoSistema variante="sutil">Elige una clase para ver su asistencia.</TextoSistema>
           ) : puedeEditarClase ? (
-            <RegistroAsistenciaClase
-              // A different clase is a different form: re-seed "todos
-              // presentes / previous marks" instead of carrying state over.
-              key={claseSeleccionada.id}
-              sesionId={claseSeleccionada.id}
-              numero={claseSeleccionada.numero}
-              tema={claseSeleccionada.tema}
-              filas={inscripcionesGrupo.aprobadas.map((p) => ({ id: p.id, nombre: p.nombre }))}
-              marcasPrevias={marcasPreviasDe(asistencia)}
-            />
+            <div className="space-y-3">
+              <RegistroAsistenciaClase
+                // A different clase is a different form: re-seed "todos
+                // presentes / previous marks" instead of carrying state over.
+                key={claseSeleccionada.id}
+                sesionId={claseSeleccionada.id}
+                numero={claseSeleccionada.numero}
+                tema={claseSeleccionada.tema}
+                filas={inscripcionesGrupo.aprobadas.map((p) => ({ id: p.id, nombre: p.nombre }))}
+                marcasPrevias={marcasPreviasDe(asistencia)}
+              />
+              {/* T11 — "Cerrar clase N" follows naturally after saving
+                  attendance, moved here from a per-row control in the
+                  Clases list above (never one per row; only the selected
+                  clase, and only once it's still open). */}
+              {puedeCerrarClase && (
+                <CerrarClase sesionId={claseSeleccionada.id} numero={claseSeleccionada.numero} />
+              )}
+            </div>
           ) : asistencia.length === 0 ? (
             <EstadoVacio
               icono={ClipboardList}
@@ -587,9 +605,18 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
 
       {/* Reporte */}
       <section aria-labelledby="reporte-heading">
-        <TituloSistema nivel={2} id="reporte-heading">
-          Reporte
-        </TituloSistema>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TituloSistema nivel={2} id="reporte-heading">
+            Reporte
+          </TituloSistema>
+          {/* T11 — progress at a glance, so the líder sees how close the
+              grupo is to "Enviar reporte" without counting rows above. */}
+          {sesiones.length > 0 && (
+            <TextoSistema variante="sutil" tamaño="sm">
+              {clasesCerradas} de {sesiones.length} clases cerradas
+            </TextoSistema>
+          )}
+        </div>
         <div className="mt-3">
           {!reporte ? (
             <EstadoVacio
