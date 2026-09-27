@@ -167,6 +167,10 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
   const [estadoFiltro, setEstadoFiltro] = useState<DreamTeamEstado | typeof FILTRO_TODOS>(
     esEstadoValido(estadoInicial) ? estadoInicial : FILTRO_TODOS,
   )
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+  // taller page's "Gestionar en Servidores" link deep-links with
+  // ?equipo=<nodeId>, same URL-as-state pattern as estadoFiltro above.
+  const [equipoFiltro, setEquipoFiltro] = useState<string | null>(searchParams?.get('equipo') ?? null)
   const [textoFiltro, setTextoFiltro] = useState('')
   const [asignadorAbierto, setAsignadorAbierto] = useState(false)
 
@@ -179,6 +183,14 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
     } else {
       params.set('estado', nuevoEstado)
     }
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname)
+  }
+
+  function limpiarEquipoFiltro(): void {
+    setEquipoFiltro(null)
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    params.delete('equipo')
     const query = params.toString()
     router.replace(query ? `${pathname}?${query}` : pathname)
   }
@@ -196,18 +208,28 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
     return conteo
   }, [rows])
 
+  // T11 — the label for the active equipo filter's chip, resolved from
+  // whichever row already carries it (every row — dream_team or
+  // grupos_vida — has its own resolved equipoLabel), never re-derived from
+  // the tree by hand.
+  const equipoFiltroLabel = useMemo(
+    () => (equipoFiltro ? (rows.find((row) => equipoIdDeServidor(row.servidor) === equipoFiltro)?.equipoLabel ?? equipoFiltro) : null),
+    [rows, equipoFiltro],
+  )
+
   const filasFiltradas = useMemo(() => {
     const texto = textoFiltro.trim().toLowerCase()
     return rows.filter((row) => {
       if (estadoFiltro !== FILTRO_TODOS && estadoDeServidor(row.servidor) !== estadoFiltro) return false
+      if (equipoFiltro && equipoIdDeServidor(row.servidor) !== equipoFiltro) return false
       if (texto && !row.personaNombre.toLowerCase().includes(texto)) return false
       return true
     })
-  }, [rows, estadoFiltro, textoFiltro])
+  }, [rows, estadoFiltro, equipoFiltro, textoFiltro])
 
   const nodosPlanos = useMemo(() => aplanarArbol(arbol), [arbol])
   const rutasAncestros = useMemo(() => construirRutasAncestros(arbol), [arbol])
-  const filtrosActivos = estadoFiltro !== FILTRO_TODOS ? 1 : 0
+  const filtrosActivos = (estadoFiltro !== FILTRO_TODOS ? 1 : 0) + (equipoFiltro ? 1 : 0)
 
   function cerrarAsignadorYRefrescar(): void {
     setAsignadorAbierto(false)
@@ -238,6 +260,24 @@ export function ServidoresClient({ rows, arbol, rolesPorEquipo, puedeEditar }: S
           </BadgeSistema>
         ))}
       </div>
+
+      {/* T11 — the taller page's "Gestionar en Servidores" link lands here
+          pre-filtered (?equipo=<nodeId>); this chip makes that filter
+          visible (never a silent, unexplained shorter list) and clearable. */}
+      {equipoFiltro && (
+        <div className="flex items-center gap-2">
+          <BadgeSistema variante="info" tamaño="sm">
+            Equipo: {equipoFiltroLabel}
+          </BadgeSistema>
+          <button
+            type="button"
+            onClick={limpiarEquipoFiltro}
+            className="text-sm text-muted-foreground underline"
+          >
+            Quitar filtro
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <InputSistema

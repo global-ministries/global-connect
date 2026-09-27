@@ -59,16 +59,28 @@ export function counterVariantFor(itemId: string): 'info' | 'warning' {
 }
 
 /**
- * Fetches the live counter map for the sub-menu. Only runs when
- * sessionCapabilities grant at least one counter. Errors silently
- * leave counters empty (graceful degradation).
+ * Fetches the live counter map for the sub-menu. Errors silently leave
+ * counters empty (graceful degradation).
  *
  * T10 (odd/tasks/talleres-consolidar-pantallas.md) — this used to also
  * compute the OLD Dirección (talleres/reportes counts) and líder (mis
- * grupos) counters; both items are deleted (their pages redirect to the
- * /talleres catalog now, which is not a TalleresNavSubmenu item and has
- * no badge slot), so those 2 queries and the persona lookup they needed
- * are gone too — only talleres_pendientes survives.
+ * grupos) counters; both items were deleted (their pages redirected to
+ * the /talleres catalog, which was not a TalleresNavSubmenu item and had
+ * no badge slot) — only talleres_pendientes survived, capability-gated.
+ *
+ * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — "Mis
+ * grupos" is restored as a nav item, but its count fetch below is
+ * UNCONDITIONAL (no capability gate): a real líder/voluntario can hold
+ * ZERO talleres capabilities (an established fact throughout this
+ * codebase — see e.g. app/(auth)/talleres/[taller]/[edicion]/[grupo]/
+ * page.tsx's own header comment), so gating this fetch on any capability
+ * would silently hide the shortcut from exactly the person it's for.
+ * Resolving "my own" grupos needs the caller's personaId, which this
+ * hook does not otherwise have — fetched the same way
+ * hooks/useCurrentUser.tsx does: auth.getUser() -> usuarios.id -> the
+ * scoped count (taller_grupo_asignaciones, persona_id + activo + rol IN
+ * lider/voluntario — see lib/platform/talleres/catalogo.ts's
+ * loadMisGruposCount for the server-side equivalent).
  */
 function useTalleresCounters(
   sessionCapabilities: readonly string[]
@@ -102,11 +114,12 @@ function useTalleresCounters(
         // /talleres/pendientes' badge must agree with the page's own two
         // sections, so it's derived from the SAME two counts the page
         // itself queries, not a 3rd one.
-        const next: Record<string, number> = {
-          talleres_pendientes: (insc.count ?? 0) + (solic.count ?? 0),
+        if (!cancelled) {
+          setCounters((prev) => ({
+            ...prev,
+            talleres_pendientes: (insc.count ?? 0) + (solic.count ?? 0),
+          }))
         }
-
-        if (!cancelled) setCounters(next)
       } catch (error) {
         // T0 — surface the failure in development instead of swallowing it
         // silently (this is exactly how the talleres_crecimiento_metadata
@@ -123,6 +136,46 @@ function useTalleresCounters(
     }
   }, [sessionCapabilities])
 
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const supabase = createSupabaseBrowserClient()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- browser client
+        const client: any = supabase
+
+        const { data: { user } } = await client.auth.getUser()
+        if (!user) return
+
+        const { data: usuario } = await client
+          .from('usuarios')
+          .select('id')
+          .eq('auth_id', user.id)
+          .maybeSingle()
+        if (!usuario?.id) return
+
+        const { count } = await client
+          .from('taller_grupo_asignaciones')
+          .select('id', { count: 'exact', head: true })
+          .eq('persona_id', usuario.id)
+          .eq('activo', true)
+          .in('rol', ['lider', 'voluntario'])
+
+        if (!cancelled) {
+          setCounters((prev) => ({ ...prev, talleres_mis_grupos: count ?? 0 }))
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('[TalleresNavSubmenu] failed to load mis grupos count', error)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return counters
 }
 
@@ -130,6 +183,8 @@ export function TalleresNavSubmenu({ sessionCapabilities, counters: propCounters
   const pathname = usePathname()
   const fetchedCounters = useTalleresCounters(sessionCapabilities)
   const counters = propCounters ?? fetchedCounters
+  // T11 — data-gated, not capability-gated (see useTalleresCounters' header).
+  const hasMisGrupos = (counters.talleres_mis_grupos ?? 0) > 0
 
   const items = useMemo(() => {
     // PR42 — fix inconsistent sidebar vs. page access.
@@ -157,8 +212,8 @@ export function TalleresNavSubmenu({ sessionCapabilities, counters: propCounters
     // and the menu should show nothing at all, with no exception.
     const flags = getTalleresFlags()
     if (flags.killSwitch) return []
-    return getTalleresNavItems(sessionCapabilities, { isEnabled: true })
-  }, [sessionCapabilities])
+    return getTalleresNavItems(sessionCapabilities, { isEnabled: true, hasMisGrupos })
+  }, [sessionCapabilities, hasMisGrupos])
 
   const groups = useMemo(() => groupTalleresNavItems(items), [items])
   const flat = useMemo(() => flattenGroups(groups), [groups])

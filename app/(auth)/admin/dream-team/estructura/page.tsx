@@ -24,7 +24,11 @@ import {
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
-import { construirNodosArbol, responsablesDreamTeamPorEquipo } from '@/lib/platform/dream-team/estructura-arbol'
+import {
+  construirNodosArbol,
+  responsablesDreamTeamPorEquipo,
+  tallerPorEquipoId,
+} from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
@@ -51,10 +55,21 @@ export default async function DreamTeamEstructuraPage() {
   // a caller without authority over the Grupos de Vida node simply gets zero
   // rows back, so the virtual branch just doesn't appear, same shape as the
   // RLS-scoped equipos read.
-  const [equipos, nodosGdv, servicios] = await Promise.all([
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // node -> taller: `talleres` is world-readable (talleres_select_all,
+  // USING true — same as the taller catalog's own loader), so this is a
+  // plain unscoped select, never gated on the talleres feature flag (the
+  // flag only gates the /talleres UI routes, not this table's data).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = supabase
+
+  const [equipos, nodosGdv, servicios, { data: talleresData }] = await Promise.all([
     repo.listEquipos(),
     fetchEstructuraGdv(supabase),
     repo.listServicios({}),
+    client.from('talleres').select('slug, nombre, dream_team_equipo_id') as Promise<{
+      data: readonly { slug: string; nombre: string; dream_team_equipo_id: string | null }[] | null
+    }>,
   ])
 
   // listRolesPorEquipo() is per-equipo, not bulk. With ~29 equipos in
@@ -86,5 +101,12 @@ export default async function DreamTeamEstructuraPage() {
   // everyone regardless of puedeEditar (see estructura-client.tsx).
   const puedeEditar = hasDreamTeamOrgManageCapability(session)
 
-  return <EstructuraClient arbol={arbol} rolesPorEquipo={rolesPorEquipo} puedeEditar={puedeEditar} />
+  return (
+    <EstructuraClient
+      arbol={arbol}
+      rolesPorEquipo={rolesPorEquipo}
+      puedeEditar={puedeEditar}
+      tallerPorEquipoId={tallerPorEquipoId(talleresData ?? [])}
+    />
+  )
 }

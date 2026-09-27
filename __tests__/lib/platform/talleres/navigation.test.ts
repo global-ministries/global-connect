@@ -160,6 +160,31 @@ describe('getTalleresNavItems — kill switch', () => {
   })
 })
 
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+// "Mis grupos" is data-gated (≥1 grupo as líder/voluntario), never by
+// capability alone (a real líder can hold zero talleres capabilities).
+describe('getTalleresNavItems — talleres_mis_grupos (T11)', () => {
+  it('is absent by default (hasMisGrupos omitted), even with zero capabilities', () => {
+    const items = getTalleresNavItems([], { isEnabled: true })
+    expect(items.map((i) => i.id)).not.toContain('talleres_mis_grupos')
+  })
+
+  it('is absent when hasMisGrupos is explicitly false, even for a director', () => {
+    const items = getTalleresNavItems(
+      ['talleres_crecimiento.director.read', 'talleres_crecimiento.metrics.read'],
+      { isEnabled: true, hasMisGrupos: false },
+    )
+    expect(items.map((i) => i.id)).not.toContain('talleres_mis_grupos')
+  })
+
+  it('appears when hasMisGrupos is true, even with zero capabilities', () => {
+    const items = getTalleresNavItems([], { isEnabled: true, hasMisGrupos: true })
+    expect(items.map((i) => i.id)).toContain('talleres_mis_grupos')
+    const item = items.find((i) => i.id === 'talleres_mis_grupos')
+    expect(item?.href).toBe('/talleres#mis-grupos-heading')
+  })
+})
+
 // ─── groupTalleresNavItems — role grouping ────────────────────────────────
 
 describe('groupTalleresNavItems — role grouping', () => {
@@ -207,7 +232,7 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(groups.map((g) => g.id)).not.toContain('S')
   })
 
-  it('T10: L, C, A groups never appear — no surviving item maps to them', () => {
+  it('T10: L, C, A groups never appear when hasMisGrupos is not set — no other surviving item maps to them', () => {
     const items = getTalleresNavItems(
       [
         'talleres_crecimiento.lead.read',
@@ -224,6 +249,14 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(groupIds).not.toContain('C')
     expect(groupIds).not.toContain('A')
     expect(groupIds.sort()).toEqual(['B', 'D', 'P', 'R'].sort())
+  })
+
+  it('T11: the L "Como Líder" bucket appears when hasMisGrupos is true, holding only talleres_mis_grupos', () => {
+    const items = getTalleresNavItems([], { isEnabled: true, hasMisGrupos: true })
+    const groups = groupTalleresNavItems(items)
+    const byId = Object.fromEntries(groups.map((g) => [g.id, g]))
+    expect(byId['L']?.title).toBe('Como Líder')
+    expect(byId['L']?.items.map((i) => i.id)).toEqual(['talleres_mis_grupos'])
   })
 
   it('preserves canonical order within the P group, catalog first (fix/talleres-nav-catalogo)', () => {
@@ -262,7 +295,7 @@ describe('resolveTalleresNavViewItems — SSR / RSC variant', () => {
 // ─── Table invariants ─────────────────────────────────────────────────────
 
 describe('TALLERES_NAV_ITEMS — table invariants', () => {
-  it('holds exactly the 6 items backing the approved ~12-route tree (T10 + fix/talleres-nav-catalogo)', () => {
+  it('holds exactly the 7 items backing the approved ~12-route tree (T10 + fix/talleres-nav-catalogo + T11 mis grupos)', () => {
     expect(TALLERES_NAV_ITEMS.map((i) => i.id)).toEqual([
       'talleres_catalogo',
       'talleres_participante_explorar',
@@ -270,6 +303,7 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
       'talleres_pendientes',
       'talleres_reportes',
       'talleres_temporadas',
+      'talleres_mis_grupos',
     ])
   })
 
@@ -296,20 +330,30 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
     }
   })
 
-  it('no non-participant item has requiredCapability: null, except the catalog itself', () => {
+  it('no non-participant item has requiredCapability: null, except the catalog and talleres_mis_grupos', () => {
     for (const item of TALLERES_NAV_ITEMS) {
       if (item.id.startsWith('talleres_participante_')) continue
       // fix/talleres-nav-catalogo — talleres_catalogo is also open to any
       // authenticated user (T2's own decision), same as the participante
       // items, despite not sharing their id prefix.
       if (item.id === 'talleres_catalogo') continue
+      // T11 — talleres_mis_grupos's `requiredCapability: null` is a
+      // placeholder: getTalleresNavItems never reaches the null-means-
+      // "open to anyone" branch for it, it is filtered by `hasMisGrupos`
+      // instead (a real líder can hold zero capabilities, so this can
+      // never be a capability string).
+      if (item.id === 'talleres_mis_grupos') continue
       expect(item.requiredCapability).not.toBeNull()
     }
   })
 
-  it('every href is /talleres (the catalog) or starts with /talleres/ — no /admin/talleres/... item survives T10', () => {
+  it('every href is /talleres (the catalog), starts with /talleres/, or is an in-page anchor on /talleres — no /admin/talleres/... item survives T10', () => {
     for (const item of TALLERES_NAV_ITEMS) {
-      expect(item.href === '/talleres' || item.href.startsWith('/talleres/')).toBe(true)
+      expect(
+        item.href === '/talleres' ||
+          item.href.startsWith('/talleres/') ||
+          item.href.startsWith('/talleres#'),
+      ).toBe(true)
     }
   })
 
@@ -330,6 +374,9 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
       'talleres_pendientes',
       'talleres_reportes',
       'talleres_temporadas',
+      // T11 — talleres_mis_grupos groups under L by meaning (the líder's
+      // own shortcut), not by an id prefix, same reasoning as the three above.
+      'talleres_mis_grupos',
     ])
     for (const id of allIds) {
       const matches = id.startsWith('talleres_participante_') || exactIdExceptions.has(id)

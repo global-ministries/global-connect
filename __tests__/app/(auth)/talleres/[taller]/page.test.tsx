@@ -160,6 +160,8 @@ interface SetupOpts {
     activo: boolean
     facilitadores: readonly unknown[]
   }[]
+  /** T11 — Dream Team capability keys for the viewer (gates "Gestionar en Servidores"). */
+  capabilities?: readonly string[]
 }
 
 function setup(opts: SetupOpts): void {
@@ -182,7 +184,12 @@ function setup(opts: SetupOpts): void {
           subjectAuthId: 'auth-1',
           globalRoles: [],
           contexts: [],
-          capabilities: [],
+          capabilities: (opts.capabilities ?? []).map((key) => ({
+            key,
+            experience: 'dream_team',
+            scopeType: 'experience',
+            source: 'test',
+          })),
         }
       : null,
   )
@@ -362,15 +369,43 @@ describe('TallerDetallePage — Equipo', () => {
   // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — this
   // used to be a hand-styled `<Link className="... text-[var(--brand-primary)]
   // hover:underline">`; it is now an EnlaceSistema variante="marca".
-  it('links to Gestionar en Servidores through EnlaceSistema', async () => {
-    setup({ servidores: [SERVIDOR_LIDER] })
+  //
+  // T11 (flow audit) — the link used to be unconditional and could 404 for
+  // a viewer with no Dream Team authority; it now renders only when the
+  // viewer has a Dream Team read capability (the same
+  // hasDreamTeamReadCapability check /admin/dream-team/servidores/page.tsx
+  // itself gates on), and links straight to this taller's equipo
+  // (?equipo=<nodeId>) so Servidores lands pre-filtered.
+  it('links to Gestionar en Servidores through EnlaceSistema, filtered to this taller\'s equipo, when the viewer has Dream Team read capability', async () => {
+    setup({ servidores: [SERVIDOR_LIDER], capabilities: ['dream_team.org.manage'] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const servidoresLink = findAllByType(element, EnlaceSistema).find(
-      (l) => l.props.href === '/admin/dream-team/servidores',
+    const servidoresLink = findAllByType(element, EnlaceSistema).find((l) =>
+      String(l.props.href).startsWith('/admin/dream-team/servidores'),
     )
     expect(servidoresLink).toBeDefined()
+    expect(servidoresLink?.props.href).toBe('/admin/dream-team/servidores?equipo=eq-1')
     expect(servidoresLink?.props.variante).toBe('marca')
+  })
+
+  it('hides Gestionar en Servidores when the viewer has no Dream Team read capability', async () => {
+    setup({ servidores: [SERVIDOR_LIDER], capabilities: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const servidoresLink = findAllByType(element, EnlaceSistema).find((l) =>
+      String(l.props.href).startsWith('/admin/dream-team/servidores'),
+    )
+    expect(servidoresLink).toBeUndefined()
+  })
+
+  it('hides Gestionar en Servidores when the taller has no dream_team_equipo_id yet, even with capability', async () => {
+    setup({ taller: { ...TALLER, dream_team_equipo_id: null }, capabilities: ['dream_team.org.manage'] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const servidoresLink = findAllByType(element, EnlaceSistema).find((l) =>
+      String(l.props.href).startsWith('/admin/dream-team/servidores'),
+    )
+    expect(servidoresLink).toBeUndefined()
   })
 
   it('shows an empty state when there are no active servidores', async () => {
@@ -773,6 +808,30 @@ describe('TallerDetallePage — content', () => {
     setup({ taller: { ...TALLER, dream_team_equipo_id: null } })
     await TallerDetallePage(params())
     expect(fetchRutaEquipoMock).not.toHaveBeenCalled()
+  })
+
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // taller -> node: the org-chart path becomes a link to
+  // /admin/dream-team/estructura for a viewer with Dream Team read
+  // capability, plain text otherwise (never a link that 404s).
+  it('links the org-chart path to /admin/dream-team/estructura when the viewer has Dream Team read capability', async () => {
+    setup({ capabilities: ['dream_team.org.manage'] })
+    fetchRutaEquipoMock.mockResolvedValue('Dirección de Conexión › Grupos de Corto Plazo')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const link = findAllByType(element, Link).find((l) => l.props.href === '/admin/dream-team/estructura')
+    expect(link).toBeDefined()
+    expect(extractText(link)).toMatch(/Dirección de Conexión › Grupos de Corto Plazo/)
+  })
+
+  it('shows the org-chart path as plain text (no link) without Dream Team read capability', async () => {
+    setup({ capabilities: [] })
+    fetchRutaEquipoMock.mockResolvedValue('Dirección de Conexión › Grupos de Corto Plazo')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Dirección de Conexión › Grupos de Corto Plazo/)
+    const link = findAllByType(element, Link).find((l) => l.props.href === '/admin/dream-team/estructura')
+    expect(link).toBeUndefined()
   })
 
   it('links each edición row to /talleres/[taller]/[edicion]', async () => {

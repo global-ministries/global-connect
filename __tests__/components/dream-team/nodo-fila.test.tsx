@@ -199,6 +199,48 @@ describe('NodoFila', () => {
     expect(screen.getByText('Pedro Díaz — Colíder')).toBeInTheDocument()
   })
 
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — a
+  // node whose id matches a taller's dream_team_equipo_id gets an icon link
+  // to that taller, so a director never has to guess which node backs
+  // which workshop. Plain data in (tallerHref, tallerNombre) — the caller
+  // (estructura-client.tsx) builds the href via rutaTaller, this component
+  // only renders it; the icon itself is imported HERE, never passed as a
+  // prop (an icon is a component — the RSC-boundary rule this codebase
+  // guards against elsewhere, talleres-rsc-icon-props.test.ts).
+  it('shows an "Abrir taller {nombre}" icon link when tallerHref/tallerNombre are given', () => {
+    render(
+      <NodoFila
+        equipo={nodoDreamTeam({ id: 'eq-dps' })}
+        roles={[]}
+        nivel={0}
+        tieneHijos={false}
+        expandido={false}
+        onToggleExpandido={noop}
+        tallerHref="/talleres/proximo-paso"
+        tallerNombre="Próximo Paso"
+      />,
+    )
+
+    const link = screen.getByRole('link', { name: 'Abrir taller Próximo Paso' })
+    expect(link).toHaveAttribute('href', '/talleres/proximo-paso')
+    expect(link).toHaveAttribute('title', 'Abrir taller Próximo Paso')
+  })
+
+  it('shows no taller link when the node has no matching taller', () => {
+    render(
+      <NodoFila
+        equipo={nodoDreamTeam({ id: 'eq-sin-taller' })}
+        roles={[]}
+        nivel={0}
+        tieneHijos={false}
+        expandido={false}
+        onToggleExpandido={noop}
+      />,
+    )
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
   it('keeps the pre-existing baseline behaviour: chevron toggle, Inactiva badge, role badges, accesorio', () => {
     const onToggle = jest.fn()
     render(

@@ -51,7 +51,7 @@ import {
   tallerEstadoBadgeVariante,
   tallerEstadoLabel,
 } from './labels'
-import type { CatalogoTaller, MiGrupoResumen } from '@/lib/platform/talleres/catalogo'
+import type { CatalogoTaller, MiGrupoResumen, MiTallerResumen } from '@/lib/platform/talleres/catalogo'
 import type { OpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
 
@@ -62,6 +62,8 @@ export interface CatalogoTalleresClientProps {
   readonly catalogo: readonly CatalogoTaller[]
   readonly misGrupos: readonly MiGrupoResumen[]
   readonly puedeCrear: boolean
+  /** T11 — talleres the viewer can edit (talleres_mis_permisos.editar_taller), shown above the catalog list when non-empty. */
+  readonly misTalleres: readonly MiTallerResumen[]
   readonly opciones: OpcionesEquipoTaller
 }
 
@@ -81,6 +83,7 @@ export function CatalogoTalleresClient({
   catalogo,
   misGrupos,
   puedeCrear,
+  misTalleres,
   opciones,
 }: CatalogoTalleresClientProps): ReactElement {
   const [filtro, setFiltro] = useState<Filtro>('todas')
@@ -92,7 +95,8 @@ export function CatalogoTalleresClient({
           .map((t) => ({ ...t, ediciones: t.ediciones.filter((e) => ESTADOS_ABIERTOS.has(e.estado)) }))
           .filter((t) => t.ediciones.length > 0)
 
-  const sinNadaEnAbsoluto = misGrupos.length === 0 && catalogo.length === 0 && !puedeCrear
+  const sinNadaEnAbsoluto =
+    misGrupos.length === 0 && misTalleres.length === 0 && catalogo.length === 0 && !puedeCrear
 
   if (sinNadaEnAbsoluto) {
     return (
@@ -133,6 +137,28 @@ export function CatalogoTalleresClient({
                     </div>
                   </div>
                 </TarjetaSistema>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+          "Mis talleres": a shortlist of the talleres this viewer can edit
+          (talleres_mis_permisos.editar_taller), above the full catalog. */}
+      {misTalleres.length > 0 && (
+        <section aria-labelledby="mis-talleres-heading">
+          <h2 id="mis-talleres-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+            Mis talleres
+          </h2>
+          <ul className="mt-3 grid gap-3 md:grid-cols-2">
+            {misTalleres.map((t) => (
+              <li key={t.id}>
+                <Link href={rutaTaller(t.slug)} className="block">
+                  <TarjetaSistema variante="elevated" className="p-4 hover:bg-accent">
+                    <TextoSistema className="font-medium">{t.nombre}</TextoSistema>
+                  </TarjetaSistema>
+                </Link>
               </li>
             ))}
           </ul>

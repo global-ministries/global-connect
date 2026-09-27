@@ -48,6 +48,7 @@ import { rolBadgeVariante, rolLabel } from '@/components/dream-team/labels'
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
 import { idsColapsadosPorDefecto, type NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import type { DreamTeamEquipo, DreamTeamRol } from '@/lib/platform/dream-team/types'
+import { rutaTaller } from '@/lib/platform/talleres/rutas'
 
 import {
   crearEquipo,
@@ -64,6 +65,14 @@ export interface EstructuraClientProps {
   readonly arbol: readonly NodoArbol<NodoEquipoArbol>[]
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
   readonly puedeEditar: boolean
+  /**
+   * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+   * node -> taller: keyed by dream_team_equipo_id, for the node whose id
+   * backs a taller (`talleres.dream_team_equipo_id`). Optional (default
+   * `{}`) so no existing caller/test needs updating. estructura/page.tsx
+   * loads this with one query on `talleres`.
+   */
+  readonly tallerPorEquipoId?: Readonly<Record<string, { readonly slug: string; readonly nombre: string }>>
 }
 
 type Toast = ReturnType<typeof useNotificaciones>
@@ -87,7 +96,12 @@ function iconButtonClass(): string {
   return 'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground'
 }
 
-export function EstructuraClient({ arbol, rolesPorEquipo, puedeEditar }: EstructuraClientProps): ReactElement {
+export function EstructuraClient({
+  arbol,
+  rolesPorEquipo,
+  puedeEditar,
+  tallerPorEquipoId = {},
+}: EstructuraClientProps): ReactElement {
   const toast = useNotificaciones()
   const [colapsados, setColapsados] = useState<ReadonlySet<string>>(() => idsColapsadosPorDefecto(arbol))
   const [editandoEquipoId, setEditandoEquipoId] = useState<string | null>(null)
@@ -133,6 +147,7 @@ export function EstructuraClient({ arbol, rolesPorEquipo, puedeEditar }: Estruct
       // dream_team_equipos row (see estructura-arbol.ts) — regardless of
       // puedeEditar.
       const puedeEditarEsteNodo = puedeEditar && equipo.origen === 'dream_team'
+      const taller = tallerPorEquipoId[equipo.id]
 
       const fila = (
         <NodoFila
@@ -143,6 +158,8 @@ export function EstructuraClient({ arbol, rolesPorEquipo, puedeEditar }: Estruct
           tieneHijos={hijos.length > 0}
           expandido={expandido}
           onToggleExpandido={() => toggleColapsado(equipo.id)}
+          tallerHref={taller ? rutaTaller(taller.slug) : undefined}
+          tallerNombre={taller?.nombre}
           accesorio={
             puedeEditarEsteNodo ? (
               <>
