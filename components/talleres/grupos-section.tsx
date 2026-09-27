@@ -44,6 +44,7 @@ import {
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
+import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
 import { FacilitadorPicker, type ServidorPickerVM } from '@/components/talleres/facilitador-picker'
 import {
   agregarFacilitadorGrupo,
@@ -86,7 +87,7 @@ interface Feedback {
 
 const ROL_LABELS: Record<string, string> = { lider: 'Líder', voluntario: 'Voluntario' }
 const BOTON_ICONO =
-  'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground'
+  'inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground'
 
 function nombreCompleto(nombre: string | null, apellido: string | null): string {
   return (
@@ -110,6 +111,13 @@ export function GruposSection({
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [nombreEditado, setNombreEditado] = useState('')
   const [capacidadEditada, setCapacidadEditada] = useState('')
+
+  const [confirmandoQuitar, setConfirmandoQuitar] = useState<{
+    readonly grupoId: string
+    readonly facilitadorId: string
+    readonly nombre: string
+  } | null>(null)
+  const [quitando, setQuitando] = useState(false)
 
   // "Crear grupo" — the declared exception, keeps the original fetch flow.
   const [nombreNuevo, setNombreNuevo] = useState('')
@@ -135,10 +143,15 @@ export function GruposSection({
     })
   }
 
-  function quitar(facilitadorId: string, grupoId: string): void {
+  function confirmarQuitar(): void {
+    if (!confirmandoQuitar) return
+    const { grupoId, facilitadorId } = confirmandoQuitar
     setFeedback(null)
+    setQuitando(true)
     startTransition(async () => {
       const result = await quitarFacilitadorGrupo({ tallerSlug, edicionId, grupoId, facilitadorId })
+      setQuitando(false)
+      setConfirmandoQuitar(null)
       if (result.ok) {
         router.refresh()
       } else {
@@ -237,18 +250,20 @@ export function GruposSection({
                     <button
                       type="button"
                       aria-label="Guardar grupo"
+                      title="Guardar grupo"
                       className={BOTON_ICONO}
                       onClick={() => guardarGrupo(grupo.id)}
                     >
-                      <Check className="h-4 w-4" />
+                      <Check className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <button
                       type="button"
                       aria-label="Cancelar edición del grupo"
+                      title="Cancelar"
                       className={BOTON_ICONO}
                       onClick={() => setEditandoId(null)}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
                 ) : (
@@ -292,7 +307,8 @@ export function GruposSection({
                 {puedeEditar && editandoId !== grupo.id && (
                   <button
                     type="button"
-                    aria-label="Editar grupo"
+                    aria-label={`Editar grupo ${grupo.nombre}`}
+                    title="Editar grupo"
                     className={BOTON_ICONO}
                     onClick={() => {
                       setEditandoId(grupo.id)
@@ -301,7 +317,7 @@ export function GruposSection({
                       setFeedback(null)
                     }}
                   >
-                    <Pencil className="h-4 w-4" />
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
                   </button>
                 )}
               </div>
@@ -315,11 +331,18 @@ export function GruposSection({
                     {puedeEditar && (
                       <button
                         type="button"
-                        aria-label={`Quitar a ${nombreCompleto(f.nombre, f.apellido)}`}
+                        aria-label={`Quitar a ${nombreCompleto(f.nombre, f.apellido)} del grupo`}
+                        title="Quitar del grupo"
                         className={BOTON_ICONO}
-                        onClick={() => quitar(f.id, grupo.id)}
+                        onClick={() =>
+                          setConfirmandoQuitar({
+                            grupoId: grupo.id,
+                            facilitadorId: f.id,
+                            nombre: nombreCompleto(f.nombre, f.apellido),
+                          })
+                        }
                       >
-                        <UserMinus className="h-4 w-4" />
+                        <UserMinus className="h-4 w-4" aria-hidden="true" />
                       </button>
                     )}
                   </li>
@@ -377,6 +400,15 @@ export function GruposSection({
           </form>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={confirmandoQuitar !== null}
+        onClose={() => setConfirmandoQuitar(null)}
+        onConfirm={confirmarQuitar}
+        title="Quitar facilitador"
+        message={confirmandoQuitar ? `¿Quitar a ${confirmandoQuitar.nombre} de este grupo?` : ''}
+        isLoading={quitando}
+      />
     </TarjetaSistema>
   )
 }

@@ -132,7 +132,7 @@ describe('GruposSection — read-only viewer', () => {
     render(<GruposSection {...baseProps({ puedeEditar: false })} />)
     expect(screen.getByText('Grupo Alfa')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /editar grupo/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: /servidor a agregar/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /^servidor$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /quitar/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /crear grupo/i })).not.toBeInTheDocument()
   })
@@ -174,7 +174,7 @@ describe('GruposSection — agregar facilitador (bounded picker)', () => {
   it('adds a facilitador through the bounded picker', async () => {
     agregarFacilitadorGrupoMock.mockResolvedValue({ ok: true })
     render(<GruposSection {...baseProps({ puedeEditar: true })} />)
-    const pickers = screen.getAllByRole('combobox', { name: /servidor a agregar/i })
+    const pickers = screen.getAllByRole('combobox', { name: /^servidor$/i })
     fireEvent.change(pickers[1]!, { target: { value: 'p-2' } }) // g-2's picker
     const rolSelects = screen.getAllByRole('combobox', { name: /^rol$/i })
     fireEvent.change(rolSelects[1]!, { target: { value: 'voluntario' } })
@@ -197,6 +197,8 @@ describe('GruposSection — agregar facilitador (bounded picker)', () => {
       message: 'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
     })
     render(<GruposSection {...baseProps({ puedeEditar: true })} />)
+    const pickers = screen.getAllByRole('combobox', { name: /^servidor$/i })
+    fireEvent.change(pickers[0]!, { target: { value: 'p-2' } })
     fireEvent.click(screen.getAllByRole('button', { name: /agregar facilitador/i })[0]!)
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
@@ -205,10 +207,20 @@ describe('GruposSection — agregar facilitador (bounded picker)', () => {
 })
 
 describe('GruposSection — quitar facilitador', () => {
-  it('removes a facilitador and refreshes', async () => {
+  // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) —
+  // removing a facilitador used to fire on a single click; it now asks
+  // for confirmation first, the same ConfirmationModal pattern
+  // PlantillaGruposSection reuses.
+  it('asks for confirmation, then removes the facilitador and refreshes', async () => {
     quitarFacilitadorGrupoMock.mockResolvedValue({ ok: true })
     render(<GruposSection {...baseProps({ puedeEditar: true })} />)
-    fireEvent.click(screen.getByRole('button', { name: /quitar a ana gómez/i }))
+    fireEvent.click(screen.getByRole('button', { name: /quitar a ana gómez del grupo/i }))
+
+    // Not called yet — the confirm step comes first.
+    expect(quitarFacilitadorGrupoMock).not.toHaveBeenCalled()
+    expect(screen.getByText(/¿quitar a ana gómez/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /confirmar/i }))
     expect(quitarFacilitadorGrupoMock).toHaveBeenCalledWith({
       tallerSlug: 'matrimonio-sobre-la-roca',
       edicionId: 'e-1',
