@@ -81,6 +81,19 @@ describe('CloseEdicionButton — initial gated state', () => {
     expect(html).not.toContain('Confirmar cierre')
     expect(html).not.toContain('Cancelar')
   })
+
+  // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) —
+  // the trigger used to be a hand-styled amber button
+  // (`border-amber-400 ... hover:bg-amber-50`); it is now a system
+  // BotonSistema, never a hardcoded palette class.
+  it('never renders a hardcoded red/emerald/amber palette class', () => {
+    const html = renderToStaticMarkup(<OpenEdicionButton edicionId="e-1" />)
+    expect(html).not.toMatch(/bg-\[var\(--brand-primary\)\]/)
+    expect(html).not.toMatch(/(red|emerald|amber)-\d/)
+
+    const closeHtml = renderToStaticMarkup(<CloseEdicionButton edicionId="e-1" />)
+    expect(closeHtml).not.toMatch(/(red|emerald|amber)-\d/)
+  })
 })
 
 describe('CloseEdicionButton — server action contract', () => {
