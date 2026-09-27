@@ -7,11 +7,11 @@
  * T3 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — talleres_
  * temporadas is now owned by a Dream Team node and its RLS is scoped by
  * that node's own tree (supabase/migrations/
- * 20260928120000_talleres_temporadas_por_direccion.sql). `createTemporada`
- * and `toggleTallerInTemporada` now route through the new SECURITY DEFINER
- * RPCs (talleres_crear_temporada, talleres_agregar_taller_a_temporada,
- * talleres_quitar_taller_de_temporada) instead of a raw table write — the
- * RPC IS the security wall, the exact same shape
+ * 20260928120000_talleres_temporadas_por_direccion.sql). `createTemporada`,
+ * `agregarTallerATemporada` and `quitarTallerDeTemporada` all route through
+ * the SECURITY DEFINER RPCs (talleres_crear_temporada, talleres_agregar_
+ * taller_a_temporada, talleres_quitar_taller_de_temporada) instead of a raw
+ * table write — the RPC IS the security wall, the exact same shape
  * lib/platform/talleres/solicitudes-retiro-actions.ts already documents
  * for talleres_resolver_solicitud_retiro: derive the scope from the
  * temporada/equipo itself, surface a failed authority check as SQLSTATE
@@ -22,16 +22,21 @@
  * new scoped RLS/RPC for another branch's temporada) — the app-layer gate
  * is now intentionally thin: kill switch → auth → RPC/RLS.
  *
- * `createTemporada` needs an `equipoId` now (the RPC's own p_equipo_id) —
- * the UI's node picker is T5's job ("the form gets the node picker in
- * T5"), so `equipoId` is optional here purely so the still-unmodified
- * ./crear/temporada-form.tsx keeps compiling; omitting it fails fast with
- * `invalid-input` rather than reaching the RPC with a missing required
- * argument. `descripcion` is no longer settable at creation (the RPC's
- * signature has no p_descripcion param — describing a temporada is not
- * part of this task; the column itself is untouched for a future UPDATE
- * path) but the field stays in the input type, unused, so that same form
- * (which still sends it) keeps compiling too.
+ * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — "Crear
+ * temporada" (crear/temporada-form.tsx) now picks the dirección itself, so
+ * `equipoId` is a required runtime input again (still typed optional here
+ * purely so a caller that omits it fails fast with `invalid-input` rather
+ * than reaching the RPC with a missing required argument); `slug`/
+ * `descripcion` are GONE from `CreateTemporadaInput` (the RPC derives its
+ * own slug and has no p_descripcion param). `createTemporada` also returns
+ * `edicionesCreadas` (the RPC's own `ediciones` array length) so the form
+ * can redirect with a "Se crearon N ediciones" notice. The single
+ * `toggleTallerInTemporada` (checkbox toggle) is replaced by
+ * `agregarTallerATemporada`/`quitarTallerDeTemporada` — the detail screen's
+ * "Agregar taller" select and per-row "Quitar" icon are two differently-
+ * shaped controls now, not one toggle. Every RPC error is translated
+ * through errores-api.ts's `traducirErrorTalleres` (the same table every
+ * other talleres action uses) instead of surfacing the raw RAISE text.
  *
  * `transitionTemporada` is UNCHANGED: a plain guarded UPDATE, now simply
  * subject to the new scoped UPDATE policy instead of the old unscoped one
