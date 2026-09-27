@@ -450,3 +450,94 @@ describe('loadAdminInscripciones — grupo', () => {
     expect(result.rows[0]?.grupo_nombre).toBe('—')
   })
 })
+
+// T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — sobre_cupo_por's
+// name resolves via a dedicated RPC (talleres_inscripciones_sobre_cupo_
+// personas), never a raw usuarios embed — same T6b reasoning as the
+// persona_principal_id/companero_id names above.
+describe('loadAdminInscripciones — sobre_cupo (T6)', () => {
+  function buildClientMockWithTwoRpcs(
+    tableResponses: Record<string, { data: unknown; error: { message: string } | null }>,
+    rpcResponses: Record<string, unknown[]>,
+  ) {
+    const rpcCalls: CapturedRpc[] = []
+    return {
+      client: {
+        from: jest.fn((table: string) => {
+          const b = makeBuilder(table)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thenable
+          b['then'] = (resolve: (r: { data: unknown; error: unknown }) => void) =>
+            Promise.resolve(tableResponses[table] ?? { data: [], error: null }).then(resolve)
+          return b
+        }),
+        rpc: jest.fn((fn: string, args: unknown) => {
+          rpcCalls.push({ fn, args })
+          return Promise.resolve({ data: rpcResponses[fn] ?? [], error: null })
+        }),
+      },
+      rpcCalls,
+    }
+  }
+
+  it('resolves sobre_cupo_por_nombre and sobre_cupo_en for a row with sobre_cupo=true', async () => {
+    const { client, rpcCalls } = buildClientMockWithTwoRpcs(
+      {
+        taller_inscripciones: {
+          data: [{ ...FULL_INSCRIPCION, sobre_cupo: true, sobre_cupo_en: '2026-09-20T10:00:00Z' }],
+          error: null,
+        },
+        taller_ediciones: { data: [FULL_EDICION], error: null },
+        talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
+      },
+      {
+        talleres_coord_inscripciones_personas: [RPC_PERSONA],
+        talleres_inscripciones_sobre_cupo_personas: [
+          { inscripcion_id: 'insc-1', sobre_cupo_por_nombre: 'María', sobre_cupo_por_apellido: 'Directora' },
+        ],
+      },
+    )
+
+    const result = await loadAdminInscripciones(client, {})
+
+    const sobreCupoCall = rpcCalls.find((c) => c.fn === 'talleres_inscripciones_sobre_cupo_personas')
+    expect(sobreCupoCall?.args).toEqual({ p_inscripcion_ids: ['insc-1'] })
+    expect(result.rows[0]?.sobre_cupo).toBe(true)
+    expect(result.rows[0]?.sobre_cupo_por_nombre).toBe('María Directora')
+    expect(result.rows[0]?.sobre_cupo_en).toBe('2026-09-20T10:00:00Z')
+  })
+
+  it('degrades sobre_cupo_por_nombre to — when the resolver RPC has no match (never drops the row)', async () => {
+    const { client } = buildClientMockWithTwoRpcs(
+      {
+        taller_inscripciones: { data: [{ ...FULL_INSCRIPCION, sobre_cupo: true }], error: null },
+        taller_ediciones: { data: [FULL_EDICION], error: null },
+        talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
+      },
+      {
+        talleres_coord_inscripciones_personas: [RPC_PERSONA],
+        talleres_inscripciones_sobre_cupo_personas: [],
+      },
+    )
+
+    const result = await loadAdminInscripciones(client, {})
+    expect(result.rows).toHaveLength(1)
+    expect(result.rows[0]?.sobre_cupo).toBe(true)
+    expect(result.rows[0]?.sobre_cupo_por_nombre).toBe('—')
+  })
+
+  it('never calls the sobre_cupo resolver RPC when no row has sobre_cupo=true', async () => {
+    const { client, rpcCalls } = buildClientMockWithTwoRpcs(
+      {
+        taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
+        taller_ediciones: { data: [FULL_EDICION], error: null },
+        talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
+      },
+      { talleres_coord_inscripciones_personas: [RPC_PERSONA] },
+    )
+
+    const result = await loadAdminInscripciones(client, {})
+    expect(rpcCalls.some((c) => c.fn === 'talleres_inscripciones_sobre_cupo_personas')).toBe(false)
+    expect(result.rows[0]?.sobre_cupo).toBe(false)
+    expect(result.rows[0]?.sobre_cupo_por_nombre).toBeNull()
+  })
+})

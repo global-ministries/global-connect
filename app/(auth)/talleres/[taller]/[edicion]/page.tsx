@@ -86,6 +86,7 @@ import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
+import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
 import { cierreRelativoLabel, edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -95,7 +96,11 @@ import {
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
-import { loadEdicionLocalDetalle, type EdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
+import {
+  loadCupoEdicion,
+  loadEdicionLocalDetalle,
+  type EdicionLocalDetalle,
+} from '@/lib/platform/talleres/operacional'
 import { loadAdminInscripciones } from '@/lib/platform/talleres/admin-inscripciones'
 import { loadGruposDeCohorte, loadGruposInstanciados } from '@/lib/platform/talleres/grupo-detalle'
 import { loadServidoresDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
@@ -175,6 +180,10 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
 
   const permisos = await cargarPermisos(client, taller.dream_team_equipo_id)
   const inscripciones = await loadAdminInscripciones(client, { edicion_id: edicion.id })
+  // T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — best
+  // effort, same "never blocks the page" contract as refrescarEstados
+  // Ediciones: a failed/unauthorized call just hides the Cupo line.
+  const cupo = await loadCupoEdicion(client, edicion.id)
 
   // T3 (odd/tasks/talleres-inscripcion-a-grupo.md) — bulk-assign selector
   // options, gated on gestionarGrupos (hide, never disable — house rule).
@@ -223,6 +232,20 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
               Inicio: {formatFecha(edicion.cohorte?.started_at ?? null)} · Fin:{' '}
               {formatFecha(edicion.cohorte?.ended_at ?? null)}
             </TextoSistema>
+            {cupo && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <TextoSistema tamaño="sm">
+                  {cupo.cupo === 0
+                    ? 'Sin cupo definido'
+                    : `${cupo.ocupados} de ${cupo.cupo} plazas · ${cupo.disponibles} disponibles`}
+                </TextoSistema>
+                {cupo.sobreCupo > 0 && (
+                  <BadgeSistema variante="warning" tamaño="sm">
+                    {cupo.sobreCupo} sobre el cupo
+                  </BadgeSistema>
+                )}
+              </div>
+            )}
             {edicion.estado === 'borrador' && (
               // T11 (flow audit) — "Abrir esta edición" (OpenEdicionButton,
               // below) becomes the clear next step: this line names the
@@ -257,6 +280,18 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
         <TituloSistema nivel={2} id="inscritos-heading">
           Inscritos
         </TituloSistema>
+        {/* T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — same
+            permiso TablaInscripciones already gates on below (canWrite);
+            no cohorte means no cohorte_id to insert against. */}
+        {permisos.aprobarInscripciones && edicion.cohorte && (
+          <div className="mt-3">
+            <InscribirPersonaForm
+              tallerSlug={taller.slug}
+              edicionId={edicion.id}
+              cohorteId={edicion.cohorte.id}
+            />
+          </div>
+        )}
         <div className="mt-3">
           {inscripciones.rows.length === 0 ? (
             <EstadoVacio icono={Users} titulo="No hay inscritos todavía" />

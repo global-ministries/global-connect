@@ -225,6 +225,22 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     error: 'conflict',
     message: 'No se puede quitar: la edición ya tiene inscritos. Cancela la edición desde su pantalla.',
   },
+  // T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — cupo
+  // (migration 20260928130000_talleres_cupo.sql). CUPO_LLENO gets its own
+  // distinct `error` code (not the generic 'conflict') so the edición
+  // page's "Inscribir persona" control can tell this failure apart from
+  // any other and offer its second step ("Inscribir igual (sobre el
+  // cupo)") only for this one.
+  CUPO_LLENO: {
+    status: 409,
+    error: 'cupo-lleno',
+    message: 'Este taller ya está en su cupo máximo.',
+  },
+  YA_INSCRITO: {
+    status: 409,
+    error: 'conflict',
+    message: 'Esta persona ya está inscrita en esta edición.',
+  },
 }
 
 /** Ordered longest-first so a substring match can't pick the wrong entry. */

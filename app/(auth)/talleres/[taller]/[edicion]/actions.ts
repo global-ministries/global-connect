@@ -244,3 +244,129 @@ export async function cancelarEdicion(
   revalidatePath(rutaTaller(input.tallerSlug))
   return { ok: true }
 }
+
+// ─── Cupo (T6, odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) ──────
+//
+// No existing "Agregar persona/inscribir" control was found anywhere in
+// the app (grepped app/lib for "inscrib" — only the public self-enroll
+// flow under app/(auth)/talleres/explorar exists). These three actions are
+// the coordinator/director-facing counterpart: search a persona
+// (talleres_buscar_personas, already capability-gated for director.write/
+// coordinator.write/admin.manage), try a normal insert (same shape as
+// self-enroll, but through the RLS write branch instead of the self-enroll
+// branch — no estado='pendiente' constraint from RLS, but this action
+// still sends 'pendiente' so a sobre-cupo placement is the only enrolment
+// path that forks the estado), and — only when that insert is refused with
+// CUPO_LLENO — a second step that calls talleres_inscribir_sobre_cupo.
+
+export interface BuscarPersonasParaInscribirResult {
+  readonly ok: boolean
+  readonly personas: ReadonlyArray<{
+    readonly id: string
+    readonly nombre: string | null
+    readonly apellido: string | null
+    readonly email: string | null
+  }>
+  readonly message?: string
+}
+
+export async function buscarPersonasParaInscribir(q: string): Promise<BuscarPersonasParaInscribirResult> {
+  const gated = await gate()
+  if (!gated.ok) return { ok: false, personas: [], message: gated.result.message }
+
+  const query = q.trim()
+  if (query.length < 2) return { ok: true, personas: [] }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client.rpc('talleres_buscar_personas', { p_q: query, p_limit: 20 })
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo buscar personas.')
+    return { ok: false, personas: [], message: traducido.message }
+  }
+
+  return {
+    ok: true,
+    personas: ((data ?? []) as Array<{ id: string; nombre: string | null; apellido: string | null; email: string | null }>).map(
+      (p) => ({ id: p.id, nombre: p.nombre, apellido: p.apellido, email: p.email }),
+    ),
+  }
+}
+
+export interface AgregarInscripcionInput {
+  readonly tallerSlug: string
+  readonly edicionId: string
+  readonly cohorteId: string
+  readonly personaId: string
+}
+
+export async function agregarInscripcion(
+  input: AgregarInscripcionInput,
+): Promise<EdicionActionResult<{ inscripcionId: string }>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  if (!input.personaId?.trim()) {
+    return { ok: false, error: 'invalid-input', message: 'Elige una persona.' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client
+    .from('taller_inscripciones')
+    .insert({
+      taller_id: input.edicionId,
+      cohorte_id: input.cohorteId,
+      persona_principal_id: input.personaId,
+      estado: 'pendiente',
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo inscribir a esta persona.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data) {
+    return { ok: false, ...forbiddenByRls('No se pudo inscribir a esta persona.') }
+  }
+
+  revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
+  return { ok: true, inscripcionId: data.id as string }
+}
+
+export interface InscribirSobreCupoInput {
+  readonly tallerSlug: string
+  readonly edicionId: string
+  readonly personaId: string
+}
+
+export async function inscribirSobreCupo(
+  input: InscribirSobreCupoInput,
+): Promise<EdicionActionResult<{ inscripcionId: string; cupo: number; ocupados: number; sobreCupo: number }>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client.rpc('talleres_inscribir_sobre_cupo', {
+    p_edicion_id: input.edicionId,
+    p_persona_id: input.personaId,
+  })
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo inscribir sobre el cupo.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  const resultado = data as { inscripcion_id: string; cupo: number; ocupados: number; sobre_cupo: number }
+  revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
+  return {
+    ok: true,
+    inscripcionId: resultado.inscripcion_id,
+    cupo: resultado.cupo,
+    ocupados: resultado.ocupados,
+    sobreCupo: resultado.sobre_cupo,
+  }
+}

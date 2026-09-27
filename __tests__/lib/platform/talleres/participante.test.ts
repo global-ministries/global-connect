@@ -797,6 +797,100 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
     expect(row.cierre_inscripcion).toBe('2026-09-15')
   })
 
+  // T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — cupo_completo
+  // is derived from talleres_cupo_edicion per edición.
+  describe('cupo_completo (T6)', () => {
+    function setupWithRpc(rpcImpl?: jest.Mock): void {
+      flagsMock.mockReset().mockReturnValue(true)
+      findPersonaByAuthIdMock.mockReset().mockResolvedValue({
+        id: PERSONA_ID,
+        authId: 'auth-1',
+        globalRoles: [],
+      })
+      resolveSessionMock.mockReset().mockResolvedValue({
+        personaId: PERSONA_ID,
+        subjectAuthId: 'auth-1',
+        globalRoles: [],
+        contexts: [],
+        capabilities: [],
+      })
+
+      const edicionRow = {
+        id: 'ed-1',
+        nombre_snapshot: 'Septiembre 2026',
+        tipo: 'individual',
+        estado: 'abierto',
+        taller_id: 'taller-1',
+        cierre_inscripcion: null,
+        taller: null,
+      }
+      const tableResponses: Record<string, { data: unknown; error: null }> = {
+        taller_ediciones: { data: [edicionRow], error: null },
+        talleres_crecimiento_cohortes: { data: [], error: null },
+        taller_periodos_generales: { data: [], error: null },
+        taller_inscripciones: { data: [], error: null },
+      }
+      const builderFor = (table: string) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thenable
+        const b: Record<string, any> = {}
+        b['select'] = jest.fn(() => b)
+        b['eq'] = jest.fn(() => b)
+        b['in'] = jest.fn(() => b)
+        b['order'] = jest.fn(() => b)
+        b['then'] = (resolve: (r: { data: unknown; error: null }) => void) =>
+          Promise.resolve(tableResponses[table]).then(resolve)
+        return b
+      }
+
+      createSupabaseServerClientMock.mockReset().mockResolvedValue({
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } }, error: null }),
+        },
+        from: jest.fn((table: string) => builderFor(table)),
+        ...(rpcImpl ? { rpc: rpcImpl } : {}),
+      })
+    }
+
+    it('is true when talleres_cupo_edicion reports the edición full', async () => {
+      const rpc = jest.fn().mockResolvedValue({
+        data: [{ cupo: 2, ocupados: 2, disponibles: 0, sobre_cupo: 0 }],
+        error: null,
+      })
+      setupWithRpc(rpc)
+
+      const ctxResult = await loadParticipanteContext()
+      if (!ctxResult.ok) throw new Error('expected ok:true')
+      const rows = await loadParticipanteExplorar(ctxResult.context)
+
+      expect(rpc).toHaveBeenCalledWith('talleres_cupo_edicion', { p_edicion_id: 'ed-1' })
+      expect(rows[0]?.cupo_completo).toBe(true)
+    })
+
+    it('is false when there is room left', async () => {
+      const rpc = jest.fn().mockResolvedValue({
+        data: [{ cupo: 2, ocupados: 1, disponibles: 1, sobre_cupo: 0 }],
+        error: null,
+      })
+      setupWithRpc(rpc)
+
+      const ctxResult = await loadParticipanteContext()
+      if (!ctxResult.ok) throw new Error('expected ok:true')
+      const rows = await loadParticipanteExplorar(ctxResult.context)
+
+      expect(rows[0]?.cupo_completo).toBe(false)
+    })
+
+    it('degrades to false when the client has no rpc method at all (never blocks the page)', async () => {
+      setupWithRpc(undefined)
+
+      const ctxResult = await loadParticipanteContext()
+      if (!ctxResult.ok) throw new Error('expected ok:true')
+      const rows = await loadParticipanteExplorar(ctxResult.context)
+
+      expect(rows[0]?.cupo_completo).toBe(false)
+    })
+  })
+
   it('returns null cohorte_id / modalidad / dates when joins return no rows (back-compat)', async () => {
     // Same shape as the previous test, but with an edicion whose
     // taller has no FK row (legacy data — taller_id NULL) and no

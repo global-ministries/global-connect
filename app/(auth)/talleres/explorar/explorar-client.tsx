@@ -62,6 +62,13 @@ interface TallerRow {
    * {fecha}" when present (never the deprecated periodo dates above).
    */
   readonly cierre_inscripcion: string | null
+  /**
+   * T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — this
+   * edición's cupo (if defined) is already full. The card + FAB disable
+   * self-enroll with "Cupo completo" instead of letting the DB gate raise
+   * CUPO_LLENO after the fact.
+   */
+  readonly cupo_completo: boolean
 }
 
 interface Input {
@@ -182,17 +189,17 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
             <button
               type="button"
               onClick={() => {
-                if (t.ya_inscrito) return
+                if (t.ya_inscrito || t.cupo_completo) return
                 startTransition(() => setSelectedId(t.id))
               }}
-              disabled={t.ya_inscrito}
+              disabled={t.ya_inscrito || t.cupo_completo}
               aria-pressed={selectedId === t.id}
               aria-label={`Seleccionar ${t.nombre} para inscripción`}
               className={`w-full text-left transition ${
                 selectedId === t.id
                   ? 'ring-2 ring-[var(--brand-primary)] rounded-md'
                   : ''
-              } ${t.ya_inscrito ? 'opacity-60 cursor-not-allowed' : ''}`}
+              } ${t.ya_inscrito || t.cupo_completo ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               <TarjetaSistema variante="elevated" className="p-4">
                 <div className="flex items-start gap-3">
@@ -233,6 +240,9 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
                       {t.ya_inscrito && (
                         <BadgeSistema variante="success">Ya inscripto</BadgeSistema>
                       )}
+                      {!t.ya_inscrito && t.cupo_completo && (
+                        <BadgeSistema variante="warning">Cupo completo</BadgeSistema>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -241,7 +251,7 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
           </li>
         ))}
       </ul>
-      {selected && !selected.ya_inscrito && (
+      {selected && !selected.ya_inscrito && !selected.cupo_completo && (
         <TallerExplorarFab
           tallerId={selected.id}
           onInscribirse={handleInscribirse}
