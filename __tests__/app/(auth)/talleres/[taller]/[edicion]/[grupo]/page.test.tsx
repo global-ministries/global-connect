@@ -457,9 +457,11 @@ describe('GrupoDetallePage — full access', () => {
 })
 
 describe('GrupoDetallePage — design audit (T10)', () => {
-  // "Equipo", "Su gente", "Clases", "Asistencia" and "Reporte" used to be
-  // hand-rolled `<h2>`s; all five are now TituloSistema nivel={2}, and no
-  // raw h2 is left on the page.
+  // "Facilitadores del grupo" (renamed from "Equipo" in T11, flow audit —
+  // one vocabulary: "Equipo" was ambiguous with the taller's own "Equipo
+  // del nodo" section), "Su gente", "Clases", "Asistencia" and "Reporte"
+  // used to be hand-rolled `<h2>`s; all five are now TituloSistema
+  // nivel={2}, and no raw h2 is left on the page.
   it('renders every section heading through TituloSistema nivel={2}, never a raw h2', async () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
@@ -468,7 +470,7 @@ describe('GrupoDetallePage — design audit (T10)', () => {
     const titulos = findAllByType(element, TituloSistema)
     const nombres = titulos.filter((t) => t.props.nivel === 2).map((t) => extractText(t.props.children))
     expect(nombres).toEqual(
-      expect.arrayContaining(['Equipo', 'Su gente', 'Clases', 'Asistencia', 'Reporte']),
+      expect.arrayContaining(['Facilitadores del grupo', 'Su gente', 'Clases', 'Asistencia', 'Reporte']),
     )
   })
 

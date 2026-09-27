@@ -23,9 +23,16 @@
  * plain number as `sesionesEstimadas`, never user-editable. A taller
  * with NO active plantilla clases keeps behaving exactly as before
  * (acceptance criterion 8) — the page passes `sesionesEstimadas: null`,
- * and this component falls back to its own original numeric field
- * (label, min=1, default=1, "1 semana = 1 sesión" helper text), sending
- * whatever the user types.
+ * and this component falls back to its own original numeric field,
+ * relabeled "Cantidad de clases" in T11 (one vocabulary: "clase", never
+ * "sesión", in talleres UI copy — docs/talleres-de-punta-a-punta.md §2),
+ * sending whatever the user types.
+ *
+ * T11 — the "Duración por sesión (min)" field is GONE for good (not just
+ * conditionally): that value now lives on the taller as `duracion_minutos`
+ * (editable in PlantillaClasesSection's "cadencia y duración" controls),
+ * so the page derives it and passes it down as `duracionMinutos`, sent
+ * verbatim as `duracion_estimada_minutos`, never user-typed here.
  *
  * T10 (design audit) — the flat `bg-[var(--brand-primary)]` trigger became
  * a `BotonSistema variante="primario"`, and the form itself moved into a
@@ -93,6 +100,8 @@ interface Input {
   readonly gruposPlantillaActivos: number
   /** T11 — plantilla facilitadores `open_edicion` would omit right now (lib/platform/talleres/plantilla.ts's previewFacilitadoresOmitidos). */
   readonly facilitadoresOmitidosPreview: readonly FacilitadorOmitidoPreview[]
+  /** T11 — the taller's own `duracion_minutos`, sent verbatim as `duracion_estimada_minutos`; never user-editable here (docs §12: it lives on the taller). */
+  readonly duracionMinutos: number
 }
 
 export function OpenEdicionForm({
@@ -104,6 +113,7 @@ export function OpenEdicionForm({
   sesionesEstimadas,
   gruposPlantillaActivos,
   facilitadoresOmitidosPreview,
+  duracionMinutos,
 }: Input): ReactElement {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -113,8 +123,7 @@ export function OpenEdicionForm({
   const [nombreEdicion, setNombreEdicion] = useState('')
   const [tipo, setTipo] = useState<'individual' | 'pareja'>('pareja')
   const [linkType, setLinkType] = useState<'matrimonio' | 'novios' | ''>('')
-  const [sesiones, setSesiones] = useState<number>(1)
-  const [duracion, setDuracion] = useState<number>(60)
+  const [cantidadClases, setCantidadClases] = useState<number>(1)
   const [modalidad, setModalidad] = useState<'periodo_general' | 'permanente_custom'>(defaultModalidad)
   const [temporadaId, setTemporadaId] = useState<string>('')
   const [fechaInicio, setFechaInicio] = useState('')
@@ -141,8 +150,8 @@ export function OpenEdicionForm({
         tipo,
         nombre_edicion: nombreEdicion.trim(),
         link_type: tipo === 'pareja' && linkType !== '' ? (linkType as 'matrimonio' | 'novios') : null,
-        sesiones_estimadas: sesionesEstimadas ?? sesiones,
-        duracion_estimada_minutos: duracion,
+        sesiones_estimadas: sesionesEstimadas ?? cantidadClases,
+        duracion_estimada_minutos: duracionMinutos,
         modalidad_inscripcion: modalidad,
         fecha_inicio_periodo: new Date(fechaInicio).toISOString(),
         fecha_fin_periodo: fechaFin ? new Date(fechaFin).toISOString() : null,
@@ -234,27 +243,14 @@ export function OpenEdicionForm({
               ]}
             />
             {sesionesEstimadas === null && (
-              <div>
-                <InputSistema
-                  label="Duración (semanas) *"
-                  type="number"
-                  min={1}
-                  value={sesiones}
-                  onChange={(e) => setSesiones(Number(e.target.value))}
-                />
-                <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                  1 semana = 1 sesión.
-                </TextoSistema>
-              </div>
+              <InputSistema
+                label="Cantidad de clases *"
+                type="number"
+                min={1}
+                value={cantidadClases}
+                onChange={(e) => setCantidadClases(Number(e.target.value))}
+              />
             )}
-            <InputSistema
-              label="Duración por sesión (min) *"
-              type="number"
-              min={15}
-              step={15}
-              value={duracion}
-              onChange={(e) => setDuracion(Number(e.target.value))}
-            />
             <SelectSistema
               label="Modalidad"
               value={modalidad}

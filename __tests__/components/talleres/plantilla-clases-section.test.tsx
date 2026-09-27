@@ -69,6 +69,16 @@ describe('PlantillaClasesSection — rendering', () => {
     render(<PlantillaClasesSection {...baseProps({ clases: [] })} />)
     expect(screen.getByText(/todavía no tiene clases/i)).toBeInTheDocument()
   })
+
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — one
+  // vocabulary: "Clases" (plantilla) is ambiguous with the edición's own
+  // "Clase n · tema" list, so the section is titled "Plantilla de clases"
+  // with a hint naming what it is for.
+  it('titles the section "Plantilla de clases" with its hint', () => {
+    render(<PlantillaClasesSection {...baseProps()} />)
+    expect(screen.getByRole('heading', { name: /^plantilla de clases$/i })).toBeInTheDocument()
+    expect(screen.getByText(/nombre y orden de las clases de cada edición/i)).toBeInTheDocument()
+  })
 })
 
 describe('PlantillaClasesSection — read-only viewer', () => {

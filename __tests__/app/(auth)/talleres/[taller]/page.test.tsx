@@ -527,6 +527,25 @@ describe('TallerDetallePage — permission wiring', () => {
     expect(findByType(element, OpenEdicionForm)?.props.tallerSlug).toBe('matrimonio-sobre-la-roca')
   })
 
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+  // "Duración por sesión (min)" field is gone from OpenEdicionForm; the
+  // page derives it from taller.duracion_minutos instead, with a fallback
+  // when the taller hasn't set one yet (it is not editable anywhere before
+  // this feature's PlantillaClasesSection either — never silently 0).
+  it('passes duracionMinutos verbatim from taller.duracion_minutos', async () => {
+    setup({ permisos: { abrirEdicion: true }, taller: { ...TALLER, duracion_minutos: 75 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.duracionMinutos).toBe(75)
+  })
+
+  it('passes a default duracionMinutos when the taller has none set yet', async () => {
+    setup({ permisos: { abrirEdicion: true }, taller: { ...TALLER, duracion_minutos: null } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.duracionMinutos).toBe(60)
+  })
+
   it('passes gruposPlantillaActivos as the count of ACTIVE plantilla grupos', async () => {
     setup({
       permisos: { abrirEdicion: true },
@@ -584,14 +603,27 @@ describe('TallerDetallePage — permission wiring', () => {
 describe('TallerDetallePage — headings (design audit)', () => {
   // T10 — "Equipo" and "Ediciones" used to be hand-rolled `<h2>`s; both are
   // now TituloSistema nivel={2}, and no raw h2 is left on the page.
-  it('renders Equipo and Ediciones through TituloSistema nivel={2}, never a raw h2', async () => {
+  //
+  // T11 (flow audit) — "Equipo" is renamed "Equipo del nodo" (one
+  // vocabulary: it was ambiguous with the grupo page's own facilitador
+  // list), with a one-line hint naming where it's managed.
+  it('renders Equipo del nodo and Ediciones through TituloSistema nivel={2}, never a raw h2', async () => {
     setup({ servidores: [SERVIDOR_LIDER] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(findByType(element, 'h2')).toBeNull()
     const titulos = findAllByType(element, TituloSistema)
-    expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Equipo')).toBe(true)
+    expect(
+      titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Equipo del nodo'),
+    ).toBe(true)
     expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Ediciones')).toBe(true)
+  })
+
+  it('shows a hint under "Equipo del nodo" naming where it is managed', async () => {
+    setup({ servidores: [SERVIDOR_LIDER] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/servidores activos; se gestionan en dream team/i)
   })
 })
 

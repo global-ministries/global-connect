@@ -2,7 +2,9 @@
 
 /**
  * T4 (odd/tasks/talleres-configuracion-del-taller.md) — the edición
- * screen's "Grupos" section, redesigned: the grupos are already
+ * screen's "Grupos de esta edición" section (T11 rename, flow audit — one
+ * vocabulary: "Grupos" alone was ambiguous with the taller's own
+ * "Plantilla de grupos"), redesigned: the grupos are already
  * INSTANCIADOS by open_edicion (nombre/capacidad copied from the taller's
  * plantilla, facilitadores pre-assigned from active servidores) — so this
  * component now receives them as a prop, loaded server-side by the page
@@ -20,12 +22,13 @@
  *     for the plantilla (components/talleres/facilitador-picker.tsx) —
  *     never SelectLeaderModal/talleres_buscar_personas.
  *
- * "Crear grupo" is the DECLARED EXCEPTION (Decisiones: "'Crear grupo' queda
- * como excepción: un grupo extra sólo en esta edición") and keeps the
- * ORIGINAL flow: POST /api/talleres/grupos, which also runs
- * generate_taller_sesiones (PR47) best-effort and reports how many weekly
- * sessions were materialised — moved visually BELOW the list, with copy
- * naming it as the exception it is.
+ * "Agregar un grupo extra" (renamed from "Crear grupo" in T11) is the
+ * DECLARED EXCEPTION (Decisiones: "'Crear grupo' queda como excepción: un
+ * grupo extra sólo en esta edición") and keeps the ORIGINAL flow: POST
+ * /api/talleres/grupos, which also runs generate_taller_sesiones (PR47)
+ * best-effort and reports how many weekly clases were materialised —
+ * moved visually BELOW the list, with copy naming it as the exception it
+ * is.
  *
  * puedeEditar (permisos.gestionarGrupos) gates every control; a read-only
  * viewer still sees the full list — nombre, capacidad, ocupación and each
@@ -189,8 +192,8 @@ export function GruposSection({
           kind: 'success',
           message:
             typeof total === 'number'
-              ? `Grupo creado — ${total} sesiones generadas.`
-              : 'Grupo creado. Las sesiones se generarán al reintentar.',
+              ? `Grupo creado — ${total} clases generadas.`
+              : 'Grupo creado. Las clases se generarán al reintentar.',
         })
         setNombreNuevo('')
         setCapacidadNueva('')
@@ -207,7 +210,7 @@ export function GruposSection({
   return (
     <TarjetaSistema className="space-y-6">
       <div className="space-y-1">
-        <TituloSistema nivel={3}>Grupos</TituloSistema>
+        <TituloSistema nivel={3}>Grupos de esta edición</TituloSistema>
         <TextoSistema variante="muted">
           Los grupos de esta edición, con sus facilitadores.
         </TextoSistema>
@@ -369,13 +372,16 @@ export function GruposSection({
         </ul>
       )}
 
-      {/* "Crear grupo" — the declared exception: an extra grupo only for
-          this edición, never touching the taller's plantilla. */}
+      {/* "Agregar un grupo extra" — the declared exception (renamed from
+          "Crear grupo" in T11, flow audit — one vocabulary: the grupos in
+          this list already come from the taller's plantilla, this is the
+          one that doesn't): an extra grupo only for this edición, never
+          touching the taller's plantilla. */}
       {puedeEditar && (
         <div className="border-t border-border/60 pt-4">
           <TextoSistema variante="muted" className="mb-2 block text-sm">
-            Crea un grupo adicional sólo para esta edición — no cambia la plantilla del taller. Genera
-            sus sesiones semanales al crearse (1 semana = 1 sesión).
+            Agrega un grupo extra sólo para esta edición — no cambia la plantilla del taller. Genera
+            sus clases semanales al crearse (1 semana = 1 clase).
           </TextoSistema>
           <form onSubmit={crearGrupo} className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
             <InputSistema
@@ -395,7 +401,7 @@ export function GruposSection({
               required
             />
             <BotonSistema type="submit" cargando={creating} disabled={!nombreNuevo.trim() || !capacidadNueva}>
-              Crear grupo
+              Agregar un grupo extra
             </BotonSistema>
           </form>
         </div>

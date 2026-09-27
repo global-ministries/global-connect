@@ -163,9 +163,14 @@ export function PlantillaClasesSection({
   return (
     <section aria-labelledby="clases-heading">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <TituloSistema nivel={2} id="clases-heading">
-          Clases
-        </TituloSistema>
+        <div>
+          <TituloSistema nivel={2} id="clases-heading">
+            Plantilla de clases
+          </TituloSistema>
+          <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+            Nombre y orden de las clases de cada edición.
+          </TextoSistema>
+        </div>
         {puedeEditar && (
           <BotonSistema type="button" variante="outline" tamaño="sm" icono={Plus} onClick={() => setAgregando(true)}>
             Agregar clase

@@ -183,6 +183,12 @@ export default async function TallerDetallePage(ctx: RouteContext) {
     servidorPersonaIds,
   )
 
+  // T11 — "Duración por sesión (min)" is gone from the form; it now lives
+  // on the taller (`duracion_minutos`, editable in PlantillaClasesSection).
+  // 60 is the same default the old inline field used to start from, for a
+  // taller that hasn't set one yet.
+  const duracionMinutos = taller.duracion_minutos ?? 60
+
   return (
     <ContenedorDashboard
       titulo={taller.nombre}
@@ -225,9 +231,14 @@ export default async function TallerDetallePage(ctx: RouteContext) {
 
       <section aria-labelledby="equipo-heading">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <TituloSistema nivel={2} id="equipo-heading">
-            Equipo
-          </TituloSistema>
+          <div>
+            <TituloSistema nivel={2} id="equipo-heading">
+              Equipo del nodo
+            </TituloSistema>
+            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+              Servidores activos; se gestionan en Dream Team.
+            </TextoSistema>
+          </div>
           <EnlaceSistema
             href={RUTA_SERVIDORES}
             variante="marca"
@@ -346,6 +357,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             sesionesEstimadas={sesionesEstimadas}
             gruposPlantillaActivos={gruposPlantillaActivosList.length}
             facilitadoresOmitidosPreview={facilitadoresOmitidosPreview}
+            duracionMinutos={duracionMinutos}
           />
         </div>
       )}
