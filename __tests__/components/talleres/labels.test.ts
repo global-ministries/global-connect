@@ -161,7 +161,14 @@ describe('temporada estado labels', () => {
     }
   })
 
-  it('abierto reads as success, cancelado as error', () => {
+  // T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+  // temporadas-por-dirección list's own spec: "borrador default / abierto
+  // success / cerrado default / cancelado error" — borrador moves from the
+  // old 'info' to 'default' (matching EDICION_ESTADO_BADGE_VARIANTE's own
+  // borrador, above, for consistency across both domains).
+  it('borrador and cerrado read as default, abierto as success, cancelado as error', () => {
+    expect(TEMPORADA_ESTADO_BADGE_VARIANTE.borrador).toBe('default')
+    expect(TEMPORADA_ESTADO_BADGE_VARIANTE.cerrado).toBe('default')
     expect(TEMPORADA_ESTADO_BADGE_VARIANTE.abierto).toBe('success')
     expect(TEMPORADA_ESTADO_BADGE_VARIANTE.cancelado).toBe('error')
   })
@@ -172,7 +179,7 @@ describe('temporada estado labels', () => {
   })
 
   it('temporadaEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
-    expect(temporadaEstadoBadgeVariante('borrador')).toBe('info')
+    expect(temporadaEstadoBadgeVariante('abierto')).toBe('success')
     expect(temporadaEstadoBadgeVariante('algo-desconocido')).toBe('default')
   })
 })

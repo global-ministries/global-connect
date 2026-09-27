@@ -114,7 +114,7 @@ export const TEMPORADA_ESTADO_LABELS: Record<TemporadaEstado, string> = {
 }
 
 export const TEMPORADA_ESTADO_BADGE_VARIANTE: Record<TemporadaEstado, BadgeVariante> = {
-  borrador: 'info',
+  borrador: 'default',
   abierto: 'success',
   cerrado: 'default',
   cancelado: 'error',
