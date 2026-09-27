@@ -205,6 +205,15 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
               Inicio: {formatFecha(edicion.cohorte?.started_at ?? null)} · Fin:{' '}
               {formatFecha(edicion.cohorte?.ended_at ?? null)}
             </TextoSistema>
+            {edicion.estado === 'borrador' && (
+              // T11 (flow audit) — "Abrir esta edición" (OpenEdicionButton,
+              // below) becomes the clear next step: this line names the
+              // state and what to do about it.
+              <TextoSistema variante="sutil" tamaño="sm" className="mt-2 block">
+                Esta edición está en borrador. Revisa grupos y clases y luego ábrela para recibir
+                inscripciones.
+              </TextoSistema>
+            )}
           </div>
           <div className="flex flex-col items-end gap-2">
             <BadgeSistema variante={edicionEstadoBadgeVariante(edicion.estado)}>

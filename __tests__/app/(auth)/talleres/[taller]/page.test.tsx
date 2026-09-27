@@ -71,10 +71,10 @@ jest.mock('@/lib/platform/talleres/servidores-del-taller', () => {
   return { ...actual, loadServidoresDelTaller: jest.fn() }
 })
 
-jest.mock('@/lib/platform/talleres/plantilla', () => ({
-  loadPlantillaClases: jest.fn(),
-  loadPlantillaGrupos: jest.fn(),
-}))
+jest.mock('@/lib/platform/talleres/plantilla', () => {
+  const actual = jest.requireActual('@/lib/platform/talleres/plantilla')
+  return { ...actual, loadPlantillaClases: jest.fn(), loadPlantillaGrupos: jest.fn() }
+})
 
 jest.mock('@/lib/platform/talleres/temporadas', () => ({
   loadTemporadasAbiertas: jest.fn(),
@@ -514,6 +514,64 @@ describe('TallerDetallePage — permission wiring', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBeNull()
+  })
+
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md) — "Crear edición"
+  // preview props: tallerSlug (for the post-create redirect), the count of
+  // ACTIVE plantilla grupos ("N"), and the list of plantilla facilitadores
+  // that open_edicion would omit right now (previewFacilitadoresOmitidos).
+  it('passes tallerSlug so OpenEdicionForm can redirect to the new edición', async () => {
+    setup({ permisos: { abrirEdicion: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.tallerSlug).toBe('matrimonio-sobre-la-roca')
+  })
+
+  it('passes gruposPlantillaActivos as the count of ACTIVE plantilla grupos', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      plantillaGrupos: [
+        { id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] },
+        { id: 'g-2', nombre: 'Grupo Beta', orden: 2, capacidad: 12, activo: true, facilitadores: [] },
+        { id: 'g-3', nombre: 'Grupo Gamma', orden: 3, capacidad: 12, activo: false, facilitadores: [] },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.gruposPlantillaActivos).toBe(2)
+  })
+
+  it('passes facilitadoresOmitidosPreview naming a plantilla facilitador who is no longer an active servidor, only from ACTIVE grupos', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      servidores: [SERVIDOR_LIDER],
+      plantillaGrupos: [
+        {
+          id: 'g-1',
+          nombre: 'Grupo Alfa',
+          orden: 1,
+          capacidad: 12,
+          activo: true,
+          facilitadores: [
+            { id: 'f-1', personaId: 'p-1', rol: 'lider', nombre: 'Ana', apellido: 'Gómez' },
+            { id: 'f-2', personaId: 'p-9', rol: 'voluntario', nombre: 'Marta', apellido: 'Díaz' },
+          ],
+        },
+        {
+          id: 'g-2',
+          nombre: 'Grupo Inactivo',
+          orden: 2,
+          capacidad: 12,
+          activo: false,
+          facilitadores: [{ id: 'f-3', personaId: 'p-8', rol: 'lider', nombre: 'Otro', apellido: 'Más' }],
+        },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.facilitadoresOmitidosPreview).toEqual([
+      { personaId: 'p-9', nombre: 'Marta Díaz', plantillaGrupo: 'Grupo Alfa' },
+    ])
   })
 
   it('passes taller.dream_team_equipo_id to cargarPermisos', async () => {

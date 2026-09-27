@@ -14,6 +14,7 @@
 import {
   loadPlantillaClases,
   loadPlantillaGrupos,
+  previewFacilitadoresOmitidos,
   type PlantillaClase,
   type PlantillaGrupo,
 } from '@/lib/platform/talleres/plantilla'
@@ -162,5 +163,58 @@ describe('loadPlantillaGrupos', () => {
     })
     const result = await loadPlantillaGrupos(client, 't-1')
     expect(result[0]?.facilitadores).toEqual([])
+  })
+})
+
+// T11 (odd/tasks/talleres-configuracion-del-taller.md) — the "Crear edición"
+// preview shows, before the director confirms, which plantilla
+// facilitadores would be OMITTED at instantiation (acceptance criterion 3):
+// this mirrors open_edicion's own rule (migration
+// 20260927100000_talleres_instanciar_edicion.sql) — a facilitador is
+// omitted when their persona is not among the taller's current active
+// servidores. The caller passes only ACTIVE plantilla grupos, since only
+// those get instantiated.
+describe('previewFacilitadoresOmitidos', () => {
+  const grupos: readonly PlantillaGrupo[] = [
+    {
+      id: 'g-1',
+      nombre: 'Grupo Alfa',
+      orden: 1,
+      capacidad: 12,
+      activo: true,
+      facilitadores: [
+        { id: 'f-1', personaId: 'p-1', rol: 'lider', nombre: 'Ana', apellido: 'Gómez' },
+        { id: 'f-2', personaId: 'p-2', rol: 'voluntario', nombre: 'Marta', apellido: 'Díaz' },
+      ],
+    },
+    {
+      id: 'g-2',
+      nombre: 'Grupo Beta',
+      orden: 2,
+      capacidad: 12,
+      activo: true,
+      facilitadores: [{ id: 'f-3', personaId: 'p-3', rol: 'lider', nombre: null, apellido: null }],
+    },
+  ]
+
+  it('lists a facilitador whose persona is not among the active servidores, across every grupo', () => {
+    const result = previewFacilitadoresOmitidos(grupos, new Set(['p-1']))
+    expect(result).toEqual([
+      { personaId: 'p-2', nombre: 'Marta Díaz', plantillaGrupo: 'Grupo Alfa' },
+      { personaId: 'p-3', nombre: 'Persona sin nombre', plantillaGrupo: 'Grupo Beta' },
+    ])
+  })
+
+  it('returns an empty list when every facilitador is an active servidor', () => {
+    const result = previewFacilitadoresOmitidos(grupos, new Set(['p-1', 'p-2', 'p-3']))
+    expect(result).toEqual([])
+  })
+
+  it('returns an empty list for grupos with no facilitadores', () => {
+    const result = previewFacilitadoresOmitidos(
+      [{ id: 'g-3', nombre: 'Grupo Gamma', orden: 1, capacidad: 12, activo: true, facilitadores: [] }],
+      new Set(),
+    )
+    expect(result).toEqual([])
   })
 })
