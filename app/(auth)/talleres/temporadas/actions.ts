@@ -30,13 +30,19 @@
  * `descripcion` are GONE from `CreateTemporadaInput` (the RPC derives its
  * own slug and has no p_descripcion param). `createTemporada` also returns
  * `edicionesCreadas` (the RPC's own `ediciones` array length) so the form
- * can redirect with a "Se crearon N ediciones" notice. The single
- * `toggleTallerInTemporada` (checkbox toggle) is replaced by
- * `agregarTallerATemporada`/`quitarTallerDeTemporada` — the detail screen's
- * "Agregar taller" select and per-row "Quitar" icon are two differently-
- * shaped controls now, not one toggle. Every RPC error is translated
- * through errores-api.ts's `traducirErrorTalleres` (the same table every
- * other talleres action uses) instead of surfacing the raw RAISE text.
+ * can redirect with a "Se crearon N ediciones" notice. `agregarTallerATemporada`
+ * (a select+button) and `quitarTallerDeTemporada` (a per-row icon with its
+ * own confirm dialog) are two differently-shaped controls on the detail
+ * screen, each its own action. Every RPC error is translated through
+ * errores-api.ts's `traducirErrorTalleres` (the same table every other
+ * talleres action uses) instead of surfacing the raw RAISE text.
+ *
+ * T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md,
+ * 20260928140000_talleres_paso6_hardening.sql) — `talleres_crear_temporada`
+ * and `talleres_agregar_taller_a_temporada` now also refuse a temporada
+ * whose estado is not borrador/abierto (P0001 TEMPORADA_NO_DISPONIBLE,
+ * mapped below) and `talleres_crear_temporada` de-duplicates its own
+ * `p_taller_ids`; neither changes this file's own shape.
  *
  * `transitionTemporada` is UNCHANGED: a plain guarded UPDATE, now simply
  * subject to the new scoped UPDATE policy instead of the old unscoped one
@@ -174,10 +180,9 @@ export async function createTemporada(
 // ─── agregarTallerATemporada / quitarTallerDeTemporada ──────────────────────
 //
 // T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the detail
-// screen's "add"/"remove" are two separate, differently-shaped controls now
-// (a "Agregar taller" select+button vs. a per-row "Quitar" icon with its own
-// confirm dialog), not one checkbox toggle — `toggleTallerInTemporada` is
-// replaced by these two, more honestly named actions.
+// screen's "add"/"remove" are two separate, differently-shaped controls: a
+// "Agregar taller" select+button and a per-row "Quitar" icon with its own
+// confirm dialog.
 
 export interface AgregarTallerInput {
   readonly temporadaId: string
