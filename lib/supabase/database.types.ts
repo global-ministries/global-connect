@@ -5014,6 +5014,9 @@ export type Database = {
           motivo_no_aprobado: string | null
           ocurrencia_objetivo: string | null
           persona_principal_id: string
+          sobre_cupo: boolean
+          sobre_cupo_en: string | null
+          sobre_cupo_por: string | null
           taller_id: string
           unit_estado: string | null
           unit_estado_report_id: string | null
@@ -5031,6 +5034,9 @@ export type Database = {
           motivo_no_aprobado?: string | null
           ocurrencia_objetivo?: string | null
           persona_principal_id: string
+          sobre_cupo?: boolean
+          sobre_cupo_en?: string | null
+          sobre_cupo_por?: string | null
           taller_id: string
           unit_estado?: string | null
           unit_estado_report_id?: string | null
@@ -5048,6 +5054,9 @@ export type Database = {
           motivo_no_aprobado?: string | null
           ocurrencia_objetivo?: string | null
           persona_principal_id?: string
+          sobre_cupo?: boolean
+          sobre_cupo_en?: string | null
+          sobre_cupo_por?: string | null
           taller_id?: string
           unit_estado?: string | null
           unit_estado_report_id?: string | null
@@ -5135,6 +5144,41 @@ export type Database = {
           {
             foreignKeyName: "taller_inscripciones_persona_principal_id_fkey"
             columns: ["persona_principal_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_sobre_cupo_por_fkey"
+            columns: ["sobre_cupo_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_sobre_cupo_por_fkey"
+            columns: ["sobre_cupo_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_sobre_cupo_por_fkey"
+            columns: ["sobre_cupo_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_sobre_cupo_por_fkey"
+            columns: ["sobre_cupo_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_sobre_cupo_por_fkey"
+            columns: ["sobre_cupo_por"]
             isOneToOne: false
             referencedRelation: "v_solicitudes_pendientes"
             referencedColumns: ["miembro_id"]
@@ -7950,6 +7994,24 @@ export type Database = {
         }
         Returns: Json
       }
+      talleres_cupo_edicion: {
+        Args: { p_edicion_id: string }
+        Returns: {
+          cupo: number
+          disponibles: number
+          ocupados: number
+          sobre_cupo: number
+        }[]
+      }
+      talleres_cupo_edicion_calculo: {
+        Args: { p_edicion_id: string }
+        Returns: {
+          cupo: number
+          disponibles: number
+          ocupados: number
+          sobre_cupo: number
+        }[]
+      }
       talleres_editar_clase: {
         Args: {
           p_fecha_programada: string
@@ -8023,6 +8085,19 @@ export type Database = {
           nombre: string
           persona_id: string
           rol: string
+        }[]
+      }
+      talleres_inscribir_sobre_cupo: {
+        Args: { p_edicion_id: string; p_persona_id: string }
+        Returns: Json
+      }
+      talleres_inscripciones_sobre_cupo_personas: {
+        Args: { p_inscripcion_ids: string[] }
+        Returns: {
+          inscripcion_id: string
+          sobre_cupo_en: string
+          sobre_cupo_por_apellido: string
+          sobre_cupo_por_nombre: string
         }[]
       }
       talleres_instanciar_edicion: {
