@@ -32,13 +32,29 @@
  * how many grupos were created, how many clases per grupo, and — when
  * non-empty — a warning naming every facilitador skipped because they
  * are no longer an active servidor (acceptance criterion 3).
+ *
+ * T10 (design audit) — the flat `bg-[var(--brand-primary)]` trigger became
+ * a `BotonSistema variante="primario"`, and the form itself moved into a
+ * `Dialog` opened from that trigger (it used to render inline, pushing the
+ * rest of the taller screen down while open). Every raw `<input>`/
+ * `<select>` became `InputSistema`/`SelectSistema`. T11 renames the
+ * trigger's label ("Crear edición") and reworks the flow this form is
+ * part of — this pass only touches layout and controls, not copy or
+ * behaviour, except for the two voseo→neutral fixes below.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Send } from 'lucide-react'
 
-import { TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import {
+  BotonSistema,
+  InputSistema,
+  SelectSistema,
+  TarjetaSistema,
+  TextoSistema,
+} from '@/components/ui/sistema-diseno'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 import { openEdicion, type OpenEdicionResult } from '@/app/(auth)/admin/talleres/abstracto/[slug]/actions'
 
@@ -92,6 +108,17 @@ export function OpenEdicionForm({
 
   const canSubmit = nombreEdicion.trim().length > 0 && fechaInicio.length > 0 && !pending
 
+  function abrirDialogo(): void {
+    setOpen(true)
+    setResumen(null)
+    setError(null)
+  }
+
+  function cerrarDialogo(): void {
+    setOpen(false)
+    setError(null)
+  }
+
   function submit(): void {
     if (!canSubmit) return
     setError(null)
@@ -124,188 +151,147 @@ export function OpenEdicionForm({
     })
   }
 
-  if (!open) {
-    return (
-      <div className="flex flex-col items-start gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(true)
-            setResumen(null)
-          }}
-          className="inline-flex items-center gap-2 rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white"
-        >
-          <Plus className="h-4 w-4" /> Abrir nueva edición
-        </button>
-
-        {resumen && (
-          <TarjetaSistema variante="outlined" className="w-full p-4">
-            <TextoSistema className="font-medium">Edición abierta</TextoSistema>
-            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-              {resumen.gruposCreados.length} grupos creados · {resumen.clasesPorGrupo} clases por grupo
-            </TextoSistema>
-            {resumen.facilitadoresOmitidos.length > 0 && (
-              <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning">
-                No se asignaron (ya no son servidores activos): {resumen.facilitadoresOmitidos
-                  .map((f) => `${nombreCompletoOmitido(f)} (${f.plantillaGrupo})`)
-                  .join(', ')}
-              </TextoSistema>
-            )}
-          </TarjetaSistema>
-        )}
-      </div>
-    )
-  }
-
   return (
-    <TarjetaSistema variante="elevated" className="p-5">
-      <TextoSistema className="text-lg font-medium">Nueva edición de {tallerNombre}</TextoSistema>
-      <TextoSistema variante="sutil" className="mt-1 block text-sm">
-        Una edición es una ocurrencia específica del grupo (ej. &quot;otoño 2026&quot;).
-        La edición se crea en estado <strong>borrador</strong>; podés abrirla (cambiar a
-        <code>abierto</code>) después desde la página de la edición.
-      </TextoSistema>
+    <div className="flex flex-col items-start gap-3">
+      <BotonSistema type="button" variante="primario" tamaño="sm" icono={Plus} onClick={abrirDialogo}>
+        Abrir nueva edición
+      </BotonSistema>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <label className="block md:col-span-2">
-          <span className="mb-1 block text-sm font-medium">Nombre de la edición *</span>
-          <input
-            value={nombreEdicion}
-            onChange={(e) => setNombreEdicion(e.target.value)}
-            className="w-full rounded border px-3 py-2"
-            placeholder="Ej. Otoño 2026, Primavera 2027"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Tipo *</span>
-          <select
-            value={tipo}
-            onChange={(e) => {
-              const v = e.target.value as 'individual' | 'pareja'
-              setTipo(v)
-              if (v === 'individual') setLinkType('')
-            }}
-            className="w-full rounded border px-3 py-2"
-          >
-            <option value="pareja">Pareja</option>
-            <option value="individual">Individual</option>
-          </select>
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Vínculo (solo pareja)</span>
-          <select
-            value={linkType}
-            onChange={(e) => setLinkType(e.target.value as 'matrimonio' | 'novios' | '')}
-            disabled={tipo !== 'pareja'}
-            className="w-full rounded border px-3 py-2 disabled:opacity-50"
-          >
-            <option value="">— Ninguno —</option>
-            <option value="matrimonio">Matrimonio</option>
-            <option value="novios">Novios</option>
-          </select>
-        </label>
-        {sesionesEstimadas === null && (
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium">Duración (semanas) *</span>
-            <input
-              type="number"
-              min={1}
-              value={sesiones}
-              onChange={(e) => setSesiones(Number(e.target.value))}
-              className="w-full rounded border px-3 py-2"
-            />
-            <span className="mt-1 block text-xs text-muted-foreground">1 semana = 1 sesión.</span>
-          </label>
-        )}
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Duración por sesión (min) *</span>
-          <input
-            type="number"
-            min={15}
-            step={15}
-            value={duracion}
-            onChange={(e) => setDuracion(Number(e.target.value))}
-            className="w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Modalidad</span>
-          <select
-            value={modalidad}
-            onChange={(e) => setModalidad(e.target.value as 'periodo_general' | 'permanente_custom')}
-            className="w-full rounded border px-3 py-2"
-          >
-            <option value="periodo_general">Periodo general</option>
-            <option value="permanente_custom">Permanente custom</option>
-          </select>
-        </label>
-        {temporadasAbiertas.length > 0 && (
-          <label className="block md:col-span-2">
-            <span className="mb-1 block text-sm font-medium">Temporada</span>
-            <select
-              value={temporadaId}
-              onChange={(e) => setTemporadaId(e.target.value)}
-              className="w-full rounded border px-3 py-2"
-            >
-              <option value="">— Sin temporada —</option>
-              {temporadasAbiertas.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nombre}
-                </option>
-              ))}
-            </select>
-            <span className="mt-1 block text-xs text-muted-foreground">
-              Vinculá esta edición a una temporada global abierta para agrupar
-              métricas. Opcional.
-            </span>
-          </label>
-        )}
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Fecha inicio *</span>
-          <input
-            type="date"
-            value={fechaInicio}
-            onChange={(e) => setFechaInicio(e.target.value)}
-            className="w-full rounded border px-3 py-2"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Fecha fin (opcional)</span>
-          <input
-            type="date"
-            value={fechaFin}
-            onChange={(e) => setFechaFin(e.target.value)}
-            className="w-full rounded border px-3 py-2"
-          />
-        </label>
-      </div>
-
-      {error && (
-        <div role="alert" className="mt-3 rounded border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">
-          {error}
-        </div>
+      {resumen && (
+        <TarjetaSistema variante="outlined" className="w-full p-4">
+          <TextoSistema className="font-medium">Edición abierta</TextoSistema>
+          <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+            {resumen.gruposCreados.length} grupos creados · {resumen.clasesPorGrupo} clases por grupo
+          </TextoSistema>
+          {resumen.facilitadoresOmitidos.length > 0 && (
+            <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning">
+              No se asignaron (ya no son servidores activos): {resumen.facilitadoresOmitidos
+                .map((f) => `${nombreCompletoOmitido(f)} (${f.plantillaGrupo})`)
+                .join(', ')}
+            </TextoSistema>
+          )}
+        </TarjetaSistema>
       )}
 
-      <div className="mt-4 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(false)
-            setError(null)
-          }}
-          className="rounded border px-3 py-1.5 text-sm"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!canSubmit}
-          className="inline-flex items-center gap-1 rounded bg-[var(--brand-primary)] px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-        >
-          <Send className="h-4 w-4" /> {pending ? 'Abriendo…' : 'Abrir edición'}
-        </button>
-      </div>
-    </TarjetaSistema>
+      <Dialog open={open} onOpenChange={(next) => (next ? abrirDialogo() : cerrarDialogo())}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nueva edición de {tallerNombre}</DialogTitle>
+            <DialogDescription>
+              Una edición es una ocurrencia específica del grupo (ej. &quot;otoño 2026&quot;). La
+              edición se crea en estado <strong>borrador</strong>; puedes abrirla (cambiar a{' '}
+              <code>abierto</code>) después desde la página de la edición.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <InputSistema
+                label="Nombre de la edición *"
+                value={nombreEdicion}
+                onChange={(e) => setNombreEdicion(e.target.value)}
+                placeholder="Ej. Otoño 2026, Primavera 2027"
+              />
+            </div>
+            <SelectSistema
+              label="Tipo *"
+              value={tipo}
+              onValueChange={(v) => {
+                const value = v as 'individual' | 'pareja'
+                setTipo(value)
+                if (value === 'individual') setLinkType('')
+              }}
+              opciones={[
+                { valor: 'pareja', etiqueta: 'Pareja' },
+                { valor: 'individual', etiqueta: 'Individual' },
+              ]}
+            />
+            <SelectSistema
+              label="Vínculo (solo pareja)"
+              value={linkType}
+              onValueChange={(v) => setLinkType(v as 'matrimonio' | 'novios' | '')}
+              disabled={tipo !== 'pareja'}
+              placeholder="— Ninguno —"
+              opciones={[
+                { valor: 'matrimonio', etiqueta: 'Matrimonio' },
+                { valor: 'novios', etiqueta: 'Novios' },
+              ]}
+            />
+            {sesionesEstimadas === null && (
+              <div>
+                <InputSistema
+                  label="Duración (semanas) *"
+                  type="number"
+                  min={1}
+                  value={sesiones}
+                  onChange={(e) => setSesiones(Number(e.target.value))}
+                />
+                <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                  1 semana = 1 sesión.
+                </TextoSistema>
+              </div>
+            )}
+            <InputSistema
+              label="Duración por sesión (min) *"
+              type="number"
+              min={15}
+              step={15}
+              value={duracion}
+              onChange={(e) => setDuracion(Number(e.target.value))}
+            />
+            <SelectSistema
+              label="Modalidad"
+              value={modalidad}
+              onValueChange={(v) => setModalidad(v as 'periodo_general' | 'permanente_custom')}
+              opciones={[
+                { valor: 'periodo_general', etiqueta: 'Periodo general' },
+                { valor: 'permanente_custom', etiqueta: 'Permanente custom' },
+              ]}
+            />
+            {temporadasAbiertas.length > 0 && (
+              <div className="md:col-span-2">
+                <SelectSistema
+                  label="Temporada"
+                  value={temporadaId}
+                  onValueChange={setTemporadaId}
+                  placeholder="— Sin temporada —"
+                  opciones={temporadasAbiertas.map((t) => ({ valor: t.id, etiqueta: t.nombre }))}
+                />
+                <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                  Vincula esta edición a una temporada global abierta para agrupar métricas. Opcional.
+                </TextoSistema>
+              </div>
+            )}
+            <InputSistema
+              label="Fecha inicio *"
+              type="date"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+            />
+            <InputSistema
+              label="Fecha fin (opcional)"
+              type="date"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+            />
+          </div>
+
+          {error && (
+            <TextoSistema role="alert" className="block text-destructive">
+              {error}
+            </TextoSistema>
+          )}
+
+          <div className="flex items-center justify-end gap-2">
+            <BotonSistema type="button" variante="outline" onClick={cerrarDialogo}>
+              Cancelar
+            </BotonSistema>
+            <BotonSistema type="button" variante="primario" icono={Send} onClick={submit} disabled={!canSubmit}>
+              {pending ? 'Abriendo…' : 'Abrir edición'}
+            </BotonSistema>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

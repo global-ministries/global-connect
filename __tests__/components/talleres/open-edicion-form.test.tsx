@@ -54,6 +54,39 @@ function openForm() {
   fireEvent.click(screen.getByRole('button', { name: /abrir nueva edición/i }))
 }
 
+describe('OpenEdicionForm — T10: trigger opens a Dialog, neutral copy', () => {
+  it('does not render the form fields before the trigger is clicked', () => {
+    render(<OpenEdicionForm {...baseProps()} />)
+    expect(screen.queryByLabelText(/fecha inicio/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /abrir nueva edición/i })).toBeInTheDocument()
+  })
+
+  it('opens the form inside a dialog when the trigger is clicked', () => {
+    render(<OpenEdicionForm {...baseProps()} />)
+    openForm()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByLabelText(/fecha inicio/i)).toBeInTheDocument()
+  })
+
+  it('uses neutral Spanish copy (no voseo) in the dialog description', () => {
+    render(<OpenEdicionForm {...baseProps()} />)
+    openForm()
+    expect(screen.queryByText(/podés/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/puedes abrirla/i)).toBeInTheDocument()
+  })
+
+  it('uses neutral Spanish copy (no voseo) in the temporada helper text', () => {
+    render(
+      <OpenEdicionForm
+        {...baseProps({ temporadasAbiertas: [{ id: 'temp-1', nombre: 'Temporada 2026' }] })}
+      />,
+    )
+    openForm()
+    expect(screen.queryByText(/Vinculá/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/Vincula esta edición/i)).toBeInTheDocument()
+  })
+})
+
 describe('OpenEdicionForm — no "sesiones estimadas" field', () => {
   it('never shows a sesiones/duración (semanas) field', () => {
     render(<OpenEdicionForm {...baseProps()} />)
