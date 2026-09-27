@@ -514,15 +514,84 @@ describe('EdicionDetallePage — content', () => {
     expect(extractText(element)).toMatch(/Borrador/)
   })
 
-  it('shows the ventana dates and an em-dash for a null date', async () => {
-    setup({})
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await EdicionDetallePage(params())) as any
-    const text = extractText(element)
-    // fecha_apertura_automatica is set — a real formatted date shows up.
-    expect(text).toMatch(/2026/)
-    // fecha_cierre_automatica is null — must show an em-dash, never blank.
-    expect(text).toMatch(/—/)
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // "Ventana" collapses to one sentence: "Sin fecha de cierre" for an
+  // edición with no known close date (per the fixture: estado 'borrador',
+  // every fecha_cierre_* null); the detailed fields move behind a
+  // <details> "Ver fechas", shown only to editarEdicion.
+  describe('Ventana — one-sentence summary (T11)', () => {
+    it('shows "Sin fecha de cierre" when there is no known close date', async () => {
+      setup({})
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).toMatch(/Sin fecha de cierre/)
+    })
+
+    it('shows "Inscripciones abiertas hasta {fecha}" when there is a scheduled close date and the edición is not cerrada', async () => {
+      setup({
+        edicionDetalle: {
+          ...EDICION,
+          estado: 'abierto',
+          periodo_general: { ...EDICION.periodo_general!, fecha_cierre_manual: '2026-12-01T00:00:00Z' },
+        },
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      const text = extractText(element)
+      expect(text).toMatch(/Inscripciones abiertas hasta/)
+      expect(text).toMatch(/2026/)
+      expect(text).not.toMatch(/Sin fecha de cierre/)
+    })
+
+    it('shows "Inscripciones cerradas el {fecha}" when the edición is cerrada, preferring fecha_cierre_real', async () => {
+      setup({
+        edicionDetalle: {
+          ...EDICION,
+          estado: 'cerrado',
+          // Distinct MONTHS (not just days) so the assertion below stays
+          // robust to the 1-day UTC->local shift this suite's other date
+          // assertions already work around (see the older "2026" checks).
+          periodo_general: {
+            ...EDICION.periodo_general!,
+            fecha_cierre_manual: '2026-11-01T00:00:00Z',
+            fecha_cierre_real: '2026-12-25T00:00:00Z',
+          },
+        },
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      const text = extractText(element)
+      expect(text).toMatch(/Inscripciones cerradas el/)
+      // The real closure date wins over the scheduled manual one — December, not November.
+      expect(text).toMatch(/12[/-]2026|dic/i)
+    })
+
+    it('never shows the detailed date fields (no <details>, no Ver fechas, no dl) for a viewer without editarEdicion', async () => {
+      setup({ permisos: { editarEdicion: false } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, 'details')).toBeNull()
+      expect(findByType(element, 'dl')).toBeNull()
+      expect(extractText(element)).not.toMatch(/Ver fechas/)
+    })
+
+    it('shows the detailed fields inside <details> "Ver fechas" for a viewer with editarEdicion, em-dash for a null date', async () => {
+      setup({ permisos: { editarEdicion: true } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      const details = findByType(element, 'details')
+      expect(details).not.toBeNull()
+      const text = extractText(details)
+      expect(text).toMatch(/Ver fechas/)
+      // fecha_apertura_automatica is set — a real formatted date shows up.
+      // (Campo's own `titulo` prop, e.g. "Apertura automática", is not
+      // visible to this suite's structural extractText helper — it only
+      // walks `.props.children`, same limitation every other Ventana test
+      // in this file already works within.)
+      expect(text).toMatch(/2026/)
+      // fecha_cierre_automatica is null — must show an em-dash, never blank.
+      expect(text).toMatch(/—/)
+    })
   })
 
   it('shows a "no periodo" message when periodo_general is null', async () => {
