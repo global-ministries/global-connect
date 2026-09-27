@@ -33,6 +33,13 @@
 export interface TemporadaOption {
   readonly id: string
   readonly nombre: string
+  /**
+   * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — "Crear
+   * edición"'s preview (OpenEdicionForm) derives fecha_inicio for a
+   * régimen=temporada taller straight from the chosen temporada's own
+   * fecha_apertura, without a second round trip.
+   */
+  readonly fecha_apertura: string
 }
 
 export interface EquipoArbolRaw {
@@ -119,7 +126,7 @@ export async function loadTemporadasAbiertas(
 
   const { data, error } = await client
     .from('talleres_temporadas')
-    .select('id, nombre')
+    .select('id, nombre, fecha_apertura')
     .eq('estado', 'abierto')
     .in('dream_team_equipo_id', ancestros)
     .order('fecha_apertura', { ascending: false })
