@@ -1,29 +1,27 @@
 /**
  * @jest-environment node
  *
- * T8 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/temporadas,
- * the consolidated list, replacing
- * app/(auth)/admin/talleres/temporadas/page.tsx (kept alive, unmodified,
- * until T10 deletes it — see lib/platform/talleres/rutas.ts).
+ * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — /talleres/
+ * temporadas rewritten to list temporadas GROUPED BY DIRECCIÓN (root Dream
+ * Team node label), replacing the old flat table (T8, odd/tasks/talleres-
+ * consolidar-pantallas.md).
  *
  * Mirrors the gate + structural-inspection pattern of
  * __tests__/app/(auth)/talleres/reportes/page.test.tsx (flag -> user ->
  * session, each an informational card, inspected via extractText/
  * findByType rather than full rendering).
  *
- * PERMISSIONS: `puedeCrear` is a flat capability check
- * (director.write OR admin.manage), NOT cargarPermisos(client, equipoId) —
- * see actions.ts's own header for the evidence (talleres_temporadas' RLS
- * uses the UNSCOPED auth_has_talleres_capability, exactly like
- * create_taller_abstract, whose reasoning app/(auth)/talleres/page.tsx
- * (T2) already documents for `puedeCrear` there). "Hide the control,
- * never disable it" still holds: the button only renders when puedeCrear.
+ * PERMISSIONS: `puedeCrear` ("Crear Temporada" header CTA) is no longer a
+ * flat capability check — it is true when `loadDireccionesConTalleres`
+ * returns at least one dirección with `puedeEditar` (that loader's own
+ * `cargarPermisos(client, raiz.id).editarTaller`, see temporadas.ts).
+ * "Hide the control, never disable it" still holds.
  */
 
 import TemporadasPage from '@/app/(auth)/talleres/temporadas/page'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { ContenedorDashboard, BadgeSistema } from '@/components/ui/sistema-diseno'
-import type { TemporadaRow } from '@/lib/platform/talleres/temporadas'
+import type { TemporadaRow, DireccionConTalleres } from '@/lib/platform/talleres/temporadas'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(),
@@ -40,6 +38,7 @@ jest.mock('@/lib/auth/platformSessionReadOnly', () => ({
 
 jest.mock('@/lib/platform/talleres/temporadas', () => ({
   loadTemporadas: jest.fn(),
+  loadDireccionesConTalleres: jest.fn(),
 }))
 
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags').isTalleresEnabled as jest.Mock
@@ -49,6 +48,8 @@ const resolveSessionMock = jest.requireMock('@/lib/auth/platformSessionReadOnly'
   .resolveReadOnlyPlatformSession as jest.Mock
 const loadTemporadasMock = jest.requireMock('@/lib/platform/talleres/temporadas')
   .loadTemporadas as jest.Mock
+const loadDireccionesConTalleresMock = jest.requireMock('@/lib/platform/talleres/temporadas')
+  .loadDireccionesConTalleres as jest.Mock
 
 function makeTemporadaRow(overrides: Partial<TemporadaRow> = {}): TemporadaRow {
   return {
@@ -58,16 +59,23 @@ function makeTemporadaRow(overrides: Partial<TemporadaRow> = {}): TemporadaRow {
     estado: 'abierto',
     fecha_apertura: '2026-09-01T00:00:00.000Z',
     fecha_cierre: '2026-12-15T00:00:00.000Z',
+    dream_team_equipo_id: 'root-conexion',
+    tallerCount: 3,
+    edicionCount: 3,
     ...overrides,
   }
+}
+
+function makeDireccion(overrides: Partial<DireccionConTalleres> = {}): DireccionConTalleres {
+  return { id: 'root-conexion', label: 'Dirección de Conexión', puedeEditar: false, ...overrides }
 }
 
 interface SetupOpts {
   isEnabled?: boolean
   user?: { id: string } | null
   hasSession?: boolean
-  capabilities?: string[]
   rows?: readonly TemporadaRow[]
+  direcciones?: readonly DireccionConTalleres[]
 }
 
 function setup(opts: SetupOpts): void {
@@ -90,17 +98,13 @@ function setup(opts: SetupOpts): void {
           subjectAuthId: 'auth-1',
           globalRoles: [],
           contexts: [],
-          capabilities: (opts.capabilities ?? []).map((key) => ({
-            key,
-            experience: 'talleres_crecimiento',
-            scopeType: 'taller',
-            source: 'test',
-          })),
+          capabilities: [],
         }
       : null,
   )
 
   loadTemporadasMock.mockReset().mockResolvedValue(opts.rows ?? [])
+  loadDireccionesConTalleresMock.mockReset().mockResolvedValue(opts.direcciones ?? [makeDireccion()])
 }
 
 /** Walks a React element tree's `.props.children` without rendering it. */
@@ -166,39 +170,81 @@ describe('TemporadasPage — gate', () => {
 })
 
 describe('TemporadasPage — empty state', () => {
-  it('shows EstadoVacio, not an error, when there are no temporadas', async () => {
-    setup({ rows: [] })
+  it('shows EstadoVacio with the exact copy when no dirección has any temporada', async () => {
+    setup({ rows: [], direcciones: [makeDireccion({ puedeEditar: true })] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
     const vacio = findByType(element, EstadoVacio)
     expect(vacio).not.toBeNull()
-    expect(String(vacio?.props.titulo)).toMatch(/no hay temporadas/i)
+    expect(String(vacio?.props.titulo)).toBe('Tu dirección todavía no tiene temporadas')
+  })
+
+  it('offers the CTA subtitle only when puedeCrear', async () => {
+    setup({ rows: [], direcciones: [makeDireccion({ puedeEditar: false })] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TemporadasPage()) as any
+    const vacio = findByType(element, EstadoVacio)
+    expect(vacio?.props.subtitulo).toBeUndefined()
   })
 })
 
 describe('TemporadasPage — puedeCrear (hide the control, never disable it)', () => {
-  it('hides "Crear Temporada" for a viewer without director.write or admin.manage', async () => {
-    setup({ rows: [], capabilities: ['talleres_crecimiento.coordinator.read'] })
+  it('hides "Crear Temporada" when no dirección has puedeEditar', async () => {
+    setup({ rows: [], direcciones: [makeDireccion({ puedeEditar: false })] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
     const dashboard = findByType(element, ContenedorDashboard)
     expect(dashboard?.props.accionPrincipal).toBeUndefined()
   })
 
-  it('shows "Crear Temporada" for a viewer with director.write', async () => {
-    setup({ rows: [], capabilities: ['talleres_crecimiento.director.write'] })
+  it('shows "Crear Temporada" when at least one dirección has puedeEditar', async () => {
+    setup({
+      rows: [],
+      direcciones: [
+        makeDireccion({ id: 'root-a', puedeEditar: false }),
+        makeDireccion({ id: 'root-b', puedeEditar: true }),
+      ],
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
     const dashboard = findByType(element, ContenedorDashboard)
     expect(extractText(dashboard?.props.accionPrincipal)).toMatch(/crear temporada/i)
   })
+})
 
-  it('shows "Crear Temporada" for a viewer with admin.manage', async () => {
-    setup({ rows: [], capabilities: ['talleres_crecimiento.admin.manage'] })
+describe('TemporadasPage — grouping by dirección', () => {
+  it('groups temporada rows under their own dirección label', async () => {
+    setup({
+      direcciones: [
+        makeDireccion({ id: 'root-conexion', label: 'Dirección de Conexión' }),
+        makeDireccion({ id: 'root-experiencia', label: 'Dirección de Experiencia' }),
+      ],
+      rows: [
+        makeTemporadaRow({ id: 'temp-1', nombre: 'Temporada Conexión', dream_team_equipo_id: 'root-conexion' }),
+        makeTemporadaRow({ id: 'temp-2', nombre: 'Temporada Experiencia', dream_team_equipo_id: 'root-experiencia' }),
+      ],
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
-    const dashboard = findByType(element, ContenedorDashboard)
-    expect(extractText(dashboard?.props.accionPrincipal)).toMatch(/crear temporada/i)
+    const text = extractText(element)
+    expect(text).toMatch(/dirección de conexión/i)
+    expect(text).toMatch(/dirección de experiencia/i)
+    expect(text).toMatch(/temporada conexión/i)
+    expect(text).toMatch(/temporada experiencia/i)
+  })
+
+  it('omits a dirección heading entirely when it has zero temporadas', async () => {
+    setup({
+      direcciones: [
+        makeDireccion({ id: 'root-conexion', label: 'Dirección de Conexión' }),
+        makeDireccion({ id: 'root-vacia', label: 'Dirección Sin Temporadas' }),
+      ],
+      rows: [makeTemporadaRow({ dream_team_equipo_id: 'root-conexion' })],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TemporadasPage()) as any
+    const text = extractText(element)
+    expect(text).not.toMatch(/dirección sin temporadas/i)
   })
 })
 
@@ -211,13 +257,30 @@ describe('TemporadasPage — rows', () => {
     expect(badges.some((b) => /abierta/i.test(extractText(b.props.children)))).toBe(true)
   })
 
-  it('renders the temporada nombre and slug', async () => {
-    setup({ rows: [makeTemporadaRow({ nombre: 'Temporada Primavera', slug: 'primavera-2027' })] })
+  it('renders the temporada nombre and dates', async () => {
+    setup({ rows: [makeTemporadaRow({ nombre: 'Temporada Primavera' })] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
     const text = extractText(element)
     expect(text).toMatch(/temporada primavera/i)
-    expect(text).toMatch(/primavera-2027/)
+  })
+
+  it('shows "N talleres · M ediciones" from the row own counts', async () => {
+    setup({ rows: [makeTemporadaRow({ tallerCount: 3, edicionCount: 2 })] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TemporadasPage()) as any
+    const text = extractText(element)
+    expect(text).toMatch(/3 talleres/i)
+    expect(text).toMatch(/2 ediciones/i)
+  })
+
+  it('singularizes "1 taller · 1 edición"', async () => {
+    setup({ rows: [makeTemporadaRow({ tallerCount: 1, edicionCount: 1 })] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TemporadasPage()) as any
+    const text = extractText(element)
+    expect(text).toMatch(/1 taller\b/i)
+    expect(text).toMatch(/1 edición\b/i)
   })
 })
 

@@ -2,39 +2,36 @@
  * T8 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/temporadas,
  * replacing app/(auth)/admin/talleres/temporadas/page.tsx (kept alive,
  * unmodified, until T10 deletes it — see lib/platform/talleres/rutas.ts).
- * A straight move, not a merge: this is a single object relocating out of
- * /admin, unlike T6/T7 (which fused several distinct old screens into
- * one). docs/talleres-de-punta-a-punta.md line 347 is explicit that a
- * temporada (which talleres open) and an edición's periodo/ventana (its
- * own enrollment window) are NOT the same object and must not be merged.
+ *
+ * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — rewritten to
+ * list temporadas GROUPED BY DIRECCIÓN (root Dream Team node label), now
+ * that talleres_temporadas has an owner (T3, migration
+ * 20260928120000_talleres_temporadas_por_direccion.sql): each dirección
+ * gets its own heading, then a `TarjetaSistema p-0 divide-y` of its own
+ * temporadas — nombre, state badge, "{apertura} → {cierre}", and
+ * "N talleres · M ediciones" (loadTemporadas' own per-temporada counts).
+ * A dirección with zero temporadas is simply never shown (RLS on
+ * talleres_temporadas still decides which rows a caller sees at all).
  *
  * GATE, same shape as T2/T6/T7: flag -> user -> session, each an
- * informational card. No role required — RLS on talleres_temporadas_select
- * (metrics.read | director.read | admin.manage) decides which rows come
- * back; zero rows renders EstadoVacio, not an error, exactly like T2's
- * catalog page opens to any signed-in user and lets RLS decide the content.
+ * informational card. No role required.
  *
- * PERMISSIONS: `puedeCrear` is a flat capability check (director.write OR
- * admin.manage), NOT `cargarPermisos(client, equipoId)` — see actions.ts's
- * header for the full evidence. Short version: talleres_temporadas' own
- * INSERT/UPDATE/DELETE RLS calls the UNSCOPED `auth_has_talleres_
- * capability` (any grant, any scope), while `cargarPermisos(client, null)`
- * calls a DIFFERENT, narrower function that only matches a truly global
- * grant — it would wrongly hide "Crear Temporada" from a director scoped
- * to one branch, exactly the failure mode app/(auth)/talleres/page.tsx
- * (T2) already documents for its own `puedeCrear`. Temporadas share T2's
- * create_taller_abstract capability pair, so this is the same predicate,
- * not a new one.
+ * PERMISSIONS: `puedeCrear` (the header's "Crear Temporada" CTA) is true
+ * when at least one dirección from `loadDireccionesConTalleres` carries
+ * `puedeEditar` — that loader's own `cargarPermisos(client,
+ * raiz.id).editarTaller`, the SAME predicate /talleres/[taller] uses for
+ * its own `editarTaller`, never a flat `caps.includes(...)` check.
  */
 
 import Link from 'next/link'
-import { CalendarRange } from 'lucide-react'
+import { CalendarRange, ChevronRight } from 'lucide-react'
 
 import {
   ContenedorDashboard,
   BotonSistema,
   TarjetaSistema,
   TextoSistema,
+  TituloSistema,
   BadgeSistema,
 } from '@/components/ui/sistema-diseno'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
@@ -46,7 +43,11 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
-import { loadTemporadas } from '@/lib/platform/talleres/temporadas'
+import {
+  loadTemporadas,
+  loadDireccionesConTalleres,
+  type TemporadaRow,
+} from '@/lib/platform/talleres/temporadas'
 import { rutaTemporada, rutaTemporadaCrear } from '@/lib/platform/talleres/rutas'
 
 export const metadata = { title: 'Temporadas' }
@@ -57,6 +58,10 @@ function formatFecha(iso: string): string {
   } catch {
     return iso
   }
+}
+
+function contarLabel(n: number, singular: string, plural: string): string {
+  return `${n} ${n === 1 ? singular : plural}`
 }
 
 export default async function TemporadasPage() {
@@ -77,7 +82,7 @@ export default async function TemporadasPage() {
     return (
       <ContenedorDashboard titulo="Temporadas">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
+          <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
@@ -98,19 +103,30 @@ export default async function TemporadasPage() {
     )
   }
 
-  const caps = session.capabilities.map((c) => c.key)
-  const puedeCrear =
-    caps.includes('talleres_crecimiento.director.write') ||
-    caps.includes('talleres_crecimiento.admin.manage')
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
-  const rows = await loadTemporadas(client)
+  const [direcciones, rows] = await Promise.all([
+    loadDireccionesConTalleres(client),
+    loadTemporadas(client),
+  ])
+
+  const puedeCrear = direcciones.some((d) => d.puedeEditar)
+
+  const rowsPorDireccion = new Map<string, TemporadaRow[]>()
+  for (const row of rows) {
+    const lista = rowsPorDireccion.get(row.dream_team_equipo_id)
+    if (lista) lista.push(row)
+    else rowsPorDireccion.set(row.dream_team_equipo_id, [row])
+  }
+
+  const grupos = direcciones
+    .map((direccion) => ({ direccion, temporadas: rowsPorDireccion.get(direccion.id) ?? [] }))
+    .filter((grupo) => grupo.temporadas.length > 0)
 
   return (
     <ContenedorDashboard
       titulo="Temporadas"
-      subtitulo="Qué talleres abren inscripción a la vez, en todo el programa."
+      subtitulo="Qué talleres abren inscripción a la vez, por dirección."
       accionPrincipal={
         puedeCrear ? (
           <Link href={rutaTemporadaCrear()}>
@@ -121,81 +137,50 @@ export default async function TemporadasPage() {
         ) : undefined
       }
     >
-      {rows.length === 0 ? (
+      {grupos.length === 0 ? (
         <EstadoVacio
           icono={CalendarRange}
-          titulo="No hay temporadas todavía"
-          subtitulo={puedeCrear ? 'Usá "Crear Temporada" para abrir la primera.' : undefined}
+          titulo="Tu dirección todavía no tiene temporadas"
+          subtitulo={puedeCrear ? 'Usa "Crear Temporada" para abrir la primera.' : undefined}
         />
       ) : (
-        <>
-          {/* Desktop — table */}
-          <div className="hidden md:block overflow-hidden">
-            <TarjetaSistema className="p-0">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Temporada
-                    </th>
-                    <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Fechas
-                    </th>
-                    <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Estado
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {rows.map((t) => (
-                    <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col">
-                          <Link
-                            href={rutaTemporada(t.id)}
-                            className="text-sm font-medium text-foreground hover:underline"
-                          >
-                            {t.nombre}
-                          </Link>
-                          <span className="text-xs text-muted-foreground">
-                            <code>{t.slug}</code>
-                          </span>
+        <div className="grid gap-6">
+          {grupos.map(({ direccion, temporadas }) => (
+            <section key={direccion.id} aria-labelledby={`direccion-${direccion.id}-heading`}>
+              <TituloSistema nivel={2} id={`direccion-${direccion.id}-heading`}>
+                {direccion.label}
+              </TituloSistema>
+              <TarjetaSistema className="mt-3 p-0">
+                <div className="divide-y divide-border">
+                  {temporadas.map((t) => (
+                    <Link
+                      key={t.id}
+                      href={rutaTemporada(t.id)}
+                      className="flex items-center gap-3 p-4 transition-colors hover:bg-accent"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="min-w-0 break-words font-medium text-foreground">{t.nombre}</span>
+                          <BadgeSistema variante={temporadaEstadoBadgeVariante(t.estado)} tamaño="sm">
+                            {temporadaEstadoLabel(t.estado)}
+                          </BadgeSistema>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {formatFecha(t.fecha_apertura)} → {formatFecha(t.fecha_cierre)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <BadgeSistema variante={temporadaEstadoBadgeVariante(t.estado)} tamaño="sm">
-                          {temporadaEstadoLabel(t.estado)}
-                        </BadgeSistema>
-                      </td>
-                    </tr>
+                        <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                          {formatFecha(t.fecha_apertura)} → {formatFecha(t.fecha_cierre)}
+                          {' · '}
+                          {contarLabel(t.tallerCount, 'taller', 'talleres')}
+                          {' · '}
+                          {contarLabel(t.edicionCount, 'edición', 'ediciones')}
+                        </TextoSistema>
+                      </div>
+                      <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </Link>
                   ))}
-                </tbody>
-              </table>
-            </TarjetaSistema>
-          </div>
-
-          {/* Mobile — cards */}
-          <div className="md:hidden space-y-3">
-            {rows.map((t) => (
-              <Link key={t.id} href={rutaTemporada(t.id)} className="block">
-                <TarjetaSistema variante="outlined" className="p-4 min-h-[44px]">
-                  <TextoSistema className="text-sm font-medium">{t.nombre}</TextoSistema>
-                  <TextoSistema variante="sutil" className="mt-1 block text-xs">
-                    <code>{t.slug}</code> · {formatFecha(t.fecha_apertura)} → {formatFecha(t.fecha_cierre)}
-                  </TextoSistema>
-                  <div className="mt-2">
-                    <BadgeSistema variante={temporadaEstadoBadgeVariante(t.estado)} tamaño="sm">
-                      {temporadaEstadoLabel(t.estado)}
-                    </BadgeSistema>
-                  </div>
-                </TarjetaSistema>
-              </Link>
-            ))}
-          </div>
-        </>
+                </div>
+              </TarjetaSistema>
+            </section>
+          ))}
+        </div>
       )}
     </ContenedorDashboard>
   )
