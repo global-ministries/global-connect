@@ -220,3 +220,62 @@ export function asistenciaEstadoLabel(estado: string): string {
 export function asistenciaEstadoBadgeVariante(estado: string): BadgeVariante {
   return (ASISTENCIA_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
 }
+
+/**
+ * T10 (odd/tasks/talleres-configuracion-del-taller.md) — a `taller_grupos`
+ * row's own `estado` (activo/completado/cancelado). The taller and grupo
+ * screens rendered `grupo.estado` raw inside a bare BadgeSistema — a
+ * violation of this file's own header rule, fixed for the design audit.
+ */
+export type GrupoEstado = 'activo' | 'completado' | 'cancelado'
+
+export const GRUPO_ESTADO_LABELS: Record<GrupoEstado, string> = {
+  activo: 'Activo',
+  completado: 'Completado',
+  cancelado: 'Cancelado',
+}
+
+export const GRUPO_ESTADO_BADGE_VARIANTE: Record<GrupoEstado, BadgeVariante> = {
+  activo: 'success',
+  completado: 'info',
+  cancelado: 'error',
+}
+
+/** Never render a raw `taller_grupos.estado` key — always go through this. */
+export function grupoEstadoLabel(estado: string): string {
+  return (GRUPO_ESTADO_LABELS as Readonly<Record<string, string>>)[estado] ?? estado
+}
+
+export function grupoEstadoBadgeVariante(estado: string): BadgeVariante {
+  return (GRUPO_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
+}
+
+/**
+ * T10 — a `taller_sesiones` row's own `estado` (programada/en_curso/
+ * cerrada/cancelada), the clase's own estado. The [grupo] screen rendered
+ * `s.estado` raw inside a bare BadgeSistema — this is the shared map.
+ */
+export type ClaseEstado = 'programada' | 'en_curso' | 'cerrada' | 'cancelada'
+
+export const CLASE_ESTADO_LABELS: Record<ClaseEstado, string> = {
+  programada: 'Programada',
+  en_curso: 'En curso',
+  cerrada: 'Cerrada',
+  cancelada: 'Cancelada',
+}
+
+export const CLASE_ESTADO_BADGE_VARIANTE: Record<ClaseEstado, BadgeVariante> = {
+  programada: 'default',
+  en_curso: 'info',
+  cerrada: 'success',
+  cancelada: 'error',
+}
+
+/** Never render a raw `taller_sesiones.estado` key — always go through this. */
+export function claseEstadoLabel(estado: string): string {
+  return (CLASE_ESTADO_LABELS as Readonly<Record<string, string>>)[estado] ?? estado
+}
+
+export function claseEstadoBadgeVariante(estado: string): BadgeVariante {
+  return (CLASE_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
+}
