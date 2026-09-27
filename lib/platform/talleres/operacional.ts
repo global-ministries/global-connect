@@ -826,6 +826,14 @@ export interface CupoEdicion {
   readonly ocupados: number
   readonly disponibles: number
   readonly sobreCupo: number
+  /**
+   * T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 7,
+   * 20260928140000_talleres_paso6_hardening.sql) — "parejas" for a
+   * tipo=pareja edicion, "personas" otherwise. 1 inscripcion was already 1
+   * seat either way (a pareja is one row); this only makes the unit
+   * visible on the edición page ("8 de 12 parejas").
+   */
+  readonly unidad: 'personas' | 'parejas'
 }
 
 export async function loadCupoEdicion(
@@ -836,12 +844,19 @@ export async function loadCupoEdicion(
   try {
     const { data, error } = await client.rpc('talleres_cupo_edicion', { p_edicion_id: edicionId })
     if (error || !data || data.length === 0) return null
-    const row = data[0] as { cupo: number; ocupados: number; disponibles: number; sobre_cupo: number }
+    const row = data[0] as {
+      cupo: number
+      ocupados: number
+      disponibles: number
+      sobre_cupo: number
+      unidad: 'personas' | 'parejas'
+    }
     return {
       cupo: row.cupo,
       ocupados: row.ocupados,
       disponibles: row.disponibles,
       sobreCupo: row.sobre_cupo,
+      unidad: row.unidad,
     }
   } catch {
     return null

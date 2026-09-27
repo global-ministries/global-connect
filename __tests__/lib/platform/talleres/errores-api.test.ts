@@ -163,3 +163,37 @@ describe('traducirErrorTalleres — cupo branches (T6)', () => {
     expect(result.error).toBe('forbidden')
   })
 })
+
+// T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md,
+// 20260928140000_talleres_paso6_hardening.sql) — every RAISE code across
+// the four paso-6 migrations (plus this hardening one) that had no MAPA
+// entry of its own yet. Each must resolve to a non-fallback message: the
+// generic 500 fallback (INTERNO) or a bare 42501-without-a-specific-match
+// would mean the raw RAISE text or SQLSTATE leaked to the browser instead
+// of a friendly, neutral-Spanish message.
+describe('traducirErrorTalleres — T7 hardening: every remaining paso-6 code is mapped', () => {
+  const CODIGOS_RESTANTES: ReadonlyArray<readonly [string, string, number]> = [
+    ['FECHA_INICIO_REQUIRED', 'P0001', 400],
+    ['TALLER_NOT_FOUND_OR_INACTIVE', 'P0002', 404],
+    ['TALLER_MISSING_EQUIPO', 'P0002', 409],
+    ['sin_permisos_para_esta_edicion', '42501', 403],
+    ['UNAUTHENTICATED', '42501', 401],
+    ['FORBIDDEN', '42501', 403],
+    ['NOMBRE_EDICION_REQUIRED', '22023', 400],
+    ['SESIONES_MUST_BE_POSITIVE', '22023', 400],
+    ['SOBRE_CUPO_NO_AUTORIZADO', 'P0001', 403],
+    ['TEMPORADA_NO_DISPONIBLE', 'P0001', 409],
+    ['EDICION_NO_ABIERTA', 'P0001', 409],
+    ['COMPANERO_REQUERIDO', 'P0001', 400],
+    ['INVALID_REGIMEN', '22023', 400],
+  ]
+
+  it.each(CODIGOS_RESTANTES)('maps %s (%s) to a non-fallback message', (codigo, sqlstate, expectedStatus) => {
+    const result = traducirErrorTalleres({ code: sqlstate, message: codigo })
+    expect(result.status).toBe(expectedStatus)
+    expect(result.status).not.toBe(500)
+    expect(result.error).not.toBe('internal')
+    expect(result.message.length).toBeGreaterThan(0)
+    expect(result.message).not.toMatch(/tenés|podés|vos\b|creá|elegí/i)
+  })
+})

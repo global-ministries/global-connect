@@ -237,7 +237,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
                 <TextoSistema tamaño="sm">
                   {cupo.cupo === 0
                     ? 'Sin cupo definido'
-                    : `${cupo.ocupados} de ${cupo.cupo} plazas · ${cupo.disponibles} disponibles`}
+                    : `${cupo.ocupados} de ${cupo.cupo} ${cupo.unidad} · ${cupo.disponibles} disponibles`}
                 </TextoSistema>
                 {cupo.sobreCupo > 0 && (
                   <BadgeSistema variante="warning" tamaño="sm">
@@ -289,6 +289,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
               tallerSlug={taller.slug}
               edicionId={edicion.id}
               cohorteId={edicion.cohorte.id}
+              tipo={edicion.tipo}
             />
           </div>
         )}

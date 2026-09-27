@@ -340,11 +340,18 @@ export interface InscribirSobreCupoInput {
   readonly tallerSlug: string
   readonly edicionId: string
   readonly personaId: string
+  /**
+   * T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 8,
+   * 20260928140000_talleres_paso6_hardening.sql) — required (the RPC
+   * itself raises P0001 COMPANERO_REQUERIDO otherwise) when the edición is
+   * tipo=pareja; ignored by the RPC for an individual edición.
+   */
+  readonly companeroId?: string | null
 }
 
 export async function inscribirSobreCupo(
   input: InscribirSobreCupoInput,
-): Promise<EdicionActionResult<{ inscripcionId: string; cupo: number; ocupados: number; sobreCupo: number }>> {
+): Promise<EdicionActionResult<{ inscripcionId: string; cupo: number; ocupados: number; sobreCupo: boolean }>> {
   const gated = await gate()
   if (!gated.ok) return gated.result
 
@@ -353,6 +360,7 @@ export async function inscribirSobreCupo(
   const { data, error } = await client.rpc('talleres_inscribir_sobre_cupo', {
     p_edicion_id: input.edicionId,
     p_persona_id: input.personaId,
+    p_companero_id: input.companeroId ?? null,
   })
 
   if (error) {
@@ -360,7 +368,7 @@ export async function inscribirSobreCupo(
     return { ok: false, error: traducido.error, message: traducido.message }
   }
 
-  const resultado = data as { inscripcion_id: string; cupo: number; ocupados: number; sobre_cupo: number }
+  const resultado = data as { inscripcion_id: string; cupo: number; ocupados: number; sobre_cupo: boolean }
   revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
   return {
     ok: true,

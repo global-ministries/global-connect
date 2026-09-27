@@ -29,7 +29,7 @@ jest.mock('next/navigation', () => ({
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
 
 function baseProps() {
-  return { tallerSlug: 'matrimonio-sobre-la-roca', edicionId: 'e-1', cohorteId: 'c-1' }
+  return { tallerSlug: 'matrimonio-sobre-la-roca', edicionId: 'e-1', cohorteId: 'c-1', tipo: 'individual' as const }
 }
 
 beforeEach(() => {
@@ -162,6 +162,7 @@ describe('InscribirPersonaForm — cupo lleno second step', () => {
         tallerSlug: 'matrimonio-sobre-la-roca',
         edicionId: 'e-1',
         personaId: 'p-1',
+        companeroId: null,
       }),
     )
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
@@ -182,5 +183,77 @@ describe('InscribirPersonaForm — cupo lleno second step', () => {
     fireEvent.click(screen.getByRole('button', { name: /inscribir igual/i }))
 
     expect(await screen.findByText('Esta persona ya está inscrita en esta edición.')).toBeInTheDocument()
+  })
+})
+
+// T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 8,
+// 20260928140000_talleres_paso6_hardening.sql) — a pareja edición requires
+// a compañero before the sobre-cupo step can run (the RPC itself raises
+// P0001 COMPANERO_REQUERIDO otherwise).
+describe('InscribirPersonaForm — pareja compañero (T7 hardening)', () => {
+  function parejaProps() {
+    return { ...baseProps(), tipo: 'pareja' as const }
+  }
+
+  it('does not offer "Inscribir igual" directly for a pareja edición — it asks for a compañero first', async () => {
+    render(<InscribirPersonaForm {...parejaProps()} />)
+    await buscarYSeleccionar()
+    agregarInscripcionMock.mockResolvedValue({ ok: false, error: 'cupo-lleno', message: 'Cupo lleno.' })
+
+    fireEvent.click(screen.getByRole('button', { name: /^inscribir$/i }))
+
+    await screen.findByLabelText(/buscar compañero/i)
+    expect(screen.queryByRole('button', { name: /^inscribir igual \(sobre el cupo\)$/i })).toBeInTheDocument()
+  })
+
+  it('the "Inscribir igual" button stays disabled until a compañero is picked', async () => {
+    render(<InscribirPersonaForm {...parejaProps()} />)
+    await buscarYSeleccionar()
+    agregarInscripcionMock.mockResolvedValue({ ok: false, error: 'cupo-lleno', message: 'Cupo lleno.' })
+    fireEvent.click(screen.getByRole('button', { name: /^inscribir$/i }))
+    await screen.findByLabelText(/buscar compañero/i)
+
+    expect(screen.getByRole('button', { name: /inscribir igual \(sobre el cupo\)/i })).toBeDisabled()
+
+    buscarPersonasMock.mockResolvedValue({
+      ok: true,
+      personas: [{ id: 'p-2', nombre: 'María', apellido: 'Gómez', email: 'maria@example.com' }],
+    })
+    fireEvent.change(screen.getByLabelText(/buscar compañero/i), { target: { value: 'maria' } })
+    fireEvent.click(screen.getAllByRole('button', { name: /^buscar$/i })[1]!)
+    await screen.findByText(/María Gómez/)
+    fireEvent.click(screen.getByRole('radio', { name: /María Gómez/i }))
+
+    expect(screen.getByRole('button', { name: /inscribir igual \(sobre el cupo\)/i })).not.toBeDisabled()
+  })
+
+  it('calls inscribirSobreCupo with the chosen companeroId', async () => {
+    render(<InscribirPersonaForm {...parejaProps()} />)
+    await buscarYSeleccionar()
+    agregarInscripcionMock.mockResolvedValue({ ok: false, error: 'cupo-lleno', message: 'Cupo lleno.' })
+    fireEvent.click(screen.getByRole('button', { name: /^inscribir$/i }))
+    await screen.findByLabelText(/buscar compañero/i)
+
+    buscarPersonasMock.mockResolvedValue({
+      ok: true,
+      personas: [{ id: 'p-2', nombre: 'María', apellido: 'Gómez', email: 'maria@example.com' }],
+    })
+    fireEvent.change(screen.getByLabelText(/buscar compañero/i), { target: { value: 'maria' } })
+    fireEvent.click(screen.getAllByRole('button', { name: /^buscar$/i })[1]!)
+    await screen.findByText(/María Gómez/)
+    fireEvent.click(screen.getByRole('radio', { name: /María Gómez/i }))
+
+    inscribirSobreCupoMock.mockResolvedValue({ ok: true, inscripcionId: 'i-3', cupo: 12, ocupados: 12, sobreCupo: true })
+    fireEvent.click(screen.getByRole('button', { name: /inscribir igual \(sobre el cupo\)/i }))
+
+    await waitFor(() =>
+      expect(inscribirSobreCupoMock).toHaveBeenCalledWith({
+        tallerSlug: 'matrimonio-sobre-la-roca',
+        edicionId: 'e-1',
+        personaId: 'p-1',
+        companeroId: 'p-2',
+      }),
+    )
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled())
   })
 })

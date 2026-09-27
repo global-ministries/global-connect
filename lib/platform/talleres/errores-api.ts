@@ -241,6 +241,75 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     error: 'conflict',
     message: 'Esta persona ya está inscrita en esta edición.',
   },
+  // T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md,
+  // 20260928140000_talleres_paso6_hardening.sql) — every remaining paso-6
+  // RAISE code that had no MAPA entry of its own yet (it fell through to
+  // the generic 500/42501 fallback below instead of a specific message).
+  FECHA_INICIO_REQUIRED: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Elige la fecha de inicio.',
+  },
+  TALLER_NOT_FOUND_OR_INACTIVE: {
+    status: 404,
+    error: 'not-found',
+    message: 'El taller no existe o no está activo.',
+  },
+  TALLER_MISSING_EQUIPO: {
+    status: 409,
+    error: 'conflict',
+    message: 'Este taller no tiene un equipo asignado en el organigrama.',
+  },
+  sin_permisos_para_esta_edicion: {
+    status: 403,
+    error: 'forbidden',
+    message: 'No tienes permisos para ver esta edición.',
+  },
+  UNAUTHENTICATED: {
+    status: 401,
+    error: 'unauthorized',
+    message: 'Debes iniciar sesión.',
+  },
+  FORBIDDEN: {
+    status: 403,
+    error: 'forbidden',
+    message: 'No tienes permisos para hacer este cambio.',
+  },
+  NOMBRE_EDICION_REQUIRED: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'El nombre de la edición es obligatorio.',
+  },
+  SESIONES_MUST_BE_POSITIVE: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'La cantidad de sesiones debe ser mayor a cero.',
+  },
+  SOBRE_CUPO_NO_AUTORIZADO: {
+    status: 403,
+    error: 'forbidden',
+    message: 'No tienes autorización para inscribir por encima del cupo.',
+  },
+  TEMPORADA_NO_DISPONIBLE: {
+    status: 409,
+    error: 'conflict',
+    message: 'Esta temporada no está disponible para crear ediciones.',
+  },
+  EDICION_NO_ABIERTA: {
+    status: 409,
+    error: 'conflict',
+    message: 'Esta edición no está abierta para inscripciones.',
+  },
+  COMPANERO_REQUERIDO: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Elige el compañero o la compañera para esta inscripción de pareja.',
+  },
+  INVALID_REGIMEN: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'El régimen elegido no es válido.',
+  },
 }
 
 /** Ordered longest-first so a substring match can't pick the wrong entry. */

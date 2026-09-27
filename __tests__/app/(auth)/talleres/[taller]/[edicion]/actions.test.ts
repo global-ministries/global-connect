@@ -482,7 +482,7 @@ describe('inscribirSobreCupo — happy path & errors', () => {
   it('calls talleres_inscribir_sobre_cupo and maps the jsonb result, then revalidates', async () => {
     const { rpc } = setupRpc({
       rpcResult: {
-        data: { inscripcion_id: 'i-2', cupo: 2, ocupados: 3, sobre_cupo: 1 },
+        data: { inscripcion_id: 'i-2', cupo: 2, ocupados: 3, sobre_cupo: true },
         error: null,
       },
     })
@@ -490,15 +490,40 @@ describe('inscribirSobreCupo — happy path & errors', () => {
     expect(rpc).toHaveBeenCalledWith('talleres_inscribir_sobre_cupo', {
       p_edicion_id: 'e-1',
       p_persona_id: 'p-1',
+      p_companero_id: null,
     })
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.inscripcionId).toBe('i-2')
       expect(result.cupo).toBe(2)
       expect(result.ocupados).toBe(3)
-      expect(result.sobreCupo).toBe(1)
+      expect(result.sobreCupo).toBe(true)
     }
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+  })
+
+  // T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 8,
+  // 20260928140000_talleres_paso6_hardening.sql) — companeroId, when given,
+  // is forwarded as p_companero_id (required by the RPC for a pareja
+  // edición; ignored for an individual one).
+  it('forwards companeroId as p_companero_id when given', async () => {
+    const { rpc } = setupRpc({
+      rpcResult: {
+        data: { inscripcion_id: 'i-3', cupo: 12, ocupados: 12, sobre_cupo: true },
+        error: null,
+      },
+    })
+    await inscribirSobreCupo({
+      tallerSlug: 'proximo-paso',
+      edicionId: 'e-1',
+      personaId: 'p-1',
+      companeroId: 'p-2',
+    })
+    expect(rpc).toHaveBeenCalledWith('talleres_inscribir_sobre_cupo', {
+      p_edicion_id: 'e-1',
+      p_persona_id: 'p-1',
+      p_companero_id: 'p-2',
+    })
   })
 
   it('maps YA_INSCRITO to a conflict message', async () => {

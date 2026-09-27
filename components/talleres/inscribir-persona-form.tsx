@@ -15,6 +15,14 @@
  * show a second-step button — "Inscribir igual (sobre el cupo)" — that
  * calls inscribirSobreCupo (the RPC that records who overrode the cupo and
  * when). Any other failure just shows the message, no second step.
+ *
+ * T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 8,
+ * 20260928140000_talleres_paso6_hardening.sql) — talleres_inscribir_
+ * sobre_cupo now requires a compañero (and stores it like self-enroll
+ * does) when the edición is tipo=pareja, so the second step reuses the
+ * SAME bounded search (talleres_buscar_personas) for a second pick instead
+ * of building a dedicated cónyuge-picker modal — the cheapest option the
+ * task offered for a director/coordinator-only control this narrow.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -33,6 +41,8 @@ export interface InscribirPersonaFormProps {
   readonly tallerSlug: string
   readonly edicionId: string
   readonly cohorteId: string
+  /** T7 hardening — a pareja edición requires a compañero for the sobre-cupo step. */
+  readonly tipo: 'individual' | 'pareja'
 }
 
 interface PersonaResultado {
@@ -51,6 +61,7 @@ export function InscribirPersonaForm({
   tallerSlug,
   edicionId,
   cohorteId,
+  tipo,
 }: InscribirPersonaFormProps): ReactElement {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -60,6 +71,13 @@ export function InscribirPersonaForm({
   const [error, setError] = useState<string | null>(null)
   const [cupoLleno, setCupoLleno] = useState(false)
   const [pending, setPending] = useState(false)
+
+  const [companeroQ, setCompaneroQ] = useState('')
+  const [companeroResultados, setCompaneroResultados] = useState<readonly PersonaResultado[]>([])
+  const [companeroId, setCompaneroId] = useState<string | null>(null)
+
+  const esPareja = tipo === 'pareja'
+  const necesitaCompanero = cupoLleno && esPareja
 
   function buscar(): void {
     setError(null)
@@ -74,12 +92,28 @@ export function InscribirPersonaForm({
     })
   }
 
+  function buscarCompanero(): void {
+    setError(null)
+    startTransition(async () => {
+      const result = await buscarPersonasParaInscribir(companeroQ)
+      if (result.ok) {
+        setCompaneroResultados(result.personas)
+      } else {
+        setCompaneroResultados([])
+        setError(result.message ?? 'No se pudo buscar personas.')
+      }
+    })
+  }
+
   function reset(): void {
     setQ('')
     setResultados([])
     setPersonaId(null)
     setError(null)
     setCupoLleno(false)
+    setCompaneroQ('')
+    setCompaneroResultados([])
+    setCompaneroId(null)
   }
 
   function inscribir(): void {
@@ -102,10 +136,16 @@ export function InscribirPersonaForm({
 
   function inscribirIgual(): void {
     if (!personaId) return
+    if (necesitaCompanero && !companeroId) return
     setError(null)
     setPending(true)
     startTransition(async () => {
-      const result = await inscribirSobreCupo({ tallerSlug, edicionId, personaId })
+      const result = await inscribirSobreCupo({
+        tallerSlug,
+        edicionId,
+        personaId,
+        companeroId: esPareja ? companeroId : null,
+      })
       setPending(false)
       if (result.ok) {
         reset()
@@ -168,7 +208,7 @@ export function InscribirPersonaForm({
           >
             {pending ? 'Inscribiendo…' : 'Inscribir'}
           </BotonSistema>
-          {cupoLleno && (
+          {cupoLleno && !necesitaCompanero && (
             <BotonSistema
               type="button"
               variante="outline"
@@ -179,6 +219,62 @@ export function InscribirPersonaForm({
               Inscribir igual (sobre el cupo)
             </BotonSistema>
           )}
+        </div>
+      )}
+
+      {necesitaCompanero && (
+        <div className="mt-3 border-t border-border pt-3">
+          <TextoSistema tamaño="sm" variante="sutil" className="mb-2 block">
+            Este taller es de pareja: elige el compañero o la compañera antes de inscribir sobre el cupo.
+          </TextoSistema>
+          <div className="flex flex-wrap items-end gap-2">
+            <InputSistema
+              label="Buscar compañero(a)"
+              placeholder="Nombre, apellido o email…"
+              value={companeroQ}
+              onChange={(e) => setCompaneroQ(e.target.value)}
+              className="min-w-[14rem] flex-1"
+            />
+            <BotonSistema type="button" variante="outline" tamaño="sm" icono={Search} onClick={buscarCompanero}>
+              Buscar
+            </BotonSistema>
+          </div>
+
+          {companeroResultados.length > 0 && (
+            <ul className="mt-3 divide-y divide-border">
+              {companeroResultados.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-2 py-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="companero-a-inscribir"
+                      checked={companeroId === p.id}
+                      onChange={() => {
+                        setCompaneroId(p.id)
+                        setError(null)
+                      }}
+                    />
+                    <TextoSistema tamaño="sm">
+                      {nombreCompleto(p)}
+                      {p.email && <span className="text-muted-foreground"> · {p.email}</span>}
+                    </TextoSistema>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-3">
+            <BotonSistema
+              type="button"
+              variante="outline"
+              tamaño="sm"
+              onClick={inscribirIgual}
+              disabled={pending || !companeroId}
+            >
+              Inscribir igual (sobre el cupo)
+            </BotonSistema>
+          </div>
         </div>
       )}
 

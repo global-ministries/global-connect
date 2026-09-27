@@ -188,7 +188,7 @@ interface SetupOpts {
   edicionDetalle?: EdicionLocalDetalle | null
   permisos?: Partial<PermisosTaller>
   inscripciones?: AdminInscripcionesResult
-  cupo?: { cupo: number; ocupados: number; disponibles: number; sobreCupo: number } | null
+  cupo?: { cupo: number; ocupados: number; disponibles: number; sobreCupo: number; unidad: 'personas' | 'parejas' } | null
 }
 
 function setup(opts: SetupOpts): void {
@@ -550,29 +550,39 @@ describe('EdicionDetallePage — content', () => {
 
   // T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the Cupo line.
   describe('Cupo (T6)', () => {
-    it('shows "{ocupados} de {cupo} plazas · {disponibles} disponibles"', async () => {
-      setup({ cupo: { cupo: 2, ocupados: 2, disponibles: 0, sobreCupo: 0 } })
+    it('shows "{ocupados} de {cupo} personas · {disponibles} disponibles" for an individual edición', async () => {
+      setup({ cupo: { cupo: 2, ocupados: 2, disponibles: 0, sobreCupo: 0, unidad: 'personas' } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
       const element = (await EdicionDetallePage(params())) as any
-      expect(extractText(element)).toMatch(/2 de 2 plazas · 0 disponibles/)
+      expect(extractText(element)).toMatch(/2 de 2 personas · 0 disponibles/)
+    })
+
+    // T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 7,
+    // 20260928140000_talleres_paso6_hardening.sql) — a pareja edición says
+    // "parejas", not a bare number/"plazas".
+    it('shows "{ocupados} de {cupo} parejas · {disponibles} disponibles" for a pareja edición', async () => {
+      setup({ cupo: { cupo: 12, ocupados: 8, disponibles: 4, sobreCupo: 0, unidad: 'parejas' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).toMatch(/8 de 12 parejas · 4 disponibles/)
     })
 
     it('shows "Sin cupo definido" when cupo is 0', async () => {
-      setup({ cupo: { cupo: 0, ocupados: 3, disponibles: 0, sobreCupo: 0 } })
+      setup({ cupo: { cupo: 0, ocupados: 3, disponibles: 0, sobreCupo: 0, unidad: 'personas' } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
       const element = (await EdicionDetallePage(params())) as any
       expect(extractText(element)).toMatch(/Sin cupo definido/)
     })
 
     it('shows a "{n} sobre el cupo" warning badge when sobreCupo > 0', async () => {
-      setup({ cupo: { cupo: 2, ocupados: 3, disponibles: 0, sobreCupo: 1 } })
+      setup({ cupo: { cupo: 2, ocupados: 3, disponibles: 0, sobreCupo: 1, unidad: 'personas' } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
       const element = (await EdicionDetallePage(params())) as any
       expect(extractText(element)).toMatch(/1\s+sobre el cupo/)
     })
 
     it('never shows the "sobre el cupo" badge when sobreCupo is 0', async () => {
-      setup({ cupo: { cupo: 2, ocupados: 2, disponibles: 0, sobreCupo: 0 } })
+      setup({ cupo: { cupo: 2, ocupados: 2, disponibles: 0, sobreCupo: 0, unidad: 'personas' } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
       const element = (await EdicionDetallePage(params())) as any
       expect(extractText(element)).not.toMatch(/sobre el cupo/)
@@ -582,7 +592,7 @@ describe('EdicionDetallePage — content', () => {
       setup({ cupo: null })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
       const element = (await EdicionDetallePage(params())) as any
-      expect(extractText(element)).not.toMatch(/plazas/)
+      expect(extractText(element)).not.toMatch(/personas|parejas/)
       expect(extractText(element)).not.toMatch(/Sin cupo definido/)
     })
   })
