@@ -6,6 +6,10 @@
  * permisos.editarTaller is granted (same gating pattern as
  * OpenEdicionForm) — this component never re-derives a capability, it
  * just is-or-isn't on the tree.
+ *
+ * T10 (design audit) — the read display used to be a `TituloSistema
+ * nivel={1}`, a second `<h1>` on top of the page's own (ContenedorDashboard
+ * → DesktopHeader). It is now nivel 2, so the page keeps exactly one h1.
  */
 
 import { useEffect, useState, useTransition, type ReactElement } from 'react'
@@ -38,7 +42,7 @@ export function EditarNombreTaller({ tallerId, tallerSlug, nombre }: Props): Rea
   if (!editing) {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <TituloSistema nivel={1}>{nombreActual}</TituloSistema>
+        <TituloSistema nivel={2}>{nombreActual}</TituloSistema>
         <button
           type="button"
           aria-label="Editar nombre"
