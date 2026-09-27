@@ -3,14 +3,21 @@
  * [id], replacing app/(auth)/admin/talleres/temporadas/[id]/page.tsx (kept
  * alive, unmodified, until T10 deletes it).
  *
- * The control surface for a single global season: every active taller
- * with a checkbox reflecting talleres_temporada_talleres membership (the
- * "elijo qué talleres abren" flow), plus estado-transition buttons.
+ * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the header
+ * now shows this temporada's own dirección (its root node label,
+ * loadTemporadaDetalle's own `direccionLabel`) instead of the slug, and
+ * `refrescarEstadosEdiciones(client)` runs UNSCOPED before the read (this
+ * screen's ediciones span several talleres, unlike the taller/edición
+ * pages which scope their own call) so every edición's own effective
+ * state is accurate before TemporadaDetailClient's badges render.
+ * `?creadas=N` (redirected here from the "Crear temporada" form) shows the
+ * SAME BadgeSistema notice /talleres/[taller] already uses for its own
+ * "crear también las próximas".
  *
  * GATE, same shape as the list page: flag -> user -> session, each an
  * informational card. No role required — RLS on talleres_temporadas_select
  * decides whether the row is even reachable; a genuinely missing id still
- * 404s via notFound(), exactly like the old page.
+ * 404s via notFound().
  *
  * PERMISSIONS: `canWrite` is the same flat capability check as the list
  * page (director.write OR admin.manage) — see ../actions.ts's header for
@@ -35,6 +42,7 @@ import {
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadTemporadaDetalle } from '@/lib/platform/talleres/temporadas'
+import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
 import { rutaTemporadas } from '@/lib/platform/talleres/rutas'
 
 import { TemporadaDetailClient } from './temporada-detail-client'
@@ -43,6 +51,7 @@ export const metadata = { title: 'Temporada' }
 
 interface RouteContext {
   readonly params: Promise<{ readonly id: string }>
+  readonly searchParams: Promise<{ readonly creadas?: string }>
 }
 
 export default async function TemporadaDetallePage(ctx: RouteContext) {
@@ -57,6 +66,7 @@ export default async function TemporadaDetallePage(ctx: RouteContext) {
   }
 
   const { id } = await ctx.params
+  const { creadas } = await ctx.searchParams
 
   const supabase = await createSupabaseServerClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
@@ -65,7 +75,7 @@ export default async function TemporadaDetallePage(ctx: RouteContext) {
     return (
       <ContenedorDashboard titulo="Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
+          <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
@@ -93,22 +103,29 @@ export default async function TemporadaDetallePage(ctx: RouteContext) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
+  await refrescarEstadosEdiciones(client)
   const detalle = await loadTemporadaDetalle(client, id)
   if (!detalle) {
     notFound()
   }
-  const { temporada, talleres, selectedTallerIds } = detalle
+  const { temporada, direccionLabel, talleresEnTemporada, talleresDisponibles } = detalle
 
   return (
     <ContenedorDashboard
       titulo={temporada.nombre}
       botonRegreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
     >
+      {creadas && Number(creadas) > 0 && (
+        <BadgeSistema variante="success" role="status">
+          {`Se crearon ${creadas} ediciones`}
+        </BadgeSistema>
+      )}
+
       <TarjetaSistema variante="outlined" className="mb-4 p-4">
         <div className="flex flex-wrap items-start gap-3">
           <div className="flex-1">
-            <TextoSistema className="text-sm text-muted-foreground">
-              <code>{temporada.slug}</code>
+            <TextoSistema variante="sutil" className="block text-sm">
+              {direccionLabel}
             </TextoSistema>
             {temporada.descripcion && (
               <TextoSistema className="mt-2 block">{temporada.descripcion}</TextoSistema>
@@ -129,8 +146,8 @@ export default async function TemporadaDetallePage(ctx: RouteContext) {
         temporadaId={temporada.id}
         estado={temporada.estado}
         canWrite={canWrite}
-        talleres={talleres}
-        selectedTallerIds={selectedTallerIds}
+        talleresEnTemporada={talleresEnTemporada}
+        talleresDisponibles={talleresDisponibles}
       />
     </ContenedorDashboard>
   )

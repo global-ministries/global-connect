@@ -5,10 +5,12 @@
  * [id], replacing app/(auth)/admin/talleres/temporadas/[id]/page.tsx (kept
  * alive, unmodified, until T10 deletes it).
  *
- * Mirrors the gate + dynamic-params pattern of
- * __tests__/app/(auth)/talleres/[taller]/page.test.tsx: flag -> user ->
- * session, each an informational card, then notFound() when the id does
- * not resolve to any temporada.
+ * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the header
+ * shows `direccionLabel` (never the temporada's slug), the page calls
+ * `refrescarEstadosEdiciones(client)` UNSCOPED before reading, and forwards
+ * `talleresEnTemporada`/`talleresDisponibles` (loadTemporadaDetalle's new
+ * shape) to TemporadaDetailClient instead of the old flat
+ * talleres/selectedTallerIds. `?creadas=N` shows a success notice.
  *
  * TemporadaDetailClient is a real client component with its own hooks —
  * mocked to a marker component here, exactly like OpenEdicionForm/
@@ -41,6 +43,10 @@ jest.mock('@/lib/platform/talleres/temporadas', () => ({
   loadTemporadaDetalle: jest.fn(),
 }))
 
+jest.mock('@/lib/platform/talleres/refrescar-estados', () => ({
+  refrescarEstadosEdiciones: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('@/app/(auth)/talleres/temporadas/[id]/temporada-detail-client', () => ({
   TemporadaDetailClient: () => null,
 }))
@@ -52,6 +58,8 @@ const resolveSessionMock = jest.requireMock('@/lib/auth/platformSessionReadOnly'
   .resolveReadOnlyPlatformSession as jest.Mock
 const loadTemporadaDetalleMock = jest.requireMock('@/lib/platform/talleres/temporadas')
   .loadTemporadaDetalle as jest.Mock
+const refrescarEstadosEdicionesMock = jest.requireMock('@/lib/platform/talleres/refrescar-estados')
+  .refrescarEstadosEdiciones as jest.Mock
 
 const DETALLE: TemporadaDetalle = {
   temporada: {
@@ -62,9 +70,25 @@ const DETALLE: TemporadaDetalle = {
     estado: 'borrador',
     fecha_apertura: '2026-09-01T00:00:00.000Z',
     fecha_cierre: '2026-12-15T00:00:00.000Z',
+    dream_team_equipo_id: 'root-1',
   },
-  talleres: [{ id: 't-1', nombre: 'Matrimonio', slug: 'matrimonio' }],
-  selectedTallerIds: ['t-1'],
+  direccionLabel: 'Dirección de Conexión',
+  talleresEnTemporada: [
+    {
+      id: 't-1',
+      nombre: 'Matrimonio',
+      slug: 'matrimonio',
+      edicion: {
+        id: 'ed-1',
+        nombre_snapshot: 'Otoño 2026',
+        estado: 'abierto',
+        fecha_inicio: '2026-09-01',
+        fecha_fin: '2026-10-15',
+        total_inscripciones: 0,
+      },
+    },
+  ],
+  talleresDisponibles: [{ id: 't-2', nombre: 'Parejas', slug: 'parejas' }],
 }
 
 interface SetupOpts {
@@ -105,13 +129,14 @@ function setup(opts: SetupOpts): void {
       : null,
   )
 
+  refrescarEstadosEdicionesMock.mockReset().mockResolvedValue(undefined)
   loadTemporadaDetalleMock.mockReset().mockResolvedValue(
     opts.detalle === undefined ? DETALLE : opts.detalle,
   )
 }
 
-function params(id = 'temp-1') {
-  return { params: Promise.resolve({ id }) }
+function params(id = 'temp-1', creadas?: string) {
+  return { params: Promise.resolve({ id }), searchParams: Promise.resolve({ creadas }) }
 }
 
 /** Walks a React element tree's `.props.children` without rendering it. */
@@ -181,6 +206,13 @@ describe('TemporadaDetallePage — gate', () => {
       /NEXT_HTTP_ERROR_FALLBACK;404|NEXT_NOT_FOUND/,
     )
   })
+
+  it('calls refrescarEstadosEdiciones (unscoped) before loadTemporadaDetalle', async () => {
+    setup({})
+    await TemporadaDetallePage(params())
+    expect(refrescarEstadosEdicionesMock).toHaveBeenCalledWith(expect.anything())
+    expect(loadTemporadaDetalleMock).toHaveBeenCalled()
+  })
 })
 
 describe('TemporadaDetallePage — canWrite wiring (flat capability check)', () => {
@@ -208,13 +240,13 @@ describe('TemporadaDetallePage — canWrite wiring (flat capability check)', () 
     expect(client?.props.canWrite).toBe(true)
   })
 
-  it('forwards talleres and selectedTallerIds unchanged', async () => {
+  it('forwards talleresEnTemporada and talleresDisponibles unchanged', async () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadaDetallePage(params())) as any
     const client = findByType(element, TemporadaDetailClient)
-    expect(client?.props.talleres).toEqual(DETALLE.talleres)
-    expect(client?.props.selectedTallerIds).toEqual(DETALLE.selectedTallerIds)
+    expect(client?.props.talleresEnTemporada).toEqual(DETALLE.talleresEnTemporada)
+    expect(client?.props.talleresDisponibles).toEqual(DETALLE.talleresDisponibles)
     expect(client?.props.temporadaId).toBe('temp-1')
     expect(client?.props.estado).toBe('borrador')
   })
@@ -230,11 +262,34 @@ describe('TemporadaDetallePage — content', () => {
     expect((dashboard?.props.botonRegreso as { href?: string })?.href).toBe('/talleres/temporadas')
   })
 
+  it('shows the dirección label in the header, never the raw slug', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TemporadaDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).toMatch(/dirección de conexión/i)
+    expect(text).not.toMatch(/otono-2026/)
+  })
+
   it('never renders a raw estado key — always through temporadaEstadoLabel', async () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadaDetallePage(params())) as any
     const badges = findAllByType(element, BadgeSistema)
     expect(badges.some((b) => /borrador/i.test(extractText(b.props.children)))).toBe(true)
+  })
+
+  it('shows a "Se crearon N ediciones" notice when ?creadas=N is present', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TemporadaDetallePage(params('temp-1', '3'))) as any
+    expect(extractText(element)).toMatch(/se crearon 3 ediciones/i)
+  })
+
+  it('shows no notice when ?creadas is absent', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TemporadaDetallePage(params())) as any
+    expect(extractText(element)).not.toMatch(/se crearon/i)
   })
 })
