@@ -52,3 +52,32 @@ describe('traducirErrorTalleres — new T3 branches', () => {
     expect(result.error).toBe('conflict')
   })
 })
+
+// T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+// talleres_crear_edicion's own P0001 codes, translated to neutral Spanish
+// (no voseo).
+describe('traducirErrorTalleres — talleres_crear_edicion branches', () => {
+  it.each([
+    ['TEMPORADA_REQUERIDA', 'invalid-input'],
+    ['FECHA_REQUERIDA', 'invalid-input'],
+    ['EDICION_YA_EXISTE', 'conflict'],
+    ['ADELANTAR_MAXIMO_6', 'invalid-input'],
+    ['SIN_INTERVALO', 'conflict'],
+    ['TEMPORADA_NO_PERMITIDA', 'invalid-input'],
+    ['ADELANTAR_INVALIDO', 'invalid-input'],
+    ['TEMPORADA_NOT_FOUND', 'not-found'],
+  ] as const)('maps P0001/P0002 %s to error %s with a neutral Spanish message', (code, expectedError) => {
+    const result = traducirErrorTalleres({ code: 'P0001', message: code })
+    expect(result.error).toBe(expectedError)
+    expect(result.message.length).toBeGreaterThan(0)
+    expect(result.message).not.toMatch(/tenés|podés|vos\b|creá|elegí/i)
+  })
+
+  it('maps sin_permisos_para_este_taller (42501) to 403 forbidden, distinct from sin_permisos_para_este_grupo', () => {
+    const result = traducirErrorTalleres({ code: '42501', message: 'sin_permisos_para_este_taller' })
+    expect(result.status).toBe(403)
+    expect(result.error).toBe('forbidden')
+    expect(result.message).toMatch(/taller/i)
+    expect(result.message).not.toMatch(/grupo/i)
+  })
+})

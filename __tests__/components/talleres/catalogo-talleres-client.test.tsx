@@ -35,8 +35,8 @@ const TALLER_ABIERTO: CatalogoTaller = {
   estado: 'active',
   dream_team_equipo_id: 'eq-1',
   ediciones: [
-    { id: 'e-1', nombre_snapshot: 'Septiembre 2026', tipo: 'pareja', estado: 'abierto', total_inscripciones: 12 },
-    { id: 'e-2', nombre_snapshot: 'Marzo 2026', tipo: 'pareja', estado: 'cerrado', total_inscripciones: 30 },
+    { id: 'e-1', nombre_snapshot: 'Septiembre 2026', tipo: 'pareja', estado: 'abierto', total_inscripciones: 12, temporada_id: null, fecha_inicio: null, fecha_fin: null },
+    { id: 'e-2', nombre_snapshot: 'Marzo 2026', tipo: 'pareja', estado: 'cerrado', total_inscripciones: 30, temporada_id: null, fecha_inicio: null, fecha_fin: null },
   ],
 }
 
@@ -47,7 +47,7 @@ const TALLER_SOLO_CERRADO: CatalogoTaller = {
   estado: 'active',
   dream_team_equipo_id: 'eq-2',
   ediciones: [
-    { id: 'e-3', nombre_snapshot: 'Enero 2026', tipo: 'individual', estado: 'cerrado', total_inscripciones: 8 },
+    { id: 'e-3', nombre_snapshot: 'Enero 2026', tipo: 'individual', estado: 'cerrado', total_inscripciones: 8, temporada_id: null, fecha_inicio: null, fecha_fin: null },
   ],
 }
 

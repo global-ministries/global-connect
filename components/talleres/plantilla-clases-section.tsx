@@ -4,14 +4,20 @@
  * T3 (odd/tasks/talleres-configuracion-del-taller.md) — the taller
  * screen's "Clases (plantilla)" section: list `Clase {numero} · {tema}`,
  * add (next numero), edit tema in place, deactivate/reactivate, reorder
- * by swapping numero with up/down buttons (no drag library), plus
- * cadencia_dias/duracion_minutos as two editable fields.
+ * by swapping numero with up/down buttons (no drag library).
  *
- * Edit controls (add, edit, toggle, reorder, cadencia/duracion) only
- * render when `puedeEditar` — the page passes permisos.editarTaller, this
- * component never re-derives a capability. A read-only viewer still sees
- * the full plantilla, including inactive clases (so it's clear what's
- * been deactivated), just without any control.
+ * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+ * cadencia_dias/duracion_minutos MOVED to the taller page's new
+ * "Configuración" section (components/talleres/configuracion-taller.tsx),
+ * alongside tipo/vinculo/regimen/cierre de inscripción — this section
+ * keeps only the clases list itself, per the task's "keep the section's
+ * clases list" instruction.
+ *
+ * Edit controls (add, edit, toggle, reorder) only render when
+ * `puedeEditar` — the page passes permisos.editarTaller, this component
+ * never re-derives a capability. A read-only viewer still sees the full
+ * plantilla, including inactive clases (so it's clear what's been
+ * deactivated), just without any control.
  *
  * T10 (design audit) — redesigned to the system pattern: the clases list
  * is ONE `TarjetaSistema p-0` with `divide-y` (never one card per clase);
@@ -41,7 +47,6 @@ import {
   editarPlantillaClaseTema,
   moverPlantillaClase,
   toggleActivoPlantillaClase,
-  updateCadenciaYDuracion,
 } from '@/app/(auth)/talleres/[taller]/actions'
 
 export interface PlantillaClaseVM {
@@ -55,8 +60,6 @@ interface Props {
   readonly tallerId: string
   readonly tallerSlug: string
   readonly clases: readonly PlantillaClaseVM[]
-  readonly cadenciaDias: number
-  readonly duracionMinutos: number | null
   readonly puedeEditar: boolean
 }
 
@@ -67,8 +70,6 @@ export function PlantillaClasesSection({
   tallerId,
   tallerSlug,
   clases,
-  cadenciaDias,
-  duracionMinutos,
   puedeEditar,
 }: Props): ReactElement {
   const router = useRouter()
@@ -79,9 +80,6 @@ export function PlantillaClasesSection({
   const [nuevoTema, setNuevoTema] = useState('')
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [temaEditado, setTemaEditado] = useState('')
-
-  const [cadencia, setCadencia] = useState(String(cadenciaDias))
-  const [duracion, setDuracion] = useState(duracionMinutos !== null ? String(duracionMinutos) : '')
 
   const ordenadas = [...clases].sort((a, b) => a.numero - b.numero)
 
@@ -141,25 +139,6 @@ export function PlantillaClasesSection({
     })
   }
 
-  function guardarCadencia(): void {
-    setError(null)
-    const cadenciaNum = Number(cadencia)
-    const duracionNum = duracion.trim() === '' ? null : Number(duracion)
-    startTransition(async () => {
-      const result = await updateCadenciaYDuracion({
-        tallerId,
-        tallerSlug,
-        cadenciaDias: cadenciaNum,
-        duracionMinutos: duracionNum,
-      })
-      if (result.ok) {
-        router.refresh()
-      } else {
-        setError(result.message)
-      }
-    })
-  }
-
   return (
     <section aria-labelledby="clases-heading">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -175,36 +154,6 @@ export function PlantillaClasesSection({
           <BotonSistema type="button" variante="outline" tamaño="sm" icono={Plus} onClick={() => setAgregando(true)}>
             Agregar clase
           </BotonSistema>
-        )}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        {puedeEditar ? (
-          <>
-            <InputSistema
-              label="Cada N días"
-              type="number"
-              min={1}
-              value={cadencia}
-              onChange={(e) => setCadencia(e.target.value)}
-              className="w-28"
-            />
-            <InputSistema
-              label="Duración (min)"
-              type="number"
-              min={1}
-              value={duracion}
-              onChange={(e) => setDuracion(e.target.value)}
-              className="w-28"
-            />
-            <BotonSistema type="button" variante="outline" tamaño="sm" onClick={guardarCadencia}>
-              Guardar cadencia
-            </BotonSistema>
-          </>
-        ) : (
-          <TextoSistema variante="sutil" tamaño="sm">
-            Cada {cadenciaDias} días{duracionMinutos !== null ? ` · Duración ${duracionMinutos} min` : ''}
-          </TextoSistema>
         )}
       </div>
 

@@ -43,6 +43,12 @@ import {
   CLASE_ESTADO_BADGE_VARIANTE,
   claseEstadoLabel,
   claseEstadoBadgeVariante,
+  TALLER_TIPO_LABELS,
+  tipoTallerLabel,
+  TALLER_REGIMEN_LABELS,
+  regimenLabel,
+  vinculoLabel,
+  cierreRelativoLabel,
 } from '@/components/talleres/labels'
 
 describe('edición estado labels', () => {
@@ -350,5 +356,61 @@ describe('clase estado labels', () => {
   it('claseEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
     expect(claseEstadoBadgeVariante('programada')).toBe('default')
     expect(claseEstadoBadgeVariante('algo-desconocido')).toBe('default')
+  })
+})
+
+// T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the taller's
+// own configuration fields (Configuración section of /talleres/[taller]).
+describe('taller tipo labels', () => {
+  it('has a Spanish label for both known tipos', () => {
+    expect(TALLER_TIPO_LABELS).toEqual({ individual: 'Individual', pareja: 'Parejas' })
+  })
+
+  it('tipoTallerLabel resolves a known key and falls back to the raw key otherwise', () => {
+    expect(tipoTallerLabel('pareja')).toBe('Parejas')
+    expect(tipoTallerLabel('algo-desconocido')).toBe('algo-desconocido')
+  })
+})
+
+describe('taller regimen labels', () => {
+  it('has a Spanish label for both known regimenes', () => {
+    expect(TALLER_REGIMEN_LABELS).toEqual({
+      temporada: 'Por temporada de la dirección',
+      cadencia: 'Por cadencia propia',
+    })
+  })
+
+  it('regimenLabel resolves a known key and falls back to the raw key otherwise', () => {
+    expect(regimenLabel('cadencia')).toBe('Por cadencia propia')
+    expect(regimenLabel('algo-desconocido')).toBe('algo-desconocido')
+  })
+})
+
+describe('vinculoLabel', () => {
+  it('labels matrimonio and novios', () => {
+    expect(vinculoLabel('matrimonio')).toBe('Matrimonios')
+    expect(vinculoLabel('novios')).toBe('Novios')
+  })
+
+  it('labels null as Cualquiera (no vínculo restriction)', () => {
+    expect(vinculoLabel(null)).toBe('Cualquiera')
+  })
+
+  it('labels an unknown value as Cualquiera (never a raw key)', () => {
+    expect(vinculoLabel('algo-desconocido')).toBe('Cualquiera')
+  })
+})
+
+describe('cierreRelativoLabel', () => {
+  it('describes a negative offset as closing before the first clase', () => {
+    expect(cierreRelativoLabel(-3)).toBe('Cierra 3 días antes de la primera clase')
+  })
+
+  it('describes a zero offset as closing when the first clase starts', () => {
+    expect(cierreRelativoLabel(0)).toBe('Cierra al empezar')
+  })
+
+  it('describes a positive offset as staying open past the first clase', () => {
+    expect(cierreRelativoLabel(7)).toBe('Permite entrar hasta 7 días después')
   })
 })

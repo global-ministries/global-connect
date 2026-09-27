@@ -41,6 +41,17 @@ export interface CatalogoEdicion {
   readonly tipo: 'individual' | 'pareja'
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly total_inscripciones: number
+  /**
+   * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+   * temporada this edición was created from, or `null` for a régimen=
+   * cadencia edición. "Crear edición" (OpenEdicionForm) uses this to
+   * exclude temporadas this taller already has a non-cancelled edición
+   * in, and the taller page's ediciones list uses fecha_inicio/fecha_fin
+   * below for its "{inicio} → {fin}" row.
+   */
+  readonly temporada_id: string | null
+  readonly fecha_inicio: string | null
+  readonly fecha_fin: string | null
 }
 
 export interface CatalogoTaller {
@@ -54,7 +65,7 @@ export interface CatalogoTaller {
 
 const TALLER_CON_EDICIONES_SELECT = `id, slug, nombre, estado, dream_team_equipo_id,
        ediciones:taller_ediciones (
-         id, nombre_snapshot, tipo, estado,
+         id, nombre_snapshot, tipo, estado, temporada_id, fecha_inicio, fecha_fin,
          inscripciones:taller_inscripciones (id)
        )`
 
@@ -70,6 +81,9 @@ function mapCatalogoTallerRow(row: Record<string, unknown>): CatalogoTaller {
         tipo: edicion.tipo as CatalogoEdicion['tipo'],
         estado: edicion.estado as CatalogoEdicion['estado'],
         total_inscripciones: ((edicion.inscripciones as unknown[]) ?? []).length,
+        temporada_id: (edicion.temporada_id as string | null) ?? null,
+        fecha_inicio: (edicion.fecha_inicio as string | null) ?? null,
+        fecha_fin: (edicion.fecha_fin as string | null) ?? null,
       }
     })
     .sort((a, b) => a.nombre_snapshot.localeCompare(b.nombre_snapshot))
@@ -133,6 +147,19 @@ export interface TallerDetalle extends CatalogoTaller {
    */
   readonly cadencia_dias: number
   readonly duracion_minutos: number | null
+  /**
+   * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+   * taller's own configuration (T1, migration
+   * 20260928100000_talleres_regimen_y_estado_derivado.sql), shown/edited
+   * on the taller page's "Configuración" section. NOT NULL on the table
+   * (DEFAULT individual/temporada/0); the `??` fallbacks below only cover
+   * an older/partial test fixture that omits them, never a real DB row.
+   */
+  readonly tipo: 'individual' | 'pareja'
+  readonly vinculo: 'matrimonio' | 'novios' | null
+  readonly regimen: 'temporada' | 'cadencia'
+  readonly cierre_inscripcion_offset_dias: number
+  readonly intervalo_ediciones_dias: number | null
 }
 
 interface TallerDetalleQueryClient {
@@ -162,7 +189,10 @@ export async function loadTallerDetalle(
 ): Promise<TallerDetalle | null> {
   const { data, error } = await client
     .from('talleres')
-    .select(`${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default, cadencia_dias, duracion_minutos`)
+    .select(
+      `${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default, cadencia_dias, duracion_minutos,
+       tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias`,
+    )
     .eq('slug', slug)
     .maybeSingle()
 
@@ -174,6 +204,11 @@ export async function loadTallerDetalle(
     modalidad_default: row.modalidad_default as TallerDetalle['modalidad_default'],
     cadencia_dias: (row.cadencia_dias as number | undefined) ?? 7,
     duracion_minutos: (row.duracion_minutos as number | null | undefined) ?? null,
+    tipo: (row.tipo as TallerDetalle['tipo'] | undefined) ?? 'individual',
+    vinculo: (row.vinculo as TallerDetalle['vinculo'] | undefined) ?? null,
+    regimen: (row.regimen as TallerDetalle['regimen'] | undefined) ?? 'temporada',
+    cierre_inscripcion_offset_dias: (row.cierre_inscripcion_offset_dias as number | undefined) ?? 0,
+    intervalo_ediciones_dias: (row.intervalo_ediciones_dias as number | null | undefined) ?? null,
   }
 }
 
