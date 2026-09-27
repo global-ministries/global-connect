@@ -6,7 +6,7 @@
 -- Covers acceptance criteria 1-4 and 8 from
 -- odd/tasks/talleres-equipo-en-organigrama.md:
 --   1. Creating a taller requires choosing its node.
---   2. Linking "Punto de Partida" sets dream_team_equipo_id to it,
+--   2. Linking an existing eligible leaf sets dream_team_equipo_id to it,
 --      mints no new node, and the node has its 4 roles.
 --   3. Creating a new node under an active parent (here: DPS, to also
 --      prove the parent isn't filtered by experiencia) hangs it there
@@ -88,11 +88,11 @@ INSERT INTO t3_fixture (key, id) VALUES
   ('nodo_con_hijos_gcp',           'e524ea89-d3a7-45fc-be00-5a6e7452434e'), -- Grupos de Corto Plazo, has children
   ('nodo_otra_experiencia',        '17119763-36b3-47b4-b5d5-26d75aa06ea4'), -- Waumba Land, experiencia ninos, leaf
   ('nodo_ya_vinculado',            'e9010000-0000-4000-8000-00000000000a'), -- Equipo TEST Scope A, linked to "De Hombre a Hombre"
-  ('nodo_para_vincular',           'a2570eef-1327-4e6a-848a-ebf1de85297b'), -- Punto de Partida — eligible
   ('parent_activo_dps',            '4c955366-fee9-4f6b-9b23-21156fd14048'), -- DPS — active parent, experiencia dps
   ('parent_inactivo',              'fb674ab4-45c2-4876-8b8b-d5717e89d581'), -- Dirección de Atracción — inactive root
   -- New fixtures created inside this transaction.
   ('nodo_inactivo',                'a3000000-0000-4000-8000-000000000001'),
+  ('nodo_para_vincular',           'a3000000-0000-4000-8000-000000000005'), -- own eligible leaf (the real Punto de Partida got a taller on 2026-09-26)
   ('actor_auth',                   'a3000000-0000-4000-8000-000000000002'),
   ('actor_usuario',                'a3000000-0000-4000-8000-000000000003'),
   ('actor_grant',                  'a3000000-0000-4000-8000-000000000004');
@@ -105,6 +105,12 @@ $$;
 -- parent, no children) — isolates the "inactive" rejection reason.
 INSERT INTO public.dream_team_equipos (id, experiencia, label, parent_equipo_id, activo)
 VALUES (pg_temp.fid('nodo_inactivo'), 'talleres_crecimiento', 'Equipo T3 Fixture Inactivo', pg_temp.fid('nodo_con_hijos_gcp'), false);
+
+-- An active, eligible leaf owned by this fixture: the ambient "Punto de
+-- Partida" node it used to link is a real taller's node since 2026-09-26
+-- (create_taller_abstract now raises EQUIPO_ALREADY_LINKED for it).
+INSERT INTO public.dream_team_equipos (id, experiencia, label, parent_equipo_id, activo)
+VALUES (pg_temp.fid('nodo_para_vincular'), 'talleres_crecimiento', 'Equipo T3 Fixture Para Vincular', pg_temp.fid('nodo_con_hijos_gcp'), true);
 
 -- The actor: an admin.manage-capable persona (also used for the AC8
 -- dream_team_servicios insert, where admin.manage is one of the roles
@@ -182,7 +188,7 @@ SELECT pg_temp.assert_create_taller_raises(
   NULL, pg_temp.fid('parent_inactivo')
 );
 
--- ── §2 (AC2): link mode — "Punto de Partida" ────────────────────────
+-- ── §2 (AC2): link mode — an existing eligible leaf ────────────────────────
 DO $ac2$
 DECLARE
   v_equipos_antes bigint;
@@ -193,8 +199,8 @@ BEGIN
   SELECT count(*) INTO v_equipos_antes FROM public.dream_team_equipos;
 
   v_resultado := public.create_taller_abstract(
-    'ZZ T3 Fixture Link Punto De Partida', NULL, 'periodo_general',
-    'zz-t3-fixture-link-punto-de-partida',
+    'ZZ T3 Fixture Link Nodo Existente', NULL, 'periodo_general',
+    'zz-t3-fixture-link-nodo-existente',
     pg_temp.fid('nodo_para_vincular'), NULL
   );
   v_taller_id := (v_resultado ->> 'taller_id')::uuid;
@@ -203,12 +209,12 @@ BEGIN
 
   PERFORM pg_temp.assert_int_eq('AC2: no new dream_team_equipos row is minted', v_equipos_despues, v_equipos_antes);
   PERFORM pg_temp.assert_uuid_eq(
-    'AC2: talleres.dream_team_equipo_id points at Punto de Partida',
+    'AC2: talleres.dream_team_equipo_id points at the linked leaf',
     (SELECT dream_team_equipo_id FROM public.talleres WHERE id = v_taller_id),
     pg_temp.fid('nodo_para_vincular')
   );
   PERFORM pg_temp.assert_int_eq(
-    'AC2: Punto de Partida has all 4 standard roles',
+    'AC2: the linked leaf has all 4 standard roles',
     (SELECT count(*) FROM public.dream_team_roles
      WHERE equipo_id = pg_temp.fid('nodo_para_vincular')
        AND label IN ('director', 'coordinador', 'lider', 'voluntario')),
