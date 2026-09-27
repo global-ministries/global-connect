@@ -256,11 +256,11 @@ describe('TallerDetallePage — gate', () => {
     expect(loadTallerDetalleMock).not.toHaveBeenCalled()
   })
 
-  it('asks to log in and resolves nothing when there is no user', async () => {
+  it('asks to log in (neutral Spanish, no voseo) and resolves nothing when there is no user', async () => {
     setup({ user: null })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/iniciar sesión/i)
+    expect(extractText(element)).toMatch(/necesitas iniciar sesión/i)
     expect(loadTallerDetalleMock).not.toHaveBeenCalled()
   })
 
