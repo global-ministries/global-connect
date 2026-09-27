@@ -25,7 +25,7 @@ import { revalidatePath } from 'next/cache'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
-import { rutaEdicion, rutaGrupo } from '@/lib/platform/talleres/rutas'
+import { rutaEdicion, rutaGrupo, rutaTaller } from '@/lib/platform/talleres/rutas'
 
 export type EdicionActionResult<T> =
   | ({ readonly ok: true } & T)
@@ -197,5 +197,50 @@ export async function quitarFacilitadorGrupo(
   // the grupo's own page shows the same facilitadores list.
   revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
   revalidatePath(rutaGrupo(input.tallerSlug, input.edicionId, input.grupoId))
+  return { ok: true }
+}
+
+// ─── Cancelar edición (T4, odd/tasks/talleres-temporadas-y-ediciones.md) ──
+//
+// Replaces "Cerrar esta edición" (closeExistingEdicionAction, gone — the
+// estado now follows the dates, see talleres_estado_efectivo). Manual
+// states are only borrador/cancelado (Decisiones): cancelar is allowed
+// from borrador OR abierto, a plain `taller_ediciones` UPDATE under RLS
+// (the same director/admin-scoped taller_ediciones_update policy the
+// legacy open/close actions already used), with the same `.select('id')`
+// non-empty check every other RLS-direct mutation in this feature uses.
+// Cancelling with inscritos is ALLOWED (the confirm dialog just warns);
+// the DB itself never blocks it — see the button's own confirm copy.
+
+export interface CancelarEdicionInput {
+  readonly tallerSlug: string
+  readonly edicionId: string
+}
+
+export async function cancelarEdicion(
+  input: CancelarEdicionInput,
+): Promise<EdicionActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client
+    .from('taller_ediciones')
+    .update({ estado: 'cancelado' })
+    .eq('id', input.edicionId)
+    .in('estado', ['borrador', 'abierto'])
+    .select('id')
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo cancelar la edición.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo cancelar la edición.') }
+  }
+
+  revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
+  revalidatePath(rutaTaller(input.tallerSlug))
   return { ok: true }
 }

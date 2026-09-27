@@ -1,29 +1,32 @@
 /**
  * @jest-environment node
  *
- * PR36 — Tests for the openExistingEdicionAction / closeExistingEdicionAction
- * server actions (Bug #2 fix).
+ * PR36 — Tests for the openExistingEdicionAction server action (Bug #2 fix).
  *
- * These actions live in
+ * This action lives in
  *   app/(auth)/admin/talleres/edicion/[id]/actions.ts
- * and gate state transitions on the edicion detail page (PR34's
- * read-only page).
+ * and gates the borrador → abierto transition on the edicion detail page
+ * (PR34's read-only page).
+ *
+ * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — its sibling
+ * closeExistingEdicionAction (abierto|en_curso → cerrado) was REMOVED:
+ * `cerrado` is now derived from the edición's own dates
+ * (talleres_estado_efectivo), never a manual transition. This file's own
+ * "closeExistingEdicionAction" describe blocks were removed alongside it;
+ * cancelarEdicion (borrador|abierto → cancelado, its replacement) is
+ * covered by __tests__/app/(auth)/talleres/[taller]/[edicion]/actions.test.ts.
  *
  * Covers:
  *   - kill switch (isTalleresEnabled)
  *   - auth gate
  *   - capability gate (director.write OR admin.manage)
- *   - happy path: each transition writes the expected estado
- *   - state-predicate guard: NOT_FOUND_OR_NOT_BORRADOR (open)
- *     and NOT_FOUND_OR_NOT_ACTIVE (close) when the row is in the
- *     wrong state.
+ *   - happy path: writes the expected estado
+ *   - state-predicate guard: NOT_FOUND_OR_NOT_BORRADOR when the row is in
+ *     the wrong state.
  *   - revalidation paths
  */
 
-import {
-  closeExistingEdicionAction,
-  openExistingEdicionAction,
-} from '@/app/(auth)/admin/talleres/edicion/[id]/actions'
+import { openExistingEdicionAction } from '@/app/(auth)/admin/talleres/edicion/[id]/actions'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(() => true),
@@ -328,91 +331,3 @@ describe('openExistingEdicionAction — happy path', () => {
   })
 })
 
-// ─── closeExistingEdicionAction ─────────────────────────────────────
-
-describe('closeExistingEdicionAction — kill switch', () => {
-  it('returns ok:false error:talleres-disabled when isTalleresEnabled is false', async () => {
-    flagsMock.mockReturnValue(false)
-    const result = await closeExistingEdicionAction('e-1')
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('talleres-disabled')
-  })
-})
-
-describe('closeExistingEdicionAction — auth + capability gate', () => {
-  it('returns UNAUTHENTICATED when no user is signed in', async () => {
-    createSupabaseServerClientMock.mockReset().mockResolvedValueOnce(
-      makeUnauthenticatedClient(),
-    )
-    const result = await closeExistingEdicionAction('e-1')
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('UNAUTHENTICATED')
-  })
-
-  it('returns FORBIDDEN when neither capability is held', async () => {
-    resolveSessionMock.mockReset().mockResolvedValueOnce({
-      personaId: 'p-1',
-      subjectAuthId: 'auth-1',
-      globalRoles: [],
-      contexts: [],
-      capabilities: [
-        { key: 'talleres_crecimiento.coordinator.read' },
-      ],
-    })
-    const result = await closeExistingEdicionAction('e-1')
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('FORBIDDEN')
-  })
-})
-
-describe('closeExistingEdicionAction — happy path', () => {
-  it('returns ok:true when the UPDATE writes the row', async () => {
-    const rec = freshRecorder({
-      data: { id: 'e-1', taller_id: 't-1', estado: 'cerrado' },
-      error: null,
-    })
-    createSupabaseServerClientMock.mockReset().mockResolvedValueOnce(
-      makeMockClient(rec),
-    )
-    const result = await closeExistingEdicionAction('e-1')
-    expect(result.ok).toBe(true)
-    if (result.ok) expect(result.message).toMatch(/cerrada/i)
-    expect(rec.updatePayload).toEqual({ estado: 'cerrado' })
-    expect(rec.estadoFilter).toEqual({
-      kind: 'in',
-      value: ['abierto', 'en_curso'],
-    })
-    expect(revalidatePathMock).toHaveBeenCalledWith(
-      '/admin/talleres/edicion/e-1',
-    )
-    expect(revalidatePathMock).toHaveBeenCalledWith(
-      '/talleres/yoga-basico/e-1',
-    )
-  })
-
-  it('returns NOT_FOUND_OR_NOT_ACTIVE when the predicate rejects the row', async () => {
-    const rec = freshRecorder({ data: null, error: null })
-    createSupabaseServerClientMock.mockReset().mockResolvedValueOnce(
-      makeMockClient(rec),
-    )
-    const result = await closeExistingEdicionAction('e-1')
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('NOT_FOUND_OR_NOT_ACTIVE')
-  })
-
-  it('returns UPDATE_FAILED on Supabase error', async () => {
-    const rec = freshRecorder({
-      data: null,
-      error: { message: 'network blip' },
-    })
-    createSupabaseServerClientMock.mockReset().mockResolvedValueOnce(
-      makeMockClient(rec),
-    )
-    const result = await closeExistingEdicionAction('e-1')
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.error).toBe('UPDATE_FAILED')
-      expect(result.message).toBe('network blip')
-    }
-  })
-})

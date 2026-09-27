@@ -65,7 +65,7 @@ jest.mock('@/lib/platform/talleres/permisos', () => {
 
 jest.mock('@/components/talleres/open-edicion-button', () => ({
   OpenEdicionButton: () => null,
-  CloseEdicionButton: () => null,
+  CancelarEdicionButton: () => null,
 }))
 
 jest.mock('@/components/talleres/grupos-section', () => ({
@@ -98,6 +98,11 @@ const TALLER: TallerDetalle = {
   dream_team_equipo_id: 'eq-1',
   cadencia_dias: 7,
   duracion_minutos: null,
+  tipo: 'individual',
+  vinculo: null,
+  regimen: 'temporada',
+  cierre_inscripcion_offset_dias: 0,
+  intervalo_ediciones_dias: null,
   ediciones: [],
 }
 
@@ -115,7 +120,9 @@ const EDICION: EdicionLocalDetalle = {
   duracion_estimada_minutos_snapshot: 90,
   firmantes: [],
   cohorte: null,
-  periodo_general: null,
+  fecha_inicio: null,
+  fecha_fin: null,
+  cierre_inscripcion: null,
   inscripciones_count: 1,
   inscripciones_aprobadas_count: 0,
   certificados_count: 0,

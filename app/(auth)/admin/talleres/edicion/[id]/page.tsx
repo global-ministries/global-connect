@@ -8,10 +8,12 @@
  * do, since the old URL never carried the taller slug the new tree
  * threads into the path (rutas.ts's REQUIERE_PUENTE).
  *
- * `./actions.ts` (openExistingEdicionAction, closeExistingEdicionAction)
- * is untouched and stays alive: `components/talleres/open-edicion-
- * button.tsx` still imports it directly, and that component is used by
- * the NEW `/talleres/[taller]/[edicion]` page too.
+ * `./actions.ts` (openExistingEdicionAction) stays alive:
+ * `components/talleres/open-edicion-button.tsx` still imports it
+ * directly, and that component is used by the NEW
+ * `/talleres/[taller]/[edicion]` page too. Its sibling
+ * closeExistingEdicionAction was removed in T4 (odd/tasks/talleres-
+ * temporadas-y-ediciones.md) — see that file's own header.
  */
 
 import { redirect } from 'next/navigation'

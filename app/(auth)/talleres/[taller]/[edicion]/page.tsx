@@ -26,7 +26,7 @@
  * never a flat `caps.includes(...)` check (docs/talleres-de-punta-a-
  * punta.md §9, "Permisos en la interfaz").
  *
- *   - editarEdicion       -> cabecera's OpenEdicionButton/CloseEdicionButton.
+ *   - editarEdicion       -> cabecera's OpenEdicionButton/CancelarEdicionButton.
  *     talleres_mis_permisos computes editar_edicion as director.write OR
  *     admin.manage — the exact same two capabilities
  *     admin/talleres/edicion/[id]/actions.ts's own requireAdminOrDirector()
@@ -38,9 +38,8 @@
  *     mirroring the old page's `hasCap && edicion.cohorte` gate, now
  *     scoped instead of flat.
  *
- * Ventana (the taller_periodos_generales row) and the cabecera's own
- * fields have no permission gate, same as the old page's ungated
- * "Información de la edición"/"Período general" cards: visibility is
+ * Ventana and the cabecera's own fields have no permission gate, same as
+ * the old page's ungated "Información de la edición" card: visibility is
  * already decided by whether the two loaders above returned data at all
  * (RLS-scoped), matching T3's "RLS decides, the page doesn't re-branch"
  * discipline.
@@ -57,6 +56,18 @@
  * for the plantilla) — both fetched only under the same gestionarGrupos +
  * cohorte gate the section's own visibility already uses, matching T3's
  * "fetch only what will actually render" discipline.
+ *
+ * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6):
+ *   - refrescarEstadosEdiciones(client, taller.id) runs right after the
+ *     taller lookup (its id is known then) and before loadEdicionLocalDetalle,
+ *     so the badge below never shows a stale STORED estado for THIS taller
+ *     (best effort — see that module's own header).
+ *   - "Cerrar esta edición" is GONE (cerrado/en_curso are now derived from
+ *     the edición's own dates); CancelarEdicionButton (borrador|abierto →
+ *     cancelado) replaces it.
+ *   - Ventana no longer reads a `taller_periodos_generales` join (that
+ *     table is deprecated, always NULL from T2 onward) — it reads the
+ *     edición's OWN fecha_inicio/fecha_fin/cierre_inscripcion instead.
  */
 
 import { notFound } from 'next/navigation'
@@ -74,8 +85,8 @@ import {
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { GruposSection } from '@/components/talleres/grupos-section'
-import { OpenEdicionButton, CloseEdicionButton } from '@/components/talleres/open-edicion-button'
-import { edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
+import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
+import { cierreRelativoLabel, edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -88,6 +99,7 @@ import { loadEdicionLocalDetalle, type EdicionLocalDetalle } from '@/lib/platfor
 import { loadAdminInscripciones } from '@/lib/platform/talleres/admin-inscripciones'
 import { loadGruposDeCohorte, loadGruposInstanciados } from '@/lib/platform/talleres/grupo-detalle'
 import { loadServidoresDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
+import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
 import {
   approveInscripcionAction,
   rejectInscripcionAction,
@@ -149,6 +161,12 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   if (!taller) {
     notFound()
   }
+
+  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — best
+  // effort, scoped to THIS taller (its id is known now, unlike the taller
+  // page's own unscoped call) so the edición estado read right below is
+  // never stale.
+  await refrescarEstadosEdiciones(client, taller.id)
 
   const edicion = await loadEdicionLocalDetalle(client, edicionId)
   if (!edicion || edicion.taller_slug !== taller.slug) {
@@ -223,8 +241,12 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
               <OpenEdicionButton edicionId={edicion.id} />
             )}
             {permisos.editarEdicion &&
-              (edicion.estado === 'abierto' || edicion.estado === 'en_curso') && (
-                <CloseEdicionButton edicionId={edicion.id} />
+              (edicion.estado === 'borrador' || edicion.estado === 'abierto') && (
+                <CancelarEdicionButton
+                  tallerSlug={taller.slug}
+                  edicionId={edicion.id}
+                  inscritos={edicion.inscripciones_count}
+                />
               )}
           </div>
         </div>
@@ -268,9 +290,11 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
           Ventana
         </TituloSistema>
         <TarjetaSistema variante="outlined" className="mt-3 p-4">
-          {edicion.periodo_general ? (
+          {edicion.fecha_inicio && edicion.fecha_fin && edicion.cierre_inscripcion ? (
             <>
-              <TextoSistema>{resumenVentana(edicion.estado, edicion.periodo_general)}</TextoSistema>
+              <TextoSistema>
+                {resumenVentana(edicion.estado, edicion.fecha_fin, edicion.cierre_inscripcion)}
+              </TextoSistema>
               {/* T11 — the detailed fields stay reachable, collapsed, only
                   for whoever could actually act on them (editarEdicion) —
                   a read-only viewer gets the one sentence above and
@@ -279,32 +303,19 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
                 <details className="mt-3">
                   <summary className="cursor-pointer text-sm font-medium text-foreground">Ver fechas</summary>
                   <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Campo titulo="Apertura automática">
-                      {formatFecha(edicion.periodo_general.fecha_apertura_automatica)}
+                    <Campo titulo="Primera clase">{formatFecha(edicion.fecha_inicio)}</Campo>
+                    <Campo titulo="Última clase">{formatFecha(edicion.fecha_fin)}</Campo>
+                    <Campo titulo="Cierre de inscripción">{formatFecha(edicion.cierre_inscripcion)}</Campo>
+                    <Campo titulo="Cierre relativo">
+                      {cierreRelativoLabel(taller.cierre_inscripcion_offset_dias)}
                     </Campo>
-                    <Campo titulo="Cierre automático">
-                      {formatFecha(edicion.periodo_general.fecha_cierre_automatica)}
-                    </Campo>
-                    <Campo titulo="Apertura manual">
-                      {formatFecha(edicion.periodo_general.fecha_apertura_manual)}
-                    </Campo>
-                    <Campo titulo="Cierre manual">
-                      {formatFecha(edicion.periodo_general.fecha_cierre_manual)}
-                    </Campo>
-                    <Campo titulo="Cierre real">
-                      {formatFecha(edicion.periodo_general.fecha_cierre_real)}
-                    </Campo>
-                    {edicion.periodo_general.motivo_cierre && (
-                      <Campo titulo="Motivo de cierre">{edicion.periodo_general.motivo_cierre}</Campo>
-                    )}
                   </dl>
                 </details>
               )}
             </>
           ) : (
             <TextoSistema variante="sutil">
-              No hay período general asociado (modalidad permanente custom o período aún no
-              creado).
+              Esta edición no tiene fechas registradas todavía.
             </TextoSistema>
           )}
         </TarjetaSistema>
@@ -324,30 +335,46 @@ function Campo({ titulo, children }: { readonly titulo: string; readonly childre
   )
 }
 
+/**
+ * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — `timeZone:
+ * 'UTC'` avoids the day-off-by-one a plain `new Date(value)` +
+ * `toLocaleDateString` has for a DATE-only value (fecha_inicio/fecha_fin/
+ * cierre_inscripcion are `date`, not `timestamptz`) in a negative-UTC-offset
+ * viewer timezone — this page now shows those columns directly (Ventana),
+ * not just cohorte timestamps, so the bug would otherwise become visible.
+ */
 function formatFecha(value: string | null): string {
   if (!value) return '—'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString('es')
+  return d.toLocaleDateString('es', { timeZone: 'UTC' })
 }
 
 /**
- * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
- * Ventana section collapses to ONE sentence for a viewer without
- * editarEdicion. This reads the edición's OWN `estado` (already tracked
- * elsewhere, e.g. the badge above) rather than comparing dates itself —
- * deriving open/closed FROM dates is explicitly out of scope (paso 6,
- * "estados por fecha"); this only picks which of the existing fields to
- * quote.
+ * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the Ventana
+ * section collapses to ONE sentence for a viewer without editarEdicion.
+ * Replaces the old periodo_general-backed version (that table is
+ * deprecated, always NULL from T2 onward): reads the edición's OWN
+ * fecha_fin/cierre_inscripcion, the exact columns talleres_estado_efectivo
+ * derives `estado` from — quoting the SAME dates the badge above is
+ * already a function of, not a separate snapshot of them.
  */
 function resumenVentana(
   estado: EdicionLocalDetalle['estado'],
-  periodo: NonNullable<EdicionLocalDetalle['periodo_general']>,
+  fechaFin: string,
+  cierreInscripcion: string,
 ): string {
-  if (estado === 'cerrado') {
-    const fecha = periodo.fecha_cierre_real ?? periodo.fecha_cierre_manual ?? periodo.fecha_cierre_automatica
-    return fecha ? `Inscripciones cerradas el ${formatFecha(fecha)}.` : 'Inscripciones cerradas.'
+  switch (estado) {
+    case 'cancelado':
+      return 'Esta edición está cancelada.'
+    case 'cerrado':
+      return `Cerrada el ${formatFecha(fechaFin)}.`
+    case 'en_curso':
+      return `En curso hasta el ${formatFecha(fechaFin)}.`
+    default:
+      // borrador, abierto — both already carry real dates (set at
+      // creation time), so the forward-looking sentence is accurate even
+      // before a borrador is opened.
+      return `Inscripciones abiertas hasta el ${formatFecha(cierreInscripcion)}.`
   }
-  const fechaCierre = periodo.fecha_cierre_manual ?? periodo.fecha_cierre_automatica
-  return fechaCierre ? `Inscripciones abiertas hasta ${formatFecha(fechaCierre)}.` : 'Sin fecha de cierre.'
 }

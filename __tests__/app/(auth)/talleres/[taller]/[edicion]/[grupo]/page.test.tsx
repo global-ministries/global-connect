@@ -121,6 +121,11 @@ const TALLER: TallerDetalle = {
   dream_team_equipo_id: 'eq-1',
   cadencia_dias: 7,
   duracion_minutos: null,
+  tipo: 'individual',
+  vinculo: null,
+  regimen: 'cadencia',
+  cierre_inscripcion_offset_dias: 0,
+  intervalo_ediciones_dias: null,
   ediciones: [],
 }
 
@@ -138,7 +143,9 @@ const EDICION: EdicionLocalDetalle = {
   duracion_estimada_minutos_snapshot: 90,
   firmantes: [],
   cohorte: { id: 'c-1', dream_team_equipo_id: 'eq-1', edicion: 'Octubre 2026', started_at: null, ended_at: null },
-  periodo_general: null,
+  fecha_inicio: '2026-10-01',
+  fecha_fin: '2026-10-22',
+  cierre_inscripcion: '2026-10-01',
   inscripciones_count: 0,
   inscripciones_aprobadas_count: 0,
   certificados_count: 0,
