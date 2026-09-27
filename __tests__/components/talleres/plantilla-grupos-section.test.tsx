@@ -90,6 +90,16 @@ describe('PlantillaGruposSection — rendering', () => {
     render(<PlantillaGruposSection {...baseProps({ grupos: [] })} />)
     expect(screen.getByText(/todavía no tiene grupos/i)).toBeInTheDocument()
   })
+
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — one
+  // vocabulary: "Grupos" (plantilla) is ambiguous with the edición's own
+  // "Grupos de esta edición" list, so the section is titled "Plantilla de
+  // grupos" with a hint naming what it is for.
+  it('titles the section "Plantilla de grupos" with its hint', () => {
+    render(<PlantillaGruposSection {...baseProps()} />)
+    expect(screen.getByRole('heading', { name: /^plantilla de grupos$/i })).toBeInTheDocument()
+    expect(screen.getByText(/se copian a cada edición nueva/i)).toBeInTheDocument()
+  })
 })
 
 describe('PlantillaGruposSection — read-only viewer', () => {

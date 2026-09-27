@@ -42,6 +42,7 @@ function baseProps(overrides: Partial<Parameters<typeof OpenEdicionForm>[0]> = {
     sesionesEstimadas: 4,
     gruposPlantillaActivos: 2,
     facilitadoresOmitidosPreview: [],
+    duracionMinutos: 90,
     ...overrides,
   }
 }
@@ -122,21 +123,27 @@ describe('OpenEdicionForm — T11: renamed to "Crear edición" everywhere', () =
 })
 
 describe('OpenEdicionForm — no "sesiones estimadas" field', () => {
-  it('never shows a sesiones/duración (semanas) field', () => {
+  it('never shows a sesiones/duración (semanas)/cantidad de clases field', () => {
     render(<OpenEdicionForm {...baseProps()} />)
     openForm()
     expect(screen.queryByText(/sesiones estimadas/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/duración \(semanas\)/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/cantidad de clases/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/sesiones/i)).not.toBeInTheDocument()
   })
 
-  it('still shows the unrelated "Duración por sesión (min)" field', () => {
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+  // form no longer asks "Duración por sesión (min)": that value now lives
+  // on the taller as `duracion_minutos` (editable in PlantillaClasesSection),
+  // and the page passes it down as `duracionMinutos`, sent verbatim, never
+  // user-typed here.
+  it('never shows the old "Duración por sesión (min)" field', () => {
     render(<OpenEdicionForm {...baseProps()} />)
     openForm()
-    expect(screen.getByText(/duración por sesión \(min\)/i)).toBeInTheDocument()
+    expect(screen.queryByText(/duración por sesión/i)).not.toBeInTheDocument()
   })
 
-  it('sends the sesionesEstimadas prop (never a user-typed value) as sesiones_estimadas', async () => {
+  it('sends the sesionesEstimadas and duracionMinutos props (never a user-typed value)', async () => {
     openEdicionMock.mockResolvedValue({
       ok: true,
       edicionId: 'e-1',
@@ -146,25 +153,26 @@ describe('OpenEdicionForm — no "sesiones estimadas" field', () => {
       facilitadoresOmitidos: [],
       clasesPorGrupo: 0,
     })
-    render(<OpenEdicionForm {...baseProps({ sesionesEstimadas: 4 })} />)
+    render(<OpenEdicionForm {...baseProps({ sesionesEstimadas: 4, duracionMinutos: 75 })} />)
     openForm()
     fireEvent.change(screen.getByPlaceholderText(/Otoño 2026/i), { target: { value: 'Primavera 2027' } })
     fireEvent.change(screen.getByLabelText(/fecha inicio/i), { target: { value: '2027-03-01' } })
     fireEvent.click(screen.getByRole('button', { name: /^crear edición$/i }))
     await waitFor(() =>
-      expect(openEdicionMock).toHaveBeenCalledWith(expect.objectContaining({ sesiones_estimadas: 4 })),
+      expect(openEdicionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ sesiones_estimadas: 4, duracion_estimada_minutos: 75 }),
+      ),
     )
   })
 })
 
 describe('OpenEdicionForm — no plantilla yet (sesionesEstimadas: null)', () => {
-  it('shows the old sesiones field, defaulting to 1, with its helper text', () => {
+  it('shows the fallback field as "Cantidad de clases", defaulting to 1', () => {
     render(<OpenEdicionForm {...baseProps({ sesionesEstimadas: null })} />)
     openForm()
-    const sesionesInput = screen.getByLabelText(/duración \(semanas\)/i)
-    expect(sesionesInput).toHaveValue(1)
-    expect(sesionesInput).toHaveAttribute('min', '1')
-    expect(screen.getByText(/1 semana = 1 sesión/i)).toBeInTheDocument()
+    const cantidadInput = screen.getByLabelText(/cantidad de clases/i)
+    expect(cantidadInput).toHaveValue(1)
+    expect(cantidadInput).toHaveAttribute('min', '1')
   })
 
   it('shows a notice asking how many clases the edición will have', () => {
@@ -188,7 +196,7 @@ describe('OpenEdicionForm — no plantilla yet (sesionesEstimadas: null)', () =>
     render(<OpenEdicionForm {...baseProps({ sesionesEstimadas: null })} />)
     openForm()
     fireEvent.change(screen.getByPlaceholderText(/Otoño 2026/i), { target: { value: 'Primavera 2027' } })
-    fireEvent.change(screen.getByLabelText(/duración \(semanas\)/i), { target: { value: '8' } })
+    fireEvent.change(screen.getByLabelText(/cantidad de clases/i), { target: { value: '8' } })
     fireEvent.change(screen.getByLabelText(/fecha inicio/i), { target: { value: '2027-03-01' } })
     fireEvent.click(screen.getByRole('button', { name: /^crear edición$/i }))
     await waitFor(() =>

@@ -376,7 +376,7 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
           inscripcion-a-grupo.md) */}
       <section aria-labelledby="equipo-heading">
         <TituloSistema nivel={2} id="equipo-heading">
-          Equipo
+          Facilitadores del grupo
         </TituloSistema>
         <div className="mt-3">
           {asignaciones.length === 0 ? (

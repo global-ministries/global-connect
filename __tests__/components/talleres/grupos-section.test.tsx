@@ -128,13 +128,23 @@ describe('GruposSection — list (T4)', () => {
 })
 
 describe('GruposSection — read-only viewer', () => {
-  it('shows the data but no edit, facilitador or crear-grupo controls', () => {
+  it('shows the data but no edit, facilitador or agregar-grupo-extra controls', () => {
     render(<GruposSection {...baseProps({ puedeEditar: false })} />)
     expect(screen.getByText('Grupo Alfa')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /editar grupo/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: /^servidor$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /quitar/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /crear grupo/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /agregar un grupo extra/i })).not.toBeInTheDocument()
+  })
+})
+
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — one
+// vocabulary: "Grupos" is ambiguous with the taller's own "Plantilla de
+// grupos" section, so this list is titled "Grupos de esta edición".
+describe('GruposSection — T11: heading', () => {
+  it('titles the section "Grupos de esta edición"', () => {
+    render(<GruposSection {...baseProps()} />)
+    expect(screen.getByRole('heading', { name: /^grupos de esta edición$/i })).toBeInTheDocument()
   })
 })
 
@@ -231,14 +241,14 @@ describe('GruposSection — quitar facilitador', () => {
   })
 })
 
-describe('GruposSection — crear grupo (exception, keeps the fetch flow)', () => {
-  it('POSTs the grupo, surfaces the generated-session count, and refreshes', async () => {
+describe('GruposSection — agregar un grupo extra (exception, keeps the fetch flow)', () => {
+  it('POSTs the grupo, surfaces the generated-clase count, and refreshes', async () => {
     render(<GruposSection {...baseProps({ puedeEditar: true })} />)
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Grupo Gamma' } })
     fireEvent.change(screen.getByLabelText('Capacidad'), { target: { value: '9' } })
-    fireEvent.click(screen.getByRole('button', { name: /crear grupo/i }))
+    fireEvent.click(screen.getByRole('button', { name: /agregar un grupo extra/i }))
 
-    expect(await screen.findByText(/8 sesiones/i)).toBeInTheDocument()
+    expect(await screen.findByText(/8 clases/i)).toBeInTheDocument()
     const post = fetchCalls.find((c) => c.url === '/api/talleres/grupos')
     expect(post).toBeDefined()
     expect(JSON.parse(post!.init!.body as string)).toMatchObject({

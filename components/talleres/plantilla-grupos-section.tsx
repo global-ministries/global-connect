@@ -197,9 +197,14 @@ export function PlantillaGruposSection({
   return (
     <section aria-labelledby="grupos-heading">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <TituloSistema nivel={2} id="grupos-heading">
-          Grupos
-        </TituloSistema>
+        <div>
+          <TituloSistema nivel={2} id="grupos-heading">
+            Plantilla de grupos
+          </TituloSistema>
+          <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+            Se copian a cada edición nueva.
+          </TextoSistema>
+        </div>
         {puedeEditar && (
           <BotonSistema type="button" variante="outline" tamaño="sm" icono={Plus} onClick={() => setAgregando(true)}>
             Agregar grupo
