@@ -7916,6 +7916,15 @@ export type Database = {
           pp_nombre: string
         }[]
       }
+      talleres_crear_edicion: {
+        Args: {
+          p_adelantar?: number
+          p_fecha_inicio?: string
+          p_taller_id: string
+          p_temporada_id?: string
+        }
+        Returns: Json
+      }
       talleres_editar_clase: {
         Args: {
           p_fecha_programada: string
@@ -7986,6 +7995,16 @@ export type Database = {
           persona_id: string
           rol: string
         }[]
+      }
+      talleres_instanciar_edicion: {
+        Args: {
+          p_fecha_inicio: string
+          p_nombre: string
+          p_sesiones_fallback?: number
+          p_taller_id: string
+          p_temporada_id: string
+        }
+        Returns: Json
       }
       talleres_mis_permisos: { Args: { p_equipo_id: string }; Returns: Json }
       talleres_mover_plantilla_clase: {
