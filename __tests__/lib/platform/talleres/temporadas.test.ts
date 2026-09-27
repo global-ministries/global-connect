@@ -3,55 +3,168 @@
  *
  * T3 (odd/tasks/talleres-consolidar-pantallas.md) — loadTemporadasAbiertas.
  *
- * Extracted from the old app/(auth)/admin/talleres/abstracto/[slug]/page.tsx
- * (PR46) into lib/platform/talleres/ so it is independently testable and so
- * /talleres/[taller]'s own page test can mock it like every other loader in
- * this module family, instead of hand-rolling a chainable Supabase mock for
- * one inline query. Behavior is unchanged: open (`estado = 'abierto'`)
- * global seasons, newest `fecha_apertura` first, capped at 100 — used to
- * populate OpenEdicionForm's "Temporada" picker.
+ * T3 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — RED->GREEN for
+ * the tree-scoped rewrite: talleres_temporadas is now owned by a Dream Team
+ * node and its RLS is scoped by that node's own tree (supabase/migrations/
+ * 20260928120000_talleres_temporadas_por_direccion.sql), so
+ * loadTemporadasAbiertas now takes the CALLING TALLER's id and filters to
+ * its ancestry, and loadTemporadaDetalle now offers only talleres of the
+ * temporada's own tree with regimen='temporada'. Covers the new pure
+ * `idsDelArbol`/`idsAncestros` tree helpers directly, plus the loaders that
+ * use them.
  */
 
 import {
   loadTemporadasAbiertas,
   loadTemporadas,
   loadTemporadaDetalle,
+  idsDelArbol,
+  idsAncestros,
+  type EquipoArbolRaw,
 } from '@/lib/platform/talleres/temporadas'
 
-/** Thenable `.from(t).select(cols).eq(col, val).order(col, opts).limit(n)` client mock. */
-function buildTemporadasClientMock(
-  rows: unknown[] | null,
-  error: unknown = null,
-): {
-  client: { from: jest.Mock }
-  eqCalls: Array<[string, string]>
-  selectCols: string[]
-} {
-  const eqCalls: Array<[string, string]> = []
-  const selectCols: string[] = []
-  const from = jest.fn(() => {
-    const b: Record<string, unknown> = {}
-    b['select'] = jest.fn((cols: string) => {
-      selectCols.push(cols)
-      return b
-    })
-    b['eq'] = jest.fn((col: string, val: string) => {
-      eqCalls.push([col, val])
-      return b
-    })
-    b['order'] = jest.fn(() => b)
-    b['limit'] = jest.fn(() => Promise.resolve({ data: rows, error }))
-    return b
+// ─── idsDelArbol / idsAncestros (pure) ──────────────────────────────────────
+
+describe('idsDelArbol', () => {
+  const equipos: EquipoArbolRaw[] = [
+    { id: 'root', parent_equipo_id: null },
+    { id: 'child', parent_equipo_id: 'root' },
+    { id: 'grandchild', parent_equipo_id: 'child' },
+    { id: 'unrelated', parent_equipo_id: null },
+  ]
+
+  it('includes the root itself plus every descendant', () => {
+    const ids = idsDelArbol(equipos, 'root')
+    expect(ids).toEqual(new Set(['root', 'child', 'grandchild']))
   })
-  return { client: { from }, eqCalls, selectCols }
+
+  it('a leaf with no children returns just itself', () => {
+    const ids = idsDelArbol(equipos, 'grandchild')
+    expect(ids).toEqual(new Set(['grandchild']))
+  })
+
+  it('never includes an unrelated branch', () => {
+    const ids = idsDelArbol(equipos, 'root')
+    expect(ids.has('unrelated')).toBe(false)
+  })
+
+  it('does not loop forever on a cyclic input', () => {
+    const cyclic: EquipoArbolRaw[] = [
+      { id: 'a', parent_equipo_id: 'b' },
+      { id: 'b', parent_equipo_id: 'a' },
+    ]
+    const ids = idsDelArbol(cyclic, 'a')
+    expect(ids).toEqual(new Set(['a', 'b']))
+  })
+})
+
+describe('idsAncestros', () => {
+  const equipos: EquipoArbolRaw[] = [
+    { id: 'root', parent_equipo_id: null },
+    { id: 'child', parent_equipo_id: 'root' },
+    { id: 'grandchild', parent_equipo_id: 'child' },
+  ]
+
+  it('includes the leaf itself plus every ancestor up to the root', () => {
+    const ids = idsAncestros(equipos, 'grandchild')
+    expect(ids).toEqual(new Set(['grandchild', 'child', 'root']))
+  })
+
+  it('a root with no parent returns just itself', () => {
+    const ids = idsAncestros(equipos, 'root')
+    expect(ids).toEqual(new Set(['root']))
+  })
+
+  it('an id missing from the snapshot returns just itself', () => {
+    const ids = idsAncestros(equipos, 'missing')
+    expect(ids).toEqual(new Set(['missing']))
+  })
+
+  it('does not loop forever on a cyclic input', () => {
+    const cyclic: EquipoArbolRaw[] = [
+      { id: 'a', parent_equipo_id: 'b' },
+      { id: 'b', parent_equipo_id: 'a' },
+    ]
+    const ids = idsAncestros(cyclic, 'a')
+    expect(ids).toEqual(new Set(['a', 'b']))
+  })
+})
+
+// ─── loadTemporadasAbiertas ─────────────────────────────────────────────────
+
+/**
+ * Thenable client mock: `.from('talleres').select().eq().maybeSingle()` ->
+ * the taller's equipo; `.from('dream_team_equipos').select()` -> the flat
+ * snapshot; `.from('talleres_temporadas').select().eq().in().order().limit()`
+ * -> the open seasons in that ancestry.
+ */
+function buildAbiertasClientMock(opts: {
+  tallerEquipoId?: string | null
+  equipos?: EquipoArbolRaw[]
+  temporadas?: unknown[] | null
+  temporadasError?: unknown
+}): { client: { from: jest.Mock }; inCalls: unknown[][] } {
+  const inCalls: unknown[][] = []
+  const equipos = opts.equipos ?? [{ id: 'equipo-1', parent_equipo_id: null }]
+  const tallerEquipoId = opts.tallerEquipoId === undefined ? 'equipo-1' : opts.tallerEquipoId
+
+  const from = jest.fn((table: string) => {
+    if (table === 'talleres') {
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: () =>
+              Promise.resolve({ data: { dream_team_equipo_id: tallerEquipoId }, error: null }),
+          }),
+        }),
+      }
+    }
+    if (table === 'dream_team_equipos') {
+      return { select: () => Promise.resolve({ data: equipos, error: null }) }
+    }
+    if (table === 'talleres_temporadas') {
+      return {
+        select: () => ({
+          eq: () => ({
+            in: (col: string, vals: unknown) => {
+              inCalls.push([col, vals])
+              return {
+                order: () => ({
+                  limit: () =>
+                    Promise.resolve({
+                      data: opts.temporadas === undefined ? [] : opts.temporadas,
+                      error: opts.temporadasError ?? null,
+                    }),
+                }),
+              }
+            },
+          }),
+        }),
+      }
+    }
+    throw new Error(`unexpected table: ${table}`)
+  })
+  return { client: { from }, inCalls }
 }
 
 describe('loadTemporadasAbiertas', () => {
-  it('queries talleres_temporadas filtered to estado=abierto', async () => {
-    const { client, eqCalls } = buildTemporadasClientMock([])
-    await loadTemporadasAbiertas(client)
-    expect(client.from).toHaveBeenCalledWith('talleres_temporadas')
-    expect(eqCalls).toEqual([['estado', 'abierto']])
+  it('returns [] when the taller has no dream_team_equipo_id', async () => {
+    const { client } = buildAbiertasClientMock({ tallerEquipoId: null })
+    const result = await loadTemporadasAbiertas(client, 't-1')
+    expect(result).toEqual([])
+  })
+
+  it("filters talleres_temporadas to the taller's own ancestry", async () => {
+    const equipos: EquipoArbolRaw[] = [
+      { id: 'root', parent_equipo_id: null },
+      { id: 'child', parent_equipo_id: 'root' },
+    ]
+    const { client, inCalls } = buildAbiertasClientMock({ tallerEquipoId: 'child', equipos })
+    await loadTemporadasAbiertas(client, 't-1')
+    expect(inCalls).toHaveLength(1)
+    const [col, vals] = inCalls[0]
+    expect(col).toBe('dream_team_equipo_id')
+    expect(new Set(vals as string[])).toEqual(new Set(['child', 'root']))
   })
 
   it('returns the rows as-is (id, nombre) when the query succeeds', async () => {
@@ -59,29 +172,26 @@ describe('loadTemporadasAbiertas', () => {
       { id: 'temp-1', nombre: 'Otoño 2026' },
       { id: 'temp-2', nombre: 'Primavera 2027' },
     ]
-    const { client } = buildTemporadasClientMock(rows)
-    const result = await loadTemporadasAbiertas(client)
+    const { client } = buildAbiertasClientMock({ temporadas: rows })
+    const result = await loadTemporadasAbiertas(client, 't-1')
     expect(result).toEqual(rows)
   })
 
   it('returns [] when the query errors', async () => {
-    const { client } = buildTemporadasClientMock(null, { message: 'boom' })
-    const result = await loadTemporadasAbiertas(client)
+    const { client } = buildAbiertasClientMock({ temporadas: null, temporadasError: { message: 'boom' } })
+    const result = await loadTemporadasAbiertas(client, 't-1')
     expect(result).toEqual([])
   })
 
   it('returns [] when data is null without an error', async () => {
-    const { client } = buildTemporadasClientMock(null)
-    const result = await loadTemporadasAbiertas(client)
+    const { client } = buildAbiertasClientMock({ temporadas: null })
+    const result = await loadTemporadasAbiertas(client, 't-1')
     expect(result).toEqual([])
   })
 })
 
 // T8 (odd/tasks/talleres-consolidar-pantallas.md) — the /talleres/temporadas
-// list + detail loaders, extracted (same behavior, unchanged queries) from
-// the old app/(auth)/admin/talleres/temporadas/{page,[id]/page}.tsx so this
-// module family stays the single testable source for every talleres_
-// temporadas query, per this file's own header rationale.
+// list + detail loaders ──────────────────────────────────────────────────
 
 /** Thenable `.from(t).select(cols).order(col, opts).limit(n)` client mock. */
 function buildListClientMock(
@@ -145,18 +255,22 @@ describe('loadTemporadaDetalle', () => {
     estado: 'borrador',
     fecha_apertura: '2026-09-01T00:00:00.000Z',
     fecha_cierre: '2026-12-15T00:00:00.000Z',
+    dream_team_equipo_id: 'equipo-1',
   }
   const talleresRows = [{ id: 't-1', nombre: 'Matrimonio', slug: 'matrimonio' }]
   const junctionRows = [{ taller_id: 't-1' }]
+  const equiposDefault: EquipoArbolRaw[] = [{ id: 'equipo-1', parent_equipo_id: null }]
 
   function buildDetalleClientMock(opts: {
     temporada?: unknown | null
     temporadaError?: unknown
+    equipos?: EquipoArbolRaw[]
     talleres?: unknown[] | null
     junction?: unknown[] | null
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test stub
-  }): any {
-    return {
+  }): { client: any; inCalls: unknown[][] } {
+    const inCalls: unknown[][] = []
+    const client = {
       from: jest.fn((table: string) => {
         if (table === 'talleres_temporadas') {
           return {
@@ -171,16 +285,26 @@ describe('loadTemporadaDetalle', () => {
             }),
           }
         }
+        if (table === 'dream_team_equipos') {
+          return { select: () => Promise.resolve({ data: opts.equipos ?? equiposDefault, error: null }) }
+        }
         if (table === 'talleres') {
           return {
             select: () => ({
               eq: () => ({
-                order: () => ({
-                  limit: () =>
-                    Promise.resolve({
-                      data: opts.talleres === undefined ? talleresRows : opts.talleres,
-                      error: null,
-                    }),
+                eq: () => ({
+                  in: (col: string, vals: unknown) => {
+                    inCalls.push([col, vals])
+                    return {
+                      order: () => ({
+                        limit: () =>
+                          Promise.resolve({
+                            data: opts.talleres === undefined ? talleresRows : opts.talleres,
+                            error: null,
+                          }),
+                      }),
+                    }
+                  },
                 }),
               }),
             }),
@@ -200,30 +324,44 @@ describe('loadTemporadaDetalle', () => {
         throw new Error(`unexpected table: ${table}`)
       }),
     }
+    return { client, inCalls }
   }
 
   it('returns null when the temporada does not exist', async () => {
-    const client = buildDetalleClientMock({ temporada: null })
+    const { client } = buildDetalleClientMock({ temporada: null })
     const result = await loadTemporadaDetalle(client, 'temp-1')
     expect(result).toBeNull()
   })
 
   it('returns null when the query errors', async () => {
-    const client = buildDetalleClientMock({ temporada: null, temporadaError: { message: 'boom' } })
+    const { client } = buildDetalleClientMock({ temporada: null, temporadaError: { message: 'boom' } })
     const result = await loadTemporadaDetalle(client, 'temp-1')
     expect(result).toBeNull()
   })
 
-  it('bundles the temporada, its active talleres, and the junction membership', async () => {
-    const client = buildDetalleClientMock({})
+  it("bundles the temporada, its tree's talleres, and the junction membership", async () => {
+    const { client } = buildDetalleClientMock({})
     const result = await loadTemporadaDetalle(client, 'temp-1')
     expect(result?.temporada).toEqual(temporadaRow)
     expect(result?.talleres).toEqual(talleresRows)
     expect(result?.selectedTallerIds).toEqual(['t-1'])
   })
 
+  it("filters talleres to the temporada's own tree (dream_team_equipo_id in its descendants)", async () => {
+    const equipos: EquipoArbolRaw[] = [
+      { id: 'equipo-1', parent_equipo_id: null },
+      { id: 'equipo-1-hijo', parent_equipo_id: 'equipo-1' },
+    ]
+    const { client, inCalls } = buildDetalleClientMock({ equipos })
+    await loadTemporadaDetalle(client, 'temp-1')
+    expect(inCalls).toHaveLength(1)
+    const [col, vals] = inCalls[0]
+    expect(col).toBe('dream_team_equipo_id')
+    expect(new Set(vals as string[])).toEqual(new Set(['equipo-1', 'equipo-1-hijo']))
+  })
+
   it('returns an empty talleres/selectedTallerIds set when those queries return nothing', async () => {
-    const client = buildDetalleClientMock({ talleres: null, junction: null })
+    const { client } = buildDetalleClientMock({ talleres: null, junction: null })
     const result = await loadTemporadaDetalle(client, 'temp-1')
     expect(result?.talleres).toEqual([])
     expect(result?.selectedTallerIds).toEqual([])

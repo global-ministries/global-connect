@@ -2,55 +2,50 @@
 
 /**
  * T8 (odd/tasks/talleres-consolidar-pantallas.md) — server actions for the
- * consolidated /talleres/temporadas screens. Ported unchanged from the old
- * app/(auth)/admin/talleres/temporadas/actions.ts (PR C, Fase 5
- * GdV-parity) — same validation, same write gate, same write path; only
- * the module's location and its revalidatePath targets move to the new
- * tree. The old admin actions.ts is left alone (the old screens keep
- * working until T10 deletes them).
+ * consolidated /talleres/temporadas screens.
  *
- * These mirror the Grupos de Vida temporada flow: a Dirección user creates a
- * global season (`talleres_temporadas`), toggles WHICH talleres open
- * enrollment (`talleres_temporada_talleres` junction), and moves the
- * season through its estado machine (borrador → abierto → cerrado /
- * cancelado).
+ * T3 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — talleres_
+ * temporadas is now owned by a Dream Team node and its RLS is scoped by
+ * that node's own tree (supabase/migrations/
+ * 20260928120000_talleres_temporadas_por_direccion.sql). `createTemporada`
+ * and `toggleTallerInTemporada` now route through the new SECURITY DEFINER
+ * RPCs (talleres_crear_temporada, talleres_agregar_taller_a_temporada,
+ * talleres_quitar_taller_de_temporada) instead of a raw table write — the
+ * RPC IS the security wall, the exact same shape
+ * lib/platform/talleres/solicitudes-retiro-actions.ts already documents
+ * for talleres_resolver_solicitud_retiro: derive the scope from the
+ * temporada/equipo itself, surface a failed authority check as SQLSTATE
+ * 42501, map it to `forbidden` here. The old flat
+ * `auth_has_talleres_capability` defense-in-depth pre-check is GONE (it
+ * would no longer even be accurate: a director.write grant scoped to one
+ * branch would pass that flat check yet still be correctly refused by the
+ * new scoped RLS/RPC for another branch's temporada) — the app-layer gate
+ * is now intentionally thin: kill switch → auth → RPC/RLS.
  *
- * PERMISSIONS — flat capability check, not `cargarPermisos`/
- * `cargarPermisosPorEquipos` (lib/platform/talleres/permisos.ts). Evidence:
- * `talleres_temporadas`' own INSERT/UPDATE/DELETE RLS policies
- * (supabase/migrations/20260819000001_pr45_talleres_temporadas.sql:137-163)
- * call `auth_has_talleres_capability('talleres_crecimiento.director.write')
- * OR auth_has_talleres_capability('talleres_crecimiento.admin.manage')` —
- * the UNSCOPED helper (supabase/migrations/20260808204221_talleres_helper_
- * auth_has_capability.sql): it matches ANY grant for that capability key,
- * at ANY scope, with no org-chart walk at all. `cargarPermisos(client,
- * equipoId)` calls a DIFFERENT function, `auth_has_talleres_capability_
- * scoped`, whose `p_equipo_id = NULL` case (the only node a program-wide
- * object like a temporada could pass) only matches a grant with `scope_id
- * IS NULL` — a truly global grant. That is a strict SUBSET of what this
- * table's RLS actually allows: a director.write grant scoped to one
- * branch would pass RLS (the flat check has no scope filter) but would be
- * wrongly hidden by `cargarPermisos(client, null)`. This exact reasoning
- * is already documented for `puedeCrear` in app/(auth)/talleres/page.tsx
- * (T2) — "crear taller" has the identical shape (no object/node yet to
- * measure against) and the identical capability pair. So the check below
- * is not a fallback or an approximation: it is the literal, exact mirror
- * of the RLS predicate it stands in front of.
+ * `createTemporada` needs an `equipoId` now (the RPC's own p_equipo_id) —
+ * the UI's node picker is T5's job ("the form gets the node picker in
+ * T5"), so `equipoId` is optional here purely so the still-unmodified
+ * ./crear/temporada-form.tsx keeps compiling; omitting it fails fast with
+ * `invalid-input` rather than reaching the RPC with a missing required
+ * argument. `descripcion` is no longer settable at creation (the RPC's
+ * signature has no p_descripcion param — describing a temporada is not
+ * part of this task; the column itself is untouched for a future UPDATE
+ * path) but the field stays in the input type, unused, so that same form
+ * (which still sends it) keeps compiling too.
  *
- * Unlike the openEdicion action (which wraps a SECURITY DEFINER RPC), these
- * write DIRECTLY under RLS via the anon/cookie-bound SSR client — the
- * table's own policies (above) authorize a plain insert/update/delete
- * exactly like a GdV temporada write. The capability check below is
- * defense-in-depth: it fails fast with a typed error before hitting RLS.
+ * `transitionTemporada` is UNCHANGED: a plain guarded UPDATE, now simply
+ * subject to the new scoped UPDATE policy instead of the old unscoped one
+ * ("Temporada state transitions stay as today", T3's own delegation). A
+ * caller without write authority on this temporada's own node still just
+ * matches 0 rows under RLS (same failure shape the guarded state-machine
+ * check already produces for an illegal transition) — the UI shows the
+ * same generic message either way (temporada-detail-client.tsx never
+ * branches on the error code).
  */
 
 import { revalidatePath } from 'next/cache'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import {
-  findPlatformSessionPersonaByAuthId,
-  resolveReadOnlyPlatformSession,
-} from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { rutaTemporadas, rutaTemporada } from '@/lib/platform/talleres/rutas'
 
@@ -62,15 +57,15 @@ export type TemporadaActionResult =
       readonly message?: string
     }
 
-type WriteGate =
+type Gate =
   | { readonly ok: true; readonly supabase: unknown }
-  | { readonly ok: false; readonly error: 'forbidden' | 'not-found' | 'unauthorized' }
+  | { readonly ok: false; readonly error: 'not-found' | 'unauthorized' }
 
 /**
- * Kill switch → auth → capability gate, mirroring the openEdicion action.
- * Returns the SSR client on success so callers write under RLS.
+ * Kill switch → auth. No capability pre-check: the RPCs (create/toggle) and
+ * RLS (transition) are the security wall — see this module's own header.
  */
-async function requireWriteGate(): Promise<WriteGate> {
+async function requireSession(): Promise<Gate> {
   if (!isTalleresEnabled()) return { ok: false, error: 'not-found' }
 
   const supabase = await createSupabaseServerClient()
@@ -78,95 +73,96 @@ async function requireWriteGate(): Promise<WriteGate> {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) return { ok: false, error: 'unauthorized' }
 
-  const session = await resolveReadOnlyPlatformSession({
-    subjectAuthId: user.id,
-    findPersonaByAuthId: (authId) =>
-      findPlatformSessionPersonaByAuthId(supabase, authId),
-    capabilitySupabase: supabase,
-  })
-  if (!session) return { ok: false, error: 'unauthorized' }
-
-  const caps = session.capabilities.map((c) => c.key)
-  const hasCap =
-    caps.includes('talleres_crecimiento.director.write') ||
-    caps.includes('talleres_crecimiento.admin.manage')
-  if (!hasCap) return { ok: false, error: 'forbidden' }
-
   return { ok: true, supabase }
+}
+
+interface RpcError {
+  readonly code?: string
+  readonly message?: string
+}
+
+/**
+ * Maps a talleres_crear_temporada/talleres_agregar_taller_a_temporada/
+ * talleres_quitar_taller_de_temporada error to the action result shape.
+ * 42501 = no director.write/admin.manage scoped to the node in question;
+ * P0001/P0002/22023 = a domain refusal (TALLER_FUERA_DE_LA_DIRECCION,
+ * TALLER_NO_ES_POR_TEMPORADA, EDICION_YA_EXISTE, EDICION_CON_INSCRITOS,
+ * TEMPORADA_NOT_FOUND, EQUIPO_NOT_FOUND, …) — surfaced as invalid-input
+ * with the raw message, since the UI shows it verbatim either way.
+ */
+function mapRpcError(error: RpcError): TemporadaActionResult {
+  if (error.code === '42501') {
+    return { ok: false, error: 'forbidden', message: 'No tenés permiso para esta dirección o temporada.' }
+  }
+  if (error.code === 'P0001' || error.code === 'P0002' || error.code === '22023') {
+    return { ok: false, error: 'invalid-input', message: error.message }
+  }
+  return { ok: false, error: 'internal', message: error.message ?? 'unknown error' }
 }
 
 // ─── createTemporada ────────────────────────────────────────────────────────
 
 export interface CreateTemporadaInput {
+  readonly equipoId?: string
   readonly nombre: string
-  readonly slug: string
-  readonly descripcion: string | null
+  /** @deprecated no longer sent to the RPC (it derives its own slug); kept
+   *  so the not-yet-rewritten form (T5) still compiles. */
+  readonly slug?: string
+  /** @deprecated not settable at creation (no p_descripcion on the RPC);
+   *  kept so the not-yet-rewritten form (T5) still compiles. */
+  readonly descripcion?: string | null
   readonly fecha_apertura: string // ISO
   readonly fecha_cierre: string // ISO
+  readonly tallerIds?: readonly string[]
 }
 
 /**
- * Creates a global season in estado='borrador'. Validation mirrors the PR B
- * table CHECKs (nombre 2..120, slug `^[a-z0-9-]+$` 2..80, descripcion ≤1000,
- * fecha_cierre > fecha_apertura) so the UI fails fast before RLS/CHECK. The
- * reserved slug `legacy` (backfill parent) is rejected here.
+ * Creates a temporada owned by `equipoId` (estado='borrador', slug derived
+ * server-side) via talleres_crear_temporada, optionally creating one
+ * edición per `tallerIds` entry. `equipoId` is required at runtime (the
+ * node picker itself is T5's job — see this module's own header).
  */
 export async function createTemporada(
   input: CreateTemporadaInput,
 ): Promise<TemporadaActionResult> {
-  const gate = await requireWriteGate()
+  const gate = await requireSession()
   if (!gate.ok) return gate
+
+  if (!input.equipoId) {
+    return { ok: false, error: 'invalid-input', message: 'Selecciona una dirección.' }
+  }
 
   const nombre = input.nombre?.trim() ?? ''
   if (nombre.length < 2 || nombre.length > 120) {
     return { ok: false, error: 'invalid-input', message: 'El nombre debe tener entre 2 y 120 caracteres.' }
   }
 
-  const slug = input.slug?.trim() ?? ''
-  if (!/^[a-z0-9-]+$/.test(slug) || slug.length < 2 || slug.length > 80) {
-    return { ok: false, error: 'invalid-input', message: 'El slug solo admite minúsculas, números y guiones (2 a 80 caracteres).' }
-  }
-  if (slug === 'legacy') {
-    return { ok: false, error: 'invalid-input', message: 'El slug "legacy" está reservado.' }
-  }
-
-  const descripcion = input.descripcion?.trim() ? input.descripcion.trim() : null
-  if (descripcion && descripcion.length > 1000) {
-    return { ok: false, error: 'invalid-input', message: 'La descripción no puede superar 1000 caracteres.' }
-  }
-
   if (!input.fecha_apertura || !input.fecha_cierre) {
     return { ok: false, error: 'invalid-input', message: 'Las fechas de apertura y cierre son requeridas.' }
   }
-  if (new Date(input.fecha_cierre) <= new Date(input.fecha_apertura)) {
-    return { ok: false, error: 'invalid-input', message: 'La fecha de cierre debe ser posterior a la de apertura.' }
+  if (new Date(input.fecha_cierre) < new Date(input.fecha_apertura)) {
+    return { ok: false, error: 'invalid-input', message: 'La fecha de cierre debe ser posterior o igual a la de apertura.' }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gate.supabase
-  const { data, error } = await client
-    .from('talleres_temporadas')
-    .insert({
-      nombre,
-      slug,
-      descripcion,
-      fecha_apertura: input.fecha_apertura,
-      fecha_cierre: input.fecha_cierre,
-      estado: 'borrador',
-    })
-    .select('id')
-    .single()
+  const { data, error } = await client.rpc('talleres_crear_temporada', {
+    p_equipo_id: input.equipoId,
+    p_nombre: nombre,
+    p_fecha_apertura: input.fecha_apertura,
+    p_fecha_cierre: input.fecha_cierre,
+    p_taller_ids: input.tallerIds ?? [],
+  })
 
-  if (error) {
-    if ((error.code as string) === '23505') {
-      return { ok: false, error: 'invalid-input', message: 'Ya existe una temporada con ese slug.' }
-    }
-    return { ok: false, error: 'internal', message: (error.message as string) ?? 'unknown error' }
+  if (error) return mapRpcError(error)
+
+  const temporadaId = (data as { temporada_id?: string } | null)?.temporada_id
+  if (!temporadaId) {
+    return { ok: false, error: 'internal', message: 'No se pudo crear la temporada.' }
   }
-  if (!data) return { ok: false, error: 'internal', message: 'No se pudo crear la temporada.' }
 
   revalidatePath(rutaTemporadas())
-  return { ok: true, temporadaId: data.id as string }
+  return { ok: true, temporadaId }
 }
 
 // ─── toggleTallerInTemporada ─────────────────────────────────────────────────
@@ -178,14 +174,18 @@ export interface ToggleTallerInput {
 }
 
 /**
- * The "elijo qué talleres abren" control surface: on=true links a taller to the
- * season (INSERT junction, tolerating a 23505 if already linked so the toggle
- * is idempotent); on=false unlinks it (DELETE by both ids).
+ * The "elijo qué talleres abren" control surface: on=true adds the taller
+ * (talleres_agregar_taller_a_temporada — creates its edición; tolerates
+ * EDICION_YA_EXISTE as idempotent success, since the junction row and a
+ * non-cancelled edición always exist together under T3's model); on=false
+ * removes it (talleres_quitar_taller_de_temporada — cancels the edición,
+ * never deletes it; refuses with EDICION_CON_INSCRITOS if it has
+ * inscritos, surfaced as invalid-input).
  */
 export async function toggleTallerInTemporada(
   input: ToggleTallerInput,
 ): Promise<TemporadaActionResult> {
-  const gate = await requireWriteGate()
+  const gate = await requireSession()
   if (!gate.ok) return gate
 
   if (!input.temporadaId || !input.tallerId) {
@@ -194,24 +194,20 @@ export async function toggleTallerInTemporada(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gate.supabase
+  const rpcName = input.on
+    ? 'talleres_agregar_taller_a_temporada'
+    : 'talleres_quitar_taller_de_temporada'
 
-  if (input.on) {
-    const { error } = await client
-      .from('talleres_temporada_talleres')
-      .insert({ temporada_id: input.temporadaId, taller_id: input.tallerId })
-    // 23505 = already linked → idempotent success.
-    if (error && (error.code as string) !== '23505') {
-      return { ok: false, error: 'internal', message: (error.message as string) ?? 'unknown error' }
+  const { error } = await client.rpc(rpcName, {
+    p_temporada_id: input.temporadaId,
+    p_taller_id: input.tallerId,
+  })
+
+  if (error) {
+    if (input.on && (error as RpcError).message === 'EDICION_YA_EXISTE') {
+      return { ok: true }
     }
-  } else {
-    const { error } = await client
-      .from('talleres_temporada_talleres')
-      .delete()
-      .eq('temporada_id', input.temporadaId)
-      .eq('taller_id', input.tallerId)
-    if (error) {
-      return { ok: false, error: 'internal', message: (error.message as string) ?? 'unknown error' }
-    }
+    return mapRpcError(error)
   }
 
   revalidatePath(rutaTemporada(input.temporadaId))
@@ -239,7 +235,7 @@ export interface TransitionTemporadaInput {
 export async function transitionTemporada(
   input: TransitionTemporadaInput,
 ): Promise<TemporadaActionResult> {
-  const gate = await requireWriteGate()
+  const gate = await requireSession()
   if (!gate.ok) return gate
 
   if (!input.temporadaId) {
@@ -267,7 +263,7 @@ export async function transitionTemporada(
     return {
       ok: false,
       error: 'invalid-input',
-      message: 'Transición no permitida desde el estado actual.',
+      message: 'Transición no permitida desde el estado actual (o sin permiso sobre esta dirección).',
     }
   }
 

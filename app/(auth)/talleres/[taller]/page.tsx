@@ -157,7 +157,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
 
   const [rutaEquipo, temporadasAbiertas, cargaServidores, plantillaClases, plantillaGrupos] = await Promise.all([
     equipoId ? fetchRutaEquipo(client, equipoId) : Promise.resolve(null),
-    permisos.abrirEdicion ? loadTemporadasAbiertas(client) : Promise.resolve([]),
+    permisos.abrirEdicion ? loadTemporadasAbiertas(client, taller.id) : Promise.resolve([]),
     equipoId ? loadServidoresDelTaller(client, taller.id) : Promise.resolve({ ok: true, servidores: [] } as const),
     loadPlantillaClases(client, taller.id),
     loadPlantillaGrupos(client, taller.id),
