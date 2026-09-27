@@ -29,7 +29,8 @@
 
 import {
   createTemporada,
-  toggleTallerInTemporada,
+  agregarTallerATemporada,
+  quitarTallerDeTemporada,
   transitionTemporada,
 } from '@/app/(auth)/talleres/temporadas/actions'
 
@@ -193,13 +194,13 @@ describe('createTemporada — RPC outcomes', () => {
     if (!result.ok) expect(result.error).toBe('forbidden')
   })
 
-  it('maps a P0001 domain error to invalid-input', async () => {
+  it('maps a P0001 domain error to invalid-input with a neutral Spanish message (not the raw RAISE text)', async () => {
     setupMock({ rpc: { data: null, error: { code: 'P0001', message: 'TALLER_NO_ES_POR_TEMPORADA' } } })
     const result = await createTemporada(validCreate)
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error).toBe('invalid-input')
-      expect(result.message).toBe('TALLER_NO_ES_POR_TEMPORADA')
+      expect(result.message).toBe('Ese taller no abre por temporada.')
     }
   })
 
@@ -209,59 +210,105 @@ describe('createTemporada — RPC outcomes', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toBe('internal')
   })
+
+  it('returns edicionesCreadas from the RPC ediciones array length', async () => {
+    setupMock({
+      rpc: {
+        data: { temporada_id: 'temp-99', ediciones: [{ edicion_id: 'e-1' }, { edicion_id: 'e-2' }] },
+        error: null,
+      },
+    })
+    const result = await createTemporada({ ...validCreate, tallerIds: ['t-1', 't-2'] })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.edicionesCreadas).toBe(2)
+  })
+
+  it('defaults edicionesCreadas to 0 when the RPC omits ediciones', async () => {
+    setupMock({ rpc: { data: { temporada_id: 'temp-99' }, error: null } })
+    const result = await createTemporada(validCreate)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.edicionesCreadas).toBe(0)
+  })
 })
 
-// ─── toggleTallerInTemporada ─────────────────────────────────────────────────
+// ─── agregarTallerATemporada ────────────────────────────────────────────────
 
-describe('toggleTallerInTemporada', () => {
+describe('agregarTallerATemporada', () => {
   it('returns invalid-input when either id is missing', async () => {
     setupMock({ rpc: { data: {}, error: null } })
-    const result = await toggleTallerInTemporada({ temporadaId: '', tallerId: 't-1', on: true })
+    const result = await agregarTallerATemporada({ temporadaId: '', tallerId: 't-1' })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toBe('invalid-input')
     expect(rpcCalls).toHaveLength(0)
   })
 
-  it('on=true calls talleres_agregar_taller_a_temporada with both ids', async () => {
+  it('calls talleres_agregar_taller_a_temporada with both ids', async () => {
     setupMock({ rpc: { data: { edicion_id: 'ed-1' }, error: null } })
-    const result = await toggleTallerInTemporada({ temporadaId: 'temp-1', tallerId: 't-1', on: true })
+    const result = await agregarTallerATemporada({ temporadaId: 'temp-1', tallerId: 't-1' })
     expect(result.ok).toBe(true)
     expect(rpcCalls).toHaveLength(1)
     expect(rpcCalls[0].name).toBe('talleres_agregar_taller_a_temporada')
     expect(rpcCalls[0].args).toEqual({ p_temporada_id: 'temp-1', p_taller_id: 't-1' })
   })
 
-  it('on=true tolerates EDICION_YA_EXISTE as idempotent success', async () => {
+  it('tolerates EDICION_YA_EXISTE as idempotent success', async () => {
     setupMock({ rpc: { data: null, error: { code: 'P0001', message: 'EDICION_YA_EXISTE' } } })
-    const result = await toggleTallerInTemporada({ temporadaId: 'temp-1', tallerId: 't-1', on: true })
+    const result = await agregarTallerATemporada({ temporadaId: 'temp-1', tallerId: 't-1' })
     expect(result.ok).toBe(true)
   })
 
-  it('on=true surfaces a different P0001 as invalid-input', async () => {
+  it('surfaces a different P0001 as invalid-input with a neutral Spanish message', async () => {
     setupMock({ rpc: { data: null, error: { code: 'P0001', message: 'TALLER_FUERA_DE_LA_DIRECCION' } } })
-    const result = await toggleTallerInTemporada({ temporadaId: 'temp-1', tallerId: 't-1', on: true })
+    const result = await agregarTallerATemporada({ temporadaId: 'temp-1', tallerId: 't-1' })
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('invalid-input')
+    if (!result.ok) {
+      expect(result.error).toBe('invalid-input')
+      expect(result.message).toBe('Ese taller no pertenece a esta dirección.')
+    }
   })
 
-  it('on=false calls talleres_quitar_taller_de_temporada with both ids', async () => {
+  it('maps a 42501 RPC error to forbidden', async () => {
+    setupMock({ rpc: { data: null, error: { code: '42501', message: 'sin_permisos_para_esta_temporada' } } })
+    const result = await agregarTallerATemporada({ temporadaId: 'temp-1', tallerId: 't-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
+  })
+})
+
+// ─── quitarTallerDeTemporada ────────────────────────────────────────────────
+
+describe('quitarTallerDeTemporada', () => {
+  it('returns invalid-input when either id is missing', async () => {
+    setupMock({ rpc: { data: {}, error: null } })
+    const result = await quitarTallerDeTemporada({ temporadaId: 'temp-1', tallerId: '' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+    expect(rpcCalls).toHaveLength(0)
+  })
+
+  it('calls talleres_quitar_taller_de_temporada with both ids', async () => {
     setupMock({ rpc: { data: { edicion_id: 'ed-1', cancelada: true }, error: null } })
-    const result = await toggleTallerInTemporada({ temporadaId: 'temp-1', tallerId: 't-1', on: false })
+    const result = await quitarTallerDeTemporada({ temporadaId: 'temp-1', tallerId: 't-1' })
     expect(result.ok).toBe(true)
     expect(rpcCalls[0].name).toBe('talleres_quitar_taller_de_temporada')
     expect(rpcCalls[0].args).toEqual({ p_temporada_id: 'temp-1', p_taller_id: 't-1' })
   })
 
-  it('on=false surfaces EDICION_CON_INSCRITOS as invalid-input (not tolerated)', async () => {
+  it('surfaces EDICION_CON_INSCRITOS as invalid-input with its exact confirm-dialog message (not tolerated)', async () => {
     setupMock({ rpc: { data: null, error: { code: 'P0001', message: 'EDICION_CON_INSCRITOS' } } })
-    const result = await toggleTallerInTemporada({ temporadaId: 'temp-1', tallerId: 't-1', on: false })
+    const result = await quitarTallerDeTemporada({ temporadaId: 'temp-1', tallerId: 't-1' })
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toBe('invalid-input')
+    if (!result.ok) {
+      expect(result.error).toBe('invalid-input')
+      expect(result.message).toBe(
+        'No se puede quitar: la edición ya tiene inscritos. Cancela la edición desde su pantalla.',
+      )
+    }
   })
 
   it('maps a 42501 RPC error to forbidden', async () => {
     setupMock({ rpc: { data: null, error: { code: '42501', message: 'sin_permisos_para_esta_temporada' } } })
-    const result = await toggleTallerInTemporada({ temporadaId: 'temp-1', tallerId: 't-1', on: true })
+    const result = await quitarTallerDeTemporada({ temporadaId: 'temp-1', tallerId: 't-1' })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toBe('forbidden')
   })

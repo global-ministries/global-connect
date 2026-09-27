@@ -5,14 +5,12 @@
  * crear, replacing app/(auth)/admin/talleres/temporadas/crear/page.tsx
  * (kept alive, unmodified, until T10 deletes it).
  *
- * "crear", not "nueva" — parent decision, 2026-09-20 (see
- * lib/platform/talleres/rutas.ts's rutaTemporadaCrear header).
- *
- * Thin server wrapper: flag -> user -> session gate, then the SAME flat
- * capability check as the list page and actions.ts (director.write OR
- * admin.manage) — a viewer without it sees an informational "no tenés
- * permisos" card instead of the form (hide the control, never disable
- * it — here the whole page is the control).
+ * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the page now
+ * loads eligible direcciones (`loadDireccionesConTalleres`, filtered to
+ * `puedeEditar`) plus, for each, its own tree's talleres
+ * (`loadTalleresDeDireccion`), and hands them to the form instead of a flat
+ * capability gate. Zero eligible direcciones shows the same "no permisos"
+ * card as before, now with a neutral (no voseo) message.
  *
  * TallerTemporadaForm is a real client component with its own hooks —
  * mocked to a marker component, same pattern as every other RSC-only
@@ -22,6 +20,7 @@
 import TemporadaCrearPage from '@/app/(auth)/talleres/temporadas/crear/page'
 import { TallerTemporadaForm } from '@/app/(auth)/talleres/temporadas/crear/temporada-form'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import type { DireccionConTalleres, TallerParaTemporada } from '@/lib/platform/talleres/temporadas'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(),
@@ -36,6 +35,11 @@ jest.mock('@/lib/auth/platformSessionReadOnly', () => ({
   resolveReadOnlyPlatformSession: jest.fn(),
 }))
 
+jest.mock('@/lib/platform/talleres/temporadas', () => ({
+  loadDireccionesConTalleres: jest.fn(),
+  loadTalleresDeDireccion: jest.fn(),
+}))
+
 jest.mock('@/app/(auth)/talleres/temporadas/crear/temporada-form', () => ({
   TallerTemporadaForm: () => null,
 }))
@@ -45,12 +49,21 @@ const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
   .createSupabaseServerClient as jest.Mock
 const resolveSessionMock = jest.requireMock('@/lib/auth/platformSessionReadOnly')
   .resolveReadOnlyPlatformSession as jest.Mock
+const loadDireccionesConTalleresMock = jest.requireMock('@/lib/platform/talleres/temporadas')
+  .loadDireccionesConTalleres as jest.Mock
+const loadTalleresDeDireccionMock = jest.requireMock('@/lib/platform/talleres/temporadas')
+  .loadTalleresDeDireccion as jest.Mock
+
+function makeDireccion(overrides: Partial<DireccionConTalleres> = {}): DireccionConTalleres {
+  return { id: 'root-1', label: 'Dirección de Conexión', puedeEditar: true, ...overrides }
+}
 
 interface SetupOpts {
   isEnabled?: boolean
   user?: { id: string } | null
   hasSession?: boolean
-  capabilities?: string[]
+  direcciones?: readonly DireccionConTalleres[]
+  talleres?: readonly TallerParaTemporada[]
 }
 
 function setup(opts: SetupOpts): void {
@@ -73,15 +86,13 @@ function setup(opts: SetupOpts): void {
           subjectAuthId: 'auth-1',
           globalRoles: [],
           contexts: [],
-          capabilities: (opts.capabilities ?? []).map((key) => ({
-            key,
-            experience: 'talleres_crecimiento',
-            scopeType: 'taller',
-            source: 'test',
-          })),
+          capabilities: [],
         }
       : null,
   )
+
+  loadDireccionesConTalleresMock.mockReset().mockResolvedValue(opts.direcciones ?? [makeDireccion()])
+  loadTalleresDeDireccionMock.mockReset().mockResolvedValue(opts.talleres ?? [])
 }
 
 /** Walks a React element tree's `.props.children` without rendering it. */
@@ -138,32 +149,45 @@ describe('TemporadaCrearPage — gate', () => {
 })
 
 describe('TemporadaCrearPage — puedeCrear gate', () => {
-  it('shows a "no tenés permisos" card and no form without director.write or admin.manage', async () => {
-    setup({ capabilities: ['talleres_crecimiento.coordinator.read'] })
+  it('shows a neutral (no voseo) "no permisos" card and no form when no dirección has puedeEditar', async () => {
+    setup({ direcciones: [makeDireccion({ puedeEditar: false })] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadaCrearPage()) as any
-    expect(extractText(element)).toMatch(/no tenés permisos/i)
+    expect(extractText(element)).toMatch(/no tienes permisos/i)
+    expect(extractText(element)).not.toMatch(/tenés/i)
     expect(findByType(element, TallerTemporadaForm)).toBeNull()
   })
 
-  it('renders the form with director.write', async () => {
-    setup({ capabilities: ['talleres_crecimiento.director.write'] })
+  it('renders the form when at least one dirección has puedeEditar', async () => {
+    setup({ direcciones: [makeDireccion({ puedeEditar: true })] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadaCrearPage()) as any
     expect(findByType(element, TallerTemporadaForm)).not.toBeNull()
   })
 
-  it('renders the form with admin.manage', async () => {
-    setup({ capabilities: ['talleres_crecimiento.admin.manage'] })
+  it('passes only the puedeEditar=true direcciones, each with its own loadTalleresDeDireccion result', async () => {
+    setup({
+      direcciones: [makeDireccion({ id: 'root-a', puedeEditar: false }), makeDireccion({ id: 'root-b', puedeEditar: true })],
+      talleres: [{ id: 't-1', nombre: 'Matrimonio', nodoLabel: 'Dirección de Conexión', regimen: 'temporada' }],
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadaCrearPage()) as any
-    expect(findByType(element, TallerTemporadaForm)).not.toBeNull()
+    const form = findByType(element, TallerTemporadaForm)
+    expect(loadTalleresDeDireccionMock).toHaveBeenCalledWith(expect.anything(), 'root-b')
+    expect(loadTalleresDeDireccionMock).not.toHaveBeenCalledWith(expect.anything(), 'root-a')
+    expect(form?.props.direcciones).toEqual([
+      {
+        id: 'root-b',
+        label: 'Dirección de Conexión',
+        talleres: [{ id: 't-1', nombre: 'Matrimonio', nodoLabel: 'Dirección de Conexión', regimen: 'temporada' }],
+      },
+    ])
   })
 })
 
 describe('TemporadaCrearPage — page shell', () => {
   it('titles the page "Crear Temporada"', async () => {
-    setup({ capabilities: ['talleres_crecimiento.director.write'] })
+    setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadaCrearPage()) as any
     const dashboard = findByType(element, ContenedorDashboard)

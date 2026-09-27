@@ -8,12 +8,14 @@
  * Vida is already grupos-vida/temporadas/crear (see rutas.ts's
  * rutaTemporadaCrear header for the full reasoning).
  *
- * Thin server wrapper that enforces the write gate and renders the
- * client-side season form. PERMISSIONS: same flat capability check as the
- * list page and actions.ts (director.write OR admin.manage) — see
- * ../actions.ts's header for why this mirrors talleres_temporadas' own
- * UNSCOPED RLS predicate instead of a `cargarPermisos(client, equipoId)`
- * node lookup.
+ * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the form now
+ * PICKS a dirección instead of assuming a single global scope: this page
+ * loads every dirección the viewer can actually create a temporada for
+ * (`loadDireccionesConTalleres`, filtered to `puedeEditar`) plus, for EACH
+ * one, its own tree's talleres (`loadTalleresDeDireccion`) so the
+ * checklist never needs a second round trip when the viewer switches the
+ * dirección picker. Zero eligible direcciones -> the same "no permisos"
+ * card as before, now with a neutral (no voseo) message.
  */
 
 import {
@@ -28,6 +30,7 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { loadDireccionesConTalleres, loadTalleresDeDireccion } from '@/lib/platform/talleres/temporadas'
 import { rutaTemporadas } from '@/lib/platform/talleres/rutas'
 
 import { TallerTemporadaForm } from './temporada-form'
@@ -52,7 +55,7 @@ export default async function CrearTemporadaPage() {
     return (
       <ContenedorDashboard titulo="Crear Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
+          <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
@@ -73,29 +76,37 @@ export default async function CrearTemporadaPage() {
     )
   }
 
-  const caps = session.capabilities.map((c) => c.key)
-  const puedeCrear =
-    caps.includes('talleres_crecimiento.director.write') ||
-    caps.includes('talleres_crecimiento.admin.manage')
-  if (!puedeCrear) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = supabase
+  const direcciones = (await loadDireccionesConTalleres(client)).filter((d) => d.puedeEditar)
+
+  if (direcciones.length === 0) {
     return (
       <ContenedorDashboard
         titulo="Crear Temporada"
         botonRegreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
       >
         <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">No tenés permisos para crear temporadas.</TextoSistema>
+          <TextoSistema variante="sutil">No tienes permisos para crear temporadas.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
   }
+
+  const direccionesConTalleres = await Promise.all(
+    direcciones.map(async (direccion) => ({
+      id: direccion.id,
+      label: direccion.label,
+      talleres: await loadTalleresDeDireccion(client, direccion.id),
+    })),
+  )
 
   return (
     <ContenedorDashboard
       titulo="Crear Temporada"
       botonRegreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
     >
-      <TallerTemporadaForm />
+      <TallerTemporadaForm direcciones={direccionesConTalleres} />
     </ContenedorDashboard>
   )
 }
