@@ -106,65 +106,102 @@ temporada **agrupa**, nunca **habilita**. Si abrir una edición exigiera una
 temporada, las direcciones que no las usan no podrían abrir nada. La temporada
 es una comodidad para decir "estos talleres abren juntos", no un portón.
 
-Consecuencias concretas, para el paso 6:
+Consecuencias concretas, para el paso 6 (hecho — ver "Las dos tablas que había,
+y la que ganó" más abajo):
 
-- `talleres_temporadas` necesita dueño: una columna que apunte al nodo de la
-  dirección en el organigrama, igual que `talleres.dream_team_equipo_id`. Hoy
-  **no tiene ninguna**, así que es implícitamente de toda la iglesia.
-- Con ese dueño, su RLS pasa a acotarse por árbol como todo lo demás desde el
-  paso 3, y el agujero actual —cualquier director de cualquier rama puede crear,
-  editar y borrar temporadas de todo el programa— se cierra **por construcción**,
-  no con una regla especial.
-- La pantalla `/talleres/temporadas` muestra las de las direcciones sobre las que
-  quien mira tiene autoridad, y crear una pregunta a qué dirección pertenece.
-- Momento oportuno: producción tiene **0 temporadas y 0 vínculos** (verificado el
-  2026-09-20). Nadie la usó nunca, así que el modelo se corrige sin migrar un
-  solo dato. Es ahora o se paga después.
+- `talleres_temporadas` necesitaba dueño: una columna que apuntara al nodo de
+  la dirección en el organigrama, igual que `talleres.dream_team_equipo_id`.
+  Antes no tenía ninguna, así que era implícitamente de toda la iglesia.
+- Con ese dueño, su RLS pasó a acotarse por árbol como todo lo demás desde el
+  paso 3, y el agujero que había —cualquier director de cualquier rama podía
+  crear, editar y borrar temporadas de todo el programa— se cerró **por
+  construcción**, no con una regla especial.
+- La pantalla `/talleres/temporadas` muestra las de las direcciones sobre las
+  que quien mira tiene autoridad, y crear pregunta a qué dirección pertenece.
+- Momento oportuno: producción tenía **0 temporadas y 0 vínculos** (verificado
+  el 2026-09-20), así que el modelo se corrigió sin migrar un solo dato.
 
 Pero ni siquiera todos los talleres siguen el mismo ritmo entre ellos. Cada
-taller declara cómo se abre:
+taller declara cómo se abre con su propia columna `regimen` (`temporada` |
+`cadencia`), editable en la pantalla del taller, sección **"Configuración"**,
+junto con el resto de su configuración: `tipo` (`individual` | `pareja`),
+`vinculo` (`matrimonio` | `novios` | ninguno = cualquiera), `cierre_inscripcion_offset_dias`
+(la ventana relativa, §5), `intervalo_ediciones_dias` y, heredados de la
+pantalla de Clases, `cadencia_dias` y `duracion_minutos`.
 
-**Régimen 1 — por temporada.** Abre cuando abre la temporada de talleres, *si
-está marcado en esa temporada*, y dentro de su ventana de inscripción. No todos
-los talleres abren en todas las temporadas.
-→ Punto de Partida, Mujer de Hoy, los retiros de Crecimiento.
+**Régimen 1 — por temporada** (`regimen = 'temporada'`). Abre cuando abre la
+temporada de talleres, *si está marcado en esa temporada*, y dentro de su
+ventana de inscripción. No todos los talleres abren en todas las temporadas.
+→ Punto de Partida, Mujer de Hoy, Parejas, los retiros de Crecimiento.
 
-**Régimen 2 — por cadencia propia.** Abre solo, con su ritmo, sin depender de
-ninguna temporada. Próximo Paso: primer domingo de cada mes, cuatro clases
-semanales.
+**Régimen 2 — por cadencia propia** (`regimen = 'cadencia'`). Abre solo, con su
+ritmo, sin depender de ninguna temporada. Próximo Paso: primer domingo de cada
+mes, cuatro clases semanales.
 → Próximo Paso.
 
 ### Las ediciones se adelantan, no se generan en la sombra
 
-Cuando el director define la cadencia, el sistema crea las próximas seis
-ediciones ahí mismo, con las fechas ya calculadas. Quedan a la vista, se corrigen
-a mano si un domingo cae feriado, y no hace falta ningún trabajo programado.
+Cómo nace una edición depende del régimen del taller:
 
-Próximo Paso, las seis que vendrían:
+- **Por temporada.** La pantalla "Crear temporada" (por dirección) crea la
+  temporada y, en el mismo paso, el RPC `talleres_crear_temporada` crea **una
+  edición en borrador por cada taller marcado**, con `fecha_inicio` igual a la
+  fecha de apertura de la temporada. Agregar después un taller a una temporada
+  existente crea su edición del mismo modo; quitarlo **cancela** esa edición
+  (nunca la borra) si no tiene inscritos, y se niega si los tiene.
+- **Por cadencia.** La pantalla "Crear edición" pide sólo la fecha de la
+  primera clase y ofrece, opcional, "crear también las próximas N" (`N` ≤ 6),
+  espaciadas por el `intervalo_ediciones_dias` del taller (Próximo Paso: 28
+  días). El RPC `talleres_crear_edicion` las crea todas de una vez, en
+  borrador; cada nombre es "Mes Año" en español, y si dos caen en el mismo mes
+  la segunda agrega el día de su primera clase.
 
-| Edición | Clase 1 | Clase 4 | Cierra inscripción |
+Quedan a la vista y en borrador —nadie las publica solo—, se corrigen a mano
+si un domingo cae feriado, y no hace falta ningún trabajo programado.
+
+Próximo Paso, con "crear también las próximas 6" desde el domingo 4 de
+octubre:
+
+| Edición (nombre) | Clase 1 | Clase 4 | Cierra inscripción |
 |---|---|---|---|
 | Octubre 2026 | dom 4 oct | dom 25 oct | al comenzar la clase 1 |
 | Noviembre 2026 | dom 1 nov | dom 22 nov | al comenzar la clase 1 |
-| Diciembre 2026 | dom 6 dic | dom 27 dic | al comenzar la clase 1 |
-| Enero 2027 | dom 3 ene | dom 24 ene | al comenzar la clase 1 |
-| Febrero 2027 | dom 7 feb | dom 28 feb | al comenzar la clase 1 |
-| Marzo 2027 | dom 7 mar | dom 28 mar | al comenzar la clase 1 |
+| Noviembre 2026 (29) | dom 29 nov | dom 20 dic | al comenzar la clase 1 |
+| Diciembre 2026 | dom 27 dic | dom 17 ene | al comenzar la clase 1 |
+| Enero 2027 | dom 24 ene | dom 14 feb | al comenzar la clase 1 |
+| Febrero 2027 | dom 21 feb | dom 14 mar | al comenzar la clase 1 |
 
-### Las dos tablas ya existen, y no son la misma cosa
+La tercera fila es el caso real que cubre la prueba de esta migración: dos
+ediciones caen en noviembre, y la segunda se distingue agregando el día.
 
-Conviene dejarlo escrito porque es fácil confundirlas —yo mismo las confundí una
-vez— y porque son las dos mitades de este modelo:
+### Las dos tablas que había, y la que ganó
 
-| Tabla | Qué es | Columnas que importan |
-|---|---|---|
-| `taller_periodos_generales` | La **ventana de inscripción de una edición** | `taller_id`, `edicion_label`, `fecha_apertura_automatica`, `fecha_cierre_automatico`, **`fecha_apertura_manual`**, **`fecha_cierre_manual`**, `fecha_cierre_real`, `motivo_cierre` |
-| `talleres_temporadas` + `talleres_temporada_talleres` | La **temporada que agrupa qué talleres abren** | `nombre`, `fecha_apertura`, `fecha_cierre`, `estado`; la puente relaciona `temporada_id → taller_id` |
+`taller_periodos_generales` fue la primera respuesta a «¿dónde vive la ventana
+de una edición?»: existe, con columnas de fecha manual y automática, pero
+**nunca llegó a escribirse en producción** (0 filas). El paso 6 no la
+resucitó: la ventana de una edición vive ahora en sus propias columnas —
+`taller_ediciones.fecha_inicio`, `fecha_fin` (= inicio + (clases activas − 1) ×
+`cadencia_dias`) y `cierre_inscripcion` (= inicio + el `cierre_inscripcion_offset_dias`
+del taller)— y la instanciación ya no inserta en `taller_periodos_generales`
+en absoluto. La tabla queda deprecada, con las mismas 0 filas de siempre.
 
-Ninguna sobra: la primera es el Régimen 2, la segunda es el Régimen 1. Y fijate en
-`fecha_apertura_manual` / `fecha_cierre_manual` / `motivo_cierre`: **la regla de
-«que manualmente siempre se pueda abrir» ya tiene sus columnas.** No hay que
-diseñarla, hay que usarla.
+`talleres_temporadas` sí ganó lo que le faltaba: la columna
+`dream_team_equipo_id`, que la ata a un **nodo raíz** del organigrama (la
+dirección), con RLS acotada por árbol igual que el resto del sistema desde el
+paso 3 (leer: quien ve el nodo; escribir: `director.write` / `admin.manage`).
+La pertenencia de un taller a una temporada se valida en los dos lugares donde
+se escribe —la tabla puente `talleres_temporada_talleres` y la propia
+`taller_ediciones.temporada_id`— con la misma regla: el taller tiene que
+colgar del árbol de la dirección de la temporada, o la base la rechaza con
+`P0001 TALLER_FUERA_DE_LA_DIRECCION`.
+
+Y la instanciación en sí —crear la edición, sus grupos, facilitadores, reporte
+y clases desde la plantilla del taller— ya no vive en `open_edicion`: salió a
+una función interna, `talleres_instanciar_edicion`, sin permiso de ejecución
+para `authenticated`. `open_edicion` sigue existiendo con su misma firma de
+siempre, como envoltorio para quien todavía la llama desde afuera (pruebas
+viejas), pero ningún cliente real la usa ya: toda edición nueva nace por
+`talleres_crear_edicion` o por `talleres_crear_temporada`.
 
 > **Por qué nada de trabajos nocturnos.** El único trabajo programado que tenía
 > este proyecto (`talleres_period_closer`) estuvo meses fallando todas las noches
@@ -183,6 +220,11 @@ cuando arranca. Un retiro puede cerrar una semana antes por logística. Un talle
 puede permitir entrar tarde, después de la primera clase. Si una edición puntual
 necesita otra cosa, se la sobreescribe sin tocar el taller.
 
+> **Construido (paso 6).** La columna es `talleres.cierre_inscripcion_offset_dias`
+> (default 0, editable en "Configuración"); cada edición calcula su propio
+> `cierre_inscripcion = fecha_inicio + offset` al crearse (negativo cierra
+> antes, positivo permite entrar tarde).
+
 ### Adoptado — el cupo cierra la puerta de la gente, nunca la mano del director
 
 Se configuran las plazas. Cuando se llena, la inscripción pública se cierra sola.
@@ -193,15 +235,39 @@ Con una condición: **el exceso se ve** —«3 sobre el cupo»— y queda regist
 quién lo hizo. No para controlar a nadie, sino para que en dos meses nadie
 discuta por qué ese grupo tiene dieciocho personas.
 
+> **Construido (paso 6).** El cupo de una edición es la suma de la
+> `capacidad` de sus grupos (`talleres_cupo_edicion`). Al llenarse, un
+> disparador (`trg_taller_inscripciones_cupo`, con `pg_advisory_xact_lock`
+> para que dos altas a la vez no se cuelen) niega el alta pública con `P0001
+> CUPO_LLENO`. El director o coordinador inscribe igual con
+> `talleres_inscribir_sobre_cupo`, que guarda quién y cuándo
+> (`sobre_cupo_por`, `sobre_cupo_en`); la edición muestra «N sobre el cupo».
+> Una inscripción ocupa una plaza; en un taller de pareja la unidad que se
+> cuenta y se muestra son «parejas», no personas.
+
 ### Adoptado — el estado de una edición se deriva de sus fechas
 
-Hoy publicar es apretar un botón. Con una edición por mes son doce botones al año
-que alguien tiene que acordarse de apretar; si se olvida uno, ese mes no hay
-inscripciones y nadie se entera hasta que alguien pregunta.
+Antes, publicar era apretar un botón. Con una edición por mes son doce botones
+al año que alguien tiene que acordarse de apretar; si se olvida uno, ese mes no
+hay inscripciones y nadie se entera hasta que alguien pregunta.
 
-Si la edición tiene fechas y ventana, el sistema ya sabe si está tomando
-inscripciones, en curso o cerrada. Manual queda sólo lo que es una decisión
-humana: **dejarla en borrador** hasta que esté lista, y **cancelarla**.
+Ahora que la edición tiene fechas y ventana, el sistema ya sabe si está
+tomando inscripciones, en curso o cerrada. Manual queda sólo lo que es una
+decisión humana: **dejarla en borrador** hasta que esté lista, y
+**cancelarla**.
+
+> **Construido (paso 6).** `talleres_estado_efectivo(edicion)` deriva
+> `abierto` / `en_curso` / `cerrado` de `fecha_inicio`, `fecha_fin` y
+> `cierre_inscripcion`; `borrador` y `cancelado` siguen siendo manuales. La
+> columna `estado` se conserva y se refresca con la RPC
+> `talleres_refrescar_estados`, que llaman los loaders del catálogo, explorar,
+> el taller y la edición antes de leer — y las políticas que antes leían
+> `estado` a secas ahora llaman a la misma función, así que no dependen de
+> que ese refresco haya corrido. `talleres_hoy()` calcula "hoy" según
+> `app.zona_horaria` (default America/Caracas), no el huso del servidor.
+> "Cerrar esta edición" desapareció de la pantalla; "Abrir" sólo saca de
+> borrador, y "Cancelar" sigue existiendo, con confirmación y aviso si hay
+> inscritos, sin bloquearla.
 
 ### Adoptado — una maquinaria, dos direcciones, sin ligarse
 
@@ -642,11 +708,12 @@ No son decisiones técnicas.
 > organigrama decidiendo quién administra qué. Nada de duplicar el modelo por
 > dirección, y nada de una capacidad global que vea la iglesia entera.
 
-## 12. El taller por dentro: diseñado vs. construido (auditoría del 2026-09-26)
+## 12. El taller por dentro: diseñado vs. construido (auditoría del 2026-09-26, paso 6 verificado el 2026-09-27)
 
 Hecha cruzando este documento, los documentos de cada paso, la memoria del
 proyecto y la base de producción. Lo que está **hecho** y lo que **falta**, sin
-adornos, para que la configuración del taller se construya sobre verdad.
+adornos. La configuración del taller y el paso 6 ya se construyeron sobre esa
+auditoría; esta sección queda al día con lo que hay hoy.
 
 ### 12.1 La cadena y dónde vive cada cosa
 
@@ -655,41 +722,68 @@ Certificado, y la persona tiene una Inscripción.
 
 | Cosa | Tabla | Estado real |
 |---|---|---|
-| Taller | `talleres` | `slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id`. **No guarda cuántas clases tiene ni cómo se llaman.** |
-| Edición | `taller_ediciones` | Guarda `sesiones_snapshot` (cuántas clases), `firmantes`, `temporada_id` (nullable), `recurrence_rule` (**inerte: nadie la lee**). Su `estado` es manual. |
-| Cohorte | `talleres_crecimiento_cohortes` | 1:1 con la edición en la práctica; `open_edicion` la crea sola. Capa vestigial. |
-| Grupo | `taller_grupos` | Cuelga de la cohorte (**nace dentro de cada edición**). `capacidad` orientativa. Sin día/hora. |
-| Equipo del grupo | `taller_grupo_asignaciones` | líder/voluntario. **Tabla propia, sin relación con `dream_team_servicios`**: hoy se puede asignar a cualquier persona de la iglesia. |
-| Clase | `taller_sesiones` | `numero`, fechas, `estado`, `tema` (columna nueva del 25-sep; **nadie la escribe todavía**). |
-| Asistencia | `taller_asistencias` | `presente/ausente/no_aplica` + `motivo`. Upsert por el líder/voluntario. `correccion_de_asistencia_id` quedó huérfana. |
-| Reporte | `taller_reportes` | borrador → enviado → reabierto → cerrado. **Nadie crea el borrador**: "Enviar" exige que ya exista. |
-| Certificado | `taller_certificados` | 1 por inscripción (en pareja, sólo la persona principal). Exige `unit_estado = 'completado'`. |
-| Inscripción | `taller_inscripciones` | estado + `unit_estado` (completado / no_completado / abandono). **`unit_estado` no lo calcula nadie**: sólo una ruta de API manual sin pantalla. |
-| Temporada | `talleres_temporadas` | Sin dueño (dirección). Decisión del usuario: por dirección; agrupa, nunca habilita. **Paso 6 sin hacer.** |
-| Ventana | `taller_periodos_generales` | Existe con fechas manuales/automáticas; **siempre nula en la práctica** (nada crea filas). Sin cupo a nivel edición. |
+| Taller | `talleres` | `slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id`, y desde su "Configuración": `tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias, cadencia_dias, duracion_minutos`. Sus clases y grupos viven en su propia plantilla (`taller_plantilla_clases`, `taller_plantilla_grupos` + `taller_plantilla_facilitadores`): ya no hay que declarar cuántas clases tiene al abrir cada edición. |
+| Edición | `taller_ediciones` | Sigue guardando `sesiones_snapshot`, `firmantes`, `temporada_id` (nullable, ahora acotado al árbol de la temporada), `recurrence_rule` (**sigue inerte**). Ganó `fecha_inicio`, `fecha_fin`, `cierre_inscripcion`: su `estado` se deriva de esas fechas, salvo `borrador`/`cancelado`, que siguen siendo manuales. |
+| Cohorte | `talleres_crecimiento_cohortes` | Sin cambios: 1:1 con la edición en la práctica; la crea `talleres_instanciar_edicion` (antes `open_edicion`). Capa vestigial. |
+| Grupo | `taller_grupos` | Sigue colgando de la cohorte, pero ya no se arma a mano: nace **instanciado desde la plantilla del taller** al abrir la edición, con su `capacidad` y sus facilitadores ya puestos. Sin día/hora, sin cambios ahí. |
+| Equipo del grupo | `taller_grupo_asignaciones` | Sus filas se instancian desde `taller_plantilla_facilitadores`, y sólo puede asignarse —en la plantilla o en el grupo ya abierto— a alguien que sea **servidor activo de Dream Team en el nodo del taller** (`talleres_es_servidor_activo_del_taller`), no cualquier persona de la iglesia. |
+| Clase | `taller_sesiones` | `numero`, fechas, `estado`, y ahora `tema`: `generate_taller_sesiones` lo copia de la plantilla del taller cuando existe una activa (Próximo Paso instancia sus 4 clases con nombre: Sígueme, Intimidad con Dios, Compañerismo, Influencia). Sin plantilla activa, sigue el numerado sin nombre de siempre. |
+| Asistencia | `taller_asistencias` | Sin cambios: `presente/ausente/no_aplica` + `motivo`. Upsert por el líder/voluntario. `correccion_de_asistencia_id` sigue huérfana. |
+| Reporte | `taller_reportes` | Ya no hay que crearlo a mano: **el borrador nace junto con el grupo**, al instanciar la edición. "Enviar" sigue exigiendo que ya exista, y ahora siempre existe. |
+| Certificado | `taller_certificados` | Sin cambios: 1 por inscripción (en pareja, sólo la persona principal). Exige `unit_estado = 'completado'`. Sigue sin una pantalla que lo emita — es el "cierre de edición" pendiente. |
+| Inscripción | `taller_inscripciones` | Gana `sobre_cupo`, `sobre_cupo_por`, `sobre_cupo_en`. `unit_estado` sigue sin calcularse solo — también queda para el cierre de edición. |
+| Temporada | `talleres_temporadas` | **Hecho (paso 6)**: tiene dueño (`dream_team_equipo_id`, un nodo raíz de dirección), RLS por árbol, y la regla de pertenencia (`TALLER_FUERA_DE_LA_DIRECCION`) en su tabla puente y en `taller_ediciones.temporada_id`. Agrupa, nunca habilita — sigue esa misma regla. |
+| Ventana | `taller_periodos_generales` | **Deprecada**: sigue con 0 filas, y desde el paso 6 ya no se escribe en absoluto. La ventana de una edición vive en sus propias columnas (`fecha_inicio`, `fecha_fin`, `cierre_inscripcion`). El cupo ya se valida a nivel edición (`talleres_cupo_edicion`, suma de la `capacidad` de sus grupos). |
 
 ### 12.2 El ciclo, tal como corre hoy
 
-1. **Crear taller** eligiendo su nodo del organigrama (hecho, paso 2).
-2. **Abrir edición**: se pide "sesiones estimadas" **cada vez** (debería ser del taller); crea la cohorte; no valida ventana ni cupo; el estado se pone a mano.
-3. **Inscribirse** sin capacidad, en edición abierta (hecho, paso 1). Aprobación en Pendientes (hecho, paso 4).
-4. **Armar grupos**: se crean a mano dentro de la edición, y al crearlos se generan N clases numeradas sin nombre, una por semana (hecho, paso 5 + generador previo).
-5. **Facilitadores**: se asignan con búsqueda libre entre todos los miembros (hecho hoy mismo), **sin exigir que sirvan en el nodo**.
-6. **Pasar lista, cerrar clase, enviar reporte** por el líder (hecho, paso 7) — pero el reporte a enviar no lo crea nadie.
-7. **Cierre de edición**: manual; no marca completados; **ningún certificado puede emitirse desde una pantalla**.
+1. **Crear taller** eligiendo su nodo del organigrama (hecho, paso 2). **Configurarlo**: tipo, vínculo, régimen, cierre relativo, intervalo, y su plantilla de clases y de grupos con facilitadores (hecho, configuración del taller).
+2. **Crear edición**: una sola pregunta según el régimen — la temporada de la dirección (por temporada) o la primera clase, con "crear también las próximas N" (por cadencia) (hecho, paso 6). Se instancia sola: grupos, facilitadores, el reporte de cada grupo en borrador y las clases con nombre, desde la plantilla del taller.
+3. **Inscribirse**, en edición abierta — el estado ya se deriva de sus fechas, no de un botón (hecho, paso 1 + paso 6). Aprobación en Pendientes (hecho, paso 4). El cupo cierra la puerta sola al llenarse; el director inscribe igual sobre el cupo, y queda registrado (hecho, paso 6).
+4. **Facilitadores**: ya no se buscan a mano — sólo servidores activos del nodo del taller, puestos por la plantilla al abrir la edición (hecho, configuración del taller).
+5. **Pasar lista, cerrar clase, enviar reporte** por el líder (hecho, paso 7) — el borrador del reporte ya existe, nació con el grupo (hecho, configuración del taller).
+6. **Cierre de edición**: sigue manual; no marca completados; **ningún certificado puede emitirse desde una pantalla** — sin cambios, sigue faltando.
 
 ### 12.3 Lo que falta, ordenado
 
-- **Configuración del taller** (paso nuevo, siguiente): clases con nombre y
-  grupos con facilitadores como **plantilla del taller**, instanciados al abrir
-  cada edición; facilitadores sólo entre servidores activos del nodo; edición
-  en su lugar; pantalla del taller al patrón del sistema mostrando el equipo del
-  nodo (el coordinador se asigna en Servidores, no aquí); el borrador del
-  reporte nace con el grupo.
-- **Paso 6**: temporadas por dirección, ventana relativa, cupo con exceso
-  visible, estados derivados de fechas, ediciones adelantadas de Próximo Paso.
-- **Cierre de edición** (paso nuevo, explícito): calcular `completado` /
-  `no_completado` / `abandono` desde la asistencia con la regla del taller,
-  emitir certificados (y resolver el certificado de la pareja), cerrar en
-  cadena grupos, clases y reportes.
-- Paso 8 (sin cuenta) y paso 9 (Crecimiento), como estaban.
+- **Configuración del taller** — **hecho**: clases con nombre y grupos con
+  facilitadores como **plantilla del taller**, instanciados al abrir cada
+  edición; facilitadores sólo entre servidores activos del nodo; edición en su
+  lugar (sección "Configuración"); pantalla del taller al patrón del sistema
+  mostrando el equipo del nodo (el coordinador se asigna en Servidores, no
+  aquí); el borrador del reporte nace con el grupo.
+- **Paso 6** — **hecho**: temporadas por dirección (con dueño y RLS por
+  árbol), ventana relativa configurable, cupo con exceso visible y
+  registrado, estados derivados de fechas (con refresco en los loaders),
+  ediciones adelantadas tanto por cadencia como por temporada, y `open_edicion`
+  retirado para clientes en favor de `talleres_crear_edicion` /
+  `talleres_crear_temporada`.
+- **Cierre de edición** (paso nuevo, explícito) — sigue faltando: calcular
+  `completado` / `no_completado` / `abandono` desde la asistencia con la regla
+  del taller, emitir certificados (y resolver el certificado de la pareja),
+  cerrar en cadena grupos, clases y reportes.
+- Paso 8 (inscripción sin cuenta, con su propio selector de pareja para quien
+  todavía no tiene cuenta) y paso 9 (Crecimiento), como estaban.
+
+### 12.4 El taller por dentro, hoy
+
+1. El administrador crea el nodo del taller en el organigrama y le asigna su
+   director, en Dream Team.
+2. El director configura el taller: en la pantalla del taller, sección
+   "Configuración" (tipo, vínculo, régimen, cierre relativo, intervalo),
+   "Plantilla de clases" (cuántas clases y cómo se llaman) y "Plantilla de
+   grupos" (nombre, capacidad y facilitadores — sólo servidores activos del
+   nodo).
+3. Nace una edición: si el taller es por temporada, la temporada de su
+   dirección ya la creó (o el director lo agrega a una existente); si es por
+   cadencia, "Crear edición" hace una sola pregunta — la fecha de la primera
+   clase, con la opción de adelantar hasta 6 más.
+4. La edición nace en borrador, con sus grupos, facilitadores, el reporte de
+   cada grupo (en borrador) y sus clases con nombre, ya instanciados desde la
+   plantilla — nada de eso se arma a mano.
+5. El director la abre ("Abrir"). A partir de ahí el estado se deriva solo de
+   sus fechas: abierta mientras acepta inscripciones, en curso, cerrada.
+6. La gente se inscribe hasta que se llena el cupo; lleno, el director puede
+   seguir inscribiendo, y la edición muestra cuántos quedaron sobre el cupo.
+7. El líder pasa lista clase por clase, cierra sus clases y envía el reporte
+   de su grupo.
