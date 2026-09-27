@@ -5895,6 +5895,7 @@ export type Database = {
           created_at: string
           created_by_persona_id: string | null
           descripcion: string | null
+          dream_team_equipo_id: string
           estado: string
           fecha_apertura: string
           fecha_cierre: string
@@ -5908,6 +5909,7 @@ export type Database = {
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
+          dream_team_equipo_id: string
           estado?: string
           fecha_apertura: string
           fecha_cierre: string
@@ -5921,6 +5923,7 @@ export type Database = {
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
+          dream_team_equipo_id?: string
           estado?: string
           fecha_apertura?: string
           fecha_cierre?: string
@@ -5930,7 +5933,15 @@ export type Database = {
           updated_at?: string
           version?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "talleres_temporadas_dream_team_equipo_id_fkey"
+            columns: ["dream_team_equipo_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       temporadas: {
         Row: {
@@ -7878,6 +7889,10 @@ export type Database = {
         Args: { p_current_date?: string; p_taller_id: string }
         Returns: number
       }
+      talleres_agregar_taller_a_temporada: {
+        Args: { p_taller_id: string; p_temporada_id: string }
+        Returns: Json
+      }
       talleres_asignar_inscripciones_a_grupo: {
         Args: { p_grupo_id: string; p_inscripcion_ids: string[] }
         Returns: Json
@@ -7925,6 +7940,16 @@ export type Database = {
         }
         Returns: Json
       }
+      talleres_crear_temporada: {
+        Args: {
+          p_equipo_id: string
+          p_fecha_apertura: string
+          p_fecha_cierre: string
+          p_nombre: string
+          p_taller_ids?: string[]
+        }
+        Returns: Json
+      }
       talleres_editar_clase: {
         Args: {
           p_fecha_programada: string
@@ -7967,6 +7992,10 @@ export type Database = {
       }
       talleres_equipo_de_solicitud: {
         Args: { p_grupo_asignacion_id: string; p_inscripcion_id: string }
+        Returns: string
+      }
+      talleres_equipo_de_temporada: {
+        Args: { p_temporada_id: string }
         Returns: string
       }
       talleres_es_miembro_del_grupo: {
@@ -8020,6 +8049,10 @@ export type Database = {
           plantilla_grupo_id: string
           rol: string
         }[]
+      }
+      talleres_quitar_taller_de_temporada: {
+        Args: { p_taller_id: string; p_temporada_id: string }
+        Returns: Json
       }
       talleres_refrescar_estados: {
         Args: { p_taller_id?: string }
