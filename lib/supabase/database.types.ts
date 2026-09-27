@@ -4596,9 +4596,12 @@ export type Database = {
       }
       taller_ediciones: {
         Row: {
+          cierre_inscripcion: string | null
           created_at: string
           duracion_estimada_minutos_snapshot: number
           estado: string
+          fecha_fin: string | null
+          fecha_inicio: string | null
           firmantes: Json
           id: string
           link_type: string | null
@@ -4616,9 +4619,12 @@ export type Database = {
           version: number
         }
         Insert: {
+          cierre_inscripcion?: string | null
           created_at?: string
           duracion_estimada_minutos_snapshot: number
           estado: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           firmantes?: Json
           id?: string
           link_type?: string | null
@@ -4636,9 +4642,12 @@ export type Database = {
           version?: number
         }
         Update: {
+          cierre_inscripcion?: string | null
           created_at?: string
           duracion_estimada_minutos_snapshot?: number
           estado?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
           firmantes?: Json
           id?: string
           link_type?: string | null
@@ -5673,6 +5682,7 @@ export type Database = {
       talleres: {
         Row: {
           cadencia_dias: number
+          cierre_inscripcion_offset_dias: number
           created_at: string
           created_by_persona_id: string | null
           descripcion: string | null
@@ -5680,14 +5690,19 @@ export type Database = {
           duracion_minutos: number | null
           estado: string
           id: string
+          intervalo_ediciones_dias: number | null
           modalidad_default: string
           nombre: string
+          regimen: string
           slug: string
+          tipo: string
           updated_at: string
           version: number
+          vinculo: string | null
         }
         Insert: {
           cadencia_dias?: number
+          cierre_inscripcion_offset_dias?: number
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
@@ -5695,14 +5710,19 @@ export type Database = {
           duracion_minutos?: number | null
           estado?: string
           id?: string
+          intervalo_ediciones_dias?: number | null
           modalidad_default?: string
           nombre: string
+          regimen?: string
           slug: string
+          tipo?: string
           updated_at?: string
           version?: number
+          vinculo?: string | null
         }
         Update: {
           cadencia_dias?: number
+          cierre_inscripcion_offset_dias?: number
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
@@ -5710,11 +5730,15 @@ export type Database = {
           duracion_minutos?: number | null
           estado?: string
           id?: string
+          intervalo_ediciones_dias?: number | null
           modalidad_default?: string
           nombre?: string
+          regimen?: string
           slug?: string
+          tipo?: string
           updated_at?: string
           version?: number
+          vinculo?: string | null
         }
         Relationships: [
           {
@@ -7944,6 +7968,14 @@ export type Database = {
         Args: { p_persona_id: string; p_taller_id: string }
         Returns: boolean
       }
+      talleres_estado_efectivo:
+        | {
+            Args: {
+              p_edicion: Database["public"]["Tables"]["taller_ediciones"]["Row"]
+            }
+            Returns: string
+          }
+        | { Args: { p_edicion_id: string }; Returns: string }
       talleres_grupo_equipo_personas: {
         Args: { p_grupo_id: string }
         Returns: {
@@ -7969,6 +8001,10 @@ export type Database = {
           plantilla_grupo_id: string
           rol: string
         }[]
+      }
+      talleres_refrescar_estados: {
+        Args: { p_taller_id?: string }
+        Returns: number
       }
       talleres_registrar_asistencia: {
         Args: { p_marcas: Json; p_sesion_id: string }
