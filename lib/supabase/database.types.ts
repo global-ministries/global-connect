@@ -7263,6 +7263,7 @@ export type Database = {
           p_modalidad_default: string
           p_nombre: string
           p_parent_equipo_id: string
+          p_regimen?: string
           p_slug: string
         }
         Returns: Json
@@ -8001,6 +8002,7 @@ export type Database = {
           disponibles: number
           ocupados: number
           sobre_cupo: number
+          unidad: string
         }[]
       }
       talleres_cupo_edicion_calculo: {
@@ -8087,8 +8089,13 @@ export type Database = {
           rol: string
         }[]
       }
+      talleres_hoy: { Args: never; Returns: string }
       talleres_inscribir_sobre_cupo: {
-        Args: { p_edicion_id: string; p_persona_id: string }
+        Args: {
+          p_companero_id?: string
+          p_edicion_id: string
+          p_persona_id: string
+        }
         Returns: Json
       }
       talleres_inscripciones_sobre_cupo_personas: {
@@ -8114,6 +8121,10 @@ export type Database = {
       talleres_mover_plantilla_clase: {
         Args: { p_clase_id: string; p_direccion: string }
         Returns: Json
+      }
+      talleres_nodo_en_arbol: {
+        Args: { p_nodo: string; p_raiz: string }
+        Returns: boolean
       }
       talleres_plantilla_facilitadores_personas: {
         Args: { p_taller_id: string }
@@ -8592,3 +8603,4 @@ export const Constants = {
     },
   },
 } as const
+

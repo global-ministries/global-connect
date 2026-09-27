@@ -302,6 +302,15 @@ UPDATE public.dream_team_servicios
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('af000000-0000-4000-8000-000000000020');
 
+-- T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md,
+-- 20260928140000_talleres_paso6_hardening.sql, item 4): open_edicion no
+-- longer grants EXECUTE to authenticated. This call is exercising the A4
+-- plantilla-snapshot behavior below, not open_edicion's own authorization,
+-- so it runs as postgres — auth.uid() still resolves the director via the
+-- JWT claim set above (set_config's third arg is transaction-local, so it
+-- survives the role switch) — then role is restored to authenticated for
+-- the rest of this section's capability-checked assertions.
+RESET ROLE;
 DO $abrir$
 DECLARE
   v_resultado jsonb;
@@ -326,6 +335,8 @@ BEGIN
     ('grupo_b', (v_resultado -> 'grupos_creados' -> 1 ->> 'grupo_id')::uuid);
 END;
 $abrir$;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('af000000-0000-4000-8000-000000000020');
 
 -- (a4) A4 hardening — sesiones_snapshot is the LIVE active plantilla count
 -- (4), NOT the caller-supplied p_sesiones_estimadas (9). Both grupos still
@@ -554,7 +565,11 @@ RESET ROLE;
 -- fallback (sesiones_snapshot, hardcoded weekly) still works for a
 -- manually-created grupo (the "Crear grupo" exception) ══
 
-SET LOCAL ROLE authenticated;
+-- T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md,
+-- 20260928140000_talleres_paso6_hardening.sql, item 4): open_edicion no
+-- longer grants EXECUTE to authenticated. Role is already postgres here
+-- (RESET ROLE above, line 562) — stay there for this call; auth.uid()
+-- still resolves the director via the JWT claim set below.
 SELECT pg_temp.as_persona('af000000-0000-4000-8000-000000000020');
 
 DO $sin_plantilla$
