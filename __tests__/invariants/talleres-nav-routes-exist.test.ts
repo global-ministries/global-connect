@@ -68,7 +68,11 @@ describe('talleres nav catalog — every href resolves to an existing route', ()
   it('every TALLERES_NAV_ITEMS.href has a matching app/ page file', async () => {
     const routes = await buildRouteSet()
 
-    const missing = TALLERES_NAV_ITEMS.filter((item) => !routes.has(item.href)).map(
+    // T11 — "Mis grupos" points at an in-page anchor (`/talleres#mis-
+    // grupos-heading`), not a route of its own: a hash fragment names a
+    // spot on the SAME page, so only the path before `#` needs a
+    // matching page file.
+    const missing = TALLERES_NAV_ITEMS.filter((item) => !routes.has(item.href.split('#')[0]!)).map(
       (item) => `${item.id} -> ${item.href}`,
     )
 

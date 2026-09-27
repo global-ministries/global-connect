@@ -67,6 +67,7 @@ describe('CatalogoTalleresClient — Mis grupos section', () => {
         catalogo={[]}
         misGrupos={[MI_GRUPO]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -81,6 +82,7 @@ describe('CatalogoTalleresClient — Mis grupos section', () => {
         catalogo={[TALLER_ABIERTO]}
         misGrupos={[]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -93,11 +95,50 @@ describe('CatalogoTalleresClient — Mis grupos section', () => {
         catalogo={[]}
         misGrupos={[{ ...MI_GRUPO, tallerNombre: null, edicionNombre: null, proximaClase: null }]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
     expect(screen.getByText('—')).toBeInTheDocument()
     expect(screen.getByText(/Sin próxima clase programada/)).toBeInTheDocument()
+  })
+})
+
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — "Mis
+// talleres" above the catalog list, for a director/coordinador with
+// editarTaller on at least one taller.
+describe('CatalogoTalleresClient — Mis talleres section', () => {
+  const MI_TALLER = { id: 't-1', slug: 'matrimonio-sobre-la-roca', nombre: 'Matrimonio sobre la Roca' }
+
+  it('shows "Mis talleres" linking to each taller when non-empty', () => {
+    render(
+      <CatalogoTalleresClient
+        catalogo={[TALLER_ABIERTO]}
+        misGrupos={[]}
+        puedeCrear={false}
+        misTalleres={[MI_TALLER]}
+        opciones={OPCIONES_VACIAS}
+      />,
+    )
+    const heading = screen.getByText('Mis talleres')
+    expect(heading).toBeInTheDocument()
+    const section = heading.closest('section')
+    expect(section).not.toBeNull()
+    const link = within(section!).getByRole('link', { name: 'Matrimonio sobre la Roca' })
+    expect(link).toHaveAttribute('href', '/talleres/matrimonio-sobre-la-roca')
+  })
+
+  it('omits the "Mis talleres" section entirely when empty', () => {
+    render(
+      <CatalogoTalleresClient
+        catalogo={[TALLER_ABIERTO]}
+        misGrupos={[]}
+        puedeCrear={false}
+        misTalleres={[]}
+        opciones={OPCIONES_VACIAS}
+      />,
+    )
+    expect(screen.queryByText('Mis talleres')).not.toBeInTheDocument()
   })
 })
 
@@ -108,6 +149,7 @@ describe('CatalogoTalleresClient — Catálogo + crear taller', () => {
         catalogo={[TALLER_ABIERTO]}
         misGrupos={[]}
         puedeCrear={true}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -122,6 +164,7 @@ describe('CatalogoTalleresClient — Catálogo + crear taller', () => {
         catalogo={[TALLER_ABIERTO]}
         misGrupos={[]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -136,6 +179,7 @@ describe('CatalogoTalleresClient — Catálogo + crear taller', () => {
         catalogo={[TALLER_ABIERTO]}
         misGrupos={[]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -151,6 +195,7 @@ describe('CatalogoTalleresClient — Catálogo + crear taller', () => {
         catalogo={[TALLER_ABIERTO]}
         misGrupos={[]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -166,6 +211,7 @@ describe('CatalogoTalleresClient — filtro "abiertas"', () => {
         catalogo={[TALLER_ABIERTO, TALLER_SOLO_CERRADO]}
         misGrupos={[]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -181,6 +227,7 @@ describe('CatalogoTalleresClient — filtro "abiertas"', () => {
         catalogo={[TALLER_ABIERTO, TALLER_SOLO_CERRADO]}
         misGrupos={[]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -203,6 +250,7 @@ describe('CatalogoTalleresClient — filtro "abiertas"', () => {
         catalogo={[TALLER_ABIERTO, TALLER_SOLO_CERRADO]}
         misGrupos={[]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -222,6 +270,7 @@ describe('CatalogoTalleresClient — empty states', () => {
         catalogo={[]}
         misGrupos={[]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )
@@ -234,6 +283,7 @@ describe('CatalogoTalleresClient — empty states', () => {
         catalogo={[]}
         misGrupos={[MI_GRUPO]}
         puedeCrear={false}
+        misTalleres={[]}
         opciones={OPCIONES_VACIAS}
       />,
     )

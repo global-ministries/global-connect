@@ -131,6 +131,19 @@ export type TalleresNavItemId =
   // T8 (odd/tasks/talleres-consolidar-pantallas.md) — the consolidated
   // /talleres/temporadas list, a straight move out of /admin.
   | 'talleres_temporadas'
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // "Mis grupos", restored: T10 deleted the líder's own nav entry when it
+  // consolidated the old role-prefixed items into the /talleres catalog
+  // (the "Mis grupos" SECTION lives there, catalogo-talleres-client.tsx),
+  // but a líder who can hold ZERO talleres capabilities never got a menu
+  // hint that section exists at all. Unlike every other item here,
+  // visibility is DATA (≥1 grupo as líder/voluntario), not a capability —
+  // `requiredCapability: null` alone would show it to everyone, so
+  // `getTalleresNavItems` takes an explicit `hasMisGrupos` option instead
+  // (default false — every existing caller that doesn't pass it keeps
+  // identical behaviour). See lib/platform/talleres/catalogo.ts's
+  // loadMisGruposCount for the query this is based on.
+  | 'talleres_mis_grupos'
 
 export type TalleresNavItem = Readonly<{
   id: TalleresNavItemId
@@ -219,6 +232,14 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // all, so there is no cross-role sharing problem to solve the way
   // talleres_pendientes/talleres_reportes need metrics.read for.
   { id: 'talleres_temporadas', label: 'Temporadas', href: '/talleres/temporadas', requiredCapability: 'talleres_crecimiento.director.read' },
+  // T11 — "Mis grupos", pointing at the catalog's own section anchor
+  // (catalogo-talleres-client.tsx's `mis-grupos-heading`) rather than a
+  // new page — the section already exists and already renders the full
+  // list; the gap was purely the missing nav entry. `requiredCapability:
+  // null` here is a placeholder for the capability-filter branch of
+  // getTalleresNavItems, which SKIPS this item entirely and defers to its
+  // `hasMisGrupos` option instead (see TalleresNavItemId's comment above).
+  { id: 'talleres_mis_grupos', label: 'Mis grupos', href: '/talleres#mis-grupos-heading', requiredCapability: null },
 ]
 
 // ─── T1 — route-access.ts as the single source of "which capability does
@@ -276,16 +297,30 @@ export function getRequiredCapabilityForRoute(href: string): string | null | und
  */
 export function getTalleresNavItems(
   sessionCapabilities: readonly string[],
-  options?: { readonly isEnabled?: boolean }
+  options?: {
+    readonly isEnabled?: boolean
+    /**
+     * T11 — whether the caller has ≥1 grupo as líder/voluntario
+     * (lib/platform/talleres/catalogo.ts's loadMisGruposCount). Controls
+     * ONLY the 'talleres_mis_grupos' item, which is data-gated rather
+     * than capability-gated (see TalleresNavItemId's comment). Defaults
+     * to false, so a caller that doesn't compute this (every existing one
+     * today) keeps getting the exact same item set as before this option
+     * existed.
+     */
+    readonly hasMisGrupos?: boolean
+  }
 ): TalleresNavItem[] {
   const enabled = options?.isEnabled ?? isTalleresEnabled()
   if (!enabled) return []
 
   const caps = new Set(sessionCapabilities)
+  const hasMisGrupos = options?.hasMisGrupos ?? false
 
-  return TALLERES_NAV_ITEMS.filter(
-    (item) => item.requiredCapability === null || caps.has(item.requiredCapability),
-  ).map((item) => ({
+  return TALLERES_NAV_ITEMS.filter((item) => {
+    if (item.id === 'talleres_mis_grupos') return hasMisGrupos
+    return item.requiredCapability === null || caps.has(item.requiredCapability)
+  }).map((item) => ({
     id: item.id,
     label: item.label,
     href: item.href,

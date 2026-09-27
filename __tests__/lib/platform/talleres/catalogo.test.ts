@@ -18,13 +18,30 @@
  * already uses for persona/edicion/cohorte names.
  */
 
-import { loadCatalogoTalleres, loadMisGruposResumen, loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
+import {
+  loadCatalogoTalleres,
+  loadMisGruposCount,
+  loadMisGruposResumen,
+  loadMisTalleres,
+  loadTallerDetalle,
+  type CatalogoTaller,
+} from '@/lib/platform/talleres/catalogo'
 import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
+import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 
 jest.mock('@/lib/platform/talleres/operacional', () => ({
   loadEquipoGrupos: jest.fn(),
   loadEquipoProximasSesiones: jest.fn(),
 }))
+
+jest.mock('@/lib/platform/talleres/permisos', () => {
+  const actual = jest.requireActual('@/lib/platform/talleres/permisos')
+  return { ...actual, cargarPermisosPorEquipos: jest.fn() }
+})
+
+const permisosModule = jest.requireMock('@/lib/platform/talleres/permisos') as {
+  cargarPermisosPorEquipos: jest.Mock
+}
 
 const operacionalModule = jest.requireMock('@/lib/platform/talleres/operacional') as {
   loadEquipoGrupos: jest.Mock
@@ -309,5 +326,123 @@ describe('loadMisGruposResumen', () => {
     expect(result[0]?.tallerNombre).toBeNull()
     expect(result[0]?.edicionNombre).toBeNull()
     expect(result[0]?.proximaClase).toBeNull()
+  })
+})
+
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+// loadMisGruposCount backs the "Mis grupos" nav item's visibility
+// (route-access.ts's getTalleresNavItems `hasMisGrupos` option): a
+// lightweight head-count of ACTIVE taller_grupo_asignaciones rows for
+// THIS persona as líder OR voluntario. Distinct from loadEquipoGrupos
+// (líder only — the "Mis grupos" catalog SECTION's own loader), since the
+// nav item's visibility condition is explicitly "líder/voluntario".
+describe('loadMisGruposCount', () => {
+  function countClientMock(count: number | null, error: unknown = null): jest.Mock {
+    const chain: Record<string, unknown> = {}
+    chain['select'] = jest.fn(() => chain)
+    chain['eq'] = jest.fn(() => chain)
+    chain['in'] = jest.fn(() => Promise.resolve({ count, error }))
+    return jest.fn(() => chain)
+  }
+
+  it('returns the count of active líder/voluntario asignaciones for this persona', async () => {
+    const from = countClientMock(3)
+    const result = await loadMisGruposCount(ctxWith(from))
+    expect(result).toBe(3)
+    expect(from).toHaveBeenCalledWith('taller_grupo_asignaciones')
+  })
+
+  it('scopes the query by persona_id, activo=true, and rol in [lider, voluntario]', async () => {
+    const from = countClientMock(1)
+    await loadMisGruposCount(ctxWith(from))
+    const chain = from.mock.results[0]?.value as Record<string, jest.Mock>
+    expect(chain.select).toHaveBeenCalledWith('id', { count: 'exact', head: true })
+    expect(chain.eq).toHaveBeenCalledWith('persona_id', PERSONA_ID)
+    expect(chain.eq).toHaveBeenCalledWith('activo', true)
+    expect(chain.in).toHaveBeenCalledWith('rol', ['lider', 'voluntario'])
+  })
+
+  it('degrades to 0 on a query error (best-effort, same contract as the other loaders)', async () => {
+    const from = countClientMock(null, { message: 'boom' })
+    const result = await loadMisGruposCount(ctxWith(from))
+    expect(result).toBe(0)
+  })
+
+  it('degrades to 0 when count comes back null without an error', async () => {
+    const from = countClientMock(null)
+    const result = await loadMisGruposCount(ctxWith(from))
+    expect(result).toBe(0)
+  })
+})
+
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+// "Mis talleres" above the catalog list: the talleres the viewer can edit
+// (talleres_mis_permisos(equipo).editar_taller), computed via the SAME
+// batched helper (cargarPermisosPorEquipos) the pendientes inbox already
+// uses for a cross-equipo list — one RPC per DISTINCT equipo, never one
+// per taller.
+describe('loadMisTalleres', () => {
+  const TALLER_A: CatalogoTaller = {
+    id: 't-1',
+    slug: 'matrimonio-sobre-la-roca',
+    nombre: 'Matrimonio sobre la Roca',
+    estado: 'active',
+    dream_team_equipo_id: 'eq-1',
+    ediciones: [],
+  }
+  const TALLER_B: CatalogoTaller = {
+    id: 't-2',
+    slug: 'discipulado',
+    nombre: 'Discipulado',
+    estado: 'active',
+    dream_team_equipo_id: 'eq-2',
+    ediciones: [],
+  }
+  const TALLER_SIN_EQUIPO: CatalogoTaller = {
+    id: 't-3',
+    slug: 'sin-equipo',
+    nombre: 'Sin equipo',
+    estado: 'active',
+    dream_team_equipo_id: null,
+    ediciones: [],
+  }
+
+  beforeEach(() => {
+    permisosModule.cargarPermisosPorEquipos.mockReset()
+  })
+
+  it('returns only the talleres where editarTaller is true, via one batched call', async () => {
+    permisosModule.cargarPermisosPorEquipos.mockResolvedValue(
+      new Map<string | null, PermisosTaller>([
+        ['eq-1', { ...PERMISOS_TALLER_ALL_FALSE, editarTaller: true }],
+        ['eq-2', PERMISOS_TALLER_ALL_FALSE],
+      ]),
+    )
+    const client = {}
+
+    const result = await loadMisTalleres(client, [TALLER_A, TALLER_B])
+
+    expect(permisosModule.cargarPermisosPorEquipos).toHaveBeenCalledTimes(1)
+    expect(permisosModule.cargarPermisosPorEquipos).toHaveBeenCalledWith(client, ['eq-1', 'eq-2'])
+    expect(result).toEqual([{ id: 't-1', slug: 'matrimonio-sobre-la-roca', nombre: 'Matrimonio sobre la Roca' }])
+  })
+
+  it('returns [] when the catalog is empty, without calling the batched helper', async () => {
+    const client = {}
+    const result = await loadMisTalleres(client, [])
+    expect(result).toEqual([])
+    expect(permisosModule.cargarPermisosPorEquipos).not.toHaveBeenCalled()
+  })
+
+  it('never crashes on a taller with no dream_team_equipo_id — it just cannot satisfy editarTaller', async () => {
+    permisosModule.cargarPermisosPorEquipos.mockResolvedValue(
+      new Map<string | null, PermisosTaller>([[null, PERMISOS_TALLER_ALL_FALSE]]),
+    )
+    const client = {}
+
+    const result = await loadMisTalleres(client, [TALLER_SIN_EQUIPO])
+
+    expect(permisosModule.cargarPermisosPorEquipos).toHaveBeenCalledWith(client, [null])
+    expect(result).toEqual([])
   })
 })

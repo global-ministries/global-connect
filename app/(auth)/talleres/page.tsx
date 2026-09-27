@@ -52,7 +52,7 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
-import { loadCatalogoTalleres, loadMisGruposResumen } from '@/lib/platform/talleres/catalogo'
+import { loadCatalogoTalleres, loadMisGruposResumen, loadMisTalleres } from '@/lib/platform/talleres/catalogo'
 import { fetchOpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
 import { rutaExplorar } from '@/lib/platform/talleres/rutas'
 import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
@@ -124,6 +124,12 @@ export default async function TalleresCatalogoPage() {
     puedeCrear ? fetchOpcionesEquipoTaller(supabase) : Promise.resolve({ vincular: [], crearBajo: [] }),
   ])
 
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // "Mis talleres" needs the resolved catálogo first (one RPC per
+  // DISTINCT equipo — cargarPermisosPorEquipos), so it runs after the
+  // Promise.all above rather than inside it.
+  const misTalleres = await loadMisTalleres(client, catalogo)
+
   return (
     <ContenedorDashboard
       titulo="Talleres"
@@ -140,6 +146,7 @@ export default async function TalleresCatalogoPage() {
         catalogo={catalogo}
         misGrupos={misGrupos}
         puedeCrear={puedeCrear}
+        misTalleres={misTalleres}
         opciones={opciones}
       />
     </ContenedorDashboard>

@@ -86,6 +86,7 @@ import {
 } from '@/lib/platform/talleres/plantilla'
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
 import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
+import { hasDreamTeamReadCapability } from '@/lib/platform/dream-team/capabilities'
 
 const RUTA_SERVIDORES = '/admin/dream-team/servidores'
 
@@ -145,6 +146,14 @@ export default async function TallerDetallePage(ctx: RouteContext) {
 
   const permisos = await cargarPermisos(client, taller.dream_team_equipo_id)
   const equipoId = taller.dream_team_equipo_id
+
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // "Gestionar en Servidores" used to be unconditional and could 404 for a
+  // viewer with no Dream Team authority; it now renders only when the
+  // viewer passes the SAME hasDreamTeamReadCapability check
+  // /admin/dream-team/servidores/page.tsx itself gates on, and only when
+  // there is an equipo to deep-link into.
+  const puedeGestionarServidores = equipoId !== null && hasDreamTeamReadCapability(session)
 
   const [rutaEquipo, temporadasAbiertas, cargaServidores, plantillaClases, plantillaGrupos] = await Promise.all([
     equipoId ? fetchRutaEquipo(client, equipoId) : Promise.resolve(null),
@@ -218,8 +227,19 @@ export default async function TallerDetallePage(ctx: RouteContext) {
               )
             )}
             {rutaEquipo && (
+              // T11 (flow audit) — taller -> node: a link back to the
+              // org chart when the viewer can actually see it (same
+              // hasDreamTeamReadCapability gate as "Gestionar en
+              // Servidores" above), plain text otherwise — a link that
+              // 404s is worse than no link.
               <TextoSistema variante="sutil" tamaño="sm" className="mt-2 block">
-                {rutaEquipo}
+                {hasDreamTeamReadCapability(session) ? (
+                  <Link href="/admin/dream-team/estructura" className="hover:underline">
+                    {rutaEquipo}
+                  </Link>
+                ) : (
+                  rutaEquipo
+                )}
               </TextoSistema>
             )}
           </div>
@@ -272,13 +292,15 @@ export default async function TallerDetallePage(ctx: RouteContext) {
               Servidores activos; se gestionan en Dream Team.
             </TextoSistema>
           </div>
-          <EnlaceSistema
-            href={RUTA_SERVIDORES}
-            variante="marca"
-            className="inline-flex min-h-[44px] items-center text-sm"
-          >
-            Gestionar en Servidores
-          </EnlaceSistema>
+          {puedeGestionarServidores && (
+            <EnlaceSistema
+              href={`${RUTA_SERVIDORES}?equipo=${equipoId}`}
+              variante="marca"
+              className="inline-flex min-h-[44px] items-center text-sm"
+            >
+              Gestionar en Servidores
+            </EnlaceSistema>
+          )}
         </div>
 
         {sinAutoridadEquipo ? (

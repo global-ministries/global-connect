@@ -33,10 +33,16 @@ import type { DreamTeamServicio } from '@/lib/platform/dream-team/types'
 import { personaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
 
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — a
+// jest.fn() (not a plain lambda) so individual tests can set the query
+// string to prove the equipo filter preselects from ?equipo=.
+const mockRouterReplace = jest.fn()
+const mockUseSearchParams = jest.fn(() => new URLSearchParams())
+
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: jest.fn(), refresh: jest.fn(), push: jest.fn() }),
+  useRouter: () => ({ replace: mockRouterReplace, refresh: jest.fn(), push: jest.fn() }),
   usePathname: () => '/admin/dream-team/servidores',
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockUseSearchParams(),
 }))
 
 // Same convention as __tests__/app/dashboard-page.test.tsx: ContenedorDashboard
@@ -138,6 +144,11 @@ const arbolAnidado: readonly NodoArbol<NodoEquipoArbol>[] = [
 ]
 
 describe('ServidoresClient', () => {
+  beforeEach(() => {
+    mockRouterReplace.mockReset()
+    mockUseSearchParams.mockReset().mockReturnValue(new URLSearchParams())
+  })
+
   it('renders the list with persona, equipo, humanized rol and estado', () => {
     const rows: ServidorRow[] = [
       filaDreamTeam({ id: 's-1' }, { personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' }),
@@ -164,6 +175,62 @@ describe('ServidoresClient', () => {
 
     expect(screen.queryByText('Ana Pérez')).not.toBeInTheDocument()
     expect(screen.getAllByText('Luis Gómez').length).toBeGreaterThan(0)
+  })
+
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+  // taller page's "Gestionar en Servidores" link now deep-links with
+  // ?equipo=<nodeId> so this screen lands pre-filtered, instead of showing
+  // the whole company-wide pool with no hint of where to look.
+  describe('equipo filter (?equipo=, T11)', () => {
+    it('preselects the equipo filter from the ?equipo query param', () => {
+      mockUseSearchParams.mockReturnValue(new URLSearchParams('equipo=equipo-dps'))
+      const rows: ServidorRow[] = [
+        filaDreamTeam({ id: 's-1', equipoId: 'equipo-dps' }, { personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' }),
+        filaDreamTeam({ id: 's-2', equipoId: 'equipo-otro' }, { personaNombre: 'Luis Gómez', equipoLabel: 'Otro equipo', rolLabel: 'coordinador' }),
+      ]
+      render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
+
+      expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
+      expect(screen.queryByText('Luis Gómez')).not.toBeInTheDocument()
+    })
+
+    it('shows a visible chip naming the active equipo filter, with a way to clear it', () => {
+      mockUseSearchParams.mockReturnValue(new URLSearchParams('equipo=equipo-dps'))
+      const rows: ServidorRow[] = [
+        filaDreamTeam({ id: 's-1', equipoId: 'equipo-dps' }, { personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' }),
+      ]
+      render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
+
+      expect(screen.getByText('Equipo: DPS')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /quitar filtro/i }))
+      // Clearing strips ?equipo= from the URL via router.replace.
+      expect(mockRouterReplace).toHaveBeenCalledWith('/admin/dream-team/servidores')
+    })
+
+    it('clearing the equipo filter shows every row again', () => {
+      mockUseSearchParams.mockReturnValue(new URLSearchParams('equipo=equipo-dps'))
+      const rows: ServidorRow[] = [
+        filaDreamTeam({ id: 's-1', equipoId: 'equipo-dps' }, { personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' }),
+        filaDreamTeam({ id: 's-2', equipoId: 'equipo-otro' }, { personaNombre: 'Luis Gómez', equipoLabel: 'Otro equipo', rolLabel: 'coordinador' }),
+      ]
+      render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
+      fireEvent.click(screen.getByRole('button', { name: /quitar filtro/i }))
+
+      expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Luis Gómez').length).toBeGreaterThan(0)
+    })
+
+    it('shows every row when there is no ?equipo param', () => {
+      const rows: ServidorRow[] = [
+        filaDreamTeam({ id: 's-1', equipoId: 'equipo-dps' }, { personaNombre: 'Ana Pérez', equipoLabel: 'DPS', rolLabel: 'coordinador' }),
+        filaDreamTeam({ id: 's-2', equipoId: 'equipo-otro' }, { personaNombre: 'Luis Gómez', equipoLabel: 'Otro equipo', rolLabel: 'coordinador' }),
+      ]
+      render(<ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={{}} puedeEditar={false} />)
+
+      expect(screen.getAllByText('Ana Pérez').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Luis Gómez').length).toBeGreaterThan(0)
+      expect(screen.queryByRole('button', { name: /quitar filtro/i })).not.toBeInTheDocument()
+    })
   })
 
   it('filters the list by persona nombre text', () => {
