@@ -75,6 +75,15 @@
  * is `cerrada`, matching the Pasar-lista/Cerrar-clase house rule already on
  * this screen (Decisiones, Interfaz). The "Clase {numero} · {tema}" label
  * itself is unchanged, pre-existing display logic.
+ *
+ * T10 (design audit) — Equipo/Su gente/Clases used to be stacks of separate
+ * bordered `<li>` boxes; each is now ONE TarjetaSistema p-0, divide-y (the
+ * system's shared list pattern). Section headings are TituloSistema
+ * nivel={2}. `grupo.estado` and each clase's `estado` used to render the
+ * raw DB enum inside a bare BadgeSistema — both now go through
+ * components/talleres/labels.ts, the same maps T10 gave grupo/clase estado
+ * everywhere else. Voseo in this file's copy was replaced with neutral
+ * Spanish.
  */
 
 import { notFound } from 'next/navigation'
@@ -86,8 +95,15 @@ import {
   BadgeSistema,
   TarjetaSistema,
   TextoSistema,
+  TituloSistema,
 } from '@/components/ui/sistema-diseno'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import {
+  claseEstadoBadgeVariante,
+  claseEstadoLabel,
+  grupoEstadoBadgeVariante,
+  grupoEstadoLabel,
+} from '@/components/talleres/labels'
 import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia-clase.client'
 import {
   RegistroAsistenciaClase,
@@ -153,7 +169,7 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
     return (
       <ContenedorDashboard titulo="Grupo">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
+          <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
       </ContenedorDashboard>
     )
@@ -310,7 +326,7 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
       {modoLimitado && (
         <TarjetaSistema variante="outlined" className="p-4">
           <TextoSistema role="status">
-            Vemos que lideras este grupo, pero todavía no tenés el permiso para ver toda su
+            Vemos que lideras este grupo, pero todavía no tienes el permiso para ver toda su
             información (nombre, clases, asistencia y reporte). Esto se resuelve cuando se te
             asigne el permiso de líder.
           </TextoSistema>
@@ -338,7 +354,7 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
               </TextoSistema>
             ) : (
               <TextoSistema variante="sutil" tamaño="sm" className="block">
-                Todavía no podés ver la capacidad de este grupo.
+                Todavía no puedes ver la capacidad de este grupo.
               </TextoSistema>
             )}
             {lideres.length > 0 && (
@@ -347,7 +363,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
               </TextoSistema>
             )}
           </div>
-          {grupo && <BadgeSistema>{grupo.estado}</BadgeSistema>}
+          {grupo && (
+            <BadgeSistema variante={grupoEstadoBadgeVariante(grupo.estado)}>
+              {grupoEstadoLabel(grupo.estado)}
+            </BadgeSistema>
+          )}
         </div>
       </TarjetaSistema>
 
@@ -355,26 +375,25 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
           "su gente" abajo: T1's Decisiones, odd/tasks/talleres-
           inscripcion-a-grupo.md) */}
       <section aria-labelledby="equipo-heading">
-        <h2 id="equipo-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+        <TituloSistema nivel={2} id="equipo-heading">
           Equipo
-        </h2>
+        </TituloSistema>
         <div className="mt-3">
           {asignaciones.length === 0 ? (
             <EstadoVacio icono={Users} titulo="No hay personas asignadas todavía" />
           ) : (
-            <ul className="space-y-2">
-              {asignaciones.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border/60 p-3"
-                >
-                  <TextoSistema className="text-sm">{a.nombre ?? 'Nombre no disponible'}</TextoSistema>
-                  <BadgeSistema variante={a.rol === 'lider' ? 'info' : 'default'} tamaño="sm">
-                    {a.rol === 'lider' ? 'Líder' : 'Voluntario'}
-                  </BadgeSistema>
-                </li>
-              ))}
-            </ul>
+            <TarjetaSistema className="p-0">
+              <ul className="divide-y divide-border">
+                {asignaciones.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-3 p-3">
+                    <TextoSistema className="text-sm">{a.nombre ?? 'Nombre no disponible'}</TextoSistema>
+                    <BadgeSistema variante={a.rol === 'lider' ? 'info' : 'default'} tamaño="sm">
+                      {a.rol === 'lider' ? 'Líder' : 'Voluntario'}
+                    </BadgeSistema>
+                  </li>
+                ))}
+              </ul>
+            </TarjetaSistema>
           )}
         </div>
       </section>
@@ -384,9 +403,9 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
           roster; retiradas are kept for history, shown apart, muted, and
           never counted (Decisiones). */}
       <section aria-labelledby="gente-heading">
-        <h2 id="gente-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+        <TituloSistema nivel={2} id="gente-heading">
           Su gente
-        </h2>
+        </TituloSistema>
         <div className="mt-3">
           {inscripcionesGrupo.aprobadas.length === 0 && inscripcionesGrupo.retiradas.length === 0 ? (
             <EstadoVacio icono={Users} titulo="No hay participantes todavía" />
@@ -397,34 +416,32 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                   No hay participantes aprobados todavía.
                 </TextoSistema>
               ) : (
-                <ul className="space-y-2">
-                  {inscripcionesGrupo.aprobadas.map((p) => (
-                    <li
-                      key={p.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border/60 p-3"
-                    >
-                      <TextoSistema className="text-sm">{p.nombre}</TextoSistema>
-                    </li>
-                  ))}
-                </ul>
+                <TarjetaSistema className="p-0">
+                  <ul className="divide-y divide-border">
+                    {inscripcionesGrupo.aprobadas.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between gap-3 p-3">
+                        <TextoSistema className="text-sm">{p.nombre}</TextoSistema>
+                      </li>
+                    ))}
+                  </ul>
+                </TarjetaSistema>
               )}
               {inscripcionesGrupo.retiradas.length > 0 && (
                 <div>
                   <TextoSistema variante="sutil" className="mb-2 block text-xs uppercase tracking-wide">
                     Retirados
                   </TextoSistema>
-                  <ul className="space-y-2">
-                    {inscripcionesGrupo.retiradas.map((p) => (
-                      <li
-                        key={p.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-border/40 p-3 opacity-60"
-                      >
-                        <TextoSistema variante="sutil" className="text-sm">
-                          {p.nombre}
-                        </TextoSistema>
-                      </li>
-                    ))}
-                  </ul>
+                  <TarjetaSistema className="p-0 opacity-60">
+                    <ul className="divide-y divide-border">
+                      {inscripcionesGrupo.retiradas.map((p) => (
+                        <li key={p.id} className="flex items-center justify-between gap-3 p-3">
+                          <TextoSistema variante="sutil" className="text-sm">
+                            {p.nombre}
+                          </TextoSistema>
+                        </li>
+                      ))}
+                    </ul>
+                  </TarjetaSistema>
                 </div>
               )}
             </div>
@@ -434,89 +451,91 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
 
       {/* Clases */}
       <section aria-labelledby="clases-heading">
-        <h2 id="clases-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+        <TituloSistema nivel={2} id="clases-heading">
           Clases
-        </h2>
+        </TituloSistema>
         <div className="mt-3">
           {sesiones.length === 0 ? (
             <EstadoVacio
               icono={Calendar}
               titulo={
                 modoLimitado
-                  ? 'Todavía no tenés permiso para ver las clases de este grupo'
+                  ? 'Todavía no tienes permiso para ver las clases de este grupo'
                   : 'No hay clases todavía'
               }
             />
           ) : (
-            <ul className="space-y-2">
-              {sesiones.map((s) => (
-                <li
-                  key={s.id}
-                  className="rounded-lg border border-border/60 p-3"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex min-w-0 flex-wrap items-center gap-3">
-                      {/* Decisiones (Interfaz): "Clase {numero} · {tema}".
-                          Deferred from T2 with an explicit "decidir si entra
-                          en T3" — it does, since the same section renders the
-                          tema everywhere else. A clase without tema keeps the
-                          bare "Clase {numero}"; we never invent a name. */}
-                      <Link
-                        href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
-                        className={
-                          s.id === claseSeleccionadaId
-                            ? 'text-sm font-medium text-foreground underline'
-                            : 'text-sm font-medium text-foreground hover:underline'
-                        }
-                      >
-                        Clase {s.numero}
-                        {s.tema ? ` · ${s.tema}` : ''}
-                      </Link>
-                      <TextoSistema variante="sutil" tamaño="sm">
-                        {formatFecha(s.fechaProgramada)}
-                      </TextoSistema>
-                      <BadgeSistema tamaño="sm">{s.estado}</BadgeSistema>
-                    </div>
-
-                    {/* T3 — each clase carries its own "Pasar lista" link
-                        (selects the clase below) and "Cerrar clase" button.
-                        Both are HIDDEN once the clase is cerrada (never a
-                        disabled control), and only for someone who may act:
-                        miRol (relación con este grupo) o gestión con alcance. */}
-                    {(puedePasarLista || puedeCerrarClase) && s.estado !== 'cerrada' && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {puedePasarLista && (
-                          <Link
-                            href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
-                            className="inline-flex min-h-[44px] items-center rounded-lg border-2 border-border px-3 text-sm font-medium text-foreground hover:bg-accent"
-                          >
-                            Pasar lista
-                          </Link>
-                        )}
-                        {puedeCerrarClase && <CerrarClase sesionId={s.id} />}
+            <TarjetaSistema className="p-0">
+              <ul className="divide-y divide-border">
+                {sesiones.map((s) => (
+                  <li key={s.id} className="p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex min-w-0 flex-wrap items-center gap-3">
+                        {/* Decisiones (Interfaz): "Clase {numero} · {tema}".
+                            Deferred from T2 with an explicit "decidir si entra
+                            en T3" — it does, since the same section renders the
+                            tema everywhere else. A clase without tema keeps the
+                            bare "Clase {numero}"; we never invent a name. */}
+                        <Link
+                          href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
+                          className={
+                            s.id === claseSeleccionadaId
+                              ? 'text-sm font-medium text-foreground underline'
+                              : 'text-sm font-medium text-foreground hover:underline'
+                          }
+                        >
+                          Clase {s.numero}
+                          {s.tema ? ` · ${s.tema}` : ''}
+                        </Link>
+                        <TextoSistema variante="sutil" tamaño="sm">
+                          {formatFecha(s.fechaProgramada)}
+                        </TextoSistema>
+                        <BadgeSistema variante={claseEstadoBadgeVariante(s.estado)} tamaño="sm">
+                          {claseEstadoLabel(s.estado)}
+                        </BadgeSistema>
                       </div>
-                    )}
 
-                    {/* T4 (odd/tasks/talleres-configuracion-del-taller.md) —
-                        edit tema/fecha_programada in place. Gated by
-                        editar_edicion (a director/admin capacity, distinct
-                        from miRol's asistencia relation) AND hidden — never
-                        disabled — once the clase is cerrada, matching the
-                        house rule above. */}
-                    {permisos.editarEdicion && s.estado !== 'cerrada' && (
-                      <EditarClaseInstanciada
-                        tallerSlug={taller.slug}
-                        edicionId={edicionIdParam}
-                        grupoId={grupoId}
-                        sesionId={s.id}
-                        tema={s.tema}
-                        fechaProgramada={s.fechaProgramada}
-                      />
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      {/* T3 — each clase carries its own "Pasar lista" link
+                          (selects the clase below) and "Cerrar clase" button.
+                          Both are HIDDEN once the clase is cerrada (never a
+                          disabled control), and only for someone who may act:
+                          miRol (relación con este grupo) o gestión con alcance. */}
+                      {(puedePasarLista || puedeCerrarClase) && s.estado !== 'cerrada' && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {puedePasarLista && (
+                            <Link
+                              href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}`}
+                              className="inline-flex min-h-[44px] items-center rounded-lg border-2 border-border px-3 text-sm font-medium text-foreground hover:bg-accent"
+                            >
+                              Pasar lista
+                            </Link>
+                          )}
+                          {puedeCerrarClase && <CerrarClase sesionId={s.id} />}
+                        </div>
+                      )}
+
+                      {/* T4 (odd/tasks/talleres-configuracion-del-taller.md) —
+                          edit tema/fecha_programada in place. Gated by
+                          editar_edicion (a director/admin capacity, distinct
+                          from miRol's asistencia relation) AND hidden — never
+                          disabled — once the clase is cerrada, matching the
+                          house rule above. */}
+                      {permisos.editarEdicion && s.estado !== 'cerrada' && (
+                        <EditarClaseInstanciada
+                          tallerSlug={taller.slug}
+                          edicionId={edicionIdParam}
+                          grupoId={grupoId}
+                          sesionId={s.id}
+                          numero={s.numero}
+                          tema={s.tema}
+                          fechaProgramada={s.fechaProgramada}
+                        />
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </TarjetaSistema>
           )}
         </div>
       </section>
@@ -526,12 +545,12 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
           view while the selected clase is editable; once it is `cerrada`
           the read view is all that remains. */}
       <section aria-labelledby="asistencia-heading">
-        <h2 id="asistencia-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+        <TituloSistema nivel={2} id="asistencia-heading">
           Asistencia
-        </h2>
+        </TituloSistema>
         <div className="mt-3">
           {sesiones.length === 0 || !claseSeleccionada ? (
-            <TextoSistema variante="sutil">Elegí una clase para ver su asistencia.</TextoSistema>
+            <TextoSistema variante="sutil">Elige una clase para ver su asistencia.</TextoSistema>
           ) : puedeEditarClase ? (
             <RegistroAsistenciaClase
               // A different clase is a different form: re-seed "todos
@@ -553,7 +572,7 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                 // never "no permission".
                 permisos.ver || esMiembro
                   ? 'Aún no hay asistencia registrada para esta clase'
-                  : 'No tenés permiso para ver la asistencia de esta clase'
+                  : 'No tienes permiso para ver la asistencia de esta clase'
               }
             />
           ) : (
@@ -568,9 +587,9 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
 
       {/* Reporte */}
       <section aria-labelledby="reporte-heading">
-        <h2 id="reporte-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+        <TituloSistema nivel={2} id="reporte-heading">
           Reporte
-        </h2>
+        </TituloSistema>
         <div className="mt-3">
           {!reporte ? (
             <EstadoVacio
@@ -579,7 +598,7 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                 // Same relation-vs-capability honesty as asistencia above.
                 permisos.verReportes || esMiembro
                   ? 'Aún no hay reporte para este grupo'
-                  : 'No tenés permiso para ver el reporte de este grupo'
+                  : 'No tienes permiso para ver el reporte de este grupo'
               }
             />
           ) : (

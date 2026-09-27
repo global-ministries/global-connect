@@ -30,6 +30,7 @@ function baseProps(overrides: Partial<Parameters<typeof EditarClaseInstanciada>[
     edicionId: 'e-1',
     grupoId: 'g-1',
     sesionId: 's-2',
+    numero: 2,
     tema: null,
     fechaProgramada: '2026-10-13',
     ...overrides,
@@ -53,6 +54,17 @@ describe('EditarClaseInstanciada — toggling', () => {
     render(<EditarClaseInstanciada {...baseProps({ tema: null })} />)
     fireEvent.click(screen.getByRole('button', { name: /editar clase/i }))
     expect(screen.getByLabelText(/tema de la clase/i)).toHaveValue('')
+  })
+
+  // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — the
+  // aria-label used to be the generic "Editar clase"; it now names the
+  // exact clase it edits, plus a title, matching the icon-only action
+  // convention the rest of T10 gave plantilla-clases-section/
+  // plantilla-grupos-section/grupos-section.
+  it('names the exact clase in its aria-label and title', () => {
+    render(<EditarClaseInstanciada {...baseProps({ numero: 3 })} />)
+    const boton = screen.getByRole('button', { name: 'Editar clase 3' })
+    expect(boton).toHaveAttribute('title', 'Editar clase')
   })
 })
 
