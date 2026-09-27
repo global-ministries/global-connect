@@ -46,11 +46,12 @@
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Layers, Lock, Users } from 'lucide-react'
+import { ChevronRight, Layers, Lock, Users } from 'lucide-react'
 
 import {
   ContenedorDashboard,
   BadgeSistema,
+  EnlaceSistema,
   TarjetaSistema,
   TextoSistema,
   TituloSistema,
@@ -177,11 +178,12 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             {permisos.editarTaller ? (
               <EditarNombreTaller tallerId={taller.id} tallerSlug={taller.slug} nombre={taller.nombre} />
             ) : (
-              <TituloSistema nivel={1}>{taller.nombre}</TituloSistema>
+              // T10 (design audit) — the page's own <h1> already comes
+              // from ContenedorDashboard (DesktopHeader); this nombre is
+              // a level-2 heading, never a duplicate h1, and the slug is
+              // gone (it was only ever an internal identifier).
+              <TituloSistema nivel={2}>{taller.nombre}</TituloSistema>
             )}
-            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-              <code>{taller.slug}</code>
-            </TextoSistema>
             {permisos.editarTaller ? (
               <EditarDescripcionTaller
                 tallerId={taller.id}
@@ -207,15 +209,16 @@ export default async function TallerDetallePage(ctx: RouteContext) {
 
       <section aria-labelledby="equipo-heading">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="equipo-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+          <TituloSistema nivel={2} id="equipo-heading">
             Equipo
-          </h2>
-          <Link
+          </TituloSistema>
+          <EnlaceSistema
             href={RUTA_SERVIDORES}
-            className="inline-flex min-h-[44px] items-center text-sm font-medium text-[var(--brand-primary)] hover:underline"
+            variante="marca"
+            className="inline-flex min-h-[44px] items-center text-sm"
           >
             Gestionar en Servidores
-          </Link>
+          </EnlaceSistema>
         </div>
 
         {sinAutoridadEquipo ? (
@@ -269,9 +272,9 @@ export default async function TallerDetallePage(ctx: RouteContext) {
       />
 
       <section aria-labelledby="ediciones-heading">
-        <h2 id="ediciones-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
+        <TituloSistema nivel={2} id="ediciones-heading">
           Ediciones
-        </h2>
+        </TituloSistema>
 
         {taller.ediciones.length === 0 ? (
           <div className="mt-3">
@@ -282,14 +285,19 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             />
           </div>
         ) : (
-          <ul className="mt-3 grid gap-3">
-            {taller.ediciones.map((edicion) => (
-              <li key={edicion.id}>
-                <Link href={rutaEdicion(taller.slug, edicion.id)} className="block">
-                  <TarjetaSistema
-                    variante="elevated"
-                    className="p-4 transition-colors hover:bg-muted/30"
-                  >
+          // T10 (design audit) — the ediciones used to be a `grid gap-3` of
+          // separate elevated cards; now ONE TarjetaSistema p-0 with
+          // divide-y rows, the same list pattern the rest of the system
+          // uses (estructura-client.tsx / nodo-fila.tsx).
+          <TarjetaSistema className="mt-3 p-0">
+            <div className="divide-y divide-border">
+              {taller.ediciones.map((edicion) => (
+                <Link
+                  key={edicion.id}
+                  href={rutaEdicion(taller.slug, edicion.id)}
+                  className="flex items-center gap-3 p-4 transition-colors hover:bg-accent"
+                >
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="min-w-0 break-words font-medium text-foreground">
                         {edicion.nombre_snapshot}
@@ -302,11 +310,12 @@ export default async function TallerDetallePage(ctx: RouteContext) {
                       {edicion.total_inscripciones}{' '}
                       {edicion.total_inscripciones === 1 ? 'inscrito' : 'inscritos'}
                     </TextoSistema>
-                  </TarjetaSistema>
+                  </div>
+                  <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
                 </Link>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          </TarjetaSistema>
         )}
       </section>
 
