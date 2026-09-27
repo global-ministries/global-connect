@@ -197,8 +197,13 @@ INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
 INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado) VALUES
   ('b5000000-0000-4000-8000-000000000051', 'b5000000-0000-4000-8000-000000000033', 'b5000000-0000-4000-8000-000000000001', 'b5000000-0000-4000-8000-000000000050', 'activo');
 
-INSERT INTO public.talleres_temporadas (id, nombre, slug, fecha_apertura, fecha_cierre, estado) VALUES
-  ('b5000000-0000-4000-8000-000000000040', '2027 - I', 'zz-ce-2027-i', '2027-02-01 00:00:00+00', '2027-06-01 00:00:00+00', 'borrador');
+-- T3 (odd/tasks/talleres-temporadas-y-ediciones.md) added talleres_temporadas.
+-- dream_team_equipo_id as NOT NULL; this fixture temporada is owned by
+-- equipo_a itself (taller A's own node) so the T3 tree-membership trigger
+-- (taller must hang off the temporada's node or a descendant of it) passes
+-- trivially for every case in this file that uses it.
+INSERT INTO public.talleres_temporadas (id, nombre, slug, fecha_apertura, fecha_cierre, estado, dream_team_equipo_id) VALUES
+  ('b5000000-0000-4000-8000-000000000040', '2027 - I', 'zz-ce-2027-i', '2027-02-01 00:00:00+00', '2027-06-01 00:00:00+00', 'borrador', 'b5000000-0000-4000-8000-000000000001');
 
 CREATE TEMP TABLE t_ce_fixture (key text PRIMARY KEY, id uuid NOT NULL) ON COMMIT DROP;
 GRANT INSERT, SELECT ON t_ce_fixture TO authenticated;
