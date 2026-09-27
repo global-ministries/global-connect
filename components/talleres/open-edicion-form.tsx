@@ -27,20 +27,28 @@
  * (label, min=1, default=1, "1 semana = 1 sesión" helper text), sending
  * whatever the user types.
  *
- * After a successful open, open_edicion's instantiation summary (T2,
- * migration 20260927100000_talleres_instanciar_edicion.sql) is shown:
- * how many grupos were created, how many clases per grupo, and — when
- * non-empty — a warning naming every facilitador skipped because they
- * are no longer an active servidor (acceptance criterion 3).
- *
  * T10 (design audit) — the flat `bg-[var(--brand-primary)]` trigger became
  * a `BotonSistema variante="primario"`, and the form itself moved into a
  * `Dialog` opened from that trigger (it used to render inline, pushing the
  * rest of the taller screen down while open). Every raw `<input>`/
- * `<select>` became `InputSistema`/`SelectSistema`. T11 renames the
- * trigger's label ("Crear edición") and reworks the flow this form is
- * part of — this pass only touches layout and controls, not copy or
- * behaviour, except for the two voseo→neutral fixes below.
+ * `<select>` became `InputSistema`/`SelectSistema`.
+ *
+ * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+ * action is "Crear edición" everywhere (trigger, dialog title, submit
+ * button), never "Abrir": the edición is CREATED here (in `borrador`), and
+ * a separate "Abrir esta edición" control on the edición page later
+ * transitions it to `abierto` for inscriptions — two different verbs for
+ * two different transitions, no longer sharing a name. Before submitting,
+ * the dialog shows a PREVIEW computed from props the taller page already
+ * has: "Se crearán N grupos y M clases por grupo" (`gruposPlantillaActivos`
+ * and `sesionesEstimadas`), or, when the taller has no active plantilla
+ * clases, a notice asking how many it will have; and the list of plantilla
+ * facilitadores that `open_edicion` would omit right now because they are
+ * no longer active servidores of this equipo (`facilitadoresOmitidosPreview`,
+ * computed by the page via `previewFacilitadoresOmitidos`, acceptance
+ * criterion 3). On a successful create there is no more success card on
+ * the taller page — the form redirects straight to the new edición's page
+ * (`rutaEdicion`), since `openEdicion` already returns its id.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -56,10 +64,14 @@ import {
 } from '@/components/ui/sistema-diseno'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
-import { openEdicion, type OpenEdicionResult } from '@/app/(auth)/admin/talleres/abstracto/[slug]/actions'
+import { openEdicion } from '@/app/(auth)/admin/talleres/abstracto/[slug]/actions'
+import { rutaEdicion } from '@/lib/platform/talleres/rutas'
+import type { FacilitadorOmitidoPreview } from '@/lib/platform/talleres/plantilla'
 
 interface Input {
   readonly tallerId: string
+  /** T11 — needed to build rutaEdicion(tallerSlug, edicionId) after a successful create. */
+  readonly tallerSlug: string
   readonly tallerNombre: string
   readonly defaultModalidad: 'periodo_general' | 'permanente_custom'
   /**
@@ -71,30 +83,32 @@ interface Input {
   /**
    * T3 — number of active plantilla clases, or `null` when the taller
    * has none yet (acceptance criterion 8: keep the old form). A number
-   * is sent verbatim as `sesiones_estimadas`, hiding the field; `null`
-   * shows the field again and sends whatever the user types.
+   * is sent verbatim as `sesiones_estimadas`, hiding the field (and is
+   * also the preview's "M clases por grupo"); `null` shows the field
+   * again, sends whatever the user types, and switches the preview to a
+   * notice asking how many clases the edición will have.
    */
   readonly sesionesEstimadas: number | null
-}
-
-type Resumen = Extract<OpenEdicionResult, { ok: true }>
-
-function nombreCompletoOmitido(f: { nombre: string | null; apellido: string | null }): string {
-  return [f.nombre, f.apellido].filter((p): p is string => Boolean(p)).join(' ') || 'Persona sin nombre'
+  /** T11 — number of active plantilla grupos ("N" in the preview sentence). */
+  readonly gruposPlantillaActivos: number
+  /** T11 — plantilla facilitadores `open_edicion` would omit right now (lib/platform/talleres/plantilla.ts's previewFacilitadoresOmitidos). */
+  readonly facilitadoresOmitidosPreview: readonly FacilitadorOmitidoPreview[]
 }
 
 export function OpenEdicionForm({
   tallerId,
+  tallerSlug,
   tallerNombre,
   defaultModalidad,
   temporadasAbiertas,
   sesionesEstimadas,
+  gruposPlantillaActivos,
+  facilitadoresOmitidosPreview,
 }: Input): ReactElement {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
-  const [resumen, setResumen] = useState<Resumen | null>(null)
 
   const [nombreEdicion, setNombreEdicion] = useState('')
   const [tipo, setTipo] = useState<'individual' | 'pareja'>('pareja')
@@ -110,7 +124,6 @@ export function OpenEdicionForm({
 
   function abrirDialogo(): void {
     setOpen(true)
-    setResumen(null)
     setError(null)
   }
 
@@ -138,13 +151,11 @@ export function OpenEdicionForm({
         temporada_id: temporadaId === '' ? null : temporadaId,
       })
       if (result.ok) {
-        router.refresh()
-        setNombreEdicion('')
-        setFechaInicio('')
-        setFechaFin('')
-        setTemporadaId('')
+        // T11 — no more success card on the taller page: land straight on
+        // the new edición, which already shows its own "borrador" banner
+        // and, when the viewer can edit it, the "Abrir esta edición" button.
         setOpen(false)
-        setResumen(result)
+        router.push(rutaEdicion(tallerSlug, result.edicionId))
       } else {
         setError(result.message ?? result.error)
       }
@@ -154,35 +165,40 @@ export function OpenEdicionForm({
   return (
     <div className="flex flex-col items-start gap-3">
       <BotonSistema type="button" variante="primario" tamaño="sm" icono={Plus} onClick={abrirDialogo}>
-        Abrir nueva edición
+        Crear edición
       </BotonSistema>
-
-      {resumen && (
-        <TarjetaSistema variante="outlined" className="w-full p-4">
-          <TextoSistema className="font-medium">Edición abierta</TextoSistema>
-          <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-            {resumen.gruposCreados.length} grupos creados · {resumen.clasesPorGrupo} clases por grupo
-          </TextoSistema>
-          {resumen.facilitadoresOmitidos.length > 0 && (
-            <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning">
-              No se asignaron (ya no son servidores activos): {resumen.facilitadoresOmitidos
-                .map((f) => `${nombreCompletoOmitido(f)} (${f.plantillaGrupo})`)
-                .join(', ')}
-            </TextoSistema>
-          )}
-        </TarjetaSistema>
-      )}
 
       <Dialog open={open} onOpenChange={(next) => (next ? abrirDialogo() : cerrarDialogo())}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Nueva edición de {tallerNombre}</DialogTitle>
+            <DialogTitle>Crear edición de {tallerNombre}</DialogTitle>
             <DialogDescription>
               Una edición es una ocurrencia específica del grupo (ej. &quot;otoño 2026&quot;). La
               edición se crea en estado <strong>borrador</strong>; puedes abrirla (cambiar a{' '}
               <code>abierto</code>) después desde la página de la edición.
             </DialogDescription>
           </DialogHeader>
+
+          {/* T11 — preview of what "Crear edición" will do, before the director confirms. */}
+          <TarjetaSistema variante="outlined" className="p-3">
+            {sesionesEstimadas !== null ? (
+              <TextoSistema tamaño="sm">
+                Se crearán {gruposPlantillaActivos} grupos y {sesionesEstimadas} clases por grupo.
+              </TextoSistema>
+            ) : (
+              <TextoSistema tamaño="sm">
+                Este taller no tiene clases en la plantilla: indica cuántas clases tendrá.
+              </TextoSistema>
+            )}
+            {facilitadoresOmitidosPreview.length > 0 && (
+              <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning">
+                No se asignarán porque ya no sirven en este equipo:{' '}
+                {facilitadoresOmitidosPreview
+                  .map((f) => `${f.nombre} (${f.plantillaGrupo})`)
+                  .join(', ')}
+              </TextoSistema>
+            )}
+          </TarjetaSistema>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
@@ -287,7 +303,7 @@ export function OpenEdicionForm({
               Cancelar
             </BotonSistema>
             <BotonSistema type="button" variante="primario" icono={Send} onClick={submit} disabled={!canSubmit}>
-              {pending ? 'Abriendo…' : 'Abrir edición'}
+              {pending ? 'Creando…' : 'Crear edición'}
             </BotonSistema>
           </div>
         </DialogContent>

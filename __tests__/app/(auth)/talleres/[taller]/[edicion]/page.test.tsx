@@ -473,6 +473,27 @@ describe('EdicionDetallePage — permission wiring', () => {
   })
 })
 
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+// "Abrir esta edición" becomes the clear next step: a one-line banner
+// under the header explains the borrador state and what to do about it.
+describe('EdicionDetallePage — T11: borrador banner', () => {
+  it('shows the borrador banner when estado is borrador', async () => {
+    setup({ edicionDetalle: { ...EDICION, estado: 'borrador' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    expect(extractText(element)).toMatch(
+      /esta edición está en borrador\. revisa grupos y clases y luego ábrela para recibir inscripciones\./i,
+    )
+  })
+
+  it('does not show the borrador banner when estado is abierto', async () => {
+    setup({ edicionDetalle: { ...EDICION, estado: 'abierto' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    expect(extractText(element)).not.toMatch(/está en borrador/i)
+  })
+})
+
 describe('EdicionDetallePage — content', () => {
   it('titles the page with the edición name and links back to the taller', async () => {
     setup({})

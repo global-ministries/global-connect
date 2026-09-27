@@ -79,7 +79,11 @@ import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
 import { fetchRutaEquipo } from '@/lib/platform/talleres/equipo-organigrama'
 import { loadServidoresDelTaller, nombreCompletoServidor } from '@/lib/platform/talleres/servidores-del-taller'
-import { loadPlantillaClases, loadPlantillaGrupos } from '@/lib/platform/talleres/plantilla'
+import {
+  loadPlantillaClases,
+  loadPlantillaGrupos,
+  previewFacilitadoresOmitidos,
+} from '@/lib/platform/talleres/plantilla'
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
 import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
 
@@ -159,13 +163,25 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   const servidores = cargaServidores.ok ? cargaServidores.servidores : []
   const sinAutoridadEquipo = !cargaServidores.ok && cargaServidores.reason === 'sin_autoridad'
 
-  // "Abrir edición" derives sesiones estimadas from the active plantilla
+  // "Crear edición" derives sesiones estimadas from the active plantilla
   // clases when the taller has one (Decisiones). A taller with NO active
   // plantilla clases keeps today's form untouched (acceptance criterion
   // 8): `null` tells OpenEdicionForm to show its own "sesiones" field
   // again, exactly as before — there is no silent numeric fallback here.
   const clasesActivas = plantillaClases.filter((clase) => clase.activo).length
   const sesionesEstimadas = clasesActivas > 0 ? clasesActivas : null
+
+  // T11 — "Crear edición" preview: how many grupos will be instanced (only
+  // ACTIVE plantilla grupos are — same rule open_edicion applies), and
+  // which of their facilitadores are no longer active servidores of this
+  // equipo and would be omitted (acceptance criterion 3, previewed before
+  // the director confirms instead of only after).
+  const gruposPlantillaActivosList = plantillaGrupos.filter((grupo) => grupo.activo)
+  const servidorPersonaIds = new Set(servidores.map((servidor) => servidor.personaId))
+  const facilitadoresOmitidosPreview = previewFacilitadoresOmitidos(
+    gruposPlantillaActivosList,
+    servidorPersonaIds,
+  )
 
   return (
     <ContenedorDashboard
@@ -323,10 +339,13 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         <div>
           <OpenEdicionForm
             tallerId={taller.id}
+            tallerSlug={taller.slug}
             tallerNombre={taller.nombre}
             defaultModalidad={taller.modalidad_default}
             temporadasAbiertas={temporadasAbiertas}
             sesionesEstimadas={sesionesEstimadas}
+            gruposPlantillaActivos={gruposPlantillaActivosList.length}
+            facilitadoresOmitidosPreview={facilitadoresOmitidosPreview}
           />
         </div>
       )}
