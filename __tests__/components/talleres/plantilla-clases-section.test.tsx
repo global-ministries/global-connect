@@ -89,11 +89,12 @@ describe('PlantillaClasesSection — read-only viewer', () => {
 })
 
 describe('PlantillaClasesSection — editor: add clase', () => {
-  it('adds a clase and refreshes on success', async () => {
+  it('opens a dialog from the heading action and adds a clase', async () => {
     crearPlantillaClaseMock.mockResolvedValue({ ok: true })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    fireEvent.click(screen.getByRole('button', { name: /^agregar clase$/i }))
     fireEvent.change(screen.getByLabelText(/tema de la nueva clase/i), { target: { value: 'Influencia' } })
-    fireEvent.click(screen.getByRole('button', { name: /agregar clase/i }))
+    fireEvent.click(screen.getByRole('button', { name: /crear clase/i }))
     expect(crearPlantillaClaseMock).toHaveBeenCalledWith({
       tallerId: 't-1',
       tallerSlug: 'proximo-paso',
@@ -150,18 +151,20 @@ describe('PlantillaClasesSection — editor: activar/desactivar', () => {
 })
 
 describe('PlantillaClasesSection — editor: reorder', () => {
-  it('disables Subir on the first clase and Bajar on the last', () => {
+  it('disables Subir on the first clase and Bajar on the last, each naming its clase', () => {
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
-    const subir = screen.getAllByRole('button', { name: /^subir$/i })
-    const bajar = screen.getAllByRole('button', { name: /^bajar$/i })
+    const subir = screen.getAllByRole('button', { name: /^subir clase/i })
+    const bajar = screen.getAllByRole('button', { name: /^bajar clase/i })
+    expect(subir[0]).toHaveAccessibleName('Subir clase 1')
     expect(subir[0]).toBeDisabled()
+    expect(bajar[bajar.length - 1]).toHaveAccessibleName('Bajar clase 3')
     expect(bajar[bajar.length - 1]).toBeDisabled()
   })
 
   it('moves a middle clase up', async () => {
     moverPlantillaClaseMock.mockResolvedValue({ ok: true })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
-    const subir = screen.getAllByRole('button', { name: /^subir$/i })
+    const subir = screen.getAllByRole('button', { name: /^subir clase/i })
     fireEvent.click(subir[1]!) // clase c-2
     expect(moverPlantillaClaseMock).toHaveBeenCalledWith({
       tallerId: 't-1',
@@ -199,8 +202,9 @@ describe('PlantillaClasesSection — error display', () => {
       message: 'No tienes permisos para hacer este cambio.',
     })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    fireEvent.click(screen.getByRole('button', { name: /^agregar clase$/i }))
     fireEvent.change(screen.getByLabelText(/tema de la nueva clase/i), { target: { value: 'Influencia' } })
-    fireEvent.click(screen.getByRole('button', { name: /agregar clase/i }))
+    fireEvent.click(screen.getByRole('button', { name: /crear clase/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent('No tienes permisos para hacer este cambio.')
   })
 })
