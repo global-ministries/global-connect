@@ -90,6 +90,10 @@ const baseRow = {
   descripcion: 'Un taller de prueba',
   fecha_apertura: '2026-08-20T00:00:00Z',
   fecha_cierre: '2026-09-30T23:59:59Z',
+  // T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+  // edición's own cierre_inscripcion (never the deprecated periodo dates
+  // above), shown as "Inscripción hasta {fecha}".
+  cierre_inscripcion: '2026-09-15',
 }
 
 describe('ExplorarTalleresClient — card content (PR38)', () => {
@@ -117,8 +121,38 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
     const inscrText = screen.getByText(/Inscripciones:.*—/)
     expect(inscrText).toBeInTheDocument()
 
-    // State badge.
-    expect(screen.getByText('abierto')).toBeInTheDocument()
+    // State badge — through edicionEstadoLabel, never the raw key.
+    expect(screen.getByText('Abierta')).toBeInTheDocument()
+    expect(screen.queryByText('abierto')).not.toBeInTheDocument()
+
+    // T5 — "Inscripción hasta {cierre_inscripcion}".
+    expect(screen.getByText(/inscripción hasta/i)).toBeInTheDocument()
+  })
+
+  it('never renders a raw taller_ediciones.estado key — always through edicionEstadoLabel', () => {
+    render(
+      <ExplorarTalleresClient
+        talleres={[{ ...baseRow, id: 'ed-en-curso', estado: 'en_curso' as const }]}
+        defaultCohorteId=""
+      />,
+    )
+    expect(screen.getByText('En curso')).toBeInTheDocument()
+    expect(screen.queryByText('en_curso')).not.toBeInTheDocument()
+  })
+
+  it('shows "Inscripción hasta {cierre_inscripcion}" when present', () => {
+    render(<ExplorarTalleresClient talleres={[baseRow]} defaultCohorteId="" />)
+    expect(screen.getByText(/inscripción hasta.*2026/i)).toBeInTheDocument()
+  })
+
+  it('does not show the "Inscripción hasta" line when cierre_inscripcion is null', () => {
+    render(
+      <ExplorarTalleresClient
+        talleres={[{ ...baseRow, id: 'ed-sin-cierre', cierre_inscripcion: null }]}
+        defaultCohorteId=""
+      />,
+    )
+    expect(screen.queryByText(/inscripción hasta/i)).not.toBeInTheDocument()
   })
 
   it('renders the permanente_custom modality label', () => {

@@ -318,6 +318,14 @@ export interface ParticipanteExplorarRow {
   readonly descripcion: string | null
   readonly fecha_apertura: string | null
   readonly fecha_cierre: string | null
+  /**
+   * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+   * edición's OWN cierre_inscripcion (T1, migration
+   * 20260928100000_talleres_regimen_y_estado_derivado.sql), never the
+   * deprecated `taller_periodos_generales` table (always empty since T2).
+   * Explorar shows "Inscripción hasta {cierre_inscripcion}" when present.
+   */
+  readonly cierre_inscripcion: string | null
 }
 
 /**
@@ -357,7 +365,7 @@ export async function loadParticipanteExplorar(
   const edicionesRes = await client
     .from('taller_ediciones')
     .select(
-      `id, nombre_snapshot, tipo, link_type, estado, taller_id,
+      `id, nombre_snapshot, tipo, link_type, estado, taller_id, cierre_inscripcion,
        taller:talleres!taller_id (slug, nombre, modalidad_default, descripcion)`,
     )
     .in('estado', ['abierto', 'en_curso'])
@@ -371,6 +379,7 @@ export async function loadParticipanteExplorar(
     link_type: 'matrimonio' | 'novios' | null
     estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
     taller_id: string
+    cierre_inscripcion: string | null
     taller: {
       slug: string
       nombre: string
@@ -454,6 +463,7 @@ export async function loadParticipanteExplorar(
       descripcion: row.taller?.descripcion ?? null,
       fecha_apertura: periodo?.fecha_apertura_automatica ?? null,
       fecha_cierre: periodo?.fecha_cierre_automatico ?? null,
+      cierre_inscripcion: row.cierre_inscripcion ?? null,
     }
   })
 }

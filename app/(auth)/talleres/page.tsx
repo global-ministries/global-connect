@@ -54,6 +54,7 @@ import {
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadCatalogoTalleres, loadMisGruposResumen, loadMisTalleres } from '@/lib/platform/talleres/catalogo'
 import { fetchOpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
+import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
 import { rutaExplorar } from '@/lib/platform/talleres/rutas'
 import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
 
@@ -117,6 +118,12 @@ export default async function TalleresCatalogoPage() {
     role: 'L',
     capabilities: caps,
   }
+
+  // T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — best
+  // effort, unscoped (the catálogo spans every taller) — see refrescar-
+  // estados.ts's own header. Runs before loadCatalogoTalleres so its
+  // edición badges never show a stale STORED estado.
+  await refrescarEstadosEdiciones(client)
 
   const [catalogo, misGrupos, opciones] = await Promise.all([
     loadCatalogoTalleres(client),
