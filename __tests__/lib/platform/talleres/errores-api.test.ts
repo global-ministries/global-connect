@@ -81,3 +81,51 @@ describe('traducirErrorTalleres — talleres_crear_edicion branches', () => {
     expect(result.message).not.toMatch(/grupo/i)
   })
 })
+
+// T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — talleres_crear_
+// temporada/talleres_agregar_taller_a_temporada/talleres_quitar_taller_de_
+// temporada's own P0001/P0002 codes, all translated to neutral Spanish (no
+// voseo) — the temporadas actions (actions.ts) route every RPC error
+// through this same table instead of surfacing the raw RAISE text.
+describe('traducirErrorTalleres — temporadas por dirección branches (T5)', () => {
+  it.each([
+    ['EQUIPO_NOT_FOUND', 'not-found'],
+    ['EQUIPO_INACTIVE', 'conflict'],
+    ['EQUIPO_WRONG_EXPERIENCE', 'invalid-input'],
+    ['NOMBRE_REQUERIDO', 'invalid-input'],
+    ['FECHAS_REQUERIDAS', 'invalid-input'],
+    ['FECHA_CIERRE_ANTES_DE_APERTURA', 'invalid-input'],
+    ['SLUG_TOO_SHORT', 'invalid-input'],
+    ['TALLER_NOT_FOUND', 'not-found'],
+    ['TALLER_NO_ES_POR_TEMPORADA', 'invalid-input'],
+    ['TALLER_FUERA_DE_LA_DIRECCION', 'invalid-input'],
+    ['EDICION_NOT_FOUND', 'not-found'],
+    ['EDICION_CON_INSCRITOS', 'conflict'],
+  ] as const)('maps P0001/P0002 %s to error %s with a neutral Spanish message', (code, expectedError) => {
+    // A real RAISE carries the raw value appended for some of these
+    // (e.g. "EQUIPO_NOT_FOUND: <uuid>") — the substring match must still
+    // hit the right MAPA key regardless.
+    const result = traducirErrorTalleres({ code: 'P0001', message: `${code}: 11111111-1111-1111-1111-111111111111` })
+    expect(result.error).toBe(expectedError)
+    expect(result.message.length).toBeGreaterThan(0)
+    expect(result.message).not.toMatch(/tenés|podés|vos\b|creá|elegí/i)
+  })
+
+  it('EDICION_CON_INSCRITOS carries the exact message the "Quitar" confirm dialog shows', () => {
+    const result = traducirErrorTalleres({ code: 'P0001', message: 'EDICION_CON_INSCRITOS' })
+    expect(result.message).toBe(
+      'No se puede quitar: la edición ya tiene inscritos. Cancela la edición desde su pantalla.',
+    )
+  })
+
+  it.each([
+    ['sin_permisos_para_esta_direccion', /dirección/i],
+    ['sin_permisos_para_esta_temporada', /temporada/i],
+  ] as const)('maps %s (42501) to 403 forbidden with a neutral, specific message', (message, expected) => {
+    const result = traducirErrorTalleres({ code: '42501', message })
+    expect(result.status).toBe(403)
+    expect(result.error).toBe('forbidden')
+    expect(result.message).toMatch(expected)
+    expect(result.message).not.toMatch(/tenés|podés|vos\b/i)
+  })
+})

@@ -26,6 +26,7 @@ import { BookOpen } from 'lucide-react'
 
 import { TallerExplorarFab } from '@/components/talleres/explorar-fab'
 import SelectLeaderModal from '@/components/modals/SelectLeaderModal'
+import { edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
 import { inscribirseATaller } from './actions'
 
 interface TallerRow {
@@ -55,6 +56,12 @@ interface TallerRow {
   readonly descripcion: string | null
   readonly fecha_apertura: string | null
   readonly fecha_cierre: string | null
+  /**
+   * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+   * edición's own cierre_inscripcion, shown as "Inscripción hasta
+   * {fecha}" when present (never the deprecated periodo dates above).
+   */
+  readonly cierre_inscripcion: string | null
 }
 
 interface Input {
@@ -211,8 +218,18 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
                         {formatDate(t.fecha_cierre)}
                       </TextoSistema>
                     )}
+                    {t.cierre_inscripcion && (
+                      <TextoSistema
+                        variante="sutil"
+                        className="mt-1 block text-xs"
+                      >
+                        Inscripción hasta {formatDate(t.cierre_inscripcion)}
+                      </TextoSistema>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <BadgeSistema>{t.estado}</BadgeSistema>
+                      <BadgeSistema variante={edicionEstadoBadgeVariante(t.estado)}>
+                        {edicionEstadoLabel(t.estado)}
+                      </BadgeSistema>
                       {t.ya_inscrito && (
                         <BadgeSistema variante="success">Ya inscripto</BadgeSistema>
                       )}

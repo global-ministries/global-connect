@@ -688,6 +688,10 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
     expect(selectColumns).toMatch(/nombre/)
     expect(selectColumns).toMatch(/modalidad_default/)
     expect(selectColumns).toMatch(/descripcion/)
+    // T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+    // edición's OWN cierre_inscripcion (never the deprecated periodo
+    // table), for "Inscripción hasta {cierre_inscripcion}".
+    expect(selectColumns).toMatch(/cierre_inscripcion/)
   })
 
   it('returns per-row cohorte_id, modalidad, fecha_apertura, fecha_cierre', async () => {
@@ -723,6 +727,7 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
       tipo: 'pareja',
       estado: 'abierto',
       taller_id: 'taller-1',
+      cierre_inscripcion: '2026-09-15',
       taller: {
         slug: 'matrimonio-sobre-la-roca',
         nombre: 'Matrimonio sobre la Roca',
@@ -788,6 +793,8 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
     expect(row.nombre).toBe('Matrimonio sobre la Roca')
     expect(row.slug).toBe('matrimonio-sobre-la-roca')
     expect(row.edicion).toBe('Septiembre 2026')
+    // T5 — the edición's own cierre_inscripcion, surfaced verbatim.
+    expect(row.cierre_inscripcion).toBe('2026-09-15')
   })
 
   it('returns null cohorte_id / modalidad / dates when joins return no rows (back-compat)', async () => {
@@ -869,6 +876,8 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
     expect(row.slug).toBe('')
     // Fallback to nombre_snapshot when the taller embed is null.
     expect(row.nombre).toBe('Legacy')
+    // T5 — a legacy row with no cierre_inscripcion column value.
+    expect(row.cierre_inscripcion).toBeNull()
   })
 
   it('returns [] when no ediciones are open', async () => {

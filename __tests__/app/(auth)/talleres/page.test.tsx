@@ -47,6 +47,12 @@ jest.mock('@/lib/platform/talleres/equipo-organigrama', () => ({
   fetchOpcionesEquipoTaller: jest.fn(),
 }))
 
+// T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the catálogo's
+// own edición badges must never show a stale STORED estado.
+jest.mock('@/lib/platform/talleres/refrescar-estados', () => ({
+  refrescarEstadosEdiciones: jest.fn().mockResolvedValue(undefined),
+}))
+
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags').isTalleresEnabled as jest.Mock
 const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
   .createSupabaseServerClient as jest.Mock
@@ -60,6 +66,8 @@ const loadMisTalleresMock = jest.requireMock('@/lib/platform/talleres/catalogo')
   .loadMisTalleres as jest.Mock
 const fetchOpcionesMock = jest.requireMock('@/lib/platform/talleres/equipo-organigrama')
   .fetchOpcionesEquipoTaller as jest.Mock
+const refrescarEstadosEdicionesMock = jest.requireMock('@/lib/platform/talleres/refrescar-estados')
+  .refrescarEstadosEdiciones as jest.Mock
 
 interface SetupOpts {
   isEnabled?: boolean
@@ -105,6 +113,7 @@ function setup(opts: SetupOpts): void {
   loadMisGruposResumenMock.mockReset().mockResolvedValue(opts.misGrupos ?? [])
   loadMisTalleresMock.mockReset().mockResolvedValue(opts.misTalleres ?? [])
   fetchOpcionesMock.mockReset().mockResolvedValue({ vincular: [], crearBajo: [] })
+  refrescarEstadosEdicionesMock.mockReset().mockResolvedValue(undefined)
 }
 
 /** Walks a React element tree's `.props.children` without rendering it. */
@@ -187,6 +196,15 @@ describe('TalleresCatalogoPage — gate', () => {
     const element = (await TalleresCatalogoPage()) as any
     expect(loadCatalogoTalleresMock).toHaveBeenCalledTimes(1)
     expect(findByType(element, CatalogoTalleresClient)).not.toBeNull()
+  })
+})
+
+describe('TalleresCatalogoPage — estado derivado (T5)', () => {
+  it('calls refrescarEstadosEdiciones (unscoped) before loadCatalogoTalleres reads', async () => {
+    setup({})
+    await TalleresCatalogoPage()
+    expect(refrescarEstadosEdicionesMock).toHaveBeenCalledWith(expect.anything())
+    expect(loadCatalogoTalleresMock).toHaveBeenCalled()
   })
 })
 

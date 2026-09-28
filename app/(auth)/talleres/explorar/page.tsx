@@ -24,6 +24,7 @@ import {
   loadParticipanteExplorar,
   requireExplorarViewer,
 } from '@/lib/platform/talleres/participante'
+import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
 
 import { ExplorarTalleresClient } from './explorar-client'
 
@@ -33,14 +34,22 @@ export const metadata = {
 
 export default async function ExplorarTalleresPage() {
   const ctx = await requireExplorarViewer()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = ctx.supabase
+
+  // T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — best
+  // effort, unscoped (explorar spans every open taller) — see refrescar-
+  // estados.ts's own header. Runs before loadParticipanteExplorar so its
+  // edición badges never show a stale STORED estado.
+  await refrescarEstadosEdiciones(client)
+
   const talleres = await loadParticipanteExplorar(ctx)
 
   // PR38 — back-compat fallback. Each row already carries its own
   // `cohorte_id` (joined server-side). This page-level lookup is
   // only consulted when a row's per-taller cohorte_id is null
   // (e.g. legacy rows from before PR37's backfill).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
-  const client: any = ctx.supabase
   const cohorteRes = await client
     .from('talleres_crecimiento_cohortes')
     .select('id')

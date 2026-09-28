@@ -7,11 +7,11 @@
  * T3 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — talleres_
  * temporadas is now owned by a Dream Team node and its RLS is scoped by
  * that node's own tree (supabase/migrations/
- * 20260928120000_talleres_temporadas_por_direccion.sql). `createTemporada`
- * and `toggleTallerInTemporada` now route through the new SECURITY DEFINER
- * RPCs (talleres_crear_temporada, talleres_agregar_taller_a_temporada,
- * talleres_quitar_taller_de_temporada) instead of a raw table write — the
- * RPC IS the security wall, the exact same shape
+ * 20260928120000_talleres_temporadas_por_direccion.sql). `createTemporada`,
+ * `agregarTallerATemporada` and `quitarTallerDeTemporada` all route through
+ * the SECURITY DEFINER RPCs (talleres_crear_temporada, talleres_agregar_
+ * taller_a_temporada, talleres_quitar_taller_de_temporada) instead of a raw
+ * table write — the RPC IS the security wall, the exact same shape
  * lib/platform/talleres/solicitudes-retiro-actions.ts already documents
  * for talleres_resolver_solicitud_retiro: derive the scope from the
  * temporada/equipo itself, surface a failed authority check as SQLSTATE
@@ -22,16 +22,21 @@
  * new scoped RLS/RPC for another branch's temporada) — the app-layer gate
  * is now intentionally thin: kill switch → auth → RPC/RLS.
  *
- * `createTemporada` needs an `equipoId` now (the RPC's own p_equipo_id) —
- * the UI's node picker is T5's job ("the form gets the node picker in
- * T5"), so `equipoId` is optional here purely so the still-unmodified
- * ./crear/temporada-form.tsx keeps compiling; omitting it fails fast with
- * `invalid-input` rather than reaching the RPC with a missing required
- * argument. `descripcion` is no longer settable at creation (the RPC's
- * signature has no p_descripcion param — describing a temporada is not
- * part of this task; the column itself is untouched for a future UPDATE
- * path) but the field stays in the input type, unused, so that same form
- * (which still sends it) keeps compiling too.
+ * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — "Crear
+ * temporada" (crear/temporada-form.tsx) now picks the dirección itself, so
+ * `equipoId` is a required runtime input again (still typed optional here
+ * purely so a caller that omits it fails fast with `invalid-input` rather
+ * than reaching the RPC with a missing required argument); `slug`/
+ * `descripcion` are GONE from `CreateTemporadaInput` (the RPC derives its
+ * own slug and has no p_descripcion param). `createTemporada` also returns
+ * `edicionesCreadas` (the RPC's own `ediciones` array length) so the form
+ * can redirect with a "Se crearon N ediciones" notice. The single
+ * `toggleTallerInTemporada` (checkbox toggle) is replaced by
+ * `agregarTallerATemporada`/`quitarTallerDeTemporada` — the detail screen's
+ * "Agregar taller" select and per-row "Quitar" icon are two differently-
+ * shaped controls now, not one toggle. Every RPC error is translated
+ * through errores-api.ts's `traducirErrorTalleres` (the same table every
+ * other talleres action uses) instead of surfacing the raw RAISE text.
  *
  * `transitionTemporada` is UNCHANGED: a plain guarded UPDATE, now simply
  * subject to the new scoped UPDATE policy instead of the old unscoped one
@@ -47,10 +52,11 @@ import { revalidatePath } from 'next/cache'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 import { rutaTemporadas, rutaTemporada } from '@/lib/platform/talleres/rutas'
 
 export type TemporadaActionResult =
-  | { readonly ok: true; readonly temporadaId?: string }
+  | { readonly ok: true; readonly temporadaId?: string; readonly edicionesCreadas?: number }
   | {
       readonly ok: false
       readonly error: 'forbidden' | 'not-found' | 'unauthorized' | 'invalid-input' | 'internal'
@@ -81,23 +87,27 @@ interface RpcError {
   readonly message?: string
 }
 
+/** Maps `traducirErrorTalleres`'s HTTP-shaped status to this module's own narrower error union. */
+function toLocalError(status: number): 'forbidden' | 'not-found' | 'invalid-input' | 'internal' {
+  if (status === 403) return 'forbidden'
+  if (status === 404) return 'not-found'
+  if (status === 409 || status === 400) return 'invalid-input'
+  return 'internal'
+}
+
 /**
  * Maps a talleres_crear_temporada/talleres_agregar_taller_a_temporada/
- * talleres_quitar_taller_de_temporada error to the action result shape.
- * 42501 = no director.write/admin.manage scoped to the node in question;
- * P0001/P0002/22023 = a domain refusal (TALLER_FUERA_DE_LA_DIRECCION,
- * TALLER_NO_ES_POR_TEMPORADA, EDICION_YA_EXISTE, EDICION_CON_INSCRITOS,
- * TEMPORADA_NOT_FOUND, EQUIPO_NOT_FOUND, …) — surfaced as invalid-input
- * with the raw message, since the UI shows it verbatim either way.
+ * talleres_quitar_taller_de_temporada error to the action result shape,
+ * through the SAME Spanish translation table every other talleres action
+ * uses (errores-api.ts's `traducirErrorTalleres`) — never the raw RAISE
+ * text. 42501 = no director.write/admin.manage scoped to the node in
+ * question; P0001/P0002/22023 = a domain refusal (TALLER_FUERA_DE_LA_
+ * DIRECCION, TALLER_NO_ES_POR_TEMPORADA, EDICION_YA_EXISTE, EDICION_CON_
+ * INSCRITOS, TEMPORADA_NOT_FOUND, EQUIPO_NOT_FOUND, …).
  */
-function mapRpcError(error: RpcError): TemporadaActionResult {
-  if (error.code === '42501') {
-    return { ok: false, error: 'forbidden', message: 'No tenés permiso para esta dirección o temporada.' }
-  }
-  if (error.code === 'P0001' || error.code === 'P0002' || error.code === '22023') {
-    return { ok: false, error: 'invalid-input', message: error.message }
-  }
-  return { ok: false, error: 'internal', message: error.message ?? 'unknown error' }
+function mapRpcError(error: RpcError, mensajePorDefecto: string): TemporadaActionResult {
+  const traducido = traducirErrorTalleres(error, mensajePorDefecto)
+  return { ok: false, error: toLocalError(traducido.status), message: traducido.message }
 }
 
 // ─── createTemporada ────────────────────────────────────────────────────────
@@ -105,12 +115,6 @@ function mapRpcError(error: RpcError): TemporadaActionResult {
 export interface CreateTemporadaInput {
   readonly equipoId?: string
   readonly nombre: string
-  /** @deprecated no longer sent to the RPC (it derives its own slug); kept
-   *  so the not-yet-rewritten form (T5) still compiles. */
-  readonly slug?: string
-  /** @deprecated not settable at creation (no p_descripcion on the RPC);
-   *  kept so the not-yet-rewritten form (T5) still compiles. */
-  readonly descripcion?: string | null
   readonly fecha_apertura: string // ISO
   readonly fecha_cierre: string // ISO
   readonly tallerIds?: readonly string[]
@@ -119,8 +123,9 @@ export interface CreateTemporadaInput {
 /**
  * Creates a temporada owned by `equipoId` (estado='borrador', slug derived
  * server-side) via talleres_crear_temporada, optionally creating one
- * edición per `tallerIds` entry. `equipoId` is required at runtime (the
- * node picker itself is T5's job — see this module's own header).
+ * edición per `tallerIds` entry. `equipoId` is required at runtime — T5's
+ * own form (crear/temporada-form.tsx) always supplies it from its
+ * dirección picker.
  */
 export async function createTemporada(
   input: CreateTemporadaInput,
@@ -154,36 +159,38 @@ export async function createTemporada(
     p_taller_ids: input.tallerIds ?? [],
   })
 
-  if (error) return mapRpcError(error)
+  if (error) return mapRpcError(error, 'No se pudo crear la temporada.')
 
-  const temporadaId = (data as { temporada_id?: string } | null)?.temporada_id
+  const resultado = data as { temporada_id?: string; ediciones?: readonly unknown[] } | null
+  const temporadaId = resultado?.temporada_id
   if (!temporadaId) {
     return { ok: false, error: 'internal', message: 'No se pudo crear la temporada.' }
   }
 
   revalidatePath(rutaTemporadas())
-  return { ok: true, temporadaId }
+  return { ok: true, temporadaId, edicionesCreadas: resultado.ediciones?.length ?? 0 }
 }
 
-// ─── toggleTallerInTemporada ─────────────────────────────────────────────────
+// ─── agregarTallerATemporada / quitarTallerDeTemporada ──────────────────────
+//
+// T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the detail
+// screen's "add"/"remove" are two separate, differently-shaped controls now
+// (a "Agregar taller" select+button vs. a per-row "Quitar" icon with its own
+// confirm dialog), not one checkbox toggle — `toggleTallerInTemporada` is
+// replaced by these two, more honestly named actions.
 
-export interface ToggleTallerInput {
+export interface AgregarTallerInput {
   readonly temporadaId: string
   readonly tallerId: string
-  readonly on: boolean
 }
 
 /**
- * The "elijo qué talleres abren" control surface: on=true adds the taller
- * (talleres_agregar_taller_a_temporada — creates its edición; tolerates
- * EDICION_YA_EXISTE as idempotent success, since the junction row and a
- * non-cancelled edición always exist together under T3's model); on=false
- * removes it (talleres_quitar_taller_de_temporada — cancels the edición,
- * never deletes it; refuses with EDICION_CON_INSCRITOS if it has
- * inscritos, surfaced as invalid-input).
+ * talleres_agregar_taller_a_temporada — creates the taller's edición.
+ * Tolerates EDICION_YA_EXISTE as idempotent success (a non-cancelled
+ * edición already means "already in this temporada" under T3's model).
  */
-export async function toggleTallerInTemporada(
-  input: ToggleTallerInput,
+export async function agregarTallerATemporada(
+  input: AgregarTallerInput,
 ): Promise<TemporadaActionResult> {
   const gate = await requireSession()
   if (!gate.ok) return gate
@@ -194,21 +201,51 @@ export async function toggleTallerInTemporada(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gate.supabase
-  const rpcName = input.on
-    ? 'talleres_agregar_taller_a_temporada'
-    : 'talleres_quitar_taller_de_temporada'
-
-  const { error } = await client.rpc(rpcName, {
+  const { error } = await client.rpc('talleres_agregar_taller_a_temporada', {
     p_temporada_id: input.temporadaId,
     p_taller_id: input.tallerId,
   })
 
   if (error) {
-    if (input.on && (error as RpcError).message === 'EDICION_YA_EXISTE') {
+    if ((error as RpcError).message === 'EDICION_YA_EXISTE') {
       return { ok: true }
     }
-    return mapRpcError(error)
+    return mapRpcError(error, 'No se pudo agregar el taller a la temporada.')
   }
+
+  revalidatePath(rutaTemporada(input.temporadaId))
+  return { ok: true }
+}
+
+export interface QuitarTallerInput {
+  readonly temporadaId: string
+  readonly tallerId: string
+}
+
+/**
+ * talleres_quitar_taller_de_temporada — cancels the taller's edición here
+ * (never deletes it). Refuses with EDICION_CON_INSCRITOS when it has
+ * inscritos — surfaced verbatim (errores-api.ts's own copy) so the "Quitar"
+ * confirm dialog can show it exactly.
+ */
+export async function quitarTallerDeTemporada(
+  input: QuitarTallerInput,
+): Promise<TemporadaActionResult> {
+  const gate = await requireSession()
+  if (!gate.ok) return gate
+
+  if (!input.temporadaId || !input.tallerId) {
+    return { ok: false, error: 'invalid-input', message: 'temporadaId y tallerId son requeridos.' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gate.supabase
+  const { error } = await client.rpc('talleres_quitar_taller_de_temporada', {
+    p_temporada_id: input.temporadaId,
+    p_taller_id: input.tallerId,
+  })
+
+  if (error) return mapRpcError(error, 'No se pudo quitar el taller de la temporada.')
 
   revalidatePath(rutaTemporada(input.temporadaId))
   return { ok: true }

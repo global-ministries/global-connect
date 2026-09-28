@@ -151,6 +151,80 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     error: 'forbidden',
     message: 'No tienes permisos para crear ediciones en este taller.',
   },
+  // T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+  // talleres_crear_temporada/talleres_agregar_taller_a_temporada/
+  // talleres_quitar_taller_de_temporada (migration 20260928120000_talleres_
+  // temporadas_por_direccion.sql), the "temporadas por dirección" screens.
+  sin_permisos_para_esta_direccion: {
+    status: 403,
+    error: 'forbidden',
+    message: 'No tienes permisos para crear temporadas en esta dirección.',
+  },
+  sin_permisos_para_esta_temporada: {
+    status: 403,
+    error: 'forbidden',
+    message: 'No tienes permisos para modificar esta temporada.',
+  },
+  EQUIPO_NOT_FOUND: {
+    status: 404,
+    error: 'not-found',
+    message: 'La dirección elegida ya no existe.',
+  },
+  EQUIPO_INACTIVE: {
+    status: 409,
+    error: 'conflict',
+    message: 'La dirección elegida está inactiva.',
+  },
+  EQUIPO_WRONG_EXPERIENCE: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Ese nodo no pertenece a talleres; elige otro.',
+  },
+  NOMBRE_REQUERIDO: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'El nombre debe tener al menos 2 caracteres.',
+  },
+  FECHAS_REQUERIDAS: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Las fechas de apertura y cierre son requeridas.',
+  },
+  FECHA_CIERRE_ANTES_DE_APERTURA: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'La fecha de cierre no puede ser anterior a la de apertura.',
+  },
+  SLUG_TOO_SHORT: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Ese nombre no genera un identificador válido; elige otro.',
+  },
+  TALLER_NOT_FOUND: {
+    status: 404,
+    error: 'not-found',
+    message: 'El taller elegido ya no existe.',
+  },
+  TALLER_NO_ES_POR_TEMPORADA: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Ese taller no abre por temporada.',
+  },
+  TALLER_FUERA_DE_LA_DIRECCION: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Ese taller no pertenece a esta dirección.',
+  },
+  EDICION_NOT_FOUND: {
+    status: 404,
+    error: 'not-found',
+    message: 'No se encontró la edición de este taller en esta temporada.',
+  },
+  EDICION_CON_INSCRITOS: {
+    status: 409,
+    error: 'conflict',
+    message: 'No se puede quitar: la edición ya tiene inscritos. Cancela la edición desde su pantalla.',
+  },
 }
 
 /** Ordered longest-first so a substring match can't pick the wrong entry. */
