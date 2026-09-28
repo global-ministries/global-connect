@@ -26,7 +26,7 @@
  */
 
 import GrupoDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/[grupo]/page'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { ContenedorDashboard, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia-clase.client'
 import { RegistroAsistenciaClase } from '@/components/talleres/registro-asistencia-clase.client'
 import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
@@ -313,11 +313,11 @@ describe('GrupoDetallePage — gate', () => {
     expect(loadTallerDetalleMock).not.toHaveBeenCalled()
   })
 
-  it('asks to log in and resolves nothing when there is no user', async () => {
+  it('asks to log in (neutral Spanish, no voseo) and resolves nothing when there is no user', async () => {
     setup({ user: null })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/iniciar sesión/i)
+    expect(extractText(element)).toMatch(/necesitas iniciar sesión/i)
     expect(loadTallerDetalleMock).not.toHaveBeenCalled()
   })
 
@@ -434,7 +434,7 @@ describe('GrupoDetallePage — full access', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     const vacio = findByType(element, EstadoVacio)
-    expect(vacio?.props.titulo).toMatch(/no tenés permiso/i)
+    expect(vacio?.props.titulo).toMatch(/no tienes permiso/i)
   })
 
   it('passes taller.dream_team_equipo_id to cargarPermisos', async () => {
@@ -453,6 +453,72 @@ describe('GrupoDetallePage — full access', () => {
       href: rutaEdicion('proximo-paso', 'e-1'),
       texto: 'Octubre 2026',
     })
+  })
+})
+
+describe('GrupoDetallePage — design audit (T10)', () => {
+  // "Equipo", "Su gente", "Clases", "Asistencia" and "Reporte" used to be
+  // hand-rolled `<h2>`s; all five are now TituloSistema nivel={2}, and no
+  // raw h2 is left on the page.
+  it('renders every section heading through TituloSistema nivel={2}, never a raw h2', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, 'h2')).toBeNull()
+    const titulos = findAllByType(element, TituloSistema)
+    const nombres = titulos.filter((t) => t.props.nivel === 2).map((t) => extractText(t.props.children))
+    expect(nombres).toEqual(
+      expect.arrayContaining(['Equipo', 'Su gente', 'Clases', 'Asistencia', 'Reporte']),
+    )
+  })
+
+  // grupo.estado and each clase's estado used to render the raw DB enum
+  // inside a bare BadgeSistema; both now go through the shared
+  // components/talleres/labels.ts maps.
+  it('shows the grupo estado through its Spanish label, never the raw enum', async () => {
+    setup({}) // GRUPO.estado === 'activo'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).toMatch(/Activo/)
+    expect(text).not.toMatch(/\bactivo\b/)
+  })
+
+  it('shows each clase estado through its Spanish label, never the raw enum', async () => {
+    setup({}) // SESIONES estado === 'programada'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).toMatch(/Programada/)
+    expect(text).not.toMatch(/\bprogramada\b/)
+  })
+
+  // The equipo, su gente and clases lists used to be a stack of separate
+  // bordered `<li>` boxes; each is now ONE TarjetaSistema p-0, divide-y —
+  // the same list pattern the rest of the system uses.
+  it('lists equipo, su gente and clases inside p-0 TarjetaSistema cards, not separate bordered boxes', async () => {
+    setup({
+      inscripcionesGrupo: { aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }], retiradas: [] },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const p0Cards = findAllByType(element, TarjetaSistema).filter((c) =>
+      String(c.props.className ?? '').includes('p-0'),
+    )
+    // Equipo, su gente (aprobadas) and clases — at least 3 p-0 cards.
+    expect(p0Cards.length).toBeGreaterThanOrEqual(3)
+  })
+
+  // T10 — the edit control's aria-label used to be the generic "Editar
+  // clase"; EditarClaseInstanciada now receives the clase's própio número
+  // so it can name the exact clase (item 5 of the design audit).
+  it('passes numero to EditarClaseInstanciada so it can name the clase it edits', async () => {
+    setup({ permisos: { editarEdicion: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const controles = findAllByType(element, EditarClaseInstanciada)
+    expect(controles[0]?.props.numero).toBe(1)
+    expect(controles[1]?.props.numero).toBe(2)
   })
 })
 
@@ -516,7 +582,7 @@ describe('GrupoDetallePage — miembro sin capacidades (T2)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     const text = extractText(element)
-    expect(text).not.toMatch(/todavía no tenés el permiso/i)
+    expect(text).not.toMatch(/todavía no tienes el permiso/i)
     expect(text).toMatch(/Juan Pérez/)
     expect(text).toMatch(/Clase\s*1/)
   })
@@ -560,7 +626,7 @@ describe('GrupoDetallePage — miembro sin capacidades (T2)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     const vacio = findByType(element, EstadoVacio)
-    expect(vacio?.props.titulo).toMatch(/no tenés permiso/i)
+    expect(vacio?.props.titulo).toMatch(/no tienes permiso/i)
   })
 
   it('does not crash and keeps the degraded state when talleres_es_miembro_del_grupo is missing (fails soft to false)', async () => {

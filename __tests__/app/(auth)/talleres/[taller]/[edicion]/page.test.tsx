@@ -29,7 +29,7 @@ import { OpenEdicionButton, CloseEdicionButton } from '@/components/talleres/ope
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { ContenedorDashboard, TituloSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
 import type { EdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
@@ -261,6 +261,21 @@ function findByType(node: unknown, type: unknown): { props: Record<string, unkno
   return null
 }
 
+/** Finds EVERY element of the given type in the tree, WITHOUT executing it. */
+function findAllByType(node: unknown, type: unknown, out: Array<{ props: Record<string, unknown> }> = []) {
+  if (node === null || node === undefined || typeof node === 'boolean') return out
+  if (Array.isArray(node)) {
+    for (const child of node) findAllByType(child, type, out)
+    return out
+  }
+  if (typeof node === 'object' && node !== null && 'type' in node) {
+    const el = node as { type: unknown; props?: { children?: unknown } }
+    if (el.type === type) out.push(el as { props: Record<string, unknown> })
+    findAllByType(el.props?.children, type, out)
+  }
+  return out
+}
+
 describe('EdicionDetallePage — gate', () => {
   it('shows the disabled message and resolves nothing when the flag is off', async () => {
     setup({ isEnabled: false })
@@ -270,11 +285,11 @@ describe('EdicionDetallePage — gate', () => {
     expect(loadTallerDetalleMock).not.toHaveBeenCalled()
   })
 
-  it('asks to log in and resolves nothing when there is no user', async () => {
+  it('asks to log in (neutral Spanish, no voseo) and resolves nothing when there is no user', async () => {
     setup({ user: null })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/iniciar sesión/i)
+    expect(extractText(element)).toMatch(/necesitas iniciar sesión/i)
     expect(loadTallerDetalleMock).not.toHaveBeenCalled()
   })
 
@@ -494,5 +509,18 @@ describe('EdicionDetallePage — content', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
     expect(extractText(element)).toMatch(/no hay per[ií]odo general asociado/i)
+  })
+
+  // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) —
+  // "Inscritos" and "Ventana" used to be hand-rolled `<h2>`s; both are now
+  // TituloSistema nivel={2}, and no raw h2 is left on the page.
+  it('renders Inscritos and Ventana through TituloSistema nivel={2}, never a raw h2', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    expect(findByType(element, 'h2')).toBeNull()
+    const titulos = findAllByType(element, TituloSistema)
+    expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Inscritos')).toBe(true)
+    expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Ventana')).toBe(true)
   })
 })

@@ -97,19 +97,27 @@ describe('PlantillaGruposSection — read-only viewer', () => {
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: false })} />)
     expect(screen.queryByRole('button', { name: /agregar grupo/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /editar grupo/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: /servidor a agregar/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /^servidor$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /quitar/i })).not.toBeInTheDocument()
   })
 })
 
 describe('PlantillaGruposSection — editor: facilitador picker is bounded', () => {
-  it('offers only the servidores prop as options, never a free-text search', () => {
+  it('offers an empty placeholder plus the servidores prop as options, never a free-text search', () => {
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
-    const pickers = screen.getAllByRole('combobox', { name: /servidor a agregar/i })
-    const options = within(pickers[0]!).getAllByRole('option').map((o) => o.textContent)
-    expect(options).toEqual(expect.arrayContaining(['Ana Gómez', 'Carlos Ruiz']))
-    expect(options.length).toBe(SERVIDORES.length)
+    const pickers = screen.getAllByRole('combobox', { name: /^servidor$/i })
+    // g-2 has no facilitadores yet, so nobody is excluded from its picker.
+    const options = within(pickers[1]!).getAllByRole('option').map((o) => o.textContent)
+    expect(options).toEqual(['Elige un servidor…', 'Ana Gómez', 'Carlos Ruiz'])
     expect(screen.queryByRole('textbox', { name: /buscar/i })).not.toBeInTheDocument()
+  })
+
+  it('excludes a grupo\'s own facilitadores from its picker options', () => {
+    render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    const pickers = screen.getAllByRole('combobox', { name: /^servidor$/i })
+    // g-1 already has Ana Gómez (p-1) as a facilitador.
+    const options = within(pickers[0]!).getAllByRole('option').map((o) => o.textContent)
+    expect(options).toEqual(['Elige un servidor…', 'Carlos Ruiz'])
   })
 
   it('shows the "Sin servidores activos" empty state with a link to Servidores when there are none', () => {
@@ -117,13 +125,13 @@ describe('PlantillaGruposSection — editor: facilitador picker is bounded', () 
     expect(screen.getByText(/Sin servidores activos en este equipo/i)).toBeInTheDocument()
     const link = screen.getByRole('link', { name: /servidores/i })
     expect(link).toHaveAttribute('href', '/admin/dream-team/servidores')
-    expect(screen.queryByRole('combobox', { name: /servidor a agregar/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /^servidor$/i })).not.toBeInTheDocument()
   })
 
   it('adds a facilitador with the picked persona and rol', async () => {
     agregarFacilitadorMock.mockResolvedValue({ ok: true })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
-    const pickers = screen.getAllByRole('combobox', { name: /servidor a agregar/i })
+    const pickers = screen.getAllByRole('combobox', { name: /^servidor$/i })
     fireEvent.change(pickers[1]!, { target: { value: 'p-2' } }) // grupo g-2's picker
     const rolSelects = screen.getAllByRole('combobox', { name: /^rol$/i })
     fireEvent.change(rolSelects[1]!, { target: { value: 'voluntario' } })
@@ -145,6 +153,7 @@ describe('PlantillaGruposSection — editor: facilitador picker is bounded', () 
       message: 'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
     })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    fireEvent.change(screen.getAllByRole('combobox', { name: /^servidor$/i })[0]!, { target: { value: 'p-2' } })
     fireEvent.click(screen.getAllByRole('button', { name: /agregar facilitador/i })[0]!)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -154,22 +163,29 @@ describe('PlantillaGruposSection — editor: facilitador picker is bounded', () 
 })
 
 describe('PlantillaGruposSection — editor: quitar facilitador', () => {
-  it('removes a facilitador and refreshes', async () => {
+  it('asks for confirmation, then removes the facilitador and refreshes', async () => {
     quitarFacilitadorMock.mockResolvedValue({ ok: true })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
-    fireEvent.click(screen.getByRole('button', { name: /quitar a ana gómez/i }))
+    fireEvent.click(screen.getByRole('button', { name: /quitar a ana gómez del grupo/i }))
+
+    // Not called yet — the confirm step comes first.
+    expect(quitarFacilitadorMock).not.toHaveBeenCalled()
+    expect(screen.getByText(/¿quitar a ana gómez/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /confirmar/i }))
     expect(quitarFacilitadorMock).toHaveBeenCalledWith({ tallerSlug: 'proximo-paso', facilitadorId: 'f-1' })
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
   })
 })
 
 describe('PlantillaGruposSection — editor: agregar grupo', () => {
-  it('adds a grupo and refreshes', async () => {
+  it('opens a dialog from the heading action and adds a grupo', async () => {
     crearPlantillaGrupoMock.mockResolvedValue({ ok: true })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    fireEvent.click(screen.getByRole('button', { name: /^agregar grupo$/i }))
     fireEvent.change(screen.getByLabelText(/nombre del nuevo grupo/i), { target: { value: 'Grupo Gamma' } })
     fireEvent.change(screen.getByLabelText(/capacidad del nuevo grupo/i), { target: { value: '8' } })
-    fireEvent.click(screen.getByRole('button', { name: /agregar grupo/i }))
+    fireEvent.click(screen.getByRole('button', { name: /crear grupo/i }))
     expect(crearPlantillaGrupoMock).toHaveBeenCalledWith({
       tallerId: 't-1',
       tallerSlug: 'proximo-paso',
@@ -177,6 +193,20 @@ describe('PlantillaGruposSection — editor: agregar grupo', () => {
       capacidad: 8,
     })
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
+  })
+
+  it('shows the error message inside the dialog when the action fails', async () => {
+    crearPlantillaGrupoMock.mockResolvedValue({
+      ok: false,
+      error: 'forbidden',
+      message: 'No tienes permisos para hacer este cambio.',
+    })
+    render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    fireEvent.click(screen.getByRole('button', { name: /^agregar grupo$/i }))
+    fireEvent.change(screen.getByLabelText(/nombre del nuevo grupo/i), { target: { value: 'Grupo Gamma' } })
+    fireEvent.change(screen.getByLabelText(/capacidad del nuevo grupo/i), { target: { value: '8' } })
+    fireEvent.click(screen.getByRole('button', { name: /crear grupo/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('No tienes permisos para hacer este cambio.')
   })
 })
 

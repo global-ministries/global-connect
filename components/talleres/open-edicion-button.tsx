@@ -19,8 +19,13 @@
  * (still imported by its absolute path) — the old page keeps working
  * unmodified in its data flow, just its import path changes.
  *
- * Visual style: same primary / danger tones as the rest of the
- * admin /talleres/* surfaces, rendered inline next to the badge.
+ * T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — the
+ * hand-styled red/emerald/amber tones (`bg-[var(--brand-primary)]`,
+ * `border-amber-400`, `bg-red-50`, `bg-emerald-50`) became `BotonSistema`
+ * (primario for the positive actions, outline for the trigger/cancel) and
+ * `BadgeSistema` (variante="error"/"success") for feedback — never a
+ * hardcoded palette class, and dark mode holds because BadgeSistema
+ * already carries its own dark-mode tokens.
  */
 
 import {
@@ -29,6 +34,8 @@ import {
   type ReactElement,
 } from 'react'
 import { Lock, RotateCw, Send } from 'lucide-react'
+
+import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 
 import {
   closeExistingEdicionAction,
@@ -71,30 +78,18 @@ export function OpenEdicionButton({ edicionId }: BaseProps): ReactElement {
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={submit}
-        disabled={pending}
-        className="inline-flex items-center gap-2 rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-      >
-        <Send className="h-4 w-4" />
+      <BotonSistema type="button" variante="primario" tamaño="sm" icono={Send} onClick={submit} disabled={pending}>
         {pending ? 'Abriendo…' : 'Abrir esta edición'}
-      </button>
+      </BotonSistema>
       {feedback.kind === 'error' && (
-        <p
-          role="alert"
-          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700"
-        >
+        <BadgeSistema variante="error" role="alert" tamaño="sm">
           {feedback.message}
-        </p>
+        </BadgeSistema>
       )}
       {feedback.kind === 'success' && (
-        <p
-          role="status"
-          className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700"
-        >
+        <BadgeSistema variante="success" role="status" tamaño="sm">
           {feedback.message}
-        </p>
+        </BadgeSistema>
       )}
     </div>
   )
@@ -125,23 +120,22 @@ export function CloseEdicionButton({ edicionId }: BaseProps): ReactElement {
   if (!confirming) {
     return (
       <div className="flex flex-col items-end gap-2">
-        <button
+        <BotonSistema
           type="button"
+          variante="outline"
+          tamaño="sm"
+          icono={Lock}
           onClick={() => {
             setFeedback(idleFeedback)
             setConfirming(true)
           }}
-          className="inline-flex items-center gap-2 rounded border border-amber-400 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50"
         >
-          <Lock className="h-4 w-4" /> Cerrar esta edición
-        </button>
+          Cerrar esta edición
+        </BotonSistema>
         {feedback.kind === 'error' && (
-          <p
-            role="alert"
-            className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700"
-          >
+          <BadgeSistema variante="error" role="alert" tamaño="sm">
             {feedback.message}
-          </p>
+          </BadgeSistema>
         )}
       </div>
     )
@@ -150,39 +144,22 @@ export function CloseEdicionButton({ edicionId }: BaseProps): ReactElement {
   return (
     <div className="flex flex-col items-end gap-2">
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setConfirming(false)}
-          disabled={pending}
-          className="rounded border px-3 py-2 text-sm disabled:opacity-50"
-        >
+        <BotonSistema type="button" variante="outline" tamaño="sm" onClick={() => setConfirming(false)} disabled={pending}>
           Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={submit}
-          disabled={pending}
-          className="inline-flex items-center gap-2 rounded bg-amber-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
-          <RotateCw className="h-4 w-4" />
+        </BotonSistema>
+        <BotonSistema type="button" variante="primario" tamaño="sm" icono={RotateCw} onClick={submit} disabled={pending}>
           {pending ? 'Cerrando…' : 'Confirmar cierre'}
-        </button>
+        </BotonSistema>
       </div>
       {feedback.kind === 'error' && (
-        <p
-          role="alert"
-          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700"
-        >
+        <BadgeSistema variante="error" role="alert" tamaño="sm">
           {feedback.message}
-        </p>
+        </BadgeSistema>
       )}
       {feedback.kind === 'success' && (
-        <p
-          role="status"
-          className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700"
-        >
+        <BadgeSistema variante="success" role="status" tamaño="sm">
           {feedback.message}
-        </p>
+        </BadgeSistema>
       )}
     </div>
   )

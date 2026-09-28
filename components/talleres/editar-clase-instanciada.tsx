@@ -9,6 +9,11 @@
  * CerrarClase/EnviarReporte); this component never re-derives either
  * check, it only surfaces whatever error the action already translated
  * (e.g. CLASE_CERRADA via errores-api.ts).
+ *
+ * T10 (design audit) — the edit affordance's aria-label used to be the
+ * generic "Editar clase"; `numero` lets it name the exact clase ("Editar
+ * clase 3"), plus a `title`, matching the icon-only action convention T10
+ * gave every other icon-only control in this feature.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -22,18 +27,20 @@ interface Props {
   readonly edicionId: string
   readonly grupoId: string
   readonly sesionId: string
+  readonly numero: number
   readonly tema: string | null
   readonly fechaProgramada: string
 }
 
 const BOTON_ICONO =
-  'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground'
+  'inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground'
 
 export function EditarClaseInstanciada({
   tallerSlug,
   edicionId,
   grupoId,
   sesionId,
+  numero,
   tema,
   fechaProgramada,
 }: Props): ReactElement {
@@ -73,8 +80,14 @@ export function EditarClaseInstanciada({
 
   if (!editando) {
     return (
-      <button type="button" aria-label="Editar clase" className={BOTON_ICONO} onClick={abrir}>
-        <Pencil className="h-4 w-4" />
+      <button
+        type="button"
+        aria-label={`Editar clase ${numero}`}
+        title="Editar clase"
+        className={BOTON_ICONO}
+        onClick={abrir}
+      >
+        <Pencil className="h-4 w-4" aria-hidden="true" />
       </button>
     )
   }
@@ -96,16 +109,23 @@ export function EditarClaseInstanciada({
         onChange={(e) => setFechaEditada(e.target.value)}
         className="min-h-[44px] rounded-lg border border-border bg-card/50 px-3 py-2"
       />
-      <button type="button" aria-label="Guardar clase" className={BOTON_ICONO} onClick={guardar}>
-        <Check className="h-4 w-4" />
+      <button
+        type="button"
+        aria-label="Guardar clase"
+        title="Guardar clase"
+        className={BOTON_ICONO}
+        onClick={guardar}
+      >
+        <Check className="h-4 w-4" aria-hidden="true" />
       </button>
       <button
         type="button"
         aria-label="Cancelar edición de la clase"
+        title="Cancelar"
         className={BOTON_ICONO}
         onClick={() => setEditando(false)}
       >
-        <X className="h-4 w-4" />
+        <X className="h-4 w-4" aria-hidden="true" />
       </button>
       {error && (
         <span role="alert" className="block w-full text-sm text-destructive">

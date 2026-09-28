@@ -89,4 +89,15 @@ describe('EditarNombreTaller', () => {
     render(<EditarNombreTaller tallerId="t-1" tallerSlug="proximo-paso" nombre="Próximo Paso" />)
     expect(screen.getByRole('button', { name: /editar/i })).toHaveClass('min-h-[44px]')
   })
+
+  // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — the
+  // page's own ContenedorDashboard already renders the taller's nombre as
+  // the page's single <h1> (DesktopHeader); this in-card nombre used to
+  // repeat it as a SECOND <h1>. It is now a level-2 heading, so the page
+  // keeps exactly one <h1>.
+  it('renders the nombre as a level-2 heading, never a duplicate h1', () => {
+    render(<EditarNombreTaller tallerId="t-1" tallerSlug="proximo-paso" nombre="Próximo Paso" />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Próximo Paso' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument()
+  })
 })

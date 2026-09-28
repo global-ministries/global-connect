@@ -18,7 +18,7 @@ const SERVIDORES = [
 ]
 
 describe('FacilitadorPicker — bounded', () => {
-  it('offers only the servidores prop as options, never a free-text search', () => {
+  it('offers an empty placeholder plus the servidores prop as options, never a free-text search', () => {
     render(
       <FacilitadorPicker
         servidores={SERVIDORES}
@@ -27,10 +27,37 @@ describe('FacilitadorPicker — bounded', () => {
         onError={jest.fn()}
       />,
     )
-    const picker = screen.getByRole('combobox', { name: /servidor a agregar/i })
+    const picker = screen.getByRole('combobox', { name: /^servidor$/i })
     const options = within(picker).getAllByRole('option').map((o) => o.textContent)
-    expect(options).toEqual(['Ana Gómez', 'Carlos Ruiz'])
+    expect(options).toEqual(['Elige un servidor…', 'Ana Gómez', 'Carlos Ruiz'])
     expect(screen.queryByRole('textbox', { name: /buscar/i })).not.toBeInTheDocument()
+  })
+
+  it('excludes personaIds passed in excluirPersonaIds from the options', () => {
+    render(
+      <FacilitadorPicker
+        servidores={SERVIDORES}
+        excluirPersonaIds={['p-1']}
+        onAgregar={jest.fn()}
+        onAgregado={jest.fn()}
+        onError={jest.fn()}
+      />,
+    )
+    const picker = screen.getByRole('combobox', { name: /^servidor$/i })
+    const options = within(picker).getAllByRole('option').map((o) => o.textContent)
+    expect(options).toEqual(['Elige un servidor…', 'Carlos Ruiz'])
+  })
+
+  it('disables "Agregar facilitador" until a servidor is picked', () => {
+    render(
+      <FacilitadorPicker
+        servidores={SERVIDORES}
+        onAgregar={jest.fn()}
+        onAgregado={jest.fn()}
+        onError={jest.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /agregar facilitador/i })).toBeDisabled()
   })
 
   it('calls onAgregar with the selected persona and rol, then onAgregado on success', async () => {
@@ -44,7 +71,7 @@ describe('FacilitadorPicker — bounded', () => {
         onError={jest.fn()}
       />,
     )
-    fireEvent.change(screen.getByRole('combobox', { name: /servidor a agregar/i }), {
+    fireEvent.change(screen.getByRole('combobox', { name: /^servidor$/i }), {
       target: { value: 'p-2' },
     })
     fireEvent.change(screen.getByRole('combobox', { name: /^rol$/i }), {
@@ -70,6 +97,9 @@ describe('FacilitadorPicker — bounded', () => {
         onError={onError}
       />,
     )
+    fireEvent.change(screen.getByRole('combobox', { name: /^servidor$/i }), {
+      target: { value: 'p-1' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /agregar facilitador/i }))
 
     await waitFor(() =>

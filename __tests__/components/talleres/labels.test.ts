@@ -35,6 +35,14 @@ import {
   ASISTENCIA_ESTADO_BADGE_VARIANTE,
   asistenciaEstadoLabel,
   asistenciaEstadoBadgeVariante,
+  GRUPO_ESTADO_LABELS,
+  GRUPO_ESTADO_BADGE_VARIANTE,
+  grupoEstadoLabel,
+  grupoEstadoBadgeVariante,
+  CLASE_ESTADO_LABELS,
+  CLASE_ESTADO_BADGE_VARIANTE,
+  claseEstadoLabel,
+  claseEstadoBadgeVariante,
 } from '@/components/talleres/labels'
 
 describe('edición estado labels', () => {
@@ -271,5 +279,76 @@ describe('asistencia estado labels', () => {
   it('asistenciaEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
     expect(asistenciaEstadoBadgeVariante('presente')).toBe('success')
     expect(asistenciaEstadoBadgeVariante('algo-desconocido')).toBe('default')
+  })
+})
+
+// T10 (odd/tasks/talleres-configuracion-del-taller.md) — taller_grupos.estado
+// (activo/completado/cancelado). The [grupo] and taller screens rendered
+// `grupo.estado` raw inside a bare BadgeSistema — this is the shared map.
+describe('grupo estado labels', () => {
+  it('has a Spanish label for every known estado', () => {
+    expect(GRUPO_ESTADO_LABELS).toEqual({
+      activo: 'Activo',
+      completado: 'Completado',
+      cancelado: 'Cancelado',
+    })
+  })
+
+  it('maps every estado to a valid BadgeSistema variante', () => {
+    const validVariantes = new Set(['default', 'success', 'warning', 'error', 'info'])
+    for (const variante of Object.values(GRUPO_ESTADO_BADGE_VARIANTE)) {
+      expect(validVariantes.has(variante)).toBe(true)
+    }
+  })
+
+  it('activo reads as success, cancelado as error', () => {
+    expect(GRUPO_ESTADO_BADGE_VARIANTE.activo).toBe('success')
+    expect(GRUPO_ESTADO_BADGE_VARIANTE.cancelado).toBe('error')
+  })
+
+  it('grupoEstadoLabel resolves a known key and falls back to the raw key otherwise', () => {
+    expect(grupoEstadoLabel('activo')).toBe('Activo')
+    expect(grupoEstadoLabel('algo-desconocido')).toBe('algo-desconocido')
+  })
+
+  it('grupoEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
+    expect(grupoEstadoBadgeVariante('completado')).toBe('info')
+    expect(grupoEstadoBadgeVariante('algo-desconocido')).toBe('default')
+  })
+})
+
+// T10 — taller_sesiones.estado (programada/en_curso/cerrada/cancelada), the
+// clase's own estado. The [grupo] screen rendered `s.estado` raw inside a
+// bare BadgeSistema — this is the shared map.
+describe('clase estado labels', () => {
+  it('has a Spanish label for every known estado', () => {
+    expect(CLASE_ESTADO_LABELS).toEqual({
+      programada: 'Programada',
+      en_curso: 'En curso',
+      cerrada: 'Cerrada',
+      cancelada: 'Cancelada',
+    })
+  })
+
+  it('maps every estado to a valid BadgeSistema variante', () => {
+    const validVariantes = new Set(['default', 'success', 'warning', 'error', 'info'])
+    for (const variante of Object.values(CLASE_ESTADO_BADGE_VARIANTE)) {
+      expect(validVariantes.has(variante)).toBe(true)
+    }
+  })
+
+  it('cerrada reads as success, cancelada as error', () => {
+    expect(CLASE_ESTADO_BADGE_VARIANTE.cerrada).toBe('success')
+    expect(CLASE_ESTADO_BADGE_VARIANTE.cancelada).toBe('error')
+  })
+
+  it('claseEstadoLabel resolves a known key and falls back to the raw key otherwise', () => {
+    expect(claseEstadoLabel('en_curso')).toBe('En curso')
+    expect(claseEstadoLabel('algo-desconocido')).toBe('algo-desconocido')
+  })
+
+  it('claseEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
+    expect(claseEstadoBadgeVariante('programada')).toBe('default')
+    expect(claseEstadoBadgeVariante('algo-desconocido')).toBe('default')
   })
 })

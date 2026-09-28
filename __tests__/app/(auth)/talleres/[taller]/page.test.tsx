@@ -32,7 +32,8 @@ import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcio
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { ContenedorDashboard, EnlaceSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { ChevronRight } from 'lucide-react'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
 import type { CargaServidoresDelTaller, ServidorDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
@@ -255,11 +256,11 @@ describe('TallerDetallePage — gate', () => {
     expect(loadTallerDetalleMock).not.toHaveBeenCalled()
   })
 
-  it('asks to log in and resolves nothing when there is no user', async () => {
+  it('asks to log in (neutral Spanish, no voseo) and resolves nothing when there is no user', async () => {
     setup({ user: null })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/iniciar sesión/i)
+    expect(extractText(element)).toMatch(/necesitas iniciar sesión/i)
     expect(loadTallerDetalleMock).not.toHaveBeenCalled()
   })
 
@@ -321,6 +322,30 @@ describe('TallerDetallePage — cabecera', () => {
     expect(findByType(element, EditarDescripcionTaller)).toBeNull()
     expect(extractText(element)).toMatch(/Un taller de ejemplo\./)
   })
+
+  // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — the
+  // read-only nombre used to render a SECOND <h1> on top of the page's own
+  // (ContenedorDashboard's DesktopHeader); it is now a level-2 TituloSistema,
+  // so the page keeps exactly one h1.
+  it('never renders a raw h1 for the read-only nombre (single page title)', async () => {
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, 'h1')).toBeNull()
+    const nombreHeading = findAllByType(element, TituloSistema).find(
+      (t) => t.props.nivel === 2 && extractText(t.props.children) === 'Matrimonio sobre la Roca',
+    )
+    expect(nombreHeading).toBeDefined()
+  })
+
+  // T10 — the slug used to render as a visible `<code>` under the nombre;
+  // dropped for the design audit (nombre/descripcion edit stays).
+  it('never shows the slug in the cabecera', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, 'code')).toBeNull()
+  })
 })
 
 describe('TallerDetallePage — Equipo', () => {
@@ -334,13 +359,18 @@ describe('TallerDetallePage — Equipo', () => {
     expect(loadServidoresDelTallerMock).toHaveBeenCalledWith(expect.anything(), 't-1')
   })
 
-  it('links to Gestionar en Servidores', async () => {
+  // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — this
+  // used to be a hand-styled `<Link className="... text-[var(--brand-primary)]
+  // hover:underline">`; it is now an EnlaceSistema variante="marca".
+  it('links to Gestionar en Servidores through EnlaceSistema', async () => {
     setup({ servidores: [SERVIDOR_LIDER] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const links = findAllByType(element, Link)
-    const servidoresLink = links.find((l) => l.props.href === '/admin/dream-team/servidores')
+    const servidoresLink = findAllByType(element, EnlaceSistema).find(
+      (l) => l.props.href === '/admin/dream-team/servidores',
+    )
     expect(servidoresLink).toBeDefined()
+    expect(servidoresLink?.props.variante).toBe('marca')
   })
 
   it('shows an empty state when there are no active servidores', async () => {
@@ -490,6 +520,46 @@ describe('TallerDetallePage — permission wiring', () => {
     setup({})
     await TallerDetallePage(params())
     expect(cargarPermisosMock).toHaveBeenCalledWith(expect.anything(), 'eq-1')
+  })
+})
+
+describe('TallerDetallePage — headings (design audit)', () => {
+  // T10 — "Equipo" and "Ediciones" used to be hand-rolled `<h2>`s; both are
+  // now TituloSistema nivel={2}, and no raw h2 is left on the page.
+  it('renders Equipo and Ediciones through TituloSistema nivel={2}, never a raw h2', async () => {
+    setup({ servidores: [SERVIDOR_LIDER] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, 'h2')).toBeNull()
+    const titulos = findAllByType(element, TituloSistema)
+    expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Equipo')).toBe(true)
+    expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Ediciones')).toBe(true)
+  })
+})
+
+describe('TallerDetallePage — Ediciones (design audit)', () => {
+  const DOS_EDICIONES = {
+    ...TALLER,
+    ediciones: [
+      { id: 'e-1', nombre_snapshot: 'Septiembre 2026', tipo: 'pareja' as const, estado: 'abierto' as const, total_inscripciones: 3 },
+      { id: 'e-2', nombre_snapshot: 'Marzo 2026', tipo: 'pareja' as const, estado: 'cerrado' as const, total_inscripciones: 1 },
+    ],
+  }
+
+  // T10 — the ediciones used to be a `grid gap-3` of separate elevated
+  // cards; they are now rows of ONE TarjetaSistema p-0, divide-y, each
+  // ending in a ChevronRight (the shared list pattern the rest of the
+  // system uses — see estructura-client.tsx / nodo-fila.tsx).
+  it('lists every edición as a row inside ONE TarjetaSistema p-0, each with a trailing ChevronRight', async () => {
+    setup({ taller: DOS_EDICIONES })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const cards = findAllByType(element, TarjetaSistema).filter((c) =>
+      String(c.props.className ?? '').includes('p-0'),
+    )
+    // one of the p-0 cards is the ediciones list
+    expect(cards.length).toBeGreaterThan(0)
+    expect(findAllByType(element, ChevronRight)).toHaveLength(2)
   })
 })
 
