@@ -21,6 +21,7 @@ import {
   editarGrupoInstanciado,
   inscribirSobreCupo,
   quitarFacilitadorGrupo,
+  reprogramarEdicion,
 } from '@/app/(auth)/talleres/[taller]/[edicion]/actions'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
@@ -540,5 +541,393 @@ describe('inscribirSobreCupo — happy path & errors', () => {
     const result = await inscribirSobreCupo({ tallerSlug: 's', edicionId: 'e-1', personaId: 'p-1' })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toBe('forbidden')
+  })
+})
+
+// ─── reprogramarEdicion (T7b, odd/tasks/talleres-temporadas-y-ediciones.md) ─
+//
+// Thin gate: shapes the talleres_reprogramar_edicion call and translates its
+// result. All business rules (authority, EDICION_NO_REPROGRAMABLE,
+// NADA_QUE_CAMBIAR, CIERRE_POSTERIOR_AL_FIN, EDICION_YA_EMPEZO, the actual
+// writes) live in the RPC; this action only validates the two dates are
+// well-formed ISO strings and the motivo fits.
+
+const validReprogramarInput = {
+  tallerSlug: 'proximo-paso',
+  edicionId: 'e-1',
+  fechaInicio: null,
+  cierreInscripcion: '2026-10-05',
+  motivo: null,
+}
+
+describe('reprogramarEdicion — kill switch & auth', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    setupRpc({ isEnabled: false })
+    const result = await reprogramarEdicion(validReprogramarInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+  })
+
+  it('returns unauthorized when there is no session', async () => {
+    setupRpc({ user: null })
+    const result = await reprogramarEdicion(validReprogramarInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+  })
+})
+
+describe('reprogramarEdicion — input validation', () => {
+  it('rejects a malformed fechaInicio', async () => {
+    setupRpc({})
+    const result = await reprogramarEdicion({ ...validReprogramarInput, fechaInicio: '05-10-2026', cierreInscripcion: null })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('rejects a malformed cierreInscripcion', async () => {
+    setupRpc({})
+    const result = await reprogramarEdicion({ ...validReprogramarInput, cierreInscripcion: 'not-a-date' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('rejects a motivo longer than 300 characters', async () => {
+    setupRpc({})
+    const result = await reprogramarEdicion({ ...validReprogramarInput, motivo: 'x'.repeat(301) })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('accepts a motivo of exactly 300 characters', async () => {
+    const { rpc } = setupRpc({
+      rpcResult: {
+        data: {
+          edicion_id: 'e-1',
+          fecha_inicio: '2026-09-01',
+          fecha_fin: '2026-10-27',
+          cierre_inscripcion: '2026-10-05',
+          estado: 'abierto',
+          clases_movidas: 0,
+        },
+        error: null,
+      },
+    })
+    const result = await reprogramarEdicion({ ...validReprogramarInput, motivo: 'x'.repeat(300) })
+    expect(result.ok).toBe(true)
+    expect(rpc).toHaveBeenCalledWith('talleres_reprogramar_edicion', expect.objectContaining({ p_motivo: 'x'.repeat(300) }))
+  })
+})
+
+describe('reprogramarEdicion — happy path', () => {
+  it('extend-only: calls the RPC with p_fecha_inicio null and revalidates edición + taller', async () => {
+    const { rpc } = setupRpc({
+      rpcResult: {
+        data: {
+          edicion_id: 'e-1',
+          fecha_inicio: '2026-09-01',
+          fecha_fin: '2026-10-27',
+          cierre_inscripcion: '2026-10-05',
+          estado: 'abierto',
+          clases_movidas: 0,
+        },
+        error: null,
+      },
+    })
+    const result = await reprogramarEdicion(validReprogramarInput)
+    expect(rpc).toHaveBeenCalledWith('talleres_reprogramar_edicion', {
+      p_edicion_id: 'e-1',
+      p_fecha_inicio: null,
+      p_cierre_inscripcion: '2026-10-05',
+      p_motivo: null,
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.reprogramacion).toEqual({
+        edicionId: 'e-1',
+        fechaInicio: '2026-09-01',
+        fechaFin: '2026-10-27',
+        cierreInscripcion: '2026-10-05',
+        estado: 'abierto',
+        clasesMovidas: 0,
+      })
+    }
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+
+  it('move mode: forwards p_fecha_inicio and trims a blank motivo to null', async () => {
+    const { rpc } = setupRpc({
+      rpcResult: {
+        data: {
+          edicion_id: 'e-1',
+          fecha_inicio: '2026-09-08',
+          fecha_fin: '2026-11-03',
+          cierre_inscripcion: '2026-09-08',
+          estado: 'abierto',
+          clases_movidas: 4,
+        },
+        error: null,
+      },
+    })
+    const result = await reprogramarEdicion({
+      tallerSlug: 'proximo-paso',
+      edicionId: 'e-1',
+      fechaInicio: '2026-09-08',
+      cierreInscripcion: null,
+      motivo: '   ',
+    })
+    expect(rpc).toHaveBeenCalledWith('talleres_reprogramar_edicion', {
+      p_edicion_id: 'e-1',
+      p_fecha_inicio: '2026-09-08',
+      p_cierre_inscripcion: null,
+      p_motivo: null,
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.reprogramacion.clasesMovidas).toBe(4)
+  })
+})
+
+describe('reprogramarEdicion — error mapping', () => {
+  it('maps EDICION_YA_EMPEZO to a conflict message', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: 'P0001', message: 'EDICION_YA_EMPEZO' } } })
+    const result = await reprogramarEdicion({ ...validReprogramarInput, fechaInicio: '2026-09-08', cierreInscripcion: null })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('conflict')
+      expect(result.message).toMatch(/primera clase/i)
+    }
+  })
+
+  it('maps NADA_QUE_CAMBIAR to invalid-input', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: 'P0001', message: 'NADA_QUE_CAMBIAR' } } })
+    const result = await reprogramarEdicion({ ...validReprogramarInput, cierreInscripcion: null })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('maps CIERRE_POSTERIOR_AL_FIN to invalid-input', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: 'P0001', message: 'CIERRE_POSTERIOR_AL_FIN' } } })
+    const result = await reprogramarEdicion(validReprogramarInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('maps EDICION_NO_REPROGRAMABLE to conflict', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: 'P0001', message: 'EDICION_NO_REPROGRAMABLE' } } })
+    const result = await reprogramarEdicion(validReprogramarInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('conflict')
+  })
+
+  it('maps sin_permisos_para_esta_edicion (42501) to forbidden', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: '42501', message: 'sin_permisos_para_esta_edicion' } } })
+    const result = await reprogramarEdicion(validReprogramarInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
+  })
+})
+
+// ─── reprogramarEdicion (T7b, odd/tasks/talleres-temporadas-y-ediciones.md) ──
+
+const REPROGRAMAR_RPC_DATA = {
+  edicion_id: 'e-1',
+  fecha_inicio: '2026-10-05',
+  fecha_fin: '2026-10-26',
+  cierre_inscripcion: '2026-10-05',
+  estado: 'abierto',
+  clases_movidas: 4,
+}
+
+interface ReprogramarSetup {
+  isEnabled?: boolean
+  user?: { id: string } | null
+  rpcResult?: { data: unknown; error: { message?: string; code?: string } | null }
+  cohorteResult?: { data: unknown; error: unknown }
+  gruposResult?: { data: unknown; error: unknown }
+}
+
+function setupReprogramar(opts: ReprogramarSetup): { rpc: jest.Mock; from: jest.Mock } {
+  flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
+  const rpc = jest.fn().mockResolvedValue(opts.rpcResult ?? { data: REPROGRAMAR_RPC_DATA, error: null })
+
+  const maybeSingle = jest.fn().mockResolvedValue(opts.cohorteResult ?? { data: { id: 'c-1' }, error: null })
+  const eqCohorte = jest.fn().mockReturnValue({ maybeSingle })
+  const selectCohorte = jest.fn().mockReturnValue({ eq: eqCohorte })
+
+  const eqGrupos = jest.fn().mockResolvedValue(opts.gruposResult ?? { data: [{ id: 'g-1' }, { id: 'g-2' }], error: null })
+  const selectGrupos = jest.fn().mockReturnValue({ eq: eqGrupos })
+
+  const from = jest.fn((table: string) => {
+    if (table === 'talleres_crecimiento_cohortes') return { select: selectCohorte }
+    if (table === 'taller_grupos') return { select: selectGrupos }
+    throw new Error(`setupReprogramar: unexpected table ${table}`)
+  })
+
+  createSupabaseServerClientMock.mockReset().mockResolvedValue({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user },
+        error: null,
+      }),
+    },
+    rpc,
+    from,
+  })
+  return { rpc, from }
+}
+
+const validReprogramarExtender = {
+  tallerSlug: 'proximo-paso',
+  edicionId: 'e-1',
+  fechaInicio: null,
+  cierreInscripcion: '2026-10-12',
+  motivo: null,
+}
+
+describe('reprogramarEdicion — kill switch & auth', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    setupReprogramar({ isEnabled: false })
+    const result = await reprogramarEdicion(validReprogramarExtender)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+  })
+
+  it('returns unauthorized when there is no session', async () => {
+    setupReprogramar({ user: null })
+    const result = await reprogramarEdicion(validReprogramarExtender)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+  })
+})
+
+describe('reprogramarEdicion — input validation', () => {
+  it('rejects a malformed fechaInicio', async () => {
+    const { rpc } = setupReprogramar({})
+    const result = await reprogramarEdicion({ ...validReprogramarExtender, fechaInicio: '05/10/2026' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a malformed cierreInscripcion', async () => {
+    const { rpc } = setupReprogramar({})
+    const result = await reprogramarEdicion({ ...validReprogramarExtender, cierreInscripcion: 'not-a-date' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a motivo longer than 300 characters', async () => {
+    const { rpc } = setupReprogramar({})
+    const result = await reprogramarEdicion({ ...validReprogramarExtender, motivo: 'x'.repeat(301) })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('accepts a motivo of exactly 300 characters', async () => {
+    const { rpc } = setupReprogramar({})
+    const motivo = 'x'.repeat(300)
+    const result = await reprogramarEdicion({ ...validReprogramarExtender, motivo })
+    expect(result.ok).toBe(true)
+    expect(rpc).toHaveBeenCalledWith('talleres_reprogramar_edicion', expect.objectContaining({ p_motivo: motivo }))
+  })
+
+  it('collapses a blank motivo to null', async () => {
+    const { rpc } = setupReprogramar({})
+    await reprogramarEdicion({ ...validReprogramarExtender, motivo: '   ' })
+    expect(rpc).toHaveBeenCalledWith('talleres_reprogramar_edicion', expect.objectContaining({ p_motivo: null }))
+  })
+})
+
+describe('reprogramarEdicion — arg mapping', () => {
+  it('extend-only: sends p_fecha_inicio null and p_cierre_inscripcion set', async () => {
+    const { rpc } = setupReprogramar({})
+    await reprogramarEdicion({ ...validReprogramarExtender, motivo: 'Ajuste de agenda' })
+    expect(rpc).toHaveBeenCalledWith('talleres_reprogramar_edicion', {
+      p_edicion_id: 'e-1',
+      p_fecha_inicio: null,
+      p_cierre_inscripcion: '2026-10-12',
+      p_motivo: 'Ajuste de agenda',
+    })
+  })
+
+  it('move-start: sends both p_fecha_inicio and p_cierre_inscripcion (null when not overridden)', async () => {
+    const { rpc } = setupReprogramar({})
+    await reprogramarEdicion({
+      tallerSlug: 'proximo-paso',
+      edicionId: 'e-1',
+      fechaInicio: '2026-10-05',
+      cierreInscripcion: null,
+      motivo: null,
+    })
+    expect(rpc).toHaveBeenCalledWith('talleres_reprogramar_edicion', {
+      p_edicion_id: 'e-1',
+      p_fecha_inicio: '2026-10-05',
+      p_cierre_inscripcion: null,
+      p_motivo: null,
+    })
+  })
+})
+
+describe('reprogramarEdicion — happy path', () => {
+  it('maps the jsonb result, revalidates the edición and taller pages, and every grupo page', async () => {
+    const result = await (async () => {
+      setupReprogramar({})
+      return reprogramarEdicion(validReprogramarExtender)
+    })()
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.reprogramacion).toEqual({
+        edicionId: 'e-1',
+        fechaInicio: '2026-10-05',
+        fechaFin: '2026-10-26',
+        cierreInscripcion: '2026-10-05',
+        estado: 'abierto',
+        clasesMovidas: 4,
+      })
+    }
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1/g-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1/g-2')
+  })
+
+  it('still succeeds when there is no cohorte (nothing extra to revalidate)', async () => {
+    setupReprogramar({ cohorteResult: { data: null, error: null } })
+    const result = await reprogramarEdicion(validReprogramarExtender)
+    expect(result.ok).toBe(true)
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+})
+
+describe('reprogramarEdicion — error mapping', () => {
+  it.each([
+    ['NADA_QUE_CAMBIAR', 'invalid-input'],
+    ['EDICION_NO_REPROGRAMABLE', 'conflict'],
+    ['CIERRE_POSTERIOR_AL_FIN', 'invalid-input'],
+    ['EDICION_YA_EMPEZO', 'conflict'],
+  ])('maps %s to error %s', async (code, expectedError) => {
+    setupReprogramar({ rpcResult: { data: null, error: { code: 'P0001', message: code } } })
+    const result = await reprogramarEdicion(validReprogramarExtender)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe(expectedError)
+      expect(result.message.length).toBeGreaterThan(0)
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+
+  it('maps sin_permisos_para_esta_edicion (42501) to forbidden', async () => {
+    setupReprogramar({
+      rpcResult: { data: null, error: { code: '42501', message: 'sin_permisos_para_esta_edicion' } },
+    })
+    const result = await reprogramarEdicion(validReprogramarExtender)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('forbidden')
+      expect(result.message).toMatch(/no tienes permisos/i)
+    }
   })
 })

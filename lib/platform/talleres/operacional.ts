@@ -863,6 +863,100 @@ export async function loadCupoEdicion(
   }
 }
 
+/**
+ * T7b (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — what the
+ * "Reprogramar" dialog needs to compute its preview and to disable "mover
+ * la primera clase" client-side: how many clases are still pendiente
+ * (estado IN programada/en_curso, across every grupo of this edición) and
+ * whether the primera clase (numero = 1, any grupo) is already cerrada —
+ * same rule talleres_reprogramar_edicion itself refuses a move on
+ * (EDICION_YA_EMPEZO). Best effort: a missing cohorte/grupo, or a denied
+ * read, degrades to the "nothing pending, nothing closed" shape rather
+ * than throwing — the RPC is the real authority either way, this is only
+ * a client-side preview.
+ */
+export interface ReprogramarPreview {
+  readonly clasesPendientes: number
+  readonly primeraClaseCerrada: boolean
+}
+
+const REPROGRAMAR_PREVIEW_VACIO: ReprogramarPreview = { clasesPendientes: 0, primeraClaseCerrada: false }
+
+export async function loadReprogramarPreview(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  client: any,
+  edicionId: string
+): Promise<ReprogramarPreview> {
+  try {
+    const { data: cohorte } = await client
+      .from('talleres_crecimiento_cohortes')
+      .select('id')
+      .eq('taller_id', edicionId)
+      .maybeSingle()
+    if (!cohorte) return REPROGRAMAR_PREVIEW_VACIO
+
+    const { data: grupos } = await client.from('taller_grupos').select('id').eq('cohorte_id', cohorte.id)
+    const grupoIds = ((grupos ?? []) as ReadonlyArray<{ id: string }>).map((g) => g.id)
+    if (grupoIds.length === 0) return REPROGRAMAR_PREVIEW_VACIO
+
+    const [{ count: pendientesCount }, { data: primeras }] = await Promise.all([
+      client
+        .from('taller_sesiones')
+        .select('id', { count: 'exact', head: true })
+        .in('grupo_id', grupoIds)
+        .in('estado', ['programada', 'en_curso']),
+      client.from('taller_sesiones').select('id').in('grupo_id', grupoIds).eq('numero', 1).eq('estado', 'cerrada').limit(1),
+    ])
+
+    return {
+      clasesPendientes: pendientesCount ?? 0,
+      primeraClaseCerrada: ((primeras ?? []) as unknown[]).length > 0,
+    }
+  } catch {
+    return REPROGRAMAR_PREVIEW_VACIO
+  }
+}
+
+/**
+ * T7b — the Ventana audit line ("Reprogramada por {nombre} el {fecha}:
+ * {motivo}"), via the `talleres_reprogramacion_persona` RPC (migration
+ * 20260928150000_talleres_reprogramar_edicion.sql) rather than a raw
+ * `usuarios` embed on `taller_ediciones.reprogramada_por` — same reasoning
+ * as loadCupoEdicion using an RPC instead of a raw join. `null` when the
+ * edición was never reprogramada, or the RPC call itself fails.
+ */
+export interface ReprogramacionAudit {
+  readonly nombre: string
+  readonly apellido: string
+  readonly en: string
+  readonly motivo: string | null
+}
+
+export async function loadReprogramacionAudit(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  client: any,
+  edicionId: string
+): Promise<ReprogramacionAudit | null> {
+  try {
+    const { data, error } = await client.rpc('talleres_reprogramacion_persona', { p_edicion_id: edicionId })
+    if (error || !data || data.length === 0) return null
+    const row = data[0] as {
+      reprogramada_por_nombre: string
+      reprogramada_por_apellido: string
+      reprogramada_en: string
+      reprogramacion_motivo: string | null
+    }
+    return {
+      nombre: row.reprogramada_por_nombre,
+      apellido: row.reprogramada_por_apellido,
+      en: row.reprogramada_en,
+      motivo: row.reprogramacion_motivo,
+    }
+  } catch {
+    return null
+  }
+}
+
 export interface DirResumenCounts {
   readonly talleres_activos: number
   readonly inscripciones_pendientes: number

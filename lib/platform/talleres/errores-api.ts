@@ -310,6 +310,30 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     error: 'invalid-input',
     message: 'El régimen elegido no es válido.',
   },
+  // T7b (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+  // talleres_reprogramar_edicion (migration
+  // 20260928150000_talleres_reprogramar_edicion.sql), the Ventana
+  // "Reprogramar" dialog.
+  NADA_QUE_CAMBIAR: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Elige al menos una fecha para cambiar.',
+  },
+  EDICION_NO_REPROGRAMABLE: {
+    status: 409,
+    error: 'conflict',
+    message: 'Esta edición ya no se puede reprogramar.',
+  },
+  CIERRE_POSTERIOR_AL_FIN: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'El cierre de inscripción no puede ser posterior a la última clase.',
+  },
+  EDICION_YA_EMPEZO: {
+    status: 409,
+    error: 'conflict',
+    message: 'La primera clase de esta edición ya se dictó; no se puede mover el inicio.',
+  },
 }
 
 /** Ordered longest-first so a substring match can't pick the wrong entry. */
