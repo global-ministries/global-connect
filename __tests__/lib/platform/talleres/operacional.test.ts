@@ -28,6 +28,8 @@ import {
   loadDirResumen,
   loadEdicionLocalDetalle,
   loadCupoEdicion,
+  loadReprogramarPreview,
+  loadReprogramacionAudit,
 } from '@/lib/platform/talleres/operacional'
 import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
 
@@ -730,6 +732,113 @@ describe('loadCupoEdicion — talleres_cupo_edicion RPC', () => {
   it('returns null on an empty result set', async () => {
     const rpc = jest.fn().mockResolvedValue({ data: [], error: null })
     const result = await loadCupoEdicion({ rpc }, 'e-1')
+    expect(result).toBeNull()
+  })
+})
+
+// ─── loadReprogramarPreview / loadReprogramacionAudit — T7b
+// (talleres-temporadas-y-ediciones.md, paso 6) ───────────────────────────
+
+/** A minimal thenable query-builder stub, chainable through any method, resolving `result` when awaited. */
+function chainable(result: { data?: unknown; count?: number; error?: unknown }) {
+  const obj: Record<string, unknown> = {}
+  const self = () => obj
+  obj.select = jest.fn(self)
+  obj.eq = jest.fn(self)
+  obj.in = jest.fn(self)
+  obj.limit = jest.fn(self)
+  obj.maybeSingle = jest.fn(() => Promise.resolve(result))
+  obj.then = (onFulfilled: (value: typeof result) => unknown) => Promise.resolve(result).then(onFulfilled)
+  return obj
+}
+
+describe('loadReprogramarPreview — clasesPendientes + primeraClaseCerrada', () => {
+  it('counts pendiente/en_curso clases and detects a cerrada numero=1, across every grupo of the cohorte', async () => {
+    const from = jest
+      .fn()
+      .mockReturnValueOnce(chainable({ data: { id: 'c-1' } })) // talleres_crecimiento_cohortes
+      .mockReturnValueOnce(chainable({ data: [{ id: 'g-1' }, { id: 'g-2' }] })) // taller_grupos
+      .mockReturnValueOnce(chainable({ count: 3 })) // pendientes count
+      .mockReturnValueOnce(chainable({ data: [{ id: 's-1' }] })) // primera cerrada
+
+    const result = await loadReprogramarPreview({ from }, 'e-1')
+
+    expect(from).toHaveBeenNthCalledWith(1, 'talleres_crecimiento_cohortes')
+    expect(from).toHaveBeenNthCalledWith(2, 'taller_grupos')
+    expect(result).toEqual({ clasesPendientes: 3, primeraClaseCerrada: true })
+  })
+
+  it('primeraClaseCerrada is false when no numero=1 clase is cerrada', async () => {
+    const from = jest
+      .fn()
+      .mockReturnValueOnce(chainable({ data: { id: 'c-1' } }))
+      .mockReturnValueOnce(chainable({ data: [{ id: 'g-1' }] }))
+      .mockReturnValueOnce(chainable({ count: 0 }))
+      .mockReturnValueOnce(chainable({ data: [] }))
+
+    const result = await loadReprogramarPreview({ from }, 'e-1')
+    expect(result).toEqual({ clasesPendientes: 0, primeraClaseCerrada: false })
+  })
+
+  it('returns the empty shape when the edición has no cohorte', async () => {
+    const from = jest.fn().mockReturnValueOnce(chainable({ data: null }))
+    const result = await loadReprogramarPreview({ from }, 'e-1')
+    expect(result).toEqual({ clasesPendientes: 0, primeraClaseCerrada: false })
+  })
+
+  it('returns the empty shape when the cohorte has no grupos', async () => {
+    const from = jest
+      .fn()
+      .mockReturnValueOnce(chainable({ data: { id: 'c-1' } }))
+      .mockReturnValueOnce(chainable({ data: [] }))
+    const result = await loadReprogramarPreview({ from }, 'e-1')
+    expect(result).toEqual({ clasesPendientes: 0, primeraClaseCerrada: false })
+  })
+
+  it('returns the empty shape (never throws) when a query rejects', async () => {
+    const from = jest.fn(() => {
+      throw new Error('network')
+    })
+    const result = await loadReprogramarPreview({ from }, 'e-1')
+    expect(result).toEqual({ clasesPendientes: 0, primeraClaseCerrada: false })
+  })
+})
+
+describe('loadReprogramacionAudit — talleres_reprogramacion_persona RPC', () => {
+  it('maps the RPC row into camelCase', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: [
+        {
+          reprogramada_por_nombre: 'Ana',
+          reprogramada_por_apellido: 'Gómez',
+          reprogramada_en: '2026-09-15T00:00:00Z',
+          reprogramacion_motivo: 'Ajuste de agenda',
+        },
+      ],
+      error: null,
+    })
+
+    const result = await loadReprogramacionAudit({ rpc }, 'e-1')
+
+    expect(rpc).toHaveBeenCalledWith('talleres_reprogramacion_persona', { p_edicion_id: 'e-1' })
+    expect(result).toEqual({ nombre: 'Ana', apellido: 'Gómez', en: '2026-09-15T00:00:00Z', motivo: 'Ajuste de agenda' })
+  })
+
+  it('returns null when the edición was never reprogramada (empty result)', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: [], error: null })
+    const result = await loadReprogramacionAudit({ rpc }, 'e-1')
+    expect(result).toBeNull()
+  })
+
+  it('returns null on an RPC error (never blocks the page)', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: null, error: { message: '42501' } })
+    const result = await loadReprogramacionAudit({ rpc }, 'e-1')
+    expect(result).toBeNull()
+  })
+
+  it('returns null when the RPC throws outright', async () => {
+    const rpc = jest.fn().mockRejectedValue(new Error('network'))
+    const result = await loadReprogramacionAudit({ rpc }, 'e-1')
     expect(result).toBeNull()
   })
 })
