@@ -31,6 +31,7 @@ import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
 import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcion-taller'
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
+import { ConfiguracionTaller } from '@/components/talleres/configuracion-taller'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { ContenedorDashboard, EnlaceSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { ChevronRight } from 'lucide-react'
@@ -80,8 +81,16 @@ jest.mock('@/lib/platform/talleres/temporadas', () => ({
   loadTemporadasAbiertas: jest.fn(),
 }))
 
+jest.mock('@/lib/platform/talleres/refrescar-estados', () => ({
+  refrescarEstadosEdiciones: jest.fn(),
+}))
+
 jest.mock('@/components/talleres/open-edicion-form', () => ({
   OpenEdicionForm: () => null,
+}))
+
+jest.mock('@/components/talleres/configuracion-taller', () => ({
+  ConfiguracionTaller: () => null,
 }))
 
 jest.mock('@/components/talleres/editar-nombre-taller', () => ({
@@ -119,6 +128,8 @@ const loadPlantillaGruposMock = jest.requireMock('@/lib/platform/talleres/planti
   .loadPlantillaGrupos as jest.Mock
 const loadTemporadasAbiertasMock = jest.requireMock('@/lib/platform/talleres/temporadas')
   .loadTemporadasAbiertas as jest.Mock
+const refrescarEstadosEdicionesMock = jest.requireMock('@/lib/platform/talleres/refrescar-estados')
+  .refrescarEstadosEdiciones as jest.Mock
 
 const TALLER: TallerDetalle = {
   id: 't-1',
@@ -130,8 +141,22 @@ const TALLER: TallerDetalle = {
   dream_team_equipo_id: 'eq-1',
   cadencia_dias: 7,
   duracion_minutos: null,
+  tipo: 'pareja',
+  vinculo: null,
+  regimen: 'temporada',
+  cierre_inscripcion_offset_dias: 0,
+  intervalo_ediciones_dias: null,
   ediciones: [
-    { id: 'e-1', nombre_snapshot: 'Septiembre 2026', tipo: 'pareja', estado: 'abierto', total_inscripciones: 3 },
+    {
+      id: 'e-1',
+      nombre_snapshot: 'Septiembre 2026',
+      tipo: 'pareja',
+      estado: 'abierto',
+      total_inscripciones: 3,
+      temporada_id: null,
+      fecha_inicio: '2026-09-01',
+      fecha_fin: '2026-09-22',
+    },
   ],
 }
 
@@ -203,10 +228,11 @@ function setup(opts: SetupOpts): void {
   loadPlantillaClasesMock.mockReset().mockResolvedValue(opts.plantillaClases ?? [])
   loadPlantillaGruposMock.mockReset().mockResolvedValue(opts.plantillaGrupos ?? [])
   loadTemporadasAbiertasMock.mockReset().mockResolvedValue([])
+  refrescarEstadosEdicionesMock.mockReset().mockResolvedValue(undefined)
 }
 
-function params(taller = 'matrimonio-sobre-la-roca') {
-  return { params: Promise.resolve({ taller }) }
+function params(taller = 'matrimonio-sobre-la-roca', searchParams: { creadas?: string } = {}) {
+  return { params: Promise.resolve({ taller }), searchParams: Promise.resolve(searchParams) }
 }
 
 /** Walks a React element tree's `.props.children` without rendering it. */
@@ -451,7 +477,7 @@ describe('TallerDetallePage — Equipo', () => {
 })
 
 describe('TallerDetallePage — Clases y Grupos (plantilla)', () => {
-  it('passes the loaded plantilla clases, cadencia and duracion to PlantillaClasesSection', async () => {
+  it('passes the loaded plantilla clases to PlantillaClasesSection (cadencia/duracion moved to ConfiguracionTaller)', async () => {
     setup({
       plantillaClases: [
         { id: 'c-1', numero: 1, tema: 'Sígueme', activo: true },
@@ -462,8 +488,8 @@ describe('TallerDetallePage — Clases y Grupos (plantilla)', () => {
     const element = (await TallerDetallePage(params())) as any
     const clasesSection = findByType(element, PlantillaClasesSection)
     expect(clasesSection?.props.clases).toHaveLength(2)
-    expect(clasesSection?.props.cadenciaDias).toBe(7)
-    expect(clasesSection?.props.duracionMinutos).toBeNull()
+    expect(clasesSection?.props).not.toHaveProperty('cadenciaDias')
+    expect(clasesSection?.props).not.toHaveProperty('duracionMinutos')
   })
 
   it('gates plantilla edit controls with permisos.editarTaller, not a flat capability', async () => {
@@ -520,7 +546,13 @@ describe('TallerDetallePage — permission wiring', () => {
     expect(loadTemporadasAbiertasMock).not.toHaveBeenCalled()
   })
 
-  it('passes sesionesEstimadas as the count of ACTIVE plantilla clases', async () => {
+  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+  // "sesionesEstimadas" is gone: the new one-question form has no clase-
+  // count field at all (talleres_crear_edicion never takes one). The page
+  // instead derives `clasesPorGrupo`, falling back to 1 (the same
+  // fallback talleres_instanciar_edicion applies server-side) rather than
+  // null, since there is no more UI branch for "ask the user".
+  it('passes clasesPorGrupo as the count of ACTIVE plantilla clases', async () => {
     setup({
       permisos: { abrirEdicion: true },
       plantillaClases: [
@@ -531,24 +563,24 @@ describe('TallerDetallePage — permission wiring', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBe(2)
+    expect(findByType(element, OpenEdicionForm)?.props.clasesPorGrupo).toBe(2)
   })
 
-  it('passes sesionesEstimadas as null when the taller has no active plantilla clases, so OpenEdicionForm keeps the old sesiones field (acceptance criterion 8)', async () => {
+  it('passes clasesPorGrupo as 1 (never null) when the taller has no active plantilla clases', async () => {
     setup({ permisos: { abrirEdicion: true }, plantillaClases: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBeNull()
+    expect(findByType(element, OpenEdicionForm)?.props.clasesPorGrupo).toBe(1)
   })
 
-  it('passes sesionesEstimadas as null when every plantilla clase is inactive', async () => {
+  it('passes clasesPorGrupo as 1 when every plantilla clase is inactive', async () => {
     setup({
       permisos: { abrirEdicion: true },
       plantillaClases: [{ id: 'c-1', numero: 1, tema: 'Sígueme', activo: false }],
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBeNull()
+    expect(findByType(element, OpenEdicionForm)?.props.clasesPorGrupo).toBe(1)
   })
 
   // T11 (odd/tasks/talleres-configuracion-del-taller.md) — "Crear edición"
@@ -562,23 +594,63 @@ describe('TallerDetallePage — permission wiring', () => {
     expect(findByType(element, OpenEdicionForm)?.props.tallerSlug).toBe('matrimonio-sobre-la-roca')
   })
 
-  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
-  // "Duración por sesión (min)" field is gone from OpenEdicionForm; the
-  // page derives it from taller.duracion_minutos instead, with a fallback
-  // when the taller hasn't set one yet (it is not editable anywhere before
-  // this feature's PlantillaClasesSection either — never silently 0).
-  it('passes duracionMinutos verbatim from taller.duracion_minutos', async () => {
-    setup({ permisos: { abrirEdicion: true }, taller: { ...TALLER, duracion_minutos: 75 } })
+  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+  // duracion_minutos/cadencia_dias are no longer OpenEdicionForm's concern
+  // (it needs cadenciaDias only, for the preview's fecha fin math);
+  // duracion_minutos itself now goes to ConfiguracionTaller instead.
+  it('passes cadenciaDias and cierreInscripcionOffsetDias verbatim to OpenEdicionForm', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      taller: { ...TALLER, cadencia_dias: 14, cierre_inscripcion_offset_dias: -5 },
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.duracionMinutos).toBe(75)
+    const form = findByType(element, OpenEdicionForm)
+    expect(form?.props.cadenciaDias).toBe(14)
+    expect(form?.props.cierreInscripcionOffsetDias).toBe(-5)
   })
 
-  it('passes a default duracionMinutos when the taller has none set yet', async () => {
-    setup({ permisos: { abrirEdicion: true }, taller: { ...TALLER, duracion_minutos: null } })
+  it('passes regimen and intervaloEdicionesDias verbatim to OpenEdicionForm', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      taller: { ...TALLER, regimen: 'cadencia', intervalo_ediciones_dias: 28 },
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.duracionMinutos).toBe(60)
+    const form = findByType(element, OpenEdicionForm)
+    expect(form?.props.regimen).toBe('cadencia')
+    expect(form?.props.intervaloEdicionesDias).toBe(28)
+  })
+
+  it('passes every configuration field verbatim to ConfiguracionTaller', async () => {
+    setup({
+      permisos: { editarTaller: true },
+      taller: {
+        ...TALLER,
+        tipo: 'pareja',
+        vinculo: 'novios',
+        regimen: 'cadencia',
+        cierre_inscripcion_offset_dias: -3,
+        intervalo_ediciones_dias: 28,
+        cadencia_dias: 14,
+        duracion_minutos: 75,
+      },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const config = findByType(element, ConfiguracionTaller)
+    expect(config?.props).toEqual({
+      tallerId: 't-1',
+      tallerSlug: 'matrimonio-sobre-la-roca',
+      tipo: 'pareja',
+      vinculo: 'novios',
+      regimen: 'cadencia',
+      cierreInscripcionOffsetDias: -3,
+      intervaloEdicionesDias: 28,
+      cadenciaDias: 14,
+      duracionMinutos: 75,
+      puedeEditar: true,
+    })
   })
 
   it('passes gruposPlantillaActivos as the count of ACTIVE plantilla grupos', async () => {
@@ -632,6 +704,97 @@ describe('TallerDetallePage — permission wiring', () => {
     setup({})
     await TallerDetallePage(params())
     expect(cargarPermisosMock).toHaveBeenCalledWith(expect.anything(), 'eq-1')
+  })
+})
+
+// T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+// one-question "Crear edición" flow: refresh-before-read, régimen-gated
+// temporadas fetch, and the exclusion of temporadas this taller already
+// has a non-cancelled edición in.
+describe('TallerDetallePage — T4: refresh and temporadas wiring', () => {
+  it('refreshes estados before reading the taller', async () => {
+    setup({})
+    const calls: string[] = []
+    refrescarEstadosEdicionesMock.mockImplementation(async () => {
+      calls.push('refrescar')
+    })
+    loadTallerDetalleMock.mockImplementation(async () => {
+      calls.push('load')
+      return TALLER
+    })
+    await TallerDetallePage(params())
+    expect(calls).toEqual(['refrescar', 'load'])
+    expect(refrescarEstadosEdicionesMock).toHaveBeenCalledWith(expect.anything())
+  })
+
+  it('never fetches temporadas for a régimen=cadencia taller, even with abrirEdicion', async () => {
+    setup({ permisos: { abrirEdicion: true }, taller: { ...TALLER, regimen: 'cadencia' } })
+    await TallerDetallePage(params())
+    expect(loadTemporadasAbiertasMock).not.toHaveBeenCalled()
+  })
+
+  it('excludes temporadas this taller already has a non-cancelled edición in', async () => {
+    loadTemporadasAbiertasMock.mockReset().mockResolvedValue([
+      { id: 'temp-1', nombre: 'Otoño 2026', fecha_apertura: '2026-09-01' },
+      { id: 'temp-2', nombre: 'Primavera 2027', fecha_apertura: '2027-03-01' },
+    ])
+    setup({
+      permisos: { abrirEdicion: true },
+      taller: {
+        ...TALLER,
+        regimen: 'temporada',
+        ediciones: [
+          { id: 'e-1', nombre_snapshot: 'Otoño 2026', tipo: 'pareja', estado: 'abierto', total_inscripciones: 1, temporada_id: 'temp-1', fecha_inicio: '2026-09-01', fecha_fin: '2026-09-22' },
+        ],
+      },
+    })
+    loadTemporadasAbiertasMock.mockResolvedValue([
+      { id: 'temp-1', nombre: 'Otoño 2026', fecha_apertura: '2026-09-01' },
+      { id: 'temp-2', nombre: 'Primavera 2027', fecha_apertura: '2027-03-01' },
+    ])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.temporadasDisponibles).toEqual([
+      { id: 'temp-2', nombre: 'Primavera 2027', fecha_apertura: '2027-03-01' },
+    ])
+  })
+
+  it('does NOT exclude a temporada whose only edición of this taller is cancelled', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      taller: {
+        ...TALLER,
+        regimen: 'temporada',
+        ediciones: [
+          { id: 'e-1', nombre_snapshot: 'Otoño 2026', tipo: 'pareja', estado: 'cancelado', total_inscripciones: 0, temporada_id: 'temp-1', fecha_inicio: '2026-09-01', fecha_fin: '2026-09-22' },
+        ],
+      },
+    })
+    loadTemporadasAbiertasMock.mockResolvedValue([{ id: 'temp-1', nombre: 'Otoño 2026', fecha_apertura: '2026-09-01' }])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.temporadasDisponibles).toEqual([
+      { id: 'temp-1', nombre: 'Otoño 2026', fecha_apertura: '2026-09-01' },
+    ])
+  })
+})
+
+// T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — redirected
+// here from OpenEdicionForm after "crear también las próximas" creates
+// more than one edición.
+describe('TallerDetallePage — T4: ?creadas=N notice', () => {
+  it('shows the notice when creadas is present and positive', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params('matrimonio-sobre-la-roca', { creadas: '3' }))) as any
+    expect(extractText(element)).toMatch(/Se crearon 3 ediciones/)
+  })
+
+  it('shows no notice without the query param', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).not.toMatch(/se crearon/i)
   })
 })
 
@@ -704,12 +867,24 @@ describe('TallerDetallePage — T11: Pasos para abrir una edición', () => {
     expect(extractText(element)).toMatch(/Plantilla de grupos\s+Pendiente/)
   })
 
-  it('links its "Crear edición" row to #ediciones', async () => {
-    setup({ permisos: { editarTaller: true } })
+  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+  // checklist's final step names the ONE question "Crear edición" will
+  // actually ask, by régimen.
+  it('links its "Crear edición (elige la temporada)" row to #ediciones for régimen=temporada', async () => {
+    setup({ permisos: { editarTaller: true }, taller: { ...TALLER, regimen: 'temporada' } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     const links = findAllByType(element, Link)
-    const crearEdicion = links.find((l) => extractText(l).trim() === 'Crear edición')
+    const crearEdicion = links.find((l) => extractText(l).trim() === 'Crear edición (elige la temporada)')
+    expect(crearEdicion?.props.href).toBe('#ediciones')
+  })
+
+  it('links its "Crear edición (primera clase)" row to #ediciones for régimen=cadencia', async () => {
+    setup({ permisos: { editarTaller: true }, taller: { ...TALLER, regimen: 'cadencia' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const links = findAllByType(element, Link)
+    const crearEdicion = links.find((l) => extractText(l).trim() === 'Crear edición (primera clase)')
     expect(crearEdicion?.props.href).toBe('#ediciones')
   })
 
@@ -754,8 +929,26 @@ describe('TallerDetallePage — Ediciones (design audit)', () => {
   const DOS_EDICIONES = {
     ...TALLER,
     ediciones: [
-      { id: 'e-1', nombre_snapshot: 'Septiembre 2026', tipo: 'pareja' as const, estado: 'abierto' as const, total_inscripciones: 3 },
-      { id: 'e-2', nombre_snapshot: 'Marzo 2026', tipo: 'pareja' as const, estado: 'cerrado' as const, total_inscripciones: 1 },
+      {
+        id: 'e-1',
+        nombre_snapshot: 'Septiembre 2026',
+        tipo: 'pareja' as const,
+        estado: 'abierto' as const,
+        total_inscripciones: 3,
+        temporada_id: null,
+        fecha_inicio: '2026-09-01',
+        fecha_fin: '2026-09-22',
+      },
+      {
+        id: 'e-2',
+        nombre_snapshot: 'Marzo 2026',
+        tipo: 'pareja' as const,
+        estado: 'cerrado' as const,
+        total_inscripciones: 1,
+        temporada_id: null,
+        fecha_inicio: '2026-03-01',
+        fecha_fin: '2026-03-22',
+      },
     ],
   }
 
@@ -773,6 +966,17 @@ describe('TallerDetallePage — Ediciones (design audit)', () => {
     // one of the p-0 cards is the ediciones list
     expect(cards.length).toBeGreaterThan(0)
     expect(findAllByType(element, ChevronRight)).toHaveLength(2)
+  })
+
+  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — each row
+  // shows "{inicio} → {fin}" from the edición's own real dates.
+  it('shows "{inicio} → {fin}" on each edición row', async () => {
+    setup({ taller: DOS_EDICIONES })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).toMatch(/→/)
+    expect(text).toMatch(/2026/)
   })
 })
 

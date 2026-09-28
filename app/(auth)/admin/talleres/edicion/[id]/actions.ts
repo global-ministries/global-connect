@@ -10,23 +10,30 @@
  * new edicion — not the same operation as transitioning the state
  * of an existing one.
  *
- * Two actions are exposed:
- *   - openExistingEdicion(edicionId): flips borrador → abierto.
- *   - closeExistingEdicion(edicionId): flips abierto|en_curso →
- *     cerrado.
+ * One action is exposed:
+ *   - openExistingEdicionAction(edicionId): flips borrador → abierto.
  *
- * Both actions perform a guarded UPDATE on `taller_ediciones` with
- * a state predicate in the WHERE clause (defense-in-depth against
- * stale UI). Capability gate mirrors the OpenEdicionForm gate:
- * director.write OR admin.manage.
+ * It performs a guarded UPDATE on `taller_ediciones` with a state
+ * predicate in the WHERE clause (defense-in-depth against stale UI).
+ * Capability gate mirrors the OpenEdicionForm gate: director.write OR
+ * admin.manage.
  *
  * We deliberately do NOT reuse the `open_edicion` SECURITY DEFINER
- * RPC for these transitions — that RPC CREATES a new edicion with
+ * RPC for this transition — that RPC CREATES a new edicion with
  * all the period dates / firmantes / tipo, none of which apply when
  * we already have an edicion row that just needs its state column
  * flipped. A bare UPDATE against taller_ediciones avoids the
  * periodo backfill path and the taller_periodos_generales trigger
  * (no INSERT into the legacy table is involved).
+ *
+ * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+ * closeExistingEdicionAction (abierto|en_curso → cerrado) is REMOVED:
+ * `cerrado` (and `en_curso`) are now derived from the edición's own dates
+ * (talleres_estado_efectivo), never a manual transition someone has to
+ * remember to press. See this file's bottom for the removal note, and
+ * components/talleres/open-edicion-button.tsx's CancelarEdicionButton
+ * (a NEW action, cancelarEdicion, in app/(auth)/talleres/[taller]/
+ * [edicion]/actions.ts) for its replacement — borrador|abierto → cancelado.
  */
 
 import { revalidatePath } from 'next/cache'
@@ -194,53 +201,18 @@ export async function openExistingEdicionAction(
 
   return {
     ok: true,
-    message: 'Edición abierta. Inscripciones habilitadas.',
+    // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+    // edición's estado is now derived from its own dates
+    // (talleres_estado_efectivo), not a manual switch someone flips again
+    // later: this only ever moves borrador -> abierto; from there, en_curso
+    // and cerrado follow automatically.
+    message: 'Edición abierta. Su estado ahora se calcula a partir de las fechas de la edición.',
   }
 }
 
-/**
- * Transition an existing edicion from `abierto` | `en_curso` to
- * `cerrado`. Closing writes the fecha_cierre_real indirectly via
- * the pg_cron `talleres_period_closer` (PR11) — we only flip the
- * estado here.
- */
-export async function closeExistingEdicionAction(
-  edicionId: string,
-): Promise<TransitionResult> {
-  const auth = await requireAdminOrDirector(edicionId)
-  if (!auth.ok) {
-    return { ok: false, error: auth.error, message: auth.message }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
-  const client: any = auth.supabase
-
-  const { data, error } = await client
-    .from('taller_ediciones')
-    .update({ estado: 'cerrado' })
-    .eq('id', edicionId)
-    .in('estado', ['abierto', 'en_curso'])
-    .select('id, taller_id, estado')
-    .maybeSingle()
-
-  if (error) {
-    return {
-      ok: false,
-      error: 'UPDATE_FAILED',
-      message: error.message ?? 'unknown',
-    }
-  }
-
-  if (!data) {
-    return {
-      ok: false,
-      error: 'NOT_FOUND_OR_NOT_ACTIVE',
-      message:
-        'La edición no existe o no está en estado abierto/en_curso. Refrescá la página.',
-    }
-  }
-
-  await revalidateEdicionScreens(auth.supabase, edicionId, data.taller_id)
-
-  return { ok: true, message: 'Edición cerrada.' }
-}
+// closeExistingEdicionAction (abierto|en_curso -> cerrado) was removed in
+// T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6): `cerrado` is
+// now derived from the edición's own dates (talleres_estado_efectivo),
+// never a manual transition. Its only caller, CloseEdicionButton
+// (components/talleres/open-edicion-button.tsx), was removed alongside it
+// — see that file's own header for CancelarEdicionButton, its replacement.

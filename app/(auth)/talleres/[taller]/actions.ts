@@ -581,3 +581,157 @@ export async function quitarFacilitador(
   revalidatePath(rutaTaller(input.tallerSlug))
   return { ok: true }
 }
+
+// ─── Configuración (T4, odd/tasks/talleres-temporadas-y-ediciones.md) ────
+//
+// tipo/vinculo/regimen/cierre_inscripcion_offset_dias/intervalo_ediciones_
+// dias (T1, migration 20260928100000_talleres_regimen_y_estado_derivado.sql)
+// are plain `talleres` columns, written directly through RLS — the same
+// talleres_update_director policy updateTallerNombre/updateTallerDescripcion
+// already go through, so this follows their exact gate + forbiddenByRls
+// shape. cadencia_dias/duracion_minutos stay on updateCadenciaYDuracion
+// above (moved here in the UI only — the section, not the action).
+
+export interface UpdateTallerConfiguracionInput {
+  readonly tallerId: string
+  readonly tallerSlug: string
+  readonly tipo: 'individual' | 'pareja'
+  readonly vinculo: 'matrimonio' | 'novios' | null
+  readonly regimen: 'temporada' | 'cadencia'
+  readonly cierreInscripcionOffsetDias: number
+  readonly intervaloEdicionesDias: number | null
+}
+
+const TIPOS_TALLER = ['individual', 'pareja'] as const
+const VINCULOS_TALLER = ['matrimonio', 'novios'] as const
+const REGIMENES_TALLER = ['temporada', 'cadencia'] as const
+
+export async function updateTallerConfiguracion(
+  input: UpdateTallerConfiguracionInput,
+): Promise<TallerActionResult<object>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  if (!TIPOS_TALLER.includes(input.tipo)) {
+    return { ok: false, error: 'invalid-input', message: 'Tipo inválido (individual o parejas).' }
+  }
+  // A régimen=individual taller never has a vínculo — normalized here
+  // (not just in the UI) so a stale client can't sneak one through.
+  const vinculo = input.tipo === 'pareja' ? input.vinculo : null
+  if (vinculo !== null && !VINCULOS_TALLER.includes(vinculo)) {
+    return { ok: false, error: 'invalid-input', message: 'Vínculo inválido (matrimonio o novios).' }
+  }
+  if (!REGIMENES_TALLER.includes(input.regimen)) {
+    return { ok: false, error: 'invalid-input', message: 'Régimen inválido (temporada o cadencia).' }
+  }
+  if (
+    !Number.isInteger(input.cierreInscripcionOffsetDias) ||
+    input.cierreInscripcionOffsetDias < -60 ||
+    input.cierreInscripcionOffsetDias > 60
+  ) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: 'El cierre de inscripción debe ser un entero entre -60 y 60 días.',
+    }
+  }
+  if (
+    input.intervaloEdicionesDias !== null &&
+    (!Number.isInteger(input.intervaloEdicionesDias) ||
+      input.intervaloEdicionesDias < 1 ||
+      input.intervaloEdicionesDias > 365)
+  ) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: 'El intervalo entre ediciones debe ser un entero entre 1 y 365 días.',
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client
+    .from('talleres')
+    .update({
+      tipo: input.tipo,
+      vinculo,
+      regimen: input.regimen,
+      cierre_inscripcion_offset_dias: input.cierreInscripcionOffsetDias,
+      intervalo_ediciones_dias: input.intervaloEdicionesDias,
+    })
+    .eq('id', input.tallerId)
+    .select('id')
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo actualizar la configuración.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo actualizar la configuración.') }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true }
+}
+
+// ─── Crear edición (T4) ───────────────────────────────────────────────────
+//
+// One-question "Crear edición" — wraps the talleres_crear_edicion RPC
+// (migration 20260928110000_talleres_crear_edicion.sql). Authority,
+// régimen branching, temporada exclusivity and the adelantar cap are ALL
+// enforced by the RPC itself (P0001/P0002/42501); this action only shapes
+// the call and translates the result, mirroring T2's crearPlantillaClase
+// pattern of thin validation + a single RPC round trip.
+
+export interface CrearEdicionInput {
+  readonly tallerId: string
+  readonly tallerSlug: string
+  /** Régimen=cadencia only — the RPC requires this; ignored (sent as null) for régimen=temporada. */
+  readonly fechaInicio: string | null
+  /** Régimen=temporada only — the RPC requires this; ignored (sent as null) for régimen=cadencia. */
+  readonly temporadaId: string | null
+  /** Régimen=cadencia only, 0..6 — how many additional ediciones to create spaced by the taller's intervalo_ediciones_dias. */
+  readonly adelantar: number
+}
+
+export interface CrearEdicionEdicionCreada {
+  readonly edicionId: string
+  readonly nombre: string
+}
+
+export type CrearEdicionResult =
+  | { readonly ok: true; readonly ediciones: readonly CrearEdicionEdicionCreada[] }
+  | { readonly ok: false; readonly error: string; readonly message: string }
+
+export async function crearEdicion(input: CrearEdicionInput): Promise<CrearEdicionResult> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client.rpc('talleres_crear_edicion', {
+    p_taller_id: input.tallerId,
+    p_fecha_inicio: input.fechaInicio,
+    p_temporada_id: input.temporadaId,
+    p_adelantar: input.adelantar,
+  })
+
+  if (error || !data) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo crear la edición.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  const resultado = data as {
+    ediciones?: ReadonlyArray<{ edicion_id: string; nombre: string }>
+  }
+  const ediciones = (resultado.ediciones ?? []).map((e) => ({
+    edicionId: e.edicion_id,
+    nombre: e.nombre,
+  }))
+  if (ediciones.length === 0) {
+    return { ok: false, error: 'internal', message: 'No se pudo crear la edición.' }
+  }
+
+  revalidatePath(rutaTaller(input.tallerSlug))
+  return { ok: true, ediciones }
+}

@@ -103,6 +103,54 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     message:
       'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
   },
+  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+  // talleres_crear_edicion (migration 20260928110000_talleres_crear_
+  // edicion.sql), the one-question "Crear edición" RPC.
+  TEMPORADA_REQUERIDA: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Elige una temporada para crear la edición.',
+  },
+  FECHA_REQUERIDA: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Elige la fecha de la primera clase.',
+  },
+  EDICION_YA_EXISTE: {
+    status: 409,
+    error: 'conflict',
+    message: 'Este taller ya tiene una edición en esa temporada.',
+  },
+  ADELANTAR_MAXIMO_6: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Puedes adelantar como máximo 6 ediciones más.',
+  },
+  SIN_INTERVALO: {
+    status: 409,
+    error: 'conflict',
+    message: 'Este taller no tiene un intervalo entre ediciones configurado.',
+  },
+  TEMPORADA_NO_PERMITIDA: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Este taller no crea ediciones por temporada.',
+  },
+  ADELANTAR_INVALIDO: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'La cantidad de ediciones a adelantar no es válida.',
+  },
+  TEMPORADA_NOT_FOUND: {
+    status: 404,
+    error: 'not-found',
+    message: 'La temporada no existe.',
+  },
+  sin_permisos_para_este_taller: {
+    status: 403,
+    error: 'forbidden',
+    message: 'No tienes permisos para crear ediciones en este taller.',
+  },
 }
 
 /** Ordered longest-first so a substring match can't pick the wrong entry. */

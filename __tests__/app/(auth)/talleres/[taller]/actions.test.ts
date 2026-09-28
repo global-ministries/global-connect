@@ -19,7 +19,12 @@
  * T3 (see the components' own tests for that coverage).
  */
 
-import { updateTallerDescripcion, updateTallerNombre } from '@/app/(auth)/talleres/[taller]/actions'
+import {
+  crearEdicion,
+  updateTallerConfiguracion,
+  updateTallerDescripcion,
+  updateTallerNombre,
+} from '@/app/(auth)/talleres/[taller]/actions'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(() => true),
@@ -202,5 +207,274 @@ describe('updateTallerDescripcion — RLS denial', () => {
       expect(result.message).toMatch(/permisos/i)
     }
     expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── updateTallerConfiguracion (T4, odd/tasks/talleres-temporadas-y-ediciones.md) ──
+
+/** `.from('talleres').update(...).eq('id', x).select('id')` — array result, no `.single()`. */
+function setupConfiguracion(opts: {
+  isEnabled?: boolean
+  user?: { id: string } | null
+  selectResult?: { data: unknown; error: { message?: string; code?: string } | null }
+}): { updateMock: jest.Mock } {
+  flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
+  const select = jest.fn().mockResolvedValue(opts.selectResult ?? { data: [{ id: 't-1' }], error: null })
+  const eq = jest.fn().mockReturnValue({ select })
+  const update = jest.fn().mockReturnValue({ eq })
+  const from = jest.fn().mockReturnValue({ update })
+
+  createSupabaseServerClientMock.mockReset().mockResolvedValue({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user },
+        error: null,
+      }),
+    },
+    from,
+  })
+  return { updateMock: update }
+}
+
+const validConfiguracionInput = {
+  tallerId: 't-1',
+  tallerSlug: 'proximo-paso',
+  tipo: 'pareja' as const,
+  vinculo: 'matrimonio' as const,
+  regimen: 'temporada' as const,
+  cierreInscripcionOffsetDias: -3,
+  intervaloEdicionesDias: null,
+}
+
+describe('updateTallerConfiguracion — kill switch & auth', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    setupConfiguracion({ isEnabled: false })
+    const result = await updateTallerConfiguracion(validConfiguracionInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+  })
+
+  it('returns unauthorized when there is no session', async () => {
+    setupConfiguracion({ user: null })
+    const result = await updateTallerConfiguracion(validConfiguracionInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+  })
+})
+
+describe('updateTallerConfiguracion — input validation', () => {
+  it('rejects an invalid tipo', async () => {
+    setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, tipo: 'otro' as never })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('rejects an invalid regimen', async () => {
+    setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, regimen: 'otro' as never })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('rejects a vinculo that is not matrimonio/novios', async () => {
+    setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, vinculo: 'otro' as never })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('rejects a cierreInscripcionOffsetDias outside -60..60', async () => {
+    setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, cierreInscripcionOffsetDias: 61 })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('rejects a non-integer cierreInscripcionOffsetDias', async () => {
+    setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, cierreInscripcionOffsetDias: 1.5 })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('rejects an intervaloEdicionesDias outside 1..365', async () => {
+    setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, intervaloEdicionesDias: 0 })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+
+  it('accepts intervaloEdicionesDias: null (no adelantar)', async () => {
+    setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, intervaloEdicionesDias: null })
+    expect(result.ok).toBe(true)
+  })
+
+  it('normalizes vinculo to null when tipo is individual, even if a vinculo was sent', async () => {
+    const { updateMock } = setupConfiguracion({})
+    await updateTallerConfiguracion({
+      ...validConfiguracionInput,
+      tipo: 'individual',
+      vinculo: 'matrimonio',
+    })
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ tipo: 'individual', vinculo: null }))
+  })
+})
+
+describe('updateTallerConfiguracion — happy path', () => {
+  it('updates the row and revalidates the taller page', async () => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion(validConfiguracionInput)
+    expect(result.ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith({
+      tipo: 'pareja',
+      vinculo: 'matrimonio',
+      regimen: 'temporada',
+      cierre_inscripcion_offset_dias: -3,
+      intervalo_ediciones_dias: null,
+    })
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+})
+
+describe('updateTallerConfiguracion — RLS-empty (forbidden)', () => {
+  it('treats an empty .select() result as forbidden, same as the other taller mutations', async () => {
+    setupConfiguracion({ selectResult: { data: [], error: null } })
+    const result = await updateTallerConfiguracion(validConfiguracionInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('forbidden')
+      expect(result.message).toMatch(/permisos/i)
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── crearEdicion (T4) ────────────────────────────────────────────────────
+
+function setupCrearEdicion(opts: {
+  isEnabled?: boolean
+  user?: { id: string } | null
+  rpcResult?: { data: unknown; error: { message?: string; code?: string } | null }
+}): { rpcMock: jest.Mock } {
+  flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
+  const rpcMock = jest.fn().mockResolvedValue(
+    opts.rpcResult ?? {
+      data: { ediciones: [{ edicion_id: 'e-1', nombre: 'Otoño 2026' }] },
+      error: null,
+    },
+  )
+  createSupabaseServerClientMock.mockReset().mockResolvedValue({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user },
+        error: null,
+      }),
+    },
+    rpc: rpcMock,
+  })
+  return { rpcMock }
+}
+
+const crearEdicionPorTemporada = {
+  tallerId: 't-1',
+  tallerSlug: 'proximo-paso',
+  fechaInicio: null,
+  temporadaId: 'temp-1',
+  adelantar: 0,
+}
+
+describe('crearEdicion — kill switch & auth', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    setupCrearEdicion({ isEnabled: false })
+    const result = await crearEdicion(crearEdicionPorTemporada)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+  })
+
+  it('returns unauthorized when there is no session', async () => {
+    setupCrearEdicion({ user: null })
+    const result = await crearEdicion(crearEdicionPorTemporada)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+  })
+})
+
+describe('crearEdicion — calls the RPC with the exact args by regimen', () => {
+  it('sends p_temporada_id and p_fecha_inicio:null for a temporada pick', async () => {
+    const { rpcMock } = setupCrearEdicion({})
+    await crearEdicion(crearEdicionPorTemporada)
+    expect(rpcMock).toHaveBeenCalledWith('talleres_crear_edicion', {
+      p_taller_id: 't-1',
+      p_fecha_inicio: null,
+      p_temporada_id: 'temp-1',
+      p_adelantar: 0,
+    })
+  })
+
+  it('sends p_fecha_inicio and p_adelantar for a cadencia pick', async () => {
+    const { rpcMock } = setupCrearEdicion({})
+    await crearEdicion({
+      tallerId: 't-1',
+      tallerSlug: 'proximo-paso',
+      fechaInicio: '2027-03-01',
+      temporadaId: null,
+      adelantar: 3,
+    })
+    expect(rpcMock).toHaveBeenCalledWith('talleres_crear_edicion', {
+      p_taller_id: 't-1',
+      p_fecha_inicio: '2027-03-01',
+      p_temporada_id: null,
+      p_adelantar: 3,
+    })
+  })
+})
+
+describe('crearEdicion — happy path', () => {
+  it('returns every created edición and revalidates the taller page', async () => {
+    setupCrearEdicion({
+      rpcResult: {
+        data: {
+          ediciones: [
+            { edicion_id: 'e-1', nombre: 'Marzo 2027' },
+            { edicion_id: 'e-2', nombre: 'Abril 2027' },
+          ],
+        },
+        error: null,
+      },
+    })
+    const result = await crearEdicion(crearEdicionPorTemporada)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.ediciones).toEqual([
+        { edicionId: 'e-1', nombre: 'Marzo 2027' },
+        { edicionId: 'e-2', nombre: 'Abril 2027' },
+      ])
+    }
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+})
+
+describe('crearEdicion — RPC error mapping', () => {
+  it.each([
+    ['TEMPORADA_REQUERIDA', 'P0001', 'invalid-input'],
+    ['EDICION_YA_EXISTE', 'P0001', 'conflict'],
+    ['ADELANTAR_MAXIMO_6', 'P0001', 'invalid-input'],
+    ['SIN_INTERVALO', 'P0001', 'conflict'],
+  ] as const)('maps %s to error %s', async (message, code, expectedError) => {
+    setupCrearEdicion({ rpcResult: { data: null, error: { code, message } } })
+    const result = await crearEdicion(crearEdicionPorTemporada)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe(expectedError)
+  })
+
+  it('maps sin_permisos_para_este_taller (42501) to forbidden', async () => {
+    setupCrearEdicion({
+      rpcResult: { data: null, error: { code: '42501', message: 'sin_permisos_para_este_taller' } },
+    })
+    const result = await crearEdicion(crearEdicionPorTemporada)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
   })
 })

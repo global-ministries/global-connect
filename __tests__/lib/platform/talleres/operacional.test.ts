@@ -557,7 +557,9 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
       { persona_id: 'p-1', rol_etiqueta: 'Director', orden: 1 },
       { persona_id: 'p-2', rol_etiqueta: 'Coordinador', orden: 2 },
     ],
-    periodo_general_id: 'pg-1',
+    fecha_inicio: '2026-09-01',
+    fecha_fin: '2026-11-24',
+    cierre_inscripcion: '2026-09-01',
     talleres: {
       id: 't-1',
       slug: 'matrimonio-sobre-la-roca',
@@ -574,24 +576,6 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     ended_at: null,
   }
 
-  // T4 (odd/tasks/talleres-consolidar-pantallas.md) — the real DB column is
-  // `fecha_cierre_automatico` (masculine, matching "cierre"), not
-  // `fecha_cierre_automatica` (see supabase/migrations/
-  // 20260811130000_talleres_tables_certificados_periodos.sql). The loader
-  // used to select the wrong column name, so this join silently errored
-  // and `periodo_general` was always null in production. This fixture
-  // mirrors the REAL row shape so the bug shows up as a failing
-  // assertion instead of a silent no-op.
-  const fullPeriodo = {
-    id: 'pg-1',
-    fecha_apertura_automatica: '2026-08-01T00:00:00Z',
-    fecha_cierre_automatico: '2026-11-30T00:00:00Z',
-    fecha_apertura_manual: null,
-    fecha_cierre_manual: null,
-    fecha_cierre_real: null,
-    motivo_cierre: null,
-  }
-
   it('returns null when taller_ediciones has no row for the given id', async () => {
     const { from } = buildEdicionDetalleClientMock({ edicion: null })
     const result = await loadEdicionLocalDetalle({ from }, 'e-1')
@@ -602,7 +586,6 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     const { from } = buildEdicionDetalleClientMock({
       edicion: fullEdicion,
       cohorte: fullCohorte,
-      periodo: fullPeriodo,
       inscripcionesTotal: 12,
       inscripcionesAprobadas: 8,
       certificados: 3,
@@ -630,13 +613,12 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     expect(result.cohorte?.dream_team_equipo_id).toBe('eq-1')
     expect(result.cohorte?.edicion).toBe('Otoño 2026')
 
-    expect(result.periodo_general).not.toBeNull()
-    expect(result.periodo_general?.id).toBe('pg-1')
-    // T4 — reads the real `fecha_cierre_automatico` DB column (masculine),
-    // exposed on the TS type under its existing name for backward
-    // compatibility with the old page's rendering code.
-    expect(result.periodo_general?.fecha_apertura_automatica).toBe('2026-08-01T00:00:00Z')
-    expect(result.periodo_general?.fecha_cierre_automatica).toBe('2026-11-30T00:00:00Z')
+    // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+    // Ventana now reads the edición's OWN date columns, not a
+    // `taller_periodos_generales` join (that table is deprecated).
+    expect(result.fecha_inicio).toBe('2026-09-01')
+    expect(result.fecha_fin).toBe('2026-11-24')
+    expect(result.cierre_inscripcion).toBe('2026-09-01')
 
     expect(result.inscripciones_count).toBe(12)
     expect(result.inscripciones_aprobadas_count).toBe(8)
@@ -653,7 +635,6 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     const { from, filters } = buildEdicionDetalleClientMock({
       edicion: fullEdicion,
       cohorte: fullCohorte,
-      periodo: fullPeriodo,
       inscripcionesTotal: 12,
       inscripcionesAprobadas: 8,
       certificados: 3,
@@ -670,7 +651,7 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     }
   })
 
-  it('returns cohorte=null and periodo_general=null when those joins miss', async () => {
+  it('returns cohorte=null and null dates when the edición has no cohorte / no dates yet (legacy row)', async () => {
     const permanenteEdicion = {
       ...fullEdicion,
       id: 'e-2',
@@ -683,7 +664,9 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
       sesiones_snapshot: 4,
       duracion_estimada_minutos_snapshot: 60,
       firmantes: [],
-      periodo_general_id: null,
+      fecha_inicio: null,
+      fecha_fin: null,
+      cierre_inscripcion: null,
       talleres: {
         id: 't-2',
         slug: 'discipulado-1',
@@ -693,7 +676,7 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     }
     const { from } = buildEdicionDetalleClientMock({
       edicion: permanenteEdicion,
-      // No cohorte, no periodo.
+      // No cohorte.
       inscripcionesTotal: 0,
       inscripcionesAprobadas: 0,
       certificados: 0,
@@ -704,7 +687,9 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     if (!result) return
 
     expect(result.cohorte).toBeNull()
-    expect(result.periodo_general).toBeNull()
+    expect(result.fecha_inicio).toBeNull()
+    expect(result.fecha_fin).toBeNull()
+    expect(result.cierre_inscripcion).toBeNull()
     expect(result.firmantes).toEqual([])
     expect(result.link_type).toBeNull()
     expect(result.modalidad_inscripcion).toBe('permanente_custom')

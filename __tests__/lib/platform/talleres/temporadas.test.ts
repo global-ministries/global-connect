@@ -167,10 +167,10 @@ describe('loadTemporadasAbiertas', () => {
     expect(new Set(vals as string[])).toEqual(new Set(['child', 'root']))
   })
 
-  it('returns the rows as-is (id, nombre) when the query succeeds', async () => {
+  it('returns the rows as-is (id, nombre, fecha_apertura) when the query succeeds', async () => {
     const rows = [
-      { id: 'temp-1', nombre: 'Otoño 2026' },
-      { id: 'temp-2', nombre: 'Primavera 2027' },
+      { id: 'temp-1', nombre: 'Otoño 2026', fecha_apertura: '2026-09-01' },
+      { id: 'temp-2', nombre: 'Primavera 2027', fecha_apertura: '2027-03-01' },
     ]
     const { client } = buildAbiertasClientMock({ temporadas: rows })
     const result = await loadTemporadasAbiertas(client, 't-1')

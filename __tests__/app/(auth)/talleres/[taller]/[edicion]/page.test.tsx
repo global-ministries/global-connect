@@ -25,7 +25,7 @@
  */
 
 import EdicionDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/page'
-import { OpenEdicionButton, CloseEdicionButton } from '@/components/talleres/open-edicion-button'
+import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
@@ -82,7 +82,7 @@ jest.mock('@/lib/platform/talleres/permisos', () => {
 
 jest.mock('@/components/talleres/open-edicion-button', () => ({
   OpenEdicionButton: () => null,
-  CloseEdicionButton: () => null,
+  CancelarEdicionButton: () => null,
 }))
 
 jest.mock('@/components/talleres/grupos-section', () => ({
@@ -119,6 +119,11 @@ const TALLER: TallerDetalle = {
   dream_team_equipo_id: 'eq-1',
   cadencia_dias: 7,
   duracion_minutos: null,
+  tipo: 'pareja',
+  vinculo: 'matrimonio',
+  regimen: 'temporada',
+  cierre_inscripcion_offset_dias: -3,
+  intervalo_ediciones_dias: null,
   ediciones: [],
 }
 
@@ -142,15 +147,9 @@ const EDICION: EdicionLocalDetalle = {
     started_at: '2026-09-01T00:00:00Z',
     ended_at: null,
   },
-  periodo_general: {
-    id: 'pg-1',
-    fecha_apertura_automatica: '2026-08-01T00:00:00Z',
-    fecha_cierre_automatica: null,
-    fecha_apertura_manual: null,
-    fecha_cierre_manual: null,
-    fecha_cierre_real: null,
-    motivo_cierre: null,
-  },
+  fecha_inicio: '2026-09-01',
+  fecha_fin: '2026-10-27',
+  cierre_inscripcion: '2026-08-29',
   inscripciones_count: 5,
   inscripciones_aprobadas_count: 3,
   certificados_count: 0,
@@ -342,19 +341,48 @@ describe('EdicionDetallePage — permission wiring', () => {
     expect(findByType(element, OpenEdicionButton)).toBeNull()
   })
 
-  it('shows CloseEdicionButton when editarEdicion is granted and estado is abierto', async () => {
+  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+  // CancelarEdicionButton replaces CloseEdicionButton: allowed from
+  // borrador OR abierto (never en_curso/cerrado/cancelado, which are now
+  // derived from the edición's own dates, not a manual transition).
+  it('shows CancelarEdicionButton when editarEdicion is granted and estado is borrador (alongside OpenEdicionButton)', async () => {
+    setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado: 'borrador' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    expect(findByType(element, CancelarEdicionButton)).not.toBeNull()
+    expect(findByType(element, OpenEdicionButton)).not.toBeNull()
+  })
+
+  it('shows CancelarEdicionButton (not OpenEdicionButton) when editarEdicion is granted and estado is abierto', async () => {
     setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado: 'abierto' } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
-    expect(findByType(element, CloseEdicionButton)).not.toBeNull()
+    expect(findByType(element, CancelarEdicionButton)).not.toBeNull()
     expect(findByType(element, OpenEdicionButton)).toBeNull()
   })
 
-  it('hides CloseEdicionButton when editarEdicion is denied even if estado is abierto', async () => {
+  it('hides CancelarEdicionButton when editarEdicion is denied even if estado is abierto', async () => {
     setup({ permisos: { editarEdicion: false }, edicionDetalle: { ...EDICION, estado: 'abierto' } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
-    expect(findByType(element, CloseEdicionButton)).toBeNull()
+    expect(findByType(element, CancelarEdicionButton)).toBeNull()
+  })
+
+  it('hides CancelarEdicionButton for en_curso/cerrado/cancelado, even with editarEdicion', async () => {
+    for (const estado of ['en_curso', 'cerrado', 'cancelado'] as const) {
+      setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, CancelarEdicionButton)).toBeNull()
+    }
+  })
+
+  it('passes taller.slug, edicion.id and inscripciones_count to CancelarEdicionButton', async () => {
+    setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado: 'abierto', inscripciones_count: 5 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    const boton = findByType(element, CancelarEdicionButton)
+    expect(boton?.props).toEqual({ tallerSlug: 'matrimonio-sobre-la-roca', edicionId: 'e-1', inscritos: 5 })
   })
 
   it('grants TablaInscripciones canWrite when aprobarInscripciones is granted', async () => {
@@ -514,56 +542,39 @@ describe('EdicionDetallePage — content', () => {
     expect(extractText(element)).toMatch(/Borrador/)
   })
 
-  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
-  // "Ventana" collapses to one sentence: "Sin fecha de cierre" for an
-  // edición with no known close date (per the fixture: estado 'borrador',
-  // every fecha_cierre_* null); the detailed fields move behind a
-  // <details> "Ver fechas", shown only to editarEdicion.
-  describe('Ventana — one-sentence summary (T11)', () => {
-    it('shows "Sin fecha de cierre" when there is no known close date', async () => {
-      setup({})
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-      const element = (await EdicionDetallePage(params())) as any
-      expect(extractText(element)).toMatch(/Sin fecha de cierre/)
-    })
-
-    it('shows "Inscripciones abiertas hasta {fecha}" when there is a scheduled close date and the edición is not cerrada', async () => {
-      setup({
-        edicionDetalle: {
-          ...EDICION,
-          estado: 'abierto',
-          periodo_general: { ...EDICION.periodo_general!, fecha_cierre_manual: '2026-12-01T00:00:00Z' },
-        },
-      })
+  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — "Ventana"
+  // collapses to one sentence derived from the edición's OWN fecha_fin/
+  // cierre_inscripcion (talleres_periodos_generales is gone); the detailed
+  // fields move behind a <details> "Ver fechas", shown only to editarEdicion.
+  describe('Ventana — one-sentence summary (T4)', () => {
+    it('shows "Inscripciones abiertas hasta el {fecha}" for borrador/abierto (both already carry real dates)', async () => {
+      setup({ edicionDetalle: { ...EDICION, estado: 'abierto' } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
       const element = (await EdicionDetallePage(params())) as any
       const text = extractText(element)
-      expect(text).toMatch(/Inscripciones abiertas hasta/)
+      expect(text).toMatch(/Inscripciones abiertas hasta el/)
       expect(text).toMatch(/2026/)
-      expect(text).not.toMatch(/Sin fecha de cierre/)
     })
 
-    it('shows "Inscripciones cerradas el {fecha}" when the edición is cerrada, preferring fecha_cierre_real', async () => {
-      setup({
-        edicionDetalle: {
-          ...EDICION,
-          estado: 'cerrado',
-          // Distinct MONTHS (not just days) so the assertion below stays
-          // robust to the 1-day UTC->local shift this suite's other date
-          // assertions already work around (see the older "2026" checks).
-          periodo_general: {
-            ...EDICION.periodo_general!,
-            fecha_cierre_manual: '2026-11-01T00:00:00Z',
-            fecha_cierre_real: '2026-12-25T00:00:00Z',
-          },
-        },
-      })
+    it('shows "En curso hasta el {fecha}" for en_curso', async () => {
+      setup({ edicionDetalle: { ...EDICION, estado: 'en_curso' } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
       const element = (await EdicionDetallePage(params())) as any
-      const text = extractText(element)
-      expect(text).toMatch(/Inscripciones cerradas el/)
-      // The real closure date wins over the scheduled manual one — December, not November.
-      expect(text).toMatch(/12[/-]2026|dic/i)
+      expect(extractText(element)).toMatch(/En curso hasta el/)
+    })
+
+    it('shows "Cerrada el {fecha}" for cerrado', async () => {
+      setup({ edicionDetalle: { ...EDICION, estado: 'cerrado' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).toMatch(/Cerrada el/)
+    })
+
+    it('shows a cancelled notice for cancelado', async () => {
+      setup({ edicionDetalle: { ...EDICION, estado: 'cancelado' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).toMatch(/cancelada/i)
     })
 
     it('never shows the detailed date fields (no <details>, no Ver fechas, no dl) for a viewer without editarEdicion', async () => {
@@ -575,7 +586,7 @@ describe('EdicionDetallePage — content', () => {
       expect(extractText(element)).not.toMatch(/Ver fechas/)
     })
 
-    it('shows the detailed fields inside <details> "Ver fechas" for a viewer with editarEdicion, em-dash for a null date', async () => {
+    it('shows fecha_inicio, fecha_fin, cierre_inscripcion and the taller\'s cierre relativo inside <details> "Ver fechas" for a viewer with editarEdicion', async () => {
       setup({ permisos: { editarEdicion: true } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
       const element = (await EdicionDetallePage(params())) as any
@@ -583,22 +594,17 @@ describe('EdicionDetallePage — content', () => {
       expect(details).not.toBeNull()
       const text = extractText(details)
       expect(text).toMatch(/Ver fechas/)
-      // fecha_apertura_automatica is set — a real formatted date shows up.
-      // (Campo's own `titulo` prop, e.g. "Apertura automática", is not
-      // visible to this suite's structural extractText helper — it only
-      // walks `.props.children`, same limitation every other Ventana test
-      // in this file already works within.)
       expect(text).toMatch(/2026/)
-      // fecha_cierre_automatica is null — must show an em-dash, never blank.
-      expect(text).toMatch(/—/)
+      // TALLER.cierre_inscripcion_offset_dias is -3 — the relative sentence, never a raw number.
+      expect(text).toMatch(/3 días antes de la primera clase/)
     })
   })
 
-  it('shows a "no periodo" message when periodo_general is null', async () => {
-    setup({ edicionDetalle: { ...EDICION, periodo_general: null } })
+  it('shows a "sin fechas" message when the edición has no dates registered yet (legacy row)', async () => {
+    setup({ edicionDetalle: { ...EDICION, fecha_inicio: null, fecha_fin: null, cierre_inscripcion: null } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/no hay per[ií]odo general asociado/i)
+    expect(extractText(element)).toMatch(/no tiene fechas registradas/i)
   })
 
   // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) —

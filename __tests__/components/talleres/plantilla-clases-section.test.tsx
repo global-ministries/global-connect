@@ -4,9 +4,14 @@
  * T3 (odd/tasks/talleres-configuracion-del-taller.md) — the taller
  * screen's "Clases (plantilla)" section: list, add (next numero), edit
  * tema in place, deactivate/reactivate, reorder by swapping numero with
- * up/down buttons, plus cadencia_dias/duracion_minutos as two editable
- * fields. Edit controls only render when puedeEditar (permisos.editarTaller
- * — the page decides, this component never re-derives a capability).
+ * up/down buttons. Edit controls only render when puedeEditar
+ * (permisos.editarTaller — the page decides, this component never
+ * re-derives a capability).
+ *
+ * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+ * cadencia_dias/duracion_minutos moved to the taller page's new
+ * "Configuración" section (see configuracion-taller.test.tsx); this file
+ * no longer covers them.
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -15,7 +20,6 @@ const crearPlantillaClaseMock = jest.fn()
 const editarPlantillaClaseTemaMock = jest.fn()
 const toggleActivoPlantillaClaseMock = jest.fn()
 const moverPlantillaClaseMock = jest.fn()
-const updateCadenciaYDuracionMock = jest.fn()
 const refreshMock = jest.fn()
 
 jest.mock('@/app/(auth)/talleres/[taller]/actions', () => ({
@@ -23,7 +27,6 @@ jest.mock('@/app/(auth)/talleres/[taller]/actions', () => ({
   editarPlantillaClaseTema: (...args: unknown[]) => editarPlantillaClaseTemaMock(...args),
   toggleActivoPlantillaClase: (...args: unknown[]) => toggleActivoPlantillaClaseMock(...args),
   moverPlantillaClase: (...args: unknown[]) => moverPlantillaClaseMock(...args),
-  updateCadenciaYDuracion: (...args: unknown[]) => updateCadenciaYDuracionMock(...args),
 }))
 
 jest.mock('next/navigation', () => ({
@@ -43,8 +46,6 @@ function baseProps(overrides: Partial<Parameters<typeof PlantillaClasesSection>[
     tallerId: 't-1',
     tallerSlug: 'proximo-paso',
     clases: CLASES,
-    cadenciaDias: 7,
-    duracionMinutos: 90,
     puedeEditar: false,
     ...overrides,
   }
@@ -55,7 +56,6 @@ beforeEach(() => {
   editarPlantillaClaseTemaMock.mockReset()
   toggleActivoPlantillaClaseMock.mockReset()
   moverPlantillaClaseMock.mockReset()
-  updateCadenciaYDuracionMock.mockReset()
   refreshMock.mockReset()
 })
 
@@ -89,12 +89,6 @@ describe('PlantillaClasesSection — read-only viewer', () => {
     expect(screen.queryByRole('button', { name: /subir/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /bajar/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /desactivar|activar/i })).not.toBeInTheDocument()
-  })
-
-  it('shows cadencia and duracion as plain text', () => {
-    render(<PlantillaClasesSection {...baseProps({ puedeEditar: false })} />)
-    expect(screen.getByText(/Cada 7 días/)).toBeInTheDocument()
-    expect(screen.getByText(/90/)).toBeInTheDocument()
   })
 })
 
@@ -181,24 +175,6 @@ describe('PlantillaClasesSection — editor: reorder', () => {
       tallerSlug: 'proximo-paso',
       claseId: 'c-2',
       direccion: 'subir',
-    })
-    await waitFor(() => expect(refreshMock).toHaveBeenCalled())
-  })
-})
-
-describe('PlantillaClasesSection — editor: cadencia y duración', () => {
-  it('shows the current values as editable fields and saves them', async () => {
-    updateCadenciaYDuracionMock.mockResolvedValue({ ok: true })
-    render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
-    const cadenciaInput = screen.getByLabelText(/cada n días/i)
-    expect(cadenciaInput).toHaveValue(7)
-    fireEvent.change(cadenciaInput, { target: { value: '14' } })
-    fireEvent.click(screen.getByRole('button', { name: /guardar cadencia/i }))
-    expect(updateCadenciaYDuracionMock).toHaveBeenCalledWith({
-      tallerId: 't-1',
-      tallerSlug: 'proximo-paso',
-      cadenciaDias: 14,
-      duracionMinutos: 90,
     })
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
   })

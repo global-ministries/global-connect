@@ -279,3 +279,59 @@ export function claseEstadoLabel(estado: string): string {
 export function claseEstadoBadgeVariante(estado: string): BadgeVariante {
   return (CLASE_ESTADO_BADGE_VARIANTE as Readonly<Record<string, BadgeVariante>>)[estado] ?? 'default'
 }
+
+/**
+ * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the taller's
+ * own configuration fields (`tipo`, `vinculo`, `regimen`,
+ * `cierre_inscripcion_offset_dias`), shown on the "Configuración" section
+ * of /talleres/[taller]. Same header rule as every other domain in this
+ * file: never render a raw column value, always go through a label helper.
+ */
+export type TallerTipo = 'individual' | 'pareja'
+
+export const TALLER_TIPO_LABELS: Record<TallerTipo, string> = {
+  individual: 'Individual',
+  pareja: 'Parejas',
+}
+
+/** Never render a raw `talleres.tipo` key — always go through this. */
+export function tipoTallerLabel(tipo: string): string {
+  return (TALLER_TIPO_LABELS as Readonly<Record<string, string>>)[tipo] ?? tipo
+}
+
+export type TallerRegimen = 'temporada' | 'cadencia'
+
+export const TALLER_REGIMEN_LABELS: Record<TallerRegimen, string> = {
+  temporada: 'Por temporada de la dirección',
+  cadencia: 'Por cadencia propia',
+}
+
+/** Never render a raw `talleres.regimen` key — always go through this. */
+export function regimenLabel(regimen: string): string {
+  return (TALLER_REGIMEN_LABELS as Readonly<Record<string, string>>)[regimen] ?? regimen
+}
+
+/**
+ * `talleres.vinculo` is nullable (`NULL` = "cualquiera") rather than a
+ * closed enum with its own "any" member, so this takes the raw
+ * `string | null` directly instead of following the Record-lookup shape
+ * every other helper in this file uses.
+ */
+export function vinculoLabel(vinculo: string | null): string {
+  if (vinculo === 'matrimonio') return 'Matrimonios'
+  if (vinculo === 'novios') return 'Novios'
+  return 'Cualquiera'
+}
+
+/**
+ * `talleres.cierre_inscripcion_offset_dias` as a sentence (Decisiones:
+ * "Cierra 3 días antes de la primera clase" / "Cierra al empezar" /
+ * "Permite entrar hasta 7 días después"). Negative closes the window
+ * before the first clase, positive keeps it open past it, zero closes
+ * exactly when the first clase starts.
+ */
+export function cierreRelativoLabel(offsetDias: number): string {
+  if (offsetDias === 0) return 'Cierra al empezar'
+  if (offsetDias > 0) return `Permite entrar hasta ${offsetDias} días después`
+  return `Cierra ${Math.abs(offsetDias)} días antes de la primera clase`
+}

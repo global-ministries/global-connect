@@ -15,6 +15,7 @@
 
 import {
   agregarFacilitadorGrupo,
+  cancelarEdicion,
   editarGrupoInstanciado,
   quitarFacilitadorGrupo,
 } from '@/app/(auth)/talleres/[taller]/[edicion]/actions'
@@ -266,6 +267,76 @@ describe('quitarFacilitadorGrupo', () => {
       grupoId: 'g-1',
       facilitadorId: 'a-1',
     })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('forbidden')
+      expect(result.message).toMatch(/permisos/i)
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── cancelarEdicion (T4, odd/tasks/talleres-temporadas-y-ediciones.md) ───
+
+interface UpdateSetup {
+  isEnabled?: boolean
+  user?: { id: string } | null
+  selectResult?: { data: unknown; error: { message?: string; code?: string } | null }
+}
+
+function setupCancelar(opts: UpdateSetup): { update: jest.Mock; eq: jest.Mock; in: jest.Mock } {
+  flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
+  const select = jest.fn().mockResolvedValue(opts.selectResult ?? { data: [{ id: 'e-1' }], error: null })
+  const inFn = jest.fn().mockReturnValue({ select })
+  const eq = jest.fn().mockReturnValue({ in: inFn })
+  const update = jest.fn().mockReturnValue({ eq })
+  const from = jest.fn().mockReturnValue({ update })
+
+  createSupabaseServerClientMock.mockReset().mockResolvedValue({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user },
+        error: null,
+      }),
+    },
+    from,
+  })
+  return { update, eq, in: inFn }
+}
+
+describe('cancelarEdicion — kill switch & auth', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    setupCancelar({ isEnabled: false })
+    const result = await cancelarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+  })
+
+  it('returns unauthorized when there is no session', async () => {
+    setupCancelar({ user: null })
+    const result = await cancelarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+  })
+})
+
+describe('cancelarEdicion — happy path', () => {
+  it('updates estado=cancelado, scoped to borrador/abierto, and revalidates both pages', async () => {
+    const { update, eq, in: inFn } = setupCancelar({})
+    const result = await cancelarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(result.ok).toBe(true)
+    expect(update).toHaveBeenCalledWith({ estado: 'cancelado' })
+    expect(eq).toHaveBeenCalledWith('id', 'e-1')
+    expect(inFn).toHaveBeenCalledWith('estado', ['borrador', 'abierto'])
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+})
+
+describe('cancelarEdicion — not in borrador/abierto (RLS-empty)', () => {
+  it('reports forbidden when the state predicate excludes the row', async () => {
+    setupCancelar({ selectResult: { data: [], error: null } })
+    const result = await cancelarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error).toBe('forbidden')

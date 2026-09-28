@@ -42,6 +42,25 @@
  * Equipo/picker data (talleres_servidores_del_taller) is fetched
  * regardless of editarTaller — a read-only viewer still sees the real
  * team, they just can't add to it.
+ *
+ * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6):
+ *   - refrescarEstadosEdiciones(client) runs before loadTallerDetalle,
+ *     unscoped (the taller's own DB id isn't known until AFTER the slug
+ *     lookup this must run before) — best effort, see that module's
+ *     header for why the edición page scopes its own call instead.
+ *   - A new "Configuración" section (ConfiguracionTaller) right below the
+ *     header: tipo, vínculo, régimen, cierre de inscripción, intervalo
+ *     entre ediciones, plus cadencia_dias/duracion_minutos MOVED here
+ *     from PlantillaClasesSection.
+ *   - "Crear edición" (OpenEdicionForm) is now driven by `taller.regimen`
+ *     — see that component's own header for the one-question flow. This
+ *     page precomputes `temporadasDisponibles` (open temporadas of the
+ *     taller's own tree MINUS the ones this taller already has a
+ *     non-cancelled edición in, from `taller.ediciones`), since only the
+ *     page has `taller.ediciones` to compute that exclusion from.
+ *   - `?creadas=N` (redirected here when "crear también las próximas"
+ *     created more than one edición) shows a BadgeSistema notice.
+ *   - Ediciones rows show "{inicio} → {fin}" alongside the estado badge.
  */
 
 import { notFound } from 'next/navigation'
@@ -60,6 +79,7 @@ import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
 import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
 import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcion-taller'
+import { ConfiguracionTaller } from '@/components/talleres/configuracion-taller'
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import {
@@ -85,6 +105,7 @@ import {
   previewFacilitadoresOmitidos,
 } from '@/lib/platform/talleres/plantilla'
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
+import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
 import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
 import { hasDreamTeamReadCapability } from '@/lib/platform/dream-team/capabilities'
 
@@ -94,6 +115,15 @@ export const metadata = { title: 'Taller' }
 
 interface RouteContext {
   readonly params: Promise<{ readonly taller: string }>
+  readonly searchParams: Promise<{ readonly creadas?: string }>
+}
+
+/** Same UTC-anchored formatting OpenEdicionForm's own preview uses, for a `date`-only column (never a timestamptz shift). */
+function formatFechaCorta(value: string | null): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString('es', { timeZone: 'UTC' })
 }
 
 export default async function TallerDetallePage(ctx: RouteContext) {
@@ -108,6 +138,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   }
 
   const { taller: slug } = await ctx.params
+  const { creadas } = await ctx.searchParams
 
   const supabase = await createSupabaseServerClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
@@ -139,6 +170,12 @@ export default async function TallerDetallePage(ctx: RouteContext) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
+
+  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — best
+  // effort, unscoped (this taller's own DB id isn't known until AFTER the
+  // slug lookup right below) — see refrescar-estados.ts's own header.
+  await refrescarEstadosEdiciones(client)
+
   const taller = await loadTallerDetalle(client, slug)
   if (!taller) {
     notFound()
@@ -155,13 +192,28 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   // there is an equipo to deep-link into.
   const puedeGestionarServidores = equipoId !== null && hasDreamTeamReadCapability(session)
 
+  // T4 — only régimen=temporada ever asks for a temporada, so a
+  // régimen=cadencia taller never pays for this query.
+  const debeCargarTemporadas = permisos.abrirEdicion && taller.regimen === 'temporada'
+
   const [rutaEquipo, temporadasAbiertas, cargaServidores, plantillaClases, plantillaGrupos] = await Promise.all([
     equipoId ? fetchRutaEquipo(client, equipoId) : Promise.resolve(null),
-    permisos.abrirEdicion ? loadTemporadasAbiertas(client, taller.id) : Promise.resolve([]),
+    debeCargarTemporadas ? loadTemporadasAbiertas(client, taller.id) : Promise.resolve([]),
     equipoId ? loadServidoresDelTaller(client, taller.id) : Promise.resolve({ ok: true, servidores: [] } as const),
     loadPlantillaClases(client, taller.id),
     loadPlantillaGrupos(client, taller.id),
   ])
+
+  // T4 — "Crear edición" (régimen=temporada) excludes temporadas this
+  // taller already has a non-cancelled edición in (Decisiones); refreshed
+  // above, so a stale stored estado can't leak a cancelled-in-practice
+  // edición's temporada back into the list.
+  const temporadaIdsUsadas = new Set(
+    taller.ediciones
+      .filter((edicion) => edicion.estado !== 'cancelado' && edicion.temporada_id !== null)
+      .map((edicion) => edicion.temporada_id as string),
+  )
+  const temporadasDisponibles = temporadasAbiertas.filter((t) => !temporadaIdsUsadas.has(t.id))
 
   // B2 correction (T7) — a 42501 (no visibility into this taller's node)
   // used to degrade to the SAME empty servidores array as a taller with
@@ -172,13 +224,14 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   const servidores = cargaServidores.ok ? cargaServidores.servidores : []
   const sinAutoridadEquipo = !cargaServidores.ok && cargaServidores.reason === 'sin_autoridad'
 
-  // "Crear edición" derives sesiones estimadas from the active plantilla
-  // clases when the taller has one (Decisiones). A taller with NO active
-  // plantilla clases keeps today's form untouched (acceptance criterion
-  // 8): `null` tells OpenEdicionForm to show its own "sesiones" field
-  // again, exactly as before — there is no silent numeric fallback here.
+  // T4 — "Crear edición"'s preview no longer asks for a clase count: it
+  // derives clasesPorGrupo from the active plantilla, falling back to 1
+  // when the taller has none yet — the EXACT same fallback
+  // talleres_instanciar_edicion applies server-side (p_sesiones_fallback
+  // DEFAULT 1, never asked for by talleres_crear_edicion), so the preview
+  // never disagrees with what actually gets created.
   const clasesActivas = plantillaClases.filter((clase) => clase.activo).length
-  const sesionesEstimadas = clasesActivas > 0 ? clasesActivas : null
+  const clasesPorGrupo = clasesActivas > 0 ? clasesActivas : 1
 
   // T11 — "Crear edición" preview: how many grupos will be instanced (only
   // ACTIVE plantilla grupos are — same rule open_edicion applies), and
@@ -191,12 +244,6 @@ export default async function TallerDetallePage(ctx: RouteContext) {
     gruposPlantillaActivosList,
     servidorPersonaIds,
   )
-
-  // T11 — "Duración por sesión (min)" is gone from the form; it now lives
-  // on the taller (`duracion_minutos`, editable in PlantillaClasesSection).
-  // 60 is the same default the old inline field used to start from, for a
-  // taller that hasn't set one yet.
-  const duracionMinutos = taller.duracion_minutos ?? 60
 
   return (
     <ContenedorDashboard
@@ -249,6 +296,28 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         </div>
       </TarjetaSistema>
 
+      {/* T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+          redirected here from OpenEdicionForm after "crear también las
+          próximas" creates more than one edición at once. */}
+      {creadas && Number(creadas) > 0 && (
+        <BadgeSistema variante="success" role="status">
+          {`Se crearon ${creadas} ediciones`}
+        </BadgeSistema>
+      )}
+
+      <ConfiguracionTaller
+        tallerId={taller.id}
+        tallerSlug={taller.slug}
+        tipo={taller.tipo}
+        vinculo={taller.vinculo}
+        regimen={taller.regimen}
+        cierreInscripcionOffsetDias={taller.cierre_inscripcion_offset_dias}
+        intervaloEdicionesDias={taller.intervalo_ediciones_dias}
+        cadenciaDias={taller.cadencia_dias}
+        duracionMinutos={taller.duracion_minutos}
+        puedeEditar={permisos.editarTaller}
+      />
+
       {/* T11 (flow audit) — "Pasos para abrir una edición": right under the
           header, so a director sees at a glance what's left before "Crear
           edición" makes sense to press. Only for editarTaller — the same
@@ -275,7 +344,11 @@ export default async function TallerDetallePage(ctx: RouteContext) {
               href="#ediciones"
               className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-accent"
             >
-              <TextoSistema className="font-medium">Crear edición</TextoSistema>
+              <TextoSistema className="font-medium">
+                {/* T4 — the checklist's own final step names the ONE
+                    question "Crear edición" will actually ask, by régimen. */}
+                {taller.regimen === 'cadencia' ? 'Crear edición (primera clase)' : 'Crear edición (elige la temporada)'}
+              </TextoSistema>
               <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
             </Link>
           </div>
@@ -340,8 +413,6 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         tallerId={taller.id}
         tallerSlug={taller.slug}
         clases={plantillaClases}
-        cadenciaDias={taller.cadencia_dias}
-        duracionMinutos={taller.duracion_minutos}
         puedeEditar={permisos.editarTaller}
       />
 
@@ -390,6 +461,10 @@ export default async function TallerDetallePage(ctx: RouteContext) {
                       </BadgeSistema>
                     </div>
                     <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                      {/* T4 — "{inicio} → {fin}" from the edición's own real
+                          dates (CatalogoEdicion), never a periodo snapshot. */}
+                      {formatFechaCorta(edicion.fecha_inicio)} → {formatFechaCorta(edicion.fecha_fin)}
+                      {' · '}
                       {edicion.total_inscripciones}{' '}
                       {edicion.total_inscripciones === 1 ? 'inscrito' : 'inscritos'}
                     </TextoSistema>
@@ -408,12 +483,14 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             tallerId={taller.id}
             tallerSlug={taller.slug}
             tallerNombre={taller.nombre}
-            defaultModalidad={taller.modalidad_default}
-            temporadasAbiertas={temporadasAbiertas}
-            sesionesEstimadas={sesionesEstimadas}
+            regimen={taller.regimen}
+            temporadasDisponibles={temporadasDisponibles}
+            intervaloEdicionesDias={taller.intervalo_ediciones_dias}
+            cadenciaDias={taller.cadencia_dias}
+            cierreInscripcionOffsetDias={taller.cierre_inscripcion_offset_dias}
+            clasesPorGrupo={clasesPorGrupo}
             gruposPlantillaActivos={gruposPlantillaActivosList.length}
             facilitadoresOmitidosPreview={facilitadoresOmitidosPreview}
-            duracionMinutos={duracionMinutos}
           />
         </div>
       )}
