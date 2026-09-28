@@ -378,3 +378,114 @@ export async function inscribirSobreCupo(
     sobreCupo: resultado.sobre_cupo,
   }
 }
+
+// ─── Reprogramar edición (T7b, odd/tasks/talleres-temporadas-y-ediciones.md) ──
+//
+// Extends the cierre_inscripcion only (fechaInicio null), or moves the
+// primera clase (shifting every not-yet-closed sesión by the same delta) —
+// wraps talleres_reprogramar_edicion, which does the whole business rule
+// (authority, EDICION_NO_REPROGRAMABLE/NADA_QUE_CAMBIAR/CIERRE_POSTERIOR_
+// AL_FIN/EDICION_YA_EMPEZO, the actual date/sesión writes, the audit
+// columns). This action only shapes the call, validates the two dates are
+// well-formed ISO strings and the motivo fits, and translates the result —
+// same thin-gate shape as crearEdicion.
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+const MOTIVO_MAX = 300
+
+export interface ReprogramarEdicionInput {
+  readonly tallerSlug: string
+  readonly edicionId: string
+  /** Move-start mode only; null for extend-only. */
+  readonly fechaInicio: string | null
+  /** Extend-only mode's own field, or an override in move-start mode; null keeps the taller's own offset. */
+  readonly cierreInscripcion: string | null
+  readonly motivo: string | null
+}
+
+export interface ReprogramarEdicionResultado {
+  readonly edicionId: string
+  readonly fechaInicio: string
+  readonly fechaFin: string
+  readonly cierreInscripcion: string
+  readonly estado: string
+  readonly clasesMovidas: number
+}
+
+export async function reprogramarEdicion(
+  input: ReprogramarEdicionInput,
+): Promise<EdicionActionResult<{ reprogramacion: ReprogramarEdicionResultado }>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  if (input.fechaInicio !== null && !ISO_DATE.test(input.fechaInicio)) {
+    return { ok: false, error: 'invalid-input', message: 'La fecha de la primera clase no es válida.' }
+  }
+  if (input.cierreInscripcion !== null && !ISO_DATE.test(input.cierreInscripcion)) {
+    return { ok: false, error: 'invalid-input', message: 'La fecha de cierre de inscripción no es válida.' }
+  }
+  const motivo = input.motivo?.trim() || null
+  if (motivo && motivo.length > MOTIVO_MAX) {
+    return { ok: false, error: 'invalid-input', message: `El motivo no puede superar los ${MOTIVO_MAX} caracteres.` }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client.rpc('talleres_reprogramar_edicion', {
+    p_edicion_id: input.edicionId,
+    p_fecha_inicio: input.fechaInicio,
+    p_cierre_inscripcion: input.cierreInscripcion,
+    p_motivo: motivo,
+  })
+
+  if (error || !data) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo reprogramar la edición.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  const resultado = data as {
+    edicion_id: string
+    fecha_inicio: string
+    fecha_fin: string
+    cierre_inscripcion: string
+    estado: string
+    clases_movidas: number
+  }
+
+  revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
+  revalidatePath(rutaTaller(input.tallerSlug))
+
+  // Best-effort: a "move start" reprogramación bulk-shifts every clase's
+  // fecha_programada, which is also rendered (and edited in place via
+  // talleres_editar_clase) on each grupo's OWN page — revalidate those too
+  // so a viewer there doesn't see a stale date. Never fails the action
+  // itself; an extend-only call touches no clase, so this is a no-op cost
+  // either way (0 or 1 extra pair of queries).
+  try {
+    const { data: cohorte } = await client
+      .from('talleres_crecimiento_cohortes')
+      .select('id')
+      .eq('taller_id', input.edicionId)
+      .maybeSingle()
+    if (cohorte) {
+      const { data: grupos } = await client.from('taller_grupos').select('id').eq('cohorte_id', cohorte.id)
+      for (const g of (grupos ?? []) as ReadonlyArray<{ id: string }>) {
+        revalidatePath(rutaGrupo(input.tallerSlug, input.edicionId, g.id))
+      }
+    }
+  } catch {
+    // best effort only — the edición/taller revalidation above already ran.
+  }
+
+  return {
+    ok: true,
+    reprogramacion: {
+      edicionId: resultado.edicion_id,
+      fechaInicio: resultado.fecha_inicio,
+      fechaFin: resultado.fecha_fin,
+      cierreInscripcion: resultado.cierre_inscripcion,
+      estado: resultado.estado,
+      clasesMovidas: resultado.clases_movidas,
+    },
+  }
+}

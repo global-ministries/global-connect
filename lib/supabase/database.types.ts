@@ -4611,6 +4611,9 @@ export type Database = {
           operating_core_event_id: string
           periodo_general_id: string | null
           recurrence_rule: Json | null
+          reprogramacion_motivo: string | null
+          reprogramada_en: string | null
+          reprogramada_por: string | null
           sesiones_snapshot: number
           taller_id: string | null
           temporada_id: string | null
@@ -4634,6 +4637,9 @@ export type Database = {
           operating_core_event_id: string
           periodo_general_id?: string | null
           recurrence_rule?: Json | null
+          reprogramacion_motivo?: string | null
+          reprogramada_en?: string | null
+          reprogramada_por?: string | null
           sesiones_snapshot: number
           taller_id?: string | null
           temporada_id?: string | null
@@ -4657,6 +4663,9 @@ export type Database = {
           operating_core_event_id?: string
           periodo_general_id?: string | null
           recurrence_rule?: Json | null
+          reprogramacion_motivo?: string | null
+          reprogramada_en?: string | null
+          reprogramada_por?: string | null
           sesiones_snapshot?: number
           taller_id?: string | null
           temporada_id?: string | null
@@ -4678,6 +4687,41 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "taller_periodos_generales"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_reprogramada_por_fkey"
+            columns: ["reprogramada_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_reprogramada_por_fkey"
+            columns: ["reprogramada_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_reprogramada_por_fkey"
+            columns: ["reprogramada_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_reprogramada_por_fkey"
+            columns: ["reprogramada_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_reprogramada_por_fkey"
+            columns: ["reprogramada_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
           {
             foreignKeyName: "taller_ediciones_taller_id_fkey"
@@ -8148,6 +8192,24 @@ export type Database = {
         Args: { p_marcas: Json; p_sesion_id: string }
         Returns: Json
       }
+      talleres_reprogramacion_persona: {
+        Args: { p_edicion_id: string }
+        Returns: {
+          reprogramacion_motivo: string
+          reprogramada_en: string
+          reprogramada_por_apellido: string
+          reprogramada_por_nombre: string
+        }[]
+      }
+      talleres_reprogramar_edicion: {
+        Args: {
+          p_cierre_inscripcion?: string
+          p_edicion_id: string
+          p_fecha_inicio?: string
+          p_motivo?: string
+        }
+        Returns: Json
+      }
       talleres_resolver_solicitud_retiro: {
         Args: { p_accion: string; p_motivo?: string; p_solicitud_id: string }
         Returns: Json
@@ -8603,4 +8665,3 @@ export const Constants = {
     },
   },
 } as const
-

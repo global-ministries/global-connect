@@ -87,6 +87,7 @@ import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
+import { ReprogramarEdicionDialog } from '@/components/talleres/reprogramar-edicion'
 import { cierreRelativoLabel, edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -99,6 +100,8 @@ import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import {
   loadCupoEdicion,
   loadEdicionLocalDetalle,
+  loadReprogramacionAudit,
+  loadReprogramarPreview,
   type EdicionLocalDetalle,
 } from '@/lib/platform/talleres/operacional'
 import { loadAdminInscripciones } from '@/lib/platform/talleres/admin-inscripciones'
@@ -184,6 +187,17 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   // effort, same "never blocks the page" contract as refrescarEstados
   // Ediciones: a failed/unauthorized call just hides the Cupo line.
   const cupo = await loadCupoEdicion(client, edicion.id)
+
+  // T7b — the "Reprogramar" dialog's own preview inputs and the Ventana
+  // audit line, both gated on editarEdicion (same viewers who already see
+  // "Ver fechas") since only they can act on either. Best effort, same
+  // never-blocks-the-page contract as everything else above.
+  const [reprogramarPreview, reprogramacionAudit] = permisos.editarEdicion
+    ? await Promise.all([
+        loadReprogramarPreview(client, edicion.id),
+        loadReprogramacionAudit(client, edicion.id),
+      ])
+    : [{ clasesPendientes: 0, primeraClaseCerrada: false }, null]
 
   // T3 (odd/tasks/talleres-inscripcion-a-grupo.md) — bulk-assign selector
   // options, gated on gestionarGrupos (hide, never disable — house rule).
@@ -346,6 +360,27 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
                       {cierreRelativoLabel(taller.cierre_inscripcion_offset_dias)}
                     </Campo>
                   </dl>
+                  {/* T7b — "Cerrada"/"Cancelada" are terminal; there is
+                      nothing left to reprogramar once nobody can act on
+                      the edición anymore. */}
+                  {edicion.estado !== 'cerrado' && edicion.estado !== 'cancelado' && (
+                    <div className="mt-3">
+                      <ReprogramarEdicionDialog
+                        tallerSlug={taller.slug}
+                        edicionId={edicion.id}
+                        fechaInicio={edicion.fecha_inicio}
+                        fechaFin={edicion.fecha_fin}
+                        cierreInscripcion={edicion.cierre_inscripcion}
+                        clasesPendientes={reprogramarPreview.clasesPendientes}
+                        primeraClaseCerrada={reprogramarPreview.primeraClaseCerrada}
+                      />
+                    </div>
+                  )}
+                  {reprogramacionAudit && (
+                    <TextoSistema variante="sutil" tamaño="sm" className="mt-3 block">
+                      {`Reprogramada por ${reprogramacionAudit.nombre} ${reprogramacionAudit.apellido} el ${formatFecha(reprogramacionAudit.en)}${reprogramacionAudit.motivo ? `: ${reprogramacionAudit.motivo}` : ''}`}
+                    </TextoSistema>
+                  )}
                 </details>
               )}
             </>

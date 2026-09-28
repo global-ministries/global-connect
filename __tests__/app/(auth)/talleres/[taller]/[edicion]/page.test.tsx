@@ -26,6 +26,7 @@
 
 import EdicionDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/page'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
+import { ReprogramarEdicionDialog } from '@/components/talleres/reprogramar-edicion'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
@@ -57,6 +58,8 @@ jest.mock('@/lib/platform/talleres/catalogo', () => ({
 jest.mock('@/lib/platform/talleres/operacional', () => ({
   loadEdicionLocalDetalle: jest.fn(),
   loadCupoEdicion: jest.fn(),
+  loadReprogramarPreview: jest.fn(),
+  loadReprogramacionAudit: jest.fn(),
 }))
 
 jest.mock('@/lib/platform/talleres/admin-inscripciones', () => ({
@@ -87,6 +90,10 @@ jest.mock('@/components/talleres/open-edicion-button', () => ({
   CancelarEdicionButton: () => null,
 }))
 
+jest.mock('@/components/talleres/reprogramar-edicion', () => ({
+  ReprogramarEdicionDialog: () => null,
+}))
+
 jest.mock('@/components/talleres/grupos-section', () => ({
   GruposSection: () => null,
 }))
@@ -102,6 +109,10 @@ const loadEdicionLocalDetalleMock = jest.requireMock('@/lib/platform/talleres/op
   .loadEdicionLocalDetalle as jest.Mock
 const loadCupoEdicionMock = jest.requireMock('@/lib/platform/talleres/operacional')
   .loadCupoEdicion as jest.Mock
+const loadReprogramarPreviewMock = jest.requireMock('@/lib/platform/talleres/operacional')
+  .loadReprogramarPreview as jest.Mock
+const loadReprogramacionAuditMock = jest.requireMock('@/lib/platform/talleres/operacional')
+  .loadReprogramacionAudit as jest.Mock
 const loadAdminInscripcionesMock = jest.requireMock('@/lib/platform/talleres/admin-inscripciones')
   .loadAdminInscripciones as jest.Mock
 const loadGruposDeCohorteMock = jest.requireMock('@/lib/platform/talleres/grupo-detalle')
@@ -189,6 +200,8 @@ interface SetupOpts {
   permisos?: Partial<PermisosTaller>
   inscripciones?: AdminInscripcionesResult
   cupo?: { cupo: number; ocupados: number; disponibles: number; sobreCupo: number; unidad: 'personas' | 'parejas' } | null
+  reprogramarPreview?: { clasesPendientes: number; primeraClaseCerrada: boolean }
+  reprogramacionAudit?: { nombre: string; apellido: string; en: string; motivo: string | null } | null
 }
 
 function setup(opts: SetupOpts): void {
@@ -230,6 +243,12 @@ function setup(opts: SetupOpts): void {
   loadGruposInstanciadosMock.mockReset().mockResolvedValue([])
   loadServidoresDelTallerMock.mockReset().mockResolvedValue({ ok: true, servidores: [] })
   loadCupoEdicionMock.mockReset().mockResolvedValue(opts.cupo === undefined ? null : opts.cupo)
+  loadReprogramarPreviewMock
+    .mockReset()
+    .mockResolvedValue(opts.reprogramarPreview ?? { clasesPendientes: 0, primeraClaseCerrada: false })
+  loadReprogramacionAuditMock
+    .mockReset()
+    .mockResolvedValue(opts.reprogramacionAudit === undefined ? null : opts.reprogramacionAudit)
 }
 
 function params(taller = 'matrimonio-sobre-la-roca', edicion = 'e-1') {
@@ -678,6 +697,101 @@ describe('EdicionDetallePage — content', () => {
       expect(text).toMatch(/2026/)
       // TALLER.cierre_inscripcion_offset_dias is -3 — the relative sentence, never a raw number.
       expect(text).toMatch(/3 días antes de la primera clase/)
+    })
+  })
+
+  // T7b (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
+  // "Reprogramar" dialog and the audit line, both inside "Ver fechas"
+  // (editarEdicion-gated, same as every other detailed field there).
+  describe('Reprogramar (T7b)', () => {
+    it('shows ReprogramarEdicionDialog when editarEdicion is granted and estado is abierto', async () => {
+      setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado: 'abierto' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, ReprogramarEdicionDialog)).not.toBeNull()
+    })
+
+    it('hides ReprogramarEdicionDialog when editarEdicion is denied', async () => {
+      setup({ permisos: { editarEdicion: false }, edicionDetalle: { ...EDICION, estado: 'abierto' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, ReprogramarEdicionDialog)).toBeNull()
+    })
+
+    it('hides ReprogramarEdicionDialog for cerrado/cancelado, even with editarEdicion', async () => {
+      for (const estado of ['cerrado', 'cancelado'] as const) {
+        setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado } })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+        const element = (await EdicionDetallePage(params())) as any
+        expect(findByType(element, ReprogramarEdicionDialog)).toBeNull()
+      }
+    })
+
+    it('shows ReprogramarEdicionDialog for borrador/en_curso too, with editarEdicion', async () => {
+      for (const estado of ['borrador', 'en_curso'] as const) {
+        setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado } })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+        const element = (await EdicionDetallePage(params())) as any
+        expect(findByType(element, ReprogramarEdicionDialog)).not.toBeNull()
+      }
+    })
+
+    it('passes the edición dates and the preview counts to ReprogramarEdicionDialog', async () => {
+      setup({
+        permisos: { editarEdicion: true },
+        edicionDetalle: { ...EDICION, estado: 'abierto' },
+        reprogramarPreview: { clasesPendientes: 3, primeraClaseCerrada: true },
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      const dialog = findByType(element, ReprogramarEdicionDialog)
+      expect(dialog?.props).toEqual({
+        tallerSlug: 'matrimonio-sobre-la-roca',
+        edicionId: 'e-1',
+        fechaInicio: '2026-09-01',
+        fechaFin: '2026-10-27',
+        cierreInscripcion: '2026-08-29',
+        clasesPendientes: 3,
+        primeraClaseCerrada: true,
+      })
+    })
+
+    it('does not load the preview/audit when editarEdicion is denied', async () => {
+      setup({ permisos: { editarEdicion: false } })
+      await EdicionDetallePage(params())
+      expect(loadReprogramarPreviewMock).not.toHaveBeenCalled()
+      expect(loadReprogramacionAuditMock).not.toHaveBeenCalled()
+    })
+
+    it('shows the audit line "Reprogramada por {nombre} {apellido} el {fecha}: {motivo}" when present', async () => {
+      setup({
+        permisos: { editarEdicion: true },
+        reprogramacionAudit: { nombre: 'Ana', apellido: 'Gómez', en: '2026-09-15T00:00:00Z', motivo: 'Ajuste de agenda' },
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      const text = extractText(element)
+      expect(text).toMatch(/Reprogramada por Ana Gómez el/)
+      expect(text).toMatch(/Ajuste de agenda/)
+    })
+
+    it('omits the ": {motivo}" suffix when no motivo was given', async () => {
+      setup({
+        permisos: { editarEdicion: true },
+        reprogramacionAudit: { nombre: 'Ana', apellido: 'Gómez', en: '2026-09-15T00:00:00Z', motivo: null },
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      const text = extractText(element)
+      expect(text).toMatch(/Reprogramada por Ana Gómez el/)
+      expect(text).not.toMatch(/:\s*$/)
+    })
+
+    it('shows no audit line when the edición was never reprogramada', async () => {
+      setup({ permisos: { editarEdicion: true }, reprogramacionAudit: null })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).not.toMatch(/Reprogramada por/)
     })
   })
 
