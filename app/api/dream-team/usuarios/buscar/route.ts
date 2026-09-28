@@ -2,14 +2,15 @@
  * Dream Team — GET /api/dream-team/usuarios/buscar
  *
  * Persona search backing the "assign servicio" admin card on
- * /admin/dream-team/servidores. Mirrors
- * app/api/talleres/admin/usuarios/buscar/route.ts in mechanics (calls the
- * shared talleres_buscar_personas RPC, minimum query length 2, limit 20),
- * but is NOT that route reused: this one is gated by Dream Team's own
- * flag/session/capability chain, not talleres'. A scoped area director
- * holds `dream_team.direct` but never a `talleres_crecimiento.*`
- * capability, so reusing the talleres route would 403 them out of their
- * own assigner.
+ * /admin/dream-team/servidores. Calls the shared talleres_buscar_personas
+ * RPC (minimum query length 2, limit 20) — the same RPC a since-removed
+ * talleres route (app/api/talleres/admin/usuarios/buscar, deleted in T5
+ * of odd/tasks/talleres-configuracion-del-taller.md once it went
+ * callerless) used to call, but this one is NOT that route reused: it is
+ * gated by Dream Team's own flag/session/capability chain, not talleres'.
+ * A scoped area director holds `dream_team.direct` but never a
+ * `talleres_crecimiento.*` capability, so reusing a talleres-gated route
+ * would 403 them out of their own assigner.
  *
  * BUGFIX — this route used to query `usuarios` directly through the
  * caller's own server client, which hit `usuarios`' own row-level security:

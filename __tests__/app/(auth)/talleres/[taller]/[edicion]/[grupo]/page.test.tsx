@@ -31,6 +31,7 @@ import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia
 import { RegistroAsistenciaClase } from '@/components/talleres/registro-asistencia-clase.client'
 import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
 import { EnviarReporte } from '@/components/talleres/enviar-reporte.client'
+import { EditarClaseInstanciada } from '@/components/talleres/editar-clase-instanciada'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
@@ -864,5 +865,55 @@ describe('GrupoDetallePage — enviar reporte (T4)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     expect(findByType(element, EnviarReporte)).toBeNull()
+  })
+})
+
+// T4 (odd/tasks/talleres-configuracion-del-taller.md) — editing a clase's
+// tema/fecha_programada in place, gated by editar_edicion (a capacity
+// question, distinct from miRol's asistencia relation) and hidden — never
+// disabled — once the clase is cerrada.
+describe('GrupoDetallePage — editar clase en su lugar (T4)', () => {
+  it('shows the edit control for each open clase when editarEdicion is granted', async () => {
+    setup({ permisos: { editarEdicion: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const controles = findAllByType(element, EditarClaseInstanciada)
+    expect(controles).toHaveLength(2)
+    expect(controles[0]?.props).toMatchObject({
+      tallerSlug: 'proximo-paso',
+      edicionId: 'e-1',
+      grupoId: 'g-1',
+      sesionId: 's-1',
+      tema: 'Introducción',
+      fechaProgramada: '2026-10-06',
+    })
+  })
+
+  it('hides the edit control when editarEdicion is denied', async () => {
+    setup({ permisos: { editarEdicion: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    expect(findByType(element, EditarClaseInstanciada)).toBeNull()
+  })
+
+  it('hides the edit control for a cerrada clase even when editarEdicion is granted', async () => {
+    setup({
+      permisos: { editarEdicion: true },
+      sesiones: [{ ...SESIONES[0], estado: 'cerrada' }, SESIONES[1]],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const controles = findAllByType(element, EditarClaseInstanciada)
+    expect(controles).toHaveLength(1)
+    expect(controles[0]?.props.sesionId).toBe('s-2')
+  })
+
+  it('a read-only viewer (editarEdicion denied) still sees the clase list, just no edit control', async () => {
+    setup({ permisos: { editarEdicion: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await GrupoDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).toMatch(/Clase\s*1.*Introducción/)
+    expect(findByType(element, EditarClaseInstanciada)).toBeNull()
   })
 })

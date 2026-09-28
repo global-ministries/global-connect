@@ -63,6 +63,11 @@ jest.mock('@/lib/platform/talleres/admin-inscripciones', () => ({
 
 jest.mock('@/lib/platform/talleres/grupo-detalle', () => ({
   loadGruposDeCohorte: jest.fn(),
+  loadGruposInstanciados: jest.fn(),
+}))
+
+jest.mock('@/lib/platform/talleres/servidores-del-taller', () => ({
+  loadServidoresDelTaller: jest.fn(),
 }))
 
 jest.mock('@/lib/platform/talleres/inscripciones-actions', () => ({
@@ -97,6 +102,10 @@ const loadAdminInscripcionesMock = jest.requireMock('@/lib/platform/talleres/adm
   .loadAdminInscripciones as jest.Mock
 const loadGruposDeCohorteMock = jest.requireMock('@/lib/platform/talleres/grupo-detalle')
   .loadGruposDeCohorte as jest.Mock
+const loadGruposInstanciadosMock = jest.requireMock('@/lib/platform/talleres/grupo-detalle')
+  .loadGruposInstanciados as jest.Mock
+const loadServidoresDelTallerMock = jest.requireMock('@/lib/platform/talleres/servidores-del-taller')
+  .loadServidoresDelTaller as jest.Mock
 const cargarPermisosMock = jest.requireMock('@/lib/platform/talleres/permisos')
   .cargarPermisos as jest.Mock
 
@@ -214,6 +223,8 @@ function setup(opts: SetupOpts): void {
   loadGruposDeCohorteMock
     .mockReset()
     .mockResolvedValue([{ id: 'g-1', nombre: 'Grupo Alfa' }])
+  loadGruposInstanciadosMock.mockReset().mockResolvedValue([])
+  loadServidoresDelTallerMock.mockReset().mockResolvedValue([])
 }
 
 function params(taller = 'matrimonio-sobre-la-roca', edicion = 'e-1') {
@@ -382,6 +393,33 @@ describe('EdicionDetallePage — permission wiring', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
     expect(findByType(element, GruposSection)).toBeNull()
+  })
+
+  // T4 (odd/tasks/talleres-configuracion-del-taller.md) — GruposSection's
+  // own instanciados grupos + the shared bounded picker's servidores list.
+  it('passes the loaded instanciados grupos, servidores and puedeEditar to GruposSection', async () => {
+    const gruposInstanciados = [
+      { id: 'g-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo', ocupacion: 0, facilitadores: [] },
+    ]
+    const servidores = [{ personaId: 'p-1', nombre: 'Ana', apellido: 'Gómez' }]
+    setup({ permisos: { gestionarGrupos: true } })
+    loadGruposInstanciadosMock.mockResolvedValue(gruposInstanciados)
+    loadServidoresDelTallerMock.mockResolvedValue(servidores)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    const grupos = findByType(element, GruposSection)
+    expect(grupos?.props.grupos).toEqual(gruposInstanciados)
+    expect(grupos?.props.servidores).toEqual(servidores)
+    expect(grupos?.props.puedeEditar).toBe(true)
+    expect(loadGruposInstanciadosMock).toHaveBeenCalledWith(expect.anything(), 'c-1')
+    expect(loadServidoresDelTallerMock).toHaveBeenCalledWith(expect.anything(), 't-1')
+  })
+
+  it('does not load instanciados grupos or servidores when gestionarGrupos is denied', async () => {
+    setup({ permisos: { gestionarGrupos: false } })
+    await EdicionDetallePage(params())
+    expect(loadGruposInstanciadosMock).not.toHaveBeenCalled()
+    expect(loadServidoresDelTallerMock).not.toHaveBeenCalled()
   })
 
   it('passes taller.dream_team_equipo_id to cargarPermisos', async () => {

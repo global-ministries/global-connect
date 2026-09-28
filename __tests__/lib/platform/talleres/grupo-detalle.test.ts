@@ -50,6 +50,7 @@ import {
   loadGrupoInscripciones,
   loadGruposDeCohorte,
   loadEsMiembroDelGrupo,
+  loadGruposInstanciados,
 } from '@/lib/platform/talleres/grupo-detalle'
 
 // ─── loadGrupoDetalle ───────────────────────────────────────────────────
@@ -576,5 +577,161 @@ describe('loadGruposDeCohorte', () => {
   it('returns [] on a query error', async () => {
     const { client } = buildListClientMock(null, { message: 'boom' })
     expect(await loadGruposDeCohorte(client, 'coh-1')).toEqual([])
+  })
+})
+
+// ─── loadGruposInstanciados (T4, odd/tasks/talleres-configuracion-del-taller.md) ───
+//
+// The edición screen's own grupos: nombre/capacidad/estado + facilitadores
+// (taller_grupo_asignaciones joined to usuarios), plus the same batched
+// ocupación query GET /api/talleres/grupos already runs.
+
+interface InstanciadosByTable {
+  taller_grupos?: { data: unknown; error: unknown }
+  taller_inscripciones?: { data: unknown; error: unknown }
+}
+
+function buildInstanciadosClientMock(byTable: InstanciadosByTable): {
+  client: { from: jest.Mock }
+  gruposEqCalls: Array<[string, unknown]>
+  inscripcionesInCalls: Array<[string, unknown]>
+} {
+  const gruposEqCalls: Array<[string, unknown]> = []
+  const inscripcionesInCalls: Array<[string, unknown]> = []
+
+  const from = jest.fn((table: string) => {
+    if (table === 'taller_grupos') {
+      const result = byTable.taller_grupos ?? { data: [], error: null }
+      const b: Record<string, unknown> = {}
+      b['select'] = jest.fn(() => b)
+      b['eq'] = jest.fn((col: string, val: unknown) => {
+        gruposEqCalls.push([col, val])
+        return b
+      })
+      b['order'] = jest.fn(() => Promise.resolve(result))
+      return b
+    }
+    if (table === 'taller_inscripciones') {
+      const result = byTable.taller_inscripciones ?? { data: [], error: null }
+      const b: Record<string, unknown> = {}
+      b['select'] = jest.fn(() => b)
+      b['in'] = jest.fn((col: string, val: unknown) => {
+        inscripcionesInCalls.push([col, val])
+        return b
+      })
+      b['eq'] = jest.fn(() => Promise.resolve(result))
+      return b
+    }
+    throw new Error(`unexpected table ${table}`)
+  })
+
+  return { client: { from }, gruposEqCalls, inscripcionesInCalls }
+}
+
+describe('loadGruposInstanciados', () => {
+  it('lists grupos with nombre, capacidad, estado and their active facilitadores', async () => {
+    const { client } = buildInstanciadosClientMock({
+      taller_grupos: {
+        data: [
+          {
+            id: 'g-1',
+            nombre: 'Grupo Alfa',
+            capacidad: 12,
+            estado: 'activo',
+            facilitadores: [
+              {
+                id: 'a-1',
+                persona_id: 'p-1',
+                rol: 'lider',
+                activo: true,
+                usuarios: { nombre: 'Ana', apellido: 'Gómez' },
+              },
+            ],
+          },
+        ],
+        error: null,
+      },
+      taller_inscripciones: { data: [], error: null },
+    })
+    const result = await loadGruposInstanciados(client, 'coh-1')
+    expect(result).toEqual([
+      {
+        id: 'g-1',
+        nombre: 'Grupo Alfa',
+        capacidad: 12,
+        estado: 'activo',
+        ocupacion: 0,
+        facilitadores: [{ id: 'a-1', personaId: 'p-1', rol: 'lider', nombre: 'Ana', apellido: 'Gómez' }],
+      },
+    ])
+  })
+
+  it('scopes the grupos query to cohorte_id', async () => {
+    const { client, gruposEqCalls } = buildInstanciadosClientMock({})
+    await loadGruposInstanciados(client, 'coh-1')
+    expect(gruposEqCalls).toEqual([['cohorte_id', 'coh-1']])
+  })
+
+  it('filters out an inactive (retired) facilitador', async () => {
+    const { client } = buildInstanciadosClientMock({
+      taller_grupos: {
+        data: [
+          {
+            id: 'g-1',
+            nombre: 'Grupo Alfa',
+            capacidad: 12,
+            estado: 'activo',
+            facilitadores: [
+              { id: 'a-1', persona_id: 'p-1', rol: 'lider', activo: true, usuarios: { nombre: 'Ana', apellido: 'Gómez' } },
+              { id: 'a-2', persona_id: 'p-2', rol: 'voluntario', activo: false, usuarios: { nombre: 'Luis', apellido: 'Ruiz' } },
+            ],
+          },
+        ],
+        error: null,
+      },
+    })
+    const result = await loadGruposInstanciados(client, 'coh-1')
+    expect(result[0]!.facilitadores).toEqual([
+      { id: 'a-1', personaId: 'p-1', rol: 'lider', nombre: 'Ana', apellido: 'Gómez' },
+    ])
+  })
+
+  it('computes ocupación from aprobado inscripciones, batched by grupo id', async () => {
+    const { client, inscripcionesInCalls } = buildInstanciadosClientMock({
+      taller_grupos: {
+        data: [
+          { id: 'g-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo', facilitadores: [] },
+          { id: 'g-2', nombre: 'Grupo Beta', capacidad: 10, estado: 'activo', facilitadores: [] },
+        ],
+        error: null,
+      },
+      taller_inscripciones: {
+        data: [{ grupo_id: 'g-1' }, { grupo_id: 'g-1' }, { grupo_id: 'g-2' }],
+        error: null,
+      },
+    })
+    const result = await loadGruposInstanciados(client, 'coh-1')
+    expect(result.find((g) => g.id === 'g-1')?.ocupacion).toBe(2)
+    expect(result.find((g) => g.id === 'g-2')?.ocupacion).toBe(1)
+    expect(inscripcionesInCalls).toEqual([['grupo_id', ['g-1', 'g-2']]])
+  })
+
+  it('reports ocupación as null (unknown), never 0, when the ocupación query errors', async () => {
+    const { client } = buildInstanciadosClientMock({
+      taller_grupos: {
+        data: [{ id: 'g-1', nombre: 'Grupo Alfa', capacidad: 12, estado: 'activo', facilitadores: [] }],
+        error: null,
+      },
+      taller_inscripciones: { data: null, error: { message: 'boom' } },
+    })
+    const result = await loadGruposInstanciados(client, 'coh-1')
+    expect(result[0]!.ocupacion).toBeNull()
+  })
+
+  it('returns [] on a grupos query error', async () => {
+    const { client } = buildInstanciadosClientMock({
+      taller_grupos: { data: null, error: { message: 'boom' } },
+    })
+    expect(await loadGruposInstanciados(client, 'coh-1')).toEqual([])
   })
 })

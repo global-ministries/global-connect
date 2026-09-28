@@ -67,6 +67,14 @@
  * || esMiembro`, so a capability-less member sees "aún no hay ..." and
  * never a false "no tenés permiso". Fails soft to false (RPC missing,
  * e.g. production pre-T3), which just keeps pre-T2 behaviour.
+ *
+ * T4 (odd/tasks/talleres-configuracion-del-taller.md): each clase gets an
+ * in-place edit control (tema, fecha_programada) via talleres_editar_clase,
+ * gated by `permisos.editarEdicion` — a capacity question, distinct from
+ * miRol's asistencia relation — AND hidden (never disabled) once the clase
+ * is `cerrada`, matching the Pasar-lista/Cerrar-clase house rule already on
+ * this screen (Decisiones, Interfaz). The "Clase {numero} · {tema}" label
+ * itself is unchanged, pre-existing display logic.
  */
 
 import { notFound } from 'next/navigation'
@@ -87,6 +95,7 @@ import {
 } from '@/components/talleres/registro-asistencia-clase.client'
 import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
 import { EnviarReporte } from '@/components/talleres/enviar-reporte.client'
+import { EditarClaseInstanciada } from '@/components/talleres/editar-clase-instanciada'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -486,6 +495,23 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                         )}
                         {puedeCerrarClase && <CerrarClase sesionId={s.id} />}
                       </div>
+                    )}
+
+                    {/* T4 (odd/tasks/talleres-configuracion-del-taller.md) —
+                        edit tema/fecha_programada in place. Gated by
+                        editar_edicion (a director/admin capacity, distinct
+                        from miRol's asistencia relation) AND hidden — never
+                        disabled — once the clase is cerrada, matching the
+                        house rule above. */}
+                    {permisos.editarEdicion && s.estado !== 'cerrada' && (
+                      <EditarClaseInstanciada
+                        tallerSlug={taller.slug}
+                        edicionId={edicionIdParam}
+                        grupoId={grupoId}
+                        sesionId={s.id}
+                        tema={s.tema}
+                        fechaProgramada={s.fechaProgramada}
+                      />
                     )}
                   </div>
                 </li>

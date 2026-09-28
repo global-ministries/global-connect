@@ -14,11 +14,10 @@
  *
  * T4 (odd/tasks/talleres-consolidar-pantallas.md) — moved here from
  * app/(auth)/admin/talleres/edicion/[id]/ so /talleres/[taller]/[edicion]
- * can reuse it too, mirroring how T3 moved OpenEdicionForm/
- * AssignServicioForm: only the client UI moves, the server action stays
- * in the old route folder (still imported by its absolute path) — the
- * old page keeps working unmodified in its data flow, just its import
- * path changes.
+ * can reuse it too, mirroring how T3 moved OpenEdicionForm: only the
+ * client UI moves, the server action stays in the old route folder
+ * (still imported by its absolute path) — the old page keeps working
+ * unmodified in its data flow, just its import path changes.
  *
  * Visual style: same primary / danger tones as the rest of the
  * admin /talleres/* surfaces, rendered inline next to the badge.

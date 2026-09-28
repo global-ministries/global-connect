@@ -20,6 +20,11 @@
  *
  * Edit controls only render when `puedeEditar` (permisos.editarTaller) —
  * the page decides, this component never re-derives a capability.
+ *
+ * T4 (odd/tasks/talleres-configuracion-del-taller.md) — the picker itself
+ * moved to components/talleres/facilitador-picker.tsx (FacilitadorPicker)
+ * so /talleres/[taller]/[edicion]'s GruposSection can share the exact same
+ * bounded picker for its INSTANCIADOS grupos, instead of duplicating it.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -28,6 +33,7 @@ import { useRouter } from 'next/navigation'
 import { Check, Pencil, Plus, UserMinus, X } from 'lucide-react'
 
 import { TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { FacilitadorPicker, type ServidorPickerVM } from '@/components/talleres/facilitador-picker'
 import {
   agregarFacilitador,
   crearPlantillaGrupo,
@@ -35,6 +41,8 @@ import {
   quitarFacilitador,
   toggleActivoPlantillaGrupo,
 } from '@/app/(auth)/talleres/[taller]/actions'
+
+export type { ServidorPickerVM }
 
 export interface PlantillaFacilitadorVM {
   readonly id: string
@@ -52,12 +60,6 @@ export interface PlantillaGrupoVM {
   readonly facilitadores: readonly PlantillaFacilitadorVM[]
 }
 
-export interface ServidorPickerVM {
-  readonly personaId: string
-  readonly nombre: string | null
-  readonly apellido: string | null
-}
-
 interface Props {
   readonly tallerId: string
   readonly tallerSlug: string
@@ -72,65 +74,6 @@ const BOTON_ICONO = 'inline-flex min-h-[44px] min-w-[44px] items-center justify-
 
 function nombreCompleto(nombre: string | null, apellido: string | null): string {
   return [nombre, apellido].filter((p): p is string => typeof p === 'string' && p.length > 0).join(' ') || 'Persona sin nombre'
-}
-
-interface FacilitadorPickerProps {
-  readonly grupoId: string
-  readonly tallerSlug: string
-  readonly servidores: readonly ServidorPickerVM[]
-  readonly onError: (message: string) => void
-}
-
-function FacilitadorPicker({ grupoId, tallerSlug, servidores, onError }: FacilitadorPickerProps): ReactElement {
-  const router = useRouter()
-  const [, startTransition] = useTransition()
-  const [personaId, setPersonaId] = useState(servidores[0]?.personaId ?? '')
-  const [rol, setRol] = useState<'lider' | 'voluntario'>('lider')
-
-  function agregar(): void {
-    if (!personaId) return
-    startTransition(async () => {
-      const result = await agregarFacilitador({ tallerSlug, plantillaGrupoId: grupoId, personaId, rol })
-      if (result.ok) {
-        router.refresh()
-      } else {
-        onError(result.message)
-      }
-    })
-  }
-
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      <select
-        aria-label="Servidor a agregar"
-        value={personaId}
-        onChange={(e) => setPersonaId(e.target.value)}
-        className="min-h-[44px] rounded-lg border border-border bg-card/50 px-3 py-2"
-      >
-        {servidores.map((s) => (
-          <option key={s.personaId} value={s.personaId}>
-            {nombreCompleto(s.nombre, s.apellido)}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Rol"
-        value={rol}
-        onChange={(e) => setRol(e.target.value as 'lider' | 'voluntario')}
-        className="min-h-[44px] rounded-lg border border-border bg-card/50 px-3 py-2"
-      >
-        <option value="lider">Líder</option>
-        <option value="voluntario">Voluntario</option>
-      </select>
-      <button
-        type="button"
-        onClick={agregar}
-        className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted"
-      >
-        <Plus className="h-4 w-4" /> Agregar facilitador
-      </button>
-    </div>
-  )
 }
 
 export function PlantillaGruposSection({
@@ -371,9 +314,11 @@ export function PlantillaGruposSection({
 
                 {puedeEditar && servidores.length > 0 && (
                   <FacilitadorPicker
-                    grupoId={grupo.id}
-                    tallerSlug={tallerSlug}
                     servidores={servidores}
+                    onAgregar={(personaId, rol) =>
+                      agregarFacilitador({ tallerSlug, plantillaGrupoId: grupo.id, personaId, rol })
+                    }
+                    onAgregado={() => router.refresh()}
                     onError={setError}
                   />
                 )}

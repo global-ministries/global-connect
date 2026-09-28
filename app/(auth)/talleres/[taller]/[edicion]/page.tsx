@@ -49,6 +49,14 @@
  * GruposSection itself (components/talleres/grupos-section.tsx, moved
  * there in the same feature) — since
  * /talleres/[taller]/[edicion]/[grupo] does not exist yet.
+ *
+ * T4 (odd/tasks/talleres-configuracion-del-taller.md): GruposSection now
+ * also receives the edición's own INSTANCIADOS grupos (loadGruposInstanciados,
+ * nombre/capacidad/facilitadores) and the taller's servidores
+ * (loadServidoresDelTaller, the SAME bounded picker's option list T3 built
+ * for the plantilla) — both fetched only under the same gestionarGrupos +
+ * cohorte gate the section's own visibility already uses, matching T3's
+ * "fetch only what will actually render" discipline.
  */
 
 import { notFound } from 'next/navigation'
@@ -77,7 +85,8 @@ import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import { loadEdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
 import { loadAdminInscripciones } from '@/lib/platform/talleres/admin-inscripciones'
-import { loadGruposDeCohorte } from '@/lib/platform/talleres/grupo-detalle'
+import { loadGruposDeCohorte, loadGruposInstanciados } from '@/lib/platform/talleres/grupo-detalle'
+import { loadServidoresDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
 import {
   approveInscripcionAction,
   rejectInscripcionAction,
@@ -156,6 +165,18 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
       ? await loadGruposDeCohorte(client, edicion.cohorte.id)
       : []
 
+  // T4 (odd/tasks/talleres-configuracion-del-taller.md) — GruposSection's
+  // own instanciados grupos (nombre, capacidad, facilitadores) and the
+  // bounded picker's servidores list, same gate as above: only fetched
+  // when the section will actually render.
+  const [gruposInstanciados, servidoresDelTaller] =
+    permisos.gestionarGrupos && edicion.cohorte
+      ? await Promise.all([
+          loadGruposInstanciados(client, edicion.cohorte.id),
+          loadServidoresDelTaller(client, taller.id),
+        ])
+      : [[], []]
+
   return (
     <ContenedorDashboard
       titulo={edicion.nombre_snapshot}
@@ -213,7 +234,14 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
 
       {/* Grupos */}
       {permisos.gestionarGrupos && edicion.cohorte && (
-        <GruposSection cohorteId={edicion.cohorte.id} tallerSlug={taller.slug} edicionId={edicion.id} />
+        <GruposSection
+          cohorteId={edicion.cohorte.id}
+          tallerSlug={taller.slug}
+          edicionId={edicion.id}
+          grupos={gruposInstanciados}
+          servidores={servidoresDelTaller}
+          puedeEditar={permisos.gestionarGrupos}
+        />
       )}
 
       {/* Ventana */}
