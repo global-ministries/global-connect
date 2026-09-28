@@ -35,7 +35,7 @@ import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
-import type { ServidorDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
+import type { CargaServidoresDelTaller, ServidorDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
 import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
 import Link from 'next/link'
 
@@ -149,6 +149,7 @@ interface SetupOpts {
   taller?: TallerDetalle | null
   permisos?: Partial<PermisosTaller>
   servidores?: readonly ServidorDelTaller[]
+  cargaServidores?: CargaServidoresDelTaller
   plantillaClases?: readonly { id: string; numero: number; tema: string; activo: boolean }[]
   plantillaGrupos?: readonly {
     id: string
@@ -188,7 +189,9 @@ function setup(opts: SetupOpts): void {
   loadTallerDetalleMock.mockReset().mockResolvedValue(opts.taller === undefined ? TALLER : opts.taller)
   cargarPermisosMock.mockReset().mockResolvedValue({ ...PERMISOS_TALLER_ALL_FALSE, ...opts.permisos })
   fetchRutaEquipoMock.mockReset().mockResolvedValue(null)
-  loadServidoresDelTallerMock.mockReset().mockResolvedValue(opts.servidores ?? [])
+  loadServidoresDelTallerMock
+    .mockReset()
+    .mockResolvedValue(opts.cargaServidores ?? { ok: true, servidores: opts.servidores ?? [] })
   loadPlantillaClasesMock.mockReset().mockResolvedValue(opts.plantillaClases ?? [])
   loadPlantillaGruposMock.mockReset().mockResolvedValue(opts.plantillaGrupos ?? [])
   loadTemporadasAbiertasMock.mockReset().mockResolvedValue([])
@@ -346,6 +349,26 @@ describe('TallerDetallePage — Equipo', () => {
     const element = (await TallerDetallePage(params())) as any
     const vacio = findByType(element, EstadoVacio)
     expect(vacio?.props.titulo).toBe('Sin servidores activos en este equipo')
+  })
+
+  // B2 correction (T7, odd/tasks/talleres-configuracion-del-taller.md) — a
+  // 42501 from talleres_servidores_del_taller used to collapse to the SAME
+  // empty state as a taller with genuinely zero active servidores. It now
+  // renders a distinct access state instead.
+  it('shows an access state, not the empty one, when the viewer has no authority over the equipo', async () => {
+    setup({ cargaServidores: { ok: false, reason: 'sin_autoridad' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const vacio = findByType(element, EstadoVacio)
+    expect(vacio?.props.titulo).toBe('No tienes autoridad para ver el equipo de este taller.')
+  })
+
+  it('passes an empty servidores list to PlantillaGruposSection when the viewer has no authority over the equipo', async () => {
+    setup({ cargaServidores: { ok: false, reason: 'sin_autoridad' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const gruposSection = findByType(element, PlantillaGruposSection)
+    expect(gruposSection?.props.servidores).toEqual([])
   })
 
   it('never fetches servidores when the taller has no equipo', async () => {

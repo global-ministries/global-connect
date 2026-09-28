@@ -591,8 +591,11 @@ interface InstanciadosByTable {
   taller_inscripciones?: { data: unknown; error: unknown }
 }
 
-function buildInstanciadosClientMock(byTable: InstanciadosByTable): {
-  client: { from: jest.Mock }
+function buildInstanciadosClientMock(
+  byTable: InstanciadosByTable,
+  rpcResponse: { data: unknown; error: unknown } = { data: [], error: null },
+): {
+  client: { from: jest.Mock; rpc: jest.Mock }
   gruposEqCalls: Array<[string, unknown]>
   inscripcionesInCalls: Array<[string, unknown]>
 } {
@@ -624,36 +627,42 @@ function buildInstanciadosClientMock(byTable: InstanciadosByTable): {
     }
     throw new Error(`unexpected table ${table}`)
   })
+  const rpc = jest.fn().mockResolvedValue(rpcResponse)
 
-  return { client: { from }, gruposEqCalls, inscripcionesInCalls }
+  return { client: { from, rpc }, gruposEqCalls, inscripcionesInCalls }
 }
 
+// post-T7 fix (2026-09-27) — loadGruposInstanciados no longer embeds
+// `usuarios ( nombre, apellido )` on top of taller_grupo_asignaciones
+// (same trap as loadPlantillaGrupos: usuarios' own RLS silently hid every
+// facilitador's name from a talleres director). Names now resolve
+// through talleres_cohorte_equipo_personas(p_cohorte_id) and are merged
+// in by (grupo_id, persona_id).
 describe('loadGruposInstanciados', () => {
-  it('lists grupos with nombre, capacidad, estado and their active facilitadores', async () => {
-    const { client } = buildInstanciadosClientMock({
-      taller_grupos: {
-        data: [
-          {
-            id: 'g-1',
-            nombre: 'Grupo Alfa',
-            capacidad: 12,
-            estado: 'activo',
-            facilitadores: [
-              {
-                id: 'a-1',
-                persona_id: 'p-1',
-                rol: 'lider',
-                activo: true,
-                usuarios: { nombre: 'Ana', apellido: 'Gómez' },
-              },
-            ],
-          },
-        ],
+  it('lists grupos with nombre, capacidad, estado and their active facilitadores, names resolved via talleres_cohorte_equipo_personas', async () => {
+    const { client } = buildInstanciadosClientMock(
+      {
+        taller_grupos: {
+          data: [
+            {
+              id: 'g-1',
+              nombre: 'Grupo Alfa',
+              capacidad: 12,
+              estado: 'activo',
+              facilitadores: [{ id: 'a-1', persona_id: 'p-1', rol: 'lider', activo: true }],
+            },
+          ],
+          error: null,
+        },
+        taller_inscripciones: { data: [], error: null },
+      },
+      {
+        data: [{ grupo_id: 'g-1', persona_id: 'p-1', rol: 'lider', activo: true, nombre: 'Ana', apellido: 'Gómez' }],
         error: null,
       },
-      taller_inscripciones: { data: [], error: null },
-    })
+    )
     const result = await loadGruposInstanciados(client, 'coh-1')
+    expect(client.rpc).toHaveBeenCalledWith('talleres_cohorte_equipo_personas', { p_cohorte_id: 'coh-1' })
     expect(result).toEqual([
       {
         id: 'g-1',
@@ -666,6 +675,30 @@ describe('loadGruposInstanciados', () => {
     ])
   })
 
+  it('keeps the facilitador row with names null (never drops it) when the usuarios embed would have returned null (RPC call errors)', async () => {
+    const { client } = buildInstanciadosClientMock(
+      {
+        taller_grupos: {
+          data: [
+            {
+              id: 'g-1',
+              nombre: 'Grupo Alfa',
+              capacidad: 12,
+              estado: 'activo',
+              facilitadores: [{ id: 'a-1', persona_id: 'p-1', rol: 'lider', activo: true }],
+            },
+          ],
+          error: null,
+        },
+      },
+      { data: null, error: { message: 'boom' } },
+    )
+    const result = await loadGruposInstanciados(client, 'coh-1')
+    expect(result[0]!.facilitadores).toEqual([
+      { id: 'a-1', personaId: 'p-1', rol: 'lider', nombre: null, apellido: null },
+    ])
+  })
+
   it('scopes the grupos query to cohorte_id', async () => {
     const { client, gruposEqCalls } = buildInstanciadosClientMock({})
     await loadGruposInstanciados(client, 'coh-1')
@@ -673,23 +706,32 @@ describe('loadGruposInstanciados', () => {
   })
 
   it('filters out an inactive (retired) facilitador', async () => {
-    const { client } = buildInstanciadosClientMock({
-      taller_grupos: {
+    const { client } = buildInstanciadosClientMock(
+      {
+        taller_grupos: {
+          data: [
+            {
+              id: 'g-1',
+              nombre: 'Grupo Alfa',
+              capacidad: 12,
+              estado: 'activo',
+              facilitadores: [
+                { id: 'a-1', persona_id: 'p-1', rol: 'lider', activo: true },
+                { id: 'a-2', persona_id: 'p-2', rol: 'voluntario', activo: false },
+              ],
+            },
+          ],
+          error: null,
+        },
+      },
+      {
         data: [
-          {
-            id: 'g-1',
-            nombre: 'Grupo Alfa',
-            capacidad: 12,
-            estado: 'activo',
-            facilitadores: [
-              { id: 'a-1', persona_id: 'p-1', rol: 'lider', activo: true, usuarios: { nombre: 'Ana', apellido: 'Gómez' } },
-              { id: 'a-2', persona_id: 'p-2', rol: 'voluntario', activo: false, usuarios: { nombre: 'Luis', apellido: 'Ruiz' } },
-            ],
-          },
+          { grupo_id: 'g-1', persona_id: 'p-1', rol: 'lider', activo: true, nombre: 'Ana', apellido: 'Gómez' },
+          { grupo_id: 'g-1', persona_id: 'p-2', rol: 'voluntario', activo: false, nombre: 'Luis', apellido: 'Ruiz' },
         ],
         error: null,
       },
-    })
+    )
     const result = await loadGruposInstanciados(client, 'coh-1')
     expect(result[0]!.facilitadores).toEqual([
       { id: 'a-1', personaId: 'p-1', rol: 'lider', nombre: 'Ana', apellido: 'Gómez' },

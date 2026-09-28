@@ -196,11 +196,11 @@ describe('PlantillaClasesSection — error display', () => {
     crearPlantillaClaseMock.mockResolvedValue({
       ok: false,
       error: 'forbidden',
-      message: 'No tenés permisos para hacer este cambio.',
+      message: 'No tienes permisos para hacer este cambio.',
     })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
     fireEvent.change(screen.getByLabelText(/tema de la nueva clase/i), { target: { value: 'Influencia' } })
     fireEvent.click(screen.getByRole('button', { name: /agregar clase/i }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('No tenés permisos para hacer este cambio.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('No tienes permisos para hacer este cambio.')
   })
 })

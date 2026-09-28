@@ -127,7 +127,7 @@ describe('editarClaseInstanciada — RLS denial', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error).toBe('forbidden')
-      expect(result.message).toMatch(/no tenés permisos/i)
+      expect(result.message).toMatch(/no tienes permisos/i)
     }
   })
 })

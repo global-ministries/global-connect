@@ -7,17 +7,13 @@
  * Clases/Grupos (plantilla, editable in place — PlantillaClasesSection/
  * PlantillaGruposSection) and Ediciones.
  *
- * Originally built as T3 of odd/tasks/talleres-consolidar-pantallas.md
- * (see git history for that version, which rendered OpenEdicionForm and
- * AssignServicioForm side by side). AssignServicioForm — and its backing
- * server action, `assignServicio` in app/(auth)/admin/talleres/abstracto/
- * [slug]/actions.ts — duplicated Dream Team → Servidores (docs/talleres-
- * de-punta-a-punta.md §12: "tiene un 'Asignar coordinador' que duplica a
- * Dream Team → Servidores (dos verdades)"); both are deleted, not merely
- * unused (verified via rg: assignServicio had no other caller). T5
- * (Limpieza) later removed the `fetchCoordinadorRoles` helper (lib/
- * platform/talleres/equipo-organigrama.ts) that fed AssignServicioForm too
- * — it had gone fully callerless once this screen stopped rendering it.
+ * Equipo has three states, in order: no `dream_team_equipo_id` yet (never
+ * fetched), a 42501 from talleres_servidores_del_taller (the viewer has no
+ * authority over this taller's node — an access-state card, not the empty
+ * one), and zero-or-more active servidores (the ordinary list or its empty
+ * state). See lib/platform/talleres/servidores-del-taller.ts's
+ * CargaServidoresDelTaller for the discriminated result this distinguishes
+ * on (B2 correction, T7).
  *
  * `[taller]` is the taller's SLUG (docs/talleres-de-punta-a-punta.md §8's
  * "de 32 a once" tree), resolved via lib/platform/talleres/rutas.ts's
@@ -50,7 +46,7 @@
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Layers, Users } from 'lucide-react'
+import { Layers, Lock, Users } from 'lucide-react'
 
 import {
   ContenedorDashboard,
@@ -145,13 +141,22 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   const permisos = await cargarPermisos(client, taller.dream_team_equipo_id)
   const equipoId = taller.dream_team_equipo_id
 
-  const [rutaEquipo, temporadasAbiertas, servidores, plantillaClases, plantillaGrupos] = await Promise.all([
+  const [rutaEquipo, temporadasAbiertas, cargaServidores, plantillaClases, plantillaGrupos] = await Promise.all([
     equipoId ? fetchRutaEquipo(client, equipoId) : Promise.resolve(null),
     permisos.abrirEdicion ? loadTemporadasAbiertas(client) : Promise.resolve([]),
-    equipoId ? loadServidoresDelTaller(client, taller.id) : Promise.resolve([]),
+    equipoId ? loadServidoresDelTaller(client, taller.id) : Promise.resolve({ ok: true, servidores: [] } as const),
     loadPlantillaClases(client, taller.id),
     loadPlantillaGrupos(client, taller.id),
   ])
+
+  // B2 correction (T7) — a 42501 (no visibility into this taller's node)
+  // used to degrade to the SAME empty servidores array as a taller with
+  // genuinely zero active servidores, so the Equipo section showed the
+  // "sin servidores" empty state for both. `sinAutoridadEquipo` tells the
+  // two apart; `servidores` itself stays a plain array for every other
+  // consumer below (PlantillaGruposSection's picker options).
+  const servidores = cargaServidores.ok ? cargaServidores.servidores : []
+  const sinAutoridadEquipo = !cargaServidores.ok && cargaServidores.reason === 'sin_autoridad'
 
   // "Abrir edición" derives sesiones estimadas from the active plantilla
   // clases when the taller has one (Decisiones). A taller with NO active
@@ -213,7 +218,14 @@ export default async function TallerDetallePage(ctx: RouteContext) {
           </Link>
         </div>
 
-        {servidores.length === 0 ? (
+        {sinAutoridadEquipo ? (
+          <div className="mt-3">
+            <EstadoVacio
+              icono={Lock}
+              titulo="No tienes autoridad para ver el equipo de este taller."
+            />
+          </div>
+        ) : servidores.length === 0 ? (
           <div className="mt-3">
             <EstadoVacio
               icono={Users}

@@ -23,7 +23,10 @@ function clasesClient(response: { data: unknown; error: unknown | null }) {
   const eq = jest.fn().mockReturnValue({ order })
   const select = jest.fn().mockReturnValue({ eq })
   const from = jest.fn().mockReturnValue({ select })
-  return { from, select, eq, order }
+  // loadPlantillaClases never calls .rpc — present only to satisfy
+  // PlantillaQueryClient's shape (shared with loadPlantillaGrupos).
+  const rpc = jest.fn().mockResolvedValue({ data: [], error: null })
+  return { from, select, eq, order, rpc }
 }
 
 describe('loadPlantillaClases', () => {
@@ -56,38 +59,56 @@ describe('loadPlantillaClases', () => {
   })
 })
 
-function gruposClient(response: { data: unknown; error: unknown | null }) {
+function gruposClient(
+  response: { data: unknown; error: unknown | null },
+  rpcResponse: { data: unknown; error: unknown | null } = { data: [], error: null },
+) {
   const order = jest.fn().mockResolvedValue(response)
   const eq = jest.fn().mockReturnValue({ order })
   const select = jest.fn().mockReturnValue({ eq })
   const from = jest.fn().mockReturnValue({ select })
-  return { from, select, eq, order }
+  const rpc = jest.fn().mockResolvedValue(rpcResponse)
+  return { from, select, eq, order, rpc }
 }
 
+// post-T7 fix (2026-09-27) — loadPlantillaGrupos no longer embeds
+// `usuarios ( nombre, apellido )` on top of taller_plantilla_facilitadores
+// (usuarios' own RLS, a Grupos de Vida concept, silently hid every
+// facilitador's name from a talleres director — the real preview showed
+// "Persona sin nombre" for all of them). Names now resolve through
+// talleres_plantilla_facilitadores_personas(p_taller_id) and are merged
+// in by (plantilla_grupo_id, persona_id).
 describe('loadPlantillaGrupos', () => {
-  it('maps grupos with their embedded facilitadores', async () => {
-    const client = gruposClient({
-      data: [
-        {
-          id: 'g-1',
-          nombre: 'Grupo Alfa',
-          orden: 1,
-          capacidad: 12,
-          activo: true,
-          facilitadores: [
-            { id: 'f-1', persona_id: 'p-1', rol: 'lider', usuarios: { nombre: 'Ana', apellido: 'Gómez' } },
-            { id: 'f-2', persona_id: 'p-2', rol: 'voluntario', usuarios: null },
-          ],
-        },
-      ],
-      error: null,
-    })
+  it('maps grupos with facilitadores, resolving names via talleres_plantilla_facilitadores_personas', async () => {
+    const client = gruposClient(
+      {
+        data: [
+          {
+            id: 'g-1',
+            nombre: 'Grupo Alfa',
+            orden: 1,
+            capacidad: 12,
+            activo: true,
+            facilitadores: [
+              { id: 'f-1', persona_id: 'p-1', rol: 'lider' },
+              { id: 'f-2', persona_id: 'p-2', rol: 'voluntario' },
+            ],
+          },
+        ],
+        error: null,
+      },
+      {
+        data: [{ plantilla_grupo_id: 'g-1', persona_id: 'p-1', rol: 'lider', nombre: 'Ana', apellido: 'Gómez' }],
+        error: null,
+      },
+    )
 
     const result = await loadPlantillaGrupos(client, 't-1')
 
     expect(client.from).toHaveBeenCalledWith('taller_plantilla_grupos')
     expect(client.eq).toHaveBeenCalledWith('taller_id', 't-1')
     expect(client.order).toHaveBeenCalledWith('orden', { ascending: true })
+    expect(client.rpc).toHaveBeenCalledWith('talleres_plantilla_facilitadores_personas', { p_taller_id: 't-1' })
     expect(result).toEqual<readonly PlantillaGrupo[]>([
       {
         id: 'g-1',
@@ -97,9 +118,34 @@ describe('loadPlantillaGrupos', () => {
         activo: true,
         facilitadores: [
           { id: 'f-1', personaId: 'p-1', rol: 'lider', nombre: 'Ana', apellido: 'Gómez' },
+          // p-2 has no match in the RPC's result — the row is kept, never
+          // dropped, with nombre/apellido null (the UI's own placeholder).
           { id: 'f-2', personaId: 'p-2', rol: 'voluntario', nombre: null, apellido: null },
         ],
       },
+    ])
+  })
+
+  it('keeps every facilitador row, all names null, when the RPC call errors (mock embed returning null must still produce names on success, but a failed RPC never drops a row)', async () => {
+    const client = gruposClient(
+      {
+        data: [
+          {
+            id: 'g-1',
+            nombre: 'Grupo Alfa',
+            orden: 1,
+            capacidad: 12,
+            activo: true,
+            facilitadores: [{ id: 'f-1', persona_id: 'p-1', rol: 'lider' }],
+          },
+        ],
+        error: null,
+      },
+      { data: null, error: { message: 'boom' } },
+    )
+    const result = await loadPlantillaGrupos(client, 't-1')
+    expect(result[0]?.facilitadores).toEqual([
+      { id: 'f-1', personaId: 'p-1', rol: 'lider', nombre: null, apellido: null },
     ])
   })
 

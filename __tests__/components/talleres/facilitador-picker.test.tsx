@@ -59,7 +59,7 @@ describe('FacilitadorPicker — bounded', () => {
   it('surfaces the message from a failed onAgregar (e.g. NO_ES_SERVIDOR_ACTIVO_DEL_TALLER) via onError', async () => {
     const onAgregar = jest.fn().mockResolvedValue({
       ok: false,
-      message: 'Esa persona no es un servidor activo de este taller. Asignala primero en Dream Team → Servidores.',
+      message: 'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
     })
     const onError = jest.fn()
     render(
@@ -74,7 +74,7 @@ describe('FacilitadorPicker — bounded', () => {
 
     await waitFor(() =>
       expect(onError).toHaveBeenCalledWith(
-        'Esa persona no es un servidor activo de este taller. Asignala primero en Dream Team → Servidores.',
+        'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
       ),
     )
   })

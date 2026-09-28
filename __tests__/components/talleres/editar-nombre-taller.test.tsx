@@ -74,13 +74,13 @@ describe('EditarNombreTaller', () => {
     updateTallerNombreMock.mockResolvedValue({
       ok: false,
       error: 'forbidden',
-      message: 'No tenés permisos para hacer este cambio.',
+      message: 'No tienes permisos para hacer este cambio.',
     })
     render(<EditarNombreTaller tallerId="t-1" tallerSlug="proximo-paso" nombre="Próximo Paso" />)
     fireEvent.click(screen.getByRole('button', { name: /editar/i }))
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('No tenés permisos para hacer este cambio.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('No tienes permisos para hacer este cambio.')
     expect(screen.getByRole('textbox')).toBeInTheDocument()
     expect(refreshMock).not.toHaveBeenCalled()
   })

@@ -10,10 +10,18 @@
  * `talleres_buscar_personas` (that RPC is for Dream Team's own servidor
  * search, out of scope here).
  *
- * Best-effort, same contract as cargarPermisos (lib/platform/talleres/
- * permisos.ts): never throws. Any RPC error (including 42501 for a viewer
- * with no visibility into this taller's node) degrades to an empty array
- * — the safe default is "show nothing", never a thrown page.
+ * B2 correction (T7) — a 42501 (a viewer with no visibility into this
+ * taller's node) used to degrade to the SAME empty array as a taller that
+ * genuinely has zero active servidores, so the taller page rendered the
+ * "sin servidores" empty state for both — indistinguishable from "you
+ * cannot see this team". This now returns a discriminated result instead:
+ * `{ ok: true, servidores }` on success, or `{ ok: false, reason }` with
+ * `reason` telling the two cases apart (`'sin_autoridad'` for a 42501,
+ * `'error'` for anything else — a thrown client, a malformed response).
+ * Still never throws — same best-effort contract as cargarPermisos (lib/
+ * platform/talleres/permisos.ts) — callers that only need the list (the
+ * picker options) collapse either failure to `[]` themselves; the taller
+ * page uses `reason` to show an access state instead of the empty one.
  */
 
 export interface ServidorDelTaller {
@@ -23,6 +31,10 @@ export interface ServidorDelTaller {
   readonly rolServicio: string | null
   readonly equipoLabel: string | null
 }
+
+export type CargaServidoresDelTaller =
+  | { readonly ok: true; readonly servidores: readonly ServidorDelTaller[] }
+  | { readonly ok: false; readonly reason: 'sin_autoridad' | 'error' }
 
 interface ServidoresDelTallerClient {
   rpc(
@@ -34,22 +46,28 @@ interface ServidoresDelTallerClient {
 export async function loadServidoresDelTaller(
   client: ServidoresDelTallerClient,
   tallerId: string,
-): Promise<readonly ServidorDelTaller[]> {
+): Promise<CargaServidoresDelTaller> {
   try {
     const { data, error } = await client.rpc('talleres_servidores_del_taller', {
       p_taller_id: tallerId,
     })
-    if (error || !Array.isArray(data)) return []
+    if (error) {
+      return { ok: false, reason: error.code === '42501' ? 'sin_autoridad' : 'error' }
+    }
+    if (!Array.isArray(data)) return { ok: false, reason: 'error' }
 
-    return (data as Array<Record<string, unknown>>).map((row) => ({
-      personaId: row.persona_id as string,
-      nombre: (row.nombre as string | null) ?? null,
-      apellido: (row.apellido as string | null) ?? null,
-      rolServicio: (row.rol_servicio as string | null) ?? null,
-      equipoLabel: (row.equipo_label as string | null) ?? null,
-    }))
+    return {
+      ok: true,
+      servidores: (data as Array<Record<string, unknown>>).map((row) => ({
+        personaId: row.persona_id as string,
+        nombre: (row.nombre as string | null) ?? null,
+        apellido: (row.apellido as string | null) ?? null,
+        rolServicio: (row.rol_servicio as string | null) ?? null,
+        equipoLabel: (row.equipo_label as string | null) ?? null,
+      })),
+    }
   } catch {
-    return []
+    return { ok: false, reason: 'error' }
   }
 }
 
