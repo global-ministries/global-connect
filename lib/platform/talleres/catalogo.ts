@@ -121,6 +121,17 @@ export async function loadCatalogoTalleres(
 export interface TallerDetalle extends CatalogoTaller {
   readonly descripcion: string | null
   readonly modalidad_default: 'periodo_general' | 'permanente_custom'
+  /**
+   * T3 (odd/tasks/talleres-configuracion-del-taller.md) — the taller's own
+   * cadence/duration (T1, migration 20260926150000_talleres_plantillas_
+   * del_taller.sql): `cadencia_dias` drives generate_taller_sesiones'
+   * fecha_programada spacing, `duracion_minutos` is purely informational.
+   * `cadencia_dias` has a DB default of 7 (weekly) and is NOT NULL; the
+   * `?? 7` below only covers a row shaped by an older/partial test fixture
+   * that omits it, never a real DB row.
+   */
+  readonly cadencia_dias: number
+  readonly duracion_minutos: number | null
 }
 
 interface TallerDetalleQueryClient {
@@ -150,7 +161,7 @@ export async function loadTallerDetalle(
 ): Promise<TallerDetalle | null> {
   const { data, error } = await client
     .from('talleres')
-    .select(`${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default`)
+    .select(`${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default, cadencia_dias, duracion_minutos`)
     .eq('slug', slug)
     .maybeSingle()
 
@@ -160,6 +171,8 @@ export async function loadTallerDetalle(
     ...mapCatalogoTallerRow(row),
     descripcion: (row.descripcion as string | null) ?? null,
     modalidad_default: row.modalidad_default as TallerDetalle['modalidad_default'],
+    cadencia_dias: (row.cadencia_dias as number | undefined) ?? 7,
+    duracion_minutos: (row.duracion_minutos as number | null | undefined) ?? null,
   }
 }
 

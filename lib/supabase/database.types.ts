@@ -7945,6 +7945,10 @@ export type Database = {
         }[]
       }
       talleres_mis_permisos: { Args: { p_equipo_id: string }; Returns: Json }
+      talleres_mover_plantilla_clase: {
+        Args: { p_clase_id: string; p_direccion: string }
+        Returns: Json
+      }
       talleres_registrar_asistencia: {
         Args: { p_marcas: Json; p_sesion_id: string }
         Returns: Json
@@ -8404,4 +8408,3 @@ export const Constants = {
     },
   },
 } as const
-

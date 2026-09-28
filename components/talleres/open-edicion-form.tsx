@@ -15,6 +15,23 @@
  * this shared location too; this is a move, not a copy. The server action
  * (openEdicion) stays in its original location — only the client form
  * component moved.
+ *
+ * T3 (odd/tasks/talleres-configuracion-del-taller.md) — the "Duración
+ * (semanas)" field (sesiones_estimadas) is gone ONLY when the taller has
+ * an active plantilla (Decisiones: "sesiones_estimadas deja de pedirse
+ * en el formulario"): the page derives the count from it and passes a
+ * plain number as `sesionesEstimadas`, never user-editable. A taller
+ * with NO active plantilla clases keeps behaving exactly as before
+ * (acceptance criterion 8) — the page passes `sesionesEstimadas: null`,
+ * and this component falls back to its own original numeric field
+ * (label, min=1, default=1, "1 semana = 1 sesión" helper text), sending
+ * whatever the user types.
+ *
+ * After a successful open, open_edicion's instantiation summary (T2,
+ * migration 20260927100000_talleres_instanciar_edicion.sql) is shown:
+ * how many grupos were created, how many clases per grupo, and — when
+ * non-empty — a warning naming every facilitador skipped because they
+ * are no longer an active servidor (acceptance criterion 3).
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -23,7 +40,7 @@ import { Plus, Send } from 'lucide-react'
 
 import { TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
-import { openEdicion } from '@/app/(auth)/admin/talleres/abstracto/[slug]/actions'
+import { openEdicion, type OpenEdicionResult } from '@/app/(auth)/admin/talleres/abstracto/[slug]/actions'
 
 interface Input {
   readonly tallerId: string
@@ -35,6 +52,19 @@ interface Input {
    * opened with temporada_id=null (backward-compatible).
    */
   readonly temporadasAbiertas: ReadonlyArray<{ readonly id: string; readonly nombre: string }>
+  /**
+   * T3 — number of active plantilla clases, or `null` when the taller
+   * has none yet (acceptance criterion 8: keep the old form). A number
+   * is sent verbatim as `sesiones_estimadas`, hiding the field; `null`
+   * shows the field again and sends whatever the user types.
+   */
+  readonly sesionesEstimadas: number | null
+}
+
+type Resumen = Extract<OpenEdicionResult, { ok: true }>
+
+function nombreCompletoOmitido(f: { nombre: string | null; apellido: string | null }): string {
+  return [f.nombre, f.apellido].filter((p): p is string => Boolean(p)).join(' ') || 'Persona sin nombre'
 }
 
 export function OpenEdicionForm({
@@ -42,11 +72,13 @@ export function OpenEdicionForm({
   tallerNombre,
   defaultModalidad,
   temporadasAbiertas,
+  sesionesEstimadas,
 }: Input): ReactElement {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
+  const [resumen, setResumen] = useState<Resumen | null>(null)
 
   const [nombreEdicion, setNombreEdicion] = useState('')
   const [tipo, setTipo] = useState<'individual' | 'pareja'>('pareja')
@@ -69,7 +101,7 @@ export function OpenEdicionForm({
         tipo,
         nombre_edicion: nombreEdicion.trim(),
         link_type: tipo === 'pareja' && linkType !== '' ? (linkType as 'matrimonio' | 'novios') : null,
-        sesiones_estimadas: sesiones,
+        sesiones_estimadas: sesionesEstimadas ?? sesiones,
         duracion_estimada_minutos: duracion,
         modalidad_inscripcion: modalidad,
         fecha_inicio_periodo: new Date(fechaInicio).toISOString(),
@@ -85,6 +117,7 @@ export function OpenEdicionForm({
         setFechaFin('')
         setTemporadaId('')
         setOpen(false)
+        setResumen(result)
       } else {
         setError(result.message ?? result.error)
       }
@@ -93,13 +126,34 @@ export function OpenEdicionForm({
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white"
-      >
-        <Plus className="h-4 w-4" /> Abrir nueva edición
-      </button>
+      <div className="flex flex-col items-start gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true)
+            setResumen(null)
+          }}
+          className="inline-flex items-center gap-2 rounded bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white"
+        >
+          <Plus className="h-4 w-4" /> Abrir nueva edición
+        </button>
+
+        {resumen && (
+          <TarjetaSistema variante="outlined" className="w-full p-4">
+            <TextoSistema className="font-medium">Edición abierta</TextoSistema>
+            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+              {resumen.gruposCreados.length} grupos creados · {resumen.clasesPorGrupo} clases por grupo
+            </TextoSistema>
+            {resumen.facilitadoresOmitidos.length > 0 && (
+              <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning">
+                No se asignaron (ya no son servidores activos): {resumen.facilitadoresOmitidos
+                  .map((f) => `${nombreCompletoOmitido(f)} (${f.plantillaGrupo})`)
+                  .join(', ')}
+              </TextoSistema>
+            )}
+          </TarjetaSistema>
+        )}
+      </div>
     )
   }
 
@@ -150,17 +204,19 @@ export function OpenEdicionForm({
             <option value="novios">Novios</option>
           </select>
         </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Duración (semanas) *</span>
-          <input
-            type="number"
-            min={1}
-            value={sesiones}
-            onChange={(e) => setSesiones(Number(e.target.value))}
-            className="w-full rounded border px-3 py-2"
-          />
-          <span className="mt-1 block text-xs text-muted-foreground">1 semana = 1 sesión.</span>
-        </label>
+        {sesionesEstimadas === null && (
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium">Duración (semanas) *</span>
+            <input
+              type="number"
+              min={1}
+              value={sesiones}
+              onChange={(e) => setSesiones(Number(e.target.value))}
+              className="w-full rounded border px-3 py-2"
+            />
+            <span className="mt-1 block text-xs text-muted-foreground">1 semana = 1 sesión.</span>
+          </label>
+        )}
         <label className="block">
           <span className="mb-1 block text-sm font-medium">Duración por sesión (min) *</span>
           <input
@@ -225,7 +281,7 @@ export function OpenEdicionForm({
       </div>
 
       {error && (
-        <div className="mt-3 rounded border border-red-300 bg-red-50 p-2 text-sm text-red-700">
+        <div role="alert" className="mt-3 rounded border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">
           {error}
         </div>
       )}

@@ -1,36 +1,41 @@
 /**
  * @jest-environment node
  *
- * T3 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/[taller], the
- * new taller detail page.
+ * T3 (odd/tasks/talleres-configuracion-del-taller.md) — /talleres/[taller]
+ * redesigned to the system pattern: cabecera (nombre editable in place),
+ * Equipo (the node's real active servidores, "Asignar coordinador" gone
+ * for good), Clases/Grupos (plantilla — added in a later T3 commit; this
+ * file grows with them) and Ediciones.
  *
  * Mirrors the gate pattern of __tests__/app/(auth)/talleres/page.test.tsx
  * (flag -> user -> session, each an informational card, inspected
  * structurally via extractText/findByType rather than full rendering —
- * OpenEdicionForm/AssignServicioForm are real client components with their
- * own hooks, so this RSC-only test mocks them to marker components and
- * inspects the unexecuted element tree's props, exactly like the catalog
- * page test does for <CatalogoTalleresClient>).
+ * OpenEdicionForm/EditarNombreTaller are real client components with
+ * their own hooks, so this RSC-only test mocks them to marker components
+ * and inspects the unexecuted element tree's props, exactly like the
+ * catalog page test does for <CatalogoTalleresClient>).
  *
  * Beyond the shared gate, this page adds one more early-exit: slug
  * resolution. `talleres` is world-readable (talleres_select_all, USING
  * true) so notFound() only fires for a slug with genuinely no row — never
- * as a stand-in for "you can't see this taller" (confirmed against
- * staging: an authenticated viewer with zero talleres capability grants
- * still sees the taller row; only its borrador/cerrado/cancelado ediciones
- * are hidden by taller_ediciones_select — abierto/en_curso stay visible to
- * any authenticated user).
+ * as a stand-in for "you can't see this taller".
  *
  * The core of this test: every control's visibility is wired straight to
- * cargarPermisos()'s booleans, never a flat capability array.
+ * cargarPermisos()'s booleans, never a flat capability array, and
+ * "Asignar coordinador" is gone from every render path.
  */
 
 import TallerDetallePage from '@/app/(auth)/talleres/[taller]/page'
 import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
-import { AssignServicioForm } from '@/components/talleres/assign-servicio-form'
+import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
+import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcion-taller'
+import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
+import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
+import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
+import type { ServidorDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
 import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
 import Link from 'next/link'
 
@@ -58,7 +63,16 @@ jest.mock('@/lib/platform/talleres/permisos', () => {
 
 jest.mock('@/lib/platform/talleres/equipo-organigrama', () => ({
   fetchRutaEquipo: jest.fn(),
-  fetchCoordinadorRoles: jest.fn(),
+}))
+
+jest.mock('@/lib/platform/talleres/servidores-del-taller', () => {
+  const actual = jest.requireActual('@/lib/platform/talleres/servidores-del-taller')
+  return { ...actual, loadServidoresDelTaller: jest.fn() }
+})
+
+jest.mock('@/lib/platform/talleres/plantilla', () => ({
+  loadPlantillaClases: jest.fn(),
+  loadPlantillaGrupos: jest.fn(),
 }))
 
 jest.mock('@/lib/platform/talleres/temporadas', () => ({
@@ -69,8 +83,20 @@ jest.mock('@/components/talleres/open-edicion-form', () => ({
   OpenEdicionForm: () => null,
 }))
 
-jest.mock('@/components/talleres/assign-servicio-form', () => ({
-  AssignServicioForm: () => null,
+jest.mock('@/components/talleres/editar-nombre-taller', () => ({
+  EditarNombreTaller: () => null,
+}))
+
+jest.mock('@/components/talleres/editar-descripcion-taller', () => ({
+  EditarDescripcionTaller: () => null,
+}))
+
+jest.mock('@/components/talleres/plantilla-clases-section', () => ({
+  PlantillaClasesSection: () => null,
+}))
+
+jest.mock('@/components/talleres/plantilla-grupos-section', () => ({
+  PlantillaGruposSection: () => null,
 }))
 
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags').isTalleresEnabled as jest.Mock
@@ -84,8 +110,12 @@ const cargarPermisosMock = jest.requireMock('@/lib/platform/talleres/permisos')
   .cargarPermisos as jest.Mock
 const fetchRutaEquipoMock = jest.requireMock('@/lib/platform/talleres/equipo-organigrama')
   .fetchRutaEquipo as jest.Mock
-const fetchCoordinadorRolesMock = jest.requireMock('@/lib/platform/talleres/equipo-organigrama')
-  .fetchCoordinadorRoles as jest.Mock
+const loadServidoresDelTallerMock = jest.requireMock('@/lib/platform/talleres/servidores-del-taller')
+  .loadServidoresDelTaller as jest.Mock
+const loadPlantillaClasesMock = jest.requireMock('@/lib/platform/talleres/plantilla')
+  .loadPlantillaClases as jest.Mock
+const loadPlantillaGruposMock = jest.requireMock('@/lib/platform/talleres/plantilla')
+  .loadPlantillaGrupos as jest.Mock
 const loadTemporadasAbiertasMock = jest.requireMock('@/lib/platform/talleres/temporadas')
   .loadTemporadasAbiertas as jest.Mock
 
@@ -97,9 +127,19 @@ const TALLER: TallerDetalle = {
   modalidad_default: 'periodo_general',
   estado: 'active',
   dream_team_equipo_id: 'eq-1',
+  cadencia_dias: 7,
+  duracion_minutos: null,
   ediciones: [
     { id: 'e-1', nombre_snapshot: 'Septiembre 2026', tipo: 'pareja', estado: 'abierto', total_inscripciones: 3 },
   ],
+}
+
+const SERVIDOR_LIDER: ServidorDelTaller = {
+  personaId: 'p-1',
+  nombre: 'Ana',
+  apellido: 'Gómez',
+  rolServicio: 'Líder',
+  equipoLabel: 'Próximo Paso',
 }
 
 interface SetupOpts {
@@ -108,6 +148,16 @@ interface SetupOpts {
   hasSession?: boolean
   taller?: TallerDetalle | null
   permisos?: Partial<PermisosTaller>
+  servidores?: readonly ServidorDelTaller[]
+  plantillaClases?: readonly { id: string; numero: number; tema: string; activo: boolean }[]
+  plantillaGrupos?: readonly {
+    id: string
+    nombre: string
+    orden: number
+    capacidad: number
+    activo: boolean
+    facilitadores: readonly unknown[]
+  }[]
 }
 
 function setup(opts: SetupOpts): void {
@@ -138,7 +188,9 @@ function setup(opts: SetupOpts): void {
   loadTallerDetalleMock.mockReset().mockResolvedValue(opts.taller === undefined ? TALLER : opts.taller)
   cargarPermisosMock.mockReset().mockResolvedValue({ ...PERMISOS_TALLER_ALL_FALSE, ...opts.permisos })
   fetchRutaEquipoMock.mockReset().mockResolvedValue(null)
-  fetchCoordinadorRolesMock.mockReset().mockResolvedValue([])
+  loadServidoresDelTallerMock.mockReset().mockResolvedValue(opts.servidores ?? [])
+  loadPlantillaClasesMock.mockReset().mockResolvedValue(opts.plantillaClases ?? [])
+  loadPlantillaGruposMock.mockReset().mockResolvedValue(opts.plantillaGrupos ?? [])
   loadTemporadasAbiertasMock.mockReset().mockResolvedValue([])
 }
 
@@ -176,6 +228,21 @@ function findByType(node: unknown, type: unknown): { props: Record<string, unkno
   return null
 }
 
+/** Finds EVERY element of the given type in the tree, WITHOUT executing it. */
+function findAllByType(node: unknown, type: unknown, out: Array<{ props: Record<string, unknown> }> = []) {
+  if (node === null || node === undefined || typeof node === 'boolean') return out
+  if (Array.isArray(node)) {
+    for (const child of node) findAllByType(child, type, out)
+    return out
+  }
+  if (typeof node === 'object' && node !== null && 'type' in node) {
+    const el = node as { type: unknown; props?: { children?: unknown } }
+    if (el.type === type) out.push(el as { props: Record<string, unknown> })
+    findAllByType(el.props?.children, type, out)
+  }
+  return out
+}
+
 describe('TallerDetallePage — gate', () => {
   it('shows the disabled message and resolves nothing when the flag is off', async () => {
     setup({ isEnabled: false })
@@ -209,6 +276,145 @@ describe('TallerDetallePage — gate', () => {
   })
 })
 
+describe('TallerDetallePage — cabecera', () => {
+  it('shows EditarNombreTaller when cargarPermisos grants editarTaller', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const editar = findByType(element, EditarNombreTaller)
+    expect(editar).not.toBeNull()
+    expect(editar?.props).toEqual({
+      tallerId: 't-1',
+      tallerSlug: 'matrimonio-sobre-la-roca',
+      nombre: 'Matrimonio sobre la Roca',
+    })
+  })
+
+  it('shows the plain nombre (never EditarNombreTaller) for a read-only viewer', async () => {
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, EditarNombreTaller)).toBeNull()
+    expect(extractText(element)).toMatch(/Matrimonio sobre la Roca/)
+  })
+
+  it('shows EditarDescripcionTaller when cargarPermisos grants editarTaller', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const editar = findByType(element, EditarDescripcionTaller)
+    expect(editar).not.toBeNull()
+    expect(editar?.props).toEqual({
+      tallerId: 't-1',
+      tallerSlug: 'matrimonio-sobre-la-roca',
+      descripcion: 'Un taller de ejemplo.',
+    })
+  })
+
+  it('shows the plain descripcion (never EditarDescripcionTaller) for a read-only viewer', async () => {
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, EditarDescripcionTaller)).toBeNull()
+    expect(extractText(element)).toMatch(/Un taller de ejemplo\./)
+  })
+})
+
+describe('TallerDetallePage — Equipo', () => {
+  it('lists active servidores with their rol', async () => {
+    setup({ servidores: [SERVIDOR_LIDER] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const text = extractText(element)
+    expect(text).toMatch(/Ana Gómez/)
+    expect(text).toMatch(/Líder/)
+    expect(loadServidoresDelTallerMock).toHaveBeenCalledWith(expect.anything(), 't-1')
+  })
+
+  it('links to Gestionar en Servidores', async () => {
+    setup({ servidores: [SERVIDOR_LIDER] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const links = findAllByType(element, Link)
+    const servidoresLink = links.find((l) => l.props.href === '/admin/dream-team/servidores')
+    expect(servidoresLink).toBeDefined()
+  })
+
+  it('shows an empty state when there are no active servidores', async () => {
+    setup({ servidores: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const vacio = findByType(element, EstadoVacio)
+    expect(vacio?.props.titulo).toBe('Sin servidores activos en este equipo')
+  })
+
+  it('never fetches servidores when the taller has no equipo', async () => {
+    setup({ taller: { ...TALLER, dream_team_equipo_id: null } })
+    await TallerDetallePage(params())
+    expect(loadServidoresDelTallerMock).not.toHaveBeenCalled()
+  })
+
+  it('never renders "Asignar coordinador" anywhere on the page', async () => {
+    setup({ permisos: { editarTaller: true, asignarEquipo: true }, servidores: [SERVIDOR_LIDER] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).not.toMatch(/Asignar coordinador/i)
+  })
+})
+
+describe('TallerDetallePage — Clases y Grupos (plantilla)', () => {
+  it('passes the loaded plantilla clases, cadencia and duracion to PlantillaClasesSection', async () => {
+    setup({
+      plantillaClases: [
+        { id: 'c-1', numero: 1, tema: 'Sígueme', activo: true },
+        { id: 'c-2', numero: 2, tema: 'Intimidad con Dios', activo: true },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const clasesSection = findByType(element, PlantillaClasesSection)
+    expect(clasesSection?.props.clases).toHaveLength(2)
+    expect(clasesSection?.props.cadenciaDias).toBe(7)
+    expect(clasesSection?.props.duracionMinutos).toBeNull()
+  })
+
+  it('gates plantilla edit controls with permisos.editarTaller, not a flat capability', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    let element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PlantillaClasesSection)?.props.puedeEditar).toBe(true)
+    expect(findByType(element, PlantillaGruposSection)?.props.puedeEditar).toBe(true)
+
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PlantillaClasesSection)?.props.puedeEditar).toBe(false)
+    expect(findByType(element, PlantillaGruposSection)?.props.puedeEditar).toBe(false)
+  })
+
+  it('passes the loaded plantilla grupos and the shared servidores list (for the picker) to PlantillaGruposSection', async () => {
+    setup({
+      servidores: [SERVIDOR_LIDER],
+      plantillaGrupos: [
+        { id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const gruposSection = findByType(element, PlantillaGruposSection)
+    expect(gruposSection?.props.grupos).toHaveLength(1)
+    expect(gruposSection?.props.servidores).toEqual([SERVIDOR_LIDER])
+  })
+
+  it('still renders both plantilla sections (empty) when the taller has no plantilla yet', async () => {
+    setup({ plantillaClases: [], plantillaGrupos: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PlantillaClasesSection)).not.toBeNull()
+    expect(findByType(element, PlantillaGruposSection)).not.toBeNull()
+  })
+})
+
 describe('TallerDetallePage — permission wiring', () => {
   it('shows OpenEdicionForm when cargarPermisos grants abrirEdicion', async () => {
     setup({ permisos: { abrirEdicion: true } })
@@ -226,32 +432,41 @@ describe('TallerDetallePage — permission wiring', () => {
     expect(loadTemporadasAbiertasMock).not.toHaveBeenCalled()
   })
 
-  it('shows AssignServicioForm when cargarPermisos grants asignarEquipo', async () => {
-    setup({ permisos: { asignarEquipo: true } })
+  it('passes sesionesEstimadas as the count of ACTIVE plantilla clases', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      plantillaClases: [
+        { id: 'c-1', numero: 1, tema: 'Sígueme', activo: true },
+        { id: 'c-2', numero: 2, tema: 'Intimidad con Dios', activo: true },
+        { id: 'c-3', numero: 3, tema: 'Compañerismo', activo: false },
+      ],
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, AssignServicioForm)).not.toBeNull()
-    expect(fetchCoordinadorRolesMock).toHaveBeenCalledTimes(1)
+    expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBe(2)
   })
 
-  it('hides AssignServicioForm when cargarPermisos denies asignarEquipo', async () => {
-    setup({ permisos: { asignarEquipo: false } })
+  it('passes sesionesEstimadas as null when the taller has no active plantilla clases, so OpenEdicionForm keeps the old sesiones field (acceptance criterion 8)', async () => {
+    setup({ permisos: { abrirEdicion: true }, plantillaClases: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, AssignServicioForm)).toBeNull()
-    expect(fetchCoordinadorRolesMock).not.toHaveBeenCalled()
+    expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBeNull()
+  })
+
+  it('passes sesionesEstimadas as null when every plantilla clase is inactive', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      plantillaClases: [{ id: 'c-1', numero: 1, tema: 'Sígueme', activo: false }],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBeNull()
   })
 
   it('passes taller.dream_team_equipo_id to cargarPermisos', async () => {
     setup({})
     await TallerDetallePage(params())
     expect(cargarPermisosMock).toHaveBeenCalledWith(expect.anything(), 'eq-1')
-  })
-
-  it('never fetches coordinador roles when the taller has no equipo, even with asignarEquipo granted', async () => {
-    setup({ taller: { ...TALLER, dream_team_equipo_id: null }, permisos: { asignarEquipo: true } })
-    await TallerDetallePage(params())
-    expect(fetchCoordinadorRolesMock).not.toHaveBeenCalled()
   })
 })
 
@@ -289,15 +504,14 @@ describe('TallerDetallePage — content', () => {
     expect(fetchRutaEquipoMock).not.toHaveBeenCalled()
   })
 
-  // T4 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/[taller]/
-  // [edicion] now exists, so the ediciones rows T3 left non-interactive
-  // (the `// T4` comment) link there.
   it('links each edición row to /talleres/[taller]/[edicion]', async () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const link = findByType(element, Link)
-    expect(link).not.toBeNull()
-    expect(link?.props.href).toBe(rutaEdicion('matrimonio-sobre-la-roca', 'e-1'))
+    const links = findAllByType(element, Link)
+    const edicionLink = links.find(
+      (l) => l.props.href === rutaEdicion('matrimonio-sobre-la-roca', 'e-1'),
+    )
+    expect(edicionLink).toBeDefined()
   })
 })

@@ -253,6 +253,50 @@ describe('openEdicion — happy path', () => {
     expect(rpcCalls[0]?.args).toHaveProperty('p_temporada_id')
     expect(rpcCalls[0]?.args['p_temporada_id']).toBeNull()
   })
+
+  it('T3 — maps grupos_creados, facilitadores_omitidos and clases_por_grupo to camelCase', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+      rpcResponse: {
+        data: {
+          edicion_id: 'e-1',
+          periodo_id: 'p-1',
+          temporada_id: null,
+          grupos_creados: [{ grupo_id: 'g-1', nombre: 'Grupo Alfa', facilitadores_asignados: 1 }],
+          facilitadores_omitidos: [
+            { persona_id: 'p-9', nombre: 'Marta', apellido: 'Díaz', plantilla_grupo: 'Grupo Alfa' },
+          ],
+          clases_por_grupo: 4,
+        },
+        error: null,
+      },
+    })
+    const result = await openEdicion(validInput)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.gruposCreados).toEqual([{ grupoId: 'g-1', nombre: 'Grupo Alfa', facilitadoresAsignados: 1 }])
+      expect(result.facilitadoresOmitidos).toEqual([
+        { personaId: 'p-9', nombre: 'Marta', apellido: 'Díaz', plantillaGrupo: 'Grupo Alfa' },
+      ])
+      expect(result.clasesPorGrupo).toBe(4)
+    }
+  })
+
+  it('T3 — defaults gruposCreados/facilitadoresOmitidos to [] and clasesPorGrupo to 0 for a taller with no plantilla (acceptance criterion 8)', async () => {
+    setupSupabaseMock({
+      personaId: 'p-1',
+      capabilities: ['talleres_crecimiento.director.write'],
+      rpcResponse: { data: { edicion_id: 'e-1', periodo_id: null, temporada_id: null }, error: null },
+    })
+    const result = await openEdicion(validInput)
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.gruposCreados).toEqual([])
+      expect(result.facilitadoresOmitidos).toEqual([])
+      expect(result.clasesPorGrupo).toBe(0)
+    }
+  })
 })
 
 describe('openEdicion — RPC error', () => {

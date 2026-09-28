@@ -92,6 +92,17 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     error: 'bad-request',
     message: 'La lista de marcas no es válida.',
   },
+  // T3 (odd/tasks/talleres-configuracion-del-taller.md) — the
+  // taller_plantilla_facilitadores/taller_grupo_asignaciones BEFORE
+  // triggers (20260926150000_talleres_plantillas_del_taller.sql) both
+  // raise this exact message with ERRCODE P0001 when the target persona
+  // is not an active servidor of the taller's node tree.
+  NO_ES_SERVIDOR_ACTIVO_DEL_TALLER: {
+    status: 409,
+    error: 'conflict',
+    message:
+      'Esa persona no es un servidor activo de este taller. Asignala primero en Dream Team → Servidores.',
+  },
 }
 
 /** Ordered longest-first so a substring match can't pick the wrong entry. */
@@ -115,6 +126,25 @@ export function traducirErrorTalleres(
   const crudo = `${error?.code ?? ''} ${error?.message ?? ''}`
   for (const clave of CLAVES) {
     if (crudo.includes(clave)) return MAPA[clave]
+  }
+  // T3 (odd/tasks/talleres-configuracion-del-taller.md) — the taller
+  // plantilla tables are written directly through RLS (no RPC of their
+  // own — see 20260926150000_talleres_plantillas_del_taller.sql), so a
+  // denial surfaces as Postgres's own generic RLS message ("new row
+  // violates row-level security policy for table ..."), which never
+  // matches a MAPA key above. Without this, every plain RLS denial fell
+  // through to the 500 fallback below instead of a 403 — checked AFTER
+  // the specific-message loop so an already-mapped 42501 (like
+  // sin_permisos_para_este_grupo) keeps its own friendlier message.
+  if (error?.code === '42501') {
+    return { status: 403, error: 'forbidden', message: 'No tenés permisos para hacer este cambio.' }
+  }
+  // A duplicate insert against one of the plantilla tables' UNIQUE
+  // constraints (e.g. the same facilitador added twice to a grupo, or a
+  // repeated clase numero/grupo nombre) — same reasoning as above: these
+  // tables have no RPC of their own to phrase the message.
+  if (error?.code === '23505') {
+    return { status: 409, error: 'conflict', message: 'Ese valor ya existe.' }
   }
   if (!error) return { ...INTERNO, message: mensajePorDefecto }
   return { status: 500, error: 'internal', message: mensajePorDefecto }
