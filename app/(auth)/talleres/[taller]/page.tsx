@@ -79,9 +79,14 @@ import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
 import { fetchRutaEquipo } from '@/lib/platform/talleres/equipo-organigrama'
 import { loadServidoresDelTaller, nombreCompletoServidor } from '@/lib/platform/talleres/servidores-del-taller'
-import { loadPlantillaClases, loadPlantillaGrupos } from '@/lib/platform/talleres/plantilla'
+import {
+  loadPlantillaClases,
+  loadPlantillaGrupos,
+  previewFacilitadoresOmitidos,
+} from '@/lib/platform/talleres/plantilla'
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
 import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
+import { hasDreamTeamReadCapability } from '@/lib/platform/dream-team/capabilities'
 
 const RUTA_SERVIDORES = '/admin/dream-team/servidores'
 
@@ -142,6 +147,14 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   const permisos = await cargarPermisos(client, taller.dream_team_equipo_id)
   const equipoId = taller.dream_team_equipo_id
 
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // "Gestionar en Servidores" used to be unconditional and could 404 for a
+  // viewer with no Dream Team authority; it now renders only when the
+  // viewer passes the SAME hasDreamTeamReadCapability check
+  // /admin/dream-team/servidores/page.tsx itself gates on, and only when
+  // there is an equipo to deep-link into.
+  const puedeGestionarServidores = equipoId !== null && hasDreamTeamReadCapability(session)
+
   const [rutaEquipo, temporadasAbiertas, cargaServidores, plantillaClases, plantillaGrupos] = await Promise.all([
     equipoId ? fetchRutaEquipo(client, equipoId) : Promise.resolve(null),
     permisos.abrirEdicion ? loadTemporadasAbiertas(client) : Promise.resolve([]),
@@ -159,13 +172,31 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   const servidores = cargaServidores.ok ? cargaServidores.servidores : []
   const sinAutoridadEquipo = !cargaServidores.ok && cargaServidores.reason === 'sin_autoridad'
 
-  // "Abrir edición" derives sesiones estimadas from the active plantilla
+  // "Crear edición" derives sesiones estimadas from the active plantilla
   // clases when the taller has one (Decisiones). A taller with NO active
   // plantilla clases keeps today's form untouched (acceptance criterion
   // 8): `null` tells OpenEdicionForm to show its own "sesiones" field
   // again, exactly as before — there is no silent numeric fallback here.
   const clasesActivas = plantillaClases.filter((clase) => clase.activo).length
   const sesionesEstimadas = clasesActivas > 0 ? clasesActivas : null
+
+  // T11 — "Crear edición" preview: how many grupos will be instanced (only
+  // ACTIVE plantilla grupos are — same rule open_edicion applies), and
+  // which of their facilitadores are no longer active servidores of this
+  // equipo and would be omitted (acceptance criterion 3, previewed before
+  // the director confirms instead of only after).
+  const gruposPlantillaActivosList = plantillaGrupos.filter((grupo) => grupo.activo)
+  const servidorPersonaIds = new Set(servidores.map((servidor) => servidor.personaId))
+  const facilitadoresOmitidosPreview = previewFacilitadoresOmitidos(
+    gruposPlantillaActivosList,
+    servidorPersonaIds,
+  )
+
+  // T11 — "Duración por sesión (min)" is gone from the form; it now lives
+  // on the taller (`duracion_minutos`, editable in PlantillaClasesSection).
+  // 60 is the same default the old inline field used to start from, for a
+  // taller that hasn't set one yet.
+  const duracionMinutos = taller.duracion_minutos ?? 60
 
   return (
     <ContenedorDashboard
@@ -196,8 +227,19 @@ export default async function TallerDetallePage(ctx: RouteContext) {
               )
             )}
             {rutaEquipo && (
+              // T11 (flow audit) — taller -> node: a link back to the
+              // org chart when the viewer can actually see it (same
+              // hasDreamTeamReadCapability gate as "Gestionar en
+              // Servidores" above), plain text otherwise — a link that
+              // 404s is worse than no link.
               <TextoSistema variante="sutil" tamaño="sm" className="mt-2 block">
-                {rutaEquipo}
+                {hasDreamTeamReadCapability(session) ? (
+                  <Link href="/admin/dream-team/estructura" className="hover:underline">
+                    {rutaEquipo}
+                  </Link>
+                ) : (
+                  rutaEquipo
+                )}
               </TextoSistema>
             )}
           </div>
@@ -207,18 +249,58 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         </div>
       </TarjetaSistema>
 
+      {/* T11 (flow audit) — "Pasos para abrir una edición": right under the
+          header, so a director sees at a glance what's left before "Crear
+          edición" makes sense to press. Only for editarTaller — the same
+          capacity that gates the plantilla edit controls below. */}
+      {permisos.editarTaller && (
+        <TarjetaSistema className="p-0">
+          <div className="p-4 pb-0">
+            <TituloSistema nivel={2}>Pasos para abrir una edición</TituloSistema>
+          </div>
+          <div className="divide-y divide-border">
+            {[
+              { etiqueta: 'Equipo del nodo', listo: servidores.length > 0 },
+              { etiqueta: 'Plantilla de clases', listo: clasesActivas > 0 },
+              { etiqueta: 'Plantilla de grupos', listo: gruposPlantillaActivosList.length > 0 },
+            ].map((paso) => (
+              <div key={paso.etiqueta} className="flex items-center justify-between gap-3 p-4">
+                <TextoSistema>{paso.etiqueta}</TextoSistema>
+                <BadgeSistema variante={paso.listo ? 'success' : 'warning'}>
+                  {paso.listo ? 'Listo' : 'Pendiente'}
+                </BadgeSistema>
+              </div>
+            ))}
+            <Link
+              href="#ediciones"
+              className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-accent"
+            >
+              <TextoSistema className="font-medium">Crear edición</TextoSistema>
+              <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+            </Link>
+          </div>
+        </TarjetaSistema>
+      )}
+
       <section aria-labelledby="equipo-heading">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <TituloSistema nivel={2} id="equipo-heading">
-            Equipo
-          </TituloSistema>
-          <EnlaceSistema
-            href={RUTA_SERVIDORES}
-            variante="marca"
-            className="inline-flex min-h-[44px] items-center text-sm"
-          >
-            Gestionar en Servidores
-          </EnlaceSistema>
+          <div>
+            <TituloSistema nivel={2} id="equipo-heading">
+              Equipo del nodo
+            </TituloSistema>
+            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+              Servidores activos; se gestionan en Dream Team.
+            </TextoSistema>
+          </div>
+          {puedeGestionarServidores && (
+            <EnlaceSistema
+              href={`${RUTA_SERVIDORES}?equipo=${equipoId}`}
+              variante="marca"
+              className="inline-flex min-h-[44px] items-center text-sm"
+            >
+              Gestionar en Servidores
+            </EnlaceSistema>
+          )}
         </div>
 
         {sinAutoridadEquipo ? (
@@ -271,7 +353,8 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         puedeEditar={permisos.editarTaller}
       />
 
-      <section aria-labelledby="ediciones-heading">
+      {/* T11 — id="ediciones" is the checklist's "Crear edición" #ediciones anchor landing target. */}
+      <section aria-labelledby="ediciones-heading" id="ediciones">
         <TituloSistema nivel={2} id="ediciones-heading">
           Ediciones
         </TituloSistema>
@@ -323,10 +406,14 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         <div>
           <OpenEdicionForm
             tallerId={taller.id}
+            tallerSlug={taller.slug}
             tallerNombre={taller.nombre}
             defaultModalidad={taller.modalidad_default}
             temporadasAbiertas={temporadasAbiertas}
             sesionesEstimadas={sesionesEstimadas}
+            gruposPlantillaActivos={gruposPlantillaActivosList.length}
+            facilitadoresOmitidosPreview={facilitadoresOmitidosPreview}
+            duracionMinutos={duracionMinutos}
           />
         </div>
       )}

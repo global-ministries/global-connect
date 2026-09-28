@@ -71,10 +71,10 @@ jest.mock('@/lib/platform/talleres/servidores-del-taller', () => {
   return { ...actual, loadServidoresDelTaller: jest.fn() }
 })
 
-jest.mock('@/lib/platform/talleres/plantilla', () => ({
-  loadPlantillaClases: jest.fn(),
-  loadPlantillaGrupos: jest.fn(),
-}))
+jest.mock('@/lib/platform/talleres/plantilla', () => {
+  const actual = jest.requireActual('@/lib/platform/talleres/plantilla')
+  return { ...actual, loadPlantillaClases: jest.fn(), loadPlantillaGrupos: jest.fn() }
+})
 
 jest.mock('@/lib/platform/talleres/temporadas', () => ({
   loadTemporadasAbiertas: jest.fn(),
@@ -160,6 +160,8 @@ interface SetupOpts {
     activo: boolean
     facilitadores: readonly unknown[]
   }[]
+  /** T11 — Dream Team capability keys for the viewer (gates "Gestionar en Servidores"). */
+  capabilities?: readonly string[]
 }
 
 function setup(opts: SetupOpts): void {
@@ -182,7 +184,12 @@ function setup(opts: SetupOpts): void {
           subjectAuthId: 'auth-1',
           globalRoles: [],
           contexts: [],
-          capabilities: [],
+          capabilities: (opts.capabilities ?? []).map((key) => ({
+            key,
+            experience: 'dream_team',
+            scopeType: 'experience',
+            source: 'test',
+          })),
         }
       : null,
   )
@@ -362,15 +369,43 @@ describe('TallerDetallePage — Equipo', () => {
   // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — this
   // used to be a hand-styled `<Link className="... text-[var(--brand-primary)]
   // hover:underline">`; it is now an EnlaceSistema variante="marca".
-  it('links to Gestionar en Servidores through EnlaceSistema', async () => {
-    setup({ servidores: [SERVIDOR_LIDER] })
+  //
+  // T11 (flow audit) — the link used to be unconditional and could 404 for
+  // a viewer with no Dream Team authority; it now renders only when the
+  // viewer has a Dream Team read capability (the same
+  // hasDreamTeamReadCapability check /admin/dream-team/servidores/page.tsx
+  // itself gates on), and links straight to this taller's equipo
+  // (?equipo=<nodeId>) so Servidores lands pre-filtered.
+  it('links to Gestionar en Servidores through EnlaceSistema, filtered to this taller\'s equipo, when the viewer has Dream Team read capability', async () => {
+    setup({ servidores: [SERVIDOR_LIDER], capabilities: ['dream_team.org.manage'] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const servidoresLink = findAllByType(element, EnlaceSistema).find(
-      (l) => l.props.href === '/admin/dream-team/servidores',
+    const servidoresLink = findAllByType(element, EnlaceSistema).find((l) =>
+      String(l.props.href).startsWith('/admin/dream-team/servidores'),
     )
     expect(servidoresLink).toBeDefined()
+    expect(servidoresLink?.props.href).toBe('/admin/dream-team/servidores?equipo=eq-1')
     expect(servidoresLink?.props.variante).toBe('marca')
+  })
+
+  it('hides Gestionar en Servidores when the viewer has no Dream Team read capability', async () => {
+    setup({ servidores: [SERVIDOR_LIDER], capabilities: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const servidoresLink = findAllByType(element, EnlaceSistema).find((l) =>
+      String(l.props.href).startsWith('/admin/dream-team/servidores'),
+    )
+    expect(servidoresLink).toBeUndefined()
+  })
+
+  it('hides Gestionar en Servidores when the taller has no dream_team_equipo_id yet, even with capability', async () => {
+    setup({ taller: { ...TALLER, dream_team_equipo_id: null }, capabilities: ['dream_team.org.manage'] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const servidoresLink = findAllByType(element, EnlaceSistema).find((l) =>
+      String(l.props.href).startsWith('/admin/dream-team/servidores'),
+    )
+    expect(servidoresLink).toBeUndefined()
   })
 
   it('shows an empty state when there are no active servidores', async () => {
@@ -516,6 +551,83 @@ describe('TallerDetallePage — permission wiring', () => {
     expect(findByType(element, OpenEdicionForm)?.props.sesionesEstimadas).toBeNull()
   })
 
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md) — "Crear edición"
+  // preview props: tallerSlug (for the post-create redirect), the count of
+  // ACTIVE plantilla grupos ("N"), and the list of plantilla facilitadores
+  // that open_edicion would omit right now (previewFacilitadoresOmitidos).
+  it('passes tallerSlug so OpenEdicionForm can redirect to the new edición', async () => {
+    setup({ permisos: { abrirEdicion: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.tallerSlug).toBe('matrimonio-sobre-la-roca')
+  })
+
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+  // "Duración por sesión (min)" field is gone from OpenEdicionForm; the
+  // page derives it from taller.duracion_minutos instead, with a fallback
+  // when the taller hasn't set one yet (it is not editable anywhere before
+  // this feature's PlantillaClasesSection either — never silently 0).
+  it('passes duracionMinutos verbatim from taller.duracion_minutos', async () => {
+    setup({ permisos: { abrirEdicion: true }, taller: { ...TALLER, duracion_minutos: 75 } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.duracionMinutos).toBe(75)
+  })
+
+  it('passes a default duracionMinutos when the taller has none set yet', async () => {
+    setup({ permisos: { abrirEdicion: true }, taller: { ...TALLER, duracion_minutos: null } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.duracionMinutos).toBe(60)
+  })
+
+  it('passes gruposPlantillaActivos as the count of ACTIVE plantilla grupos', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      plantillaGrupos: [
+        { id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] },
+        { id: 'g-2', nombre: 'Grupo Beta', orden: 2, capacidad: 12, activo: true, facilitadores: [] },
+        { id: 'g-3', nombre: 'Grupo Gamma', orden: 3, capacidad: 12, activo: false, facilitadores: [] },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.gruposPlantillaActivos).toBe(2)
+  })
+
+  it('passes facilitadoresOmitidosPreview naming a plantilla facilitador who is no longer an active servidor, only from ACTIVE grupos', async () => {
+    setup({
+      permisos: { abrirEdicion: true },
+      servidores: [SERVIDOR_LIDER],
+      plantillaGrupos: [
+        {
+          id: 'g-1',
+          nombre: 'Grupo Alfa',
+          orden: 1,
+          capacidad: 12,
+          activo: true,
+          facilitadores: [
+            { id: 'f-1', personaId: 'p-1', rol: 'lider', nombre: 'Ana', apellido: 'Gómez' },
+            { id: 'f-2', personaId: 'p-9', rol: 'voluntario', nombre: 'Marta', apellido: 'Díaz' },
+          ],
+        },
+        {
+          id: 'g-2',
+          nombre: 'Grupo Inactivo',
+          orden: 2,
+          capacidad: 12,
+          activo: false,
+          facilitadores: [{ id: 'f-3', personaId: 'p-8', rol: 'lider', nombre: 'Otro', apellido: 'Más' }],
+        },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, OpenEdicionForm)?.props.facilitadoresOmitidosPreview).toEqual([
+      { personaId: 'p-9', nombre: 'Marta Díaz', plantillaGrupo: 'Grupo Alfa' },
+    ])
+  })
+
   it('passes taller.dream_team_equipo_id to cargarPermisos', async () => {
     setup({})
     await TallerDetallePage(params())
@@ -523,17 +635,118 @@ describe('TallerDetallePage — permission wiring', () => {
   })
 })
 
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — a
+// "Pasos para abrir una edición" checklist right under the header, so a
+// director sees at a glance what's left before creating one. Only for
+// editarTaller (the same capacity that gates the plantilla edit controls).
+describe('TallerDetallePage — T11: Pasos para abrir una edición', () => {
+  it('shows the checklist when editarTaller is granted', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Pasos para abrir una edición/i)
+  })
+
+  it('hides the checklist when editarTaller is denied', async () => {
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).not.toMatch(/Pasos para abrir una edición/i)
+  })
+
+  it('marks Equipo del nodo Listo when there is at least one servidor activo', async () => {
+    setup({ permisos: { editarTaller: true }, servidores: [SERVIDOR_LIDER] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Equipo del nodo\s+Listo/)
+  })
+
+  it('marks Equipo del nodo Pendiente when there are no servidores activos', async () => {
+    setup({ permisos: { editarTaller: true }, servidores: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Equipo del nodo\s+Pendiente/)
+  })
+
+  it('marks Plantilla de clases Listo when there is at least one active plantilla clase', async () => {
+    setup({
+      permisos: { editarTaller: true },
+      plantillaClases: [{ id: 'c-1', numero: 1, tema: 'Sígueme', activo: true }],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Plantilla de clases\s+Listo/)
+  })
+
+  it('marks Plantilla de clases Pendiente when there is none active', async () => {
+    setup({ permisos: { editarTaller: true }, plantillaClases: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Plantilla de clases\s+Pendiente/)
+  })
+
+  it('marks Plantilla de grupos Listo when there is at least one active plantilla grupo', async () => {
+    setup({
+      permisos: { editarTaller: true },
+      plantillaGrupos: [
+        { id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] },
+      ],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Plantilla de grupos\s+Listo/)
+  })
+
+  it('marks Plantilla de grupos Pendiente when there is none active', async () => {
+    setup({ permisos: { editarTaller: true }, plantillaGrupos: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Plantilla de grupos\s+Pendiente/)
+  })
+
+  it('links its "Crear edición" row to #ediciones', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const links = findAllByType(element, Link)
+    const crearEdicion = links.find((l) => extractText(l).trim() === 'Crear edición')
+    expect(crearEdicion?.props.href).toBe('#ediciones')
+  })
+
+  it('the Ediciones section carries id="ediciones" for the checklist anchor', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const sections = findAllByType(element, 'section')
+    const ediciones = sections.find((s) => s.props['aria-labelledby'] === 'ediciones-heading')
+    expect(ediciones?.props.id).toBe('ediciones')
+  })
+})
+
 describe('TallerDetallePage — headings (design audit)', () => {
   // T10 — "Equipo" and "Ediciones" used to be hand-rolled `<h2>`s; both are
   // now TituloSistema nivel={2}, and no raw h2 is left on the page.
-  it('renders Equipo and Ediciones through TituloSistema nivel={2}, never a raw h2', async () => {
+  //
+  // T11 (flow audit) — "Equipo" is renamed "Equipo del nodo" (one
+  // vocabulary: it was ambiguous with the grupo page's own facilitador
+  // list), with a one-line hint naming where it's managed.
+  it('renders Equipo del nodo and Ediciones through TituloSistema nivel={2}, never a raw h2', async () => {
     setup({ servidores: [SERVIDOR_LIDER] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(findByType(element, 'h2')).toBeNull()
     const titulos = findAllByType(element, TituloSistema)
-    expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Equipo')).toBe(true)
+    expect(
+      titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Equipo del nodo'),
+    ).toBe(true)
     expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Ediciones')).toBe(true)
+  })
+
+  it('shows a hint under "Equipo del nodo" naming where it is managed', async () => {
+    setup({ servidores: [SERVIDOR_LIDER] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/servidores activos; se gestionan en dream team/i)
   })
 })
 
@@ -595,6 +808,30 @@ describe('TallerDetallePage — content', () => {
     setup({ taller: { ...TALLER, dream_team_equipo_id: null } })
     await TallerDetallePage(params())
     expect(fetchRutaEquipoMock).not.toHaveBeenCalled()
+  })
+
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // taller -> node: the org-chart path becomes a link to
+  // /admin/dream-team/estructura for a viewer with Dream Team read
+  // capability, plain text otherwise (never a link that 404s).
+  it('links the org-chart path to /admin/dream-team/estructura when the viewer has Dream Team read capability', async () => {
+    setup({ capabilities: ['dream_team.org.manage'] })
+    fetchRutaEquipoMock.mockResolvedValue('Dirección de Conexión › Grupos de Corto Plazo')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const link = findAllByType(element, Link).find((l) => l.props.href === '/admin/dream-team/estructura')
+    expect(link).toBeDefined()
+    expect(extractText(link)).toMatch(/Dirección de Conexión › Grupos de Corto Plazo/)
+  })
+
+  it('shows the org-chart path as plain text (no link) without Dream Team read capability', async () => {
+    setup({ capabilities: [] })
+    fetchRutaEquipoMock.mockResolvedValue('Dirección de Conexión › Grupos de Corto Plazo')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Dirección de Conexión › Grupos de Corto Plazo/)
+    const link = findAllByType(element, Link).find((l) => l.props.href === '/admin/dream-team/estructura')
+    expect(link).toBeUndefined()
   })
 
   it('links each edición row to /talleres/[taller]/[edicion]', async () => {

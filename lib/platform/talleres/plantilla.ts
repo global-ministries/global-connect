@@ -159,3 +159,45 @@ export async function loadPlantillaGrupos(
     }
   })
 }
+
+/**
+ * One plantilla facilitador an `open_edicion` call would skip right now
+ * (T11, "Crear edición" preview) — the same rule `open_edicion` applies at
+ * instantiation time (migration 20260927100000_talleres_instanciar_
+ * edicion.sql): the persona is not among the taller's current active
+ * servidores.
+ */
+export interface FacilitadorOmitidoPreview {
+  readonly personaId: string
+  readonly nombre: string
+  readonly plantillaGrupo: string
+}
+
+/**
+ * T11 (odd/tasks/talleres-configuracion-del-taller.md) — preview, before a
+ * director confirms "Crear edición", of which plantilla facilitadores would
+ * be OMITTED at instantiation (acceptance criterion 3: a paused servidor is
+ * never instantiated, and the app says so beforehand too). The caller
+ * passes only ACTIVE plantilla grupos, since only those get instantiated —
+ * this function does not filter by `activo` itself.
+ */
+export function previewFacilitadoresOmitidos(
+  gruposActivos: readonly PlantillaGrupo[],
+  servidorPersonaIds: ReadonlySet<string>,
+): readonly FacilitadorOmitidoPreview[] {
+  const omitidos: FacilitadorOmitidoPreview[] = []
+  for (const grupo of gruposActivos) {
+    for (const facilitador of grupo.facilitadores) {
+      if (servidorPersonaIds.has(facilitador.personaId)) continue
+      const nombre = [facilitador.nombre, facilitador.apellido]
+        .filter((part): part is string => typeof part === 'string' && part.length > 0)
+        .join(' ')
+      omitidos.push({
+        personaId: facilitador.personaId,
+        nombre: nombre.length > 0 ? nombre : 'Persona sin nombre',
+        plantillaGrupo: grupo.nombre,
+      })
+    }
+  }
+  return omitidos
+}

@@ -328,7 +328,7 @@ describe('openEdicion — RPC error', () => {
     if (!result.ok) {
       expect(result.error).toBe('internal')
       expect(result.message).toBe(
-        'Este taller no tiene un equipo asignado en el organigrama. Volvé al catálogo y vinculalo o creá uno antes de abrir una edición.',
+        'Este taller no tiene un equipo asignado en el organigrama. Vuelve al catálogo y vincúlalo o crea uno antes de crear una edición.',
       )
     }
   })

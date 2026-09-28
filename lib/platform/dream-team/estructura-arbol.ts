@@ -248,3 +248,33 @@ export function idsColapsadosPorDefecto(arbol: readonly NodoArbol<NodoEquipoArbo
   arbol.forEach(visitar)
   return ids
 }
+
+/** One taller's name/slug, keyed by its dream_team_equipo_id in tallerPorEquipoId's return. */
+export interface TallerNodoResumen {
+  readonly slug: string
+  readonly nombre: string
+}
+
+/**
+ * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+ * node -> taller: maps each taller row to its dream_team_equipo_id, for
+ * NodoFila's "Abrir taller {nombre}" icon link on the estructura screen.
+ * estructura/page.tsx feeds this from one query on `talleres` (select
+ * slug, nombre, dream_team_equipo_id). A taller with no equipo yet
+ * (`dream_team_equipo_id: null`) contributes nothing — there is no node
+ * in the tree to attach it to.
+ */
+export function tallerPorEquipoId(
+  talleres: readonly {
+    readonly slug: string
+    readonly nombre: string
+    readonly dream_team_equipo_id: string | null
+  }[],
+): Readonly<Record<string, TallerNodoResumen>> {
+  const mapa: Record<string, TallerNodoResumen> = {}
+  for (const taller of talleres) {
+    if (taller.dream_team_equipo_id === null) continue
+    mapa[taller.dream_team_equipo_id] = { slug: taller.slug, nombre: taller.nombre }
+  }
+  return mapa
+}

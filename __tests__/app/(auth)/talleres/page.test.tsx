@@ -40,6 +40,7 @@ jest.mock('@/lib/auth/platformSessionReadOnly', () => ({
 jest.mock('@/lib/platform/talleres/catalogo', () => ({
   loadCatalogoTalleres: jest.fn(),
   loadMisGruposResumen: jest.fn(),
+  loadMisTalleres: jest.fn(),
 }))
 
 jest.mock('@/lib/platform/talleres/equipo-organigrama', () => ({
@@ -55,6 +56,8 @@ const loadCatalogoTalleresMock = jest.requireMock('@/lib/platform/talleres/catal
   .loadCatalogoTalleres as jest.Mock
 const loadMisGruposResumenMock = jest.requireMock('@/lib/platform/talleres/catalogo')
   .loadMisGruposResumen as jest.Mock
+const loadMisTalleresMock = jest.requireMock('@/lib/platform/talleres/catalogo')
+  .loadMisTalleres as jest.Mock
 const fetchOpcionesMock = jest.requireMock('@/lib/platform/talleres/equipo-organigrama')
   .fetchOpcionesEquipoTaller as jest.Mock
 
@@ -65,6 +68,7 @@ interface SetupOpts {
   capabilities?: string[]
   catalogo?: unknown[]
   misGrupos?: unknown[]
+  misTalleres?: unknown[]
 }
 
 function setup(opts: SetupOpts): void {
@@ -99,6 +103,7 @@ function setup(opts: SetupOpts): void {
 
   loadCatalogoTalleresMock.mockReset().mockResolvedValue(opts.catalogo ?? [])
   loadMisGruposResumenMock.mockReset().mockResolvedValue(opts.misGrupos ?? [])
+  loadMisTalleresMock.mockReset().mockResolvedValue(opts.misTalleres ?? [])
   fetchOpcionesMock.mockReset().mockResolvedValue({ vincular: [], crearBajo: [] })
 }
 
@@ -243,6 +248,23 @@ describe('TalleresCatalogoPage — section wiring per role', () => {
     expect(fetchOpcionesMock).not.toHaveBeenCalled()
   })
 
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // "Mis talleres" is passed through from loadMisTalleres, called with the
+  // resolved catálogo (never re-derived by hand in the page).
+  it('passes misTalleres through, computed from the resolved catálogo', async () => {
+    const catalogo = [{ id: 't-1', slug: 'x', nombre: 'X', estado: 'active', dream_team_equipo_id: 'eq-1', ediciones: [] }]
+    setup({
+      capabilities: ['talleres_crecimiento.director.write'],
+      catalogo,
+      misTalleres: [{ id: 't-1', slug: 'x', nombre: 'X' }],
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TalleresCatalogoPage()) as any
+    const node = findByType(element, CatalogoTalleresClient)
+    expect(node?.props.misTalleres).toEqual([{ id: 't-1', slug: 'x', nombre: 'X' }])
+    expect(loadMisTalleresMock).toHaveBeenCalledWith(expect.anything(), catalogo)
+  })
+
   it('member (zero capabilities): empty catálogo and misGrupos, no create — and the explorar link is present', async () => {
     setup({ capabilities: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
@@ -250,6 +272,7 @@ describe('TalleresCatalogoPage — section wiring per role', () => {
     const node = findByType(element, CatalogoTalleresClient)
     expect(node?.props.misGrupos).toEqual([])
     expect(node?.props.catalogo).toEqual([])
+    expect(node?.props.misTalleres).toEqual([])
     expect(node?.props.puedeCrear).toBe(false)
     expect(containsHref(element, '/talleres/explorar')).toBe(true)
   })

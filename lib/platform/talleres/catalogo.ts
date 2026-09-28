@@ -31,6 +31,7 @@ import {
   loadEquipoProximasSesiones,
   type OperacionalContext,
 } from './operacional'
+import { cargarPermisosPorEquipos } from './permisos'
 
 // ─── Catálogo ───────────────────────────────────────────────────────────
 
@@ -293,4 +294,63 @@ export async function loadMisGruposResumen(
       proximaClase: proximaPorGrupo.get(g.id) ?? null,
     }
   })
+}
+
+/**
+ * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+ * backs the "Mis grupos" nav item's visibility (route-access.ts's
+ * getTalleresNavItems `hasMisGrupos` option). A lightweight head-count,
+ * never the full row set — unlike loadEquipoGrupos (which loadMisGrupos
+ * Resumen's catalog SECTION reuses, líder-only, one row per grupo), this
+ * counts ACTIVE taller_grupo_asignaciones rows for THIS persona as EITHER
+ * líder OR voluntario (the nav item's condition is broader than the
+ * catalog section's own "Mis grupos" list). Best-effort: degrades to 0 on
+ * a query error or a null count, same contract as this file's other
+ * loaders — a failed count never crashes the sidebar, it just hides the
+ * shortcut.
+ */
+export interface MiTallerResumen {
+  readonly id: string
+  readonly slug: string
+  readonly nombre: string
+}
+
+/**
+ * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — "Mis
+ * talleres": the talleres in `catalogo` the caller can EDIT
+ * (talleres_mis_permisos(equipo).editar_taller — the same predicate the
+ * taller page's own cabecera/plantilla edit controls gate on), so a
+ * director lands on a shortlist instead of scanning the whole catalog.
+ * Reuses cargarPermisosPorEquipos (T6's pendientes inbox helper) — one
+ * RPC per DISTINCT equipo, never one per taller.
+ */
+export async function loadMisTalleres(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  client: any,
+  catalogo: readonly CatalogoTaller[],
+): Promise<readonly MiTallerResumen[]> {
+  if (catalogo.length === 0) return []
+
+  const permisosPorEquipo = await cargarPermisosPorEquipos(
+    client,
+    catalogo.map((t) => t.dream_team_equipo_id),
+  )
+
+  return catalogo
+    .filter((t) => permisosPorEquipo.get(t.dream_team_equipo_id)?.editarTaller === true)
+    .map((t) => ({ id: t.id, slug: t.slug, nombre: t.nombre }))
+}
+
+export async function loadMisGruposCount(ctx: OperacionalContext): Promise<number> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = ctx.supabase
+  const { count, error } = await client
+    .from('taller_grupo_asignaciones')
+    .select('id', { count: 'exact', head: true })
+    .eq('persona_id', ctx.personaId)
+    .eq('activo', true)
+    .in('rol', ['lider', 'voluntario'])
+
+  if (error || typeof count !== 'number') return 0
+  return count
 }

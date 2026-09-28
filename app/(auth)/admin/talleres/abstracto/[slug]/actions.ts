@@ -80,7 +80,7 @@ export type OpenEdicionResult =
  */
 const RPC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   TALLER_MISSING_EQUIPO:
-    'Este taller no tiene un equipo asignado en el organigrama. Volvé al catálogo y vinculalo o creá uno antes de abrir una edición.',
+    'Este taller no tiene un equipo asignado en el organigrama. Vuelve al catálogo y vincúlalo o crea uno antes de crear una edición.',
 }
 
 function friendlyRpcMessage(rawMessage: string | undefined | null): string | undefined {

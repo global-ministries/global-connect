@@ -13,6 +13,7 @@ import {
   construirNodosArbol,
   responsablesDreamTeamPorEquipo,
   idsColapsadosPorDefecto,
+  tallerPorEquipoId,
   type NodoEquipoArbol,
   type ResponsableNodo,
 } from '@/lib/platform/dream-team/estructura-arbol'
@@ -338,5 +339,33 @@ describe('idsColapsadosPorDefecto', () => {
   it('returns an empty set for a tree with no Grupos de Vida branch', () => {
     const arbol = construirArbol(construirNodosArbol([equipo({ id: 'dps', label: 'DPS' })], []))
     expect(idsColapsadosPorDefecto(arbol).size).toBe(0)
+  })
+})
+
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+// node -> taller: estructura/page.tsx's own single query on `talleres`
+// (select slug, nombre, dream_team_equipo_id) feeds this, keyed by
+// equipo id, for NodoFila's "Abrir taller {nombre}" icon link.
+describe('tallerPorEquipoId', () => {
+  it('keys each taller by its dream_team_equipo_id', () => {
+    const resultado = tallerPorEquipoId([
+      { slug: 'proximo-paso', nombre: 'Próximo Paso', dream_team_equipo_id: 'eq-1' },
+      { slug: 'discipulado', nombre: 'Discipulado', dream_team_equipo_id: 'eq-2' },
+    ])
+    expect(resultado).toEqual({
+      'eq-1': { slug: 'proximo-paso', nombre: 'Próximo Paso' },
+      'eq-2': { slug: 'discipulado', nombre: 'Discipulado' },
+    })
+  })
+
+  it('skips a taller with no equipo yet — there is no node to attach it to', () => {
+    const resultado = tallerPorEquipoId([
+      { slug: 'sin-equipo', nombre: 'Sin equipo', dream_team_equipo_id: null },
+    ])
+    expect(resultado).toEqual({})
+  })
+
+  it('returns {} for an empty list', () => {
+    expect(tallerPorEquipoId([])).toEqual({})
   })
 })

@@ -84,7 +84,7 @@ import {
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
-import { loadEdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
+import { loadEdicionLocalDetalle, type EdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
 import { loadAdminInscripciones } from '@/lib/platform/talleres/admin-inscripciones'
 import { loadGruposDeCohorte, loadGruposInstanciados } from '@/lib/platform/talleres/grupo-detalle'
 import { loadServidoresDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
@@ -205,6 +205,15 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
               Inicio: {formatFecha(edicion.cohorte?.started_at ?? null)} · Fin:{' '}
               {formatFecha(edicion.cohorte?.ended_at ?? null)}
             </TextoSistema>
+            {edicion.estado === 'borrador' && (
+              // T11 (flow audit) — "Abrir esta edición" (OpenEdicionButton,
+              // below) becomes the clear next step: this line names the
+              // state and what to do about it.
+              <TextoSistema variante="sutil" tamaño="sm" className="mt-2 block">
+                Esta edición está en borrador. Revisa grupos y clases y luego ábrela para recibir
+                inscripciones.
+              </TextoSistema>
+            )}
           </div>
           <div className="flex flex-col items-end gap-2">
             <BadgeSistema variante={edicionEstadoBadgeVariante(edicion.estado)}>
@@ -260,26 +269,38 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
         </TituloSistema>
         <TarjetaSistema variante="outlined" className="mt-3 p-4">
           {edicion.periodo_general ? (
-            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo titulo="Apertura automática">
-                {formatFecha(edicion.periodo_general.fecha_apertura_automatica)}
-              </Campo>
-              <Campo titulo="Cierre automático">
-                {formatFecha(edicion.periodo_general.fecha_cierre_automatica)}
-              </Campo>
-              <Campo titulo="Apertura manual">
-                {formatFecha(edicion.periodo_general.fecha_apertura_manual)}
-              </Campo>
-              <Campo titulo="Cierre manual">
-                {formatFecha(edicion.periodo_general.fecha_cierre_manual)}
-              </Campo>
-              <Campo titulo="Cierre real">
-                {formatFecha(edicion.periodo_general.fecha_cierre_real)}
-              </Campo>
-              {edicion.periodo_general.motivo_cierre && (
-                <Campo titulo="Motivo de cierre">{edicion.periodo_general.motivo_cierre}</Campo>
+            <>
+              <TextoSistema>{resumenVentana(edicion.estado, edicion.periodo_general)}</TextoSistema>
+              {/* T11 — the detailed fields stay reachable, collapsed, only
+                  for whoever could actually act on them (editarEdicion) —
+                  a read-only viewer gets the one sentence above and
+                  nothing more. */}
+              {permisos.editarEdicion && (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-sm font-medium text-foreground">Ver fechas</summary>
+                  <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Campo titulo="Apertura automática">
+                      {formatFecha(edicion.periodo_general.fecha_apertura_automatica)}
+                    </Campo>
+                    <Campo titulo="Cierre automático">
+                      {formatFecha(edicion.periodo_general.fecha_cierre_automatica)}
+                    </Campo>
+                    <Campo titulo="Apertura manual">
+                      {formatFecha(edicion.periodo_general.fecha_apertura_manual)}
+                    </Campo>
+                    <Campo titulo="Cierre manual">
+                      {formatFecha(edicion.periodo_general.fecha_cierre_manual)}
+                    </Campo>
+                    <Campo titulo="Cierre real">
+                      {formatFecha(edicion.periodo_general.fecha_cierre_real)}
+                    </Campo>
+                    {edicion.periodo_general.motivo_cierre && (
+                      <Campo titulo="Motivo de cierre">{edicion.periodo_general.motivo_cierre}</Campo>
+                    )}
+                  </dl>
+                </details>
               )}
-            </dl>
+            </>
           ) : (
             <TextoSistema variante="sutil">
               No hay período general asociado (modalidad permanente custom o período aún no
@@ -308,4 +329,25 @@ function formatFecha(value: string | null): string {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
   return d.toLocaleDateString('es')
+}
+
+/**
+ * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+ * Ventana section collapses to ONE sentence for a viewer without
+ * editarEdicion. This reads the edición's OWN `estado` (already tracked
+ * elsewhere, e.g. the badge above) rather than comparing dates itself —
+ * deriving open/closed FROM dates is explicitly out of scope (paso 6,
+ * "estados por fecha"); this only picks which of the existing fields to
+ * quote.
+ */
+function resumenVentana(
+  estado: EdicionLocalDetalle['estado'],
+  periodo: NonNullable<EdicionLocalDetalle['periodo_general']>,
+): string {
+  if (estado === 'cerrado') {
+    const fecha = periodo.fecha_cierre_real ?? periodo.fecha_cierre_manual ?? periodo.fecha_cierre_automatica
+    return fecha ? `Inscripciones cerradas el ${formatFecha(fecha)}.` : 'Inscripciones cerradas.'
+  }
+  const fechaCierre = periodo.fecha_cierre_manual ?? periodo.fecha_cierre_automatica
+  return fechaCierre ? `Inscripciones abiertas hasta ${formatFecha(fechaCierre)}.` : 'Sin fecha de cierre.'
 }

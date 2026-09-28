@@ -1,8 +1,17 @@
 "use client";
 
 /**
- * T3 (odd/tasks/talleres-asistencia-lider.md) — the "Cerrar clase" action in
- * the Clases list of /talleres/[taller]/[edicion]/[grupo].
+ * T3 (odd/tasks/talleres-asistencia-lider.md) — the "Cerrar clase" action,
+ * originally a per-row control in the Clases list of
+ * /talleres/[taller]/[edicion]/[grupo].
+ *
+ * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — moved
+ * INSIDE the Asistencia register block, for the SELECTED clase only (the
+ * page renders it once now, not once per row): closing follows naturally
+ * after saving attendance, not from a list of every clase at once. The
+ * label now names the clase ("Cerrar clase N"), the same pattern
+ * EditarClaseInstanciada's icon-only action already used (T10) — `numero`
+ * is required since the page always knows it for the selected clase.
  *
  * POSTs to /api/talleres/sesiones/[id]/cerrar → talleres_cerrar_clase, which
  * decides whether THIS caller (the grupo's líder, or their supervisor) may
@@ -25,11 +34,12 @@ import { useNotificaciones } from "@/hooks/use-notificaciones";
 
 interface CerrarClaseProps {
   readonly sesionId: string;
+  readonly numero: number;
 }
 
 const FALLBACK_ERROR = "No se pudo cerrar la clase.";
 
-export function CerrarClase({ sesionId }: CerrarClaseProps) {
+export function CerrarClase({ sesionId, numero }: CerrarClaseProps) {
   const router = useRouter();
   const { success, error } = useNotificaciones();
   const [cargando, setCargando] = useState(false);
@@ -63,7 +73,7 @@ export function CerrarClase({ sesionId }: CerrarClaseProps) {
         void cerrar();
       }}
     >
-      Cerrar clase
+      Cerrar clase {numero}
     </BotonSistema>
   );
 }

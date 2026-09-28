@@ -23,24 +23,39 @@
  * plain number as `sesionesEstimadas`, never user-editable. A taller
  * with NO active plantilla clases keeps behaving exactly as before
  * (acceptance criterion 8) — the page passes `sesionesEstimadas: null`,
- * and this component falls back to its own original numeric field
- * (label, min=1, default=1, "1 semana = 1 sesión" helper text), sending
- * whatever the user types.
+ * and this component falls back to its own original numeric field,
+ * relabeled "Cantidad de clases" in T11 (one vocabulary: "clase", never
+ * "sesión", in talleres UI copy — docs/talleres-de-punta-a-punta.md §2),
+ * sending whatever the user types.
  *
- * After a successful open, open_edicion's instantiation summary (T2,
- * migration 20260927100000_talleres_instanciar_edicion.sql) is shown:
- * how many grupos were created, how many clases per grupo, and — when
- * non-empty — a warning naming every facilitador skipped because they
- * are no longer an active servidor (acceptance criterion 3).
+ * T11 — the "Duración por sesión (min)" field is GONE for good (not just
+ * conditionally): that value now lives on the taller as `duracion_minutos`
+ * (editable in PlantillaClasesSection's "cadencia y duración" controls),
+ * so the page derives it and passes it down as `duracionMinutos`, sent
+ * verbatim as `duracion_estimada_minutos`, never user-typed here.
  *
  * T10 (design audit) — the flat `bg-[var(--brand-primary)]` trigger became
  * a `BotonSistema variante="primario"`, and the form itself moved into a
  * `Dialog` opened from that trigger (it used to render inline, pushing the
  * rest of the taller screen down while open). Every raw `<input>`/
- * `<select>` became `InputSistema`/`SelectSistema`. T11 renames the
- * trigger's label ("Crear edición") and reworks the flow this form is
- * part of — this pass only touches layout and controls, not copy or
- * behaviour, except for the two voseo→neutral fixes below.
+ * `<select>` became `InputSistema`/`SelectSistema`.
+ *
+ * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+ * action is "Crear edición" everywhere (trigger, dialog title, submit
+ * button), never "Abrir": the edición is CREATED here (in `borrador`), and
+ * a separate "Abrir esta edición" control on the edición page later
+ * transitions it to `abierto` for inscriptions — two different verbs for
+ * two different transitions, no longer sharing a name. Before submitting,
+ * the dialog shows a PREVIEW computed from props the taller page already
+ * has: "Se crearán N grupos y M clases por grupo" (`gruposPlantillaActivos`
+ * and `sesionesEstimadas`), or, when the taller has no active plantilla
+ * clases, a notice asking how many it will have; and the list of plantilla
+ * facilitadores that `open_edicion` would omit right now because they are
+ * no longer active servidores of this equipo (`facilitadoresOmitidosPreview`,
+ * computed by the page via `previewFacilitadoresOmitidos`, acceptance
+ * criterion 3). On a successful create there is no more success card on
+ * the taller page — the form redirects straight to the new edición's page
+ * (`rutaEdicion`), since `openEdicion` already returns its id.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -56,10 +71,14 @@ import {
 } from '@/components/ui/sistema-diseno'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
-import { openEdicion, type OpenEdicionResult } from '@/app/(auth)/admin/talleres/abstracto/[slug]/actions'
+import { openEdicion } from '@/app/(auth)/admin/talleres/abstracto/[slug]/actions'
+import { rutaEdicion } from '@/lib/platform/talleres/rutas'
+import type { FacilitadorOmitidoPreview } from '@/lib/platform/talleres/plantilla'
 
 interface Input {
   readonly tallerId: string
+  /** T11 — needed to build rutaEdicion(tallerSlug, edicionId) after a successful create. */
+  readonly tallerSlug: string
   readonly tallerNombre: string
   readonly defaultModalidad: 'periodo_general' | 'permanente_custom'
   /**
@@ -71,36 +90,40 @@ interface Input {
   /**
    * T3 — number of active plantilla clases, or `null` when the taller
    * has none yet (acceptance criterion 8: keep the old form). A number
-   * is sent verbatim as `sesiones_estimadas`, hiding the field; `null`
-   * shows the field again and sends whatever the user types.
+   * is sent verbatim as `sesiones_estimadas`, hiding the field (and is
+   * also the preview's "M clases por grupo"); `null` shows the field
+   * again, sends whatever the user types, and switches the preview to a
+   * notice asking how many clases the edición will have.
    */
   readonly sesionesEstimadas: number | null
-}
-
-type Resumen = Extract<OpenEdicionResult, { ok: true }>
-
-function nombreCompletoOmitido(f: { nombre: string | null; apellido: string | null }): string {
-  return [f.nombre, f.apellido].filter((p): p is string => Boolean(p)).join(' ') || 'Persona sin nombre'
+  /** T11 — number of active plantilla grupos ("N" in the preview sentence). */
+  readonly gruposPlantillaActivos: number
+  /** T11 — plantilla facilitadores `open_edicion` would omit right now (lib/platform/talleres/plantilla.ts's previewFacilitadoresOmitidos). */
+  readonly facilitadoresOmitidosPreview: readonly FacilitadorOmitidoPreview[]
+  /** T11 — the taller's own `duracion_minutos`, sent verbatim as `duracion_estimada_minutos`; never user-editable here (docs §12: it lives on the taller). */
+  readonly duracionMinutos: number
 }
 
 export function OpenEdicionForm({
   tallerId,
+  tallerSlug,
   tallerNombre,
   defaultModalidad,
   temporadasAbiertas,
   sesionesEstimadas,
+  gruposPlantillaActivos,
+  facilitadoresOmitidosPreview,
+  duracionMinutos,
 }: Input): ReactElement {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
-  const [resumen, setResumen] = useState<Resumen | null>(null)
 
   const [nombreEdicion, setNombreEdicion] = useState('')
   const [tipo, setTipo] = useState<'individual' | 'pareja'>('pareja')
   const [linkType, setLinkType] = useState<'matrimonio' | 'novios' | ''>('')
-  const [sesiones, setSesiones] = useState<number>(1)
-  const [duracion, setDuracion] = useState<number>(60)
+  const [cantidadClases, setCantidadClases] = useState<number>(1)
   const [modalidad, setModalidad] = useState<'periodo_general' | 'permanente_custom'>(defaultModalidad)
   const [temporadaId, setTemporadaId] = useState<string>('')
   const [fechaInicio, setFechaInicio] = useState('')
@@ -110,7 +133,6 @@ export function OpenEdicionForm({
 
   function abrirDialogo(): void {
     setOpen(true)
-    setResumen(null)
     setError(null)
   }
 
@@ -128,8 +150,8 @@ export function OpenEdicionForm({
         tipo,
         nombre_edicion: nombreEdicion.trim(),
         link_type: tipo === 'pareja' && linkType !== '' ? (linkType as 'matrimonio' | 'novios') : null,
-        sesiones_estimadas: sesionesEstimadas ?? sesiones,
-        duracion_estimada_minutos: duracion,
+        sesiones_estimadas: sesionesEstimadas ?? cantidadClases,
+        duracion_estimada_minutos: duracionMinutos,
         modalidad_inscripcion: modalidad,
         fecha_inicio_periodo: new Date(fechaInicio).toISOString(),
         fecha_fin_periodo: fechaFin ? new Date(fechaFin).toISOString() : null,
@@ -138,13 +160,11 @@ export function OpenEdicionForm({
         temporada_id: temporadaId === '' ? null : temporadaId,
       })
       if (result.ok) {
-        router.refresh()
-        setNombreEdicion('')
-        setFechaInicio('')
-        setFechaFin('')
-        setTemporadaId('')
+        // T11 — no more success card on the taller page: land straight on
+        // the new edición, which already shows its own "borrador" banner
+        // and, when the viewer can edit it, the "Abrir esta edición" button.
         setOpen(false)
-        setResumen(result)
+        router.push(rutaEdicion(tallerSlug, result.edicionId))
       } else {
         setError(result.message ?? result.error)
       }
@@ -154,35 +174,40 @@ export function OpenEdicionForm({
   return (
     <div className="flex flex-col items-start gap-3">
       <BotonSistema type="button" variante="primario" tamaño="sm" icono={Plus} onClick={abrirDialogo}>
-        Abrir nueva edición
+        Crear edición
       </BotonSistema>
-
-      {resumen && (
-        <TarjetaSistema variante="outlined" className="w-full p-4">
-          <TextoSistema className="font-medium">Edición abierta</TextoSistema>
-          <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-            {resumen.gruposCreados.length} grupos creados · {resumen.clasesPorGrupo} clases por grupo
-          </TextoSistema>
-          {resumen.facilitadoresOmitidos.length > 0 && (
-            <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning">
-              No se asignaron (ya no son servidores activos): {resumen.facilitadoresOmitidos
-                .map((f) => `${nombreCompletoOmitido(f)} (${f.plantillaGrupo})`)
-                .join(', ')}
-            </TextoSistema>
-          )}
-        </TarjetaSistema>
-      )}
 
       <Dialog open={open} onOpenChange={(next) => (next ? abrirDialogo() : cerrarDialogo())}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Nueva edición de {tallerNombre}</DialogTitle>
+            <DialogTitle>Crear edición de {tallerNombre}</DialogTitle>
             <DialogDescription>
               Una edición es una ocurrencia específica del grupo (ej. &quot;otoño 2026&quot;). La
               edición se crea en estado <strong>borrador</strong>; puedes abrirla (cambiar a{' '}
               <code>abierto</code>) después desde la página de la edición.
             </DialogDescription>
           </DialogHeader>
+
+          {/* T11 — preview of what "Crear edición" will do, before the director confirms. */}
+          <TarjetaSistema variante="outlined" className="p-3">
+            {sesionesEstimadas !== null ? (
+              <TextoSistema tamaño="sm">
+                Se crearán {gruposPlantillaActivos} grupos y {sesionesEstimadas} clases por grupo.
+              </TextoSistema>
+            ) : (
+              <TextoSistema tamaño="sm">
+                Este taller no tiene clases en la plantilla: indica cuántas clases tendrá.
+              </TextoSistema>
+            )}
+            {facilitadoresOmitidosPreview.length > 0 && (
+              <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning">
+                No se asignarán porque ya no sirven en este equipo:{' '}
+                {facilitadoresOmitidosPreview
+                  .map((f) => `${f.nombre} (${f.plantillaGrupo})`)
+                  .join(', ')}
+              </TextoSistema>
+            )}
+          </TarjetaSistema>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
@@ -218,27 +243,14 @@ export function OpenEdicionForm({
               ]}
             />
             {sesionesEstimadas === null && (
-              <div>
-                <InputSistema
-                  label="Duración (semanas) *"
-                  type="number"
-                  min={1}
-                  value={sesiones}
-                  onChange={(e) => setSesiones(Number(e.target.value))}
-                />
-                <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                  1 semana = 1 sesión.
-                </TextoSistema>
-              </div>
+              <InputSistema
+                label="Cantidad de clases *"
+                type="number"
+                min={1}
+                value={cantidadClases}
+                onChange={(e) => setCantidadClases(Number(e.target.value))}
+              />
             )}
-            <InputSistema
-              label="Duración por sesión (min) *"
-              type="number"
-              min={15}
-              step={15}
-              value={duracion}
-              onChange={(e) => setDuracion(Number(e.target.value))}
-            />
             <SelectSistema
               label="Modalidad"
               value={modalidad}
@@ -287,7 +299,7 @@ export function OpenEdicionForm({
               Cancelar
             </BotonSistema>
             <BotonSistema type="button" variante="primario" icono={Send} onClick={submit} disabled={!canSubmit}>
-              {pending ? 'Abriendo…' : 'Abrir edición'}
+              {pending ? 'Creando…' : 'Crear edición'}
             </BotonSistema>
           </div>
         </DialogContent>

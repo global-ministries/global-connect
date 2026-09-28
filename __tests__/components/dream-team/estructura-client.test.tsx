@@ -117,6 +117,41 @@ describe('EstructuraClient', () => {
     expect(screen.getByText('Talleres de Crecimiento')).toBeInTheDocument()
   })
 
+  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+  // node -> taller: a node whose id matches tallerPorEquipoId gets an
+  // "Abrir taller {nombre}" icon link; a node with no matching taller
+  // gets none.
+  it('links a node to its taller when tallerPorEquipoId names one for it', () => {
+    const arbol = [nodo({ id: 'dps', label: 'Equipo DPS' })]
+
+    render(
+      <EstructuraClient
+        arbol={arbol}
+        rolesPorEquipo={{}}
+        puedeEditar={false}
+        tallerPorEquipoId={{ dps: { slug: 'proximo-paso', nombre: 'Próximo Paso' } }}
+      />,
+    )
+
+    const link = screen.getByRole('link', { name: 'Abrir taller Próximo Paso' })
+    expect(link).toHaveAttribute('href', '/talleres/proximo-paso')
+  })
+
+  it('shows no taller link for a node absent from tallerPorEquipoId', () => {
+    const arbol = [nodo({ id: 'dps', label: 'Equipo DPS' })]
+
+    render(
+      <EstructuraClient
+        arbol={arbol}
+        rolesPorEquipo={{}}
+        puedeEditar={false}
+        tallerPorEquipoId={{ 'otro-equipo': { slug: 'otro', nombre: 'Otro' } }}
+      />,
+    )
+
+    expect(screen.queryByRole('link', { name: /abrir taller/i })).not.toBeInTheDocument()
+  })
+
   it('never renders a raw catalog or rol key', () => {
     const arbol = [nodo({ id: 'atraccion-equipo', label: 'Equipo de Atracción', experiencia: 'atraccion' })]
 

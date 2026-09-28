@@ -103,6 +103,11 @@ function groupIdForItemId(id: TalleresNavItemId): TalleresNavGroupId | null {
   if (id === 'talleres_catalogo') return 'P'
   if (id.startsWith('talleres_participante_')) return 'P'
   if (id.startsWith('talleres_grupos_') || id.startsWith('talleres_sesiones_')) return 'L'
+  // T11 — "Mis grupos" doesn't follow the talleres_grupos_ prefix
+  // convention (its id names what it IS, not a deleted old route), so it
+  // needs its own explicit branch, same pattern as talleres_pendientes/
+  // talleres_reportes/talleres_temporadas below.
+  if (id === 'talleres_mis_grupos') return 'L'
   // T6 — talleres_pendientes matches no role-specific prefix by design
   // (it belongs to neither Coordinación nor Dirección alone).
   if (id === 'talleres_pendientes') return 'B'

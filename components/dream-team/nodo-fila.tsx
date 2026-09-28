@@ -29,7 +29,8 @@
  * ids, same pattern as GruposList.client.tsx's show/hide toggle) — this
  * component only renders the chevron and reports clicks.
  */
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 import { Fragment, type ReactElement, type ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
@@ -70,6 +71,17 @@ export interface NodoFilaProps {
    * actions, which this row also never decides for itself.
    */
   readonly mostrarResponsables?: boolean
+  /**
+   * T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
+   * node -> taller: when this node's id backs a taller
+   * (`talleres.dream_team_equipo_id`), the caller passes the taller's own
+   * URL (already built via rutaTaller — this component never imports the
+   * talleres route module) and name; an icon link to it renders in the
+   * trailing area. Plain data, never a component — the icon itself is
+   * imported HERE, not passed as a prop (see talleres-rsc-icon-props.test.ts).
+   */
+  readonly tallerHref?: string
+  readonly tallerNombre?: string
 }
 
 export function NodoFila({
@@ -81,6 +93,8 @@ export function NodoFila({
   onToggleExpandido,
   accesorio,
   mostrarResponsables = true,
+  tallerHref,
+  tallerNombre,
 }: NodoFilaProps): ReactElement {
   const indentacion = Math.min(nivel * NODO_FILA_INDENTACION_PX_POR_NIVEL, NODO_FILA_INDENTACION_PX_MAXIMA)
   const ChevronIcon = expandido ? ChevronDown : ChevronRight
@@ -160,7 +174,21 @@ export function NodoFila({
           )}
         </div>
 
-        {accesorio && <div className="flex flex-shrink-0 items-center gap-1">{accesorio}</div>}
+        {(tallerHref && tallerNombre) || accesorio ? (
+          <div className="flex flex-shrink-0 items-center gap-1">
+            {tallerHref && tallerNombre && (
+              <Link
+                href={tallerHref}
+                aria-label={`Abrir taller ${tallerNombre}`}
+                title={`Abrir taller ${tallerNombre}`}
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            )}
+            {accesorio}
+          </div>
+        ) : null}
       </div>
     </div>
   )
