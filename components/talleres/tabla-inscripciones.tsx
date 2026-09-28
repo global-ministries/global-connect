@@ -307,6 +307,19 @@ function formatFecha(value: string): string {
   }
 }
 
+/**
+ * T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — tooltip text
+ * for a "Sobre el cupo" row, "Inscrita por {nombre} el {fecha}". Both
+ * fields are optional on `InscripcionAdminRow` (only loadAdminInscripciones
+ * populates them today) — falls back to a plain label rather than
+ * rendering "undefined" if either is missing.
+ */
+function sobreCupoTooltip(row: InscripcionAdminRow): string {
+  const nombre = row.sobre_cupo_por_nombre ?? '—'
+  const fecha = row.sobre_cupo_en ? formatFecha(row.sobre_cupo_en) : '—'
+  return `Inscrita por ${nombre} el ${fecha}`
+}
+
 // ─── Component ─────────────────────────────────────────────────────────
 
 export function TablaInscripciones({
@@ -381,13 +394,20 @@ export function TablaInscripciones({
                       </td>
                     )}
                     <td className="px-4 py-3">
-                      <div className="flex flex-col">
+                      <div className="flex flex-col gap-1">
                         <span className="text-sm font-medium text-foreground">
                           {row.persona_principal_nombre}
                         </span>
                         {row.persona_principal_email && (
                           <span className="text-xs text-muted-foreground">
                             {row.persona_principal_email}
+                          </span>
+                        )}
+                        {row.sobre_cupo && (
+                          <span title={sobreCupoTooltip(row)}>
+                            <BadgeSistema variante="warning" tamaño="sm">
+                              Sobre el cupo
+                            </BadgeSistema>
                           </span>
                         )}
                       </div>
@@ -488,6 +508,15 @@ export function TablaInscripciones({
                     <TextoSistema variante="sutil" className="mt-1 block text-xs">
                       + {row.companero_nombre}
                     </TextoSistema>
+                  )}
+                  {row.sobre_cupo && (
+                    <div className="mt-1">
+                      <span title={sobreCupoTooltip(row)}>
+                        <BadgeSistema variante="warning" tamaño="sm">
+                          Sobre el cupo
+                        </BadgeSistema>
+                      </span>
+                    </div>
                   )}
                 </div>
                 <BadgeSistema variante={estadoVariante(row.estado)} tamaño="sm">

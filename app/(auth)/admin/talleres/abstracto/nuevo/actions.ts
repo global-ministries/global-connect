@@ -30,6 +30,15 @@ export interface CreateTallerAbstractInput {
   readonly equipoId?: string | null
   /** T3 — create a new node under this active parent. Exactly one of equipoId/parentEquipoId is required. */
   readonly parentEquipoId?: string | null
+  /**
+   * T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 5,
+   * 20260928140000_talleres_paso6_hardening.sql) — wins over the regimen
+   * `modalidad_default` would otherwise derive (periodo_general ->
+   * temporada, permanente_custom -> cadencia). `crear-taller-form.tsx`
+   * always sends this now; omitted only for callers that still only pick
+   * a modalidad.
+   */
+  readonly regimen?: 'temporada' | 'cadencia' | null
 }
 
 export type CreateTallerAbstractResult =
@@ -126,6 +135,7 @@ export async function createTallerAbstract(
     p_slug: input.slug?.trim() ?? '',
     p_equipo_id: equipoId,
     p_parent_equipo_id: parentEquipoId,
+    p_regimen: input.regimen ?? null,
   })
 
   if (error || !data) {

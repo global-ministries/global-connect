@@ -22,6 +22,7 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { loadCupoEdicion } from '@/lib/platform/talleres/operacional'
 
 export interface ParticipanteContext {
   readonly supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
@@ -326,6 +327,14 @@ export interface ParticipanteExplorarRow {
    * Explorar shows "Inscripción hasta {cierre_inscripcion}" when present.
    */
   readonly cierre_inscripcion: string | null
+  /**
+   * T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — true when
+   * this edición has a defined cupo (`talleres_cupo_edicion` RPC, migration
+   * 20260928130000_talleres_cupo.sql) that is already full. The explorar
+   * client disables self-enroll for these ("Cupo completo") instead of
+   * letting the RLS gate raise CUPO_LLENO after the fact.
+   */
+  readonly cupo_completo: boolean
 }
 
 /**
@@ -447,6 +456,20 @@ export async function loadParticipanteExplorar(
     ),
   )
 
+  // T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — one
+  // talleres_cupo_edicion call per visible edición (explorar only ever
+  // lists the currently-open ones, so this stays a small, bounded list —
+  // "keep it simple" per this task's own instruction rather than a
+  // dedicated batched RPC). Reuses loadCupoEdicion's own best-effort
+  // contract (never throws, degrades to null) instead of duplicating it.
+  const cupoCompletoByEdicion = new Map<string, boolean>()
+  const cupoResultados = await Promise.all(
+    edicionIds.map(async (id) => ({ id, cupo: await loadCupoEdicion(client, id) })),
+  )
+  for (const { id, cupo } of cupoResultados) {
+    cupoCompletoByEdicion.set(id, Boolean(cupo && cupo.cupo > 0 && cupo.disponibles <= 0))
+  }
+
   return ediciones.map((row) => {
     const periodo = periodoByEdicion.get(row.id)
     return {
@@ -464,6 +487,7 @@ export async function loadParticipanteExplorar(
       fecha_apertura: periodo?.fecha_apertura_automatica ?? null,
       fecha_cierre: periodo?.fecha_cierre_automatico ?? null,
       cierre_inscripcion: row.cierre_inscripcion ?? null,
+      cupo_completo: cupoCompletoByEdicion.get(row.id) ?? false,
     }
   })
 }

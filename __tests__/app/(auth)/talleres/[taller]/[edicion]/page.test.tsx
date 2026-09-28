@@ -28,6 +28,7 @@ import EdicionDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/page'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
+import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { ContenedorDashboard, TituloSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
@@ -55,6 +56,7 @@ jest.mock('@/lib/platform/talleres/catalogo', () => ({
 
 jest.mock('@/lib/platform/talleres/operacional', () => ({
   loadEdicionLocalDetalle: jest.fn(),
+  loadCupoEdicion: jest.fn(),
 }))
 
 jest.mock('@/lib/platform/talleres/admin-inscripciones', () => ({
@@ -98,6 +100,8 @@ const loadTallerDetalleMock = jest.requireMock('@/lib/platform/talleres/catalogo
   .loadTallerDetalle as jest.Mock
 const loadEdicionLocalDetalleMock = jest.requireMock('@/lib/platform/talleres/operacional')
   .loadEdicionLocalDetalle as jest.Mock
+const loadCupoEdicionMock = jest.requireMock('@/lib/platform/talleres/operacional')
+  .loadCupoEdicion as jest.Mock
 const loadAdminInscripcionesMock = jest.requireMock('@/lib/platform/talleres/admin-inscripciones')
   .loadAdminInscripciones as jest.Mock
 const loadGruposDeCohorteMock = jest.requireMock('@/lib/platform/talleres/grupo-detalle')
@@ -184,6 +188,7 @@ interface SetupOpts {
   edicionDetalle?: EdicionLocalDetalle | null
   permisos?: Partial<PermisosTaller>
   inscripciones?: AdminInscripcionesResult
+  cupo?: { cupo: number; ocupados: number; disponibles: number; sobreCupo: number; unidad: 'personas' | 'parejas' } | null
 }
 
 function setup(opts: SetupOpts): void {
@@ -224,6 +229,7 @@ function setup(opts: SetupOpts): void {
     .mockResolvedValue([{ id: 'g-1', nombre: 'Grupo Alfa' }])
   loadGruposInstanciadosMock.mockReset().mockResolvedValue([])
   loadServidoresDelTallerMock.mockReset().mockResolvedValue({ ok: true, servidores: [] })
+  loadCupoEdicionMock.mockReset().mockResolvedValue(opts.cupo === undefined ? null : opts.cupo)
 }
 
 function params(taller = 'matrimonio-sobre-la-roca', edicion = 'e-1') {
@@ -540,6 +546,81 @@ describe('EdicionDetallePage — content', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
     expect(extractText(element)).toMatch(/Borrador/)
+  })
+
+  // T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the Cupo line.
+  describe('Cupo (T6)', () => {
+    it('shows "{ocupados} de {cupo} personas · {disponibles} disponibles" for an individual edición', async () => {
+      setup({ cupo: { cupo: 2, ocupados: 2, disponibles: 0, sobreCupo: 0, unidad: 'personas' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).toMatch(/2 de 2 personas · 0 disponibles/)
+    })
+
+    // T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 7,
+    // 20260928140000_talleres_paso6_hardening.sql) — a pareja edición says
+    // "parejas", not a bare number/"plazas".
+    it('shows "{ocupados} de {cupo} parejas · {disponibles} disponibles" for a pareja edición', async () => {
+      setup({ cupo: { cupo: 12, ocupados: 8, disponibles: 4, sobreCupo: 0, unidad: 'parejas' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).toMatch(/8 de 12 parejas · 4 disponibles/)
+    })
+
+    it('shows "Sin cupo definido" when cupo is 0', async () => {
+      setup({ cupo: { cupo: 0, ocupados: 3, disponibles: 0, sobreCupo: 0, unidad: 'personas' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).toMatch(/Sin cupo definido/)
+    })
+
+    it('shows a "{n} sobre el cupo" warning badge when sobreCupo > 0', async () => {
+      setup({ cupo: { cupo: 2, ocupados: 3, disponibles: 0, sobreCupo: 1, unidad: 'personas' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).toMatch(/1\s+sobre el cupo/)
+    })
+
+    it('never shows the "sobre el cupo" badge when sobreCupo is 0', async () => {
+      setup({ cupo: { cupo: 2, ocupados: 2, disponibles: 0, sobreCupo: 0, unidad: 'personas' } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).not.toMatch(/sobre el cupo/)
+    })
+
+    it('shows nothing when loadCupoEdicion degrades to null', async () => {
+      setup({ cupo: null })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(extractText(element)).not.toMatch(/personas|parejas/)
+      expect(extractText(element)).not.toMatch(/Sin cupo definido/)
+    })
+  })
+
+  // T6 — "Inscribir persona" (InscribirPersonaForm) gates the same way
+  // TablaInscripciones's canWrite already does: aprobarInscripciones AND a
+  // cohorte to insert against.
+  describe('Inscribir persona (T6)', () => {
+    it('renders when aprobarInscripciones is true and the edición has a cohorte', async () => {
+      setup({ permisos: { aprobarInscripciones: true } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, InscribirPersonaForm)).not.toBeNull()
+    })
+
+    it('does not render when aprobarInscripciones is false', async () => {
+      setup({ permisos: { aprobarInscripciones: false } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, InscribirPersonaForm)).toBeNull()
+    })
+
+    it('does not render when the edición has no cohorte', async () => {
+      setup({ permisos: { aprobarInscripciones: true }, edicionDetalle: { ...EDICION, cohorte: null } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, InscribirPersonaForm)).toBeNull()
+    })
   })
 
   // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — "Ventana"

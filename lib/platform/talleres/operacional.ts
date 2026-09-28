@@ -811,6 +811,58 @@ export async function loadEdicionLocalDetalle(
   }
 }
 
+/**
+ * T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the edicion's
+ * cupo, via the `talleres_cupo_edicion` RPC (migration 20260928130000_
+ * talleres_cupo.sql). `cupo = 0` means "sin cupo definido" (no limit), not
+ * zero seats — the caller decides how to render that, this loader just
+ * passes the RPC's own shape through. A missing/errored RPC call (e.g. the
+ * viewer can't SELECT this edicion) degrades to `null` rather than
+ * throwing, same "best effort, never blocks the page" contract as
+ * refrescarEstadosEdiciones.
+ */
+export interface CupoEdicion {
+  readonly cupo: number
+  readonly ocupados: number
+  readonly disponibles: number
+  readonly sobreCupo: number
+  /**
+   * T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 7,
+   * 20260928140000_talleres_paso6_hardening.sql) — "parejas" for a
+   * tipo=pareja edicion, "personas" otherwise. 1 inscripcion was already 1
+   * seat either way (a pareja is one row); this only makes the unit
+   * visible on the edición page ("8 de 12 parejas").
+   */
+  readonly unidad: 'personas' | 'parejas'
+}
+
+export async function loadCupoEdicion(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  client: any,
+  edicionId: string
+): Promise<CupoEdicion | null> {
+  try {
+    const { data, error } = await client.rpc('talleres_cupo_edicion', { p_edicion_id: edicionId })
+    if (error || !data || data.length === 0) return null
+    const row = data[0] as {
+      cupo: number
+      ocupados: number
+      disponibles: number
+      sobre_cupo: number
+      unidad: 'personas' | 'parejas'
+    }
+    return {
+      cupo: row.cupo,
+      ocupados: row.ocupados,
+      disponibles: row.disponibles,
+      sobreCupo: row.sobre_cupo,
+      unidad: row.unidad,
+    }
+  } catch {
+    return null
+  }
+}
+
 export interface DirResumenCounts {
   readonly talleres_activos: number
   readonly inscripciones_pendientes: number

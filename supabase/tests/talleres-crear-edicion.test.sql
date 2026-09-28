@@ -364,7 +364,16 @@ SELECT pg_temp.assert_sqlstate_msg('(l) a negative p_adelantar is refused',
   'P0001', 'ADELANTAR_INVALIDO');
 
 -- ══ (h) open_edicion legacy call: p_tipo/p_link_type/p_modalidad ignored ══
-
+--
+-- T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md,
+-- 20260928140000_talleres_paso6_hardening.sql, item 4): open_edicion no
+-- longer grants EXECUTE to authenticated. This call is exercising
+-- open_edicion's own param-ignoring behavior, not its authorization, so it
+-- runs as postgres — auth.uid() still resolves the director via the JWT
+-- claim already set above (set_config's third arg is transaction-local, so
+-- it survives the role switch) — then role is restored to authenticated
+-- for cases (g)/(i) below.
+RESET ROLE;
 DO $h$
 DECLARE
   v_resultado jsonb;
@@ -380,6 +389,8 @@ BEGIN
   INSERT INTO t_ce_fixture (key, id) VALUES ('edicion_h', (v_resultado ->> 'edicion_id')::uuid);
 END;
 $h$;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('b5000000-0000-4000-8000-000000000030');
 
 SELECT pg_temp.assert_rows('(h) the edicion keeps the taller''s own tipo/link_type, not the ignored params',
   $$SELECT 1 FROM public.taller_ediciones

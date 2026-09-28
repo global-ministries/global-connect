@@ -56,6 +56,7 @@ jest.mock('@/lib/platform/talleres/catalogo', () => ({
 
 jest.mock('@/lib/platform/talleres/operacional', () => ({
   loadEdicionLocalDetalle: jest.fn(),
+  loadCupoEdicion: jest.fn().mockResolvedValue(null),
 }))
 
 jest.mock('@/lib/platform/talleres/permisos', () => {

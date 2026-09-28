@@ -94,6 +94,9 @@ const baseRow = {
   // edición's own cierre_inscripcion (never the deprecated periodo dates
   // above), shown as "Inscripción hasta {fecha}".
   cierre_inscripcion: '2026-09-15',
+  // T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — not full
+  // by default; the "Cupo completo" tests below override this.
+  cupo_completo: false,
 }
 
 describe('ExplorarTalleresClient — card content (PR38)', () => {
@@ -202,6 +205,47 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
     expect(
       screen.getByText(/Edición Septiembre 2026 · Individual/),
     ).toBeInTheDocument()
+  })
+})
+
+// T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — when the
+// edición's cupo is full, the card shows "Cupo completo" and self-enroll
+// is disabled, exactly like the pre-existing "Ya inscripto" case.
+describe('ExplorarTalleresClient — cupo completo (T6)', () => {
+  it('disables the card and shows "Cupo completo" when cupo_completo is true', () => {
+    render(
+      <ExplorarTalleresClient
+        talleres={[{ ...baseRow, id: 'ed-lleno', cupo_completo: true }]}
+        defaultCohorteId=""
+      />,
+    )
+
+    expect(screen.getByText('Cupo completo')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/)).toBeDisabled()
+  })
+
+  it('never shows "Cupo completo" when ya_inscrito is already true', () => {
+    render(
+      <ExplorarTalleresClient
+        talleres={[{ ...baseRow, id: 'ed-inscrito-lleno', ya_inscrito: true, cupo_completo: true }]}
+        defaultCohorteId=""
+      />,
+    )
+
+    expect(screen.getByText('Ya inscripto')).toBeInTheDocument()
+    expect(screen.queryByText('Cupo completo')).not.toBeInTheDocument()
+  })
+
+  it('does not open the FAB when selecting a full edición is attempted', () => {
+    render(
+      <ExplorarTalleresClient
+        talleres={[{ ...baseRow, id: 'ed-lleno-2', cupo_completo: true }]}
+        defaultCohorteId=""
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/))
+    expect(screen.queryByTestId('explorar-fab')).not.toBeInTheDocument()
   })
 })
 

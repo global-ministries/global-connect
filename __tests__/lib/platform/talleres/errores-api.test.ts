@@ -129,3 +129,71 @@ describe('traducirErrorTalleres — temporadas por dirección branches (T5)', ()
     expect(result.message).not.toMatch(/tenés|podés|vos\b/i)
   })
 })
+
+// T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — cupo
+// (migration 20260928130000_talleres_cupo.sql): CUPO_LLENO gets its OWN
+// distinct `error` code ('cupo-lleno', not the generic 'conflict') so the
+// edición page's "Inscribir persona" control can tell it apart from any
+// other failure and only THEN offer the "Inscribir igual (sobre el cupo)"
+// second step. YA_INSCRITO stays a plain 'conflict', same as every other
+// duplicate-enrolment case.
+describe('traducirErrorTalleres — cupo branches (T6)', () => {
+  it('maps P0001 CUPO_LLENO to its own distinct error code, not the generic conflict', () => {
+    const result = traducirErrorTalleres({ code: 'P0001', message: 'CUPO_LLENO' })
+    expect(result.status).toBe(409)
+    expect(result.error).toBe('cupo-lleno')
+    expect(result.error).not.toBe('conflict')
+    expect(result.message.length).toBeGreaterThan(0)
+    expect(result.message).not.toMatch(/tenés|podés|vos\b/i)
+  })
+
+  it('maps P0001 YA_INSCRITO to 409 conflict with a neutral Spanish message', () => {
+    const result = traducirErrorTalleres({ code: 'P0001', message: 'YA_INSCRITO' })
+    expect(result.status).toBe(409)
+    expect(result.error).toBe('conflict')
+    expect(result.message).toMatch(/ya está inscrita/i)
+    expect(result.message).not.toMatch(/tenés|podés|vos\b/i)
+  })
+
+  it('talleres_inscribir_sobre_cupo reuses the existing sin_permisos_para_este_taller mapping', () => {
+    // Same 42501 key talleres_crear_edicion already uses — no new entry
+    // needed for this one (see errores-api.ts's own MAPA).
+    const result = traducirErrorTalleres({ code: '42501', message: 'sin_permisos_para_este_taller' })
+    expect(result.status).toBe(403)
+    expect(result.error).toBe('forbidden')
+  })
+})
+
+// T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md,
+// 20260928140000_talleres_paso6_hardening.sql) — every RAISE code across
+// the four paso-6 migrations (plus this hardening one) that had no MAPA
+// entry of its own yet. Each must resolve to a non-fallback message: the
+// generic 500 fallback (INTERNO) or a bare 42501-without-a-specific-match
+// would mean the raw RAISE text or SQLSTATE leaked to the browser instead
+// of a friendly, neutral-Spanish message.
+describe('traducirErrorTalleres — T7 hardening: every remaining paso-6 code is mapped', () => {
+  const CODIGOS_RESTANTES: ReadonlyArray<readonly [string, string, number]> = [
+    ['FECHA_INICIO_REQUIRED', 'P0001', 400],
+    ['TALLER_NOT_FOUND_OR_INACTIVE', 'P0002', 404],
+    ['TALLER_MISSING_EQUIPO', 'P0002', 409],
+    ['sin_permisos_para_esta_edicion', '42501', 403],
+    ['UNAUTHENTICATED', '42501', 401],
+    ['FORBIDDEN', '42501', 403],
+    ['NOMBRE_EDICION_REQUIRED', '22023', 400],
+    ['SESIONES_MUST_BE_POSITIVE', '22023', 400],
+    ['SOBRE_CUPO_NO_AUTORIZADO', 'P0001', 403],
+    ['TEMPORADA_NO_DISPONIBLE', 'P0001', 409],
+    ['EDICION_NO_ABIERTA', 'P0001', 409],
+    ['COMPANERO_REQUERIDO', 'P0001', 400],
+    ['INVALID_REGIMEN', '22023', 400],
+  ]
+
+  it.each(CODIGOS_RESTANTES)('maps %s (%s) to a non-fallback message', (codigo, sqlstate, expectedStatus) => {
+    const result = traducirErrorTalleres({ code: sqlstate, message: codigo })
+    expect(result.status).toBe(expectedStatus)
+    expect(result.status).not.toBe(500)
+    expect(result.error).not.toBe('internal')
+    expect(result.message.length).toBeGreaterThan(0)
+    expect(result.message).not.toMatch(/tenés|podés|vos\b|creá|elegí/i)
+  })
+})

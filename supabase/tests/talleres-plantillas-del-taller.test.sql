@@ -358,6 +358,14 @@ SELECT pg_temp.assert_rows('(e) clase 1 tema is untouched',
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('ae000000-0000-4000-8000-000000000020');
+-- T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md,
+-- 20260928140000_talleres_paso6_hardening.sql, item 4): open_edicion no
+-- longer grants EXECUTE to authenticated. This fixture call only needs a
+-- real cohorte, not to exercise open_edicion's own authorization, so it
+-- runs as postgres — auth.uid() still resolves the director via the JWT
+-- claim set above (set_config's third arg is transaction-local, so it
+-- survives the role switch).
+RESET ROLE;
 
 DO $ed$
 DECLARE
@@ -373,8 +381,6 @@ BEGIN
     ('cohorte', (v_resultado ->> 'cohorte_id')::uuid);
 END;
 $ed$;
-
-RESET ROLE;
 
 DO $grupo$
 DECLARE

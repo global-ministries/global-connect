@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import type { OpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
+import { regimenLabel, type TallerRegimen } from '@/components/talleres/labels'
 
 import { createTallerAbstract } from '@/app/(auth)/admin/talleres/abstracto/nuevo/actions'
 
@@ -63,7 +64,13 @@ export function CrearTallerAbstractoForm({ opciones }: Props): ReactElement {
 
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')
-  const [modalidad, setModalidad] = useState<'periodo_general' | 'permanente_custom'>('periodo_general')
+  // T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 5,
+  // 20260928140000_talleres_paso6_hardening.sql) — the form asks for
+  // régimen directly (the concept the taller's own "Configuración" screen
+  // already uses) instead of the old technical "Modalidad default" pair;
+  // modalidad_default is derived from it 1:1 and sent alongside p_regimen,
+  // which wins server-side.
+  const [regimen, setRegimen] = useState<TallerRegimen>('temporada')
   const [slug, setSlug] = useState('')
   const [modo, setModo] = useState<ModoEquipo>('vincular')
   const [equipoId, setEquipoId] = useState('')
@@ -92,6 +99,7 @@ export function CrearTallerAbstractoForm({ opciones }: Props): ReactElement {
     setModo('vincular')
     setEquipoId('')
     setParentEquipoId('')
+    setRegimen('temporada')
     setErroresCampo({})
   }
 
@@ -104,7 +112,11 @@ export function CrearTallerAbstractoForm({ opciones }: Props): ReactElement {
       const result = await createTallerAbstract({
         nombre,
         descripcion: descripcion.trim() === '' ? null : descripcion,
-        modalidad_default: modalidad,
+        // Derived 1:1 from régimen (temporada -> periodo_general, cadencia
+        // -> permanente_custom) — p_regimen (below) is what actually wins
+        // server-side; this keeps the legacy column populated sensibly.
+        modalidad_default: regimen === 'cadencia' ? 'permanente_custom' : 'periodo_general',
+        regimen,
         slug: slug.trim() === '' ? undefined : slug,
         equipoId: modo === 'vincular' ? equipoId : undefined,
         parentEquipoId: modo === 'nuevo' ? parentEquipoId : undefined,
@@ -161,13 +173,13 @@ export function CrearTallerAbstractoForm({ opciones }: Props): ReactElement {
           />
         </div>
         <SelectSistema
-          label="Modalidad default"
+          label="Régimen"
           opciones={[
-            { valor: 'periodo_general', etiqueta: 'Periodo general' },
-            { valor: 'permanente_custom', etiqueta: 'Permanente custom' },
+            { valor: 'temporada', etiqueta: regimenLabel('temporada') },
+            { valor: 'cadencia', etiqueta: regimenLabel('cadencia') },
           ]}
-          value={modalidad}
-          onValueChange={(v) => setModalidad(v as 'periodo_general' | 'permanente_custom')}
+          value={regimen}
+          onValueChange={(v) => setRegimen(v as TallerRegimen)}
         />
 
         <SelectSistema

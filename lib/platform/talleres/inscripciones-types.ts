@@ -69,4 +69,16 @@ export interface InscripcionAdminRow {
    */
   readonly grupo_id: string | null
   readonly grupo_nombre: string | null
+  /**
+   * T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — placed
+   * above the edición's cupo by a director/coordinator/admin via
+   * talleres_inscribir_sobre_cupo. Optional (defaults to false when a
+   * loader omits it) so the two other constructors of this shape
+   * (loadCoordInscripcionesPendientes, loadPendientesInscripciones) don't
+   * need updating just to keep compiling — only loadAdminInscripciones
+   * (the edición page's own loader) currently populates it.
+   */
+  readonly sobre_cupo?: boolean
+  readonly sobre_cupo_por_nombre?: string | null
+  readonly sobre_cupo_en?: string | null
 }

@@ -20,12 +20,19 @@
  * dates (talleres_estado_efectivo), never a manual transition — see
  * labels.ts's edicionEstadoLabel/edicionEstadoBadgeVariante. Manual states
  * are only borrador and cancelado (Decisiones): CancelarEdicionButton
- * replaces it, calling the NEW `cancelarEdicion` action (app/(auth)/
- * talleres/[taller]/[edicion]/actions.ts, RLS-direct UPDATE, not the
- * legacy admin RPC-adjacent action file OpenEdicionButton still uses) from
- * a confirm Dialog that warns — but never blocks — when the edición has
- * inscritos. `closeExistingEdicionAction` is removed alongside it (this
- * was its only caller — verified with rg).
+ * replaces it, calling the NEW `cancelarEdicion` action
+ * (app/(auth)/talleres/[taller]/[edicion]/actions.ts, RLS-direct UPDATE)
+ * from a confirm Dialog that warns — but never blocks — when the edición
+ * has inscritos. `closeExistingEdicionAction` is removed alongside it
+ * (this was its only caller — verified with rg).
+ *
+ * OpenEdicionButton itself calls `openExistingEdicionAction`
+ * (app/(auth)/admin/talleres/edicion/[id]/actions.ts, borrador → abierto),
+ * NOT `open_edicion`/`openEdicion` — those are for CREATING a brand new
+ * edición and, since T7 hardening (item 4,
+ * 20260928140000_talleres_paso6_hardening.sql), the `openEdicion` action
+ * they used to live behind no longer exists at all (its own RPC lost its
+ * EXECUTE grant for authenticated).
  */
 
 import {

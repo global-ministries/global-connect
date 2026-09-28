@@ -27,6 +27,7 @@ import {
   loadCoordTalleresAgrupados,
   loadDirResumen,
   loadEdicionLocalDetalle,
+  loadCupoEdicion,
 } from '@/lib/platform/talleres/operacional'
 import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
 
@@ -696,6 +697,40 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     expect(result.inscripciones_count).toBe(0)
     expect(result.inscripciones_aprobadas_count).toBe(0)
     expect(result.certificados_count).toBe(0)
+  })
+})
+
+// ─── loadCupoEdicion — T6 (talleres-temporadas-y-ediciones.md, paso 6) ──────
+
+describe('loadCupoEdicion — talleres_cupo_edicion RPC', () => {
+  it('maps the RPC row into camelCase', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: [{ cupo: 2, ocupados: 2, disponibles: 0, sobre_cupo: 1 }],
+      error: null,
+    })
+
+    const result = await loadCupoEdicion({ rpc }, 'e-1')
+
+    expect(rpc).toHaveBeenCalledWith('talleres_cupo_edicion', { p_edicion_id: 'e-1' })
+    expect(result).toEqual({ cupo: 2, ocupados: 2, disponibles: 0, sobreCupo: 1 })
+  })
+
+  it('returns null on an RPC error (never blocks the page)', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: null, error: { message: '42501' } })
+    const result = await loadCupoEdicion({ rpc }, 'e-1')
+    expect(result).toBeNull()
+  })
+
+  it('returns null when the RPC throws outright', async () => {
+    const rpc = jest.fn().mockRejectedValue(new Error('network'))
+    const result = await loadCupoEdicion({ rpc }, 'e-1')
+    expect(result).toBeNull()
+  })
+
+  it('returns null on an empty result set', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: [], error: null })
+    const result = await loadCupoEdicion({ rpc }, 'e-1')
+    expect(result).toBeNull()
   })
 })
 

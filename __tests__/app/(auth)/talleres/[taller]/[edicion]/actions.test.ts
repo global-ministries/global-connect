@@ -15,8 +15,11 @@
 
 import {
   agregarFacilitadorGrupo,
+  agregarInscripcion,
+  buscarPersonasParaInscribir,
   cancelarEdicion,
   editarGrupoInstanciado,
+  inscribirSobreCupo,
   quitarFacilitadorGrupo,
 } from '@/app/(auth)/talleres/[taller]/[edicion]/actions'
 
@@ -343,5 +346,199 @@ describe('cancelarEdicion — not in borrador/abierto (RLS-empty)', () => {
       expect(result.message).toMatch(/permisos/i)
     }
     expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — cupo ──────
+
+describe('buscarPersonasParaInscribir — kill switch & short query', () => {
+  it('returns ok:false when the talleres flag is off', async () => {
+    const { rpc } = setupRpc({ isEnabled: false })
+    const result = await buscarPersonasParaInscribir('juan')
+    expect(result.ok).toBe(false)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('never calls the RPC for a query shorter than 2 characters', async () => {
+    const { rpc } = setupRpc({})
+    const result = await buscarPersonasParaInscribir('j')
+    expect(result.ok).toBe(true)
+    expect(result.personas).toEqual([])
+    expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('buscarPersonasParaInscribir — happy path & error', () => {
+  it('calls talleres_buscar_personas and maps the rows', async () => {
+    const { rpc } = setupRpc({
+      rpcResult: {
+        data: [{ id: 'p-1', nombre: 'Juan', apellido: 'Pérez', email: 'juan@example.com' }],
+        error: null,
+      },
+    })
+    const result = await buscarPersonasParaInscribir('juan')
+    expect(rpc).toHaveBeenCalledWith('talleres_buscar_personas', { p_q: 'juan', p_limit: 20 })
+    expect(result.ok).toBe(true)
+    expect(result.personas).toEqual([
+      { id: 'p-1', nombre: 'Juan', apellido: 'Pérez', email: 'juan@example.com' },
+    ])
+  })
+
+  it('maps a 42501 denial to a friendly message', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: '42501', message: 'sin_autoridad_para_buscar' } } })
+    const result = await buscarPersonasParaInscribir('juan')
+    expect(result.ok).toBe(false)
+    expect(result.personas).toEqual([])
+  })
+})
+
+function setupInsertSelectSingle(opts: {
+  isEnabled?: boolean
+  user?: { id: string } | null
+  singleResult?: { data: unknown; error: { message?: string; code?: string } | null }
+}): { insert: jest.Mock; select: jest.Mock; single: jest.Mock; from: jest.Mock } {
+  flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
+  const single = jest.fn().mockResolvedValue(opts.singleResult ?? { data: { id: 'i-1' }, error: null })
+  const select = jest.fn().mockReturnValue({ single })
+  const insert = jest.fn().mockReturnValue({ select })
+  const from = jest.fn().mockReturnValue({ insert })
+
+  createSupabaseServerClientMock.mockReset().mockResolvedValue({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user },
+        error: null,
+      }),
+    },
+    from,
+  })
+  return { insert, select, single, from }
+}
+
+describe('agregarInscripcion — kill switch, auth & validation', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    setupInsertSelectSingle({ isEnabled: false })
+    const result = await agregarInscripcion({ tallerSlug: 's', edicionId: 'e-1', cohorteId: 'c-1', personaId: 'p-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+  })
+
+  it('returns invalid-input when personaId is blank', async () => {
+    setupInsertSelectSingle({})
+    const result = await agregarInscripcion({ tallerSlug: 's', edicionId: 'e-1', cohorteId: 'c-1', personaId: '  ' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('invalid-input')
+  })
+})
+
+describe('agregarInscripcion — happy path & cupo lleno', () => {
+  it('inserts estado=pendiente and revalidates the edición page on success', async () => {
+    const { insert } = setupInsertSelectSingle({ singleResult: { data: { id: 'i-1' }, error: null } })
+    const result = await agregarInscripcion({
+      tallerSlug: 'proximo-paso',
+      edicionId: 'e-1',
+      cohorteId: 'c-1',
+      personaId: 'p-1',
+    })
+    expect(insert).toHaveBeenCalledWith({
+      taller_id: 'e-1',
+      cohorte_id: 'c-1',
+      persona_principal_id: 'p-1',
+      estado: 'pendiente',
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.inscripcionId).toBe('i-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+  })
+
+  it('maps a CUPO_LLENO refusal to error: "cupo-lleno" (its own distinct code)', async () => {
+    setupInsertSelectSingle({
+      singleResult: { data: null, error: { code: 'P0001', message: 'CUPO_LLENO' } },
+    })
+    const result = await agregarInscripcion({
+      tallerSlug: 'proximo-paso',
+      edicionId: 'e-1',
+      cohorteId: 'c-1',
+      personaId: 'p-1',
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('cupo-lleno')
+      expect(result.message.length).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('inscribirSobreCupo — kill switch & auth', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    setupRpc({ isEnabled: false })
+    const result = await inscribirSobreCupo({ tallerSlug: 's', edicionId: 'e-1', personaId: 'p-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+  })
+})
+
+describe('inscribirSobreCupo — happy path & errors', () => {
+  it('calls talleres_inscribir_sobre_cupo and maps the jsonb result, then revalidates', async () => {
+    const { rpc } = setupRpc({
+      rpcResult: {
+        data: { inscripcion_id: 'i-2', cupo: 2, ocupados: 3, sobre_cupo: true },
+        error: null,
+      },
+    })
+    const result = await inscribirSobreCupo({ tallerSlug: 'proximo-paso', edicionId: 'e-1', personaId: 'p-1' })
+    expect(rpc).toHaveBeenCalledWith('talleres_inscribir_sobre_cupo', {
+      p_edicion_id: 'e-1',
+      p_persona_id: 'p-1',
+      p_companero_id: null,
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.inscripcionId).toBe('i-2')
+      expect(result.cupo).toBe(2)
+      expect(result.ocupados).toBe(3)
+      expect(result.sobreCupo).toBe(true)
+    }
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+  })
+
+  // T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 8,
+  // 20260928140000_talleres_paso6_hardening.sql) — companeroId, when given,
+  // is forwarded as p_companero_id (required by the RPC for a pareja
+  // edición; ignored for an individual one).
+  it('forwards companeroId as p_companero_id when given', async () => {
+    const { rpc } = setupRpc({
+      rpcResult: {
+        data: { inscripcion_id: 'i-3', cupo: 12, ocupados: 12, sobre_cupo: true },
+        error: null,
+      },
+    })
+    await inscribirSobreCupo({
+      tallerSlug: 'proximo-paso',
+      edicionId: 'e-1',
+      personaId: 'p-1',
+      companeroId: 'p-2',
+    })
+    expect(rpc).toHaveBeenCalledWith('talleres_inscribir_sobre_cupo', {
+      p_edicion_id: 'e-1',
+      p_persona_id: 'p-1',
+      p_companero_id: 'p-2',
+    })
+  })
+
+  it('maps YA_INSCRITO to a conflict message', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: 'P0001', message: 'YA_INSCRITO' } } })
+    const result = await inscribirSobreCupo({ tallerSlug: 's', edicionId: 'e-1', personaId: 'p-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('conflict')
+  })
+
+  it('maps a 42501 refusal to forbidden', async () => {
+    setupRpc({
+      rpcResult: { data: null, error: { code: '42501', message: 'sin_permisos_para_este_taller' } },
+    })
+    const result = await inscribirSobreCupo({ tallerSlug: 's', edicionId: 'e-1', personaId: 'p-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
   })
 })

@@ -101,6 +101,9 @@ function makeRow(overrides: Partial<{
   created_at: string
   grupo_id: string | null
   grupo_nombre: string | null
+  sobre_cupo: boolean
+  sobre_cupo_por_nombre: string | null
+  sobre_cupo_en: string | null
 }>) {
   return {
     id: 'insc-1',
@@ -360,6 +363,42 @@ describe('TablaInscripciones — Grupo column', () => {
   it('renders an em-dash when the row is unplaced', () => {
     renderTabla({ rows: [makeRow({ grupo_id: null, grupo_nombre: null })] })
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+})
+
+// T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — a row placed
+// above the edición's cupo shows a small "Sobre el cupo" badge with a
+// tooltip naming who did it and when.
+describe('TablaInscripciones — Sobre el cupo badge (T6)', () => {
+  it('shows the badge with a tooltip when sobre_cupo is true', () => {
+    renderTabla({
+      rows: [
+        makeRow({
+          sobre_cupo: true,
+          sobre_cupo_por_nombre: 'María Directora',
+          sobre_cupo_en: '2026-09-20T10:00:00Z',
+        }),
+      ],
+    })
+
+    const badges = screen.getAllByText('Sobre el cupo')
+    expect(badges.length).toBeGreaterThan(0)
+    const tooltipHost = badges[0]!.closest('[title]')
+    expect(tooltipHost?.getAttribute('title')).toMatch(/Inscrita por María Directora el/)
+  })
+
+  it('never shows the badge for a normally-enrolled row', () => {
+    renderTabla({ rows: [makeRow({ sobre_cupo: false })] })
+    expect(screen.queryByText('Sobre el cupo')).not.toBeInTheDocument()
+  })
+
+  it('degrades the tooltip name to em-dash instead of crashing when the name is missing', () => {
+    renderTabla({
+      rows: [makeRow({ sobre_cupo: true, sobre_cupo_por_nombre: null, sobre_cupo_en: null })],
+    })
+    const badges = screen.getAllByText('Sobre el cupo')
+    const tooltipHost = badges[0]!.closest('[title]')
+    expect(tooltipHost?.getAttribute('title')).toBe('Inscrita por — el —')
   })
 })
 

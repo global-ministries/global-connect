@@ -98,7 +98,8 @@ export async function loadAdminInscripciones(
     .from('taller_inscripciones')
     .select(
       `id, taller_id, estado, link_type, created_at, updated_at,
-       cohorte_id, persona_principal_id, companero_id, grupo_id`,
+       cohorte_id, persona_principal_id, companero_id, grupo_id,
+       sobre_cupo, sobre_cupo_en`,
     )
     .order('created_at', { ascending: false })
     .limit(500)
@@ -161,6 +162,31 @@ export async function loadAdminInscripciones(
           pp_email: p.pp_email ?? null,
           comp_nombre: p.comp_nombre ?? null,
           comp_apellido: p.comp_apellido ?? null,
+        })
+      }
+    }
+  }
+
+  // Query 1c — T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
+  // sobre_cupo_por's display name via talleres_inscripciones_sobre_cupo_
+  // personas (SECURITY DEFINER, re-applies taller_inscripciones_select
+  // internally, fail-closed) — same "never a raw usuarios embed" reasoning
+  // as Query 1b above. Only the sobre_cupo=true rows need this.
+  const sobreCupoPersonaByInscripcion = new Map<string, { nombre: string | null; apellido: string | null }>()
+  const sobreCupoInscripcionIds = inscripciones
+    .filter((row) => row.sobre_cupo === true)
+    .map((row) => row.id as string)
+  if (sobreCupoInscripcionIds.length > 0) {
+    const scRes = await client.rpc('talleres_inscripciones_sobre_cupo_personas', {
+      p_inscripcion_ids: sobreCupoInscripcionIds,
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resolved shape
+    const scData = ((scRes as any)?.data ?? []) as any[]
+    for (const p of scData) {
+      if (typeof p.inscripcion_id === 'string') {
+        sobreCupoPersonaByInscripcion.set(p.inscripcion_id, {
+          nombre: p.sobre_cupo_por_nombre ?? null,
+          apellido: p.sobre_cupo_por_apellido ?? null,
         })
       }
     }
@@ -283,6 +309,13 @@ export async function loadAdminInscripciones(
       updated_at: r.updated_at as string,
       grupo_id: grupoId,
       grupo_nombre: grupoNombre,
+      sobre_cupo: r.sobre_cupo === true,
+      sobre_cupo_por_nombre: (() => {
+        if (r.sobre_cupo !== true) return null
+        const sc = typeof r.id === 'string' ? sobreCupoPersonaByInscripcion.get(r.id) : undefined
+        return sc ? nombreCompleto(sc.nombre, sc.apellido) : '—'
+      })(),
+      sobre_cupo_en: (r.sobre_cupo_en as string | null) ?? null,
     })
   }
 

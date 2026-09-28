@@ -1,209 +1,24 @@
 'use server'
 
 /**
- * PR23.2a — Server action: openEdicion.
+ * PR23.2a — Server actions for the admin abstract-taller edición screen.
  *
- * Wraps the public.open_edicion() RPC. Creates a new edicion of an
- * existing abstract taller.
- *
- * Capability gate: `talleres_crecimiento.director.write` OR
- * `talleres_crecimiento.admin.manage` (the RPC re-checks). All
- * validation is done at the RPC layer; the client-side checks below
- * are defense-in-depth.
+ * T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md, item 4,
+ * 20260928140000_talleres_paso6_hardening.sql) — the `openEdicion` action
+ * that used to live here (wrapping the legacy 11-arg `public.open_edicion`
+ * RPC) is REMOVED: that RPC no longer grants EXECUTE to authenticated,
+ * since it never enforced any of paso 6's own rules (dates, temporada
+ * state, cupo, …). Every real "create an edición" path now goes through
+ * `talleres_crear_edicion` (components/talleres/open-edicion-form.tsx →
+ * app/(auth)/talleres/[taller]/actions.ts's `crearEdicion`) or the
+ * temporada RPCs. `OpenEdicionForm` already stopped importing this file's
+ * `openEdicion` when it was rewritten in T4 — verified with rg before
+ * deleting it here that nothing else imports it either (only its own now-
+ * deleted test, __tests__/app/auth/admin/talleres/abstracto/openEdicion-
+ * actions.test.ts, did).
  */
 
 import { redirect } from 'next/navigation'
-
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import {
-  findPlatformSessionPersonaByAuthId,
-  resolveReadOnlyPlatformSession,
-} from '@/lib/auth/platformSessionReadOnly'
-import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
-
-export interface OpenEdicionInput {
-  readonly taller_id: string
-  readonly tipo: 'individual' | 'pareja'
-  readonly nombre_edicion: string
-  readonly link_type: 'matrimonio' | 'novios' | null
-  readonly sesiones_estimadas: number
-  readonly duracion_estimada_minutos: number
-  readonly modalidad_inscripcion: 'periodo_general' | 'permanente_custom'
-  readonly fecha_inicio_periodo: string // ISO
-  readonly fecha_fin_periodo: string | null // ISO
-  readonly firmantes: ReadonlyArray<{ nombre: string; rol: string }>
-  /**
-   * PR46 — global season (talleres_temporadas) this edición belongs to.
-   * `null` means "not bound to any season" (backward-compatible). Always
-   * sent so the RPC resolves the 11-arg overload (never the 10-arg one).
-   */
-  readonly temporada_id: string | null
-}
-
-/** One instantiated grupo, per open_edicion's `grupos_creados` (T2, migration 20260927100000_talleres_instanciar_edicion.sql). */
-export interface OpenEdicionGrupoCreado {
-  readonly grupoId: string
-  readonly nombre: string
-  readonly facilitadoresAsignados: number
-}
-
-/** A plantilla facilitador skipped at instantiation time because they are no longer an active servidor of the taller's node (per open_edicion's `facilitadores_omitidos`). */
-export interface OpenEdicionFacilitadorOmitido {
-  readonly personaId: string
-  readonly nombre: string | null
-  readonly apellido: string | null
-  readonly plantillaGrupo: string
-}
-
-export type OpenEdicionResult =
-  | {
-      readonly ok: true
-      readonly edicionId: string
-      readonly periodoId: string | null
-      readonly temporadaId: string | null
-      /** T3 — instantiated from the taller's plantilla in the same open_edicion transaction. */
-      readonly gruposCreados: readonly OpenEdicionGrupoCreado[]
-      readonly facilitadoresOmitidos: readonly OpenEdicionFacilitadorOmitido[]
-      readonly clasesPorGrupo: number
-    }
-  | {
-      readonly ok: false
-      readonly error: 'forbidden' | 'not-found' | 'unauthorized' | 'invalid-input' | 'internal'
-      readonly message?: string
-    }
-
-/**
- * T4 — friendly Spanish translation for open_edicion's new errcode
- * (see 20260918170000_open_edicion_uses_taller_equipo.sql). Keyed by
- * the message prefix before the first ':' — an unrecognized code
- * falls back to the raw RPC message.
- */
-const RPC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
-  TALLER_MISSING_EQUIPO:
-    'Este taller no tiene un equipo asignado en el organigrama. Vuelve al catálogo y vincúlalo o crea uno antes de crear una edición.',
-}
-
-function friendlyRpcMessage(rawMessage: string | undefined | null): string | undefined {
-  if (!rawMessage) return undefined
-  const code = rawMessage.split(':')[0]?.trim()
-  return (code && RPC_ERROR_MESSAGES[code]) || rawMessage
-}
-
-export async function openEdicion(input: OpenEdicionInput): Promise<OpenEdicionResult> {
-  if (!isTalleresEnabled()) return { ok: false, error: 'not-found' }
-
-  const supabase = await createSupabaseServerClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
-  const { data: { user } } = await (supabase as any).auth.getUser()
-  if (!user) return { ok: false, error: 'unauthorized' }
-
-  const session = await resolveReadOnlyPlatformSession({
-    subjectAuthId: user.id,
-    findPersonaByAuthId: (authId) =>
-      findPlatformSessionPersonaByAuthId(supabase, authId),
-    capabilitySupabase: supabase,
-  })
-  if (!session) return { ok: false, error: 'unauthorized' }
-
-  const caps = session.capabilities.map((c) => c.key)
-  const hasCap =
-    caps.includes('talleres_crecimiento.director.write') ||
-    caps.includes('talleres_crecimiento.admin.manage')
-  if (!hasCap) return { ok: false, error: 'forbidden' }
-
-  // Defense-in-depth client validation (RPC re-validates).
-  if (!input.taller_id) {
-    return { ok: false, error: 'invalid-input', message: 'taller_id requerido' }
-  }
-  if (!['individual', 'pareja'].includes(input.tipo)) {
-    return { ok: false, error: 'invalid-input', message: 'tipo requerido (individual|pareja)' }
-  }
-  if (!input.nombre_edicion?.trim()) {
-    return { ok: false, error: 'invalid-input', message: 'nombre_edicion requerido' }
-  }
-  if (input.link_type && !['matrimonio', 'novios'].includes(input.link_type)) {
-    return { ok: false, error: 'invalid-input' }
-  }
-  if (input.sesiones_estimadas <= 0) {
-    return { ok: false, error: 'invalid-input', message: 'sesiones_estimadas > 0' }
-  }
-  if (input.duracion_estimada_minutos <= 0) {
-    return { ok: false, error: 'invalid-input', message: 'duracion_estimada_minutos > 0' }
-  }
-  if (!['periodo_general', 'permanente_custom'].includes(input.modalidad_inscripcion)) {
-    return { ok: false, error: 'invalid-input' }
-  }
-  if (!input.fecha_inicio_periodo) {
-    return { ok: false, error: 'invalid-input', message: 'fecha_inicio_periodo requerida' }
-  }
-
-  const firmantesJson = input.firmantes
-    .filter((f) => f.nombre?.trim() && f.rol?.trim())
-    .map((f) => ({ nombre: f.nombre.trim(), rol: f.rol.trim() }))
-
-  // Defense-in-depth: force link_type to null when tipo='individual'
-  // (matches the form's UI behavior; the RPC also rejects this but
-  // normalizing here keeps the action's behavior symmetric with the UI).
-  const linkType = input.tipo === 'individual' ? null : input.link_type
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
-  const client: any = supabase
-  const { data, error } = await client.rpc('open_edicion', {
-    p_taller_id: input.taller_id,
-    p_tipo: input.tipo,
-    p_nombre_edicion: input.nombre_edicion.trim(),
-    p_link_type: linkType,
-    p_sesiones_estimadas: input.sesiones_estimadas,
-    p_duracion_estimada_minutos: input.duracion_estimada_minutos,
-    p_modalidad_inscripcion: input.modalidad_inscripcion,
-    p_fecha_inicio_periodo: input.fecha_inicio_periodo,
-    p_fecha_fin_periodo: input.fecha_fin_periodo,
-    p_firmantes: firmantesJson,
-    // PR46: always sent (uuid or null) so PostgREST resolves the 11-arg
-    // overload. Never omit — omitting would fall back to the 10-arg one.
-    p_temporada_id: input.temporada_id ?? null,
-  })
-
-  if (error || !data) {
-    return {
-      ok: false,
-      error: 'internal',
-      message: friendlyRpcMessage(error?.message as string | undefined) ?? 'unknown error',
-    }
-  }
-
-  const result = data as {
-    edicion_id: string
-    periodo_id: string | null
-    temporada_id: string | null
-    grupos_creados?: ReadonlyArray<{ grupo_id: string; nombre: string; facilitadores_asignados: number }>
-    facilitadores_omitidos?: ReadonlyArray<{
-      persona_id: string
-      nombre: string | null
-      apellido: string | null
-      plantilla_grupo: string
-    }>
-    clases_por_grupo?: number
-  }
-  return {
-    ok: true,
-    edicionId: result.edicion_id,
-    periodoId: result.periodo_id,
-    temporadaId: result.temporada_id ?? null,
-    gruposCreados: (result.grupos_creados ?? []).map((g) => ({
-      grupoId: g.grupo_id,
-      nombre: g.nombre,
-      facilitadoresAsignados: g.facilitadores_asignados,
-    })),
-    facilitadoresOmitidos: (result.facilitadores_omitidos ?? []).map((f) => ({
-      personaId: f.persona_id,
-      nombre: f.nombre,
-      apellido: f.apellido,
-      plantillaGrupo: f.plantilla_grupo,
-    })),
-    clasesPorGrupo: result.clases_por_grupo ?? 0,
-  }
-}
 
 export async function redirectToEdicion(tallerSlug: string, edicionId: string): Promise<never> {
   redirect(`/admin/talleres/edicion/${edicionId}`)
