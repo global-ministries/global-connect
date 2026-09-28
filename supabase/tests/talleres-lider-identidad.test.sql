@@ -209,6 +209,24 @@ BEGIN
 END;
 $trg$;
 
+-- talleres_grupo_asignaciones_exige_servidor_activo (T1 of
+-- talleres-configuracion-del-taller) now requires every assignee to be
+-- an active dream_team_servicios of the taller's node — even a8...31
+-- below, whose ASSIGNMENT is activo=false: the new gate checks
+-- dream_team_servicios, not this row's own activo column. Fixture-only,
+-- added minimally to keep this file's OLD assertions true under the
+-- NEW gate; no assertion below changes. 'Líder' is not in
+-- talleres_role_capability_map, so this mints zero capability grants
+-- (verified read-only beforehand).
+INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
+  ('a8000000-0000-4000-8000-000000000900', 'a8000000-0000-4000-8000-000000000001', 'Líder', true);
+
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado) VALUES
+  ('a8000000-0000-4000-8000-000000000901', 'a8000000-0000-4000-8000-000000000023', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo'),
+  ('a8000000-0000-4000-8000-000000000902', 'a8000000-0000-4000-8000-000000000025', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo'),
+  ('a8000000-0000-4000-8000-000000000903', 'a8000000-0000-4000-8000-000000000027', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo'),
+  ('a8000000-0000-4000-8000-000000000904', 'a8000000-0000-4000-8000-000000000031', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo');
+
 INSERT INTO public.taller_grupo_asignaciones (id, grupo_id, persona_id, rol, activo) VALUES
   ('a8000000-0000-4000-8000-000000000050', 'a8000000-0000-4000-8000-000000000040', 'a8000000-0000-4000-8000-000000000023', 'lider', true),
   ('a8000000-0000-4000-8000-000000000051', 'a8000000-0000-4000-8000-000000000040', 'a8000000-0000-4000-8000-000000000025', 'voluntario', true),
@@ -355,19 +373,40 @@ SELECT pg_temp.assert_rows('criterion 6: talleres_coord_inscripciones_personas g
 
 RESET ROLE;
 
--- ══ Criterion 7 — no write policy changed: lider A1 cannot UPDATE
--- taller_sesiones (0 rows affected by RLS, not an error) ══
+-- ══ Criterion 7 — UPDATED (2026-09-26): the premise "a líder cannot
+-- write" was deliberately changed by paso 7
+-- (20260925090000_talleres_asistencia_lider.sql): taller_sesiones_update
+-- and taller_reportes_update now also accept talleres_rol_en_grupo
+-- (grupo_id) = 'lider' (verified read-only against that migration's
+-- text before rewriting this criterion). This is now a positive
+-- write-authority check — líder A1 CAN write their own grupo's rows;
+-- líder A2 still cannot touch A1's — not a "no write policy changed"
+-- one. Every other criterion in this file is untouched. ══
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('a8000000-0000-4000-8000-000000000022');
 
-SELECT pg_temp.assert_update_rows('criterion 7: lider A1 UPDATE on taller_sesiones affects 0 rows (RLS)',
-  $$UPDATE public.taller_sesiones SET estado = 'realizada' WHERE id = 'a8000000-0000-4000-8000-000000000060'$$, 0);
+SELECT pg_temp.assert_update_rows('criterion 7: lider A1 UPDATE on their own taller_sesiones (valid change) affects 1 row',
+  $$UPDATE public.taller_sesiones SET tema = 'x' WHERE id = 'a8000000-0000-4000-8000-000000000060'$$, 1);
+SELECT pg_temp.assert_update_rows('criterion 7: lider A1 UPDATE on their own taller_reportes (valid change) affects 1 row',
+  $$UPDATE public.taller_reportes SET observaciones_generales = 'y' WHERE id = 'a8000000-0000-4000-8000-000000000090'$$, 1);
 
 RESET ROLE;
 
-SELECT pg_temp.assert_rows('criterion 7: taller_sesiones A1 estado unchanged after the denied UPDATE',
-  $$SELECT 1 FROM taller_sesiones WHERE id = 'a8000000-0000-4000-8000-000000000060' AND estado = 'programada'$$, 1);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('a8000000-0000-4000-8000-000000000026');
+
+SELECT pg_temp.assert_update_rows('criterion 7: lider A2 UPDATE on A1''s taller_sesiones affects 0 rows (RLS)',
+  $$UPDATE public.taller_sesiones SET tema = 'no deberia' WHERE id = 'a8000000-0000-4000-8000-000000000060'$$, 0);
+SELECT pg_temp.assert_update_rows('criterion 7: lider A2 UPDATE on A1''s taller_reportes affects 0 rows (RLS)',
+  $$UPDATE public.taller_reportes SET observaciones_generales = 'no deberia' WHERE id = 'a8000000-0000-4000-8000-000000000090'$$, 0);
+
+RESET ROLE;
+
+SELECT pg_temp.assert_rows('criterion 7: taller_sesiones A1 tema is lider A1''s edit, not lider A2''s',
+  $$SELECT 1 FROM taller_sesiones WHERE id = 'a8000000-0000-4000-8000-000000000060' AND tema = 'x'$$, 1);
+SELECT pg_temp.assert_rows('criterion 7: taller_reportes A1 observaciones is lider A1''s edit, not lider A2''s',
+  $$SELECT 1 FROM taller_reportes WHERE id = 'a8000000-0000-4000-8000-000000000090' AND observaciones_generales = 'y'$$, 1);
 
 -- ══ Criterion 8 — the trigger/function no longer exist; a plain
 -- INSERT into taller_grupo_asignaciones as postgres succeeds ══
@@ -376,6 +415,13 @@ SELECT pg_temp.assert_rows('criterion 8: trigger no longer exists on taller_grup
   $$SELECT 1 FROM pg_trigger WHERE tgname = 'trg_sync_talleres_grants_on_grupo_asignacion_change'$$, 0);
 SELECT pg_temp.assert_rows('criterion 8: function no longer exists',
   $$SELECT 1 FROM pg_proc WHERE proname = 'sync_talleres_grants_on_grupo_asignacion_change'$$, 0);
+
+-- the new servidor-activo gate also applies to this INSERT, so the
+-- miembro (a8...29) needs an active dream_team_servicios row on the
+-- taller's node too — reusing the 'Líder' rol minted above, fixture-
+-- only, no assertion below changes.
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado) VALUES
+  ('a8000000-0000-4000-8000-000000000905', 'a8000000-0000-4000-8000-000000000029', 'a8000000-0000-4000-8000-000000000001', 'a8000000-0000-4000-8000-000000000900', 'activo');
 
 SELECT pg_temp.assert_no_error('criterion 8: INSERT into taller_grupo_asignaciones as postgres succeeds (was 42883)',
   $$INSERT INTO public.taller_grupo_asignaciones (id, grupo_id, persona_id, rol, activo) VALUES

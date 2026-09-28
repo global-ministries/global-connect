@@ -4378,6 +4378,7 @@ export type Database = {
           estado: string
           id: string
           inscripcion_id: string
+          motivo: string | null
           persona_id: string
           sesion_id: string
           updated_at: string
@@ -4389,6 +4390,7 @@ export type Database = {
           estado: string
           id?: string
           inscripcion_id: string
+          motivo?: string | null
           persona_id: string
           sesion_id: string
           updated_at?: string
@@ -4400,6 +4402,7 @@ export type Database = {
           estado?: string
           id?: string
           inscripcion_id?: string
+          motivo?: string | null
           persona_id?: string
           sesion_id?: string
           updated_at?: string
@@ -4996,6 +4999,7 @@ export type Database = {
           companero_id: string | null
           created_at: string
           estado: string
+          grupo_id: string | null
           id: string
           link_type: string | null
           motivo_no_aprobado: string | null
@@ -5012,6 +5016,7 @@ export type Database = {
           companero_id?: string | null
           created_at?: string
           estado: string
+          grupo_id?: string | null
           id?: string
           link_type?: string | null
           motivo_no_aprobado?: string | null
@@ -5028,6 +5033,7 @@ export type Database = {
           companero_id?: string | null
           created_at?: string
           estado?: string
+          grupo_id?: string | null
           id?: string
           link_type?: string | null
           motivo_no_aprobado?: string | null
@@ -5081,6 +5087,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_solicitudes_pendientes"
             referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_inscripciones_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "taller_grupos"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "taller_inscripciones_persona_principal_id_fkey"
@@ -5172,6 +5185,152 @@ export type Database = {
             columns: ["taller_id"]
             isOneToOne: false
             referencedRelation: "taller_ediciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_plantilla_clases: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id: string
+          numero: number
+          taller_id: string
+          tema: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          numero: number
+          taller_id: string
+          tema: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          numero?: number
+          taller_id?: string
+          tema?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_plantilla_clases_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "talleres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_plantilla_facilitadores: {
+        Row: {
+          created_at: string
+          id: string
+          persona_id: string
+          plantilla_grupo_id: string
+          rol: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          persona_id: string
+          plantilla_grupo_id: string
+          rol: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          persona_id?: string
+          plantilla_grupo_id?: string
+          rol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_plantilla_facilitadores_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_plantilla_facilitadores_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_plantilla_facilitadores_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_plantilla_facilitadores_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_plantilla_facilitadores_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "taller_plantilla_facilitadores_plantilla_grupo_id_fkey"
+            columns: ["plantilla_grupo_id"]
+            isOneToOne: false
+            referencedRelation: "taller_plantilla_grupos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taller_plantilla_grupos: {
+        Row: {
+          activo: boolean
+          capacidad: number
+          created_at: string
+          id: string
+          nombre: string
+          orden: number
+          taller_id: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          capacidad?: number
+          created_at?: string
+          id?: string
+          nombre: string
+          orden?: number
+          taller_id: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          capacidad?: number
+          created_at?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          taller_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_plantilla_grupos_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "talleres"
             referencedColumns: ["id"]
           },
         ]
@@ -5380,6 +5539,7 @@ export type Database = {
           meeting_time_applies_to: string | null
           meeting_time_override: string | null
           numero: number
+          tema: string | null
           updated_at: string
           version: number
         }
@@ -5393,6 +5553,7 @@ export type Database = {
           meeting_time_applies_to?: string | null
           meeting_time_override?: string | null
           numero: number
+          tema?: string | null
           updated_at?: string
           version?: number
         }
@@ -5406,6 +5567,7 @@ export type Database = {
           meeting_time_applies_to?: string | null
           meeting_time_override?: string | null
           numero?: number
+          tema?: string | null
           updated_at?: string
           version?: number
         }
@@ -5510,10 +5672,12 @@ export type Database = {
       }
       talleres: {
         Row: {
+          cadencia_dias: number
           created_at: string
           created_by_persona_id: string | null
           descripcion: string | null
           dream_team_equipo_id: string | null
+          duracion_minutos: number | null
           estado: string
           id: string
           modalidad_default: string
@@ -5523,10 +5687,12 @@ export type Database = {
           version: number
         }
         Insert: {
+          cadencia_dias?: number
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
           dream_team_equipo_id?: string | null
+          duracion_minutos?: number | null
           estado?: string
           id?: string
           modalidad_default?: string
@@ -5536,10 +5702,12 @@ export type Database = {
           version?: number
         }
         Update: {
+          cadencia_dias?: number
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
           dream_team_equipo_id?: string | null
+          duracion_minutos?: number | null
           estado?: string
           id?: string
           modalidad_default?: string
@@ -5587,7 +5755,7 @@ export type Database = {
           {
             foreignKeyName: "talleres_dream_team_equipo_id_fkey"
             columns: ["dream_team_equipo_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "dream_team_equipos"
             referencedColumns: ["id"]
           },
@@ -7012,10 +7180,10 @@ export type Database = {
       create_taller_abstract: {
         Args: {
           p_descripcion: string
-          p_equipo_id: string | null
+          p_equipo_id: string
           p_modalidad_default: string
           p_nombre: string
-          p_parent_equipo_id: string | null
+          p_parent_equipo_id: string
           p_slug: string
         }
         Returns: Json
@@ -7686,6 +7854,20 @@ export type Database = {
         Args: { p_current_date?: string; p_taller_id: string }
         Returns: number
       }
+      talleres_asignar_inscripciones_a_grupo: {
+        Args: { p_grupo_id: string; p_inscripcion_ids: string[] }
+        Returns: Json
+      }
+      talleres_buscar_personas: {
+        Args: { p_limit?: number; p_q: string }
+        Returns: {
+          apellido: string
+          email: string
+          id: string
+          nombre: string
+        }[]
+      }
+      talleres_cerrar_clase: { Args: { p_sesion_id: string }; Returns: Json }
       talleres_coord_inscripciones_personas: {
         Args: { p_inscripcion_ids: string[] }
         Returns: {
@@ -7699,8 +7881,28 @@ export type Database = {
           pp_nombre: string
         }[]
       }
+      talleres_editar_clase: {
+        Args: {
+          p_fecha_programada: string
+          p_sesion_id: string
+          p_tema: string
+        }
+        Returns: Json
+      }
+      talleres_editar_grupo: {
+        Args: { p_capacidad: number; p_grupo_id: string; p_nombre: string }
+        Returns: Json
+      }
+      talleres_enviar_reporte: {
+        Args: { p_grupo_id: string; p_observaciones?: string }
+        Returns: Json
+      }
       talleres_equipo_de_cohorte: {
         Args: { p_cohorte_id: string }
+        Returns: string
+      }
+      talleres_equipo_de_edicion: {
+        Args: { p_edicion_id: string }
         Returns: string
       }
       talleres_equipo_de_grupo: {
@@ -7711,13 +7913,56 @@ export type Database = {
         Args: { p_inscripcion_id: string }
         Returns: string
       }
+      talleres_equipo_de_plantilla_grupo: {
+        Args: { p_plantilla_grupo_id: string }
+        Returns: string
+      }
+      talleres_equipo_de_reporte: {
+        Args: { p_reporte_id: string }
+        Returns: string
+      }
       talleres_equipo_de_solicitud: {
         Args: { p_grupo_asignacion_id: string; p_inscripcion_id: string }
         Returns: string
       }
+      talleres_es_miembro_del_grupo: {
+        Args: { p_grupo_id: string }
+        Returns: boolean
+      }
+      talleres_es_servidor_activo_del_taller: {
+        Args: { p_persona_id: string; p_taller_id: string }
+        Returns: boolean
+      }
+      talleres_grupo_equipo_personas: {
+        Args: { p_grupo_id: string }
+        Returns: {
+          activo: boolean
+          apellido: string
+          asignacion_id: string
+          nombre: string
+          persona_id: string
+          rol: string
+        }[]
+      }
+      talleres_mis_permisos: { Args: { p_equipo_id: string }; Returns: Json }
+      talleres_registrar_asistencia: {
+        Args: { p_marcas: Json; p_sesion_id: string }
+        Returns: Json
+      }
       talleres_resolver_solicitud_retiro: {
         Args: { p_accion: string; p_motivo?: string; p_solicitud_id: string }
         Returns: Json
+      }
+      talleres_rol_en_grupo: { Args: { p_grupo_id: string }; Returns: string }
+      talleres_servidores_del_taller: {
+        Args: { p_taller_id: string }
+        Returns: {
+          apellido: string
+          equipo_label: string
+          nombre: string
+          persona_id: string
+          rol_servicio: string
+        }[]
       }
       tiene_rol_de_liderazgo: { Args: { p_auth_id: string }; Returns: boolean }
       update_support_ticket_status: {
@@ -8159,3 +8404,4 @@ export const Constants = {
     },
   },
 } as const
+
