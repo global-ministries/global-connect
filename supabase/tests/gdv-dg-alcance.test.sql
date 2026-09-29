@@ -3,7 +3,8 @@
 -- driven by director_general_segmentos.alcance.
 --
 -- Covers:
---   1. Existing director_general_segmentos rows default to alcance 'segmento'.
+--   1. The alcance column defaults to 'segmento', is not nullable and has its
+--      check constraint; a row inserted without naming it gets 'segmento'.
 --   2. The check constraint only admits 'segmento' and 'directores'.
 --   3. Scope 'segmento' sees every group of the segment, including one with no
 --      director de etapa.
@@ -62,13 +63,6 @@ EXCEPTION
 END;
 $$;
 
--- Existing rows keep their meaning: the column default must have filled them.
--- Measured before the fixtures so only real rows are counted.
-SELECT pg_temp.assert_eq(
-  'existing rows default to segmento',
-  $q$SELECT count(*) FROM public.director_general_segmentos WHERE alcance IS DISTINCT FROM 'segmento'$q$,
-  '0');
-
 -- Fixtures (as postgres).
 -- Segments: SA scope 'segmento', SB scope 'directores', SC not assigned.
 INSERT INTO public.segmentos (id, nombre) VALUES
@@ -84,7 +78,8 @@ INSERT INTO public.usuarios (id, nombre, apellido, genero, estado_civil) VALUES
   ('d1000000-0000-4000-8000-000000000011', 'ZZ Alc', 'Dir DA',  'Otro', 'Soltero'),
   ('d1000000-0000-4000-8000-000000000012', 'ZZ Alc', 'Dir DB1', 'Otro', 'Soltero'),
   ('d1000000-0000-4000-8000-000000000013', 'ZZ Alc', 'Dir DB2', 'Otro', 'Soltero'),
-  ('d1000000-0000-4000-8000-000000000014', 'ZZ Alc', 'Dir DX',  'Otro', 'Soltero');
+  ('d1000000-0000-4000-8000-000000000014', 'ZZ Alc', 'Dir DX',  'Otro', 'Soltero'),
+  ('d1000000-0000-4000-8000-000000000003', 'ZZ Alc', 'DG default', 'Otro', 'Soltero');
 
 INSERT INTO public.segmento_lideres (id, segmento_id, usuario_id, tipo_lider) VALUES
   ('d1000000-0000-4000-8000-0000000000b1', 'd1000000-0000-4000-8000-0000000000a1', 'd1000000-0000-4000-8000-000000000011', 'director_etapa'),
@@ -124,7 +119,30 @@ INSERT INTO public.dg_directores_etapa (dg_usuario_id, segmento_lider_id) VALUES
   ('d1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-0000000000b2'),
   ('d1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-0000000000b4');
 
+-- A row inserted without naming alcance: the column default must fill it.
+INSERT INTO public.director_general_segmentos (usuario_id, segmento_id) VALUES
+  ('d1000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-0000000000a3');
+
 -- Cases ----------------------------------------------------------------------
+
+-- 1. Column metadata and default.
+SELECT pg_temp.assert_eq('alcance column default is segmento',
+  $q$SELECT column_default FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'director_general_segmentos' AND column_name = 'alcance'$q$,
+  '''segmento''::text');
+SELECT pg_temp.assert_eq('alcance column is not nullable',
+  $q$SELECT is_nullable FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'director_general_segmentos' AND column_name = 'alcance'$q$,
+  'NO');
+SELECT pg_temp.assert_eq('alcance check constraint exists',
+  $q$SELECT count(*) FROM pg_constraint
+      WHERE conrelid = 'public.director_general_segmentos'::regclass
+        AND contype = 'c' AND pg_get_constraintdef(oid) LIKE '%alcance%'$q$,
+  '1');
+SELECT pg_temp.assert_eq('row inserted without alcance defaults to segmento',
+  $q$SELECT alcance FROM public.director_general_segmentos
+      WHERE usuario_id = 'd1000000-0000-4000-8000-000000000003'$q$,
+  'segmento');
 
 -- 2. Check constraint.
 SELECT pg_temp.assert_sqlstate(

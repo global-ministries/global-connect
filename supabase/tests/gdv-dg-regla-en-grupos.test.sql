@@ -135,11 +135,13 @@ INSERT INTO public.segmento_lideres (id, segmento_id, usuario_id, tipo_lider) VA
   ('d2000000-0000-4000-8000-0000000000b3', 'd2000000-0000-4000-8000-0000000000a2', 'd2000000-0000-4000-8000-000000000013', 'director_etapa'),
   ('d2000000-0000-4000-8000-0000000000b4', 'd2000000-0000-4000-8000-0000000000a3', 'd2000000-0000-4000-8000-000000000014', 'director_etapa');
 
--- A started season, so the member branch of puede_ver_grupo is not the future-group one.
+-- The test's own season, active today, so the member branch of puede_ver_grupo is
+-- not the future-group one and the expectations do not depend on the environment.
+INSERT INTO public.temporadas (id, nombre, fecha_inicio, fecha_fin, activa, estado) VALUES
+  ('d2000000-0000-4000-8000-0000000000e1', 'ZZ Rg Temporada', CURRENT_DATE - 30, CURRENT_DATE + 300, true, 'activa');
+
 INSERT INTO public.grupos (id, nombre, temporada_id, segmento_id)
-SELECT g.id, g.nombre,
-       (SELECT id FROM public.temporadas WHERE fecha_inicio <= CURRENT_DATE ORDER BY fecha_inicio DESC LIMIT 1),
-       g.segmento_id
+SELECT g.id, g.nombre, 'd2000000-0000-4000-8000-0000000000e1'::uuid, g.segmento_id
 FROM (VALUES
   ('d2000000-0000-4000-8000-0000000000c1'::uuid, 'ZZ Rg GA1', 'd2000000-0000-4000-8000-0000000000a1'::uuid),
   ('d2000000-0000-4000-8000-0000000000c2'::uuid, 'ZZ Rg GA2', 'd2000000-0000-4000-8000-0000000000a1'::uuid),
