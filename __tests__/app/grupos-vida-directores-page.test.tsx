@@ -7,7 +7,7 @@
 import React from 'react'
 
 import type { PlatformSession } from '@/lib/platform/session/types'
-import type { VistaDirectores } from '@/lib/platform/grupos-vida/directores-vista'
+import { construirVistaDirectores, type VistaDirectores } from '@/lib/platform/grupos-vida/directores-vista'
 
 const redirect = jest.fn((to: string) => {
   throw new Error(`NEXT_REDIRECT:${to}`)
@@ -43,14 +43,24 @@ import LoadingDirectores from '@/app/(auth)/grupos-vida/directores/loading'
 import DirectoresGeneralesLegacyPage from '@/app/(auth)/configuracion/directores-generales/page'
 import { DirectoresClient, type DirectoresClientProps } from '@/components/grupos-vida/directores/directores-client'
 
-const VISTA: VistaDirectores = {
+// A populated view built by the real view model, so its shape is the real one:
+// one general director holding one segment with one marked director, one stage
+// director, one segment and one "Por ordenar" item.
+const VISTA: VistaDirectores = construirVistaDirectores({
+  segmentos: [{ id: 'seg-1', nombre: 'Matrimonios' }],
+  grupos: [
+    { id: 'g1', segmentoId: 'seg-1', activo: true, eliminado: false, estadoAprobacion: 'aprobado' },
+    { id: 'g2', segmentoId: 'seg-1', activo: true, eliminado: false, estadoAprobacion: 'aprobado' },
+  ],
+  directoresEtapa: [{ id: 'de-1', usuarioId: 'u-ana', segmentoId: 'seg-1', nombre: 'Ana Álvarez', ciudad: 'Cabudare', tieneCuenta: true }],
+  enlaces: [{ directorId: 'de-1', grupoId: 'g1' }],
+  generales: [{ usuarioId: 'u-maria', nombre: 'María Pacheco', roles: ['director-general'] }],
+  alcances: [{ usuarioId: 'u-maria', segmentoId: 'seg-1', alcance: 'directores' }],
+  marcas: [{ usuarioId: 'u-maria', directorId: 'de-1' }],
+  personasConRolDirectorEtapa: [],
+  usuariosConSegmentoLider: ['u-ana'],
   soloLectura: false,
-  generales: [],
-  etapa: [],
-  segmentos: [],
-  porOrdenar: [],
-  totales: { generales: 0, etapa: 0 },
-}
+})
 
 const originalEnabled = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
 const originalKillSwitch = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH
@@ -145,6 +155,11 @@ describe('/grupos-vida/directores — tab and read-only mode', () => {
   })
 
   it('passes only serializable data to the island', async () => {
+    // the fixture must exercise every collection, or the round trip proves nothing
+    expect(VISTA.generales[0].segmentos).toHaveLength(1)
+    expect(VISTA.etapa).toHaveLength(1)
+    expect(VISTA.segmentos).toHaveLength(1)
+    expect(VISTA.porOrdenar.length).toBeGreaterThan(0)
     const props = await renderizar({ tab: 'etapa' })
     expect(JSON.parse(JSON.stringify(props))).toEqual(props)
   })
