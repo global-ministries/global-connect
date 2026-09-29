@@ -13,9 +13,6 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
   ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo: string }) => <section><h1>{titulo}</h1>{children}</section>,
 }))
 jest.mock('@/app/(auth)/configuracion/ConfiguracionGlobalClient', () => ({ ConfiguracionGlobalClient: () => <div data-testid="configuracion-global-client" /> }))
-jest.mock('@/app/(auth)/configuracion/directores-generales/GestionDGClient', () => ({ GestionDGClient: () => <div data-testid="gestion-dg-client" /> }))
-jest.mock('@/lib/actions/dg-segmentos.actions', () => ({ obtenerDirectoresGenerales: jest.fn().mockResolvedValue([]), obtenerSegmentosDisponibles: jest.fn().mockResolvedValue([]) }))
-jest.mock('@/lib/actions/dg-directores.actions', () => ({ obtenerDEsAsignadosPorDG: jest.fn().mockResolvedValue({}) }))
 
 const originalEnabled = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
 const originalKillSwitch = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH
@@ -30,14 +27,12 @@ describe('configuracion pages render through the platform route guard without ch
     restoreEnv('NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH', originalKillSwitch)
   })
 
-  it('renders /configuracion/directores-generales when the platform flag is off (pre-slice behavior preserved)', async () => {
+  it('redirects /configuracion/directores-generales to /grupos-vida/directores (the page moved)', async () => {
     delete process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
     getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: ['admin', 'pastor', 'director-general'], platformSession: null })
     const { default: DirectoresGeneralesPage } = await import('@/app/(auth)/configuracion/directores-generales/page')
 
-    await act(async () => { render(await DirectoresGeneralesPage()) })
-
-    expect(screen.getByText('Directores Generales')).toBeInTheDocument()
+    expect(() => DirectoresGeneralesPage()).toThrow(/NEXT_REDIRECT:\/grupos-vida\/directores/)
   })
 
   it.each([
