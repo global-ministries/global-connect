@@ -11,7 +11,7 @@
  * director's own team. The RPC resolves names only for people the caller has
  * tree-proven authority over.
  */
-import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { personaId } from '@/lib/platform/dream-team/types'
 
 interface FakeRow {
@@ -70,5 +70,49 @@ describe('fetchNombresPersonas', () => {
   it('throws when the RPC errors', async () => {
     const { client } = makeClient([], { message: 'boom' })
     await expect(fetchNombresPersonas(client, [personaId('p-1')])).rejects.toBeTruthy()
+  })
+})
+
+describe('fetchContactosPersonas', () => {
+  function makeContactosClient(
+    rows: ReadonlyArray<{ id: string; telefono: string | null; tiene_cuenta: boolean }>,
+    error: { message: string } | null = null,
+  ) {
+    const rpcMock = jest.fn().mockResolvedValue({ data: rows, error })
+    const fromMock = jest.fn()
+    return { client: { rpc: rpcMock, from: fromMock } as never, rpcMock, fromMock }
+  }
+
+  it('returns an empty map without calling the database when there are no personaIds', async () => {
+    const { client, rpcMock } = makeContactosClient([])
+    const result = await fetchContactosPersonas(client, [])
+    expect(result.size).toBe(0)
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it('goes through the scoped RPC once, deduplicating ids, never reading usuarios', async () => {
+    const { client, rpcMock, fromMock } = makeContactosClient([
+      { id: 'p-1', telefono: '04125457346', tiene_cuenta: true },
+      { id: 'p-2', telefono: null, tiene_cuenta: false },
+    ])
+
+    const result = await fetchContactosPersonas(client, [personaId('p-1'), personaId('p-1'), personaId('p-2')])
+
+    expect(rpcMock).toHaveBeenCalledTimes(1)
+    expect(rpcMock).toHaveBeenCalledWith('dream_team_contactos_personas', { p_persona_ids: ['p-1', 'p-2'] })
+    expect(fromMock).not.toHaveBeenCalled()
+    expect(result.get(personaId('p-1'))).toEqual({ telefono: '04125457346', tieneCuenta: true })
+    expect(result.get(personaId('p-2'))).toEqual({ telefono: null, tieneCuenta: false })
+  })
+
+  it('leaves out ids the RPC does not return (people the caller does not reach)', async () => {
+    const { client } = makeContactosClient([{ id: 'p-1', telefono: '04125457346', tiene_cuenta: false }])
+    const result = await fetchContactosPersonas(client, [personaId('p-1'), personaId('p-otra-rama')])
+    expect(result.has(personaId('p-otra-rama'))).toBe(false)
+  })
+
+  it('throws when the RPC errors', async () => {
+    const { client } = makeContactosClient([], { message: 'boom' })
+    await expect(fetchContactosPersonas(client, [personaId('p-1')])).rejects.toBeTruthy()
   })
 })
