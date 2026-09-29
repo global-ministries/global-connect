@@ -409,7 +409,8 @@ export function construirVistaDirectores(entrada: EntradaVistaDirectores): Vista
             ? 'Sin segmentos asignados'
             : `${plural(segmentos.length, 'segmento', 'segmentos')} · ${plural(totalDirectores, 'director de etapa', 'directores de etapa')} · ${plural(totalGrupos, 'grupo', 'grupos')}`,
         segmentos,
-        segmentosDisponibles: segmentosOrdenados.filter((s) => !alcances.has(s.id)),
+        // Nothing to add in read-only mode; it also keeps the other segments' names out of the card.
+        segmentosDisponibles: entrada.soloLectura ? [] : segmentosOrdenados.filter((s) => !alcances.has(s.id)),
         editable: !entrada.soloLectura,
       }
     })

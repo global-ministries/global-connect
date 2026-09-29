@@ -232,6 +232,11 @@ describe('construirVistaDirectores — general directors', () => {
     expect(vista.generales.every((g) => g.editable === false)).toBe(true)
     expect(construirVistaDirectores(entrada()).generales.every((g) => g.editable)).toBe(true)
   })
+
+  it('offers no segment to add in read-only mode', () => {
+    const vista = construirVistaDirectores(entrada({ soloLectura: true }))
+    expect(tarjeta(vista, DG_MARIA).segmentosDisponibles).toEqual([])
+  })
 })
 
 describe('construirVistaDirectores — stage directors', () => {
