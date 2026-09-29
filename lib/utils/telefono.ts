@@ -10,8 +10,8 @@
  */
 
 const MOVIL = '(?:412|414|416|422|424|426)'
-const MARCAS_INVISIBLES = /[​-‏‪-‮⁠-⁩﻿]/g
-const SOLO_CARACTERES_DE_TELEFONO = /^\+?[0-9  .()-]+$/
+const MARCAS_INVISIBLES = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g
+const SOLO_CARACTERES_DE_TELEFONO = /^\+?[0-9 \u00A0.()-]+$/
 
 const REGLAS: ReadonlyArray<readonly [RegExp, (d: string) => string]> = [
   [new RegExp(`^0${MOVIL}\\d{7}$`), (d) => d],
@@ -31,7 +31,7 @@ export function normalizarTelefono(valor: string | null | undefined): string | n
   if (valor === null || valor === undefined) return null
   const limpio = valor
     .replace(MARCAS_INVISIBLES, '')
-    .replace(/^[\s ]+|[\s ]+$/g, '')
+    .replace(/^[\s\u00A0]+|[\s\u00A0]+$/g, '')
   if (limpio === '') return valor
   if (!SOLO_CARACTERES_DE_TELEFONO.test(limpio)) return valor
   const digitos = limpio.replace(/\D/g, '')
