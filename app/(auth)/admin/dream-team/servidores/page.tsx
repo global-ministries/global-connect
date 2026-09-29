@@ -35,7 +35,7 @@ import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/rep
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol, responsablesDreamTeamPorEquipo } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
-import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
@@ -108,6 +108,16 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
     ...lideresGdv.map((lider) => lider.personaId),
   ])
 
+  // Phone (the one on the profile) and account status come from a scoped RPC:
+  // `usuarios` has its own RLS (Grupos de Vida) that hides other people's rows
+  // from a branch director. The RPC answers only for people the caller reaches
+  // by tree, so a persona missing from the map is "not visible to you" and is
+  // shown without phone or account mark, never as "sin cuenta".
+  const contactoPorId = await fetchContactosPersonas(supabase, [
+    ...servicios.map((servicio) => servicio.personaId),
+    ...lideresGdv.map((lider) => lider.personaId),
+  ])
+
   // Merge the real tree with the virtual Grupos de Vida branch (item 3) plus
   // who holds director/coordinador on each real node (item 4). This is what
   // makes a Grupos de Vida row's `equipoLabel` resolve to its group name
@@ -140,8 +150,8 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
         rolLabel: rolLabel(rolLabelPorId.get(servicio.rolId) ?? 'Rol no encontrado'),
         estado: servicio.estado,
         fechaInicio: servicio.fechaInicio,
-        telefono: null,
-        tieneCuenta: null,
+        telefono: contactoPorId.get(servicio.personaId)?.telefono ?? null,
+        tieneCuenta: contactoPorId.get(servicio.personaId)?.tieneCuenta ?? null,
         origen: 'dream_team',
         servicioId: servicio.id,
         version: servicio.version,
@@ -158,8 +168,8 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
         rolLabel: ROL_LIDER_GDV_LABELS[lider.rol],
         estado: 'activo',
         fechaInicio: lider.desde,
-        telefono: null,
-        tieneCuenta: null,
+        telefono: contactoPorId.get(lider.personaId)?.telefono ?? null,
+        tieneCuenta: contactoPorId.get(lider.personaId)?.tieneCuenta ?? null,
         origen: 'grupos_vida',
         editable: false,
       }),

@@ -358,6 +358,9 @@ interface EnlaceSistemaProps extends React.HTMLAttributes<HTMLElement> {
   variante?: 'default' | 'marca' | 'sutil'
   comoSpan?: boolean
   href?: string
+  /** Solo aplica al enlace (no al span): p. ej. `_blank` con `rel="noopener noreferrer"`. */
+  target?: React.HTMLAttributeAnchorTarget
+  rel?: string
 }
 
 export const EnlaceSistema = React.forwardRef<HTMLElement, EnlaceSistemaProps>(

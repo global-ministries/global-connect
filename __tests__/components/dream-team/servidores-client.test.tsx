@@ -251,6 +251,69 @@ describe('ServidoresClient — search, pills and the URL (criteria 7 and 8)', ()
   })
 })
 
+describe('ServidoresClient — phone and account status (criterion 6)', () => {
+  const filaDe = (nombre: string) => filasDeTabla().find((r) => within(r).queryByText(nombre)) as HTMLElement
+
+  it('links a canonical mobile to WhatsApp in a new tab, formatted 0412 545 7346', () => {
+    const filas = [fila('1', 'Ana Ruiz', ID_DHAH, 'Facilitador', { telefono: '04125457346' })]
+    render(<ServidoresClient {...props({ filas })} />)
+    const enlace = within(filaDe('Ana Ruiz')).getByRole('link', { name: /0412 545 7346/ })
+    expect(enlace).toHaveAttribute('href', 'https://wa.me/584125457346')
+    expect(enlace).toHaveAttribute('target', '_blank')
+    expect(enlace).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(within(filaDe('Ana Ruiz')).queryByText('Revisar teléfono')).not.toBeInTheDocument()
+  })
+
+  it('shows a recognizable landline formatted, without a WhatsApp link', () => {
+    const filas = [fila('1', 'Ana Ruiz', ID_DHAH, 'Facilitador', { telefono: '02515551234' })]
+    render(<ServidoresClient {...props({ filas })} />)
+    expect(within(filaDe('Ana Ruiz')).getByText('0251 555 1234')).toBeInTheDocument()
+    expect(within(filaDe('Ana Ruiz')).queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('shows an unrecognizable number as given, with a "Revisar teléfono" mark and no link', () => {
+    const filas = [fila('1', 'Wito González', ID_DHAH, 'Facilitador', { telefono: '+17867312193' })]
+    render(<ServidoresClient {...props({ filas })} />)
+    const celda = filaDe('Wito González')
+    expect(within(celda).getByText('+17867312193')).toBeInTheDocument()
+    expect(within(celda).getByText('Revisar teléfono')).toBeInTheDocument()
+    expect(within(celda).queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('shows nothing about the phone when there is none', () => {
+    const filas = [fila('1', 'Ana Ruiz', ID_DHAH, 'Facilitador', { telefono: null }), fila('2', 'Blanca Sin', ID_DHAH, 'Facilitador', { telefono: '  ' })]
+    render(<ServidoresClient {...props({ filas })} />)
+    expect(within(tabla()).queryByRole('link')).not.toBeInTheDocument()
+    expect(within(tabla()).queryByText('Revisar teléfono')).not.toBeInTheDocument()
+    expect(within(tabla()).queryByText(/teléfono/i)).not.toBeInTheDocument()
+  })
+
+  it('marks "Sin cuenta" only when the person is known to have no account, and "N equipos" when they serve in several', () => {
+    const filas = [
+      fila('1', 'Sin Cuenta', ID_DHAH, 'Facilitador', { tieneCuenta: false }),
+      fila('2', 'Con Cuenta', ID_DHAH, 'Facilitador', { tieneCuenta: true }),
+      fila('3', 'Cuenta Ignorada', ID_DHAH, 'Facilitador', { tieneCuenta: null }),
+      fila('4', 'Dos Equipos', ID_DHAH, 'Facilitador', { tieneCuenta: true }),
+      fila('5', 'Dos Equipos', ID_PDP, 'Facilitador', { tieneCuenta: true }),
+    ]
+    render(<ServidoresClient {...props({ filas })} />)
+    expect(within(filaDe('Sin Cuenta')).getByText('Sin cuenta')).toBeInTheDocument()
+    expect(within(filaDe('Con Cuenta')).queryByText('Sin cuenta')).not.toBeInTheDocument()
+    expect(within(filaDe('Cuenta Ignorada')).queryByText('Sin cuenta')).not.toBeInTheDocument()
+    expect(within(filaDe('Dos Equipos')).getByText('2 equipos')).toBeInTheDocument()
+  })
+
+  it('finds a person by phone, however the number is typed', async () => {
+    const filas = [
+      fila('1', 'Ana Ruiz', ID_DHAH, 'Facilitador', { telefono: '04125457346' }),
+      fila('2', 'Luis Paz', ID_DHAH, 'Facilitador', { telefono: '04245551111' }),
+    ]
+    render(<ServidoresClient {...props({ filas })} />)
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar' }), '0412 545')
+    expect(nombresEnTabla()).toEqual([expect.stringContaining('Ana Ruiz')])
+  })
+})
+
 describe('ServidoresClient — empty states', () => {
   it('says when no servicio matches, keeps the pills and offers to clear', async () => {
     render(<ServidoresClient {...props()} />)

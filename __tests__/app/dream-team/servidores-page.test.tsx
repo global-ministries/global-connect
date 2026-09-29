@@ -64,6 +64,7 @@ jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
 }))
 jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => [] }))
 jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({ fetchLideresGdv: async () => mockLideres }))
+const fetchContactosPersonas = jest.fn()
 jest.mock('@/lib/platform/dream-team/personas', () => ({
   fetchNombresPersonas: async () =>
     new Map([
@@ -72,6 +73,7 @@ jest.mock('@/lib/platform/dream-team/personas', () => ({
       ['p3', 'Carla Facilitadora'],
       ['g1', 'Marta Lider'],
     ]),
+  fetchContactosPersonas: (...args: unknown[]) => fetchContactosPersonas(...args),
 }))
 
 import DreamTeamServidoresPage from '@/app/(auth)/admin/dream-team/servidores/page'
@@ -106,6 +108,12 @@ beforeEach(() => {
   hasDreamTeamReadCapability.mockReturnValue(true)
   hasDreamTeamWriteCapability.mockReturnValue(true)
   requireDreamTeamSession.mockResolvedValue({ personaId: 'me' })
+  fetchContactosPersonas.mockReset().mockResolvedValue(
+    new Map([
+      ['p1', { telefono: '04125457346', tieneCuenta: true }],
+      ['p2', { telefono: null, tieneCuenta: false }],
+    ]),
+  )
   mockServicios = [
     servicio('s1', 'dir-a', 'director', 'p1'),
     servicio('s2', 'eq-a1', 'coordinador', 'p2', 'en_pausa'),
@@ -153,6 +161,21 @@ describe('rows', () => {
       origen: 'grupos_vida',
       editable: false,
     })
+  })
+
+  it('adds the phone and account status of each persona from the scoped contacts RPC, once for everyone', async () => {
+    const { filas } = await renderizar()
+    expect(fetchContactosPersonas).toHaveBeenCalledTimes(1)
+    expect(fetchContactosPersonas.mock.calls[0][1]).toEqual(['p1', 'p2', 'p3', 'g1'])
+    expect(filas[0]).toMatchObject({ telefono: '04125457346', tieneCuenta: true })
+    expect(filas[1]).toMatchObject({ telefono: null, tieneCuenta: false })
+  })
+
+  it('leaves phone and account status unknown for people the caller cannot see (never "sin cuenta")', async () => {
+    const { filas } = await renderizar()
+    // p3 (not returned by the RPC) and the Grupos de Vida leader.
+    expect(filas[2]).toMatchObject({ telefono: null, tieneCuenta: null })
+    expect(filas[3]).toMatchObject({ telefono: null, tieneCuenta: null })
   })
 
   it('marks rows read-only for a viewer without write capability', async () => {

@@ -23,6 +23,7 @@ import {
 } from '@/lib/platform/dream-team/servidores-vista'
 import { ANILLO } from './contadores-etapa'
 import { MenuServidor } from './menu-servidor'
+import { TelefonoServidor } from './telefono-servidor'
 
 export interface TablaServidoresProps {
   readonly items: readonly ItemLista[]
@@ -45,6 +46,13 @@ export function MarcasDeFila({ fila }: { readonly fila: FilaVista }): ReactEleme
     marcas.push(
       <BadgeSistema key="gdv" variante="default" tamaño="sm">
         {ORIGEN_GRUPOS_VIDA_LABEL}
+      </BadgeSistema>,
+    )
+  }
+  if (fila.tieneCuenta === false) {
+    marcas.push(
+      <BadgeSistema key="sin-cuenta" variante="warning" tamaño="sm">
+        Sin cuenta
       </BadgeSistema>,
     )
   }
@@ -134,6 +142,7 @@ function FilaTabla({ fila, onActualizado }: { readonly fila: FilaVista; readonly
               <span className="text-[15px] font-medium text-foreground">{fila.nombre}</span>
               <MarcasDeFila fila={fila} />
             </div>
+            <TelefonoServidor telefono={fila.telefono} />
           </div>
         </div>
       </td>
