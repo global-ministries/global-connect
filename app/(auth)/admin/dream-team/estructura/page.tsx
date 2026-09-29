@@ -1,12 +1,18 @@
 /**
  * Dream Team — /admin/dream-team/estructura (RSC).
  *
- * First of the three Dream Team screens: the org tree. Server component
- * loads equipos + roles + the virtual Grupos de Vida branch and hands a
- * pre-built, merged tree to the client island; mutations live in
+ * The org chart and the detail of one team. Server component loads equipos +
+ * roles + servicios + the virtual Grupos de Vida branch and hands a
+ * pre-built, merged tree (plus the people counts and the taller links) to the
+ * client island in components/dream-team/estructura/; the team shown is
+ * chosen by `?equipo=<id>` and defaults to the first direccion with people
+ * (lib/platform/dream-team/estructura-vista.ts). Mutations live in
  * ./actions.ts (server actions) and only ever target real equipos — the
  * Grupos de Vida branch is read-only (see
  * lib/platform/dream-team/estructura-gdv.ts, estructura-arbol.ts).
+ *
+ * Only serializable data reaches the client island — no components, icons or
+ * functions cross the server/client boundary.
  *
  * Linked from the desktop sidebar's Dream Team entry
  * (components/ui/sidebar-moderna.tsx); the mobile bottom nav doesn't link it
@@ -29,15 +35,20 @@ import {
   responsablesDreamTeamPorEquipo,
   tallerPorEquipoId,
 } from '@/lib/platform/dream-team/estructura-arbol'
+import { contarUso, crearVistaEstructura, type TallerVinculado } from '@/lib/platform/dream-team/estructura-vista'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
-
-import { EstructuraClient } from './estructura-client'
+import { rutaTaller } from '@/lib/platform/talleres/rutas'
+import { EstructuraClient } from '@/components/dream-team/estructura/estructura-client'
 
 export const metadata = { title: 'Estructura' }
 
-export default async function DreamTeamEstructuraPage() {
+interface EstructuraPageProps {
+  readonly searchParams?: Promise<{ readonly equipo?: string | readonly string[] }>
+}
+
+export default async function DreamTeamEstructuraPage({ searchParams }: EstructuraPageProps) {
   if (!isDreamTeamEnabled()) notFound()
 
   const session = await requireDreamTeamSession()
@@ -101,12 +112,28 @@ export default async function DreamTeamEstructuraPage() {
   // everyone regardless of puedeEditar (see estructura-client.tsx).
   const puedeEditar = hasDreamTeamOrgManageCapability(session)
 
+  const talleres: Record<string, TallerVinculado> = Object.fromEntries(
+    Object.entries(tallerPorEquipoId(talleresData ?? [])).map(([equipoId, taller]) => [
+      equipoId,
+      { href: rutaTaller(taller.slug), nombre: taller.nombre },
+    ]),
+  )
+  const uso = contarUso(servicios)
+  const vista = crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres })
+
+  // `?equipo=` picks the team; an unknown or missing one falls back to the default.
+  const pedido = (await searchParams)?.equipo
+  const equipoPedido = Array.isArray(pedido) ? pedido[0] : (pedido as string | undefined)
+  const equipoId = equipoPedido && vista.detalle(equipoPedido) ? equipoPedido : (vista.equipoPorDefecto() ?? '')
+
   return (
     <EstructuraClient
       arbol={arbol}
       rolesPorEquipo={rolesPorEquipo}
+      uso={uso}
+      talleres={talleres}
+      equipoId={equipoId}
       puedeEditar={puedeEditar}
-      tallerPorEquipoId={tallerPorEquipoId(talleresData ?? [])}
     />
   )
 }

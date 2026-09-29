@@ -10,6 +10,8 @@ interface ConfirmationModalProps {
   title: string
   message: string
   isLoading?: boolean
+  /** Text of the confirming button. Defaults to the original deletion copy. */
+  confirmLabel?: string
 }
 
 export function ConfirmationModal({
@@ -19,6 +21,7 @@ export function ConfirmationModal({
   title,
   message,
   isLoading = false,
+  confirmLabel = 'Confirmar Borrado',
 }: ConfirmationModalProps) {
   if (!isOpen) return null
 
@@ -47,7 +50,7 @@ export function ConfirmationModal({
               disabled={isLoading}
               cargando={isLoading}
             >
-              Confirmar Borrado
+              {confirmLabel}
             </BotonSistema>
           </div>
         </TarjetaSistema>
