@@ -120,6 +120,10 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   'lib/platform/dream-team/estructura-gdv.ts',
   'lib/platform/dream-team/grants.ts',
   'lib/platform/dream-team/lideres-gdv.ts',
+  // mi-equipo-vista.ts — new (2026-09-29): the pure view model behind the
+  // redesigned /dream-team/mi-equipo screen (direcciones, team cards, ordered
+  // people, pendientes). grants.ts above also gains the Facilitador role.
+  'lib/platform/dream-team/mi-equipo-vista.ts',
   'lib/platform/dream-team/navigation.ts',
   'lib/platform/dream-team/personas.ts',
   'lib/platform/dream-team/repository-fake.ts',
