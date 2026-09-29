@@ -1,48 +1,42 @@
 /**
- * `<MiEquipoClient>` — island for /dream-team/mi-equipo (area director view).
+ * `<MiEquipoClient>` — island for /dream-team/mi-equipo.
  *
- * Covers:
- *   - renders the reachable branch using the shared node row, with a
- *     per-node person count and humanized rol/estado for each servicio
- *   - an empty node shows the muted "Sin servidores" line instead of an
- *     entire card
- *   - renders EstadoVacio explaining a possible missing area assignment
- *     when the branch is empty
- *   - hides the stage-advance control without write capability
- *   - shows the stage-advance control with write capability for a
- *     non-terminal servicio, and never for a terminal (retirado) one
- *   - a Grupos de Vida leader row (`servidor.origen === 'grupos_vida'`)
- *     renders read-only: name, humanized rol, and the 'Grupos de Vida'
- *     badge, counts as Activo, and never offers a stage-advance control —
- *     even with write capability — showing muted "Se gestiona en Grupos de
- *     Vida" text instead; an ordinary Dream Team row keeps its control
- *   - a virtual Grupos de Vida node's branch total includes its own
- *     servidores (the visible-equipo check covers virtual nodes too)
- *   - an equipo de dirección (`tipo: 'directores'`) renders with the badge
- *     naming what it is
- *   - a node's responsables line is suppressed WHEN it has person rows of
- *     its own (those rows already name the same people with their rol
- *     badges), and still renders when it has none — otherwise the
- *     information would disappear
- *   - every Grupos de Vida segmento AND equipo de dirección starts collapsed
- *     by default
+ * Replaces the old tree-rendering suite (nested nodes, per-node rol chips,
+ * per-row "Cambiar etapa", "Sin servidores", collapsed Grupos de Vida
+ * segmentos): the screen now shows one direccion, one card per team and the
+ * people of the selected team. Acceptance criteria 1-4 and 6 of
+ * odd/tasks/dream-team-mi-equipo-rediseno.md are expressed with the
+ * Conexión-shaped fixture (4 equipos, 38 personas).
  */
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
-import { MiEquipoClient, type MiEquipoServicioRow } from '@/app/(auth)/dream-team/mi-equipo/mi-equipo-client'
+import { MiEquipoClient, type MiEquipoClientProps } from '@/components/dream-team/mi-equipo/mi-equipo-client'
+import {
+  listarDirecciones,
+  vistaDeDireccion,
+  type PersonaEntrada,
+  type PersonasPorEquipo,
+} from '@/lib/platform/dream-team/mi-equipo-vista'
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
 import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
-import type { DreamTeamServicio } from '@/lib/platform/dream-team/types'
 import { personaId } from '@/lib/platform/dream-team/types'
-import type { DreamTeamLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
+import {
+  ID_CONEXION,
+  arbolConexion,
+  personasPorEquipoConexion,
+} from '@/tests/helpers/mi-equipo-conexion'
+
+const replace = jest.fn()
+const refresh = jest.fn()
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: jest.fn(), refresh: jest.fn(), push: jest.fn() }),
+  useRouter: () => ({ replace, refresh, push: jest.fn() }),
 }))
 
-// Same convention as __tests__/app/dashboard-page.test.tsx: ContenedorDashboard
-// lazy-loads its header behind Suspense — swap for a synchronous test double.
+// ContenedorDashboard lazy-loads its header behind Suspense — same synchronous
+// test double as __tests__/app/dashboard-page.test.tsx.
 jest.mock('@/components/ui/sistema-diseno', () => ({
   ...jest.requireActual('@/components/ui/sistema-diseno'),
   ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo?: string }) => (
@@ -53,395 +47,353 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
   ),
 }))
 
-function servicio(overrides: Partial<DreamTeamServicio> = {}): DreamTeamServicio {
+beforeEach(() => {
+  replace.mockClear()
+  refresh.mockClear()
+})
+
+function propsConexion(overrides: Partial<MiEquipoClientProps> = {}): MiEquipoClientProps {
   return {
-    id: 's-1',
-    personaId: personaId('p-1'),
-    equipoId: 'equipo-dps',
-    rolId: 'rol-cam',
-    estado: 'activo',
-    fechaInicio: '2026-01-01T00:00:00.000Z',
-    motivoActual: 'admin_asignacion',
-    version: 1,
+    direcciones: listarDirecciones(arbolConexion, personasPorEquipoConexion),
+    vista: vistaDeDireccion(arbolConexion, personasPorEquipoConexion, ID_CONEXION),
+    direccionId: ID_CONEXION,
+    puedeEditar: false,
+    equiposAsignables: [],
+    rolesPorEquipo: {},
     ...overrides,
   }
 }
 
-function liderGdv(overrides: Partial<DreamTeamLiderGdv> = {}): DreamTeamLiderGdv {
-  return {
-    personaId: personaId('p-gdv-1'),
-    equipoId: 'equipo-gdv',
-    rol: 'lider',
-    desde: '2026-03-01T00:00:00.000Z',
-    ...overrides,
-  }
+const filas = () => {
+  const lista = screen.queryByRole('list', { name: 'Personas del equipo' })
+  return lista ? within(lista).getAllByRole('listitem') : []
 }
+const textoDeFilas = () => filas().map((fila) => fila.textContent ?? '')
+const tarjeta = (prefijo: string) => screen.getByRole('button', { name: (nombre) => nombre.startsWith(prefijo) })
 
-function filaDreamTeam(servicioOverrides: Partial<DreamTeamServicio>, resto: Omit<MiEquipoServicioRow, 'servidor'>): MiEquipoServicioRow {
-  return { servidor: { origen: 'dream_team', servicio: servicio(servicioOverrides) }, ...resto }
-}
+describe('MiEquipoClient — direccion header (criteria 1, 2 and 6)', () => {
+  it('shows the direccion, who leads it and the totals', () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.getByRole('heading', { name: 'Dirección de Conexión' })).toBeInTheDocument()
+    expect(screen.getByText('Dirige Antholy Ludovic Gómez · 38 personas en 4 equipos')).toBeInTheDocument()
+  })
 
-function filaGdv(liderOverrides: Partial<DreamTeamLiderGdv>, resto: Omit<MiEquipoServicioRow, 'servidor'>): MiEquipoServicioRow {
-  return { servidor: { origen: 'grupos_vida', lider: liderGdv(liderOverrides) }, ...resto }
-}
-
-const arbolConUnNodo: readonly NodoArbol<NodoEquipoArbol>[] = [
-  {
-    equipo: { origen: 'dream_team', id: 'equipo-dps', label: 'DPS', experiencia: 'dps', activo: true, responsables: [] },
-    hijos: [],
-    nivel: 0,
-  },
-]
-
-/**
- * ONE virtual grupo node carrying a responsable, reused by the duplication
- * tests below so "with rows" and "without rows" are demonstrably the same
- * node — only `serviciosPorEquipo` differs between the two.
- */
-const arbolGrupoConLideres: NodoArbol<NodoEquipoArbol> = {
-  equipo: {
-    origen: 'grupos_vida',
-    tipo: 'grupo',
-    id: 'grupo-1',
-    label: 'Barquisimeto Matrimonios 1',
-    activo: true,
-    responsables: [{ personaId: personaId('p-gdv-1'), nombre: 'Marta Ruiz', rol: 'lider' }],
-  },
-  hijos: [],
-  nivel: 0,
-}
-
-describe('MiEquipoClient', () => {
-  // Reproduces the preview screenshot: a parent with nobody directly under it
-  // but people in its descendants showed "0 personas · Sin servidores".
-  it('counts the whole branch on a parent and never says "Sin servidores" when descendants serve', () => {
-    const arbol: readonly NodoArbol<NodoEquipoArbol>[] = [
-      {
-        equipo: {
-          origen: 'dream_team',
-          id: 'experiencia',
-          label: 'Dirección de Experiencia',
-          experiencia: 'experiencia',
-          activo: true,
-          responsables: [],
-        },
-        nivel: 0,
-        hijos: [
-          {
-            equipo: {
-              origen: 'dream_team',
-              id: 'camaras',
-              label: 'Cámaras',
-              experiencia: 'dps',
-              activo: true,
-              parentEquipoId: 'experiencia',
-              responsables: [],
-            },
-            hijos: [],
-            nivel: 1,
-          },
-        ],
-      },
+  it('offers a direccion selector to someone who reaches several and navigates by URL', async () => {
+    const direcciones = [
+      { id: ID_CONEXION, label: 'Dirección de Conexión', total: 38 },
+      { id: 'dir-otra', label: 'Dirección de Alabanza', total: 5 },
     ]
-    const filas: readonly MiEquipoServicioRow[] = [
-      filaDreamTeam({ id: 's-1', equipoId: 'camaras' }, { personaNombre: 'Ana Pérez', rolLabel: 'voluntario' }),
-      filaDreamTeam({ id: 's-2', equipoId: 'camaras', personaId: personaId('p-2') }, { personaNombre: 'Luis Gómez', rolLabel: 'voluntario' }),
-    ]
+    render(<MiEquipoClient {...propsConexion({ direcciones })} />)
+    const select = screen.getByLabelText('Dirección')
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Dirección de Conexión',
+      'Dirección de Alabanza',
+    ])
+    await userEvent.selectOptions(select, 'dir-otra')
+    expect(replace).toHaveBeenCalledWith('?direccion=dir-otra')
+  })
 
-    render(
-      <MiEquipoClient arbol={arbol} rolesPorEquipo={{}} serviciosPorEquipo={{ camaras: filas }} puedeEditar={false} />,
+  it('shows no selector to someone who reaches a single direccion', () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.queryByLabelText('Dirección')).not.toBeInTheDocument()
+  })
+
+  it('never shows empty or inactive direcciones, nor a configured-roles chip', () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.queryByText(/Dirección Vacía/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Dirección Antigua/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/roles configurados/i)).not.toBeInTheDocument()
+  })
+
+  it('explains an empty scope instead of rendering a blank screen', () => {
+    render(<MiEquipoClient {...propsConexion({ direcciones: [], vista: null })} />)
+    expect(screen.getByText('Todavía no hay equipos para mostrar')).toBeInTheDocument()
+  })
+})
+
+describe('MiEquipoClient — team cards (criteria 1 and 3)', () => {
+  it('renders Toda la dirección plus one card per team, with 38 people listed', () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    const grupo = screen.getByRole('group', { name: 'Equipos' })
+    const nombres = within(grupo).getAllByRole('button').map((b) => b.getAttribute('aria-pressed'))
+    expect(nombres).toHaveLength(5)
+    expect(tarjeta('Toda la dirección')).toHaveAttribute('aria-pressed', 'true')
+    for (const equipo of ['De Hombre a Hombre', 'Parejas', 'Punto de Partida', 'Mujer de Hoy']) {
+      expect(tarjeta(equipo)).toHaveAttribute('aria-pressed', 'false')
+    }
+    expect(filas()).toHaveLength(38)
+  })
+
+  it('shows the responsable and how many are waiting to be activated', () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(tarjeta('De Hombre a Hombre')).toHaveTextContent('Coordina Edmir Muñoz')
+    expect(tarjeta('De Hombre a Hombre')).toHaveTextContent('1 por activar')
+    expect(tarjeta('Parejas')).not.toHaveTextContent('por activar')
+    expect(tarjeta('Toda la dirección')).toHaveTextContent('Dirige Antholy Ludovic Gómez')
+  })
+
+  it('narrows the list to Parejas with the coordinador first', async () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    await userEvent.click(tarjeta('Parejas'))
+    expect(tarjeta('Parejas')).toHaveAttribute('aria-pressed', 'true')
+    expect(tarjeta('Toda la dirección')).toHaveAttribute('aria-pressed', 'false')
+    expect(filas()).toHaveLength(8)
+    expect(filas()[0]).toHaveTextContent('Ludovic Gómez')
+    expect(filas()[0]).toHaveTextContent('Coordinador')
+  })
+
+  it('lists the direccion director only under Toda la dirección', async () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.getByText('Antholy Ludovic Gómez', { selector: 'li *' })).toBeInTheDocument()
+    await userEvent.click(tarjeta('Mujer de Hoy'))
+    expect(screen.queryByText('Antholy Ludovic Gómez', { selector: 'li *' })).not.toBeInTheDocument()
+  })
+})
+
+describe('MiEquipoClient — search and estado filters (criterion 4)', () => {
+  it('searches inside the selected team and reflects it in the filter counters', async () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    await userEvent.click(tarjeta('Mujer de Hoy'))
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar persona' }), 'blanca')
+    expect(filas()).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Todos · 2' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Activos · 2' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'En orientación · 0' })).toBeInTheDocument()
+  })
+
+  it('counts by estado, hides estados nobody is in, and filters by pill', async () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.getByRole('button', { name: 'Todos · 38' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Activos · 35' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'En pausa · 1' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Postulado/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Retirado/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'En pausa · 1' }))
+    expect(filas()).toHaveLength(1)
+    expect(filas()[0]).toHaveTextContent('En pausa')
+  })
+
+  it('says so when nobody matches', async () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar persona' }), 'zzzz')
+    expect(screen.getByText('Nadie coincide con esa búsqueda')).toBeInTheDocument()
+    expect(filas()).toHaveLength(0)
+  })
+
+  it('matches names without caring about accents or case', async () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar persona' }), 'PEREZ')
+    expect(filas()).toHaveLength(1)
+    expect(filas()[0]).toHaveTextContent('Edith Pérez')
+  })
+})
+
+describe('MiEquipoClient — pendientes strip (criterion 5, first half)', () => {
+  it('announces the people waiting and Revisar filters the list to them', async () => {
+    render(<MiEquipoClient {...propsConexion()} />)
+    const franja = screen.getByRole('region', { name: 'Pendientes' })
+    expect(franja).toHaveTextContent('2 personas esperan que las actives')
+    expect(franja).toHaveTextContent('Luis Barrios')
+    expect(franja).toHaveTextContent('Wilennys García')
+    await userEvent.click(screen.getByRole('button', { name: 'Revisar' }))
+    expect(tarjeta('Toda la dirección')).toHaveAttribute('aria-pressed', 'true')
+    expect(filas()).toHaveLength(2)
+    expect(textoDeFilas().some((t) => t.includes('Luis Barrios'))).toBe(true)
+    expect(textoDeFilas().some((t) => t.includes('Wilennys García'))).toBe(true)
+  })
+
+  it('uses the singular for one person and disappears when nobody waits', () => {
+    const conUno: PersonasPorEquipo = {
+      ...personasPorEquipoConexion,
+      'eq-pdp': personasPorEquipoConexion['eq-pdp'].map((p) => (p.estado === 'en_orientacion' ? { ...p, estado: 'activo' as const } : p)),
+    }
+    const { rerender } = render(
+      <MiEquipoClient {...propsConexion({ vista: vistaDeDireccion(arbolConexion, conUno, ID_CONEXION) })} />,
     )
+    expect(screen.getByRole('region', { name: 'Pendientes' })).toHaveTextContent('1 persona espera que la actives')
 
-    // parent: branch total, labelled as such
-    expect(screen.getByText('2 en la rama')).toBeInTheDocument()
-    // leaf: its own people
-    expect(screen.getByText('2 personas')).toBeInTheDocument()
-    // nobody in this branch is missing, so the empty line must not appear
-    expect(screen.queryByText('Sin servidores')).not.toBeInTheDocument()
+    const sinNadie: PersonasPorEquipo = {
+      ...conUno,
+      'eq-dhah': conUno['eq-dhah'].map((p) => ({ ...p, estado: 'activo' as const })),
+    }
+    rerender(<MiEquipoClient {...propsConexion({ vista: vistaDeDireccion(arbolConexion, sinNadie, ID_CONEXION) })} />)
+    expect(screen.queryByRole('region', { name: 'Pendientes' })).not.toBeInTheDocument()
   })
+})
 
-  it('renders the branch with persona, humanized rol and estado per servicio', () => {
-    const filas: readonly MiEquipoServicioRow[] = [
-      filaDreamTeam({ id: 's-1' }, { personaNombre: 'Ana Pérez', rolLabel: 'coordinador' }),
-    ]
-    render(
-      <MiEquipoClient
-        arbol={arbolConUnNodo}
-        rolesPorEquipo={{}}
-        serviciosPorEquipo={{ 'equipo-dps': filas }}
-        puedeEditar={false}
-      />,
-    )
-
-    expect(screen.getAllByText('DPS').length).toBeGreaterThan(0)
-    expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
-    expect(screen.getByText('Coordinador')).toBeInTheDocument()
-    expect(screen.queryByText('coordinador')).not.toBeInTheDocument()
-    expect(screen.getByText('Activo')).toBeInTheDocument()
-  })
-
-  it('shows a person count per node', () => {
-    const filas: readonly MiEquipoServicioRow[] = [
-      filaDreamTeam({ id: 's-1' }, { personaNombre: 'Ana Pérez', rolLabel: 'coordinador' }),
-      filaDreamTeam({ id: 's-2' }, { personaNombre: 'Luis Gómez', rolLabel: 'voluntario' }),
-    ]
-    render(
-      <MiEquipoClient
-        arbol={arbolConUnNodo}
-        rolesPorEquipo={{}}
-        serviciosPorEquipo={{ 'equipo-dps': filas }}
-        puedeEditar={false}
-      />,
-    )
-
-    expect(screen.getByText('2 personas')).toBeInTheDocument()
-  })
-
-  it('shows the muted "Sin servidores" line for a node with nobody serving, instead of a whole card', () => {
-    render(
-      <MiEquipoClient arbol={arbolConUnNodo} rolesPorEquipo={{}} serviciosPorEquipo={{}} puedeEditar={false} />,
-    )
-
-    expect(screen.getByText('Sin servidores')).toBeInTheDocument()
-    expect(screen.getByText('0 personas')).toBeInTheDocument()
-  })
-
-  it('renders EstadoVacio explaining a possible missing area assignment when the branch is empty', () => {
-    render(<MiEquipoClient arbol={[]} rolesPorEquipo={{}} serviciosPorEquipo={{}} puedeEditar={false} />)
-    expect(screen.getByText(/no alcanzás ningún equipo/i)).toBeInTheDocument()
-  })
-
-  it('hides the stage-advance control without write capability', () => {
-    const filas: readonly MiEquipoServicioRow[] = [
-      filaDreamTeam({ id: 's-1' }, { personaNombre: 'Ana Pérez', rolLabel: 'coordinador' }),
-    ]
-    render(
-      <MiEquipoClient
-        arbol={arbolConUnNodo}
-        rolesPorEquipo={{}}
-        serviciosPorEquipo={{ 'equipo-dps': filas }}
-        puedeEditar={false}
-      />,
-    )
-    expect(screen.queryByRole('button', { name: 'Cambiar etapa' })).not.toBeInTheDocument()
-  })
-
-  it('shows the stage-advance control with write capability for a non-terminal servicio', () => {
-    const filas: readonly MiEquipoServicioRow[] = [
-      filaDreamTeam({ id: 's-1' }, { personaNombre: 'Ana Pérez', rolLabel: 'coordinador' }),
-    ]
-    render(
-      <MiEquipoClient
-        arbol={arbolConUnNodo}
-        rolesPorEquipo={{}}
-        serviciosPorEquipo={{ 'equipo-dps': filas }}
-        puedeEditar={true}
-      />,
-    )
-    expect(screen.getByRole('button', { name: 'Cambiar etapa' })).toBeInTheDocument()
-  })
-
-  it('never offers a stage-advance control for a terminal (retirado) servicio, even with write capability', () => {
-    const filas: readonly MiEquipoServicioRow[] = [
-      filaDreamTeam({ id: 's-1', estado: 'retirado' }, { personaNombre: 'Ana Pérez', rolLabel: 'coordinador' }),
-    ]
-    render(
-      <MiEquipoClient
-        arbol={arbolConUnNodo}
-        rolesPorEquipo={{}}
-        serviciosPorEquipo={{ 'equipo-dps': filas }}
-        puedeEditar={true}
-      />,
-    )
-    expect(screen.queryByRole('button', { name: 'Cambiar etapa' })).not.toBeInTheDocument()
-  })
-
-  it('renders a Grupos de Vida leader read-only — badge, counted as Activo, no stage-advance control even with write capability — while a Dream Team row keeps its control', () => {
-    const filas: readonly MiEquipoServicioRow[] = [
-      filaDreamTeam({ id: 's-1' }, { personaNombre: 'Ana Pérez', rolLabel: 'coordinador' }),
-      filaGdv({}, { personaNombre: 'Marta Ruiz', rolLabel: 'Líder de grupo' }),
-    ]
-    render(
-      <MiEquipoClient
-        arbol={arbolConUnNodo}
-        rolesPorEquipo={{}}
-        serviciosPorEquipo={{ 'equipo-dps': filas }}
-        puedeEditar={true}
-      />,
-    )
-
-    expect(screen.getByText('Marta Ruiz')).toBeInTheDocument()
-    expect(screen.getByText('Líder de grupo')).toBeInTheDocument()
-    expect(screen.getByText('Grupos de Vida')).toBeInTheDocument()
-    expect(screen.getByText('Se gestiona en Grupos de Vida')).toBeInTheDocument()
-
-    // Only Ana (Dream Team) gets a stage-advance control.
-    expect(screen.getAllByRole('button', { name: 'Cambiar etapa' }).length).toBe(1)
-
-    // Marta counts as Activo alongside Ana.
-    expect(screen.getByText('Activo: 2')).toBeInTheDocument()
-  })
-
-  // ── Grupos de Vida virtual branch ──────────────────────────────────────
-
-  it('renders a virtual Grupos de Vida grupo node — origin marker, and its own servidor rows counted in the branch total', () => {
-    const arbol = [arbolGrupoConLideres]
-    const filas: readonly MiEquipoServicioRow[] = [filaGdv({}, { personaNombre: 'Marta Ruiz', rolLabel: 'Líder de grupo' })]
-
-    render(
-      <MiEquipoClient arbol={arbol} rolesPorEquipo={{}} serviciosPorEquipo={{ 'grupo-1': filas }} puedeEditar={false} />,
-    )
-
-    expect(screen.getByText('Barquisimeto Matrimonios 1')).toBeInTheDocument()
-    expect(screen.getAllByText('Grupos de Vida').length).toBeGreaterThan(0)
-    // The visible-equipo check includes the virtual grupo id: its own
-    // servidor is counted, not silently dropped as "outside the tree".
-    expect(screen.getByText('1 persona')).toBeInTheDocument()
-  })
-
-  it('renders an equipo de dirección with the badge naming what it is', () => {
-    const arbol: readonly NodoArbol<NodoEquipoArbol>[] = [
-      {
-        equipo: {
-          origen: 'grupos_vida',
-          tipo: 'directores',
-          id: 'equipo-1',
-          label: 'Morela Ocampo y Santiago Villegas',
-          activo: true,
-          responsables: [],
-        },
+describe('MiEquipoClient — compact mode and Grupos de Vida', () => {
+  const grupos = 10
+  const arbolGdv: readonly NodoArbol<NodoEquipoArbol>[] = [
+    {
+      equipo: { origen: 'dream_team', id: 'gdv', label: 'Grupos de Vida', experiencia: 'atraccion', activo: true, responsables: [] },
+      hijos: Array.from({ length: grupos }, (_, i) => ({
+        equipo: { origen: 'grupos_vida' as const, tipo: 'grupo' as const, id: `grupo-${i}`, label: `Grupo ${i}`, activo: true, responsables: [] },
         hijos: [],
-        nivel: 0,
-      },
-    ]
-
-    render(<MiEquipoClient arbol={arbol} rolesPorEquipo={{}} serviciosPorEquipo={{}} puedeEditar={false} />)
-
-    expect(screen.getByText('Morela Ocampo y Santiago Villegas')).toBeInTheDocument()
-    expect(screen.getByText('Equipo de dirección')).toBeInTheDocument()
-  })
-
-  // ── No duplicated people: responsables line vs. the node's own rows ────
-
-  /**
-   * Reproduces the preview complaint verbatim: a Grupos de Vida grupo node
-   * showed "Domingo Escobar — Líder · Sol Escobar — Líder" on the row and
-   * then listed the same two people as person rows right below it, with
-   * their rol badges. The rows are the richer rendering (estado badge,
-   * origin badge), so the line above them is the one that goes.
-   */
-  it('suppresses the responsables line on a node that has person rows of its own', () => {
-    const filas: readonly MiEquipoServicioRow[] = [
-      filaGdv({ personaId: personaId('p-gdv-1') }, { personaNombre: 'Marta Ruiz', rolLabel: 'Líder de grupo' }),
-    ]
-
-    render(
-      <MiEquipoClient
-        arbol={[arbolGrupoConLideres]}
-        rolesPorEquipo={{}}
-        serviciosPorEquipo={{ 'grupo-1': filas }}
-        puedeEditar={false}
-      />,
-    )
-
-    // The person row still names her, with her rol badge.
-    expect(screen.getByText('Marta Ruiz')).toBeInTheDocument()
-    expect(screen.getByText('Líder de grupo')).toBeInTheDocument()
-    // ...and the row's responsables line no longer repeats it.
-    expect(screen.queryByText('Marta Ruiz — Líder')).not.toBeInTheDocument()
-  })
-
-  /**
-   * The SAME node with no rows keeps its line: a segmento with its director
-   * general, or a Dream Team node with no servicios, would otherwise lose
-   * the only mention of who is responsible for it.
-   */
-  it('keeps the responsables line on the same node when it has no person rows', () => {
-    render(
-      <MiEquipoClient arbol={[arbolGrupoConLideres]} rolesPorEquipo={{}} serviciosPorEquipo={{}} puedeEditar={false} />,
-    )
-
-    expect(screen.getByText('Marta Ruiz — Líder')).toBeInTheDocument()
-  })
-
-  it('keeps the responsables line on a parent whose people all live in its descendants', () => {
-    const grupo: NodoArbol<NodoEquipoArbol> = {
-      equipo: { origen: 'grupos_vida', tipo: 'grupo', id: 'grupo-1', label: 'Grupo 1', activo: true, responsables: [] },
-      hijos: [],
-      nivel: 1,
-    }
-    const segmento: NodoArbol<NodoEquipoArbol> = {
-      equipo: {
-        origen: 'grupos_vida',
-        tipo: 'segmento',
-        id: 'segmento-1',
-        label: 'Matrimonios',
-        activo: true,
-        responsables: [{ personaId: personaId('p-dg'), nombre: 'Ana Pérez', rol: 'director_general' }],
-      },
-      hijos: [grupo],
+        nivel: 1,
+      })),
       nivel: 0,
-    }
-    const filas: readonly MiEquipoServicioRow[] = [filaGdv({}, { personaNombre: 'Marta Ruiz', rolLabel: 'Líder de grupo' })]
-
-    render(
-      <MiEquipoClient
-        arbol={[segmento]}
-        rolesPorEquipo={{}}
-        serviciosPorEquipo={{ 'grupo-1': filas }}
-        puedeEditar={false}
-      />,
-    )
-
-    // The segmento has a branch total of 1 but zero rows of its own, so
-    // nothing below it duplicates its director general.
-    expect(screen.getByText('Ana Pérez — Director general')).toBeInTheDocument()
+    },
+  ]
+  const lider = (i: number): PersonaEntrada => ({
+    clave: `gdv:${i}`,
+    personaId: personaId(`gdv-${i}`),
+    nombre: `Lider ${i}`,
+    rolClave: 'lider',
+    rolLabel: 'Líder de grupo',
+    estado: 'activo',
+    origen: 'grupos_vida',
+  })
+  const personasGdv: PersonasPorEquipo = Object.fromEntries(Array.from({ length: grupos }, (_, i) => [`grupo-${i}`, [lider(i)]]))
+  const propsGdv = (): MiEquipoClientProps => ({
+    ...propsConexion(),
+    direcciones: listarDirecciones(arbolGdv, personasGdv),
+    vista: vistaDeDireccion(arbolGdv, personasGdv, 'gdv'),
+    direccionId: 'gdv',
   })
 
-  it('starts every Grupos de Vida segmento AND equipo de dirección collapsed by default, while a Dream Team branch keeps expanding by default', () => {
-    const grupo: NodoArbol<NodoEquipoArbol> = {
-      equipo: { origen: 'grupos_vida', tipo: 'grupo', id: 'grupo-1', label: 'Grupo 1', activo: true, responsables: [] },
-      hijos: [],
-      nivel: 3,
-    }
-    const equipoDirectores: NodoArbol<NodoEquipoArbol> = {
-      equipo: {
-        origen: 'grupos_vida',
-        tipo: 'directores',
-        id: 'equipo-1',
-        label: 'Morela Ocampo y Santiago Villegas',
-        activo: true,
-        responsables: [],
-      },
-      hijos: [grupo],
-      nivel: 2,
-    }
-    const segmento: NodoArbol<NodoEquipoArbol> = {
-      equipo: { origen: 'grupos_vida', tipo: 'segmento', id: 'segmento-1', label: 'Matrimonios', activo: true, responsables: [] },
-      hijos: [equipoDirectores],
-      nivel: 1,
-    }
-    const gdvRaiz: NodoArbol<NodoEquipoArbol> = {
-      equipo: { origen: 'dream_team', id: 'gdv-root', label: 'Dirección de Grupos de Vida', experiencia: 'dps', activo: true, responsables: [] },
-      hijos: [segmento],
-      nivel: 0,
-    }
+  it('switches to a compact team list with its own filter above 8 teams', async () => {
+    render(<MiEquipoClient {...propsGdv()} />)
+    const grupo = screen.getByRole('group', { name: 'Equipos' })
+    expect(within(grupo).getAllByRole('button')).toHaveLength(grupos + 1)
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar equipo' }), 'Grupo 3')
+    expect(within(grupo).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      expect.stringContaining('Grupo 3'),
+    ])
+  })
 
-    render(
-      <MiEquipoClient arbol={[gdvRaiz, arbolConUnNodo[0]]} rolesPorEquipo={{}} serviciosPorEquipo={{}} puedeEditar={false} />,
+  it('keeps leaders visible with the Grupos de Vida badge', async () => {
+    render(<MiEquipoClient {...propsGdv()} />)
+    expect(filas()).toHaveLength(grupos)
+    expect(within(filas()[0]).getByText('Grupos de Vida')).toBeInTheDocument()
+    expect(within(filas()[0]).getByText('Líder de grupo')).toBeInTheDocument()
+  })
+})
+
+describe('MiEquipoClient — actions menu (criterion 5, second half)', () => {
+  const editable = () => propsConexion({ puedeEditar: true })
+  const menuDe = (nombre: string) => screen.getByRole('button', { name: `Acciones para ${nombre}` })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('gives every editable row a 44px menu button, and none without write access', () => {
+    const { unmount } = render(<MiEquipoClient {...editable()} />)
+    expect(screen.getAllByRole('button', { name: /^Acciones para / })).toHaveLength(38)
+    expect(menuDe('Luis Barrios')).toHaveClass('h-11', 'w-11')
+    unmount()
+
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
+  })
+
+  it('offers only what the API supports: Cambiar etapa', async () => {
+    render(<MiEquipoClient {...editable()} />)
+    await userEvent.click(menuDe('Luis Barrios'))
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa'])
+  })
+
+  it('leaves Grupos de Vida leaders and terminal estados without a menu', () => {
+    const conRetirado: PersonasPorEquipo = {
+      ...personasPorEquipoConexion,
+      'eq-mdh': personasPorEquipoConexion['eq-mdh'].map((p) => (p.nombre === 'Rayda Alvarado' ? { ...p, estado: 'retirado' as const } : p)),
+    }
+    const gdv: PersonaEntrada = {
+      clave: 'gdv:p:g',
+      personaId: personaId('gdv-p'),
+      nombre: 'Lider Solo Lectura',
+      rolClave: 'lider',
+      rolLabel: 'Líder de grupo',
+      estado: 'activo',
+      origen: 'grupos_vida',
+    }
+    const personas: PersonasPorEquipo = { ...conRetirado, 'eq-mdh': [...conRetirado['eq-mdh'], gdv] }
+    render(<MiEquipoClient {...propsConexion({ puedeEditar: true, vista: vistaDeDireccion(arbolConexion, personas, ID_CONEXION) })} />)
+    expect(screen.queryByRole('button', { name: 'Acciones para Rayda Alvarado' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Acciones para Lider Solo Lectura' })).not.toBeInTheDocument()
+    expect(menuDe('Edith Pérez')).toBeInTheDocument()
+  })
+
+  it('changes a person to Activo from the menu, refreshes, and the strip stops listing them', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ servicio: {}, historial: [] }) })
+    global.fetch = fetchMock as unknown as typeof fetch
+    const { rerender } = render(<MiEquipoClient {...editable()} />)
+    expect(screen.getByRole('region', { name: 'Pendientes' })).toHaveTextContent('Luis Barrios')
+
+    await userEvent.click(menuDe('Luis Barrios'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Cambiar etapa' }))
+    expect(screen.getByText('Etapa actual: En orientación')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Nueva etapa'), 'activo')
+    await userEvent.selectOptions(screen.getByLabelText('Motivo'), 'admin_promocion')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/dream-team/servicios/servicio-dhah-3',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ estado: 'activo', motivo: 'admin_promocion', expectedVersion: 1 }),
+      }),
     )
+    expect(refresh).toHaveBeenCalledTimes(1)
 
-    expect(screen.getByText('Matrimonios')).toBeInTheDocument()
-    expect(screen.queryByText('Morela Ocampo y Santiago Villegas')).not.toBeInTheDocument()
-    expect(screen.queryByText('Grupo 1')).not.toBeInTheDocument()
+    // router.refresh() re-renders the page with the server's truth: Luis is Activo now.
+    const activada: PersonasPorEquipo = {
+      ...personasPorEquipoConexion,
+      'eq-dhah': personasPorEquipoConexion['eq-dhah'].map((p) => (p.nombre === 'Luis Barrios' ? { ...p, estado: 'activo' as const } : p)),
+    }
+    rerender(<MiEquipoClient {...propsConexion({ puedeEditar: true, vista: vistaDeDireccion(arbolConexion, activada, ID_CONEXION) })} />)
+    expect(screen.getByRole('region', { name: 'Pendientes' })).not.toHaveTextContent('Luis Barrios')
+    expect(screen.getByRole('region', { name: 'Pendientes' })).toHaveTextContent('1 persona espera que la actives')
+  })
+})
 
-    // Opening the segmento reveals its teams, not their grupos.
-    fireEvent.click(screen.getByRole('button', { name: 'Expandir Matrimonios' }))
-    expect(screen.getByText('Morela Ocampo y Santiago Villegas')).toBeInTheDocument()
-    expect(screen.queryByText('Grupo 1')).not.toBeInTheDocument()
+describe('MiEquipoClient — Agregar persona', () => {
+  const asignables = [
+    { id: ID_CONEXION, etiqueta: 'Dirección de Conexión' },
+    { id: 'eq-parejas', etiqueta: '—— Parejas' },
+  ]
+  const rolesPorEquipo = {
+    'eq-parejas': [{ id: 'rol-fac', equipoId: 'eq-parejas', label: 'facilitador', activo: true }],
+  }
+  const conEdicion = () => propsConexion({ puedeEditar: true, equiposAsignables: asignables, rolesPorEquipo })
 
-    // Opening the team then reveals the grupos it supervises.
-    fireEvent.click(screen.getByRole('button', { name: 'Expandir Morela Ocampo y Santiago Villegas' }))
-    expect(screen.getByText('Grupo 1')).toBeInTheDocument()
+  it('is offered only with write access (header button and phone floating button)', () => {
+    const { unmount } = render(<MiEquipoClient {...conEdicion()} />)
+    expect(screen.getAllByRole('button', { name: 'Agregar persona' })).toHaveLength(2)
+    unmount()
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.queryByRole('button', { name: 'Agregar persona' })).not.toBeInTheDocument()
+  })
+
+  it('opens the assigner with the selected team preselected', async () => {
+    render(<MiEquipoClient {...conEdicion()} />)
+    await userEvent.click(tarjeta('Parejas'))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Agregar persona' })[0])
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect((screen.getByLabelText('Equipo') as HTMLSelectElement).value).toBe('eq-parejas')
+    expect(within(screen.getByLabelText('Rol')).getByRole('option', { name: 'Facilitador' })).toBeInTheDocument()
+  })
+
+  it('preselects nothing while Toda la dirección is selected', async () => {
+    render(<MiEquipoClient {...conEdicion()} />)
+    await userEvent.click(screen.getAllByRole('button', { name: 'Agregar persona' })[0])
+    expect((screen.getByLabelText('Equipo') as HTMLSelectElement).value).toBe('')
+  })
+
+  it('refreshes the page once a person is assigned', async () => {
+    global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+      if (String(url).startsWith('/api/dream-team/usuarios/buscar')) {
+        return { ok: true, json: async () => [{ id: 'u-1', email: 'nueva@test.com', nombre: 'Nueva', apellido: 'Persona' }] }
+      }
+      return { ok: true, status: 201, json: async () => ({ servicio: {} }) }
+    }) as unknown as typeof fetch
+    render(<MiEquipoClient {...conEdicion()} />)
+    await userEvent.click(tarjeta('Parejas'))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Agregar persona' })[0])
+    await userEvent.type(screen.getByLabelText('Buscar persona', { selector: 'input[placeholder*="email"]' }), 'nueva')
+    await userEvent.click(await screen.findByRole('button', { name: /Nueva Persona/ }))
+    await userEvent.selectOptions(screen.getByLabelText('Rol'), 'rol-fac')
+    await userEvent.click(screen.getByRole('button', { name: 'Crear' }))
+    expect(refresh).toHaveBeenCalled()
   })
 })

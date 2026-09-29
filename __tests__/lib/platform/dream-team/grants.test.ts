@@ -475,3 +475,21 @@ describe('dream_team.serve scoping', () => {
     }
   })
 })
+
+describe('Facilitador role grants the same capabilities as Líder', () => {
+  const equipoTalleres = { id: 'equipo-talleres-parejas', experiencia: 'talleres_crecimiento' as const }
+
+  it('mints serve + lead and the talleres team serve capability on a talleres_crecimiento equipo', () => {
+    const keys = buildGrantsForServicio(equipoTalleres, { id: 'rol-facilitador', label: 'Facilitador' }).map(
+      (grant) => grant.capabilityKey,
+    )
+    expect(keys).toEqual(['dream_team.serve', 'dream_team.lead', 'talleres_crecimiento.team.serve'])
+  })
+
+  it('counts as a lead for the experience-specific capability on dps', () => {
+    const keys = buildGrantsForServicio(equipoDps, { id: 'rol-facilitador', label: 'facilitador' }).map(
+      (grant) => grant.capabilityKey,
+    )
+    expect(keys).toEqual(['dream_team.serve', 'dream_team.lead', 'dps.team.lead'])
+  })
+})
