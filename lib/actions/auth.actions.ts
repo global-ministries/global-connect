@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { normalizarCedula } from "@/lib/utils/cedula";
+import { prepararCedula } from "@/lib/utils/cedula";
 
 /** Un valor con caracteres propios de la sintaxis de `.or()` va entre comillas. */
 function valorParaFiltro(valor: string): string {
@@ -25,7 +25,7 @@ async function createUserProfile(
 
   // La cedula se compara y se guarda normalizada: `22.328.215`, `V-22328215` y
   // `22328215` son la misma persona.
-  const cedula = userData.cedula?.trim() ? normalizarCedula(userData.cedula) : null;
+  const cedula = prepararCedula(userData.cedula);
 
   // Buscar perfil existente por email o cedula
   const orFilters = [`email.eq.${email}`];
@@ -35,7 +35,7 @@ async function createUserProfile(
 
   const { data: usuarios, error: errorBusqueda } = await adminClient
     .from("usuarios")
-    .select("id")
+    .select("id, auth_id")
     .or(orFilters.join(","))
     .limit(1);
 
@@ -46,14 +46,27 @@ async function createUserProfile(
   const perfilExistente = usuarios && usuarios.length > 0 ? usuarios[0] : null;
 
   if (perfilExistente) {
-    // Vincular auth_id al perfil existente
-    const { error: errorUpdate } = await adminClient
-      .from("usuarios")
-      .update({ auth_id: user.id })
-      .eq("id", perfilExistente.id);
+    // Una ficha que ya tiene cuenta nunca se pisa: conocer el correo o la
+    // cédula de otra persona no basta para quedarse con su ficha. La cuenta de
+    // acceso recién creada se deja como está (esta acción no borra usuarios de
+    // auth cuando falla el paso del perfil).
+    if (perfilExistente.auth_id && perfilExistente.auth_id !== user.id) {
+      return {
+        success: false,
+        message: "Ya existe una cuenta para esta persona. Inicia sesión o pide ayuda a un administrador.",
+      };
+    }
 
-    if (errorUpdate) {
-      return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
+    // Sin cuenta todavía: vincularla. Si ya es la de esta persona, no hay nada que hacer.
+    if (!perfilExistente.auth_id) {
+      const { error: errorUpdate } = await adminClient
+        .from("usuarios")
+        .update({ auth_id: user.id })
+        .eq("id", perfilExistente.id);
+
+      if (errorUpdate) {
+        return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
+      }
     }
   } else {
     // Crear perfil nuevo

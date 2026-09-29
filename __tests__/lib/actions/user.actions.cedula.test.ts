@@ -19,12 +19,21 @@ function adminConInsert(error: { code?: string; message: string; details?: strin
   return { admin: { from: jest.fn().mockReturnValue({ insert }) }, insert }
 }
 
-function adminConUpdate(error: { code?: string; message: string; details?: string } | null) {
+type Guardado = { cedula: string | null; telefono: string | null }
+
+function adminConUpdate(
+  error: { code?: string; message: string; details?: string } | null,
+  guardado: Guardado = { cedula: null, telefono: null },
+) {
   const single = jest.fn().mockResolvedValue({ data: error ? null : { id: 'u-1' }, error })
   const select = jest.fn().mockReturnValue({ single })
   const eq = jest.fn().mockReturnValue({ select })
   const update = jest.fn().mockReturnValue({ eq })
-  return { admin: { from: jest.fn().mockReturnValue({ update }) }, update }
+  // The profile is read first (cedula and telefono as stored) to know what changed.
+  const singleGuardado = jest.fn().mockResolvedValue({ data: guardado, error: null })
+  const eqGuardado = jest.fn().mockReturnValue({ single: singleGuardado })
+  const selectGuardado = jest.fn().mockReturnValue({ eq: eqGuardado })
+  return { admin: { from: jest.fn().mockReturnValue({ update, select: selectGuardado }) }, update }
 }
 
 const datosBase = { nombre: 'Beatriz', apellido: 'Paz', genero: 'Femenino', estado_civil: 'Soltero' } as const
@@ -84,6 +93,52 @@ describe('updateUser: cedula', () => {
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ cedula: '22328215' }))
   })
 
+  it('does not send the cedula when saving another field of a profile whose stored cedula is not canonical', async () => {
+    const { admin, update } = adminConUpdate(
+      { message: 'stop' },
+      { cedula: '7.485477 ', telefono: null },
+    )
+    createSupabaseAdminClient.mockReturnValue(admin)
+
+    await expect(
+      updateUser('u-1', { ...datosBase, nombre: 'Mireya', cedula: '7.485477 ' }),
+    ).rejects.toThrow()
+
+    const enviado = update.mock.calls[0][0]
+    expect(enviado).toEqual(expect.objectContaining({ nombre: 'Mireya' }))
+    expect(enviado).not.toHaveProperty('cedula')
+  })
+
+  it('sends the cedula when it really changed, normalized', async () => {
+    const { admin, update } = adminConUpdate({ message: 'stop' }, { cedula: '7485477', telefono: null })
+    createSupabaseAdminClient.mockReturnValue(admin)
+
+    await expect(updateUser('u-1', { ...datosBase, cedula: 'V-22.328.215' })).rejects.toThrow()
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ cedula: '22328215' }))
+  })
+
+  it('sends null when the cedula is cleared', async () => {
+    const { admin, update } = adminConUpdate({ message: 'stop' }, { cedula: '7485477', telefono: null })
+    createSupabaseAdminClient.mockReturnValue(admin)
+
+    await expect(updateUser('u-1', { ...datosBase, cedula: '  ' })).rejects.toThrow()
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ cedula: null }))
+  })
+
+  it('does not send the telefono when it did not change', async () => {
+    const { admin, update } = adminConUpdate(
+      { message: 'stop' },
+      { cedula: null, telefono: '0414 555 0003' },
+    )
+    createSupabaseAdminClient.mockReturnValue(admin)
+
+    await expect(updateUser('u-1', { ...datosBase, telefono: '0414 555 0003' })).rejects.toThrow()
+
+    expect(update.mock.calls[0][0]).not.toHaveProperty('telefono')
+  })
+
   it('maps a unique violation on the cedula to a clear message', async () => {
     const { admin } = adminConUpdate({
       code: '23505',
@@ -102,5 +157,21 @@ describe('updateUser: cedula', () => {
     await expect(updateUser('u-1', { ...datosBase, cedula: '22328215' })).rejects.toThrow(
       'Error al actualizar usuario: null value',
     )
+  })
+})
+
+describe('an unrecognized cedula typed with surrounding spaces', () => {
+  beforeEach(() => createSupabaseAdminClient.mockReset())
+
+  it('is stored trimmed and identical by createUser and updateUser', async () => {
+    const creado = adminConInsert({ message: 'stop' })
+    createSupabaseAdminClient.mockReturnValue(creado.admin)
+    await createUser({ ...datosBase, cedula: '  ABC123  ' })
+    expect(creado.insert).toHaveBeenCalledWith(expect.objectContaining({ cedula: 'ABC123' }))
+
+    const actualizado = adminConUpdate({ message: 'stop' })
+    createSupabaseAdminClient.mockReturnValue(actualizado.admin)
+    await expect(updateUser('u-1', { ...datosBase, cedula: '  ABC123  ' })).rejects.toThrow()
+    expect(actualizado.update).toHaveBeenCalledWith(expect.objectContaining({ cedula: 'ABC123' }))
   })
 })

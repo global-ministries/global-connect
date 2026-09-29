@@ -2,6 +2,7 @@ import {
   esCedulaReconocible,
   formatearCedula,
   normalizarCedula,
+  prepararCedula,
 } from '@/lib/utils/cedula'
 
 const MARCA_INICIO = String.fromCharCode(0x202a)
@@ -84,5 +85,30 @@ describe('formatearCedula', () => {
     expect(formatearCedula('ABC123')).toBe('ABC123')
     expect(formatearCedula(null)).toBe('')
     expect(formatearCedula('')).toBe('')
+  })
+})
+
+describe('prepararCedula', () => {
+  it.each([
+    [' 22.328.215 ', '22328215'],
+    ['V-18423291', '18423291'],
+    ['E 81110494', 'E81110494'],
+  ])('normalizes %j to %j', (entrada, esperado) => {
+    expect(prepararCedula(entrada)).toBe(esperado)
+  })
+
+  it.each([
+    ['  ABC123  ', 'ABC123'],
+    [' 04245136686 ', '04245136686'],
+  ])('trims an unrecognized value: %j -> %j', (entrada, esperado) => {
+    expect(prepararCedula(entrada)).toBe(esperado)
+  })
+
+  it.each([undefined, null, '', '   ', '\t'])('turns blank %j into null', (entrada) => {
+    expect(prepararCedula(entrada)).toBeNull()
+  })
+
+  it.each([42, {}, true])('turns a non-string (%j) into null', (entrada) => {
+    expect(prepararCedula(entrada)).toBeNull()
   })
 })

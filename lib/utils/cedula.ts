@@ -13,7 +13,10 @@
 const MARCAS_INVISIBLES = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g
 const SEPARADORES = /[\s\u00A0.\-]/g
 const VENEZOLANA = /^V?(\d{6,8})$/
-const EXTRANJERA = /^E\d{6,9}$/
+/** Canonical Venezuelan form (the V already dropped). */
+export const CANONICA_VENEZOLANA = /^\d{6,8}$/
+/** Canonical foreign form. */
+export const CANONICA_EXTRANJERA = /^E\d{6,9}$/
 
 /** Applies the canonical rule; NULL stays NULL and unrecognized input is returned as is. */
 export function normalizarCedula(valor: string | null | undefined): string | null {
@@ -25,27 +28,42 @@ export function normalizarCedula(valor: string | null | undefined): string | nul
   const clave = limpio.replace(SEPARADORES, '').toUpperCase()
   const venezolana = VENEZOLANA.exec(clave)
   if (venezolana) return venezolana[1]
-  if (EXTRANJERA.test(clave)) return clave
+  if (CANONICA_EXTRANJERA.test(clave)) return clave
   return valor
+}
+
+function esCanonica(valor: string): boolean {
+  return CANONICA_VENEZOLANA.test(valor) || CANONICA_EXTRANJERA.test(valor)
 }
 
 /** True when the value is (or normalizes to) a recognized cedula. */
 export function esCedulaReconocible(valor: string | null | undefined): boolean {
   const canonica = normalizarCedula(valor)
-  if (!canonica) return false
-  return /^\d{6,8}$/.test(canonica) || EXTRANJERA.test(canonica)
+  return canonica !== null && esCanonica(canonica)
 }
 
 /** `22.328.215` for Venezuelan, `E-81110494` for foreign; unrecognized values are returned as given. */
 export function formatearCedula(valor: string | null | undefined): string {
   if (!valor) return ''
-  if (!esCedulaReconocible(valor)) return valor
-  const canonica = normalizarCedula(valor) as string
-  if (canonica.startsWith('E')) return `E-${canonica.slice(1)}`
-  let con_puntos = ''
+  const canonica = normalizarCedula(valor)
+  if (canonica === null || !esCanonica(canonica)) return valor
+  if (CANONICA_EXTRANJERA.test(canonica)) return `E-${canonica.slice(1)}`
+  let conPuntos = ''
   for (let i = 0; i < canonica.length; i++) {
-    if (i > 0 && (canonica.length - i) % 3 === 0) con_puntos += '.'
-    con_puntos += canonica[i]
+    if (i > 0 && (canonica.length - i) % 3 === 0) conPuntos += '.'
+    conPuntos += canonica[i]
   }
-  return con_puntos
+  return conPuntos
+}
+
+/**
+ * The ONLY way a server entry point (createUser, updateUser, signup) turns a
+ * typed cedula into the value it stores or compares: trimmed, blank becomes
+ * null, then normalized. Anything that is not a string is null.
+ */
+export function prepararCedula(valor: unknown): string | null {
+  if (typeof valor !== 'string') return null
+  const recortada = valor.trim()
+  if (recortada === '') return null
+  return normalizarCedula(recortada)
 }
