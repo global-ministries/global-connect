@@ -8,9 +8,15 @@
  * now grouped under the GROUP node they lead — a virtual node from
  * lib/platform/dream-team/estructura-gdv.ts. Server component loads
  * equipos + roles + servicios + GdV leaders + the virtual Grupos de Vida
- * branch and resolves display labels server-side; the client island
- * (./servidores-client.tsx) only renders + filters + drives the assigner
- * and stage-advance API calls.
+ * branch, resolves display labels server-side and turns everything into the
+ * flat serializable rows of lib/platform/dream-team/servidores-vista.ts; the
+ * client island (components/dream-team/servidores/servidores-client.tsx)
+ * renders, filters, sorts and groups them and drives the assigner and the
+ * stage-advance API calls.
+ *
+ * The filters come from the URL (`?etapa=&direccion=&equipo=&rol=&inicio=
+ * &sin_cuenta=1&varios=1&q=&agrupar=&orden=`), including the legacy `?equipo=`
+ * and `?estado=` of the links from Talleres and Estructura.
  *
  * Linked from the desktop sidebar's Dream Team entry
  * (components/ui/sidebar-moderna.tsx); the mobile bottom nav doesn't link it
@@ -29,16 +35,25 @@ import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/rep
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol, responsablesDreamTeamPorEquipo } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
-import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
-import { ROL_LIDER_GDV_LABELS } from '@/components/dream-team/labels'
-
-import { ServidoresClient, type ServidorRow } from './servidores-client'
+import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
+import { ServidoresClient } from '@/components/dream-team/servidores/servidores-client'
+import {
+  indexarArbol,
+  leerFiltrosDeUrl,
+  type FilaServidor,
+  type ParametrosDeUrl,
+} from '@/lib/platform/dream-team/servidores-vista'
 
 export const metadata = { title: 'Servidores' }
 
-export default async function DreamTeamServidoresPage() {
+export interface DreamTeamServidoresPageProps {
+  readonly searchParams?: Promise<Readonly<Record<string, string | readonly string[] | undefined>>>
+}
+
+export default async function DreamTeamServidoresPage({ searchParams }: DreamTeamServidoresPageProps = {}) {
   if (!isDreamTeamEnabled()) notFound()
 
   const session = await requireDreamTeamSession()
@@ -93,6 +108,16 @@ export default async function DreamTeamServidoresPage() {
     ...lideresGdv.map((lider) => lider.personaId),
   ])
 
+  // Phone (the one on the profile) and account status come from a scoped RPC:
+  // `usuarios` has its own RLS (Grupos de Vida) that hides other people's rows
+  // from a branch director. The RPC answers only for people the caller reaches
+  // by tree, so a persona missing from the map is "not visible to you" and is
+  // shown without phone or account mark, never as "sin cuenta".
+  const contactoPorId = await fetchContactosPersonas(supabase, [
+    ...servicios.map((servicio) => servicio.personaId),
+    ...lideresGdv.map((lider) => lider.personaId),
+  ])
+
   // Merge the real tree with the virtual Grupos de Vida branch (item 3) plus
   // who holds director/coordinador on each real node (item 4). This is what
   // makes a Grupos de Vida row's `equipoLabel` resolve to its group name
@@ -102,28 +127,64 @@ export default async function DreamTeamServidoresPage() {
   const responsablesDreamTeam = responsablesDreamTeamPorEquipo(servicios, roles, personaNombrePorId)
   const nodosCombinados = construirNodosArbol(equipos, nodosGdv, responsablesDreamTeam)
   const arbol = construirArbol(nodosCombinados)
-  const equipoLabelPorId = new Map(nodosCombinados.map((nodo) => [nodo.id, nodo.label]))
 
-  const rows: readonly ServidorRow[] = [
+  const indice = indexarArbol(arbol)
+  const ubicacion = (equipoId: string) => {
+    const nodo = indice.get(equipoId)
+    return {
+      equipoLabel: nodo?.label ?? 'Equipo no encontrado',
+      equipoRuta: nodo?.ruta ?? '',
+      direccionId: nodo?.direccionId ?? equipoId,
+    }
+  }
+  const puedeEditar = hasDreamTeamWriteCapability(session)
+
+  const filas: readonly FilaServidor[] = [
     ...servicios.map(
-      (servicio): ServidorRow => ({
-        servidor: { origen: 'dream_team', servicio },
-        personaNombre: personaNombrePorId.get(servicio.personaId) ?? 'Persona no encontrada',
-        equipoLabel: equipoLabelPorId.get(servicio.equipoId) ?? 'Equipo no encontrado',
-        rolLabel: rolLabelPorId.get(servicio.rolId) ?? 'Rol no encontrado',
+      (servicio): FilaServidor => ({
+        clave: servicio.id,
+        personaId: servicio.personaId,
+        nombre: personaNombrePorId.get(servicio.personaId) ?? 'Persona no encontrada',
+        equipoId: servicio.equipoId,
+        ...ubicacion(servicio.equipoId),
+        rolLabel: rolLabel(rolLabelPorId.get(servicio.rolId) ?? 'Rol no encontrado'),
+        estado: servicio.estado,
+        fechaInicio: servicio.fechaInicio,
+        telefono: contactoPorId.get(servicio.personaId)?.telefono ?? null,
+        tieneCuenta: contactoPorId.get(servicio.personaId)?.tieneCuenta ?? null,
+        origen: 'dream_team',
+        servicioId: servicio.id,
+        version: servicio.version,
+        editable: puedeEditar,
       }),
     ),
     ...lideresGdv.map(
-      (lider): ServidorRow => ({
-        servidor: { origen: 'grupos_vida', lider },
-        personaNombre: personaNombrePorId.get(lider.personaId) ?? 'Persona no encontrada',
-        equipoLabel: equipoLabelPorId.get(lider.equipoId) ?? 'Equipo no encontrado',
+      (lider): FilaServidor => ({
+        clave: `gdv:${lider.personaId}:${lider.equipoId}`,
+        personaId: lider.personaId,
+        nombre: personaNombrePorId.get(lider.personaId) ?? 'Persona no encontrada',
+        equipoId: lider.equipoId,
+        ...ubicacion(lider.equipoId),
         rolLabel: ROL_LIDER_GDV_LABELS[lider.rol],
+        estado: 'activo',
+        fechaInicio: lider.desde,
+        telefono: contactoPorId.get(lider.personaId)?.telefono ?? null,
+        tieneCuenta: contactoPorId.get(lider.personaId)?.tieneCuenta ?? null,
+        origen: 'grupos_vida',
+        editable: false,
       }),
     ),
   ]
 
-  const puedeEditar = hasDreamTeamWriteCapability(session)
+  const parametros: ParametrosDeUrl = (await searchParams) ?? {}
 
-  return <ServidoresClient rows={rows} arbol={arbol} rolesPorEquipo={rolesPorEquipo} puedeEditar={puedeEditar} />
+  return (
+    <ServidoresClient
+      filas={filas}
+      arbol={arbol}
+      rolesPorEquipo={rolesPorEquipo}
+      puedeEditar={puedeEditar}
+      filtrosIniciales={leerFiltrosDeUrl(parametros)}
+    />
+  )
 }

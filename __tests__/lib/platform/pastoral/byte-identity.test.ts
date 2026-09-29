@@ -135,6 +135,10 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   'lib/platform/dream-team/repository.ts',
   'lib/platform/dream-team/route-access.ts',
   'lib/platform/dream-team/servidores.ts',
+  // servidores-vista.ts — new (2026-09-29): the pure view model behind the
+  // redesigned /admin/dream-team/servidores screen (filters, counters, sort,
+  // grouping, URL codec).
+  'lib/platform/dream-team/servidores-vista.ts',
   'lib/platform/dream-team/types.ts',
 
   // PR24 (2026-08-14): fix sidebar 404 — talleres admin href /admin/talleres
