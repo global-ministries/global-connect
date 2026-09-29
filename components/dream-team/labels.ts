@@ -106,9 +106,12 @@ export function rolBadgeVariante(label: string): BadgeVariante {
  * projected in, not one of the four Dream Team roles above — kept as a
  * separate map rather than folded into ROL_LABELS.
  */
+// `colider` is the internal Grupos de Vida role name; every Grupos de Vida
+// screen shows it as "Aprendiz" (docs/sistema-permisos-usuarios-final.md), so
+// Dream Team does too.
 export const ROL_LIDER_GDV_LABELS: Readonly<Record<RolLiderGdv, string>> = {
   lider: 'Líder de grupo',
-  colider: 'Colíder de grupo',
+  colider: 'Aprendiz de grupo',
 }
 
 /**
@@ -124,7 +127,7 @@ export const ROL_RESPONSABLE_GDV_LABELS: Readonly<Record<RolResponsableGdv, stri
   director_general: 'Director general',
   director_etapa: 'Director de etapa',
   lider: 'Líder',
-  colider: 'Colíder',
+  colider: 'Aprendiz',
 }
 
 /**
