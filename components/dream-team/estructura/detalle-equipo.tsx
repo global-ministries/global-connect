@@ -12,6 +12,7 @@
 import { Fragment, useState, useTransition, type ReactElement } from 'react'
 import { Plus } from 'lucide-react'
 
+import { BotonFlotante } from '@/components/ui/BotonFlotante'
 import { BadgeSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
 import { cambiarActivoEquipo, crearEquipo, renombrarEquipo } from '@/app/(auth)/admin/dream-team/estructura/actions'
@@ -75,105 +76,116 @@ export function DetalleEquipoVista({
   }
 
   return (
-    <section aria-label="Detalle del equipo" className="flex min-w-0 flex-1 flex-col gap-6">
-      <header className="flex flex-col gap-3">
-        <Ruta ruta={detalle.ruta} />
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="flex min-w-0 flex-col gap-2.5">
-            <TituloSistema nivel={2} className="text-2xl sm:text-3xl">
-              {detalle.label}
-            </TituloSistema>
-            <div className="flex flex-wrap items-center gap-2">
-              <BadgeSistema variante="info" tamaño="sm">
-                {detalle.experienciaLabel}
-              </BadgeSistema>
-              <BadgeSistema variante={detalle.activo ? 'success' : 'default'} tamaño="sm">
-                {detalle.activo ? 'Activo' : 'Inactivo'}
-              </BadgeSistema>
+    <>
+      <section aria-label="Detalle del equipo" className="flex min-w-0 flex-1 flex-col gap-6">
+        <header className="flex flex-col gap-3">
+          <Ruta ruta={detalle.ruta} />
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex min-w-0 flex-col gap-2.5">
+              <TituloSistema nivel={2} className="text-2xl sm:text-3xl">
+                {detalle.label}
+              </TituloSistema>
+              <div className="flex flex-wrap items-center gap-2">
+                <BadgeSistema variante="info" tamaño="sm">
+                  {detalle.experienciaLabel}
+                </BadgeSistema>
+                <BadgeSistema variante={detalle.activo ? 'success' : 'default'} tamaño="sm">
+                  {detalle.activo ? 'Activo' : 'Inactivo'}
+                </BadgeSistema>
+              </div>
             </div>
-          </div>
 
-          {puedeEditarEste && (
-            <div className="flex shrink-0 flex-wrap items-center gap-2.5">
-              <BotonSistema type="button" variante="outline" tamaño="sm" disabled={isPending} onClick={() => setRenombrando(true)}>
-                Renombrar
-              </BotonSistema>
-              {detalle.activo ? (
+            {puedeEditarEste && (
+              <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+                <BotonSistema type="button" variante="outline" tamaño="sm" disabled={isPending} onClick={() => setRenombrando(true)}>
+                  Renombrar
+                </BotonSistema>
+                {detalle.activo ? (
+                  <BotonSistema
+                    type="button"
+                    variante="outline"
+                    tamaño="sm"
+                    disabled={isPending}
+                    onClick={() => setConfirmandoDesactivar(true)}
+                  >
+                    Desactivar
+                  </BotonSistema>
+                ) : (
+                  <BotonSistema type="button" variante="outline" tamaño="sm" disabled={isPending} onClick={() => cambiarActivo(true)}>
+                    Activar
+                  </BotonSistema>
+                )}
                 <BotonSistema
                   type="button"
-                  variante="outline"
                   tamaño="sm"
+                  icono={Plus}
+                  className="hidden md:inline-flex"
                   disabled={isPending}
-                  onClick={() => setConfirmandoDesactivar(true)}
+                  onClick={() => setAgregandoSubequipo(true)}
                 >
-                  Desactivar
+                  Agregar sub-equipo
                 </BotonSistema>
-              ) : (
-                <BotonSistema type="button" variante="outline" tamaño="sm" disabled={isPending} onClick={() => cambiarActivo(true)}>
-                  Activar
-                </BotonSistema>
-              )}
-              <BotonSistema type="button" tamaño="sm" icono={Plus} disabled={isPending} onClick={() => setAgregandoSubequipo(true)}>
-                Agregar sub-equipo
-              </BotonSistema>
-            </div>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <TarjetasResumen detalle={detalle} direccionId={direccionId} puedeAsignar={puedeEditarEste} />
+
+        <div className="grid items-start gap-6 2xl:grid-cols-2">
+          <ListaSubequipos hijos={detalle.hijos} puedeAgregar={puedeEditarEste} onSeleccionar={onSeleccionar} />
+          {detalle.editable && (
+            <RolesEquipo
+              equipoId={detalle.id}
+              roles={detalle.roles}
+              puedeEditar={puedeEditar}
+              onActualizado={onActualizado}
+              toast={toast}
+            />
           )}
         </div>
-      </header>
 
-      <TarjetasResumen detalle={detalle} direccionId={direccionId} puedeAsignar={puedeEditarEste} />
-
-      <div className="grid items-start gap-6 2xl:grid-cols-2">
-        <ListaSubequipos hijos={detalle.hijos} puedeAgregar={puedeEditarEste} onSeleccionar={onSeleccionar} />
-        {detalle.editable && (
-          <RolesEquipo
-            equipoId={detalle.id}
-            roles={detalle.roles}
-            puedeEditar={puedeEditar}
-            onActualizado={onActualizado}
+        {renombrando && (
+          <DialogoNombre
+            titulo="Renombrar equipo"
+            descripcion="El nuevo nombre se verá en todas las pantallas de Dream Team."
+            etiquetaCampo="Nombre del equipo"
+            valorInicial={detalle.label}
+            textoBoton="Guardar"
+            exito="Equipo renombrado correctamente."
+            guardar={(label) => renombrarEquipo({ id: detalle.id, label })}
+            onClose={() => setRenombrando(false)}
+            onHecho={onActualizado}
             toast={toast}
           />
         )}
-      </div>
 
-      {renombrando && (
-        <DialogoNombre
-          titulo="Renombrar equipo"
-          descripcion="El nuevo nombre se verá en todas las pantallas de Dream Team."
-          etiquetaCampo="Nombre del equipo"
-          valorInicial={detalle.label}
-          textoBoton="Guardar"
-          exito="Equipo renombrado correctamente."
-          guardar={(label) => renombrarEquipo({ id: detalle.id, label })}
-          onClose={() => setRenombrando(false)}
-          onHecho={onActualizado}
-          toast={toast}
+        {agregandoSubequipo && (
+          <DialogoNombre
+            titulo="Agregar sub-equipo"
+            descripcion={`Se creará dentro de "${detalle.label}".`}
+            etiquetaCampo="Nombre del sub-equipo"
+            valorInicial=""
+            textoBoton="Crear"
+            exito="Sub-equipo creado correctamente."
+            guardar={(label) => crearEquipo({ parentEquipoId: detalle.id, label })}
+            onClose={() => setAgregandoSubequipo(false)}
+            onHecho={onActualizado}
+            toast={toast}
+          />
+        )}
+
+        <ConfirmationModal
+          isOpen={confirmandoDesactivar}
+          onClose={() => setConfirmandoDesactivar(false)}
+          onConfirm={() => cambiarActivo(false)}
+          title={`Desactivar "${detalle.label}"`}
+          message="El equipo pasará a estar inactivo. Podrás reactivarlo luego desde esta misma pantalla. ¿Deseas continuar?"
+          isLoading={isPending}
         />
-      )}
+      </section>
 
-      {agregandoSubequipo && (
-        <DialogoNombre
-          titulo="Agregar sub-equipo"
-          descripcion={`Se creará dentro de "${detalle.label}".`}
-          etiquetaCampo="Nombre del sub-equipo"
-          valorInicial=""
-          textoBoton="Crear"
-          exito="Sub-equipo creado correctamente."
-          guardar={(label) => crearEquipo({ parentEquipoId: detalle.id, label })}
-          onClose={() => setAgregandoSubequipo(false)}
-          onHecho={onActualizado}
-          toast={toast}
-        />
-      )}
-
-      <ConfirmationModal
-        isOpen={confirmandoDesactivar}
-        onClose={() => setConfirmandoDesactivar(false)}
-        onConfirm={() => cambiarActivo(false)}
-        title={`Desactivar "${detalle.label}"`}
-        message="El equipo pasará a estar inactivo. Podrás reactivarlo luego desde esta misma pantalla. ¿Deseas continuar?"
-        isLoading={isPending}
-      />
-    </section>
+    {puedeEditarEste && <BotonFlotante icono={Plus} label="Agregar sub-equipo" onClick={() => setAgregandoSubequipo(true)} />}
+    </>
   )
 }

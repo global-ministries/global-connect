@@ -208,7 +208,7 @@ describe('adding a sub-equipo', () => {
   it('names it in a dialog and creates it inside the selected team', async () => {
     const user = userEvent.setup()
     render(<EstructuraClient {...props({ equipoId: ID_GCP })} />)
-    await user.click(screen.getByRole('button', { name: 'Agregar sub-equipo' }))
+    await user.click(within(screen.getByRole('region', { name: 'Detalle del equipo' })).getByRole('button', { name: 'Agregar sub-equipo' }))
 
     const dialogo = await screen.findByRole('dialog')
     expect(within(dialogo).getByText('Se creará dentro de "Grupos de Corto Plazo".')).toBeInTheDocument()
@@ -229,6 +229,8 @@ describe('adding a sub-equipo', () => {
 
   it('is available on an inactive team too', () => {
     render(<EstructuraClient {...props({ equipoId: ID_ATRACCION })} />)
-    expect(screen.getByRole('button', { name: 'Agregar sub-equipo' })).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('region', { name: 'Detalle del equipo' })).getByRole('button', { name: 'Agregar sub-equipo' }),
+    ).toBeInTheDocument()
   })
 })

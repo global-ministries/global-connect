@@ -3,8 +3,9 @@
 /**
  * Dream Team — client island for /admin/dream-team/estructura.
  *
- * Two panes: the org chart (searchable, foldable, closable) and the detail of
- * the selected team. Everything is derived on the client from the data the
+ * Two panes from `lg` up: the org chart (searchable, foldable, closable) and
+ * the detail of the selected team. Below `lg` the page is the detail and the
+ * org chart opens full-screen from a top button (organigrama-movil.tsx). Everything is derived on the client from the data the
  * server page hands over (lib/platform/dream-team/estructura-vista.ts builds
  * the flattened rows and the detail); the selection also lives in the URL
  * (`?equipo=<id>`) so it can be shared, but it is kept in local state as well
@@ -34,6 +35,7 @@ import {
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 
 import { DetalleEquipoVista } from './detalle-equipo'
+import { OrganigramaMovil } from './organigrama-movil'
 import { PanelOrganigrama, RielOrganigrama } from './panel-arbol'
 import { usePanelAbierto } from './use-panel-abierto'
 
@@ -120,16 +122,19 @@ function EstructuraConArbol({ arbol, rolesPorEquipo, uso, talleres, equipoId, pu
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         {panelAbierto ? <PanelOrganigrama {...arbolProps} onCerrar={alternarPanel} /> : <RielOrganigrama onAbrir={alternarPanel} />}
 
-        {detalle && (
-          <DetalleEquipoVista
-            detalle={detalle}
-            direccionId={vista.direccionDe(detalle.id) ?? detalle.id}
-            puedeEditar={puedeEditar}
-            onSeleccionar={seleccionar}
-            onActualizado={() => router.refresh()}
-            toast={toast}
-          />
-        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          <OrganigramaMovil {...arbolProps} />
+          {detalle && (
+            <DetalleEquipoVista
+              detalle={detalle}
+              direccionId={vista.direccionDe(detalle.id) ?? detalle.id}
+              puedeEditar={puedeEditar}
+              onSeleccionar={seleccionar}
+              onActualizado={() => router.refresh()}
+              toast={toast}
+            />
+          )}
+        </div>
       </div>
     </ContenedorDashboard>
   )
