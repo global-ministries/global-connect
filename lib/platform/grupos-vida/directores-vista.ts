@@ -206,12 +206,12 @@ export function iniciales(nombre: string): string {
   return `${primera}${ultima}`.toUpperCase()
 }
 
-function plural(n: number, uno: string, varios: string): string {
+export function plural(n: number, uno: string, varios: string): string {
   return `${n} ${n === 1 ? uno : varios}`
 }
 
-const esGrupoActivo = (g: GrupoEntrada): boolean => g.activo && g.estadoAprobacion === 'aprobado' && g.eliminado !== true
-const esGrupoPendiente = (g: GrupoEntrada): boolean => g.estadoAprobacion === 'pendiente' && g.eliminado !== true
+export const esGrupoActivo = (g: GrupoEntrada): boolean => g.activo && g.estadoAprobacion === 'aprobado' && g.eliminado !== true
+export const esGrupoPendiente = (g: GrupoEntrada): boolean => g.estadoAprobacion === 'pendiente' && g.eliminado !== true
 
 const leerAlcance = (valor: string): Alcance => (valor === 'directores' ? 'directores' : 'segmento')
 
