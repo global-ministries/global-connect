@@ -113,7 +113,8 @@ export async function cambiarAlcanceDG(
  * SEGMENT equal to `segmentoLiderIds`. Ids of directors from another segment
  * are rejected, and the marks of other segments are never read or written.
  * Inserts first, then deletes, so a failure never leaves the person with fewer
- * marks than they had.
+ * marks than they had. The person must hold the segment. When the delete fails
+ * after inserts, the action reports the failure but still revalidates the page.
  */
 export async function marcarDirectoresDG(
   usuarioId: string,
@@ -127,6 +128,16 @@ export async function marcarDirectoresDG(
       .parse({ usuarioId, segmentoId, segmentoLiderIds })
     const objetivo = [...new Set(parsed.segmentoLiderIds)]
     const adminDb = createSupabaseAdminClient()
+
+    const { data: sostenido, error: sostenidoError } = await adminDb
+      .from("director_general_segmentos")
+      .select("id")
+      .eq("usuario_id", parsed.usuarioId)
+      .eq("segmento_id", parsed.segmentoId)
+    if (sostenidoError) return { success: false, error: sostenidoError.message }
+    if (!sostenido || sostenido.length === 0) {
+      return { success: false, error: "El director general no tiene asignado este segmento" }
+    }
 
     const { data: delSegmento, error: segmentoError } = await adminDb
       .from("segmento_lideres")
@@ -164,7 +175,11 @@ export async function marcarDirectoresDG(
         .delete()
         .eq("dg_usuario_id", parsed.usuarioId)
         .in("segmento_lider_id", porQuitar)
-      if (error) return { success: false, error: error.message }
+      if (error) {
+        // The inserts already changed the stored marks: refresh the page even though the action failed.
+        if (porAgregar.length > 0) revalidatePath(RUTA)
+        return { success: false, error: error.message }
+      }
     }
 
     if (porAgregar.length > 0 || porQuitar.length > 0) revalidatePath(RUTA)

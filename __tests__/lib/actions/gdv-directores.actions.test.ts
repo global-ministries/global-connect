@@ -111,7 +111,8 @@ const acciones = [
   {
     nombre: 'marcarDirectoresDG',
     ejecutar: () => marcarDirectoresDG(U, SEG, [DE_A]),
-    responder: (c: Call): Result => (c.table === 'segmento_lideres' ? ok([{ id: DE_A }]) : ok([])),
+    responder: (c: Call): Result =>
+      c.table === 'segmento_lideres' ? ok([{ id: DE_A }]) : c.table === 'director_general_segmentos' ? ok([{ id: 'fila' }]) : ok([]),
   },
   {
     nombre: 'asignarTodosLosSegmentosDG',
@@ -261,8 +262,9 @@ describe('cambiarAlcanceDG', () => {
 
 describe('marcarDirectoresDG', () => {
   /** The segment holds DE_A, DE_B and DE_C; the person currently has DE_A and DE_B marked. */
-  function segmentoConMarcas(actuales: string[], delSegmento: string[] = [DE_A, DE_B, DE_C]) {
+  function segmentoConMarcas(actuales: string[], delSegmento: string[] = [DE_A, DE_B, DE_C], tieneElSegmento = true) {
     responder = (c) => {
+      if (c.table === 'director_general_segmentos') return ok(tieneElSegmento ? [{ id: 'fila' }] : [])
       if (c.table === 'segmento_lideres') return ok(delSegmento.map((id) => ({ id })))
       if (c.table === 'dg_directores_etapa' && c.ops.some((o) => o.method === 'select')) {
         return ok(actuales.map((id) => ({ segmento_lider_id: id })))
@@ -336,8 +338,54 @@ describe('marcarDirectoresDG', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
+  it('refuses when the person does not hold the segment, and writes nothing', async () => {
+    segmentoConMarcas([], [DE_A, DE_B, DE_C], false)
+    const res = await marcarDirectoresDG(U, SEG, [DE_A])
+
+    expect(res).toEqual({ success: false, error: 'El director general no tiene asignado este segmento' })
+    expect(escritura()).toEqual([])
+    expect(revalidatePath).not.toHaveBeenCalled()
+    const [lectura] = calls.filter((c) => c.table === 'director_general_segmentos')
+    expect(tiene(lectura, 'eq', 'usuario_id', U)).toBe(true)
+    expect(tiene(lectura, 'eq', 'segmento_id', SEG)).toBe(true)
+  })
+
+  it('reports a failed read of the held segment', async () => {
+    responder = (c) => (c.table === 'director_general_segmentos' ? fallo('held down') : ok([]))
+    expect(await marcarDirectoresDG(U, SEG, [DE_A])).toEqual({ success: false, error: 'held down' })
+    expect(escritura()).toEqual([])
+  })
+
+  it('reports the failure and still revalidates when the insert succeeded but the delete failed, leaving no fewer marks', async () => {
+    responder = (c) => {
+      if (c.table === 'director_general_segmentos') return ok([{ id: 'fila' }])
+      if (c.table === 'segmento_lideres') return ok([{ id: DE_A }, { id: DE_B }])
+      if (c.table === 'dg_directores_etapa' && c.ops.some((o) => o.method === 'select')) return ok([{ segmento_lider_id: DE_A }])
+      if (c.ops.some((o) => o.method === 'delete')) return fallo('delete down')
+      return ok(null)
+    }
+    const res = await marcarDirectoresDG(U, SEG, [DE_B])
+
+    expect(res).toEqual({ success: false, error: 'delete down' })
+    expect(opsDe('dg_directores_etapa', 'insert')).toHaveLength(1)
+    expect(revalidatePath).toHaveBeenCalledWith('/grupos-vida/directores')
+  })
+
+  it('does not revalidate when the delete fails and nothing was inserted', async () => {
+    responder = (c) => {
+      if (c.table === 'director_general_segmentos') return ok([{ id: 'fila' }])
+      if (c.table === 'segmento_lideres') return ok([{ id: DE_A }])
+      if (c.table === 'dg_directores_etapa' && c.ops.some((o) => o.method === 'select')) return ok([{ segmento_lider_id: DE_A }])
+      if (c.ops.some((o) => o.method === 'delete')) return fallo('delete down')
+      return ok(null)
+    }
+    expect(await marcarDirectoresDG(U, SEG, [])).toEqual({ success: false, error: 'delete down' })
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
   it('stops and reports the error when the insert fails, before deleting anything', async () => {
     responder = (c) => {
+      if (c.table === 'director_general_segmentos') return ok([{ id: 'fila' }])
       if (c.table === 'segmento_lideres') return ok([{ id: DE_A }, { id: DE_B }])
       if (c.table === 'dg_directores_etapa' && c.ops.some((o) => o.method === 'select')) return ok([{ segmento_lider_id: DE_A }])
       if (c.ops.some((o) => o.method === 'insert')) return fallo('boom')
