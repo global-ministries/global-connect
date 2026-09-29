@@ -44,6 +44,7 @@ import { BarraFiltros } from './barra-filtros'
 import { ContadoresEtapa } from './contadores-etapa'
 import { PastillasFiltros } from './pastillas-filtros'
 import { TablaServidores } from './tabla-servidores'
+import { TarjetasServidores } from './tarjetas-servidores'
 
 export interface ServidoresClientProps {
   readonly filas: readonly FilaServidor[]
@@ -169,6 +170,7 @@ export function ServidoresClient({ filas, arbol, rolesPorEquipo, puedeEditar, fi
         />
       ) : (
         <section aria-label="Resultados" className="space-y-2">
+          <TarjetasServidores items={vista.items} onActualizado={() => router.refresh()} />
           <TablaServidores
             items={vista.items}
             orden={vista.filtros.orden}

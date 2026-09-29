@@ -314,6 +314,85 @@ describe('ServidoresClient — phone and account status (criterion 6)', () => {
   })
 })
 
+describe('ServidoresClient — phone', () => {
+  const tarjetas = () => screen.getByRole('list', { name: 'Servicios en tarjetas' })
+  const tarjetaDe = (nombre: string) =>
+    within(tarjetas()).getAllByRole('listitem').find((li) => within(li).queryByText(nombre)) as HTMLElement
+  const botonFiltros = () => screen.getByRole('button', { name: /^Filtros/ })
+
+  it('scrolls the etapa pills horizontally instead of wrapping', () => {
+    render(<ServidoresClient {...props()} />)
+    expect(screen.getByRole('group', { name: 'Filtrar por etapa' })).toHaveClass('overflow-x-auto')
+  })
+
+  it('renders each servicio as a card: name, equipo · rol, etapa, marks and phone', () => {
+    const filas = [
+      fila('1', 'Ana Ruiz', ID_DHAH, 'Coordinador', { telefono: '04125457346', tieneCuenta: false, estado: 'en_pausa' }),
+      fila('2', 'Ana Ruiz', ID_PDP, 'Facilitador', { telefono: '04125457346', tieneCuenta: false }),
+    ]
+    render(<ServidoresClient {...props({ filas })} />)
+    expect(within(tarjetas()).getAllByRole('listitem')).toHaveLength(2)
+    const tarjeta = within(tarjetas()).getAllByRole('listitem')[0]
+    expect(within(tarjeta).getByText('Ana Ruiz')).toBeInTheDocument()
+    expect(within(tarjeta).getByText('De Hombre a Hombre · Coordinador')).toBeInTheDocument()
+    expect(within(tarjeta).getByText('En pausa')).toBeInTheDocument()
+    expect(within(tarjeta).getByText('Sin cuenta')).toBeInTheDocument()
+    expect(within(tarjeta).getByText('2 equipos')).toBeInTheDocument()
+    expect(within(tarjeta).getByRole('link', { name: /0412 545 7346/ })).toHaveAttribute('href', 'https://wa.me/584125457346')
+  })
+
+  it('cards carry the same menu as the table rows, and none for read-only viewers or Grupos de Vida leaders', async () => {
+    const filas = [
+      fila('1', 'Ana Ruiz', ID_DHAH, 'Facilitador'),
+      fila('2', 'Marta Ruiz', ID_DHAH, 'Líder de grupo', { origen: 'grupos_vida', servicioId: undefined, version: undefined, editable: false }),
+    ]
+    render(<ServidoresClient {...props({ filas, puedeEditar: true })} />)
+    expect(within(tarjetaDe('Marta Ruiz')).queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
+    await userEvent.click(within(tarjetaDe('Ana Ruiz')).getByRole('button', { name: 'Acciones para Ana Ruiz' }))
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Ver su equipo'])
+  })
+
+  it('has a "Filtros" button that counts the filters it holds and opens a bottom sheet with Equipo, Rol and the quick filters', async () => {
+    render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    expect(botonFiltros()).toHaveTextContent(/^Filtros$/)
+
+    await userEvent.click(botonFiltros())
+    const hoja = screen.getByRole('dialog', { name: 'Filtros' })
+    expect(within(hoja).getByLabelText('Equipo')).toBeInTheDocument()
+    expect(within(hoja).getByLabelText('Rol')).toBeInTheDocument()
+    expect(within(hoja).getByRole('button', { name: 'Sin cuenta · 31' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(hoja).getByRole('button', { name: 'En varios equipos · 4' })).toBeInTheDocument()
+    expect(within(hoja).getByRole('button', { name: 'Limpiar' })).toBeInTheDocument()
+    expect(within(hoja).getByRole('button', { name: 'Ver 38' })).toBeInTheDocument()
+  })
+
+  it('the sheet filters live, "Ver N" shows the result count and closes, "Limpiar" empties the sheet filters', async () => {
+    render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    await userEvent.click(botonFiltros())
+    let hoja = screen.getByRole('dialog', { name: 'Filtros' })
+
+    await userEvent.selectOptions(within(hoja).getByLabelText('Equipo'), ID_PDP)
+    await userEvent.click(within(hoja).getByRole('button', { name: /^Sin cuenta/ }))
+    expect(within(hoja).getByRole('button', { name: 'Ver 13' })).toBeInTheDocument()
+    expect(replace).toHaveBeenLastCalledWith(
+      `/admin/dream-team/servidores?direccion=${ID_CONEXION}&equipo=${ID_PDP}&sin_cuenta=1`,
+      { scroll: false },
+    )
+
+    await userEvent.click(within(hoja).getByRole('button', { name: 'Limpiar' }))
+    expect(within(hoja).getByRole('button', { name: 'Ver 38' })).toBeInTheDocument()
+    await userEvent.selectOptions(within(hoja).getByLabelText('Rol'), 'Coordinador')
+    await userEvent.click(within(hoja).getByRole('button', { name: 'Ver 4' }))
+    expect(screen.queryByRole('dialog', { name: 'Filtros' })).not.toBeInTheDocument()
+    expect(botonFiltros()).toHaveTextContent('Filtros · 1')
+    expect(within(tarjetas()).getAllByRole('listitem')).toHaveLength(4)
+
+    await userEvent.click(botonFiltros())
+    hoja = screen.getByRole('dialog', { name: 'Filtros' })
+    expect(within(hoja).getByLabelText('Rol')).toHaveValue('Coordinador')
+  })
+})
+
 describe('ServidoresClient — empty states', () => {
   it('says when no servicio matches, keeps the pills and offers to clear', async () => {
     render(<ServidoresClient {...props()} />)
@@ -330,7 +409,7 @@ describe('ServidoresClient — empty states', () => {
 })
 
 describe('ServidoresClient — row menu and assigner', () => {
-  const menuDe = (nombre: string) => screen.getByRole('button', { name: `Acciones para ${nombre}` })
+  const menuDe = (nombre: string) => within(tabla()).getByRole('button', { name: `Acciones para ${nombre}` })
 
   it('read-only viewers get no menu and no "Asignar servicio"', () => {
     const soloLectura = filasConexion.map((f) => ({ ...f, editable: false }))
@@ -343,7 +422,7 @@ describe('ServidoresClient — row menu and assigner', () => {
     const editable = filasConexion.map((f) => ({ ...f, editable: true }))
     render(<ServidoresClient {...props({ filas: editable, puedeEditar: true })} />)
     expect(screen.queryByRole('button', { name: 'Cambiar etapa' })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /^Acciones para / })).toHaveLength(38)
+    expect(within(tabla()).getAllByRole('button', { name: /^Acciones para / })).toHaveLength(38)
     expect(menuDe('Luis Barrios')).toHaveClass('h-11', 'w-11')
 
     await userEvent.click(menuDe('Luis Barrios'))

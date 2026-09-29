@@ -3,7 +3,9 @@
 /**
  * Servidores — the visible filter bar: search (name or phone), Dirección,
  * Equipo (narrowed by the dirección), Rol and Inicio; below it the quick
- * filters with their counters and the "Agrupar" segmented control.
+ * filters with their counters and the "Agrupar" segmented control. Below `md`
+ * only the search stays, next to the "Filtros · N" button of the bottom sheet
+ * (hoja-filtros.tsx).
  */
 import type { ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -19,6 +21,7 @@ import {
   type VistaServidores,
 } from '@/lib/platform/dream-team/servidores-vista'
 import { ANILLO } from './contadores-etapa'
+import { HojaFiltros } from './hoja-filtros'
 
 export interface BarraFiltrosProps {
   readonly vista: VistaServidores
@@ -49,14 +52,19 @@ export function BarraFiltros({ vista, onCambio }: BarraFiltrosProps): ReactEleme
   return (
     <section aria-label="Filtros" className="space-y-3">
       <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]">
-        <InputSistema
-          type="search"
-          icono={Search}
-          label="Buscar"
-          placeholder="Nombre o teléfono"
-          value={filtros.q}
-          onChange={(evento) => onCambio({ q: evento.target.value })}
-        />
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1">
+            <InputSistema
+              type="search"
+              icono={Search}
+              label="Buscar"
+              placeholder="Nombre o teléfono"
+              value={filtros.q}
+              onChange={(evento) => onCambio({ q: evento.target.value })}
+            />
+          </div>
+          <HojaFiltros vista={vista} onCambio={onCambio} className="md:hidden" />
+        </div>
         <div className="hidden md:contents">
           <SelectSistema
             label="Dirección"
