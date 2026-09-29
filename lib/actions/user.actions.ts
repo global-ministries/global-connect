@@ -6,6 +6,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireAuth } from "@/lib/auth/requireAuth"
 import type { Database } from "@/lib/supabase/database.types"
+import { normalizarCedula } from "@/lib/utils/cedula"
+
+const MENSAJE_CEDULA_DUPLICADA = 'Esta cédula ya pertenece a otra persona.'
+
+/** True when a Postgres error is the unique violation of the cedula. */
+function esCedulaDuplicada(e: { code?: string; message?: string; details?: string } | null | undefined): boolean {
+  if (e?.code !== '23505') return false
+  const texto = `${e.message ?? ''} ${e.details ?? ''}`.toLowerCase()
+  return texto.includes('usuarios_cedula') || texto.includes('unique_cedula_nonnull') || texto.includes('(cedula)')
+}
 
 type FamilyRelationshipResponse = {
   error?: string
@@ -106,7 +116,7 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
       .update({
         nombre: datosSaneados.nombre,
         apellido: datosSaneados.apellido,
-        cedula: datosSaneados.cedula || null,
+        cedula: normalizarCedula((datosSaneados.cedula ?? '').trim()) || null,
         email: datosSaneados.email || null,
         telefono: datosSaneados.telefono || null,
         fecha_nacimiento: datosSaneados.fecha_nacimiento || null,
@@ -122,6 +132,7 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
 
 
     if (errorUsuario) {
+      if (esCedulaDuplicada(errorUsuario)) throw new Error(MENSAJE_CEDULA_DUPLICADA);
       throw new Error(`Error al actualizar usuario: ${errorUsuario.message}`);
     }
 
@@ -318,9 +329,10 @@ export async function createUser(data: {
     const msg = (e?.message as string | undefined) || ""
     const details = (e?.details as string | undefined) || ""
     const texto = `${msg} ${details}`.toLowerCase()
+    if (esCedulaDuplicada(e)) return MENSAJE_CEDULA_DUPLICADA
     if (code === '23505') {
       if (texto.includes('usuarios_email') || texto.includes('email')) return 'El email ya se encuentra registrado.'
-      if (texto.includes('usuarios_cedula') || texto.includes('cedula') || texto.includes('cédula')) return 'La cédula ya se encuentra registrada.'
+      if (texto.includes('cedula') || texto.includes('cédula')) return MENSAJE_CEDULA_DUPLICADA
       return 'Registro duplicado: ya existe un usuario con datos iguales.'
     }
     if (code === '23502') {
@@ -344,7 +356,7 @@ export async function createUser(data: {
       .insert({
         nombre: data.nombre,
         apellido: data.apellido,
-        cedula: (data.cedula || '').trim() === '' ? null : data.cedula,
+        cedula: (data.cedula || '').trim() === '' ? null : normalizarCedula(data.cedula),
         email: (data.email || '').trim() === '' ? null : (data.email || undefined),
         telefono: (data.telefono || '').trim() === '' ? null : data.telefono,
         fecha_nacimiento: (data.fecha_nacimiento || '').trim() === '' ? null : data.fecha_nacimiento,
