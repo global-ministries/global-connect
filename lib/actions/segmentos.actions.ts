@@ -1,6 +1,10 @@
 "use server"
 
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseAdminClient } from "@/lib/supabase/admin"
+import { leer, leerPaginado } from "@/lib/platform/grupos-vida/lectura-supabase"
+import { esGrupoActivo } from "@/lib/platform/grupos-vida/directores-vista"
+import { mensajeNoSePuedeEliminar } from "@/lib/platform/grupos-vida/segmentos-vista"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
@@ -80,8 +84,49 @@ export async function editarSegmento(
   }
 }
 
+/** Postgres `foreign_key_violation`. */
+const CODIGO_LLAVE_FORANEA = "23503"
+
+/**
+ * Message that refuses the deletion when something is attached to the segment,
+ * or `null` when nothing is. Reads with the admin client: RLS would hide groups
+ * and links from some roles and the guard must see every row, deleted or not.
+ * A failed read throws, so the segment is never deleted without checking.
+ */
+async function motivoNoEliminable(id: string): Promise<string | null> {
+  const adminDb = createSupabaseAdminClient()
+  const [segmentos, grupos, lideres, generales] = await Promise.all([
+    leer("segmentos", adminDb.from("segmentos").select("nombre").eq("id", id)),
+    leerPaginado("grupos", (desde, hasta) =>
+      adminDb
+        .from("grupos")
+        .select("id, activo, eliminado, estado_aprobacion")
+        .eq("segmento_id", id)
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    ),
+    leerPaginado("segmento_lideres", (desde, hasta) =>
+      adminDb.from("segmento_lideres").select("id").eq("segmento_id", id).order("id", { ascending: true }).range(desde, hasta),
+    ),
+    leer("director_general_segmentos", adminDb.from("director_general_segmentos").select("segmento_id").eq("segmento_id", id)),
+  ])
+
+  return mensajeNoSePuedeEliminar(segmentos[0]?.nombre ?? "el segmento", {
+    gruposActivos: grupos.filter((g) =>
+      esGrupoActivo({ id: g.id, segmentoId: id, activo: g.activo === true, eliminado: g.eliminado, estadoAprobacion: g.estado_aprobacion }),
+    ).length,
+    gruposTotales: grupos.length,
+    lideres: lideres.length,
+    directoresGenerales: generales.length,
+  })
+}
+
 /**
  * Elimina un segmento por su ID.
+ *
+ * Un segmento con grupos (activos, pendientes, inactivos o eliminados), líderes
+ * o directores generales asignados no se elimina: se responde con el motivo, sin
+ * importar lo que haya hecho la interfaz.
  *
  * @param id - UUID del segmento a eliminar
  * @returns Resultado con éxito o error
@@ -90,9 +135,18 @@ export async function eliminarSegmento(id: string) {
   try {
     const { supabase } = await verificarAcceso()
 
+    const motivo = await motivoNoEliminable(id)
+    if (motivo) return { success: false, error: motivo }
+
     const { error } = await supabase.from("segmentos").delete().eq("id", id)
 
-    if (error) return { success: false, error: error.message }
+    if (error) {
+      // The foreign keys are the last line of defence: answer them in plain words.
+      if (error.code === CODIGO_LLAVE_FORANEA) {
+        return { success: false, error: "No se puede eliminar el segmento: tiene información asociada." }
+      }
+      return { success: false, error: error.message }
+    }
     revalidatePath("/grupos-vida/segmentos")
     return { success: true }
   } catch (e: unknown) {
