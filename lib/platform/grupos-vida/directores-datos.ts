@@ -12,7 +12,7 @@
  *   directors of the segments they hold; no strip.
  *
  * Every read is checked: a failed read throws instead of showing partial
- * numbers. Tables that grow (groups, links, leaders) are read in pages so the
+ * numbers. Tables that grow (groups, links, leaders, scopes, marks, roles) are read in pages so the
  * API row cap never truncates a count silently.
  */
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
@@ -62,8 +62,22 @@ export async function cargarVistaDirectores({ authId, roles }: ParametrosCarga):
         .order('id', { ascending: true })
         .range(desde, hasta),
     ),
-    leer('director_general_segmentos', adminDb.from('director_general_segmentos').select('usuario_id, segmento_id, alcance')),
-    leer('dg_directores_etapa', adminDb.from('dg_directores_etapa').select('dg_usuario_id, segmento_lider_id')),
+    leerPaginado('director_general_segmentos', (desde, hasta) =>
+      adminDb
+        .from('director_general_segmentos')
+        .select('usuario_id, segmento_id, alcance')
+        .order('usuario_id', { ascending: true })
+        .order('segmento_id', { ascending: true })
+        .range(desde, hasta),
+    ),
+    leerPaginado('dg_directores_etapa', (desde, hasta) =>
+      adminDb
+        .from('dg_directores_etapa')
+        .select('dg_usuario_id, segmento_lider_id')
+        .order('dg_usuario_id', { ascending: true })
+        .order('segmento_lider_id', { ascending: true })
+        .range(desde, hasta),
+    ),
   ])
 
   const nombreDeRol = new Map(rolesSistema.map((r) => [r.id, r.nombre_interno]))
@@ -71,7 +85,15 @@ export async function cargarVistaDirectores({ authId, roles }: ParametrosCarga):
     .filter((r) => ['director-general', 'admin', 'pastor', 'director-etapa'].includes(r.nombre_interno))
     .map((r) => r.id)
   const rolesDePersonas = idsDeRoles.length
-    ? await leer('usuario_roles', adminDb.from('usuario_roles').select('usuario_id, rol_id').in('rol_id', idsDeRoles))
+    ? await leerPaginado('usuario_roles', (desde, hasta) =>
+        adminDb
+          .from('usuario_roles')
+          .select('usuario_id, rol_id')
+          .in('rol_id', idsDeRoles)
+          .order('usuario_id', { ascending: true })
+          .order('rol_id', { ascending: true })
+          .range(desde, hasta),
+      )
     : []
 
   const rolesPorPersona = new Map<string, string[]>()

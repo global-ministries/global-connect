@@ -27,6 +27,13 @@ let tablas: Record<string, unknown[]>
 let llamadas: { table: string; ops: { method: string; args: unknown[] }[] }[]
 let error: { table: string; message: string } | null
 
+/** Honors `.range(from, to)` and caps an unpaged read at 1000 rows, like the API does. */
+function filas(table: string, ops: { method: string; args: unknown[] }[]): unknown[] {
+  const todas = tablas[table] ?? []
+  const rango = ops.find((o) => o.method === 'range')
+  return rango ? todas.slice(rango.args[0] as number, (rango.args[1] as number) + 1) : todas.slice(0, 1000)
+}
+
 function recorder() {
   return {
     from: (table: string) => {
@@ -39,7 +46,7 @@ function recorder() {
             if (prop === 'then') {
               return (resolve: (v: unknown) => unknown, reject: (r: unknown) => unknown) =>
                 Promise.resolve(
-                  error?.table === table ? { data: null, error: { message: error.message } } : { data: tablas[table] ?? [], error: null },
+                  error?.table === table ? { data: null, error: { message: error.message } } : { data: filas(table, call.ops), error: null },
                 ).then(resolve, reject)
             }
             return (...args: unknown[]) => {
@@ -151,6 +158,33 @@ describe('cargarVistaDirectores — admin and pastor', () => {
     const metodos = llamadas.flatMap((c) => c.ops.map((o) => o.method))
     expect(metodos).not.toEqual(expect.arrayContaining(['insert']))
     expect(metodos.filter((m) => ['insert', 'update', 'delete', 'upsert'].includes(m))).toEqual([])
+  })
+
+  it('reads the growing tables in pages, so no row past the first page is dropped', async () => {
+    const relleno = <T,>(n: number, fila: (i: number) => T): T[] => Array.from({ length: n }, (_, i) => fila(i))
+    tablas.director_general_segmentos = [
+      ...relleno(1100, (i) => ({ usuario_id: `u-relleno-${i}`, segmento_id: SEG_A, alcance: 'segmento' })),
+      { usuario_id: U_MARIA, segmento_id: SEG_B, alcance: 'segmento' },
+    ]
+    tablas.dg_directores_etapa = [
+      ...relleno(1100, (i) => ({ dg_usuario_id: `u-relleno-${i}`, segmento_lider_id: 'sl-ana' })),
+      { dg_usuario_id: U_MARIA, segmento_lider_id: 'sl-bea' },
+    ]
+    tablas.usuario_roles = [
+      ...relleno(1100, (i) => ({ usuario_id: `u-relleno-${i}`, rol_id: ROL.pastor })),
+      { usuario_id: U_MARIA, rol_id: ROL.dg },
+      { usuario_id: U_EDUARDO, rol_id: ROL.dg },
+      { usuario_id: U_EDUARDO, rol_id: ROL.admin },
+    ]
+
+    const vista = await cargarVistaDirectores({ authId: 'auth-x', roles: ['admin'] })
+
+    expect(vista?.generales.map((g) => [g.nombre, g.otroRol])).toEqual([
+      ['Eduardo Durán', 'Administrador'],
+      ['María Pacheco', null],
+    ])
+    const maria = vista?.generales.find((g) => g.usuarioId === U_MARIA)
+    expect(maria?.segmentos.map((s) => s.segmentoId)).toContain(SEG_B)
   })
 
   it('throws when a read fails, instead of showing partial numbers', async () => {
