@@ -1,4 +1,7 @@
 /**
+ * Role gate: creating, editing and deleting a segment is admin only, the same
+ * as the page offers it.
+ *
  * eliminarSegmento — the server-side guard. A segment with any group row (active,
  * pending, inactive or soft-deleted), any segmento_lideres row or any
  * director_general_segmentos row is refused with a clear message, whatever the
@@ -7,7 +10,7 @@
  * Note: director_general_segmentos cascades on delete, so without this guard
  * deleting a segment would silently drop the general directors' assignments.
  */
-import { eliminarSegmento } from '@/lib/actions/segmentos.actions'
+import { crearSegmento, editarSegmento, eliminarSegmento } from '@/lib/actions/segmentos.actions'
 
 const createSupabaseServerClient = jest.fn()
 const createSupabaseAdminClient = jest.fn()
@@ -27,6 +30,16 @@ let errorLectura: string | null
 let errorBorrado: { code?: string; message: string } | null
 const eqBorrado = jest.fn()
 const from = jest.fn()
+let escrituras: { method: 'insert' | 'update'; row: unknown }[]
+
+/** Chain of an insert or update: `.eq().select().single()` resolves with the saved row. */
+function cadenaDeEscritura() {
+  const cadena: Record<string, unknown> = {}
+  cadena.eq = () => cadena
+  cadena.select = () => cadena
+  cadena.single = () => Promise.resolve({ data: { id: SEG }, error: null })
+  return cadena
+}
 
 /** The admin client is a recorder: awaiting a chain resolves with the fixture rows of the table. */
 function adminRecorder() {
@@ -62,7 +75,18 @@ beforeEach(() => {
   errorLectura = null
   errorBorrado = null
   eqBorrado.mockReset().mockImplementation(() => Promise.resolve({ error: errorBorrado }))
-  from.mockReset().mockImplementation(() => ({ delete: () => ({ eq: eqBorrado }) }))
+  escrituras = []
+  from.mockReset().mockImplementation(() => ({
+    delete: () => ({ eq: eqBorrado }),
+    insert: (row: unknown) => {
+      escrituras.push({ method: 'insert', row })
+      return cadenaDeEscritura()
+    },
+    update: (row: unknown) => {
+      escrituras.push({ method: 'update', row })
+      return cadenaDeEscritura()
+    },
+  }))
   createSupabaseServerClient.mockReset().mockResolvedValue({ from })
   createSupabaseAdminClient.mockReset().mockImplementation(() => adminRecorder())
   getUserWithRoles.mockReset().mockResolvedValue({ user: { id: 'a' }, roles: ['admin'] })
@@ -74,6 +98,35 @@ const grupo = (extra: Record<string, unknown> = {}) => ({
   eliminado: false,
   estado_aprobacion: 'aprobado',
   ...extra,
+})
+
+describe.each([
+  ['crearSegmento', () => crearSegmento({ nombre: 'Jóvenes' })],
+  ['editarSegmento', () => editarSegmento(SEG, { nombre: 'Jóvenes' })],
+  ['eliminarSegmento', () => eliminarSegmento(SEG)],
+])('%s — admin only', (_nombre, ejecutar) => {
+  it('lets an admin through', async () => {
+    getUserWithRoles.mockResolvedValue({ user: { id: 'a' }, roles: ['admin'] })
+    expect(await ejecutar()).toMatchObject({ success: true })
+  })
+
+  it.each([['pastor'], ['director-general'], ['director-etapa'], ['lider']])('refuses the role %s and writes nothing', async (rol) => {
+    getUserWithRoles.mockResolvedValue({ user: { id: 'a' }, roles: [rol] })
+    expect(await ejecutar()).toEqual({ success: false, error: 'No autorizado' })
+    expect(from).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('lets a person with several roles through when admin is among them', async () => {
+    getUserWithRoles.mockResolvedValue({ user: { id: 'a' }, roles: ['pastor', 'admin'] })
+    expect(await ejecutar()).toMatchObject({ success: true })
+  })
+
+  it('refuses a request without a session', async () => {
+    getUserWithRoles.mockResolvedValue(null)
+    expect(await ejecutar()).toEqual({ success: false, error: 'No autenticado' })
+    expect(from).not.toHaveBeenCalled()
+  })
 })
 
 describe('eliminarSegmento — role gate (unchanged)', () => {

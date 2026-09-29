@@ -16,7 +16,8 @@ const segmentoSchema = z.object({
 })
 
 // ---------- Helpers ----------
-const ROLES_PERMITIDOS = ["admin", "pastor", "director-general", "director-etapa"]
+// Creating, editing and deleting segments is admin only, as the page offers it.
+const ROLES_PERMITIDOS = ["admin"]
 
 async function verificarAcceso() {
   const supabase = await createSupabaseServerClient()
