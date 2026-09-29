@@ -15,6 +15,7 @@ import { geocodeAddress } from "@/lib/actions/location.actions"
 import { ProfilePhotoUploader } from "@/components/ui/ProfilePhotoUploader"
 import type { Database } from '@/lib/supabase/database.types'
 import { useNotificaciones } from "@/hooks/use-notificaciones"
+import { normalizarCedula } from "@/lib/utils/cedula"
 import type { SugerenciaDireccionFamiliar } from "@/lib/actions/direccion-familiar.actions"
 
 type Usuario = Database["public"]["Tables"]["usuarios"]["Row"]
@@ -305,7 +306,9 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             placeholder="Ingresa la cédula"
             autoComplete="off"
             error={errors.cedula?.message}
-            {...register("cedula")}
+            {...register("cedula", {
+              onBlur: (e) => setValue("cedula", normalizarCedula(e.target.value) ?? "", { shouldDirty: true }),
+            })}
           />
 
           <InputSistema

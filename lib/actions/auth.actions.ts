@@ -3,6 +3,13 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { normalizarCedula } from "@/lib/utils/cedula";
+
+/** Un valor con caracteres propios de la sintaxis de `.or()` va entre comillas. */
+function valorParaFiltro(valor: string): string {
+  if (/^[A-Za-z0-9]+$/.test(valor)) return valor;
+  return `"${valor.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
 
 /**
  * Crea o vincula un perfil de usuario en la tabla `usuarios`.
@@ -14,12 +21,16 @@ async function createUserProfile(
   userData: { nombre: string; apellido: string; email: string; cedula?: string },
   isEmailConfirmed: boolean = false
 ) {
-  const { nombre, apellido, email, cedula } = userData;
+  const { nombre, apellido, email } = userData;
+
+  // La cedula se compara y se guarda normalizada: `22.328.215`, `V-22328215` y
+  // `22328215` son la misma persona.
+  const cedula = userData.cedula?.trim() ? normalizarCedula(userData.cedula) : null;
 
   // Buscar perfil existente por email o cedula
   const orFilters = [`email.eq.${email}`];
-  if (cedula && cedula.trim() !== "") {
-    orFilters.push(`cedula.eq.${cedula}`);
+  if (cedula) {
+    orFilters.push(`cedula.eq.${valorParaFiltro(cedula)}`);
   }
 
   const { data: usuarios, error: errorBusqueda } = await adminClient
