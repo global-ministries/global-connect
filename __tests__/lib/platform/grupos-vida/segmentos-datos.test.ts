@@ -133,7 +133,7 @@ describe('cargarVistaSegmentos — data', () => {
     const res = await cargarVistaSegmentos({ authId: 'auth-x', roles: ['admin'] })
     const mat = res?.vista.filas.find((f) => f.id === SEG_MAT)
     expect(mat).toMatchObject({ directores: 1, gruposActivos: 1, gruposPendientes: 1, sinDirector: 0 })
-    expect(mat?.bloqueo).toMatch(/^No se puede eliminar Matrimonios: tiene 1 grupo activo y 1 grupo más/)
+    expect(mat?.bloqueo).toMatch(/^No se puede eliminar Matrimonios: tiene 1 grupo activo, 1 otro grupo, 1 líder asignado y 1 director general asignado\./)
     expect(res?.vista.filas.find((f) => f.id === SEG_VACIO)?.bloqueo).toBeNull()
     expect(res?.vista.pie).toBe('3 segmentos · 2 directores de etapa · 2 grupos activos')
   })

@@ -89,12 +89,9 @@ function unir(partes: readonly string[]): string {
 export function mensajeNoSePuedeEliminar(nombre: string, adjuntos: AdjuntosDeSegmento): string | null {
   const partes: string[] = []
   const otrosGrupos = adjuntos.gruposTotales - adjuntos.gruposActivos
-  if (adjuntos.gruposActivos > 0) {
-    const activos = plural(adjuntos.gruposActivos, 'grupo activo', 'grupos activos')
-    partes.push(otrosGrupos > 0 ? `${activos} y ${plural(otrosGrupos, 'grupo más', 'grupos más')}` : activos)
-  } else if (adjuntos.gruposTotales > 0) {
-    partes.push(plural(adjuntos.gruposTotales, 'grupo', 'grupos'))
-  }
+  if (adjuntos.gruposActivos > 0) partes.push(plural(adjuntos.gruposActivos, 'grupo activo', 'grupos activos'))
+  if (adjuntos.gruposActivos > 0 && otrosGrupos > 0) partes.push(plural(otrosGrupos, 'otro grupo', 'otros grupos'))
+  else if (otrosGrupos > 0) partes.push(plural(otrosGrupos, 'grupo', 'grupos'))
   if (adjuntos.lideres > 0) partes.push(plural(adjuntos.lideres, 'líder asignado', 'líderes asignados'))
   if (adjuntos.directoresGenerales > 0) {
     partes.push(plural(adjuntos.directoresGenerales, 'director general asignado', 'directores generales asignados'))

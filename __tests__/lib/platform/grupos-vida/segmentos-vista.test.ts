@@ -167,7 +167,13 @@ describe('mensajeNoSePuedeEliminar', () => {
 
   it('adds the groups that are not active', () => {
     expect(mensajeNoSePuedeEliminar('Matrimonios', { ...base, gruposActivos: 27, gruposTotales: 45 })).toBe(
-      'No se puede eliminar Matrimonios: tiene 27 grupos activos y 18 grupos más.',
+      'No se puede eliminar Matrimonios: tiene 27 grupos activos y 18 otros grupos.',
+    )
+  })
+
+  it('lists the other groups apart from the active ones when there is more to say', () => {
+    expect(mensajeNoSePuedeEliminar('X', { ...base, gruposActivos: 1, gruposTotales: 2, lideres: 1 })).toBe(
+      'No se puede eliminar X: tiene 1 grupo activo, 1 otro grupo y 1 líder asignado.',
     )
   })
 

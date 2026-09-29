@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition, useCallback, type FormEvent } from "react"
-import { Plus, Edit, Trash2, X } from "lucide-react"
+import { Plus, Edit, X } from "lucide-react"
 import { crearSegmento, editarSegmento, eliminarSegmento } from "@/lib/actions/segmentos.actions"
 import {
     TarjetaSistema, BotonSistema, InputSistema, TextareaSistema,
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sistema-diseno"
 import { BotonFlotante } from "@/components/ui/BotonFlotante"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
+import { cn } from "@/lib/utils"
 
 // ---------- Types ----------
 type Segmento = { id: string; nombre: string; descripcion?: string | null }
@@ -16,25 +17,42 @@ type Segmento = { id: string; nombre: string; descripcion?: string | null }
 type ModalMode = "crear" | "editar" | "eliminar" | null
 
 interface Props {
-    segmentos: Segmento[]
-    /** Modo de render: "boton" = botón crear en header, "editar" = botón editar inline, "fab" = FAB móvil */
-    trigger: "boton" | "editar" | "fab"
-    /** Segmento a editar (solo para trigger="editar") */
+    segmentos: readonly Segmento[]
+    /**
+     * Modo de render: "boton" = botón crear en header, "editar" = botón editar inline,
+     * "eliminar" = solo la confirmación de eliminar, controlada por el padre, "fab" = FAB móvil
+     */
+    trigger: "boton" | "editar" | "eliminar" | "fab"
+    /** Segmento a editar o eliminar (solo para trigger="editar" o "eliminar") */
     segmentoEditar?: Segmento
+    /** Confirmación de eliminar abierta (solo para trigger="eliminar") */
+    abierto?: boolean
+    /** Se llama al cerrar la confirmación de eliminar (solo para trigger="eliminar") */
+    onCerrar?: () => void
+    /** Clases extra del botón "Editar" */
+    claseBoton?: string
 }
 
 /**
  * Componente client-side para gestión CRUD de segmentos.
- * Se usa en 3 modos:
+ * Se usa en 4 modos:
  * - trigger="boton": renderiza el botón "Crear Segmento" + modales
- * - trigger="editar": renderiza botones editar/eliminar para un segmento + modales
+ * - trigger="editar": renderiza el botón editar para un segmento + modales
+ * - trigger="eliminar": no renderiza botón; muestra la confirmación de eliminar cuando el padre la abre
  * - trigger="fab": renderiza el FAB móvil + modales
  */
-export default function GestionSegmentosModales({ segmentos, trigger, segmentoEditar }: Props) {
+export default function GestionSegmentosModales({
+    segmentos, trigger, segmentoEditar, abierto = false, onCerrar, claseBoton,
+}: Props) {
     const toast = useNotificaciones()
     const [isPending, startTransition] = useTransition()
-    const [modalMode, setModalMode] = useState<ModalMode>(null)
-    const [selectedSegmento, setSelectedSegmento] = useState<Segmento | null>(null)
+    const [modalModeLocal, setModalMode] = useState<ModalMode>(null)
+    const [selectedLocal, setSelectedSegmento] = useState<Segmento | null>(null)
+
+    // En modo "eliminar" el padre decide cuándo se abre la confirmación.
+    const controlado = trigger === "eliminar"
+    const modalMode: ModalMode = controlado ? (abierto ? "eliminar" : null) : modalModeLocal
+    const selectedSegmento = controlado ? (segmentoEditar ?? null) : selectedLocal
 
     // Form state
     const [nombre, setNombre] = useState("")
@@ -54,15 +72,11 @@ export default function GestionSegmentosModales({ segmentos, trigger, segmentoEd
         setModalMode("editar")
     }, [])
 
-    const openEliminar = useCallback((seg: Segmento) => {
-        setSelectedSegmento(seg)
-        setModalMode("eliminar")
-    }, [])
-
     const closeModal = useCallback(() => {
         setModalMode(null)
         setSelectedSegmento(null)
-    }, [])
+        onCerrar?.()
+    }, [onCerrar])
 
     const handleSubmit = useCallback(
         (e: FormEvent) => {
@@ -115,24 +129,15 @@ export default function GestionSegmentosModales({ segmentos, trigger, segmentoEd
 
         if (trigger === "editar" && segmentoEditar) {
             return (
-                <div className="flex gap-2">
-                    <BotonSistema
-                        variante="outline"
-                        tamaño="sm"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditar(segmentoEditar) }}
-                    >
-                        <Edit className="w-3.5 h-3.5 mr-1" />
-                        Editar
-                    </BotonSistema>
-                    <BotonSistema
-                        variante="outline"
-                        tamaño="sm"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEliminar(segmentoEditar) }}
-                    >
-                        <Trash2 className="w-3.5 h-3.5 mr-1" />
-                        Eliminar
-                    </BotonSistema>
-                </div>
+                <BotonSistema
+                    variante="outline"
+                    tamaño="sm"
+                    className={cn(claseBoton)}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEditar(segmentoEditar) }}
+                >
+                    <Edit className="w-3.5 h-3.5 mr-1" />
+                    Editar
+                </BotonSistema>
             )
         }
 
