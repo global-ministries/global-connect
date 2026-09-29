@@ -23,7 +23,6 @@ import {
 export interface SegmentoBase {
   readonly id: string
   readonly nombre: string
-  readonly descripcion: string | null
 }
 
 /** A `segmento_lideres` row of any type. */
@@ -59,7 +58,6 @@ export interface AdjuntosDeSegmento {
 export interface FilaSegmento {
   readonly id: string
   readonly nombre: string
-  readonly descripcion: string | null
   readonly directores: number
   readonly gruposActivos: number
   readonly gruposPendientes: number
@@ -149,7 +147,6 @@ export function construirVistaSegmentos(entrada: EntradaVistaSegmentos): VistaSe
       return {
         id: s.id,
         nombre: s.nombre,
-        descripcion: s.descripcion,
         directores: nDirectores,
         gruposActivos: nActivos,
         gruposPendientes: nPendientes,

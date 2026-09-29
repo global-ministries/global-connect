@@ -25,9 +25,9 @@ const grupo = (id: string, segmentoId: string | null, extra: Partial<EntradaVist
 function entrada(extra: Partial<EntradaVistaSegmentos> = {}): EntradaVistaSegmentos {
   return {
     segmentos: [
-      { id: MUJ, nombre: 'Mujeres +36', descripcion: null },
-      { id: MAT, nombre: 'Matrimonios', descripcion: 'Parejas' },
-      { id: VACIO, nombre: 'Nuevo', descripcion: null },
+      { id: MUJ, nombre: 'Mujeres +36' },
+      { id: MAT, nombre: 'Matrimonios' },
+      { id: VACIO, nombre: 'Nuevo' },
     ],
     grupos: [
       grupo('g1', MAT),
@@ -128,9 +128,6 @@ describe('construirVistaSegmentos — rows', () => {
     expect(construirVistaSegmentos(e).filas.every((f) => f.gruposActivos === 0)).toBe(true)
   })
 
-  it('keeps the description for the edit form', () => {
-    expect(fila(entrada(), MAT).descripcion).toBe('Parejas')
-  })
 })
 
 describe('construirVistaSegmentos — deletion guard', () => {
@@ -198,14 +195,14 @@ describe('construirVistaSegmentos — footer', () => {
 
   it('uses the singular', () => {
     const e = entrada({
-      segmentos: [{ id: MUJ, nombre: 'Mujeres +36', descripcion: null }],
+      segmentos: [{ id: MUJ, nombre: 'Mujeres +36' }],
       lideres: [{ id: 'sl', segmentoId: MUJ, tipoLider: 'director_etapa' }],
     })
     expect(construirVistaSegmentos(e).pie).toBe('1 segmento · 1 director de etapa · 1 grupo activo')
   })
 
   it('is computed for the visible rows only', () => {
-    const e = entrada({ segmentos: [{ id: MAT, nombre: 'Matrimonios', descripcion: null }] })
+    const e = entrada({ segmentos: [{ id: MAT, nombre: 'Matrimonios' }] })
     expect(construirVistaSegmentos(e).pie).toBe('1 segmento · 2 directores de etapa · 2 grupos activos')
   })
 })
