@@ -29,7 +29,8 @@ export const MAX_EQUIPOS_EN_TARJETAS = 8
 /** Estados that mean "someone still has to activate this person". */
 export const ESTADOS_POR_ACTIVAR: readonly DreamTeamEstado[] = ['postulado', 'en_orientacion']
 
-export type FiltroEstado = DreamTeamEstado | 'todos'
+/** `por_activar` groups postulado + en_orientacion; it backs the strip's "Revisar". */
+export type FiltroEstado = DreamTeamEstado | 'todos' | 'por_activar'
 
 /**
  * One person serving on a node, as the page hands it over. `rolClave` is the
@@ -283,7 +284,32 @@ export function filtrarPersonas(
   const consulta = normalizarTexto(query)
   return personas.filter(
     (persona) =>
-      (estado === 'todos' || persona.estado === estado) &&
+      (estado === 'todos' ||
+        (estado === 'por_activar' ? ESTADOS_POR_ACTIVAR.includes(persona.estado) : persona.estado === estado)) &&
       (consulta === '' || normalizarTexto(persona.nombre).includes(consulta)),
   )
+}
+
+// ── Assigner options ─────────────────────────────────────────────────────
+
+export interface EquipoAsignable {
+  readonly id: string
+  readonly etiqueta: string
+}
+
+/**
+ * The equipos a person can be assigned to from a direccion: the REAL nodes of
+ * its branch (a virtual Grupos de Vida node is not a `dream_team_equipos` row,
+ * so a servicio can't target it), depth-indented like the servidores assigner.
+ */
+export function equiposAsignables(arbol: ArbolVista, direccionId: string): EquipoAsignable[] {
+  const raiz = arbol.find((nodo) => nodo.equipo.id === direccionId)
+  if (!raiz) return []
+  return nodosDeLaRama(raiz)
+    .filter((nodo) => nodo.equipo.origen === 'dream_team')
+    .map((nodo) => {
+      const profundidad = nodo.nivel - raiz.nivel
+      const prefijo = profundidad > 0 ? `${'—'.repeat(profundidad)} ` : ''
+      return { id: nodo.equipo.id, etiqueta: `${prefijo}${nodo.equipo.label}` }
+    })
 }

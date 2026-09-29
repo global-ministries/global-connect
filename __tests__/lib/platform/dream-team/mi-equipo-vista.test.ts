@@ -5,6 +5,7 @@
 import {
   TODOS_LOS_EQUIPOS,
   contadoresPorEstado,
+  equiposAsignables,
   filtrarPersonas,
   inicialesDe,
   listarDirecciones,
@@ -248,5 +249,41 @@ describe('inicialesDe', () => {
     ['élida Ñáñez', 'ÉÑ'],
   ])('%s -> %s', (nombre, esperado) => {
     expect(inicialesDe(nombre)).toBe(esperado)
+  })
+})
+
+describe('por_activar filter', () => {
+  it('keeps postulado and en_orientacion together', () => {
+    const personas = vistaDeDireccion(arbolConexion, personasPorEquipoConexion, ID_CONEXION)?.personas ?? []
+    const conPostulado = personas.map((p, i) => (i === 0 ? { ...p, estado: 'postulado' as const } : p))
+    const resultado = filtrarPersonas(conPostulado, { estado: 'por_activar' })
+    expect(resultado.map((p) => p.estado).sort()).toEqual(['en_orientacion', 'en_orientacion', 'postulado'])
+  })
+})
+
+describe('equiposAsignables', () => {
+  it('lists the real equipos of the direccion branch, root first, indented by depth', () => {
+    expect(equiposAsignables(arbolConexion, ID_CONEXION)).toEqual([
+      { id: ID_CONEXION, etiqueta: 'Dirección de Conexión' },
+      { id: ID_TALLERES, etiqueta: '— Talleres' },
+      { id: ID_DHAH, etiqueta: '—— De Hombre a Hombre' },
+      { id: ID_PAREJAS, etiqueta: '—— Parejas' },
+      { id: ID_PDP, etiqueta: '—— Punto de Partida' },
+      { id: ID_MDH, etiqueta: '—— Mujer de Hoy' },
+    ])
+  })
+
+  it('skips virtual Grupos de Vida nodes and unknown direcciones', () => {
+    const gdv: readonly NodoArbol<NodoEquipoArbol>[] = [
+      {
+        equipo: { origen: 'dream_team', id: 'gdv', label: 'Grupos de Vida', experiencia: 'atraccion', activo: true, responsables: [] },
+        hijos: [
+          { equipo: { origen: 'grupos_vida', tipo: 'grupo', id: 'g1', label: 'Grupo 1', activo: true, responsables: [] }, hijos: [], nivel: 1 },
+        ],
+        nivel: 0,
+      },
+    ]
+    expect(equiposAsignables(gdv, 'gdv')).toEqual([{ id: 'gdv', etiqueta: 'Grupos de Vida' }])
+    expect(equiposAsignables(gdv, 'otra')).toEqual([])
   })
 })
