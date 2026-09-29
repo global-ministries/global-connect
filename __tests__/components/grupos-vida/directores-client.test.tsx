@@ -211,6 +211,21 @@ describe('DirectoresClient — Por ordenar', () => {
     montar({ grupos: [...entrada().grupos, grupo('n1', SEG_H)] })
     expect(screen.getByRole('button', { name: '1 pendiente por ordenar' })).toBeInTheDocument()
   })
+
+  it('on desktop the blocks share the whole width, one column per item', () => {
+    montar({ grupos: [...entrada().grupos, grupo('n1', SEG_H)] })
+    const unBloque = within(screen.getByRole('region', { name: 'Por ordenar' })).getByRole('list')
+    expect(unBloque).toHaveClass('md:grid-cols-1')
+    expect(unBloque).not.toHaveClass('md:grid-cols-3')
+  })
+
+  it('on desktop three items take three columns', () => {
+    montar({
+      grupos: [...entrada().grupos, grupo('n1', SEG_H), grupo('p1', SEG_M, { activo: false, estadoAprobacion: 'pendiente' })],
+      personasConRolDirectorEtapa: [{ id: 'u-ingrid', nombre: 'Ingrid Díaz de Caballero' }],
+    })
+    expect(within(screen.getByRole('region', { name: 'Por ordenar' })).getByRole('list')).toHaveClass('md:grid-cols-3')
+  })
 })
 
 describe('DirectoresClient — general director cards', () => {
