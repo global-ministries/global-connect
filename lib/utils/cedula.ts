@@ -42,5 +42,10 @@ export function formatearCedula(valor: string | null | undefined): string {
   if (!esCedulaReconocible(valor)) return valor
   const canonica = normalizarCedula(valor) as string
   if (canonica.startsWith('E')) return `E-${canonica.slice(1)}`
-  return canonica.replace(/\B(?=(\d{3})+$)/g, '.')
+  let con_puntos = ''
+  for (let i = 0; i < canonica.length; i++) {
+    if (i > 0 && (canonica.length - i) % 3 === 0) con_puntos += '.'
+    con_puntos += canonica[i]
+  }
+  return con_puntos
 }
