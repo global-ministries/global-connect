@@ -539,4 +539,36 @@ describe('DirectoresClient — Agregar director', () => {
     expect(toast.error.mock.calls[0][0]).toMatch(/director general/i)
     expect(refresh).toHaveBeenCalled()
   })
+
+  it('treats a segment assignment that fails without a message as a failure: no success toast, no more segments', async () => {
+    asignarSegmentoDG.mockResolvedValue({ success: false })
+    const dialogo = await abrirYElegirPersona()
+
+    await userEvent.click(within(dialogo).getByRole('radio', { name: 'Elegir segmentos' }))
+    await userEvent.click(within(dialogo).getByRole('checkbox', { name: 'Matrimonios' }))
+    await userEvent.click(within(dialogo).getByRole('checkbox', { name: 'Mujeres +36' }))
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Agregar' }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled())
+    expect(toast.error.mock.calls[0][0]).toMatch(/no se pudieron asignar los segmentos: error desconocido/)
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(asignarSegmentoDG).toHaveBeenCalledTimes(1)
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('ignores a late search response once the query became too short', async () => {
+    let responder: (v: unknown) => void = () => {}
+    buscarPersonasParaDirectorGeneral.mockReturnValue(new Promise((resolve) => (responder = resolve)))
+    montar()
+    await userEvent.click(screen.getAllByRole('button', { name: 'Agregar director' })[0])
+    const dialogo = await screen.findByRole('dialog', { name: 'Agregar director general' })
+    const buscador = within(dialogo).getByRole('searchbox', { name: 'Buscar persona' })
+
+    await userEvent.type(buscador, 'luis')
+    await waitFor(() => expect(buscarPersonasParaDirectorGeneral).toHaveBeenCalledWith('luis'))
+    await userEvent.clear(buscador)
+    await act(async () => responder({ success: true, data: [PERSONA] }))
+
+    expect(within(dialogo).queryByRole('button', { name: /Luis Pérez/ })).not.toBeInTheDocument()
+  })
 })

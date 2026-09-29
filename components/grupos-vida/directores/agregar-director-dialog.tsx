@@ -69,6 +69,7 @@ export function AgregarDirectorDialog({ abierto, onClose, segmentos }: AgregarDi
   useEffect(() => {
     const consulta = texto.trim()
     if (!abierto || persona || consulta.length < MIN_BUSQUEDA) {
+      secuencia.current++ // a response still in flight belongs to an old query
       setResultados([])
       setBuscando(false)
       return
@@ -87,7 +88,10 @@ export function AgregarDirectorDialog({ abierto, onClose, segmentos }: AgregarDi
         }
       })()
     }, RETRASO_MS)
-    return () => clearTimeout(temporizador)
+    return () => {
+      clearTimeout(temporizador)
+      secuencia.current++
+    }
   }, [texto, persona, abierto])
 
   const puedeAgregar = !!persona && !guardando && (modo === 'todos' || elegidos.length > 0)
@@ -102,14 +106,19 @@ export function AgregarDirectorDialog({ abierto, onClose, segmentos }: AgregarDi
         return
       }
 
+      let fallo = false
       let error: string | undefined
       if (modo === 'todos') {
         const res = await asignarTodosLosSegmentosDG(persona.id)
-        if (!res.success) error = res.error
+        if (!res.success) {
+          fallo = true
+          error = res.error
+        }
       } else {
         for (const segmentoId of elegidos) {
           const res = await asignarSegmentoDG({ usuarioId: persona.id, segmentoId })
           if (!res.success && res.error !== 'Ya asignado') {
+            fallo = true
             error = res.error
             break
           }
@@ -117,7 +126,7 @@ export function AgregarDirectorDialog({ abierto, onClose, segmentos }: AgregarDi
       }
 
       router.refresh()
-      if (error !== undefined) {
+      if (fallo) {
         toast.error(`${persona.nombre} ya es director general, pero no se pudieron asignar los segmentos: ${error || 'error desconocido'}`)
         onClose()
         return
