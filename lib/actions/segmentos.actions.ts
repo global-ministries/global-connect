@@ -12,7 +12,6 @@ import { revalidatePath } from "next/cache"
 // ---------- Validación ----------
 const segmentoSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido").max(100),
-  descripcion: z.string().max(500).optional().nullable(),
 })
 
 // ---------- Helpers ----------
@@ -31,17 +30,17 @@ async function verificarAcceso() {
 /**
  * Crea un nuevo segmento en la base de datos.
  *
- * @param formData - Datos del segmento: nombre (requerido) y descripción (opcional)
+ * @param formData - Datos del segmento: nombre (requerido)
  * @returns Resultado con éxito y datos del segmento creado, o error
  */
-export async function crearSegmento(formData: { nombre: string; descripcion?: string | null }) {
+export async function crearSegmento(formData: { nombre: string }) {
   try {
     const parsed = segmentoSchema.parse(formData)
     const { supabase } = await verificarAcceso()
 
     const { data, error } = await supabase
       .from("segmentos")
-      .insert({ nombre: parsed.nombre, descripcion: parsed.descripcion ?? null })
+      .insert({ nombre: parsed.nombre })
       .select()
       .single()
 
@@ -58,12 +57,12 @@ export async function crearSegmento(formData: { nombre: string; descripcion?: st
  * Actualiza un segmento existente por su ID.
  *
  * @param id - UUID del segmento a editar
- * @param formData - Datos actualizados: nombre y descripción
+ * @param formData - Datos actualizados: nombre
  * @returns Resultado con éxito y datos actualizados, o error
  */
 export async function editarSegmento(
   id: string,
-  formData: { nombre: string; descripcion?: string | null }
+  formData: { nombre: string }
 ) {
   try {
     const parsed = segmentoSchema.parse(formData)
@@ -71,7 +70,7 @@ export async function editarSegmento(
 
     const { data, error } = await supabase
       .from("segmentos")
-      .update({ nombre: parsed.nombre, descripcion: parsed.descripcion ?? null })
+      .update({ nombre: parsed.nombre })
       .eq("id", id)
       .select()
       .single()

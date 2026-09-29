@@ -4,7 +4,7 @@ import { useState, useTransition, useCallback, type FormEvent } from "react"
 import { Plus, Edit, X } from "lucide-react"
 import { crearSegmento, editarSegmento, eliminarSegmento } from "@/lib/actions/segmentos.actions"
 import {
-    TarjetaSistema, BotonSistema, InputSistema, TextareaSistema,
+    TarjetaSistema, BotonSistema, InputSistema,
     TituloSistema, TextoSistema,
 } from "@/components/ui/sistema-diseno"
 import { BotonFlotante } from "@/components/ui/BotonFlotante"
@@ -12,7 +12,7 @@ import { useNotificaciones } from "@/hooks/use-notificaciones"
 import { cn } from "@/lib/utils"
 
 // ---------- Types ----------
-type Segmento = { id: string; nombre: string; descripcion?: string | null }
+type Segmento = { id: string; nombre: string }
 
 type ModalMode = "crear" | "editar" | "eliminar" | null
 
@@ -56,18 +56,15 @@ export default function GestionSegmentosModales({
 
     // Form state
     const [nombre, setNombre] = useState("")
-    const [descripcion, setDescripcion] = useState("")
 
     const openCrear = useCallback(() => {
         setNombre("")
-        setDescripcion("")
         setSelectedSegmento(null)
         setModalMode("crear")
     }, [])
 
     const openEditar = useCallback((seg: Segmento) => {
         setNombre(seg.nombre)
-        setDescripcion(seg.descripcion ?? "")
         setSelectedSegmento(seg)
         setModalMode("editar")
     }, [])
@@ -86,7 +83,7 @@ export default function GestionSegmentosModales({
                 return
             }
             startTransition(async () => {
-                const formData = { nombre: nombre.trim(), descripcion: descripcion.trim() || null }
+                const formData = { nombre: nombre.trim() }
                 const result =
                     modalMode === "editar" && selectedSegmento
                         ? await editarSegmento(selectedSegmento.id, formData)
@@ -100,7 +97,7 @@ export default function GestionSegmentosModales({
                 }
             })
         },
-        [nombre, descripcion, modalMode, selectedSegmento, toast, closeModal]
+        [nombre, modalMode, selectedSegmento, toast, closeModal]
     )
 
     const handleEliminar = useCallback(() => {
@@ -200,13 +197,6 @@ export default function GestionSegmentosModales({
                                         placeholder="Ej: Jóvenes, Matrimonios, Adultos…"
                                         required
                                         autoFocus
-                                    />
-                                    <TextareaSistema
-                                        label="Descripción (opcional)"
-                                        value={descripcion}
-                                        onChange={(e) => setDescripcion(e.target.value)}
-                                        placeholder="Descripción breve del segmento"
-                                        filas={3}
                                     />
                                     <div className="flex justify-end gap-3 pt-2">
                                         <BotonSistema variante="outline" type="button" onClick={closeModal} disabled={isPending}>

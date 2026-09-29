@@ -129,6 +129,19 @@ describe.each([
   })
 })
 
+describe('crearSegmento and editarSegmento — columns', () => {
+  // public.segmentos has only id, nombre and campus_id: sending any other column fails the write.
+  it('creates a segment sending only the name', async () => {
+    expect(await crearSegmento({ nombre: '  Jóvenes  ', descripcion: 'ignorada' } as never)).toMatchObject({ success: true })
+    expect(escrituras).toEqual([{ method: 'insert', row: { nombre: '  Jóvenes  ' } }])
+  })
+
+  it('edits a segment sending only the name', async () => {
+    expect(await editarSegmento(SEG, { nombre: 'Jóvenes', descripcion: 'ignorada' } as never)).toMatchObject({ success: true })
+    expect(escrituras).toEqual([{ method: 'update', row: { nombre: 'Jóvenes' } }])
+  })
+})
+
 describe('eliminarSegmento — role gate (unchanged)', () => {
   it('refuses a request without a session and reads nothing', async () => {
     getUserWithRoles.mockResolvedValue(null)
