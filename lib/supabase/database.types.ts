@@ -7506,6 +7506,10 @@ export type Database = {
       es_lider_usuario: { Args: { target_user_id: string }; Returns: boolean }
       es_superadmin: { Args: { p_auth_uid: string }; Returns: boolean }
       expirar_solicitudes_vencidas: { Args: never; Returns: number }
+      gdv_dg_grupos_activos_visibles: {
+        Args: { p_usuario_id: string }
+        Returns: string[]
+      }
       gdv_dg_grupos_visibles: {
         Args: { p_usuario_id: string }
         Returns: string[]
