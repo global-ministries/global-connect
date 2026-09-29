@@ -36,6 +36,15 @@ export interface AvanceEtapaControlProps {
   readonly version: number
   readonly puedeEditar: boolean
   readonly onSuccess: (servicioActualizado: DreamTeamServicio) => void
+  /**
+   * Controlled mode, for callers that open the dialog from elsewhere (the
+   * "Cambiar etapa" item of mi-equipo's person menu). When `abierto` is given
+   * the caller owns the open state and hears every change through
+   * `onAbiertoChange`; `ocultarBoton` drops the built-in trigger button.
+   */
+  readonly abierto?: boolean
+  readonly onAbiertoChange?: (abierto: boolean) => void
+  readonly ocultarBoton?: boolean
 }
 
 const CONFLICT_MESSAGE =
@@ -48,10 +57,18 @@ export function AvanceEtapaControl({
   version,
   puedeEditar,
   onSuccess,
+  abierto: abiertoControlado,
+  onAbiertoChange,
+  ocultarBoton = false,
 }: AvanceEtapaControlProps): ReactElement | null {
   const transicionesValidas = Array.from(TRANSICIONES_VALIDAS[estadoActual] ?? [])
 
-  const [abierto, setAbierto] = useState(false)
+  const [abiertoInterno, setAbiertoInterno] = useState(false)
+  const abierto = abiertoControlado ?? abiertoInterno
+  function setAbierto(valor: boolean): void {
+    if (abiertoControlado === undefined) setAbiertoInterno(valor)
+    onAbiertoChange?.(valor)
+  }
   const [estadoNuevo, setEstadoNuevo] = useState<DreamTeamEstado | ''>('')
   const [motivo, setMotivo] = useState<DreamTeamMotivo | ''>('')
   const [enviando, setEnviando] = useState(false)
@@ -99,15 +116,17 @@ export function AvanceEtapaControl({
 
   return (
     <>
-      <BotonSistema
-        type="button"
-        variante="outline"
-        tamaño="sm"
-        icono={ArrowRightLeft}
-        onClick={() => setAbierto(true)}
-      >
-        <span className="hidden sm:inline">Cambiar etapa</span>
-      </BotonSistema>
+      {!ocultarBoton && (
+        <BotonSistema
+          type="button"
+          variante="outline"
+          tamaño="sm"
+          icono={ArrowRightLeft}
+          onClick={() => setAbierto(true)}
+        >
+          <span className="hidden sm:inline">Cambiar etapa</span>
+        </BotonSistema>
+      )}
 
       <Dialog open={abierto} onOpenChange={(open) => !open && cerrar()}>
         <DialogContent>
@@ -115,6 +134,9 @@ export function AvanceEtapaControl({
             <DialogTitle>Cambiar etapa</DialogTitle>
             <DialogDescription>Elegí la nueva etapa y el motivo del cambio.</DialogDescription>
           </DialogHeader>
+          <TextoSistema variante="sutil" tamaño="sm">
+            Etapa actual: {ESTADO_LABELS[estadoActual]}
+          </TextoSistema>
 
           <div className="grid gap-3">
             <SelectSistema

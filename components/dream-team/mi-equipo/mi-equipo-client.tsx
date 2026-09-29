@@ -15,9 +15,12 @@
  */
 import { useMemo, useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
-import { Network } from 'lucide-react'
+import { Network, Plus } from 'lucide-react'
 
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { BotonFlotante } from '@/components/ui/BotonFlotante'
+import { BotonSistema, ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { AsignadorServicioDialog } from '@/components/dream-team/asignador-servicio-dialog'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import {
   TODOS_LOS_EQUIPOS,
@@ -72,8 +75,13 @@ function MiEquipoVistaDireccion({
   direcciones,
   vista,
   direccionId,
+  puedeEditar,
+  equiposAsignables,
+  rolesPorEquipo,
 }: MiEquipoClientProps & { readonly vista: VistaDireccion }): ReactElement {
   const router = useRouter()
+  const toast = useNotificaciones()
+  const [asignadorAbierto, setAsignadorAbierto] = useState(false)
   const [seleccionadoId, setSeleccionadoId] = useState<string>(TODOS_LOS_EQUIPOS)
   const [filtro, setFiltro] = useState<FiltroEstado>('todos')
   const [query, setQuery] = useState('')
@@ -97,6 +105,11 @@ function MiEquipoVistaDireccion({
     setFiltro('por_activar')
   }
 
+  // Only a real equipo can be preselected; "Toda la dirección" and virtual groups leave the choice open.
+  const equipoPreseleccionado = equiposAsignables.some((equipo) => equipo.id === tarjetaSeleccionada.id)
+    ? tarjetaSeleccionada.id
+    : undefined
+
   const responsable = tarjetaSeleccionada.responsable
   const lineaResponsable = responsable
     ? `${responsable.rol === 'coordinador' ? 'Coordina' : 'Dirige'} ${responsable.nombre}`
@@ -114,6 +127,13 @@ function MiEquipoVistaDireccion({
         onDireccionChange={(id) => router.replace(`?direccion=${encodeURIComponent(id)}`)}
         query={query}
         onQueryChange={setQuery}
+        accion={
+          puedeEditar ? (
+            <BotonSistema type="button" icono={Plus} className="hidden md:inline-flex" onClick={() => setAsignadorAbierto(true)}>
+              Agregar persona
+            </BotonSistema>
+          ) : undefined
+        }
       />
 
       <FranjaPendientes pendientes={vista.pendientes} onRevisar={revisarPendientes} />
@@ -134,7 +154,28 @@ function MiEquipoVistaDireccion({
         filtro={filtro}
         onFiltroChange={setFiltro}
         hayBusqueda={query.trim() !== ''}
+        puedeEditar={puedeEditar}
+        onActualizado={() => router.refresh()}
       />
+
+      {puedeEditar && (
+        <>
+          <BotonFlotante icono={Plus} label="Agregar persona" onClick={() => setAsignadorAbierto(true)} />
+          <AsignadorServicioDialog
+            titulo="Agregar persona"
+            abierto={asignadorAbierto}
+            onClose={() => setAsignadorAbierto(false)}
+            nodosPlanos={equiposAsignables}
+            rolesPorEquipo={rolesPorEquipo}
+            equipoIdInicial={equipoPreseleccionado}
+            onAsignado={() => {
+              setAsignadorAbierto(false)
+              router.refresh()
+            }}
+            toast={toast}
+          />
+        </>
+      )}
     </ContenedorDashboard>
   )
 }

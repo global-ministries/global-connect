@@ -48,6 +48,8 @@ export interface AsignadorServicioDialogProps {
   readonly toast: ReturnType<typeof useNotificaciones>
   /** Equipo preselected every time the dialog opens (e.g. the team selected on Mi equipo). */
   readonly equipoIdInicial?: string
+  /** Dialog title; defaults to "Asignar servicio" (the servidores pool wording). */
+  readonly titulo?: string
 }
 
 export function AsignadorServicioDialog({
@@ -58,6 +60,7 @@ export function AsignadorServicioDialog({
   onAsignado,
   toast,
   equipoIdInicial,
+  titulo = 'Asignar servicio',
 }: AsignadorServicioDialogProps): ReactElement {
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<UsuarioResult[]>([])
@@ -146,8 +149,8 @@ export function AsignadorServicioDialog({
     <Dialog open={abierto} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Asignar servicio</DialogTitle>
-          <DialogDescription>Buscá a la persona, elegí el nodo del árbol y su rol.</DialogDescription>
+          <DialogTitle>{titulo}</DialogTitle>
+          <DialogDescription>Busca a la persona, elige el equipo y su rol.</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-3">
@@ -202,7 +205,7 @@ export function AsignadorServicioDialog({
           <SelectSistema
             label="Equipo"
             opciones={nodosPlanos.map((n) => ({ valor: n.id, etiqueta: n.etiqueta }))}
-            placeholder="Elegí un nodo del árbol"
+            placeholder="Elige un equipo"
             value={equipoId}
             onValueChange={(v) => {
               setEquipoId(v)
@@ -213,7 +216,7 @@ export function AsignadorServicioDialog({
           <SelectSistema
             label="Rol"
             opciones={rolesDelNodo.map((r) => ({ valor: r.id, etiqueta: rolLabel(r.label) }))}
-            placeholder={equipoId ? 'Elegí un rol' : 'Elegí primero un equipo'}
+            placeholder={equipoId ? 'Elige un rol' : 'Elige primero un equipo'}
             value={rolId}
             onValueChange={setRolId}
             disabled={!equipoId}

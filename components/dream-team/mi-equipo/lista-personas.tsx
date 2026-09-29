@@ -15,6 +15,7 @@ import type { ReactElement } from 'react'
 import { BadgeSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, ORIGEN_GRUPOS_VIDA_LABEL, rolBadgeVariante } from '@/components/dream-team/labels'
 import { cn } from '@/lib/utils'
+import { MenuPersona } from './menu-persona'
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado } from '@/lib/platform/dream-team/types'
 import type { ContadoresPorEstado, FiltroEstado, PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
 
@@ -26,6 +27,9 @@ export interface ListaPersonasProps {
   readonly filtro: FiltroEstado
   readonly onFiltroChange: (filtro: FiltroEstado) => void
   readonly hayBusqueda: boolean
+  /** With write access every editable row gets the actions menu. */
+  readonly puedeEditar: boolean
+  readonly onActualizado: () => void
 }
 
 const ANILLO = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-background'
@@ -64,6 +68,8 @@ export function ListaPersonas({
   filtro,
   onFiltroChange,
   hayBusqueda,
+  puedeEditar,
+  onActualizado,
 }: ListaPersonasProps): ReactElement {
   return (
     <TarjetaSistema className="overflow-hidden p-0">
@@ -110,7 +116,7 @@ export function ListaPersonas({
       ) : (
         <ul aria-label="Personas del equipo" className="divide-y divide-border">
           {personas.map((persona) => (
-            <FilaPersona key={persona.clave} persona={persona} />
+            <FilaPersona key={persona.clave} persona={persona} puedeEditar={puedeEditar} onActualizado={onActualizado} />
           ))}
         </ul>
       )}
@@ -118,7 +124,15 @@ export function ListaPersonas({
   )
 }
 
-function FilaPersona({ persona }: { readonly persona: PersonaVista }): ReactElement {
+function FilaPersona({
+  persona,
+  puedeEditar,
+  onActualizado,
+}: {
+  readonly persona: PersonaVista
+  readonly puedeEditar: boolean
+  readonly onActualizado: () => void
+}): ReactElement {
   const esGdv = persona.origen === 'grupos_vida'
   return (
     <li className="grid min-h-16 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2 hover:bg-accent/50 md:grid-cols-[2.5rem_minmax(0,1fr)_10rem_10rem_2.75rem] md:gap-x-4 md:px-5">
@@ -151,6 +165,7 @@ function FilaPersona({ persona }: { readonly persona: PersonaVista }): ReactElem
           </BadgeSistema>
         </span>
       </div>
+      {puedeEditar && <MenuPersona persona={persona} onActualizado={onActualizado} />}
     </li>
   )
 }

@@ -110,3 +110,41 @@ describe('AvanceEtapaControl', () => {
     await screen.findByText('motivo inválido')
   })
 })
+
+describe('AvanceEtapaControl — controlled from a menu', () => {
+  it('opens the dialog from the outside without rendering its own button, and names the current etapa', () => {
+    render(
+      <AvanceEtapaControl
+        servicioId="s-1"
+        estadoActual="en_orientacion"
+        version={1}
+        puedeEditar
+        abierto
+        ocultarBoton
+        onAbiertoChange={jest.fn()}
+        onSuccess={jest.fn()}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Cambiar etapa' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Etapa actual: En orientación')).toBeInTheDocument()
+  })
+
+  it('reports closing so the owner can close it', () => {
+    const onAbiertoChange = jest.fn()
+    render(
+      <AvanceEtapaControl
+        servicioId="s-1"
+        estadoActual="activo"
+        version={1}
+        puedeEditar
+        abierto
+        ocultarBoton
+        onAbiertoChange={onAbiertoChange}
+        onSuccess={jest.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(onAbiertoChange).toHaveBeenCalledWith(false)
+  })
+})

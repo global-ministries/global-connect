@@ -3,9 +3,10 @@
 /**
  * Mi equipo — page header: the direccion's name, who leads it and how big it
  * is, a direccion selector when the caller reaches several, the person search
- * (and, with write access, the "Agregar persona" action — passed in as `accion`).
+ * and, with write access, the "Agregar persona" action (`accion`, hidden on phones,
+ * where mi-equipo-client.tsx shows a floating button instead).
  */
-import type { ReactElement } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import { Search } from 'lucide-react'
 
 import { InputSistema, SelectSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
@@ -21,6 +22,8 @@ export interface EncabezadoMiEquipoProps {
   readonly onDireccionChange: (direccionId: string) => void
   readonly query: string
   readonly onQueryChange: (query: string) => void
+  /** The primary action, rendered after the search; the caller decides whether there is one. */
+  readonly accion?: ReactNode
 }
 
 function plural(cantidad: number, singular: string, pluralForma: string): string {
@@ -45,6 +48,7 @@ export function EncabezadoMiEquipo({
   onDireccionChange,
   query,
   onQueryChange,
+  accion,
 }: EncabezadoMiEquipoProps): ReactElement {
   return (
     <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -76,6 +80,7 @@ export function EncabezadoMiEquipo({
             onChange={(e) => onQueryChange(e.target.value)}
           />
         </div>
+        {accion}
       </div>
     </header>
   )

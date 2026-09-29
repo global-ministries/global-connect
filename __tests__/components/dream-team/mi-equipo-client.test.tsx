@@ -268,3 +268,132 @@ describe('MiEquipoClient — compact mode and Grupos de Vida', () => {
     expect(within(filas()[0]).getByText('Líder de grupo')).toBeInTheDocument()
   })
 })
+
+describe('MiEquipoClient — actions menu (criterion 5, second half)', () => {
+  const editable = () => propsConexion({ puedeEditar: true })
+  const menuDe = (nombre: string) => screen.getByRole('button', { name: `Acciones para ${nombre}` })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('gives every editable row a 44px menu button, and none without write access', () => {
+    const { unmount } = render(<MiEquipoClient {...editable()} />)
+    expect(screen.getAllByRole('button', { name: /^Acciones para / })).toHaveLength(38)
+    expect(menuDe('Luis Barrios')).toHaveClass('h-11', 'w-11')
+    unmount()
+
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
+  })
+
+  it('offers only what the API supports: Cambiar etapa', async () => {
+    render(<MiEquipoClient {...editable()} />)
+    await userEvent.click(menuDe('Luis Barrios'))
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa'])
+  })
+
+  it('leaves Grupos de Vida leaders and terminal estados without a menu', () => {
+    const conRetirado: PersonasPorEquipo = {
+      ...personasPorEquipoConexion,
+      'eq-mdh': personasPorEquipoConexion['eq-mdh'].map((p) => (p.nombre === 'Rayda Alvarado' ? { ...p, estado: 'retirado' as const } : p)),
+    }
+    const gdv: PersonaEntrada = {
+      clave: 'gdv:p:g',
+      personaId: personaId('gdv-p'),
+      nombre: 'Lider Solo Lectura',
+      rolClave: 'lider',
+      rolLabel: 'Líder de grupo',
+      estado: 'activo',
+      origen: 'grupos_vida',
+    }
+    const personas: PersonasPorEquipo = { ...conRetirado, 'eq-mdh': [...conRetirado['eq-mdh'], gdv] }
+    render(<MiEquipoClient {...propsConexion({ puedeEditar: true, vista: vistaDeDireccion(arbolConexion, personas, ID_CONEXION) })} />)
+    expect(screen.queryByRole('button', { name: 'Acciones para Rayda Alvarado' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Acciones para Lider Solo Lectura' })).not.toBeInTheDocument()
+    expect(menuDe('Edith Pérez')).toBeInTheDocument()
+  })
+
+  it('changes a person to Activo from the menu, refreshes, and the strip stops listing them', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ servicio: {}, historial: [] }) })
+    global.fetch = fetchMock as unknown as typeof fetch
+    const { rerender } = render(<MiEquipoClient {...editable()} />)
+    expect(screen.getByRole('region', { name: 'Pendientes' })).toHaveTextContent('Luis Barrios')
+
+    await userEvent.click(menuDe('Luis Barrios'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Cambiar etapa' }))
+    expect(screen.getByText('Etapa actual: En orientación')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Nueva etapa'), 'activo')
+    await userEvent.selectOptions(screen.getByLabelText('Motivo'), 'admin_promocion')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/dream-team/servicios/servicio-dhah-3',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ estado: 'activo', motivo: 'admin_promocion', expectedVersion: 1 }),
+      }),
+    )
+    expect(refresh).toHaveBeenCalledTimes(1)
+
+    // router.refresh() re-renders the page with the server's truth: Luis is Activo now.
+    const activada: PersonasPorEquipo = {
+      ...personasPorEquipoConexion,
+      'eq-dhah': personasPorEquipoConexion['eq-dhah'].map((p) => (p.nombre === 'Luis Barrios' ? { ...p, estado: 'activo' as const } : p)),
+    }
+    rerender(<MiEquipoClient {...propsConexion({ puedeEditar: true, vista: vistaDeDireccion(arbolConexion, activada, ID_CONEXION) })} />)
+    expect(screen.getByRole('region', { name: 'Pendientes' })).not.toHaveTextContent('Luis Barrios')
+    expect(screen.getByRole('region', { name: 'Pendientes' })).toHaveTextContent('1 persona espera que la actives')
+  })
+})
+
+describe('MiEquipoClient — Agregar persona', () => {
+  const asignables = [
+    { id: ID_CONEXION, etiqueta: 'Dirección de Conexión' },
+    { id: 'eq-parejas', etiqueta: '—— Parejas' },
+  ]
+  const rolesPorEquipo = {
+    'eq-parejas': [{ id: 'rol-fac', equipoId: 'eq-parejas', label: 'facilitador', activo: true }],
+  }
+  const conEdicion = () => propsConexion({ puedeEditar: true, equiposAsignables: asignables, rolesPorEquipo })
+
+  it('is offered only with write access (header button and phone floating button)', () => {
+    const { unmount } = render(<MiEquipoClient {...conEdicion()} />)
+    expect(screen.getAllByRole('button', { name: 'Agregar persona' })).toHaveLength(2)
+    unmount()
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.queryByRole('button', { name: 'Agregar persona' })).not.toBeInTheDocument()
+  })
+
+  it('opens the assigner with the selected team preselected', async () => {
+    render(<MiEquipoClient {...conEdicion()} />)
+    await userEvent.click(tarjeta('Parejas'))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Agregar persona' })[0])
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect((screen.getByLabelText('Equipo') as HTMLSelectElement).value).toBe('eq-parejas')
+    expect(within(screen.getByLabelText('Rol')).getByRole('option', { name: 'Facilitador' })).toBeInTheDocument()
+  })
+
+  it('preselects nothing while Toda la dirección is selected', async () => {
+    render(<MiEquipoClient {...conEdicion()} />)
+    await userEvent.click(screen.getAllByRole('button', { name: 'Agregar persona' })[0])
+    expect((screen.getByLabelText('Equipo') as HTMLSelectElement).value).toBe('')
+  })
+
+  it('refreshes the page once a person is assigned', async () => {
+    global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+      if (String(url).startsWith('/api/dream-team/usuarios/buscar')) {
+        return { ok: true, json: async () => [{ id: 'u-1', email: 'nueva@test.com', nombre: 'Nueva', apellido: 'Persona' }] }
+      }
+      return { ok: true, status: 201, json: async () => ({ servicio: {} }) }
+    }) as unknown as typeof fetch
+    render(<MiEquipoClient {...conEdicion()} />)
+    await userEvent.click(tarjeta('Parejas'))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Agregar persona' })[0])
+    await userEvent.type(screen.getByLabelText('Buscar persona', { selector: 'input[placeholder*="email"]' }), 'nueva')
+    await userEvent.click(await screen.findByRole('button', { name: /Nueva Persona/ }))
+    await userEvent.selectOptions(screen.getByLabelText('Rol'), 'rol-fac')
+    await userEvent.click(screen.getByRole('button', { name: 'Crear' }))
+    expect(refresh).toHaveBeenCalled()
+  })
+})
