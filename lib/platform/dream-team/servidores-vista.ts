@@ -277,7 +277,11 @@ function ordenar(filas: readonly FilaVista[], orden: FiltrosServidores['orden'])
   const primaria = comparar(orden.columna)
   const signo = orden.sentido === 'asc' ? 1 : -1
   return [...filas].sort((a, b) => {
-    const valor = primaria(a, b) || a.nombre.localeCompare(b.nombre, ES) || a.clave.localeCompare(b.clave)
+    const valor =
+      primaria(a, b) ||
+      a.nombre.localeCompare(b.nombre, ES) ||
+      a.equipoLabel.localeCompare(b.equipoLabel, ES) ||
+      a.clave.localeCompare(b.clave)
     return valor * signo
   })
 }

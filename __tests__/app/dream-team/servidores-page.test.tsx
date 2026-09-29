@@ -1,0 +1,212 @@
+/**
+ * /admin/dream-team/servidores (RSC): authorization, the filters read from the
+ * URL (including the legacy `?equipo=` and `?estado=`), the flat rows handed to
+ * the island, and the contract that only serializable data crosses the RSC
+ * boundary.
+ */
+import React from 'react'
+
+import type { DreamTeamEquipo, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
+import { personaId } from '@/lib/platform/dream-team/types'
+import type { DreamTeamLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
+
+const notFound = jest.fn(() => {
+  throw new Error('NEXT_NOT_FOUND')
+})
+const redirect = jest.fn((to: string) => {
+  throw new Error(`NEXT_REDIRECT:${to}`)
+})
+jest.mock('next/navigation', () => ({ notFound: () => notFound(), redirect: (to: string) => redirect(to) }))
+
+const isDreamTeamEnabled = jest.fn(() => true)
+const requireDreamTeamSession = jest.fn()
+const hasDreamTeamReadCapability = jest.fn(() => true)
+const hasDreamTeamWriteCapability = jest.fn(() => true)
+jest.mock('@/lib/platform/dream-team/route-access', () => ({
+  isDreamTeamEnabled: () => isDreamTeamEnabled(),
+  requireDreamTeamSession: () => requireDreamTeamSession(),
+  hasDreamTeamReadCapability: () => hasDreamTeamReadCapability(),
+  hasDreamTeamWriteCapability: () => hasDreamTeamWriteCapability(),
+}))
+
+jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: async () => ({}) }))
+
+const EQUIPOS: DreamTeamEquipo[] = [
+  { id: 'dir-a', experiencia: 'talleres_crecimiento', label: 'Dirección A', activo: true },
+  { id: 'eq-a1', experiencia: 'talleres_crecimiento', label: 'Equipo A1', parentEquipoId: 'dir-a', activo: true },
+  { id: 'dir-b', experiencia: 'talleres_crecimiento', label: 'Dirección B', activo: true },
+]
+const ROLES: DreamTeamRol[] = ['director', 'coordinador', 'facilitador'].map((label) => ({
+  id: `rol-${label}`,
+  equipoId: 'x',
+  label,
+  activo: true,
+}))
+const servicio = (id: string, equipoId: string, rol: string, persona: string, estado: DreamTeamServicio['estado'] = 'activo'): DreamTeamServicio => ({
+  id,
+  personaId: personaId(persona),
+  equipoId,
+  rolId: `rol-${rol}`,
+  estado,
+  fechaInicio: '2026-01-01T00:00:00.000Z',
+  motivoActual: 'admin_asignacion',
+  version: 3,
+})
+
+let mockServicios: DreamTeamServicio[] = []
+let mockLideres: DreamTeamLiderGdv[] = []
+jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
+  createSupabaseDreamTeamRepository: () => ({
+    listEquipos: async () => EQUIPOS,
+    listServicios: async () => mockServicios,
+    listRolesPorEquipo: async () => ROLES,
+  }),
+}))
+jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => [] }))
+jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({ fetchLideresGdv: async () => mockLideres }))
+jest.mock('@/lib/platform/dream-team/personas', () => ({
+  fetchNombresPersonas: async () =>
+    new Map([
+      ['p1', 'Ana Directora'],
+      ['p2', 'Bea Coordinadora'],
+      ['p3', 'Carla Facilitadora'],
+      ['g1', 'Marta Lider'],
+    ]),
+}))
+
+import DreamTeamServidoresPage from '@/app/(auth)/admin/dream-team/servidores/page'
+import { ServidoresClient, type ServidoresClientProps } from '@/components/dream-team/servidores/servidores-client'
+import { FILTROS_INICIALES } from '@/lib/platform/dream-team/servidores-vista'
+
+async function renderizar(searchParams?: Record<string, string | string[] | undefined>): Promise<ServidoresClientProps> {
+  const element = (await DreamTeamServidoresPage({
+    searchParams: Promise.resolve(searchParams ?? {}),
+  })) as React.ReactElement<ServidoresClientProps>
+  expect(element.type).toBe(ServidoresClient)
+  return element.props
+}
+
+/** Anything that is not JSON-safe data (functions, components, class instances) breaks an RSC boundary. */
+function esSerializable(valor: unknown): boolean {
+  if (valor === null || valor === undefined) return true
+  if (['string', 'number', 'boolean'].includes(typeof valor)) return true
+  if (Array.isArray(valor)) return valor.every(esSerializable)
+  if (typeof valor === 'object') {
+    const proto = Object.getPrototypeOf(valor)
+    if (proto !== Object.prototype && proto !== null) return false
+    return Object.values(valor as Record<string, unknown>).every(esSerializable)
+  }
+  return false
+}
+
+beforeEach(() => {
+  notFound.mockClear()
+  redirect.mockClear()
+  isDreamTeamEnabled.mockReturnValue(true)
+  hasDreamTeamReadCapability.mockReturnValue(true)
+  hasDreamTeamWriteCapability.mockReturnValue(true)
+  requireDreamTeamSession.mockResolvedValue({ personaId: 'me' })
+  mockServicios = [
+    servicio('s1', 'dir-a', 'director', 'p1'),
+    servicio('s2', 'eq-a1', 'coordinador', 'p2', 'en_pausa'),
+    servicio('s3', 'eq-a1', 'facilitador', 'p3'),
+  ]
+  mockLideres = [{ personaId: personaId('g1'), equipoId: 'eq-a1', rol: 'lider', desde: '2026-03-01T00:00:00.000Z' }]
+})
+
+describe('authorization', () => {
+  it('404s when Dream Team is off or the session cannot read it, and redirects without a session', async () => {
+    isDreamTeamEnabled.mockReturnValue(false)
+    await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
+    isDreamTeamEnabled.mockReturnValue(true)
+    hasDreamTeamReadCapability.mockReturnValue(false)
+    await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
+    hasDreamTeamReadCapability.mockReturnValue(true)
+    requireDreamTeamSession.mockResolvedValue(null)
+    await expect(renderizar()).rejects.toThrow('NEXT_REDIRECT:/login')
+  })
+})
+
+describe('rows', () => {
+  it('builds one flat row per servicio and per Grupos de Vida leader, resolved server-side', async () => {
+    const { filas } = await renderizar()
+    expect(filas).toHaveLength(4)
+    expect(filas[0]).toMatchObject({
+      clave: 's1',
+      nombre: 'Ana Directora',
+      equipoLabel: 'Dirección A',
+      equipoRuta: '',
+      direccionId: 'dir-a',
+      rolLabel: 'Director',
+      estado: 'activo',
+      origen: 'dream_team',
+      servicioId: 's1',
+      version: 3,
+      editable: true,
+    })
+    expect(filas[1]).toMatchObject({ equipoLabel: 'Equipo A1', equipoRuta: 'Dirección A', direccionId: 'dir-a', estado: 'en_pausa' })
+    expect(filas[3]).toMatchObject({
+      clave: 'gdv:g1:eq-a1',
+      nombre: 'Marta Lider',
+      rolLabel: 'Líder de grupo',
+      estado: 'activo',
+      origen: 'grupos_vida',
+      editable: false,
+    })
+  })
+
+  it('marks rows read-only for a viewer without write capability', async () => {
+    hasDreamTeamWriteCapability.mockReturnValue(false)
+    const props = await renderizar()
+    expect(props.puedeEditar).toBe(false)
+    expect(props.filas.every((f) => !f.editable)).toBe(true)
+  })
+
+  it('hands the island only serializable data', async () => {
+    const props = await renderizar({ equipo: 'eq-a1', q: 'ana' })
+    expect(esSerializable(props)).toBe(true)
+  })
+})
+
+describe('filters from the URL', () => {
+  it('starts without filters for a bare URL', async () => {
+    expect((await renderizar()).filtrosIniciales).toEqual(FILTROS_INICIALES)
+  })
+
+  it('reads every filter of the URL', async () => {
+    const { filtrosIniciales } = await renderizar({
+      etapa: 'activo',
+      direccion: 'dir-a',
+      equipo: 'eq-a1',
+      rol: 'Coordinador',
+      inicio: 'mes',
+      sin_cuenta: '1',
+      varios: '1',
+      q: 'ana',
+      agrupar: 'persona',
+      orden: 'equipo:desc',
+    })
+    expect(filtrosIniciales).toEqual({
+      etapa: 'activo',
+      direccion: 'dir-a',
+      equipo: 'eq-a1',
+      rol: 'Coordinador',
+      inicio: 'mes',
+      sinCuenta: true,
+      varios: true,
+      q: 'ana',
+      agrupar: 'persona',
+      orden: { columna: 'equipo', sentido: 'desc' },
+    })
+  })
+
+  it('keeps the legacy ?equipo= and ?estado= working (links from Talleres and Estructura)', async () => {
+    const { filtrosIniciales } = await renderizar({ equipo: 'eq-a1', estado: 'en_pausa' })
+    expect(filtrosIniciales).toMatchObject({ equipo: 'eq-a1', etapa: 'en_pausa' })
+  })
+
+  it('accepts a page rendered without searchParams', async () => {
+    const element = (await DreamTeamServidoresPage()) as React.ReactElement<ServidoresClientProps>
+    expect(element.props.filtrosIniciales).toEqual(FILTROS_INICIALES)
+  })
+})
