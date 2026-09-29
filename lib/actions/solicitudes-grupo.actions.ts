@@ -56,11 +56,12 @@ const procesarSolicitudSchema = z.object({
 
 /**
  * IDs de los grupos activos que ve un director general (auth id), según la
- * regla única de la base de datos (`gdv_dg_grupos_visibles`): todo el segmento
- * o sólo los grupos de los directores de etapa marcados, según el alcance.
- * Falla cerrado: sin usuario o con error devuelve una lista vacía.
+ * regla única de la base de datos (`gdv_dg_grupos_activos_visibles`): todo el
+ * segmento o sólo los grupos de los directores de etapa marcados, según el
+ * alcance. Sin usuario devuelve una lista vacía (sin acceso); si la consulta
+ * falla devuelve el error, para no confundir una caída con "sin grupos".
  */
-async function obtenerGrupoIdsActivosDeDirectorGeneral(authId: string): Promise<string[]> {
+async function obtenerGrupoIdsActivosDeDirectorGeneral(authId: string): Promise<Res<string[]>> {
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const adminDb = createSupabaseAdminClient();
   // Resolve auth_id → internal usuarios.id
@@ -69,18 +70,15 @@ async function obtenerGrupoIdsActivosDeDirectorGeneral(authId: string): Promise<
     .select("id")
     .eq("auth_id", authId)
     .single();
-  if (!usuarioInterno) return [];
-  const { data: visibles } = await adminDb.rpc("gdv_dg_grupos_visibles", {
+  if (!usuarioInterno) return { success: true, data: [] };
+  const { data, error } = await adminDb.rpc("gdv_dg_grupos_activos_visibles", {
     p_usuario_id: usuarioInterno.id,
   });
-  const visibleIds = visibles ?? [];
-  if (visibleIds.length === 0) return [];
-  const { data: grupos } = await adminDb
-    .from("grupos")
-    .select("id")
-    .in("id", visibleIds)
-    .eq("activo", true);
-  return (grupos ?? []).map(g => g.id);
+  if (error) {
+    console.error("[obtenerGrupoIdsActivosDeDirectorGeneral] Error en gdv_dg_grupos_activos_visibles:", error.message);
+    return { success: false, error: "No se pudieron obtener los grupos del director general" };
+  }
+  return { success: true, data: data ?? [] };
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────
@@ -193,7 +191,9 @@ export async function listarSolicitudesPendientes(): Promise<
 
   let grupoIdsPermitidos: string[] | null = null;
   if (esDG && userData?.user?.id) {
-    grupoIdsPermitidos = await obtenerGrupoIdsActivosDeDirectorGeneral(userData.user.id);
+    const grupos = await obtenerGrupoIdsActivosDeDirectorGeneral(userData.user.id);
+    if (!grupos.success) return { success: false, error: grupos.error };
+    grupoIdsPermitidos = grupos.data ?? [];
     if (grupoIdsPermitidos.length === 0) return { success: true, data: [] };
   }
 
@@ -297,7 +297,9 @@ export async function listarSolicitudesCompletadas(): Promise<
 
   let grupoIdsPermitidos: string[] | null = null;
   if (esDG && userData?.user?.id) {
-    grupoIdsPermitidos = await obtenerGrupoIdsActivosDeDirectorGeneral(userData.user.id);
+    const grupos = await obtenerGrupoIdsActivosDeDirectorGeneral(userData.user.id);
+    if (!grupos.success) return { success: false, error: grupos.error };
+    grupoIdsPermitidos = grupos.data ?? [];
     if (grupoIdsPermitidos.length === 0) return { success: true, data: [] };
   }
 
