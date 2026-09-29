@@ -16,6 +16,7 @@
  * API row cap never truncates a count silently.
  */
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { leer, leerPaginado, leerPorIds } from '@/lib/platform/grupos-vida/lectura-supabase'
 import {
   construirVistaDirectores,
   type EntradaVistaDirectores,
@@ -24,38 +25,9 @@ import {
 
 const ROLES_QUE_ENTRAN = ['admin', 'pastor', 'director-general']
 const ROLES_QUE_ADMINISTRAN = ['admin', 'pastor']
-const TAMANO_PAGINA = 1000
-const TAMANO_LOTE_IDS = 100
-
 export interface ParametrosCarga {
   readonly authId: string
   readonly roles: readonly string[]
-}
-
-type Respuesta<T> = PromiseLike<{ data: T[] | null; error: { message: string } | null }>
-
-async function leer<T>(tabla: string, consulta: Respuesta<T>): Promise<T[]> {
-  const { data, error } = await consulta
-  if (error) throw new Error(`Error al leer ${tabla}: ${error.message}`)
-  return data ?? []
-}
-
-async function leerPaginado<T>(tabla: string, pagina: (desde: number, hasta: number) => Respuesta<T>): Promise<T[]> {
-  const filas: T[] = []
-  for (let desde = 0; ; desde += TAMANO_PAGINA) {
-    const lote = await leer(tabla, pagina(desde, desde + TAMANO_PAGINA - 1))
-    filas.push(...lote)
-    if (lote.length < TAMANO_PAGINA) return filas
-  }
-}
-
-/** `.in()` filters travel in the URL: long id lists are split into batches. */
-async function leerPorIds<T>(tabla: string, ids: readonly string[], consulta: (lote: string[]) => Respuesta<T>): Promise<T[]> {
-  const filas: T[] = []
-  for (let i = 0; i < ids.length; i += TAMANO_LOTE_IDS) {
-    filas.push(...(await leer(tabla, consulta(ids.slice(i, i + TAMANO_LOTE_IDS)))))
-  }
-  return filas
 }
 
 const nombreCompleto = (nombre: string, apellido: string | null): string => `${nombre} ${apellido ?? ''}`.trim()
