@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { normalizarCedula } from "@/lib/utils/cedula";
+import { prepararCedula } from "@/lib/utils/cedula";
 
 /** Un valor con caracteres propios de la sintaxis de `.or()` va entre comillas. */
 function valorParaFiltro(valor: string): string {
@@ -25,7 +25,7 @@ async function createUserProfile(
 
   // La cedula se compara y se guarda normalizada: `22.328.215`, `V-22328215` y
   // `22328215` son la misma persona.
-  const cedula = userData.cedula?.trim() ? normalizarCedula(userData.cedula) : null;
+  const cedula = prepararCedula(userData.cedula);
 
   // Buscar perfil existente por email o cedula
   const orFilters = [`email.eq.${email}`];

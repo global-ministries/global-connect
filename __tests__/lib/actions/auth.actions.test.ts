@@ -77,6 +77,24 @@ describe('signup: match a registering person by normalized cedula', () => {
     expect(or).toHaveBeenLastCalledWith('email.eq.bea@example.com,cedula.eq."AB,C(1)"')
   })
 
+  it('stores an unrecognized cedula trimmed, like createUser and updateUser do', async () => {
+    const { admin, insert } = crearAdmin(null)
+    createSupabaseAdminClient.mockReturnValue(admin)
+
+    await signup(formulario('  ABC123  '))
+
+    expect(insert).toHaveBeenCalledWith([expect.objectContaining({ cedula: 'ABC123' })])
+  })
+
+  it('stores a blank cedula as null', async () => {
+    const { admin, insert } = crearAdmin(null)
+    createSupabaseAdminClient.mockReturnValue(admin)
+
+    await signup(formulario('   '))
+
+    expect(insert).toHaveBeenCalledWith([expect.objectContaining({ cedula: null })])
+  })
+
   it('looks up by email only when no cedula is given', async () => {
     const { admin, or } = crearAdmin({ id: 'perfil-3' })
     createSupabaseAdminClient.mockReturnValue(admin)

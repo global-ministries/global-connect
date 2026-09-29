@@ -6,15 +6,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireAuth } from "@/lib/auth/requireAuth"
 import type { Database } from "@/lib/supabase/database.types"
-import { normalizarCedula } from "@/lib/utils/cedula"
+import { prepararCedula } from "@/lib/utils/cedula"
 
 const MENSAJE_CEDULA_DUPLICADA = 'Esta cédula ya pertenece a otra persona.'
 
-/** True when a Postgres error is the unique violation of the cedula. */
+/**
+ * True when a Postgres error is a unique violation on the cedula. Two
+ * constraints can raise it: `usuarios_cedula_key` (the column's UNIQUE) and
+ * `unique_cedula_nonnull` (the partial unique index over non-null cedulas);
+ * both come from the `usuarios` table definition. Used by create and update.
+ */
 function esCedulaDuplicada(e: { code?: string; message?: string; details?: string } | null | undefined): boolean {
   if (e?.code !== '23505') return false
   const texto = `${e.message ?? ''} ${e.details ?? ''}`.toLowerCase()
-  return texto.includes('usuarios_cedula') || texto.includes('unique_cedula_nonnull') || texto.includes('(cedula)')
+  return texto.includes('usuarios_cedula_key') || texto.includes('unique_cedula_nonnull') || texto.includes('(cedula)')
 }
 
 type FamilyRelationshipResponse = {
@@ -110,15 +115,26 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
       profesion_id: (!data.profesion_id || data.profesion_id === "none") ? null : data.profesion_id,
     };
 
-    // 2. Actualizar tabla usuarios
+    // 2. Actualizar tabla usuarios. La cédula y el teléfono sólo se escriben si
+    // cambiaron (la cédula se compara ya preparada: la guardada como `7.485477 `
+    // y la enviada como `7485477` son la misma): reescribir un valor que no cambió no aporta nada y, para una
+    // ficha duplicada con formato viejo, chocaría con el UNIQUE de la cédula.
+    const { data: guardado } = await supabase
+      .from('usuarios')
+      .select('cedula, telefono')
+      .eq('id', userId)
+      .single();
+    const cedula = prepararCedula(datosSaneados.cedula);
+    const telefono = datosSaneados.telefono || null;
+
     const { data: usuarioActualizado, error: errorUsuario } = await supabase
       .from('usuarios')
       .update({
         nombre: datosSaneados.nombre,
         apellido: datosSaneados.apellido,
-        cedula: normalizarCedula((datosSaneados.cedula ?? '').trim()) || null,
+        ...(!guardado || cedula !== prepararCedula(guardado.cedula) ? { cedula } : {}),
         email: datosSaneados.email || null,
-        telefono: datosSaneados.telefono || null,
+        ...(!guardado || telefono !== guardado.telefono ? { telefono } : {}),
         fecha_nacimiento: datosSaneados.fecha_nacimiento || null,
         estado_civil: datosSaneados.estado_civil,
         genero: datosSaneados.genero,
@@ -332,7 +348,6 @@ export async function createUser(data: {
     if (esCedulaDuplicada(e)) return MENSAJE_CEDULA_DUPLICADA
     if (code === '23505') {
       if (texto.includes('usuarios_email') || texto.includes('email')) return 'El email ya se encuentra registrado.'
-      if (texto.includes('cedula') || texto.includes('cédula')) return MENSAJE_CEDULA_DUPLICADA
       return 'Registro duplicado: ya existe un usuario con datos iguales.'
     }
     if (code === '23502') {
@@ -356,7 +371,7 @@ export async function createUser(data: {
       .insert({
         nombre: data.nombre,
         apellido: data.apellido,
-        cedula: (data.cedula || '').trim() === '' ? null : normalizarCedula(data.cedula),
+        cedula: prepararCedula(data.cedula),
         email: (data.email || '').trim() === '' ? null : (data.email || undefined),
         telefono: (data.telefono || '').trim() === '' ? null : data.telefono,
         fecha_nacimiento: (data.fecha_nacimiento || '').trim() === '' ? null : data.fecha_nacimiento,
