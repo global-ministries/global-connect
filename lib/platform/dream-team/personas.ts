@@ -55,3 +55,37 @@ export async function fetchNombresPersonas(
   }
   return nombrePorId
 }
+
+/** What the Servidores screen shows about a person besides their name. */
+export interface ContactoPersona {
+  readonly telefono: string | null
+  readonly tieneCuenta: boolean
+}
+
+/**
+ * Bulk-resolves the profile phone and account status of a set of `personaId`s
+ * in one round trip, through the `dream_team_contactos_personas` RPC (never a
+ * direct `usuarios` select: its RLS hides other people's rows from a branch
+ * director). The RPC answers only for people the caller reaches by tree and
+ * never returns the `auth_id`, only `tiene_cuenta`. Ids it does not return are
+ * left out of the map: "not visible to you", not "no phone".
+ * See supabase/migrations/20260929110000_dream_team_contactos_personas.sql.
+ */
+export async function fetchContactosPersonas(
+  client: DbClient,
+  personaIds: readonly PersonaId[],
+): Promise<ReadonlyMap<PersonaId, ContactoPersona>> {
+  const idsUnicos = [...new Set(personaIds)]
+  if (idsUnicos.length === 0) return new Map()
+
+  const { data, error } = await client.rpc('dream_team_contactos_personas', {
+    p_persona_ids: idsUnicos,
+  })
+  if (error) throw error
+
+  const contactos = new Map<PersonaId, ContactoPersona>()
+  for (const row of data ?? []) {
+    contactos.set(row.id as PersonaId, { telefono: row.telefono, tieneCuenta: row.tiene_cuenta })
+  }
+  return contactos
+}

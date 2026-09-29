@@ -6555,6 +6555,66 @@ export type Database = {
           },
         ]
       }
+      usuarios_telefono_normalizacion: {
+        Row: {
+          antes: string | null
+          despues: string
+          id: string
+          normalizado_en: string
+          usuario_id: string
+        }
+        Insert: {
+          antes?: string | null
+          despues: string
+          id?: string
+          normalizado_en?: string
+          usuario_id: string
+        }
+        Update: {
+          antes?: string | null
+          despues?: string
+          id?: string
+          normalizado_en?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuarios_telefono_normalizacion_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuarios_telefono_normalizacion_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "usuarios_telefono_normalizacion_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "usuarios_telefono_normalizacion_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "usuarios_telefono_normalizacion_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
     }
     Views: {
       v_casas_anfitrionas_disponibles: {
@@ -7316,6 +7376,14 @@ export type Database = {
         Args: { p_accion: string; p_grants: Json; p_persona_id: string }
         Returns: number
       }
+      dream_team_contactos_personas: {
+        Args: { p_persona_ids: string[] }
+        Returns: {
+          id: string
+          telefono: string
+          tiene_cuenta: boolean
+        }[]
+      }
       dream_team_estructura_gdv: {
         Args: never
         Returns: {
@@ -7444,6 +7512,7 @@ export type Database = {
       }
       mi_campus_principal: { Args: { p_auth_uid: string }; Returns: string }
       mis_campus_ids: { Args: { p_auth_uid: string }; Returns: string[] }
+      normalizar_telefono_ve: { Args: { p: string }; Returns: string }
       obtener_asistencia_evento: {
         Args: { p_auth_id: string; p_evento_id: string }
         Returns: {
