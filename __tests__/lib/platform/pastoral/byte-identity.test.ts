@@ -118,6 +118,10 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   'lib/platform/dream-team/capabilities.ts',
   'lib/platform/dream-team/estructura-arbol.ts',
   'lib/platform/dream-team/estructura-gdv.ts',
+  // estructura-vista.ts — new (2026-09-29): the pure view model behind the
+  // redesigned /admin/dream-team/estructura screen (searchable tree, inactive
+  // roots, team detail with roles and usage).
+  'lib/platform/dream-team/estructura-vista.ts',
   'lib/platform/dream-team/grants.ts',
   'lib/platform/dream-team/lideres-gdv.ts',
   // mi-equipo-vista.ts — new (2026-09-29): the pure view model behind the
