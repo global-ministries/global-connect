@@ -235,9 +235,10 @@ describe('EstructuraClient — team detail (criterion 2)', () => {
     expect(within(ruta).getByText('Grupos de Corto Plazo')).toBeInTheDocument()
     expect(within(ruta).getByText('De Hombre a Hombre')).toHaveAttribute('aria-current', 'page')
 
-    expect(zona.getByRole('heading', { name: 'De Hombre a Hombre', level: 2 })).toBeInTheDocument()
-    expect(zona.getByText('Talleres de Crecimiento')).toBeInTheDocument()
-    expect(zona.getByText('Activo')).toBeInTheDocument()
+    const titulo = zona.getByRole('heading', { name: 'De Hombre a Hombre', level: 2 })
+    const cabecera = within(titulo.parentElement as HTMLElement)
+    expect(cabecera.getByText('Talleres de Crecimiento')).toBeInTheDocument()
+    expect(cabecera.getByText('Activo')).toBeInTheDocument()
 
     const responsable = zona.getByRole('region', { name: 'Responsable' })
     expect(within(responsable).getByText('Edmir Muñoz')).toBeInTheDocument()

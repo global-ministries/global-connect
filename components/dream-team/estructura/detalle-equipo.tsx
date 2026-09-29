@@ -10,15 +10,17 @@
  * never gets them whatever the viewer's capability.
  */
 import { Fragment, useState, useTransition, type ReactElement } from 'react'
+import { Plus } from 'lucide-react'
 
 import { BadgeSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
-import { cambiarActivoEquipo } from '@/app/(auth)/admin/dream-team/estructura/actions'
+import { cambiarActivoEquipo, crearEquipo, renombrarEquipo } from '@/app/(auth)/admin/dream-team/estructura/actions'
 import type { DetalleEquipo } from '@/lib/platform/dream-team/estructura-vista'
 
-import { DialogoRenombrarEquipo } from './dialogo-renombrar-equipo'
+import { DialogoNombre } from './dialogo-nombre'
 import { ListaSubequipos } from './lista-subequipos'
 import { reportarResultado, type Toast } from './mensajes'
+import { RolesEquipo } from './roles-equipo'
 import { TarjetasResumen } from './tarjetas-resumen'
 
 export interface DetalleEquipoProps {
@@ -60,6 +62,7 @@ export function DetalleEquipoVista({
 }: DetalleEquipoProps): ReactElement {
   const [isPending, startTransition] = useTransition()
   const [renombrando, setRenombrando] = useState(false)
+  const [agregandoSubequipo, setAgregandoSubequipo] = useState(false)
   const [confirmandoDesactivar, setConfirmandoDesactivar] = useState(false)
   const puedeEditarEste = puedeEditar && detalle.editable
 
@@ -110,6 +113,9 @@ export function DetalleEquipoVista({
                   Activar
                 </BotonSistema>
               )}
+              <BotonSistema type="button" tamaño="sm" icono={Plus} disabled={isPending} onClick={() => setAgregandoSubequipo(true)}>
+                Agregar sub-equipo
+              </BotonSistema>
             </div>
           )}
         </div>
@@ -117,13 +123,45 @@ export function DetalleEquipoVista({
 
       <TarjetasResumen detalle={detalle} direccionId={direccionId} puedeAsignar={puedeEditarEste} />
 
-      <ListaSubequipos hijos={detalle.hijos} puedeAgregar={puedeEditarEste} onSeleccionar={onSeleccionar} />
+      <div className="grid items-start gap-6 2xl:grid-cols-2">
+        <ListaSubequipos hijos={detalle.hijos} puedeAgregar={puedeEditarEste} onSeleccionar={onSeleccionar} />
+        {detalle.editable && (
+          <RolesEquipo
+            equipoId={detalle.id}
+            roles={detalle.roles}
+            puedeEditar={puedeEditar}
+            onActualizado={onActualizado}
+            toast={toast}
+          />
+        )}
+      </div>
 
       {renombrando && (
-        <DialogoRenombrarEquipo
-          equipo={detalle}
+        <DialogoNombre
+          titulo="Renombrar equipo"
+          descripcion="El nuevo nombre se verá en todas las pantallas de Dream Team."
+          etiquetaCampo="Nombre del equipo"
+          valorInicial={detalle.label}
+          textoBoton="Guardar"
+          exito="Equipo renombrado correctamente."
+          guardar={(label) => renombrarEquipo({ id: detalle.id, label })}
           onClose={() => setRenombrando(false)}
-          onRenombrado={onActualizado}
+          onHecho={onActualizado}
+          toast={toast}
+        />
+      )}
+
+      {agregandoSubequipo && (
+        <DialogoNombre
+          titulo="Agregar sub-equipo"
+          descripcion={`Se creará dentro de "${detalle.label}".`}
+          etiquetaCampo="Nombre del sub-equipo"
+          valorInicial=""
+          textoBoton="Crear"
+          exito="Sub-equipo creado correctamente."
+          guardar={(label) => crearEquipo({ parentEquipoId: detalle.id, label })}
+          onClose={() => setAgregandoSubequipo(false)}
+          onHecho={onActualizado}
           toast={toast}
         />
       )}
