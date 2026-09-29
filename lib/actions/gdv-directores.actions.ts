@@ -53,7 +53,8 @@ export async function agregarDirectorGeneral(usuarioId: string): Promise<Resulta
       .single()
     if (rolError || !rol) return { success: false, error: rolError?.message ?? "Rol no encontrado" }
 
-    const { data: persona } = await adminDb.from("usuarios").select("id").eq("id", id).single()
+    const { data: persona, error: personaError } = await adminDb.from("usuarios").select("id").eq("id", id).maybeSingle()
+    if (personaError) return { success: false, error: personaError.message }
     if (!persona) return { success: false, error: "Persona no encontrada" }
 
     const { data: existente, error: existenteError } = await adminDb

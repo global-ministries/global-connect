@@ -205,6 +205,14 @@ describe('agregarDirectorGeneral', () => {
     expect(escritura()).toEqual([])
   })
 
+  it('reports a failed person lookup as a failure with its message, not as an unknown person', async () => {
+    responder = (c) => (c.table === 'usuarios' ? fallo('lookup down') : conRol([])(c))
+    const res = await agregarDirectorGeneral(U)
+    expect(res).toEqual({ success: false, error: 'lookup down' })
+    expect(escritura()).toEqual([])
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
   it('reports the database error', async () => {
     responder = (c) => (c.table === 'usuario_roles' && c.ops.some((o) => o.method === 'insert') ? fallo('boom') : conRol([])(c))
     expect(await agregarDirectorGeneral(U)).toEqual({ success: false, error: 'boom' })
