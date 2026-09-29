@@ -97,6 +97,12 @@ describe('quick filters', () => {
     expect(vista({}, filas).rapidos.sinCuenta.cantidad).toBe(0)
   })
 
+  it('a Grupos de Vida leader without account is classified like any other row', () => {
+    const filas = [fila('g', 'Marta Ruiz', ID_CORO, 'Líder de grupo', { origen: 'grupos_vida', tieneCuenta: false, editable: false })]
+    expect(vista({ sinCuenta: true }, filas).visibles).toHaveLength(1)
+    expect(vista({}, filas).rapidos.sinCuenta.cantidad).toBe(1)
+  })
+
   it('"en varios equipos" means two or more non-retired servicios of the same persona', () => {
     const v = vista({ varios: true }, filasConexion)
     expect(nombres(v.items).sort()).toEqual(['Antholy Ludovic Gómez', 'Antholy Ludovic Gómez', 'Jose Jimenez', 'Jose Jimenez'])

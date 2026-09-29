@@ -12,6 +12,8 @@
 --   director B (…23) dream_team.direct on branch B       -> sees B's people only
 --   member     (…25) no capability at all                -> sees nobody
 --   global     (…27) dream_team.org.manage, scope NULL   -> sees everyone
+-- The mirror block near the end compares the two functions, Grupos de Vida
+-- leaders included, against a real leader read-only.
 -- People: pA1 (…31, with account), pA2 (…33, no account), pA3 (…35, in a CHILD
 -- node of A: proves the tree walk), pB1 (…37, branch B).
 
@@ -153,6 +155,76 @@ SELECT pg_temp.assert_rows('global org manager gets all 4',
   $$SELECT * FROM public.dream_team_contactos_personas(ARRAY[
       'c1000000-0000-4000-8000-000000000031','c1000000-0000-4000-8000-000000000033',
       'c1000000-0000-4000-8000-000000000035','c1000000-0000-4000-8000-000000000037']::uuid[])$$, 4);
+RESET ROLE;
+
+-- ── mirror of dream_team_resolver_nombres, Grupos de Vida leaders included ──
+-- No GdV fixture is built (that would write to Grupos de Vida tables): a REAL
+-- leader without any servicio is read through dream_team_lideres_gdv() as the
+-- global org manager, then both functions are compared for every viewer.
+
+CREATE TEMP TABLE t_cp_gdv (persona_id uuid) ON COMMIT DROP;
+GRANT INSERT, SELECT ON t_cp_gdv TO authenticated;
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('c1000000-0000-4000-8000-000000000026');
+INSERT INTO t_cp_gdv
+  SELECT l.persona_id FROM public.dream_team_lideres_gdv() l
+  WHERE NOT EXISTS (SELECT 1 FROM public.dream_team_servicios s WHERE s.persona_id = l.persona_id)
+  LIMIT 1;
+RESET ROLE;
+
+SELECT pg_temp.assert_rows('fixture: a real Grupos de Vida leader without servicio exists on staging',
+  $$SELECT 1 FROM t_cp_gdv$$, 1);
+
+-- global org manager: gets the leader's name AND contact.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('c1000000-0000-4000-8000-000000000026');
+SELECT pg_temp.assert_rows('gdv leader: global viewer gets the name from the resolver',
+  $$SELECT 1 FROM public.dream_team_resolver_nombres(ARRAY(SELECT persona_id FROM t_cp_gdv))$$, 1);
+SELECT pg_temp.assert_rows('gdv leader: global viewer also gets the contact row',
+  $$SELECT 1 FROM public.dream_team_contactos_personas(ARRAY(SELECT persona_id FROM t_cp_gdv))$$, 1);
+RESET ROLE;
+
+-- viewers who do NOT get the name do not get the contact.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('c1000000-0000-4000-8000-000000000024');
+SELECT pg_temp.assert_rows('gdv leader: member without capability gets no name',
+  $$SELECT 1 FROM public.dream_team_resolver_nombres(ARRAY(SELECT persona_id FROM t_cp_gdv))$$, 0);
+SELECT pg_temp.assert_rows('gdv leader: member without capability gets no contact',
+  $$SELECT 1 FROM public.dream_team_contactos_personas(ARRAY(SELECT persona_id FROM t_cp_gdv))$$, 0);
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('c1000000-0000-4000-8000-000000000022');
+SELECT pg_temp.assert_rows('gdv leader: director B (no Grupos de Vida scope) gets no name',
+  $$SELECT 1 FROM public.dream_team_resolver_nombres(ARRAY(SELECT persona_id FROM t_cp_gdv))$$, 0);
+SELECT pg_temp.assert_rows('gdv leader: director B (no Grupos de Vida scope) gets no contact',
+  $$SELECT 1 FROM public.dream_team_contactos_personas(ARRAY(SELECT persona_id FROM t_cp_gdv))$$, 0);
+RESET ROLE;
+
+-- generic parity: same ids from both functions, for every viewer.
+CREATE OR REPLACE FUNCTION pg_temp.parity(p_case text, p_auth uuid) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+  v_ids uuid[] := ARRAY(SELECT persona_id FROM t_cp_gdv) || ARRAY[
+    'c1000000-0000-4000-8000-000000000031','c1000000-0000-4000-8000-000000000033',
+    'c1000000-0000-4000-8000-000000000035','c1000000-0000-4000-8000-000000000037']::uuid[];
+  v_diff int;
+BEGIN
+  PERFORM pg_temp.as_persona(p_auth);
+  SELECT count(*) INTO v_diff FROM (
+    (SELECT id FROM public.dream_team_resolver_nombres(v_ids) EXCEPT SELECT id FROM public.dream_team_contactos_personas(v_ids))
+    UNION ALL
+    (SELECT id FROM public.dream_team_contactos_personas(v_ids) EXCEPT SELECT id FROM public.dream_team_resolver_nombres(v_ids))
+  ) d;
+  IF v_diff <> 0 THEN PERFORM pg_temp.fail(p_case, v_diff || ' id(s) differ between resolver and contactos'); END IF;
+END; $$;
+GRANT EXECUTE ON FUNCTION pg_temp.parity(text, uuid) TO authenticated;
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.parity('parity: global viewer', 'c1000000-0000-4000-8000-000000000026');
+SELECT pg_temp.parity('parity: director A', 'c1000000-0000-4000-8000-000000000020');
+SELECT pg_temp.parity('parity: director B', 'c1000000-0000-4000-8000-000000000022');
+SELECT pg_temp.parity('parity: member', 'c1000000-0000-4000-8000-000000000024');
 RESET ROLE;
 
 -- ── shape and grants ──

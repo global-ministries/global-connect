@@ -303,6 +303,25 @@ describe('ServidoresClient — phone and account status (criterion 6)', () => {
     expect(within(filaDe('Dos Equipos')).getByText('2 equipos')).toBeInTheDocument()
   })
 
+  it('a Grupos de Vida leader shows phone and "Sin cuenta" like any row, and counts for the quick filter, but has no menu', async () => {
+    const filas = [
+      fila('g', 'Marta Ruiz', ID_DHAH, 'Líder de grupo', {
+        origen: 'grupos_vida',
+        servicioId: undefined,
+        version: undefined,
+        editable: false,
+        telefono: '04245551111',
+        tieneCuenta: false,
+      }),
+    ]
+    render(<ServidoresClient {...props({ filas, puedeEditar: true })} />)
+    const celda = filaDe('Marta Ruiz')
+    expect(within(celda).getByText('Sin cuenta')).toBeInTheDocument()
+    expect(within(celda).getByRole('link', { name: /0424 555 1111/ })).toHaveAttribute('href', 'https://wa.me/584245551111')
+    expect(within(celda).queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sin cuenta · 1' })).toBeInTheDocument()
+  })
+
   it('finds a person by phone, however the number is typed', async () => {
     const filas = [
       fila('1', 'Ana Ruiz', ID_DHAH, 'Facilitador', { telefono: '04125457346' }),

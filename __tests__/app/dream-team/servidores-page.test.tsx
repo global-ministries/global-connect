@@ -112,6 +112,7 @@ beforeEach(() => {
     new Map([
       ['p1', { telefono: '04125457346', tieneCuenta: true }],
       ['p2', { telefono: null, tieneCuenta: false }],
+      ['g1', { telefono: '04245551111', tieneCuenta: false }],
     ]),
   )
   mockServicios = [
@@ -171,11 +172,15 @@ describe('rows', () => {
     expect(filas[1]).toMatchObject({ telefono: null, tieneCuenta: false })
   })
 
-  it('leaves phone and account status unknown for people the caller cannot see (never "sin cuenta")', async () => {
+  it('gives a Grupos de Vida leader the same phone and account status as any other row (still read-only)', async () => {
     const { filas } = await renderizar()
-    // p3 (not returned by the RPC) and the Grupos de Vida leader.
+    expect(filas[3]).toMatchObject({ origen: 'grupos_vida', telefono: '04245551111', tieneCuenta: false, editable: false })
+  })
+
+  it('leaves phone and account status unknown for a persona the RPC does not return (never "sin cuenta")', async () => {
+    const { filas } = await renderizar()
+    // p3 is not returned by the RPC.
     expect(filas[2]).toMatchObject({ telefono: null, tieneCuenta: null })
-    expect(filas[3]).toMatchObject({ telefono: null, tieneCuenta: null })
   })
 
   it('marks rows read-only for a viewer without write capability', async () => {
