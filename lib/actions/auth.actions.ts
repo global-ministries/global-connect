@@ -35,7 +35,7 @@ async function createUserProfile(
 
   const { data: usuarios, error: errorBusqueda } = await adminClient
     .from("usuarios")
-    .select("id")
+    .select("id, auth_id")
     .or(orFilters.join(","))
     .limit(1);
 
@@ -46,14 +46,27 @@ async function createUserProfile(
   const perfilExistente = usuarios && usuarios.length > 0 ? usuarios[0] : null;
 
   if (perfilExistente) {
-    // Vincular auth_id al perfil existente
-    const { error: errorUpdate } = await adminClient
-      .from("usuarios")
-      .update({ auth_id: user.id })
-      .eq("id", perfilExistente.id);
+    // Una ficha que ya tiene cuenta nunca se pisa: conocer el correo o la
+    // cédula de otra persona no basta para quedarse con su ficha. La cuenta de
+    // acceso recién creada se deja como está (esta acción no borra usuarios de
+    // auth cuando falla el paso del perfil).
+    if (perfilExistente.auth_id && perfilExistente.auth_id !== user.id) {
+      return {
+        success: false,
+        message: "Ya existe una cuenta para esta persona. Inicia sesión o pide ayuda a un administrador.",
+      };
+    }
 
-    if (errorUpdate) {
-      return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
+    // Sin cuenta todavía: vincularla. Si ya es la de esta persona, no hay nada que hacer.
+    if (!perfilExistente.auth_id) {
+      const { error: errorUpdate } = await adminClient
+        .from("usuarios")
+        .update({ auth_id: user.id })
+        .eq("id", perfilExistente.id);
+
+      if (errorUpdate) {
+        return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
+      }
     }
   } else {
     // Crear perfil nuevo

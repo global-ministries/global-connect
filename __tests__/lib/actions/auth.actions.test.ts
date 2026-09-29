@@ -9,7 +9,7 @@ jest.mock('@/lib/supabase/server', () => ({
 }))
 jest.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: () => createSupabaseAdminClient() }))
 
-function crearAdmin(existente: { id: string } | null) {
+function crearAdmin(existente: { id: string; auth_id?: string | null } | null) {
   const or = jest.fn()
   const insert = jest.fn().mockResolvedValue({ error: null })
   const eq = jest.fn().mockResolvedValue({ error: null })
@@ -104,13 +104,40 @@ describe('signup: match a registering person by normalized cedula', () => {
     expect(or).toHaveBeenCalledWith('email.eq.bea@example.com')
   })
 
-  it('links the auth_id to an existing profile even if it already had another one (unchanged behaviour)', async () => {
-    const { admin, update } = crearAdmin({ id: 'perfil-4' })
+  it('links the account to an existing profile that has no auth_id yet', async () => {
+    const { admin, update, eq, insert } = crearAdmin({ id: 'perfil-4', auth_id: null })
     createSupabaseAdminClient.mockReturnValue(admin)
 
     const res = await signup(formulario('22.328.215'))
 
     expect(res.success).toBe(true)
     expect(update).toHaveBeenCalledWith({ auth_id: 'auth-1' })
+    expect(eq).toHaveBeenCalledWith('id', 'perfil-4')
+    expect(insert).not.toHaveBeenCalled()
+  })
+
+  it('refuses to bind the account to a profile that already belongs to another account', async () => {
+    const { admin, update, insert } = crearAdmin({ id: 'perfil-5', auth_id: 'auth-de-otra-persona' })
+    createSupabaseAdminClient.mockReturnValue(admin)
+
+    const res = await signup(formulario('22.328.215'))
+
+    expect(res).toEqual({
+      success: false,
+      message: 'Ya existe una cuenta para esta persona. Inicia sesión o pide ayuda a un administrador.',
+    })
+    expect(update).not.toHaveBeenCalled()
+    expect(insert).not.toHaveBeenCalled()
+  })
+
+  it('is idempotent when the profile is already bound to this same account', async () => {
+    const { admin, update, insert } = crearAdmin({ id: 'perfil-6', auth_id: 'auth-1' })
+    createSupabaseAdminClient.mockReturnValue(admin)
+
+    const res = await signup(formulario('22.328.215'))
+
+    expect(res.success).toBe(true)
+    expect(update).not.toHaveBeenCalled()
+    expect(insert).not.toHaveBeenCalled()
   })
 })
