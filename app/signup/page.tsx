@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { User, Mail, Lock, CreditCard, Eye, EyeOff } from "lucide-react";
+import { normalizarCedula } from "@/lib/utils/cedula"
 import {
   FondoAutenticacion,
   TarjetaSistema,
@@ -33,7 +34,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function SignupPage() {
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -129,7 +130,9 @@ export default function SignupPage() {
             icono={CreditCard}
             error={errors.cedula?.message}
             disabled={isLoading}
-            {...register("cedula")}
+            {...register("cedula", {
+              onBlur: (e) => setValue("cedula", normalizarCedula(e.target.value) ?? "", { shouldDirty: true }),
+            })}
           />
 
           {/* Contraseña */}

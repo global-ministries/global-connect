@@ -6,6 +6,7 @@ import { createUser } from "@/lib/actions/user.actions"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { InputSistema, SelectSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
+import { normalizarCedula } from "@/lib/utils/cedula"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
 import { User, Mail, Phone, Calendar, Users } from "lucide-react"
 
@@ -26,7 +27,7 @@ export default function UserCreateForm() {
 
   const router = useRouter();
   const { success, error: errorToast } = useNotificaciones()
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setError, control } = useForm<UserCreateFormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, setError, control, setValue } = useForm<UserCreateFormData>({
     resolver: zodResolver(userCreateSchema),
     defaultValues: {
       nombre: "",
@@ -119,7 +120,9 @@ export default function UserCreateForm() {
             <InputSistema
               label="Cédula"
               placeholder="Número de cédula"
-              {...register("cedula")}
+              {...register("cedula", {
+                onBlur: (e) => setValue("cedula", normalizarCedula(e.target.value) ?? "", { shouldDirty: true }),
+              })}
             />
 
             <InputSistema
