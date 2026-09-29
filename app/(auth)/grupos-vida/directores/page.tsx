@@ -16,7 +16,6 @@ import { redirect } from 'next/navigation'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
-import { checkPlatformRouteAccess } from '@/lib/platform/routeGuard'
 import { cargarVistaDirectores } from '@/lib/platform/grupos-vida/directores-datos'
 import { DirectoresClient, type PestanaDirectores } from '@/components/grupos-vida/directores/directores-client'
 
@@ -41,15 +40,10 @@ export default async function DirectoresPage({ searchParams }: DirectoresPagePro
   const userData = await getUserWithRoles(supabase)
   if (!userData?.user) redirect('/login')
 
+  // The role is the only gate, as in the other Grupos de Vida pages. The old
+  // /configuracion/directores-generales also required a platform capability
+  // that a single admin held, which locked out pastors and general directors.
   if (!userData.roles.some((rol) => ROLES_PERMITIDOS.includes(rol))) redirect('/dashboard')
-
-  // Same capability the page had as /configuracion/directores-generales: with
-  // the platform flag off it allows, so the role check above stays the real gate.
-  const routeGuard = checkPlatformRouteAccess({
-    platformSession: userData.platformSession,
-    requiredCapability: 'configuracion.directores-generales.manage',
-  })
-  if (!routeGuard.allowed) redirect('/dashboard')
 
   const vista = await cargarVistaDirectores({ authId: userData.user.id, roles: userData.roles })
   if (!vista) redirect('/dashboard')

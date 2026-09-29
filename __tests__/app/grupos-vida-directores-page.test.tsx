@@ -106,20 +106,18 @@ describe('/grupos-vida/directores — access', () => {
     await expect(renderizar()).rejects.toThrow('NEXT_REDIRECT:/dashboard')
   })
 
+  // The role is the only gate, as in every other Grupos de Vida page: nobody
+  // but one admin holds a platform grant for this screen, so a capability
+  // check would lock out the pastors and the general directors.
   it.each([
-    ['the kill switch is active', { enabled: 'true', killSwitch: 'true' }, null],
-    ['the platform session is missing', { enabled: 'true' }, null],
-  ] as const)('redirects to /dashboard when %s', async (_label, env, platformSession) => {
-    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = env.enabled
+    ['the platform flag is on and the person has no grant', { enabled: 'true' }, ['pastor']],
+    ['the platform flag is on and the kill switch is active', { enabled: 'true', killSwitch: 'true' }, ['director-general']],
+    ['the platform flag is off', {}, ['admin']],
+  ] as const)('lets the role in when %s', async (_label, env, roles) => {
+    if ('enabled' in env) process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = env.enabled
     if ('killSwitch' in env) process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH = env.killSwitch
-    conSesion(['admin'], platformSession)
-    await expect(renderizar()).rejects.toThrow('NEXT_REDIRECT:/dashboard')
-    expect(cargarVistaDirectores).not.toHaveBeenCalled()
-  })
-
-  it('keeps the legacy behavior when the platform flag is off', async () => {
-    conSesion(['admin'], null)
-    await expect(renderizar()).resolves.toBeDefined()
+    conSesion([...roles], null)
+    expect((await renderizar()).vista).toBe(VISTA)
   })
 })
 
