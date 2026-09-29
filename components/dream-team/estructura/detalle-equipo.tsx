@@ -182,6 +182,7 @@ export function DetalleEquipoVista({
           title={`Desactivar "${detalle.label}"`}
           message="El equipo pasará a estar inactivo. Podrás reactivarlo luego desde esta misma pantalla. ¿Deseas continuar?"
           isLoading={isPending}
+          confirmLabel="Sí, desactivar"
         />
       </section>
 

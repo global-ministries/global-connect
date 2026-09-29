@@ -355,7 +355,7 @@ describe('EstructuraClient — renaming and deactivating a team', () => {
     expect(cambiarActivoEquipo).not.toHaveBeenCalled()
     expect(screen.getByText('Desactivar "De Hombre a Hombre"')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar Borrado' }))
+    await user.click(screen.getByRole('button', { name: 'Sí, desactivar' }))
     expect(cambiarActivoEquipo).toHaveBeenCalledWith({ id: ID_DHAH, activo: false })
     expect(toastSuccess).toHaveBeenCalledWith('Equipo desactivado.')
     expect(refresh).toHaveBeenCalled()
