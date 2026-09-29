@@ -1210,6 +1210,7 @@ export type Database = {
       }
       director_general_segmentos: {
         Row: {
+          alcance: string
           campus_id: string | null
           creado_en: string
           id: string
@@ -1217,6 +1218,7 @@ export type Database = {
           usuario_id: string
         }
         Insert: {
+          alcance?: string
           campus_id?: string | null
           creado_en?: string
           id?: string
@@ -1224,6 +1226,7 @@ export type Database = {
           usuario_id: string
         }
         Update: {
+          alcance?: string
           campus_id?: string | null
           creado_en?: string
           id?: string
@@ -7503,6 +7506,14 @@ export type Database = {
       es_lider_usuario: { Args: { target_user_id: string }; Returns: boolean }
       es_superadmin: { Args: { p_auth_uid: string }; Returns: boolean }
       expirar_solicitudes_vencidas: { Args: never; Returns: number }
+      gdv_dg_grupos_visibles: {
+        Args: { p_usuario_id: string }
+        Returns: string[]
+      }
+      gdv_dg_ve_grupo: {
+        Args: { p_grupo_id: string; p_usuario_id: string }
+        Returns: boolean
+      }
       generate_taller_sesiones: { Args: { p_grupo_id: string }; Returns: Json }
       get_my_internal_id: { Args: never; Returns: string }
       get_personas_under_me: {
