@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { revalidatePath } from "next/cache"
+import { exigirAdminOPastor } from "@/lib/platform/grupos-vida/permisos"
 
 // ─── Constantes ────────────────────────────────────────
 const ROLES_GESTORES = ["admin", "pastor", "director-general"]
@@ -115,7 +116,7 @@ export async function asignarSegmentoDG(formData: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const parsed = asignarSchema.parse(formData)
-    await verificarGestor()
+    await exigirAdminOPastor()
     const adminDb = createSupabaseAdminClient()
 
     const { error } = await adminDb
@@ -130,7 +131,7 @@ export async function asignarSegmentoDG(formData: {
       return { success: false, error: error.message }
     }
 
-    revalidatePath("/configuracion/directores-generales")
+    revalidatePath("/grupos-vida/directores")
     return { success: true }
   } catch (e: unknown) {
     return { success: false, error: e instanceof Error ? e.message : "Error desconocido" }
@@ -144,7 +145,7 @@ export async function desasignarSegmentoDG(formData: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const parsed = asignarSchema.parse(formData)
-    await verificarGestor()
+    await exigirAdminOPastor()
     const adminDb = createSupabaseAdminClient()
 
     const { error } = await adminDb
@@ -155,7 +156,7 @@ export async function desasignarSegmentoDG(formData: {
 
     if (error) return { success: false, error: error.message }
 
-    revalidatePath("/configuracion/directores-generales")
+    revalidatePath("/grupos-vida/directores")
     return { success: true }
   } catch (e: unknown) {
     return { success: false, error: e instanceof Error ? e.message : "Error desconocido" }
