@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,7 +15,9 @@ const groupCreateSchema = z.object({
   temporada_id: z.string().min(1, "Debes seleccionar una temporada"),
   segmento_id: z.string().min(1, "Debes seleccionar un segmento"),
   ubicacion: z.enum(["Barquisimeto", "Cabudare"], { required_error: "Selecciona una ubicación" }),
-  director_etapa_segmento_lider_id: z.string().optional().nullable(),
+  director_etapa_segmento_lider_id: z
+    .string({ required_error: "Elige el director de etapa del grupo", invalid_type_error: "Elige el director de etapa del grupo" })
+    .min(1, "Elige el director de etapa del grupo"),
   lider_usuario_id: z.string().optional().nullable(),
 });
 
@@ -25,9 +27,11 @@ interface GroupCreateFormProps {
   temporadas: { id: string; nombre: string }[];
   segmentos: { id: string; nombre: string }[];
   userRoles?: string[];
+  /** Own director entries (segmento_lideres) of a director de etapa; the API that lists directors is closed to them. */
+  directoresPropios?: { id: string; segmento_id: string; nombre: string }[];
 }
 
-export default function GroupCreateForm({ temporadas, segmentos, userRoles = [] }: GroupCreateFormProps) {
+export default function GroupCreateForm({ temporadas, segmentos, userRoles = [], directoresPropios = [] }: GroupCreateFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,8 +103,19 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [] 
 
   // Reset selección de director si cambia el segmento
   useEffect(() => {
-    setValue('director_etapa_segmento_lider_id', null);
+    setValue('director_etapa_segmento_lider_id', null as unknown as string);
   }, [segmentoId, setValue]);
+
+  // Un director de etapa es siempre el director del grupo que crea: su propia entrada, fija.
+  const directoresPropiosDelSegmento = useMemo(
+    () => directoresPropios.filter((d) => d.segmento_id === segmentoId),
+    [directoresPropios, segmentoId]
+  );
+  useEffect(() => {
+    if (esDirectorEtapa && directoresPropiosDelSegmento.length === 1) {
+      setValue('director_etapa_segmento_lider_id', directoresPropiosDelSegmento[0].id, { shouldValidate: true });
+    }
+  }, [esDirectorEtapa, directoresPropiosDelSegmento, setValue]);
 
   const abortDirectoresRef = useRef<AbortController | null>(null);
 
@@ -130,8 +145,12 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [] 
     }
   }, []);
 
-  // Cargar directores al cambiar segmento
+  // Cargar directores al cambiar segmento (el director de etapa usa su propia entrada)
   useEffect(() => {
+    if (esDirectorEtapa) {
+      setDirectores(directoresPropiosDelSegmento.map((d) => ({ id: d.id, usuario_id: '', nombre: d.nombre })));
+      return;
+    }
     if (segmentoId) {
       fetchDirectores(segmentoId);
     } else {
@@ -140,7 +159,7 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [] 
     return () => {
       abortDirectoresRef.current?.abort();
     };
-  }, [segmentoId, fetchDirectores]);
+  }, [segmentoId, fetchDirectores, esDirectorEtapa, directoresPropiosDelSegmento]);
 
   // Limpiar selección de líder al cambiar segmento para evitar inconsistencias
   useEffect(() => {
@@ -172,7 +191,7 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [] 
         segmento_id: data.segmento_id,
         segmento_ubicacion_id: segmentoUbicacionId,
         ubicacion_nombre: data.ubicacion,
-        director_etapa_segmento_lider_id: data.director_etapa_segmento_lider_id || null,
+        director_etapa_segmento_lider_id: data.director_etapa_segmento_lider_id,
         lider_usuario_id: data.lider_usuario_id || null,
       });
       if (!result?.success) {
@@ -280,8 +299,8 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [] 
         {/* Director de Etapa */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-sm font-medium text-foreground">Director de Etapa (opcional)</label>
-            {segmentoId && (
+            <label htmlFor="director-etapa" className="block text-sm font-medium text-foreground">Director de Etapa</label>
+            {segmentoId && !esDirectorEtapa && (
               <button
                 type="button"
                 onClick={() => fetchDirectores(segmentoId)}
@@ -302,10 +321,12 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [] 
                   : 'Sin directores';
             return (
               <SelectSistema
+                id="director-etapa"
                 placeholder={placeholder}
                 value={field.value || undefined}
                 onValueChange={field.onChange}
-                disabled={!segmentoId || cargandoDirectores || !!directoresError || directores.length === 0}
+                error={errors.director_etapa_segmento_lider_id?.message}
+                disabled={esDirectorEtapa || !segmentoId || cargandoDirectores || !!directoresError || directores.length === 0}
                 opciones={directores.map(d => ({ valor: d.id, etiqueta: d.nombre }))}
               />
             );

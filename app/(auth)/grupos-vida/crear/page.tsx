@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 
 import GroupCreateForm from "@/components/forms/GroupCreateForm"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
+import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 
 import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno"
 
@@ -60,6 +61,28 @@ export default async function CreateGroupPage() {
   const temporadas = temporadasResult.data || [];
   const segmentos = segmentosResult.data || [];
 
+  // A director de etapa cannot list directors (the API is closed to them): hand the form their own entries.
+  let directoresPropios: { id: string; segmento_id: string; nombre: string }[] = [];
+  const esSoloDirectorEtapa = esDirectorEtapa && !esAdminOPastorODG;
+  if (esSoloDirectorEtapa) {
+    const { data: authData } = await supabase.auth.getUser()
+    const adminDb = createSupabaseAdminClient()
+    const { data: usuario } = await adminDb
+      .from("usuarios")
+      .select("id, nombre, apellido")
+      .eq("auth_id", authData?.user?.id ?? "")
+      .maybeSingle()
+    if (usuario) {
+      const { data: filas } = await adminDb
+        .from("segmento_lideres")
+        .select("id, segmento_id")
+        .eq("usuario_id", usuario.id)
+        .eq("tipo_lider", "director_etapa")
+      const nombre = `${usuario.nombre || ""} ${usuario.apellido || ""}`.trim()
+      directoresPropios = (filas || []).map((f) => ({ id: f.id, segmento_id: f.segmento_id, nombre }))
+    }
+  }
+
   return (
 <ContenedorDashboard
         titulo="Crear Grupo"
@@ -67,7 +90,7 @@ export default async function CreateGroupPage() {
         botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
       >
         <TarjetaSistema>
-          <GroupCreateForm temporadas={temporadas} segmentos={segmentos} userRoles={roles} />
+          <GroupCreateForm temporadas={temporadas} segmentos={segmentos} userRoles={roles} directoresPropios={directoresPropios} />
         </TarjetaSistema>
       </ContenedorDashboard>
 );
