@@ -316,4 +316,24 @@ describe('casas anfitrionas granular permissions migration', () => {
     expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.listar_usuarios_con_permisos(uuid, text, text[], boolean, boolean, boolean, integer, integer, boolean) TO authenticated, service_role;')
     expect(sql).not.toMatch(/format\s*\(|RETURN\s+QUERY\s+EXECUTE|EXECUTE\s+format|%%%s%%/i)
   })
+
+  it('keeps listar_usuarios_con_permisos hardened: real identity, highest role, static SQL, no anon', () => {
+    const file = readdirSync(migrationsDir).find((name) =>
+      name.endsWith('_usuarios_lista_endurecida.sql'),
+    )
+    if (!file) throw new Error('Missing usuarios list hardening migration')
+    const sql = readFileSync(join(migrationsDir, file), 'utf8')
+    const signature = 'public.listar_usuarios_con_permisos(uuid, text, text[], boolean, boolean, boolean, integer, integer, boolean, uuid)'
+
+    expect(sql).toContain('CREATE OR REPLACE FUNCTION public.listar_usuarios_con_permisos')
+    expect(sql).toContain("SECURITY DEFINER\nSET search_path TO 'public'")
+    expect(sql).toContain('v_request_role text := auth.role();')
+    expect(sql).toContain('p_auth_id IS DISTINCT FROM auth.uid()')
+    expect(sql).toContain("WHEN 'director-general' THEN 3")
+    expect(sql).toContain("ESCAPE '\\'")
+    expect(sql).toContain('gdv_dg_grupos_visibles')
+    expect(sql).toContain(`REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC, anon;`)
+    expect(sql).toContain(`GRANT EXECUTE ON FUNCTION ${signature} TO authenticated, service_role;`)
+    expect(sql).not.toMatch(/format\s*\(|RETURN\s+QUERY\s+EXECUTE|EXECUTE\s+format|%%%s%%/i)
+  })
 })
