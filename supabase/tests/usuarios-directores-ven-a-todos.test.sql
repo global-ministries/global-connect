@@ -472,6 +472,27 @@ SELECT pg_temp.assert_eq('report identity: authenticated can execute',
 SELECT pg_temp.assert_eq('report identity: service_role can execute',
   $q$SELECT has_function_privilege('service_role', 'public.obtener_reporte_asistencia_usuario(uuid,uuid,date,date)', 'execute')$q$, 'true');
 
+-- 7. Highest role wins. LID (lider of G1) also becomes director de etapa: the
+-- director scope (everybody) applies to the list and to the statistics.
+INSERT INTO public.usuario_roles (usuario_id, rol_id)
+SELECT pg_temp.u('LID'), id FROM public.roles_sistema WHERE nombre_interno = 'director-etapa';
+SELECT pg_temp.as_user(pg_temp.a('LID'));
+SELECT pg_temp.assert_eq('highest role: director de etapa + lider lists everybody',
+  $q$SELECT pg_temp.seen(pg_temp.a('LID'))$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('highest role: director de etapa + lider counts every fixture',
+  $q$SELECT pg_temp.stats(pg_temp.a('LID'), 'ZZ Dv')$q$, '11|1|1|11');
+-- The same person as lider + miembro (no director role) gets the lider scope,
+-- not the miembro family scope.
+DELETE FROM public.usuario_roles
+ WHERE usuario_id = pg_temp.u('LID')
+   AND rol_id = (SELECT id FROM public.roles_sistema WHERE nombre_interno = 'director-etapa');
+INSERT INTO public.usuario_roles (usuario_id, rol_id)
+SELECT pg_temp.u('LID'), id FROM public.roles_sistema WHERE nombre_interno = 'miembro';
+SELECT pg_temp.assert_eq('highest role: lider + miembro lists the lider scope',
+  $q$SELECT pg_temp.seen(pg_temp.a('LID'))$q$, 'LID,M1|0');
+SELECT pg_temp.assert_eq('highest role: lider + miembro counts the lider scope',
+  $q$SELECT pg_temp.stats(pg_temp.a('LID'), 'ZZ Dv')$q$, '2|1|0|2');
+
 SELECT count(*) AS failing_cases, coalesce(string_agg(case_name, E'\n'), 'all cases ok') AS detail
   FROM t_dv_failures;
 
