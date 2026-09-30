@@ -327,7 +327,7 @@ describe('casas anfitrionas granular permissions migration', () => {
 
     expect(sql).toContain('CREATE OR REPLACE FUNCTION public.listar_usuarios_con_permisos')
     expect(sql).toContain("SECURITY DEFINER\nSET search_path TO 'public'")
-    expect(sql).toContain("current_setting('request.jwt.claim.role', true)")
+    expect(sql).toContain('v_request_role text := auth.role();')
     expect(sql).toContain('p_auth_id IS DISTINCT FROM auth.uid()')
     expect(sql).toContain("WHEN 'director-general' THEN 3")
     expect(sql).toContain("ESCAPE '\\'")

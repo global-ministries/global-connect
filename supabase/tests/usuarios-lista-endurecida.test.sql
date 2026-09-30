@@ -73,6 +73,15 @@ RETURNS void LANGUAGE sql AS $$
          set_config('request.jwt.claim.role', 'service_role', true);
 $$;
 
+-- Newer PostgREST versions publish only the JSON request.jwt.claims setting,
+-- never the legacy per-claim ones.
+CREATE OR REPLACE FUNCTION pg_temp.as_service_json()
+RETURNS void LANGUAGE sql AS $$
+  SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true),
+         set_config('request.jwt.claim.sub', '', true),
+         set_config('request.jwt.claim.role', '', true);
+$$;
+
 -- What a call returns: the distinct fixture surnames, then how many distinct
 -- non-fixture people came back ("tags|others").
 CREATE OR REPLACE FUNCTION pg_temp.seen(
@@ -270,6 +279,9 @@ SELECT pg_temp.assert_eq('no session, null auth id returns no rows',
   $q$SELECT count(*) FROM public.listar_usuarios_con_permisos(NULL, '', '{}', NULL, NULL, NULL, 5000, 0, false)$q$, '0');
 SELECT pg_temp.as_service();
 SELECT pg_temp.assert_eq('service_role with no session can pass p_auth_id',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106')$q$, 'LID,P1|0');
+SELECT pg_temp.as_service_json();
+SELECT pg_temp.assert_eq('service_role published only as JSON claims can pass p_auth_id',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106')$q$, 'LID,P1|0');
 
 -- 6. Privileges.

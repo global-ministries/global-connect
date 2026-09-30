@@ -61,7 +61,9 @@ SET search_path TO 'public'
 AS $function$
 #variable_conflict use_column
 DECLARE
-  v_request_role text := nullif(current_setting('request.jwt.claim.role', true), '');
+  -- auth.role() reads the JSON request.jwt.claims setting and falls back to the
+  -- legacy per-claim one, so both PostgREST generations are covered.
+  v_request_role text := auth.role();
   v_usuario_id uuid;
   v_rol text;
   v_todo boolean;
