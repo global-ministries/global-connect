@@ -689,6 +689,7 @@ BEGIN
        AND sl.tipo_lider = 'director_etapa'
       JOIN public.grupo_miembros gm ON gm.grupo_id = deg.grupo_id
       WHERE gm.usuario_id = p_usuario_id
+        AND gm.fecha_salida IS NULL
     ) INTO v_puede_ver;
   END IF;
 

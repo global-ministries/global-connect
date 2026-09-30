@@ -14,7 +14,9 @@
 --   5. Family relations inside a profile (puede_ver_relacion_familiar) follow
 --      the view rule; puede_gestionar_relacion_familiar is unchanged.
 --   6. obtener_reporte_asistencia_usuario: the director de etapa and family
---      branches are valid SQL and keep their intended reach.
+--      branches are valid SQL and keep their intended reach; a departed member
+--      is out of reach; identity is bound to the session; no anon access.
+--   7. A person with several roles gets the scope of the highest one.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK — nothing here is kept; fixture rows
 -- live under this file's own e3000000-... namespace and every fixture person has
@@ -396,17 +398,23 @@ SELECT pg_temp.as_user(pg_temp.a('DE'));
 SELECT pg_temp.assert_eq('family: another person''s auth id is still refused',
   $q$SELECT pg_temp.outcome($$SELECT public.puede_ver_relacion_familiar(pg_temp.a('ADM'), pg_temp.u('MEM'), pg_temp.u('REL'))$$)$q$, 'false');
 
--- 6. Attendance report (called with the actor auth id as the app does).
+-- 6. Attendance report. The function only trusts the session identity, so the
+-- helper signs in as the actor before it passes the actor's own auth id (as the
+-- app does).
 CREATE OR REPLACE FUNCTION pg_temp.reporte(p_actor text, p_target text)
-RETURNS text LANGUAGE sql AS $$
-  SELECT pg_temp.outcome(format(
+RETURNS text LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM pg_temp.as_user(pg_temp.a(p_actor));
+  RETURN pg_temp.outcome(format(
     $f$SELECT CASE WHEN r ? 'error' THEN 'error:' || (r->>'error') ELSE 'ok' END
          FROM (SELECT public.obtener_reporte_asistencia_usuario(pg_temp.u(%L), pg_temp.a(%L)) AS r) s$f$,
     p_target, p_actor));
+END;
 $$;
 
 SELECT pg_temp.assert_eq('report: director de etapa gets a result for a member of their group',
   $q$SELECT pg_temp.reporte('DE', 'M1')$q$, 'ok');
+SELECT pg_temp.as_user(pg_temp.a('DE'));
 SELECT pg_temp.assert_eq('report: the member of their group shows the attendance',
   $q$SELECT public.obtener_reporte_asistencia_usuario(pg_temp.u('M1'), pg_temp.a('DE')) #>> '{kpis,porcentaje_asistencia_general}'$q$, '100.0');
 SELECT pg_temp.assert_eq('report: director de etapa is refused for the outsider (not an SQL error)',
@@ -429,6 +437,15 @@ SELECT pg_temp.assert_eq('report: director general gets a result for the outside
   $q$SELECT pg_temp.reporte('DG', 'OUT')$q$, 'ok');
 SELECT pg_temp.assert_eq('report: a person gets their own report',
   $q$SELECT pg_temp.reporte('MEM', 'MEM')$q$, 'ok');
+
+-- 6b. A person who left a directed group is out of the director's reach. X is a
+-- member of G2 (not directed) and departed from G1 (directed by DE).
+INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol, estado, fecha_salida) VALUES
+  ('e3000000-0000-4000-8000-0000000000c1', 'e3000000-0000-4000-8000-000000000009', 'Miembro', 'activo', current_date - 1);
+SELECT pg_temp.assert_eq('report: director de etapa is refused for a member who left the directed group',
+  $q$SELECT pg_temp.reporte('DE', 'X')$q$, 'error:Sin permisos para ver este reporte');
+SELECT pg_temp.assert_eq('report: director de etapa still gets a result for a current member',
+  $q$SELECT pg_temp.reporte('DE', 'M1')$q$, 'ok');
 
 SELECT count(*) AS failing_cases, coalesce(string_agg(case_name, E'\n'), 'all cases ok') AS detail
   FROM t_dv_failures;
