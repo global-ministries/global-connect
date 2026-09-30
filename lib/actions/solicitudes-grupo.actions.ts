@@ -52,6 +52,35 @@ const procesarSolicitudSchema = z.object({
   notas: z.string().max(500).optional(),
 });
 
+// ─── Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * IDs de los grupos activos que ve un director general (auth id), según la
+ * regla única de la base de datos (`gdv_dg_grupos_activos_visibles`): todo el
+ * segmento o sólo los grupos de los directores de etapa marcados, según el
+ * alcance. Sin usuario devuelve una lista vacía (sin acceso); si la consulta
+ * falla devuelve el error, para no confundir una caída con "sin grupos".
+ */
+async function obtenerGrupoIdsActivosDeDirectorGeneral(authId: string): Promise<Res<string[]>> {
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminDb = createSupabaseAdminClient();
+  // Resolve auth_id → internal usuarios.id
+  const { data: usuarioInterno } = await adminDb
+    .from("usuarios")
+    .select("id")
+    .eq("auth_id", authId)
+    .single();
+  if (!usuarioInterno) return { success: true, data: [] };
+  const { data, error } = await adminDb.rpc("gdv_dg_grupos_activos_visibles", {
+    p_usuario_id: usuarioInterno.id,
+  });
+  if (error) {
+    console.error("[obtenerGrupoIdsActivosDeDirectorGeneral] Error en gdv_dg_grupos_activos_visibles:", error.message);
+    return { success: false, error: "No se pudieron obtener los grupos del director general" };
+  }
+  return { success: true, data: data ?? [] };
+}
+
 // ─── Actions ─────────────────────────────────────────────────────────
 
 /**
@@ -162,29 +191,9 @@ export async function listarSolicitudesPendientes(): Promise<
 
   let grupoIdsPermitidos: string[] | null = null;
   if (esDG && userData?.user?.id) {
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminDb = createSupabaseAdminClient();
-    // Resolve auth_id → internal usuarios.id
-    const { data: usuarioInterno } = await adminDb
-      .from("usuarios")
-      .select("id")
-      .eq("auth_id", userData.user.id)
-      .single();
-    if (!usuarioInterno) return { success: true, data: [] };
-    // Get DG's segment IDs using internal usuario_id
-    const { data: segmentos } = await adminDb
-      .from("director_general_segmentos")
-      .select("segmento_id")
-      .eq("usuario_id", usuarioInterno.id);
-    const segmentoIds = (segmentos ?? []).map(s => s.segmento_id);
-    if (segmentoIds.length === 0) return { success: true, data: [] };
-    // Get group IDs in those segments
-    const { data: grupos } = await adminDb
-      .from("grupos")
-      .select("id")
-      .in("segmento_id", segmentoIds)
-      .eq("activo", true);
-    grupoIdsPermitidos = (grupos ?? []).map(g => g.id);
+    const grupos = await obtenerGrupoIdsActivosDeDirectorGeneral(userData.user.id);
+    if (!grupos.success) return { success: false, error: grupos.error };
+    grupoIdsPermitidos = grupos.data ?? [];
     if (grupoIdsPermitidos.length === 0) return { success: true, data: [] };
   }
 
@@ -288,26 +297,9 @@ export async function listarSolicitudesCompletadas(): Promise<
 
   let grupoIdsPermitidos: string[] | null = null;
   if (esDG && userData?.user?.id) {
-    // Resolve auth_id → internal usuarios.id
-    const { data: usuarioInterno } = await adminDb
-      .from("usuarios")
-      .select("id")
-      .eq("auth_id", userData.user.id)
-      .single();
-    if (!usuarioInterno) return { success: true, data: [] };
-    // Get DG's segment IDs using internal usuario_id
-    const { data: segmentos } = await adminDb
-      .from("director_general_segmentos")
-      .select("segmento_id")
-      .eq("usuario_id", usuarioInterno.id);
-    const segmentoIds = (segmentos ?? []).map(s => s.segmento_id);
-    if (segmentoIds.length === 0) return { success: true, data: [] };
-    const { data: grupos } = await adminDb
-      .from("grupos")
-      .select("id")
-      .in("segmento_id", segmentoIds)
-      .eq("activo", true);
-    grupoIdsPermitidos = (grupos ?? []).map(g => g.id);
+    const grupos = await obtenerGrupoIdsActivosDeDirectorGeneral(userData.user.id);
+    if (!grupos.success) return { success: false, error: grupos.error };
+    grupoIdsPermitidos = grupos.data ?? [];
     if (grupoIdsPermitidos.length === 0) return { success: true, data: [] };
   }
 
