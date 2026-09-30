@@ -7,6 +7,8 @@
 --      active groups, only members who have not left), director de etapa (no
 --      activo filter), lider, miembro (family, relationships, self), and a
 --      person with no role.
+--      (Updated for 20260930110000: director general and director de etapa now
+--      see everybody; search and paging checks run as the lider.)
 --   2. A person with pastor + director-general gets the pastor scope.
 --   3. p_contexto_relacion = true gives everything to director general,
 --      director de etapa and lider, but not to miembro.
@@ -209,11 +211,13 @@ SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000102');
 SELECT pg_temp.assert_eq('pastor sees everybody',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000102')$q$, pg_temp.everybody());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000104');
-SELECT pg_temp.assert_eq('director general: active groups of the segment, members still in',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104')$q$, 'LID,P1,P2|0');
+-- Since 20260930110000 both directors see everybody; the group scopes are
+-- still covered by the lider case below.
+SELECT pg_temp.assert_eq('director general sees everybody',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104')$q$, pg_temp.everybody());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000105');
-SELECT pg_temp.assert_eq('director de etapa: own groups, inactive ones included',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000105')$q$, 'LID,P1,P3|0');
+SELECT pg_temp.assert_eq('director de etapa sees everybody',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000105')$q$, pg_temp.everybody());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000106');
 SELECT pg_temp.assert_eq('lider: members of the groups they lead',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106')$q$, 'LID,P1|0');
@@ -260,18 +264,18 @@ SELECT pg_temp.assert_eq('underscore is a literal',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000101', 'ZZ Ul a_b')$q$, 'USC|0');
 SELECT pg_temp.assert_eq('backslash is a literal',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000101', 'ZZ Ul c\d')$q$, 'BSL|0');
-SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000104');
+SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000106');
 SELECT pg_temp.assert_eq('search by nombre, case-insensitive',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104', 'zz ul')$q$, 'LID,P1,P2|0');
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106', 'zz ul')$q$, 'LID,P1|0');
 SELECT pg_temp.assert_eq('search by apellido',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104', 'p2')$q$, 'P2|0');
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106', 'lid')$q$, 'LID|0');
 SELECT pg_temp.assert_eq('search by email',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104', 'zzul-p1@')$q$, 'P1|0');
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106', 'zzul-p1@')$q$, 'P1|0');
 SELECT pg_temp.assert_eq('search by cedula',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106',
        (SELECT cedula FROM public.usuarios WHERE id = 'e2000000-0000-4000-8000-000000000011'))$q$, 'P1|0');
 SELECT pg_temp.assert_eq('search stays inside the scope',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104', 'P4')$q$, '|0');
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106', 'P4')$q$, '|0');
 
 -- 5. Identity.
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000106');
@@ -311,19 +315,19 @@ SELECT pg_temp.assert_eq('authenticated can execute',
 SELECT pg_temp.assert_eq('service_role can execute',
   $q$SELECT has_function_privilege('service_role', 'public.listar_usuarios_con_permisos(uuid,text,text[],boolean,boolean,boolean,integer,integer,boolean,uuid)', 'execute')$q$, 'true');
 
--- 7. total_count and paging (director general scope: LID, P1, P2).
-SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000104');
-SELECT pg_temp.assert_eq('page 1: two rows, total is the filtered total',
+-- 7. total_count and paging (lider scope: LID, P1).
+SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000106');
+SELECT pg_temp.assert_eq('page 1: one row, total is the filtered total',
   $q$SELECT string_agg(r.apellido, ',') || '|' || max(r.total_count)
-       FROM public.listar_usuarios_con_permisos('e2000000-0000-4000-8000-000000000104', '', '{}', NULL, NULL, NULL, 2, 0, false) r$q$, 'LID,P1|3');
+       FROM public.listar_usuarios_con_permisos('e2000000-0000-4000-8000-000000000106', '', '{}', NULL, NULL, NULL, 1, 0, false) r$q$, 'LID|2');
 SELECT pg_temp.assert_eq('page 2: the remaining row, same total',
   $q$SELECT string_agg(r.apellido, ',') || '|' || max(r.total_count)
-       FROM public.listar_usuarios_con_permisos('e2000000-0000-4000-8000-000000000104', '', '{}', NULL, NULL, NULL, 2, 2, false) r$q$, 'P2|3');
+       FROM public.listar_usuarios_con_permisos('e2000000-0000-4000-8000-000000000106', '', '{}', NULL, NULL, NULL, 1, 1, false) r$q$, 'P1|2');
 SELECT pg_temp.assert_eq('total reflects the search filter',
   $q$SELECT max(r.total_count)
-       FROM public.listar_usuarios_con_permisos('e2000000-0000-4000-8000-000000000104', 'p1', '{}', NULL, NULL, NULL, 1, 0, false) r$q$, '1');
+       FROM public.listar_usuarios_con_permisos('e2000000-0000-4000-8000-000000000106', 'p1', '{}', NULL, NULL, NULL, 1, 0, false) r$q$, '1');
 SELECT pg_temp.assert_eq('offset past the end returns no rows',
-  $q$SELECT count(*) FROM public.listar_usuarios_con_permisos('e2000000-0000-4000-8000-000000000104', '', '{}', NULL, NULL, NULL, 2, 50, false)$q$, '0');
+  $q$SELECT count(*) FROM public.listar_usuarios_con_permisos('e2000000-0000-4000-8000-000000000106', '', '{}', NULL, NULL, NULL, 2, 50, false)$q$, '0');
 
 -- 8. The other filters keep their meaning (admin caller).
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000101');
