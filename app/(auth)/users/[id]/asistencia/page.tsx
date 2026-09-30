@@ -61,13 +61,6 @@ export default async function AsistenciaUsuarioPage({
   const fechaInicio = searchParamsResolved.fecha_inicio || null
   const fechaFin = searchParamsResolved.fecha_fin || null
 
-  // Debug: Log de los parámetros que enviamos
-  console.log('=== DEBUG REPORTE ASISTENCIA ===')
-  console.log('p_usuario_id:', id)
-  console.log('p_auth_id:', user.id)
-  console.log('fechaInicio:', fechaInicio)
-  console.log('fechaFin:', fechaFin)
-
   const { data: reporteData, error: reporteError } = await supabase.rpc(
     'obtener_reporte_asistencia_usuario',
     {
@@ -77,9 +70,6 @@ export default async function AsistenciaUsuarioPage({
       p_fecha_fin: fechaFin ?? undefined
     }
   )
-
-  console.log('reporteData:', reporteData)
-  console.log('reporteError:', reporteError)
 
   // Verificar si hay error de permisos
   if (reporteError || (reporteData && (reporteData as any).error)) {
