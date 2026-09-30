@@ -82,6 +82,13 @@ RETURNS void LANGUAGE sql AS $$
          set_config('request.jwt.claim.role', '', true);
 $$;
 
+CREATE OR REPLACE FUNCTION pg_temp.as_user_json(p_auth uuid)
+RETURNS void LANGUAGE sql AS $$
+  SELECT set_config('request.jwt.claims', json_build_object('role', 'authenticated', 'sub', p_auth)::text, true),
+         set_config('request.jwt.claim.sub', '', true),
+         set_config('request.jwt.claim.role', '', true);
+$$;
+
 -- What a call returns: the distinct fixture surnames, then how many distinct
 -- non-fixture people came back ("tags|others").
 CREATE OR REPLACE FUNCTION pg_temp.seen(
@@ -283,6 +290,14 @@ SELECT pg_temp.assert_eq('service_role with no session can pass p_auth_id',
 SELECT pg_temp.as_service_json();
 SELECT pg_temp.assert_eq('service_role published only as JSON claims can pass p_auth_id',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106')$q$, 'LID,P1|0');
+-- The restrictive direction on the JSON-only claims: a person is still bound to
+-- their own id.
+SELECT pg_temp.as_user_json('e2000000-0000-4000-8000-000000000106');
+SELECT pg_temp.assert_eq('a person published only as JSON claims cannot pass another auth id',
+  $q$SELECT count(*) FROM public.listar_usuarios_con_permisos('e2000000-0000-4000-8000-000000000101', '', '{}', NULL, NULL, NULL, 5000, 0, false)$q$, '0');
+SELECT pg_temp.assert_eq('a person published only as JSON claims sees their own scope',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106')$q$, 'LID,P1|0');
+SELECT pg_temp.as_nobody();
 
 -- 6. Privileges.
 SELECT pg_temp.assert_eq('anon cannot execute',
