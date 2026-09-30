@@ -91,6 +91,17 @@ describe('GroupCreateForm director de etapa', () => {
     expect(mockCreateGroup).not.toHaveBeenCalled()
   })
 
+  it('loads the directors of the segment once when directoresPropios is left out', async () => {
+    render(<GroupCreateForm {...baseProps()} userRoles={['admin']} />)
+    await fillCommonFields()
+
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Ana Pérez' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByText('Cargando...')).not.toBeInTheDocument())
+
+    const directorLoads = (global.fetch as jest.Mock).mock.calls.filter(([url]) => String(url).includes('/directores-etapa'))
+    expect(directorLoads).toHaveLength(1)
+  })
+
   it('offers the directors of the segment with no selectable empty option and submits the chosen one', async () => {
     render(<GroupCreateForm {...baseProps()} userRoles={['admin']} />)
     await fillCommonFields()

@@ -31,7 +31,10 @@ interface GroupCreateFormProps {
   directoresPropios?: { id: string; segmento_id: string; nombre: string }[];
 }
 
-export default function GroupCreateForm({ temporadas, segmentos, userRoles = [], directoresPropios = [] }: GroupCreateFormProps) {
+// Stable default: a fresh [] on every render would retrigger the effects that depend on it.
+const SIN_DIRECTORES_PROPIOS: GroupCreateFormProps['directoresPropios'] & {} = [];
+
+export default function GroupCreateForm({ temporadas, segmentos, userRoles = [], directoresPropios = SIN_DIRECTORES_PROPIOS }: GroupCreateFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

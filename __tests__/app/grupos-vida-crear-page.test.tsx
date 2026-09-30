@@ -55,18 +55,39 @@ describe('CreateGroupPage segments by role', () => {
     expect(segmentIds(await renderedForm())).toEqual(['s3'])
     expect(server.rpc).toHaveBeenCalledWith('obtener_segmentos_para_director', { p_auth_id: authId })
   })
+
+  it('hands a director de etapa their own segmento_lideres entries, named after them', async () => {
+    const { admin } = setup({ roles: ['director-etapa'], assigned: [], directorSegments: [{ id: 's3', nombre: 'Segmento s3' }], propias: [{ id: 'sl-1', segmento_id: 's3' }] })
+
+    const form = await renderedForm()
+
+    expect(form.props.directoresPropios).toEqual([{ id: 'sl-1', segmento_id: 's3', nombre: 'Ana Pérez' }])
+    expect(admin.from).toHaveBeenCalledWith('segmento_lideres')
+  })
+
+  it('does not look up own entries for a director general who is also director de etapa', async () => {
+    const { admin } = setup({ roles: ['director-general', 'director-etapa'], assigned: ['s2'], propias: [{ id: 'sl-1', segmento_id: 's2' }] })
+
+    const form = await renderedForm()
+
+    expect(form.props.directoresPropios).toEqual([])
+    expect(admin.from).not.toHaveBeenCalledWith('segmento_lideres')
+  })
 })
 
 async function renderedForm() {
   const page = (await CreateGroupPage()) as ReactElement<{ children: ReactElement<{ children: ReactElement }> }>
-  return page.props.children.props.children as ReactElement<{ segmentos: { id: string; nombre: string }[] }>
+  return page.props.children.props.children as ReactElement<{
+    segmentos: { id: string; nombre: string }[]
+    directoresPropios: { id: string; segmento_id: string; nombre: string }[]
+  }>
 }
 
 function segmentIds(form: ReactElement<{ segmentos: { id: string }[] }>) {
   return form.props.segmentos.map((s) => s.id)
 }
 
-function setup({ roles, assigned, directorSegments = [] }: { roles: string[]; assigned: string[]; directorSegments?: { id: string; nombre: string }[] }) {
+function setup({ roles, assigned, directorSegments = [], propias = [] }: { roles: string[]; assigned: string[]; directorSegments?: { id: string; nombre: string }[]; propias?: { id: string; segmento_id: string }[] }) {
   const chain = (result: unknown, single?: unknown) => {
     const c: Record<string, unknown> = {}
     for (const m of ['select', 'eq', 'in', 'order', 'limit']) c[m] = () => c
@@ -88,7 +109,7 @@ function setup({ roles, assigned, directorSegments = [] }: { roles: string[]; as
       if (table === 'usuarios') return chain(null, { id: usuarioId, nombre: 'Ana', apellido: 'Pérez' })
       if (table === 'director_general_segmentos') return chain(assigned.map((segmento_id) => ({ segmento_id })))
       if (table === 'segmentos') return chain(ALL_SEGMENTS.filter((s) => assigned.includes(s.id)))
-      if (table === 'segmento_lideres') return chain([])
+      if (table === 'segmento_lideres') return chain(propias)
       throw new Error(`Unexpected admin table ${table}`)
     }),
   }
