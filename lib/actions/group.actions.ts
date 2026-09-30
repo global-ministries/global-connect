@@ -11,6 +11,9 @@ const createGroupSchema = z.object({
   temporada_id: z.string().uuid("Temporada inválida"),
   segmento_id: z.string().uuid("Segmento inválido"),
   campus_id: z.string().uuid().optional(),
+  director_etapa_segmento_lider_id: z
+    .string({ required_error: "Elige el director de etapa del grupo", invalid_type_error: "Elige el director de etapa del grupo" })
+    .uuid("Elige el director de etapa del grupo"),
 });
 
 const groupEditSchema = z.object({
@@ -107,7 +110,7 @@ export async function createGroup(data: {
   campus_id?: string | null;
   segmento_ubicacion_id?: string | null;
   ubicacion_nombre?: string | null;
-  director_etapa_segmento_lider_id?: string | null;
+  director_etapa_segmento_lider_id: string | null | undefined;
   lider_usuario_id?: string | null;
 }) {
   const parsed = createGroupSchema.safeParse({
@@ -115,6 +118,7 @@ export async function createGroup(data: {
     temporada_id: data.temporada_id,
     segmento_id: data.segmento_id,
     campus_id: data.campus_id ?? undefined,
+    director_etapa_segmento_lider_id: data.director_etapa_segmento_lider_id ?? undefined,
   });
   if (!parsed.success) {
     const msg = parsed.error.errors.map((e) => e.message).join(" | ");
@@ -132,22 +136,20 @@ export async function createGroup(data: {
     const esSuperior = roles.some(r => ["admin", "pastor", "director-general"].includes(r));
     const estadoAprobacion = esSuperior ? "aprobado" : "pendiente";
 
-    const { data: permitido, error: permisoError } = await supabase.rpc("puede_crear_grupo", {
-      p_auth_id: user.id,
-      p_segmento_id: parsed.data.segmento_id,
-    });
-    if (permisoError) return { success: false, error: "No fue posible validar permisos" };
-    if (!permitido) return { success: false, error: "No tienes permisos para crear grupos en este segmento" };
-
-    const { data: newId, error } = await supabase.rpc("crear_grupo", {
-      p_auth_id: user.id,
+    // One transaction: permission check, group and its director de etapa (or nothing is created).
+    const { data: newId, error } = await supabase.rpc("crear_grupo_con_director", {
       p_nombre: parsed.data.nombre,
       p_temporada_id: parsed.data.temporada_id,
       p_segmento_id: parsed.data.segmento_id,
+      p_director_etapa_segmento_lider_id: parsed.data.director_etapa_segmento_lider_id,
     });
-    if (error || !newId) return { success: false, error: error?.message || "Error creando grupo" };
+    if (error) {
+      if (error.code === "42501") return { success: false, error: "No tienes permisos para crear grupos en este segmento" };
+      if (error.code === "22023") return { success: false, error: "El director de etapa elegido no pertenece a este segmento" };
+      return { success: false, error: error.message || "Error creando grupo" };
+    }
+    if (!newId) return { success: false, error: "Error creando grupo" };
 
-    // La RPC crear_grupo retorna uuid como text — validar tipo en runtime
     const grupoId = typeof newId === 'string' ? newId : String(newId);
 
     // ─── Usar admin client para todas las operaciones post-creación ─────
@@ -197,19 +199,6 @@ export async function createGroup(data: {
     if (Object.keys(postUpdate).length) {
       const { error: updErr } = await adminDb.from("grupos").update(postUpdate).eq("id", grupoId);
       if (updErr) return { success: false, error: `Error al configurar el grupo: ${updErr.message}` };
-    }
-
-    // Asignar director de etapa (columna: director_etapa_id, valor: segmento_lider_id)
-    if (data.director_etapa_segmento_lider_id) {
-      const { error: dirError } = await adminDb
-        .from("director_etapa_grupos")
-        .insert({
-          grupo_id: grupoId,
-          director_etapa_id: data.director_etapa_segmento_lider_id,
-        });
-      if (dirError) {
-        console.error("[createGroup] Error al asignar director de etapa:", dirError.message);
-      }
     }
 
     // Asignar líder inicial
