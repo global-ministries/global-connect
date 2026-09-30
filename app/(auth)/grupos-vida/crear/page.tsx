@@ -15,6 +15,7 @@ export default async function CreateGroupPage() {
   const roles = userData.roles || []
   const esAdminOPastorODG = roles.some(r => ["admin", "pastor", "director-general"].includes(r))
   const esDirectorEtapa = roles.includes("director-etapa")
+  const esSoloDirectorGeneral = roles.includes("director-general") && !roles.some(r => ["admin", "pastor"].includes(r))
   const esLider = roles.includes("lider") // excepción temporal
 
   // Si no es admin/pastor/director-general ni director-etapa, redirigir a listado
@@ -36,6 +37,25 @@ export default async function CreateGroupPage() {
   const [temporadasResult, segmentosResult] = await Promise.all([
     supabase.from("temporadas").select("id, nombre").order('nombre'),
     (async () => {
+      // director-general (sin admin ni pastor): sólo los segmentos que tiene asignados
+      if (esSoloDirectorGeneral) {
+        const { data: authData } = await supabase.auth.getUser()
+        const adminDb = createSupabaseAdminClient()
+        const { data: usuario } = await adminDb
+          .from("usuarios")
+          .select("id")
+          .eq("auth_id", authData?.user?.id ?? "")
+          .maybeSingle()
+        if (!usuario) return { data: [], error: null }
+        const { data: asignados, error: asignadosError } = await adminDb
+          .from("director_general_segmentos")
+          .select("segmento_id")
+          .eq("usuario_id", usuario.id)
+        if (asignadosError) return { data: [], error: asignadosError }
+        const segmentoIds = [...new Set((asignados || []).map((a) => a.segmento_id))]
+        if (segmentoIds.length === 0) return { data: [], error: null }
+        return await adminDb.from("segmentos").select("id, nombre").in("id", segmentoIds).order('nombre')
+      }
       if (esAdminOPastorODG || esLider) {
         return await supabase.from("segmentos").select("id, nombre").order('nombre')
       }
