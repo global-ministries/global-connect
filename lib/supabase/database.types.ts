@@ -7384,6 +7384,15 @@ export type Database = {
         }
         Returns: string
       }
+      crear_grupo_con_director: {
+        Args: {
+          p_director_etapa_segmento_lider_id: string
+          p_nombre: string
+          p_segmento_id: string
+          p_temporada_id: string
+        }
+        Returns: string
+      }
       crear_solicitud_grupo: {
         Args: {
           p_auth_id: string
