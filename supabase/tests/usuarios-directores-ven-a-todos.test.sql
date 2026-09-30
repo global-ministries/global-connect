@@ -447,6 +447,31 @@ SELECT pg_temp.assert_eq('report: director de etapa is refused for a member who 
 SELECT pg_temp.assert_eq('report: director de etapa still gets a result for a current member',
   $q$SELECT pg_temp.reporte('DE', 'M1')$q$, 'ok');
 
+-- 6c. Identity of the attendance report.
+SELECT pg_temp.as_user(pg_temp.a('MEM'));
+SELECT pg_temp.assert_eq('report identity: another person''s auth id under a session is refused',
+  $q$SELECT pg_temp.outcome($$SELECT public.obtener_reporte_asistencia_usuario(pg_temp.u('OUT'), pg_temp.a('ADM'))->>'error'$$)$q$, 'Sin permisos para ver este reporte');
+SELECT pg_temp.as_user_json(pg_temp.a('MEM'));
+SELECT pg_temp.assert_eq('report identity: JSON-only claims cannot pass another auth id',
+  $q$SELECT pg_temp.outcome($$SELECT public.obtener_reporte_asistencia_usuario(pg_temp.u('OUT'), pg_temp.a('ADM'))->>'error'$$)$q$, 'Sin permisos para ver este reporte');
+SELECT pg_temp.as_nobody();
+SELECT pg_temp.assert_eq('report identity: no session is refused',
+  $q$SELECT pg_temp.outcome($$SELECT public.obtener_reporte_asistencia_usuario(pg_temp.u('OUT'), pg_temp.a('ADM'))->>'error'$$)$q$, 'Sin permisos para ver este reporte');
+SELECT pg_temp.as_service();
+SELECT pg_temp.assert_eq('report identity: service_role can act for a person',
+  $q$SELECT pg_temp.outcome($$SELECT CASE WHEN r ? 'error' THEN 'error' ELSE 'ok' END FROM (SELECT public.obtener_reporte_asistencia_usuario(pg_temp.u('OUT'), pg_temp.a('ADM')) AS r) s$$)$q$, 'ok');
+SELECT pg_temp.as_nobody();
+SELECT pg_temp.assert_eq('report identity: anon cannot execute',
+  $q$SELECT has_function_privilege('anon', 'public.obtener_reporte_asistencia_usuario(uuid,uuid,date,date)', 'execute')$q$, 'false');
+SELECT pg_temp.assert_eq('report identity: PUBLIC cannot execute',
+  $q$SELECT count(*) FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+      WHERE p.oid = 'public.obtener_reporte_asistencia_usuario(uuid,uuid,date,date)'::regprocedure
+        AND a.grantee = 0 AND a.privilege_type = 'EXECUTE'$q$, '0');
+SELECT pg_temp.assert_eq('report identity: authenticated can execute',
+  $q$SELECT has_function_privilege('authenticated', 'public.obtener_reporte_asistencia_usuario(uuid,uuid,date,date)', 'execute')$q$, 'true');
+SELECT pg_temp.assert_eq('report identity: service_role can execute',
+  $q$SELECT has_function_privilege('service_role', 'public.obtener_reporte_asistencia_usuario(uuid,uuid,date,date)', 'execute')$q$, 'true');
+
 SELECT count(*) AS failing_cases, coalesce(string_agg(case_name, E'\n'), 'all cases ok') AS detail
   FROM t_dv_failures;
 

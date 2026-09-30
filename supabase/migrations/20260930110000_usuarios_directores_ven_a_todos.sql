@@ -626,8 +626,10 @@ CREATE OR REPLACE FUNCTION public.obtener_reporte_asistencia_usuario(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path TO 'public'
 AS $function$
 DECLARE
+  v_request_role text := auth.role();
   v_auth_user_id uuid;
   v_puede_ver boolean := false;
   v_es_admin boolean := false;
@@ -636,6 +638,13 @@ DECLARE
   v_series_temporales jsonb;
   v_historial_eventos jsonb;
 BEGIN
+  -- 0. The caller is the person in the session; only service_role may act for
+  -- somebody else.
+  IF coalesce(v_request_role, '') <> 'service_role'
+     AND (auth.uid() IS NULL OR auth.uid() IS DISTINCT FROM p_auth_id) THEN
+    RETURN jsonb_build_object('error', 'Sin permisos para ver este reporte');
+  END IF;
+
   -- 1. Obtener el user_id interno desde auth_id del solicitante
   SELECT id INTO v_auth_user_id
   FROM public.usuarios
@@ -852,3 +861,6 @@ BEGIN
   RETURN v_result;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.obtener_reporte_asistencia_usuario(uuid, uuid, date, date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.obtener_reporte_asistencia_usuario(uuid, uuid, date, date) TO authenticated, service_role;
