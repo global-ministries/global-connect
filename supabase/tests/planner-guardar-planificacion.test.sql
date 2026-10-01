@@ -9,6 +9,9 @@
 --   4. Persona duplicada entre grupos: se rechaza y NO se escribe nada (atomicidad).
 --   5. Conciliación de miembros (alta, cambio de rol, baja) y rol fuera del enum.
 --   6. Baja lógica de grupos del destino; id de otra temporada en eliminados se rechaza.
+--   7. Varios directores de etapa por grupo (director_etapa_ids, 1..4): conjunto guardado,
+--      re-guardado sin cambios, reducción, deduplicación, límite, segmento ajeno, formato,
+--      limpieza de duplicados heredados y clave escalar director_etapa_id.
 --
 -- Se ejecuta contra STAGING dentro de BEGIN…ROLLBACK: nada se conserva; los datos viven
 -- en el espacio e5000000-... y toda persona de prueba tiene nombre 'ZZ Pg'. El último
@@ -309,6 +312,120 @@ SELECT pg_temp.assert_eq('director: el vínculo se reemplaza al actualizar con o
 SELECT pg_temp.assert_eq('director: queda un solo vínculo y es el nuevo',
   $q$SELECT count(*)::text || string_agg(right(director_etapa_id::text, 2), ',')
        FROM public.director_etapa_grupos WHERE grupo_id = 'e5000000-0000-4000-8000-0000000000d2'$q$, '1b2');
+
+-- 7b. Varios directores de etapa por grupo (director_etapa_ids). DE (b1) y DE3 (b2) dirigen S1;
+-- DE2 (b3) dirige solo S2. Cada llamada va en su propio statement y el estado se lee aparte.
+SELECT pg_temp.assert_eq('multi: dos directores del segmento se guardan',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"md1","director_etapa_ids":["e5000000-0000-4000-8000-000000000004","e5000000-0000-4000-8000-000000000007"],"nombre":"ZZ Pg multi","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
+       ~ '"insertados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('multi: quedan exactamente los dos vínculos (b1 y b2)',
+  $q$SELECT count(*)::text || ':' || string_agg(right(deg.director_etapa_id::text, 2), ',' ORDER BY deg.director_etapa_id)
+       FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi'$q$, '2:b1,b2');
+CREATE TEMP TABLE t_pg_vinculos ON COMMIT DROP AS
+  SELECT deg.id, deg.director_etapa_id FROM public.director_etapa_grupos deg
+  JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi';
+SELECT pg_temp.assert_eq('multi: re-guardar el mismo conjunto (en otro orden) no cambia nada',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       (SELECT jsonb_build_array(jsonb_build_object('id', id, 'clave', 'md1', 'nombre', 'ZZ Pg multi',
+          'director_etapa_ids', jsonb_build_array('e5000000-0000-4000-8000-000000000007', 'e5000000-0000-4000-8000-000000000004'),
+          'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text
+          FROM public.grupos WHERE nombre = 'ZZ Pg multi'))
+       ~ '"actualizados": 1')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: los mismos ids de vínculo se conservan tras re-guardar',
+  $q$SELECT (SELECT count(*) FROM public.director_etapa_grupos deg JOIN t_pg_vinculos t ON t.id = deg.id)::text
+       || ':' || (SELECT count(*) FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi')::text$q$, '2:2');
+SELECT pg_temp.assert_eq('multi: cambiar a un solo director quita el otro vínculo',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       (SELECT jsonb_build_array(jsonb_build_object('id', id, 'clave', 'md1', 'nombre', 'ZZ Pg multi',
+          'director_etapa_ids', jsonb_build_array('e5000000-0000-4000-8000-000000000007'),
+          'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text
+          FROM public.grupos WHERE nombre = 'ZZ Pg multi'))
+       ~ '"actualizados": 1')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: queda solo el vínculo de DE3 (b2) y se conservó su id',
+  $q$SELECT count(*)::text || ':' || string_agg(right(deg.director_etapa_id::text, 2), ',')
+       || ':' || (SELECT count(*) FROM public.director_etapa_grupos x JOIN t_pg_vinculos t ON t.id = x.id)::text
+       FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi'$q$, '1:b2:1');
+SELECT pg_temp.assert_eq('multi: volver a agregar al otro director inserta su vínculo',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       (SELECT jsonb_build_array(jsonb_build_object('id', id, 'clave', 'md1', 'nombre', 'ZZ Pg multi',
+          'director_etapa_ids', jsonb_build_array('e5000000-0000-4000-8000-000000000004', 'e5000000-0000-4000-8000-000000000007'),
+          'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text
+          FROM public.grupos WHERE nombre = 'ZZ Pg multi'))
+       ~ '"actualizados": 1')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: de nuevo dos vínculos (b1 y b2)',
+  $q$SELECT count(*)::text || ':' || string_agg(right(deg.director_etapa_id::text, 2), ',' ORDER BY deg.director_etapa_id)
+       FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi'$q$, '2:b1,b2');
+
+-- Limpieza de datos heredados: un vínculo duplicado y uno ajeno al conjunto se eliminan.
+RESET ROLE;
+INSERT INTO public.director_etapa_grupos (grupo_id, director_etapa_id)
+SELECT g.id, v.sl FROM public.grupos g,
+  (VALUES ('e5000000-0000-4000-8000-0000000000b1'::uuid), ('e5000000-0000-4000-8000-0000000000b3'::uuid)) v(sl)
+WHERE g.nombre = 'ZZ Pg multi';
+SELECT pg_temp.as_user(pg_temp.a('DE'));
+SELECT pg_temp.assert_eq('multi: antes de limpiar hay 4 vínculos (b1 duplicado y b3 ajeno)',
+  $q$SELECT count(*)::text FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi'$q$, '4');
+SELECT pg_temp.assert_eq('multi: guardar el conjunto {DE} limpia el duplicado y el vínculo ajeno',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       (SELECT jsonb_build_array(jsonb_build_object('id', id, 'clave', 'md1', 'nombre', 'ZZ Pg multi',
+          'director_etapa_ids', jsonb_build_array('e5000000-0000-4000-8000-000000000004'),
+          'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text
+          FROM public.grupos WHERE nombre = 'ZZ Pg multi'))
+       ~ '"actualizados": 1')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: queda un solo vínculo, el de DE (b1)',
+  $q$SELECT count(*)::text || ':' || string_agg(right(deg.director_etapa_id::text, 2), ',')
+       FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi'$q$, '1:b1');
+
+SELECT pg_temp.assert_eq('multi: ids repetidos en el envío producen un solo vínculo',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"md2","director_etapa_ids":["e5000000-0000-4000-8000-000000000004","E5000000-0000-4000-8000-000000000004","e5000000-0000-4000-8000-000000000004"],"nombre":"ZZ Pg multi dup","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
+       ~ '"insertados": 1')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: el grupo con ids repetidos tiene un solo vínculo',
+  $q$SELECT count(*)::text || ':' || string_agg(right(deg.director_etapa_id::text, 2), ',')
+       FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi dup'$q$, '1:b1');
+
+SELECT pg_temp.assert_eq('multi: más de 4 directores se rechaza con 22023 y no escribe',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"md3","director_etapa_ids":["e5000000-0000-4000-8000-000000000021","e5000000-0000-4000-8000-000000000022","e5000000-0000-4000-8000-000000000023","e5000000-0000-4000-8000-000000000024","e5000000-0000-4000-8000-000000000025"],"nombre":"ZZ Pg multi cinco","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
+       || (SELECT count(*)::text FROM public.grupos WHERE nombre = 'ZZ Pg multi cinco')$q$, 'ERR:220230');
+SELECT pg_temp.assert_eq('multi: el mensaje de más de 4 nombra la clave del grupo',
+  $q$SELECT (pg_temp.mensaje(format('SELECT public.planner_guardar_planificacion(%L, %L, %L::jsonb)', 'e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"md3","director_etapa_ids":["e5000000-0000-4000-8000-000000000021","e5000000-0000-4000-8000-000000000022","e5000000-0000-4000-8000-000000000023","e5000000-0000-4000-8000-000000000024","e5000000-0000-4000-8000-000000000025"],"nombre":"ZZ Pg multi cinco","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]'))
+       ~ 'md3.*más de 4')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: dos ids donde uno es de otro segmento se rechaza y no escribe',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"md4","director_etapa_ids":["e5000000-0000-4000-8000-000000000004","e5000000-0000-4000-8000-000000000006"],"nombre":"ZZ Pg multi ajeno","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
+       || (SELECT count(*)::text FROM public.grupos WHERE nombre = 'ZZ Pg multi ajeno')
+       || (SELECT count(*)::text FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi ajeno')$q$, 'ERR:2202300');
+SELECT pg_temp.assert_eq('multi: un elemento que no es uuid se rechaza con 22023 y no escribe',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"md5","director_etapa_ids":["e5000000-0000-4000-8000-000000000004","xyz"],"nombre":"ZZ Pg multi formato","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
+       || (SELECT count(*)::text FROM public.grupos WHERE nombre = 'ZZ Pg multi formato')$q$, 'ERR:220230');
+SELECT pg_temp.assert_eq('multi: un elemento que no es texto se rechaza con 22023',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       pg_temp.un_grupo('{"nombre":"ZZ Pg multi num","director_etapa_ids":[5]}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('multi: director_etapa_ids que no es arreglo se rechaza con 22023',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       pg_temp.un_grupo('{"nombre":"ZZ Pg multi texto","director_etapa_ids":"e5000000-0000-4000-8000-000000000004"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('multi: arreglo vacío se rechaza (requiere un director)',
+  $q$SELECT (pg_temp.mensaje(format('SELECT public.planner_guardar_planificacion(%L, %L, %L::jsonb)', 'e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       pg_temp.un_grupo('{"nombre":"ZZ Pg multi vacio","director_etapa_ids":[],"director_etapa_id":null}')))
+       ~ 'requiere un director de etapa')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: la clave heredada director_etapa_id sigue funcionando',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       pg_temp.un_grupo('{"nombre":"ZZ Pg multi legado","director_etapa_id":"e5000000-0000-4000-8000-000000000007"}'))
+       ~ '"insertados": 1')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: la clave heredada crea el vínculo (b2)',
+  $q$SELECT count(*)::text || ':' || string_agg(right(deg.director_etapa_id::text, 2), ',')
+       FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi legado'$q$, '1:b2');
+SELECT pg_temp.assert_eq('multi: director_etapa_ids tiene prioridad sobre la clave heredada',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       pg_temp.un_grupo('{"nombre":"ZZ Pg multi prioridad","director_etapa_id":"e5000000-0000-4000-8000-000000000007","director_etapa_ids":["e5000000-0000-4000-8000-000000000004"]}'))
+       ~ '"insertados": 1')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: el vínculo de prioridad es el del arreglo (b1)',
+  $q$SELECT count(*)::text || ':' || string_agg(right(deg.director_etapa_id::text, 2), ',')
+       FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi prioridad'$q$, '1:b1');
 
 -- 8. Nombres duplicados.
 SELECT pg_temp.assert_eq('nombre: duplicado dentro del envío (sin distinguir mayúsculas/espacios) se rechaza',

@@ -6,6 +6,7 @@
 --   2. Temporada: inexistente, finalizada, activa y sin grupos se rechazan.
 --   3. Validación previa sin escribir nada: grupo sin Líder, grupo sin director de etapa,
 --      director de otro segmento y persona duplicada en dos grupos (22023, nada aprobado).
+--      Varios directores: dos vínculos válidos se publican; si uno de dos es ineligible se rechaza.
 --   4. Publicar sin activar: aprobado + aprobado_en/aprobado_por, grupos siguen 'proximo' e
 --      inactivos, la temporada no se activa; republicar es idempotente.
 --   5. Activar: la temporada activa anterior pasa a finalizada/activa=false, queda exactamente
@@ -56,6 +57,13 @@ EXCEPTION
 END;
 $$;
 
+-- Mensaje de error de un statement ('' si no falla).
+CREATE OR REPLACE FUNCTION pg_temp.mensaje(p_sql text)
+RETURNS text LANGUAGE plpgsql AS $$
+DECLARE v text;
+BEGIN EXECUTE p_sql INTO v; RETURN ''; EXCEPTION WHEN OTHERS THEN RETURN SQLERRM; END;
+$$;
+
 CREATE OR REPLACE FUNCTION pg_temp.as_user(p_auth uuid)
 RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', '', true),
@@ -95,7 +103,9 @@ INSERT INTO public.temporadas (id, nombre, fecha_inicio, fecha_fin, activa, esta
   ('e6000000-0000-4000-8000-0000000000c6', 'ZZ Pt DUP', current_date + 200, current_date + 300, false, 'planificacion'),
   ('e6000000-0000-4000-8000-0000000000c7', 'ZZ Pt SEG', current_date + 200, current_date + 300, false, 'planificacion'),
   ('e6000000-0000-4000-8000-0000000000c8', 'ZZ Pt OK1', current_date + 200, current_date + 300, false, 'planificacion'),
-  ('e6000000-0000-4000-8000-0000000000c9', 'ZZ Pt OK2', current_date + 310, current_date + 400, false, 'planificacion');
+  ('e6000000-0000-4000-8000-0000000000c9', 'ZZ Pt OK2', current_date + 310, current_date + 400, false, 'planificacion'),
+  ('e6000000-0000-4000-8000-0000000000cb', 'ZZ Pt MULTI', current_date + 410, current_date + 500, false, 'planificacion'),
+  ('e6000000-0000-4000-8000-0000000000cc', 'ZZ Pt MULTIAJENO', current_date + 410, current_date + 500, false, 'planificacion');
 
 INSERT INTO public.segmentos (id, nombre) VALUES
   ('e6000000-0000-4000-8000-0000000000a1', 'ZZ Pt S1'),
@@ -117,6 +127,7 @@ INSERT INTO public.usuarios (id, nombre, apellido, genero, estado_civil, auth_id
   ('e6000000-0000-4000-8000-000000000004', 'ZZ Pt', 'DE',  'Otro', 'Soltero', 'e6000000-0000-4000-8000-000000000104'),
   ('e6000000-0000-4000-8000-000000000005', 'ZZ Pt', 'LID', 'Otro', 'Soltero', 'e6000000-0000-4000-8000-000000000105'),
   ('e6000000-0000-4000-8000-000000000006', 'ZZ Pt', 'DE2', 'Otro', 'Soltero', NULL),
+  ('e6000000-0000-4000-8000-000000000007', 'ZZ Pt', 'DE3', 'Otro', 'Soltero', NULL),
   ('e6000000-0000-4000-8000-000000000011', 'ZZ Pt', 'P1',  'Otro', 'Soltero', NULL),
   ('e6000000-0000-4000-8000-000000000012', 'ZZ Pt', 'P2',  'Otro', 'Soltero', NULL),
   ('e6000000-0000-4000-8000-000000000013', 'ZZ Pt', 'P3',  'Otro', 'Soltero', NULL),
@@ -126,7 +137,9 @@ INSERT INTO public.usuarios (id, nombre, apellido, genero, estado_civil, auth_id
   ('e6000000-0000-4000-8000-000000000017', 'ZZ Pt', 'P7',  'Otro', 'Soltero', NULL),
   ('e6000000-0000-4000-8000-000000000018', 'ZZ Pt', 'P8',  'Otro', 'Soltero', NULL),
   ('e6000000-0000-4000-8000-000000000019', 'ZZ Pt', 'P9',  'Otro', 'Soltero', NULL),
-  ('e6000000-0000-4000-8000-00000000001a', 'ZZ Pt', 'P10', 'Otro', 'Soltero', NULL);
+  ('e6000000-0000-4000-8000-00000000001a', 'ZZ Pt', 'P10', 'Otro', 'Soltero', NULL),
+  ('e6000000-0000-4000-8000-00000000001b', 'ZZ Pt', 'P11', 'Otro', 'Soltero', NULL),
+  ('e6000000-0000-4000-8000-00000000001c', 'ZZ Pt', 'P12', 'Otro', 'Soltero', NULL);
 
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT v.usuario_id::uuid, rs.id
@@ -139,9 +152,10 @@ SELECT v.usuario_id::uuid, rs.id
   ) v(usuario_id, rol)
   JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
 
--- Directores de etapa: DE dirige S1 (b1); DE2 dirige solo S2 (b3).
+-- Directores de etapa: DE y DE3 dirigen S1 (b1, b2); DE2 dirige solo S2 (b3).
 INSERT INTO public.segmento_lideres (id, segmento_id, usuario_id, tipo_lider) VALUES
   ('e6000000-0000-4000-8000-0000000000b1', 'e6000000-0000-4000-8000-0000000000a1', 'e6000000-0000-4000-8000-000000000004', 'director_etapa'),
+  ('e6000000-0000-4000-8000-0000000000b2', 'e6000000-0000-4000-8000-0000000000a1', 'e6000000-0000-4000-8000-000000000007', 'director_etapa'),
   ('e6000000-0000-4000-8000-0000000000b3', 'e6000000-0000-4000-8000-0000000000a2', 'e6000000-0000-4000-8000-000000000006', 'director_etapa');
 
 -- Grupos (todos en S1; los planificados 'proximo', inactivos, 'pendiente').
@@ -158,7 +172,9 @@ INSERT INTO public.grupos (id, nombre, temporada_id, segmento_id, activo, estado
   ('e6000000-0000-4000-8000-000000000d71', 'ZZ Pt otro segmento', 'e6000000-0000-4000-8000-0000000000c7', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente'),
   ('e6000000-0000-4000-8000-000000000d81', 'ZZ Pt ok1 A', 'e6000000-0000-4000-8000-0000000000c8', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente'),
   ('e6000000-0000-4000-8000-000000000d82', 'ZZ Pt ok1 B', 'e6000000-0000-4000-8000-0000000000c8', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente'),
-  ('e6000000-0000-4000-8000-000000000d91', 'ZZ Pt ok2 A', 'e6000000-0000-4000-8000-0000000000c9', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente');
+  ('e6000000-0000-4000-8000-000000000d91', 'ZZ Pt ok2 A', 'e6000000-0000-4000-8000-0000000000c9', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente'),
+  ('e6000000-0000-4000-8000-000000000da1', 'ZZ Pt multi A', 'e6000000-0000-4000-8000-0000000000cb', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente'),
+  ('e6000000-0000-4000-8000-000000000db1', 'ZZ Pt multi ajeno A', 'e6000000-0000-4000-8000-0000000000cc', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente');
 
 INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol, estado, fecha_asignacion) VALUES
   ('e6000000-0000-4000-8000-000000000d11', 'e6000000-0000-4000-8000-000000000011', 'Líder',   'activo', current_date),
@@ -171,11 +187,14 @@ INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol, estado, fecha_asig
   ('e6000000-0000-4000-8000-000000000d71', 'e6000000-0000-4000-8000-000000000016', 'Líder',   'activo', current_date),
   ('e6000000-0000-4000-8000-000000000d81', 'e6000000-0000-4000-8000-000000000017', 'Líder',   'activo', current_date),
   ('e6000000-0000-4000-8000-000000000d82', 'e6000000-0000-4000-8000-000000000018', 'Líder',   'activo', current_date),
-  ('e6000000-0000-4000-8000-000000000d91', 'e6000000-0000-4000-8000-000000000019', 'Líder',   'activo', current_date);
+  ('e6000000-0000-4000-8000-000000000d91', 'e6000000-0000-4000-8000-000000000019', 'Líder',   'activo', current_date),
+  ('e6000000-0000-4000-8000-000000000da1', 'e6000000-0000-4000-8000-00000000001b', 'Líder',   'activo', current_date),
+  ('e6000000-0000-4000-8000-000000000db1', 'e6000000-0000-4000-8000-00000000001c', 'Líder',   'activo', current_date);
 
 UPDATE public.grupos SET eliminado = true WHERE id = 'e6000000-0000-4000-8000-000000000d14';
 
--- Vínculos de director: todos hacia b1 (S1), salvo d51 (sin vínculo) y d71 (b3 = director de S2).
+-- Vínculos de director: todos hacia b1 (S1), salvo d51 (sin vínculo), d71 (b3 = director de S2),
+-- da1 (b1 y b2: dos directores válidos de S1) y db1 (b1 válido y b3 de S2: un vínculo ajeno).
 INSERT INTO public.director_etapa_grupos (grupo_id, director_etapa_id) VALUES
   ('e6000000-0000-4000-8000-000000000d11', 'e6000000-0000-4000-8000-0000000000b1'),
   ('e6000000-0000-4000-8000-000000000d41', 'e6000000-0000-4000-8000-0000000000b1'),
@@ -184,7 +203,11 @@ INSERT INTO public.director_etapa_grupos (grupo_id, director_etapa_id) VALUES
   ('e6000000-0000-4000-8000-000000000d71', 'e6000000-0000-4000-8000-0000000000b3'),
   ('e6000000-0000-4000-8000-000000000d81', 'e6000000-0000-4000-8000-0000000000b1'),
   ('e6000000-0000-4000-8000-000000000d82', 'e6000000-0000-4000-8000-0000000000b1'),
-  ('e6000000-0000-4000-8000-000000000d91', 'e6000000-0000-4000-8000-0000000000b1');
+  ('e6000000-0000-4000-8000-000000000d91', 'e6000000-0000-4000-8000-0000000000b1'),
+  ('e6000000-0000-4000-8000-000000000da1', 'e6000000-0000-4000-8000-0000000000b1'),
+  ('e6000000-0000-4000-8000-000000000da1', 'e6000000-0000-4000-8000-0000000000b2'),
+  ('e6000000-0000-4000-8000-000000000db1', 'e6000000-0000-4000-8000-0000000000b1'),
+  ('e6000000-0000-4000-8000-000000000db1', 'e6000000-0000-4000-8000-0000000000b3');
 
 -- Cases ----------------------------------------------------------------------
 
@@ -256,6 +279,23 @@ SELECT pg_temp.assert_eq('validación: director de otro segmento se rechaza',
   $q$SELECT pg_temp.pub('e6000000-0000-4000-8000-0000000000c7')$q$, 'ERR:22023');
 SELECT pg_temp.assert_eq('validación: director de otro segmento no escribe',
   $q$SELECT count(*)::text FROM public.grupos WHERE temporada_id = 'e6000000-0000-4000-8000-0000000000c7' AND estado_aprobacion = 'aprobado'$q$, '0');
+SELECT pg_temp.assert_eq('validación: el mensaje de grupo sin director dice "sin director de etapa"',
+  $q$SELECT (pg_temp.mensaje(format('SELECT public.planner_publicar_temporada(%L, NULL, false)', 'e6000000-0000-4000-8000-0000000000c5'))
+       ~ 'sin director de etapa: .*ZZ Pt sin director')::text$q$, 'true');
+-- Varios directores: un vínculo ineligible entre dos invalida el grupo; dos válidos se aceptan.
+SELECT pg_temp.assert_eq('multi: un grupo con un vínculo válido y otro ineligible se rechaza',
+  $q$SELECT pg_temp.pub('e6000000-0000-4000-8000-0000000000cc')$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('multi: el rechazo por vínculo ineligible nombra el motivo y el grupo',
+  $q$SELECT (pg_temp.mensaje(format('SELECT public.planner_publicar_temporada(%L, NULL, false)', 'e6000000-0000-4000-8000-0000000000cc'))
+       ~ 'no es elegible.*ZZ Pt multi ajeno A')::text$q$, 'true');
+SELECT pg_temp.assert_eq('multi: el rechazo por vínculo ineligible no escribe',
+  $q$SELECT count(*)::text FROM public.grupos WHERE temporada_id = 'e6000000-0000-4000-8000-0000000000cc' AND estado_aprobacion = 'aprobado'$q$, '0');
+SELECT pg_temp.assert_eq('multi: un grupo con dos directores válidos se publica',
+  $q$SELECT (r::jsonb)->>'publicados' || '/' || ((r::jsonb)->>'activada')
+       FROM (SELECT pg_temp.pub('e6000000-0000-4000-8000-0000000000cb') AS r) x$q$, '1/false');
+SELECT pg_temp.assert_eq('multi: el grupo publicado queda aprobado y conserva sus dos vínculos',
+  $q$SELECT (SELECT estado_aprobacion FROM public.grupos WHERE id = 'e6000000-0000-4000-8000-000000000da1')
+       || ':' || (SELECT count(*) FROM public.director_etapa_grupos WHERE grupo_id = 'e6000000-0000-4000-8000-000000000da1')::text$q$, 'aprobado:2');
 DO $$
 DECLARE v_msg text;
 BEGIN
