@@ -99,17 +99,24 @@ export function rolBadgeVariante(label: string): BadgeVariante {
   return ROL_BADGE_VARIANTE[label.toLowerCase()] ?? 'default'
 }
 
+// The director copy is shared by the two Grupos de Vida role maps below, so the
+// people lists and the structure tree always say the same thing.
+const DIRECTOR_GENERAL_LABEL = 'Director general'
+const DIRECTOR_ETAPA_LABEL = 'Director de etapa'
+
 /**
- * Spanish display label for a Grupos de Vida leader/co-leader surfaced
- * read-only in the servidores/mi-equipo screens (see
- * lib/platform/dream-team/lideres-gdv.ts). These are Grupos de Vida roles
- * projected in, not one of the four Dream Team roles above — kept as a
- * separate map rather than folded into ROL_LABELS.
+ * Spanish display label for a Grupos de Vida person (director general,
+ * director de etapa, leader or co-leader) surfaced read-only in the
+ * servidores/mi-equipo screens (see lib/platform/dream-team/lideres-gdv.ts).
+ * These are Grupos de Vida roles projected in, not one of the four Dream Team
+ * roles above — kept as a separate map rather than folded into ROL_LABELS.
  */
 // `colider` is the internal Grupos de Vida role name; every Grupos de Vida
 // screen shows it as "Aprendiz" (docs/sistema-permisos-usuarios-final.md), so
 // Dream Team does too.
 export const ROL_LIDER_GDV_LABELS: Readonly<Record<RolLiderGdv, string>> = {
+  director_general: DIRECTOR_GENERAL_LABEL,
+  director_etapa: DIRECTOR_ETAPA_LABEL,
   lider: 'Líder de grupo',
   colider: 'Aprendiz de grupo',
 }
@@ -118,14 +125,15 @@ export const ROL_LIDER_GDV_LABELS: Readonly<Record<RolLiderGdv, string>> = {
  * Spanish display labels for the four Grupos de Vida structure "responsable"
  * roles surfaced read-only on org-tree rows (see
  * lib/platform/dream-team/estructura-gdv.ts, components/dream-team/nodo-fila.tsx).
- * Distinct from `ROL_LIDER_GDV_LABELS`: that one labels a person's row in the
- * servidores/mi-equipo listings ("Líder de grupo"), this one labels the
- * per-node "who's responsible" line on the tree itself, where the node
- * already says which group it is — "Líder" alone reads better there.
+ * Distinct from `ROL_LIDER_GDV_LABELS` for the leader roles: that one labels
+ * a person's row in the servidores/mi-equipo listings ("Líder de grupo"), this
+ * one labels the per-node "who's responsible" line on the tree itself, where
+ * the node already says which group it is — "Líder" alone reads better there.
+ * The director labels are the same in both.
  */
 export const ROL_RESPONSABLE_GDV_LABELS: Readonly<Record<RolResponsableGdv, string>> = {
-  director_general: 'Director general',
-  director_etapa: 'Director de etapa',
+  director_general: DIRECTOR_GENERAL_LABEL,
+  director_etapa: DIRECTOR_ETAPA_LABEL,
   lider: 'Líder',
   colider: 'Aprendiz',
 }

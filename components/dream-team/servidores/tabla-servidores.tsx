@@ -32,7 +32,9 @@ export interface TablaServidoresProps {
   readonly onActualizado: () => void
 }
 
-export function formatearFecha(valor: string): string {
+export function formatearFecha(valor: string | null): string {
+  // A Grupos de Vida director de etapa has no start date: a dash, never 1970.
+  if (valor === null) return '—'
   try {
     return new Date(valor).toLocaleDateString('es', { year: 'numeric', month: 'short', day: 'numeric' })
   } catch {

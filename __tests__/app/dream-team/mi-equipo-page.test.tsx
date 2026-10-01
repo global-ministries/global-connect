@@ -6,6 +6,8 @@ import React from 'react'
 
 import type { DreamTeamEquipo, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
 import { personaId } from '@/lib/platform/dream-team/types'
+import type { DreamTeamLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
+import type { NodoEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 
 const notFound = jest.fn(() => {
   throw new Error('NEXT_NOT_FOUND')
@@ -34,8 +36,14 @@ const EQUIPOS: DreamTeamEquipo[] = [
   { id: 'dir-b', experiencia: 'talleres_crecimiento', label: 'Dirección B', activo: true },
   { id: 'eq-b1', experiencia: 'talleres_crecimiento', label: 'Equipo B1', parentEquipoId: 'dir-b', activo: true },
   { id: 'dir-vacia', experiencia: 'talleres_crecimiento', label: 'Dirección Vacía', activo: true },
+  { id: 'gdv-raiz', experiencia: 'grupos_vida', label: 'Dirección de Grupos de Vida', activo: true },
 ]
 let mockEquipos: DreamTeamEquipo[] = EQUIPOS
+const LIDERES_BASE: DreamTeamLiderGdv[] = [
+  { personaId: personaId('p9'), equipoId: 'eq-a1', rol: 'lider', desde: '2026-01-01' },
+]
+let mockLideres: DreamTeamLiderGdv[] = LIDERES_BASE
+let mockNodosGdv: NodoEstructuraGdv[] = []
 
 const ROLES: DreamTeamRol[] = ['director', 'coordinador', 'facilitador'].map((label) => ({
   id: `rol-${label}`,
@@ -73,10 +81,8 @@ jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
     listRolesPorEquipo: async () => ROLES,
   }),
 }))
-jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => [] }))
-jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({
-  fetchLideresGdv: async () => [{ personaId: 'p9', equipoId: 'eq-a1', rol: 'lider', desde: '2026-01-01' }],
-}))
+jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => mockNodosGdv }))
+jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({ fetchLideresGdv: async () => mockLideres }))
 jest.mock('@/lib/platform/dream-team/personas', () => ({
   fetchNombresPersonas: async () =>
     new Map([
@@ -85,6 +91,8 @@ jest.mock('@/lib/platform/dream-team/personas', () => ({
       ['p3', 'Carla Facilitadora'],
       ['p4', 'Dora Otra'],
       ['p9', 'Lidia Lider'],
+      ['d1', 'Diego Etapa'],
+      ['d2', 'Dora General'],
     ]),
 }))
 
@@ -114,6 +122,8 @@ function esSerializable(valor: unknown): boolean {
 
 beforeEach(() => {
   mockEquipos = EQUIPOS
+  mockLideres = LIDERES_BASE
+  mockNodosGdv = []
   isDreamTeamEnabled.mockReturnValue(true)
   requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
   hasDreamTeamReadCapability.mockReturnValue(true)
@@ -185,6 +195,75 @@ describe('mi-equipo page — direccion resolution', () => {
     const props = await renderizar()
     expect(props.vista).toBeNull()
     expect(props.direcciones).toEqual([])
+  })
+})
+
+describe('mi-equipo page — Grupos de Vida directors', () => {
+  const NODOS: NodoEstructuraGdv[] = [
+    { nodoId: 'gdv-raiz', parentId: null, tipo: 'direccion', label: 'Dirección de Grupos de Vida', responsables: [] },
+    { nodoId: 'seg-1', parentId: 'gdv-raiz', tipo: 'segmento', label: 'Matrimonios', responsables: [] },
+    { nodoId: 'dir-etapa-1', parentId: 'seg-1', tipo: 'directores', label: 'Diego Etapa', responsables: [] },
+    { nodoId: 'grupo-1', parentId: 'dir-etapa-1', tipo: 'grupo', label: 'Grupo Norte', responsables: [] },
+  ]
+  const LIDERES: DreamTeamLiderGdv[] = [
+    { personaId: personaId('d2'), equipoId: 'seg-1', rol: 'director_general', desde: '2026-05-01T00:00:00.000Z' },
+    { personaId: personaId('d1'), equipoId: 'dir-etapa-1', rol: 'director_etapa', desde: null },
+    { personaId: personaId('p9'), equipoId: 'grupo-1', rol: 'lider', desde: '2026-01-01T00:00:00.000Z' },
+  ]
+
+  beforeEach(() => {
+    mockNodosGdv = NODOS
+    mockLideres = LIDERES
+  })
+
+  it('attaches a director de etapa to their directores node and a director general to their segmento', async () => {
+    const vista = (await renderizar({ direccion: 'gdv-raiz' })).vista
+    expect(vista?.personas.find((p) => p.nombre === 'Diego Etapa')).toMatchObject({
+      equipoId: 'dir-etapa-1',
+      equipoLabel: 'Diego Etapa',
+      rolLabel: 'Director de etapa',
+      origen: 'grupos_vida',
+      editable: false,
+      estado: 'activo',
+    })
+    expect(vista?.personas.find((p) => p.nombre === 'Dora General')).toMatchObject({
+      equipoId: 'seg-1',
+      equipoLabel: 'Matrimonios',
+      rolLabel: 'Director general',
+      origen: 'grupos_vida',
+      editable: false,
+    })
+  })
+
+  it('lists them director general, director de etapa, líder', async () => {
+    const vista = (await renderizar({ direccion: 'gdv-raiz' })).vista
+    expect(vista?.personas.map((p) => p.rolLabel)).toEqual(['Director general', 'Director de etapa', 'Líder de grupo'])
+  })
+
+  it('gives the segmento, the directores node and the group a card each', async () => {
+    const vista = (await renderizar({ direccion: 'gdv-raiz' })).vista
+    expect(vista?.equipos.map((e) => [e.id, e.total])).toEqual([
+      ['seg-1', 1],
+      ['dir-etapa-1', 1],
+      ['grupo-1', 1],
+    ])
+  })
+
+  it('offers the Grupos de Vida direccion when only directors serve there', async () => {
+    mockLideres = LIDERES.slice(0, 2)
+    const props = await renderizar()
+    expect(props.direcciones.map((d) => d.id)).toContain('gdv-raiz')
+    expect(props.direcciones.find((d) => d.id === 'gdv-raiz')?.total).toBe(2)
+  })
+
+  it('drops a director whose node is not visible instead of showing it on an unknown team', async () => {
+    mockNodosGdv = NODOS.filter((n) => n.nodoId !== 'dir-etapa-1')
+    const vista = (await renderizar({ direccion: 'gdv-raiz' })).vista
+    expect(vista?.personas.map((p) => p.nombre)).not.toContain('Diego Etapa')
+  })
+
+  it('hands the island only serializable data', async () => {
+    expect(esSerializable(await renderizar({ direccion: 'gdv-raiz' }))).toBe(true)
   })
 })
 

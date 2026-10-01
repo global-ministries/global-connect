@@ -9,8 +9,8 @@
  *     letter of an unknown role label
  *   - ROL_BADGE_VARIANTE follows the Grupos de Vida hierarchy convention:
  *     the top role gets `warning`, the next gets `info`, the rest `default`
- *   - ROL_LIDER_GDV_LABELS labels the two Grupos de Vida leadership roles
- *     surfaced read-only in the servidores/mi-equipo screens
+ *   - ROL_LIDER_GDV_LABELS labels the four Grupos de Vida roles (directors
+ *     and leaders) surfaced read-only in the servidores/mi-equipo screens
  *   - ORIGEN_GRUPOS_VIDA_LABEL is the badge copy marking those rows as
  *     coming from Grupos de Vida, not Dream Team
  */
@@ -69,6 +69,16 @@ describe('ROL_LIDER_GDV_LABELS', () => {
   it('labels the two Grupos de Vida leadership roles', () => {
     expect(ROL_LIDER_GDV_LABELS.lider).toBe('Líder de grupo')
     expect(ROL_LIDER_GDV_LABELS.colider).toBe('Aprendiz de grupo')
+  })
+
+  it('labels the two Grupos de Vida director roles', () => {
+    expect(ROL_LIDER_GDV_LABELS.director_general).toBe('Director general')
+    expect(ROL_LIDER_GDV_LABELS.director_etapa).toBe('Director de etapa')
+  })
+
+  it('uses the same director copy as the structure tree, so the two screens never diverge', () => {
+    expect(ROL_LIDER_GDV_LABELS.director_general).toBe(ROL_RESPONSABLE_GDV_LABELS.director_general)
+    expect(ROL_LIDER_GDV_LABELS.director_etapa).toBe(ROL_RESPONSABLE_GDV_LABELS.director_etapa)
   })
 })
 

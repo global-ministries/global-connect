@@ -5,10 +5,12 @@
  *
  * The RPC already applies the tree authority check server-side and takes no
  * arguments — a caller without authority over the Grupos de Vida node gets
- * zero rows back, not an error. One row per person AND GROUP: `equipo_id` is
- * the id of the group they lead, a virtual node from
+ * zero rows back, not an error. One row per person AND TEAM: for a leader
+ * `equipo_id` is the id of the group they lead, a virtual node from
  * `dream_team_estructura_gdv()` — someone leading two groups comes back as
- * two rows, one per group.
+ * two rows, one per group. The directors come back too: a director de etapa
+ * on the id of their `directores` node, a director general on the id of their
+ * segmento (see supabase/migrations/20261001180000_dream_team_directores_gdv.sql).
  */
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import { personaId } from '@/lib/platform/dream-team/types'
@@ -17,7 +19,7 @@ interface FakeRow {
   readonly persona_id: string
   readonly equipo_id: string
   readonly rol: string
-  readonly desde: string
+  readonly desde: string | null
 }
 
 function makeClient(rows: readonly FakeRow[], error: { message: string } | null = null) {
@@ -65,7 +67,35 @@ describe('fetchLideresGdv', () => {
     expect(result.every((r) => r.personaId === personaId('p-1'))).toBe(true)
   })
 
-  it("ignores rows whose rol is neither 'lider' nor 'colider'", async () => {
+  it('maps director_etapa and director_general rows, keeping a missing desde as null', async () => {
+    const { client } = makeClient([
+      { persona_id: 'p-3', equipo_id: 'directores-a', rol: 'director_etapa', desde: null },
+      { persona_id: 'p-4', equipo_id: 'segmento-a', rol: 'director_general', desde: '2026-01-05T00:00:00.000Z' },
+    ])
+
+    const result = await fetchLideresGdv(client)
+
+    expect(result).toEqual([
+      { personaId: personaId('p-3'), equipoId: 'directores-a', rol: 'director_etapa', desde: null },
+      { personaId: personaId('p-4'), equipoId: 'segmento-a', rol: 'director_general', desde: '2026-01-05T00:00:00.000Z' },
+    ])
+  })
+
+  it('keeps a person who is both a director and a leader as one row per team', async () => {
+    const { client } = makeClient([
+      { persona_id: 'p-1', equipo_id: 'grupo-a', rol: 'lider', desde: '2026-01-01T00:00:00.000Z' },
+      { persona_id: 'p-1', equipo_id: 'directores-a', rol: 'director_etapa', desde: null },
+    ])
+
+    const result = await fetchLideresGdv(client)
+
+    expect(result.map((r) => [r.equipoId, r.rol])).toEqual([
+      ['grupo-a', 'lider'],
+      ['directores-a', 'director_etapa'],
+    ])
+  })
+
+  it('ignores rows whose rol is not one of the four Grupos de Vida roles', async () => {
     const { client } = makeClient([
       { persona_id: 'p-1', equipo_id: 'grupo-a', rol: 'lider', desde: '2026-01-01T00:00:00.000Z' },
       { persona_id: 'p-2', equipo_id: 'grupo-a', rol: 'voluntario', desde: '2026-01-01T00:00:00.000Z' },
