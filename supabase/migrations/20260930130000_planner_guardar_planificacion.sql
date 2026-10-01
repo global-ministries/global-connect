@@ -164,11 +164,11 @@ BEGIN
     ) THEN
       RAISE EXCEPTION 'El grupo con clave % tiene un dia_reunion inválido', v_clave USING ERRCODE = '22023';
     END IF;
-    v_texto := nullif(v_grupo->>'hora_reunion', '');
+    v_texto := nullif(btrim(v_grupo->>'hora_reunion'), '');
     IF v_texto IS NOT NULL THEN
-      -- Acepta 'H:MM', 'HH:MM', 'HH:MM:SS' y fracciones ('7:30', '19:30:00.000'). La forma se
+      -- Acepta (sin espacios alrededor) 'H:MM', 'HH:MM', 'HH:MM:SS', fracciones y sufijo AM/PM ('7:30', '19:30:00.000', '7:30 PM'). La forma se
       -- valida antes del cast para rechazar literales especiales como 'now' o 'allballs'.
-      IF v_texto !~ '^[0-9]{1,2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?$' THEN
+      IF v_texto !~ '^[0-9]{1,2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?(\s*[AaPp][Mm])?$' THEN
         RAISE EXCEPTION 'El grupo con clave % tiene una hora_reunion inválida', v_clave USING ERRCODE = '22023';
       END IF;
       BEGIN
@@ -343,7 +343,7 @@ BEGIN
       NULL::public.grupos,
       jsonb_build_object(
         'dia_reunion', coalesce(nullif(v_grupo->>'dia_reunion', ''), 'Jueves'),
-        'hora_reunion', coalesce(nullif(v_grupo->>'hora_reunion', ''), '19:30')
+        'hora_reunion', coalesce(nullif(btrim(v_grupo->>'hora_reunion'), ''), '19:30')
       )
     );
 
