@@ -83,16 +83,8 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
   const { authUserId } = useCurrentUser()
   const supabase = createClient()
 
-  // Debounce para búsqueda
-  const [busquedaDebounced, setBusquedaDebounced] = useState(filtros.busqueda)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setBusquedaDebounced(filtros.busqueda)
-    }, 400)
-
-    return () => clearTimeout(timer)
-  }, [filtros.busqueda])
+  // The search text is confirmed by the page (Enter / "Buscar"), so it applies immediately.
+  const busqueda = filtros.busqueda
 
   // Cargar usuarios con permisos
   const cargarUsuarios = useCallback(async () => {
@@ -109,7 +101,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
 
       const rpcParams: any = {
         p_auth_id: authUserId,
-        p_busqueda: busquedaDebounced,
+        p_busqueda: busqueda,
         p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : null,
         p_con_email: filtros.con_email,
         p_con_telefono: filtros.con_telefono,
@@ -131,7 +123,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
       if (errorRPC && filtros.en_grupo !== null) {
         const { data: data2, error: error2 } = await supabase.rpc('listar_usuarios_con_permisos', {
           p_auth_id: authUserId,
-          p_busqueda: busquedaDebounced,
+          p_busqueda: busqueda,
           p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : undefined,
           p_con_email: filtros.con_email ?? undefined,
           p_con_telefono: filtros.con_telefono ?? undefined,
@@ -197,7 +189,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     } finally {
       setCargando(false)
     }
-  }, [supabase, authUserId, paginaActual, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId, toast])
+  }, [supabase, authUserId, paginaActual, busqueda, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId, toast])
 
   // Cargar estadísticas con caché
   const cargarEstadisticas = useCallback(async () => {
@@ -205,7 +197,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     // Construir clave de filtros para cachear por combinación
     const filtrosKey = JSON.stringify({
       campusId: campusId || null,
-      busqueda: busquedaDebounced || '',
+      busqueda: busqueda || '',
       roles: [...filtros.roles].sort(),
       con_email: filtros.con_email,
       con_telefono: filtros.con_telefono,
@@ -229,7 +221,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
       // Intentar nueva firma con filtros
       let { data, error: errorRPC } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
         p_auth_id: authUserId,
-        p_busqueda: busquedaDebounced || '',
+        p_busqueda: busqueda || '',
         p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : undefined,
         p_con_email: filtros.con_email ?? undefined,
         p_con_telefono: filtros.con_telefono ?? undefined,
@@ -272,7 +264,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     } finally {
       setCargandoEstadisticas(false)
     }
-  }, [supabase, authUserId, busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
+  }, [supabase, authUserId, busqueda, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
 
   // Efectos para cargar datos
   useEffect(() => {
@@ -286,7 +278,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setPaginaActual(1)
-  }, [busquedaDebounced, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
+  }, [busqueda, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
 
   // Funciones de control
   const actualizarFiltros = useCallback((nuevosFiltros: Partial<FiltrosUsuarios>) => {
