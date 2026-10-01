@@ -23,7 +23,7 @@ import { normalizarTelefono } from '@/lib/utils/telefono'
 // ── Input ────────────────────────────────────────────────────────────────
 
 export interface FilaServidor {
-  /** Unique per row: the servicio id, or `gdv:<persona>` for a Grupos de Vida leader. */
+  /** Unique per row: the servicio id, or `gdv:<persona>:<equipo>` for a Grupos de Vida person. */
   readonly clave: string
   readonly personaId: PersonaId
   readonly nombre: string
@@ -35,7 +35,8 @@ export interface FilaServidor {
   /** The role as displayed ("Coordinador"). */
   readonly rolLabel: string
   readonly estado: DreamTeamEstado
-  readonly fechaInicio: string
+  /** `null` when there is no start date to show (a Grupos de Vida director de etapa has none). */
+  readonly fechaInicio: string | null
   readonly telefono: string | null
   /** `null` when the caller cannot see the person's account status (never counted as "sin cuenta"). */
   readonly tieneCuenta: boolean | null
@@ -205,6 +206,8 @@ function coincideTexto(fila: FilaServidor, q: string): boolean {
 
 function coincideInicio(fila: FilaServidor, inicio: Inicio, hoy: Date): boolean {
   if (inicio === 'cualquiera') return true
+  // No start date: it cannot be "this month" nor "in the last 90 days".
+  if (fila.fechaInicio === null) return false
   const fecha = new Date(fila.fechaInicio)
   if (Number.isNaN(fecha.getTime())) return false
   if (inicio === 'mes') {
@@ -244,14 +247,23 @@ const ORDEN_ETAPA: Readonly<Record<DreamTeamEstado, number>> = {
   retirado: 5,
 }
 
-/** Hierarchy first (Director, Coordinador, Líder, the rest), then alphabetical. */
+/**
+ * Hierarchy first, then alphabetical: Director (Dream Team) and Director
+ * general, Director de etapa, Coordinador, Líder, Aprendiz, the rest.
+ */
 function rangoDeRol(rol: string): number {
   const clave = sinAcentos(rol)
+  if (clave === 'director de etapa') return 1
   if (clave.startsWith('director')) return 0
-  if (clave.startsWith('coordinador')) return 1
-  if (clave.startsWith('lider')) return 2
-  if (clave.startsWith('colider')) return 3
-  return 4
+  if (clave.startsWith('coordinador')) return 2
+  if (clave.startsWith('lider')) return 3
+  if (clave.startsWith('colider') || clave.startsWith('aprendiz')) return 4
+  return 5
+}
+
+/** Start date as a sortable number; a row without one sorts as the oldest. */
+function marcaDeInicio(fila: FilaServidor): number {
+  return fila.fechaInicio === null ? Number.MIN_SAFE_INTEGER : new Date(fila.fechaInicio).getTime()
 }
 
 function compararRol(a: string, b: string): number {
@@ -267,7 +279,7 @@ function comparar(columna: ColumnaOrden): (a: FilaServidor, b: FilaServidor) => 
     case 'etapa':
       return (a, b) => ORDEN_ETAPA[a.estado] - ORDEN_ETAPA[b.estado]
     case 'inicio':
-      return (a, b) => new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
+      return (a, b) => marcaDeInicio(a) - marcaDeInicio(b)
     case 'persona':
       return () => 0
   }

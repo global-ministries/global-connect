@@ -9,6 +9,7 @@ import {
   filtrarPersonas,
   inicialesDe,
   listarDirecciones,
+  ordenDeRol,
   personasDeSeleccion,
   vistaDeDireccion,
   type PersonaEntrada,
@@ -147,6 +148,59 @@ describe('vistaDeDireccion', () => {
     const lider: PersonaEntrada = { ...persona('l', 'Zack Lider', 'Facilitador'), rolClave: 'lider', rolLabel: 'Líder' }
     const vista = vistaDeDireccion(arbol, { [ID_DHAH]: [otro, voluntario, lider] }, ID_DHAH)
     expect(vista?.personas.map((p) => p.nombre)).toEqual(['Zack Lider', 'Zoe Voluntaria', 'Ana Otro'])
+  })
+
+  describe('Grupos de Vida people', () => {
+    const gdv = (clave: string, nombre: string, rolClave: string, rolLabel: string): PersonaEntrada => ({
+      ...persona(clave, nombre, 'Facilitador'),
+      rolClave,
+      rolLabel,
+      origen: 'grupos_vida',
+      servicioId: undefined,
+      version: undefined,
+    })
+    const arbolDhah: readonly NodoArbol<NodoEquipoArbol>[] = [arbolConexion[0].hijos[0].hijos[0]]
+
+    it('orders the roles director general, director de etapa, líder, aprendiz', () => {
+      expect(ordenDeRol('director_general')).toBeLessThan(ordenDeRol('director_etapa'))
+      expect(ordenDeRol('director_etapa')).toBeLessThan(ordenDeRol('lider'))
+      expect(ordenDeRol('lider')).toBeLessThan(ordenDeRol('colider'))
+    })
+
+    it('keeps the Dream Team roles in their order around the new ones', () => {
+      expect(ordenDeRol('director')).toBeLessThanOrEqual(ordenDeRol('director_general'))
+      expect(ordenDeRol('director_etapa')).toBeLessThan(ordenDeRol('coordinador'))
+      expect(ordenDeRol('coordinador')).toBeLessThan(ordenDeRol('lider'))
+      expect(ordenDeRol('colider')).toBeLessThan(ordenDeRol('voluntario'))
+      expect(ordenDeRol('voluntario')).toBeLessThan(ordenDeRol('artista'))
+    })
+
+    it('lists the people of a direccion in that order, then by name', () => {
+      const personas: PersonasPorEquipo = {
+        [ID_DHAH]: [
+          gdv('a', 'Ana Aprendiz', 'colider', 'Aprendiz de grupo'),
+          gdv('l', 'Zack Lider', 'lider', 'Líder de grupo'),
+          gdv('e', 'Yara Etapa', 'director_etapa', 'Director de etapa'),
+          gdv('g', 'Xena General', 'director_general', 'Director general'),
+          gdv('l2', 'Bea Lider', 'lider', 'Líder de grupo'),
+        ],
+      }
+      const vista = vistaDeDireccion(arbolDhah, personas, ID_DHAH)
+      expect(vista?.personas.map((p) => p.nombre)).toEqual(['Xena General', 'Yara Etapa', 'Bea Lider', 'Zack Lider', 'Ana Aprendiz'])
+    })
+
+    it('makes a card for the team of a director with their own people, and keeps them read-only', () => {
+      const personas: PersonasPorEquipo = { [ID_DHAH]: [gdv('e', 'Yara Etapa', 'director_etapa', 'Director de etapa')] }
+      const vista = vistaDeDireccion(arbolDhah, personas, ID_DHAH)
+      expect(vista?.personas[0]).toMatchObject({
+        nombre: 'Yara Etapa',
+        equipoId: ID_DHAH,
+        rolLabel: 'Director de etapa',
+        origen: 'grupos_vida',
+        editable: false,
+        estado: 'activo',
+      })
+    })
   })
 
   it('fills initials, team label and editable for each person', () => {

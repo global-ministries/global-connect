@@ -223,7 +223,7 @@ describe('inicio', () => {
     // Excludes 2026-06-15 and 2025-11-01; keeps 2026-08-20.
     const v = vista({ inicio: 'trimestre' }, filasConexion)
     expect(v.visibles).toHaveLength(36)
-    expect(v.visibles.some((f) => f.fechaInicio.startsWith('2026-08-20'))).toBe(true)
+    expect(v.visibles.some((f) => f.fechaInicio?.startsWith('2026-08-20'))).toBe(true)
   })
 
   it('"cualquiera" keeps everything', () => {
@@ -424,5 +424,76 @@ describe('URL codec', () => {
       etapa: 'activo',
       q: '',
     })
+  })
+})
+
+describe('Grupos de Vida directors', () => {
+  // A director de etapa has no start date (segmento_lideres keeps none).
+  const gdv = { origen: 'grupos_vida', editable: false } as const
+  const directorGeneral = fila('dg', 'Zoe General', ID_CONEXION, 'Director general', { ...gdv, fechaInicio: '2026-09-10T10:00:00Z' })
+  const directorEtapa = fila('de', 'Yara Etapa', ID_CONEXION, 'Director de etapa', { ...gdv, fechaInicio: null })
+  const lider = fila('l', 'Xena Lider', ID_CORO, 'Líder de grupo', { ...gdv, fechaInicio: '2026-09-11T10:00:00Z' })
+  const aprendiz = fila('a', 'Wanda Aprendiz', ID_CORO, 'Aprendiz de grupo', { ...gdv, fechaInicio: '2026-09-12T10:00:00Z' })
+  const otroRol = fila('o', 'Vera Acompañante', ID_CORO, 'Acompañante')
+  const filas = [otroRol, aprendiz, lider, directorEtapa, directorGeneral]
+
+  it('lists the roles director general, director de etapa, líder, aprendiz, then the rest', () => {
+    expect(vista({}, filas).opciones.roles.map((r) => r.label)).toEqual([
+      'Director general',
+      'Director de etapa',
+      'Líder de grupo',
+      'Aprendiz de grupo',
+      'Acompañante',
+    ])
+  })
+
+  it('sorts rows by role in that same order, in both directions', () => {
+    const asc = vista({ orden: { columna: 'rol', sentido: 'asc' } }, filas).visibles.map((f) => f.rolLabel)
+    expect(asc).toEqual(['Director general', 'Director de etapa', 'Líder de grupo', 'Aprendiz de grupo', 'Acompañante'])
+    const desc = vista({ orden: { columna: 'rol', sentido: 'desc' } }, filas).visibles.map((f) => f.rolLabel)
+    expect(desc).toEqual([...asc].reverse())
+  })
+
+  it('keeps the Dream Team Director above the director de etapa and the Coordinador below it', () => {
+    const director = fila('d', 'Ana Director', ID_CONEXION, 'Director')
+    const coordinador = fila('c', 'Bea Coordinadora', ID_DHAH, 'Coordinador')
+    const roles = vista({}, [lider, coordinador, directorEtapa, director]).opciones.roles.map((r) => r.label)
+    expect(roles).toEqual(['Director', 'Director de etapa', 'Coordinador', 'Líder de grupo'])
+  })
+
+  it('filters by the exact director role label', () => {
+    expect(vista({ rol: 'Director de etapa' }, filas).visibles.map((f) => f.nombre)).toEqual(['Yara Etapa'])
+    expect(vista({ rol: 'Director general' }, filas).visibles.map((f) => f.nombre)).toEqual(['Zoe General'])
+  })
+
+  it('counts a director in the team of their row, and one person per director', () => {
+    const v = vista({ equipo: ID_CONEXION }, filas)
+    expect(v.visibles.map((f) => f.nombre).sort()).toEqual(['Yara Etapa', 'Zoe General'])
+    expect(v.pie.resumen).toBe('2 servicios · 2 personas')
+  })
+
+  it('finds a director by name and by phone like any other row', () => {
+    const conTelefono = fila('dg', 'Zoe General', ID_CONEXION, 'Director general', { ...gdv, fechaInicio: null, telefono: '04245551111' })
+    expect(vista({ q: 'zoe' }, [conTelefono, lider]).visibles.map((f) => f.nombre)).toEqual(['Zoe General'])
+    expect(vista({ q: '555 1111' }, [conTelefono, lider]).visibles.map((f) => f.nombre)).toEqual(['Zoe General'])
+  })
+
+  it('a row without a start date never matches an inicio filter, and the other rows still do', () => {
+    expect(vista({ inicio: 'mes' }, filas).visibles.map((f) => f.nombre).sort()).toEqual([
+      'Vera Acompañante',
+      'Wanda Aprendiz',
+      'Xena Lider',
+      'Zoe General',
+    ])
+    expect(vista({ inicio: 'trimestre' }, filas).visibles.map((f) => f.nombre)).not.toContain('Yara Etapa')
+    expect(vista({ inicio: 'cualquiera' }, filas).visibles.map((f) => f.nombre)).toContain('Yara Etapa')
+  })
+
+  it('sorts a row without a start date as the oldest, without breaking the order of the others', () => {
+    const asc = vista({ orden: { columna: 'inicio', sentido: 'asc' } }, filas).visibles.map((f) => f.nombre)
+    expect(asc[0]).toBe('Yara Etapa')
+    expect(asc.slice(1)).toEqual(['Zoe General', 'Xena Lider', 'Wanda Aprendiz', 'Vera Acompañante'])
+    const desc = vista({ orden: { columna: 'inicio', sentido: 'desc' } }, filas).visibles.map((f) => f.nombre)
+    expect(desc[desc.length - 1]).toBe('Yara Etapa')
   })
 })

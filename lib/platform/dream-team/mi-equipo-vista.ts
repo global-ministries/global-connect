@@ -118,15 +118,20 @@ export function normalizarTexto(texto: string): string {
     .trim()
 }
 
+// Grupos de Vida people use their own keys (`director_general`,
+// `director_etapa`, `lider`, `colider`): director general, director de etapa,
+// líder, then aprendiz. The Dream Team roles keep their relative order.
 const ORDEN_ROL: Readonly<Record<string, number>> = {
   director: 0,
-  coordinador: 1,
-  lider: 2,
-  colider: 2,
-  facilitador: 2,
-  voluntario: 3,
+  director_general: 0,
+  director_etapa: 1,
+  coordinador: 2,
+  lider: 3,
+  facilitador: 3,
+  colider: 4,
+  voluntario: 5,
 }
-const ORDEN_ROL_OTROS = 4
+const ORDEN_ROL_OTROS = 6
 
 export function ordenDeRol(rolClave: string): number {
   return ORDEN_ROL[normalizarTexto(rolClave)] ?? ORDEN_ROL_OTROS

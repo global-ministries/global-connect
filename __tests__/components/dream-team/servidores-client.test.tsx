@@ -333,6 +333,55 @@ describe('ServidoresClient — phone and account status (criterion 6)', () => {
   })
 })
 
+describe('ServidoresClient — Grupos de Vida directors', () => {
+  const filaDe = (nombre: string) => filasDeTabla().find((r) => within(r).queryByText(nombre)) as HTMLElement
+  const director = (clave: string, nombre: string, rol: string, extra: Partial<FilaServidor> = {}) =>
+    fila(clave, nombre, ID_DHAH, rol, {
+      origen: 'grupos_vida',
+      servicioId: undefined,
+      version: undefined,
+      editable: false,
+      fechaInicio: null,
+      ...extra,
+    })
+
+  it('shows a director with role, team, phone and account mark, and no row menu', () => {
+    const filas = [director('de', 'Yara Etapa', 'Director de etapa', { telefono: '04245551111', tieneCuenta: false })]
+    render(<ServidoresClient {...props({ filas, puedeEditar: true })} />)
+    const celda = filaDe('Yara Etapa')
+    expect(within(celda).getByText('Director de etapa')).toBeInTheDocument()
+    expect(within(celda).getByText('De Hombre a Hombre')).toBeInTheDocument()
+    expect(within(celda).getByText('Sin cuenta')).toBeInTheDocument()
+    expect(within(celda).getByRole('link', { name: /0424 555 1111/ })).toHaveAttribute('href', 'https://wa.me/584245551111')
+    expect(within(celda).queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
+  })
+
+  it('shows a dash, never a 1970 date, when the director has no start date', () => {
+    const filas = [
+      director('de', 'Yara Etapa', 'Director de etapa'),
+      director('dg', 'Zoe General', 'Director general', { fechaInicio: '2026-09-10T10:00:00Z' }),
+    ]
+    render(<ServidoresClient {...props({ filas })} />)
+    expect(within(filaDe('Yara Etapa')).getByText('—')).toBeInTheDocument()
+    expect(filaDe('Yara Etapa')).not.toHaveTextContent('1970')
+    expect(within(filaDe('Zoe General')).queryByText('—')).not.toBeInTheDocument()
+    expect(filaDe('Zoe General')).toHaveTextContent('2026')
+  })
+
+  it('offers the director roles in the role filter, hierarchy first', async () => {
+    const filas = [
+      director('l', 'Xena Lider', 'Líder de grupo'),
+      director('de', 'Yara Etapa', 'Director de etapa'),
+      director('dg', 'Zoe General', 'Director general'),
+    ]
+    render(<ServidoresClient {...props({ filas })} />)
+    await userEvent.click(screen.getByRole('button', { name: /^Filtros/ }))
+    const selector = screen.getByRole('combobox', { name: 'Rol' })
+    const opciones = within(selector).getAllByRole('option').map((o) => o.textContent)
+    expect(opciones.slice(-3)).toEqual(['Director general', 'Director de etapa', 'Líder de grupo'])
+  })
+})
+
 describe('ServidoresClient — phone', () => {
   const tarjetas = () => screen.getByRole('list', { name: 'Servicios en tarjetas' })
   const tarjetaDe = (nombre: string) =>

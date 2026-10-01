@@ -9,6 +9,7 @@ import React from 'react'
 import type { DreamTeamEquipo, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
 import { personaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
+import type { NodoEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 
 const notFound = jest.fn(() => {
   throw new Error('NEXT_NOT_FOUND')
@@ -35,6 +36,7 @@ const EQUIPOS: DreamTeamEquipo[] = [
   { id: 'dir-a', experiencia: 'talleres_crecimiento', label: 'Dirección A', activo: true },
   { id: 'eq-a1', experiencia: 'talleres_crecimiento', label: 'Equipo A1', parentEquipoId: 'dir-a', activo: true },
   { id: 'dir-b', experiencia: 'talleres_crecimiento', label: 'Dirección B', activo: true },
+  { id: 'gdv-raiz', experiencia: 'grupos_vida', label: 'Dirección de Grupos de Vida', activo: true },
 ]
 const ROLES: DreamTeamRol[] = ['director', 'coordinador', 'facilitador'].map((label) => ({
   id: `rol-${label}`,
@@ -55,6 +57,7 @@ const servicio = (id: string, equipoId: string, rol: string, persona: string, es
 
 let mockServicios: DreamTeamServicio[] = []
 let mockLideres: DreamTeamLiderGdv[] = []
+let mockNodosGdv: NodoEstructuraGdv[] = []
 jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
   createSupabaseDreamTeamRepository: () => ({
     listEquipos: async () => EQUIPOS,
@@ -62,7 +65,7 @@ jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
     listRolesPorEquipo: async () => ROLES,
   }),
 }))
-jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => [] }))
+jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => mockNodosGdv }))
 jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({ fetchLideresGdv: async () => mockLideres }))
 const fetchContactosPersonas = jest.fn()
 jest.mock('@/lib/platform/dream-team/personas', () => ({
@@ -72,6 +75,8 @@ jest.mock('@/lib/platform/dream-team/personas', () => ({
       ['p2', 'Bea Coordinadora'],
       ['p3', 'Carla Facilitadora'],
       ['g1', 'Marta Lider'],
+      ['d1', 'Diego Etapa'],
+      ['d2', 'Dora General'],
     ]),
   fetchContactosPersonas: (...args: unknown[]) => fetchContactosPersonas(...args),
 }))
@@ -121,6 +126,7 @@ beforeEach(() => {
     servicio('s3', 'eq-a1', 'facilitador', 'p3'),
   ]
   mockLideres = [{ personaId: personaId('g1'), equipoId: 'eq-a1', rol: 'lider', desde: '2026-03-01T00:00:00.000Z' }]
+  mockNodosGdv = []
 })
 
 describe('authorization', () => {
@@ -193,6 +199,92 @@ describe('rows', () => {
   it('hands the island only serializable data', async () => {
     const props = await renderizar({ equipo: 'eq-a1', q: 'ana' })
     expect(esSerializable(props)).toBe(true)
+  })
+})
+
+// The directors of Grupos de Vida come from the same RPC as the leaders (rol
+// `director_etapa` on their `directores` node, `director_general` on their
+// segmento), and their team name resolves from the virtual branch.
+describe('Grupos de Vida directors', () => {
+  const NODOS: NodoEstructuraGdv[] = [
+    { nodoId: 'gdv-raiz', parentId: null, tipo: 'direccion', label: 'Dirección de Grupos de Vida', responsables: [] },
+    { nodoId: 'seg-1', parentId: 'gdv-raiz', tipo: 'segmento', label: 'Matrimonios', responsables: [] },
+    { nodoId: 'dir-etapa-1', parentId: 'seg-1', tipo: 'directores', label: 'Diego Etapa y Dana Etapa', responsables: [] },
+  ]
+  const LIDERES: DreamTeamLiderGdv[] = [
+    { personaId: personaId('d1'), equipoId: 'dir-etapa-1', rol: 'director_etapa', desde: null },
+    { personaId: personaId('d2'), equipoId: 'seg-1', rol: 'director_general', desde: '2026-05-01T00:00:00.000Z' },
+  ]
+
+  beforeEach(() => {
+    mockNodosGdv = NODOS
+    mockLideres = LIDERES
+    mockServicios = []
+    fetchContactosPersonas.mockResolvedValue(
+      new Map([
+        ['d1', { telefono: '04245551111', tieneCuenta: false }],
+        ['d2', { telefono: '04125552222', tieneCuenta: true }],
+      ]),
+    )
+  })
+
+  it('builds one row per director on the node of their team, with role, phone and account', async () => {
+    const { filas } = await renderizar()
+    expect(filas).toHaveLength(2)
+    expect(filas[0]).toMatchObject({
+      clave: 'gdv:d1:dir-etapa-1',
+      nombre: 'Diego Etapa',
+      equipoId: 'dir-etapa-1',
+      equipoLabel: 'Diego Etapa y Dana Etapa',
+      equipoRuta: 'Dirección de Grupos de Vida · Matrimonios',
+      direccionId: 'gdv-raiz',
+      rolLabel: 'Director de etapa',
+      estado: 'activo',
+      fechaInicio: null,
+      telefono: '04245551111',
+      tieneCuenta: false,
+      origen: 'grupos_vida',
+      editable: false,
+    })
+    expect(filas[1]).toMatchObject({
+      clave: 'gdv:d2:seg-1',
+      nombre: 'Dora General',
+      equipoLabel: 'Matrimonios',
+      equipoRuta: 'Dirección de Grupos de Vida',
+      rolLabel: 'Director general',
+      fechaInicio: '2026-05-01T00:00:00.000Z',
+      telefono: '04125552222',
+      tieneCuenta: true,
+      editable: false,
+    })
+  })
+
+  it('resolves names and contacts of the directors in the same single bulk calls', async () => {
+    await renderizar()
+    expect(fetchContactosPersonas).toHaveBeenCalledTimes(1)
+    expect(fetchContactosPersonas.mock.calls[0][1]).toEqual(['d1', 'd2'])
+  })
+
+  it('keeps a director who also leads a group as one row per team', async () => {
+    mockLideres = [
+      ...LIDERES,
+      { personaId: personaId('d1'), equipoId: 'seg-1', rol: 'lider', desde: '2026-03-01T00:00:00.000Z' },
+    ]
+    const { filas } = await renderizar()
+    expect(filas.filter((f) => f.personaId === 'd1').map((f) => [f.clave, f.rolLabel])).toEqual([
+      ['gdv:d1:dir-etapa-1', 'Director de etapa'],
+      ['gdv:d1:seg-1', 'Líder de grupo'],
+    ])
+  })
+
+  it('falls back like a leader when the node of the director is not visible', async () => {
+    mockNodosGdv = []
+    const { filas } = await renderizar()
+    expect(filas[0]).toMatchObject({ nombre: 'Diego Etapa', equipoLabel: 'Equipo no encontrado', equipoRuta: '', direccionId: 'dir-etapa-1' })
+  })
+
+  it('hands the island only serializable data, a missing start date included', async () => {
+    expect(esSerializable(await renderizar())).toBe(true)
   })
 })
 
