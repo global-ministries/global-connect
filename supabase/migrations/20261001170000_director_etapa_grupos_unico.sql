@@ -1,5 +1,8 @@
 -- director_etapa_grupos: one link per (director, group), and retire an unsafe RPC.
 --
+-- 0. Lock. SHARE ROW EXCLUSIVE blocks concurrent writes (reads stay allowed) for the rest
+--    of the transaction, so no insert can recreate a duplicate between the dedupe and
+--    ADD CONSTRAINT.
 -- 1. Dedupe. Idempotent clean-up of duplicate (director_etapa_id, grupo_id) pairs,
 --    keeping the lowest id. It is a no-op in production (188 rows) and staging
 --    (207 rows) today, but keeps fresh or drifted environments from failing step 2.
@@ -15,6 +18,8 @@
 --   ALTER TABLE public.director_etapa_grupos DROP CONSTRAINT director_etapa_grupos_director_grupo_key;
 --   (Deleted duplicates cannot be restored; there are none in production or staging.
 --    The dropped function is NOT recommended to be recreated: see 20251006151500.)
+
+LOCK TABLE public.director_etapa_grupos IN SHARE ROW EXCLUSIVE MODE;
 
 DELETE FROM public.director_etapa_grupos d
  WHERE d.id IN (

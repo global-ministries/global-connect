@@ -61,16 +61,8 @@ describe('idsDirectorConPareja', () => {
 })
 
 /** Minimal chainable client for director_etapa_grupos. */
-function clienteEnlaces(existentes: Array<{ director_etapa_id: string; grupo_id: string }>) {
-  const insert = jest.fn(async () => ({ error: null }))
-  const filtros: Array<[string, unknown]> = []
-  const consulta: Record<string, unknown> = {}
-  consulta.select = jest.fn(() => consulta)
-  consulta.in = jest.fn((col: string, valores: unknown) => {
-    filtros.push([col, valores])
-    return consulta
-  })
-  consulta.then = (resolve: (v: unknown) => unknown) => Promise.resolve({ data: existentes, error: null }).then(resolve)
+function clienteEnlaces() {
+  const upsert = jest.fn(async (..._args: unknown[]) => ({ error: null as { code?: string; message: string } | null }))
   const deletes: Array<[string, unknown]> = []
   const borrado: Record<string, unknown> = {}
   borrado.in = jest.fn((col: string, valores: unknown) => {
@@ -79,79 +71,65 @@ function clienteEnlaces(existentes: Array<{ director_etapa_id: string; grupo_id:
   })
   borrado.then = (resolve: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(resolve)
   return {
-    insert,
+    upsert,
     deletes,
-    filtros,
     client: {
-      from: jest.fn(() => ({ ...consulta, insert, delete: () => borrado })),
+      from: jest.fn(() => ({ upsert, delete: () => borrado })),
     },
   }
 }
 
 describe('asegurarEnlacesDirectorGrupo', () => {
-  it('inserts only the links that do not exist yet', async () => {
-    const db = clienteEnlaces([{ director_etapa_id: directorId, grupo_id: 'g1' }])
+  it('writes every director x group link in ONE atomic upsert that ignores duplicates', async () => {
+    const db = clienteEnlaces()
 
     const error = await asegurarEnlacesDirectorGrupo(db.client as never, [directorId, conyugeId], ['g1', 'g2'])
 
     expect(error).toBeNull()
-    expect(db.insert).toHaveBeenCalledWith([
-      { director_etapa_id: directorId, grupo_id: 'g2' },
-      { director_etapa_id: conyugeId, grupo_id: 'g1' },
-      { director_etapa_id: conyugeId, grupo_id: 'g2' },
-    ])
+    expect(db.upsert).toHaveBeenCalledTimes(1)
+    expect(db.upsert).toHaveBeenCalledWith(
+      [
+        { director_etapa_id: directorId, grupo_id: 'g1' },
+        { director_etapa_id: directorId, grupo_id: 'g2' },
+        { director_etapa_id: conyugeId, grupo_id: 'g1' },
+        { director_etapa_id: conyugeId, grupo_id: 'g2' },
+      ],
+      { onConflict: 'director_etapa_id,grupo_id', ignoreDuplicates: true },
+    )
   })
 
-  it('does not insert anything when every link exists', async () => {
-    const db = clienteEnlaces([{ director_etapa_id: directorId, grupo_id: 'g1' }])
+  it('writes a couple in a single call, never row by row', async () => {
+    const db = clienteEnlaces()
 
-    await asegurarEnlacesDirectorGrupo(db.client as never, [directorId], ['g1'])
+    await asegurarEnlacesDirectorGrupo(db.client as never, [directorId, conyugeId], ['g1'])
 
-    expect(db.insert).not.toHaveBeenCalled()
+    expect(db.upsert).toHaveBeenCalledTimes(1)
+    expect((db.upsert.mock.calls[0][0] as unknown[]).length).toBe(2)
   })
 
-  it('treats a unique violation (23505) as success and keeps the rows that were not created', async () => {
-    const db = clienteEnlaces([])
-    db.insert
-      .mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key' } } as never)
-      .mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key' } } as never)
-      .mockResolvedValueOnce({ error: null } as never)
-
-    const error = await asegurarEnlacesDirectorGrupo(db.client as never, [directorId, conyugeId], ['g1'])
-
-    expect(error).toBeNull()
-    expect(db.insert).toHaveBeenCalledTimes(3)
-    expect(db.insert).toHaveBeenNthCalledWith(2, { director_etapa_id: directorId, grupo_id: 'g1' })
-    expect(db.insert).toHaveBeenNthCalledWith(3, { director_etapa_id: conyugeId, grupo_id: 'g1' })
-  })
-
-  it('returns any other insert error', async () => {
-    const db = clienteEnlaces([])
+  it('returns the upsert error as-is, without retrying', async () => {
+    const db = clienteEnlaces()
     const fallo = { code: '42501', message: 'permission denied' }
-    db.insert.mockResolvedValueOnce({ error: fallo } as never)
+    db.upsert.mockResolvedValueOnce({ error: fallo })
 
     const error = await asegurarEnlacesDirectorGrupo(db.client as never, [directorId], ['g1'])
 
     expect(error).toBe(fallo)
-    expect(db.insert).toHaveBeenCalledTimes(1)
+    expect(db.upsert).toHaveBeenCalledTimes(1)
   })
 
-  it('returns a non-unique error raised while retrying row by row', async () => {
-    const db = clienteEnlaces([])
-    const fallo = { code: '23503', message: 'foreign key' }
-    db.insert
-      .mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key' } } as never)
-      .mockResolvedValueOnce({ error: fallo } as never)
+  it('does nothing when there are no directors or no groups', async () => {
+    const db = clienteEnlaces()
 
-    const error = await asegurarEnlacesDirectorGrupo(db.client as never, [directorId, conyugeId], ['g1'])
-
-    expect(error).toBe(fallo)
+    await expect(asegurarEnlacesDirectorGrupo(db.client as never, [], ['g1'])).resolves.toBeNull()
+    await expect(asegurarEnlacesDirectorGrupo(db.client as never, [directorId], [])).resolves.toBeNull()
+    expect(db.upsert).not.toHaveBeenCalled()
   })
 })
 
 describe('quitarEnlacesDirectorGrupo', () => {
   it('deletes the links of the director and the spouse', async () => {
-    const db = clienteEnlaces([])
+    const db = clienteEnlaces()
 
     const error = await quitarEnlacesDirectorGrupo(db.client as never, [directorId, conyugeId], ['g1'])
 

@@ -89,7 +89,8 @@ $$;
 -- Fixtures ---------------------------------------------------------------------
 INSERT INTO public.temporadas (id, nombre, fecha_inicio, fecha_fin, activa, estado) VALUES
   ('e6000000-0000-4000-8000-0000000000c1', 'ZZ Du ORI', current_date - 400, current_date - 200, false, 'finalizada'),
-  ('e6000000-0000-4000-8000-0000000000c2', 'ZZ Du DST', current_date + 200, current_date + 400, false, 'planificacion');
+  ('e6000000-0000-4000-8000-0000000000c2', 'ZZ Du DST', current_date + 200, current_date + 400, false, 'planificacion'),
+  ('e6000000-0000-4000-8000-0000000000c3', 'ZZ Du ACT', current_date - 10, current_date + 100, true, 'activa');
 
 INSERT INTO public.segmentos (id, nombre) VALUES
   ('e6000000-0000-4000-8000-0000000000a1', 'ZZ Du S1');
@@ -115,6 +116,7 @@ INSERT INTO public.segmento_lideres (id, segmento_id, usuario_id, tipo_lider) VA
 INSERT INTO public.relaciones_usuarios (id, usuario1_id, usuario2_id, tipo_relacion, es_principal) VALUES
   ('e6000000-0000-4000-8000-0000000000e1', 'e6000000-0000-4000-8000-000000000002', 'e6000000-0000-4000-8000-000000000003', 'conyuge', true);
 
+-- The couple case uses its own active season (c3), never the database's existing one.
 -- Two plain groups in the destination season for the direct constraint cases.
 INSERT INTO public.grupos (id, nombre, temporada_id, segmento_id, activo, estado_ciclo, estado_aprobacion) VALUES
   ('e6000000-0000-4000-8000-0000000000d1', 'ZZ Du g1', 'e6000000-0000-4000-8000-0000000000c2', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente'),
@@ -155,6 +157,14 @@ SELECT pg_temp.assert_eq('on conflict: no duplicate row was created',
   $q$SELECT count(*)::text FROM public.director_etapa_grupos
       WHERE grupo_id = 'e6000000-0000-4000-8000-0000000000d1' AND director_etapa_id = 'e6000000-0000-4000-8000-0000000000b1'$q$, '1');
 
+SELECT pg_temp.assert_eq('on conflict: a batch with one existing pair inserts the new ones (all or nothing, no error)',
+  $q$SELECT pg_temp.outcome($i$WITH i AS (
+         INSERT INTO public.director_etapa_grupos (grupo_id, director_etapa_id)
+         VALUES ('e6000000-0000-4000-8000-0000000000d1', 'e6000000-0000-4000-8000-0000000000b1'),
+                ('e6000000-0000-4000-8000-0000000000d2', 'e6000000-0000-4000-8000-0000000000b2')
+         ON CONFLICT (director_etapa_id, grupo_id) DO NOTHING RETURNING 1)
+       SELECT count(*)::text FROM i$i$)$q$, '1');
+
 -- 3. The unsafe RPC is gone.
 SELECT pg_temp.assert_eq('rpc: asignar_director_etapa_a_grupo no longer exists',
   $q$SELECT coalesce(to_regprocedure('public.asignar_director_etapa_a_grupo(uuid,uuid,uuid,text)')::text, 'NULL')$q$, 'NULL');
@@ -165,7 +175,7 @@ SELECT pg_temp.assert_eq('rpc: no function with that name remains under any sign
 -- 4. Couples through crear_grupo_con_director.
 SELECT pg_temp.as_user(pg_temp.a('ADM'));
 SELECT pg_temp.assert_eq('couple: crear_grupo_con_director links both spouses',
-  $q$SELECT (public.crear_grupo_con_director('ZZ Du pareja', (SELECT id FROM public.temporadas WHERE activa LIMIT 1),
+  $q$SELECT (public.crear_grupo_con_director('ZZ Du pareja', 'e6000000-0000-4000-8000-0000000000c3',
        'e6000000-0000-4000-8000-0000000000a1', 'e6000000-0000-4000-8000-0000000000b1') IS NOT NULL)::text$q$, 'true');
 SELECT pg_temp.assert_eq('couple: both spouses are linked once each',
   $q$SELECT pg_temp.links_of('ZZ Du pareja')$q$, '2:b1,b2');

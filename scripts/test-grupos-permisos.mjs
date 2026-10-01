@@ -260,7 +260,7 @@ async function runTests() {
 
   // Admin asigna director A a G3 (insert directo)
   const { error: assignG3Error } = await admin.from('director_etapa_grupos').insert({ director_etapa_id: state.directorSegmentoIds.DirectorA, grupo_id: state.grupos['G3'].id });
-  record('Admin asigna A->G3', !assignG3Error, assignG3Error?.message || 'ok');
+  record('Preparación: vincular A->G3 (admin directo)', !assignG3Error, assignG3Error?.message || 'ok');
 
   // Re-verificación DirectorA ahora debería ver 3
   const directorAGroups2 = await callObtenerGrupos(directorAAuth, 'directorA post G3');
@@ -272,7 +272,7 @@ async function runTests() {
 
   // Admin quita A de G1 (delete directo)
   const { error: removeG1Error } = await admin.from('director_etapa_grupos').delete().eq('director_etapa_id', state.directorSegmentoIds.DirectorA).eq('grupo_id', state.grupos['G1'].id);
-  record('Admin quita A de G1', !removeG1Error, removeG1Error?.message || 'ok');
+  record('Preparación: desvincular A de G1 (admin directo)', !removeG1Error, removeG1Error?.message || 'ok');
   const directorAGroups3 = await callObtenerGrupos(directorAAuth, 'directorA post quitar G1');
   if (directorAGroups3) {
     const filtered = directorAGroups3.filter(g=> g.nombre && g.nombre.startsWith(state.config.grupoPrefix));
