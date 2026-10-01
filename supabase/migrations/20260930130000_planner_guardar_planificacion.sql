@@ -165,11 +165,15 @@ BEGIN
     END IF;
     v_texto := nullif(v_grupo->>'hora_reunion', '');
     IF v_texto IS NOT NULL THEN
-      -- Mismo criterio que el cast ::time anterior (acepta '7:30', '19:30:00.000'...).
+      -- Acepta 'H:MM', 'HH:MM', 'HH:MM:SS' y fracciones ('7:30', '19:30:00.000'). La forma se
+      -- valida antes del cast para rechazar literales especiales como 'now' o 'allballs'.
+      IF v_texto !~ '^[0-9]{1,2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?$' THEN
+        RAISE EXCEPTION 'El grupo con clave % tiene una hora_reunion inválida', v_clave USING ERRCODE = '22023';
+      END IF;
       BEGIN
         PERFORM v_texto::time;
       EXCEPTION
-        WHEN invalid_datetime_format OR datetime_field_overflow THEN
+        WHEN data_exception THEN
           RAISE EXCEPTION 'El grupo con clave % tiene una hora_reunion inválida', v_clave USING ERRCODE = '22023';
       END;
     END IF;
@@ -217,6 +221,16 @@ BEGIN
       END IF;
     END LOOP;
   END LOOP;
+
+  -- El prefijo '~' está reservado para los nombres temporales del renombrado en dos fases:
+  -- rechazarlo hace que el nombre temporal nunca pueda chocar con un nombre real enviado.
+  SELECT btrim(g->>'nombre') INTO v_nombre
+  FROM jsonb_array_elements(p_grupos) g
+  WHERE btrim(g->>'nombre') LIKE '~%'
+  LIMIT 1;
+  IF v_nombre IS NOT NULL THEN
+    RAISE EXCEPTION 'El nombre de grupo "%" no puede empezar con "~"', v_nombre USING ERRCODE = '22023';
+  END IF;
 
   -- Nombres duplicados dentro del envío.
   SELECT min(btrim(g->>'nombre')) INTO v_nombre

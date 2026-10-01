@@ -340,7 +340,8 @@ SELECT pg_temp.assert_eq('nombres: intercambio de nombres entre dos grupos exist
             'director_etapa_id', 'e5000000-0000-4000-8000-000000000004', 'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text))
        ~ '"actualizados": 2')::text$q$, 'true');
 SELECT pg_temp.assert_eq('nombres: tras el intercambio no quedan nombres temporales',
-  $q$SELECT count(*)::text FROM public.grupos WHERE nombre LIKE '~%'$q$, '0');
+  $q$SELECT count(*)::text FROM public.grupos
+     WHERE temporada_id = 'e5000000-0000-4000-8000-0000000000c2' AND nombre LIKE '~%'$q$, '0');
 SELECT pg_temp.assert_eq('nombres: re-guardar un grupo con su nombre sin cambios conserva el real',
   $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
        (SELECT jsonb_build_array(jsonb_build_object('id', id, 'clave', 'u1', 'nombre', 'ZZ Pg rl1',
@@ -418,6 +419,12 @@ SELECT pg_temp.assert_eq('formato: hora 19:30:00.000 se acepta',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h2","hora_reunion":"19:30:00.000"}')) ~ '"insertados": 1'$q$, 'true');
 SELECT pg_temp.assert_eq('formato: hora 25:00 se rechaza',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h3","hora_reunion":"25:00"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('hora: el literal especial now se rechaza',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h4","hora_reunion":"now"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('hora: el literal especial allballs se rechaza',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h5","hora_reunion":"allballs"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('nombres: un nombre que empieza con ~ se rechaza',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"~abc123456789"}'))$q$, 'ERR:22023');
 SELECT pg_temp.assert_eq('formato: miembro escalar se rechaza',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg m1","miembros":[5]}'))$q$, 'ERR:22023');
 SELECT pg_temp.assert_eq('formato: miembro arreglo se rechaza',
