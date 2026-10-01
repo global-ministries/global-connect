@@ -50,6 +50,13 @@ export interface PersonaEntrada {
   readonly origen: 'dream_team' | 'grupos_vida'
   readonly servicioId?: string
   readonly version?: number
+  /**
+   * The phone on the person's profile and whether they have an account, from
+   * dream_team_contactos_personas (scoped to what the caller may see). Absent
+   * (or null) when the lookup did not answer for them: neither is shown.
+   */
+  readonly telefono?: string | null
+  readonly tieneCuenta?: boolean | null
 }
 
 export interface PersonaVista {
@@ -68,6 +75,10 @@ export interface PersonaVista {
   readonly origen: 'dream_team' | 'grupos_vida'
   /** True when the row can be acted on (its estado changed) from this screen. */
   readonly editable: boolean
+  /** Profile phone, or null when none / not visible to the caller. */
+  readonly telefono: string | null
+  /** false = known to have no account; null = unknown (not visible to the caller). */
+  readonly tieneCuenta: boolean | null
 }
 
 export interface ResponsableVista {
@@ -167,6 +178,8 @@ function aVista(entrada: PersonaEntrada, equipoId: string, equipoLabel: string):
     estado: entrada.estado,
     origen: entrada.origen,
     editable: entrada.origen === 'dream_team',
+    telefono: entrada.telefono ?? null,
+    tieneCuenta: entrada.tieneCuenta ?? null,
   }
 }
 

@@ -315,6 +315,73 @@ describe('por_activar filter', () => {
   })
 })
 
+// The phone and the "has an account" state come from dream_team_contactos_personas
+// (scoped to what the caller may see): a person it did not answer for has neither.
+describe('contact data on people rows', () => {
+  const raiz: NodoArbol<NodoEquipoArbol> = {
+    equipo: { origen: 'dream_team', id: 'dir-x', label: 'Dirección X', experiencia: 'talleres_crecimiento', activo: true, responsables: [] },
+    hijos: [],
+    nivel: 0,
+  }
+  const entrada = (
+    clave: string,
+    nombre: string,
+    origen: PersonaEntrada['origen'],
+    rolClave: string,
+    contacto: Partial<Pick<PersonaEntrada, 'telefono' | 'tieneCuenta'>> = {},
+  ): PersonaEntrada => ({
+    clave,
+    personaId: personaId(`persona-${clave}`),
+    nombre,
+    rolClave,
+    rolLabel: rolClave,
+    estado: 'activo',
+    origen,
+    ...(origen === 'dream_team' ? { servicioId: `servicio-${clave}`, version: 1 } : {}),
+    ...contacto,
+  })
+  const personas: PersonasPorEquipo = {
+    'dir-x': [
+      entrada('s', 'Sara Servidora', 'dream_team', 'director', { telefono: '04125457346', tieneCuenta: true }),
+      entrada('l', 'Lia Lider', 'grupos_vida', 'lider', { telefono: '04245551111', tieneCuenta: false }),
+      entrada('e', 'Edu Etapa', 'grupos_vida', 'director_etapa', { telefono: null, tieneCuenta: true }),
+      entrada('n', 'Nora Sinficha', 'dream_team', 'facilitador'),
+    ],
+  }
+  const vista = () => {
+    const resultado = vistaDeDireccion([raiz], personas, 'dir-x')
+    if (!resultado) throw new Error('dir-x must resolve')
+    return resultado
+  }
+  const fila = (nombre: string) => {
+    const encontrada = vista().personas.find((p) => p.nombre === nombre)
+    if (!encontrada) throw new Error(`${nombre} must be listed`)
+    return encontrada
+  }
+
+  it('carries the phone and the account state of a servicio person', () => {
+    expect(fila('Sara Servidora')).toMatchObject({ telefono: '04125457346', tieneCuenta: true })
+  })
+
+  it('carries them for a Grupos de Vida leader, who may have no account', () => {
+    expect(fila('Lia Lider')).toMatchObject({ telefono: '04245551111', tieneCuenta: false })
+  })
+
+  it('carries them for a director, with a known account and no phone', () => {
+    expect(fila('Edu Etapa')).toMatchObject({ telefono: null, tieneCuenta: true })
+  })
+
+  it('gives null and null to a person the contacts lookup did not answer for', () => {
+    expect(fila('Nora Sinficha')).toMatchObject({ telefono: null, tieneCuenta: null })
+  })
+
+  it('keeps contacts through ordering, search and the estado filter', () => {
+    const buscadas = filtrarPersonas(vista().personas, { query: 'lia' })
+    expect(buscadas).toHaveLength(1)
+    expect(buscadas[0]).toMatchObject({ telefono: '04245551111', tieneCuenta: false })
+  })
+})
+
 describe('equiposAsignables', () => {
   it('lists the real equipos of the direccion branch, root first, indented by depth', () => {
     expect(equiposAsignables(arbolConexion, ID_CONEXION)).toEqual([

@@ -24,14 +24,14 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   isDreamTeamEnabled,
   requireDreamTeamSession,
-  hasDreamTeamReadCapability,
+  hasDreamTeamMiEquipoAccess,
   hasDreamTeamWriteCapability,
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
-import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import { fetchContactosPersonas, fetchNombresPersonas, type ContactoPersona } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import {
   equiposAsignables as listarEquiposAsignables,
@@ -53,10 +53,14 @@ interface MiEquipoPageProps {
 export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPageProps) {
   if (!isDreamTeamEnabled()) notFound()
 
-  const session = await requireDreamTeamSession()
+  // Roles are asked for here only: a Grupos de Vida director (system role, no
+  // Dream Team capability) opens this page too — read-only, since the edit flag
+  // below still comes from the write capability — and sees just what the
+  // database hands them (see hasDreamTeamMiEquipoAccess).
+  const session = await requireDreamTeamSession({ includeRoles: true })
   if (!session) redirect('/login')
 
-  if (!hasDreamTeamReadCapability(session)) notFound()
+  if (!hasDreamTeamMiEquipoAccess(session)) notFound()
 
   const supabase = await createSupabaseServerClient()
   const repo = createSupabaseDreamTeamRepository(supabase)
@@ -66,9 +70,11 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   // a parentEquipoId that resolves to nothing in this list — construirArbol()
   // already treats that as a visible root instead of an invisible orphan
   // (see its docstring), which is exactly the "no ve a su padre" case.
-  // fetchEstructuraGdv() applies its own tree-authority check server-side — a
-  // director without reach into the Grupos de Vida node gets zero rows back,
-  // so the virtual branch just doesn't appear.
+  // fetchEstructuraGdv() applies its own scope server-side: everything for a
+  // Dream Team authority over the Grupos de Vida node, the director's own
+  // nodes for a Grupos de Vida director, nothing for anybody else. A director
+  // gets no real equipos at all, so their tree is the virtual branch alone and
+  // its topmost visible node — their segmento — is the root (same rule).
   const equipos = await repo.listEquipos()
 
   // listServicios({}) once (RLS-scoped to the same branch) and group locally
@@ -91,10 +97,26 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
 
   // usuarios is not a dream-team table, so persona names are resolved here
   // with a single bulk lookup over servicio persona ids PLUS GdV leader ids.
-  const personaNombrePorId = await fetchNombresPersonas(supabase, [
+  const personaIds = [
     ...servicios.map((servicio) => servicio.personaId),
     ...lideresGdv.map((lider) => lider.personaId),
-  ])
+  ]
+  const personaNombrePorId = await fetchNombresPersonas(supabase, personaIds)
+
+  // Phone (the one on the profile) and account state, in ONE scoped RPC for
+  // everybody listed: `usuarios` has its own RLS that hides other people's rows,
+  // while dream_team_contactos_personas answers only for people the caller may
+  // see. A persona missing from the map is "not visible to you" — shown without
+  // phone or account mark, never as "sin cuenta". Contacts are a convenience on
+  // top of the list: if the lookup fails the page still renders without them,
+  // and the failure is logged so a persistent outage does not pass for "nobody
+  // is visible".
+  const contactoPorId: ReadonlyMap<string, ContactoPersona> = await fetchContactosPersonas(supabase, personaIds).catch(
+    (error: unknown) => {
+      console.error('[dream-team/mi-equipo] contacts lookup failed', error)
+      return new Map<string, ContactoPersona>()
+    },
+  )
 
   const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv))
   const equipoIdsVisibles = new Set([...equipos.map((equipo) => equipo.id), ...nodosGdv.map((nodo) => nodo.nodoId)])
@@ -116,6 +138,8 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       origen: 'dream_team',
       servicioId: servicio.id,
       version: servicio.version,
+      telefono: contactoPorId.get(servicio.personaId)?.telefono ?? null,
+      tieneCuenta: contactoPorId.get(servicio.personaId)?.tieneCuenta ?? null,
     })
   }
   // A leader of two groups is two rows (one per group), hence the equipo in the key.
@@ -128,6 +152,8 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       rolLabel: ROL_LIDER_GDV_LABELS[lider.rol],
       estado: 'activo',
       origen: 'grupos_vida',
+      telefono: contactoPorId.get(lider.personaId)?.telefono ?? null,
+      tieneCuenta: contactoPorId.get(lider.personaId)?.tieneCuenta ?? null,
     })
   }
 

@@ -56,6 +56,17 @@ function hasCapability(session: PlatformSession, key: string) {
   }).ok
 }
 
+// The system roles of a Grupos de Vida director. They are NOT Dream Team capabilities and never
+// become one (no grant rows, no triggers): a director opens ONLY "Mi equipo", read-only, and what
+// they see there is scoped by the database itself (dream_team_lideres_gdv / dream_team_estructura_gdv
+// answer with the director's own groups, people and segments, see
+// supabase/migrations/20261001190000_dream_team_acceso_directores.sql). Servidores, Estructura and
+// every Dream Team API keep gating on capabilities exactly as before.
+const GDV_DIRECTOR_ROLES: readonly string[] = ['director-general', 'director-etapa']
+
+export const isGdvDirectorSession = (session: PlatformSession) =>
+  session.globalRoles.some((role) => GDV_DIRECTOR_ROLES.includes(role))
+
 // dream_team.direct also gates read: an area director needs to see their own equipo's servicios
 // and metrics, and — same reasoning as write below — the actual row-level scoping to their node
 // is enforced downstream (RLS / repository queries), not here.
@@ -66,6 +77,12 @@ export const hasDreamTeamReadCapability = (session: PlatformSession) =>
 export const hasDreamTeamWriteCapability = (session: PlatformSession) =>
   WRITE_CAPABILITIES.some((key) => hasCapability(session, key)) ||
   hasScopedCapabilityAnywhere(session, 'dream_team.direct')
+
+// "Mi equipo" only: everyone who passes the capability read gate, plus a Grupos de Vida director
+// by system role. Never use this for Servidores, Estructura or an API: those stay on
+// hasDreamTeamReadCapability.
+export const hasDreamTeamMiEquipoAccess = (session: PlatformSession) =>
+  hasDreamTeamReadCapability(session) || isGdvDirectorSession(session)
 
 export const hasDreamTeamMetricsCapability = (session: PlatformSession) =>
   hasCapability(session, 'dream_team.metrics.read')

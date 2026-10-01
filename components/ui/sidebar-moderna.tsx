@@ -24,8 +24,6 @@ import {
   House,
   ShieldAlert,
   ClipboardList,
-  HeartHandshake,
-  Network,
   UserCog
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
@@ -37,7 +35,7 @@ import { ThemeToggle } from './theme-toggle'
 import { useBranding } from '@/hooks/useBranding'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
 import { canAccess } from '@/lib/navigation/canAccess'
-import { getDreamTeamNavItems, isDreamTeamEnabledClient } from '@/lib/platform/dream-team/navigation'
+import { insertDreamTeamMenuItem, useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 
 interface SidebarModernaProps {
   className?: string
@@ -131,14 +129,6 @@ const footerItems: MenuItem[] = [
   },
 ]
 
-// Icons for the Dream Team children (see lib/platform/dream-team/navigation.ts
-// for the id/label/href list itself — this sidebar owns the icon choice).
-const DREAM_TEAM_CHILD_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  'dt-mi-equipo': Users,
-  'dt-servidores': UserCheck,
-  'dt-estructura': Network,
-}
-
 // ─── Active indicator pill ───
 function ActivePill() {
   return (
@@ -172,43 +162,17 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
   const branding = useBranding()
 
-  // Dream Team — see lib/platform/dream-team/navigation.ts for why the flag
-  // must be read as this literal `process.env.NEXT_PUBLIC_*` expression
-  // instead of through isDreamTeamEnabled() (server-only-safe, but always
-  // false in the browser bundle). getDreamTeamNavItems() applies the same
-  // hasDreamTeamReadCapability() gate the three Dream Team pages use, so the
-  // entry appears exactly for sessions that can open at least one of them.
-  const dreamTeamEnabled = isDreamTeamEnabledClient()
-  const dreamTeamNavItems = useMemo(
-    () => getDreamTeamNavItems(platformSession, dreamTeamEnabled),
-    [platformSession, dreamTeamEnabled]
-  )
-  const dreamTeamMenuItem: MenuItem | null = useMemo(() => {
-    if (dreamTeamNavItems.length === 0) return null
-    return {
-      id: 'dream-team',
-      label: 'Dream Team',
-      icon: HeartHandshake,
-      href: dreamTeamNavItems[0].href,
-      children: dreamTeamNavItems.map((item) => ({
-        id: item.id,
-        label: item.label,
-        href: item.href,
-        icon: DREAM_TEAM_CHILD_ICONS[item.id],
-      })),
-    }
-  }, [dreamTeamNavItems])
+  // Dream Team — the section (entries, icons, flag handling and the rule of who
+  // sees which) is shared with the mobile drawer, see
+  // components/ui/dream-team-menu-item.ts and lib/platform/dream-team/navigation.ts.
+  const dreamTeamMenuItem: MenuItem | null = useDreamTeamMenuItem(platformSession)
 
   // Inserted right after 'grupos-vida' (before the platform navigation
   // items), the same slot it occupies in the design.
-  const primaryMenuItems = useMemo(() => {
-    const items = [...menuItems]
-    if (dreamTeamMenuItem) {
-      const gruposVidaIndex = items.findIndex((item) => item.id === 'grupos-vida')
-      items.splice(gruposVidaIndex + 1, 0, dreamTeamMenuItem)
-    }
-    return [...items, ...platformNavigationItems]
-  }, [dreamTeamMenuItem, platformNavigationItems])
+  const primaryMenuItems = useMemo(
+    () => [...insertDreamTeamMenuItem<MenuItem>(menuItems, dreamTeamMenuItem), ...platformNavigationItems],
+    [dreamTeamMenuItem, platformNavigationItems]
+  )
 
 
   // ─── Tooltip hover handlers (collapsed mode) ───

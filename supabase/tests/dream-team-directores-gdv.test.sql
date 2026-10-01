@@ -19,7 +19,8 @@
 --   6. dream_team_resolver_nombres and dream_team_contactos_personas return a
 --      person who is ONLY a director (name, phone, tiene_cuenta), and nothing
 --      to a caller without authority.
---   7. A caller without any Dream Team authority gets zero rows.
+--   7. A caller with neither Dream Team authority nor a director role gets zero
+--      rows; a director without authority reads only their own scope.
 --   8. anon cannot execute; authenticated and service_role can.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK — nothing here is kept. Fixtures
@@ -385,14 +386,20 @@ SELECT pg_temp.assert_eq('member without capability: no contact for a director-o
         'f1000000-0000-4000-8000-000000000031']::uuid[])$q$,
   '0');
 -- DE1 is a director de etapa with an account but holds no Dream Team capability.
+-- Since 20261001190000_dream_team_acceso_directores.sql a director reads their OWN
+-- scope (see supabase/tests/dream-team-acceso-directores.test.sql for the full
+-- matrix); this suite only pins that the scope is not wider than that.
 SELECT pg_temp.as_persona('f1000000-0000-4000-8000-000000000022');
-SELECT pg_temp.assert_eq('director de etapa DE1 (no capability): zero rows',
-  $q$SELECT count(*) FROM public.dream_team_lideres_gdv()$q$,
-  '0');
+SELECT pg_temp.assert_eq('director de etapa DE1 (no capability): reads only his own director row',
+  $q$SELECT count(*) FILTER (WHERE persona_id = 'f1000000-0000-4000-8000-000000000023' AND rol = 'director_etapa')
+          || '/' || count(*) FROM public.dream_team_lideres_gdv()$q$,
+  '1/1');
 SELECT pg_temp.as_persona('f1000000-0000-4000-8000-000000000020');
-SELECT pg_temp.assert_eq('director general DG1 (no capability): zero rows',
-  $q$SELECT count(*) FROM public.dream_team_lideres_gdv()$q$,
-  '0');
+SELECT pg_temp.assert_eq('director general DG1 (no capability): reads his two segments, himself and their five directors',
+  $q$SELECT count(*) FILTER (WHERE rol = 'director_general' AND persona_id = 'f1000000-0000-4000-8000-000000000021')
+          || '/' || count(*) FILTER (WHERE rol = 'director_etapa')
+          || '/' || count(*) FROM public.dream_team_lideres_gdv()$q$,
+  '2/5/7');
 RESET ROLE;
 
 -- 8. Shape and privileges ---------------------------------------------------

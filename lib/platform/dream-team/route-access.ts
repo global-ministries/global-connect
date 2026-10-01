@@ -1,5 +1,9 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { findPlatformSessionPersonaByAuthId, resolveReadOnlyPlatformSession } from '@/lib/auth/platformSessionReadOnly'
+import {
+  findPlatformSessionPersonaByAuthId,
+  normalizeLegacyRoles,
+  resolveReadOnlyPlatformSession,
+} from '@/lib/auth/platformSessionReadOnly'
 import { getDreamTeamFlags } from '@/lib/platform/flags'
 
 // The capability gates below moved to capabilities.ts — they touch nothing
@@ -11,15 +15,34 @@ export {
   hasDreamTeamWriteCapability,
   hasDreamTeamMetricsCapability,
   hasDreamTeamOrgManageCapability,
+  hasDreamTeamMiEquipoAccess,
+  isGdvDirectorSession,
 } from './capabilities'
 
 export const isDreamTeamEnabled = (env: NodeJS.ProcessEnv = process.env) =>
   getDreamTeamFlags(env).enabled || env.NEXT_PUBLIC_DREAM_TEAM_ENABLED === 'on'
 
-export async function requireDreamTeamSession() {
+/**
+ * The server session of the caller, with their Dream Team capabilities.
+ *
+ * `globalRoles` stays EMPTY unless `includeRoles` is passed: the roles cost one
+ * extra RPC and only /dream-team/mi-equipo needs them (a Grupos de Vida director
+ * opens it by system role, see hasDreamTeamMiEquipoAccess). Every other caller
+ * is gated on capabilities alone and keeps its session and its round trips as
+ * they were. A failed role lookup yields no roles (the director rule then simply
+ * does not apply), never an error.
+ */
+export async function requireDreamTeamSession({ includeRoles = false }: { includeRoles?: boolean } = {}) {
   const supabase = await createSupabaseServerClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) return null
+
+  let globalRoles: string[] | undefined
+  if (includeRoles) {
+    const { data: roles, error: rolesError } = await supabase.rpc('obtener_roles_usuario', { p_auth_id: user.id })
+    globalRoles = rolesError ? [] : normalizeLegacyRoles(roles)
+  }
+
   return resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
@@ -29,5 +52,6 @@ export async function requireDreamTeamSession() {
     // no permissions". Every Dream Team gate denied regardless of what the
     // database held.
     capabilitySupabase: supabase,
+    globalRoles,
   })
 }

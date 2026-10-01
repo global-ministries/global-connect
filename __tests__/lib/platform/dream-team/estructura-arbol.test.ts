@@ -369,3 +369,57 @@ describe('tallerPorEquipoId', () => {
     expect(tallerPorEquipoId([])).toEqual({})
   })
 })
+
+// A Grupos de Vida director gets NO real equipos from RLS (no Dream Team
+// capability) and only their own virtual nodes from dream_team_estructura_gdv():
+// the `direccion` root row (so the tree has a root), their segmento(s), their
+// equipo de dirección and their groups. The `direccion` row is not a node (it
+// only decorates the real equipo it names, which the viewer cannot read), so the
+// topmost node they can read — the segmento — becomes the root of what they see.
+describe('construirNodosArbol / construirArbol for a viewer who reads only the Grupos de Vida branch', () => {
+  const nodos: NodoEstructuraGdv[] = [
+    nodoGdv({ nodoId: 'gdv-raiz', tipo: 'direccion', label: 'Dirección de Grupos de Vida' }),
+    nodoGdv({ nodoId: 'seg-m', tipo: 'segmento', label: 'Matrimonios', parentId: 'gdv-raiz' }),
+    nodoGdv({ nodoId: 'team-1', tipo: 'directores', label: 'Diego Etapa', parentId: 'seg-m' }),
+    nodoGdv({ nodoId: 'grupo-1', tipo: 'grupo', label: 'Grupo Norte', parentId: 'team-1' }),
+    nodoGdv({ nodoId: 'grupo-sin-director', tipo: 'grupo', label: 'Grupo Huérfano', parentId: 'seg-m' }),
+  ]
+
+  it('keeps every visible virtual node and drops the direccion row (it names a real equipo nobody can read)', () => {
+    const merged = construirNodosArbol([], nodos)
+    expect(merged.map((n) => n.id)).toEqual(['seg-m', 'team-1', 'grupo-1', 'grupo-sin-director'])
+    expect(merged.every((n) => n.origen === 'grupos_vida')).toBe(true)
+  })
+
+  it('roots the tree at the segmento, then the equipo de dirección, then its groups', () => {
+    const arbol = construirArbol(construirNodosArbol([], nodos))
+    expect(arbol).toHaveLength(1)
+    expect(arbol[0].equipo).toMatchObject({ id: 'seg-m', label: 'Matrimonios', origen: 'grupos_vida', tipo: 'segmento' })
+    expect(arbol[0].nivel).toBe(0)
+    expect(arbol[0].hijos.map((h) => h.equipo.id)).toEqual(['team-1', 'grupo-sin-director'])
+    expect(arbol[0].hijos.find((h) => h.equipo.id === 'team-1')?.hijos.map((h) => h.equipo.id)).toEqual(['grupo-1'])
+  })
+
+  it('roots each of several segmentos separately for a director general', () => {
+    const arbol = construirArbol(
+      construirNodosArbol(
+        [],
+        [
+          nodoGdv({ nodoId: 'gdv-raiz', tipo: 'direccion' }),
+          nodoGdv({ nodoId: 'seg-m', tipo: 'segmento', label: 'Matrimonios', parentId: 'gdv-raiz' }),
+          nodoGdv({ nodoId: 'seg-h', tipo: 'segmento', label: 'Hombres', parentId: 'gdv-raiz' }),
+        ],
+      ),
+    )
+    expect(arbol.map((raiz) => raiz.equipo.label)).toEqual(['Hombres', 'Matrimonios'])
+  })
+
+  it('starts the segmento and the equipo de dirección collapsed, like for everyone else', () => {
+    const colapsados = idsColapsadosPorDefecto(construirArbol(construirNodosArbol([], nodos)))
+    expect([...colapsados].sort()).toEqual(['seg-m', 'team-1'])
+  })
+
+  it('builds an empty tree for a director with no assignments (no nodes at all)', () => {
+    expect(construirArbol(construirNodosArbol([], []))).toEqual([])
+  })
+})

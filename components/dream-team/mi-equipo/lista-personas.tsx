@@ -4,8 +4,11 @@
  * Mi equipo — the people of the selected team: a header with the team name,
  * the estado filter pills (with counters that follow the search) and one
  * `TarjetaSistema p-0` holding a `divide-y` list of rows (avatar with
- * initials, name, team, rol badge, estado badge and, with write access, the
- * per-person actions menu).
+ * initials, name — with a "Sin cuenta" mark when the person is known to have no
+ * account —, team, the profile phone as Servidores shows it, rol badge, estado
+ * badge and, with write access, the per-person actions menu). Phone and account
+ * come from dream_team_contactos_personas, so a person outside the caller's
+ * scope simply has neither.
  *
  * Each row is one grid: on phones the badges sit under the name and the menu
  * button spans both lines; from `md` they become columns.
@@ -13,7 +16,14 @@
 import type { ReactElement } from 'react'
 
 import { BadgeSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
-import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, ORIGEN_GRUPOS_VIDA_LABEL, rolBadgeVariante } from '@/components/dream-team/labels'
+import {
+  ESTADO_BADGE_VARIANTE,
+  ESTADO_LABELS,
+  ORIGEN_GRUPOS_VIDA_LABEL,
+  SIN_CUENTA_LABEL,
+  rolBadgeVariante,
+} from '@/components/dream-team/labels'
+import { TelefonoServidor } from '@/components/dream-team/servidores/telefono-servidor'
 import { cn } from '@/lib/utils'
 import { MenuPersona } from './menu-persona'
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado } from '@/lib/platform/dream-team/types'
@@ -150,8 +160,17 @@ function FilaPersona({
               {ORIGEN_GRUPOS_VIDA_LABEL}
             </BadgeSistema>
           )}
+          {persona.tieneCuenta === false && (
+            <BadgeSistema variante="warning" tamaño="sm" className="shrink-0">
+              {SIN_CUENTA_LABEL}
+            </BadgeSistema>
+          )}
         </div>
         <p className="hidden truncate text-sm text-muted-foreground md:block">{persona.equipoLabel}</p>
+        {/* [overflow-wrap:anywhere] lets a long stored phone break instead of pushing the row wider on phones. */}
+        <div className="min-w-0 [overflow-wrap:anywhere]">
+          <TelefonoServidor telefono={persona.telefono} />
+        </div>
       </div>
       <div className="col-start-2 flex flex-wrap items-center gap-2 md:contents">
         <span className="md:block">

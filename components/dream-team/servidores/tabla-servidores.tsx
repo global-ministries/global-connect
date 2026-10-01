@@ -10,7 +10,13 @@ import type { ReactElement } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
 import { BadgeSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { ESTADO_BADGE_VARIANTE, ESTADO_LABELS, ORIGEN_GRUPOS_VIDA_LABEL, rolBadgeVariante } from '@/components/dream-team/labels'
+import {
+  ESTADO_BADGE_VARIANTE,
+  ESTADO_LABELS,
+  ORIGEN_GRUPOS_VIDA_LABEL,
+  SIN_CUENTA_LABEL,
+  rolBadgeVariante,
+} from '@/components/dream-team/labels'
 import { cn } from '@/lib/utils'
 import { inicialesDe } from '@/lib/platform/dream-team/mi-equipo-vista'
 import {
@@ -54,7 +60,7 @@ export function MarcasDeFila({ fila }: { readonly fila: FilaVista }): ReactEleme
   if (fila.tieneCuenta === false) {
     marcas.push(
       <BadgeSistema key="sin-cuenta" variante="warning" tamaño="sm">
-        Sin cuenta
+        {SIN_CUENTA_LABEL}
       </BadgeSistema>,
     )
   }
