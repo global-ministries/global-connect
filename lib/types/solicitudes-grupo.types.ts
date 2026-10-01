@@ -41,6 +41,8 @@ export interface SolicitudPendiente {
   lider_apellido: string | null;
   director_nombre: string | null;
   director_apellido: string | null;
+  /** Todos los directores del grupo ("Ana Pérez y Luis Gómez"); un matrimonio cuenta como uno. */
+  directores_nombres?: string | null;
 }
 
 /** Resultado de crear solicitud via RPC */
@@ -108,4 +110,6 @@ export interface MiSolicitud {
   lider_apellido: string | null;
   director_nombre: string | null;
   director_apellido: string | null;
+  /** Todos los directores del grupo ("Ana Pérez y Luis Gómez"); un matrimonio cuenta como uno. */
+  directores_nombres?: string | null;
 }

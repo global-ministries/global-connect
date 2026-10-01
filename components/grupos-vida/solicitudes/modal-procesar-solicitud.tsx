@@ -190,7 +190,7 @@ export function ModalProcesarSolicitud({
                             <div className="rounded-xl bg-muted/50 p-3">
                                 <TextoSistema variante="muted" tamaño="sm">Director de Etapa</TextoSistema>
                                 <TextoSistema className="font-medium">
-                                    {`${solicitud.director_nombre ?? ""} ${solicitud.director_apellido ?? ""}`.trim()}
+                                    {solicitud.directores_nombres || `${solicitud.director_nombre ?? ""} ${solicitud.director_apellido ?? ""}`.trim()}
                                 </TextoSistema>
                             </div>
                         )}

@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getUserWithRoles } from '@/lib/getUserWithRoles';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import {
+  asegurarEnlacesDirectorGrupo,
+  idsDirectorConPareja,
+  quitarEnlacesDirectorGrupo,
+} from '@/lib/platform/grupos-vida/directores-pareja';
 
 const ROLES_SUPERIORES = ['admin', 'pastor', 'director-general'];
 
@@ -98,6 +103,13 @@ export async function POST(req: Request, context: { params: Promise<{ segmentoId
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
+    // Mismo criterio que grupos-asignables: superiores sobre cualquier director del segmento;
+    // un director-etapa solo sobre su propio registro; el resto no puede.
+    const roles = userWithRoles.roles || [];
+    const esSuperior = roles.some((rol: string) => ROLES_SUPERIORES.includes(rol));
+    const esDE = roles.includes('director-etapa');
+    if (!esSuperior && !esDE) return NextResponse.json({ error: 'Permiso denegado', rolesActuales: roles }, { status: 403 });
+
     let payload: any;
     try { payload = await req.json(); } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }
     const { director_etapa_segmento_lider_id, grupo_id, accion } = payload || {};
@@ -108,31 +120,51 @@ export async function POST(req: Request, context: { params: Promise<{ segmentoId
       return NextResponse.json({ error: 'accion debe ser agregar|quitar' }, { status: 400 });
     }
 
-    // Intentar RPC oficial
-    let rpcError: any = null;
-    const { error: rpcErr } = await supabase.rpc('asignar_director_etapa_a_grupo' as any, {
-      p_auth_id: user.id,
-      p_grupo_id: grupo_id,
-      p_segmento_lider_id: director_etapa_segmento_lider_id,
-      p_accion: accion
-    });
-    rpcError = rpcErr;
-    if (rpcError && /(could not find|does not exist)/i.test(rpcError.message)) {
-      // Fallback directo
-      if (accion === 'agregar') {
-        const { error: insErr } = await supabase.from('director_etapa_grupos').insert({ director_etapa_id: director_etapa_segmento_lider_id, grupo_id });
-        if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 });
-      } else if (accion === 'quitar') {
-        const { error: delErr } = await supabase.from('director_etapa_grupos').delete().eq('director_etapa_id', director_etapa_segmento_lider_id).eq('grupo_id', grupo_id);
-        if (delErr) return NextResponse.json({ error: delErr.message }, { status: 400 });
+    // La tabla director_etapa_grupos tiene RLS sin políticas: todo se lee y escribe con admin,
+    // y solo DESPUÉS de validar rol, director y grupo.
+    const supabaseAdmin = createSupabaseAdminClient();
+
+    const { data: dirRow, error: dirErr } = await supabaseAdmin
+      .from('segmento_lideres')
+      .select('id, segmento_id, tipo_lider, usuario_id')
+      .eq('id', director_etapa_segmento_lider_id)
+      .maybeSingle();
+    if (dirErr) return NextResponse.json({ error: dirErr.message }, { status: 400 });
+    if (!dirRow) return NextResponse.json({ error: 'Director no encontrado' }, { status: 404 });
+    if (dirRow.segmento_id !== segmentoId) return NextResponse.json({ error: 'No pertenece al segmento' }, { status: 403 });
+    if (dirRow.tipo_lider !== 'director_etapa') return NextResponse.json({ error: 'Registro no es director_etapa' }, { status: 400 });
+
+    if (esDE && !esSuperior) {
+      const { data: usuarioData } = await supabaseAdmin
+        .from('usuarios')
+        .select('id')
+        .eq('auth_id', userWithRoles.user.id)
+        .maybeSingle();
+      if (usuarioData?.id !== dirRow.usuario_id) {
+        return NextResponse.json({ error: 'Solo puedes modificar tus propias asignaciones' }, { status: 403 });
       }
-      rpcError = null; // considerado resuelto por fallback
-    } else if (rpcError) {
-      return NextResponse.json({ error: rpcError.message }, { status: 400 });
     }
 
+    const { data: grupoRow, error: grupoErr } = await supabaseAdmin
+      .from('grupos')
+      .select('id')
+      .eq('id', grupo_id)
+      .eq('segmento_id', segmentoId)
+      .eq('eliminado', false)
+      .maybeSingle();
+    if (grupoErr) return NextResponse.json({ error: grupoErr.message }, { status: 400 });
+    if (!grupoRow) return NextResponse.json({ error: 'Grupo fuera del segmento' }, { status: 400 });
+
+    // Un matrimonio de directores de etapa es UN director: la acción aplica a ambos cónyuges.
+    // (La RPC asignar_director_etapa_a_grupo no existe en producción y confiaba en p_auth_id.)
+    const directorIds = await idsDirectorConPareja(supabaseAdmin, director_etapa_segmento_lider_id);
+    const writeErr = accion === 'agregar'
+      ? await asegurarEnlacesDirectorGrupo(supabaseAdmin, directorIds, [grupo_id])
+      : await quitarEnlacesDirectorGrupo(supabaseAdmin, directorIds, [grupo_id]);
+    if (writeErr) return NextResponse.json({ error: writeErr.message }, { status: 400 });
+
     // Listar asignaciones actuales de ese director (para refrescar UI)
-    const { data: asignaciones, error: listErr } = await supabase
+    const { data: asignaciones, error: listErr } = await supabaseAdmin
       .from('director_etapa_grupos')
       .select('id, grupo_id')
       .eq('director_etapa_id', director_etapa_segmento_lider_id)

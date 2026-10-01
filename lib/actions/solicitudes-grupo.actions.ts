@@ -3,6 +3,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { directoresDeAsignaciones, unirNombresDirectores } from "@/lib/platform/grupos-vida/directores-nombres"
+import { idsDirectorConPareja } from "@/lib/platform/grupos-vida/directores-pareja"
 import type { SolicitudPendiente, SolicitudCompletada, CrearSolicitudRpcResultado, ProcesarSolicitudRpcResultado, MovimientoHistorial, MiSolicitud } from "@/lib/types/solicitudes-grupo.types"
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -254,11 +256,10 @@ export async function listarSolicitudesPendientes(): Promise<
       sol.lider_nombre = liderUsuario?.nombre ?? null;
       sol.lider_apellido = liderUsuario?.apellido ?? null;
 
-      const dirAsignacion = detalle?.director_etapa_grupos?.[0];
-      const dirSegLider = dirAsignacion?.segmento_lideres ? extraerRelacion<{ usuario: { nombre: string; apellido: string } | null }>(dirAsignacion.segmento_lideres) : null;
-      const dirUsuario = dirSegLider?.usuario ? extraerRelacion<{ nombre: string; apellido: string }>(dirSegLider.usuario) : null;
-      sol.director_nombre = dirUsuario?.nombre ?? null;
-      sol.director_apellido = dirUsuario?.apellido ?? null;
+      const directores = directoresDeAsignaciones(detalle?.director_etapa_grupos);
+      sol.director_nombre = directores[0]?.nombre ?? null;
+      sol.director_apellido = directores[0]?.apellido ?? null;
+      sol.directores_nombres = unirNombresDirectores(directores) || null;
     }
   } else {
     // Sin grupo_ids, llenar valores nulos
@@ -268,6 +269,7 @@ export async function listarSolicitudesPendientes(): Promise<
       sol.lider_apellido = null;
       sol.director_nombre = null;
       sol.director_apellido = null;
+      sol.directores_nombres = null;
     }
   }
 
@@ -367,9 +369,7 @@ export async function listarSolicitudesCompletadas(): Promise<
     const campusData = detalle?.campus ? extraerRelacion<{ nombre: string }>(detalle.campus) : null;
     const liderMiembro = detalle?.grupo_miembros?.find(m => m.rol === "Líder");
     const liderUsuario = liderMiembro?.usuario ? extraerRelacion<{ nombre: string; apellido: string }>(liderMiembro.usuario) : null;
-    const dirAsignacion = detalle?.director_etapa_grupos?.[0];
-    const dirSegLider = dirAsignacion?.segmento_lideres ? extraerRelacion<{ usuario: { nombre: string; apellido: string } | null }>(dirAsignacion.segmento_lideres) : null;
-    const dirUsuario = dirSegLider?.usuario ? extraerRelacion<{ nombre: string; apellido: string }>(dirSegLider.usuario) : null;
+    const directores = directoresDeAsignaciones(detalle?.director_etapa_grupos);
 
     return {
       id: sol.id,
@@ -400,8 +400,9 @@ export async function listarSolicitudesCompletadas(): Promise<
       campus_nombre: campusData?.nombre ?? null,
       lider_nombre: liderUsuario?.nombre ?? null,
       lider_apellido: liderUsuario?.apellido ?? null,
-      director_nombre: dirUsuario?.nombre ?? null,
-      director_apellido: dirUsuario?.apellido ?? null,
+      director_nombre: directores[0]?.nombre ?? null,
+      director_apellido: directores[0]?.apellido ?? null,
+      directores_nombres: unirNombresDirectores(directores) || null,
     };
   });
 
@@ -627,9 +628,7 @@ export async function obtenerMisSolicitudes(): Promise<Res<MiSolicitud[]>> {
     const liderUsuario = liderMiembro?.usuario ? extraerRelacion<{ nombre: string; apellido: string }>(liderMiembro.usuario) : null;
     
     // Encontrar director de etapa
-    const directorAsignacion = detalle?.director_etapa_grupos?.[0];
-    const directorSegLider = directorAsignacion?.segmento_lideres ? extraerRelacion<{ usuario: { nombre: string; apellido: string } | null }>(directorAsignacion.segmento_lideres) : null;
-    const directorUsuario = directorSegLider?.usuario ? extraerRelacion<{ nombre: string; apellido: string }>(directorSegLider.usuario) : null;
+    const directores = directoresDeAsignaciones(detalle?.director_etapa_grupos);
 
     return {
       id: sol.id,
@@ -650,8 +649,9 @@ export async function obtenerMisSolicitudes(): Promise<Res<MiSolicitud[]>> {
       campus_nombre: campusData?.nombre ?? null,
       lider_nombre: liderUsuario?.nombre ?? null,
       lider_apellido: liderUsuario?.apellido ?? null,
-      director_nombre: directorUsuario?.nombre ?? null,
-      director_apellido: directorUsuario?.apellido ?? null,
+      director_nombre: directores[0]?.nombre ?? null,
+      director_apellido: directores[0]?.apellido ?? null,
+      directores_nombres: unirNombresDirectores(directores) || null,
     };
   });
 
@@ -800,6 +800,12 @@ export async function editarGrupoPendiente(input: {
 
   // Actualizar director de etapa
   if (input.director_etapa_segmento_lider_id !== undefined) {
+    // Un matrimonio de directores es uno solo. Se resuelve ANTES de borrar: si la búsqueda del
+    // cónyuge falla, el grupo conserva sus vínculos actuales.
+    const directorIds = input.director_etapa_segmento_lider_id
+      ? await idsDirectorConPareja(adminDb, input.director_etapa_segmento_lider_id)
+      : [];
+
     // Eliminar asignación actual
     await adminDb
       .from("director_etapa_grupos")
@@ -807,13 +813,10 @@ export async function editarGrupoPendiente(input: {
       .eq("grupo_id", grupoId);
 
     // Asignar nuevo director (si se proporcionó)
-    if (input.director_etapa_segmento_lider_id) {
+    if (directorIds.length > 0) {
       await adminDb
         .from("director_etapa_grupos")
-        .insert({
-          grupo_id: grupoId,
-          director_etapa_id: input.director_etapa_segmento_lider_id,
-        });
+        .insert(directorIds.map((directorId) => ({ grupo_id: grupoId, director_etapa_id: directorId })));
     }
   }
 
