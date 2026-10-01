@@ -145,6 +145,9 @@ INSERT INTO public.segmento_lideres (id, segmento_id, usuario_id, tipo_lider) VA
 -- Grupos (todos en S1; los planificados 'proximo', inactivos, 'pendiente').
 INSERT INTO public.grupos (id, nombre, temporada_id, segmento_id, activo, estado_ciclo, estado_aprobacion) VALUES
   ('e6000000-0000-4000-8000-0000000000d11', 'ZZ Pt grupo ACT', 'e6000000-0000-4000-8000-0000000000c1', 'e6000000-0000-4000-8000-0000000000a1', true,  'activo',  'aprobado'),
+  ('e6000000-0000-4000-8000-0000000000d12', 'ZZ Pt ACT proximo', 'e6000000-0000-4000-8000-0000000000c1', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'aprobado'),
+  ('e6000000-0000-4000-8000-0000000000d13', 'ZZ Pt ACT cancelado', 'e6000000-0000-4000-8000-0000000000c1', 'e6000000-0000-4000-8000-0000000000a1', false, 'cancelado', 'aprobado'),
+  ('e6000000-0000-4000-8000-0000000000d14', 'ZZ Pt ACT eliminado', 'e6000000-0000-4000-8000-0000000000c1', 'e6000000-0000-4000-8000-0000000000a1', true, 'activo', 'aprobado'),
   ('e6000000-0000-4000-8000-0000000000d41', 'ZZ Pt sin lider', 'e6000000-0000-4000-8000-0000000000c4', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente'),
   ('e6000000-0000-4000-8000-0000000000d51', 'ZZ Pt sin director', 'e6000000-0000-4000-8000-0000000000c5', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente'),
   ('e6000000-0000-4000-8000-0000000000d61', 'ZZ Pt dup A', 'e6000000-0000-4000-8000-0000000000c6', 'e6000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente'),
@@ -165,6 +168,8 @@ INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol, estado, fecha_asig
   ('e6000000-0000-4000-8000-0000000000d81', 'e6000000-0000-4000-8000-000000000017', 'Líder',   'activo', current_date),
   ('e6000000-0000-4000-8000-0000000000d82', 'e6000000-0000-4000-8000-000000000018', 'Líder',   'activo', current_date),
   ('e6000000-0000-4000-8000-0000000000d91', 'e6000000-0000-4000-8000-000000000019', 'Líder',   'activo', current_date);
+
+UPDATE public.grupos SET eliminado = true WHERE id = 'e6000000-0000-4000-8000-0000000000d14';
 
 -- Vínculos de director: todos hacia b1 (S1), salvo d51 (sin vínculo) y d71 (b3 = director de S2).
 INSERT INTO public.director_etapa_grupos (grupo_id, director_etapa_id) VALUES
@@ -261,6 +266,8 @@ SELECT pg_temp.assert_eq('publicar sin activar: la temporada sigue en planificac
   $q$SELECT (SELECT estado || activa::text FROM public.temporadas WHERE id = 'e6000000-0000-4000-8000-0000000000c8')
        || ':' || (SELECT estado || activa::text FROM public.temporadas WHERE id = 'e6000000-0000-4000-8000-0000000000c1')$q$,
   'planificacionfalse:activatrue');
+SELECT pg_temp.assert_eq('publicar sin activar: no toca los grupos de la temporada activa',
+  $q$SELECT estado_ciclo || activo::text FROM public.grupos WHERE id = 'e6000000-0000-4000-8000-0000000000d11'$q$, 'activotrue');
 SELECT pg_temp.assert_eq('idempotencia: republicar no vuelve a aprobar',
   $q$SELECT (r::jsonb)->>'publicados' || '/' || ((r::jsonb)->>'ya_aprobados')
        FROM (SELECT pg_temp.pub('e6000000-0000-4000-8000-0000000000c8') AS r) x$q$, '0/2');
@@ -270,7 +277,7 @@ SELECT pg_temp.as_user(pg_temp.a('ADM'));
 SELECT pg_temp.assert_eq('activar: OK1 reemplaza a la temporada activa anterior',
   $q$SELECT (r::jsonb)->>'activada' || '/' || ((r::jsonb)->>'grupos_activados') || '/' || ((r::jsonb)->>'grupos_archivados')
          || '/' || (((r::jsonb)->>'temporada_anterior_id') = 'e6000000-0000-4000-8000-0000000000c1')::text
-       FROM (SELECT pg_temp.pub('e6000000-0000-4000-8000-0000000000c8', true) AS r) x$q$, 'true/2/0/true');
+       FROM (SELECT pg_temp.pub('e6000000-0000-4000-8000-0000000000c8', true) AS r) x$q$, 'true/2/2/true');
 SELECT pg_temp.assert_eq('activar: exactamente una temporada activa (OK1)',
   $q$SELECT count(*)::text || ':' || coalesce(string_agg(id::text, ','), '')
        FROM public.temporadas WHERE (activa OR estado = 'activa') AND nombre LIKE 'ZZ Pt%'$q$,
@@ -281,9 +288,15 @@ SELECT pg_temp.assert_eq('activar: grupos nuevos activo / activo=true / aprobado
   $q$SELECT count(*)::text FROM public.grupos
       WHERE temporada_id = 'e6000000-0000-4000-8000-0000000000c8'
         AND estado_ciclo = 'activo' AND activo = true AND estado_aprobacion = 'aprobado'$q$, '2');
-SELECT pg_temp.assert_eq('activar: los grupos de la temporada anterior no se tocan',
-  $q$SELECT estado_ciclo || activo::text || estado_aprobacion FROM public.grupos
-      WHERE id = 'e6000000-0000-4000-8000-0000000000d11'$q$, 'activotrueaprobado');
+SELECT pg_temp.assert_eq('activar: los grupos vigentes de la temporada anterior quedan archivado/inactivos',
+  $q$SELECT string_agg(estado_ciclo || activo::text, ',' ORDER BY id) FROM public.grupos
+      WHERE id IN ('e6000000-0000-4000-8000-0000000000d11', 'e6000000-0000-4000-8000-0000000000d12')$q$, 'archivadofalse,archivadofalse');
+SELECT pg_temp.assert_eq('activar: grupos cancelado y eliminado de la anterior quedan intactos',
+  $q$SELECT string_agg(estado_ciclo || activo::text || eliminado::text, ',' ORDER BY id) FROM public.grupos
+      WHERE id IN ('e6000000-0000-4000-8000-0000000000d13', 'e6000000-0000-4000-8000-0000000000d14')$q$, 'canceladofalsefalse,activotruetrue');
+SELECT pg_temp.assert_eq('activar: miembros y vínculos de director de la anterior intactos',
+  $q$SELECT (SELECT count(*) FROM public.grupo_miembros WHERE grupo_id = 'e6000000-0000-4000-8000-0000000000d11' AND estado = 'activo')::text
+       || ':' || (SELECT count(*) FROM public.director_etapa_grupos WHERE grupo_id = 'e6000000-0000-4000-8000-0000000000d11')::text$q$, '1:1');
 SELECT pg_temp.assert_eq('activar: reactivar la ya activa se rechaza',
   $q$SELECT pg_temp.pub('e6000000-0000-4000-8000-0000000000c8', true)$q$, 'ERR:22023');
 
@@ -297,9 +310,9 @@ SELECT pg_temp.assert_eq('activar: sigue habiendo exactamente una temporada acti
   $q$SELECT count(*)::text || ':' || coalesce(string_agg(id::text, ','), '')
        FROM public.temporadas WHERE (activa OR estado = 'activa') AND nombre LIKE 'ZZ Pt%'$q$,
   '1:e6000000-0000-4000-8000-0000000000c9');
-SELECT pg_temp.assert_eq('activar: OK1 quedó finalizada y sus grupos siguen activos (sin cierre definido en main)',
+SELECT pg_temp.assert_eq('activar: OK1 quedó finalizada y sus 2 grupos archivados',
   $q$SELECT (SELECT estado || activa::text FROM public.temporadas WHERE id = 'e6000000-0000-4000-8000-0000000000c8')
-       || ':' || (SELECT count(*) FROM public.grupos WHERE temporada_id = 'e6000000-0000-4000-8000-0000000000c8' AND activo AND estado_ciclo = 'activo')::text$q$,
+       || ':' || (SELECT count(*) FROM public.grupos WHERE temporada_id = 'e6000000-0000-4000-8000-0000000000c8' AND NOT activo AND estado_ciclo = 'archivado')::text$q$,
   'finalizadafalse:2');
 
 SELECT pg_temp.as_user(pg_temp.a('DG'));

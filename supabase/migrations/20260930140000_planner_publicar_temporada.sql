@@ -24,8 +24,12 @@
 --   * Activar: las demás temporadas activas pasan a activa = false, estado = 'finalizada'; esta
 --     pasa a activa = true, estado = 'activa'; sus grupos vigentes quedan estado_ciclo = 'activo',
 --     activo = true. Al final se verifica que haya exactamente una temporada activa.
---   * Los grupos de las temporadas anteriores NO se tocan: main no define ningún cierre de grupos
---     (su estado 'pasado' se deriva de las fechas de la temporada). 'grupos_archivados' es siempre 0.
+--   * DECISIÓN DEL USUARIO (refleja el precedente del backfill 20260312_003): al activar, los grupos
+--     de las temporadas cerradas (no eliminados, no cancelados, con activo = true o estado_ciclo
+--     'activo'/'proximo') pasan a activo = false, estado_ciclo = 'archivado'. No se tocan los
+--     eliminados ni cancelados, ni grupo_miembros, director_etapa_grupos ni casas (historial intacto).
+--     'grupos_archivados' devuelve la cantidad real. Publicar sin activar nunca toca grupos de otras
+--     temporadas y deja los de esta en 'proximo' / inactivos.
 
 CREATE OR REPLACE FUNCTION public.planner_publicar_temporada(
   p_temporada_id uuid,
@@ -48,6 +52,7 @@ DECLARE
   v_publicados integer := 0;
   v_ya_aprobados integer := 0;
   v_activados integer := 0;
+  v_archivados integer := 0;
   v_anteriores uuid[] := '{}';
   v_anterior_id uuid;
   v_activas integer;
@@ -218,7 +223,7 @@ BEGIN
   GET DIAGNOSTICS v_publicados = ROW_COUNT;
 
   IF p_activar THEN
-    -- Cierra las demás temporadas activas (sus grupos no se tocan; ver cabecera).
+    -- Cierra las demás temporadas activas y archiva sus grupos (ver cabecera).
     SELECT coalesce(array_agg(x.id ORDER BY x.fecha_fin DESC NULLS LAST, x.id), '{}')
     INTO v_anteriores
     FROM (
@@ -236,6 +241,27 @@ BEGIN
       SET activa = false,
           estado = 'finalizada'
       WHERE t.id = ANY (v_anteriores);
+
+      UPDATE public.grupos g
+      SET activo = false,
+          estado_ciclo = 'archivado',
+          updated_at = now()
+      WHERE g.temporada_id = ANY (v_anteriores)
+        AND g.eliminado = false
+        AND g.estado_ciclo <> 'cancelado'
+        AND (g.activo IS TRUE OR g.estado_ciclo IN ('activo', 'proximo'));
+      GET DIAGNOSTICS v_archivados = ROW_COUNT;
+
+      IF EXISTS (
+        SELECT 1 FROM public.grupos g
+        WHERE g.temporada_id = ANY (v_anteriores)
+          AND g.eliminado = false
+          AND g.activo IS TRUE
+          AND g.estado_ciclo = 'activo'
+      ) THEN
+        RAISE EXCEPTION 'No se pudo activar la temporada: quedaron grupos activos en temporadas cerradas'
+          USING ERRCODE = '55000';
+      END IF;
     END IF;
 
     UPDATE public.temporadas t
@@ -270,7 +296,7 @@ BEGIN
     'activada', p_activar,
     'temporada_anterior_id', v_anterior_id,
     'grupos_activados', v_activados,
-    'grupos_archivados', 0
+    'grupos_archivados', v_archivados
   );
 END;
 $function$;
