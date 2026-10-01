@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, type FormEvent } from "react"
 import { Plus, Users, Mail, Phone, UserCheckIcon as UserEdit, Search, CheckSquare, Square } from "lucide-react"
 import Link from "next/link"
 import { useUsuariosConPermisos } from '@/hooks/use-usuarios-con-permisos'
@@ -90,6 +90,22 @@ export default function PaginaUsuarios() {
   const puedeCrear = useMemo(() => rolesActual.some(r => ['admin', 'pastor', 'director-general', 'director-etapa'].includes(r)), [rolesActual])
   const [mostrarMetricasAdicionales, setMostrarMetricasAdicionales] = useState(false)
 
+  // Search: typing only edits the draft; the search runs on confirm (Enter or the "Buscar" button).
+  const [busquedaBorrador, setBusquedaBorrador] = useState(filtros.busqueda)
+  // The draft follows the applied value when it changes from outside (e.g. clearing filters).
+  useEffect(() => {
+    setBusquedaBorrador(filtros.busqueda)
+  }, [filtros.busqueda])
+
+  const confirmarBusqueda = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const busqueda = busquedaBorrador.trim()
+    setBusquedaBorrador(busqueda)
+    if (busqueda !== filtros.busqueda) {
+      actualizarFiltros({ busqueda })
+    }
+  }
+
   // Selección de usuarios
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const toggleSeleccion = (id: string) => {
@@ -146,6 +162,7 @@ export default function PaginaUsuarios() {
   }
 
   const limpiarFiltros = () => {
+    setBusquedaBorrador('')
     limpiarFiltrosHook()
   }
 
@@ -330,13 +347,21 @@ export default function PaginaUsuarios() {
 
           {/* Buscador Simple */}
           <div className="space-y-3">
-            <InputSistema
-              type="text"
-              placeholder="Buscar por nombre, email, cédula..."
-              value={filtros.busqueda}
-              onChange={(e) => actualizarFiltros({ busqueda: e.target.value })}
-              icono={Search}
-            />
+            <form onSubmit={confirmarBusqueda} className="flex gap-2">
+              <div className="flex-1 min-w-0">
+                <InputSistema
+                  type="text"
+                  aria-label="Buscar usuarios"
+                  placeholder="Buscar por nombre, email, cédula..."
+                  value={busquedaBorrador}
+                  onChange={(e) => setBusquedaBorrador(e.target.value)}
+                  icono={Search}
+                />
+              </div>
+              <BotonSistema type="submit" className="shrink-0">
+                Buscar
+              </BotonSistema>
+            </form>
 
             <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
               {/* Filtros avanzados */}
