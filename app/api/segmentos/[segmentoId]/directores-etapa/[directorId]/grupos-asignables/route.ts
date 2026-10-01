@@ -3,6 +3,11 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
 import { normalizarNombre } from '@/lib/normalizarNombre'
+import {
+  asegurarEnlacesDirectorGrupo,
+  idsDirectorConPareja,
+  quitarEnlacesDirectorGrupo,
+} from '@/lib/platform/grupos-vida/directores-pareja'
 
 // GET: lista grupos del segmento con flag asignado a director específico
 export async function GET(req: Request, ctx: { params: Promise<{ segmentoId: string; directorId: string }> | { segmentoId: string; directorId: string } }) {
@@ -238,14 +243,18 @@ export async function POST(req: Request, ctx: { params: Promise<{ segmentoId: st
   const quitar: string[] = Array.isArray(body.quitar) ? [...new Set((body.quitar as any[]).filter((x: any) => typeof x === 'string'))] as string[] : []
     const modo: 'merge'|'replace' = body.modo === 'replace' ? 'replace' : 'merge'
 
-    // Obtener asignaciones actuales
+    // Un matrimonio de directores de etapa es UN director: los cambios aplican a ambos cónyuges
+    const directorIds = await idsDirectorConPareja(supabaseAdmin, directorId)
+
+    // Obtener asignaciones actuales (del director y, si hay pareja, de su cónyuge)
     const { data: asignAct, error: asignActErr } = await supabaseAdmin
       .from('director_etapa_grupos')
-      .select('grupo_id')
-      .eq('director_etapa_id', directorId)
-      .limit(1000)
+      .select('director_etapa_id, grupo_id')
+      .in('director_etapa_id', directorIds)
+      .limit(2000)
     if (asignActErr) return NextResponse.json({ error: asignActErr.message }, { status: 400 })
-    const actualesSet = new Set((asignAct||[]).map(a => a.grupo_id))
+    const actualesSet = new Set((asignAct||[]).filter(a => a.director_etapa_id === directorId).map(a => a.grupo_id))
+    const actualesPareja = new Set((asignAct||[]).map(a => a.grupo_id))
 
     // Validar grupos pertenecen al segmento
     const todosReferenciados = [...new Set([...agregar, ...quitar])]
@@ -263,31 +272,25 @@ export async function POST(req: Request, ctx: { params: Promise<{ segmentoId: st
 
     let agregarFinal: string[] = []
     let quitarFinal: string[] = []
+    let quitarPareja: string[] = []
     if (modo === 'replace') {
       const targetSet = new Set(agregar)
       agregarFinal = agregar.filter(id => !actualesSet.has(id))
       quitarFinal = [...actualesSet].filter(id => !targetSet.has(id))
+      quitarPareja = [...actualesPareja].filter(id => !targetSet.has(id))
     } else {
       agregarFinal = agregar.filter(id => !actualesSet.has(id))
       quitarFinal = quitar.filter(id => actualesSet.has(id))
+      quitarPareja = quitar
     }
 
-    let agregados = 0, quitados = 0
-    if (agregarFinal.length) {
-      const rows = agregarFinal.map(gid => ({ director_etapa_id: directorId, grupo_id: gid }))
-      const { error: insErr } = await supabaseAdmin.from('director_etapa_grupos').insert(rows)
-      if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 })
-      agregados = agregarFinal.length
-    }
-    if (quitarFinal.length) {
-      const { error: delErr } = await supabaseAdmin
-        .from('director_etapa_grupos')
-        .delete()
-        .eq('director_etapa_id', directorId)
-        .in('grupo_id', quitarFinal)
-      if (delErr) return NextResponse.json({ error: delErr.message }, { status: 400 })
-      quitados = quitarFinal.length
-    }
+    // Los enlaces se aseguran para todos los grupos pedidos: el cónyuge pudo quedar sin alguno
+    const insErr = await asegurarEnlacesDirectorGrupo(supabaseAdmin, directorIds, agregar)
+    if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 })
+    const delErr = await quitarEnlacesDirectorGrupo(supabaseAdmin, directorIds, quitarPareja)
+    if (delErr) return NextResponse.json({ error: delErr.message }, { status: 400 })
+    const agregados = agregarFinal.length
+    const quitados = quitarFinal.length
 
     const { count: totalAsignados } = await supabaseAdmin
       .from('director_etapa_grupos')
