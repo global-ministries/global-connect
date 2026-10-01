@@ -387,4 +387,14 @@ describe('editarGrupoPendiente (director link)', () => {
     expect(e.tablas.director_etapa_grupos).toEqual([])
     expect(e.rpcAdmin).not.toHaveBeenCalled()
   })
+
+  it('keeps the current links when the spouse lookup fails (nothing is deleted)', async () => {
+    const e = escenario({ conyuge: conyugeId, enlaces: [{ director_etapa_id: 'otro', grupo_id: g1 }] })
+    e.rpcAdmin.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'permission denied' } } as never)
+
+    await expect(editar()).rejects.toBeTruthy()
+
+    expect(enlaces(e.tablas, 'otro')).toEqual([g1])
+    expect(e.escrituras.filter((w) => w.tabla === 'director_etapa_grupos')).toEqual([])
+  })
 })

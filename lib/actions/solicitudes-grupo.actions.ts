@@ -800,15 +800,20 @@ export async function editarGrupoPendiente(input: {
 
   // Actualizar director de etapa
   if (input.director_etapa_segmento_lider_id !== undefined) {
+    // Un matrimonio de directores es uno solo. Se resuelve ANTES de borrar: si la búsqueda del
+    // cónyuge falla, el grupo conserva sus vínculos actuales.
+    const directorIds = input.director_etapa_segmento_lider_id
+      ? await idsDirectorConPareja(adminDb, input.director_etapa_segmento_lider_id)
+      : [];
+
     // Eliminar asignación actual
     await adminDb
       .from("director_etapa_grupos")
       .delete()
       .eq("grupo_id", grupoId);
 
-    // Asignar nuevo director (si se proporcionó); un matrimonio de directores es uno solo
-    if (input.director_etapa_segmento_lider_id) {
-      const directorIds = await idsDirectorConPareja(adminDb, input.director_etapa_segmento_lider_id);
+    // Asignar nuevo director (si se proporcionó)
+    if (directorIds.length > 0) {
       await adminDb
         .from("director_etapa_grupos")
         .insert(directorIds.map((directorId) => ({ grupo_id: grupoId, director_etapa_id: directorId })));
