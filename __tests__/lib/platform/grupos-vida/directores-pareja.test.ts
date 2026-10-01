@@ -109,6 +109,44 @@ describe('asegurarEnlacesDirectorGrupo', () => {
 
     expect(db.insert).not.toHaveBeenCalled()
   })
+
+  it('treats a unique violation (23505) as success and keeps the rows that were not created', async () => {
+    const db = clienteEnlaces([])
+    db.insert
+      .mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key' } } as never)
+      .mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key' } } as never)
+      .mockResolvedValueOnce({ error: null } as never)
+
+    const error = await asegurarEnlacesDirectorGrupo(db.client as never, [directorId, conyugeId], ['g1'])
+
+    expect(error).toBeNull()
+    expect(db.insert).toHaveBeenCalledTimes(3)
+    expect(db.insert).toHaveBeenNthCalledWith(2, { director_etapa_id: directorId, grupo_id: 'g1' })
+    expect(db.insert).toHaveBeenNthCalledWith(3, { director_etapa_id: conyugeId, grupo_id: 'g1' })
+  })
+
+  it('returns any other insert error', async () => {
+    const db = clienteEnlaces([])
+    const fallo = { code: '42501', message: 'permission denied' }
+    db.insert.mockResolvedValueOnce({ error: fallo } as never)
+
+    const error = await asegurarEnlacesDirectorGrupo(db.client as never, [directorId], ['g1'])
+
+    expect(error).toBe(fallo)
+    expect(db.insert).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns a non-unique error raised while retrying row by row', async () => {
+    const db = clienteEnlaces([])
+    const fallo = { code: '23503', message: 'foreign key' }
+    db.insert
+      .mockResolvedValueOnce({ error: { code: '23505', message: 'duplicate key' } } as never)
+      .mockResolvedValueOnce({ error: fallo } as never)
+
+    const error = await asegurarEnlacesDirectorGrupo(db.client as never, [directorId, conyugeId], ['g1'])
+
+    expect(error).toBe(fallo)
+  })
 })
 
 describe('quitarEnlacesDirectorGrupo', () => {

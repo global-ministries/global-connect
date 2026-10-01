@@ -6,9 +6,11 @@
  * lives in the SQL helper `conyuge_director_etapa_id` (executable by service_role
  * only), so these helpers take the admin client for the lookup.
  *
- * `director_etapa_grupos` has no unique index on (director_etapa_id, grupo_id), so
- * links are inserted only after checking they do not exist (never ON CONFLICT). The table
- * has RLS enabled and no policies, so callers pass the ADMIN client, after their own checks.
+ * `director_etapa_grupos` has UNIQUE (director_etapa_id, grupo_id) from migration
+ * 20261001170000. Links are still inserted only after checking they do not exist, and a
+ * unique violation (a concurrent request won the race) counts as success, so the code is
+ * correct before and after that migration. The table has RLS enabled and no policies, so
+ * callers pass the ADMIN client, after their own checks.
  * Server-side only.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -16,7 +18,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Cliente = SupabaseClient<any, any, any>
 
-export type ErrorEnlaces = { message: string }
+export type ErrorEnlaces = { message: string; code?: string }
+
+/** Postgres unique_violation: the link already exists (created by a concurrent request). */
+const CODIGO_UNIQUE_VIOLATION = '23505'
 
 /** PostgREST "function not found" and Postgres "undefined function". */
 const CODIGOS_RPC_AUSENTE = new Set(['PGRST202', '42883'])
@@ -88,7 +93,17 @@ export async function asegurarEnlacesDirectorGrupo(
   if (faltantes.length === 0) return null
 
   const { error } = await adminClient.from(TABLA).insert(faltantes)
-  return error ?? null
+  if (!error) return null
+  if (error.code !== CODIGO_UNIQUE_VIOLATION) return error
+
+  // A concurrent request created some of these links between the pre-check and the insert, and
+  // the unique violation rolled back the whole batch. Retry row by row: a row that now exists
+  // is a success, anything else is a real error.
+  for (const fila of faltantes) {
+    const { error: errorFila } = await adminClient.from(TABLA).insert(fila)
+    if (errorFila && errorFila.code !== CODIGO_UNIQUE_VIOLATION) return errorFila
+  }
+  return null
 }
 
 /** Removes the links of every director in `directorIds` to the groups in `grupoIds`. */

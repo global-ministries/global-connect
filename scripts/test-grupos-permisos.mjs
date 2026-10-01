@@ -5,7 +5,7 @@
  *
  * Requisitos:
  *  - Variables entorno: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
- *  - Migraciones aplicadas (funciones: obtener_grupos_para_usuario, asignar_director_etapa_a_grupo, obtener_kpis_grupos_para_usuario)
+ *  - Migraciones aplicadas (funciones: obtener_grupos_para_usuario, obtener_kpis_grupos_para_usuario; los vínculos director-grupo se escriben directo en director_etapa_grupos)
  *
  * Estrategia:
  *  1. Semilla mínima (creada vía service_role) si no existe dataset previo (usuarios + roles + segmento + grupos + relaciones)
@@ -50,7 +50,7 @@ const state = {
   grupos:{}, // { G1:{id,nombre} ... }
   directorSegmentoIds:{}, // { DirectorA: idSL, DirectorB: idSL }
   results:[],
-  config:{ rpcAsignarDisponible:true, grupoPrefix:'' }
+  config:{ grupoPrefix:'' }
 };
 
 function record(name, pass, extra='') {
@@ -165,25 +165,11 @@ async function seed() {
     state.grupos[short] = { id: gIns.id, nombre };
   }
 
-  // Asignar director A a G1 y G2 (RPC)
-    for (const gName of ['G1','G2']) {
-      const gId = state.grupos[gName].id;
-      const { error: rpcErr } = await admin.rpc('asignar_director_etapa_a_grupo', {
-        p_auth_id: state.usuarios['AdminGC'].auth_id,
-        p_grupo_id: gId,
-        p_segmento_lider_id: state.directorSegmentoIds.DirectorA,
-        p_accion: 'agregar'
-      });
-      if (rpcErr) {
-        if (/(could not find|Could not find)/.test(rpcErr.message)) {
-          state.config.rpcAsignarDisponible = false;
-          const { error: insErr } = await admin.from('director_etapa_grupos').insert({ director_etapa_id: state.directorSegmentoIds.DirectorA, grupo_id: gId });
-          if (insErr) throw new Error(`Fallback insert director_etapa_grupos fallo para ${gName}: ${insErr.message}`);
-        } else {
-          throw new Error(`Error asignando director A a ${gName}: ${rpcErr.message}`);
-        }
-      }
-    }
+  // Asignar director A a G1 y G2 (insert directo; la autorización de asignar directores vive en las rutas API)
+  for (const gName of ['G1','G2']) {
+    const { error: insErr } = await admin.from('director_etapa_grupos').insert({ director_etapa_id: state.directorSegmentoIds.DirectorA, grupo_id: state.grupos[gName].id });
+    if (insErr) throw new Error(`Error asignando director A a ${gName}: ${insErr.message}`);
+  }
 
   // Líder L1 miembro y líder de G1
   const liderUsuarioId = state.usuarios['LiderL1'].usuario_id;
@@ -268,39 +254,12 @@ async function runTests() {
     record('KPIs admin total_grupos >= 4 (baseline + nuevos)', row?.total_grupos >= 4, `tg=${row?.total_grupos}`);
   }
 
-  // Intento ilegal: director asignarse (usar directorA auth como actor) a G3
-  const { error: illegalAssign } = await admin.rpc('asignar_director_etapa_a_grupo', {
-    p_auth_id: directorAAuth,
-    p_grupo_id: state.grupos['G3'].id,
-    p_segmento_lider_id: state.directorSegmentoIds.DirectorA,
-    p_accion: 'agregar'
-  });
-  if (illegalAssign && /(could not find|Could not find)/.test(illegalAssign.message)) {
-    // Si no existe RPC no podemos validar este caso; marcar skipped
-    record('DirectorA no puede autoasignarse G3 (SKIP RPC ausente)', true, 'skip');
-  } else {
-    record('DirectorA no puede autoasignarse G3', !!illegalAssign, illegalAssign?.message || 'sin error');
-  }
+  // La RPC asignar_director_etapa_a_grupo se eliminó (2026-10-01): confiaba en un p_auth_id enviado por el
+  // llamador. La autorización para asignar directores vive ahora en las rutas API y se cubre con Jest en
+  // __tests__/app/api/directores-pareja-escrituras.test.ts; aquí solo se prepara el estado de datos.
 
-  // Admin asigna director A a G3
-  let assignG3Error = null;
-  if (state.config.rpcAsignarDisponible) {
-    const { error: assignG3 } = await admin.rpc('asignar_director_etapa_a_grupo', {
-      p_auth_id: state.usuarios['AdminGC'].auth_id,
-      p_grupo_id: state.grupos['G3'].id,
-      p_segmento_lider_id: state.directorSegmentoIds.DirectorA,
-      p_accion: 'agregar'
-    });
-    assignG3Error = assignG3;
-    if (assignG3Error && /(could not find|Could not find)/.test(assignG3Error.message)) {
-      state.config.rpcAsignarDisponible = false;
-    }
-  }
-  if (!state.config.rpcAsignarDisponible) {
-    // Fallback manual
-    const { error: insErr } = await admin.from('director_etapa_grupos').insert({ director_etapa_id: state.directorSegmentoIds.DirectorA, grupo_id: state.grupos['G3'].id });
-    assignG3Error = insErr;
-  }
+  // Admin asigna director A a G3 (insert directo)
+  const { error: assignG3Error } = await admin.from('director_etapa_grupos').insert({ director_etapa_id: state.directorSegmentoIds.DirectorA, grupo_id: state.grupos['G3'].id });
   record('Admin asigna A->G3', !assignG3Error, assignG3Error?.message || 'ok');
 
   // Re-verificación DirectorA ahora debería ver 3
@@ -311,24 +270,8 @@ async function runTests() {
     record('DirectorA ve 3 grupos tras asignación G3', count === 3, `v=${count}`);
   }
 
-  // Admin quita A de G1
-  let removeG1Error = null;
-  if (state.config.rpcAsignarDisponible) {
-    const { error: remErr } = await admin.rpc('asignar_director_etapa_a_grupo', {
-      p_auth_id: state.usuarios['AdminGC'].auth_id,
-      p_grupo_id: state.grupos['G1'].id,
-      p_segmento_lider_id: state.directorSegmentoIds.DirectorA,
-      p_accion: 'quitar'
-    });
-    removeG1Error = remErr;
-    if (removeG1Error && /(could not find|Could not find)/.test(removeG1Error.message)) {
-      state.config.rpcAsignarDisponible = false;
-    }
-  }
-  if (!state.config.rpcAsignarDisponible) {
-    const { error: delErr } = await admin.from('director_etapa_grupos').delete().eq('director_etapa_id', state.directorSegmentoIds.DirectorA).eq('grupo_id', state.grupos['G1'].id);
-    removeG1Error = delErr;
-  }
+  // Admin quita A de G1 (delete directo)
+  const { error: removeG1Error } = await admin.from('director_etapa_grupos').delete().eq('director_etapa_id', state.directorSegmentoIds.DirectorA).eq('grupo_id', state.grupos['G1'].id);
   record('Admin quita A de G1', !removeG1Error, removeG1Error?.message || 'ok');
   const directorAGroups3 = await callObtenerGrupos(directorAAuth, 'directorA post quitar G1');
   if (directorAGroups3) {
@@ -340,19 +283,6 @@ async function runTests() {
   // KPIs DirectorA (debe reflejar nuevo recuento)
   const { data: kpisDirA, error: kErrDirA } = await admin.rpc('obtener_kpis_grupos_para_usuario', { p_auth_id: directorAAuth });
   record('KPIs directorA RPC', !kErrDirA);
-
-  // Intento asignar grupo inexistente
-  const { error: badGroup } = await admin.rpc('asignar_director_etapa_a_grupo', {
-    p_auth_id: state.usuarios['AdminGC'].auth_id,
-    p_grupo_id: crypto.randomUUID(),
-    p_segmento_lider_id: state.directorSegmentoIds.DirectorA,
-    p_accion: 'agregar'
-  });
-  if (!state.config.rpcAsignarDisponible && badGroup && /(could not find|Could not find)/.test(badGroup.message)) {
-    record('Asignar grupo inexistente falla (SKIP RPC ausente)', true, 'skip');
-  } else {
-    record('Asignar grupo inexistente falla', !!badGroup, badGroup?.message || 'sin error');
-  }
 }
 
 async function summary() {
