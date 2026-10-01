@@ -43,9 +43,14 @@
 -- 3. dream_team_estructura_gdv(): same signature, return type, definer flag
 --    and grants. For a 'todo' caller the output is the one it was. For a
 --    director it returns only the nodes on their paths with the very same ids,
---    parents, labels and responsables as before: the `direccion` root (so the
---    tree has a root; its responsables are unchanged), the visible `segmento`
---    nodes, the `directores` nodes and the `grupo` nodes. A visible group hangs
+--    parents and labels as before: the `direccion` root (so the tree has a
+--    root), the visible `segmento` nodes, the `directores` nodes and the `grupo`
+--    nodes, whose rows are the ones a 'todo' caller gets. The only column that
+--    narrows is `responsables` of the `direccion` root and of each `segmento`
+--    node: it names the directores generales, and a director gets only the
+--    director_general_segmentos rows they can see ('dg': their own assignments),
+--    so a director de etapa gets none and a director general only themself,
+--    never another director general. A visible group hangs
 --    from the same parent as always; when that parent is the team of another
 --    director (a group directed from two teams), that team node and its
 --    segment are returned too so the tree stays connected, but its people are
@@ -422,6 +427,10 @@ as $$
   grupos_ok as (
     select v.id from vis v where v.tipo = 'grupo'
   ),
+  -- The director_general_segmentos rows a director may name as responsables.
+  dg_ok as (
+    select v.id from vis v where v.tipo = 'dg'
+  ),
   equipos_ok as (
     select e.nodo_id, e.segmento_id
     from equipos_direccion e
@@ -463,6 +472,8 @@ as $$
                     'rol', 'director_general'))
            from public.director_general_segmentos dgs
            join public.usuarios u on u.id = dgs.usuario_id
+           where (select si from ve_todo)
+              or dgs.id in (select id from dg_ok)
          ), '[]'::jsonb)
   from alcance a
 
@@ -482,6 +493,7 @@ as $$
            from public.director_general_segmentos dgs
            join public.usuarios u on u.id = dgs.usuario_id
            where dgs.segmento_id = s.id
+             and ((select si from ve_todo) or dgs.id in (select id from dg_ok))
          ), '[]'::jsonb)
   from public.segmentos s
   cross join alcance a
@@ -538,7 +550,9 @@ comment on function public.dream_team_estructura_gdv() is
   'que usa Grupos de Vida) y grupos vigentes colgados de su equipo. Sólo '
   'lectura, calculadas al leer. Quien tiene autoridad de Dream Team sobre Grupos '
   'de Vida por el árbol lee todo; un director general o de etapa lee sólo los '
-  'nodos de su camino (dream_team_gdv_visibilidad()); el resto no lee nada.';
+  'nodos de su camino (dream_team_gdv_visibilidad()) y, como responsables de la '
+  'dirección y de cada segmento, sólo sus propias asignaciones de director '
+  'general (nunca las de otro); el resto no lee nada.';
 
 -- The rule is internal: only the two definer functions above call it.
 revoke all on function public.dream_team_gdv_visibilidad() from public;

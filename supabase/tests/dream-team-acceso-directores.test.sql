@@ -22,7 +22,10 @@
 --   h. The structure of a director holds only the nodes on their paths (root,
 --      segment, directores node, groups); every equipo_id the people function
 --      returns exists as a node; every node but the root has a visible parent;
---      every row is the very row a capability holder gets.
+--      every node has the very id, parent and label a capability holder gets,
+--      and the very row except the responsables of the root and segments, which
+--      name only the director general assignments of the caller (a director de
+--      etapa gets none; a director general only themself, never a peer).
 --   i. dream_team_resolver_nombres / dream_team_contactos_personas resolve the
 --      people in scope and nobody else.
 --   j. Non-current groups (inactive, not approved, deleted, season not active)
@@ -267,6 +270,23 @@ CREATE OR REPLACE FUNCTION pg_temp.estructura_txt() RETURNS text LANGUAGE sql AS
     ) q;
 $$;
 
+-- Who the `direccion` root and each `segmento` node name as responsables, as
+-- `tipo:node=person+person`, sorted. p_solo restricts it to some node ids.
+CREATE OR REPLACE FUNCTION pg_temp.responsables_txt(p_solo uuid[] DEFAULT NULL) RETURNS text LANGUAGE sql AS $$
+  SELECT coalesce(string_agg(t, ', ' ORDER BY t COLLATE "C"), '')
+    FROM (
+      SELECT s.tipo || ':' || coalesce(n.label, s.nodo_id::text) || '=' ||
+             coalesce((SELECT string_agg(coalesce(p.label, r.v->>'persona_id'), '+'
+                                         ORDER BY coalesce(p.label, r.v->>'persona_id') COLLATE "C")
+                         FROM jsonb_array_elements(s.responsables) AS r(v)
+                         LEFT JOIN t_acc_labels p ON p.id = (r.v->>'persona_id')::uuid), '') AS t
+        FROM public.dream_team_estructura_gdv() s
+        LEFT JOIN t_acc_labels n ON n.id = s.nodo_id
+       WHERE s.tipo IN ('direccion', 'segmento')
+         AND (p_solo IS NULL OR s.nodo_id = ANY (p_solo))
+    ) q;
+$$;
+
 -- Ordered fingerprints of the full output of either implementation. p_fn is the
 -- function call text, so the same code fingerprints the live and the previous one.
 CREATE OR REPLACE FUNCTION pg_temp.huella_lideres(p_fn text, p_roles text[] DEFAULT NULL) RETURNS text LANGUAGE plpgsql AS $$
@@ -279,13 +299,17 @@ BEGIN
   RETURN v;
 END;
 $$;
-CREATE OR REPLACE FUNCTION pg_temp.huella_estructura(p_fn text) RETURNS text LANGUAGE plpgsql AS $$
+-- p_sin_resp ignores the responsables of the direccion and segmento nodes (a
+-- director general reads only their own there, so the rest of the tree is what
+-- must match the capability holder's).
+CREATE OR REPLACE FUNCTION pg_temp.huella_estructura(p_fn text, p_sin_resp boolean DEFAULT false) RETURNS text LANGUAGE plpgsql AS $$
 DECLARE v text;
 BEGIN
-  EXECUTE format($f$SELECT md5(coalesce(string_agg(nodo_id::text || '|' || coalesce(parent_id::text, '') || '|' || tipo || '|' || coalesce(label, '') || '|' || responsables::text,
+  EXECUTE format($f$SELECT md5(coalesce(string_agg(nodo_id::text || '|' || coalesce(parent_id::text, '') || '|' || tipo || '|' || coalesce(label, '') || '|'
+                                                   || CASE WHEN $1 AND tipo IN ('direccion', 'segmento') THEN '' ELSE responsables::text END,
                                             ',' ORDER BY nodo_id, tipo), ''))
                        || '/' || count(*)
-                    FROM %s$f$, p_fn) INTO v;
+                    FROM %s$f$, p_fn) INTO v USING p_sin_resp;
   RETURN v;
 END;
 $$;
@@ -630,6 +654,7 @@ INSERT INTO t_acc_huellas (k, v) VALUES
   ('mgr_lid',        pg_temp.huella_lideres('public.dream_team_lideres_gdv()')),
   ('mgr_lid_gente',  pg_temp.huella_lideres('public.dream_team_lideres_gdv()', ARRAY['lider', 'colider', 'director_etapa'])),
   ('mgr_est',        pg_temp.huella_estructura('public.dream_team_estructura_gdv()')),
+  ('mgr_est_sin',    pg_temp.huella_estructura('public.dream_team_estructura_gdv()', true)),
   ('old_lid',        pg_temp.huella_lideres('pg_temp.lideres_gdv_anterior()')),
   ('old_est',        pg_temp.huella_estructura('pg_temp.estructura_gdv_anterior()'));
 
@@ -664,6 +689,14 @@ SELECT pg_temp.assert_eq('f: capability holder reads the fixtures in full (peopl
   $q$SELECT count(*) FROM public.dream_team_lideres_gdv() l JOIN t_acc_labels n ON n.id = l.equipo_id
       WHERE n.label IN ('GA1', 'GA2', 'GA3', 'GB1', 'GB2', 'GB3', 'GB4', 'GB5')$q$,
   '10');
+-- The capability holder still sees EVERY director general on each segment (the
+-- md5 above already proves the whole output equals the previous definition).
+SELECT pg_temp.assert_eq('f: capability holder, each segment names every director general assigned to it',
+  $q$SELECT pg_temp.responsables_txt(ARRAY[pg_temp.id('sg', 1), pg_temp.id('sg', 2)])$q$,
+  pg_temp.norm('segmento:SA=DG_ALL+DG_SEG, segmento:SB=DG_ALL+DG_DIR+MULTI'));
+SELECT pg_temp.assert_eq('f: capability holder, the root names the real directores generales too (more than the fixtures)',
+  $q$SELECT (jsonb_array_length(responsables) > 4)::text FROM public.dream_team_estructura_gdv() WHERE tipo = 'direccion'$q$,
+  'true');
 RESET ROLE;
 
 -- a. Director de etapa DE_A ---------------------------------------------------
@@ -677,6 +710,9 @@ SELECT pg_temp.assert_eq('a: DE_A reads exactly the lider/colider of his current
 SELECT pg_temp.assert_eq('a/h: DE_A reads only the nodes on his path',
   $q$SELECT pg_temp.estructura_txt()$q$,
   pg_temp.norm('direccion:RAIZ>-, segmento:SA>RAIZ, directores:TEAM_DEA>SA, grupo:GA1>TEAM_DEA, grupo:GA2>TEAM_DEA'));
+SELECT pg_temp.assert_eq('a: DE_A reads no director general on the root nor on his segment',
+  $q$SELECT pg_temp.responsables_txt()$q$,
+  pg_temp.norm('direccion:RAIZ=, segmento:SA='));
 SELECT pg_temp.assert_eq('h: DE_A, every equipo_id of the people function is a node of the tree',
   $q$SELECT pg_temp.lideres_sin_nodo()$q$, '0');
 SELECT pg_temp.assert_eq('h: DE_A, every node but the root has a visible parent',
@@ -719,6 +755,9 @@ SELECT pg_temp.assert_eq('a: DE_B reads his own group and director row, nothing 
 SELECT pg_temp.assert_eq('a/h: DE_B reads only the nodes on his path',
   $q$SELECT pg_temp.estructura_txt()$q$,
   pg_temp.norm('direccion:RAIZ>-, segmento:SB>RAIZ, directores:TEAM_DEB>SB, grupo:GB4>TEAM_DEB'));
+SELECT pg_temp.assert_eq('a: DE_B reads no director general on the root nor on his segment',
+  $q$SELECT pg_temp.responsables_txt()$q$,
+  pg_temp.norm('direccion:RAIZ=, segmento:SB='));
 SELECT pg_temp.assert_eq('h: DE_B, every equipo_id of the people function is a node of the tree',
   $q$SELECT pg_temp.lideres_sin_nodo()$q$, '0');
 SELECT pg_temp.assert_eq('h: DE_B, every node but the root has a visible parent',
@@ -739,6 +778,9 @@ SELECT pg_temp.assert_eq('b: C1 reads both spouses, the groups of the couple (ev
 SELECT pg_temp.assert_eq('b/h: C1 reads only the nodes on the path of the couple',
   $q$SELECT pg_temp.estructura_txt()$q$,
   pg_temp.norm('direccion:RAIZ>-, segmento:SB>RAIZ, directores:TEAM_C>SB, grupo:GB1>TEAM_C, grupo:GB2>TEAM_C, grupo:GB3>TEAM_C'));
+SELECT pg_temp.assert_eq('b: C1 reads no director general on the root nor on the segment of the couple',
+  $q$SELECT pg_temp.responsables_txt()$q$,
+  pg_temp.norm('direccion:RAIZ=, segmento:SB='));
 SELECT pg_temp.assert_eq('h: C1, every equipo_id of the people function is a node of the tree',
   $q$SELECT pg_temp.lideres_sin_nodo()$q$, '0');
 SELECT pg_temp.assert_eq('h: C1, every node but the root has a visible parent',
@@ -782,6 +824,9 @@ SELECT pg_temp.assert_eq('c: DG_SEG reads the groups and directors of his segmen
 SELECT pg_temp.assert_eq('c/h: DG_SEG reads the tree of his segment only, a group without director hangs from the segment',
   $q$SELECT pg_temp.estructura_txt()$q$,
   pg_temp.norm('direccion:RAIZ>-, segmento:SA>RAIZ, directores:TEAM_DEA>SA, directores:TEAM_MULTI>SA, grupo:GA1>TEAM_DEA, grupo:GA2>TEAM_DEA, grupo:GA3>SA'));
+SELECT pg_temp.assert_eq('c: DG_SEG sees only himself on the root and on his segment, not DG_ALL (same segment) nor the directores generales of SB',
+  $q$SELECT pg_temp.responsables_txt()$q$,
+  pg_temp.norm('direccion:RAIZ=DG_SEG, segmento:SA=DG_SEG'));
 SELECT pg_temp.assert_eq('h: DG_SEG, every equipo_id of the people function is a node of the tree',
   $q$SELECT pg_temp.lideres_sin_nodo()$q$, '0');
 SELECT pg_temp.assert_eq('h: DG_SEG, every node but the root has a visible parent',
@@ -810,6 +855,9 @@ SELECT pg_temp.assert_eq('d: DG_DIR reads only the director he marked and that d
 SELECT pg_temp.assert_eq('d/h: DG_DIR reads only the nodes of the marked director',
   $q$SELECT pg_temp.estructura_txt()$q$,
   pg_temp.norm('direccion:RAIZ>-, segmento:SB>RAIZ, directores:TEAM_DEB>SB, grupo:GB4>TEAM_DEB'));
+SELECT pg_temp.assert_eq('d: DG_DIR sees only himself on the root and on his segment, not MULTI nor DG_ALL (same segment) nor DG_SEG (SA)',
+  $q$SELECT pg_temp.responsables_txt()$q$,
+  pg_temp.norm('direccion:RAIZ=DG_DIR, segmento:SB=DG_DIR'));
 SELECT pg_temp.assert_eq('h: DG_DIR, every equipo_id of the people function is a node of the tree',
   $q$SELECT pg_temp.lideres_sin_nodo()$q$, '0');
 SELECT pg_temp.assert_eq('h: DG_DIR, every node but the root has a visible parent',
@@ -823,13 +871,23 @@ SELECT pg_temp.as_persona(pg_temp.id('au', 11));
 SELECT pg_temp.guardar('DG_ALL');
 INSERT INTO t_acc_huellas (k, v) VALUES
   ('all_lid_gente', pg_temp.huella_lideres('public.dream_team_lideres_gdv()', ARRAY['lider', 'colider', 'director_etapa'])),
-  ('all_est',       pg_temp.huella_estructura('public.dream_team_estructura_gdv()'));
+  ('all_est_sin',   pg_temp.huella_estructura('public.dream_team_estructura_gdv()', true));
 SELECT pg_temp.assert_eq('e: DG_ALL reads the same lider / colider / director_etapa rows as the capability holder',
   $q$SELECT v FROM t_acc_huellas WHERE k = 'all_lid_gente'$q$,
   (SELECT v FROM t_acc_huellas WHERE k = 'mgr_lid_gente'));
-SELECT pg_temp.assert_eq('e: DG_ALL reads the same tree as the capability holder',
-  $q$SELECT v FROM t_acc_huellas WHERE k = 'all_est'$q$,
-  (SELECT v FROM t_acc_huellas WHERE k = 'mgr_est'));
+-- Same nodes, ids, parents, labels and grupo / directores rows; only who the
+-- direccion root and the segmento nodes name as responsables differs (below).
+SELECT pg_temp.assert_eq('e: DG_ALL reads the same tree as the capability holder, apart from the responsables of the root and segments',
+  $q$SELECT v FROM t_acc_huellas WHERE k = 'all_est_sin'$q$,
+  (SELECT v FROM t_acc_huellas WHERE k = 'mgr_est_sin'));
+SELECT pg_temp.assert_eq('e: DG_ALL names only himself as responsables of the root and of every segment',
+  $q$SELECT count(*) FROM t_acc_est
+      WHERE persona = 'DG_ALL' AND tipo IN ('direccion', 'segmento')
+        AND NOT (jsonb_array_length(responsables) = 1 AND responsables->0->>'persona_id' = pg_temp.id('us', 11)::text)$q$,
+  '0');
+SELECT pg_temp.assert_eq('e: DG_ALL reads the root and several segments (the previous check is not vacuous)',
+  $q$SELECT (count(*) >= 3)::text FROM t_acc_est WHERE persona = 'DG_ALL' AND tipo IN ('direccion', 'segmento')$q$,
+  'true');
 SELECT pg_temp.assert_eq('e: DG_ALL has real rows to compare (not a vacuous equality)',
   $q$SELECT (split_part(v, '/', 2)::int > 11)::text FROM t_acc_huellas WHERE k = 'all_lid_gente'$q$, 'true');
 SELECT pg_temp.assert_eq('h: DG_ALL, every equipo_id of the people function is a node of the tree',
@@ -847,6 +905,9 @@ SELECT pg_temp.assert_eq('l: MULTI (director de etapa of SA and director general
 SELECT pg_temp.assert_eq('l: MULTI reads the union of both trees',
   $q$SELECT pg_temp.estructura_txt()$q$,
   pg_temp.norm('direccion:RAIZ>-, segmento:SA>RAIZ, segmento:SB>RAIZ, directores:TEAM_MULTI>SA, directores:TEAM_C>SB, directores:TEAM_DEB>SB, grupo:GB1>TEAM_C, grupo:GB2>TEAM_C, grupo:GB3>TEAM_C, grupo:GB4>TEAM_DEB, grupo:GB5>SB'));
+SELECT pg_temp.assert_eq('l: MULTI sees only himself as director general (on the root and on SB), nobody on SA, where he is a director de etapa',
+  $q$SELECT pg_temp.responsables_txt()$q$,
+  pg_temp.norm('direccion:RAIZ=MULTI, segmento:SA=, segmento:SB=MULTI'));
 SELECT pg_temp.assert_eq('h: MULTI, every equipo_id of the people function is a node of the tree',
   $q$SELECT pg_temp.lideres_sin_nodo()$q$, '0');
 SELECT pg_temp.assert_eq('h: MULTI, every node but the root has a visible parent',
@@ -889,14 +950,29 @@ SELECT pg_temp.assert_eq('h: every people row a director reads is a row the capa
         AND NOT EXISTS (SELECT 1 FROM t_acc_lid m
                          WHERE m.persona = 'MGR' AND m.persona_id = d.persona_id AND m.equipo_id = d.equipo_id
                            AND m.rol = d.rol AND m.desde IS NOT DISTINCT FROM d.desde)$q$, '0');
-SELECT pg_temp.assert_eq('h: every node a director reads is the very row the capability holder reads (id, parent, label, responsables)',
+-- The direccion and segmento nodes are the only ones whose responsables narrow
+-- down for a director (to their own director general assignments).
+SELECT pg_temp.assert_eq('h: every node a director reads has the very id, parent, label and tipo the capability holder reads, and the very responsables except on the root and segments',
   $q$SELECT count(*) FROM t_acc_est d
       WHERE d.persona <> 'MGR'
         AND NOT EXISTS (SELECT 1 FROM t_acc_est m
                          WHERE m.persona = 'MGR' AND m.nodo_id = d.nodo_id
                            AND m.parent_id IS NOT DISTINCT FROM d.parent_id
                            AND m.tipo = d.tipo AND m.label IS NOT DISTINCT FROM d.label
-                           AND m.responsables = d.responsables)$q$, '0');
+                           AND (d.tipo IN ('direccion', 'segmento') OR m.responsables = d.responsables))$q$, '0');
+SELECT pg_temp.assert_eq('h: on the root and segments a director names a subset of the director generales the capability holder sees',
+  $q$SELECT count(*) FROM t_acc_est d
+      WHERE d.persona <> 'MGR' AND d.tipo IN ('direccion', 'segmento')
+        AND NOT EXISTS (SELECT 1 FROM t_acc_est m
+                         WHERE m.persona = 'MGR' AND m.nodo_id = d.nodo_id AND m.responsables @> d.responsables)$q$, '0');
+SELECT pg_temp.assert_eq('h: the only person a director names on the root and segments is a director general assigned to that director',
+  $q$SELECT count(*) FROM t_acc_est d
+      CROSS JOIN LATERAL jsonb_array_elements(d.responsables) AS r(v)
+      WHERE d.persona <> 'MGR' AND d.tipo IN ('direccion', 'segmento')
+        AND (r.v->>'rol' <> 'director_general'
+             OR r.v->>'persona_id' IS DISTINCT FROM (CASE d.persona
+                  WHEN 'DG_SEG' THEN pg_temp.id('us', 9)  WHEN 'DG_DIR' THEN pg_temp.id('us', 10)
+                  WHEN 'DG_ALL' THEN pg_temp.id('us', 11) WHEN 'MULTI'  THEN pg_temp.id('us', 12) END)::text)$q$, '0');
 SELECT pg_temp.assert_eq('e: DG_ALL reads one director_general row per segment, his own',
   $q$SELECT (SELECT count(*) FROM t_acc_lid WHERE persona = 'DG_ALL' AND rol = 'director_general')
           || '/' || (SELECT count(*) FROM t_acc_lid WHERE persona = 'DG_ALL' AND rol = 'director_general' AND persona_id <> pg_temp.id('us', 11))$q$,
