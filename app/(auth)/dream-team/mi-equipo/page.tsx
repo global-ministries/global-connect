@@ -24,7 +24,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   isDreamTeamEnabled,
   requireDreamTeamSession,
-  hasDreamTeamReadCapability,
+  hasDreamTeamMiEquipoAccess,
   hasDreamTeamWriteCapability,
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
@@ -53,10 +53,14 @@ interface MiEquipoPageProps {
 export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPageProps) {
   if (!isDreamTeamEnabled()) notFound()
 
-  const session = await requireDreamTeamSession()
+  // Roles are asked for here only: a Grupos de Vida director (system role, no
+  // Dream Team capability) opens this page too — read-only, since the edit flag
+  // below still comes from the write capability — and sees just what the
+  // database hands them (see hasDreamTeamMiEquipoAccess).
+  const session = await requireDreamTeamSession({ includeRoles: true })
   if (!session) redirect('/login')
 
-  if (!hasDreamTeamReadCapability(session)) notFound()
+  if (!hasDreamTeamMiEquipoAccess(session)) notFound()
 
   const supabase = await createSupabaseServerClient()
   const repo = createSupabaseDreamTeamRepository(supabase)
@@ -66,9 +70,11 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   // a parentEquipoId that resolves to nothing in this list — construirArbol()
   // already treats that as a visible root instead of an invisible orphan
   // (see its docstring), which is exactly the "no ve a su padre" case.
-  // fetchEstructuraGdv() applies its own tree-authority check server-side — a
-  // director without reach into the Grupos de Vida node gets zero rows back,
-  // so the virtual branch just doesn't appear.
+  // fetchEstructuraGdv() applies its own scope server-side: everything for a
+  // Dream Team authority over the Grupos de Vida node, the director's own
+  // nodes for a Grupos de Vida director, nothing for anybody else. A director
+  // gets no real equipos at all, so their tree is the virtual branch alone and
+  // its topmost visible node — their segmento — is the root (same rule).
   const equipos = await repo.listEquipos()
 
   // listServicios({}) once (RLS-scoped to the same branch) and group locally

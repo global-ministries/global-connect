@@ -1,4 +1,4 @@
-import { hasDreamTeamReadCapability } from './capabilities'
+import { hasDreamTeamReadCapability, isGdvDirectorSession } from './capabilities'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 /**
@@ -19,7 +19,9 @@ export type DreamTeamNavItem = {
 // The three Dream Team screens, in the order they should appear under the
 // sidebar's "Dream Team" parent. All three gate on hasDreamTeamReadCapability
 // (see app/(auth)/dream-team/mi-equipo/page.tsx and the two page.tsx files
-// under app/(auth)/admin/dream-team/) — mirrored below.
+// under app/(auth)/admin/dream-team/) — mirrored below — except that Mi equipo
+// also opens for a Grupos de Vida director by system role
+// (hasDreamTeamMiEquipoAccess), who then sees that one item only.
 export const DREAM_TEAM_NAV_ITEMS: readonly DreamTeamNavItem[] = [
   { id: 'dt-mi-equipo', label: 'Mi equipo', href: '/dream-team/mi-equipo' },
   { id: 'dt-servidores', label: 'Servidores', href: '/admin/dream-team/servidores' },
@@ -49,17 +51,23 @@ export function isDreamTeamEnabledClient(): boolean {
   return value === 'true' || value === 'on'
 }
 
+// What a Grupos de Vida director (system role, no capability) gets: Mi equipo
+// alone. Same id, label and href as the first of the three items above.
+const DREAM_TEAM_MI_EQUIPO_ONLY: readonly DreamTeamNavItem[] = DREAM_TEAM_NAV_ITEMS.slice(0, 1)
+
 /**
  * Resolves the Dream Team sidebar items for a session — [] when the flag is
- * off, there is no session, or the session cannot read any of the three
- * screens (all three share hasDreamTeamReadCapability, see the module doc
- * above), otherwise the three items in DREAM_TEAM_NAV_ITEMS order.
+ * off, there is no session, or the session can open none of the screens.
+ * A session that passes hasDreamTeamReadCapability gets the three items in
+ * DREAM_TEAM_NAV_ITEMS order; a Grupos de Vida director without a capability
+ * gets Mi equipo alone (Servidores and Estructura still need a capability).
  */
 export function getDreamTeamNavItems(
   session: PlatformSession | null | undefined,
   enabled: boolean,
 ): readonly DreamTeamNavItem[] {
   if (!enabled || !session) return []
-  if (!hasDreamTeamReadCapability(session)) return []
-  return DREAM_TEAM_NAV_ITEMS
+  if (hasDreamTeamReadCapability(session)) return DREAM_TEAM_NAV_ITEMS
+  if (isGdvDirectorSession(session)) return DREAM_TEAM_MI_EQUIPO_ONLY
+  return []
 }

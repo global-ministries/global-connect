@@ -19,12 +19,12 @@ jest.mock('next/navigation', () => ({ notFound: () => notFound(), redirect: (to:
 
 const isDreamTeamEnabled = jest.fn(() => true)
 const requireDreamTeamSession = jest.fn()
-const hasDreamTeamReadCapability = jest.fn(() => true)
+const hasDreamTeamMiEquipoAccess = jest.fn(() => true)
 const hasDreamTeamWriteCapability = jest.fn(() => true)
 jest.mock('@/lib/platform/dream-team/route-access', () => ({
   isDreamTeamEnabled: () => isDreamTeamEnabled(),
   requireDreamTeamSession: () => requireDreamTeamSession(),
-  hasDreamTeamReadCapability: () => hasDreamTeamReadCapability(),
+  hasDreamTeamMiEquipoAccess: () => hasDreamTeamMiEquipoAccess(),
   hasDreamTeamWriteCapability: () => hasDreamTeamWriteCapability(),
 }))
 
@@ -126,14 +126,14 @@ beforeEach(() => {
   mockNodosGdv = []
   isDreamTeamEnabled.mockReturnValue(true)
   requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
-  hasDreamTeamReadCapability.mockReturnValue(true)
+  hasDreamTeamMiEquipoAccess.mockReturnValue(true)
   hasDreamTeamWriteCapability.mockReturnValue(true)
   notFound.mockClear()
   redirect.mockClear()
 })
 
 describe('mi-equipo page — authorization', () => {
-  it('404s when Dream Team is disabled, redirects anonymous callers, 404s without read capability', async () => {
+  it('404s when Dream Team is disabled, redirects anonymous callers, 404s without Mi equipo access (capability or Grupos de Vida director role)', async () => {
     isDreamTeamEnabled.mockReturnValue(false)
     await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
 
@@ -142,7 +142,7 @@ describe('mi-equipo page — authorization', () => {
     await expect(renderizar()).rejects.toThrow('NEXT_REDIRECT:/login')
 
     requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
-    hasDreamTeamReadCapability.mockReturnValue(false)
+    hasDreamTeamMiEquipoAccess.mockReturnValue(false)
     await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
   })
 })
