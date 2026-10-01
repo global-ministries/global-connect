@@ -487,8 +487,19 @@ SELECT pg_temp.assert_eq('baja+alta: eliminar X y crear X en el mismo guardado s
 SELECT pg_temp.assert_eq('baja+alta: la fila eliminada quedó con el sufijo y la nueva con el nombre real',
   $q$SELECT (SELECT count(*)::text FROM public.grupos WHERE eliminado AND nombre ~ '^ZZ Pg xdel \[eliminado [0-9a-f]{8}\]$')
        || (SELECT count(*)::text FROM public.grupos WHERE NOT eliminado AND nombre = 'ZZ Pg xdel')$q$, '11');
-SELECT pg_temp.assert_eq('baja+alta: un guardado posterior puede volver a reutilizar el nombre',
-  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', '[{"id":null,"clave":"xd2","director_etapa_id":"e5000000-0000-4000-8000-000000000006","nombre":"ZZ Pg xdel","segmento_id":"e5000000-0000-4000-8000-0000000000a2","miembros":[]}]') ~ '"insertados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('baja+alta: repetir baja+alta en el MISMO segmento vuelve a liberar el nombre',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', '[{"id":null,"clave":"xd2","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg xdel","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]',
+       (SELECT '{' || id::text || '}' FROM public.grupos WHERE NOT eliminado AND nombre = 'ZZ Pg xdel' AND segmento_id = 'e5000000-0000-4000-8000-0000000000a1'))
+       ~ '"eliminados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('baja+alta: quedan dos filas eliminadas con sufijo y una activa con el nombre real',
+  $q$SELECT (SELECT count(*)::text FROM public.grupos WHERE eliminado AND segmento_id = 'e5000000-0000-4000-8000-0000000000a1' AND nombre ~ '^ZZ Pg xdel \[eliminado [0-9a-f]{8}\]$')
+       || (SELECT count(*)::text FROM public.grupos WHERE NOT eliminado AND segmento_id = 'e5000000-0000-4000-8000-0000000000a1' AND nombre = 'ZZ Pg xdel')$q$, '21');
+INSERT INTO public.grupos (id, nombre, temporada_id, segmento_id, activo, estado_ciclo, estado_aprobacion, eliminado) VALUES
+  ('e5000000-0000-4000-8000-0000000000d5', 'ZZ Pg xdel ', 'e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente', true);
+SELECT pg_temp.assert_eq('choque: con un activo y un eliminado del mismo nombre se informa el activo',
+  $q$SELECT (pg_temp.mensaje(format('SELECT public.planner_guardar_planificacion(%L, %L, %L::jsonb)', 'e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"xd3","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg xdel","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]'))
+       !~ 'Existe un grupo eliminado')::text$q$, 'true');
 
 -- Resultado: los casos fallidos (vacío = todo bien).
 SELECT case_name AS failing_cases FROM t_pg_failures ORDER BY case_name;
