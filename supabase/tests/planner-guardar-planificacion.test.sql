@@ -293,12 +293,15 @@ SELECT pg_temp.assert_eq('director: una persona que no es director se rechaza',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
        '[{"id":null,"clave":"in2","director_etapa_id":"e5000000-0000-4000-8000-000000000011","nombre":"ZZ Pg dir nadie","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
        || (SELECT count(*)::text FROM public.grupos WHERE nombre = 'ZZ Pg dir nadie')$q$, 'ERR:220230');
-SELECT pg_temp.assert_eq('director: un director elegible se asigna a sí mismo y el vínculo se crea',
+-- Dos aserciones separadas: en una sola expresión Postgres puede evaluar el subquery antes que la
+-- llamada al RPC (orden de operandos no garantizado), y leería el vínculo antes de crearse.
+SELECT pg_temp.assert_eq('director: un director elegible se asigna a sí mismo',
   $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
        '[{"id":null,"clave":"yo","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg yo dirijo","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
-       ~ '"insertados": 1')::text
-       || (SELECT string_agg(right(deg.director_etapa_id::text, 2), ',') FROM public.director_etapa_grupos deg
-             JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg yo dirijo')$q$, 'trueb1');
+       ~ '"insertados": 1')::text$q$, 'true');
+SELECT pg_temp.assert_eq('director: el vínculo de la auto-asignación se crea',
+  $q$SELECT string_agg(right(deg.director_etapa_id::text, 2), ',') FROM public.director_etapa_grupos deg
+       JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg yo dirijo'$q$, 'b1');
 SELECT pg_temp.assert_eq('director: el vínculo se reemplaza al actualizar con otro director (DE3)',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
        '[{"id":"e5000000-0000-4000-8000-0000000000d2","clave":"k2","director_etapa_id":"e5000000-0000-4000-8000-000000000007","nombre":"ZZ Pg destino renombrado","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
