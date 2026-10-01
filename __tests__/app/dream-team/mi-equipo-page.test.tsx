@@ -83,7 +83,9 @@ jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
 }))
 jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => mockNodosGdv }))
 jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({ fetchLideresGdv: async () => mockLideres }))
+const fetchContactosPersonas = jest.fn()
 jest.mock('@/lib/platform/dream-team/personas', () => ({
+  fetchContactosPersonas: (...args: unknown[]) => fetchContactosPersonas(...args),
   fetchNombresPersonas: async () =>
     new Map([
       ['p1', 'Ana Directora'],
@@ -128,6 +130,7 @@ beforeEach(() => {
   requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
   hasDreamTeamMiEquipoAccess.mockReturnValue(true)
   hasDreamTeamWriteCapability.mockReturnValue(true)
+  fetchContactosPersonas.mockReset().mockResolvedValue(new Map())
   notFound.mockClear()
   redirect.mockClear()
 })
@@ -264,6 +267,90 @@ describe('mi-equipo page — Grupos de Vida directors', () => {
 
   it('hands the island only serializable data', async () => {
     expect(esSerializable(await renderizar({ direccion: 'gdv-raiz' }))).toBe(true)
+  })
+})
+
+// Phone and "has an account" per person, from dream_team_contactos_personas
+// (scoped to what the caller may see). ONE lookup for everybody listed.
+describe('mi-equipo page — phone and account of each person', () => {
+  const CONTACTOS = new Map([
+    ['p1', { telefono: '04125457346', tieneCuenta: true }],
+    ['p2', { telefono: null, tieneCuenta: false }],
+    ['p9', { telefono: '04245551111', tieneCuenta: false }],
+  ])
+  const persona = async (nombre: string, searchParams?: { direccion?: string }) =>
+    (await renderizar(searchParams)).vista?.personas.find((p) => p.nombre === nombre)
+
+  it('asks for the contacts once, for every servicio person and every Grupos de Vida person', async () => {
+    await renderizar()
+    expect(fetchContactosPersonas).toHaveBeenCalledTimes(1)
+    expect(fetchContactosPersonas.mock.calls[0][1]).toEqual(['p1', 'p2', 'p3', 'p4', 'p9'])
+  })
+
+  it('carries the phone and the account state of a servicio person to the island', async () => {
+    fetchContactosPersonas.mockResolvedValue(CONTACTOS)
+    expect(await persona('Ana Directora')).toMatchObject({ telefono: '04125457346', tieneCuenta: true })
+    expect(await persona('Bea Coordinadora')).toMatchObject({ telefono: null, tieneCuenta: false })
+  })
+
+  it('carries them for a Grupos de Vida leader too', async () => {
+    fetchContactosPersonas.mockResolvedValue(CONTACTOS)
+    expect(await persona('Lidia Lider')).toMatchObject({ origen: 'grupos_vida', telefono: '04245551111', tieneCuenta: false })
+  })
+
+  it('gives null and null to a person the lookup did not answer for (outside the caller scope), without an error', async () => {
+    fetchContactosPersonas.mockResolvedValue(CONTACTOS)
+    expect(await persona('Carla Facilitadora')).toMatchObject({ telefono: null, tieneCuenta: null })
+  })
+
+  it('still renders, without contacts, when the contacts lookup fails', async () => {
+    fetchContactosPersonas.mockRejectedValue(new Error('rpc down'))
+    const props = await renderizar()
+    expect(props.vista?.personas.length).toBeGreaterThan(0)
+    expect(props.vista?.personas.every((p) => p.telefono === null && p.tieneCuenta === null)).toBe(true)
+    expect(esSerializable(props)).toBe(true)
+  })
+
+  it('looks the contacts up even when the viewer cannot edit (read-only viewers see them too)', async () => {
+    hasDreamTeamWriteCapability.mockReturnValue(false)
+    fetchContactosPersonas.mockResolvedValue(CONTACTOS)
+    const props = await renderizar()
+    expect(props.puedeEditar).toBe(false)
+    expect(props.vista?.personas.find((p) => p.nombre === 'Ana Directora')).toMatchObject({ telefono: '04125457346' })
+  })
+
+  it('does not look contacts up for an anonymous or unauthorized caller', async () => {
+    requireDreamTeamSession.mockResolvedValue(null)
+    await expect(renderizar()).rejects.toThrow('NEXT_REDIRECT:/login')
+    hasDreamTeamMiEquipoAccess.mockReturnValue(false)
+    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
+    await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
+    expect(fetchContactosPersonas).not.toHaveBeenCalled()
+  })
+})
+
+describe('mi-equipo page — phone and account of Grupos de Vida directors', () => {
+  it('carries the contact of a director de etapa and of a director general', async () => {
+    mockNodosGdv = [
+      { nodoId: 'gdv-raiz', parentId: null, tipo: 'direccion', label: 'Dirección de Grupos de Vida', responsables: [] },
+      { nodoId: 'seg-1', parentId: 'gdv-raiz', tipo: 'segmento', label: 'Matrimonios', responsables: [] },
+      { nodoId: 'dir-etapa-1', parentId: 'seg-1', tipo: 'directores', label: 'Diego Etapa', responsables: [] },
+    ]
+    mockLideres = [
+      { personaId: personaId('d2'), equipoId: 'seg-1', rol: 'director_general', desde: '2026-05-01T00:00:00.000Z' },
+      { personaId: personaId('d1'), equipoId: 'dir-etapa-1', rol: 'director_etapa', desde: null },
+    ]
+    fetchContactosPersonas.mockResolvedValue(
+      new Map([
+        ['d1', { telefono: '04165550004', tieneCuenta: true }],
+        ['d2', { telefono: '04145550001', tieneCuenta: false }],
+      ]),
+    )
+
+    const personas = (await renderizar({ direccion: 'gdv-raiz' })).vista?.personas
+    expect(personas?.find((p) => p.nombre === 'Diego Etapa')).toMatchObject({ telefono: '04165550004', tieneCuenta: true })
+    expect(personas?.find((p) => p.nombre === 'Dora General')).toMatchObject({ telefono: '04145550001', tieneCuenta: false })
+    expect(fetchContactosPersonas.mock.calls[0][1]).toEqual(expect.arrayContaining(['d1', 'd2']))
   })
 })
 

@@ -158,6 +158,13 @@ export function rolResponsableGdvLabel(rol: string): string {
 export const ORIGEN_GRUPOS_VIDA_LABEL = 'Grupos de Vida'
 
 /**
+ * Warning badge copy for a person known to have NO account (`tieneCuenta ===
+ * false`). Shared by Servidores and Mi equipo; a person whose account state is
+ * unknown (not visible to the caller, `null`) never gets it.
+ */
+export const SIN_CUENTA_LABEL = 'Sin cuenta'
+
+/**
  * Badge copy naming what an org-tree node of `tipo: 'directores'` IS (see
  * lib/platform/dream-team/estructura-gdv.ts): the team of stage directors a
  * set of grupos hangs off — a married couple, or a lone director when no

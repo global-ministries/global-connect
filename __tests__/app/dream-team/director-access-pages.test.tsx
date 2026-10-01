@@ -57,6 +57,7 @@ jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
 }))
 jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => mockNodosGdv }))
 jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({ fetchLideresGdv: async () => mockLideres }))
+const fetchContactosPersonas = jest.fn()
 jest.mock('@/lib/platform/dream-team/personas', () => ({
   fetchNombresPersonas: async () =>
     new Map([
@@ -66,7 +67,7 @@ jest.mock('@/lib/platform/dream-team/personas', () => ({
       ['l1', 'Lidia Lider'],
       ['l2', 'Luis Lider'],
     ]),
-  fetchContactosPersonas: async () => new Map(),
+  fetchContactosPersonas: (...args: unknown[]) => fetchContactosPersonas(...args),
 }))
 
 import DreamTeamMiEquipoPage from '@/app/(auth)/dream-team/mi-equipo/page'
@@ -118,6 +119,7 @@ beforeEach(() => {
   notFound.mockClear()
   redirect.mockClear()
   requireDreamTeamSession.mockClear()
+  fetchContactosPersonas.mockReset().mockResolvedValue(new Map())
 })
 
 describe('mi-equipo — a director de etapa without capability', () => {
@@ -138,6 +140,28 @@ describe('mi-equipo — a director de etapa without capability', () => {
     expect(props.equiposAsignables).toEqual([])
     expect(props.rolesPorEquipo).toEqual({})
     expect(props.vista?.personas.every((persona) => !persona.editable && persona.origen === 'grupos_vida')).toBe(true)
+  })
+
+  it('shows them the phone and account state of the people in their scope, and nothing for anybody else', async () => {
+    fetchContactosPersonas.mockResolvedValue(
+      new Map([
+        ['de', { telefono: '04165550004', tieneCuenta: true }],
+        ['l1', { telefono: '04245551111', tieneCuenta: false }],
+      ]),
+    )
+    const personas = (await renderMiEquipo()).vista?.personas
+    expect(fetchContactosPersonas).toHaveBeenCalledTimes(1)
+    expect(fetchContactosPersonas.mock.calls[0][1]).toEqual(['de', 'l1', 'l2'])
+    expect(personas?.find((p) => p.nombre === 'Diego Etapa')).toMatchObject({ telefono: '04165550004', tieneCuenta: true })
+    expect(personas?.find((p) => p.nombre === 'Lidia Lider')).toMatchObject({ telefono: '04245551111', tieneCuenta: false })
+    expect(personas?.find((p) => p.nombre === 'Luis Lider')).toMatchObject({ telefono: null, tieneCuenta: null })
+  })
+
+  it('still opens, without contacts, when the contacts lookup fails', async () => {
+    fetchContactosPersonas.mockRejectedValue(new Error('rpc down'))
+    const props = await renderMiEquipo()
+    expect(props.vista?.personas).toHaveLength(3)
+    expect(props.puedeEditar).toBe(false)
   })
 
   it('roots the tree at their segmento when the Grupos de Vida root is not readable', async () => {

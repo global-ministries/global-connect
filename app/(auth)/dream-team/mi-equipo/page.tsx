@@ -31,7 +31,7 @@ import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/rep
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
-import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import { fetchContactosPersonas, fetchNombresPersonas, type ContactoPersona } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import {
   equiposAsignables as listarEquiposAsignables,
@@ -97,10 +97,21 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
 
   // usuarios is not a dream-team table, so persona names are resolved here
   // with a single bulk lookup over servicio persona ids PLUS GdV leader ids.
-  const personaNombrePorId = await fetchNombresPersonas(supabase, [
+  const personaIds = [
     ...servicios.map((servicio) => servicio.personaId),
     ...lideresGdv.map((lider) => lider.personaId),
-  ])
+  ]
+  const personaNombrePorId = await fetchNombresPersonas(supabase, personaIds)
+
+  // Phone (the one on the profile) and account state, in ONE scoped RPC for
+  // everybody listed: `usuarios` has its own RLS that hides other people's rows,
+  // while dream_team_contactos_personas answers only for people the caller may
+  // see. A persona missing from the map is "not visible to you" — shown without
+  // phone or account mark, never as "sin cuenta". Contacts are a convenience on
+  // top of the list: if the lookup fails the page still renders without them.
+  const contactoPorId: ReadonlyMap<string, ContactoPersona> = await fetchContactosPersonas(supabase, personaIds).catch(
+    () => new Map<string, ContactoPersona>(),
+  )
 
   const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv))
   const equipoIdsVisibles = new Set([...equipos.map((equipo) => equipo.id), ...nodosGdv.map((nodo) => nodo.nodoId)])
@@ -122,6 +133,8 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       origen: 'dream_team',
       servicioId: servicio.id,
       version: servicio.version,
+      telefono: contactoPorId.get(servicio.personaId)?.telefono ?? null,
+      tieneCuenta: contactoPorId.get(servicio.personaId)?.tieneCuenta ?? null,
     })
   }
   // A leader of two groups is two rows (one per group), hence the equipo in the key.
@@ -134,6 +147,8 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       rolLabel: ROL_LIDER_GDV_LABELS[lider.rol],
       estado: 'activo',
       origen: 'grupos_vida',
+      telefono: contactoPorId.get(lider.personaId)?.telefono ?? null,
+      tieneCuenta: contactoPorId.get(lider.personaId)?.tieneCuenta ?? null,
     })
   }
 
