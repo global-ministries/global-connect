@@ -88,6 +88,13 @@ DECLARE v text;
 BEGIN EXECUTE p_sql INTO v; RETURN v; END;
 $$;
 
+-- Mensaje de error de un statement ('' si no falla).
+CREATE OR REPLACE FUNCTION pg_temp.mensaje(p_sql text)
+RETURNS text LANGUAGE plpgsql AS $$
+DECLARE v text;
+BEGIN EXECUTE p_sql INTO v; RETURN ''; EXCEPTION WHEN OTHERS THEN RETURN SQLERRM; END;
+$$;
+
 -- Payload de un solo grupo válido, con campos extra/sobrescritos.
 CREATE OR REPLACE FUNCTION pg_temp.un_grupo(p_extra jsonb)
 RETURNS text LANGUAGE sql AS $$
@@ -436,6 +443,52 @@ SELECT pg_temp.assert_eq('duplicado: mismo usuario con distinta capitalización 
        || (SELECT count(*)::text FROM public.grupos WHERE nombre LIKE 'ZZ Pg cap%')$q$, 'ERR:220230');
 SELECT pg_temp.assert_eq('nombres: tras guardados exitosos ningún grupo del destino empieza con ~',
   $q$SELECT count(*)::text FROM public.grupos WHERE temporada_id = 'e5000000-0000-4000-8000-0000000000c2' AND nombre LIKE '~%'$q$, '0');
+
+-- 14. Nombres por segmento (grupos_unico = (nombre, segmento_id, temporada_id), incluye eliminados).
+SELECT pg_temp.assert_eq('segmento: el mismo nombre en dos segmentos distintos se acepta',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"sg1","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg seg","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]},
+         {"id":null,"clave":"sg2","director_etapa_id":"e5000000-0000-4000-8000-000000000006","nombre":"zz pg seg","segmento_id":"e5000000-0000-4000-8000-0000000000a2","miembros":[]}]') ~ '"insertados": 2'$q$, 'true');
+SELECT pg_temp.assert_eq('segmento: mismo nombre y mismo segmento dentro del envío se rechaza',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"sd1","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg dupseg","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]},
+         {"id":null,"clave":"sd2","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg DupSeg ","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
+       || (SELECT count(*)::text FROM public.grupos WHERE lower(nombre) LIKE 'zz pg dupseg%')$q$, 'ERR:220230');
+SELECT pg_temp.assert_eq('segmento: mismo nombre y segmento que un grupo existente se rechaza',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', '[{"id":null,"clave":"se1","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg seg","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
+       || (SELECT count(*)::text FROM public.grupos WHERE nombre = 'ZZ Pg seg' AND segmento_id = 'e5000000-0000-4000-8000-0000000000a1')$q$, 'ERR:220231');
+SELECT pg_temp.assert_eq('segmento: re-guardar el grupo existente conserva su nombre real',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       (SELECT jsonb_build_array(jsonb_build_object('id', id, 'clave', 'rs1', 'nombre', 'ZZ Pg seg',
+          'director_etapa_id', 'e5000000-0000-4000-8000-000000000004', 'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text
+          FROM public.grupos WHERE nombre = 'ZZ Pg seg' AND segmento_id = 'e5000000-0000-4000-8000-0000000000a1'))
+       ~ '"actualizados": 1')::text
+       || (SELECT count(*)::text FROM public.grupos WHERE nombre = 'ZZ Pg seg')$q$, 'true1');
+
+-- Grupo eliminado ANTES de la función (nombre original intacto): bloquea con mensaje claro.
+INSERT INTO public.grupos (id, nombre, temporada_id, segmento_id, activo, estado_ciclo, estado_aprobacion, eliminado) VALUES
+  ('e5000000-0000-4000-8000-0000000000d4', 'ZZ Pg legado', 'e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000a1', false, 'proximo', 'pendiente', true);
+SELECT pg_temp.assert_eq('legado: un eliminado que conserva el nombre bloquea con mensaje claro',
+  $q$SELECT (pg_temp.mensaje(format('SELECT public.planner_guardar_planificacion(%L, %L, %L::jsonb)', 'e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"lg1","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg legado","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]'))
+       ~ 'Existe un grupo eliminado con el nombre')::text$q$, 'true');
+SELECT pg_temp.assert_eq('legado: el rechazo es 22023 y no escribe',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', '[{"id":null,"clave":"lg2","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg legado","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
+       || (SELECT count(*)::text FROM public.grupos WHERE nombre = 'ZZ Pg legado' AND eliminado = false)$q$, 'ERR:220230');
+SELECT pg_temp.assert_eq('legado: el mismo nombre en otro segmento sí se acepta',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', '[{"id":null,"clave":"lg3","director_etapa_id":"e5000000-0000-4000-8000-000000000006","nombre":"ZZ Pg legado","segmento_id":"e5000000-0000-4000-8000-0000000000a2","miembros":[]}]') ~ '"insertados": 1'$q$, 'true');
+
+-- Baja + alta con el mismo nombre en la misma llamada: la fila eliminada se renombra.
+SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', '[{"id":null,"clave":"xd0","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg xdel","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]');
+SELECT pg_temp.assert_eq('baja+alta: eliminar X y crear X en el mismo guardado se acepta',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', '[{"id":null,"clave":"xd1","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg xdel","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]',
+       (SELECT '{' || id::text || '}' FROM public.grupos WHERE nombre = 'ZZ Pg xdel' AND segmento_id = 'e5000000-0000-4000-8000-0000000000a1'))
+       ~ '"eliminados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('baja+alta: la fila eliminada quedó con el sufijo y la nueva con el nombre real',
+  $q$SELECT (SELECT count(*)::text FROM public.grupos WHERE eliminado AND nombre ~ '^ZZ Pg xdel \[eliminado [0-9a-f]{8}\]$')
+       || (SELECT count(*)::text FROM public.grupos WHERE NOT eliminado AND nombre = 'ZZ Pg xdel')$q$, '11');
+SELECT pg_temp.assert_eq('baja+alta: un guardado posterior puede volver a reutilizar el nombre',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', '[{"id":null,"clave":"xd2","director_etapa_id":"e5000000-0000-4000-8000-000000000006","nombre":"ZZ Pg xdel","segmento_id":"e5000000-0000-4000-8000-0000000000a2","miembros":[]}]') ~ '"insertados": 1'$q$, 'true');
 
 -- Resultado: los casos fallidos (vacío = todo bien).
 SELECT case_name AS failing_cases FROM t_pg_failures ORDER BY case_name;

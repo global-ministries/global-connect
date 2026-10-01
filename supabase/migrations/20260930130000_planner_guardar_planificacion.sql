@@ -68,6 +68,7 @@ DECLARE
   v_sl_id uuid;
   v_re_uuid constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
   v_texto text;
+  v_eliminado_choque boolean;
   v_vinculos integer;
   v_vinculo_ok boolean;
 BEGIN
@@ -232,28 +233,40 @@ BEGIN
     RAISE EXCEPTION 'El nombre de grupo "%" no puede empezar con "~"', v_nombre USING ERRCODE = '22023';
   END IF;
 
-  -- Nombres duplicados dentro del envío.
+  -- Nombres duplicados dentro del envío. El índice grupos_unico es UNIQUE (nombre, segmento_id,
+  -- temporada_id): el alcance es el segmento dentro de la temporada. Aquí se compara sin
+  -- distinguir mayúsculas ni espacios (más estricto que el índice, a propósito).
   SELECT min(btrim(g->>'nombre')) INTO v_nombre
   FROM jsonb_array_elements(p_grupos) g
-  GROUP BY lower(btrim(g->>'nombre'))
+  GROUP BY lower(btrim(g->>'nombre')), (g->>'segmento_id')::uuid
   HAVING count(*) > 1
   LIMIT 1;
   IF v_nombre IS NOT NULL THEN
-    RAISE EXCEPTION 'Hay grupos con el nombre duplicado "%" en el envío', v_nombre USING ERRCODE = '22023';
+    RAISE EXCEPTION 'Hay grupos con el nombre duplicado "%" en el mismo segmento dentro del envío', v_nombre
+      USING ERRCODE = '22023';
   END IF;
 
-  -- Nombres que chocan con grupos no eliminados del destino (salvo los que se guardan con su
-  -- mismo id —se renombran— o se eliminan en esta misma llamada).
-  SELECT g.nombre INTO v_nombre
+  -- Choques con grupos ya existentes del destino, INCLUYENDO eliminados (el índice los cuenta).
+  -- Se excluyen los grupos no eliminados que esta llamada renombra (mismo id en el envío) o da de
+  -- baja (la baja renombra la fila y libera el nombre). Un grupo eliminado antes de esta función
+  -- conserva su nombre original y sí bloquea.
+  SELECT g.nombre, g.eliminado INTO v_nombre, v_eliminado_choque
   FROM public.grupos g
+  JOIN jsonb_array_elements(p_grupos) x
+    ON lower(btrim(g.nombre)) = lower(btrim(x->>'nombre'))
+   AND g.segmento_id = (x->>'segmento_id')::uuid
   WHERE g.temporada_id = p_temporada_id
-    AND g.eliminado = false
-    AND NOT (g.id = ANY (v_ids_payload))
-    AND NOT (g.id = ANY (p_grupos_eliminados))
-    AND lower(btrim(g.nombre)) IN (SELECT lower(btrim(x->>'nombre')) FROM jsonb_array_elements(p_grupos) x)
+    AND NOT (g.eliminado = false AND g.id = ANY (v_ids_payload))
+    AND NOT (g.eliminado = false AND g.id = ANY (p_grupos_eliminados))
+  ORDER BY g.eliminado
   LIMIT 1;
   IF v_nombre IS NOT NULL THEN
-    RAISE EXCEPTION 'Ya existe un grupo con el nombre "%" en la temporada a planificar', v_nombre USING ERRCODE = '22023';
+    IF v_eliminado_choque THEN
+      RAISE EXCEPTION 'Existe un grupo eliminado con el nombre "%" en el mismo segmento', v_nombre
+        USING ERRCODE = '22023';
+    END IF;
+    RAISE EXCEPTION 'Ya existe un grupo con el nombre "%" en el mismo segmento de la temporada a planificar', v_nombre
+      USING ERRCODE = '22023';
   END IF;
 
   -- Una persona en a lo sumo un grupo del payload; todas deben existir.
@@ -295,7 +308,9 @@ BEGIN
   FOREACH v_id_eliminar IN ARRAY p_grupos_eliminados LOOP
     UPDATE public.grupos g
     SET eliminado = true,
-        activo = false
+        activo = false,
+        -- El índice único cuenta las filas eliminadas: se renombra para liberar el nombre.
+        nombre = g.nombre || ' [eliminado ' || substr(md5(g.id::text), 1, 8) || ']'
     WHERE g.id = v_id_eliminar
       AND g.temporada_id = p_temporada_id
       AND g.eliminado = false;
