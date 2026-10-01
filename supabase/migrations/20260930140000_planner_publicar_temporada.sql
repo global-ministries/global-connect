@@ -115,6 +115,16 @@ BEGIN
     RAISE EXCEPTION 'La temporada ya está activa; solo se puede publicar una temporada en planificación' USING ERRCODE = '22023';
   END IF;
 
+  -- Bloquea los grupos de la temporada ANTES de validar, para que nada cambie entre validar y
+  -- escribir. planner_guardar_planificacion y esta función ya se serializan entre sí por el lock
+  -- de la fila de temporadas (guardar: FOR UPDATE de la temporada destino; aquí, arriba); este
+  -- lock cubre además escrituras directas sobre los grupos.
+  PERFORM 1
+  FROM public.grupos g
+  WHERE g.temporada_id = p_temporada_id AND g.eliminado = false
+  ORDER BY g.id
+  FOR UPDATE;
+
   -- Validación previa de todos los grupos vigentes (antes de escribir nada).
   SELECT count(*) INTO v_total
   FROM public.grupos g
@@ -125,10 +135,10 @@ BEGIN
     RAISE EXCEPTION 'La temporada no tiene grupos para publicar' USING ERRCODE = '22023';
   END IF;
 
-  SELECT count(*), string_agg(x.nombre, ', ' ORDER BY x.nombre)
+  SELECT count(*), string_agg(x.nombre, ', ' ORDER BY x.nombre) FILTER (WHERE x.rn <= 10)
   INTO v_cuenta, v_nombres
   FROM (
-    SELECT g.nombre
+    SELECT g.nombre, row_number() OVER (ORDER BY g.nombre) AS rn
     FROM public.grupos g
     WHERE g.temporada_id = p_temporada_id
       AND g.eliminado = false
@@ -137,17 +147,18 @@ BEGIN
         SELECT 1 FROM public.grupo_miembros gm
         WHERE gm.grupo_id = g.id AND gm.estado = 'activo' AND gm.rol = 'Líder'
       )
-    ORDER BY g.nombre
-    LIMIT 10
   ) x;
+  IF v_cuenta > 10 THEN
+    v_nombres := v_nombres || ' y ' || (v_cuenta - 10) || ' más';
+  END IF;
   IF v_cuenta > 0 THEN
     RAISE EXCEPTION 'Hay % grupo(s) sin líder activo: %', v_cuenta, v_nombres USING ERRCODE = '22023';
   END IF;
 
-  SELECT count(*), string_agg(x.nombre, ', ' ORDER BY x.nombre)
+  SELECT count(*), string_agg(x.nombre, ', ' ORDER BY x.nombre) FILTER (WHERE x.rn <= 10)
   INTO v_cuenta, v_nombres
   FROM (
-    SELECT g.nombre
+    SELECT g.nombre, row_number() OVER (ORDER BY g.nombre) AS rn
     FROM public.grupos g
     WHERE g.temporada_id = p_temporada_id
       AND g.eliminado = false
@@ -155,17 +166,18 @@ BEGIN
       AND (
         SELECT count(*) FROM public.director_etapa_grupos deg WHERE deg.grupo_id = g.id
       ) <> 1
-    ORDER BY g.nombre
-    LIMIT 10
   ) x;
+  IF v_cuenta > 10 THEN
+    v_nombres := v_nombres || ' y ' || (v_cuenta - 10) || ' más';
+  END IF;
   IF v_cuenta > 0 THEN
     RAISE EXCEPTION 'Hay % grupo(s) sin exactamente un director de etapa: %', v_cuenta, v_nombres USING ERRCODE = '22023';
   END IF;
 
-  SELECT count(*), string_agg(x.nombre, ', ' ORDER BY x.nombre)
+  SELECT count(*), string_agg(x.nombre, ', ' ORDER BY x.nombre) FILTER (WHERE x.rn <= 10)
   INTO v_cuenta, v_nombres
   FROM (
-    SELECT g.nombre
+    SELECT g.nombre, row_number() OVER (ORDER BY g.nombre) AS rn
     FROM public.grupos g
     WHERE g.temporada_id = p_temporada_id
       AND g.eliminado = false
@@ -178,9 +190,10 @@ BEGIN
           AND sl.tipo_lider = 'director_etapa'
           AND sl.segmento_id = g.segmento_id
       )
-    ORDER BY g.nombre
-    LIMIT 10
   ) x;
+  IF v_cuenta > 10 THEN
+    v_nombres := v_nombres || ' y ' || (v_cuenta - 10) || ' más';
+  END IF;
   IF v_cuenta > 0 THEN
     RAISE EXCEPTION 'Hay % grupo(s) con un director de etapa que no es elegible para su segmento: %', v_cuenta, v_nombres
       USING ERRCODE = '22023';
@@ -241,6 +254,13 @@ BEGIN
       SET activa = false,
           estado = 'finalizada'
       WHERE t.id = ANY (v_anteriores);
+
+      -- Bloqueo ordenado por id de los grupos de las temporadas cerradas antes de archivarlos.
+      PERFORM 1
+      FROM public.grupos g
+      WHERE g.temporada_id = ANY (v_anteriores) AND g.eliminado = false
+      ORDER BY g.id
+      FOR UPDATE;
 
       UPDATE public.grupos g
       SET activo = false,

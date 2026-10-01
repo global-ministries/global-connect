@@ -433,6 +433,12 @@ SELECT pg_temp.assert_eq('hora: el literal especial now se rechaza',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h4","hora_reunion":"now"}'))$q$, 'ERR:22023');
 SELECT pg_temp.assert_eq('hora: el literal especial allballs se rechaza',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h5","hora_reunion":"allballs"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('hora: con espacios alrededor se acepta',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h6","hora_reunion":" 19:30 "}')) ~ '"insertados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('hora: sufijo PM se acepta',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h7","hora_reunion":"7:30 PM"}')) ~ '"insertados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('hora: now con espacios sigue rechazada',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h8","hora_reunion":" now "}'))$q$, 'ERR:22023');
 SELECT pg_temp.assert_eq('nombres: un nombre que empieza con ~ se rechaza',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"~abc123456789"}'))$q$, 'ERR:22023');
 SELECT pg_temp.assert_eq('formato: miembro escalar se rechaza',

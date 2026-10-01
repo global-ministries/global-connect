@@ -83,6 +83,12 @@ RETURNS text LANGUAGE sql AS $$
 $$;
 
 -- Fixtures (como postgres). -------------------------------------------------
+-- Determinismo: cualquier temporada activa preexistente (staging) se cierra dentro de esta
+-- transacción (se revierte con el ROLLBACK); sus grupos no se tocan. Así la única temporada
+-- activa antes de activar es la ZZ Pt ACT de abajo.
+UPDATE public.temporadas SET activa = false, estado = 'finalizada'
+ WHERE activa IS TRUE OR lower(btrim(coalesce(estado, ''))) = 'activa';
+
 -- Temporadas: c1 ACT (activa), c2 FIN (finalizada), c3 EMP (sin grupos), c4 sin Líder,
 -- c5 sin director, c6 persona duplicada, c7 director de otro segmento, c8 OK1, c9 OK2.
 INSERT INTO public.temporadas (id, nombre, fecha_inicio, fecha_fin, activa, estado) VALUES
