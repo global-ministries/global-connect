@@ -66,6 +66,9 @@ DECLARE
   v_id_eliminar uuid;
   v_hoy date := current_date;
   v_sl_id uuid;
+  v_re_uuid constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
+  v_re_hora constant text := '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$';
+  v_texto text;
   v_vinculos integer;
   v_vinculo_ok boolean;
 BEGIN
@@ -140,6 +143,31 @@ BEGIN
     IF nullif(v_grupo->>'segmento_id', '') IS NULL THEN
       RAISE EXCEPTION 'Cada grupo debe tener segmento' USING ERRCODE = '22023';
     END IF;
+
+    -- Formato de todos los campos, antes de cualquier cast (error claro 22023, no 22P02).
+    IF coalesce(v_grupo->>'segmento_id', '') !~ v_re_uuid THEN
+      RAISE EXCEPTION 'El grupo con clave % tiene un segmento_id con formato inválido', v_clave USING ERRCODE = '22023';
+    END IF;
+    IF nullif(v_grupo->>'id', '') IS NOT NULL AND (v_grupo->>'id') !~ v_re_uuid THEN
+      RAISE EXCEPTION 'El grupo con clave % tiene un id con formato inválido', v_clave USING ERRCODE = '22023';
+    END IF;
+    IF nullif(v_grupo->>'director_etapa_id', '') IS NOT NULL AND (v_grupo->>'director_etapa_id') !~ v_re_uuid THEN
+      RAISE EXCEPTION 'El grupo con clave % tiene un director_etapa_id con formato inválido', v_clave USING ERRCODE = '22023';
+    END IF;
+    v_texto := nullif(v_grupo->>'capacidad_maxima', '');
+    IF v_texto IS NOT NULL AND v_texto !~ '^[0-9]{1,6}$' THEN
+      RAISE EXCEPTION 'El grupo con clave % tiene una capacidad_maxima que no es un entero válido', v_clave USING ERRCODE = '22023';
+    END IF;
+    v_texto := nullif(v_grupo->>'dia_reunion', '');
+    IF v_texto IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM unnest(enum_range(NULL::public.enum_dia_semana)) d WHERE d::text = v_texto
+    ) THEN
+      RAISE EXCEPTION 'El grupo con clave % tiene un dia_reunion inválido', v_clave USING ERRCODE = '22023';
+    END IF;
+    v_texto := nullif(v_grupo->>'hora_reunion', '');
+    IF v_texto IS NOT NULL AND v_texto !~ v_re_hora THEN
+      RAISE EXCEPTION 'El grupo con clave % tiene una hora_reunion inválida (use HH:MM)', v_clave USING ERRCODE = '22023';
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM public.segmentos s WHERE s.id = (v_grupo->>'segmento_id')::uuid) THEN
       RAISE EXCEPTION 'Hay un grupo con un segmento inexistente' USING ERRCODE = '22023';
     END IF;
@@ -172,8 +200,12 @@ BEGIN
     END IF;
 
     FOR v_miembro IN SELECT * FROM jsonb_array_elements(coalesce(nullif(v_grupo->'miembros', 'null'::jsonb), '[]'::jsonb)) LOOP
-      IF nullif(v_miembro->>'usuario_id', '') IS NULL THEN
+      IF jsonb_typeof(v_miembro) <> 'object' OR nullif(v_miembro->>'usuario_id', '') IS NULL THEN
         RAISE EXCEPTION 'Cada miembro debe traer usuario_id' USING ERRCODE = '22023';
+      END IF;
+      IF (v_miembro->>'usuario_id') !~ v_re_uuid THEN
+        RAISE EXCEPTION 'El grupo con clave % tiene un miembro con usuario_id de formato inválido', v_clave
+          USING ERRCODE = '22023';
       END IF;
       IF coalesce(v_miembro->>'rol', '') NOT IN ('Líder', 'Colíder', 'Miembro') THEN
         RAISE EXCEPTION 'Rol de miembro inválido (use Líder, Colíder o Miembro)' USING ERRCODE = '22023';
@@ -206,7 +238,7 @@ BEGIN
   END IF;
 
   -- Una persona en a lo sumo un grupo del payload; todas deben existir.
-  SELECT count(*), count(DISTINCT m->>'usuario_id')
+  SELECT count(*), count(DISTINCT (m->>'usuario_id')::uuid)
   INTO v_usuarios_total, v_usuarios_distintos
   FROM jsonb_array_elements(p_grupos) g,
        jsonb_array_elements(coalesce(nullif(g->'miembros', 'null'::jsonb), '[]'::jsonb)) m;
@@ -239,7 +271,30 @@ BEGIN
     RAISE EXCEPTION 'Solo se pueden eliminar grupos de la temporada a planificar' USING ERRCODE = '22023';
   END IF;
 
-  -- Escritura.
+  -- Bajas lógicas (ya validadas como grupos del destino) ANTES de escribir: así un nombre
+  -- liberado puede reutilizarse en la misma llamada.
+  FOREACH v_id_eliminar IN ARRAY p_grupos_eliminados LOOP
+    UPDATE public.grupos g
+    SET eliminado = true,
+        activo = false
+    WHERE g.id = v_id_eliminar
+      AND g.temporada_id = p_temporada_id
+      AND g.eliminado = false;
+    GET DIAGNOSTICS v_filas = ROW_COUNT;
+    v_eliminados := v_eliminados + v_filas;
+  END LOOP;
+
+  -- Fase 1 de renombrado: todo grupo del destino que se va a actualizar toma un nombre temporal
+  -- único (lleva su id), de modo que los nombres finales (ya validados como distintos entre sí y
+  -- frente a los grupos no tocados) no choquen con el índice único sea cual sea el orden:
+  -- intercambios de nombre y renombres posteriores incluidos.
+  UPDATE public.grupos g
+  SET nombre = g.nombre || ' [tmp ' || g.id::text || ']'
+  WHERE g.id = ANY (v_ids_payload)
+    AND g.temporada_id = p_temporada_id
+    AND g.eliminado = false;
+
+  -- Escritura (fase 2: nombres finales).
   FOR v_grupo IN SELECT * FROM jsonb_array_elements(p_grupos) LOOP
     v_clave := btrim(v_grupo->>'clave');
     v_nombre := btrim(v_grupo->>'nombre');
@@ -340,18 +395,6 @@ BEGIN
     END LOOP;
 
     v_resultado := v_resultado || jsonb_build_array(jsonb_build_object('clave', v_clave, 'id', v_grupo_id));
-  END LOOP;
-
-  -- Bajas lógicas (ya validadas como grupos del destino).
-  FOREACH v_id_eliminar IN ARRAY p_grupos_eliminados LOOP
-    UPDATE public.grupos g
-    SET eliminado = true,
-        activo = false
-    WHERE g.id = v_id_eliminar
-      AND g.temporada_id = p_temporada_id
-      AND g.eliminado = false;
-    GET DIAGNOSTICS v_filas = ROW_COUNT;
-    v_eliminados := v_eliminados + v_filas;
   END LOOP;
 
   RETURN jsonb_build_object(

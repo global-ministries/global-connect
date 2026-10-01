@@ -88,6 +88,15 @@ DECLARE v text;
 BEGIN EXECUTE p_sql INTO v; RETURN v; END;
 $$;
 
+-- Payload de un solo grupo válido, con campos extra/sobrescritos.
+CREATE OR REPLACE FUNCTION pg_temp.un_grupo(p_extra jsonb)
+RETURNS text LANGUAGE sql AS $$
+  SELECT jsonb_build_array(jsonb_build_object(
+    'id', NULL, 'clave', 'm1', 'nombre', 'ZZ Pg malformado',
+    'director_etapa_id', 'e5000000-0000-4000-8000-000000000004',
+    'segmento_id', 'e5000000-0000-4000-8000-0000000000a1', 'miembros', '[]'::jsonb) || p_extra)::text;
+$$;
+
 -- Fixtures (como postgres). -------------------------------------------------
 -- Temporadas: ORI (origen, finalizada), DST (destino futura), ACT (activa), FIN (finalizada).
 INSERT INTO public.temporadas (id, nombre, fecha_inicio, fecha_fin, activa, estado) VALUES
@@ -217,9 +226,9 @@ SELECT pg_temp.assert_eq('duplicado: persona en dos grupos se rechaza con 22023 
        || (SELECT count(*)::text FROM public.grupo_miembros WHERE usuario_id = 'e5000000-0000-4000-8000-000000000011')$q$,
   'ERR:2202300');
 
--- Atomicidad real: el primer grupo es válido y el segundo falla en la escritura (rol inválido
--- se valida antes; aquí un usuario inexistente en el segundo grupo). Nada debe quedar.
-SELECT pg_temp.assert_eq('atomicidad: un usuario inexistente aborta todo, incluido el grupo válido',
+-- Validación previa: un usuario inexistente en el segundo grupo aborta antes de escribir (el
+-- rollback real a mitad de escritura se prueba en la sección 11).
+SELECT pg_temp.assert_eq('validación previa: un usuario inexistente aborta todo, sin escribir el grupo válido',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
        '[{"id":null,"clave":"a","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg atom A","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[{"usuario_id":"e5000000-0000-4000-8000-000000000011","rol":"Líder"}]},
          {"id":null,"clave":"b","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg atom B","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[{"usuario_id":"e5000000-0000-4000-8000-0000000000ff","rol":"Miembro"}]}]')
@@ -315,6 +324,79 @@ SELECT pg_temp.assert_eq('helper: líder se rechaza con 42501',
   $q$SELECT pg_temp.outcome('SELECT count(*)::text FROM public.planner_directores_etapa_elegibles()')$q$, 'ERR:42501');
 SELECT pg_temp.assert_eq('helper: anon no ejecuta',
   $q$SELECT has_function_privilege('anon', 'public.planner_directores_etapa_elegibles()', 'EXECUTE')::text$q$, 'false');
+
+-- 10. Orden de escritura / nombres (índice único): todos estos payloads son válidos.
+SELECT pg_temp.as_user(pg_temp.a('ADM'));
+SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+  '[{"id":null,"clave":"s1","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg sw1","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]},
+    {"id":null,"clave":"s2","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg sw2","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]},
+    {"id":null,"clave":"s3","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg rl1","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]');
+SELECT pg_temp.assert_eq('nombres: intercambio de nombres entre dos grupos existentes',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       (SELECT jsonb_build_array(
+          jsonb_build_object('id', (SELECT id FROM public.grupos WHERE nombre = 'ZZ Pg sw1'), 'clave', 'x1', 'nombre', 'ZZ Pg sw2',
+            'director_etapa_id', 'e5000000-0000-4000-8000-000000000004', 'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'),
+          jsonb_build_object('id', (SELECT id FROM public.grupos WHERE nombre = 'ZZ Pg sw2'), 'clave', 'x2', 'nombre', 'ZZ Pg sw1',
+            'director_etapa_id', 'e5000000-0000-4000-8000-000000000004', 'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text))
+       ~ '"actualizados": 2')::text$q$, 'true');
+SELECT pg_temp.assert_eq('nombres: tras el intercambio no quedan nombres temporales',
+  $q$SELECT count(*)::text FROM public.grupos WHERE nombre LIKE '%[tmp %'$q$, '0');
+SELECT pg_temp.assert_eq('nombres: un grupo nuevo toma el nombre de otro que se renombra más adelante',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       (SELECT jsonb_build_array(
+          jsonb_build_object('id', NULL, 'clave', 'y1', 'nombre', 'ZZ Pg rl1',
+            'director_etapa_id', 'e5000000-0000-4000-8000-000000000004', 'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'),
+          jsonb_build_object('id', (SELECT id FROM public.grupos WHERE nombre = 'ZZ Pg rl1'), 'clave', 'y2', 'nombre', 'ZZ Pg rl1 nuevo',
+            'director_etapa_id', 'e5000000-0000-4000-8000-000000000004', 'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text))
+       ~ '"insertados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('nombres: reusar el nombre de un grupo dado de baja en la misma llamada',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"z1","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg sw1","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]',
+       (SELECT '{' || id::text || '}' FROM public.grupos WHERE nombre = 'ZZ Pg sw1'))
+       ~ '"eliminados": 1'$q$, 'true');
+
+-- 11. Formato de entradas: 22023 claro (no 22P02) y nada escrito.
+SELECT pg_temp.assert_eq('formato: id malformado',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"id":"xyz"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: segmento_id malformado',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"segmento_id":"no-es-uuid"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: director_etapa_id malformado',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"director_etapa_id":"123"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: usuario_id de miembro malformado',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"miembros":[{"usuario_id":"abc","rol":"Miembro"}]}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: capacidad no entera (texto)',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"capacidad_maxima":"abc"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: capacidad no entera (decimal)',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"capacidad_maxima":12.5}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: día de reunión inválido',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"dia_reunion":"Domingo2"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: hora de reunión inválida (25:99)',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"hora_reunion":"25:99"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: hora de reunión inválida (texto)',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"hora_reunion":"tarde"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: entradas válidas con día y hora se aceptan',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"dia_reunion":"Jueves","hora_reunion":"19:30","capacidad_maxima":10}')) ~ '"insertados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('formato: los rechazos anteriores no escribieron nada (solo el grupo válido)',
+  $q$SELECT count(*)::text FROM public.grupos WHERE nombre = 'ZZ Pg malformado'$q$, '1');
+
+-- 12. Rollback real a mitad de escritura: un trigger de prueba (revertido con la transacción)
+-- hace fallar el INSERT del segundo grupo cuando ya se escribió el primero.
+CREATE FUNCTION public.zz_pg_tg_falla() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.nombre = 'ZZ Pg falla' THEN RAISE EXCEPTION 'fallo forzado' USING ERRCODE = 'P0001'; END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER zz_pg_tg_falla BEFORE INSERT ON public.grupos FOR EACH ROW EXECUTE FUNCTION public.zz_pg_tg_falla();
+
+SELECT pg_temp.assert_eq('rollback: el fallo del segundo grupo revierte el primero (grupo, miembros y vínculo)',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"rb1","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg rb A","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[{"usuario_id":"e5000000-0000-4000-8000-000000000014","rol":"Líder"}]},
+         {"id":null,"clave":"rb2","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg falla","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[]}]')
+       || (SELECT count(*)::text FROM public.grupos WHERE nombre IN ('ZZ Pg rb A', 'ZZ Pg falla'))
+       || (SELECT count(*)::text FROM public.grupo_miembros WHERE usuario_id = 'e5000000-0000-4000-8000-000000000014')$q$,
+  'ERR:P0001' || '0' || '0');
+
+DROP TRIGGER zz_pg_tg_falla ON public.grupos;
 
 -- Resultado: los casos fallidos (vacío = todo bien).
 SELECT case_name AS failing_cases FROM t_pg_failures ORDER BY case_name;
