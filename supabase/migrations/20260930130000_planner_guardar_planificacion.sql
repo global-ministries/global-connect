@@ -67,7 +67,6 @@ DECLARE
   v_hoy date := current_date;
   v_sl_id uuid;
   v_re_uuid constant text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
-  v_re_hora constant text := '^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$';
   v_texto text;
   v_vinculos integer;
   v_vinculo_ok boolean;
@@ -165,8 +164,14 @@ BEGIN
       RAISE EXCEPTION 'El grupo con clave % tiene un dia_reunion inválido', v_clave USING ERRCODE = '22023';
     END IF;
     v_texto := nullif(v_grupo->>'hora_reunion', '');
-    IF v_texto IS NOT NULL AND v_texto !~ v_re_hora THEN
-      RAISE EXCEPTION 'El grupo con clave % tiene una hora_reunion inválida (use HH:MM)', v_clave USING ERRCODE = '22023';
+    IF v_texto IS NOT NULL THEN
+      -- Mismo criterio que el cast ::time anterior (acepta '7:30', '19:30:00.000'...).
+      BEGIN
+        PERFORM v_texto::time;
+      EXCEPTION
+        WHEN invalid_datetime_format OR datetime_field_overflow THEN
+          RAISE EXCEPTION 'El grupo con clave % tiene una hora_reunion inválida', v_clave USING ERRCODE = '22023';
+      END;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM public.segmentos s WHERE s.id = (v_grupo->>'segmento_id')::uuid) THEN
       RAISE EXCEPTION 'Hay un grupo con un segmento inexistente' USING ERRCODE = '22023';
@@ -285,11 +290,11 @@ BEGIN
   END LOOP;
 
   -- Fase 1 de renombrado: todo grupo del destino que se va a actualizar toma un nombre temporal
-  -- único (lleva su id), de modo que los nombres finales (ya validados como distintos entre sí y
+  -- único (corto, derivado solo del id), de modo que los nombres finales (ya validados como distintos entre sí y
   -- frente a los grupos no tocados) no choquen con el índice único sea cual sea el orden:
   -- intercambios de nombre y renombres posteriores incluidos.
   UPDATE public.grupos g
-  SET nombre = g.nombre || ' [tmp ' || g.id::text || ']'
+  SET nombre = '~' || substr(md5(g.id::text), 1, 12)
   WHERE g.id = ANY (v_ids_payload)
     AND g.temporada_id = p_temporada_id
     AND g.eliminado = false;

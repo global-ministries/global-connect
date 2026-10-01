@@ -340,7 +340,14 @@ SELECT pg_temp.assert_eq('nombres: intercambio de nombres entre dos grupos exist
             'director_etapa_id', 'e5000000-0000-4000-8000-000000000004', 'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text))
        ~ '"actualizados": 2')::text$q$, 'true');
 SELECT pg_temp.assert_eq('nombres: tras el intercambio no quedan nombres temporales',
-  $q$SELECT count(*)::text FROM public.grupos WHERE nombre LIKE '%[tmp %'$q$, '0');
+  $q$SELECT count(*)::text FROM public.grupos WHERE nombre LIKE '~%'$q$, '0');
+SELECT pg_temp.assert_eq('nombres: re-guardar un grupo con su nombre sin cambios conserva el real',
+  $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       (SELECT jsonb_build_array(jsonb_build_object('id', id, 'clave', 'u1', 'nombre', 'ZZ Pg rl1',
+          'director_etapa_id', 'e5000000-0000-4000-8000-000000000004', 'segmento_id', 'e5000000-0000-4000-8000-0000000000a1'))::text
+          FROM public.grupos WHERE nombre = 'ZZ Pg rl1'))
+       ~ '"actualizados": 1')::text
+       || (SELECT count(*)::text FROM public.grupos WHERE nombre = 'ZZ Pg rl1')$q$, 'true1');
 SELECT pg_temp.assert_eq('nombres: un grupo nuevo toma el nombre de otro que se renombra más adelante',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
        (SELECT jsonb_build_array(
@@ -381,12 +388,15 @@ SELECT pg_temp.assert_eq('formato: los rechazos anteriores no escribieron nada (
 
 -- 12. Rollback real a mitad de escritura: un trigger de prueba (revertido con la transacción)
 -- hace fallar el INSERT del segundo grupo cuando ya se escribió el primero.
+SELECT pg_temp.as_nobody();
+RESET ROLE;
 CREATE FUNCTION public.zz_pg_tg_falla() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.nombre = 'ZZ Pg falla' THEN RAISE EXCEPTION 'fallo forzado' USING ERRCODE = 'P0001'; END IF;
   RETURN NEW;
 END $$;
 CREATE TRIGGER zz_pg_tg_falla BEFORE INSERT ON public.grupos FOR EACH ROW EXECUTE FUNCTION public.zz_pg_tg_falla();
+SELECT pg_temp.as_user(pg_temp.a('ADM'));
 
 SELECT pg_temp.assert_eq('rollback: el fallo del segundo grupo revierte el primero (grupo, miembros y vínculo)',
   $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
@@ -396,7 +406,29 @@ SELECT pg_temp.assert_eq('rollback: el fallo del segundo grupo revierte el prime
        || (SELECT count(*)::text FROM public.grupo_miembros WHERE usuario_id = 'e5000000-0000-4000-8000-000000000014')$q$,
   'ERR:P0001' || '0' || '0');
 
+RESET ROLE;
 DROP TRIGGER zz_pg_tg_falla ON public.grupos;
+DROP FUNCTION public.zz_pg_tg_falla();
+SELECT pg_temp.as_user(pg_temp.a('ADM'));
+
+-- 13. Hora con formatos amplios, miembros mal formados y mayúsculas en uuid.
+SELECT pg_temp.assert_eq('formato: hora 7:30 se acepta',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h1","hora_reunion":"7:30"}')) ~ '"insertados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('formato: hora 19:30:00.000 se acepta',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h2","hora_reunion":"19:30:00.000"}')) ~ '"insertados": 1'$q$, 'true');
+SELECT pg_temp.assert_eq('formato: hora 25:00 se rechaza',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg h3","hora_reunion":"25:00"}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: miembro escalar se rechaza',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg m1","miembros":[5]}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('formato: miembro arreglo se rechaza',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1', pg_temp.un_grupo('{"nombre":"ZZ Pg m2","miembros":[[1]]}'))$q$, 'ERR:22023');
+SELECT pg_temp.assert_eq('duplicado: mismo usuario con distinta capitalización en dos grupos se rechaza',
+  $q$SELECT pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
+       '[{"id":null,"clave":"c1","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg cap A","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[{"usuario_id":"e5000000-0000-4000-8000-00000000001a","rol":"Miembro"}]},
+         {"id":null,"clave":"c2","director_etapa_id":"e5000000-0000-4000-8000-000000000004","nombre":"ZZ Pg cap B","segmento_id":"e5000000-0000-4000-8000-0000000000a1","miembros":[{"usuario_id":"E5000000-0000-4000-8000-00000000001A","rol":"Miembro"}]}]')
+       || (SELECT count(*)::text FROM public.grupos WHERE nombre LIKE 'ZZ Pg cap%')$q$, 'ERR:220230');
+SELECT pg_temp.assert_eq('nombres: tras guardados exitosos ningún grupo del destino empieza con ~',
+  $q$SELECT count(*)::text FROM public.grupos WHERE temporada_id = 'e5000000-0000-4000-8000-0000000000c2' AND nombre LIKE '~%'$q$, '0');
 
 -- Resultado: los casos fallidos (vacío = todo bien).
 SELECT case_name AS failing_cases FROM t_pg_failures ORDER BY case_name;
