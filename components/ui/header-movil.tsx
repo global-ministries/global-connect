@@ -21,6 +21,7 @@ import { useBranding } from '@/hooks/useBranding'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
 import { canAccess } from '@/lib/navigation/canAccess'
+import { insertDreamTeamMenuItem, useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 
 // ── SubItem type ──
 interface SubItem {
@@ -118,12 +119,27 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   const toast = useNotificaciones()
   const { theme, setTheme } = useTheme()
   const userMenuRef = useRef<HTMLDivElement>(null)
-  const primaryMenuItems = [...mainMenuItems, ...platformNavigationItems]
+
+  // Dream Team — the same section, rule and flag handling as the desktop
+  // sidebar (components/ui/dream-team-menu-item.ts), inserted right after
+  // 'grupos-vida' like there. Built dynamically from the session, so it is not
+  // part of the static `mainMenuItems`.
+  const dreamTeamMenuItem: MobileMenuItem | null = useDreamTeamMenuItem(platformSession)
+  const primaryMenuItems = [
+    ...insertDreamTeamMenuItem<MobileMenuItem>(mainMenuItems, dreamTeamMenuItem),
+    ...platformNavigationItems,
+  ]
 
   // Auto-expand submenus when a child route is active
   useEffect(() => {
     const newOpen = new Set<string>()
-    for (const item of [...mainMenuItems, ...platformNavigationItems, ...footerMenuItems]) {
+    const itemsConSubmenu = [
+      ...mainMenuItems,
+      ...(dreamTeamMenuItem ? [dreamTeamMenuItem] : []),
+      ...platformNavigationItems,
+      ...footerMenuItems,
+    ]
+    for (const item of itemsConSubmenu) {
       if (item.children) {
         const isChildActive = item.children.some(child =>
           pathname === child.href || pathname?.startsWith(child.href + '/')
@@ -139,7 +155,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       newOpen.forEach(id => merged.add(id))
       return merged
     })
-  }, [pathname, platformNavigationItems])
+  }, [pathname, platformNavigationItems, dreamTeamMenuItem])
 
   const toggleSubmenu = (id: string) => {
     setOpenSubmenus(prev => {
@@ -235,6 +251,9 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       ['/grupos-vida/dashboard-riesgo', 'Dashboard Riesgo'],
       ['/grupos-vida/solicitudes', 'Solicitudes'],
       ['/grupos-vida/configuracion', 'Configuración Grupos'],
+      [/^\/dream-team\/mi-equipo/, 'Mi equipo'],
+      [/^\/admin\/dream-team\/servidores/, 'Servidores'],
+      [/^\/admin\/dream-team\/estructura/, 'Estructura'],
       ['/configuracion', 'Configuración'],
       ['/actualizaciones', 'Actualizaciones'],
       ['/ayuda', 'Ayuda'],
