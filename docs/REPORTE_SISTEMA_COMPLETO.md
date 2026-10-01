@@ -213,7 +213,7 @@ Ubicación: `supabase/migrations/*.sql`. RPCs y funciones clave con historia de 
 - Grupos (visibilidad/operaciones):
   - `obtener_grupos_para_usuario` (serie de updates y fixes 20250905–20251008, incluye soporte `eliminado`/papelera, campo `supervisado_por_mi`, conteo de miembros y KPIs auxiliares)
   - Permisos: `define_puede_ver_grupo`, `define_puede_crear_grupo`, `define_puede_editar_grupo`
-  - Asignación granular: `asignar_director_etapa_a_grupo`
+  - Asignación granular: rutas API con chequeo de rol (la RPC `asignar_director_etapa_a_grupo` se eliminó el 2026-10-01)
   - KPIs: `obtener_kpis_grupos_para_usuario`
 - Asistencia y eventos:
   - `registrar_asistencia`, `obtener_asistencia_lectura`, `listar_eventos_grupo` (+ varias correcciones de tipos/permisos)

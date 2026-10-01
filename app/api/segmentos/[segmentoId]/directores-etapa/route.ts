@@ -156,7 +156,7 @@ export async function POST(req: Request, context: { params: Promise<{ segmentoId
     if (!grupoRow) return NextResponse.json({ error: 'Grupo fuera del segmento' }, { status: 400 });
 
     // Un matrimonio de directores de etapa es UN director: la acción aplica a ambos cónyuges.
-    // (La RPC asignar_director_etapa_a_grupo no existe en producción y confiaba en p_auth_id.)
+    // (La RPC asignar_director_etapa_a_grupo se eliminó en la migración 20261001170000: confiaba en p_auth_id.)
     const directorIds = await idsDirectorConPareja(supabaseAdmin, director_etapa_segmento_lider_id);
     const writeErr = accion === 'agregar'
       ? await asegurarEnlacesDirectorGrupo(supabaseAdmin, directorIds, [grupo_id])

@@ -357,16 +357,17 @@ SELECT pg_temp.assert_eq('multi: de nuevo dos vínculos (b1 y b2)',
   $q$SELECT count(*)::text || ':' || string_agg(right(deg.director_etapa_id::text, 2), ',' ORDER BY deg.director_etapa_id)
        FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi'$q$, '2:b1,b2');
 
--- Limpieza de datos heredados: un vínculo duplicado y uno ajeno al conjunto se eliminan.
+-- Limpieza de datos heredados: un vínculo ajeno al conjunto se elimina. (Un vínculo duplicado ya
+-- no puede existir: director_etapa_grupos tiene UNIQUE (director_etapa_id, grupo_id).)
 RESET ROLE;
 INSERT INTO public.director_etapa_grupos (grupo_id, director_etapa_id)
 SELECT g.id, v.sl FROM public.grupos g,
-  (VALUES ('e5000000-0000-4000-8000-0000000000b1'::uuid), ('e5000000-0000-4000-8000-0000000000b3'::uuid)) v(sl)
+  (VALUES ('e5000000-0000-4000-8000-0000000000b3'::uuid)) v(sl)
 WHERE g.nombre = 'ZZ Pg multi';
 SELECT pg_temp.as_user(pg_temp.a('DE'));
-SELECT pg_temp.assert_eq('multi: antes de limpiar hay 4 vínculos (b1 duplicado y b3 ajeno)',
-  $q$SELECT count(*)::text FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi'$q$, '4');
-SELECT pg_temp.assert_eq('multi: guardar el conjunto {DE} limpia el duplicado y el vínculo ajeno',
+SELECT pg_temp.assert_eq('multi: antes de limpiar hay 3 vínculos (b1, b2 y b3 ajeno)',
+  $q$SELECT count(*)::text FROM public.director_etapa_grupos deg JOIN public.grupos g ON g.id = deg.grupo_id WHERE g.nombre = 'ZZ Pg multi'$q$, '3');
+SELECT pg_temp.assert_eq('multi: guardar el conjunto {DE} limpia los vínculos ajenos',
   $q$SELECT (pg_temp.guardar('e5000000-0000-4000-8000-0000000000c2', 'e5000000-0000-4000-8000-0000000000c1',
        (SELECT jsonb_build_array(jsonb_build_object('id', id, 'clave', 'md1', 'nombre', 'ZZ Pg multi',
           'director_etapa_ids', jsonb_build_array('e5000000-0000-4000-8000-000000000004'),

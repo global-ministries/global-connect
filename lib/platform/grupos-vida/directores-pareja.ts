@@ -6,9 +6,9 @@
  * lives in the SQL helper `conyuge_director_etapa_id` (executable by service_role
  * only), so these helpers take the admin client for the lookup.
  *
- * `director_etapa_grupos` has no unique index on (director_etapa_id, grupo_id), so
- * links are inserted only after checking they do not exist (never ON CONFLICT). The table
- * has RLS enabled and no policies, so callers pass the ADMIN client, after their own checks.
+ * `director_etapa_grupos` has UNIQUE (director_etapa_id, grupo_id) (migration 20261001170000),
+ * so links are written with a single atomic `ON CONFLICT DO NOTHING` upsert. The table has RLS
+ * enabled and no policies, so callers pass the ADMIN client, after their own checks.
  * Server-side only.
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -16,12 +16,11 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Cliente = SupabaseClient<any, any, any>
 
-export type ErrorEnlaces = { message: string }
+export type ErrorEnlaces = { message: string; code?: string }
 
 /** PostgREST "function not found" and Postgres "undefined function". */
 const CODIGOS_RPC_AUSENTE = new Set(['PGRST202', '42883'])
 const TABLA = 'director_etapa_grupos'
-const GRUPOS_POR_CONSULTA = 200
 
 let avisoRpcAusenteEmitido = false
 
@@ -57,8 +56,11 @@ export async function idsDirectorConPareja(adminClient: Cliente, segmentoLiderId
 }
 
 /**
- * Links every director in `directorIds` to every group in `grupoIds`, skipping the
- * links that already exist.
+ * Links every director in `directorIds` to every group in `grupoIds`, in ONE atomic statement
+ * (`INSERT ... ON CONFLICT (director_etapa_id, grupo_id) DO NOTHING`): all the missing links are
+ * written or none, so a couple is never left half-linked, and links that already exist (or that a
+ * concurrent request just created) are skipped. Needs UNIQUE (director_etapa_id, grupo_id), which
+ * migration 20261001170000 adds; deploy it before this code.
  */
 export async function asegurarEnlacesDirectorGrupo(
   adminClient: Cliente,
@@ -67,27 +69,12 @@ export async function asegurarEnlacesDirectorGrupo(
 ): Promise<ErrorEnlaces | null> {
   if (directorIds.length === 0 || grupoIds.length === 0) return null
 
-  const existentes = new Set<string>()
-  for (let i = 0; i < grupoIds.length; i += GRUPOS_POR_CONSULTA) {
-    const { data, error } = await adminClient
-      .from(TABLA)
-      .select('director_etapa_id, grupo_id')
-      .in('director_etapa_id', directorIds)
-      .in('grupo_id', grupoIds.slice(i, i + GRUPOS_POR_CONSULTA))
-    if (error) return error
-    for (const fila of (data ?? []) as Array<{ director_etapa_id: string; grupo_id: string }>) {
-      existentes.add(`${fila.director_etapa_id}|${fila.grupo_id}`)
-    }
-  }
-
-  const faltantes = directorIds.flatMap((directorId) =>
-    grupoIds
-      .filter((grupoId) => !existentes.has(`${directorId}|${grupoId}`))
-      .map((grupoId) => ({ director_etapa_id: directorId, grupo_id: grupoId })),
+  const filas = directorIds.flatMap((directorId) =>
+    grupoIds.map((grupoId) => ({ director_etapa_id: directorId, grupo_id: grupoId })),
   )
-  if (faltantes.length === 0) return null
-
-  const { error } = await adminClient.from(TABLA).insert(faltantes)
+  const { error } = await adminClient
+    .from(TABLA)
+    .upsert(filas, { onConflict: 'director_etapa_id,grupo_id', ignoreDuplicates: true })
   return error ?? null
 }
 

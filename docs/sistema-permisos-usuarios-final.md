@@ -33,7 +33,7 @@ Se ha implementado exitosamente un sistema completo de permisos de usuarios basa
 | `admin` | **TODOS** | Sin restricciones | Acceso global |
 | `pastor` | **TODOS** | Sin restricciones | Acceso global |
 | `director-general` | **Segmentos asignados** | Filtro por `director_general_segmentos` | ⚠️ Cambio 2026-03-26: Ya NO tiene acceso global. Solo ve grupos/usuarios/KPIs/reportes de los segmentos en `director_general_segmentos`. |
-| `director-etapa` | **Sólo grupos asignados explícitamente** | Relación explícita via función `asignar_director_etapa_a_grupo` + flag en `obtener_grupos_para_usuario` | Ya NO ve toda la etapa completa. Campo `supervisado_por_mi` = true cuando está asignado. |
+| `director-etapa` | **Sólo grupos asignados explícitamente** | Relación explícita en `director_etapa_grupos` (asignación vía rutas API con chequeo de rol; la RPC `asignar_director_etapa_a_grupo` se eliminó el 2026-10-01) + flag en `obtener_grupos_para_usuario` | Ya NO ve toda la etapa completa. Campo `supervisado_por_mi` = true cuando está asignado. |
 | `lider` | **Sus grupos (Pasados/Actuales)** | `grupo_miembros` + Filtro temporal | **NO ve grupos futuros** (salvo activos con temporada activa). |
 | `miembro` | **Su familia** | `familias` + `relaciones_usuarios` | Sin cambios |
 
@@ -288,7 +288,7 @@ La Fase 1 se cierra con un sistema de permisos y supervisión granular operativo
 
 ### Entregables Clave Consolidando la Fase
 - Permisos usuario ↔ grupos y segmentos reestructurados (directores sólo sobre grupos asignados).
-- RPCs críticas endurecidas: `obtener_grupos_para_usuario`, `asignar_director_etapa_a_grupo`, `_puede_ver_segmento_lider`.
+- RPCs críticas endurecidas: `obtener_grupos_para_usuario`, `_puede_ver_segmento_lider` (la RPC `asignar_director_etapa_a_grupo` se eliminó el 2026-10-01).
 - Política consolidada RLS sobre `segmento_lideres` con SECURITY DEFINER centralizado.
 - UI adaptada: badge "Dir. etapa", edición en modo read-only cuando no hay supervisión, selección global de líder mediante modal.
 - Indicadores base (KPIs) agregados: porcentaje con líder, aprobados, sin director, distribución de miembros.
@@ -318,7 +318,7 @@ Fuente: `obtener_kpis_grupos_para_usuario`
 5. Añadir `supervisado_por_mi` a `obtener_detalle_grupo` para coherencia en vistas aisladas.
 
 ### Observabilidad Recomendada
-- Log de invocaciones rechazadas de `asignar_director_etapa_a_grupo` (permiso denegado) → detección de intentos fuera de alcance.
+- Log de solicitudes rechazadas en las rutas API de asignación de directores (permiso denegado) → detección de intentos fuera de alcance.
 - Métrica semanal: variación de % grupos sin director + tiempo medio hasta asignación.
 
 ### Riesgos Residuales
@@ -445,7 +445,7 @@ Esta actualización refina el alcance de los directores de etapa para que sólo 
 3. Identificar con claridad (UI) qué grupos están bajo su supervisión directa.
 
 ### Cambios Clave
-- NUEVA RPC: `asignar_director_etapa_a_grupo(p_auth_id, p_grupo_id, p_segmento_lider_id, p_accion)` (SEGURITY DEFINER) para agregar/quitar la relación.
+- (Histórico) Se propuso la RPC `asignar_director_etapa_a_grupo`; fue eliminada el 2026-10-01 por confiar en un `p_auth_id` enviado por el llamador. La relación se agrega/quita desde las rutas API, que validan el rol.
 - MODIFICADA RPC: `obtener_grupos_para_usuario` ahora devuelve el campo boolean `supervisado_por_mi` y limita resultados para `director_etapa` a sólo grupos asignados.
 - NUEVO CAMPO (grupos): `estado_aprobacion` (ej. draft/pending/aprobado) soporta flujos de revisión (aún en adopción).
 - POLICY CONSOLIDADA sobre `segmento_lideres` usando función SECURITY DEFINER `_puede_ver_segmento_lider(sl_row)` → centraliza lógica de visibilidad (roles superiores, propietario). El director de etapa no recibe por esta policy visibilidad extra de otros directores.
@@ -453,10 +453,10 @@ Esta actualización refina el alcance de los directores de etapa para que sólo 
 - UI Edición de Grupo: si usuario es director de etapa pero NO está asignado al grupo, ve el formulario en modo sólo lectura (inputs deshabilitados + banner explicativo) en lugar de redirección disruptiva.
 
 ### Flujo de Asignación
-1. Rol superior (admin/pastor/director-general) ejecuta acción (UI o backend) que llama a `asignar_director_etapa_a_grupo` con `p_accion = 'agregar'`.
+1. Rol superior (admin/pastor/director-general) ejecuta acción (UI) que llama a la ruta API de directores de etapa, la cual valida el rol y escribe en `director_etapa_grupos`.
 2. La relación queda registrada (tabla relacional intermedia — ver migración correspondiente).
 3. En siguientes cargas, `obtener_grupos_para_usuario` marca `supervisado_por_mi = true` para ese director y el grupo aparece en su listado.
-4. Para remover: misma RPC con `p_accion = 'remover'`.
+4. Para remover: la misma ruta API con la acción de quitar.
 
 ### Impacto en Permisos EXISTENTES
 | Área | Antes | Ahora |
@@ -474,8 +474,7 @@ CREATE OR REPLACE FUNCTION public._puede_ver_segmento_lider(sl_row segmento_lide
 -- Campo adicional expuesto
 -- obtener_grupos_para_usuario OUT supervisado_por_mi boolean
 
--- RPC asignación granular
-SELECT asignar_director_etapa_a_grupo(p_auth_id, p_grupo_id, p_segmento_lider_id, 'agregar');
+-- Asignación granular: rutas API (la RPC asignar_director_etapa_a_grupo se eliminó el 2026-10-01)
 ```
 
 ### UI / DX Considerations
@@ -603,8 +602,7 @@ Recomendación: Integrar estos scripts en pipeline CI secuencial (orden sugerido
 ## 📘 Referencia Rápida (Cheat Sheet)
 
 ```text
-Asignar director a grupo: asignar_director_etapa_a_grupo(p_auth_id, p_grupo_id, p_segmento_lider_id, 'agregar')
-Quitar director de grupo: asignar_director_etapa_a_grupo(..., 'remover')
+Asignar / quitar director de grupo: rutas API con chequeo de rol (RPC eliminada el 2026-10-01)
 Asignar ciudad director: asignar_director_etapa_a_ubicacion(p_auth_id, p_director_etapa_id, p_segmento_ubicacion_id, 'agregar')
 Reemplazar ciudad: misma llamada con nueva ciudad (upsert)
 Quitar ciudad: asignar_director_etapa_a_ubicacion(..., 'quitar')
@@ -675,7 +673,7 @@ Implementada para asegurar la nueva granularidad de visibilidad y edición tras 
 4. Verificar que roles superiores (admin) ven el subset recién creado (sin depender de total global histórico).
 5. Asegurar funcionamiento (o fallback) de asignar / quitar director.
 6. KPIs coherentes: admin con `total_grupos >= 4`, director con KPIs accesibles.
-7. Manejar ausencia temporal de la RPC `asignar_director_etapa_a_grupo` sin romper la suite (marca SKIP controlado y usa inserción directa).
+7. Preparar las asignaciones con inserciones/borrados directos en `director_etapa_grupos` (la RPC `asignar_director_etapa_a_grupo` se eliminó el 2026-10-01; la autorización de asignar vive en las rutas API y se cubre con Jest).
 
 ### Estrategia de Datos
 - Genera prefijo aleatorio (`PTG_<hex>_`) y crea 4 grupos (G1..G4) aislados.
@@ -692,15 +690,11 @@ Implementada para asegurar la nueva granularidad de visibilidad y edición tras 
 | DirectorA quita G1 | Tras remover: G2,G3 | 2 grupos |
 | Líder | Sólo G1 | 1 grupo |
 | Miembro | Sólo G1 | 1 grupo |
-| Auto-asignación director | DirectorA no puede auto-asignarse | Error permiso |
-| Grupo inexistente | Falla asignar | Error |
 | KPIs admin | total_grupos >= 4 | OK |
 | KPIs director | Responde sin error | OK |
 
 ### Fallbacks / Robustez
-- Si la RPC `asignar_director_etapa_a_grupo` no existe (entorno desfasado), la suite:
-  - Marca como SKIP casos de validación directa de la RPC.
-  - Inserta directamente en `director_etapa_grupos` para continuar validaciones de visibilidad.
+- La suite inserta/borra directamente en `director_etapa_grupos` para preparar las validaciones de visibilidad.
 - Evita falsos FAIL por grupos preexistentes: ignora totales globales y se centra en subset creado.
 
 ### Re-ejecución Segura (Idempotencia)

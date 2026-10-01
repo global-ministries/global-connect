@@ -47,11 +47,17 @@ function crearBase(tablas: Record<string, Fila[]>, cliente: string, escrituras: 
     const filtros: Array<(f: Fila) => boolean> = []
     let op: 'select' | 'insert' | 'delete' = 'select'
     let payload: Fila[] = []
+    let conflicto: { columnas: string[]; ignorar: boolean } | null = null
     let soloConteo = false
     const filas = () => (tablas[tabla] ??= [])
     const ejecutar = () => {
       if (op === 'insert') {
-        filas().push(...payload.map((f) => ({ ...f })))
+        const nuevas = conflicto
+          ? payload.filter(
+              (f) => !filas().some((e) => conflicto!.columnas.every((c) => e[c] === f[c])),
+            )
+          : payload
+        filas().push(...nuevas.map((f) => ({ ...f })))
         return { data: null, error: null }
       }
       if (op === 'delete') {
@@ -78,6 +84,14 @@ function crearBase(tablas: Record<string, Fila[]>, cliente: string, escrituras: 
     query.insert = jest.fn((rows: Fila | Fila[]) => {
       op = 'insert'
       payload = Array.isArray(rows) ? rows : [rows]
+      escrituras.push({ cliente, op, tabla })
+      return query
+    })
+    // upsert(..., { onConflict, ignoreDuplicates: true }) = INSERT ... ON CONFLICT DO NOTHING.
+    query.upsert = jest.fn((rows: Fila | Fila[], opciones?: { onConflict?: string; ignoreDuplicates?: boolean }) => {
+      op = 'insert'
+      payload = Array.isArray(rows) ? rows : [rows]
+      conflicto = { columnas: (opciones?.onConflict ?? '').split(','), ignorar: Boolean(opciones?.ignoreDuplicates) }
       escrituras.push({ cliente, op, tabla })
       return query
     })
