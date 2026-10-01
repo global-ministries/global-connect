@@ -304,11 +304,31 @@ describe('mi-equipo page — phone and account of each person', () => {
   })
 
   it('still renders, without contacts, when the contacts lookup fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
     fetchContactosPersonas.mockRejectedValue(new Error('rpc down'))
     const props = await renderizar()
     expect(props.vista?.personas.length).toBeGreaterThan(0)
     expect(props.vista?.personas.every((p) => p.telefono === null && p.tieneCuenta === null)).toBe(true)
     expect(esSerializable(props)).toBe(true)
+    consoleError.mockRestore()
+  })
+
+  it('logs the failed contacts lookup so a persistent outage is detectable', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const error = new Error('rpc down')
+    fetchContactosPersonas.mockRejectedValue(error)
+    await renderizar()
+    expect(consoleError).toHaveBeenCalledTimes(1)
+    expect(consoleError).toHaveBeenCalledWith('[dream-team/mi-equipo] contacts lookup failed', error)
+    consoleError.mockRestore()
+  })
+
+  it('logs nothing when the contacts lookup succeeds', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
+    fetchContactosPersonas.mockResolvedValue(CONTACTOS)
+    await renderizar()
+    expect(consoleError).not.toHaveBeenCalled()
+    consoleError.mockRestore()
   })
 
   it('looks the contacts up even when the viewer cannot edit (read-only viewers see them too)', async () => {

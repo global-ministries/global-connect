@@ -108,9 +108,14 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   // while dream_team_contactos_personas answers only for people the caller may
   // see. A persona missing from the map is "not visible to you" — shown without
   // phone or account mark, never as "sin cuenta". Contacts are a convenience on
-  // top of the list: if the lookup fails the page still renders without them.
+  // top of the list: if the lookup fails the page still renders without them,
+  // and the failure is logged so a persistent outage does not pass for "nobody
+  // is visible".
   const contactoPorId: ReadonlyMap<string, ContactoPersona> = await fetchContactosPersonas(supabase, personaIds).catch(
-    () => new Map<string, ContactoPersona>(),
+    (error: unknown) => {
+      console.error('[dream-team/mi-equipo] contacts lookup failed', error)
+      return new Map<string, ContactoPersona>()
+    },
   )
 
   const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv))
