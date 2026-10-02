@@ -316,15 +316,19 @@ SELECT pg_temp.assert_eq('profile: miembro cannot open the outsider',
 SELECT pg_temp.as_nobody();
 SELECT pg_temp.assert_eq('profile: no session is refused',
   $q$SELECT pg_temp.outcome($$SELECT public.obtener_detalle_usuario(pg_temp.u('OUT'))->>'apellido'$$)$q$, 'ERR:28000');
--- Edit rights do not widen.
+-- Edit rights do not widen. puede_editar_usuario only answers for the session's
+-- own identity, so each case signs in as the actor first.
+SELECT pg_temp.as_user(pg_temp.a('DG'));
 SELECT pg_temp.assert_eq('edit: director general cannot edit the outsider',
   $q$SELECT public.puede_editar_usuario(pg_temp.a('DG'), pg_temp.u('OUT'))$q$, 'false');
+SELECT pg_temp.as_user(pg_temp.a('DE'));
 SELECT pg_temp.assert_eq('edit: director de etapa cannot edit the outsider',
   $q$SELECT public.puede_editar_usuario(pg_temp.a('DE'), pg_temp.u('OUT'))$q$, 'false');
 SELECT pg_temp.assert_eq('edit: director de etapa cannot edit a member of another group',
   $q$SELECT public.puede_editar_usuario(pg_temp.a('DE'), pg_temp.u('X'))$q$, 'false');
 SELECT pg_temp.assert_eq('edit: director de etapa still edits a member of their group',
   $q$SELECT public.puede_editar_usuario(pg_temp.a('DE'), pg_temp.u('M1'))$q$, 'true');
+SELECT pg_temp.as_user(pg_temp.a('LID'));
 SELECT pg_temp.assert_eq('edit: lider still edits a member of their group',
   $q$SELECT public.puede_editar_usuario(pg_temp.a('LID'), pg_temp.u('M1'))$q$, 'true');
 

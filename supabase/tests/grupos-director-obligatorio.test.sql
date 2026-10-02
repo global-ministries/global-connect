@@ -98,9 +98,14 @@ RETURNS text LANGUAGE sql AS $$
     p_name, p_segmento, p_director)) ;
 $$;
 
+-- puede_crear_grupo only answers for the session's own identity, so the helper
+-- signs in as the person it asks about.
 CREATE OR REPLACE FUNCTION pg_temp.can(p_tag text, p_segmento uuid)
-RETURNS text LANGUAGE sql AS $$
-  SELECT public.puede_crear_grupo(pg_temp.a(p_tag), p_segmento)::text;
+RETURNS text LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM pg_temp.as_user(pg_temp.a(p_tag));
+  RETURN public.puede_crear_grupo(pg_temp.a(p_tag), p_segmento)::text;
+END;
 $$;
 
 -- Fixtures (as postgres). ----------------------------------------------------
