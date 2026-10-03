@@ -52,6 +52,7 @@ type Paso =
 
 const RESULTADOS: readonly ResultadoCierre[] = ['completado', 'no_completado', 'abandono']
 const ERROR_CARGA = 'No se pudo cargar la vista previa del cierre.'
+const ERROR_CIERRE = 'No se pudo cerrar la edición.'
 
 export function CerrarEdicionButton({ tallerSlug, edicionId, puedeCerrar }: CerrarEdicionButtonProps): ReactElement {
   const [open, setOpen] = useState(false)
@@ -87,11 +88,18 @@ export function CerrarEdicionButton({ tallerSlug, edicionId, puedeCerrar }: Cerr
     if (pending) return
     setErrorCierre(null)
     startTransition(async () => {
-      const result = await cerrarEdicion({ tallerSlug, edicionId })
-      if (result.ok) {
-        setPaso({ tipo: 'cerrada', resumen: result.resumen })
-      } else {
-        setErrorCierre(result.message)
+      try {
+        const result = await cerrarEdicion({ tallerSlug, edicionId })
+        if (result.ok) {
+          setPaso({ tipo: 'cerrada', resumen: result.resumen })
+        } else {
+          setErrorCierre(result.message)
+        }
+      } catch {
+        // A rejected action (network/transport) must not escape to the error
+        // boundary: show the generic error and keep the confirm retryable. A
+        // retry after a close that did commit gets EDICION_YA_CERRADA.
+        setErrorCierre(ERROR_CIERRE)
       }
     })
   }

@@ -74,7 +74,6 @@ function buildClientMock(responses: Record<string, { data: unknown; error: { mes
   return {
     from: jest.fn((table: string) => {
       const b = makeBuilder(table)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thenable
       b['then'] = (
         resolve: (r: { data: unknown; error: { message: string } | null }) => void,
       ) => Promise.resolve(responses[table] ?? { data: [], error: null }).then(resolve)
@@ -465,7 +464,6 @@ describe('loadAdminInscripciones — sobre_cupo (T6)', () => {
       client: {
         from: jest.fn((table: string) => {
           const b = makeBuilder(table)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- thenable
           b['then'] = (resolve: (r: { data: unknown; error: unknown }) => void) =>
             Promise.resolve(tableResponses[table] ?? { data: [], error: null }).then(resolve)
           return b

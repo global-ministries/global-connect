@@ -227,4 +227,13 @@ describe('CerrarEdicionButton — confirm', () => {
     // reads "Cerrando…" until it settles), so wait for the label to return.
     expect(await screen.findByRole('button', { name: /confirmar cierre/i })).not.toBeDisabled()
   })
+
+  it('shows a generic error and brings the confirm back when the close request itself fails in transit', async () => {
+    cerrarMock.mockRejectedValue(new Error('network'))
+    await abrirConVistaPrevia()
+    fireEvent.click(screen.getByRole('button', { name: /confirmar cierre/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo cerrar la edición.')
+    expect(screen.getByRole('dialog', { name: /cerrar edición/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /confirmar cierre/i })).not.toBeDisabled()
+  })
 })
