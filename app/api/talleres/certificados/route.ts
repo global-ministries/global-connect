@@ -3,6 +3,12 @@
  *
  * Returns certificados for an inscripcion. Filter via query param:
  *   - `inscripcion_id` (required) — primary key to look up
+ *   - `persona_id` (optional) — T2b (odd/tasks/talleres-cierre-de-
+ *     edicion.md): certificates are keyed by (inscripcion_id, persona_id),
+ *     so a couple inscription has one per person; this narrows to one.
+ *
+ * Every certificate carries `nombre_pareja_snapshot`: the OTHER person's
+ * name on a couple's certificate, null on an individual one.
  *
  * Capability: `talleres_crecimiento.director.read` (or metrics.read
  * superset). The public verification endpoint lives at
@@ -22,6 +28,7 @@ interface CertRow {
   codigo_verificacion: string
   nombre_taller_snapshot: string
   nombre_participante_snapshot: string
+  nombre_pareja_snapshot: string | null
   fecha_completitud: string
   firmantes_snapshot: unknown
   pdf_storage_path: string | null
@@ -40,15 +47,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'missing-inscripcion-id' }, { status: 400 })
   }
 
+  const personaId = req.nextUrl.searchParams.get('persona_id')
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gate.supabase
-  const { data, error } = await client
+  let query = client
     .from('taller_certificados')
     .select(
-      'id, inscripcion_id, taller_id, persona_id, codigo_verificacion, nombre_taller_snapshot, nombre_participante_snapshot, fecha_completitud, firmantes_snapshot, pdf_storage_path, revocado_at, motivo_revocacion, version, created_at',
+      'id, inscripcion_id, taller_id, persona_id, codigo_verificacion, nombre_taller_snapshot, nombre_participante_snapshot, nombre_pareja_snapshot, fecha_completitud, firmantes_snapshot, pdf_storage_path, revocado_at, motivo_revocacion, version, created_at',
     )
     .eq('inscripcion_id', inscripcionId)
-    .order('created_at', { ascending: false })
+  if (personaId) query = query.eq('persona_id', personaId)
+  const { data, error } = await query.order('created_at', { ascending: false })
 
   if (error) {
     return NextResponse.json({ error: 'internal', message: error.message }, { status: 500 })

@@ -104,6 +104,19 @@ describe('composeCertificatePdf (minimal hand-rolled)', () => {
     expect(a.length).toBe(b.length)
     expect(Array.from(a)).toEqual(Array.from(b))
   })
+
+  // T2b (odd/tasks/talleres-cierre-de-edicion.md) — each person of a couple
+  // gets their own certificate, naming the partner right under their name.
+  it('names the partner ("junto a …") right after the participant on a couple certificate', () => {
+    const texto = composeCertificatePdf({ ...sample, partnerName: 'Luis Pérez' }).toString('latin1')
+    expect(texto).toContain('(junto a Luis P')
+    expect(texto.indexOf('Ana Garc')).toBeLessThan(texto.indexOf('junto a Luis P'))
+  })
+
+  it('has no partner line on an individual certificate', () => {
+    expect(composeCertificatePdf(sample).toString('latin1')).not.toContain('junto a')
+    expect(composeCertificatePdf({ ...sample, partnerName: null }).toString('latin1')).not.toContain('junto a')
+  })
 })
 
 describe('buildQrSvg (placeholder, future PR swaps for real QR)', () => {

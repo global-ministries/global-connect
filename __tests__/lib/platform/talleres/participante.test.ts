@@ -62,7 +62,7 @@ interface CapturedFilter {
   readonly table: string
   readonly selectColumns: string
   readonly column: string
-  readonly op: 'eq' | 'in'
+  readonly op: 'eq' | 'in' | 'or'
   readonly value: unknown
 }
 
@@ -74,6 +74,8 @@ function setupSupabaseMock(opts: {
   personaId?: string | null
   capabilities?: string[]
   rows?: unknown[]
+  /** What an awaited list query (no .single/.maybeSingle) resolves with. */
+  listRows?: unknown[]
 }) {
   flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
   findPersonaByAuthIdMock.mockReset().mockImplementation(() =>
@@ -112,7 +114,7 @@ function setupSupabaseMock(opts: {
     const b: Record<string, any> = {
       then: (
         resolve: (r: { data: unknown; error: null }) => void,
-      ) => Promise.resolve({ data: [], error: null }).then(resolve),
+      ) => Promise.resolve({ data: opts.listRows ?? [], error: null }).then(resolve),
     }
     b['select'] = jest.fn((cols: string) => {
       currentCols = cols
@@ -135,6 +137,17 @@ function setupSupabaseMock(opts: {
         column,
         op: 'in',
         value,
+      })
+      return b
+    })
+    // `.or('a.eq.x,b.eq.y')` — captured with its raw filter string.
+    b['or'] = jest.fn((filtro: string) => {
+      captured.push({
+        table: currentTable,
+        selectColumns: currentCols,
+        column: '',
+        op: 'or',
+        value: filtro,
       })
       return b
     })
@@ -372,11 +385,12 @@ describe('loadParticipanteActiveTalleres — summary projection only', () => {
     await loadParticipanteActiveTalleres(ctxResult.context)
 
     const filters = capturedFiltersFor('taller_inscripciones')
-    const personaFilter = filters.find(
-      (f) => f.column === 'persona_principal_id',
+    // T2b (odd/tasks/talleres-cierre-de-edicion.md) — both people of a
+    // couple inscription see it: the principal OR the companero.
+    const personaFilter = filters.find((f) => f.op === 'or')
+    expect(personaFilter?.value).toBe(
+      `persona_principal_id.eq.${PERSONA_ID},companero_id.eq.${PERSONA_ID}`,
     )
-    expect(personaFilter?.value).toBe(PERSONA_ID)
-    expect(personaFilter?.op).toBe('eq')
 
     const estadoFilter = filters.find(
       (f) => f.column === 'estado' && f.op === 'in',
@@ -448,10 +462,11 @@ describe('loadParticipanteHistorial — full history without motivos/asistencia'
     await loadParticipanteHistorial(ctxResult.context)
 
     const filters = capturedFiltersFor('taller_inscripciones')
-    const personaFilter = filters.find(
-      (f) => f.column === 'persona_principal_id',
+    // T2b — principal OR companero, same as loadParticipanteActiveTalleres.
+    const personaFilter = filters.find((f) => f.op === 'or')
+    expect(personaFilter?.value).toBe(
+      `persona_principal_id.eq.${PERSONA_ID},companero_id.eq.${PERSONA_ID}`,
     )
-    expect(personaFilter?.value).toBe(PERSONA_ID)
     // No estado filter on historial (all states)
     const estadoFilter = filters.find(
       (f) => f.column === 'estado' && f.op === 'in',
@@ -1129,6 +1144,117 @@ describe('loadParticipanteExplorar — PR G link_type surfacing', () => {
 })
 
 // ─── Certificado deny-by-default ──────────────────────────────────────────
+
+// ─── T2b — one certificate per person in a couple ────────────────────────
+//
+// odd/tasks/talleres-cierre-de-edicion.md T2b: taller_certificados is keyed
+// by (inscripcion_id, persona_id), so a couple inscription carries up to two
+// certificate rows and PostgREST returns the `certificado` embed as an ARRAY
+// (it was a single object while UNIQUE (inscripcion_id) stood). Each viewer
+// must read the completion date of THEIR OWN certificate, in either shape.
+
+const COMPANERO_ID = '00000000-0000-0000-0000-000000000002'
+
+function inscripcionPareja(certificado: unknown) {
+  return {
+    id: 'insc-1',
+    estado: 'aprobado',
+    unit_estado: 'completado',
+    created_at: '2026-09-01T00:00:00Z',
+    taller: {
+      id: 'ed-1',
+      nombre_snapshot: 'Septiembre 2026',
+      tipo: 'pareja',
+      estado: 'cerrado',
+      abstracto: { id: 't-1', nombre: 'Matrimonio sobre la Roca' },
+    },
+    certificado,
+  }
+}
+
+const CERTIFICADOS_PAREJA = [
+  { persona_id: COMPANERO_ID, fecha_completitud: '2026-10-28T21:00:00Z' },
+  { persona_id: PERSONA_ID, fecha_completitud: '2026-10-29T21:00:00Z' },
+]
+
+describe.each([
+  ['loadParticipanteActiveTalleres', loadParticipanteActiveTalleres],
+  ['loadParticipanteHistorial', loadParticipanteHistorial],
+] as const)('%s — T2b certificate per person', (_nombre, loader) => {
+  async function cargar(listRows: unknown[]) {
+    setupSupabaseMock({ personaId: PERSONA_ID, listRows })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    return loader(ctxResult.context)
+  }
+
+  it("embeds the certificate's persona_id so the viewer's own row can be picked", async () => {
+    await cargar([])
+    const selectColumns = capturedFiltersFor('taller_inscripciones')[0]?.selectColumns ?? ''
+    expect(selectColumns).toMatch(/certificado\s*:\s*taller_certificados!inscripcion_id\s*\(\s*persona_id\s*,\s*fecha_completitud\s*\)/)
+  })
+
+  it("reads the viewer's own completion date when the embed holds both certificates of a couple", async () => {
+    const rows = await cargar([inscripcionPareja(CERTIFICADOS_PAREJA)])
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.fecha_completitud).toBe('2026-10-29T21:00:00Z')
+  })
+
+  it('still reads the single-object embed of an individual inscription', async () => {
+    const rows = await cargar([
+      inscripcionPareja({ persona_id: PERSONA_ID, fecha_completitud: '2026-10-29T21:00:00Z' }),
+    ])
+    expect(rows[0]?.fecha_completitud).toBe('2026-10-29T21:00:00Z')
+  })
+
+  it("never shows the partner's certificate date as the viewer's", async () => {
+    const rows = await cargar([inscripcionPareja([CERTIFICADOS_PAREJA[0]])])
+    expect(rows[0]?.fecha_completitud).toBeNull()
+  })
+
+  it('has a null date while no certificate exists yet', async () => {
+    const rows = await cargar([inscripcionPareja([]), inscripcionPareja(null)])
+    expect(rows.map((r) => r.fecha_completitud)).toEqual([null, null])
+  })
+})
+
+describe('loadParticipanteCertificado(s) — T2b nombre_pareja_snapshot', () => {
+  const CERT = {
+    id: 'cert-1',
+    codigo_verificacion: 'abcdefghijkmnpqr',
+    taller_id: 'ed-1',
+    persona_id: PERSONA_ID,
+    nombre_taller_snapshot: 'Matrimonio sobre la Roca',
+    fecha_completitud: '2026-10-29T21:00:00Z',
+    revocado_at: null,
+  }
+
+  it("selects and exposes the partner's name on a single certificado", async () => {
+    setupSupabaseMock({ personaId: PERSONA_ID, rows: [{ ...CERT, nombre_pareja_snapshot: 'Luis Pérez' }] })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    const cert = await loadParticipanteCertificado(ctxResult.context, 'cert-1')
+    expect(capturedFiltersFor('taller_certificados')[0]?.selectColumns).toMatch(/nombre_pareja_snapshot/)
+    expect(cert?.nombre_pareja_snapshot).toBe('Luis Pérez')
+  })
+
+  it('is null for an individual certificado', async () => {
+    setupSupabaseMock({ personaId: PERSONA_ID, rows: [{ ...CERT, nombre_pareja_snapshot: null }] })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    const cert = await loadParticipanteCertificado(ctxResult.context, 'cert-1')
+    expect(cert?.nombre_pareja_snapshot).toBeNull()
+  })
+
+  it("lists the viewer's certificados with the partner's name", async () => {
+    setupSupabaseMock({ personaId: PERSONA_ID, listRows: [{ ...CERT, nombre_pareja_snapshot: 'Luis Pérez' }] })
+    const ctxResult = await loadParticipanteContext()
+    if (!ctxResult.ok) throw new Error('expected ok:true')
+    const certs = await loadParticipanteCertificados(ctxResult.context)
+    expect(capturedFiltersFor('taller_certificados')[0]?.selectColumns).toMatch(/nombre_pareja_snapshot/)
+    expect(certs[0]?.nombre_pareja_snapshot).toBe('Luis Pérez')
+  })
+})
 
 describe('loadParticipanteCertificado — ownership-scoped', () => {
   it('always filters by both id AND persona_id (deny-by-default)', async () => {

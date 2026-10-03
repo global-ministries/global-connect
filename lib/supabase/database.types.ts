@@ -4505,6 +4505,7 @@ export type Database = {
           id: string
           inscripcion_id: string
           motivo_revocacion: string | null
+          nombre_pareja_snapshot: string | null
           nombre_participante_snapshot: string
           nombre_taller_snapshot: string
           pdf_storage_path: string | null
@@ -4521,6 +4522,7 @@ export type Database = {
           id?: string
           inscripcion_id: string
           motivo_revocacion?: string | null
+          nombre_pareja_snapshot?: string | null
           nombre_participante_snapshot: string
           nombre_taller_snapshot: string
           pdf_storage_path?: string | null
@@ -4537,6 +4539,7 @@ export type Database = {
           id?: string
           inscripcion_id?: string
           motivo_revocacion?: string | null
+          nombre_pareja_snapshot?: string | null
           nombre_participante_snapshot?: string
           nombre_taller_snapshot?: string
           pdf_storage_path?: string | null
@@ -4549,7 +4552,7 @@ export type Database = {
           {
             foreignKeyName: "taller_certificados_inscripcion_id_fkey"
             columns: ["inscripcion_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "taller_inscripciones"
             referencedColumns: ["id"]
           },

@@ -74,6 +74,7 @@ function certificadoRow(overrides: Partial<ParticipanteCertificado> = {}): Parti
     nombre_taller_snapshot: 'Taller Certificado',
     fecha_completitud: '2025-05-01T00:00:00.000Z',
     revocado_at: null,
+    nombre_pareja_snapshot: null,
     ...overrides,
   }
 }
@@ -256,5 +257,27 @@ describe('MiRecorridoTabs — em-dash for missing dates', () => {
       />,
     )
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+})
+
+// T2b (odd/tasks/talleres-cierre-de-edicion.md) — each person of a couple
+// gets their own certificate; the list names the partner under the taller.
+describe('MiRecorridoTabs — couple certificates name the partner', () => {
+  it('shows "junto a <partner>" on a couple certificate (desktop and mobile)', () => {
+    searchParamsValue = new URLSearchParams('tab=certificados')
+    render(
+      <MiRecorridoTabs
+        talleres={[]}
+        historial={[]}
+        certificados={[certificadoRow({ nombre_pareja_snapshot: 'Luis Pérez' })]}
+      />,
+    )
+    expect(screen.getAllByText('junto a Luis Pérez')).toHaveLength(2)
+  })
+
+  it('shows no partner line on an individual certificate', () => {
+    searchParamsValue = new URLSearchParams('tab=certificados')
+    render(<MiRecorridoTabs talleres={[]} historial={[]} certificados={[certificadoRow()]} />)
+    expect(screen.queryByText(/junto a/i)).not.toBeInTheDocument()
   })
 })

@@ -145,6 +145,33 @@ export async function requireExplorarViewer(): Promise<ParticipanteContext> {
 
 // ─── Participant queries ──────────────────────────────────────────────────
 
+/**
+ * T2b (odd/tasks/talleres-cierre-de-edicion.md) — the viewer's OWN
+ * inscripciones: the ones they hold as persona principal AND, for a couple,
+ * the ones they hold as companero. RLS (taller_inscripciones_select) stays
+ * the authority on which of those rows the viewer may actually read.
+ */
+function filtroInscripcionesPropias(personaId: string): string {
+  return `persona_principal_id.eq.${personaId},companero_id.eq.${personaId}`
+}
+
+/**
+ * T2b — taller_certificados is keyed by (inscripcion_id, persona_id): each
+ * person of a couple gets their own certificate, so the `certificado` embed
+ * is an ARRAY (one row per person). While the older UNIQUE (inscripcion_id)
+ * stands it is a single object instead. Either way, only the viewer's OWN
+ * certificate dates their completion — never the partner's.
+ */
+function fechaCompletitudPropia(certificado: unknown, personaId: string): string | null {
+  const certificados = Array.isArray(certificado) ? certificado : certificado ? [certificado] : []
+  for (const cert of certificados as ReadonlyArray<{ persona_id?: unknown; fecha_completitud?: unknown }>) {
+    if (cert.persona_id === personaId && typeof cert.fecha_completitud === 'string') {
+      return cert.fecha_completitud
+    }
+  }
+  return null
+}
+
 export interface ParticipanteTallerSummary {
   readonly id: string
   readonly nombre: string
@@ -184,9 +211,9 @@ export async function loadParticipanteActiveTalleres(
          id, nombre_snapshot, tipo, estado,
          abstracto:talleres!taller_id (id, nombre)
        ),
-       certificado:taller_certificados!inscripcion_id (fecha_completitud)`,
+       certificado:taller_certificados!inscripcion_id (persona_id, fecha_completitud)`,
     )
-    .eq('persona_principal_id', ctx.personaId)
+    .or(filtroInscripcionesPropias(ctx.personaId))
     .in('estado', ['pendiente', 'aprobado'])
     .order('created_at', { ascending: false })
 
@@ -207,9 +234,10 @@ export async function loadParticipanteActiveTalleres(
         estado_inscripcion: row.estado as 'pendiente' | 'aprobado',
         unit_estado: (row.unit_estado as 'completado' | 'no_completado' | 'abandono' | null) ?? null,
         // PR44 — `taller_inscripciones` has NO `fecha_completitud` column;
-        // the real completion date lives on `taller_certificados` (1:1 via
-        // inscripcion_id). Null for active talleres without a certificate.
-        fecha_completitud: (row.certificado?.fecha_completitud as string | null) ?? null,
+        // the real completion date lives on the viewer's own
+        // `taller_certificados` row (T2b: one per person of a couple). Null
+        // for active talleres without a certificate.
+        fecha_completitud: fechaCompletitudPropia(row.certificado, ctx.personaId),
         estado_taller: t.estado as 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado',
       },
     ]
@@ -247,9 +275,9 @@ export async function loadParticipanteHistorial(
          id, nombre_snapshot,
          abstracto:talleres!taller_id (id, nombre)
        ),
-       certificado:taller_certificados!inscripcion_id (fecha_completitud)`,
+       certificado:taller_certificados!inscripcion_id (persona_id, fecha_completitud)`,
     )
-    .eq('persona_principal_id', ctx.personaId)
+    .or(filtroInscripcionesPropias(ctx.personaId))
     .order('created_at', { ascending: false })
 
   if (error) return []
@@ -265,9 +293,10 @@ export async function loadParticipanteHistorial(
         edicion: t.nombre_snapshot as string,
         estado_inscripcion: row.estado as 'pendiente' | 'aprobado' | 'no_aprobado' | 'completado',
         unit_estado: (row.unit_estado as 'completado' | 'no_completado' | 'abandono' | null) ?? null,
-        // PR44 — completion date comes from the certificate (1:1), not
-        // from `taller_inscripciones` (column does not exist).
-        fecha_completitud: (row.certificado?.fecha_completitud as string | null) ?? null,
+        // PR44 — completion date comes from the viewer's own certificate
+        // (T2b: one per person of a couple), not from
+        // `taller_inscripciones` (column does not exist).
+        fecha_completitud: fechaCompletitudPropia(row.certificado, ctx.personaId),
         fecha_inscripcion: row.created_at as string,
       },
     ]
@@ -281,6 +310,12 @@ export interface ParticipanteCertificado {
   readonly nombre_taller_snapshot: string
   readonly fecha_completitud: string
   readonly revocado_at: string | null
+  /**
+   * T2b (odd/tasks/talleres-cierre-de-edicion.md) — on a couple's
+   * certificate, the OTHER person's name (each person gets their own
+   * certificate naming the partner); null for an individual one.
+   */
+  readonly nombre_pareja_snapshot: string | null
 }
 
 export interface ParticipanteExplorarRow {
@@ -508,7 +543,7 @@ export async function loadParticipanteCertificado(
   const { data, error } = await client
     .from('taller_certificados')
     .select(
-      'id, codigo_verificacion, taller_id, persona_id, nombre_taller_snapshot, fecha_completitud, revocado_at',
+      'id, codigo_verificacion, taller_id, persona_id, nombre_taller_snapshot, fecha_completitud, revocado_at, nombre_pareja_snapshot',
     )
     .eq('id', certificadoId)
     .eq('persona_id', ctx.personaId)
@@ -521,6 +556,7 @@ export async function loadParticipanteCertificado(
     nombre_taller_snapshot: data.nombre_taller_snapshot as string,
     fecha_completitud: data.fecha_completitud as string,
     revocado_at: (data.revocado_at as string | null) ?? null,
+    nombre_pareja_snapshot: (data.nombre_pareja_snapshot as string | null | undefined) ?? null,
   }
 }
 
@@ -535,7 +571,7 @@ export async function loadParticipanteCertificados(
   const { data, error } = await client
     .from('taller_certificados')
     .select(
-      'id, codigo_verificacion, taller_id, nombre_taller_snapshot, fecha_completitud, revocado_at',
+      'id, codigo_verificacion, taller_id, nombre_taller_snapshot, fecha_completitud, revocado_at, nombre_pareja_snapshot',
     )
     .eq('persona_id', ctx.personaId)
     .order('created_at', { ascending: false })
@@ -547,6 +583,7 @@ export async function loadParticipanteCertificados(
     nombre_taller_snapshot: string
     fecha_completitud: string
     revocado_at: string | null
+    nombre_pareja_snapshot?: string | null
   }) => ({
     id: row.id,
     codigo_verificacion: row.codigo_verificacion,
@@ -554,5 +591,6 @@ export async function loadParticipanteCertificados(
     nombre_taller_snapshot: row.nombre_taller_snapshot,
     fecha_completitud: row.fecha_completitud,
     revocado_at: row.revocado_at,
+    nombre_pareja_snapshot: row.nombre_pareja_snapshot ?? null,
   }))
 }

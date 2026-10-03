@@ -9,6 +9,10 @@
  * the certificados TAB specifically (?tab=certificados), not the bare
  * /talleres/mi-recorrido default tab — see MiRecorridoTabs.client.tsx for
  * the `?tab=` mechanism.
+ *
+ * T2b (odd/tasks/talleres-cierre-de-edicion.md): each person of a couple
+ * gets their own certificate; it names the partner ("Junto a …") from
+ * nombre_pareja_snapshot.
  */
 
 import Link from 'next/link'
@@ -66,6 +70,11 @@ export default async function CertificadoDetailPage(ctx: RouteContext) {
               <TextoSistema className="text-xl font-semibold">
                 {cert.nombre_taller_snapshot}
               </TextoSistema>
+              {cert.nombre_pareja_snapshot && (
+                <TextoSistema variante="sutil" className="mt-1 block">
+                  Junto a {cert.nombre_pareja_snapshot}
+                </TextoSistema>
+              )}
               <TextoSistema variante="sutil" className="mt-1 block">
                 Completado el {formatDate(cert.fecha_completitud)}
               </TextoSistema>
