@@ -178,7 +178,7 @@ export function createInMemoryDreamTeamRepository(
           estadoNuevo: update.estado,
           motivo: update.motivoActual ?? current.motivoActual,
           detalleMotivo: update.detalleMotivo,
-          actorPersonaId: current.personaId,
+          actorPersonaId: update.actorPersonaId,
           fecha: new Date().toISOString(),
         })
       }

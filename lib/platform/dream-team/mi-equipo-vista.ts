@@ -139,6 +139,7 @@ const ORDEN_ROL: Readonly<Record<string, number>> = {
   coordinador: 2,
   lider: 3,
   facilitador: 3,
+  entrenador: 3,
   colider: 4,
   voluntario: 5,
 }

@@ -175,6 +175,13 @@ describe('vistaDeDireccion', () => {
       expect(ordenDeRol('voluntario')).toBeLessThan(ordenDeRol('artista'))
     })
 
+    // D2: an entrenador gets what a líder gets, so it sorts with the líderes.
+    it('orders the entrenador with the líder, above the voluntario', () => {
+      expect(ordenDeRol('entrenador')).toBe(ordenDeRol('lider'))
+      expect(ordenDeRol('Entrenador')).toBe(ordenDeRol('lider'))
+      expect(ordenDeRol('entrenador')).toBeLessThan(ordenDeRol('voluntario'))
+    })
+
     it('lists the people of a direccion in that order, then by name', () => {
       const personas: PersonasPorEquipo = {
         [ID_DHAH]: [

@@ -113,6 +113,28 @@ function makePersonaId(name: string): PersonaId {
   return personaId(makeTestId(name))
 }
 
+// The session user who changes a servicio's state; never the volunteer. The
+// history actor column has no foreign key, so it needs no usuarios row.
+const ACTOR = makePersonaId('actor')
+
+// dream_team_servicios.persona_id references usuarios(id) (ON DELETE RESTRICT),
+// so every volunteer a test seeds needs a usuarios row. They are removed in
+// cleanupAll, after the servicios that reference them.
+const seededPersonaIds = new Set<string>()
+
+async function seedPersona(client: SupabaseClient, id: PersonaId) {
+  if (seededPersonaIds.has(id)) return
+  const { error } = await client.from('usuarios').insert({
+    id,
+    nombre: 'ZZ Test',
+    apellido: 'Dream Team',
+    genero: 'Otro',
+    estado_civil: 'Soltero',
+  })
+  if (error) throw error
+  seededPersonaIds.add(id)
+}
+
 function makeEquipo(overrides: Partial<DreamTeamEquipo> = {}): DreamTeamEquipo {
   return {
     id: makeTestId('equipo'),
@@ -191,6 +213,7 @@ async function seedServicio(
 ) {
   const { equipo, rol } = await seedEquipoRol(client)
   const input = makeServicioInput(equipo.id, rol.id, overrides)
+  await seedPersona(client, input.personaId)
   const servicio = await repo.createServicio(input)
   return { equipo, rol, servicio }
 }
@@ -215,6 +238,11 @@ async function cleanupAll(client: SupabaseClient, servicioIds: string[]) {
     await client.from('dream_team_requisitos').delete().in('rol_id', rolIds)
     await client.from('dream_team_roles').delete().in('id', rolIds)
     await client.from('dream_team_equipos').delete().in('id', equipoIds)
+  }
+
+  if (seededPersonaIds.size > 0) {
+    await client.from('usuarios').delete().in('id', [...seededPersonaIds])
+    seededPersonaIds.clear()
   }
 }
 
@@ -353,6 +381,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
         estado: 'en_pausa',
         motivoActual: 'admin_pausa',
         expectedVersion: servicio.version,
+        actorPersonaId: ACTOR,
       })
 
       expect(updated.version).toBe(servicio.version + 1)
@@ -372,6 +401,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
           estado: 'en_pausa',
           motivoActual: 'admin_pausa',
           expectedVersion: servicio.version + 99,
+          actorPersonaId: ACTOR,
         }),
       ).rejects.toThrow(ConcurrencyConflictError)
 
@@ -387,6 +417,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
         estado: 'retirado',
         motivoActual: 'admin_retiro',
         expectedVersion: servicio.version,
+        actorPersonaId: ACTOR,
       })
 
       expect(updated.estado).toBe('retirado')
@@ -408,6 +439,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
         motivoActual: 'admin_pausa',
         detalleMotivo: 'pausa administrativa',
         expectedVersion: servicio.version,
+        actorPersonaId: ACTOR,
       })
 
       const historial = await repo.listHistorial(servicio.id)
@@ -417,7 +449,8 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
       expect(historial[0].estadoNuevo).toBe('en_pausa')
       expect(historial[0].motivo).toBe('admin_pausa')
       expect(historial[0].detalleMotivo).toBe('pausa administrativa')
-      expect(historial[0].actorPersonaId).toBe(servicio.personaId)
+      expect(historial[0].actorPersonaId).toBe(ACTOR)
+      expect(historial[0].actorPersonaId).not.toBe(servicio.personaId)
     })
 
     it('does not append historial when estado is unchanged', async () => {
@@ -427,6 +460,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
       await repo.updateServicio(servicio.id, {
         motivoActual: 'admin_promocion',
         expectedVersion: servicio.version,
+        actorPersonaId: ACTOR,
       })
 
       const historial = await repo.listHistorial(servicio.id)
@@ -441,6 +475,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
         estado: 'en_orientacion',
         motivoActual: 'admin_promocion',
         expectedVersion: servicio.version,
+        actorPersonaId: ACTOR,
       })
       
       const historial = await repo.listHistorial(servicio.id)
@@ -672,6 +707,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
         motivoActual: 'admin_promocion',
       })
 
+      await seedPersona(client, ana)
       const dps = await repo.createServicio(dpsInput)
       const est = await repo.createServicio(estInput)
       createdServicioIds.push(dps.id, est.id)
@@ -690,6 +726,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
         estado: 'en_pausa',
         motivoActual: 'gdv_liderazgo_removed',
         expectedVersion: dps.version,
+        actorPersonaId: ACTOR,
       })
 
       // Manually update the history entry with the snapshot, since the repository

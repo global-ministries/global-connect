@@ -69,4 +69,12 @@ describe('POST /api/dream-team/servicios', () => {
     expect(b.historial).toHaveLength(1)
     expect(b.historial[0].estadoNuevo).toBe('postulado')
   })
+
+  it('records the session persona as the creation history actor when assigning someone else', async () => {
+    auth([directorCap]); repo({ equipos: [equipoDPS], roles: [rolCámara], requisitos: [reqCámara] })
+    const b = await (await POST(request('/api/dream-team/servicios', { method: 'POST', body: JSON.stringify({ personaId: otherPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam' }) }))).json()
+    expect(b.servicio.personaId).toBe(otherPersonaId)
+    expect(b.historial).toHaveLength(1)
+    expect(b.historial[0].actorPersonaId).toBe(actorPersonaId)
+  })
 })
