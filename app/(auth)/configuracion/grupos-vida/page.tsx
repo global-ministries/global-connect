@@ -9,10 +9,12 @@ export default async function ConfiguracionGruposPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    // Verificar si es admin
-    const { data: esAdmin } = await supabase.rpc("es_superadmin", {
-        p_auth_uid: user.id,
-    });
+    // Verificar si es admin o pastor. es_superadmin takes usuarios.id (the
+    // internal person id), not the session id.
+    const { data: miId } = await supabase.rpc("get_my_internal_id");
+    const { data: esAdmin } = miId
+        ? await supabase.rpc("es_superadmin", { p_auth_uid: miId })
+        : { data: false };
 
     if (!esAdmin) redirect("/grupos-vida");
 
