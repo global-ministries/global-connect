@@ -5097,6 +5097,7 @@ export type Database = {
         Row: {
           cohorte_id: string
           companero_id: string | null
+          conyuge_registrado_descartado: boolean
           created_at: string
           estado: string
           grupo_id: string | null
@@ -5104,6 +5105,7 @@ export type Database = {
           link_type: string | null
           motivo_no_aprobado: string | null
           ocurrencia_objetivo: string | null
+          pareja_origen: string | null
           persona_principal_id: string
           sobre_cupo: boolean
           sobre_cupo_en: string | null
@@ -5117,6 +5119,7 @@ export type Database = {
         Insert: {
           cohorte_id: string
           companero_id?: string | null
+          conyuge_registrado_descartado?: boolean
           created_at?: string
           estado: string
           grupo_id?: string | null
@@ -5124,6 +5127,7 @@ export type Database = {
           link_type?: string | null
           motivo_no_aprobado?: string | null
           ocurrencia_objetivo?: string | null
+          pareja_origen?: string | null
           persona_principal_id: string
           sobre_cupo?: boolean
           sobre_cupo_en?: string | null
@@ -5137,6 +5141,7 @@ export type Database = {
         Update: {
           cohorte_id?: string
           companero_id?: string | null
+          conyuge_registrado_descartado?: boolean
           created_at?: string
           estado?: string
           grupo_id?: string | null
@@ -5144,6 +5149,7 @@ export type Database = {
           link_type?: string | null
           motivo_no_aprobado?: string | null
           ocurrencia_objetivo?: string | null
+          pareja_origen?: string | null
           persona_principal_id?: string
           sobre_cupo?: boolean
           sobre_cupo_en?: string | null
@@ -8228,6 +8234,10 @@ export type Database = {
         Args: { p_grupo_id: string; p_inscripcion_ids: string[] }
         Returns: Json
       }
+      talleres_buscar_pareja_por_cedula: {
+        Args: { p_cedula: string; p_edicion_id: string }
+        Returns: Json
+      }
       talleres_buscar_personas: {
         Args: { p_limit?: number; p_q: string }
         Returns: {
@@ -8418,6 +8428,10 @@ export type Database = {
         }
         Returns: Json
       }
+      talleres_inscribirme: {
+        Args: { p_edicion_id: string; p_pareja?: Json }
+        Returns: Json
+      }
       talleres_inscripciones_sobre_cupo_personas: {
         Args: { p_inscripcion_ids: string[] }
         Returns: {
@@ -8436,6 +8450,14 @@ export type Database = {
           p_temporada_id: string
         }
         Returns: Json
+      }
+      talleres_mi_conyuge_registrado: {
+        Args: never
+        Returns: {
+          apellido: string
+          foto_perfil_url: string
+          nombre: string
+        }[]
       }
       talleres_mis_permisos: { Args: { p_equipo_id: string }; Returns: Json }
       talleres_mover_plantilla_clase: {

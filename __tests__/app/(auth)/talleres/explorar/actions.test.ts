@@ -36,7 +36,11 @@
  * inspect the final insert payload shape.
  */
 
-import { inscribirseATaller } from '@/app/(auth)/talleres/explorar/actions'
+import {
+  buscarParejaPorCedula,
+  inscribirseATaller,
+  miConyugeRegistrado,
+} from '@/app/(auth)/talleres/explorar/actions'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(),
@@ -331,5 +335,134 @@ describe('inscribirseATaller — error paths', () => {
       message: 'new row violates row-level security policy',
     })
     expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── Inscripción en pareja (odd/tasks/talleres-inscripcion-en-pareja.md P2) ─
+// The two read-side partner lookups the picker uses before enrolling.
+
+describe('miConyugeRegistrado', () => {
+  function gateConRpc(rpc: jest.Mock) {
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({ ok: true, supabase: { rpc }, userId: AUTH_UID })
+  }
+
+  it('calls talleres_mi_conyuge_registrado with no arguments and parses the single row', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: [{ nombre: 'Ana', apellido: 'García', foto_perfil_url: 'https://x/ana.jpg' }],
+      error: null,
+    })
+    gateConRpc(rpc)
+
+    const result = await miConyugeRegistrado()
+
+    expect(rpc).toHaveBeenCalledWith('talleres_mi_conyuge_registrado')
+    expect(result).toEqual({
+      ok: true,
+      conyuge: { nombre: 'Ana', apellido: 'García', fotoUrl: 'https://x/ana.jpg' },
+    })
+  })
+
+  it('returns conyuge null when the RPC returns no row', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: [], error: null }))
+    expect(await miConyugeRegistrado()).toEqual({ ok: true, conyuge: null })
+  })
+
+  it('returns internal with a neutral message when the RPC fails', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: null, error: { code: 'XX000', message: 'boom' } }))
+    const result = await miConyugeRegistrado()
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok:false')
+    expect(result.error).toBe('internal')
+    expect(result.message).not.toContain('boom')
+  })
+
+  it('returns not-found when talleres are disabled, without touching the gate', async () => {
+    isTalleresEnabledMock.mockReturnValue(false)
+    const result = await miConyugeRegistrado()
+    expect(result).toEqual({ ok: false, error: 'not-found', message: expect.any(String) })
+    expect(requireTalleresApiAuthenticatedMock).not.toHaveBeenCalled()
+  })
+
+  it('maps a 401 gate to unauthorized', async () => {
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({ ok: false, response: { status: 401 } })
+    expect(await miConyugeRegistrado()).toEqual({ ok: false, error: 'unauthorized', message: expect.any(String) })
+  })
+})
+
+describe('buscarParejaPorCedula', () => {
+  function gateConRpc(rpc: jest.Mock) {
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({ ok: true, supabase: { rpc }, userId: AUTH_UID })
+  }
+
+  it('sends the edición and the normalized cédula, and returns the masked name', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: { ok: true, encontrada: true, nombre_mostrado: 'María G.' },
+      error: null,
+    })
+    gateConRpc(rpc)
+
+    const result = await buscarParejaPorCedula(TALLER_ID, ' V-12.345.678 ')
+
+    expect(rpc).toHaveBeenCalledWith('talleres_buscar_pareja_por_cedula', {
+      p_edicion_id: TALLER_ID,
+      p_cedula: '12345678',
+    })
+    expect(result).toEqual({ ok: true, encontrada: true, nombreMostrado: 'María G.' })
+  })
+
+  it('answers a not-found cédula with the neutral partner message', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: { ok: true, encontrada: false }, error: null }))
+    expect(await buscarParejaPorCedula(TALLER_ID, '12345678')).toEqual({
+      ok: true,
+      encontrada: false,
+      message:
+        'No pudimos confirmar a tu pareja con esos datos. Revisa la cédula o pide ayuda a la coordinación del taller.',
+    })
+  })
+
+  it.each([
+    ['LIMITE_ALCANZADO', /demasiadas búsquedas/i],
+    ['EDICION_NOT_FOUND', /edición/i],
+  ])('maps the returned %s to its message', async (codigo, mensaje) => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: { ok: false, codigo }, error: null }))
+    const result = await buscarParejaPorCedula(TALLER_ID, '12345678')
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok:false')
+    expect(result.error).toBe(codigo)
+    expect(result.message).toMatch(mensaje)
+  })
+
+  it('maps a raised 22023 CEDULA_INVALIDA', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: null, error: { code: '22023', message: 'CEDULA_INVALIDA' } }))
+    const result = await buscarParejaPorCedula(TALLER_ID, '12345678')
+    expect(result).toEqual({ ok: false, error: 'CEDULA_INVALIDA', message: expect.stringMatching(/cédula/i) })
+  })
+
+  it('rejects an unrecognizable cédula before calling the RPC (no throttle unit spent)', async () => {
+    const rpc = jest.fn()
+    gateConRpc(rpc)
+    const result = await buscarParejaPorCedula(TALLER_ID, 'abc')
+    expect(result).toEqual({ ok: false, error: 'CEDULA_INVALIDA', message: expect.any(String) })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a missing edición id as invalid-input', async () => {
+    const rpc = jest.fn()
+    gateConRpc(rpc)
+    expect(await buscarParejaPorCedula('', '12345678')).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: expect.any(String),
+    })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('treats an off-contract answer as internal', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: { ok: true }, error: null }))
+    expect(await buscarParejaPorCedula(TALLER_ID, '12345678')).toEqual({
+      ok: false,
+      error: 'internal',
+      message: expect.any(String),
+    })
   })
 })
