@@ -1,16 +1,19 @@
 -- Talleres self-enroll RLS contract checks (taller_inscripciones_insert).
 --
 -- Covers acceptance criteria 1-6 of
--- odd/tasks/talleres-autoinscripcion.md for the self-enroll branch of
--- taller_inscripciones_insert (and its SELECT-side neighbours):
---   1. A member with zero talleres capabilities can insert their own
---      'pendiente' inscripcion into an 'abierto' edicion and see it.
+-- odd/tasks/talleres-autoinscripcion.md, updated for
+-- odd/tasks/talleres-inscripcion-en-pareja.md (P1): the self-enroll branch
+-- of taller_inscripciones_insert is gone and members enroll only through
+-- talleres_inscribirme, which resolves the cohorte itself.
+--   1. A member with zero talleres capabilities can no longer insert into
+--      taller_inscripciones directly (42501); they enroll into an
+--      'abierto' edicion through talleres_inscribirme and see the row.
 --   2. They cannot insert as somebody else, nor with an estado other than
 --      'pendiente'.
---   3. They cannot enroll into a 'borrador', 'cerrado' or 'cancelado'
---      edicion.
+--   3. talleres_inscribirme refuses a 'borrador' or 'cancelado' edicion
+--      (EDICION_NOT_FOUND) and a 'cerrado' one (EDICION_NO_ABIERTA).
 --   4. They cannot pair a taller_id with a cohorte_id that belongs to a
---      DIFFERENT edicion.
+--      DIFFERENT edicion (a direct insert, refused by RLS).
 --   5. They cannot see a 'borrador' edicion or another member's inscripcion.
 --   6. Coordinador/director/admin can still insert on somebody else's
 --      behalf, unrestricted by the new self-branch guards (including into
@@ -107,6 +110,26 @@ EXCEPTION
   WHEN OTHERS THEN
     RAISE EXCEPTION 'Assertion failed: %, expected SQLSTATE 42501 (insufficient_privilege) but got % : %',
       p_case, SQLSTATE, SQLERRM;
+END;
+$$;
+
+-- Calls talleres_inscribirme and compares its reply (without the generated
+-- inscripcion_id) to p_expected.
+CREATE OR REPLACE FUNCTION pg_temp.assert_inscribirme(
+  p_case text,
+  p_edicion_id uuid,
+  p_expected jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_resultado jsonb;
+BEGIN
+  v_resultado := public.talleres_inscribirme(p_edicion_id) - 'inscripcion_id';
+  IF v_resultado IS DISTINCT FROM p_expected THEN
+    RAISE EXCEPTION 'Assertion failed: %, expected % but got %', p_case, p_expected, v_resultado;
+  END IF;
 END;
 $$;
 
@@ -238,7 +261,6 @@ AS $$
   SELECT auth_id FROM rls_actor WHERE key = p_key;
 $$;
 
--- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
 
 SELECT pg_temp.assert_bool('fixture: found a no-capability member', pg_temp.actor_user('no_cap') IS NOT NULL, true);
@@ -316,10 +338,18 @@ SELECT set_config(
 );
 SET LOCAL ROLE authenticated;
 
--- Criterion 1: self, pendiente, abierto edicion+its own cohorte -> allowed.
-SELECT pg_temp.assert_self_enroll_allowed(
-  'criterion 1: self-enroll pendiente into an abierto edicion',
+-- Criterion 1: a direct insert, even self/pendiente/abierto with its own
+-- cohorte, is refused now that the policy keeps only its staff branches...
+SELECT pg_temp.assert_self_enroll_denied(
+  'criterion 1: a direct self-enroll insert is refused',
   pg_temp.fid('ed_abierto1'), pg_temp.fid('coh_abierto1'), pg_temp.actor_user('no_cap'), 'pendiente'
+);
+
+-- ...and the member enrolls through talleres_inscribirme instead.
+SELECT pg_temp.assert_inscribirme(
+  'criterion 1: talleres_inscribirme enrolls the member into an abierto edicion',
+  pg_temp.fid('ed_abierto1'),
+  '{"ok":true,"estado":"pendiente","pareja_origen":null}'::jsonb
 );
 
 SELECT pg_temp.assert_bool(
@@ -345,31 +375,35 @@ SELECT pg_temp.assert_self_enroll_denied(
   pg_temp.fid('ed_encurso1'), pg_temp.fid('coh_encurso1'), pg_temp.actor_user('other'), 'pendiente'
 );
 
--- Criterion 3: cannot enroll into a non-inscribible edicion (own matching
--- cohorte in every case, only estado differs). This is the RED case: these
--- three currently succeed against the pre-migration policy.
-SELECT pg_temp.assert_self_enroll_denied(
-  'criterion 3: cannot self-enroll into a borrador edicion',
-  pg_temp.fid('ed_borrador1'), pg_temp.fid('coh_borrador1'), pg_temp.actor_user('no_cap'), 'pendiente'
+-- Criterion 3: cannot enroll into a non-inscribible edicion. The window
+-- rule now lives in talleres_inscribirme, which hides borrador and
+-- cancelado ediciones and refuses a cerrado one.
+SELECT pg_temp.assert_inscribirme(
+  'criterion 3: talleres_inscribirme refuses a borrador edicion',
+  pg_temp.fid('ed_borrador1'),
+  '{"ok":false,"codigo":"EDICION_NOT_FOUND"}'::jsonb
 );
 
-SELECT pg_temp.assert_self_enroll_denied(
-  'criterion 3: cannot self-enroll into a cerrado edicion',
-  pg_temp.fid('ed_cerrado1'), pg_temp.fid('coh_cerrado1'), pg_temp.actor_user('no_cap'), 'pendiente'
+SELECT pg_temp.assert_inscribirme(
+  'criterion 3: talleres_inscribirme refuses a cerrado edicion',
+  pg_temp.fid('ed_cerrado1'),
+  '{"ok":false,"codigo":"EDICION_NO_ABIERTA"}'::jsonb
 );
 
-SELECT pg_temp.assert_self_enroll_denied(
-  'criterion 3: cannot self-enroll into a cancelado edicion',
-  pg_temp.fid('ed_cancelado1'), pg_temp.fid('coh_cancelado1'), pg_temp.actor_user('no_cap'), 'pendiente'
+SELECT pg_temp.assert_inscribirme(
+  'criterion 3: talleres_inscribirme refuses a cancelado edicion',
+  pg_temp.fid('ed_cancelado1'),
+  '{"ok":false,"codigo":"EDICION_NOT_FOUND"}'::jsonb
 );
 
 -- Criterion 4: cannot pair an abierto edicion's taller_id with a cohorte
 -- that belongs to a DIFFERENT edicion (also abierto, so only the
--- cohorte<->edicion binding guard is being exercised here). Also the RED
--- case.
+-- cohorte<->edicion binding guard is being exercised here). It targets
+-- ed_abierto2: the member is already active in ed_abierto1 (criterion 1),
+-- where the one-appearance trigger would answer before RLS does.
 SELECT pg_temp.assert_self_enroll_denied(
   'criterion 4: cannot use a cohorte that belongs to another edicion',
-  pg_temp.fid('ed_abierto1'), pg_temp.fid('coh_abierto2'), pg_temp.actor_user('no_cap'), 'pendiente'
+  pg_temp.fid('ed_abierto2'), pg_temp.fid('coh_abierto1'), pg_temp.actor_user('no_cap'), 'pendiente'
 );
 
 -- Criterion 5: cannot see a borrador edicion...

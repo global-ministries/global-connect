@@ -113,7 +113,6 @@ CREATE OR REPLACE FUNCTION pg_temp.as_persona(p_auth_id uuid) RETURNS void LANGU
          set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
--- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
 
 -- ── fixtures (as postgres, before any role switch) ──────────────────
@@ -225,21 +224,19 @@ SELECT pg_temp.assert_rows('(7) NULL dates + stored abierto -> falls back to abi
 -- ══ (9) self-enroll: refused into the case-4-shaped closed edicion,
 -- allowed into the case-1-shaped open one. Run BEFORE (8)'s refresh so
 -- R_closed's STORED column is still the (wrong) 'abierto' it started
--- with — the point is that RLS must not depend on the refresh having run. ══
+-- with — the point is that the gate must not depend on the refresh having
+-- run. Members enroll through talleres_inscribirme (20261003160000), which
+-- reads the derived state the same way the old RLS branch did. ══
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b4000000-0000-4000-8000-000000000091');
 
-SELECT pg_temp.assert_sqlstate('(9) self-enroll into a stored-abierto/effective-cerrado edicion is refused',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b4000000-0000-4000-8000-000000000069', 'b4000000-0000-4000-8000-000000000089',
-      'b4000000-0000-4000-8000-000000000092', 'pendiente')$$,
-  '42501');
+SELECT pg_temp.assert_rows('(9) self-enroll into a stored-abierto/effective-cerrado edicion is refused',
+  $$SELECT 1 WHERE public.talleres_inscribirme('b4000000-0000-4000-8000-000000000069'::uuid)
+                 = '{"ok":false,"codigo":"EDICION_NO_ABIERTA"}'::jsonb$$, 1);
 
-SELECT pg_temp.assert_no_error('(9) self-enroll into the effective-abierto edicion succeeds',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b4000000-0000-4000-8000-000000000068', 'b4000000-0000-4000-8000-000000000088',
-      'b4000000-0000-4000-8000-000000000092', 'pendiente')$$);
+SELECT pg_temp.assert_rows('(9) self-enroll into the effective-abierto edicion succeeds',
+  $$SELECT 1 WHERE (public.talleres_inscribirme('b4000000-0000-4000-8000-000000000068'::uuid) ->> 'ok')::boolean$$, 1);
 
 RESET ROLE;
 

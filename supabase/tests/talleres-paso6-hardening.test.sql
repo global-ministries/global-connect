@@ -127,7 +127,6 @@ CREATE OR REPLACE FUNCTION pg_temp.as_persona(p_auth_id uuid) RETURNS void LANGU
          set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
--- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
 
 -- ── fixtures (as postgres, before any role switch) ──────────────────
@@ -233,8 +232,9 @@ INSERT INTO public.taller_grupos (id, cohorte_id, nombre, capacidad, estado) VAL
 -- WITH CHECK's own new `sobre_cupo = false` term is ever reached. The
 -- forgery is still refused, just as P0001 SOBRE_CUPO_NO_AUTORIZADO rather
 -- than a generic RLS 42501 — a MORE specific refusal, not a weaker one.
--- The WITH CHECK term stays anyway as the second, independent layer for
--- any future write path that does not run through this trigger.
+-- Since 20261003160000 the policy has no member branch at all (members
+-- enroll through talleres_inscribirme, which never writes sobre_cupo), so
+-- RLS would refuse this row too; the trigger still answers first.
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b8000000-0000-4000-8000-000000000034');
 SELECT pg_temp.assert_sqlstate_msg('(1a) member self-enroll forging sobre_cupo=true is refused (trigger runs before RLS WITH CHECK)',
@@ -269,23 +269,20 @@ SELECT pg_temp.assert_rows('(1b) the refused insert left no row',
 -- Item 6 (+ setup for items 1c/7-personas): the cupo race/UPDATE path.
 -- edicion_temp cupo=2. A self-enrolls, C self-enrolls (full), C retires
 -- (freed), B self-enrolls (full again), then C's row moves retirado ->
--- pendiente while full -> CUPO_LLENO.
+-- pendiente while full -> CUPO_LLENO. Members self-enroll through
+-- talleres_inscribirme (20261003160000).
 -- ══════════════════════════════════════════════════════════════════════
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b8000000-0000-4000-8000-000000000036');
-SELECT pg_temp.assert_no_error('(6-setup) A self-enrolls into edicion_temp',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b8000000-0000-4000-8000-000000000080', 'b8000000-0000-4000-8000-000000000090',
-      'b8000000-0000-4000-8000-000000000037', 'pendiente')$$);
+SELECT pg_temp.assert_rows('(6-setup) A self-enrolls into edicion_temp',
+  $$SELECT 1 WHERE (public.talleres_inscribirme('b8000000-0000-4000-8000-000000000080'::uuid) ->> 'ok')::boolean$$, 1);
 RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b8000000-0000-4000-8000-000000000040');
-SELECT pg_temp.assert_no_error('(6-setup) C self-enrolls into edicion_temp (fills cupo)',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b8000000-0000-4000-8000-000000000080', 'b8000000-0000-4000-8000-000000000090',
-      'b8000000-0000-4000-8000-000000000041', 'pendiente')$$);
+SELECT pg_temp.assert_rows('(6-setup) C self-enrolls into edicion_temp (fills cupo)',
+  $$SELECT 1 WHERE (public.talleres_inscribirme('b8000000-0000-4000-8000-000000000080'::uuid) ->> 'ok')::boolean$$, 1);
 RESET ROLE;
 
 SELECT pg_temp.assert_no_error('(6-setup) C is retired (frees the seat, never gated)',
@@ -295,10 +292,8 @@ SELECT pg_temp.assert_no_error('(6-setup) C is retired (frees the seat, never ga
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b8000000-0000-4000-8000-000000000038');
-SELECT pg_temp.assert_no_error('(6-setup) B self-enrolls into edicion_temp (fills cupo again)',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b8000000-0000-4000-8000-000000000080', 'b8000000-0000-4000-8000-000000000090',
-      'b8000000-0000-4000-8000-000000000039', 'pendiente')$$);
+SELECT pg_temp.assert_rows('(6-setup) B self-enrolls into edicion_temp (fills cupo again)',
+  $$SELECT 1 WHERE (public.talleres_inscribirme('b8000000-0000-4000-8000-000000000080'::uuid) ->> 'ok')::boolean$$, 1);
 RESET ROLE;
 
 -- (6) the core case: C's row transitions retirado -> pendiente while the
