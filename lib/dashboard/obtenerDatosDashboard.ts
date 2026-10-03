@@ -13,7 +13,14 @@ export interface RespuestaDashboard {
   rol: string
   widgets: DatosWidgets
   platformSession: PlatformSession | null
+  /** Campus the admin KPIs were scoped to; null when they are global. */
+  campusId?: string | null
 }
+
+type ClienteServidor = Awaited<ReturnType<typeof createSupabaseServerClient>>
+
+// Roles rendered by DashboardAdmin with an organization-wide view.
+const ROLES_CON_TOTAL_PERSONAS = new Set(['admin', 'pastor'])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -35,7 +42,37 @@ function ensureKpisGlobales(widgets: DatosWidgets): Record<string, unknown> {
   return kpisGlobales
 }
 
-export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
+// Members and active groups of one campus, computed like DashboardAdmin's campus refresh:
+// resumen_dashboard_admin.total_usuarios, and groups that are activo and not eliminado.
+// Null when either query fails, so the caller keeps one global scope instead of mixing two.
+async function obtenerKpisCampus(supabase: ClienteServidor, campusId: string): Promise<Record<string, unknown> | null> {
+  try {
+    const [resumen, grupos] = await Promise.all([
+      supabase.rpc('resumen_dashboard_admin', { p_campus_id: campusId }),
+      supabase
+        .from('grupos')
+        .select('id', { count: 'exact', head: true })
+        .eq('activo', true)
+        .eq('eliminado', false)
+        .eq('campus_id', campusId),
+    ])
+    const totalUsuarios = isRecord(resumen.data) ? resumen.data.total_usuarios : null
+    if (resumen.error || grupos.error || typeof totalUsuarios !== 'number' || grupos.count == null) {
+      console.error('Error obteniendo KPIs del campus inicial:', resumen.error ?? grupos.error)
+      return null
+    }
+    return { total_miembros: { valor: totalUsuarios }, grupos_activos: { valor: grupos.count } }
+  } catch (e) {
+    console.error('Fallo obtenerKpisCampus()', e)
+    return null
+  }
+}
+
+/**
+ * @param campusInicialId Campus selected in the browser (from its cookie), already validated
+ * as a uuid. It only narrows the admin KPIs; access is still decided by RLS and the RPCs.
+ */
+export async function obtenerDatosDashboard(campusInicialId: string | null = null): Promise<RespuestaDashboard> {
   const supabase = await createSupabaseServerClient()
   const userData = await getUserWithRoles(supabase)
   const platformSession = userData?.platformSession ?? null
@@ -59,9 +96,23 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
       const widgets = toDashboardWidgets(d.widgets)
 
       // Fallbacks mínimos si faltan datos (skip for DG, their data is already scoped)
+      let campusId: string | null = null
       if (rolRpc !== 'director-general') {
         const kpisGlobales = ensureKpisGlobales(widgets)
-        if (kpisGlobales.total_miembros == null) {
+        // With a campus selected in the browser, admin and pastor get the numbers the client
+        // refresh would produce for it, so the first paint is already final.
+        const kpisCampus = campusInicialId && ROLES_CON_TOTAL_PERSONAS.has(rolRpc)
+          ? await obtenerKpisCampus(supabase, campusInicialId)
+          : null
+        if (kpisCampus) {
+          Object.assign(kpisGlobales, kpisCampus)
+          campusId = campusInicialId
+        }
+        // Admin and pastor read "Total Miembros" as every registered person, while the RPC
+        // counts only people in active groups. Replace it before the first paint so the card
+        // does not jump; its variation measured group membership, so it is dropped too.
+        // If the count fails, the RPC value stays as a best-effort number.
+        if (!campusId && (ROLES_CON_TOTAL_PERSONAS.has(rolRpc) || kpisGlobales.total_miembros == null)) {
           const total = await getTotalUsuarios()
           if (total != null) kpisGlobales.total_miembros = { valor: total }
         }
@@ -77,7 +128,7 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
         }
       }
 
-      return { rol: rolRpc, widgets, platformSession }
+      return { rol: rolRpc, widgets, platformSession, campusId }
     }
     if (error) {
       console.error('obtener_datos_dashboard RPC error:', error)
@@ -137,5 +188,5 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
     grupos_en_riesgo: [],
   }
 
-  return { rol: rolPrincipal, widgets: widgetsFB, platformSession }
+  return { rol: rolPrincipal, widgets: widgetsFB, platformSession, campusId: null }
 }

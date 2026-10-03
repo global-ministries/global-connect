@@ -7,7 +7,14 @@ const obtenerDatosDashboard = jest.fn()
 const obtenerGruposSinCasaAnfitriona = jest.fn()
 const obtenerCasasRevisionPendiente = jest.fn()
 
-jest.mock('@/lib/dashboard/obtenerDatosDashboard', () => ({ obtenerDatosDashboard: () => obtenerDatosDashboard() }))
+const mockCampusCookie: { value: string | undefined } = { value: undefined }
+
+jest.mock('@/lib/dashboard/obtenerDatosDashboard', () => ({ obtenerDatosDashboard: (...args: unknown[]) => obtenerDatosDashboard(...args) }))
+jest.mock('next/headers', () => ({
+  cookies: async () => ({
+    get: (name: string) => (name === 'gc_campus_activo' && mockCampusCookie.value !== undefined ? { name, value: mockCampusCookie.value } : undefined),
+  }),
+}))
 jest.mock('@/lib/actions/casas-anfitrionas.actions', () => ({
   obtenerCasasRevisionPendiente: () => obtenerCasasRevisionPendiente(),
   obtenerGruposSinCasaAnfitriona: (input: unknown) => obtenerGruposSinCasaAnfitriona(input),
@@ -24,7 +31,7 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
     return <h1 id={id}>{children}</h1>
   },
 }))
-jest.mock('@/components/dashboard/roles/DashboardAdmin', () => ({ __esModule: true, default: ({ data, rol }: DashboardRoleProbeProps) => <DashboardRoleProbe data={data} name={`admin:${rol}`} /> }))
+jest.mock('@/components/dashboard/roles/DashboardAdmin', () => ({ __esModule: true, default: ({ data, rol, campusInicialId }: DashboardRoleProbeProps) => <DashboardRoleProbe data={data} name={`admin:${rol} campus:${campusInicialId ?? 'none'}`} /> }))
 jest.mock('@/components/dashboard/roles/DashboardDirector', () => ({ __esModule: true, default: ({ data }: DashboardRoleProbeProps) => <DashboardRoleProbe data={data} name="director" /> }))
 jest.mock('@/components/dashboard/roles/DashboardLider', () => ({ __esModule: true, default: ({ data }: DashboardRoleProbeProps) => <DashboardRoleProbe data={data} name="lider" /> }))
 jest.mock('@/components/dashboard/roles/DashboardMiembro', () => ({ __esModule: true, default: ({ data }: DashboardRoleProbeProps) => <DashboardRoleProbe data={data} name="miembro" /> }))
@@ -56,6 +63,7 @@ type DashboardRoleProbeProps = {
   }
   name?: string
   rol?: string
+  campusInicialId?: string | null
 }
 
 function DashboardRoleProbe({ data, name = 'role' }: DashboardRoleProbeProps) {
@@ -75,6 +83,7 @@ function DashboardRoleProbe({ data, name = 'role' }: DashboardRoleProbeProps) {
 describe('dashboard host-home queue loading', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockCampusCookie.value = undefined
     obtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: true, data: [{ grupo_id: 'group-1' }] })
     obtenerCasasRevisionPendiente.mockResolvedValue({ success: true, data: [{ review_id: 'review-1' }] })
   })
@@ -240,6 +249,54 @@ describe('dashboard host-home queue loading', () => {
     expect(screen.getByTestId('role-probe')).toHaveTextContent('missing:1')
     expect(screen.getByTestId('role-probe')).toHaveTextContent('pending:0')
     expect(screen.getByTestId('role-probe')).toHaveTextContent('pending-degraded:false')
+  })
+})
+
+describe('dashboard initial campus', () => {
+  const campusId = '3f6c2a1e-8b7d-4c2e-9a1b-5d4e3f2a1b0c'
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockCampusCookie.value = undefined
+    obtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: true, data: [] })
+    obtenerCasasRevisionPendiente.mockResolvedValue({ success: true, data: [] })
+  })
+
+  it('loads the dashboard for the campus selected in the cookie and tells the admin dashboard', async () => {
+    mockCampusCookie.value = campusId
+    obtenerDatosDashboard.mockResolvedValue({ rol: 'admin', widgets: {}, platformSession: null, campusId })
+    const { default: PaginaTablero } = await import('@/app/(auth)/dashboard/page')
+
+    render(await PaginaTablero())
+
+    expect(obtenerDatosDashboard).toHaveBeenCalledWith(campusId)
+    expect(screen.getByTestId('role-probe')).toHaveTextContent(`admin:admin campus:${campusId}`)
+  })
+
+  it('tells the admin dashboard only the campus the loader actually scoped the numbers to', async () => {
+    mockCampusCookie.value = campusId
+    obtenerDatosDashboard.mockResolvedValue({ rol: 'director-general', widgets: {}, platformSession: null, campusId: null })
+    const { default: PaginaTablero } = await import('@/app/(auth)/dashboard/page')
+
+    render(await PaginaTablero())
+
+    expect(screen.getByTestId('role-probe')).toHaveTextContent('admin:director-general campus:none')
+  })
+
+  it.each([
+    ['a missing', undefined],
+    ['an empty', ''],
+    ['a non-uuid', 'barquisimeto'],
+    ['a padded', `${campusId}x`],
+  ])('ignores %s campus cookie', async (_label, value) => {
+    mockCampusCookie.value = value
+    obtenerDatosDashboard.mockResolvedValue({ rol: 'admin', widgets: {}, platformSession: null })
+    const { default: PaginaTablero } = await import('@/app/(auth)/dashboard/page')
+
+    render(await PaginaTablero())
+
+    expect(obtenerDatosDashboard).toHaveBeenCalledWith(null)
+    expect(screen.getByTestId('role-probe')).toHaveTextContent('admin:admin campus:none')
   })
 })
 

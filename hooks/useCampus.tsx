@@ -178,6 +178,18 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         cargarLocalidades()
     }, [campusActivoId])
 
+    // Mirror the selection to a cookie (same name as the localStorage key) so the dashboard page
+    // renders the same campus on the first paint. It is a plain campus uuid, not sensitive, and
+    // never trusted for access control: RLS and the RPCs still decide what the person can see.
+    // Waits for loading (the identity and the saved campus) so the cookie is not dropped before
+    // the selection is restored; the sign-out reset clears the selection and with it the cookie.
+    useEffect(() => {
+        if (loading) return
+        document.cookie = campusActivoId
+            ? `${STORAGE_KEY_CAMPUS}=${encodeURIComponent(campusActivoId)}; path=/; SameSite=Lax; max-age=31536000`
+            : `${STORAGE_KEY_CAMPUS}=; path=/; SameSite=Lax; max-age=0`
+    }, [campusActivoId, loading])
+
     // Persistir selección
     const seleccionarCampus = useCallback((id: string | null) => {
         setCampusActivoId(id)
