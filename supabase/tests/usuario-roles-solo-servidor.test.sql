@@ -14,9 +14,12 @@
 --   b. service_role (the app's server client) inserts a role row and deletes
 --      it, before and after, in a savepoint that is rolled back.
 --   c. Catalog: no INSERT, UPDATE or DELETE policy is left and the other
---      policies are as before; anon and authenticated lose exactly INSERT,
---      UPDATE, DELETE and TRUNCATE and keep the rest (SELECT included);
---      service_role and postgres keep everything; the RLS flags are as before.
+--      policies are as before; anon holds no privilege on the table and
+--      authenticated only SELECT, at table level (has_table_privilege, MAINTAIN
+--      included) and at column level (pg_attribute.attacl, and
+--      information_schema.column_privileges, where authenticated's table
+--      SELECT shows on every column); service_role and postgres keep
+--      everything; the RLS flags are as before.
 --   d. RLS photo: as the admin, the general director, the director de etapa
 --      and the leader, the count and md5 of the ids visible in usuario_roles
 --      are the same before and after.
@@ -130,7 +133,7 @@ $$;
 CREATE OR REPLACE FUNCTION pg_temp.privs(p_role text)
 RETURNS text LANGUAGE sql AS $$
   SELECT coalesce(string_agg(p, ',' ORDER BY p), '-')
-    FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) p
+    FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER', 'MAINTAIN']) p
    WHERE has_table_privilege(p_role, 'public.usuario_roles', p);
 $$;
 
@@ -285,11 +288,11 @@ SELECT pg_temp.fail('setup', format('RLS photo of usuario_roles as %s failed or 
 -- >>> BEGIN migration 20261003130000_usuario_roles_solo_servidor.sql (byte-identical copy)
 -- Only the server changes usuario_roles (security phase 3).
 --
--- What: drops every INSERT, UPDATE and DELETE policy on public.usuario_roles
--- and revokes INSERT, UPDATE, DELETE and TRUNCATE on the table from anon and
--- authenticated. The SELECT policy and the read privileges stay exactly as
--- they are (read exposure is a later batch). service_role keeps every
--- privilege and bypasses RLS.
+-- What: drops every INSERT, UPDATE and DELETE policy on public.usuario_roles;
+-- anon loses every privilege on the table and authenticated keeps only SELECT,
+-- with its read policy unchanged (read exposure is a later batch). A final
+-- check raises if anon or authenticated still hold anything else, at table or
+-- column level. service_role keeps every privilege and bypasses RLS.
 --
 -- Why: three write policies apply to every role and only ask whether the
 -- session holds a leadership role, never which row is written:
@@ -324,8 +327,21 @@ SELECT pg_temp.fail('setup', format('RLS photo of usuario_roles as %s failed or 
 -- trigger trg_sync_pastoral_grants_on_role_change runs its function as definer.
 -- No view reads the table.
 --
+-- Grants: anon and authenticated held SELECT, INSERT, UPDATE, DELETE,
+-- TRUNCATE, REFERENCES, TRIGGER and, on PostgreSQL 17, MAINTAIN. REVOKE ALL
+-- takes every one of them on any version (a list of names would miss
+-- MAINTAIN), and GRANT SELECT gives authenticated back its read. anon reads
+-- nothing here today (the read policy asks for auth.role() = 'authenticated'),
+-- and its reads of usuarios, segmento_lideres and director_general_segmentos,
+-- whose policies look into usuario_roles, already fail with 42501 on
+-- functions phase 1 closed to anon, so no working anon path changes. No column
+-- grant existed on staging, and a table-level REVOKE also removes column
+-- grants (tested on staging); the final check still looks at both levels, so
+-- a grant this file cannot revoke (another grantor) fails the migration.
+--
 -- Rollback (as captured on staging, 2026-10-03; the policies apply to PUBLIC):
---   GRANT INSERT, UPDATE, DELETE, TRUNCATE ON public.usuario_roles TO anon, authenticated;
+--   GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN
+--     ON public.usuario_roles TO anon, authenticated;   (MAINTAIN on PostgreSQL 17+)
 --   CREATE POLICY "Solo los líderes pueden asignar roles (insert)" ON public.usuario_roles
 --     FOR INSERT WITH CHECK (tiene_rol_de_liderazgo(auth.uid()));
 --   CREATE POLICY "Solo los líderes pueden asignar roles (update)" ON public.usuario_roles
@@ -355,8 +371,43 @@ BEGIN
 END;
 $$;
 
--- Writes only through the service role.
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.usuario_roles FROM anon, authenticated;
+-- Writes only through the service role; anon gets nothing, authenticated reads.
+REVOKE ALL ON public.usuario_roles FROM anon, authenticated;
+GRANT SELECT ON public.usuario_roles TO authenticated;
+
+-- Fail loudly if anything else is left for anon, authenticated or PUBLIC: a
+-- table privilege other than authenticated's SELECT, or any column grant.
+DO $$
+DECLARE
+  v_left text;
+BEGIN
+  SELECT string_agg(x.what, ', ' ORDER BY x.what) INTO v_left
+    FROM (
+      SELECT format('table %s %s', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE a.grantee::regrole::text END,
+                    a.privilege_type) AS what
+        FROM pg_class c, aclexplode(c.relacl) a
+       WHERE c.oid = 'public.usuario_roles'::regclass
+         AND (a.grantee IN (0::oid, 'anon'::regrole::oid, 'authenticated'::regrole::oid))
+         AND NOT (a.grantee = 'authenticated'::regrole::oid AND a.privilege_type = 'SELECT')
+      UNION ALL
+      SELECT format('column %s %s %s', att.attname,
+                    CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE a.grantee::regrole::text END, a.privilege_type)
+        FROM pg_attribute att, aclexplode(att.attacl) a
+       WHERE att.attrelid = 'public.usuario_roles'::regclass
+         AND att.attnum > 0 AND NOT att.attisdropped
+         AND a.grantee IN (0::oid, 'anon'::regrole::oid, 'authenticated'::regrole::oid)
+      UNION ALL
+      SELECT format('column_privileges %s %s %s', cp.column_name, cp.grantee, cp.privilege_type)
+        FROM information_schema.column_privileges cp
+       WHERE cp.table_schema = 'public' AND cp.table_name = 'usuario_roles'
+         AND cp.grantee IN ('PUBLIC', 'anon', 'authenticated')
+         AND NOT (cp.grantee = 'authenticated' AND cp.privilege_type = 'SELECT')) x;
+
+  IF v_left IS NOT NULL THEN
+    RAISE EXCEPTION 'usuario_roles still grants: %', v_left;
+  END IF;
+END;
+$$;
 -- <<< END migration 20261003130000_usuario_roles_solo_servidor.sql
 
 -- ---------------------------------------------------------------------------
@@ -391,24 +442,36 @@ SELECT pg_temp.fail('c catalog', format('RLS flags changed: before %s, after %s'
  WHERE c.oid = 'public.usuario_roles'::regclass
    AND s.rls IS DISTINCT FROM c.relrowsecurity::text || '/' || c.relforcerowsecurity::text;
 
--- anon and authenticated keep what they had minus the four writes; the rest
--- keep everything.
+-- anon holds nothing and authenticated only SELECT; the rest keep everything.
 SELECT pg_temp.fail('c catalog', format('%s privileges: before %s, after %s, expected %s', o.role, o.privs, pg_temp.privs(o.role), e.expected))
   FROM t_ur_privs_old o
- CROSS JOIN LATERAL (SELECT CASE WHEN o.role IN ('anon', 'authenticated')
-                                 THEN coalesce((SELECT string_agg(x, ',' ORDER BY x)
-                                                  FROM unnest(string_to_array(o.privs, ',')) x
-                                                 WHERE x NOT IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE')), '-')
-                                 ELSE o.privs END AS expected) e
+ CROSS JOIN LATERAL (SELECT CASE o.role WHEN 'anon' THEN '-'
+                                        WHEN 'authenticated' THEN 'SELECT'
+                                        ELSE o.privs END AS expected) e
  WHERE pg_temp.privs(o.role) IS DISTINCT FROM e.expected;
 
 SELECT pg_temp.fail('c catalog', format('%s %s on usuario_roles: expected %s', r.role, r.priv, r.expected))
-  FROM (VALUES ('anon', 'INSERT', false), ('anon', 'UPDATE', false), ('anon', 'DELETE', false), ('anon', 'TRUNCATE', false),
-               ('authenticated', 'INSERT', false), ('authenticated', 'UPDATE', false),
-               ('authenticated', 'DELETE', false), ('authenticated', 'TRUNCATE', false), ('authenticated', 'SELECT', true),
+  FROM (VALUES ('anon', 'SELECT', false), ('anon', 'INSERT', false), ('anon', 'UPDATE', false), ('anon', 'DELETE', false),
+               ('anon', 'TRUNCATE', false), ('anon', 'TRIGGER', false), ('anon', 'REFERENCES', false), ('anon', 'MAINTAIN', false),
+               ('authenticated', 'SELECT', true), ('authenticated', 'INSERT', false), ('authenticated', 'UPDATE', false),
+               ('authenticated', 'DELETE', false), ('authenticated', 'TRUNCATE', false), ('authenticated', 'TRIGGER', false),
+               ('authenticated', 'REFERENCES', false), ('authenticated', 'MAINTAIN', false),
                ('service_role', 'INSERT', true), ('service_role', 'UPDATE', true), ('service_role', 'DELETE', true),
                ('service_role', 'SELECT', true)) r(role, priv, expected)
  WHERE has_table_privilege(r.role, 'public.usuario_roles', r.priv) IS DISTINCT FROM r.expected;
+
+-- Column level: no column grant for anon, authenticated or PUBLIC, and the
+-- information schema shows nothing for them but authenticated's table SELECT.
+SELECT pg_temp.fail('c catalog', format('column grant left: %s %s %s', att.attname, a.grantee::regrole, a.privilege_type))
+  FROM pg_attribute att, aclexplode(att.attacl) a
+ WHERE att.attrelid = 'public.usuario_roles'::regclass AND att.attnum > 0 AND NOT att.attisdropped
+   AND a.grantee IN (0::oid, 'anon'::regrole::oid, 'authenticated'::regrole::oid);
+
+SELECT pg_temp.fail('c catalog', format('column privilege left: %s %s %s', cp.column_name, cp.grantee, cp.privilege_type))
+  FROM information_schema.column_privileges cp
+ WHERE cp.table_schema = 'public' AND cp.table_name = 'usuario_roles'
+   AND cp.grantee IN ('PUBLIC', 'anon', 'authenticated')
+   AND NOT (cp.grantee = 'authenticated' AND cp.privilege_type = 'SELECT');
 
 -- d. RLS photo: the same rows for every identity.
 SELECT pg_temp.fail('d rls', format('usuario_roles as %s: before %s, after %s', o.who, o.val, n.val))

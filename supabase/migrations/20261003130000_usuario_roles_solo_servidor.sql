@@ -1,10 +1,10 @@
 -- Only the server changes usuario_roles (security phase 3).
 --
--- What: drops every INSERT, UPDATE and DELETE policy on public.usuario_roles
--- and revokes INSERT, UPDATE, DELETE and TRUNCATE on the table from anon and
--- authenticated. The SELECT policy and the read privileges stay exactly as
--- they are (read exposure is a later batch). service_role keeps every
--- privilege and bypasses RLS.
+-- What: drops every INSERT, UPDATE and DELETE policy on public.usuario_roles;
+-- anon loses every privilege on the table and authenticated keeps only SELECT,
+-- with its read policy unchanged (read exposure is a later batch). A final
+-- check raises if anon or authenticated still hold anything else, at table or
+-- column level. service_role keeps every privilege and bypasses RLS.
 --
 -- Why: three write policies apply to every role and only ask whether the
 -- session holds a leadership role, never which row is written:
@@ -39,8 +39,21 @@
 -- trigger trg_sync_pastoral_grants_on_role_change runs its function as definer.
 -- No view reads the table.
 --
+-- Grants: anon and authenticated held SELECT, INSERT, UPDATE, DELETE,
+-- TRUNCATE, REFERENCES, TRIGGER and, on PostgreSQL 17, MAINTAIN. REVOKE ALL
+-- takes every one of them on any version (a list of names would miss
+-- MAINTAIN), and GRANT SELECT gives authenticated back its read. anon reads
+-- nothing here today (the read policy asks for auth.role() = 'authenticated'),
+-- and its reads of usuarios, segmento_lideres and director_general_segmentos,
+-- whose policies look into usuario_roles, already fail with 42501 on
+-- functions phase 1 closed to anon, so no working anon path changes. No column
+-- grant existed on staging, and a table-level REVOKE also removes column
+-- grants (tested on staging); the final check still looks at both levels, so
+-- a grant this file cannot revoke (another grantor) fails the migration.
+--
 -- Rollback (as captured on staging, 2026-10-03; the policies apply to PUBLIC):
---   GRANT INSERT, UPDATE, DELETE, TRUNCATE ON public.usuario_roles TO anon, authenticated;
+--   GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN
+--     ON public.usuario_roles TO anon, authenticated;   (MAINTAIN on PostgreSQL 17+)
 --   CREATE POLICY "Solo los líderes pueden asignar roles (insert)" ON public.usuario_roles
 --     FOR INSERT WITH CHECK (tiene_rol_de_liderazgo(auth.uid()));
 --   CREATE POLICY "Solo los líderes pueden asignar roles (update)" ON public.usuario_roles
@@ -70,5 +83,40 @@ BEGIN
 END;
 $$;
 
--- Writes only through the service role.
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.usuario_roles FROM anon, authenticated;
+-- Writes only through the service role; anon gets nothing, authenticated reads.
+REVOKE ALL ON public.usuario_roles FROM anon, authenticated;
+GRANT SELECT ON public.usuario_roles TO authenticated;
+
+-- Fail loudly if anything else is left for anon, authenticated or PUBLIC: a
+-- table privilege other than authenticated's SELECT, or any column grant.
+DO $$
+DECLARE
+  v_left text;
+BEGIN
+  SELECT string_agg(x.what, ', ' ORDER BY x.what) INTO v_left
+    FROM (
+      SELECT format('table %s %s', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE a.grantee::regrole::text END,
+                    a.privilege_type) AS what
+        FROM pg_class c, aclexplode(c.relacl) a
+       WHERE c.oid = 'public.usuario_roles'::regclass
+         AND (a.grantee IN (0::oid, 'anon'::regrole::oid, 'authenticated'::regrole::oid))
+         AND NOT (a.grantee = 'authenticated'::regrole::oid AND a.privilege_type = 'SELECT')
+      UNION ALL
+      SELECT format('column %s %s %s', att.attname,
+                    CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE a.grantee::regrole::text END, a.privilege_type)
+        FROM pg_attribute att, aclexplode(att.attacl) a
+       WHERE att.attrelid = 'public.usuario_roles'::regclass
+         AND att.attnum > 0 AND NOT att.attisdropped
+         AND a.grantee IN (0::oid, 'anon'::regrole::oid, 'authenticated'::regrole::oid)
+      UNION ALL
+      SELECT format('column_privileges %s %s %s', cp.column_name, cp.grantee, cp.privilege_type)
+        FROM information_schema.column_privileges cp
+       WHERE cp.table_schema = 'public' AND cp.table_name = 'usuario_roles'
+         AND cp.grantee IN ('PUBLIC', 'anon', 'authenticated')
+         AND NOT (cp.grantee = 'authenticated' AND cp.privilege_type = 'SELECT')) x;
+
+  IF v_left IS NOT NULL THEN
+    RAISE EXCEPTION 'usuario_roles still grants: %', v_left;
+  END IF;
+END;
+$$;
