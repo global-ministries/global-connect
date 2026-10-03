@@ -238,7 +238,7 @@ describe('useCurrentUser', () => {
     }
   })
 
-  it('keeps the roles, usuario and identity when a non-silent reload times out, then retries once', async () => {
+  it('keeps the roles, usuario and identity when a same-user SIGNED_IN reload times out, then retries once', async () => {
     jest.useFakeTimers()
     try {
       const user = { id: 'auth-1' }
@@ -264,11 +264,13 @@ describe('useCurrentUser', () => {
       supportCapabilitiesQuery.is.mockResolvedValue({ data: supportCapabilityRows(['support.view']), error: null })
 
       await act(async () => {
-        triggerAuthStateChange('SIGNED_IN', AUTH_SESSION_PLACEHOLDER)
+        // Same user as the one displayed: nothing is cleared up front.
+        triggerAuthStateChange('SIGNED_IN', { user })
         jest.advanceTimersByTime(SIGNED_IN_DEBOUNCE_MS)
         await flushPendingPromises()
       })
       expect(result.current.loading).toBe(true)
+      expect(result.current.roles).toEqual(['admin'])
 
       await act(async () => {
         jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS)
@@ -307,6 +309,133 @@ describe('useCurrentUser', () => {
     }
   })
 
+  // Account switch in the same browser: keeping the displayed state through
+  // a stalled reload would show the previous account's roles and data.
+  it('clears the previous account when SIGNED_IN brings a different user, even if the reload times out', async () => {
+    jest.useFakeTimers()
+    try {
+      const firstUser = { id: 'auth-1' }
+      const firstUsuario = { id: 'usuario-1', auth_id: 'auth-1', nombre: 'First User' }
+      const secondUser = { id: 'auth-2' }
+      const secondUsuario = { id: 'usuario-2', auth_id: 'auth-2', nombre: 'Second User' }
+      const { client, usuariosQuery, supportCapabilitiesQuery, triggerAuthStateChange } = setupSupabaseClient([
+        { user: firstUser, usuario: firstUsuario, roles: ['admin'], supportCapabilities: ['support.view'] },
+      ])
+
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
+      await act(async () => {
+        await flushPendingPromises()
+        await flushPendingPromises()
+      })
+      expect(result.current.authUserId).toBe('auth-1')
+
+      const pendingGetUser = createDeferred<GetUserResponse>()
+      client.auth.getUser.mockReturnValueOnce(pendingGetUser.promise)
+      client.auth.getUser.mockResolvedValue(getUserResponse(secondUser))
+      usuariosQuery.maybeSingle.mockResolvedValue({ data: secondUsuario, error: null })
+      client.rpc.mockResolvedValue({ data: ['lider'], error: null })
+      supportCapabilitiesQuery.is.mockResolvedValue({ data: [], error: null })
+
+      await act(async () => {
+        triggerAuthStateChange('SIGNED_IN', { user: secondUser })
+      })
+      // Cleared before the debounced reload even starts.
+      expect(result.current.authUserId).toBeNull()
+      expect(result.current.usuario).toBeNull()
+      expect(result.current.roles).toEqual([])
+      expect(result.current.supportCapabilities).toEqual([])
+      expect(result.current.platformSession).toBeNull()
+
+      await act(async () => {
+        jest.advanceTimersByTime(SIGNED_IN_DEBOUNCE_MS)
+        await flushPendingPromises()
+      })
+      await act(async () => {
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS)
+        await flushPendingPromises()
+      })
+
+      // The stalled reload kept the (now empty) state, not the first user's.
+      expect(result.current.loading).toBe(false)
+      expect(result.current.authUserId).toBeNull()
+      expect(result.current.usuario).toBeNull()
+      expect(result.current.roles).toEqual([])
+      expect(result.current.supportCapabilities).toEqual([])
+      const getUserCallsBeforeRetry = client.auth.getUser.mock.calls.length
+
+      await act(async () => {
+        jest.advanceTimersByTime(LOAD_RETRY_DELAY_MS)
+        await flushPendingPromises()
+        await flushPendingPromises()
+        await flushPendingPromises()
+      })
+
+      expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsBeforeRetry + 2)
+      expect(result.current.authUserId).toBe('auth-2')
+      expect(result.current.usuario?.id).toBe('usuario-2')
+      expect(result.current.roles).toEqual(['lider'])
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('keeps the roles when a talleres:refresh-session refresh times out, and retries it exactly once', async () => {
+    jest.useFakeTimers()
+    try {
+      const user = { id: 'auth-1' }
+      const usuario = { id: 'usuario-1', auth_id: 'auth-1', nombre: 'Staff User' }
+      const { client } = setupSupabaseClient([
+        { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
+      ])
+
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
+      await act(async () => {
+        await flushPendingPromises()
+        await flushPendingPromises()
+      })
+      expect(result.current.roles).toEqual(['admin'])
+
+      // Both the refresh and its retry stall past the timeout.
+      client.auth.getUser.mockReturnValueOnce(createDeferred<GetUserResponse>().promise)
+      client.auth.getUser.mockReturnValueOnce(createDeferred<GetUserResponse>().promise)
+      const getUserCallsBeforeRefresh = client.auth.getUser.mock.calls.length
+
+      await act(async () => {
+        window.dispatchEvent(new Event('talleres:refresh-session'))
+        await flushPendingPromises()
+      })
+      await act(async () => {
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS)
+        await flushPendingPromises()
+      })
+      expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsBeforeRefresh + 1)
+      expect(result.current.roles).toEqual(['admin'])
+
+      // The one retry, which times out as well...
+      await act(async () => {
+        jest.advanceTimersByTime(LOAD_RETRY_DELAY_MS)
+        await flushPendingPromises()
+      })
+      expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsBeforeRefresh + 2)
+      await act(async () => {
+        jest.advanceTimersByTime(AUTH_FETCH_TIMEOUT_MS)
+        await flushPendingPromises()
+      })
+
+      // ...and schedules nothing more.
+      await act(async () => {
+        jest.advanceTimersByTime(LOAD_RETRY_DELAY_MS * 3)
+        await flushPendingPromises()
+      })
+      expect(client.auth.getUser).toHaveBeenCalledTimes(getUserCallsBeforeRefresh + 2)
+      expect(result.current.authUserId).toBe('auth-1')
+      expect(result.current.roles).toEqual(['admin'])
+      expect(result.current.supportCapabilities).toEqual(['support.view'])
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
   it('keeps the previous roles when a non-silent reload fails on the roles RPC, and still reports the error', async () => {
     const user = { id: 'auth-1' }
     const usuario = { id: 'usuario-1', auth_id: 'auth-1', nombre: 'Staff User' }
@@ -319,7 +448,7 @@ describe('useCurrentUser', () => {
     await waitFor(() => expect(result.current.roles).toEqual(['admin']))
 
     await act(async () => {
-      triggerAuthStateChange('SIGNED_IN', AUTH_SESSION_PLACEHOLDER)
+      triggerAuthStateChange('SIGNED_IN', { user })
     })
 
     await waitFor(() => expect(result.current.error).toMatch(/roles/i))

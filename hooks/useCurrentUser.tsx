@@ -326,6 +326,13 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
   const knownSupportCapabilitiesRef = useRef<KnownSupportCapabilitiesRef['current']>(
     initial ? { authUserId: initial.authUserId, capabilities: initial.supportCapabilities } : null
   )
+  // The identity currently on screen, for the auth listener below: it is
+  // registered once on mount, so reading `authUserId` there would see the
+  // value from that first render.
+  const displayedAuthUserIdRef = useRef<string | null>(initial?.authUserId ?? null)
+  useEffect(() => {
+    displayedAuthUserIdRef.current = authUserId
+  }, [authUserId])
   // Whether the very first mount fetch below should behave like the
   // talleres:refresh-session listener further down — a background
   // revalidation that only ever updates state on success — instead of a
@@ -463,6 +470,20 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
         setLoading(false)
       } else if (event === 'SIGNED_IN' && session) {
         authGenerationRef.current += 1
+        const displayedAuthUserId = displayedAuthUserIdRef.current
+        if (displayedAuthUserId !== null && session.user?.id !== displayedAuthUserId) {
+          // A different account signed in (account switch in the same
+          // browser). A failed or timed-out reload keeps whatever is shown,
+          // so clear the previous account now — same as SIGNED_OUT — or a
+          // stalled reload would keep showing its roles and data. A
+          // SIGNED_IN for the same user keeps the state while it reloads.
+          knownSupportCapabilitiesRef.current = null
+          setAuthUserId(null)
+          setUsuario(null)
+          setRoles([])
+          setSupportCapabilities([])
+          setPlatformSession(null)
+        }
         signedInDebounceRef.current = setTimeout(() => {
           signedInDebounceRef.current = null
           fetchCurrentUser()
