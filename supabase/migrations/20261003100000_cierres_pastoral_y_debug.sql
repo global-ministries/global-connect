@@ -34,7 +34,10 @@
 --      authenticated limited to admins and pastors, es_admin_o_pastor(auth.uid()),
 --      the session-bound helper that the dg_directores_etapa policy already uses.
 --      The table and its open policy were made by hand (no migration creates
---      them), so another database could name that policy differently: the last
+--      them), so a database built only from migrations (local reset, CI shadow
+--      database, preview branch) has no such table: the block is guarded by
+--      to_regclass like the pastoral one and does nothing there. Where the
+--      table exists, another database could name that policy differently: the
 --      block raises, and nothing is applied, when any policy other than the new
 --      one is left on the table. The statements are idempotent.
 --
@@ -75,28 +78,30 @@ BEGIN
 END
 $cierre_pastoral$;
 
-ALTER TABLE public.debug_toolbar_whitelist ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.debug_toolbar_whitelist FROM anon, authenticated;
-GRANT SELECT ON TABLE public.debug_toolbar_whitelist TO authenticated;
-
-DROP POLICY IF EXISTS select_whitelist ON public.debug_toolbar_whitelist;
-DROP POLICY IF EXISTS debug_toolbar_whitelist_select_admin_pastor ON public.debug_toolbar_whitelist;
-CREATE POLICY debug_toolbar_whitelist_select_admin_pastor
-  ON public.debug_toolbar_whitelist
-  FOR SELECT
-  TO authenticated
-  USING (public.es_admin_o_pastor((SELECT auth.uid())));
-
-DO $cierre_debug_check$
+DO $cierre_debug$
 DECLARE
   v_other text;
 BEGIN
-  SELECT string_agg(pol.polname, ', ' ORDER BY pol.polname) INTO v_other
-    FROM pg_policy pol
-   WHERE pol.polrelid = 'public.debug_toolbar_whitelist'::regclass
-     AND pol.polname <> 'debug_toolbar_whitelist_select_admin_pastor';
-  IF v_other IS NOT NULL THEN
-    RAISE EXCEPTION 'cierres_pastoral_y_debug: debug_toolbar_whitelist keeps other policies (%); drop them or adapt this file', v_other;
+  IF to_regclass('public.debug_toolbar_whitelist') IS NOT NULL THEN
+    ALTER TABLE public.debug_toolbar_whitelist ENABLE ROW LEVEL SECURITY;
+    REVOKE ALL ON TABLE public.debug_toolbar_whitelist FROM anon, authenticated;
+    GRANT SELECT ON TABLE public.debug_toolbar_whitelist TO authenticated;
+
+    DROP POLICY IF EXISTS select_whitelist ON public.debug_toolbar_whitelist;
+    DROP POLICY IF EXISTS debug_toolbar_whitelist_select_admin_pastor ON public.debug_toolbar_whitelist;
+    CREATE POLICY debug_toolbar_whitelist_select_admin_pastor
+      ON public.debug_toolbar_whitelist
+      FOR SELECT
+      TO authenticated
+      USING (public.es_admin_o_pastor((SELECT auth.uid())));
+
+    SELECT string_agg(pol.polname, ', ' ORDER BY pol.polname) INTO v_other
+      FROM pg_policy pol
+     WHERE pol.polrelid = 'public.debug_toolbar_whitelist'::regclass
+       AND pol.polname <> 'debug_toolbar_whitelist_select_admin_pastor';
+    IF v_other IS NOT NULL THEN
+      RAISE EXCEPTION 'cierres_pastoral_y_debug: debug_toolbar_whitelist keeps other policies (%); drop them or adapt this file', v_other;
+    END IF;
   END IF;
 END
-$cierre_debug_check$;
+$cierre_debug$;

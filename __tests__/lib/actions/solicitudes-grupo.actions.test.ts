@@ -62,4 +62,22 @@ describe('listarSolicitudesPendientes expiring overdue requests', () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('expirar_solicitudes_vencidas'), 'connection reset')
     errorSpy.mockRestore()
   })
+
+  it('still lists the pending requests, and logs the error, when the service client cannot be created', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    createSupabaseServerClient.mockResolvedValue(createClient([pendingRequest]))
+    createSupabaseAdminClient.mockImplementation(() => {
+      throw new Error('Faltan variables de entorno SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY')
+    })
+
+    const result = await listarSolicitudesPendientes()
+
+    expect(result.success).toBe(true)
+    expect(result.data).toEqual([expect.objectContaining({ id: 's1' })])
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('expirar_solicitudes_vencidas'),
+      'Faltan variables de entorno SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY',
+    )
+    errorSpy.mockRestore()
+  })
 })

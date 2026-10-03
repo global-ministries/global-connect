@@ -185,11 +185,18 @@ export async function listarSolicitudesPendientes(): Promise<
   // Expire the overdue requests first. The RPC expires them in every group, as
   // it always did through the definer, so it runs with the service client: since
   // 20261003110000 a signed-in session can no longer execute it. As before, a
-  // failure here does not stop the listing.
+  // failure here (including a missing service client) does not stop the listing.
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-  const { error: expirarError } = await createSupabaseAdminClient().rpc("expirar_solicitudes_vencidas");
-  if (expirarError) {
-    console.error("[listarSolicitudesPendientes] Error en expirar_solicitudes_vencidas:", expirarError.message);
+  try {
+    const { error: expirarError } = await createSupabaseAdminClient().rpc("expirar_solicitudes_vencidas");
+    if (expirarError) {
+      console.error("[listarSolicitudesPendientes] Error en expirar_solicitudes_vencidas:", expirarError.message);
+    }
+  } catch (error) {
+    console.error(
+      "[listarSolicitudesPendientes] Error en expirar_solicitudes_vencidas:",
+      error instanceof Error ? error.message : String(error),
+    );
   }
 
   // Check DG scoping: get user roles and filter by segments if DG
