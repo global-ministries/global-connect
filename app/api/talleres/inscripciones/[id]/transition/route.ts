@@ -101,7 +101,9 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<NextRes
   // the idempotent emit_taller_certificado RPC and never fails the transition
   // — a transient error is recoverable by re-triggering completion (estado
   // stays 'aprobado', so target 'completado' remains reachable) and the RPC's
-  // ON CONFLICT (inscripcion_id) DO NOTHING makes a retry safe.
+  // idempotency makes a retry safe. T2b (odd/tasks/talleres-cierre-de-
+  // edicion.md): for a couple the RPC emits one certificate per person,
+  // keyed by (inscripcion_id, persona_id).
   if (body.target === 'completado') {
     try {
       const certificado = await generateCertificateForInscription(client, id)

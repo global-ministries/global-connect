@@ -18,8 +18,10 @@ import {
   agregarInscripcion,
   buscarPersonasParaInscribir,
   cancelarEdicion,
+  cerrarEdicion,
   editarGrupoInstanciado,
   inscribirSobreCupo,
+  previsualizarCierreEdicion,
   quitarFacilitadorGrupo,
   reprogramarEdicion,
 } from '@/app/(auth)/talleres/[taller]/[edicion]/actions'
@@ -929,5 +931,185 @@ describe('reprogramarEdicion — error mapping', () => {
       expect(result.error).toBe('forbidden')
       expect(result.message).toMatch(/no tienes permisos/i)
     }
+  })
+})
+
+// ─── Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) ──────
+//
+// Thin gate around talleres_previsualizar_cierre (read-only, never
+// revalidates) and talleres_cerrar_edicion (revalidates the edición and the
+// taller). The RPCs own authority and every business rule; these actions
+// only shape the call, parse the jsonb answer and translate errors.
+
+const VISTA_PREVIA_RPC = {
+  clases_sin_dictar: 2,
+  reportes_sin_enviar: 1,
+  clases_minimas: null,
+  filas: [
+    {
+      inscripcion_id: 'i-1',
+      persona_nombre: 'Ana Gómez',
+      companero_nombre: null,
+      grupo_nombre: 'Grupo Alfa',
+      clases_presente: 7,
+      clases_total: 8,
+      minimo: 8,
+      resultado: 'no_completado',
+    },
+  ],
+}
+
+const RESUMEN_RPC = {
+  ok: true,
+  completados: 5,
+  no_completados: 2,
+  abandonos: 1,
+  certificados_emitidos: 5,
+  clases_cerradas: 6,
+  clases_canceladas: 2,
+  grupos_completados: 2,
+  reportes_cerrados: 1,
+  reportes_sin_enviar: 1,
+}
+
+describe('previsualizarCierreEdicion — kill switch & auth', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    const { rpc } = setupRpc({ isEnabled: false })
+    const result = await previsualizarCierreEdicion('e-1')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('returns unauthorized when there is no session', async () => {
+    const { rpc } = setupRpc({ user: null })
+    const result = await previsualizarCierreEdicion('e-1')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('previsualizarCierreEdicion — happy path', () => {
+  it('calls talleres_previsualizar_cierre with p_edicion_id and returns the parsed preview, without revalidating', async () => {
+    const { rpc } = setupRpc({ rpcResult: { data: VISTA_PREVIA_RPC, error: null } })
+    const result = await previsualizarCierreEdicion('e-1')
+    expect(rpc).toHaveBeenCalledWith('talleres_previsualizar_cierre', { p_edicion_id: 'e-1' })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.vistaPrevia.clasesSinDictar).toBe(2)
+      expect(result.vistaPrevia.reportesSinEnviar).toBe(1)
+      expect(result.vistaPrevia.clasesMinimas).toBeNull()
+      expect(result.vistaPrevia.filas[0]).toEqual(
+        expect.objectContaining({ inscripcionId: 'i-1', clasesPresente: 7, minimo: 8, resultado: 'no_completado' }),
+      )
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('previsualizarCierreEdicion — errors', () => {
+  it('translates EDICION_YA_CERRADA', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: 'P0001', message: 'EDICION_YA_CERRADA' } } })
+    const result = await previsualizarCierreEdicion('e-1')
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('conflict')
+      expect(result.message).toBe('Esta edición ya está cerrada.')
+    }
+  })
+
+  it('translates a 42501 denial to forbidden', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: '42501', message: 'permission denied' } } })
+    const result = await previsualizarCierreEdicion('e-1')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
+  })
+
+  it('fails with a generic message when the answer does not match the contract', async () => {
+    setupRpc({ rpcResult: { data: { filas: 'nope' }, error: null } })
+    const result = await previsualizarCierreEdicion('e-1')
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('internal')
+      expect(result.message).toMatch(/vista previa/i)
+    }
+  })
+})
+
+describe('cerrarEdicion — kill switch & auth', () => {
+  it('returns not-found when the talleres flag is off', async () => {
+    const { rpc } = setupRpc({ isEnabled: false })
+    const result = await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('not-found')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('returns unauthorized when there is no session', async () => {
+    const { rpc } = setupRpc({ user: null })
+    const result = await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('unauthorized')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('cerrarEdicion — happy path', () => {
+  it('calls talleres_cerrar_edicion with p_edicion_id, returns the parsed summary and revalidates edición + taller', async () => {
+    const { rpc } = setupRpc({ rpcResult: { data: RESUMEN_RPC, error: null } })
+    const result = await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(rpc).toHaveBeenCalledWith('talleres_cerrar_edicion', { p_edicion_id: 'e-1' })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.resumen).toEqual({
+        completados: 5,
+        noCompletados: 2,
+        abandonos: 1,
+        certificadosEmitidos: 5,
+        clasesCerradas: 6,
+        clasesCanceladas: 2,
+        gruposCompletados: 2,
+        reportesCerrados: 1,
+        reportesSinEnviar: 1,
+      })
+    }
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+
+  it('still reports success (resumen null) when the edición closed but the summary does not match the contract', async () => {
+    setupRpc({ rpcResult: { data: { ok: true }, error: null } })
+    const result = await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.resumen).toBeNull()
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+  })
+})
+
+describe('cerrarEdicion — errors', () => {
+  it('translates EDICION_NO_CERRABLE and never revalidates', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: 'P0001', message: 'EDICION_NO_CERRABLE' } } })
+    const result = await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('conflict')
+      expect(result.message).toBe('Una edición en borrador o cancelada no se puede cerrar.')
+    }
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+
+  it('translates EDICION_YA_CERRADA', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: 'P0001', message: 'EDICION_YA_CERRADA' } } })
+    const result = await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.message).toBe('Esta edición ya está cerrada.')
+  })
+
+  it('translates a 42501 denial to forbidden', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: '42501', message: 'permission denied' } } })
+    const result = await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBe('forbidden')
   })
 })

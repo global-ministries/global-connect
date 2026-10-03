@@ -708,12 +708,12 @@ No son decisiones técnicas.
 > organigrama decidiendo quién administra qué. Nada de duplicar el modelo por
 > dirección, y nada de una capacidad global que vea la iglesia entera.
 
-## 12. El taller por dentro: diseñado vs. construido (auditoría del 2026-09-26, paso 6 verificado el 2026-09-27)
+## 12. El taller por dentro: diseñado vs. construido (auditoría del 2026-09-26, paso 6 verificado el 2026-09-27, cierre de edición el 2026-10-02)
 
 Hecha cruzando este documento, los documentos de cada paso, la memoria del
 proyecto y la base de producción. Lo que está **hecho** y lo que **falta**, sin
-adornos. La configuración del taller y el paso 6 ya se construyeron sobre esa
-auditoría; esta sección queda al día con lo que hay hoy.
+adornos. La configuración del taller, el paso 6 y el cierre de edición ya se
+construyeron sobre esa auditoría; esta sección queda al día con lo que hay hoy.
 
 ### 12.1 La cadena y dónde vive cada cosa
 
@@ -722,16 +722,16 @@ Certificado, y la persona tiene una Inscripción.
 
 | Cosa | Tabla | Estado real |
 |---|---|---|
-| Taller | `talleres` | `slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id`, y desde su "Configuración": `tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias, cadencia_dias, duracion_minutos`. Sus clases y grupos viven en su propia plantilla (`taller_plantilla_clases`, `taller_plantilla_grupos` + `taller_plantilla_facilitadores`): ya no hay que declarar cuántas clases tiene al abrir cada edición. |
-| Edición | `taller_ediciones` | Sigue guardando `sesiones_snapshot`, `firmantes`, `temporada_id` (nullable, ahora acotado al árbol de la temporada), `recurrence_rule` (**sigue inerte**). Ganó `fecha_inicio`, `fecha_fin`, `cierre_inscripcion`: su `estado` se deriva de esas fechas, salvo `borrador`/`cancelado`, que siguen siendo manuales. |
+| Taller | `talleres` | `slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id`, y desde su "Configuración": `tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias, cadencia_dias, duracion_minutos, clases_minimas_para_completar` (vacío = todas las clases dictadas). Sus clases y grupos viven en su propia plantilla (`taller_plantilla_clases`, `taller_plantilla_grupos` + `taller_plantilla_facilitadores`): ya no hay que declarar cuántas clases tiene al abrir cada edición. |
+| Edición | `taller_ediciones` | Sigue guardando `sesiones_snapshot`, `firmantes`, `temporada_id` (nullable, ahora acotado al árbol de la temporada), `recurrence_rule` (**sigue inerte**). Ganó `fecha_inicio`, `fecha_fin`, `cierre_inscripcion`: su `estado` se deriva de esas fechas, salvo `borrador`/`cancelado`, que siguen siendo manuales. Desde el cierre, `cerrada_en`/`cerrada_por`: una edición cerrada lee `cerrado` siempre, y esas dos columnas sólo las escribe `talleres_cerrar_edicion` (`EDICION_CIERRE_SOLO_POR_RPC`); reabrir no está diseñado. |
 | Cohorte | `talleres_crecimiento_cohortes` | Sin cambios: 1:1 con la edición en la práctica; la crea `talleres_instanciar_edicion` (antes `open_edicion`). Capa vestigial. |
 | Grupo | `taller_grupos` | Sigue colgando de la cohorte, pero ya no se arma a mano: nace **instanciado desde la plantilla del taller** al abrir la edición, con su `capacidad` y sus facilitadores ya puestos. Sin día/hora, sin cambios ahí. |
 | Equipo del grupo | `taller_grupo_asignaciones` | Sus filas se instancian desde `taller_plantilla_facilitadores`, y sólo puede asignarse —en la plantilla o en el grupo ya abierto— a alguien que sea **servidor activo de Dream Team en el nodo del taller** (`talleres_es_servidor_activo_del_taller`), no cualquier persona de la iglesia. |
 | Clase | `taller_sesiones` | `numero`, fechas, `estado`, y ahora `tema`: `generate_taller_sesiones` lo copia de la plantilla del taller cuando existe una activa (Próximo Paso instancia sus 4 clases con nombre: Sígueme, Intimidad con Dios, Compañerismo, Influencia). Sin plantilla activa, sigue el numerado sin nombre de siempre. |
 | Asistencia | `taller_asistencias` | Sin cambios: `presente/ausente/no_aplica` + `motivo`. Upsert por el líder/voluntario. `correccion_de_asistencia_id` sigue huérfana. |
 | Reporte | `taller_reportes` | Ya no hay que crearlo a mano: **el borrador nace junto con el grupo**, al instanciar la edición. "Enviar" sigue exigiendo que ya exista, y ahora siempre existe. |
-| Certificado | `taller_certificados` | Sin cambios: 1 por inscripción (en pareja, sólo la persona principal). Exige `unit_estado = 'completado'`. Sigue sin una pantalla que lo emita — es el "cierre de edición" pendiente. |
-| Inscripción | `taller_inscripciones` | Gana `sobre_cupo`, `sobre_cupo_por`, `sobre_cupo_en`. `unit_estado` sigue sin calcularse solo — también queda para el cierre de edición. |
+| Certificado | `taller_certificados` | **Hecho (cierre de edición)**: 1 por persona (`UNIQUE (inscripcion_id, persona_id)`). En pareja, cada uno recibe el suyo y lleva el nombre del otro en `nombre_pareja_snapshot`, visible también en la verificación pública. Lo emite el cierre de la edición; `emit_taller_certificado` emite los dos y conserva su respuesta. |
+| Inscripción | `taller_inscripciones` | Gana `sobre_cupo`, `sobre_cupo_por`, `sobre_cupo_en`. `unit_estado` lo calcula el cierre desde la asistencia. El compañero de una pareja ahora puede leer su propia inscripción (rama `companero_id` en `taller_inscripciones_select`), así que la ve en "Mi recorrido". |
 | Temporada | `talleres_temporadas` | **Hecho (paso 6)**: tiene dueño (`dream_team_equipo_id`, un nodo raíz de dirección), RLS por árbol, y la regla de pertenencia (`TALLER_FUERA_DE_LA_DIRECCION`) en su tabla puente y en `taller_ediciones.temporada_id`. Agrupa, nunca habilita — sigue esa misma regla. |
 | Ventana | `taller_periodos_generales` | **Deprecada**: sigue con 0 filas, y desde el paso 6 ya no se escribe en absoluto. La ventana de una edición vive en sus propias columnas (`fecha_inicio`, `fecha_fin`, `cierre_inscripcion`). El cupo ya se valida a nivel edición (`talleres_cupo_edicion`, suma de la `capacidad` de sus grupos). |
 
@@ -742,7 +742,13 @@ Certificado, y la persona tiene una Inscripción.
 3. **Inscribirse**, en edición abierta — el estado ya se deriva de sus fechas, no de un botón (hecho, paso 1 + paso 6). Aprobación en Pendientes (hecho, paso 4). El cupo cierra la puerta sola al llenarse; el director inscribe igual sobre el cupo, y queda registrado (hecho, paso 6).
 4. **Facilitadores**: ya no se buscan a mano — sólo servidores activos del nodo del taller, puestos por la plantilla al abrir la edición (hecho, configuración del taller).
 5. **Pasar lista, cerrar clase, enviar reporte** por el líder (hecho, paso 7) — el borrador del reporte ya existe, nació con el grupo (hecho, configuración del taller).
-6. **Cierre de edición**: sigue manual; no marca completados; **ningún certificado puede emitirse desde una pantalla** — sin cambios, sigue faltando.
+6. **Cierre de edición** (hecho, 2026-10-02): el director pulsa "Cerrar edición" en la pantalla de la edición y ve una vista previa: quién completa, quién no y quién abandonó, con sus asistencias contra el mínimo, más las clases sin dictar y los reportes sin enviar. Al confirmar, `talleres_cerrar_edicion` hace todo en una sola transacción:
+   - cancela las clases sin dictar y cierra las que estaban en curso;
+   - calcula `unit_estado`;
+   - emite los certificados;
+   - pasa los grupos a `completado`;
+   - cierra los reportes enviados o reabiertos;
+   - marca la edición como cerrada.
 
 ### 12.3 Lo que falta, ordenado
 
@@ -758,10 +764,22 @@ Certificado, y la persona tiene una Inscripción.
   ediciones adelantadas tanto por cadencia como por temporada, y `open_edicion`
   retirado para clientes en favor de `talleres_crear_edicion` /
   `talleres_crear_temporada`.
-- **Cierre de edición** (paso nuevo, explícito) — sigue faltando: calcular
-  `completado` / `no_completado` / `abandono` desde la asistencia con la regla
-  del taller, emitir certificados (y resolver el certificado de la pareja),
-  cerrar en cadena grupos, clases y reportes.
+- **Cierre de edición** — **hecho** (2026-10-02).
+  - **Regla**, que decidió el usuario: cada taller fija en su
+    "Configuración" cuántas clases mínimas hacen falta, y vacío significa
+    todas. Se cuentan las clases dictadas del grupo de la persona. El mínimo
+    efectivo nunca supera las dictadas y nunca baja de 1.
+  - **Resultado:** `completado` si llega al mínimo, `abandono` si no asistió
+    a ninguna, y `no_completado` en el resto de los casos.
+  - **Pareja**, también decidido por el usuario: cada uno recibe su
+    certificado con el nombre del otro.
+  - **Lo que queda abierto:**
+    - un reporte que sigue en borrador no se cierra, sólo se cuenta;
+    - un certificado emitido antes no se revoca si hoy la inscripción daría
+      `no_completado`;
+    - el disparador de foto de `taller_grupos` está muerto
+      (`pg_trigger_depth() < 1` dentro de un disparador), así que el cierre
+      escribe `completed_at` por su cuenta.
 - Paso 8 (inscripción sin cuenta, con su propio selector de pareja para quien
   todavía no tiene cuenta) y paso 9 (Crecimiento), como estaban.
 
@@ -787,3 +805,7 @@ Certificado, y la persona tiene una Inscripción.
    seguir inscribiendo, y la edición muestra cuántos quedaron sobre el cupo.
 7. El líder pasa lista clase por clase, cierra sus clases y envía el reporte
    de su grupo.
+8. El director cierra la edición. Antes de confirmar ve quién completa según
+   las clases mínimas del taller, y al confirmar cada persona que completó (en
+   pareja, cada uno) recibe su certificado, verificable por cualquiera en
+   `/verificar-certificado/<codigo>`.

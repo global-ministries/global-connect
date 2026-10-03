@@ -16,7 +16,7 @@ jest.mock('@supabase/supabase-js', () => ({
 
 const VALID_CODE = 'abcdefghijkmnpqr'
 const NON_SENSITIVE_COLUMNS =
-  'id, codigo_verificacion, taller_id, persona_id, nombre_taller_snapshot, nombre_participante_snapshot, fecha_completitud, firmantes_snapshot'
+  'id, codigo_verificacion, taller_id, persona_id, nombre_taller_snapshot, nombre_participante_snapshot, nombre_pareja_snapshot, fecha_completitud, firmantes_snapshot'
 
 const ROW = {
   id: 'cert-1',
@@ -25,6 +25,7 @@ const ROW = {
   persona_id: 'persona-1',
   nombre_taller_snapshot: 'Finanzas con Propósito',
   nombre_participante_snapshot: 'Ana Pérez',
+  nombre_pareja_snapshot: null,
   fecha_completitud: '2026-05-01',
   firmantes_snapshot: ['Pastor Juan', 42, 'Pastora María'],
 }
@@ -66,12 +67,24 @@ describe('verifyPublicCertificate', () => {
       valid: true,
       taller_title: 'Finanzas con Propósito',
       participant_name: 'Ana Pérez',
+      partner_name: null,
       completion_date: '2026-05-01',
       signers: ['Pastor Juan', 'Pastora María'],
     })
     expect(query.from).toHaveBeenCalledWith('taller_certificados')
     expect(query.select).toHaveBeenCalledWith(NON_SENSITIVE_COLUMNS)
     expect(query.eq).toHaveBeenCalledWith('codigo_verificacion', VALID_CODE)
+  })
+
+  // T2b/T2c (odd/tasks/talleres-cierre-de-edicion.md) — each person of a
+  // couple gets their own certificate naming the partner; the anon GRANT
+  // covers nombre_pareja_snapshot.
+  it("returns the partner's name on a couple's certificate", async () => {
+    queueQuery({ data: { ...ROW, nombre_pareja_snapshot: 'Luis Gómez' }, error: null })
+
+    const result = await verifyPublicCertificate(VALID_CODE)
+
+    expect(result).toEqual(expect.objectContaining({ valid: true, partner_name: 'Luis Gómez' }))
   })
 
   it('treats a non-array signers snapshot as no signers', async () => {

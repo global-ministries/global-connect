@@ -104,6 +104,7 @@ function makeRow(overrides: Partial<{
   sobre_cupo: boolean
   sobre_cupo_por_nombre: string | null
   sobre_cupo_en: string | null
+  unit_estado: string | null
 }>) {
   return {
     id: 'insc-1',
@@ -580,5 +581,41 @@ describe('TablaInscripciones — bulk selection (T3)', () => {
     await user.click(screen.getAllByText('Asignar a grupo')[0]!)
 
     expect(errorMock).toHaveBeenCalledWith('No tenés permiso para esto.')
+  })
+})
+// Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — once the
+// edición is closed, the page asks for a Resultado column (the unit_estado
+// talleres_cerrar_edicion stamped), labeled and colored through labels.ts.
+describe('TablaInscripciones — Resultado (cierre de edición)', () => {
+  it('has no Resultado column unless asked for', () => {
+    renderTabla({ rows: [makeRow({ estado: 'aprobado', unit_estado: 'completado' })] })
+    expect(screen.queryByRole('columnheader', { name: /resultado/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the resultado of each inscrito, labeled and colored, when mostrarResultado is set', () => {
+    const { container } = renderTabla({
+      mostrarResultado: true,
+      rows: [
+        makeRow({ id: 'insc-1', persona_principal_nombre: 'Ana', estado: 'aprobado', unit_estado: 'completado' }),
+        makeRow({ id: 'insc-2', persona_principal_nombre: 'Marta', estado: 'aprobado', unit_estado: 'abandono' }),
+        makeRow({ id: 'insc-3', persona_principal_nombre: 'Pedro', estado: 'no_aprobado', unit_estado: null }),
+      ],
+    })
+    expect(screen.getByRole('columnheader', { name: /resultado/i })).toBeInTheDocument()
+    const table = container.querySelector('table')
+    expect(table).not.toBeNull()
+    if (!table) return
+    const filas = table.querySelectorAll('tbody tr')
+    expect(filas[0]?.querySelector('[data-testid="resultado-insc-1"]')).toHaveTextContent('Completado')
+    expect(filas[1]?.querySelector('[data-testid="resultado-insc-2"]')).toHaveTextContent('Abandonó')
+    expect(filas[2]?.querySelector('[data-testid="resultado-insc-3"]')).toHaveTextContent('—')
+  })
+
+  it('shows the resultado on the mobile cards too', () => {
+    renderTabla({
+      mostrarResultado: true,
+      rows: [makeRow({ id: 'insc-1', estado: 'aprobado', unit_estado: 'no_completado' })],
+    })
+    expect(screen.getByText('Resultado: No completado')).toBeInTheDocument()
   })
 })

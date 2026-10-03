@@ -66,8 +66,14 @@ export function generateCertificateCode(): string {
 // The 16-char code is generated HERE (single source of the locked ALPHABET,
 // which isValidCertificateCode enforces) and passed in; the RPC validates
 // its length against the table CHECK. This wrapper is BEST-EFFORT: it never
-// throws — the RPC is idempotent (ON CONFLICT (inscripcion_id) DO NOTHING),
-// so a transient failure is recoverable by simply calling again.
+// throws — the RPC is idempotent, so a transient failure is recoverable by
+// simply calling again.
+//
+// T2b (odd/tasks/talleres-cierre-de-edicion.md) — certificates are keyed by
+// (inscripcion_id, persona_id): for a couple inscription the RPC emits one
+// certificate for the persona principal AND one for the companero, each
+// naming the other in nombre_pareja_snapshot. The fields read below describe
+// the row the RPC reports back; nothing here assumes one row per inscription.
 
 export interface EmitCertificateResult {
   readonly ok: boolean
@@ -130,6 +136,12 @@ interface PdfStreamOptions {
   readonly title: string
   readonly tallerTitle: string
   readonly participantName: string
+  /**
+   * T2b — on a couple's certificate, the partner's name
+   * (taller_certificados.nombre_pareja_snapshot), printed as "junto a …"
+   * right under the participant. Omitted/null on an individual certificate.
+   */
+  readonly partnerName?: string | null
   readonly completionDateLabel: string
   readonly signers: readonly string[]
   readonly verificationUrl: string
@@ -146,6 +158,7 @@ export function composeCertificatePdf(opts: PdfStreamOptions): Buffer {
     `(${pdfEscape('Certificado de finalizacion')}) Tj T*`,
     `(${pdfEscape('otorgado a')}) Tj T*`,
     `(${pdfEscape(opts.participantName)}) Tj T*`,
+    ...(opts.partnerName ? [`(${pdfEscape(`junto a ${opts.partnerName}`)}) Tj T*`] : []),
     `(Fecha: ${pdfEscape(opts.completionDateLabel)}) Tj T*`,
     `T* (Firmantes:) Tj T*`,
     ...opts.signers.map((s) => `(${pdfEscape(s)}) Tj T*`),

@@ -350,6 +350,10 @@ function TabCertificados({ certificados }: { certificados: readonly Participante
                     >
                       {cert.nombre_taller_snapshot}
                     </Link>
+                    {/* T2b — a couple's certificate names the partner. */}
+                    {cert.nombre_pareja_snapshot && (
+                      <span className="block text-xs text-muted-foreground">{`junto a ${cert.nombre_pareja_snapshot}`}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{formatFecha(cert.fecha_completitud)}</td>
                   <td className="px-4 py-3">
@@ -375,6 +379,11 @@ function TabCertificados({ certificados }: { certificados: readonly Participante
                 <Award className="mt-0.5 h-5 w-5 text-primary" />
                 <div className="flex-1">
                   <TextoSistema className="text-sm font-medium">{cert.nombre_taller_snapshot}</TextoSistema>
+                  {cert.nombre_pareja_snapshot && (
+                    <TextoSistema variante="sutil" className="mt-1 block text-xs">
+                      {`junto a ${cert.nombre_pareja_snapshot}`}
+                    </TextoSistema>
+                  )}
                   <TextoSistema variante="sutil" className="mt-1 block text-xs">
                     Completado {formatFecha(cert.fecha_completitud)}
                   </TextoSistema>

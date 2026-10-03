@@ -81,4 +81,12 @@ export interface InscripcionAdminRow {
   readonly sobre_cupo?: boolean
   readonly sobre_cupo_por_nombre?: string | null
   readonly sobre_cupo_en?: string | null
+  /**
+   * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — the
+   * resultado talleres_cerrar_edicion stamps on the inscripción
+   * (completado / no_completado / abandono), null until the edición is
+   * closed. Optional for the same reason as `sobre_cupo`: only
+   * loadAdminInscripciones (the edición page's loader) populates it.
+   */
+  readonly unit_estado?: string | null
 }

@@ -146,6 +146,7 @@ const TALLER: TallerDetalle = {
   regimen: 'temporada',
   cierre_inscripcion_offset_dias: 0,
   intervalo_ediciones_dias: null,
+  clases_minimas_para_completar: null,
   ediciones: [
     {
       id: 'e-1',
@@ -632,6 +633,7 @@ describe('TallerDetallePage — permission wiring', () => {
         regimen: 'cadencia',
         cierre_inscripcion_offset_dias: -3,
         intervalo_ediciones_dias: 28,
+        clases_minimas_para_completar: 6,
         cadencia_dias: 14,
         duracion_minutos: 75,
       },
@@ -647,6 +649,7 @@ describe('TallerDetallePage — permission wiring', () => {
       regimen: 'cadencia',
       cierreInscripcionOffsetDias: -3,
       intervaloEdicionesDias: 28,
+      clasesMinimasParaCompletar: 6,
       cadenciaDias: 14,
       duracionMinutos: 75,
       puedeEditar: true,

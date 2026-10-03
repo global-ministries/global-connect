@@ -34,6 +34,7 @@ function baseProps(overrides: Partial<Parameters<typeof ConfiguracionTaller>[0]>
     regimen: 'temporada' as const,
     cierreInscripcionOffsetDias: 0,
     intervaloEdicionesDias: null,
+    clasesMinimasParaCompletar: null,
     cadenciaDias: 7,
     duracionMinutos: 90,
     puedeEditar: false,
@@ -127,6 +128,7 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
         regimen: 'cadencia',
         cierreInscripcionOffsetDias: -5,
         intervaloEdicionesDias: 28,
+        clasesMinimasParaCompletar: null,
       }),
     )
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
@@ -153,6 +155,54 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
     fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/-60 y 60/)
+  })
+})
+
+// Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — the
+// completion rule talleres_cerrar_edicion applies: empty = every clase dictada.
+describe('ConfiguracionTaller — clases mínimas para completar', () => {
+  it('read-only: says "Todas las clases dictadas" when no minimum is set', () => {
+    render(<ConfiguracionTaller {...baseProps({ clasesMinimasParaCompletar: null })} />)
+    expect(screen.getByText('Clases mínimas para completar')).toBeInTheDocument()
+    expect(screen.getByText('Todas las clases dictadas')).toBeInTheDocument()
+  })
+
+  it('read-only: shows the configured minimum', () => {
+    render(<ConfiguracionTaller {...baseProps({ clasesMinimasParaCompletar: 6 })} />)
+    expect(screen.getByText('6 clases')).toBeInTheDocument()
+  })
+
+  it('editor: shows the current value and a one-line hint that empty means all clases', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, clasesMinimasParaCompletar: 6 })} />)
+    const input = screen.getByLabelText(/clases mínimas para completar/i)
+    expect(input).toHaveValue(6)
+    expect(input).toHaveAttribute('min', '1')
+    expect(input).toHaveAttribute('max', '50')
+    expect(screen.getByText(/vacío = todas las clases dictadas/i)).toBeInTheDocument()
+  })
+
+  it('editor: saves the typed minimum through updateTallerConfiguracion', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    fireEvent.change(screen.getByLabelText(/clases mínimas para completar/i), { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ clasesMinimasParaCompletar: 7 }),
+      ),
+    )
+  })
+
+  it('editor: sends null when the field is cleared', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, clasesMinimasParaCompletar: 6 })} />)
+    fireEvent.change(screen.getByLabelText(/clases mínimas para completar/i), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ clasesMinimasParaCompletar: null }),
+      ),
+    )
   })
 })
 

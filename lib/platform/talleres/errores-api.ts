@@ -334,6 +334,19 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     error: 'conflict',
     message: 'La primera clase de esta edición ya se dictó; no se puede mover el inicio.',
   },
+  // Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) —
+  // talleres_previsualizar_cierre/talleres_cerrar_edicion. A denial keeps
+  // the existing 42501 path below.
+  EDICION_YA_CERRADA: {
+    status: 409,
+    error: 'conflict',
+    message: 'Esta edición ya está cerrada.',
+  },
+  EDICION_NO_CERRABLE: {
+    status: 409,
+    error: 'conflict',
+    message: 'Una edición en borrador o cancelada no se puede cerrar.',
+  },
 }
 
 /** Ordered longest-first so a substring match can't pick the wrong entry. */

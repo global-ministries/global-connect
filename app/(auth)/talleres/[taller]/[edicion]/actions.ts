@@ -18,6 +18,10 @@
  * 20260926150000_talleres_plantillas_del_taller.sql). Every denial is
  * translated via lib/platform/talleres/errores-api.ts — never a raw
  * RAISE/SQLSTATE reaching the client.
+ *
+ * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) adds
+ * previsualizarCierreEdicion/cerrarEdicion at the end of this file, same
+ * thin gate around talleres_previsualizar_cierre/talleres_cerrar_edicion.
  */
 
 import { revalidatePath } from 'next/cache'
@@ -26,6 +30,12 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 import { rutaEdicion, rutaGrupo, rutaTaller } from '@/lib/platform/talleres/rutas'
+import {
+  parseResumenCierre,
+  parseVistaPreviaCierre,
+  type ResumenCierre,
+  type VistaPreviaCierre,
+} from '@/lib/platform/talleres/cierre-edicion'
 
 export type EdicionActionResult<T> =
   | ({ readonly ok: true } & T)
@@ -63,6 +73,34 @@ async function gate(): Promise<{ ok: true; supabase: any } | { ok: false; result
   }
 
   return { ok: true, supabase }
+}
+
+/**
+ * Best effort: revalidates the own page of every grupo of the edición
+ * (their clases/estado render there too). Never fails the calling action —
+ * the edición/taller revalidation already ran by the time this is called.
+ */
+async function revalidarGruposDeEdicion(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  client: any,
+  tallerSlug: string,
+  edicionId: string,
+): Promise<void> {
+  try {
+    const { data: cohorte } = await client
+      .from('talleres_crecimiento_cohortes')
+      .select('id')
+      .eq('taller_id', edicionId)
+      .maybeSingle()
+    if (cohorte) {
+      const { data: grupos } = await client.from('taller_grupos').select('id').eq('cohorte_id', cohorte.id)
+      for (const g of (grupos ?? []) as ReadonlyArray<{ id: string }>) {
+        revalidatePath(rutaGrupo(tallerSlug, edicionId, g.id))
+      }
+    }
+  } catch {
+    // best effort only
+  }
 }
 
 // ─── Grupo instanciado ───────────────────────────────────────────────────
@@ -461,21 +499,7 @@ export async function reprogramarEdicion(
   // so a viewer there doesn't see a stale date. Never fails the action
   // itself; an extend-only call touches no clase, so this is a no-op cost
   // either way (0 or 1 extra pair of queries).
-  try {
-    const { data: cohorte } = await client
-      .from('talleres_crecimiento_cohortes')
-      .select('id')
-      .eq('taller_id', input.edicionId)
-      .maybeSingle()
-    if (cohorte) {
-      const { data: grupos } = await client.from('taller_grupos').select('id').eq('cohorte_id', cohorte.id)
-      for (const g of (grupos ?? []) as ReadonlyArray<{ id: string }>) {
-        revalidatePath(rutaGrupo(input.tallerSlug, input.edicionId, g.id))
-      }
-    }
-  } catch {
-    // best effort only — the edición/taller revalidation above already ran.
-  }
+  await revalidarGruposDeEdicion(client, input.tallerSlug, input.edicionId)
 
   return {
     ok: true,
@@ -488,4 +512,71 @@ export async function reprogramarEdicion(
       clasesMovidas: resultado.clases_movidas,
     },
   }
+}
+
+// ─── Cerrar edición (odd/tasks/talleres-cierre-de-edicion.md T2) ──────────
+//
+// The director closes an edición from its page: a read-only preview first
+// (talleres_previsualizar_cierre — who completes with the attendance on
+// record, what the close will cancel or leave open), then the close itself
+// (talleres_cerrar_edicion — marks every unit_estado, emits the
+// certificados and closes grupos, clases and reportes in one transaction).
+// Both RPCs own authority (director.write/admin.manage scoped to the
+// taller's equipo, 42501 otherwise) and every business rule
+// (EDICION_YA_CERRADA, EDICION_NO_CERRABLE); these actions only shape the
+// call, parse the jsonb answer (lib/platform/talleres/cierre-edicion.ts)
+// and translate errors. The preview never revalidates: it writes nothing.
+
+export async function previsualizarCierreEdicion(
+  edicionId: string,
+): Promise<EdicionActionResult<{ vistaPrevia: VistaPreviaCierre }>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  const mensajePorDefecto = 'No se pudo cargar la vista previa del cierre.'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client.rpc('talleres_previsualizar_cierre', { p_edicion_id: edicionId })
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, mensajePorDefecto)
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  const vistaPrevia = parseVistaPreviaCierre(data)
+  if (!vistaPrevia) {
+    return { ok: false, error: 'internal', message: mensajePorDefecto }
+  }
+  return { ok: true, vistaPrevia }
+}
+
+export interface CerrarEdicionInput {
+  readonly tallerSlug: string
+  readonly edicionId: string
+}
+
+export async function cerrarEdicion(
+  input: CerrarEdicionInput,
+): Promise<EdicionActionResult<{ resumen: ResumenCierre | null }>> {
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client.rpc('talleres_cerrar_edicion', { p_edicion_id: input.edicionId })
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo cerrar la edición.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+
+  revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
+  revalidatePath(rutaTaller(input.tallerSlug))
+  // The close also completes every grupo and closes its clases/reporte,
+  // all rendered on each grupo's own page.
+  await revalidarGruposDeEdicion(client, input.tallerSlug, input.edicionId)
+
+  // The edición IS closed at this point (the RPC committed). A summary that
+  // drifts from the contract only loses the numbers, never the success.
+  return { ok: true, resumen: parseResumenCierre(data) }
 }

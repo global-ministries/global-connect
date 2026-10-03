@@ -4,21 +4,25 @@
  * Server component. Reads `params.codigo`, looks the certificate up
  * in-process through the shared public lookup (no HTTP hop to its own API,
  * so it does not depend on a configured base URL), renders ONLY
- * non-sensitive data: taller name, participant name, completion date,
- * signers.
+ * non-sensitive data: taller name, participant name (and, on a couple's
+ * certificate, "Junto a <partner>" — T2c, odd/tasks/talleres-cierre-de-
+ * edicion.md), completion date, signers.
  *
  * On failure (not-found or revoked) renders a friendly neutral message.
  * NEVER discloses PII (email, phone, cedula, group notes).
  */
 
-import { buildQrSvg, buildVerificationUrl, type VerifiedCertificate } from '@/lib/platform/talleres/certificates'
-import { verifyPublicCertificate } from '@/lib/platform/talleres/verificar-certificado'
+import { buildQrSvg, buildVerificationUrl } from '@/lib/platform/talleres/certificates'
+import {
+  verifyPublicCertificate,
+  type PublicCertificateVerification,
+} from '@/lib/platform/talleres/verificar-certificado'
 
 interface PageProps {
   readonly params: Promise<{ readonly codigo: string }>
 }
 
-async function loadCertificate(codigo: string): Promise<VerifiedCertificate> {
+async function loadCertificate(codigo: string): Promise<PublicCertificateVerification> {
   try {
     return await verifyPublicCertificate(codigo)
   } catch {
@@ -53,6 +57,7 @@ export default async function VerificarCertificadoPage({ params }: PageProps) {
             <dd data-testid="taller-title">{result.taller_title}</dd>
             <dt>Participante</dt>
             <dd data-testid="participant-name">{result.participant_name}</dd>
+            {result.partner_name && <dd data-testid="partner-name">Junto a {result.partner_name}</dd>}
             <dt>Fecha de completitud</dt>
             <dd data-testid="completion-date">{result.completion_date}</dd>
             <dt>Firmantes</dt>

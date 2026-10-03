@@ -104,6 +104,7 @@ const TALLER: TallerDetalle = {
   regimen: 'temporada',
   cierre_inscripcion_offset_dias: 0,
   intervalo_ediciones_dias: null,
+  clases_minimas_para_completar: null,
   ediciones: [],
 }
 
@@ -127,6 +128,7 @@ const EDICION: EdicionLocalDetalle = {
   inscripciones_count: 1,
   inscripciones_aprobadas_count: 0,
   certificados_count: 0,
+  cerrada_en: null,
 }
 
 // The row exactly as PostgREST returns it to a plain coordinador under

@@ -160,6 +160,14 @@ export interface TallerDetalle extends CatalogoTaller {
   readonly regimen: 'temporada' | 'cadencia'
   readonly cierre_inscripcion_offset_dias: number
   readonly intervalo_ediciones_dias: number | null
+  /**
+   * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md) — the
+   * taller's completion rule: the minimum number of attended clases an
+   * inscrito needs to complete an edición. `null` means every clase dictada
+   * (talleres_cerrar_edicion clamps the effective minimum to the clases
+   * actually dictadas). Edited on the "Configuración" section.
+   */
+  readonly clases_minimas_para_completar: number | null
 }
 
 interface TallerDetalleQueryClient {
@@ -191,7 +199,8 @@ export async function loadTallerDetalle(
     .from('talleres')
     .select(
       `${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default, cadencia_dias, duracion_minutos,
-       tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias`,
+       tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias,
+       clases_minimas_para_completar`,
     )
     .eq('slug', slug)
     .maybeSingle()
@@ -209,6 +218,7 @@ export async function loadTallerDetalle(
     regimen: (row.regimen as TallerDetalle['regimen'] | undefined) ?? 'temporada',
     cierre_inscripcion_offset_dias: (row.cierre_inscripcion_offset_dias as number | undefined) ?? 0,
     intervalo_ediciones_dias: (row.intervalo_ediciones_dias as number | null | undefined) ?? null,
+    clases_minimas_para_completar: (row.clases_minimas_para_completar as number | null | undefined) ?? null,
   }
 }
 

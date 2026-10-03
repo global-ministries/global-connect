@@ -244,6 +244,7 @@ const validConfiguracionInput = {
   regimen: 'temporada' as const,
   cierreInscripcionOffsetDias: -3,
   intervaloEdicionesDias: null,
+  clasesMinimasParaCompletar: null,
 }
 
 describe('updateTallerConfiguracion — kill switch & auth', () => {
@@ -333,8 +334,39 @@ describe('updateTallerConfiguracion — happy path', () => {
       regimen: 'temporada',
       cierre_inscripcion_offset_dias: -3,
       intervalo_ediciones_dias: null,
+      clases_minimas_para_completar: null,
     })
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+})
+
+// Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — the
+// taller's own completion rule: null means "every clase dictada", a number
+// is the minimum attended clases (1..50) talleres_cerrar_edicion applies.
+describe('updateTallerConfiguracion — clases mínimas para completar', () => {
+  it('persists null (empty field = todas las clases dictadas)', async () => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, clasesMinimasParaCompletar: null })
+    expect(result.ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ clases_minimas_para_completar: null }))
+  })
+
+  it.each([1, 6, 50])('persists the integer %i', async (valor) => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, clasesMinimasParaCompletar: valor })
+    expect(result.ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ clases_minimas_para_completar: valor }))
+  })
+
+  it.each([0, 51, -1, 2.5, Number.NaN])('rejects %p without touching the row', async (valor) => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, clasesMinimasParaCompletar: valor })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('invalid-input')
+      expect(result.message).toMatch(/entre 1 y 50/)
+    }
+    expect(updateMock).not.toHaveBeenCalled()
   })
 })
 

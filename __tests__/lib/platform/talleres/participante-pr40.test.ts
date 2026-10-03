@@ -123,6 +123,7 @@ function setupExplorarMock(
     b['eq'] = jest.fn(() => b)
     b['in'] = jest.fn(() => b)
     b['order'] = jest.fn(() => b)
+    b['or'] = jest.fn(() => b)
     b['maybeSingle'] = jest.fn(() =>
       Promise.resolve({ data: null, error: null })
     )

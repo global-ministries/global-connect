@@ -32,6 +32,7 @@ function certificado(overrides: Partial<ParticipanteCertificado> = {}): Particip
     nombre_taller_snapshot: 'Finanzas con Propósito',
     fecha_completitud: '2025-05-01T00:00:00.000Z',
     revocado_at: null,
+    nombre_pareja_snapshot: null,
     ...overrides,
   }
 }
@@ -122,5 +123,23 @@ describe('CertificadoDetailPage — content', () => {
     const element = (await CertificadoDetailPage({ params: Promise.resolve({ id: 'c-1' }) } as any)) as any
     const badges = findAllByType(element, BadgeSistema)
     expect(badges.some((b) => /revocado/i.test(extractText(b.props.children)))).toBe(true)
+  })
+})
+
+// T2b (odd/tasks/talleres-cierre-de-edicion.md) — each person of a couple
+// gets their own certificate, naming the partner.
+describe('CertificadoDetailPage — couple certificate', () => {
+  it('shows "Junto a <partner>" when nombre_pareja_snapshot is set', async () => {
+    setup(certificado({ nombre_pareja_snapshot: 'Luis Pérez' }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await CertificadoDetailPage({ params: Promise.resolve({ id: 'c-1' }) } as any)) as any
+    expect(extractText(element)).toMatch(/Junto a\s+Luis Pérez/)
+  })
+
+  it('shows no partner line on an individual certificate', async () => {
+    setup(certificado({ nombre_pareja_snapshot: null }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await CertificadoDetailPage({ params: Promise.resolve({ id: 'c-1' }) } as any)) as any
+    expect(extractText(element)).not.toMatch(/junto a/i)
   })
 })

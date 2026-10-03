@@ -76,6 +76,7 @@ function certificadoRow(overrides: Partial<ParticipanteCertificado> = {}): Parti
     nombre_taller_snapshot: 'Finanzas con Propósito',
     fecha_completitud: '2025-05-01T00:00:00.000Z',
     revocado_at: null,
+    nombre_pareja_snapshot: null,
     ...overrides,
   }
 }

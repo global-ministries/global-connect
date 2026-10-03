@@ -17,6 +17,12 @@
  * Edit controls only render when `puedeEditar` (permisos.editarTaller —
  * the page decides, this component never re-derives a capability), same
  * as every other taller-page section.
+ *
+ * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — adds
+ * "Clases mínimas para completar" to the same `updateTallerConfiguracion`
+ * save: the completion rule talleres_cerrar_edicion applies when a
+ * director closes an edición. An empty field is sent as null and means
+ * every clase dictada.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -39,6 +45,8 @@ export interface ConfiguracionTallerProps {
   readonly regimen: 'temporada' | 'cadencia'
   readonly cierreInscripcionOffsetDias: number
   readonly intervaloEdicionesDias: number | null
+  /** null = todas las clases dictadas. */
+  readonly clasesMinimasParaCompletar: number | null
   readonly cadenciaDias: number
   readonly duracionMinutos: number | null
   readonly puedeEditar: boolean
@@ -57,6 +65,7 @@ export function ConfiguracionTaller({
   regimen,
   cierreInscripcionOffsetDias,
   intervaloEdicionesDias,
+  clasesMinimasParaCompletar,
   cadenciaDias,
   duracionMinutos,
   puedeEditar,
@@ -72,6 +81,9 @@ export function ConfiguracionTaller({
   const [intervaloSel, setIntervaloSel] = useState(
     intervaloEdicionesDias !== null ? String(intervaloEdicionesDias) : '',
   )
+  const [clasesMinimasSel, setClasesMinimasSel] = useState(
+    clasesMinimasParaCompletar !== null ? String(clasesMinimasParaCompletar) : '',
+  )
 
   const [cadencia, setCadencia] = useState(String(cadenciaDias))
   const [duracion, setDuracion] = useState(duracionMinutos !== null ? String(duracionMinutos) : '')
@@ -80,6 +92,7 @@ export function ConfiguracionTaller({
     setError(null)
     const cierreNum = Number(cierreSel)
     const intervaloNum = intervaloSel.trim() === '' ? null : Number(intervaloSel)
+    const clasesMinimasNum = clasesMinimasSel.trim() === '' ? null : Number(clasesMinimasSel)
     startTransition(async () => {
       const result = await updateTallerConfiguracion({
         tallerId,
@@ -89,6 +102,7 @@ export function ConfiguracionTaller({
         regimen: regimenSel,
         cierreInscripcionOffsetDias: cierreNum,
         intervaloEdicionesDias: intervaloNum,
+        clasesMinimasParaCompletar: clasesMinimasNum,
       })
       if (result.ok) {
         router.refresh()
@@ -206,6 +220,21 @@ export function ConfiguracionTaller({
             </div>
           )}
 
+          <div>
+            <InputSistema
+              label="Clases mínimas para completar"
+              type="number"
+              min={1}
+              max={50}
+              value={clasesMinimasSel}
+              onChange={(e) => setClasesMinimasSel(e.target.value)}
+              placeholder="Todas"
+            />
+            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+              Vacío = todas las clases dictadas
+            </TextoSistema>
+          </div>
+
           <div className="md:col-span-2">
             <BotonSistema type="button" variante="outline" tamaño="sm" onClick={guardarConfiguracion}>
               Guardar configuración
@@ -243,6 +272,9 @@ export function ConfiguracionTaller({
           {regimen === 'cadencia' && intervaloEdicionesDias !== null && (
             <Campo titulo="Intervalo entre ediciones">{`Cada ${intervaloEdicionesDias} días`}</Campo>
           )}
+          <Campo titulo="Clases mínimas para completar">
+            {clasesMinimasLabel(clasesMinimasParaCompletar)}
+          </Campo>
           <Campo titulo="Cadencia y duración">
             {`Cada ${cadenciaDias} días${duracionMinutos !== null ? ` · Duración ${duracionMinutos} min` : ''}`}
           </Campo>
@@ -250,6 +282,11 @@ export function ConfiguracionTaller({
       )}
     </section>
   )
+}
+
+function clasesMinimasLabel(clasesMinimas: number | null): string {
+  if (clasesMinimas === null) return 'Todas las clases dictadas'
+  return `${clasesMinimas} ${clasesMinimas === 1 ? 'clase' : 'clases'}`
 }
 
 function Campo({ titulo, children }: { readonly titulo: string; readonly children: string }): ReactElement {

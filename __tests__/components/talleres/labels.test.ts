@@ -31,6 +31,7 @@ import {
   UNIT_ESTADO_BADGE_VARIANTE,
   unitEstadoLabel,
   unitEstadoBadgeVariante,
+  unitEstadoConteoLabel,
   ASISTENCIA_ESTADO_LABELS,
   ASISTENCIA_ESTADO_BADGE_VARIANTE,
   asistenciaEstadoLabel,
@@ -256,6 +257,17 @@ describe('unit estado labels', () => {
   it('unitEstadoBadgeVariante resolves a known key and falls back to default otherwise', () => {
     expect(unitEstadoBadgeVariante('no_completado')).toBe('default')
     expect(unitEstadoBadgeVariante('algo-desconocido')).toBe('default')
+  })
+
+  // Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — the
+  // close preview/summary counts ("5 completados", "1 abandono").
+  it('unitEstadoConteoLabel pluralizes every resultado', () => {
+    expect(unitEstadoConteoLabel('completado', 1)).toBe('1 completado')
+    expect(unitEstadoConteoLabel('completado', 5)).toBe('5 completados')
+    expect(unitEstadoConteoLabel('no_completado', 0)).toBe('0 no completados')
+    expect(unitEstadoConteoLabel('no_completado', 1)).toBe('1 no completado')
+    expect(unitEstadoConteoLabel('abandono', 1)).toBe('1 abandono')
+    expect(unitEstadoConteoLabel('abandono', 3)).toBe('3 abandonos')
   })
 })
 

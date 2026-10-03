@@ -26,7 +26,8 @@
  * never a flat `caps.includes(...)` check (docs/talleres-de-punta-a-
  * punta.md §9, "Permisos en la interfaz").
  *
- *   - editarEdicion       -> cabecera's OpenEdicionButton/CancelarEdicionButton.
+ *   - editarEdicion       -> cabecera's OpenEdicionButton/CancelarEdicionButton/
+ *     CerrarEdicionButton.
  *     talleres_mis_permisos computes editar_edicion as director.write OR
  *     admin.manage — the exact same two capabilities
  *     admin/talleres/edicion/[id]/actions.ts's own requireAdminOrDirector()
@@ -62,9 +63,24 @@
  *     taller lookup (its id is known then) and before loadEdicionLocalDetalle,
  *     so the badge below never shows a stale STORED estado for THIS taller
  *     (best effort — see that module's own header).
- *   - "Cerrar esta edición" is GONE (cerrado/en_curso are now derived from
- *     the edición's own dates); CancelarEdicionButton (borrador|abierto →
- *     cancelado) replaces it.
+ *   - The old manual "Cerrar esta edición" (a bare estado flip to cerrado)
+ *     was removed: en_curso/cerrado are derived from the edición's own
+ *     dates, so flipping the estado decided nothing. CancelarEdicionButton
+ *     (borrador|abierto → cancelado) is the only manual estado change.
+ *
+ * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2): closing is
+ * back, as a real process instead of an estado flip. CerrarEdicionButton
+ * (components/talleres/cerrar-edicion-dialog.tsx) previews the close
+ * (talleres_previsualizar_cierre: resultado per inscrito from attendance,
+ * clases to cancel, reportes left open) and, on confirm, runs
+ * talleres_cerrar_edicion: unit_estado per inscrito, certificados, grupos/
+ * clases/reportes closed in one transaction, and `cerrada_en` stamped
+ * (talleres_estado_efectivo then keeps it `cerrado`). It is offered with
+ * editarEdicion, an estado that is neither borrador nor cancelado (a
+ * date-derived `cerrado` still needs its results computed), and no
+ * cerrada_en. The element stays mounted for every editarEdicion viewer and
+ * only its trigger follows `puedeCerrar`, so the dialog's summary survives
+ * the revalidation that stamps cerrada_en.
  *   - Ventana no longer reads a `taller_periodos_generales` join (that
  *     table is deprecated, always NULL from T2 onward) — it reads the
  *     edición's OWN fecha_inicio/fecha_fin/cierre_inscripcion instead.
@@ -86,6 +102,7 @@ import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
+import { CerrarEdicionButton } from '@/components/talleres/cerrar-edicion-dialog'
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
 import { ReprogramarEdicionDialog } from '@/components/talleres/reprogramar-edicion'
 import { cierreRelativoLabel, edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
@@ -260,6 +277,11 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
                 )}
               </div>
             )}
+            {edicion.cerrada_en && (
+              <TextoSistema variante="sutil" tamaño="sm" className="mt-2 block">
+                Cerrada el {formatFechaHora(edicion.cerrada_en)}
+              </TextoSistema>
+            )}
             {edicion.estado === 'borrador' && (
               // T11 (flow audit) — "Abrir esta edición" (OpenEdicionButton,
               // below) becomes the clear next step: this line names the
@@ -285,6 +307,17 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
                   inscritos={edicion.inscripciones_count}
                 />
               )}
+            {permisos.editarEdicion && (
+              <CerrarEdicionButton
+                tallerSlug={taller.slug}
+                edicionId={edicion.id}
+                puedeCerrar={
+                  edicion.cerrada_en === null &&
+                  edicion.estado !== 'borrador' &&
+                  edicion.estado !== 'cancelado'
+                }
+              />
+            )}
           </div>
         </div>
       </TarjetaSistema>
@@ -317,6 +350,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
               onApprove={approveInscripcionAction}
               onReject={rejectInscripcionAction}
               seleccion={permisos.gestionarGrupos ? { grupos } : undefined}
+              mostrarResultado={edicion.cerrada_en !== null}
             />
           )}
         </div>
@@ -343,7 +377,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
           {edicion.fecha_inicio && edicion.fecha_fin && edicion.cierre_inscripcion ? (
             <>
               <TextoSistema>
-                {resumenVentana(edicion.estado, edicion.fecha_fin, edicion.cierre_inscripcion)}
+                {resumenVentana(edicion.estado, edicion.fecha_fin, edicion.cierre_inscripcion, edicion.cerrada_en)}
               </TextoSistema>
               {/* T11 — the detailed fields stay reachable, collapsed, only
                   for whoever could actually act on them (editarEdicion) —
@@ -422,6 +456,21 @@ function formatFecha(value: string | null): string {
 }
 
 /**
+ * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) —
+ * `cerrada_en` is a timestamptz, not a DATE, so formatFecha's UTC trick
+ * would show the next day for an evening close. It is read in the church's
+ * time zone instead: the same America/Caracas fallback talleres_hoy() uses
+ * (20260928140000_talleres_paso6_hardening.sql) to decide "today".
+ */
+const ZONA_HORARIA_IGLESIA = 'America/Caracas'
+
+function formatFechaHora(value: string): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString('es', { timeZone: ZONA_HORARIA_IGLESIA })
+}
+
+/**
  * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the Ventana
  * section collapses to ONE sentence for a viewer without editarEdicion.
  * Replaces the old periodo_general-backed version (that table is
@@ -429,17 +478,22 @@ function formatFecha(value: string | null): string {
  * fecha_fin/cierre_inscripcion, the exact columns talleres_estado_efectivo
  * derives `estado` from — quoting the SAME dates the badge above is
  * already a function of, not a separate snapshot of them.
+ *
+ * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — an
+ * edición a director actually closed quotes its `cerrada_en`, the same
+ * date the cabecera shows, never a second, contradicting "Cerrada el".
  */
 function resumenVentana(
   estado: EdicionLocalDetalle['estado'],
   fechaFin: string,
   cierreInscripcion: string,
+  cerradaEn: string | null,
 ): string {
   switch (estado) {
     case 'cancelado':
       return 'Esta edición está cancelada.'
     case 'cerrado':
-      return `Cerrada el ${formatFecha(fechaFin)}.`
+      return cerradaEn ? `Cerrada el ${formatFechaHora(cerradaEn)}.` : `Cerrada el ${formatFecha(fechaFin)}.`
     case 'en_curso':
       return `En curso hasta el ${formatFecha(fechaFin)}.`
     default:

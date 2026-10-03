@@ -192,6 +192,22 @@ export function unitEstadoBadgeVariante(estado: string): BadgeVariante {
 }
 
 /**
+ * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — the
+ * same three resultados as counted totals in the close preview and its
+ * summary ("5 completados", "1 abandono").
+ */
+export const UNIT_ESTADO_CONTEO_LABELS: Record<UnitEstado, { readonly singular: string; readonly plural: string }> = {
+  completado: { singular: 'completado', plural: 'completados' },
+  no_completado: { singular: 'no completado', plural: 'no completados' },
+  abandono: { singular: 'abandono', plural: 'abandonos' },
+}
+
+export function unitEstadoConteoLabel(estado: UnitEstado, cantidad: number): string {
+  const { singular, plural } = UNIT_ESTADO_CONTEO_LABELS[estado]
+  return `${cantidad} ${cantidad === 1 ? singular : plural}`
+}
+
+/**
  * T2 (odd/tasks/talleres-asistencia-lider.md) — a `taller_asistencias.
  * estado` row (presente / ausente / no_aplica). The read view of a clase
  * (components/talleres/lectura-asistencia-clase.client.tsx) renders every
