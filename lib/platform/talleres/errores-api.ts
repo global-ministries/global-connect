@@ -241,6 +241,15 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     error: 'conflict',
     message: 'Esta persona ya está inscrita en esta edición.',
   },
+  // Inscripción en pareja (odd/tasks/talleres-inscripcion-en-pareja.md
+  // P1/P2) — trg_taller_inscripciones_una_aparicion raises it on every
+  // insert path (coordinator ones included) when the principal or the
+  // companero already appears in an active row of the same edición.
+  PERSONA_YA_EN_EDICION: {
+    status: 409,
+    error: 'conflict',
+    message: 'Esta persona ya figura en otra inscripción de esta edición.',
+  },
   // T7 hardening (odd/tasks/talleres-temporadas-y-ediciones.md,
   // 20260928140000_talleres_paso6_hardening.sql) — every remaining paso-6
   // RAISE code that had no MAPA entry of its own yet (it fell through to

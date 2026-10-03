@@ -1,42 +1,27 @@
 /**
  * @jest-environment node
  *
- * PR41 — Tests for `inscribirseATaller` server action.
+ * Explorar server actions (app/(auth)/talleres/explorar/actions.ts).
  *
- * Locks the auth_id → usuarios.id resolution contract. Before PR41, the
- * action passed `gate.userId` (the auth.uid) directly into
- * `taller_inscripciones.persona_principal_id`, but that FK points to
- * `public.usuarios.id` (the internal id), not `auth.users.id`. The
- * insert was rejected by FK enforcement (or by the RLS policy's own
- * subquery in the auto-enrollment path).
- *
- * Canonical pattern (already used in support.actions.ts:311,
- * solicitudes-grupo.actions.ts:167, support-capabilities.actions.ts:46):
- *
- *   const { data: usuario } = await supabase
- *     .from('usuarios')
- *     .select('id')
- *     .eq('auth_id', user.id)
- *     .maybeSingle()
- *
- * These tests assert:
- *   1. The action issues that exact lookup (table, columns, eq column,
- *      source value).
- *   2. The insert receives `persona_principal_id: usuario.id` (the
- *      INTERNAL id), NOT the auth uid.
- *   3. When the usuarios lookup returns null (no internal profile), the
- *      action returns `{ ok: false, error: 'internal' }` with a clear
- *      message — the participant is left without a 500 cliff.
- *   4. When the usuarios lookup returns an error, the action returns
- *      `{ ok: false, error: 'internal' }` with the underlying message.
+ * Inscripción en pareja (odd/tasks/talleres-inscripcion-en-pareja.md P2) —
+ * members no longer insert into taller_inscripciones directly (the member
+ * branch of its INSERT policy is gone). `inscribirseATaller` goes through
+ * rpc('talleres_inscribirme', {p_edicion_id, p_pareja}): the RPC resolves
+ * the caller from auth.uid(), the cohorte from the edición and the partner
+ * from p_pareja, so the action never looks up `usuarios` nor sends a
+ * cohorte. Every returned or raised code reaches the browser as a neutral
+ * Spanish message, never as raw RAISE text.
  *
  * Mocks `@/lib/platform/talleres/api-helpers` (the gate) and
- * `@/lib/platform/talleres/flags`. The supabase client is exposed via
- * the gate's return value; per-table chains are stubbed so we can
- * inspect the final insert payload shape.
+ * `@/lib/platform/talleres/flags`. The supabase client is exposed via the
+ * gate's return value with only `rpc` (and a `from` that must never run).
  */
 
-import { inscribirseATaller } from '@/app/(auth)/talleres/explorar/actions'
+import {
+  buscarParejaPorCedula,
+  inscribirseATaller,
+  miConyugeRegistrado,
+} from '@/app/(auth)/talleres/explorar/actions'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(),
@@ -59,9 +44,7 @@ const revalidatePathMock = jest.requireMock('next/cache')
   .revalidatePath as jest.Mock
 
 const AUTH_UID = 'auth-uid-1'
-const USUARIO_INTERNAL_ID = 'usuario-internal-1'
 const TALLER_ID = 'taller-edicion-1'
-const COHORTE_ID = 'cohorte-1'
 
 beforeEach(() => {
   isTalleresEnabledMock.mockReset().mockReturnValue(true)
@@ -69,267 +52,307 @@ beforeEach(() => {
   revalidatePathMock.mockReset()
 })
 
-// ─── 1) auth_id → usuarios.id resolution + 2) insert receives internal id ─
+// ─── inscribirseATaller through talleres_inscribirme ─────────────────────
 
-describe('inscribirseATaller — FK resolution contract', () => {
-  it('resolves auth_id → internal usuarios.id and passes the internal id to the insert', async () => {
-    // usuarios lookup chain: .from('usuarios').select('id').eq('auth_id', AUTH_UID).maybeSingle()
-    const usuariosEq = jest.fn().mockReturnValue({
-      maybeSingle: jest.fn().mockResolvedValue({
-        data: { id: USUARIO_INTERNAL_ID },
-        error: null,
-      }),
-    })
-    const usuariosSelect = jest.fn().mockReturnValue({ eq: usuariosEq })
-    const tallerInscripcionesInsert = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        single: jest.fn().mockResolvedValue({
-          data: { id: 'inscripcion-1' },
-          error: null,
-        }),
-      }),
-    })
+const NO_CONFIRMADA =
+  'No pudimos confirmar a tu pareja con esos datos. Revisa la cédula o pide ayuda a la coordinación del taller.'
 
-    // Build a supabase facade that records the 'taller_inscripciones' chain.
-    const fromMock = jest.fn((table: string) => {
-      if (table === 'usuarios') {
-        return { select: usuariosSelect }
-      }
-      if (table === 'taller_inscripciones') {
-        return { insert: tallerInscripcionesInsert }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
+function gateConRpc(rpc: jest.Mock) {
+  const from = jest.fn(() => {
+    throw new Error('inscribirseATaller must never touch a table directly')
+  })
+  requireTalleresApiAuthenticatedMock.mockResolvedValue({ ok: true, supabase: { rpc, from }, userId: AUTH_UID })
+  return from
+}
 
-    requireTalleresApiAuthenticatedMock.mockResolvedValue({
-      ok: true,
-      supabase: { from: fromMock },
-      userId: AUTH_UID,
-    })
+function rpcConResultado(data: unknown, error: unknown = null) {
+  return jest.fn().mockResolvedValue({ data, error })
+}
 
-    const result = await inscribirseATaller({
-      tallerId: TALLER_ID,
-      cohorteId: COHORTE_ID,
-    })
+const OK = { ok: true, inscripcion_id: 'inscripcion-1', estado: 'pendiente', pareja_origen: null }
 
-    // ─── assertions ───
+describe('inscribirseATaller — calls the RPC', () => {
+  it('enrolls an individual edición with p_pareja null and revalidates the participant views', async () => {
+    const rpc = rpcConResultado(OK)
+    const from = gateConRpc(rpc)
+
+    const result = await inscribirseATaller({ edicionId: TALLER_ID, pareja: null })
+
     expect(result).toEqual({ ok: true, inscripcionId: 'inscripcion-1' })
-
-    // usuarios lookup contract
-    expect(usuariosSelect).toHaveBeenCalledWith('id')
-    expect(usuariosEq).toHaveBeenCalledWith('auth_id', AUTH_UID)
-
-    // insert receives INTERNAL id, not auth uid
-    expect(tallerInscripcionesInsert).toHaveBeenCalledTimes(1)
-    const insertPayload = tallerInscripcionesInsert.mock.calls[0]![0]
-    expect(insertPayload).toEqual({
-      taller_id: TALLER_ID,
-      cohorte_id: COHORTE_ID,
-      persona_principal_id: USUARIO_INTERNAL_ID,
-      companero_id: null,
-      link_type: null,
-      estado: 'pendiente',
-    })
-    // The auth uid must NEVER leak into the FK column.
-    expect(insertPayload.persona_principal_id).not.toBe(AUTH_UID)
-    expect(insertPayload.persona_principal_id).toBe(USUARIO_INTERNAL_ID)
-
-    // revalidate the lists so the participant sees the new row. T10
-    // (odd/tasks/talleres-consolidar-pantallas.md): /talleres/mis-talleres
-    // is deleted; the "Para Mí" nav points at the merged /talleres/
-    // mi-recorrido (T9), so only that one is revalidated now.
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('talleres_inscribirme', { p_edicion_id: TALLER_ID, p_pareja: null })
+    // No usuarios lookup, no direct insert, no client-side cohorte.
+    expect(from).not.toHaveBeenCalled()
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/explorar')
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/mi-recorrido')
   })
 
-  it('passes through companeroId and linkType when the participant submits a paired inscription', async () => {
-    // pareja workflow worth covering: companeroId + linkType are forwarded
-    // into the insert payload. The RLS policy rejects self-enrolled
-    // parejas (companero_id IS NULL is required), but the action layer
-    // still forwards the values; the coordinator route is the canonical
-    // path for couple inscriptions.
-    const tallerInscripcionesInsert = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        single: jest.fn().mockResolvedValue({
-          data: { id: 'inscripcion-2' },
-          error: null,
-        }),
-      }),
-    })
+  it('treats a missing pareja as an individual enrollment', async () => {
+    const rpc = rpcConResultado(OK)
+    gateConRpc(rpc)
+    await inscribirseATaller({ edicionId: TALLER_ID })
+    expect(rpc).toHaveBeenCalledWith('talleres_inscribirme', { p_edicion_id: TALLER_ID, p_pareja: null })
+  })
 
-    const fromMock = jest.fn((table: string) => {
-      if (table === 'usuarios') {
-        return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValue({
-                data: { id: USUARIO_INTERNAL_ID },
-                error: null,
-              }),
-            }),
-          }),
-        }
-      }
-      if (table === 'taller_inscripciones') {
-        return { insert: tallerInscripcionesInsert }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
+  it('sends the registered-spouse mode', async () => {
+    const rpc = rpcConResultado({ ...OK, pareja_origen: 'conyuge_registrado' })
+    gateConRpc(rpc)
 
-    requireTalleresApiAuthenticatedMock.mockResolvedValue({
-      ok: true,
-      supabase: { from: fromMock },
-      userId: AUTH_UID,
+    await inscribirseATaller({ edicionId: TALLER_ID, pareja: { modo: 'conyuge_registrado' } })
+
+    expect(rpc).toHaveBeenCalledWith('talleres_inscribirme', {
+      p_edicion_id: TALLER_ID,
+      p_pareja: { modo: 'conyuge_registrado' },
     })
+  })
+
+  it('sends the cédula mode normalized, with the chosen vínculo and the dismissed spouse', async () => {
+    const rpc = rpcConResultado({ ...OK, pareja_origen: 'cedula' })
+    gateConRpc(rpc)
 
     await inscribirseATaller({
-      tallerId: TALLER_ID,
-      cohorteId: COHORTE_ID,
-      companeroId: 'companero-1',
-      linkType: 'matrimonio',
+      edicionId: TALLER_ID,
+      pareja: { modo: 'cedula', cedula: 'V-12.345.678', vinculo: 'novios', conyugeDescartado: true },
     })
 
-    const insertPayload = tallerInscripcionesInsert.mock.calls[0]![0]
-    expect(insertPayload.companero_id).toBe('companero-1')
-    expect(insertPayload.link_type).toBe('matrimonio')
+    expect(rpc).toHaveBeenCalledWith('talleres_inscribirme', {
+      p_edicion_id: TALLER_ID,
+      p_pareja: { modo: 'cedula', cedula: '12345678', vinculo: 'novios', conyuge_descartado: true },
+    })
   })
 })
 
-// ─── 3) usuario no encontrado → internal ─────────────────────────────────
+describe('inscribirseATaller — returned codes', () => {
+  it.each([
+    ['EDICION_NOT_FOUND', /ya no está disponible/i],
+    ['EDICION_NO_ABIERTA', /inscripciones.*cerradas/i],
+    ['YA_INSCRITO', /ya tienes una inscripción/i],
+    ['CUPO_LLENO', /cupos/i],
+    ['PAREJA_NO_CONFIRMADA', NO_CONFIRMADA],
+    ['PAREJA_NO_DISPONIBLE', /coordinación/i],
+    ['LIMITE_ALCANZADO', /^Hiciste demasiadas búsquedas hoy\. Prueba mañana o pide ayuda a la coordinación\.$/],
+  ])('maps %s to its own message and does not revalidate', async (codigo, mensaje) => {
+    gateConRpc(rpcConResultado({ ok: false, codigo }))
 
-describe('inscribirseATaller — error paths', () => {
-  it('returns internal with a clear message when the usuarios lookup returns null', async () => {
-    const tallerInscripcionesInsert = jest.fn()
-
-    const fromMock = jest.fn((table: string) => {
-      if (table === 'usuarios') {
-        return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValue({
-                data: null,
-                error: null,
-              }),
-            }),
-          }),
-        }
-      }
-      if (table === 'taller_inscripciones') {
-        return { insert: tallerInscripcionesInsert }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    requireTalleresApiAuthenticatedMock.mockResolvedValue({
-      ok: true,
-      supabase: { from: fromMock },
-      userId: AUTH_UID,
-    })
-
-    const result = await inscribirseATaller({
-      tallerId: TALLER_ID,
-      cohorteId: COHORTE_ID,
-    })
-
-    expect(result).toEqual({
-      ok: false,
-      error: 'internal',
-      message: 'usuario interno no encontrado para auth.uid',
-    })
-    // The taller_inscripciones insert must NEVER be attempted without a
-    // resolved internal id — that path is the original FK bug.
-    expect(tallerInscripcionesInsert).not.toHaveBeenCalled()
-    expect(revalidatePathMock).not.toHaveBeenCalled()
-  })
-
-  it('returns internal with the underlying message when the usuarios lookup errors', async () => {
-    const tallerInscripcionesInsert = jest.fn()
-
-    const fromMock = jest.fn((table: string) => {
-      if (table === 'usuarios') {
-        return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'connection refused' },
-              }),
-            }),
-          }),
-        }
-      }
-      if (table === 'taller_inscripciones') {
-        return { insert: tallerInscripcionesInsert }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    requireTalleresApiAuthenticatedMock.mockResolvedValue({
-      ok: true,
-      supabase: { from: fromMock },
-      userId: AUTH_UID,
-    })
-
-    const result = await inscribirseATaller({
-      tallerId: TALLER_ID,
-      cohorteId: COHORTE_ID,
-    })
+    const result = await inscribirseATaller({ edicionId: TALLER_ID, pareja: null })
 
     expect(result.ok).toBe(false)
     if (result.ok) throw new Error('expected ok:false')
-    expect(result.error).toBe('internal')
-    expect(result.message).toBe('resolve usuario: connection refused')
-    expect(tallerInscripcionesInsert).not.toHaveBeenCalled()
+    expect(result.error).toBe(codigo)
+    expect(result.message).toMatch(mensaje)
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('inscribirseATaller — raised codes', () => {
+  it.each([
+    ['42501', 'SIN_FICHA'],
+    ['22023', 'VINCULO_REQUERIDO'],
+    ['22023', 'MODO_NO_APLICA'],
+    ['22023', 'COMPANERO_REQUERIDO'],
+    ['22023', 'COMPANERO_NO_APLICA'],
+    ['22023', 'MODO_INVALIDO'],
+    ['22023', 'CEDULA_INVALIDA'],
+    ['P0001', 'PERSONA_YA_EN_EDICION'],
+  ])('maps a raised %s %s to its own code and a Spanish message', async (sqlstate, codigo) => {
+    gateConRpc(rpcConResultado(null, { code: sqlstate, message: codigo }))
+
+    const result = await inscribirseATaller({ edicionId: TALLER_ID, pareja: null })
+
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok:false')
+    expect(result.error).toBe(codigo)
+    expect(result.message).not.toContain(codigo)
+    expect(result.message.length).toBeGreaterThan(0)
+    expect(revalidatePathMock).not.toHaveBeenCalled()
   })
 
-  it('returns internal when the insert itself fails after a successful resolution', async () => {
-    // The usuario lookup succeeds, but the insert blows up (e.g. RLS
-    // rejects, FK violation). The action must surface the underlying
-    // error message rather than silently swallow it.
-    const tallerInscripcionesInsert = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: { message: 'new row violates row-level security policy' },
-        }),
-      }),
-    })
+  it('maps a bare 42501 to forbidden and anything unknown to internal, never leaking the raw text', async () => {
+    gateConRpc(rpcConResultado(null, { code: '42501', message: 'permission denied for function talleres_inscribirme' }))
+    const denegado = await inscribirseATaller({ edicionId: TALLER_ID, pareja: null })
+    expect(denegado).toEqual({ ok: false, error: 'forbidden', message: expect.any(String) })
 
-    const fromMock = jest.fn((table: string) => {
-      if (table === 'usuarios') {
-        return {
-          select: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              maybeSingle: jest.fn().mockResolvedValue({
-                data: { id: USUARIO_INTERNAL_ID },
-                error: null,
-              }),
-            }),
-          }),
-        }
-      }
-      if (table === 'taller_inscripciones') {
-        return { insert: tallerInscripcionesInsert }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
+    gateConRpc(rpcConResultado(null, { code: 'XX000', message: 'boom at line 42' }))
+    const roto = await inscribirseATaller({ edicionId: TALLER_ID, pareja: null })
+    expect(roto.ok).toBe(false)
+    if (roto.ok) throw new Error('expected ok:false')
+    expect(roto.error).toBe('internal')
+    expect(roto.message).not.toContain('boom')
+  })
 
-    requireTalleresApiAuthenticatedMock.mockResolvedValue({
-      ok: true,
-      supabase: { from: fromMock },
-      userId: AUTH_UID,
-    })
+  it('treats an off-contract answer as internal', async () => {
+    gateConRpc(rpcConResultado({ ok: true }))
+    const result = await inscribirseATaller({ edicionId: TALLER_ID, pareja: null })
+    expect(result).toEqual({ ok: false, error: 'internal', message: expect.any(String) })
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+})
 
+describe('inscribirseATaller — input and gate', () => {
+  it('rejects a missing edición id before the gate', async () => {
+    const result = await inscribirseATaller({ edicionId: '' })
+    expect(result).toEqual({ ok: false, error: 'invalid-input', message: expect.any(String) })
+    expect(requireTalleresApiAuthenticatedMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unrecognizable cédula without calling the RPC', async () => {
+    const rpc = jest.fn()
+    gateConRpc(rpc)
+    const result = await inscribirseATaller({ edicionId: TALLER_ID, pareja: { modo: 'cedula', cedula: 'abc' } })
+    expect(result).toEqual({ ok: false, error: 'CEDULA_INVALIDA', message: expect.any(String) })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unknown pareja mode as invalid-input', async () => {
+    const rpc = jest.fn()
+    gateConRpc(rpc)
     const result = await inscribirseATaller({
-      tallerId: TALLER_ID,
-      cohorteId: COHORTE_ID,
+      edicionId: TALLER_ID,
+      pareja: { modo: 'ficha_nueva' } as unknown as { modo: 'conyuge_registrado' },
     })
+    expect(result).toEqual({ ok: false, error: 'invalid-input', message: expect.any(String) })
+    expect(rpc).not.toHaveBeenCalled()
+  })
 
+  it('returns not-found when talleres are disabled', async () => {
+    isTalleresEnabledMock.mockReturnValue(false)
+    const result = await inscribirseATaller({ edicionId: TALLER_ID })
+    expect(result).toEqual({ ok: false, error: 'not-found', message: expect.any(String) })
+    expect(requireTalleresApiAuthenticatedMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [401, 'unauthorized'],
+    [403, 'forbidden'],
+    [404, 'not-found'],
+    [500, 'internal'],
+  ])('maps a %s gate to %s', async (status, error) => {
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({ ok: false, response: { status } })
+    expect(await inscribirseATaller({ edicionId: TALLER_ID })).toEqual({
+      ok: false,
+      error,
+      message: expect.any(String),
+    })
+  })
+})
+
+// ─── Inscripción en pareja (odd/tasks/talleres-inscripcion-en-pareja.md P2) ─
+// The two read-side partner lookups the picker uses before enrolling.
+
+describe('miConyugeRegistrado', () => {
+  it('calls talleres_mi_conyuge_registrado with no arguments and parses the single row', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: [{ nombre: 'Ana', apellido: 'García', foto_perfil_url: 'https://x/ana.jpg' }],
+      error: null,
+    })
+    gateConRpc(rpc)
+
+    const result = await miConyugeRegistrado()
+
+    expect(rpc).toHaveBeenCalledWith('talleres_mi_conyuge_registrado')
     expect(result).toEqual({
+      ok: true,
+      conyuge: { nombre: 'Ana', apellido: 'García', fotoUrl: 'https://x/ana.jpg' },
+    })
+  })
+
+  it('returns conyuge null when the RPC returns no row', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: [], error: null }))
+    expect(await miConyugeRegistrado()).toEqual({ ok: true, conyuge: null })
+  })
+
+  it('returns internal with a neutral message when the RPC fails', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: null, error: { code: 'XX000', message: 'boom' } }))
+    const result = await miConyugeRegistrado()
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok:false')
+    expect(result.error).toBe('internal')
+    expect(result.message).not.toContain('boom')
+  })
+
+  it('returns not-found when talleres are disabled, without touching the gate', async () => {
+    isTalleresEnabledMock.mockReturnValue(false)
+    const result = await miConyugeRegistrado()
+    expect(result).toEqual({ ok: false, error: 'not-found', message: expect.any(String) })
+    expect(requireTalleresApiAuthenticatedMock).not.toHaveBeenCalled()
+  })
+
+  it('maps a 401 gate to unauthorized', async () => {
+    requireTalleresApiAuthenticatedMock.mockResolvedValue({ ok: false, response: { status: 401 } })
+    expect(await miConyugeRegistrado()).toEqual({ ok: false, error: 'unauthorized', message: expect.any(String) })
+  })
+})
+
+describe('buscarParejaPorCedula', () => {
+  it('sends the edición and the normalized cédula, and returns the masked name', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: { ok: true, encontrada: true, nombre_mostrado: 'María G.' },
+      error: null,
+    })
+    gateConRpc(rpc)
+
+    const result = await buscarParejaPorCedula(TALLER_ID, ' V-12.345.678 ')
+
+    expect(rpc).toHaveBeenCalledWith('talleres_buscar_pareja_por_cedula', {
+      p_edicion_id: TALLER_ID,
+      p_cedula: '12345678',
+    })
+    expect(result).toEqual({ ok: true, encontrada: true, nombreMostrado: 'María G.' })
+  })
+
+  it('answers a not-found cédula with the neutral partner message', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: { ok: true, encontrada: false }, error: null }))
+    expect(await buscarParejaPorCedula(TALLER_ID, '12345678')).toEqual({
+      ok: true,
+      encontrada: false,
+      message:
+        'No pudimos confirmar a tu pareja con esos datos. Revisa la cédula o pide ayuda a la coordinación del taller.',
+    })
+  })
+
+  it.each([
+    ['LIMITE_ALCANZADO', /demasiadas búsquedas/i],
+    ['EDICION_NOT_FOUND', /edición/i],
+  ])('maps the returned %s to its message', async (codigo, mensaje) => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: { ok: false, codigo }, error: null }))
+    const result = await buscarParejaPorCedula(TALLER_ID, '12345678')
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected ok:false')
+    expect(result.error).toBe(codigo)
+    expect(result.message).toMatch(mensaje)
+  })
+
+  it('maps a raised 22023 CEDULA_INVALIDA', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: null, error: { code: '22023', message: 'CEDULA_INVALIDA' } }))
+    const result = await buscarParejaPorCedula(TALLER_ID, '12345678')
+    expect(result).toEqual({ ok: false, error: 'CEDULA_INVALIDA', message: expect.stringMatching(/cédula/i) })
+  })
+
+  it('rejects an unrecognizable cédula before calling the RPC (no throttle unit spent)', async () => {
+    const rpc = jest.fn()
+    gateConRpc(rpc)
+    const result = await buscarParejaPorCedula(TALLER_ID, 'abc')
+    expect(result).toEqual({ ok: false, error: 'CEDULA_INVALIDA', message: expect.any(String) })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects a missing edición id as invalid-input', async () => {
+    const rpc = jest.fn()
+    gateConRpc(rpc)
+    expect(await buscarParejaPorCedula('', '12345678')).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: expect.any(String),
+    })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('treats an off-contract answer as internal', async () => {
+    gateConRpc(jest.fn().mockResolvedValue({ data: { ok: true }, error: null }))
+    expect(await buscarParejaPorCedula(TALLER_ID, '12345678')).toEqual({
       ok: false,
       error: 'internal',
-      message: 'new row violates row-level security policy',
+      message: expect.any(String),
     })
-    expect(revalidatePathMock).not.toHaveBeenCalled()
   })
 })

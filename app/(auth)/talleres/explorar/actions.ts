@@ -1,94 +1,178 @@
 'use server'
 
 /**
- * PR18 — DT-072 — Server actions for participante surface.
+ * PR18 — DT-072 — Server actions for participante surface (/talleres/explorar).
  *
- * Currently exposes one action:
- *   - `inscribirseATaller({ tallerId, cohorteId, companeroId?, linkType? })`
+ *   - `inscribirseATaller({ edicionId, pareja? })`
+ *   - `miConyugeRegistrado()` and `buscarParejaPorCedula(edicionId, cedula)`,
+ *     the partner picker's lookups.
  *
  * Capability gate: NONE beyond an authenticated session (finding #1,
  * Option B). Self-enroll is how a user becomes a participant, so gating
  * it on `participation.read` was a chicken-and-egg trap. The gate is
- * `requireTalleresApiAuthenticated` (kill switch + auth only); the RLS
- * `WITH CHECK` term is the security wall — it forces `estado='pendiente'`
- * + persona=self + pareja validation. Approval still needs a write cap.
+ * `requireTalleresApiAuthenticated` (kill switch + auth only).
  *
- * Revalidates /talleres/explorar and /talleres/mis-talleres after
- * success so the participant's view reflects the new inscription.
+ * Inscripción en pareja (odd/tasks/talleres-inscripcion-en-pareja.md P2) —
+ * members no longer INSERT into taller_inscripciones: the member branch of
+ * its policy is gone and `talleres_inscribirme` is the security wall. It
+ * resolves the caller from auth.uid(), the cohorte from the edición and the
+ * partner from `p_pareja`, and forces estado 'pendiente'. Approval still
+ * needs a write cap.
+ *
+ * Revalidates /talleres/explorar and /talleres/mi-recorrido after a
+ * successful enrollment so the participant's views reflect it.
  */
 
 import { revalidatePath } from 'next/cache'
 
 import { requireTalleresApiAuthenticated } from '@/lib/platform/talleres/api-helpers'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import {
+  cedulaParaRpc,
+  MENSAJES_PAREJA,
+  parejaParaRpc,
+  parseBusquedaPareja,
+  parseConyugeRegistrado,
+  parseResultadoInscribirme,
+  traducirErrorRpcPareja,
+  validarPareja,
+  type CodigoPareja,
+  type ConyugeRegistrado,
+  type ParejaInscripcion,
+} from '@/lib/platform/talleres/inscripcion-pareja'
 
-export interface InscribirseInput {
-  readonly tallerId: string
-  readonly cohorteId: string
-  readonly companeroId?: string | null
-  readonly linkType?: 'matrimonio' | 'novios' | null
+// Every action shares the same gate (kill switch + authenticated session);
+// the RPCs resolve the caller from auth.uid() and are the security wall.
+
+type ErrorSesion = 'not-found' | 'unauthorized' | 'forbidden' | 'internal'
+
+/** A failure every Explorar action may return, with a message ready to show. */
+export interface FalloExplorar {
+  readonly ok: false
+  readonly error: CodigoPareja | ErrorSesion | 'invalid-input'
+  readonly message: string
 }
 
-export type InscribirseResult =
-  | { readonly ok: true; readonly inscripcionId: string }
-  | { readonly ok: false; readonly error: 'not-found' | 'invalid-input' | 'unauthorized' | 'forbidden' | 'internal'; readonly message?: string }
+const MENSAJES_SESION: Readonly<Record<ErrorSesion | 'invalid-input', string>> = {
+  'not-found': 'Los talleres no están disponibles en este momento.',
+  unauthorized: 'Debes iniciar sesión.',
+  forbidden: 'No tienes permisos para hacer esto.',
+  internal: 'No se pudo completar la operación. Inténtalo de nuevo.',
+  'invalid-input': 'Faltan datos para completar la operación.',
+}
 
-export async function inscribirseATaller(input: InscribirseInput): Promise<InscribirseResult> {
-  if (!isTalleresEnabled()) return { ok: false, error: 'not-found' }
-  if (!input?.tallerId || !input?.cohorteId) {
-    return { ok: false, error: 'invalid-input' }
-  }
+function fallo(error: ErrorSesion | 'invalid-input'): FalloExplorar {
+  return { ok: false, error, message: MENSAJES_SESION[error] }
+}
 
+/** Kill switch + session gate shared by the partner actions. */
+async function abrirSesion(): Promise<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  { readonly ok: true; readonly client: any } | FalloExplorar
+> {
+  if (!isTalleresEnabled()) return fallo('not-found')
   const gate = await requireTalleresApiAuthenticated()
   if (!gate.ok) {
-    // Map the gate's response status to our domain error code.
-    if (gate.response.status === 404) return { ok: false, error: 'not-found' }
-    if (gate.response.status === 401) return { ok: false, error: 'unauthorized' }
-    if (gate.response.status === 403) return { ok: false, error: 'forbidden' }
-    return { ok: false, error: 'internal' }
+    if (gate.response.status === 404) return fallo('not-found')
+    if (gate.response.status === 401) return fallo('unauthorized')
+    if (gate.response.status === 403) return fallo('forbidden')
+    return fallo('internal')
+  }
+  return { ok: true, client: gate.supabase }
+}
+
+export type ConyugeRegistradoResult =
+  | { readonly ok: true; readonly conyuge: ConyugeRegistrado | null }
+  | FalloExplorar
+
+/**
+ * The caller's registered spouse (nombre, apellido, foto), or null when
+ * there is none or more than one. The picker falls back to the cédula
+ * search on null or on any failure.
+ */
+export async function miConyugeRegistrado(): Promise<ConyugeRegistradoResult> {
+  const sesion = await abrirSesion()
+  if (!sesion.ok) return sesion
+
+  const { data, error } = await sesion.client.rpc('talleres_mi_conyuge_registrado')
+  if (error) return { ok: false, ...traducirErrorRpcPareja(error, MENSAJES_SESION.internal) }
+  return { ok: true, conyuge: parseConyugeRegistrado(data) }
+}
+
+export type BusquedaParejaResult =
+  | { readonly ok: true; readonly encontrada: true; readonly nombreMostrado: string }
+  | { readonly ok: true; readonly encontrada: false; readonly message: string }
+  | FalloExplorar
+
+/**
+ * Looks a partner up by exact cédula. A match only reveals the masked name
+ * ("María G."); a miss answers with the neutral PAREJA_NO_CONFIRMADA text.
+ * An unrecognizable cédula is rejected here so it never spends one of the
+ * member's throttled searches.
+ */
+export async function buscarParejaPorCedula(edicionId: string, cedula: string): Promise<BusquedaParejaResult> {
+  if (typeof edicionId !== 'string' || edicionId.trim() === '') return fallo('invalid-input')
+  const cedulaNormalizada = cedulaParaRpc(cedula)
+  if (cedulaNormalizada === null) {
+    return { ok: false, error: 'CEDULA_INVALIDA', message: MENSAJES_PAREJA.CEDULA_INVALIDA }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
-  const client: any = gate.supabase
+  const sesion = await abrirSesion()
+  if (!sesion.ok) return sesion
 
-  // Resolve auth_id → internal usuarios.id (FK target).
-  // gate.userId is the auth.users.id (auth.uid); the FK
-  // taller_inscripciones.persona_principal_id points to public.usuarios.id,
-  // so we MUST resolve before insert. Canonical pattern matches
-  // lib/actions/support.actions.ts:311, lib/actions/solicitudes-grupo.actions.ts:167,
-  // lib/actions/support-capabilities.actions.ts:46.
-  const { data: usuario, error: usuarioError } = await client
-    .from('usuarios')
-    .select('id')
-    .eq('auth_id', gate.userId)
-    .maybeSingle()
+  const { data, error } = await sesion.client.rpc('talleres_buscar_pareja_por_cedula', {
+    p_edicion_id: edicionId,
+    p_cedula: cedulaNormalizada,
+  })
+  if (error) return { ok: false, ...traducirErrorRpcPareja(error, MENSAJES_SESION.internal) }
 
-  if (usuarioError) {
-    return { ok: false, error: 'internal', message: `resolve usuario: ${usuarioError.message}` }
+  const resultado = parseBusquedaPareja(data)
+  if (resultado === null) return fallo('internal')
+  if (!resultado.ok) {
+    return { ok: false, error: resultado.codigo, message: MENSAJES_PAREJA[resultado.codigo] }
   }
-  if (!usuario?.id) {
-    return { ok: false, error: 'internal', message: 'usuario interno no encontrado para auth.uid' }
+  if (!resultado.encontrada) {
+    return { ok: true, encontrada: false, message: MENSAJES_PAREJA.PAREJA_NO_CONFIRMADA }
+  }
+  return resultado
+}
+
+export interface InscribirseInput {
+  /** taller_ediciones.id — the RPC resolves the cohorte from it. */
+  readonly edicionId: string
+  /** null (or absent) for an individual edición. */
+  readonly pareja?: ParejaInscripcion | null
+}
+
+export type InscribirseResult = { readonly ok: true; readonly inscripcionId: string } | FalloExplorar
+
+const MENSAJE_INSCRIPCION_FALLIDA = 'No se pudo completar la inscripción. Inténtalo de nuevo.'
+
+export async function inscribirseATaller(input: InscribirseInput): Promise<InscribirseResult> {
+  if (!isTalleresEnabled()) return fallo('not-found')
+  const edicionId = typeof input?.edicionId === 'string' ? input.edicionId.trim() : ''
+  if (edicionId === '') return fallo('invalid-input')
+
+  const pareja = validarPareja(input.pareja)
+  if (!pareja.ok) {
+    return pareja.error === 'CEDULA_INVALIDA'
+      ? { ok: false, error: 'CEDULA_INVALIDA', message: MENSAJES_PAREJA.CEDULA_INVALIDA }
+      : fallo('invalid-input')
   }
 
-  const { data, error } = await client
-    .from('taller_inscripciones')
-    .insert({
-      taller_id: input.tallerId,
-      cohorte_id: input.cohorteId,
-      persona_principal_id: usuario.id,
-      companero_id: input.companeroId ?? null,
-      link_type: input.linkType ?? null,
-      estado: 'pendiente',
-    })
-    .select('id')
-    .single()
+  const sesion = await abrirSesion()
+  if (!sesion.ok) return sesion
 
-  if (error || !data) {
-    return {
-      ok: false,
-      error: 'internal',
-      message: error?.message ?? 'insert failed',
-    }
+  const { data, error } = await sesion.client.rpc('talleres_inscribirme', {
+    p_edicion_id: edicionId,
+    p_pareja: parejaParaRpc(pareja.pareja),
+  })
+  if (error) return { ok: false, ...traducirErrorRpcPareja(error, MENSAJE_INSCRIPCION_FALLIDA) }
+
+  const resultado = parseResultadoInscribirme(data)
+  if (resultado === null) return { ok: false, error: 'internal', message: MENSAJE_INSCRIPCION_FALLIDA }
+  if (!resultado.ok) {
+    return { ok: false, error: resultado.codigo, message: MENSAJES_PAREJA[resultado.codigo] }
   }
 
   revalidatePath('/talleres/explorar')
@@ -98,5 +182,5 @@ export async function inscribirseATaller(input: InscribirseInput): Promise<Inscr
   // otherwise a participant who enrolls and then clicks through the menu
   // would see stale data on the screen they actually land on.
   revalidatePath('/talleres/mi-recorrido')
-  return { ok: true, inscripcionId: data.id as string }
+  return { ok: true, inscripcionId: resultado.inscripcionId }
 }

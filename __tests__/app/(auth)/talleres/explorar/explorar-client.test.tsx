@@ -46,27 +46,34 @@ jest.mock('@/components/talleres/explorar-fab', () => ({
   },
 }))
 
-// PR G — the cónyuge picker. Mocked so the test drives the selection
-// without the real Dialog / `/api/lideres/buscar` fetch. When open, it
-// exposes a single button that reports a chosen usuario id.
+// Inscripción en pareja (odd/tasks/talleres-inscripcion-en-pareja.md P2) —
+// the leaders-only SelectLeaderModal is gone from Explorar. Kept mocked so a
+// regression that renders it again shows up as `legacy-leader-modal`.
 jest.mock('@/components/modals/SelectLeaderModal', () => ({
   __esModule: true,
-  default: (props: {
-    open: boolean
-    onClose: () => void
-    onSelect: (usuario: { id: string; nombre: string; apellido: string }) => void
-  }) =>
-    props.open ? (
-      <div data-testid="conyuge-modal">
-        <button
-          onClick={() =>
-            props.onSelect({ id: 'companero-1', nombre: 'Ana', apellido: 'García' })
-          }
-        >
-          pick-conyuge
-        </button>
+  default: (props: { open: boolean }) =>
+    props.open ? <div data-testid="legacy-leader-modal" /> : null,
+}))
+
+// The partner picker (registered spouse, then cédula) is covered by
+// __tests__/components/talleres/selector-pareja.test.tsx; here it is a stub
+// that records its props and lets the test report a finished enrollment.
+const selectorMock = jest.fn()
+jest.mock('@/components/talleres/selector-pareja', () => ({
+  SelectorPareja: (props: {
+    edicionId: string
+    vinculoEdicion: 'matrimonio' | 'novios' | null
+    onCerrar: () => void
+    onInscrito: () => void
+  }) => {
+    selectorMock(props)
+    return (
+      <div data-testid="selector-pareja">
+        <button onClick={props.onInscrito}>pareja-inscrita</button>
+        <button onClick={props.onCerrar}>cerrar-selector</button>
       </div>
-    ) : null,
+    )
+  },
 }))
 
 import { ExplorarTalleresClient } from '@/app/(auth)/talleres/explorar/explorar-client'
@@ -74,6 +81,7 @@ import { ExplorarTalleresClient } from '@/app/(auth)/talleres/explorar/explorar-
 beforeEach(() => {
   inscribirseActionMock.mockReset()
   fabMock.mockReset()
+  selectorMock.mockReset()
 })
 
 const baseRow = {
@@ -104,7 +112,6 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
     render(
       <ExplorarTalleresClient
         talleres={[baseRow]}
-        defaultCohorteId=""
       />,
     )
 
@@ -136,7 +143,6 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
     render(
       <ExplorarTalleresClient
         talleres={[{ ...baseRow, id: 'ed-en-curso', estado: 'en_curso' as const }]}
-        defaultCohorteId=""
       />,
     )
     expect(screen.getByText('En curso')).toBeInTheDocument()
@@ -144,7 +150,7 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
   })
 
   it('shows "Inscripción hasta {cierre_inscripcion}" when present', () => {
-    render(<ExplorarTalleresClient talleres={[baseRow]} defaultCohorteId="" />)
+    render(<ExplorarTalleresClient talleres={[baseRow]} />)
     expect(screen.getByText(/inscripción hasta.*2026/i)).toBeInTheDocument()
   })
 
@@ -152,7 +158,6 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
     render(
       <ExplorarTalleresClient
         talleres={[{ ...baseRow, id: 'ed-sin-cierre', cierre_inscripcion: null }]}
-        defaultCohorteId=""
       />,
     )
     expect(screen.queryByText(/inscripción hasta/i)).not.toBeInTheDocument()
@@ -164,7 +169,6 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
         talleres={[
           { ...baseRow, id: 'ed-2', modalidad: 'permanente_custom' as const },
         ]}
-        defaultCohorteId=""
       />,
     )
 
@@ -182,7 +186,6 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
             fecha_cierre: null,
           },
         ]}
-        defaultCohorteId=""
       />,
     )
 
@@ -198,7 +201,6 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
         talleres={[
           { ...baseRow, id: 'ed-4', tipo: 'individual' as const },
         ]}
-        defaultCohorteId=""
       />,
     )
 
@@ -216,7 +218,6 @@ describe('ExplorarTalleresClient — cupo completo (T6)', () => {
     render(
       <ExplorarTalleresClient
         talleres={[{ ...baseRow, id: 'ed-lleno', cupo_completo: true }]}
-        defaultCohorteId=""
       />,
     )
 
@@ -228,7 +229,6 @@ describe('ExplorarTalleresClient — cupo completo (T6)', () => {
     render(
       <ExplorarTalleresClient
         talleres={[{ ...baseRow, id: 'ed-inscrito-lleno', ya_inscrito: true, cupo_completo: true }]}
-        defaultCohorteId=""
       />,
     )
 
@@ -240,7 +240,6 @@ describe('ExplorarTalleresClient — cupo completo (T6)', () => {
     render(
       <ExplorarTalleresClient
         talleres={[{ ...baseRow, id: 'ed-lleno-2', cupo_completo: true }]}
-        defaultCohorteId=""
       />,
     )
 
@@ -249,65 +248,89 @@ describe('ExplorarTalleresClient — cupo completo (T6)', () => {
   })
 })
 
-describe('ExplorarTalleresClient — spouse self-enroll (PR G)', () => {
-  it('pareja: FAB opens the cónyuge picker, then enrolls with companeroId + linkType', async () => {
-    inscribirseActionMock.mockResolvedValue({ ok: true, inscripcionId: 'insc-1' })
-    render(<ExplorarTalleresClient talleres={[baseRow]} defaultCohorteId="" />)
+describe('ExplorarTalleresClient — couple enrollment through the partner picker (P2)', () => {
+  it('pareja: the FAB opens the partner picker for that edición without enrolling yet', async () => {
+    render(<ExplorarTalleresClient talleres={[baseRow]} />)
 
-    // Select the pareja card → FAB appears.
-    fireEvent.click(
-      screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/),
+    fireEvent.click(screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/))
+    fireEvent.click(await screen.findByTestId('explorar-fab'))
+
+    expect(await screen.findByTestId('selector-pareja')).toBeInTheDocument()
+    expect(selectorMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ edicionId: 'ed-1', vinculoEdicion: 'matrimonio' }),
     )
-    const fab = await screen.findByTestId('explorar-fab')
-
-    // Clicking the FAB on a pareja taller must NOT enroll yet — it opens
-    // the cónyuge picker first.
-    fireEvent.click(fab)
-    expect(screen.getByTestId('conyuge-modal')).toBeInTheDocument()
     expect(inscribirseActionMock).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('legacy-leader-modal')).not.toBeInTheDocument()
+  })
 
-    // Picking a cónyuge fires the enrollment with the couple fields.
-    fireEvent.click(screen.getByText('pick-conyuge'))
-    await waitFor(() =>
-      expect(inscribirseActionMock).toHaveBeenCalledWith({
-        tallerId: 'ed-1',
-        cohorteId: 'coh-1',
-        companeroId: 'companero-1',
-        linkType: 'matrimonio',
-      }),
+  it('pareja without vínculo: hands the picker a null vínculo so it asks the member', async () => {
+    render(<ExplorarTalleresClient talleres={[{ ...baseRow, id: 'ed-abierta', link_type: null }]} />)
+
+    fireEvent.click(screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/))
+    fireEvent.click(await screen.findByTestId('explorar-fab'))
+
+    expect(selectorMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ edicionId: 'ed-abierta', vinculoEdicion: null }),
     )
   })
 
-  it('individual: FAB enrolls directly without opening the picker', async () => {
+  it('pareja: a finished enrollment closes the picker and confirms it', async () => {
+    render(<ExplorarTalleresClient talleres={[baseRow]} />)
+
+    fireEvent.click(screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/))
+    fireEvent.click(await screen.findByTestId('explorar-fab'))
+    fireEvent.click(await screen.findByText('pareja-inscrita'))
+
+    expect(await screen.findByText(/Inscripción enviada/)).toBeInTheDocument()
+    expect(screen.queryByTestId('selector-pareja')).not.toBeInTheDocument()
+  })
+
+  it('pareja: closing the picker keeps the selection and enrolls nothing', async () => {
+    render(<ExplorarTalleresClient talleres={[baseRow]} />)
+
+    fireEvent.click(screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/))
+    fireEvent.click(await screen.findByTestId('explorar-fab'))
+    fireEvent.click(await screen.findByText('cerrar-selector'))
+
+    expect(screen.queryByTestId('selector-pareja')).not.toBeInTheDocument()
+    expect(screen.getByTestId('explorar-fab')).toBeInTheDocument()
+    expect(inscribirseActionMock).not.toHaveBeenCalled()
+  })
+
+  it('individual: the FAB enrolls directly with no pareja and never opens the picker', async () => {
     inscribirseActionMock.mockResolvedValue({ ok: true, inscripcionId: 'insc-2' })
     render(
       <ExplorarTalleresClient
-        talleres={[
-          {
-            ...baseRow,
-            id: 'ed-ind',
-            tipo: 'individual' as const,
-            link_type: null,
-          },
-        ]}
-        defaultCohorteId=""
+        talleres={[{ ...baseRow, id: 'ed-ind', tipo: 'individual' as const, link_type: null }]}
       />,
     )
 
-    fireEvent.click(
-      screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/),
-    )
-    const fab = await screen.findByTestId('explorar-fab')
-    fireEvent.click(fab)
+    fireEvent.click(screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/))
+    fireEvent.click(await screen.findByTestId('explorar-fab'))
 
     await waitFor(() =>
-      expect(inscribirseActionMock).toHaveBeenCalledWith({
-        tallerId: 'ed-ind',
-        cohorteId: 'coh-1',
-        companeroId: null,
-        linkType: null,
-      }),
+      expect(inscribirseActionMock).toHaveBeenCalledWith({ edicionId: 'ed-ind', pareja: null }),
     )
-    expect(screen.queryByTestId('conyuge-modal')).not.toBeInTheDocument()
+    expect(await screen.findByText(/Inscripción enviada/)).toBeInTheDocument()
+    expect(screen.queryByTestId('selector-pareja')).not.toBeInTheDocument()
+  })
+
+  it('individual: shows the action message on failure, never the raw code', async () => {
+    inscribirseActionMock.mockResolvedValue({
+      ok: false,
+      error: 'EDICION_NO_ABIERTA',
+      message: 'Las inscripciones de esta edición están cerradas.',
+    })
+    render(
+      <ExplorarTalleresClient
+        talleres={[{ ...baseRow, id: 'ed-ind', tipo: 'individual' as const, link_type: null }]}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/))
+    fireEvent.click(await screen.findByTestId('explorar-fab'))
+
+    expect(await screen.findByText('Las inscripciones de esta edición están cerradas.')).toBeInTheDocument()
+    expect(screen.queryByText(/EDICION_NO_ABIERTA/)).not.toBeInTheDocument()
   })
 })

@@ -209,3 +209,25 @@ describe('traducirErrorTalleres — cierre de edición', () => {
     expect(result).toEqual({ status: 409, error: 'conflict', message: mensaje })
   })
 })
+
+// Inscripción en pareja (odd/tasks/talleres-inscripcion-en-pareja.md P2) —
+// trg_taller_inscripciones_una_aparicion raises P0001 PERSONA_YA_EN_EDICION
+// on EVERY insert path, the coordinator ones included (agregarInscripcion,
+// talleres_inscribir_sobre_cupo), when the principal or the companero
+// already appears in an active row of the edición.
+describe('traducirErrorTalleres — una aparición por persona por edición', () => {
+  it('maps P0001 PERSONA_YA_EN_EDICION to a 409 conflict with a neutral Spanish message', () => {
+    const result = traducirErrorTalleres({ code: 'P0001', message: 'PERSONA_YA_EN_EDICION' })
+    expect(result.status).toBe(409)
+    expect(result.error).toBe('conflict')
+    expect(result.message).toMatch(/ya figura/i)
+    expect(result.message).not.toMatch(/tenés|podés|vos\b|creá|elegí/i)
+  })
+
+  it('keeps YA_INSCRITO as its own 409 conflict, distinct from PERSONA_YA_EN_EDICION', () => {
+    const yaInscrito = traducirErrorTalleres({ code: 'P0001', message: 'YA_INSCRITO' })
+    const yaEnEdicion = traducirErrorTalleres({ code: 'P0001', message: 'PERSONA_YA_EN_EDICION' })
+    expect(yaInscrito.status).toBe(409)
+    expect(yaInscrito.message).not.toBe(yaEnEdicion.message)
+  })
+})
