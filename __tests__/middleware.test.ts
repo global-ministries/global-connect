@@ -310,6 +310,64 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
     }
   })
 
+  // The QR on a printed certificate points at /verificar-certificado/<codigo>.
+  // Anyone outside the church must be able to open it without a session, so
+  // the middleware must not send visitors to login there — and only there.
+  describe('public certificate verification page', () => {
+    it.each(['/verificar-certificado/abcdefghijkmnpqr', '/verificar-certificado'])(
+      'lets a visitor without a session open %s',
+      async (path) => {
+        queueFastResult(null)
+
+        const request = createMockRequest(path)
+        const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+        expect(nextResponseRedirectMock).not.toHaveBeenCalled()
+        expect(result.type).toBe('next')
+      }
+    )
+
+    it('lets a visitor with an expired refresh token open the page instead of sending them to login', async () => {
+      queueFastResult(null, {
+        message: 'refresh_token_not_found',
+        code: 'refresh_token_not_found',
+      })
+
+      const request = createMockRequest('/verificar-certificado/abcdefghijkmnpqr', ['sb-access-token'])
+      const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+      expect(nextResponseRedirectMock).not.toHaveBeenCalled()
+      expect(result.type).toBe('next')
+    })
+
+    it.each(['/verificar-certificadox', '/verificar-certificado/abcdefghijkmnpqr/extra', '/talleres'])(
+      'still sends a visitor without a session on %s to login',
+      async (path) => {
+        queueFastResult(null)
+
+        const request = createMockRequest(path)
+        const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+        expect(nextResponseRedirectMock).toHaveBeenCalledTimes(1)
+        const redirectUrl = new URL(nextResponseRedirectMock.mock.calls[0]?.[0] as string)
+        expect(redirectUrl.pathname).toBe('/')
+        expect(redirectUrl.searchParams.get('redirect')).toBe(path)
+        expect(result.type).toBe('redirect')
+      }
+    )
+
+    it('leaves a signed-in user on the page unaffected (session still validated, no redirect)', async () => {
+      queueFastResult({ id: 'auth-member' })
+
+      const request = createMockRequest('/verificar-certificado/abcdefghijkmnpqr')
+      const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+      expect(getUserMock).toHaveBeenCalledTimes(1)
+      expect(nextResponseRedirectMock).not.toHaveBeenCalled()
+      expect(result.type).toBe('next')
+    })
+  })
+
   // Finding 5: Sentry.addBreadcrumb must be wrapped — if the SDK throws
   // (e.g. Edge bundling failure), the middleware must still redirect.
   it('survives a throwing Sentry.addBreadcrumb on timeout', async () => {
