@@ -151,6 +151,9 @@ CREATE OR REPLACE FUNCTION pg_temp.as_miembro() RETURNS void LANGUAGE sql AS $$
          set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- ══ Admin-only (scoped, not global) — own branch: UPDATE must be ALLOWED ══
 -- (this is the RED→GREEN case: denied before the migration, allowed after)
 

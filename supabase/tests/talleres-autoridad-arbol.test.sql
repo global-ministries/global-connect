@@ -251,6 +251,9 @@ CREATE OR REPLACE FUNCTION pg_temp.as_member() RETURNS void LANGUAGE sql AS $$
          set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- ══ talleres (catalog) ════════════════════════════════════════════════
 
 SET LOCAL ROLE authenticated;

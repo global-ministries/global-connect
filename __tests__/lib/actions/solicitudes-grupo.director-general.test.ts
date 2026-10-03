@@ -91,7 +91,7 @@ describe.each(listers)('$name scoping of the director general', ({ run, groupsTa
     const result = await run()
 
     expect(result.success).toBe(true)
-    expect(adminDb.rpc).toHaveBeenCalledTimes(1)
+    expect(adminDb.rpc.mock.calls.filter(([name]) => name === 'gdv_dg_grupos_activos_visibles')).toHaveLength(1)
     expect(adminDb.rpc).toHaveBeenCalledWith('gdv_dg_grupos_activos_visibles', { p_usuario_id: internalUserId })
     const [request] = requestLogs()
     expect(request.calls).toEqual(expect.arrayContaining([['in', ['grupo_id', [visibleActiveGroupId]]]]))

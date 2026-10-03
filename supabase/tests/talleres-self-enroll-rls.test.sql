@@ -238,6 +238,9 @@ AS $$
   SELECT auth_id FROM rls_actor WHERE key = p_key;
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 SELECT pg_temp.assert_bool('fixture: found a no-capability member', pg_temp.actor_user('no_cap') IS NOT NULL, true);
 SELECT pg_temp.assert_bool('fixture: found a second no-capability member', pg_temp.actor_user('other') IS NOT NULL, true);
 SELECT pg_temp.assert_bool('fixture: resolved a privileged member (real or temp-granted)', pg_temp.actor_user('privileged') IS NOT NULL, true);

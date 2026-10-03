@@ -63,6 +63,9 @@ BEGIN
 END;
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- ── fixtures (as postgres, before any role switch) ──────────────────
 
 INSERT INTO public.dream_team_equipos (id, experiencia, label, parent_equipo_id, activo) VALUES

@@ -169,6 +169,9 @@ CREATE OR REPLACE FUNCTION pg_temp.all_false() RETURNS jsonb LANGUAGE sql AS $$
   SELECT pg_temp.exp(false,false,false,false,false,false,false,false,false,false);
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- ══ Global admin — scope_id IS NULL reaches every node, including NULL ══
 
 SET LOCAL ROLE authenticated;

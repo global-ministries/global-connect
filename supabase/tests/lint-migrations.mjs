@@ -14,12 +14,23 @@
  *   5. SECURITY DEFINER functions without proper revocation
  *   6. GRANT ALL usage
  *   7. Missing IF EXISTS / OR EXISTS guards on DROP/CREATE
+ *   8. SECURITY DEFINER functions without REVOKE ... FROM PUBLIC in the same
+ *      file (ERROR for migrations from 20261003 on)
+ *
+ * An optional first argument lints another directory instead of
+ * supabase/migrations (to try the rules on fixture files).
  */
 
 import { readFileSync, readdirSync } from 'node:fs'
-import { join, basename } from 'node:path'
+import { join, basename, resolve } from 'node:path'
 
-const MIGRATIONS_DIR = join(import.meta.dirname, '..', 'migrations')
+const MIGRATIONS_DIR = process.argv[2]
+  ? resolve(process.argv[2])
+  : join(import.meta.dirname, '..', 'migrations')
+
+// Migrations from this date on must revoke EXECUTE from PUBLIC on every
+// SECURITY DEFINER function they create or replace (security-definer-revoke-public).
+const DEFINER_REVOKE_REQUIRED_FROM = '20261003'
 
 // ─── Severity levels ────────────────────────────────────────────────────────
 
@@ -315,7 +326,211 @@ const rules = [
       }
     },
   },
+  /**
+   * Rule 9: from 2026-10-03 on, every SECURITY DEFINER function (or procedure)
+   * that a migration creates or replaces needs a REVOKE ALL | EXECUTE ... FROM
+   * PUBLIC naming it in the same file. What a new function gets by default
+   * depends on the role that creates it and on the database, and CREATE OR
+   * REPLACE keeps the ACL the function already had, so only an explicit REVOKE
+   * says who may call it everywhere. `REVOKE ... ON ALL FUNCTIONS IN SCHEMA s
+   * FROM PUBLIC` counts for every function of s. Statements are read with
+   * comments, strings and function bodies masked, so a CREATE FUNCTION inside a
+   * DO block or dynamic SQL is not seen. Older migrations already ran and are
+   * not checked.
+   */
+  {
+    id: 'security-definer-revoke-public',
+    severity: SEVERITY.ERROR,
+    check: (content, filename) => {
+      const stamp = /^\d{8}/.exec(filename)?.[0]
+      if (!stamp || stamp < DEFINER_REVOKE_REQUIRED_FROM) return null
+
+      const missing = definerRoutinesWithoutRevokeFromPublic(content)
+      if (missing.length === 0) return null
+
+      return {
+        message: `SECURITY DEFINER function(s) without REVOKE ... FROM PUBLIC in this file: ${missing.map((m) => `${m.display} (line ${m.line})`).join(', ')}. Add REVOKE ALL ON FUNCTION <name>(<argument types>) FROM PUBLIC, anon; and grant EXECUTE only to the roles that call it`,
+        line: missing[0].line,
+      }
+    },
+  },
 ]
+
+// ─── SQL scanning (rules that need statement boundaries) ───────────────────
+
+/**
+ * Returns the SQL with comments and the contents of string literals and
+ * dollar-quoted bodies replaced by spaces (newlines kept), so every character
+ * keeps its offset and line. Quoted identifiers are kept as written. On the
+ * masked text a keyword that only appears in a comment, a string or a function
+ * body never matches, and every semicolon left ends a top-level statement.
+ */
+function maskSql(sql) {
+  const blank = (text) => text.replace(/[^\n]/g, ' ')
+  let out = ''
+  let i = 0
+  while (i < sql.length) {
+    const ch = sql[i]
+    const next = sql[i + 1]
+    const prev = sql[i - 1] ?? ''
+    if (ch === '-' && next === '-') {
+      const end = sql.indexOf('\n', i)
+      const stop = end === -1 ? sql.length : end
+      out += blank(sql.slice(i, stop))
+      i = stop
+    } else if (ch === '/' && next === '*') {
+      // Block comments nest in PostgreSQL.
+      let depth = 1
+      let j = i + 2
+      while (j < sql.length && depth > 0) {
+        if (sql[j] === '/' && sql[j + 1] === '*') { depth++; j += 2 }
+        else if (sql[j] === '*' && sql[j + 1] === '/') { depth--; j += 2 }
+        else j++
+      }
+      out += blank(sql.slice(i, j))
+      i = j
+    } else if (ch === "'") {
+      // '' is a quote inside any string; E'...' strings also take backslash escapes.
+      const backslashEscapes = /[eE]/.test(prev) && !/[\w$]/.test(sql[i - 2] ?? '')
+      let j = i + 1
+      while (j < sql.length) {
+        if (backslashEscapes && sql[j] === '\\') { j += 2; continue }
+        if (sql[j] === "'") {
+          if (sql[j + 1] === "'") { j += 2; continue }
+          break
+        }
+        j++
+      }
+      const closed = j < sql.length
+      out += "'" + blank(sql.slice(i + 1, Math.min(j, sql.length))) + (closed ? "'" : '')
+      i = j + 1
+    } else if (ch === '"') {
+      let j = i + 1
+      while (j < sql.length) {
+        if (sql[j] === '"') {
+          if (sql[j + 1] === '"') { j += 2; continue }
+          break
+        }
+        j++
+      }
+      out += sql.slice(i, j + 1)
+      i = j + 1
+    } else if (ch === '$' && !/[\w$]/.test(prev)) {
+      const tag = /^\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/.exec(sql.slice(i, i + 64))?.[0]
+      if (!tag) {
+        out += ch
+        i++
+        continue
+      }
+      const end = sql.indexOf(tag, i + tag.length)
+      const bodyEnd = end === -1 ? sql.length : end
+      out += tag + blank(sql.slice(i + tag.length, bodyEnd)) + (end === -1 ? '' : tag)
+      i = end === -1 ? sql.length : end + tag.length
+    } else {
+      out += ch
+      i++
+    }
+  }
+  return out
+}
+
+const countNewlines = (text) => (text.match(/\n/g) || []).length
+
+/** Top-level statements: the masked `code` (see maskSql) and its first `line`. */
+function splitStatements(sql) {
+  const masked = maskSql(sql)
+  const statements = []
+  let start = 0
+  let line = 1
+  for (let i = 0; i <= masked.length; i++) {
+    if (i < masked.length && masked[i] !== ';') continue
+    const code = masked.slice(start, i)
+    const lead = code.search(/\S/)
+    if (lead !== -1) statements.push({ code: code.trim(), line: line + countNewlines(code.slice(0, lead)) })
+    line += countNewlines(code)
+    start = i + 1
+  }
+  return statements
+}
+
+const SQL_IDENT = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*)`
+const SQL_QUALIFIED_NAME = String.raw`${SQL_IDENT}(?:\s*\.\s*${SQL_IDENT})?`
+const CREATE_ROUTINE = new RegExp(
+  String.raw`^CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(${SQL_QUALIFIED_NAME})\s*\(`,
+  'i',
+)
+const REVOKE_ON_ROUTINES =
+  /^REVOKE\s+(?!GRANT\s+OPTION\s+FOR\b)([\s\S]+?)\s+ON\s+(ALL\s+(?:FUNCTIONS|PROCEDURES|ROUTINES)\s+IN\s+SCHEMA|FUNCTION|PROCEDURE|ROUTINE)\s+([\s\S]+?)\s+FROM\s+([\s\S]+)$/i
+
+/** Splits a list on the commas outside parentheses and double quotes. */
+function splitTopLevel(text) {
+  const parts = []
+  let current = ''
+  let depth = 0
+  let quoted = false
+  for (const ch of text) {
+    if (ch === '"') quoted = !quoted
+    else if (!quoted && ch === '(') depth++
+    else if (!quoted && ch === ')') depth--
+    if (ch === ',' && !quoted && depth === 0) {
+      parts.push(current)
+      current = ''
+    } else {
+      current += ch
+    }
+  }
+  parts.push(current)
+  return parts.map((part) => part.trim()).filter(Boolean)
+}
+
+/** `[schema.]name[(args)]` as { schema, name }; unquoted parts fold to lower case. */
+function routineNameOf(text) {
+  const match = new RegExp(`^(${SQL_QUALIFIED_NAME})`).exec(text.trim())
+  if (!match) return null
+  const fold = (part) => (part.startsWith('"') ? part.slice(1, -1).replace(/""/g, '"') : part.toLowerCase())
+  const parts = match[1].match(new RegExp(SQL_IDENT, 'g')).map(fold)
+  return parts.length === 2 ? { schema: parts[0], name: parts[1] } : { schema: null, name: parts[0] }
+}
+
+/**
+ * The SECURITY DEFINER functions and procedures created or replaced in `content`
+ * that no REVOKE ALL | EXECUTE ... FROM PUBLIC of the same file names. Names
+ * match when they are equal and the schemas are equal or one side has none.
+ */
+function definerRoutinesWithoutRevokeFromPublic(content) {
+  const definers = []
+  const revoked = []
+  for (const { code, line } of splitStatements(content)) {
+    const create = CREATE_ROUTINE.exec(code)
+    if (create) {
+      if (/\bSECURITY\s+DEFINER\b/i.test(code)) {
+        definers.push({ ...routineNameOf(create[1]), display: create[1].replace(/\s+/g, ''), line })
+      }
+      continue
+    }
+
+    const revoke = REVOKE_ON_ROUTINES.exec(code)
+    if (!revoke || !/^(?:ALL(?:\s+PRIVILEGES)?|EXECUTE)$/i.test(revoke[1].trim())) continue
+    const grantees = revoke[4]
+      .replace(/\s+(?:CASCADE|RESTRICT)\s*$/i, '')
+      .replace(/\s+GRANTED\s+BY\s+[\s\S]*$/i, '')
+    if (!splitTopLevel(grantees).some((grantee) => /^PUBLIC$/i.test(grantee))) continue
+
+    const allInSchema = /^ALL\s/i.test(revoke[2])
+    for (const target of splitTopLevel(revoke[3])) {
+      const name = routineNameOf(target)
+      if (!name) continue
+      revoked.push(allInSchema ? { allInSchema: name.name } : name)
+    }
+  }
+
+  const covers = (revoke, definer) =>
+    revoke.allInSchema !== undefined
+      ? revoke.allInSchema === (definer.schema ?? 'public')
+      : revoke.name === definer.name &&
+        (revoke.schema === null || definer.schema === null || revoke.schema === definer.schema)
+  return definers.filter((definer) => !revoked.some((revoke) => covers(revoke, definer)))
+}
 
 // ─── Noqa comment support ────────────────────────────────────────────────────
 

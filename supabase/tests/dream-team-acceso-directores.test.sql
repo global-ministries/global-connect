@@ -634,6 +634,9 @@ AS $function$
   left join supervisores_extra se on se.grupo_id = gv.id;
 $function$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- Preconditions (as postgres) -----------------------------------------------
 
 SELECT pg_temp.assert_eq('fixture: DE_A is linked to the four non-current groups (j is not vacuous)',
