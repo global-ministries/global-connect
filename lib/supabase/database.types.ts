@@ -4687,6 +4687,41 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "taller_ediciones_cerrada_por_fkey"
+            columns: ["cerrada_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_cerrada_por_fkey"
+            columns: ["cerrada_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_cerrada_por_fkey"
+            columns: ["cerrada_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_cerrada_por_fkey"
+            columns: ["cerrada_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "taller_ediciones_cerrada_por_fkey"
+            columns: ["cerrada_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "taller_ediciones_operating_core_event_id_fkey"
             columns: ["operating_core_event_id"]
             isOneToOne: true
@@ -7386,6 +7421,10 @@ export type Database = {
         Args: { p_auth_id: string }
         Returns: number
       }
+      conyuge_director_etapa_id: {
+        Args: { p_segmento_lider_id: string }
+        Returns: string
+      }
       crear_grupo: {
         Args: {
           p_auth_id: string
@@ -7475,6 +7514,13 @@ export type Database = {
           nodo_id: string
           parent_id: string
           responsables: Json
+          tipo: string
+        }[]
+      }
+      dream_team_gdv_visibilidad: {
+        Args: never
+        Returns: {
+          id: string
           tipo: string
         }[]
       }
@@ -7994,6 +8040,32 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      planner_directores_etapa_elegibles: {
+        Args: never
+        Returns: {
+          apellido: string
+          id: string
+          nombre: string
+          segmento_id: string
+        }[]
+      }
+      planner_guardar_planificacion: {
+        Args: {
+          p_grupos: Json
+          p_grupos_eliminados?: string[]
+          p_temporada_id: string
+          p_temporada_origen_id: string
+        }
+        Returns: Json
+      }
+      planner_publicar_temporada: {
+        Args: {
+          p_activar?: boolean
+          p_temporada_id: string
+          p_temporada_origen_id?: string
+        }
+        Returns: Json
+      }
       procesar_aprobacion_casa_anfitriona: {
         Args: {
           p_accion: string
@@ -8092,6 +8164,10 @@ export type Database = {
         Args: { p_target_user_id: string; p_viewer_id: string }
         Returns: boolean
       }
+      puede_ver_usuario_ficha: {
+        Args: { p_auth_id: string; p_target_user_id: string }
+        Returns: boolean
+      }
       record_support_external_inbound_update: {
         Args: {
           p_author_usuario_id: string
@@ -8162,10 +8238,27 @@ export type Database = {
         }[]
       }
       talleres_cerrar_clase: { Args: { p_sesion_id: string }; Returns: Json }
-      talleres_cerrar_edicion: {
-        Args: { p_edicion_id: string }
+      talleres_cerrar_edicion: { Args: { p_edicion_id: string }; Returns: Json }
+      talleres_certificado_firmantes: {
+        Args: { p_firmantes: Json }
         Returns: Json
       }
+      talleres_cierre_resultados: {
+        Args: { p_edicion_id: string }
+        Returns: {
+          clases_presente: number
+          clases_total: number
+          companero_nombre: string
+          grupo_id: string
+          grupo_nombre: string
+          inscripcion_id: string
+          minimo: number
+          persona_id: string
+          persona_nombre: string
+          resultado: string
+        }[]
+      }
+      talleres_codigo_certificado: { Args: never; Returns: string }
       talleres_cohorte_equipo_personas: {
         Args: { p_cohorte_id: string }
         Returns: {
@@ -8238,6 +8331,19 @@ export type Database = {
       }
       talleres_editar_grupo: {
         Args: { p_capacidad: number; p_grupo_id: string; p_nombre: string }
+        Returns: Json
+      }
+      talleres_emitir_certificado_persona: {
+        Args: {
+          p_codigo?: string
+          p_edicion_id: string
+          p_firmantes_snapshot: Json
+          p_inscripcion_id: string
+          p_nombre_pareja: string
+          p_nombre_participante: string
+          p_nombre_taller: string
+          p_persona_id: string
+        }
         Returns: Json
       }
       talleres_enviar_reporte: {
