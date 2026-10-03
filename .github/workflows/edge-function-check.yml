@@ -23,6 +23,8 @@ jobs:
         run: |
           echo "🔍 Type-checking Supabase Edge Functions..."
           found_errors=false
+          # No functions left is a valid state; skip instead of checking a literal glob.
+          shopt -s nullglob
           for dir in supabase/functions/*/; do
             func_name=$(basename "$dir")
             echo ""
@@ -50,4 +52,9 @@ jobs:
         with:
           deno-version: v2.x
       - name: Lint Edge Functions
-        run: deno lint supabase/functions/
+        run: |
+          if [ -d supabase/functions ] && [ -n "$(ls -A supabase/functions)" ]; then
+            deno lint supabase/functions/
+          else
+            echo "No edge functions to lint."
+          fi
