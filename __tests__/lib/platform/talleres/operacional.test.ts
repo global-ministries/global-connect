@@ -563,6 +563,7 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     fecha_inicio: '2026-09-01',
     fecha_fin: '2026-11-24',
     cierre_inscripcion: '2026-09-01',
+    cerrada_en: '2026-11-25T21:30:00Z',
     talleres: {
       id: 't-1',
       slug: 'matrimonio-sobre-la-roca',
@@ -622,6 +623,8 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     expect(result.fecha_inicio).toBe('2026-09-01')
     expect(result.fecha_fin).toBe('2026-11-24')
     expect(result.cierre_inscripcion).toBe('2026-09-01')
+    // Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2).
+    expect(result.cerrada_en).toBe('2026-11-25T21:30:00Z')
 
     expect(result.inscripciones_count).toBe(12)
     expect(result.inscripciones_aprobadas_count).toBe(8)
@@ -670,6 +673,7 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
       fecha_inicio: null,
       fecha_fin: null,
       cierre_inscripcion: null,
+      cerrada_en: undefined,
       talleres: {
         id: 't-2',
         slug: 'discipulado-1',
@@ -693,6 +697,7 @@ describe('loadEdicionLocalDetalle — joins edicion + taller + cohorte + periodo
     expect(result.fecha_inicio).toBeNull()
     expect(result.fecha_fin).toBeNull()
     expect(result.cierre_inscripcion).toBeNull()
+    expect(result.cerrada_en).toBeNull()
     expect(result.firmantes).toEqual([])
     expect(result.link_type).toBeNull()
     expect(result.modalidad_inscripcion).toBe('permanente_custom')

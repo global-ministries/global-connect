@@ -197,3 +197,15 @@ describe('traducirErrorTalleres — T7 hardening: every remaining paso-6 code is
     expect(result.message).not.toMatch(/tenés|podés|vos\b|creá|elegí/i)
   })
 })
+
+// Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — the two
+// RAISE codes talleres_previsualizar_cierre/talleres_cerrar_edicion add.
+describe('traducirErrorTalleres — cierre de edición', () => {
+  it.each([
+    ['EDICION_YA_CERRADA', 'Esta edición ya está cerrada.'],
+    ['EDICION_NO_CERRABLE', 'Una edición en borrador o cancelada no se puede cerrar.'],
+  ])('maps %s to a 409 conflict with its own message', (codigo, mensaje) => {
+    const result = traducirErrorTalleres({ code: 'P0001', message: codigo })
+    expect(result).toEqual({ status: 409, error: 'conflict', message: mensaje })
+  })
+})

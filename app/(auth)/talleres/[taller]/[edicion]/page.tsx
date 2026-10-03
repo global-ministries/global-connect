@@ -26,7 +26,8 @@
  * never a flat `caps.includes(...)` check (docs/talleres-de-punta-a-
  * punta.md §9, "Permisos en la interfaz").
  *
- *   - editarEdicion       -> cabecera's OpenEdicionButton/CancelarEdicionButton.
+ *   - editarEdicion       -> cabecera's OpenEdicionButton/CancelarEdicionButton/
+ *     CerrarEdicionButton.
  *     talleres_mis_permisos computes editar_edicion as director.write OR
  *     admin.manage — the exact same two capabilities
  *     admin/talleres/edicion/[id]/actions.ts's own requireAdminOrDirector()
@@ -62,9 +63,24 @@
  *     taller lookup (its id is known then) and before loadEdicionLocalDetalle,
  *     so the badge below never shows a stale STORED estado for THIS taller
  *     (best effort — see that module's own header).
- *   - "Cerrar esta edición" is GONE (cerrado/en_curso are now derived from
- *     the edición's own dates); CancelarEdicionButton (borrador|abierto →
- *     cancelado) replaces it.
+ *   - The old manual "Cerrar esta edición" (a bare estado flip to cerrado)
+ *     was removed: en_curso/cerrado are derived from the edición's own
+ *     dates, so flipping the estado decided nothing. CancelarEdicionButton
+ *     (borrador|abierto → cancelado) is the only manual estado change.
+ *
+ * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2): closing is
+ * back, as a real process instead of an estado flip. CerrarEdicionButton
+ * (components/talleres/cerrar-edicion-dialog.tsx) previews the close
+ * (talleres_previsualizar_cierre: resultado per inscrito from attendance,
+ * clases to cancel, reportes left open) and, on confirm, runs
+ * talleres_cerrar_edicion: unit_estado per inscrito, certificados, grupos/
+ * clases/reportes closed in one transaction, and `cerrada_en` stamped
+ * (talleres_estado_efectivo then keeps it `cerrado`). It is offered with
+ * editarEdicion, an estado that is neither borrador nor cancelado (a
+ * date-derived `cerrado` still needs its results computed), and no
+ * cerrada_en. The element stays mounted for every editarEdicion viewer and
+ * only its trigger follows `puedeCerrar`, so the dialog's summary survives
+ * the revalidation that stamps cerrada_en.
  *   - Ventana no longer reads a `taller_periodos_generales` join (that
  *     table is deprecated, always NULL from T2 onward) — it reads the
  *     edición's OWN fecha_inicio/fecha_fin/cierre_inscripcion instead.
@@ -86,6 +102,7 @@ import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
+import { CerrarEdicionButton } from '@/components/talleres/cerrar-edicion-dialog'
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
 import { ReprogramarEdicionDialog } from '@/components/talleres/reprogramar-edicion'
 import { cierreRelativoLabel, edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
@@ -285,6 +302,17 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
                   inscritos={edicion.inscripciones_count}
                 />
               )}
+            {permisos.editarEdicion && (
+              <CerrarEdicionButton
+                tallerSlug={taller.slug}
+                edicionId={edicion.id}
+                puedeCerrar={
+                  edicion.cerrada_en === null &&
+                  edicion.estado !== 'borrador' &&
+                  edicion.estado !== 'cancelado'
+                }
+              />
+            )}
           </div>
         </div>
       </TarjetaSistema>

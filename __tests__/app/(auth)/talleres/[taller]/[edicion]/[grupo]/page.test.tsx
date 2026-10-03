@@ -150,6 +150,7 @@ const EDICION: EdicionLocalDetalle = {
   inscripciones_count: 0,
   inscripciones_aprobadas_count: 0,
   certificados_count: 0,
+  cerrada_en: null,
 }
 
 const GRUPO: GrupoDetalle = {

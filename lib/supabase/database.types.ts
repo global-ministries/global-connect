@@ -4599,6 +4599,8 @@ export type Database = {
       }
       taller_ediciones: {
         Row: {
+          cerrada_en: string | null
+          cerrada_por: string | null
           cierre_inscripcion: string | null
           created_at: string
           duracion_estimada_minutos_snapshot: number
@@ -4625,6 +4627,8 @@ export type Database = {
           version: number
         }
         Insert: {
+          cerrada_en?: string | null
+          cerrada_por?: string | null
           cierre_inscripcion?: string | null
           created_at?: string
           duracion_estimada_minutos_snapshot: number
@@ -4651,6 +4655,8 @@ export type Database = {
           version?: number
         }
         Update: {
+          cerrada_en?: string | null
+          cerrada_por?: string | null
           cierre_inscripcion?: string | null
           created_at?: string
           duracion_estimada_minutos_snapshot?: number
@@ -8153,6 +8159,10 @@ export type Database = {
         }[]
       }
       talleres_cerrar_clase: { Args: { p_sesion_id: string }; Returns: Json }
+      talleres_cerrar_edicion: {
+        Args: { p_edicion_id: string }
+        Returns: Json
+      }
       talleres_cohorte_equipo_personas: {
         Args: { p_cohorte_id: string }
         Returns: {
@@ -8336,6 +8346,10 @@ export type Database = {
           plantilla_grupo_id: string
           rol: string
         }[]
+      }
+      talleres_previsualizar_cierre: {
+        Args: { p_edicion_id: string }
+        Returns: Json
       }
       talleres_quitar_taller_de_temporada: {
         Args: { p_taller_id: string; p_temporada_id: string }

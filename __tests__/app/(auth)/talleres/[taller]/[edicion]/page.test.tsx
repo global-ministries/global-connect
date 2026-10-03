@@ -26,6 +26,7 @@
 
 import EdicionDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/page'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
+import { CerrarEdicionButton } from '@/components/talleres/cerrar-edicion-dialog'
 import { ReprogramarEdicionDialog } from '@/components/talleres/reprogramar-edicion'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
@@ -88,6 +89,10 @@ jest.mock('@/lib/platform/talleres/permisos', () => {
 jest.mock('@/components/talleres/open-edicion-button', () => ({
   OpenEdicionButton: () => null,
   CancelarEdicionButton: () => null,
+}))
+
+jest.mock('@/components/talleres/cerrar-edicion-dialog', () => ({
+  CerrarEdicionButton: () => null,
 }))
 
 jest.mock('@/components/talleres/reprogramar-edicion', () => ({
@@ -169,6 +174,7 @@ const EDICION: EdicionLocalDetalle = {
   inscripciones_count: 5,
   inscripciones_aprobadas_count: 3,
   certificados_count: 0,
+  cerrada_en: null,
 }
 
 const INSCRIPCION_ROW = {
@@ -524,6 +530,55 @@ describe('EdicionDetallePage — permission wiring', () => {
     const tabla = findByType(element, TablaInscripciones)
     expect(tabla?.props.seleccion).toBeUndefined()
     expect(loadGruposDeCohorteMock).not.toHaveBeenCalled()
+  })
+})
+
+// Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — "Cerrar
+// edición" (preview + confirm). The trigger is offered only with
+// editarEdicion, an estado that is neither borrador nor cancelado, and no
+// cerrada_en. The element itself stays mounted for every editarEdicion
+// viewer (puedeCerrar toggles the trigger) so the close summary survives
+// the revalidation that flips cerrada_en.
+describe('EdicionDetallePage — Cerrar edición', () => {
+  it('never renders CerrarEdicionButton without editarEdicion', async () => {
+    for (const estado of ['abierto', 'en_curso', 'cerrado'] as const) {
+      setup({ permisos: { editarEdicion: false }, edicionDetalle: { ...EDICION, estado } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, CerrarEdicionButton)).toBeNull()
+    }
+  })
+
+  it('offers the close for abierto, en_curso and a date-derived cerrado that was never closed', async () => {
+    for (const estado of ['abierto', 'en_curso', 'cerrado'] as const) {
+      setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado, cerrada_en: null } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, CerrarEdicionButton)?.props).toEqual({
+        tallerSlug: 'matrimonio-sobre-la-roca',
+        edicionId: 'e-1',
+        puedeCerrar: true,
+      })
+    }
+  })
+
+  it('does not offer the close for borrador or cancelado', async () => {
+    for (const estado of ['borrador', 'cancelado'] as const) {
+      setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, CerrarEdicionButton)?.props.puedeCerrar).toBe(false)
+    }
+  })
+
+  it('does not offer the close once cerrada_en is set', async () => {
+    setup({
+      permisos: { editarEdicion: true },
+      edicionDetalle: { ...EDICION, estado: 'cerrado', cerrada_en: '2026-10-28T21:30:00Z' },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    expect(findByType(element, CerrarEdicionButton)?.props.puedeCerrar).toBe(false)
   })
 })
 

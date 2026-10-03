@@ -707,6 +707,13 @@ export interface EdicionLocalDetalle {
   readonly fecha_inicio: string | null
   readonly fecha_fin: string | null
   readonly cierre_inscripcion: string | null
+  /**
+   * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — when a
+   * director closed the edición through talleres_cerrar_edicion (timestamptz),
+   * or null while it was never closed. A date-derived `cerrado` estado can
+   * still have it null: that edición is over but its results are not computed.
+   */
+  readonly cerrada_en: string | null
   readonly inscripciones_count: number
   readonly inscripciones_aprobadas_count: number
   readonly certificados_count: number
@@ -724,7 +731,7 @@ export async function loadEdicionLocalDetalle(
     .select(
       `id, taller_id, nombre_snapshot, tipo, link_type, modalidad_inscripcion,
        estado, sesiones_snapshot, duracion_estimada_minutos_snapshot, firmantes,
-       fecha_inicio, fecha_fin, cierre_inscripcion,
+       fecha_inicio, fecha_fin, cierre_inscripcion, cerrada_en,
        talleres:talleres!inner(id, slug, nombre, estado)`,
     )
     .eq('id', edicionId)
@@ -805,6 +812,7 @@ export async function loadEdicionLocalDetalle(
     fecha_inicio: (edicionRow.fecha_inicio as string | null) ?? null,
     fecha_fin: (edicionRow.fecha_fin as string | null) ?? null,
     cierre_inscripcion: (edicionRow.cierre_inscripcion as string | null) ?? null,
+    cerrada_en: (edicionRow.cerrada_en as string | null | undefined) ?? null,
     inscripciones_count: totalCount ?? 0,
     inscripciones_aprobadas_count: aprobadasCount ?? 0,
     certificados_count: certificadosCount ?? 0,
