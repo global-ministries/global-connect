@@ -15,6 +15,7 @@ import {
 } from '@/lib/platform/operating-core/route-access'
 import { createSupabaseCapacityRepository } from '@/lib/platform/operating-core/capacity/capacity-repository-supabase'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { CapacityBase } from '@/lib/platform/operating-core/capacity/capacity-types'
 
 const bad = (message: string, code?: string) => {
@@ -143,17 +144,26 @@ export async function POST(req: NextRequest) {
     const newEffective = newSnapshot.effective
 
     // 11. Waitlist interaction
-    // If effective capacity grew, call promote_waitlist (S10) to promote one waitlist entry
+    // If effective capacity grew, call promote_waitlist (S10) to promote one waitlist entry.
+    // operating_core_promote_waitlist is executable only by service_role, so the session
+    // client got 42501 here. It goes through the admin client: the caller already passed the
+    // capacity.manage check (step 3) and saved the override for this event with its own
+    // session (step 10).
     if (newEffective > prevEffective && override !== null) {
       const slotsReleased = newEffective - prevEffective
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RPC not in generated types
-      const { error: rpcError } = await (supabase as any).rpc('operating_core_promote_waitlist', {
-        p_event_id: parsed.event_id,
-        p_slot_released: slotsReleased,
-      })
-      if (rpcError) {
-        // Non-fatal: log but don't fail the request
-        console.error('[operating-core/capacity] promote_waitlist RPC error:', rpcError)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RPC not in generated types
+        const { error: rpcError } = await (createSupabaseAdminClient() as any).rpc('operating_core_promote_waitlist', {
+          p_event_id: parsed.event_id,
+          p_slot_released: slotsReleased,
+        })
+        if (rpcError) {
+          // Non-fatal: log but don't fail the request
+          console.error('[operating-core/capacity] promote_waitlist RPC error:', rpcError)
+        }
+      } catch (err) {
+        // Non-fatal as well (e.g. no service key): the override is already saved
+        console.error('[operating-core/capacity] promote_waitlist RPC error:', err)
       }
     }
 

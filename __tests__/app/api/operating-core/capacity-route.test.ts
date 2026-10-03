@@ -33,7 +33,12 @@ jest.mock('@/lib/platform/operating-core/capacity/capacity-repository-supabase',
   createSupabaseCapacityRepository: jest.fn(),
 }))
 
+jest.mock('@/lib/supabase/admin', () => ({
+  createSupabaseAdminClient: jest.fn(),
+}))
+
 const createClient = jest.requireMock('@/lib/supabase/server').createSupabaseServerClient as jest.Mock
+const createAdminClient = jest.requireMock('@/lib/supabase/admin').createSupabaseAdminClient as jest.Mock
 const resolveSession = jest.requireMock('@/lib/auth/platformSessionReadOnly').resolveReadOnlyPlatformSession as jest.Mock
 const mockCreateCapacityRepo = jest.requireMock('@/lib/platform/operating-core/capacity/capacity-repository-supabase').createSupabaseCapacityRepository as jest.Mock
 
@@ -99,6 +104,7 @@ function setupCapacityRepoMock() {
 beforeEach(() => {
   jest.clearAllMocks()
   mockCreateCapacityRepo.mockReset()
+  createAdminClient.mockReset()
   process.env.NEXT_PUBLIC_OPERATING_CORE_ENABLED = 'on'
 })
 
@@ -260,6 +266,75 @@ describe('POST /api/operating-core/capacity', () => {
       const body = await res.json()
       expect(body.effective).toBe(30)
       expect(body.source).toBe('base')
+    })
+  })
+
+  describe('Waitlist promotion', () => {
+    // operating_core_promote_waitlist is executable only by service_role: with the
+    // session client it failed with 42501 and the error was only logged.
+    function setupGrowingOverride() {
+      const repo = setupCapacityRepoMock()
+      repo.getCurrent.mockResolvedValue({
+        base: { value: 30, scope: 'event', effectiveAt: new Date().toISOString() },
+        override: { value: 20, reason: 'venue layout', setByPersonaId: actorPersonaId, setAt: new Date().toISOString() },
+        effective: 20,
+      })
+      repo.setOverride.mockResolvedValue({
+        base: { value: 30, scope: 'event', effectiveAt: new Date().toISOString() },
+        override: { value: 28, reason: 'more chairs', setByPersonaId: actorPersonaId, setAt: new Date().toISOString() },
+        effective: 28,
+      })
+      return repo
+    }
+
+    it('promotes the waitlist through the admin client when the effective capacity grows', async () => {
+      setupAuthAndSupabase([capacityCap])
+      setupGrowingOverride()
+      const adminRpc = jest.fn().mockResolvedValue({ data: [], error: null })
+      createAdminClient.mockReturnValue({ rpc: adminRpc })
+
+      const res = await POST(request('/api/operating-core/capacity', {
+        method: 'POST',
+        body: JSON.stringify({ event_id: eventId, capacity_operativa: 28, reason: 'more chairs' }),
+      }))
+
+      expect(res.status).toBe(200)
+      expect(adminRpc).toHaveBeenCalledWith('operating_core_promote_waitlist', {
+        p_event_id: eventId,
+        p_slot_released: 8,
+      })
+      const sessionClient = await createClient.mock.results[0].value
+      expect(sessionClient.rpc).not.toHaveBeenCalled()
+    })
+
+    it('does not use the admin client when the caller lacks the capability', async () => {
+      setupAuthAndSupabase([otherCap])
+      setupGrowingOverride()
+
+      const res = await POST(request('/api/operating-core/capacity', {
+        method: 'POST',
+        body: JSON.stringify({ event_id: eventId, capacity_operativa: 28, reason: 'more chairs' }),
+      }))
+
+      expect(res.status).toBe(403)
+      expect(createAdminClient).not.toHaveBeenCalled()
+    })
+
+    it('keeps the saved override when the admin client cannot be created', async () => {
+      setupAuthAndSupabase([capacityCap])
+      setupGrowingOverride()
+      createAdminClient.mockImplementation(() => { throw new Error('missing service key') })
+      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+      const res = await POST(request('/api/operating-core/capacity', {
+        method: 'POST',
+        body: JSON.stringify({ event_id: eventId, capacity_operativa: 28, reason: 'more chairs' }),
+      }))
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.effective).toBe(28)
+      consoleError.mockRestore()
     })
   })
 })
