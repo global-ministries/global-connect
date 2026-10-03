@@ -1,4 +1,4 @@
--- Public certificate verification of migration 20261003170000: anon reads a
+-- Public certificate verification of migration 20261003180000: anon reads a
 -- certificate only through verificar_certificado_publico(code), never by
 -- listing taller_certificados.
 --
