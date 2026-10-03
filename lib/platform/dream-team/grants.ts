@@ -57,6 +57,10 @@ export interface GrantsTransitionContext {
 // ── Role → generic capability mapping (hybrid model) ─────────────────
 
 // Keys are pre-normalized with normalizeLabel so lookups below stay a plain object read.
+// SQL mirror: public.dream_team_grants_de_servicio (the volunteer loader cannot call
+// TypeScript). Both sides are pinned to the grants-table of
+// supabase/tests/dream-team-cargar-voluntarios.test.sql (see grants-sql-mirror.test.ts),
+// so a change here needs that table and a new migration for the mirror.
 const ROLE_TO_GENERIC_CAPABILITIES: Record<string, readonly string[]> = {
   [normalizeLabel('Voluntario')]: ['dream_team.serve'],
   [normalizeLabel('Voluntario de Cámara')]: ['dream_team.serve'],
@@ -73,6 +77,55 @@ const ROLE_TO_GENERIC_CAPABILITIES: Record<string, readonly string[]> = {
   // director authority over the whole church. dream_team.director.coordinate now stays a global
   // capability granted by hand only, for the actual person in charge of Dream Team as a whole.
   [normalizeLabel('Director')]: ['dream_team.serve', 'dream_team.direct'],
+}
+
+// The normalized role labels that mint generic capabilities. Exported so the
+// pin test can require every one of them in the table the SQL mirror is checked against.
+export function mappedRoleLabels(): readonly string[] {
+  return Object.keys(ROLE_TO_GENERIC_CAPABILITIES)
+}
+
+// ── Experience-specific capability (hybrid model) ────────────────────
+
+// The role labels that pick the lead or the director tier below; any other label serves.
+const LEAD_ROLE_LABELS: ReadonlySet<string> = new Set(
+  ['Líder', 'Líder de grupo', 'Facilitador', 'Entrenador', 'Coordinador'].map(normalizeLabel),
+)
+const DIRECTOR_ROLE_LABELS: ReadonlySet<string> = new Set(['Director'].map(normalizeLabel))
+
+interface ExperienceSpecificTiers {
+  readonly serve: string
+  readonly lead: string
+  readonly director: string
+}
+
+function sameForEveryTier(capabilityKey: string): ExperienceSpecificTiers {
+  return { serve: capabilityKey, lead: capabilityKey, director: capabilityKey }
+}
+
+// The capability an equipo's experiencia adds on top of the generic ones, per tier. An
+// experiencia missing here adds none. Same SQL mirror and pin as ROLE_TO_GENERIC_CAPABILITIES:
+// a change here needs the grants-table and a new migration for dream_team_grants_de_servicio.
+const EXPERIENCE_SPECIFIC_CAPABILITIES: Record<string, ExperienceSpecificTiers> = {
+  dps: { serve: 'dps.team.serve', lead: 'dps.team.lead', director: 'dps.team.director' },
+  estudiantes: {
+    serve: 'estudiantes.team.serve',
+    lead: 'estudiantes.team.lead',
+    director: 'estudiantes.team.lead',
+  },
+  talleres_crecimiento: sameForEveryTier('talleres_crecimiento.team.serve'),
+  ninos: sameForEveryTier('ninos.team.serve'),
+  the_living_room: sameForEveryTier('the_living_room.team.serve'),
+}
+
+// The experiencias with a capability of their own, and the normalized labels that pick a
+// tier. Exported so the pin test can require every such pair in the grants-table.
+export function experiencesWithSpecificCapability(): readonly string[] {
+  return Object.keys(EXPERIENCE_SPECIFIC_CAPABILITIES)
+}
+
+export function leadOrDirectorRoleLabels(): readonly string[] {
+  return [...LEAD_ROLE_LABELS, ...DIRECTOR_ROLE_LABELS]
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -99,29 +152,14 @@ function resolveExperienceSpecificCapability(
   experience: string,
   roleLabel: string,
 ): string | undefined {
-  const label = normalizeLabel(roleLabel)
-  const isLead =
-    label === normalizeLabel('Líder') ||
-    label === normalizeLabel('Líder de grupo') ||
-    label === normalizeLabel('Facilitador') ||
-    label === normalizeLabel('Entrenador') ||
-    label === normalizeLabel('Coordinador')
-  const isDirector = label === normalizeLabel('Director')
-
-  switch (experience) {
-    case 'dps':
-      return isDirector ? 'dps.team.director' : isLead ? 'dps.team.lead' : 'dps.team.serve'
-    case 'estudiantes':
-      return isLead || isDirector ? 'estudiantes.team.lead' : 'estudiantes.team.serve'
-    case 'talleres_crecimiento':
-      return 'talleres_crecimiento.team.serve'
-    case 'ninos':
-      return 'ninos.team.serve'
-    case 'the_living_room':
-      return 'the_living_room.team.serve'
-    default:
-      return undefined
+  if (!Object.prototype.hasOwnProperty.call(EXPERIENCE_SPECIFIC_CAPABILITIES, experience)) {
+    return undefined
   }
+  const tiers = EXPERIENCE_SPECIFIC_CAPABILITIES[experience]
+  const label = normalizeLabel(roleLabel)
+  if (DIRECTOR_ROLE_LABELS.has(label)) return tiers.director
+  if (LEAD_ROLE_LABELS.has(label)) return tiers.lead
+  return tiers.serve
 }
 
 function scopeIdForGrant(
