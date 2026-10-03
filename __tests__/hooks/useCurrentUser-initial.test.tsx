@@ -82,6 +82,38 @@ function setupHangingSupabaseClient() {
   return { client, getUserDeferred }
 }
 
+type QueryResponse = { data: unknown; error: { message: string } | null }
+
+/** A signed-in client whose roles RPC answers each call with the next queued
+ * response, so a test can make one specific load (mount revalidation, a
+ * refresh) fail while the others succeed. */
+function setupRevalidationClient(options: { rolesResponses: QueryResponse[]; supportResponse: QueryResponse }) {
+  const getUser = jest.fn().mockResolvedValue(getUserResponse({ id: 'auth-1' }))
+  const maybeSingle = jest.fn().mockResolvedValue({
+    data: { id: 'usuario-1', auth_id: 'auth-1', nombre: 'Staff User' },
+    error: null,
+  })
+  const rolesRpc = jest.fn()
+  for (const response of options.rolesResponses) rolesRpc.mockResolvedValueOnce(response)
+  const supportCapabilitiesResolver = jest.fn().mockResolvedValue(options.supportResponse)
+  const capabilityGrantsResolver = jest.fn().mockResolvedValue({ data: [], error: null })
+  const client = {
+    auth: {
+      getUser,
+      onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+    },
+    from: jest.fn((table: string) => {
+      if (table === 'usuarios') return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), maybeSingle }
+      if (table === 'support_user_capabilities') return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), is: supportCapabilitiesResolver }
+      if (table === 'dream_team_capability_grants') return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), is: capabilityGrantsResolver }
+      throw new Error(`Unexpected table ${table}`)
+    }),
+    rpc: rolesRpc,
+  }
+  createClient.mockReturnValue(client)
+  return { client, rolesRpc, supportCapabilitiesResolver }
+}
+
 describe('CurrentUserProvider with a server-resolved `initial` snapshot', () => {
   beforeEach(() => {
     createClient.mockReset()
@@ -277,6 +309,78 @@ describe('CurrentUserProvider silent revalidation: auth failure vs data failure'
     expect(result.current.roles).toEqual(INITIAL_SNAPSHOT.roles)
     expect(result.current.loading).toBe(false)
     expect(result.current.error).toBeNull()
+  })
+
+  it('keeps the snapshot roles and support capabilities when the roles RPC fails during a silent revalidation', async () => {
+    // A failed roles lookup used to read as "this person has no roles": the
+    // load came back `ok` with roles [] and the sidebar collapsed to its
+    // permission-free items until the next full reload.
+    const { rolesRpc } = setupRevalidationClient({
+      rolesResponses: [{ data: null, error: { message: 'canceling statement due to statement timeout' } }],
+      supportResponse: { data: [], error: null },
+    })
+
+    const { result } = renderHook(() => useCurrentUser(), {
+      wrapper: ({ children }) => <CurrentUserProvider initial={INITIAL_SNAPSHOT}>{children}</CurrentUserProvider>,
+    })
+
+    await act(async () => {
+      await flushPendingPromises()
+    })
+
+    expect(rolesRpc).toHaveBeenCalledWith('obtener_roles_usuario', { p_auth_id: 'auth-1' })
+    expect(result.current.roles).toEqual(['admin'])
+    expect(result.current.supportCapabilities).toEqual(['support.view'])
+    expect(result.current.platformSession).toEqual(INITIAL_SNAPSHOT.platformSession)
+    expect(result.current.loading).toBe(false)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('keeps the snapshot support capabilities when their query fails during a silent revalidation', async () => {
+    const { supportCapabilitiesResolver } = setupRevalidationClient({
+      rolesResponses: [{ data: ['admin', 'lider'], error: null }],
+      supportResponse: { data: null, error: { message: 'connection terminated' } },
+    })
+
+    const { result } = renderHook(() => useCurrentUser(), {
+      wrapper: ({ children }) => <CurrentUserProvider initial={INITIAL_SNAPSHOT}>{children}</CurrentUserProvider>,
+    })
+
+    await act(async () => {
+      await flushPendingPromises()
+    })
+
+    expect(supportCapabilitiesResolver).toHaveBeenCalled()
+    // The whole load failed, so nothing from it is applied — not even the
+    // roles that did resolve.
+    expect(result.current.supportCapabilities).toEqual(['support.view'])
+    expect(result.current.roles).toEqual(['admin'])
+  })
+
+  it('keeps the previous roles when a talleres:refresh-session refresh hits a failing roles RPC', async () => {
+    const { rolesRpc } = setupRevalidationClient({
+      rolesResponses: [
+        { data: ['admin', 'lider'], error: null },
+        { data: null, error: { message: 'canceling statement due to statement timeout' } },
+      ],
+      supportResponse: { data: [{ capability: 'support.view' }], error: null },
+    })
+
+    const { result } = renderHook(() => useCurrentUser(), {
+      wrapper: ({ children }) => <CurrentUserProvider initial={INITIAL_SNAPSHOT}>{children}</CurrentUserProvider>,
+    })
+
+    // The mount revalidation succeeds and picks up the new role first.
+    await waitFor(() => expect(result.current.roles).toEqual(['admin', 'lider']))
+
+    await act(async () => {
+      window.dispatchEvent(new Event('talleres:refresh-session'))
+      await flushPendingPromises()
+    })
+
+    expect(rolesRpc).toHaveBeenCalledTimes(2)
+    expect(result.current.roles).toEqual(['admin', 'lider'])
+    expect(result.current.supportCapabilities).toEqual(['support.view'])
   })
 
   it('surfaces an auth.getUser() failure through setError on a non-silent run, same as before this fix', async () => {

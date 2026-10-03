@@ -44,6 +44,8 @@ type SupabaseMockStep = {
   cacheAuthUser?: MockAuthUser | null
   usuario?: MockUsuario | null
   roles?: unknown[]
+  // Overrides the whole roles RPC response (e.g. a NULL result or an error).
+  rolesResponse?: { data: unknown; error: { message: string } | null }
   supportCapabilities?: string[]
   capabilityGrants?: CapabilityGrantRow[]
   getUserDeferred?: Deferred<GetUserResponse>
@@ -58,6 +60,9 @@ const AUTH_SESSION_PLACEHOLDER = { user: { id: 'auth-session-placeholder' } }
 // only need "long enough to fire the debounce, short enough to not fire
 // the 5s timeout".
 const SIGNED_IN_DEBOUNCE_MS = 150
+// Mirrors LOAD_RETRY_DELAY_MS in the hook: the single automatic retry of a
+// load that ended in `error` fires after this delay.
+const LOAD_RETRY_DELAY_MS = 1_500
 let authStateCallback: CapturedAuthStateCallback | null = null
 
 describe('useCurrentUser', () => {
@@ -694,6 +699,90 @@ describe('useCurrentUser', () => {
     expect(result.current.error).toMatch(/datos del usuario/i)
   })
 
+  // A person without any role legitimately gets NULL from the roles RPC
+  // (array_agg over zero rows) — that is "no roles", not a failure.
+  it('maps a NULL roles result without an error to an empty roles list', async () => {
+    const user = { id: 'auth-no-roles' }
+    const usuario = { id: 'usuario-no-roles', auth_id: 'auth-no-roles', nombre: 'No Roles' }
+    setupSupabaseClient([
+      { user, usuario, rolesResponse: { data: null, error: null }, supportCapabilities: [] },
+    ])
+
+    const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.usuario?.id).toBe('usuario-no-roles')
+    expect(result.current.roles).toEqual([])
+    expect(result.current.error).toBeNull()
+  })
+
+  it('retries a load whose roles RPC failed once, after a short delay, and applies the retried roles', async () => {
+    jest.useFakeTimers()
+    try {
+      const user = { id: 'auth-retry' }
+      const usuario = { id: 'usuario-retry', auth_id: 'auth-retry', nombre: 'Retry User' }
+      const { client } = setupSupabaseClient([
+        { user, usuario, rolesResponse: { data: null, error: { message: 'connection reset' } } },
+        { user, usuario, roles: ['admin'], supportCapabilities: ['support.view'] },
+      ])
+
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
+
+      await act(async () => {
+        await flushPendingPromises()
+      })
+      // The failed load is a real error, not "a user without roles".
+      expect(client.rpc).toHaveBeenCalledTimes(1)
+      expect(result.current.loading).toBe(false)
+      expect(result.current.roles).toEqual([])
+      expect(result.current.error).toMatch(/roles/i)
+
+      await act(async () => {
+        jest.advanceTimersByTime(LOAD_RETRY_DELAY_MS)
+        await flushPendingPromises()
+      })
+
+      expect(client.rpc).toHaveBeenCalledTimes(2)
+      expect(result.current.loading).toBe(false)
+      expect(result.current.roles).toEqual(['admin'])
+      expect(result.current.supportCapabilities).toEqual(['support.view'])
+      expect(result.current.error).toBeNull()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('retries a failed load at most once', async () => {
+    jest.useFakeTimers()
+    try {
+      const user = { id: 'auth-retry-twice' }
+      const usuario = { id: 'usuario-retry-twice', auth_id: 'auth-retry-twice', nombre: 'Retry Twice' }
+      const failingStep = { user, usuario, rolesResponse: { data: null, error: { message: 'connection reset' } } }
+      const { client } = setupSupabaseClient([failingStep, failingStep])
+
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
+
+      await act(async () => {
+        await flushPendingPromises()
+      })
+      await act(async () => {
+        jest.advanceTimersByTime(LOAD_RETRY_DELAY_MS)
+        await flushPendingPromises()
+      })
+      await act(async () => {
+        jest.advanceTimersByTime(LOAD_RETRY_DELAY_MS * 3)
+        await flushPendingPromises()
+      })
+
+      expect(client.rpc).toHaveBeenCalledTimes(2)
+      expect(result.current.loading).toBe(false)
+      expect(result.current.roles).toEqual([])
+      expect(result.current.error).toMatch(/roles/i)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
 })
 
 // Regression coverage for the 4R review of fix #257.
@@ -732,13 +821,19 @@ function setupSupabaseClient(steps: SupabaseMockStep[]) {
     } else {
       getUser.mockResolvedValueOnce(getUserResponse(step.user))
     }
-    const cacheAuthUser = 'cacheAuthUser' in step ? step.cacheAuthUser ?? null : step.user
-    getUser.mockResolvedValueOnce(getUserResponse(cacheAuthUser))
+    // A load whose roles RPC errors stops right there: no support
+    // capabilities query and no cache-write getUser() check for that step.
+    const loadFails = Boolean(step.rolesResponse?.error)
+    if (!loadFails) {
+      const cacheAuthUser = 'cacheAuthUser' in step ? step.cacheAuthUser ?? null : step.user
+      getUser.mockResolvedValueOnce(getUserResponse(cacheAuthUser))
+    }
 
     if (!step.user) continue
 
     maybeSingle.mockResolvedValueOnce({ data: step.usuario ?? null, error: null })
-    rolesRpc.mockResolvedValueOnce({ data: step.roles ?? [], error: null })
+    rolesRpc.mockResolvedValueOnce(step.rolesResponse ?? { data: step.roles ?? [], error: null })
+    if (loadFails) continue
 
     if (step.usuario?.id) {
       supportCapabilitiesResolver.mockResolvedValueOnce({

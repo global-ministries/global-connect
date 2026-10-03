@@ -10,10 +10,13 @@
  * resolve the current-user snapshot server-side — see
  * lib/auth/currentUserSnapshot.ts — the same way app/(auth)/layout.tsx does.
  * Nothing in this file used a hook or browser API, so dropping "use client"
- * has no effect on the children below: CampusProvider, BrandingProvider,
- * CurrentUserProvider, HeaderMovil, DashboardLayout and MenuInferiorMovil
- * are all still Client Components rendered from a Server Component parent,
- * exactly like app/(auth)/layout.tsx already does.
+ * has no effect on the children below: BrandingProvider,
+ * CurrentUserProvider, CampusProvider, HeaderMovil, DashboardLayout and
+ * MenuInferiorMovil are all still Client Components rendered from a Server
+ * Component parent, exactly like app/(auth)/layout.tsx already does.
+ *
+ * Provider order matters: CampusProvider reads the roles from
+ * useCurrentUser, so it must render inside CurrentUserProvider.
  */
 
 import React from 'react'
@@ -36,13 +39,13 @@ export default async function PastoralLayout({ children }: PastoralLayoutProps) 
   const initialCurrentUser = await resolveCurrentUserSnapshot()
 
   return (
-    <CampusProvider>
-      <BrandingProvider branding={{ logoLightUrl: null, logoDarkUrl: null, faviconUrl: null }}>
-        {/* resolveCurrentUserSnapshot returns null when it could not resolve
-            (not the same as signed out — see its doc comment); falling back
-            to `undefined` here reproduces the pre-snapshot behaviour:
-            loading starts true and the client fetch runs as a normal load. */}
-        <CurrentUserProvider initial={initialCurrentUser ?? undefined}>
+    <BrandingProvider branding={{ logoLightUrl: null, logoDarkUrl: null, faviconUrl: null }}>
+      {/* resolveCurrentUserSnapshot returns null when it could not resolve
+          (not the same as signed out — see its doc comment); falling back
+          to `undefined` here reproduces the pre-snapshot behaviour:
+          loading starts true and the client fetch runs as a normal load. */}
+      <CurrentUserProvider initial={initialCurrentUser ?? undefined}>
+        <CampusProvider>
           <div className="min-h-screen bg-[var(--surface-primary)]">
             <HeaderMovil />
             <div className="pt-16 pb-20 md:pt-0 md:pb-0">
@@ -50,8 +53,8 @@ export default async function PastoralLayout({ children }: PastoralLayoutProps) 
             </div>
             <MenuInferiorMovil />
           </div>
-        </CurrentUserProvider>
-      </BrandingProvider>
-    </CampusProvider>
+        </CampusProvider>
+      </CurrentUserProvider>
+    </BrandingProvider>
   )
 }

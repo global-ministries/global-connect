@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 // ─── Tipos ──────────────────────────────────────────
 interface Campus {
@@ -61,33 +62,41 @@ const STORAGE_KEY_LOCALIDAD = "gc_localidad_activa"
 const ROLES_SUPERADMIN = ["admin", "pastor"]
 
 // ─── Provider ───────────────────────────────────────
+// Must render inside CurrentUserProvider: the roles come from useCurrentUser
+// (one source of truth) instead of a second obtener_roles_usuario call. That
+// second call ignored its own errors, so a transient failure there left
+// esSuperadmin false and the campus list empty — the selector vanished while
+// the sidebar, fed by useCurrentUser, still showed the full menu.
 export function CampusProvider({ children }: { children: React.ReactNode }) {
+    const { authUserId, roles, loading: currentUserLoading } = useCurrentUser()
     const [campusDisponibles, setCampusDisponibles] = useState<Campus[]>([])
     const [localidadesDisponibles, setLocalidadesDisponibles] = useState<CampusLocalidad[]>([])
     const [campusActivoId, setCampusActivoId] = useState<string | null>(null)
     const [localidadActivaId, setLocalidadActivaId] = useState<string | null>(null)
     const [esSuperadmin, setEsSuperadmin] = useState(false)
     const [loading, setLoading] = useState(true)
+    // A boolean (not the roles array) drives the effect below, so a
+    // revalidation that returns the same roles in a new array does not
+    // reload the campus list.
+    const rolesIncludeSuperadmin = roles.some(r => ROLES_SUPERADMIN.includes(r))
 
     // Cargar datos iniciales
     useEffect(() => {
+        // While CurrentUserProvider is loading its roles array is empty (or
+        // stale): deciding esSuperadmin from it would load the wrong campus
+        // list, so wait for it to settle.
+        if (currentUserLoading) return
+        let cancelled = false
         const cargar = async () => {
             try {
+                if (!authUserId) return
+
+                setEsSuperadmin(rolesIncludeSuperadmin)
+
                 const supabase = createClient()
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) { setLoading(false); return }
-
-                // Obtener roles
-                const { data: roles } = await supabase.rpc("obtener_roles_usuario", { p_auth_id: user.id })
-                const userRoles = Array.isArray(roles)
-                    ? roles.map((r: unknown) => typeof r === "string" ? r : (r as { nombre_interno?: string })?.nombre_interno).filter(Boolean) as string[]
-                    : []
-                const isSuperadmin = userRoles.some(r => ROLES_SUPERADMIN.includes(r))
-                setEsSuperadmin(isSuperadmin)
-
                 // Obtener campus disponibles
                 let campusList: Campus[]
-                if (isSuperadmin) {
+                if (rolesIncludeSuperadmin) {
                     // Superadmin ve todos los campus activos
                     const { data } = await supabase
                         .from("campus")
@@ -100,11 +109,12 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
                     const { data } = await supabase
                         .from("usuario_campus")
                         .select("campus:campus_id(id, nombre, codigo, tipo, activo)")
-                        .eq("usuario_id", user.id)
+                        .eq("usuario_id", authUserId)
                     campusList = (data ?? [])
                         .map((d: unknown) => (d as { campus: Campus }).campus)
                         .filter((c: Campus) => c.activo)
                 }
+                if (cancelled) return
                 setCampusDisponibles(campusList)
 
                 // Restaurar selección desde localStorage
@@ -124,11 +134,13 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
             } catch (err) {
                 console.error("Error cargando campus:", err)
             } finally {
-                setLoading(false)
+                if (!cancelled) setLoading(false)
             }
         }
         cargar()
-    }, [])
+        // A newer run (the user or their roles changed) supersedes this one.
+        return () => { cancelled = true }
+    }, [currentUserLoading, authUserId, rolesIncludeSuperadmin])
 
     // Cuando cambia el campus activo, cargar localidades
     useEffect(() => {
@@ -188,13 +200,15 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         campusId: campusActivoId,
         localidadId: localidadActivaId,
         esSuperadmin,
-        loading,
+        // Also true while CurrentUserProvider reloads (e.g. after SIGNED_IN),
+        // since the campus list may be about to change with the roles.
+        loading: loading || currentUserLoading,
         seleccionarCampus,
         seleccionarLocalidad,
     }), [
         campusActivo, localidadActiva, campusDisponibles,
         localidadesDisponibles, campusActivoId, localidadActivaId,
-        esSuperadmin, loading, seleccionarCampus, seleccionarLocalidad,
+        esSuperadmin, loading, currentUserLoading, seleccionarCampus, seleccionarLocalidad,
     ])
 
     return (

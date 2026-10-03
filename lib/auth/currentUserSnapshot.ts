@@ -111,7 +111,7 @@ export async function resolveCurrentUserSnapshot(
     // resolving them with Promise.all (instead of the client hook's fully
     // sequential chain) is the entire point of this module.
     const [rolesResult, platformSessionBase, supportResult] = await Promise.all([
-      supabase.rpc('obtener_roles_usuario', { p_auth_id: user.id }),
+      fetchLegacyRolesWithRetry(supabase, user.id),
       resolveReadOnlyPlatformSession({
         subjectAuthId: user.id,
         findPersonaByAuthId: async (authId) => {
@@ -166,6 +166,20 @@ export async function resolveCurrentUserSnapshot(
     // above. `null` tells the caller "unresolved", not "signed out".
     return null
   }
+}
+
+// The roles RPC feeds every role-gated sidebar item on the first paint, and
+// an error here used to fall straight back to no roles — so one transient
+// failure painted a menu with only the permission-free items. Retry it once
+// before giving up. No delay between the two calls: this runs on the
+// layout's server render, so a longer outage is left to the client-side
+// revalidation in CurrentUserProvider, which has its own delayed retry. A
+// NULL result without an error is a success (a person without roles) and
+// is never retried.
+async function fetchLegacyRolesWithRetry(supabase: SnapshotSupabaseClient, authId: string) {
+  const first = await supabase.rpc('obtener_roles_usuario', { p_auth_id: authId })
+  if (!first.error) return first
+  return await supabase.rpc('obtener_roles_usuario', { p_auth_id: authId })
 }
 
 // Mirrors toClientPlatformPersona in hooks/useCurrentUser.tsx: turns the

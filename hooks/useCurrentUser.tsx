@@ -39,6 +39,13 @@ const SIGNED_IN_DEBOUNCE_MS = 150
 // event for ops. The constant lives in lib/platform/auth-timeout.ts so the
 // middleware getUser() guard shares the same value (Finding 7 in 4R).
 const FETCH_TIMEOUT_MS = AUTH_FETCH_TIMEOUT_MS
+// A load that ends in the `error` kind (a failed usuarios select, roles RPC
+// or support capabilities query — not an auth failure, not a timeout) is
+// retried once after this delay, so a transient failure heals itself
+// instead of leaving the sidebar without its role-gated items until the
+// next full reload. Once per load request: a retry that fails again stays
+// failed, so a real outage never turns into a request loop.
+const LOAD_RETRY_DELAY_MS = 1_500
 let currentUserCache: { authUserId: string | null; expiresAt: number; value: CurrentUserResult } | null = null
 let currentUserCacheGeneration = 0
 
@@ -59,6 +66,26 @@ export function __resetCurrentUserCacheForTesting() {
   const previous = currentUserCache
   clearCurrentUserCache()
   return previous
+}
+
+type RetryTimerRef = { current: ReturnType<typeof setTimeout> | null }
+
+// One pending retry per provider, shared by every kind of load (mount,
+// SIGNED_IN refetch, talleres:refresh-session): any newer load cancels a
+// retry still waiting from an older one, so the newest request always wins.
+function cancelLoadRetry(timerRef: RetryTimerRef) {
+  if (timerRef.current) {
+    clearTimeout(timerRef.current)
+    timerRef.current = null
+  }
+}
+
+function scheduleLoadRetry(timerRef: RetryTimerRef, retry: () => void) {
+  cancelLoadRetry(timerRef)
+  timerRef.current = setTimeout(() => {
+    timerRef.current = null
+    retry()
+  }, LOAD_RETRY_DELAY_MS)
 }
 
 // Discriminated union returned by tryFetchCurrentUserData. Distinguishes a
@@ -174,7 +201,18 @@ async function loadCurrentUserData(supabase: ReturnType<typeof createClient>): P
   const { data: rolesData, error: rolesError } = await supabase
     .rpc('obtener_roles_usuario', { p_auth_id: user.id })
 
-  const roles = !rolesError && Array.isArray(rolesData)
+  // A failed roles lookup must not read as "this person has no roles":
+  // mapping it to [] made the whole load `ok`, so a background revalidation
+  // or a talleres:refresh-session refresh replaced good roles with nothing
+  // and the sidebar collapsed to its permission-free items. Throwing turns it
+  // into the `error` kind, which keeps the previous data and is retried once.
+  // A NULL result WITHOUT an error is still [] — array_agg over a person with
+  // no roles legitimately returns NULL.
+  if (rolesError) {
+    throw new Error('Error al obtener roles del usuario: ' + rolesError.message)
+  }
+
+  const roles = Array.isArray(rolesData)
     ? rolesData.map((role: unknown) => typeof role === "string" ? role : getRoleName(role)).filter((role): role is string => Boolean(role))
     : []
 
@@ -186,7 +224,13 @@ async function loadCurrentUserData(supabase: ReturnType<typeof createClient>): P
       .eq('usuario_id', userData.id)
       .is('revoked_at', null)
 
-    if (!capabilitiesError && capabilitiesData) {
+    // Same reasoning as the roles RPC above: a failed query is not "no
+    // support capabilities", so it must not overwrite the ones already shown.
+    if (capabilitiesError) {
+      throw new Error('Error al obtener capacidades de soporte: ' + capabilitiesError.message)
+    }
+
+    if (capabilitiesData) {
       supportCapabilities = capabilitiesData
         .map((row: { capability: string }) => row.capability)
         .filter((capability): capability is SupportCapability => SUPPORT_CAPABILITIES.includes(capability as SupportCapability))
@@ -225,6 +269,7 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
   const [error, setError] = useState<string | null>(null)
   const authGenerationRef = useRef(0)
   const signedInDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const loadRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Whether the very first mount fetch below should behave like the
   // talleres:refresh-session listener further down — a background
   // revalidation that only ever updates state on success — instead of a
@@ -234,7 +279,8 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
   const hasServerSnapshotRef = useRef(initial !== undefined)
 
   useEffect(() => {
-    const fetchCurrentUser = async (options: { silent?: boolean } = {}) => {
+    const fetchCurrentUser = async (options: { silent?: boolean; isRetry?: boolean } = {}) => {
+      cancelLoadRetry(loadRetryRef)
       const authGeneration = authGenerationRef.current + 1
       authGenerationRef.current = authGeneration
 
@@ -297,6 +343,15 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
           setSupportCapabilities([])
           setPlatformSession(null)
         } else {
+          // Retry the same load once (keeping its `silent` mode) so a
+          // transient data/RPC failure heals itself. Only reached by the
+          // newest request (the generation check above), and cancelled by
+          // any later load, SIGNED_IN/SIGNED_OUT or unmount.
+          if (!options.isRetry) {
+            scheduleLoadRetry(loadRetryRef, () => {
+              void fetchCurrentUser({ silent: options.silent, isRetry: true })
+            })
+          }
           if (options.silent) {
             // Same reasoning as the timeout branch above — a data/RPC
             // failure (not an auth failure — see the 'auth_error' branch
@@ -343,6 +398,11 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
         clearTimeout(signedInDebounceRef.current)
         signedInDebounceRef.current = null
       }
+      if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') {
+        // A retry scheduled for the previous identity must not run after it
+        // signed out or was replaced.
+        cancelLoadRetry(loadRetryRef)
+      }
       if (event === 'SIGNED_OUT') {
         authGenerationRef.current += 1
         setAuthUserId(null)
@@ -364,6 +424,7 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
       if (signedInDebounceRef.current) {
         clearTimeout(signedInDebounceRef.current)
       }
+      cancelLoadRetry(loadRetryRef)
       subscription.unsubscribe()
     }
   }, [])
@@ -376,27 +437,40 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
   // NOTE: clearCurrentUserCache() is critical — without it, the
   // module-level cache (15s TTL) returns the stale value and the UI
   // never updates. See Finding 7 in the 4R review for cache semantics.
+  //
+  // Only an `ok` result is applied: a failed roles RPC or capabilities query
+  // now comes back as `error` (see loadCurrentUserData), which keeps the
+  // roles already shown and is retried once, like the mount fetch above.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const onRefresh = (): void => {
-      void (async () => {
-        try {
-          clearCurrentUserCache()
-          const result = await tryFetchCurrentUserData()
-          if (result.kind === 'ok') {
-            setAuthUserId(result.data.authUserId)
-            setUsuario(result.data.usuario)
-            setRoles(result.data.roles)
-            setSupportCapabilities(result.data.supportCapabilities)
-            setPlatformSession(result.data.platformSession)
-          }
-        } catch {
-          // Silent — sidebar refresh is best-effort.
+    const refresh = async (isRetry: boolean): Promise<void> => {
+      cancelLoadRetry(loadRetryRef)
+      try {
+        clearCurrentUserCache()
+        const result = await tryFetchCurrentUserData()
+        if (result.kind === 'ok') {
+          setAuthUserId(result.data.authUserId)
+          setUsuario(result.data.usuario)
+          setRoles(result.data.roles)
+          setSupportCapabilities(result.data.supportCapabilities)
+          setPlatformSession(result.data.platformSession)
+        } else if (result.kind === 'error' && !isRetry) {
+          scheduleLoadRetry(loadRetryRef, () => {
+            void refresh(true)
+          })
         }
-      })()
+      } catch {
+        // Silent — sidebar refresh is best-effort.
+      }
+    }
+    const onRefresh = (): void => {
+      void refresh(false)
     }
     window.addEventListener('talleres:refresh-session', onRefresh)
-    return () => window.removeEventListener('talleres:refresh-session', onRefresh)
+    return () => {
+      window.removeEventListener('talleres:refresh-session', onRefresh)
+      cancelLoadRetry(loadRetryRef)
+    }
   }, [])
 
   const value = useMemo(
