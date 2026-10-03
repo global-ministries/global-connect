@@ -48,6 +48,7 @@ describe('VerificarCertificadoPage', () => {
       valid: true,
       taller_title: 'Finanzas con Propósito',
       participant_name: 'Ana Pérez',
+      partner_name: null,
       completion_date: '2026-05-01',
       signers: ['Pastor Juan'],
     })
@@ -60,6 +61,24 @@ describe('VerificarCertificadoPage', () => {
     expect(html).toContain('Finanzas con Propósito')
     expect(html).toContain('Ana Pérez')
     expect(html).toContain('Pastor Juan')
+    expect(html).not.toContain('Junto a')
+  })
+
+  // T2c (odd/tasks/talleres-cierre-de-edicion.md) — a couple's certificate
+  // names the partner, same copy as the authenticated certificate page.
+  it("shows the partner on a couple's certificate", async () => {
+    verifyPublicCertificateMock.mockResolvedValue({
+      valid: true,
+      taller_title: 'Matrimonio sobre la Roca',
+      participant_name: 'Ana Pérez',
+      partner_name: 'Luis Gómez',
+      completion_date: '2026-05-01',
+      signers: [],
+    })
+
+    const html = await renderPage(VALID_CODE)
+
+    expect(html).toContain('Junto a Luis Gómez')
   })
 
   it('shows the neutral not-found message for an unknown or revoked certificate', async () => {

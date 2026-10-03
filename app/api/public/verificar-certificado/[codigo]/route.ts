@@ -4,7 +4,10 @@
  * GET /api/public/verificar-certificado/[codigo]
  *
  * Returns ONLY non-sensitive columns on success:
- *   { valid: true, taller_title, participant_name, completion_date, signers }
+ *   { valid: true, taller_title, participant_name, partner_name,
+ *     completion_date, signers }
+ * `partner_name` (T2c, odd/tasks/talleres-cierre-de-edicion.md) is the
+ * other person on a couple's certificate, null on an individual one.
  *
  * Returns { valid: false, reason: 'not-found' } with status 404 on a
  * malformed, unknown, revoked, or failed lookup — the SAME shape regardless
@@ -33,6 +36,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext): Promise<NextRes
     valid: true,
     taller_title: result.taller_title,
     participant_name: result.participant_name,
+    partner_name: result.partner_name,
     completion_date: result.completion_date,
     signers: result.signers,
   })

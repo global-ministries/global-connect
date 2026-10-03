@@ -64,6 +64,7 @@ describe('GET /api/public/verificar-certificado/[codigo]', () => {
         persona_id: 'persona-1',
         nombre_taller_snapshot: 'Finanzas con Propósito',
         nombre_participante_snapshot: 'Ana Pérez',
+        nombre_pareja_snapshot: 'Luis Gómez',
         fecha_completitud: '2026-05-01',
         firmantes_snapshot: ['Pastor Juan', 'Pastora María'],
       },
@@ -73,10 +74,13 @@ describe('GET /api/public/verificar-certificado/[codigo]', () => {
     const response = await callRoute(VALID_CODE)
 
     expect(response.status).toBe(200)
+    // T2c (odd/tasks/talleres-cierre-de-edicion.md) — same contract plus
+    // partner_name (null on an individual certificate).
     await expect(response.json()).resolves.toEqual({
       valid: true,
       taller_title: 'Finanzas con Propósito',
       participant_name: 'Ana Pérez',
+      partner_name: 'Luis Gómez',
       completion_date: '2026-05-01',
       signers: ['Pastor Juan', 'Pastora María'],
     })
