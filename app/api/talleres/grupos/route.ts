@@ -4,9 +4,11 @@
  * POST: create a new grupo inside a cohorte, then generate its weekly
  *       sessions (PR47 generate_taller_sesiones, best-effort). Returns
  *       201 { grupo, sesiones }.
- * GET:  list grupos (filter by cohorte_id query param).
  *
- * Capability `talleres_crecimiento.director.write` (POST) / `.director.read` (GET).
+ * The GET list handler was removed (TB-17): nothing called it. The grupo
+ * screens read their grupos server-side (lib/platform/talleres).
+ *
+ * Capability `talleres_crecimiento.director.write`.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -71,64 +73,4 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     { grupo: data, sesiones: sesionesError ? null : sesiones },
     { status: 201 },
   )
-}
-
-export async function GET(req: NextRequest): Promise<NextResponse> {
-  const gate = await requireTalleresApi('talleres_crecimiento.director.read')
-  if (!gate.ok) return gate.response
-
-  const cohorteId = req.nextUrl.searchParams.get('cohorte_id')
-  if (!cohorteId) {
-    return NextResponse.json({ error: 'missing-cohorte-id' }, { status: 400 })
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
-  const client: any = gate.supabase
-  const { data, error } = await client
-    .from('taller_grupos')
-    .select('id, cohorte_id, nombre, capacidad, estado, completed_at')
-    .eq('cohorte_id', cohorteId)
-    .order('nombre', { ascending: true })
-
-  if (error) {
-    return NextResponse.json({ error: 'internal', message: error.message }, { status: 500 })
-  }
-
-  const grupos = (data ?? []) as Array<Record<string, unknown>>
-
-  // T2 (odd/tasks/talleres-inscripcion-a-grupo.md) — ocupación per grupo:
-  // the count of aprobado inscripciones currently placed in it. Retirados
-  // keep their grupo_id (history) but are never counted (Decisiones).
-  // One batched query for every grupo in this cohorte, grouped in TS.
-  const grupoIds = grupos
-    .map((g) => g.id)
-    .filter((id): id is string => typeof id === 'string')
-  const ocupacionByGrupo = new Map<string, number>()
-  // CORRECTION (post-T4 review, item 6): a failed ocupación query used to
-  // be silently swallowed — every grupo then reported ocupacion: 0,
-  // indistinguishable from a real empty grupo. Track the failure and
-  // report null (unknown) instead; the UI renders that as "—", never 0.
-  let ocupacionDesconocida = false
-  if (grupoIds.length > 0) {
-    const { data: aprobadas, error: ocupacionError } = await client
-      .from('taller_inscripciones')
-      .select('grupo_id')
-      .in('grupo_id', grupoIds)
-      .eq('estado', 'aprobado')
-    if (ocupacionError) {
-      ocupacionDesconocida = true
-    } else {
-      for (const row of (aprobadas ?? []) as Array<{ grupo_id: string }>) {
-        ocupacionByGrupo.set(row.grupo_id, (ocupacionByGrupo.get(row.grupo_id) ?? 0) + 1)
-      }
-    }
-  }
-
-  const gruposConOcupacion = grupos.map((g) => ({
-    ...g,
-    ocupacion:
-      ocupacionDesconocida || typeof g.id !== 'string' ? null : (ocupacionByGrupo.get(g.id) ?? 0),
-  }))
-
-  return NextResponse.json({ grupos: gruposConOcupacion, count: gruposConOcupacion.length })
 }

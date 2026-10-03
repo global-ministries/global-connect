@@ -10,17 +10,17 @@
  * (the RPC is idempotent, so it can be retried). The 201 response carries
  * both the created grupo and the generation outcome: { grupo, sesiones }.
  *
- * GET lists grupos for a cohorte (unchanged): { grupos, count }.
+ * The GET list handler was removed (TB-17): nothing called it.
  *
  * Deny-by-default matrix mirrors pr16.test.ts:
  *   - 401 when no authed user
- *   - 403 when capability missing (director.write on POST, director.read on GET)
- *   - 400 when body invalid / fields missing / capacidad <= 0 / cohorte_id missing
+ *   - 403 when director.write is missing
+ *   - 400 when body invalid / fields missing / capacidad <= 0
  */
 
 import { NextRequest } from 'next/server'
 
-import { POST as crearGrupo, GET as listGrupos } from '@/app/api/talleres/grupos/route'
+import { POST as crearGrupo } from '@/app/api/talleres/grupos/route'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(() => true),
@@ -47,12 +47,6 @@ interface MockState {
   lastInsert: Record<string, unknown> | null
   /** id assigned to the freshly-inserted grupo row */
   newGrupoId: string
-  /** rows returned by the GET list query */
-  listRows: unknown[]
-  /** taller_inscripciones rows returned by the ocupación count query (T2) */
-  ocupacionRows: unknown[]
-  /** error the ocupación count query resolves to (item 6 correction) */
-  ocupacionError: { message: string } | null
   /** recorded rpc invocations (capability gate + generate_taller_sesiones) */
   rpcCalls: RpcCall[]
   /** result the generate_taller_sesiones rpc resolves to */
@@ -64,9 +58,6 @@ const state: MockState = {
   capabilities: new Map(),
   lastInsert: null,
   newGrupoId: 'grupo-new',
-  listRows: [],
-  ocupacionRows: [],
-  ocupacionError: null,
   rpcCalls: [],
   sesionesResult: {
     data: { ok: true, grupo_id: 'grupo-new', total: 8, created: 8 },
@@ -79,9 +70,6 @@ function reset(): void {
   state.capabilities = new Map()
   state.lastInsert = null
   state.newGrupoId = 'grupo-new'
-  state.listRows = []
-  state.ocupacionRows = []
-  state.ocupacionError = null
   state.rpcCalls = []
   state.sesionesResult = {
     data: { ok: true, grupo_id: 'grupo-new', total: 8, created: 8 },
@@ -93,21 +81,8 @@ beforeEach(() => {
   reset()
   flagsMock.mockReset().mockReturnValue(true)
 
-  function builder(_table: string): Record<string, jest.Mock> {
+  function builder(): Record<string, jest.Mock> {
     const chain: Record<string, jest.Mock> = {} as Record<string, jest.Mock>
-    // GET path: .select(...).eq(...).order(...) resolves to the list.
-    chain['select'] = jest.fn(() => chain)
-    chain['eq'] = jest.fn(() => chain)
-    chain['order'] = jest.fn(() =>
-      Promise.resolve({ data: state.listRows, error: null }),
-    )
-    // Ocupación query (T2): taller_inscripciones.select(...).in(...).eq(...)
-    chain['in'] = jest.fn(() => chain)
-    if (_table === 'taller_inscripciones') {
-      chain['eq'] = jest.fn(() =>
-        Promise.resolve({ data: state.ocupacionError ? null : state.ocupacionRows, error: state.ocupacionError }),
-      )
-    }
     // POST path: .insert(payload).select(...).single()
     chain['insert'] = jest.fn((payload: Record<string, unknown>) => {
       state.lastInsert = payload
@@ -136,7 +111,7 @@ beforeEach(() => {
       const cap = (args?.['p_capability_key'] ?? args?.['p_capability']) as string
       return Promise.resolve({ data: state.capabilities.get(cap) === true })
     }),
-    from: jest.fn((table: string) => builder(table)),
+    from: jest.fn(() => builder()),
   })
 })
 
@@ -146,10 +121,6 @@ function makeReq(body?: unknown): NextRequest {
     body: body === undefined ? undefined : JSON.stringify(body),
     headers: body === undefined ? undefined : { 'content-type': 'application/json' },
   })
-}
-
-function makeGet(url: string): NextRequest {
-  return new NextRequest(new URL(url), { method: 'GET' })
 }
 
 // ─── POST — deny-by-default ────────────────────────────────────────────────
@@ -231,81 +202,5 @@ describe('PR F — POST /api/talleres/grupos creates grupo + generates sessions'
     expect(body.grupo).toMatchObject({ id: 'grupo-new' })
     // sesiones is null on failure — the caller can retry (RPC is idempotent).
     expect(body.sesiones).toBeNull()
-  })
-})
-
-// ─── GET — list (unchanged contract) ───────────────────────────────────────
-
-describe('PR F — GET /api/talleres/grupos', () => {
-  it('returns 403 when director.read is missing', async () => {
-    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
-    expect(res.status).toBe(403)
-  })
-
-  it('returns 400 when cohorte_id is missing', async () => {
-    state.capabilities.set('talleres_crecimiento.director.read', true)
-    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos'))
-    expect(res.status).toBe(400)
-  })
-
-  it('returns 200 { grupos, count } for a cohorte', async () => {
-    state.capabilities.set('talleres_crecimiento.director.read', true)
-    state.listRows = [
-      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Alfa', capacidad: 12, estado: 'activo', completed_at: null },
-      { id: 'g-2', cohorte_id: 'c-1', nombre: 'Beta', capacidad: 10, estado: 'activo', completed_at: null },
-    ]
-    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.count).toBe(2)
-    expect(body.grupos).toHaveLength(2)
-  })
-
-  // T2 (odd/tasks/talleres-inscripcion-a-grupo.md) — ocupación per grupo.
-  it('attaches ocupacion = count of aprobado inscripciones per grupo, never retiradas', async () => {
-    state.capabilities.set('talleres_crecimiento.director.read', true)
-    state.listRows = [
-      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Alfa', capacidad: 2, estado: 'activo', completed_at: null },
-      { id: 'g-2', cohorte_id: 'c-1', nombre: 'Beta', capacidad: 10, estado: 'activo', completed_at: null },
-    ]
-    state.ocupacionRows = [
-      { grupo_id: 'g-1' },
-      { grupo_id: 'g-1' },
-      { grupo_id: 'g-1' },
-      { grupo_id: 'g-2' },
-    ]
-    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    const g1 = body.grupos.find((g: { id: string }) => g.id === 'g-1')
-    const g2 = body.grupos.find((g: { id: string }) => g.id === 'g-2')
-    expect(g1.ocupacion).toBe(3)
-    expect(g2.ocupacion).toBe(1)
-  })
-
-  it('ocupacion is 0 for a grupo with no aprobadas', async () => {
-    state.capabilities.set('talleres_crecimiento.director.read', true)
-    state.listRows = [
-      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Alfa', capacidad: 2, estado: 'activo', completed_at: null },
-    ]
-    state.ocupacionRows = []
-    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
-    const body = await res.json()
-    expect(body.grupos[0].ocupacion).toBe(0)
-  })
-
-  // CORRECTION (post-T4 review, item 6): an ocupación query error used to
-  // be silently swallowed and reported as ocupacion: 0 — indistinguishable
-  // from a real empty grupo. It must surface as unknown (null), never 0.
-  it('reports ocupacion: null (never 0) when the ocupación query errors', async () => {
-    state.capabilities.set('talleres_crecimiento.director.read', true)
-    state.listRows = [
-      { id: 'g-1', cohorte_id: 'c-1', nombre: 'Alfa', capacidad: 2, estado: 'activo', completed_at: null },
-    ]
-    state.ocupacionError = { message: 'boom' }
-    const res = await listGrupos(makeGet('http://localhost/api/talleres/grupos?cohorte_id=c-1'))
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.grupos[0].ocupacion).toBeNull()
   })
 })
