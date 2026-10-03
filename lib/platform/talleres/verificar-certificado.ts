@@ -7,7 +7,7 @@
  *
  * The lookup always runs as `anon` with no session, even when the visitor is
  * signed in, and goes through the SECURITY DEFINER RPC
- * `verificar_certificado_publico(p_codigo)` (migration 20261003170000): it
+ * `verificar_certificado_publico(p_codigo)` (migration 20261003180000): it
  * returns at most the one non-revoked certificate with that exact code, with
  * only the columns below. anon holds no privilege on taller_certificados, so
  * nobody can list certificates without knowing a code.
