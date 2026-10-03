@@ -10,13 +10,20 @@
  *        edicion label (e.g. "Septiembre 2026") as the subtitle.
  *
  * Renders the selectable list of talleres. When the user selects one,
- * the FAB appears anchored to bottom-right. Clicking the FAB invokes
- * the `inscribirseATaller` server action with the selected taller's id
- * (and its cohorte id, surfaced per-row by the RSC page).
+ * the FAB appears anchored to bottom-right. Clicking the FAB enrolls an
+ * individual edición right away (`inscribirseATaller`) or opens the
+ * partner picker for a couple one.
  *
  * This wrapper exists because the page itself is an RSC (data fetched
  * server-side). Splitting the interactive part into a client component
  * keeps the data layer server-side while isolating the interactivity.
+ *
+ * Inscripción en pareja (odd/tasks/talleres-inscripcion-en-pareja.md P2) —
+ * the action now goes through `talleres_inscribirme`, which resolves the
+ * cohorte server-side, so no cohorte id travels from the browser any more.
+ * Couple ediciones open the partner picker (components/talleres/selector-
+ * pareja.tsx: registered spouse first, then cédula) instead of the
+ * leaders-only SelectLeaderModal.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -25,7 +32,7 @@ import { TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sist
 import { BookOpen } from 'lucide-react'
 
 import { TallerExplorarFab } from '@/components/talleres/explorar-fab'
-import SelectLeaderModal from '@/components/modals/SelectLeaderModal'
+import { SelectorPareja } from '@/components/talleres/selector-pareja'
 import { edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
 import { inscribirseATaller } from './actions'
 
@@ -38,20 +45,13 @@ interface TallerRow {
   readonly tipo: 'individual' | 'pareja'
   /**
    * PR G — couple link type for `tipo === 'pareja'` ediciones (null for
-   * individual). Drives the cónyuge picker and is forwarded to
-   * `inscribirseATaller` on self-enroll.
+   * individual). Drives the partner picker: matrimonio offers the
+   * registered spouse first; null makes the member choose the vínculo.
    */
   readonly link_type: 'matrimonio' | 'novios' | null
   readonly edicion: string
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
-  /**
-   * PR38 — cohorte_id is surfaced per-row by the RSC page
-   * (joined server-side in `loadParticipanteExplorar`). This is the
-   * PRIMARY source of cohorte_id for the inscribirme action; the
-   * page-level `defaultCohorteId` is a back-compat fallback only.
-   */
-  readonly cohorte_id: string | null
   readonly modalidad: 'periodo_general' | 'permanente_custom' | null
   readonly descripcion: string | null
   readonly fecha_apertura: string | null
@@ -73,7 +73,6 @@ interface TallerRow {
 
 interface Input {
   readonly talleres: readonly TallerRow[]
-  readonly defaultCohorteId: string
 }
 
 /**
@@ -102,68 +101,40 @@ function formatModalidad(
   return 'Sin modalidad'
 }
 
-export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): ReactElement {
+export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<string | null>(null)
-  // PR G — cónyuge picker visibility for `tipo === 'pareja'` talleres.
+  // Partner picker visibility for `tipo === 'pareja'` ediciones.
   const [pickerOpen, setPickerOpen] = useState(false)
 
   const selected = talleres.find((t) => t.id === selectedId) ?? null
 
-  /**
-   * Fires the enrollment. Individual talleres pass both couple fields as
-   * null; pareja talleres receive the chosen `companeroId` from the
-   * cónyuge picker and the row's `linkType` (matrimonio | novios).
-   */
-  async function enroll(
-    companeroId: string | null,
-    linkType: 'matrimonio' | 'novios' | null,
-  ): Promise<{ ok: boolean; error?: string }> {
-    if (!selected) return { ok: false, error: 'no-selection' }
-    const cohorteId = selected.cohorte_id ?? defaultCohorteId
-    if (!cohorteId) {
-      setFeedback(
-        'Esta edición aún no tiene cohorte asociada. Contactá al admin.',
-      )
-      return { ok: false, error: 'no-cohorte' }
-    }
-    const result = await inscribirseATaller({
-      tallerId: selected.id,
-      cohorteId,
-      companeroId,
-      linkType,
-    })
-    if (result.ok) {
-      setFeedback('¡Inscripción enviada! Pendiente de aprobación.')
-      setSelectedId(null)
-      return { ok: true }
-    }
-    setFeedback(`Error: ${result.error}`)
-    return { ok: false, error: result.error }
+  /** Shared success path for individual and couple enrollments. */
+  function confirmarInscripcion(): void {
+    setFeedback('¡Inscripción enviada! Pendiente de aprobación.')
+    setPickerOpen(false)
+    setSelectedId(null)
   }
 
   /**
-   * FAB handler. Pareja talleres open the cónyuge picker first — the
-   * actual enrollment fires from `handleConyugeSelected`. Individual
-   * talleres enroll immediately.
+   * FAB handler. Couple ediciones open the partner picker, which enrolls
+   * by itself; individual ones enroll right away with no pareja.
    */
   async function handleInscribirse(): Promise<{ ok: boolean; error?: string }> {
     if (!selected) return { ok: false, error: 'no-selection' }
+    setFeedback(null)
     if (selected.tipo === 'pareja') {
       setPickerOpen(true)
       return { ok: true }
     }
-    return enroll(null, null)
-  }
-
-  /**
-   * Cónyuge chosen from the picker → close it and enroll with the
-   * couple fields (the selected row supplies `link_type`).
-   */
-  function handleConyugeSelected(usuario: { id: string }): void {
-    setPickerOpen(false)
-    void enroll(usuario.id, selected?.link_type ?? null)
+    const result = await inscribirseATaller({ edicionId: selected.id, pareja: null })
+    if (result.ok) {
+      confirmarInscripcion()
+      return { ok: true }
+    }
+    setFeedback(result.message)
+    return { ok: false, error: result.error }
   }
 
   if (talleres.length === 0) {
@@ -257,13 +228,15 @@ export function ExplorarTalleresClient({ talleres, defaultCohorteId }: Input): R
           onInscribirse={handleInscribirse}
         />
       )}
-      <SelectLeaderModal
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={handleConyugeSelected}
-        title="Seleccionar cónyuge"
-        description="Buscá y seleccioná a tu cónyuge para inscribirse juntos en este taller de pareja."
-      />
+      {pickerOpen && selected?.tipo === 'pareja' && (
+        <SelectorPareja
+          key={selected.id}
+          edicionId={selected.id}
+          vinculoEdicion={selected.link_type}
+          onCerrar={() => setPickerOpen(false)}
+          onInscrito={confirmarInscripcion}
+        />
+      )}
       {pending && (
         <div aria-live="polite" className="sr-only">Cargando</div>
       )}

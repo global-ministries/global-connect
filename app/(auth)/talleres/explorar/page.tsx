@@ -2,10 +2,9 @@
  * PR18 — DT-072 — /talleres/explorar (RSC).
  * PR20 — wires the list into a client component (ExplorarTalleresClient)
  *        so that the FAB can react to selection.
- * PR38 — each row now carries its own `cohorte_id` (joined server-side
- *        in `loadParticipanteExplorar`). The page-level `defaultCohorteId`
- *        lookup is kept as a back-compat fallback for legacy rows
- *        created before PR37's cohorte backfill ran.
+ * P2 (odd/tasks/talleres-inscripcion-en-pareja.md) — the page-level
+ *        `defaultCohorteId` fallback is gone: `talleres_inscribirme`
+ *        resolves the cohorte from the edición server-side.
  *
  * Lists talleres currently open for enrollment (`estado='abierto'` or
  * `estado='en_curso'`). Participants see each taller with a flag
@@ -46,18 +45,6 @@ export default async function ExplorarTalleresPage() {
 
   const talleres = await loadParticipanteExplorar(ctx)
 
-  // PR38 — back-compat fallback. Each row already carries its own
-  // `cohorte_id` (joined server-side). This page-level lookup is
-  // only consulted when a row's per-taller cohorte_id is null
-  // (e.g. legacy rows from before PR37's backfill).
-  const cohorteRes = await client
-    .from('talleres_crecimiento_cohortes')
-    .select('id')
-    .eq('estado', 'activo')
-    .limit(1)
-    .maybeSingle()
-  const defaultCohorteId: string = (cohorteRes.data?.id as string | undefined) ?? ''
-
   return (
     <ContenedorDashboard
       titulo="Explorar Talleres"
@@ -72,10 +59,7 @@ export default async function ExplorarTalleresPage() {
             deshabilitada.
           </TextoSistema>
         </TarjetaSistema>
-        <ExplorarTalleresClient
-          talleres={talleres}
-          defaultCohorteId={defaultCohorteId}
-        />
+        <ExplorarTalleresClient talleres={talleres} />
       </div>
     </ContenedorDashboard>
   )
