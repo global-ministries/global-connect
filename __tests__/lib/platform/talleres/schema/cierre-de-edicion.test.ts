@@ -51,6 +51,7 @@ function findMigration(pattern: RegExp): string | null {
 }
 
 function functionBlock(sql: string, name: string): string {
+  // eslint-disable-next-line security/detect-non-literal-regexp -- name comes from fixed function names in this file
   const pattern = new RegExp(
     `CREATE\\s+OR\\s+REPLACE\\s+FUNCTION\\s+public\\.${name}\\s*\\([\\s\\S]*?\\$(function)?\\$;`,
     'i',
@@ -127,6 +128,7 @@ describe('cierre de edición migration', () => {
 
     it('emit_taller_certificado keeps the keys generateCertificateForInscription reads and adds certificados', () => {
       for (const key of ['ok', 'created', 'certificado_id', 'codigo_verificacion', 'inscripcion_id', 'certificados']) {
+        // eslint-disable-next-line security/detect-non-literal-regexp -- built from a fixed local list
         expect(emitBlock).toMatch(new RegExp(`'${key}'\\s*,`))
       }
       expect(emitBlock).toMatch(/p_inscripcion_id\s+uuid\s*,\s*p_codigo_verificacion\s+text/i)
@@ -179,6 +181,7 @@ describe('cierre de edición migration', () => {
     it('revokes PUBLIC and anon on every new or redefined function', () => {
       for (const signature of [...PUBLIC_RPCS, ...INTERNAL_HELPERS]) {
         expect(sqlOnly).toMatch(
+          // eslint-disable-next-line security/detect-non-literal-regexp -- built from a fixed local list
           new RegExp(`REVOKE\\s+ALL\\s+ON\\s+FUNCTION\\s+public\\.${signature}\\s+FROM\\s+PUBLIC,\\s*anon\\b`, 'i'),
         )
       }
@@ -187,14 +190,17 @@ describe('cierre de edición migration', () => {
     it('grants the RPCs to authenticated and keeps every internal helper away from it', () => {
       for (const signature of PUBLIC_RPCS) {
         expect(sqlOnly).toMatch(
+          // eslint-disable-next-line security/detect-non-literal-regexp -- built from a fixed local list
           new RegExp(`GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+public\\.${signature}\\s+TO\\s+authenticated,\\s*service_role;`, 'i'),
         )
       }
       for (const signature of INTERNAL_HELPERS) {
         expect(sqlOnly).toMatch(
+          // eslint-disable-next-line security/detect-non-literal-regexp -- built from a fixed local list
           new RegExp(`REVOKE\\s+ALL\\s+ON\\s+FUNCTION\\s+public\\.${signature}\\s+FROM\\s+PUBLIC,\\s*anon,\\s*authenticated;`, 'i'),
         )
         expect(sqlOnly).not.toMatch(
+          // eslint-disable-next-line security/detect-non-literal-regexp -- built from a fixed local list
           new RegExp(`GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+public\\.${signature}\\s+TO[^;]*authenticated`, 'i'),
         )
       }
