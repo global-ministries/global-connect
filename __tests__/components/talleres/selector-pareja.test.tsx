@@ -95,7 +95,7 @@ describe('SelectorPareja — registered spouse first (matrimonio)', () => {
     expect(buscarMock).toHaveBeenCalledWith('ed-1', 'V-12.345.678')
     expect(await screen.findByText('María G.')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /sí, es mi pareja/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /sí, es mi pareja/i }))
 
     await waitFor(() =>
       expect(inscribirseMock).toHaveBeenCalledWith({
