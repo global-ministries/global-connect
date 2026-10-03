@@ -37,7 +37,6 @@ import { POST as cerrar } from '@/app/api/talleres/sesiones/[id]/cerrar/route'
 import { POST as registrarAsistencia } from '@/app/api/talleres/sesiones/[id]/asistencia/route'
 import { POST as enviarReporte } from '@/app/api/talleres/grupos/[id]/reporte/enviar/route'
 import { POST as reabrirReporte } from '@/app/api/talleres/grupos/[id]/reporte/reabrir/route'
-import { GET as listCertificados } from '@/app/api/talleres/certificados/route'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(() => true),
@@ -188,10 +187,6 @@ function makeReq(body?: unknown, url?: string): NextRequest {
   })
 }
 
-function makeGet(url: string): NextRequest {
-  return new NextRequest(new URL(url), { method: 'GET' })
-}
-
 // ─── Deny-by-default matrix ───────────────────────────────────────────────
 
 describe('PR16 — deny-by-default 401 path', () => {
@@ -246,10 +241,6 @@ describe('PR16 — deny-by-default 403 path', () => {
         { params: Promise.resolve({ id: 'g-1' }) },
       ),
     ],
-    [
-      'certificados (director.read)',
-      () => listCertificados(makeGet('http://localhost/api/talleres/certificados?inscripcion_id=i-1')),
-    ],
   ])('%s returns 403 when capability missing', async (_name, fn) => {
     state.capabilities = new Map()
     const res = await fn()
@@ -273,16 +264,15 @@ describe('PR16 — deny-by-default 404 path', () => {
     expect(res.status).toBe(404)
   })
 
-  it('certificados sin inscripcion_id → 400', async () => {
-    state.capabilities.set('talleres_crecimiento.director.read', true)
-    const res = await listCertificados(makeGet('http://localhost/api/talleres/certificados'))
-    expect(res.status).toBe(400)
-  })
-
   it('feature flag off → 404 across all routes', async () => {
     flagsMock.mockReturnValue(false)
-    const res = await listCertificados(makeGet('http://localhost/api/talleres/certificados?inscripcion_id=i-1'))
+    // An authorized caller and an existing, openable sesion: only the
+    // kill switch can turn this into a 404.
+    state.capabilities.set('talleres_crecimiento.coordinator.write', true)
+    state.singleResult = { data: { estado: 'programada' }, error: null }
+    const res = await abrir(makeReq({}), { params: Promise.resolve({ id: 's-1' }) })
     expect(res.status).toBe(404)
+    expect(state.callCounts.update).toBe(0)
   })
 })
 

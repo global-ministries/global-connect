@@ -459,7 +459,7 @@ export interface GrupoInstanciado {
   readonly nombre: string
   readonly capacidad: number
   readonly estado: string
-  /** null = the ocupación count query errored — an explicit "unknown", never a misreported 0 (same rule as GET /api/talleres/grupos). */
+  /** null = the ocupación count query errored — an explicit "unknown", never a misreported 0. */
   readonly ocupacion: number | null
   readonly facilitadores: readonly GrupoInstanciadoFacilitador[]
 }
@@ -493,9 +493,9 @@ const GRUPO_INSTANCIADO_SELECT = `
  * and only nombre/apellido are merged in from the RPC by (grupo_id,
  * persona_id).
  *
- * Ocupación mirrors GET /api/talleres/grupos' own batched query: one
- * `taller_inscripciones` lookup for every grupo id in this cohorte,
- * counted client-side. A failed ocupación query degrades every grupo's
+ * Ocupación is one batched `taller_inscripciones` lookup for every grupo
+ * id in this cohorte, counted client-side (it used to mirror the GET
+ * /api/talleres/grupos list, removed in TB-17 because nothing called it). A failed ocupación query degrades every grupo's
  * ocupación to `null` (unknown, rendered "—"), never a misreported 0.
  *
  * Best-effort on the grupos query itself, same contract as loadPlantillaGrupos:
