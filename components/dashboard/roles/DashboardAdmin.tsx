@@ -13,6 +13,9 @@ import { createClient } from '@/lib/supabase/client'
 import { HostHomeQueuesWidget } from '@/components/dashboard/widgets/HostHomeQueuesWidget'
 import { canReviewHostHomes } from '@/lib/casas-anfitrionas/review-roles'
 
+// Delay before the single retry of a failed campus refresh.
+export const KPI_RETRY_DELAY_MS = 1500
+
 interface PropsDashboardAdmin {
   data: any
   rol?: string
@@ -37,9 +40,29 @@ export default function DashboardAdmin({ data: initialData, rol, campusInicialId
 
   // Re-fetch when campus changes (skip for DG — their data is already scoped by the server RPC)
   const esDG = rol === 'director-general'
-  // Campus the shown KPIs belong to; it starts as the campus the server scoped them to.
+  // Campus the shown KPIs belong to; it starts as the campus the server scoped them to and
+  // only moves after both numbers of another campus were applied.
   const campusDeLosDatos = useRef<string | null>(campusInicialId)
-  const refrescarDatos = useCallback(async () => {
+  // Campus last asked for; a reply or retry for any other campus is stale.
+  const campusPedido = useRef<string | null>(campusInicialId)
+  const reintento = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const montado = useRef(true)
+
+  const cancelarReintento = useCallback(() => {
+    if (reintento.current) clearTimeout(reintento.current)
+    reintento.current = null
+  }, [])
+
+  const refrescarDatos = useCallback(async function refrescar(campus: string | null, intento = 0): Promise<void> {
+    // Mirrors the server's obtenerKpisCampus: members and active groups are applied together
+    // or not at all, so the two cards never show different scopes. A failure keeps the
+    // previous numbers and tries once more.
+    const fallar = (motivo: unknown) => {
+      console.error('Error refrescando los KPIs del campus:', motivo)
+      if (intento === 0 && montado.current) {
+        reintento.current = setTimeout(() => { void refrescar(campus, intento + 1) }, KPI_RETRY_DELAY_MS)
+      }
+    }
     setRefrescando(true)
     try {
       const supabase = createClient()
@@ -53,41 +76,55 @@ export default function DashboardAdmin({ data: initialData, rol, campusInicialId
         .select('id', { count: 'exact', head: true })
         .eq('activo', true)
         .eq('eliminado', false)
-      if (campusId) consultaGruposActivos = consultaGruposActivos.eq('campus_id', campusId)
+      if (campus) consultaGruposActivos = consultaGruposActivos.eq('campus_id', campus)
 
-      const [{ data: resumen }, { count: gruposActivos, error: errorGrupos }] = await Promise.all([
-        supabase.rpc('resumen_dashboard_admin', campusId ? { p_campus_id: campusId } : {}),
+      const [resumen, grupos] = await Promise.all([
+        supabase.rpc('resumen_dashboard_admin', campus ? { p_campus_id: campus } : {}),
         consultaGruposActivos,
       ])
-      if (errorGrupos) console.error('Error contando grupos activos:', errorGrupos)
       // A slower response for a campus the user already left must not overwrite newer numbers.
-      if (campusDeLosDatos.current !== campusId) return
+      if (!montado.current || campusPedido.current !== campus) return
 
       // total_usuarios is every registered person (in the campus), like the server total.
-      const r = resumen as any
+      const totalUsuarios = (resumen.data as { total_usuarios?: unknown } | null)?.total_usuarios
+      if (resumen.error || grupos.error || typeof totalUsuarios !== 'number' || grupos.count == null) {
+        fallar(resumen.error ?? grupos.error ?? 'respuesta incompleta')
+        return
+      }
+      const gruposActivos = grupos.count
+      campusDeLosDatos.current = campus
       setData((prev: any) => ({
         ...prev,
         kpis_globales: {
           ...prev?.kpis_globales,
-          ...(r?.total_usuarios != null ? { total_miembros: { valor: r.total_usuarios } } : {}),
-          ...(!errorGrupos && gruposActivos != null ? { grupos_activos: { valor: gruposActivos } } : {}),
+          total_miembros: { valor: totalUsuarios },
+          grupos_activos: { valor: gruposActivos },
         },
       }))
     } catch (err) {
-      console.error('Error refrescando dashboard:', err)
+      if (montado.current && campusPedido.current === campus) fallar(err)
     } finally {
       setRefrescando(false)
     }
-  }, [campusId])
+  }, [])
 
   useEffect(() => {
-    // Only re-fetch when the campus differs from the one the KPIs belong to: this skips the
-    // initial load when the server already used the selected campus (or none), and still
-    // covers a campus selected on mount that the server did not know about.
-    if (loadingCampus || esDG || campusId === campusDeLosDatos.current) return
-    campusDeLosDatos.current = campusId
-    refrescarDatos()
-  }, [refrescarDatos, campusId, loadingCampus, esDG])
+    // Only re-fetch for a campus not asked for yet, and only when the shown KPIs belong to
+    // another one: this skips the initial load when the server already used the selected
+    // campus (or none), and still covers a campus selected on mount the server did not know.
+    if (loadingCampus || esDG || campusId === campusPedido.current) return
+    campusPedido.current = campusId
+    cancelarReintento()
+    if (campusId !== campusDeLosDatos.current) void refrescarDatos(campusId)
+  }, [refrescarDatos, cancelarReintento, campusId, loadingCampus, esDG])
+
+  useEffect(() => {
+    montado.current = true
+    return () => {
+      montado.current = false
+      cancelarReintento()
+    }
+  }, [cancelarReintento])
 
   const kpis = data?.kpis_globales || {}
   const totalMiembros = aNumero(kpis?.total_miembros?.valor) ?? 0

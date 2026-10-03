@@ -1,7 +1,7 @@
 import React from 'react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 
-import DashboardAdmin from '@/components/dashboard/roles/DashboardAdmin'
+import DashboardAdmin, { KPI_RETRY_DELAY_MS } from '@/components/dashboard/roles/DashboardAdmin'
 
 const mockCampus: { campusId: string | null; loading: boolean } = { campusId: null, loading: false }
 const mockCreateClient = jest.fn()
@@ -132,5 +132,154 @@ describe('DashboardAdmin KPIs', () => {
 
     expect(supabase.rpc).not.toHaveBeenCalled()
     expect(screen.getByText('Total Miembros: 869')).toBeInTheDocument()
+  })
+})
+
+// One scripted reply per campus and attempt; both lookups of an attempt share it.
+type ScriptedReply = {
+  wait?: Promise<void>
+  usuarios?: number | null
+  grupos?: number
+  resumenError?: Error
+  gruposError?: Error
+}
+
+function deferred() {
+  let resolve: () => void = () => undefined
+  const promise = new Promise<void>((done) => { resolve = done })
+  return { promise, resolve }
+}
+
+function createScriptedSupabase(script: (campus: string | null, attempt: number) => ScriptedReply) {
+  const nextAttempt = (attempts: Map<string | null, number>, campus: string | null) => {
+    const attempt = attempts.get(campus) ?? 0
+    attempts.set(campus, attempt + 1)
+    return script(campus, attempt)
+  }
+  const rpcAttempts = new Map<string | null, number>()
+  const gruposAttempts = new Map<string | null, number>()
+  return {
+    auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } } }) },
+    rpc: jest.fn(async (_name: string, args: { p_campus_id?: string }) => {
+      const reply = nextAttempt(rpcAttempts, args.p_campus_id ?? null)
+      await reply.wait
+      return reply.resumenError
+        ? { data: null, error: reply.resumenError }
+        : { data: { total_usuarios: reply.usuarios ?? null, total_grupos: 999 }, error: null }
+    }),
+    from: jest.fn(() => {
+      let campus: string | null = null
+      const query = {
+        select: () => query,
+        eq: (column: string, value: string) => {
+          if (column === 'campus_id') campus = value
+          return query
+        },
+        then: (resolve: (value: { count: number | null; error: Error | null }) => unknown) => {
+          const reply = nextAttempt(gruposAttempts, campus)
+          return Promise.resolve(reply.wait).then(() => resolve(reply.gruposError
+            ? { count: null, error: reply.gruposError }
+            : { count: reply.grupos ?? null, error: null }))
+        },
+      }
+      return query
+    }),
+  }
+}
+
+describe('DashboardAdmin campus refresh failures', () => {
+  let consoleError: jest.SpyInstance
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+    consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockCampus.campusId = null
+    mockCampus.loading = false
+    mockCreateClient.mockReset()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+    consoleError.mockRestore()
+  })
+
+  function expectServerNumbers() {
+    expect(screen.getByText('Total Miembros: 869')).toBeInTheDocument()
+    expect(screen.getByText('Grupos Activos: 74')).toBeInTheDocument()
+  }
+
+  it('keeps the newer campus numbers when an older campus reply arrives last', async () => {
+    const campusAReply = deferred()
+    mockCreateClient.mockReturnValue(createScriptedSupabase((campus) => campus === 'campus-a'
+      ? { wait: campusAReply.promise, usuarios: 100, grupos: 10 }
+      : { usuarios: 200, grupos: 20 }))
+    mockCampus.campusId = 'campus-a'
+    const { rerender } = render(<DashboardAdmin rol="admin" data={serverData} />)
+
+    mockCampus.campusId = 'campus-b'
+    rerender(<DashboardAdmin rol="admin" data={serverData} />)
+    await waitFor(() => expect(screen.getByText('Total Miembros: 200')).toBeInTheDocument())
+
+    await act(async () => { campusAReply.resolve() })
+
+    expect(screen.getByText('Total Miembros: 200')).toBeInTheDocument()
+    expect(screen.getByText('Grupos Activos: 20')).toBeInTheDocument()
+  })
+
+  it('keeps both numbers when the groups count fails, then applies both after one retry', async () => {
+    const supabase = createScriptedSupabase((_campus, attempt) => attempt === 0
+      ? { usuarios: 312, gruposError: new Error('grupos unavailable') }
+      : { usuarios: 312, grupos: 18 })
+    mockCreateClient.mockReturnValue(supabase)
+    mockCampus.campusId = 'campus-1'
+
+    render(<DashboardAdmin rol="admin" data={serverData} />)
+    await waitFor(() => expect(consoleError).toHaveBeenCalledTimes(1))
+    expectServerNumbers()
+
+    await act(async () => { await jest.advanceTimersByTimeAsync(KPI_RETRY_DELAY_MS) })
+
+    await waitFor(() => expect(screen.getByText('Total Miembros: 312')).toBeInTheDocument())
+    expect(screen.getByText('Grupos Activos: 18')).toBeInTheDocument()
+    expect(supabase.rpc).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    ['an error', { resumenError: new Error('resumen unavailable'), grupos: 18 }],
+    ['no total_usuarios', { usuarios: null, grupos: 18 }],
+  ] satisfies Array<[string, ScriptedReply]>)('keeps both numbers when the summary returns %s, retrying only once', async (_label, reply) => {
+    const supabase = createScriptedSupabase(() => reply)
+    mockCreateClient.mockReturnValue(supabase)
+    mockCampus.campusId = 'campus-1'
+
+    render(<DashboardAdmin rol="admin" data={serverData} />)
+    await waitFor(() => expect(consoleError).toHaveBeenCalledTimes(1))
+    expectServerNumbers()
+
+    await act(async () => { await jest.advanceTimersByTimeAsync(KPI_RETRY_DELAY_MS * 3) })
+
+    expectServerNumbers()
+    expect(supabase.rpc).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    ['a newer campus change', (rerender: (ui: React.ReactElement) => void) => {
+      mockCampus.campusId = 'campus-2'
+      rerender(<DashboardAdmin rol="admin" data={serverData} />)
+    }],
+    ['unmounting', (_rerender: (ui: React.ReactElement) => void, unmount: () => void) => unmount()],
+  ])('cancels the pending retry on %s', async (_label, interrupt) => {
+    const supabase = createScriptedSupabase((campus) => campus === 'campus-1'
+      ? { usuarios: 312, gruposError: new Error('grupos unavailable') }
+      : { usuarios: 200, grupos: 20 })
+    mockCreateClient.mockReturnValue(supabase)
+    mockCampus.campusId = 'campus-1'
+    const { rerender, unmount } = render(<DashboardAdmin rol="admin" data={serverData} />)
+    await waitFor(() => expect(consoleError).toHaveBeenCalledTimes(1))
+
+    interrupt(rerender, unmount)
+    await act(async () => { await jest.advanceTimersByTimeAsync(KPI_RETRY_DELAY_MS * 3) })
+
+    expect(supabase.rpc.mock.calls.filter(([, args]) => args.p_campus_id === 'campus-1')).toHaveLength(1)
   })
 })
