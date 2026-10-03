@@ -15,6 +15,9 @@ export interface RespuestaDashboard {
   platformSession: PlatformSession | null
 }
 
+// Roles rendered by DashboardAdmin with an organization-wide view.
+const ROLES_CON_TOTAL_PERSONAS = new Set(['admin', 'pastor'])
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -61,7 +64,11 @@ export async function obtenerDatosDashboard(): Promise<RespuestaDashboard> {
       // Fallbacks mínimos si faltan datos (skip for DG, their data is already scoped)
       if (rolRpc !== 'director-general') {
         const kpisGlobales = ensureKpisGlobales(widgets)
-        if (kpisGlobales.total_miembros == null) {
+        // Admin and pastor read "Total Miembros" as every registered person, while the RPC
+        // counts only people in active groups. Replace it before the first paint so the card
+        // does not jump; its variation measured group membership, so it is dropped too.
+        // If the count fails, the RPC value stays as a best-effort number.
+        if (ROLES_CON_TOTAL_PERSONAS.has(rolRpc) || kpisGlobales.total_miembros == null) {
           const total = await getTotalUsuarios()
           if (total != null) kpisGlobales.total_miembros = { valor: total }
         }

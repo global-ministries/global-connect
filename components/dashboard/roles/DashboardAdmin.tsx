@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { MetricWidget } from '@/components/dashboard/widgets/MetricWidget'
 import { DonutWidget } from '@/components/dashboard/widgets/DonutWidget'
 import { ActivityWidget } from '@/components/dashboard/widgets/ActivityWidget'
@@ -35,48 +35,56 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
 
   // Re-fetch when campus changes (skip for DG — their data is already scoped by the server RPC)
   const esDG = rol === 'director-general'
+  // Campus the shown KPIs belong to; the server numbers are global, so it starts empty.
+  const campusDeLosDatos = useRef<string | null>(null)
   const refrescarDatos = useCallback(async () => {
-    if (loadingCampus || esDG) return
     setRefrescando(true)
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Call obtener_datos_dashboard which already supports campus filtering
-      // through RLS (the RPC sees the user's data filtered)
-      
-      // Also get the resumen with campus filter for KPIs
-      const { data: resumen } = await supabase.rpc(
-        'resumen_dashboard_admin',
-        campusId ? { p_campus_id: campusId } : {}
-      )
+      // total_grupos counts every group, so active groups are counted with the same rule
+      // as obtener_datos_dashboard (activo and not eliminado), scoped like the summary.
+      let consultaGruposActivos = supabase
+        .from('grupos')
+        .select('id', { count: 'exact', head: true })
+        .eq('activo', true)
+        .eq('eliminado', false)
+      if (campusId) consultaGruposActivos = consultaGruposActivos.eq('campus_id', campusId)
 
-      if (resumen) {
-        const r = resumen as any
-        setData((prev: any) => ({
-          ...prev,
-          kpis_globales: {
-            total_miembros: { valor: r.total_usuarios },
-            grupos_activos: { valor: r.total_grupos },
-            asistencia_semanal: prev?.kpis_globales?.asistencia_semanal,
-            nuevos_miembros_mes: prev?.kpis_globales?.nuevos_miembros_mes,
-          },
-        }))
-      }
+      const [{ data: resumen }, { count: gruposActivos, error: errorGrupos }] = await Promise.all([
+        supabase.rpc('resumen_dashboard_admin', campusId ? { p_campus_id: campusId } : {}),
+        consultaGruposActivos,
+      ])
+      if (errorGrupos) console.error('Error contando grupos activos:', errorGrupos)
+      // A slower response for a campus the user already left must not overwrite newer numbers.
+      if (campusDeLosDatos.current !== campusId) return
+
+      // total_usuarios is every registered person (in the campus), like the server total.
+      const r = resumen as any
+      setData((prev: any) => ({
+        ...prev,
+        kpis_globales: {
+          ...prev?.kpis_globales,
+          ...(r?.total_usuarios != null ? { total_miembros: { valor: r.total_usuarios } } : {}),
+          ...(!errorGrupos && gruposActivos != null ? { grupos_activos: { valor: gruposActivos } } : {}),
+        },
+      }))
     } catch (err) {
       console.error('Error refrescando dashboard:', err)
     } finally {
       setRefrescando(false)
     }
-  }, [campusId, loadingCampus, esDG])
+  }, [campusId])
 
   useEffect(() => {
-    // Only re-fetch when campus changes (not on initial load)
-    if (!loadingCampus) {
-      refrescarDatos()
-    }
-  }, [refrescarDatos, loadingCampus])
+    // Only re-fetch when the campus differs from the one the KPIs belong to: this skips the
+    // initial load without a campus and still covers a campus already selected on mount.
+    if (loadingCampus || esDG || campusId === campusDeLosDatos.current) return
+    campusDeLosDatos.current = campusId
+    refrescarDatos()
+  }, [refrescarDatos, campusId, loadingCampus, esDG])
 
   const kpis = data?.kpis_globales || {}
   const totalMiembros = aNumero(kpis?.total_miembros?.valor) ?? 0

@@ -53,6 +53,41 @@ describe('obtenerDatosDashboard platform session continuity', () => {
   })
 })
 
+describe('obtenerDatosDashboard total members definition', () => {
+  const rpcKpis = { total_miembros: { valor: 869, variacion: 4.2 }, grupos_activos: { valor: 74 } }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    getTotalUsuarios.mockResolvedValue(1021)
+    getTotalGruposActivos.mockResolvedValue(74)
+    getDistribucionSegmentos.mockResolvedValue([])
+  })
+
+  function mockDashboardRpc(rol: string) {
+    getUserWithRoles.mockResolvedValue({ user: { id: 'auth-1' }, roles: [rol], platformSession: null })
+    const supabase = createDashboardSupabaseMock()
+    supabase.rpc.mockResolvedValue({ data: { rol, widgets: { kpis_globales: { ...rpcKpis } } }, error: null })
+    createSupabaseServerClient.mockResolvedValue(supabase)
+  }
+
+  it.each(['admin', 'pastor'])('shows every registered person to the %s instead of members of active groups', async (rol) => {
+    mockDashboardRpc(rol)
+
+    const result = await obtenerDatosDashboard()
+
+    expect(result.widgets.kpis_globales).toEqual({ total_miembros: { valor: 1021 }, grupos_activos: { valor: 74 } })
+  })
+
+  it('keeps the RPC member count for a director-general', async () => {
+    mockDashboardRpc('director-general')
+
+    const result = await obtenerDatosDashboard()
+
+    expect(result.widgets.kpis_globales).toEqual(rpcKpis)
+    expect(getTotalUsuarios).not.toHaveBeenCalled()
+  })
+})
+
 function createDashboardSupabaseMock() {
   return { auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } }, error: null }) }, rpc: jest.fn(), from: jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ gte: jest.fn().mockResolvedValue({ count: 5 }) }) }) }
 }
