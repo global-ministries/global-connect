@@ -16,9 +16,11 @@ import { canReviewHostHomes } from '@/lib/casas-anfitrionas/review-roles'
 interface PropsDashboardAdmin {
   data: any
   rol?: string
+  /** Campus the server scoped the KPIs to (null when they are global). */
+  campusInicialId?: string | null
 }
 
-export default function DashboardAdmin({ data: initialData, rol }: PropsDashboardAdmin) {
+export default function DashboardAdmin({ data: initialData, rol, campusInicialId = null }: PropsDashboardAdmin) {
   const { campusId, loading: loadingCampus } = useCampus()
   const [data, setData] = useState(initialData)
   const [refrescando, setRefrescando] = useState(false)
@@ -35,8 +37,8 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
 
   // Re-fetch when campus changes (skip for DG — their data is already scoped by the server RPC)
   const esDG = rol === 'director-general'
-  // Campus the shown KPIs belong to; the server numbers are global, so it starts empty.
-  const campusDeLosDatos = useRef<string | null>(null)
+  // Campus the shown KPIs belong to; it starts as the campus the server scoped them to.
+  const campusDeLosDatos = useRef<string | null>(campusInicialId)
   const refrescarDatos = useCallback(async () => {
     setRefrescando(true)
     try {
@@ -80,7 +82,8 @@ export default function DashboardAdmin({ data: initialData, rol }: PropsDashboar
 
   useEffect(() => {
     // Only re-fetch when the campus differs from the one the KPIs belong to: this skips the
-    // initial load without a campus and still covers a campus already selected on mount.
+    // initial load when the server already used the selected campus (or none), and still
+    // covers a campus selected on mount that the server did not know about.
     if (loadingCampus || esDG || campusId === campusDeLosDatos.current) return
     campusDeLosDatos.current = campusId
     refrescarDatos()

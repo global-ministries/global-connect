@@ -95,6 +95,33 @@ describe('DashboardAdmin KPIs', () => {
     expect(supabase.eq).not.toHaveBeenCalledWith('campus_id', null)
   })
 
+  it('keeps the server numbers on mount when they already belong to the selected campus', async () => {
+    mockCampus.campusId = 'campus-1'
+    const supabase = createSupabaseMock()
+    mockCreateClient.mockReturnValue(supabase)
+
+    const { rerender } = render(<DashboardAdmin rol="admin" data={serverData} campusInicialId="campus-1" />)
+    await act(async () => {})
+
+    expect(supabase.rpc).not.toHaveBeenCalled()
+    expect(screen.getByText('Total Miembros: 869')).toBeInTheDocument()
+
+    mockCampus.campusId = null
+    rerender(<DashboardAdmin rol="admin" data={serverData} campusInicialId="campus-1" />)
+    await waitFor(() => expect(supabase.rpc).toHaveBeenCalledWith('resumen_dashboard_admin', {}))
+  })
+
+  it('refreshes on mount when the selected campus differs from the server campus', async () => {
+    mockCampus.campusId = 'campus-2'
+    const supabase = createSupabaseMock()
+    mockCreateClient.mockReturnValue(supabase)
+
+    render(<DashboardAdmin rol="admin" data={serverData} campusInicialId="campus-1" />)
+
+    expect(await screen.findByText('Total Miembros: 312')).toBeInTheDocument()
+    expect(supabase.rpc).toHaveBeenCalledWith('resumen_dashboard_admin', { p_campus_id: 'campus-2' })
+  })
+
   it('never refreshes for a director-general, whose data is already scoped by the server', async () => {
     mockCampus.campusId = 'campus-1'
     const supabase = createSupabaseMock()

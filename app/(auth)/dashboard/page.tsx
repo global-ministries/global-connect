@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { cookies } from 'next/headers'
 
 import { ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { obtenerDatosDashboard } from '@/lib/dashboard/obtenerDatosDashboard'
@@ -15,6 +16,17 @@ export const dynamic = 'force-dynamic'
 
 const operationalDashboardRoles = new Set(['admin', 'pastor', 'director-general', 'director-etapa', 'lider'])
 export const HOST_HOME_QUEUE_FETCH_TIMEOUT_MS = 3000
+
+// Written by CampusProvider (hooks/useCampus.tsx) when the person picks a campus.
+const CAMPUS_COOKIE = 'gc_campus_activo'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// The cookie is client-controlled, so only a well-formed uuid is accepted; it narrows the
+// first paint to the selected campus and is never used for access control.
+async function leerCampusInicial(): Promise<string | null> {
+  const valor = (await cookies()).get(CAMPUS_COOKIE)?.value
+  return valor && UUID_RE.test(valor) ? valor : null
+}
 
 type QueueActionResult<T> = {
   success: boolean
@@ -70,7 +82,7 @@ async function obtenerColasCasasAnfitrionas(rol: string): Promise<HostHomeQueues
 }
 
 export default async function PaginaTablero() {
-  const data = await obtenerDatosDashboard()
+  const data = await obtenerDatosDashboard(await leerCampusInicial())
   const hostHomeQueues = await obtenerColasCasasAnfitrionas(data.rol)
   const widgets = hostHomeQueues
     ? { ...data.widgets, casas_anfitrionas_queues: hostHomeQueues }
@@ -92,7 +104,7 @@ export default async function PaginaTablero() {
   return (
 <ContenedorDashboard titulo={titulo} descripcion={descripcion}>
         {data.rol === 'admin' || data.rol === 'pastor' || data.rol === 'director-general' ? (
-          <DashboardAdmin data={widgets} rol={data.rol} />
+          <DashboardAdmin data={widgets} rol={data.rol} campusInicialId={data.campusId ?? null} />
         ) : data.rol === 'director-etapa' ? (
           <DashboardDirector data={widgets} />
         ) : data.rol === 'lider' ? (
