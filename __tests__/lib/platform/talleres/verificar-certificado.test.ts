@@ -2,9 +2,10 @@
  * @jest-environment node
  *
  * Shared public certificate lookup used by both the verification page and
- * GET /api/public/verificar-certificado/[codigo]. It must query as `anon`
- * with no session, so RLS `taller_certificados_select_anon`
- * (revocado_at IS NULL) alone decides what a visitor can see.
+ * GET /api/public/verificar-certificado/[codigo]. It must run as `anon`
+ * with no session and go through the RPC verificar_certificado_publico,
+ * which returns only the non-revoked certificate with that exact code; anon
+ * has no privilege on taller_certificados itself.
  */
 
 import { verifyPublicCertificate } from '@/lib/platform/talleres/verificar-certificado'
@@ -15,9 +16,6 @@ jest.mock('@supabase/supabase-js', () => ({
 }))
 
 const VALID_CODE = 'abcdefghijkmnpqr'
-const NON_SENSITIVE_COLUMNS =
-  'id, codigo_verificacion, taller_id, persona_id, nombre_taller_snapshot, nombre_participante_snapshot, nombre_pareja_snapshot, fecha_completitud, firmantes_snapshot'
-
 const ROW = {
   id: 'cert-1',
   codigo_verificacion: VALID_CODE,
@@ -30,15 +28,13 @@ const ROW = {
   firmantes_snapshot: ['Pastor Juan', 42, 'Pastora María'],
 }
 
-type QueryResult = { data: Record<string, unknown> | null; error: { message: string } | null }
+type RpcResult = { data: Record<string, unknown>[] | null; error: { message: string } | null }
 
-function queueQuery(result: QueryResult) {
-  const maybeSingle = jest.fn().mockResolvedValue(result)
-  const eq = jest.fn(() => ({ maybeSingle }))
-  const select = jest.fn(() => ({ eq }))
-  const from = jest.fn(() => ({ select }))
-  createClientMock.mockReturnValue({ from })
-  return { from, select, eq, maybeSingle }
+function queueRpc(result: RpcResult) {
+  const rpc = jest.fn().mockResolvedValue(result)
+  const from = jest.fn()
+  createClientMock.mockReturnValue({ rpc, from })
+  return { rpc, from }
 }
 
 const ORIGINAL_ENV = process.env
@@ -59,7 +55,7 @@ afterAll(() => {
 
 describe('verifyPublicCertificate', () => {
   it('returns only the non-sensitive fields of a certificate the visitor can see', async () => {
-    const query = queueQuery({ data: ROW, error: null })
+    queueRpc({ data: [ROW], error: null })
 
     const result = await verifyPublicCertificate(VALID_CODE)
 
@@ -71,24 +67,38 @@ describe('verifyPublicCertificate', () => {
       completion_date: '2026-05-01',
       signers: ['Pastor Juan', 'Pastora María'],
     })
-    expect(query.from).toHaveBeenCalledWith('taller_certificados')
-    expect(query.select).toHaveBeenCalledWith(NON_SENSITIVE_COLUMNS)
-    expect(query.eq).toHaveBeenCalledWith('codigo_verificacion', VALID_CODE)
+  })
+
+  it('asks the RPC with the code and never queries the table', async () => {
+    const query = queueRpc({ data: [ROW], error: null })
+
+    await verifyPublicCertificate(VALID_CODE)
+
+    expect(query.rpc).toHaveBeenCalledTimes(1)
+    expect(query.rpc).toHaveBeenCalledWith('verificar_certificado_publico', { p_codigo: VALID_CODE })
+    expect(query.from).not.toHaveBeenCalled()
   })
 
   // T2b/T2c (odd/tasks/talleres-cierre-de-edicion.md) — each person of a
-  // couple gets their own certificate naming the partner; the anon GRANT
-  // covers nombre_pareja_snapshot.
+  // couple gets their own certificate naming the partner; the RPC returns
+  // nombre_pareja_snapshot.
   it("returns the partner's name on a couple's certificate", async () => {
-    queueQuery({ data: { ...ROW, nombre_pareja_snapshot: 'Luis Gómez' }, error: null })
+    queueRpc({ data: [{ ...ROW, nombre_pareja_snapshot: 'Luis Gómez' }], error: null })
 
     const result = await verifyPublicCertificate(VALID_CODE)
 
-    expect(result).toEqual(expect.objectContaining({ valid: true, partner_name: 'Luis Gómez' }))
+    expect(result).toEqual({
+      valid: true,
+      taller_title: 'Finanzas con Propósito',
+      participant_name: 'Ana Pérez',
+      partner_name: 'Luis Gómez',
+      completion_date: '2026-05-01',
+      signers: ['Pastor Juan', 'Pastora María'],
+    })
   })
 
   it('treats a non-array signers snapshot as no signers', async () => {
-    queueQuery({ data: { ...ROW, firmantes_snapshot: null }, error: null })
+    queueRpc({ data: [{ ...ROW, firmantes_snapshot: null }], error: null })
 
     const result = await verifyPublicCertificate(VALID_CODE)
 
@@ -96,7 +106,7 @@ describe('verifyPublicCertificate', () => {
   })
 
   it('queries as anon with no session and never with the service role key', async () => {
-    queueQuery({ data: ROW, error: null })
+    queueRpc({ data: [ROW], error: null })
 
     await verifyPublicCertificate(VALID_CODE)
 
@@ -121,14 +131,14 @@ describe('verifyPublicCertificate', () => {
     }
   )
 
-  it('reports a revoked or unknown certificate as not found (RLS hides revoked rows from anon)', async () => {
-    queueQuery({ data: null, error: null })
+  it.each([[[]], [null]])('reports a revoked or unknown certificate (RPC data %p) as not found', async (data) => {
+    queueRpc({ data, error: null })
 
     await expect(verifyPublicCertificate(VALID_CODE)).resolves.toEqual({ valid: false, reason: 'not-found' })
   })
 
   it('reports a query error as not found without leaking the cause', async () => {
-    queueQuery({ data: null, error: { message: 'permission denied for table taller_certificados' } })
+    queueRpc({ data: null, error: { message: 'permission denied for function verificar_certificado_publico' } })
 
     await expect(verifyPublicCertificate(VALID_CODE)).resolves.toEqual({ valid: false, reason: 'not-found' })
   })

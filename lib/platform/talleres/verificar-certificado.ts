@@ -5,27 +5,25 @@
  * and `GET /api/public/verificar-certificado/[codigo]`, so the page reads the
  * certificate in-process instead of fetching its own API over HTTP.
  *
- * The query always runs as `anon` with no session, even when the visitor is
- * signed in: RLS `taller_certificados_select_anon` (revocado_at IS NULL) and
- * the column-narrow anon GRANT alone decide what is visible. A cookie-bound
- * client would also match `taller_certificados_select_director`, which does
- * not hide revoked rows.
+ * The lookup always runs as `anon` with no session, even when the visitor is
+ * signed in, and goes through the SECURITY DEFINER RPC
+ * `verificar_certificado_publico(p_codigo)` (migration 20261003180000): it
+ * returns at most the one non-revoked certificate with that exact code, with
+ * only the columns below. anon holds no privilege on taller_certificados, so
+ * nobody can list certificates without knowing a code.
  *
  * Returns ONLY non-sensitive data, and the same `not-found` result for a
  * malformed, unknown, revoked, or failed lookup (no enumeration oracle).
  *
  * T2c (odd/tasks/talleres-cierre-de-edicion.md): each person of a couple
  * gets their own certificate, naming the partner in nombre_pareja_snapshot
- * (granted to anon like the other snapshot columns). It surfaces as
+ * (returned by the RPC like the other snapshot columns). It surfaces as
  * `partner_name`, null on an individual certificate.
  */
 
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/database.types'
 import { isValidCertificateCode, type VerifiedCertificate } from '@/lib/platform/talleres/certificates'
-
-const NON_SENSITIVE_COLUMNS =
-  'id, codigo_verificacion, taller_id, persona_id, nombre_taller_snapshot, nombre_participante_snapshot, nombre_pareja_snapshot, fecha_completitud, firmantes_snapshot'
 
 /** VerifiedCertificate plus the partner on a couple's certificate (null otherwise). */
 export type PublicCertificateVerification =
@@ -59,11 +57,8 @@ export async function verifyPublicCertificate(codigo: string): Promise<PublicCer
   if (!isValidCertificateCode(codigo)) return NOT_FOUND
 
   const supabase = createSessionlessAnonClient()
-  const { data, error } = await supabase
-    .from('taller_certificados')
-    .select(NON_SENSITIVE_COLUMNS)
-    .eq('codigo_verificacion', codigo)
-    .maybeSingle()
+  const { data: rows, error } = await supabase.rpc('verificar_certificado_publico', { p_codigo: codigo })
+  const data = Array.isArray(rows) ? rows[0] : undefined
 
   if (error || !data) return NOT_FOUND
 

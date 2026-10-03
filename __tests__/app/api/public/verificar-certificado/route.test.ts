@@ -28,11 +28,11 @@ const NOT_FOUND_BODY = { valid: false, reason: 'not-found' }
 
 type QueryResult = { data: Record<string, unknown> | null; error: { message: string } | null }
 
+// The lookup goes through the RPC verificar_certificado_publico, which
+// returns a set: one row for a visible certificate, none otherwise.
 function queueQuery(result: QueryResult) {
-  const maybeSingle = jest.fn().mockResolvedValue(result)
-  const eq = jest.fn(() => ({ maybeSingle }))
-  const select = jest.fn(() => ({ eq }))
-  createClientMock.mockReturnValue({ from: jest.fn(() => ({ select })) })
+  const rpc = jest.fn().mockResolvedValue({ data: result.data ? [result.data] : [], error: result.error })
+  createClientMock.mockReturnValue({ rpc })
 }
 
 function callRoute(codigo: string) {

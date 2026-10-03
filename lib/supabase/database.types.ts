@@ -8746,6 +8746,20 @@ export type Database = {
         Args: { p_status: string; p_ticket_id: string }
         Returns: Json
       }
+      verificar_certificado_publico: {
+        Args: { p_codigo: string }
+        Returns: {
+          codigo_verificacion: string
+          fecha_completitud: string
+          firmantes_snapshot: Json
+          id: string
+          nombre_pareja_snapshot: string | null
+          nombre_participante_snapshot: string
+          nombre_taller_snapshot: string
+          persona_id: string
+          taller_id: string
+        }[]
+      }
     }
     Enums: {
       dream_team_estado:
