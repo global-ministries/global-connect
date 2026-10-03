@@ -182,8 +182,15 @@ export async function listarSolicitudesPendientes(): Promise<
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "No autenticado" };
 
-  // Primero expiramos las vencidas
-  await supabase.rpc("expirar_solicitudes_vencidas");
+  // Expire the overdue requests first. The RPC expires them in every group, as
+  // it always did through the definer, so it runs with the service client: since
+  // 20261003110000 a signed-in session can no longer execute it. As before, a
+  // failure here does not stop the listing.
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const { error: expirarError } = await createSupabaseAdminClient().rpc("expirar_solicitudes_vencidas");
+  if (expirarError) {
+    console.error("[listarSolicitudesPendientes] Error en expirar_solicitudes_vencidas:", expirarError.message);
+  }
 
   // Check DG scoping: get user roles and filter by segments if DG
   const { getUserWithRoles } = await import("@/lib/getUserWithRoles");
@@ -219,7 +226,6 @@ export async function listarSolicitudesPendientes(): Promise<
   const grupoIds = solicitudes.map(s => s.grupo_id).filter(Boolean) as string[];
   
   if (grupoIds.length > 0) {
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
     const { extraerRelacion } = await import("@/lib/supabase/helpers");
     const adminDb = createSupabaseAdminClient();
 
