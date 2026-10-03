@@ -106,7 +106,7 @@ SELECT pg_temp.fail('a before anon list', format('expected %s, got %s',
  WHERE p.case_name = 'before anon list'
    AND p.val IS DISTINCT FROM CASE WHEN a.applied THEN 'ERR 42501' ELSE '1' END;
 
--- >>> BEGIN migration 20261003170000_certificado_publico_por_rpc.sql (byte-identical copy)
+-- >>> BEGIN migration 20261003180000_certificado_publico_por_rpc.sql (byte-identical copy)
 -- noqa: grant-to-anon-on-definer (anon executes verificar_certificado_publico on purpose; see below)
 -- Public certificate verification through one RPC instead of an open table
 -- (security phase 3, batch L4).
@@ -179,7 +179,7 @@ REVOKE ALL (id, inscripcion_id, codigo_verificacion, taller_id, persona_id,
   ON TABLE public.taller_certificados FROM anon;
 
 ALTER POLICY taller_certificados_select_anon ON public.taller_certificados TO authenticated;
--- <<< END migration 20261003170000_certificado_publico_por_rpc.sql
+-- <<< END migration 20261003180000_certificado_publico_por_rpc.sql
 
 -- a. after the block.
 SELECT pg_temp.probe('after anon list', 'anon', NULL, 'SELECT count(*)::text FROM public.taller_certificados');
