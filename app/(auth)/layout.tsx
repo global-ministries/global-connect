@@ -60,13 +60,15 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
   ])
 
   return (
-    <CampusProvider>
-      <BrandingProvider branding={branding}>
-        {/* resolveCurrentUserSnapshot returns null when it could not resolve
-            (not the same as signed out — see its doc comment); falling back
-            to `undefined` here reproduces the pre-snapshot behaviour:
-            loading starts true and the client fetch runs as a normal load. */}
-        <CurrentUserProvider initial={initialCurrentUser ?? undefined}>
+    // CurrentUserProvider wraps CampusProvider because CampusProvider reads
+    // the roles from useCurrentUser instead of fetching them a second time.
+    <BrandingProvider branding={branding}>
+      {/* resolveCurrentUserSnapshot returns null when it could not resolve
+          (not the same as signed out — see its doc comment); falling back
+          to `undefined` here reproduces the pre-snapshot behaviour:
+          loading starts true and the client fetch runs as a normal load. */}
+      <CurrentUserProvider initial={initialCurrentUser ?? undefined}>
+        <CampusProvider>
           <div className="min-h-screen bg-[var(--surface-primary)]">
             <HeaderMovil />
             <div className="pt-16 pb-20 md:pt-0 md:pb-0">
@@ -74,8 +76,8 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
             </div>
             <MenuInferiorMovil />
           </div>
-        </CurrentUserProvider>
-      </BrandingProvider>
-    </CampusProvider>
+        </CampusProvider>
+      </CurrentUserProvider>
+    </BrandingProvider>
   )
 }
