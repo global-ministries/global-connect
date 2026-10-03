@@ -35,8 +35,31 @@ const ALWAYS_CHECK_AUTH_PATHS = new Set([
   '/',                 // login
 ])
 
+/**
+ * Public certificate verification page. The QR on a printed certificate
+ * points at `/verificar-certificado/<codigo>`, so anyone outside the church
+ * must be able to open it without a session. Like `/`, it still runs
+ * getUser() so a signed-in visitor gets the same session handling as on any
+ * other page; only the redirect to login is skipped.
+ *
+ * Matches the bare path and exactly one code segment — never a prefix such
+ * as `/verificar-certificadoX` nor a deeper path.
+ */
+const CERTIFICATE_VERIFICATION_ROOT = '/verificar-certificado'
+
+function isPublicCertificateVerificationPath(path: string) {
+  if (path === CERTIFICATE_VERIFICATION_ROOT) return true
+  if (!path.startsWith(`${CERTIFICATE_VERIFICATION_ROOT}/`)) return false
+  const codigo = path.slice(CERTIFICATE_VERIFICATION_ROOT.length + 1)
+  return codigo.length > 0 && !codigo.includes('/')
+}
+
 export function isPublicPath(path: string) {
-  return SKIP_AUTH_PATHS.has(path) || ALWAYS_CHECK_AUTH_PATHS.has(path)
+  return (
+    SKIP_AUTH_PATHS.has(path) ||
+    ALWAYS_CHECK_AUTH_PATHS.has(path) ||
+    isPublicCertificateVerificationPath(path)
+  )
 }
 
 /**
@@ -163,7 +186,8 @@ export async function middleware(request: NextRequest) {
   // `/`) es pública: pasarla tal cual aunque no haya sesión, para que el
   // redirect a `/dashboard` (línea 171) funcione cuando sí hay sesión.
   // Las otras paths de auth UI ya se filtraron arriba en SKIP_AUTH_PATHS.
-  if (!user && !ALWAYS_CHECK_AUTH_PATHS.has(path)) {
+  // The public certificate verification page is public too (isPublicPath).
+  if (!user && !isPublicPath(path)) {
     const redirectUrl = new URL('/', request.url)
     redirectUrl.searchParams.set('redirect', path)
     return NextResponse.redirect(redirectUrl)

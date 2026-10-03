@@ -1,58 +1,37 @@
 /**
  * PR10 — DT-039 — Public certificate verification page (UNAUTHENTICATED).
  *
- * Server component. Reads `params.codigo`, fetches the verification
- * result via the public API route, renders ONLY non-sensitive data:
- * taller name, participant name, completion date, signers.
+ * Server component. Reads `params.codigo`, looks the certificate up
+ * in-process through the shared public lookup (no HTTP hop to its own API,
+ * so it does not depend on a configured base URL), renders ONLY
+ * non-sensitive data: taller name, participant name, completion date,
+ * signers.
  *
  * On failure (not-found or revoked) renders a friendly neutral message.
  * NEVER discloses PII (email, phone, cedula, group notes).
  */
 
-import { buildQrSvg, buildVerificationUrl, isValidCertificateCode, type VerifiedCertificate } from '@/lib/platform/talleres/certificates'
+import { buildQrSvg, buildVerificationUrl, type VerifiedCertificate } from '@/lib/platform/talleres/certificates'
+import { verifyPublicCertificate } from '@/lib/platform/talleres/verificar-certificado'
 
 interface PageProps {
   readonly params: Promise<{ readonly codigo: string }>
 }
 
-async function fetchCertificate(codigo: string, baseUrl: string): Promise<VerifiedCertificate> {
-  if (!isValidCertificateCode(codigo)) {
-    return { valid: false, reason: 'not-found' }
-  }
+async function loadCertificate(codigo: string): Promise<VerifiedCertificate> {
   try {
-    const r = await fetch(`${baseUrl}/api/public/verificar-certificado/${codigo}`, {
-      cache: 'no-store',
-    })
-    if (r.status === 404) return { valid: false, reason: 'not-found' }
-    if (!r.ok) return { valid: false, reason: 'not-found' }
-    const data = (await r.json()) as Partial<VerifiedCertificate> & { revoked?: boolean }
-    if (data.revoked) return { valid: false, reason: 'revoked' }
-    if (data.valid === false) return { valid: false, reason: 'not-found' }
-    if (
-      data.valid === true &&
-      typeof data.taller_title === 'string' &&
-      typeof data.participant_name === 'string' &&
-      typeof data.completion_date === 'string' &&
-      Array.isArray(data.signers)
-    ) {
-      return {
-        valid: true,
-        taller_title: data.taller_title,
-        participant_name: data.participant_name,
-        completion_date: data.completion_date,
-        signers: data.signers as readonly string[],
-      }
-    }
-    return { valid: false, reason: 'not-found' }
+    return await verifyPublicCertificate(codigo)
   } catch {
+    // A visitor only ever sees the neutral message, never an error page.
     return { valid: false, reason: 'not-found' }
   }
 }
 
 export default async function VerificarCertificadoPage({ params }: PageProps) {
   const { codigo } = await params
+  const result = await loadCertificate(codigo)
+  // Only used to display the verification URL / QR, not to look anything up.
   const baseUrl = process.env['NEXT_PUBLIC_BASE_URL'] ?? process.env['VERCEL_URL'] ?? ''
-  const result = await fetchCertificate(codigo, baseUrl)
   const verificationUrl = buildVerificationUrl(baseUrl, codigo)
   const qrSvg = buildQrSvg({ text: verificationUrl, size: 4 })
 
