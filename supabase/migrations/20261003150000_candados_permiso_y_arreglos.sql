@@ -46,6 +46,11 @@
 -- the service client keeps its answers. For the event readers that means it
 -- still reads any group for any p_auth_id.
 --
+-- Every gate fails closed: it reads "IF NOT coalesce(<check>, false)", so a
+-- NULL (a session with no usuarios row, a helper that returns NULL) denies.
+-- Such a session gets the neutral value from the gated readers; the two
+-- reports keep answering it with their own {"error": "Usuario no encontrado"}.
+--
 -- Fixes:
 --   * obtener_kpis_grupos_para_usuario had two overloads, (p_auth_id) and
 --     (p_auth_id, p_campus_id DEFAULT NULL). A call with only p_auth_id, which
@@ -105,14 +110,14 @@ BEGIN
   -- that render DashboardAdmin; anybody else gets NULL. Only service_role
   -- skips the check.
   IF coalesce(v_request_role, '') <> 'service_role'
-     AND NOT EXISTS (
+     AND NOT coalesce(EXISTS (
        SELECT 1
        FROM public.usuarios u
        JOIN public.usuario_roles ur ON ur.usuario_id = u.id
        JOIN public.roles_sistema rs ON rs.id = ur.rol_id
        WHERE u.auth_id = auth.uid()
          AND rs.nombre_interno IN ('admin', 'pastor', 'director-general')
-     ) THEN
+     ), false) THEN
     RETURN NULL;
   END IF;
 
@@ -168,13 +173,13 @@ BEGIN
   -- general director only. Anybody else gets the answer for a season without
   -- a previous one (all zeros). Only service_role skips the check.
   IF coalesce(v_request_role, '') <> 'service_role'
-     AND NOT EXISTS (
+     AND NOT coalesce(EXISTS (
        SELECT 1
        FROM public.usuario_roles ur
        JOIN public.roles_sistema rs ON rs.id = ur.rol_id
        WHERE ur.usuario_id = v_user_id
          AND rs.nombre_interno IN ('admin', 'pastor', 'director-general')
-     ) THEN
+     ), false) THEN
     RETURN jsonb_build_object(
       'miembros_que_continuaron', 0,
       'miembros_anteriores', 0,
@@ -298,13 +303,13 @@ BEGIN
   -- COALESCE below returns when no month is listed. Only service_role skips
   -- the check.
   IF coalesce(v_request_role, '') <> 'service_role'
-     AND NOT EXISTS (
+     AND NOT coalesce(EXISTS (
        SELECT 1
        FROM public.usuario_roles ur
        JOIN public.roles_sistema rs ON rs.id = ur.rol_id
        WHERE ur.usuario_id = v_user_id
          AND rs.nombre_interno IN ('admin', 'pastor', 'director-general')
-     ) THEN
+     ), false) THEN
     RETURN jsonb_build_object('timeline', '[]'::jsonb);
   END IF;
 
@@ -386,7 +391,7 @@ begin
   -- no rows, as for an unknown group. Only service_role skips the check.
   IF coalesce(v_request_role, '') <> 'service_role' THEN
     SELECT u.id INTO v_usuario_id FROM public.usuarios u WHERE u.auth_id = p_auth_id;
-    IF NOT public.puede_ver_grupo(v_usuario_id, p_grupo_id) THEN
+    IF NOT coalesce(public.puede_ver_grupo(v_usuario_id, p_grupo_id), false) THEN
       RETURN;
     END IF;
   END IF;
@@ -445,7 +450,7 @@ BEGIN
   IF coalesce(v_request_role, '') <> 'service_role' THEN
     SELECT u.id INTO v_usuario_id FROM public.usuarios u WHERE u.auth_id = p_auth_id;
     SELECT eg.grupo_id INTO v_grupo_id FROM public.eventos_grupo eg WHERE eg.id = p_evento_id;
-    IF NOT public.puede_ver_grupo(v_usuario_id, v_grupo_id) THEN
+    IF NOT coalesce(public.puede_ver_grupo(v_usuario_id, v_grupo_id), false) THEN
       RETURN;
     END IF;
   END IF;
@@ -493,7 +498,7 @@ BEGIN
   IF coalesce(v_request_role, '') <> 'service_role' THEN
     SELECT u.id INTO v_usuario_id FROM public.usuarios u WHERE u.auth_id = p_auth_id;
     SELECT eg.grupo_id INTO v_grupo_id FROM public.eventos_grupo eg WHERE eg.id = p_evento_id;
-    IF NOT public.puede_ver_grupo(v_usuario_id, v_grupo_id) THEN
+    IF NOT coalesce(public.puede_ver_grupo(v_usuario_id, v_grupo_id), false) THEN
       RETURN;
     END IF;
   END IF;
@@ -543,7 +548,7 @@ BEGIN
   -- segment (puede_crear_grupo, the check crear_grupo_con_director runs);
   -- anybody else gets NULL. Only service_role skips the check.
   IF coalesce(v_request_role, '') <> 'service_role'
-     AND NOT public.puede_crear_grupo(auth.uid(), p_segmento_id) THEN
+     AND NOT coalesce(public.puede_crear_grupo(auth.uid(), p_segmento_id), false) THEN
     RETURN NULL;
   END IF;
 

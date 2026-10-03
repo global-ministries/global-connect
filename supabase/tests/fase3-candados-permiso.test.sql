@@ -9,7 +9,10 @@
 --      block, as the admin, the general director, the director de etapa and
 --      the leader (own session, role authenticated, both claim settings), as
 --      service_role and, for the two functions without p_auth_id, with no
---      session:
+--      session. Also, once per gated function, a session whose auth id has no
+--      usuarios row (passing it as p_auth_id): the gates fail closed on NULL,
+--      so it gets the neutral value, except the two reports, which answer it
+--      with their own {"error": "Usuario no encontrado"} before and after:
 --        resumen_dashboard_admin    global and for the campus with most groups
 --        obtener_reporte_retencion  the latest season whose previous one has
 --                                   members
@@ -215,6 +218,12 @@ INSERT INTO t_cp_who(who, auth, uid)
 SELECT 'leader', u.auth_id, u.id FROM public.usuarios u
  WHERE '2efa6e21-bbf0-4fb3-a8fa-96e16b3e881d'::uuid = u.auth_id;
 
+-- A session whose auth id is in no usuarios row (fixed for the whole run).
+INSERT INTO t_cp_who(who, auth, uid) VALUES ('norow', gen_random_uuid(), NULL);
+
+SELECT pg_temp.fail('setup', 'the norow auth id belongs to somebody')
+ WHERE EXISTS (SELECT 1 FROM public.usuarios u JOIN t_cp_who w ON w.who = 'norow' AND u.auth_id = w.auth);
+
 SELECT pg_temp.fail('setup', 'person not found: ' || w.who)
   FROM (VALUES ('admin'), ('dg'), ('de'), ('leader')) w(who)
  WHERE (SELECT uid FROM t_cp_who t WHERE t.who = w.who) IS NULL;
@@ -364,7 +373,7 @@ UPDATE t_cp_fn SET neutral = pg_temp.eval(pg_temp.json_sql($q$jsonb_build_object
 UPDATE t_cp_fn SET neutral = pg_temp.eval(pg_temp.json_sql($q$'{"timeline": []}'::jsonb$q$)) WHERE fn = 'crecimiento';
 
 CREATE TEMP TABLE t_cp_case (case_name text PRIMARY KEY, fn text, mode text, s_who text, arg_who text,
-                             a uuid, b uuid, allowed boolean) ON COMMIT DROP;
+                             a uuid, b uuid, allowed boolean, denied text) ON COMMIT DROP;
 
 -- resumen: global and campus; everybody incl. no session.
 INSERT INTO t_cp_case(case_name, fn, mode, s_who, arg_who, a)
@@ -408,6 +417,22 @@ SELECT format('sugerir %s %s', w.who, s.label), 'sugerir',
 
 -- Who is allowed, from the live rules (service_role claims, still set, so
 -- puede_ver_grupo and puede_crear_grupo answer about anybody).
+-- The session with no usuarios row, once per gated function, passing its own
+-- auth id. denied: what it must get instead of the neutral value (the reports'
+-- own answer for an unknown person, before and after).
+INSERT INTO t_cp_case(case_name, fn, mode, s_who, arg_who, a, b)
+SELECT format('%s norow', f.fn), f.fn, 'user', 'norow', 'norow',
+       CASE f.fn WHEN 'retencion' THEN pg_temp.ctx('temporada_retencion')
+                 WHEN 'listar' THEN pg_temp.ctx('grupo_lider')
+                 WHEN 'evento' THEN pg_temp.ctx('evento_lider')
+                 WHEN 'asistencia' THEN pg_temp.ctx('evento_lider')
+                 WHEN 'sugerir' THEN pg_temp.ctx('temporada_nombre') END,
+       CASE WHEN f.fn = 'sugerir' THEN pg_temp.ctx('segmento_de') END
+  FROM t_cp_fn f WHERE f.gated;
+UPDATE t_cp_case
+   SET denied = pg_temp.eval(pg_temp.json_sql($q$jsonb_build_object('error', 'Usuario no encontrado')$q$))
+ WHERE s_who = 'norow' AND fn IN ('retencion', 'crecimiento');
+
 UPDATE t_cp_case c SET allowed = CASE
   WHEN c.fn IN ('kpis1', 'kpis2') THEN true
   WHEN c.mode = 'service' THEN true
@@ -517,7 +542,9 @@ SELECT pg_temp.fail('setup', format('%s: allowed %s, expected %s', c.case_name, 
   FROM (VALUES ('listar leader lider', true), ('listar leader de', false), ('listar leader ajeno', false),
                ('listar de de', true), ('listar de ajeno', false), ('listar dg ajeno', false),
                ('sugerir leader de', false), ('sugerir de de', true), ('sugerir de otro', false),
-               ('sugerir admin otro', true)) x(case_name, expected)
+               ('sugerir admin otro', true), ('resumen norow', false), ('retencion norow', false),
+               ('crecimiento norow', false), ('listar norow', false), ('evento norow', false),
+               ('asistencia norow', false), ('sugerir norow', false)) x(case_name, expected)
   JOIN t_cp_case c USING (case_name)
  WHERE c.allowed IS DISTINCT FROM x.expected;
 
@@ -526,8 +553,14 @@ SELECT pg_temp.fail('setup', format('%s: allowed %s, expected %s', c.case_name, 
 SELECT pg_temp.fail('setup', format('live %s: expected %s, got %s', o.case_name,
                     CASE WHEN pg_temp.applied() THEN 'the neutral value ' || f.neutral ELSE 'real data' END, o.val))
   FROM t_cp_old o JOIN t_cp_case c USING (case_name) JOIN t_cp_fn f USING (fn)
- WHERE f.gated AND NOT c.allowed
+ WHERE f.gated AND NOT c.allowed AND c.denied IS NULL
    AND (o.val = f.neutral) IS DISTINCT FROM pg_temp.applied();
+
+-- The reports answer a session with no usuarios row with their own error
+-- object, before the migration too.
+SELECT pg_temp.fail('setup', format('live %s: expected %s, got %s', o.case_name, c.denied, o.val))
+  FROM t_cp_old o JOIN t_cp_case c USING (case_name)
+ WHERE c.denied IS NOT NULL AND o.val IS DISTINCT FROM c.denied;
 
 -- b. Before: the one-argument call is ambiguous (42725); after the apply it
 -- answers like the two-argument call.
@@ -539,13 +572,19 @@ SELECT pg_temp.fail('setup', format('live %s: expected %s, got %s', o.case_name,
    AND CASE WHEN pg_temp.applied() THEN o.val IS DISTINCT FROM o2.val ELSE o.val NOT LIKE 'ERR 42725 %' END;
 
 -- c. asignar_director_etapa_a_ubicacion before.
-CREATE TEMP TABLE t_cp_asg (case_name text PRIMARY KEY, mode text, s_who text, arg_who text, accion text, expected text) ON COMMIT DROP;
+-- before: what the live function answers when the 42702 fix is not there yet
+-- (NULL: the 42702 itself).
+CREATE TEMP TABLE t_cp_asg (case_name text PRIMARY KEY, mode text, s_who text, arg_who text, accion text,
+                            expected text, before text) ON COMMIT DROP;
 INSERT INTO t_cp_asg(case_name, mode, s_who, arg_who, accion, expected) VALUES
   ('asignar service agregar', 'service', NULL,     'admin',  'agregar', '1 rows: id kept, director true, ubicacion true'),
   ('asignar service quitar',  'service', NULL,     'admin',  'quitar',  '0 rows'),
   ('asignar dg agregar',      'user',    'dg',     'dg',     'agregar', '1 rows: id kept, director true, ubicacion true'),
   ('asignar leader agregar',  'user',    'leader', 'leader', 'agregar', 'ERR P0001 Permiso denegado'),
   ('asignar de agregar',      'user',    'de',     'de',     'agregar', 'ERR P0001 Permiso denegado');
+INSERT INTO t_cp_asg(case_name, mode, s_who, arg_who, accion, expected, before) VALUES
+  ('asignar norow agregar',   'user',    'norow',  'norow',  'agregar', 'ERR P0001 Usuario no encontrado',
+   'ERR P0001 Usuario no encontrado');
 
 CREATE OR REPLACE FUNCTION pg_temp.run_asg(p_case text)
 RETURNS text LANGUAGE sql AS $$
@@ -565,10 +604,10 @@ INSERT INTO t_cp_asg_old(case_name, val) SELECT a.case_name, pg_temp.run_asg(a.c
 -- through).
 SELECT pg_temp.fail('setup', format('live %s: expected %s, got %s', a.case_name,
                     CASE WHEN pg_temp.applied() THEN a.expected
-                         ELSE 'ERR 42702 column reference "id" is ambiguous' END, o.val))
+                         ELSE coalesce(a.before, 'ERR 42702 column reference "id" is ambiguous') END, o.val))
   FROM t_cp_asg a JOIN t_cp_asg_old o USING (case_name)
  WHERE o.val IS DISTINCT FROM CASE WHEN pg_temp.applied() THEN a.expected
-                                   ELSE 'ERR 42702 column reference "id" is ambiguous' END;
+                                   ELSE coalesce(a.before, 'ERR 42702 column reference "id" is ambiguous') END;
 
 -- >>> BEGIN migration 20261003150000_candados_permiso_y_arreglos.sql (byte-identical copy)
 -- Permission gates on readers that every signed-in person could run over the
@@ -618,6 +657,11 @@ SELECT pg_temp.fail('setup', format('live %s: expected %s, got %s', a.case_name,
 -- service_role skips every gate, as it skips the identity guard of phase 2, so
 -- the service client keeps its answers. For the event readers that means it
 -- still reads any group for any p_auth_id.
+--
+-- Every gate fails closed: it reads "IF NOT coalesce(<check>, false)", so a
+-- NULL (a session with no usuarios row, a helper that returns NULL) denies.
+-- Such a session gets the neutral value from the gated readers; the two
+-- reports keep answering it with their own {"error": "Usuario no encontrado"}.
 --
 -- Fixes:
 --   * obtener_kpis_grupos_para_usuario had two overloads, (p_auth_id) and
@@ -678,14 +722,14 @@ BEGIN
   -- that render DashboardAdmin; anybody else gets NULL. Only service_role
   -- skips the check.
   IF coalesce(v_request_role, '') <> 'service_role'
-     AND NOT EXISTS (
+     AND NOT coalesce(EXISTS (
        SELECT 1
        FROM public.usuarios u
        JOIN public.usuario_roles ur ON ur.usuario_id = u.id
        JOIN public.roles_sistema rs ON rs.id = ur.rol_id
        WHERE u.auth_id = auth.uid()
          AND rs.nombre_interno IN ('admin', 'pastor', 'director-general')
-     ) THEN
+     ), false) THEN
     RETURN NULL;
   END IF;
 
@@ -741,13 +785,13 @@ BEGIN
   -- general director only. Anybody else gets the answer for a season without
   -- a previous one (all zeros). Only service_role skips the check.
   IF coalesce(v_request_role, '') <> 'service_role'
-     AND NOT EXISTS (
+     AND NOT coalesce(EXISTS (
        SELECT 1
        FROM public.usuario_roles ur
        JOIN public.roles_sistema rs ON rs.id = ur.rol_id
        WHERE ur.usuario_id = v_user_id
          AND rs.nombre_interno IN ('admin', 'pastor', 'director-general')
-     ) THEN
+     ), false) THEN
     RETURN jsonb_build_object(
       'miembros_que_continuaron', 0,
       'miembros_anteriores', 0,
@@ -871,13 +915,13 @@ BEGIN
   -- COALESCE below returns when no month is listed. Only service_role skips
   -- the check.
   IF coalesce(v_request_role, '') <> 'service_role'
-     AND NOT EXISTS (
+     AND NOT coalesce(EXISTS (
        SELECT 1
        FROM public.usuario_roles ur
        JOIN public.roles_sistema rs ON rs.id = ur.rol_id
        WHERE ur.usuario_id = v_user_id
          AND rs.nombre_interno IN ('admin', 'pastor', 'director-general')
-     ) THEN
+     ), false) THEN
     RETURN jsonb_build_object('timeline', '[]'::jsonb);
   END IF;
 
@@ -959,7 +1003,7 @@ begin
   -- no rows, as for an unknown group. Only service_role skips the check.
   IF coalesce(v_request_role, '') <> 'service_role' THEN
     SELECT u.id INTO v_usuario_id FROM public.usuarios u WHERE u.auth_id = p_auth_id;
-    IF NOT public.puede_ver_grupo(v_usuario_id, p_grupo_id) THEN
+    IF NOT coalesce(public.puede_ver_grupo(v_usuario_id, p_grupo_id), false) THEN
       RETURN;
     END IF;
   END IF;
@@ -1018,7 +1062,7 @@ BEGIN
   IF coalesce(v_request_role, '') <> 'service_role' THEN
     SELECT u.id INTO v_usuario_id FROM public.usuarios u WHERE u.auth_id = p_auth_id;
     SELECT eg.grupo_id INTO v_grupo_id FROM public.eventos_grupo eg WHERE eg.id = p_evento_id;
-    IF NOT public.puede_ver_grupo(v_usuario_id, v_grupo_id) THEN
+    IF NOT coalesce(public.puede_ver_grupo(v_usuario_id, v_grupo_id), false) THEN
       RETURN;
     END IF;
   END IF;
@@ -1066,7 +1110,7 @@ BEGIN
   IF coalesce(v_request_role, '') <> 'service_role' THEN
     SELECT u.id INTO v_usuario_id FROM public.usuarios u WHERE u.auth_id = p_auth_id;
     SELECT eg.grupo_id INTO v_grupo_id FROM public.eventos_grupo eg WHERE eg.id = p_evento_id;
-    IF NOT public.puede_ver_grupo(v_usuario_id, v_grupo_id) THEN
+    IF NOT coalesce(public.puede_ver_grupo(v_usuario_id, v_grupo_id), false) THEN
       RETURN;
     END IF;
   END IF;
@@ -1116,7 +1160,7 @@ BEGIN
   -- segment (puede_crear_grupo, the check crear_grupo_con_director runs);
   -- anybody else gets NULL. Only service_role skips the check.
   IF coalesce(v_request_role, '') <> 'service_role'
-     AND NOT public.puede_crear_grupo(auth.uid(), p_segmento_id) THEN
+     AND NOT coalesce(public.puede_crear_grupo(auth.uid(), p_segmento_id), false) THEN
     RETURN NULL;
   END IF;
 
@@ -1263,10 +1307,10 @@ SELECT c.case_name, pg_temp.run(c.mode, pg_temp.auth_of(c.s_who), f.sql, pg_temp
 -- a. Allowed: the answer from before; denied: the neutral value.
 SELECT pg_temp.fail('a gates', format('%s (%s): before %s, after %s, expected %s', c.case_name,
                     CASE WHEN c.allowed THEN 'allowed' ELSE 'denied' END, o.val, n.val,
-                    CASE WHEN c.allowed THEN 'the same' ELSE f.neutral END))
+                    CASE WHEN c.allowed THEN 'the same' ELSE coalesce(c.denied, f.neutral) END))
   FROM t_cp_case c JOIN t_cp_fn f USING (fn) JOIN t_cp_old o USING (case_name) JOIN t_cp_new n USING (case_name)
  WHERE f.gated
-   AND n.val IS DISTINCT FROM CASE WHEN c.allowed THEN o.val ELSE f.neutral END;
+   AND n.val IS DISTINCT FROM CASE WHEN c.allowed THEN o.val ELSE coalesce(c.denied, f.neutral) END;
 
 -- b. The two-argument kpis is unchanged; the one-argument call answers like it.
 SELECT pg_temp.fail('b kpis', format('%s: before %s, after %s', o.case_name, o.val, n.val))
@@ -1303,7 +1347,9 @@ SELECT pg_temp.fail('d catalog', 'the change is missing from ' || f.sig)
  WHERE f.marker IS NOT NULL AND strpos(p.prosrc, f.marker) = 0;
 
 -- Every line of each old body is still in the new one, except the four lines
--- asignar rewrites (42702 and the permission check).
+-- asignar rewrites (42702 and the permission check) and, on a database where
+-- the first version of this migration ran (staging), its gate lines, which now
+-- read coalesce(..., false).
 SELECT pg_temp.fail('d catalog', format('%s lost the line: %s', o.sig, l.line))
   FROM t_cp_cat_old o
  CROSS JOIN LATERAL unnest(string_to_array(o.src, E'\n')) AS l(line)
@@ -1314,7 +1360,12 @@ SELECT pg_temp.fail('d catalog', format('%s lost the line: %s', o.sig, l.line))
             AND l.line IN ('  SELECT tipo_lider INTO v_tipo FROM public.segmento_lideres WHERE id = p_director_etapa_id;',
                            '    ON CONFLICT (director_etapa_id) DO UPDATE SET segmento_ubicacion_id = EXCLUDED.segmento_ubicacion_id;',
                            '    DELETE FROM public.director_etapa_ubicaciones WHERE director_etapa_id = p_director_etapa_id;',
-                           '  IF NOT v_es_superior THEN RAISE EXCEPTION ''Permiso denegado''; END IF;'));
+                           '  IF NOT v_es_superior THEN RAISE EXCEPTION ''Permiso denegado''; END IF;'))
+   AND l.line NOT IN ('     AND NOT EXISTS (',
+                      '     ) THEN',
+                      '    IF NOT public.puede_ver_grupo(v_usuario_id, p_grupo_id) THEN',
+                      '    IF NOT public.puede_ver_grupo(v_usuario_id, v_grupo_id) THEN',
+                      '     AND NOT public.puede_crear_grupo(auth.uid(), p_segmento_id) THEN');
 
 SELECT pg_temp.fail('d catalog', format('%s privilege on %s: expected %s', r.priv_role, f.sig, r.expected))
   FROM t_cp_fns f
@@ -1351,8 +1402,8 @@ SELECT kind, name, detail
                       count(*) FILTER (WHERE c.allowed AND n.val = o.val),
                       count(*) FILTER (WHERE NOT c.allowed),
                       string_agg(regexp_replace(c.case_name, '^\S+ ', ''), ', ' ORDER BY c.case_name) FILTER (WHERE NOT c.allowed),
-                      count(*) FILTER (WHERE NOT c.allowed AND o.val <> f.neutral),
-                      count(*) FILTER (WHERE NOT c.allowed AND n.val = f.neutral))
+                      count(*) FILTER (WHERE NOT c.allowed AND o.val <> coalesce(c.denied, f.neutral)),
+                      count(*) FILTER (WHERE NOT c.allowed AND n.val = coalesce(c.denied, f.neutral)))
           FROM t_cp_fn f JOIN t_cp_case c USING (fn) JOIN t_cp_old o USING (case_name) JOIN t_cp_new n USING (case_name)
          WHERE f.gated
          GROUP BY f.fn
