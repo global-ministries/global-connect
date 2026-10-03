@@ -349,6 +349,9 @@ RETURNS text LANGUAGE sql AS $$
    WHERE p.oid = p_sig::regprocedure;
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 CREATE TEMP TABLE t_pp_cat_old ON COMMIT DROP AS
 SELECT f.sig, pg_temp.cat_of(f.sig) AS cat, l.lanname
   FROM t_pp_fns f JOIN pg_proc p ON p.oid = f.sig::regprocedure JOIN pg_language l ON l.oid = p.prolang;

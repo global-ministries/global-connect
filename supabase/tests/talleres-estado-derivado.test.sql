@@ -113,6 +113,9 @@ CREATE OR REPLACE FUNCTION pg_temp.as_persona(p_auth_id uuid) RETURNS void LANGU
          set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- ── fixtures (as postgres, before any role switch) ──────────────────
 
 -- Two equipos: talleres.dream_team_equipo_id is 1:1 with its equipo

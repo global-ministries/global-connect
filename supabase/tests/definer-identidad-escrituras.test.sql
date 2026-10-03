@@ -422,6 +422,9 @@ RETURNS text LANGUAGE sql AS $$
   SELECT format('SELECT (@F@(%L, %L, %L, %L))::text', p_who, p_grupo, c.x_user, p_conyugue) FROM t_di_ctx c;
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- ---------------------------------------------------------------------------
 -- Cases.
 -- ---------------------------------------------------------------------------

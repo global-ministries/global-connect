@@ -303,6 +303,9 @@ END
 -- <<< block end
 $definer_sin_anon$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- Phase s0: the live catalog as found. -----------------------------------------
 SELECT pg_temp.take_priv('s0');
 SELECT pg_temp.take_probes('s0');

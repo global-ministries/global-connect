@@ -101,6 +101,9 @@ CREATE OR REPLACE FUNCTION pg_temp.fid(p_key text) RETURNS uuid LANGUAGE sql STA
   SELECT id FROM t3_fixture WHERE key = p_key;
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- An inactive, otherwise-eligible leaf (talleres_crecimiento, has a
 -- parent, no children) — isolates the "inactive" rejection reason.
 INSERT INTO public.dream_team_equipos (id, experiencia, label, parent_equipo_id, activo)

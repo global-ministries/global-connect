@@ -84,6 +84,9 @@ RETURNS integer LANGUAGE sql AS $$
   SELECT count(*)::integer FROM public.dg_directores_etapa WHERE id = p_id;
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 -- Fixtures (as postgres) -------------------------------------------------------
 INSERT INTO public.segmentos (id, nombre) VALUES
   ('d4000000-0000-4000-8000-0000000000a1', 'ZZ Esc SA');

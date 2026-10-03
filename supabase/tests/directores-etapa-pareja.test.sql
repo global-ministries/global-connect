@@ -98,6 +98,9 @@ RETURNS text LANGUAGE sql AS $$
     p_name, p_segmento, p_director));
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 INSERT INTO public.segmentos (id, nombre) VALUES
   ('e5000000-0000-4000-8000-0000000000a1', 'ZZ Dp S1'),
   ('e5000000-0000-4000-8000-0000000000a2', 'ZZ Dp S2');

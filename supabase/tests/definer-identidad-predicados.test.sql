@@ -582,6 +582,9 @@ RETURNS text LANGUAGE sql AS $$
    WHERE p.oid = p_sig::regprocedure;
 $$;
 
+-- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+
 CREATE TEMP TABLE t_dp_cat_old AS
 SELECT sig, pg_temp.cat_of(sig) AS cat FROM t_dp_fns;
 
