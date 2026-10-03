@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      acciones_limitadas: {
+        Row: {
+          accion: string
+          actor_id: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          accion: string
+          actor_id: string
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          accion?: string
+          actor_id?: string
+          created_at?: string
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acciones_limitadas_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acciones_limitadas_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "acciones_limitadas_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "acciones_limitadas_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "acciones_limitadas_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
       asistencia: {
         Row: {
           es_visitante: boolean | null
@@ -1703,6 +1760,41 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "dream_team_servicios_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dream_team_servicios_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "dream_team_servicios_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "dream_team_servicios_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "dream_team_servicios_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
             foreignKeyName: "dream_team_servicios_rol_id_fkey"
             columns: ["rol_id"]
             isOneToOne: false
@@ -3285,6 +3377,66 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pastoral_triada"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      persona_datos_importados: {
+        Row: {
+          datos: Json
+          fuente: string
+          id: string
+          importado_at: string
+          persona_id: string
+        }
+        Insert: {
+          datos: Json
+          fuente: string
+          id?: string
+          importado_at?: string
+          persona_id: string
+        }
+        Update: {
+          datos?: Json
+          fuente?: string
+          id?: string
+          importado_at?: string
+          persona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "persona_datos_importados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "persona_datos_importados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "persona_datos_importados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "persona_datos_importados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "persona_datos_importados_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
           },
         ]
       }
@@ -6501,11 +6653,13 @@ export type Database = {
         Row: {
           apellido: string
           auth_id: string | null
+          bautizado: boolean | null
           cedula: string | null
           direccion_id: string | null
           email: string | null
           estado_civil: Database["public"]["Enums"]["enum_estado_civil"]
           familia_id: string | null
+          fecha_bautizo: string | null
           fecha_nacimiento: string | null
           fecha_registro: string
           foto_perfil_url: string | null
@@ -6514,16 +6668,20 @@ export type Database = {
           nombre: string
           ocupacion_id: string | null
           profesion_id: string | null
+          redes_sociales: string | null
+          talla_franela: string | null
           telefono: string | null
         }
         Insert: {
           apellido: string
           auth_id?: string | null
+          bautizado?: boolean | null
           cedula?: string | null
           direccion_id?: string | null
           email?: string | null
           estado_civil: Database["public"]["Enums"]["enum_estado_civil"]
           familia_id?: string | null
+          fecha_bautizo?: string | null
           fecha_nacimiento?: string | null
           fecha_registro?: string
           foto_perfil_url?: string | null
@@ -6532,16 +6690,20 @@ export type Database = {
           nombre: string
           ocupacion_id?: string | null
           profesion_id?: string | null
+          redes_sociales?: string | null
+          talla_franela?: string | null
           telefono?: string | null
         }
         Update: {
           apellido?: string
           auth_id?: string | null
+          bautizado?: boolean | null
           cedula?: string | null
           direccion_id?: string | null
           email?: string | null
           estado_civil?: Database["public"]["Enums"]["enum_estado_civil"]
           familia_id?: string | null
+          fecha_bautizo?: string | null
           fecha_nacimiento?: string | null
           fecha_registro?: string
           foto_perfil_url?: string | null
@@ -6550,6 +6712,8 @@ export type Database = {
           nombre?: string
           ocupacion_id?: string | null
           profesion_id?: string | null
+          redes_sociales?: string | null
+          talla_franela?: string | null
           telefono?: string | null
         }
         Relationships: [
@@ -7423,6 +7587,15 @@ export type Database = {
         Args: { p_cohorte_id: string }
         Returns: boolean
       }
+      consumir_limite_accion: {
+        Args: {
+          p_accion: string
+          p_actor: string
+          p_max: number
+          p_ventana: string
+        }
+        Returns: boolean
+      }
       contar_solicitudes_pendientes: {
         Args: { p_auth_id: string }
         Returns: number
@@ -7505,6 +7678,24 @@ export type Database = {
         Args: { p_accion: string; p_grants: Json; p_persona_id: string }
         Returns: number
       }
+      dream_team_cargar_voluntarios: {
+        Args: {
+          p_actor: string
+          p_aplicar?: boolean
+          p_campus_id: string
+          p_filas: Json
+          p_fuente: string
+        }
+        Returns: {
+          cedula: string
+          detalle: string
+          fila: number
+          persona_accion: string
+          persona_id: string
+          servicio_accion: string
+          servicio_id: string
+        }[]
+      }
       dream_team_contactos_personas: {
         Args: { p_persona_ids: string[] }
         Returns: {
@@ -7530,6 +7721,20 @@ export type Database = {
           tipo: string
         }[]
       }
+      dream_team_grants_de_servicio: {
+        Args: {
+          p_equipo_id: string
+          p_experiencia: string
+          p_rol_id: string
+          p_rol_label: string
+        }
+        Returns: {
+          capability_key: string
+          experience: string
+          scope_id: string
+          scope_type: string
+        }[]
+      }
       dream_team_lideres_gdv: {
         Args: never
         Returns: {
@@ -7539,6 +7744,7 @@ export type Database = {
           rol: string
         }[]
       }
+      dream_team_normalizar_etiqueta: { Args: { p: string }; Returns: string }
       dream_team_resolver_nombres: {
         Args: { p_persona_ids: string[] }
         Returns: {
@@ -7826,37 +8032,21 @@ export type Database = {
           temporada: string
         }[]
       }
-      obtener_kpis_grupos_para_usuario:
-        | {
-            Args: { p_auth_id: string }
-            Returns: {
-              desviacion_miembros: number
-              fecha_ultima_actualizacion: string
-              pct_aprobados: number
-              pct_con_lider: number
-              pct_sin_director: number
-              promedio_miembros: number
-              total_aprobados: number
-              total_con_lider: number
-              total_grupos: number
-              total_sin_director: number
-            }[]
-          }
-        | {
-            Args: { p_auth_id: string; p_campus_id?: string }
-            Returns: {
-              desviacion_miembros: number
-              fecha_ultima_actualizacion: string
-              pct_aprobados: number
-              pct_con_lider: number
-              pct_sin_director: number
-              promedio_miembros: number
-              total_aprobados: number
-              total_con_lider: number
-              total_grupos: number
-              total_sin_director: number
-            }[]
-          }
+      obtener_kpis_grupos_para_usuario: {
+        Args: { p_auth_id: string; p_campus_id?: string }
+        Returns: {
+          desviacion_miembros: number
+          fecha_ultima_actualizacion: string
+          pct_aprobados: number
+          pct_con_lider: number
+          pct_sin_director: number
+          promedio_miembros: number
+          total_aprobados: number
+          total_con_lider: number
+          total_grupos: number
+          total_sin_director: number
+        }[]
+      }
       obtener_mapa_grupos_vida_host_homes: {
         Args: { p_auth_id: string; p_scope?: string }
         Returns: {
@@ -8247,6 +8437,10 @@ export type Database = {
           nombre: string
         }[]
       }
+      talleres_cedula_pareja_normalizada: {
+        Args: { p_cedula: string }
+        Returns: string
+      }
       talleres_cerrar_clase: { Args: { p_sesion_id: string }; Returns: Json }
       talleres_cerrar_edicion: { Args: { p_edicion_id: string }; Returns: Json }
       talleres_certificado_firmantes: {
@@ -8279,6 +8473,10 @@ export type Database = {
           persona_id: string
           rol: string
         }[]
+      }
+      talleres_conyuge_unico: {
+        Args: { p_persona_id: string }
+        Returns: string
       }
       talleres_coord_inscripciones_personas: {
         Args: { p_inscripcion_ids: string[] }
@@ -8466,6 +8664,18 @@ export type Database = {
       }
       talleres_nodo_en_arbol: {
         Args: { p_nodo: string; p_raiz: string }
+        Returns: boolean
+      }
+      talleres_pareja_por_cedula: {
+        Args: {
+          p_actor_id: string
+          p_cedula_normalizada: string
+          p_edicion_id: string
+        }
+        Returns: string
+      }
+      talleres_persona_activa_en_edicion: {
+        Args: { p_edicion_id: string; p_persona_id: string }
         Returns: boolean
       }
       talleres_plantilla_facilitadores_personas: {
