@@ -582,6 +582,39 @@ describe('EdicionDetallePage — Cerrar edición', () => {
   })
 })
 
+describe('EdicionDetallePage — edición cerrada', () => {
+  it('shows "Cerrada el <fecha>" in the header, in the church time zone', async () => {
+    // 02:00 UTC on the 29th is still the 28th in America/Caracas (UTC-4).
+    setup({ edicionDetalle: { ...EDICION, estado: 'cerrado', cerrada_en: '2026-10-29T02:00:00Z' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    const texto = extractText(element)
+    expect(texto).toMatch(/Cerrada el\s+28\/10\/2026/)
+    // Ventana quotes the same close date, never a contradicting fecha_fin
+    // (2026-10-27 in the fixture).
+    expect(texto).not.toMatch(/27\/10\/2026/)
+  })
+
+  it('says nothing about a close while cerrada_en is null', async () => {
+    setup({ edicionDetalle: { ...EDICION, estado: 'en_curso', cerrada_en: null } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    expect(extractText(element)).not.toMatch(/Cerrada el/)
+  })
+
+  it('asks TablaInscripciones for the Resultado column only once the edición is closed', async () => {
+    setup({ edicionDetalle: { ...EDICION, estado: 'cerrado', cerrada_en: '2026-10-28T21:30:00Z' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const cerrada = (await EdicionDetallePage(params())) as any
+    expect(findByType(cerrada, TablaInscripciones)?.props.mostrarResultado).toBe(true)
+
+    setup({ edicionDetalle: { ...EDICION, estado: 'en_curso', cerrada_en: null } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const enCurso = (await EdicionDetallePage(params())) as any
+    expect(findByType(enCurso, TablaInscripciones)?.props.mostrarResultado).toBe(false)
+  })
+})
+
 // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
 // "Abrir esta edición" becomes the clear next step: a one-line banner
 // under the header explains the borrador state and what to do about it.

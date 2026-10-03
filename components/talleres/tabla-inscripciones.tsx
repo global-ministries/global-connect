@@ -48,6 +48,11 @@
  *     the SECURITY DEFINER RPC and is itself the security wall — this
  *     component never re-implements authorization, it just reports
  *     whatever Spanish message the endpoint returns.
+ *   - mostrarResultado (cierre de edición, odd/tasks/talleres-cierre-de-
+ *     edicion.md T2): optional. When true, a "Resultado" column (and a
+ *     line on the mobile cards) shows each row's `unit_estado` through
+ *     labels.ts's unitEstadoLabel/unitEstadoBadgeVariante — the edición
+ *     page sets it once the edición is closed.
  */
 
 import { useState } from 'react'
@@ -67,6 +72,7 @@ import {
   type InscripcionRejectAction,
 } from './inscripcion-actions'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { unitEstadoBadgeVariante, unitEstadoLabel } from '@/components/talleres/labels'
 
 import type { InscripcionAdminRow } from '@/lib/platform/talleres/inscripciones-types'
 
@@ -99,6 +105,8 @@ export interface TablaInscripcionesProps {
   readonly onApprove: InscripcionApproveAction
   readonly onReject: InscripcionRejectAction
   readonly seleccion?: SeleccionGrupoProps
+  /** Adds the Resultado (unit_estado) column; the edición page sets it once closed. */
+  readonly mostrarResultado?: boolean
 }
 
 function resolveCanWrite(canWrite: CanWriteInscripcion, row: InscripcionAdminRow): boolean {
@@ -320,6 +328,23 @@ function sobreCupoTooltip(row: InscripcionAdminRow): string {
   return `Inscrita por ${nombre} el ${fecha}`
 }
 
+function ResultadoBadge({ row }: { readonly row: InscripcionAdminRow }): React.ReactElement {
+  if (!row.unit_estado) {
+    return (
+      <span data-testid={`resultado-${row.id}`} className="text-sm text-muted-foreground/50">
+        —
+      </span>
+    )
+  }
+  return (
+    <span data-testid={`resultado-${row.id}`}>
+      <BadgeSistema variante={unitEstadoBadgeVariante(row.unit_estado)} tamaño="sm">
+        {unitEstadoLabel(row.unit_estado)}
+      </BadgeSistema>
+    </span>
+  )
+}
+
 // ─── Component ─────────────────────────────────────────────────────────
 
 export function TablaInscripciones({
@@ -328,6 +353,7 @@ export function TablaInscripciones({
   onApprove,
   onReject,
   seleccion,
+  mostrarResultado = false,
 }: TablaInscripcionesProps): React.ReactElement {
   // Hooks must run unconditionally (rules-of-hooks) — the seleccion FEATURE
   // is what's conditional (whether the checkbox column/bulk bar render),
@@ -368,6 +394,11 @@ export function TablaInscripciones({
                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Estado
                 </th>
+                {mostrarResultado && (
+                  <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Resultado
+                  </th>
+                )}
                 <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Link
                 </th>
@@ -429,6 +460,11 @@ export function TablaInscripciones({
                         {estadoLabel(row.estado)}
                       </BadgeSistema>
                     </td>
+                    {mostrarResultado && (
+                      <td className="px-4 py-3">
+                        <ResultadoBadge row={row} />
+                      </td>
+                    )}
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       {linkLabel ?? <span className="text-muted-foreground/50">—</span>}
                     </td>
@@ -499,6 +535,11 @@ export function TablaInscripciones({
                   <TextoSistema variante="sutil" className="mt-1 block text-xs">
                     Grupo: {row.grupo_nombre ?? '—'}
                   </TextoSistema>
+                  {mostrarResultado && (
+                    <TextoSistema variante="sutil" className="mt-1 block text-xs">
+                      {`Resultado: ${row.unit_estado ? unitEstadoLabel(row.unit_estado) : '—'}`}
+                    </TextoSistema>
+                  )}
                   {linkLabel && (
                     <div className="mt-1">
                       <BadgeSistema tamaño="sm">{linkLabel}</BadgeSistema>

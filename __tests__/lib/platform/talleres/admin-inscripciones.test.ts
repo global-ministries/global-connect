@@ -541,3 +541,31 @@ describe('loadAdminInscripciones — sobre_cupo (T6)', () => {
     expect(result.rows[0]?.sobre_cupo_por_nombre).toBeNull()
   })
 })
+
+// Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — the
+// resultado talleres_cerrar_edicion stamps on each inscripción, shown in the
+// edición page's Inscritos table once the edición is closed.
+describe('loadAdminInscripciones — unit_estado (cierre de edición)', () => {
+  it('selects unit_estado and exposes it on the row', async () => {
+    rpcData = [RPC_PERSONA]
+    const client = buildClientMock({
+      taller_inscripciones: { data: [{ ...FULL_INSCRIPCION, unit_estado: 'completado' }], error: null },
+      taller_ediciones: { data: [FULL_EDICION], error: null },
+      talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
+    })
+    const result = await loadAdminInscripciones(client, {})
+    expect(selectColumnsByTable['taller_inscripciones']).toMatch(/unit_estado/)
+    expect(result.rows[0]?.unit_estado).toBe('completado')
+  })
+
+  it('is null while the edición was never closed', async () => {
+    rpcData = [RPC_PERSONA]
+    const client = buildClientMock({
+      taller_inscripciones: { data: [FULL_INSCRIPCION], error: null },
+      taller_ediciones: { data: [FULL_EDICION], error: null },
+      talleres_crecimiento_cohortes: { data: [FULL_COHORTE], error: null },
+    })
+    const result = await loadAdminInscripciones(client, {})
+    expect(result.rows[0]?.unit_estado).toBeNull()
+  })
+})

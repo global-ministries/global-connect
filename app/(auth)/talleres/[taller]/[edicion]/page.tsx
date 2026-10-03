@@ -277,6 +277,11 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
                 )}
               </div>
             )}
+            {edicion.cerrada_en && (
+              <TextoSistema variante="sutil" tamaño="sm" className="mt-2 block">
+                Cerrada el {formatFechaHora(edicion.cerrada_en)}
+              </TextoSistema>
+            )}
             {edicion.estado === 'borrador' && (
               // T11 (flow audit) — "Abrir esta edición" (OpenEdicionButton,
               // below) becomes the clear next step: this line names the
@@ -345,6 +350,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
               onApprove={approveInscripcionAction}
               onReject={rejectInscripcionAction}
               seleccion={permisos.gestionarGrupos ? { grupos } : undefined}
+              mostrarResultado={edicion.cerrada_en !== null}
             />
           )}
         </div>
@@ -371,7 +377,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
           {edicion.fecha_inicio && edicion.fecha_fin && edicion.cierre_inscripcion ? (
             <>
               <TextoSistema>
-                {resumenVentana(edicion.estado, edicion.fecha_fin, edicion.cierre_inscripcion)}
+                {resumenVentana(edicion.estado, edicion.fecha_fin, edicion.cierre_inscripcion, edicion.cerrada_en)}
               </TextoSistema>
               {/* T11 — the detailed fields stay reachable, collapsed, only
                   for whoever could actually act on them (editarEdicion) —
@@ -450,6 +456,21 @@ function formatFecha(value: string | null): string {
 }
 
 /**
+ * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) —
+ * `cerrada_en` is a timestamptz, not a DATE, so formatFecha's UTC trick
+ * would show the next day for an evening close. It is read in the church's
+ * time zone instead: the same America/Caracas fallback talleres_hoy() uses
+ * (20260928140000_talleres_paso6_hardening.sql) to decide "today".
+ */
+const ZONA_HORARIA_IGLESIA = 'America/Caracas'
+
+function formatFechaHora(value: string): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString('es', { timeZone: ZONA_HORARIA_IGLESIA })
+}
+
+/**
  * T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the Ventana
  * section collapses to ONE sentence for a viewer without editarEdicion.
  * Replaces the old periodo_general-backed version (that table is
@@ -457,17 +478,22 @@ function formatFecha(value: string | null): string {
  * fecha_fin/cierre_inscripcion, the exact columns talleres_estado_efectivo
  * derives `estado` from — quoting the SAME dates the badge above is
  * already a function of, not a separate snapshot of them.
+ *
+ * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — an
+ * edición a director actually closed quotes its `cerrada_en`, the same
+ * date the cabecera shows, never a second, contradicting "Cerrada el".
  */
 function resumenVentana(
   estado: EdicionLocalDetalle['estado'],
   fechaFin: string,
   cierreInscripcion: string,
+  cerradaEn: string | null,
 ): string {
   switch (estado) {
     case 'cancelado':
       return 'Esta edición está cancelada.'
     case 'cerrado':
-      return `Cerrada el ${formatFecha(fechaFin)}.`
+      return cerradaEn ? `Cerrada el ${formatFechaHora(cerradaEn)}.` : `Cerrada el ${formatFecha(fechaFin)}.`
     case 'en_curso':
       return `En curso hasta el ${formatFecha(fechaFin)}.`
     default:
