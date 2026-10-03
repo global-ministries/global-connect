@@ -104,6 +104,7 @@ const TALLER: TallerDetalle = {
   regimen: 'temporada',
   cierre_inscripcion_offset_dias: 0,
   intervalo_ediciones_dias: null,
+  clases_minimas_para_completar: null,
   ediciones: [],
 }
 

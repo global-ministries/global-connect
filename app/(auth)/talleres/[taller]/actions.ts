@@ -591,6 +591,12 @@ export async function quitarFacilitador(
 // already go through, so this follows their exact gate + forbiddenByRls
 // shape. cadencia_dias/duracion_minutos stay on updateCadenciaYDuracion
 // above (moved here in the UI only — the section, not the action).
+//
+// Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — adds
+// clases_minimas_para_completar, the completion rule talleres_cerrar_edicion
+// applies: null (empty field) means every clase dictada, otherwise an
+// integer 1..50 (the column itself only requires >= 1; 50 is this form's
+// own sanity cap, well above any real taller's clase count).
 
 export interface UpdateTallerConfiguracionInput {
   readonly tallerId: string
@@ -600,11 +606,14 @@ export interface UpdateTallerConfiguracionInput {
   readonly regimen: 'temporada' | 'cadencia'
   readonly cierreInscripcionOffsetDias: number
   readonly intervaloEdicionesDias: number | null
+  /** null = todas las clases dictadas; otherwise an integer 1..50. */
+  readonly clasesMinimasParaCompletar: number | null
 }
 
 const TIPOS_TALLER = ['individual', 'pareja'] as const
 const VINCULOS_TALLER = ['matrimonio', 'novios'] as const
 const REGIMENES_TALLER = ['temporada', 'cadencia'] as const
+const CLASES_MINIMAS_MAX = 50
 
 export async function updateTallerConfiguracion(
   input: UpdateTallerConfiguracionInput,
@@ -647,6 +656,19 @@ export async function updateTallerConfiguracion(
       message: 'El intervalo entre ediciones debe ser un entero entre 1 y 365 días.',
     }
   }
+  // An empty field arrives as null (= todas las clases dictadas); a stale
+  // client that omits the key is normalized the same way.
+  const clasesMinimas = input.clasesMinimasParaCompletar ?? null
+  if (
+    clasesMinimas !== null &&
+    (!Number.isInteger(clasesMinimas) || clasesMinimas < 1 || clasesMinimas > CLASES_MINIMAS_MAX)
+  ) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: `Las clases mínimas para completar deben ser un entero entre 1 y ${CLASES_MINIMAS_MAX}.`,
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
@@ -658,6 +680,7 @@ export async function updateTallerConfiguracion(
       regimen: input.regimen,
       cierre_inscripcion_offset_dias: input.cierreInscripcionOffsetDias,
       intervalo_ediciones_dias: input.intervaloEdicionesDias,
+      clases_minimas_para_completar: clasesMinimas,
     })
     .eq('id', input.tallerId)
     .select('id')

@@ -184,6 +184,7 @@ describe('loadTallerDetalle', () => {
     expect(selectCols[0]).toMatch(/modalidad_default/)
     expect(selectCols[0]).toMatch(/cadencia_dias/)
     expect(selectCols[0]).toMatch(/duracion_minutos/)
+    expect(selectCols[0]).toMatch(/clases_minimas_para_completar/)
   })
 
   it('maps the row with its nested ediciones, inscripciones counts, descripcion, modalidad_default, cadencia and duracion', async () => {
@@ -197,6 +198,7 @@ describe('loadTallerDetalle', () => {
       dream_team_equipo_id: 'eq-1',
       cadencia_dias: 14,
       duracion_minutos: 90,
+      clases_minimas_para_completar: 6,
       ediciones: [
         {
           id: 'e-1',
@@ -215,6 +217,7 @@ describe('loadTallerDetalle', () => {
     expect(result?.modalidad_default).toBe('permanente_custom')
     expect(result?.cadencia_dias).toBe(14)
     expect(result?.duracion_minutos).toBe(90)
+    expect(result?.clases_minimas_para_completar).toBe(6)
     expect(result?.ediciones).toHaveLength(1)
     expect(result?.ediciones[0]?.total_inscripciones).toBe(1)
   })
@@ -229,6 +232,7 @@ describe('loadTallerDetalle', () => {
     expect(result?.descripcion).toBeNull()
     expect(result?.cadencia_dias).toBe(7)
     expect(result?.duracion_minutos).toBeNull()
+    expect(result?.clases_minimas_para_completar).toBeNull()
   })
 
   it('returns null when no taller matches the slug', async () => {

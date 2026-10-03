@@ -5774,6 +5774,7 @@ export type Database = {
         Row: {
           cadencia_dias: number
           cierre_inscripcion_offset_dias: number
+          clases_minimas_para_completar: number | null
           created_at: string
           created_by_persona_id: string | null
           descripcion: string | null
@@ -5794,6 +5795,7 @@ export type Database = {
         Insert: {
           cadencia_dias?: number
           cierre_inscripcion_offset_dias?: number
+          clases_minimas_para_completar?: number | null
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
@@ -5814,6 +5816,7 @@ export type Database = {
         Update: {
           cadencia_dias?: number
           cierre_inscripcion_offset_dias?: number
+          clases_minimas_para_completar?: number | null
           created_at?: string
           created_by_persona_id?: string | null
           descripcion?: string | null
