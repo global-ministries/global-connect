@@ -223,6 +223,8 @@ describe('CerrarEdicionButton — confirm', () => {
     await abrirConVistaPrevia()
     fireEvent.click(screen.getByRole('button', { name: /confirmar cierre/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Una edición en borrador o cancelada no se puede cerrar.')
-    expect(screen.getByRole('button', { name: /confirmar cierre/i })).toBeInTheDocument()
+    // The error can paint while the transition is still pending (the button
+    // reads "Cerrando…" until it settles), so wait for the label to return.
+    expect(await screen.findByRole('button', { name: /confirmar cierre/i })).not.toBeDisabled()
   })
 })
