@@ -619,6 +619,11 @@ describe('loadParticipanteExplorar — only abierto/en_curso talleres', () => {
         return b
       })
       b['order'] = jest.fn(() => b)
+      // T2c — the viewer's own inscripciones filter (principal OR companero).
+      b['or'] = jest.fn((filtro: string) => {
+        captured.push({ table, selectColumns: currentCols, column: '', op: 'or', value: filtro })
+        return b
+      })
       b['then'] = (
         resolve: (r: { data: unknown; error: null }) => void,
       ) => Promise.resolve(tableResponses[table]).then(resolve)
@@ -653,6 +658,14 @@ describe('loadParticipanteExplorar — only abierto/en_curso talleres', () => {
       (f) => f.column === 'estado' && f.op === 'in',
     )
     expect(inscEstadoFilter?.value).toEqual(['pendiente', 'aprobado'])
+    // T2c (odd/tasks/talleres-cierre-de-edicion.md) — "ya inscrito" covers
+    // the viewer as persona principal OR as companero of a couple, so a
+    // companero is never offered "Inscribirme" for an edición they are
+    // already in (taller_inscripciones_select lets them read that row).
+    expect(inscFilters.find((f) => f.op === 'or')?.value).toBe(
+      `persona_principal_id.eq.${PERSONA_ID},companero_id.eq.${PERSONA_ID}`,
+    )
+    expect(inscFilters.find((f) => f.column === 'persona_principal_id')).toBeUndefined()
     // The cohortes + periodos queries are filtered by taller_id IN (the
     // fetched edicion ids) — not by nested-resource.
     const cohorteIn = queriesForTable('talleres_crecimiento_cohortes').find(
@@ -772,6 +785,7 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
       b['eq'] = jest.fn(() => b)
       b['in'] = jest.fn(() => b)
       b['order'] = jest.fn(() => b)
+      b['or'] = jest.fn(() => b)
       // Make the chain a thenable so `await Promise.all([b, b, b])`
       // resolves to the table-specific response.
       b['then'] = (
@@ -852,6 +866,7 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
         b['eq'] = jest.fn(() => b)
         b['in'] = jest.fn(() => b)
         b['order'] = jest.fn(() => b)
+        b['or'] = jest.fn(() => b)
         b['then'] = (resolve: (r: { data: unknown; error: null }) => void) =>
           Promise.resolve(tableResponses[table]).then(resolve)
         return b
@@ -955,6 +970,7 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
       b['eq'] = jest.fn(() => b)
       b['in'] = jest.fn(() => b)
       b['order'] = jest.fn(() => b)
+      b['or'] = jest.fn(() => b)
       b['then'] = (
         resolve: (r: { data: unknown; error: null }) => void,
       ) => Promise.resolve(tableResponses[table]).then(resolve)
@@ -1022,6 +1038,7 @@ describe('loadParticipanteExplorar — PR38 enriched projection', () => {
       b['eq'] = jest.fn(() => b)
       b['in'] = jest.fn(() => b)
       b['order'] = jest.fn(() => b)
+      b['or'] = jest.fn(() => b)
       b['then'] = (
         resolve: (r: { data: unknown; error: null }) => void,
       ) => Promise.resolve(tableResponses[table]).then(resolve)
@@ -1118,6 +1135,7 @@ describe('loadParticipanteExplorar — PR G link_type surfacing', () => {
       b['eq'] = jest.fn(() => b)
       b['in'] = jest.fn(() => b)
       b['order'] = jest.fn(() => b)
+      b['or'] = jest.fn(() => b)
       b['then'] = (
         resolve: (r: { data: unknown; error: null }) => void,
       ) => Promise.resolve(tableResponses[table]).then(resolve)

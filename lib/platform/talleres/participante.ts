@@ -447,10 +447,13 @@ export async function loadParticipanteExplorar(
       .from('taller_periodos_generales')
       .select('taller_id, fecha_apertura_automatica, fecha_cierre_automatico')
       .in('taller_id', edicionIds),
+    // T2c (odd/tasks/talleres-cierre-de-edicion.md) — principal OR
+    // companero: a companero already in an edición as a couple is never
+    // offered "Inscribirme" for it again.
     client
       .from('taller_inscripciones')
       .select('taller_id, estado')
-      .eq('persona_principal_id', ctx.personaId)
+      .or(filtroInscripcionesPropias(ctx.personaId))
       .in('estado', ['pendiente', 'aprobado']),
   ])
 
