@@ -31,6 +31,10 @@
 --   G  102/103, I 106/107 — edicion2's two unlimited self-enrolls.
 --   H  104/105 — self-enrolls into edicion1 AFTER A is retired (freed seat).
 --
+-- Members self-enroll through talleres_inscribirme (20261003160000: the
+-- insert policy has no member branch any more); the cupo gate still
+-- decides, and the RPC returns its CUPO_LLENO as {"ok":false,...}.
+--
 -- Sequencing note: the task's own scenario list is not a strict execution
 -- order. A's row is retired and H's self-enroll (freed seat) run BEFORE
 -- E places F sobre cupo — inserting F first would leave edicion1 exactly
@@ -129,7 +133,6 @@ CREATE OR REPLACE FUNCTION pg_temp.as_persona(p_auth_id uuid) RETURNS void LANGU
          set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
--- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
 
 -- ── fixtures (as postgres, before any role switch) ──────────────────
@@ -194,29 +197,23 @@ INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, exp
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b7000000-0000-4000-8000-000000000091');
-SELECT pg_temp.assert_no_error('(1) A self-enrolls into edicion1',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b7000000-0000-4000-8000-000000000060', 'b7000000-0000-4000-8000-000000000080',
-      'b7000000-0000-4000-8000-000000000092', 'pendiente')$$);
+SELECT pg_temp.assert_rows('(1) A self-enrolls into edicion1',
+  $$SELECT 1 WHERE (public.talleres_inscribirme('b7000000-0000-4000-8000-000000000060'::uuid) ->> 'ok')::boolean$$, 1);
 RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b7000000-0000-4000-8000-000000000093');
-SELECT pg_temp.assert_no_error('(2) B self-enrolls into edicion1 (fills cupo)',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b7000000-0000-4000-8000-000000000060', 'b7000000-0000-4000-8000-000000000080',
-      'b7000000-0000-4000-8000-000000000094', 'pendiente')$$);
+SELECT pg_temp.assert_rows('(2) B self-enrolls into edicion1 (fills cupo)',
+  $$SELECT 1 WHERE (public.talleres_inscribirme('b7000000-0000-4000-8000-000000000060'::uuid) ->> 'ok')::boolean$$, 1);
 RESET ROLE;
 
--- ══ (3) third self-enroll refused: P0001 CUPO_LLENO ══
+-- ══ (3) third self-enroll refused: CUPO_LLENO ══
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b7000000-0000-4000-8000-000000000095');
-SELECT pg_temp.assert_raises('(3) C self-enroll into a full edicion1 -> CUPO_LLENO',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b7000000-0000-4000-8000-000000000060', 'b7000000-0000-4000-8000-000000000080',
-      'b7000000-0000-4000-8000-000000000096', 'pendiente')$$,
-  'P0001', 'CUPO_LLENO');
+SELECT pg_temp.assert_rows('(3) C self-enroll into a full edicion1 -> CUPO_LLENO',
+  $$SELECT 1 WHERE public.talleres_inscribirme('b7000000-0000-4000-8000-000000000060'::uuid)
+                 = '{"ok":false,"codigo":"CUPO_LLENO"}'::jsonb$$, 1);
 RESET ROLE;
 
 SELECT pg_temp.assert_rows('(3) the refused insert left no row',
@@ -242,10 +239,8 @@ SELECT pg_temp.assert_no_error('(5) retire A''s inscripcion',
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b7000000-0000-4000-8000-000000000104');
-SELECT pg_temp.assert_no_error('(6) H self-enrolls into edicion1 after A''s seat is freed',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b7000000-0000-4000-8000-000000000060', 'b7000000-0000-4000-8000-000000000080',
-      'b7000000-0000-4000-8000-000000000105', 'pendiente')$$);
+SELECT pg_temp.assert_rows('(6) H self-enrolls into edicion1 after A''s seat is freed',
+  $$SELECT 1 WHERE (public.talleres_inscribirme('b7000000-0000-4000-8000-000000000060'::uuid) ->> 'ok')::boolean$$, 1);
 RESET ROLE;
 
 -- ══ (7) director E places F sobre cupo on edicion1 (full again: B+H) ══
@@ -290,18 +285,14 @@ RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b7000000-0000-4000-8000-000000000102');
-SELECT pg_temp.assert_no_error('(10) G self-enrolls into edicion2 (cupo=0, no limit)',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b7000000-0000-4000-8000-000000000061', 'b7000000-0000-4000-8000-000000000081',
-      'b7000000-0000-4000-8000-000000000103', 'pendiente')$$);
+SELECT pg_temp.assert_rows('(10) G self-enrolls into edicion2 (cupo=0, no limit)',
+  $$SELECT 1 WHERE (public.talleres_inscribirme('b7000000-0000-4000-8000-000000000061'::uuid) ->> 'ok')::boolean$$, 1);
 RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('b7000000-0000-4000-8000-000000000106');
-SELECT pg_temp.assert_no_error('(10) I also self-enrolls into edicion2 (still no limit)',
-  $$INSERT INTO public.taller_inscripciones (taller_id, cohorte_id, persona_principal_id, estado) VALUES (
-      'b7000000-0000-4000-8000-000000000061', 'b7000000-0000-4000-8000-000000000081',
-      'b7000000-0000-4000-8000-000000000107', 'pendiente')$$);
+SELECT pg_temp.assert_rows('(10) I also self-enrolls into edicion2 (still no limit)',
+  $$SELECT 1 WHERE (public.talleres_inscribirme('b7000000-0000-4000-8000-000000000061'::uuid) ->> 'ok')::boolean$$, 1);
 RESET ROLE;
 
 SET LOCAL ROLE authenticated;

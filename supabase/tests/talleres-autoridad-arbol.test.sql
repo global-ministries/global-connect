@@ -157,8 +157,9 @@ END;
 $ediciones$;
 
 -- A second Conexión edición, opened 'abierto' (AC4 self-enroll coverage
--- needs an open edición — the self-enroll WITH CHECK branch requires
--- estado IN (abierto, en_curso)). The baseline edicion_conexion above
+-- needs an open edición — talleres_inscribirme requires the EFFECTIVE
+-- estado to be abierto, so its dates put the registration close ahead of
+-- today). The baseline edicion_conexion above
 -- stays 'borrador' so every earlier-established assertion in this file
 -- (e.g. "taller_ediciones/plain member sees neither") is unaffected.
 DO $edicion_abierta$
@@ -175,7 +176,10 @@ BEGIN
     ('edicion_conexion_abierta', (v_resultado ->> 'edicion_id')::uuid),
     ('cohorte_conexion_abierta', (v_resultado ->> 'cohorte_id')::uuid);
 
-  UPDATE public.taller_ediciones SET estado = 'abierto' WHERE id = (v_resultado ->> 'edicion_id')::uuid;
+  UPDATE public.taller_ediciones
+     SET estado = 'abierto',
+         fecha_inicio = CURRENT_DATE + 3, cierre_inscripcion = CURRENT_DATE + 1, fecha_fin = CURRENT_DATE + 30
+   WHERE id = (v_resultado ->> 'edicion_id')::uuid;
 END;
 $edicion_abierta$;
 
@@ -251,7 +255,6 @@ CREATE OR REPLACE FUNCTION pg_temp.as_member() RETURNS void LANGUAGE sql AS $$
          set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
--- Since 20261003110000 new postgres functions carry no PUBLIC EXECUTE, and these helpers run under SET LOCAL ROLE.
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
 
 -- ══ talleres (catalog) ════════════════════════════════════════════════
@@ -380,35 +383,38 @@ RESET ROLE;
 
 -- ══ taller_inscripciones — SELF self-enroll (AC4) ═══════════════════
 -- Covers acceptance criterion 4: a member with no grants can still
--- self-enroll into an open edición's own cohorte and see it, cannot
--- self-enroll into a closed (borrador) edición or with a mismatched
--- cohorte, and never sees another member's inscripción. This branch of
--- taller_inscripciones_insert/select is SELF-only and untouched by T2 —
--- this is regression coverage for existing, already-correct behavior.
+-- self-enroll into an open edición and see it, cannot self-enroll into a
+-- closed (borrador) edición or with a mismatched cohorte, and never sees
+-- another member's inscripción. Since 20261003160000 the insert policy has
+-- no member branch: a direct insert is refused and members enroll through
+-- talleres_inscribirme, which resolves the edición's own cohorte.
 
--- (a) CAN self-enroll pendiente into an abierto edición with its own cohorte.
+-- (a) CAN self-enroll pendiente into an abierto edición — through the
+-- RPC; the same row inserted directly is refused.
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_member();
-SELECT pg_temp.check_write('self-enroll/member allowed enrolling pendiente into an abierto edición with its own cohorte',
+SELECT pg_temp.check_write('self-enroll/member denied a direct insert, even into an abierto edición with its own cohorte',
   format($$INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES ('a6000000-0000-4000-8000-000000000060', %L, %L, 'a6000000-0000-4000-8000-00000000000e', 'pendiente')$$,
     (SELECT id FROM t2_fixture WHERE key='edicion_conexion_abierta'),
     (SELECT id FROM t2_fixture WHERE key='cohorte_conexion_abierta')),
-  true);
+  false);
+SELECT pg_temp.check_count('self-enroll/member enrolls into an abierto edición through talleres_inscribirme',
+  (SELECT count(*) WHERE (public.talleres_inscribirme((SELECT id FROM t2_fixture WHERE key='edicion_conexion_abierta')) ->> 'ok')::boolean), 1);
 SELECT pg_temp.check_count('self-enroll/member sees the row it just self-enrolled',
-  (SELECT count(*) FROM public.taller_inscripciones WHERE id = 'a6000000-0000-4000-8000-000000000060'), 1);
+  (SELECT count(*) FROM public.taller_inscripciones
+    WHERE taller_id = (SELECT id FROM t2_fixture WHERE key='edicion_conexion_abierta')
+      AND cohorte_id = (SELECT id FROM t2_fixture WHERE key='cohorte_conexion_abierta')
+      AND persona_principal_id = 'a6000000-0000-4000-8000-00000000000e'), 1);
 RESET ROLE;
 
--- (b) CANNOT self-enroll into a borrador edición (uses member2 — member
--- already has a row on edicion_conexion/cohorte_conexion, and reusing
--- that exact triple would hit the unique constraint instead of RLS).
+-- (b) CANNOT self-enroll into a borrador edición: talleres_inscribirme
+-- hides it (uses member2, who has no row anywhere yet).
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', 'a6000000-0000-4000-8000-000000000070', true),
        set_config('request.jwt.claim.role', 'authenticated', true);
-SELECT pg_temp.check_write('self-enroll/member2 denied enrolling into a borrador edición',
-  format($$INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES ('a6000000-0000-4000-8000-000000000062', %L, %L, 'a6000000-0000-4000-8000-000000000071', 'pendiente')$$,
-    (SELECT id FROM t2_fixture WHERE key='edicion_conexion'),
-    (SELECT id FROM t2_fixture WHERE key='cohorte_conexion')),
-  false);
+SELECT pg_temp.check_count('self-enroll/member2 denied enrolling into a borrador edición',
+  (SELECT count(*) WHERE public.talleres_inscribirme((SELECT id FROM t2_fixture WHERE key='edicion_conexion'))
+                         = '{"ok":false,"codigo":"EDICION_NOT_FOUND"}'::jsonb), 1);
 
 -- (c) CANNOT use a cohorte belonging to a DIFFERENT edición (cohorte_dps
 -- belongs to edicion_dps, not the abierta edición being enrolled into).
@@ -419,20 +425,18 @@ SELECT pg_temp.check_write('self-enroll/member2 denied enrolling with a cohorte 
   false);
 
 -- (d) sees no other member's inscripción: member2 legitimately self-
--- enrolls into the SAME abierto edición/cohorte member used in (a), as
--- its own separate row — then member must see only its own two
--- inscripciones, never member2's, even within the same branch.
-SELECT pg_temp.check_write('self-enroll/member2 allowed enrolling into the same abierto edición (its own row)',
-  format($$INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES ('a6000000-0000-4000-8000-000000000061', %L, %L, 'a6000000-0000-4000-8000-000000000071', 'pendiente')$$,
-    (SELECT id FROM t2_fixture WHERE key='edicion_conexion_abierta'),
-    (SELECT id FROM t2_fixture WHERE key='cohorte_conexion_abierta')),
-  true);
+-- enrolls (through talleres_inscribirme) into the SAME abierto edición
+-- member used in (a), as its own separate row — then member must see only
+-- its own two inscripciones, never member2's, even within the same branch.
+SELECT pg_temp.check_count('self-enroll/member2 allowed enrolling into the same abierto edición (its own row)',
+  (SELECT count(*) WHERE (public.talleres_inscribirme((SELECT id FROM t2_fixture WHERE key='edicion_conexion_abierta')) ->> 'ok')::boolean), 1);
 RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_member();
 SELECT pg_temp.check_count('self-enroll/member sees only its own two inscripciones, not member2''s (same branch, different person)',
-  (SELECT count(*) FROM public.taller_inscripciones WHERE id IN ('a6000000-0000-4000-8000-000000000024','a6000000-0000-4000-8000-000000000060','a6000000-0000-4000-8000-000000000061')), 2);
+  (SELECT count(*) FROM public.taller_inscripciones
+    WHERE taller_id IN ((SELECT id FROM t2_fixture WHERE key='edicion_conexion'), (SELECT id FROM t2_fixture WHERE key='edicion_conexion_abierta'))), 2);
 RESET ROLE;
 
 -- ══ taller_asistencias ═══════════════════════════════════════════════

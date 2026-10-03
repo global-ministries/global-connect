@@ -93,6 +93,9 @@
 --      and not full) still work; PERSONA_YA_EN_EDICION for the reversed
 --      couple, a person already companero, a principal already active;
 --      CHECK companero <> principal.
+--  11b. talleres_inscribir_sobre_cupo: a person whose only row is retirado
+--      can be placed again; an active principal or companero gets P0001
+--      YA_INSCRITO; grants and search_path are unchanged.
 --  12. acciones_limitadas is unreadable and unwritable by authenticated.
 --
 -- The MCP connection is `postgres` (BYPASSRLS) — every authority assertion
@@ -239,17 +242,7 @@ CREATE OR REPLACE FUNCTION pg_temp.as_persona(p_auth_id uuid) RETURNS void LANGU
          set_config('request.jwt.claim.role', 'authenticated', true);
 $$;
 
--- New functions no longer get EXECUTE for anon/authenticated by default
--- (definer_sin_anon), and the helpers run under those roles.
-DO $$
-DECLARE
-  r record;
-BEGIN
-  FOR r IN SELECT p.oid::regprocedure AS f FROM pg_proc p WHERE p.pronamespace = pg_my_temp_schema() LOOP
-    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO anon, authenticated', r.f);
-  END LOOP;
-END
-$$;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
 
 -- ── fixtures (as postgres, before any role switch) ──────────────────
 
@@ -846,6 +839,39 @@ SELECT pg_temp.assert_rows('11: the staff rows landed (Q1, Q2, Q4 in E_ind; Q3 s
      WHERE (taller_id = 'bb000000-0000-4000-8000-000000000090'
             AND persona_principal_id IN ('bb000000-0000-4000-8000-000000000057', 'bb000000-0000-4000-8000-000000000058', 'bb000000-0000-4000-8000-00000000005a'))
         OR (taller_id = 'bb000000-0000-4000-8000-000000000097' AND persona_principal_id = 'bb000000-0000-4000-8000-000000000059' AND sobre_cupo)$$, 4);
+
+-- ══ 11b. talleres_inscribir_sobre_cupo: only an active appearance blocks ══
+
+SELECT pg_temp.assert_rows('11b: talleres_inscribir_sobre_cupo stays a definer with search_path=public, authenticated yes, anon no',
+  $$SELECT 1 FROM pg_proc p
+     WHERE p.oid = 'public.talleres_inscribir_sobre_cupo(uuid,uuid,uuid)'::regprocedure
+       AND p.prosecdef AND p.proconfig @> ARRAY['search_path=public']
+       AND has_function_privilege('authenticated', p.oid, 'execute')
+       AND has_function_privilege('service_role', p.oid, 'execute')
+       AND NOT has_function_privilege('anon', p.oid, 'execute')$$, 1);
+SELECT pg_temp.assert_update_rows('11b: Q4''s placement is withdrawn (retirado)',
+  $$UPDATE public.taller_inscripciones SET estado = 'retirado'
+     WHERE taller_id = 'bb000000-0000-4000-8000-000000000090' AND persona_principal_id = 'bb000000-0000-4000-8000-00000000005a'$$, 1);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('bb000000-0000-4000-8000-000000000020');
+SELECT pg_temp.capture('11b: staff can place again a person whose only row is retirado', 'sobre_cupo_otra_vez',
+  $$SELECT public.talleres_inscribir_sobre_cupo('bb000000-0000-4000-8000-000000000090', 'bb000000-0000-4000-8000-00000000005a') - 'inscripcion_id' - 'ocupados'$$,
+  '{"cupo":0,"sobre_cupo":false}'::jsonb);
+SELECT pg_temp.assert_sqlstate_msg('11b: placing again a person who is active raises P0001 YA_INSCRITO',
+  $$SELECT public.talleres_inscribir_sobre_cupo('bb000000-0000-4000-8000-000000000090', 'bb000000-0000-4000-8000-00000000005a')$$,
+  'P0001', 'YA_INSCRITO');
+SELECT pg_temp.assert_sqlstate_msg('11b: placing a person who is active as companero raises P0001 YA_INSCRITO',
+  $$SELECT public.talleres_inscribir_sobre_cupo('bb000000-0000-4000-8000-000000000092', 'bb000000-0000-4000-8000-000000000042', 'bb000000-0000-4000-8000-00000000005b')$$,
+  'P0001', 'YA_INSCRITO');
+SELECT pg_temp.assert_sqlstate_msg('11b: M2 (one no_aprobado and one pendiente row) is still YA_INSCRITO',
+  $$SELECT public.talleres_inscribir_sobre_cupo('bb000000-0000-4000-8000-000000000090', 'bb000000-0000-4000-8000-000000000043')$$,
+  'P0001', 'YA_INSCRITO');
+RESET ROLE;
+SELECT pg_temp.assert_rows('11b: Q4 now has one retirado and one pendiente row in the edición',
+  $$SELECT 1 FROM public.taller_inscripciones
+     WHERE taller_id = 'bb000000-0000-4000-8000-000000000090' AND persona_principal_id = 'bb000000-0000-4000-8000-00000000005a'
+     GROUP BY persona_principal_id
+    HAVING count(*) FILTER (WHERE estado = 'retirado') = 1 AND count(*) FILTER (WHERE estado = 'pendiente') = 1$$, 1);
 
 -- ══ 12. acciones_limitadas is closed to authenticated ══
 

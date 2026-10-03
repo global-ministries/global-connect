@@ -14,7 +14,9 @@
  *   - acciones_limitadas is closed to anon and authenticated;
  *   - the lookup and the cédula mode share one throttle bucket, and the
  *     one-appearance trigger shares the cupo gate's lock;
- *   - taller_inscripciones_insert keeps only its staff branches.
+ *   - taller_inscripciones_insert keeps only its staff branches;
+ *   - talleres_inscribir_sobre_cupo keeps its grants and only refuses a
+ *     person who is already active in the edición.
  */
 
 import { readFileSync, readdirSync } from 'node:fs'
@@ -26,6 +28,7 @@ const PUBLIC_RPCS = [
   'talleres_mi_conyuge_registrado\\(\\)',
   'talleres_buscar_pareja_por_cedula\\(uuid, text\\)',
   'talleres_inscribirme\\(uuid, jsonb\\)',
+  'talleres_inscribir_sobre_cupo\\(uuid, uuid, uuid\\)',
 ] as const
 
 const INTERNAL_HELPERS = [
@@ -47,6 +50,7 @@ const FUNCTION_NAMES = [
   'talleres_cedula_pareja_normalizada',
   'talleres_persona_activa_en_edicion',
   'talleres_pareja_por_cedula',
+  'talleres_inscribir_sobre_cupo',
 ] as const
 
 const STAFF_BRANCHES = [
@@ -90,7 +94,7 @@ describe('inscripción en pareja migration', () => {
     FUNCTION_NAMES.map((name): [string, string] => [name, functionBlock(sqlOnly, name)]),
   )
 
-  it('defines the three RPCs and the six internal helpers', () => {
+  it('defines the four RPCs and the six internal helpers', () => {
     for (const name of FUNCTION_NAMES) {
       expect(blocks[name]).not.toBe('')
     }
@@ -199,6 +203,28 @@ describe('inscripción en pareja migration', () => {
         // eslint-disable-next-line security/detect-non-literal-regexp -- built from a fixed local list
         expect(blocks.talleres_inscribirme).not.toMatch(new RegExp(`RAISE\\s+EXCEPTION\\s+'${codigo}'`, 'i'))
       }
+    })
+  })
+
+  describe('talleres_inscribir_sobre_cupo', () => {
+    const block = (): string => blocks.talleres_inscribir_sobre_cupo
+
+    it('keeps its signature and staff authority', () => {
+      expect(block()).toMatch(
+        /p_edicion_id\s+uuid,\s*p_persona_id\s+uuid,\s*p_companero_id\s+uuid\s+DEFAULT\s+NULL/i,
+      )
+      for (const capability of ['director.write', 'coordinator.write', 'admin.manage']) {
+        expect(block()).toContain(`'talleres_crecimiento.${capability}'::text, v_equipo_id`)
+      }
+    })
+
+    it('refuses YA_INSCRITO only for an active appearance, under the cupo lock', () => {
+      const lock = block().search(/pg_advisory_xact_lock\(hashtext\('talleres_cupo:'\s*\|\|\s*p_edicion_id::text\)\)/)
+      const check = block().search(/IF\s+public\.talleres_persona_activa_en_edicion\(p_edicion_id,\s*p_persona_id\)\s+THEN/i)
+      expect(lock).toBeGreaterThan(-1)
+      expect(check).toBeGreaterThan(lock)
+      expect(block()).toMatch(/RAISE\s+EXCEPTION\s+'YA_INSCRITO'\s+USING\s+ERRCODE\s*=\s*'P0001'/i)
+      expect(block()).not.toMatch(/persona_principal_id\s*=\s*p_persona_id/i)
     })
   })
 
