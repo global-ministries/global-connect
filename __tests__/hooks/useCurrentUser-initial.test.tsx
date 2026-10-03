@@ -336,7 +336,7 @@ describe('CurrentUserProvider silent revalidation: auth failure vs data failure'
     expect(result.current.error).toBeNull()
   })
 
-  it('keeps the snapshot support capabilities when their query fails during a silent revalidation', async () => {
+  it('applies the new roles but keeps the snapshot support capabilities when only their query fails', async () => {
     const { supportCapabilitiesResolver } = setupRevalidationClient({
       rolesResponses: [{ data: ['admin', 'lider'], error: null }],
       supportResponse: { data: null, error: { message: 'connection terminated' } },
@@ -351,10 +351,12 @@ describe('CurrentUserProvider silent revalidation: auth failure vs data failure'
     })
 
     expect(supportCapabilitiesResolver).toHaveBeenCalled()
-    // The whole load failed, so nothing from it is applied — not even the
-    // roles that did resolve.
+    // The load is still `ok`: the roles that resolved are applied, and the
+    // last known capabilities for this same identity stay in place.
+    expect(result.current.roles).toEqual(['admin', 'lider'])
     expect(result.current.supportCapabilities).toEqual(['support.view'])
-    expect(result.current.roles).toEqual(['admin'])
+    expect(result.current.error).toBeNull()
+    expect(result.current.loading).toBe(false)
   })
 
   it('keeps the previous roles when a talleres:refresh-session refresh hits a failing roles RPC', async () => {

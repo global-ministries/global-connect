@@ -79,18 +79,32 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
     // revalidation that returns the same roles in a new array does not
     // reload the campus list.
     const rolesIncludeSuperadmin = roles.some(r => ROLES_SUPERADMIN.includes(r))
+    // Only a load with no identity yet is worth waiting for: its roles array
+    // is the empty placeholder, and deciding esSuperadmin from it would load
+    // the wrong campus list. A reload that keeps an identity (e.g. the
+    // SIGNED_IN refetch) still holds real roles, so it does not count —
+    // otherwise every such reload would refetch the list and flip `loading`.
+    const waitingForIdentity = currentUserLoading && !authUserId
 
-    // Cargar datos iniciales
+    // Cargar datos: re-runs only when the identity or the superadmin flag
+    // actually change.
     useEffect(() => {
-        // While CurrentUserProvider is loading its roles array is empty (or
-        // stale): deciding esSuperadmin from it would load the wrong campus
-        // list, so wait for it to settle.
-        if (currentUserLoading) return
+        if (waitingForIdentity) return
+        if (!authUserId) {
+            // Signed out (or the user could not be resolved): back to the
+            // initial values so the next user never sees this one's campus.
+            setCampusDisponibles([])
+            setEsSuperadmin(false)
+            setCampusActivoId(null)
+            setLocalidadActivaId(null)
+            setLoading(false)
+            return
+        }
         let cancelled = false
+        // A new identity or flag means a new list: loading until it arrives.
+        setLoading(true)
         const cargar = async () => {
             try {
-                if (!authUserId) return
-
                 setEsSuperadmin(rolesIncludeSuperadmin)
 
                 const supabase = createClient()
@@ -138,9 +152,10 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
             }
         }
         cargar()
-        // A newer run (the user or their roles changed) supersedes this one.
+        // A newer run (the user or their roles changed) supersedes this one:
+        // its stale result must not be applied.
         return () => { cancelled = true }
-    }, [currentUserLoading, authUserId, rolesIncludeSuperadmin])
+    }, [waitingForIdentity, authUserId, rolesIncludeSuperadmin])
 
     // Cuando cambia el campus activo, cargar localidades
     useEffect(() => {
@@ -200,15 +215,15 @@ export function CampusProvider({ children }: { children: React.ReactNode }) {
         campusId: campusActivoId,
         localidadId: localidadActivaId,
         esSuperadmin,
-        // Also true while CurrentUserProvider reloads (e.g. after SIGNED_IN),
-        // since the campus list may be about to change with the roles.
-        loading: loading || currentUserLoading,
+        // Also true while CurrentUserProvider is still resolving who the
+        // user is (the effect above is waiting on it).
+        loading: loading || waitingForIdentity,
         seleccionarCampus,
         seleccionarLocalidad,
     }), [
         campusActivo, localidadActiva, campusDisponibles,
         localidadesDisponibles, campusActivoId, localidadActivaId,
-        esSuperadmin, loading, currentUserLoading, seleccionarCampus, seleccionarLocalidad,
+        esSuperadmin, loading, waitingForIdentity, seleccionarCampus, seleccionarLocalidad,
     ])
 
     return (

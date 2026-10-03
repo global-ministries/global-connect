@@ -176,10 +176,23 @@ export async function resolveCurrentUserSnapshot(
 // revalidation in CurrentUserProvider, which has its own delayed retry. A
 // NULL result without an error is a success (a person without roles) and
 // is never retried.
+//
+// A statement timeout or cancellation is NOT retried here: an immediate
+// second call would most likely hit the same limit and double how long the
+// server render waits, and the client already retries it after a delay.
 async function fetchLegacyRolesWithRetry(supabase: SnapshotSupabaseClient, authId: string) {
   const first = await supabase.rpc('obtener_roles_usuario', { p_auth_id: authId })
-  if (!first.error) return first
+  if (!first.error || isStatementTimeout(first.error)) return first
   return await supabase.rpc('obtener_roles_usuario', { p_auth_id: authId })
+}
+
+// 57014 is Postgres' query_canceled (statement_timeout and explicit
+// cancellation both raise it); the message check also covers timeouts
+// reported by layers in front of Postgres, which carry no SQLSTATE.
+function isStatementTimeout(error: { code?: string; message?: string }): boolean {
+  if (error.code === '57014') return true
+  const message = (error.message ?? '').toLowerCase()
+  return message.includes('timeout') || message.includes('canceling statement')
 }
 
 // Mirrors toClientPlatformPersona in hooks/useCurrentUser.tsx: turns the

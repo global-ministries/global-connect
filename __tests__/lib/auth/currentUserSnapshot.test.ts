@@ -243,7 +243,7 @@ describe('resolveCurrentUserSnapshot', () => {
 
   it('retries the roles RPC once when it reports an error and uses the roles from the retry', async () => {
     const rpc = jest.fn()
-      .mockResolvedValueOnce({ data: null, error: { message: 'canceling statement due to statement timeout' } })
+      .mockResolvedValueOnce({ data: null, error: { message: 'connection reset by peer' } })
       .mockResolvedValueOnce({ data: ['admin'], error: null })
     const { client } = buildClient({ rpc })
     createSupabaseServerClient.mockResolvedValue(client)
@@ -261,6 +261,27 @@ describe('resolveCurrentUserSnapshot', () => {
     expect(rpc).toHaveBeenNthCalledWith(2, 'obtener_roles_usuario', { p_auth_id: 'auth-1' })
     expect(snapshot?.roles).toEqual(['admin'])
     expect(snapshot?.platformSession?.globalRoles).toEqual(['admin'])
+  })
+
+  // An immediate second call would most likely hit the same timeout and
+  // double the server render's wait; the client revalidation retries it
+  // after a delay instead.
+  it.each([
+    ['the Postgres statement-timeout code', { code: '57014', message: 'statement aborted' }],
+    ['a canceling-statement message', { message: 'canceling statement due to statement timeout' }],
+    ['a timeout message', { message: 'upstream request timeout' }],
+  ])('does not retry the roles RPC on a statement timeout or cancellation (%s)', async (_label, error) => {
+    const { client, rpc } = buildClient({
+      rpc: jest.fn().mockResolvedValue({ data: null, error }),
+    })
+    createSupabaseServerClient.mockResolvedValue(client)
+    resolveReadOnlyPlatformSession.mockResolvedValue(null)
+
+    const snapshot = await resolveCurrentUserSnapshot()
+
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(snapshot?.authUserId).toBe('auth-1')
+    expect(snapshot?.roles).toEqual([])
   })
 
   it('does not retry the roles RPC when it succeeds, even with a NULL result for a person without roles', async () => {

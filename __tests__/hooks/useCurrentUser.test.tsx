@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
-import { useCurrentUser, CurrentUserProvider, __resetCurrentUserCacheForTesting } from '@/hooks/useCurrentUser'
+import { useCurrentUser, CurrentUserProvider, __resetCurrentUserCacheForTesting, LOAD_RETRY_DELAY_MS } from '@/hooks/useCurrentUser'
 import { AUTH_FETCH_TIMEOUT_MS } from '@/lib/platform/auth-timeout'
 
 const createClient = jest.fn()
@@ -47,6 +47,8 @@ type SupabaseMockStep = {
   // Overrides the whole roles RPC response (e.g. a NULL result or an error).
   rolesResponse?: { data: unknown; error: { message: string } | null }
   supportCapabilities?: string[]
+  // Makes the support_user_capabilities query for this step report an error.
+  supportCapabilitiesError?: string
   capabilityGrants?: CapabilityGrantRow[]
   getUserDeferred?: Deferred<GetUserResponse>
 }
@@ -60,9 +62,6 @@ const AUTH_SESSION_PLACEHOLDER = { user: { id: 'auth-session-placeholder' } }
 // only need "long enough to fire the debounce, short enough to not fire
 // the 5s timeout".
 const SIGNED_IN_DEBOUNCE_MS = 150
-// Mirrors LOAD_RETRY_DELAY_MS in the hook: the single automatic retry of a
-// load that ended in `error` fires after this delay.
-const LOAD_RETRY_DELAY_MS = 1_500
 let authStateCallback: CapturedAuthStateCallback | null = null
 
 describe('useCurrentUser', () => {
@@ -752,6 +751,43 @@ describe('useCurrentUser', () => {
     }
   })
 
+  // Support capabilities only gate the Soporte entry; their failure must not
+  // take the roles (the whole sidebar) down with it.
+  it('applies the roles when only the support capabilities query fails, with no known capabilities to keep', async () => {
+    jest.useFakeTimers()
+    try {
+      const user = { id: 'auth-caps-error' }
+      const usuario = { id: 'usuario-caps-error', auth_id: 'auth-caps-error', nombre: 'Caps Error' }
+      const { client } = setupSupabaseClient([
+        { user, usuario, roles: ['admin'], supportCapabilitiesError: 'connection terminated' },
+      ])
+
+      const { result } = renderHook(() => useCurrentUser(), { wrapper: CurrentUserProvider })
+
+      await act(async () => {
+        await flushPendingPromises()
+      })
+
+      expect(result.current.loading).toBe(false)
+      expect(result.current.roles).toEqual(['admin'])
+      expect(result.current.usuario?.id).toBe('usuario-caps-error')
+      // Nothing known for this identity yet, so no capabilities.
+      expect(result.current.supportCapabilities).toEqual([])
+      expect(result.current.error).toBeNull()
+
+      // An `ok` load is not retried.
+      await act(async () => {
+        jest.advanceTimersByTime(LOAD_RETRY_DELAY_MS * 2)
+        await flushPendingPromises()
+      })
+      expect(client.rpc).toHaveBeenCalledTimes(1)
+      // ...and a load with unresolved capabilities is not cached.
+      expect(__resetCurrentUserCacheForTesting()).toBeNull()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
   it('retries a failed load at most once', async () => {
     jest.useFakeTimers()
     try {
@@ -823,8 +859,10 @@ function setupSupabaseClient(steps: SupabaseMockStep[]) {
     }
     // A load whose roles RPC errors stops right there: no support
     // capabilities query and no cache-write getUser() check for that step.
+    // A failed support capabilities query still finishes the load, but it is
+    // not cached either, so it skips that check too.
     const loadFails = Boolean(step.rolesResponse?.error)
-    if (!loadFails) {
+    if (!loadFails && !step.supportCapabilitiesError) {
       const cacheAuthUser = 'cacheAuthUser' in step ? step.cacheAuthUser ?? null : step.user
       getUser.mockResolvedValueOnce(getUserResponse(cacheAuthUser))
     }
@@ -836,10 +874,9 @@ function setupSupabaseClient(steps: SupabaseMockStep[]) {
     if (loadFails) continue
 
     if (step.usuario?.id) {
-      supportCapabilitiesResolver.mockResolvedValueOnce({
-        data: supportCapabilityRows(step.supportCapabilities ?? []),
-        error: null,
-      })
+      supportCapabilitiesResolver.mockResolvedValueOnce(step.supportCapabilitiesError
+        ? { data: null, error: { message: step.supportCapabilitiesError } }
+        : { data: supportCapabilityRows(step.supportCapabilities ?? []), error: null })
       if (step.capabilityGrants) {
         capabilityGrantsResolver.mockResolvedValueOnce({
           data: step.capabilityGrants,

@@ -39,13 +39,14 @@ const SIGNED_IN_DEBOUNCE_MS = 150
 // event for ops. The constant lives in lib/platform/auth-timeout.ts so the
 // middleware getUser() guard shares the same value (Finding 7 in 4R).
 const FETCH_TIMEOUT_MS = AUTH_FETCH_TIMEOUT_MS
-// A load that ends in the `error` kind (a failed usuarios select, roles RPC
-// or support capabilities query — not an auth failure, not a timeout) is
-// retried once after this delay, so a transient failure heals itself
-// instead of leaving the sidebar without its role-gated items until the
-// next full reload. Once per load request: a retry that fails again stays
-// failed, so a real outage never turns into a request loop.
-const LOAD_RETRY_DELAY_MS = 1_500
+// A load that ends in the `error` kind (a failed usuarios select or roles
+// RPC — not an auth failure, not a timeout) is retried once after this
+// delay, so a transient failure heals itself instead of leaving the sidebar
+// without its role-gated items until the next full reload. Once per load
+// request: a retry that fails again stays failed, so a real outage never
+// turns into a request loop. Exported so tests advance timers by the real
+// value instead of a copy.
+export const LOAD_RETRY_DELAY_MS = 1_500
 let currentUserCache: { authUserId: string | null; expiresAt: number; value: CurrentUserResult } | null = null
 let currentUserCacheGeneration = 0
 
@@ -88,6 +89,27 @@ function scheduleLoadRetry(timerRef: RetryTimerRef, retry: () => void) {
   }, LOAD_RETRY_DELAY_MS)
 }
 
+// What one load resolves. `supportCapabilities` is null when only the
+// support_user_capabilities query failed: those capabilities gate a single
+// entry (Soporte), so their failure must neither fail the whole load (and
+// with it the roles) nor read as "no capabilities". The provider fills a
+// null in from the last known value for the same identity — see
+// resolveSupportCapabilities below.
+type LoadedCurrentUser = Omit<CurrentUserResult, 'supportCapabilities'> & { supportCapabilities: string[] | null }
+
+type KnownSupportCapabilitiesRef = { current: { authUserId: string | null; capabilities: string[] } | null }
+
+// Records resolved capabilities as the last known ones for their identity,
+// and answers an unresolved (null) value with those last known ones — only
+// for that same identity, never another user's; [] when none are known.
+function resolveSupportCapabilities(loaded: LoadedCurrentUser, known: KnownSupportCapabilitiesRef): string[] {
+  if (loaded.supportCapabilities) {
+    known.current = { authUserId: loaded.authUserId, capabilities: loaded.supportCapabilities }
+    return loaded.supportCapabilities
+  }
+  return known.current?.authUserId === loaded.authUserId ? known.current.capabilities : []
+}
+
 // Discriminated union returned by tryFetchCurrentUserData. Distinguishes a
 // network timeout (silent failure — the UI renders as signed-out without a
 // toast) from a real error from loadCurrentUserData (DB outage, RPC failure,
@@ -106,7 +128,7 @@ function scheduleLoadRetry(timerRef: RetryTimerRef, retry: () => void) {
 // good SSR snapshot. The two kinds still behave identically on a
 // non-silent run (setError + clear state, same toast path as before).
 export type CurrentUserFetchResult =
-  | { kind: 'ok'; data: CurrentUserResult }
+  | { kind: 'ok'; data: LoadedCurrentUser }
   | { kind: 'timeout' }
   | { kind: 'auth_error'; error: unknown }
   | { kind: 'error'; error: unknown }
@@ -137,14 +159,22 @@ async function tryFetchCurrentUserData(): Promise<CurrentUserFetchResult> {
 
     const requestGeneration = currentUserCacheGeneration
     const supabase = createClient()
-    return loadCurrentUserData(supabase).then(async (value) => {
+    return loadCurrentUserData(supabase).then(async (value): Promise<LoadedCurrentUser> => {
       // Skip the cache write if the race already settled by timeout —
       // otherwise the abandoned chain would poison the module-level cache
       // with stale data the caller was told does not exist.
       if (didTimeOut) return value
-      if (requestGeneration === currentUserCacheGeneration) {
+      // A load whose support capabilities did not resolve is not cached
+      // either: a later cache hit would hand those unresolved capabilities
+      // to a caller as if they were the real ones.
+      const { supportCapabilities } = value
+      if (supportCapabilities && requestGeneration === currentUserCacheGeneration) {
         if (await isCurrentAuthUser(value.authUserId)) {
-          currentUserCache = { authUserId: value.authUserId, value, expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS }
+          currentUserCache = {
+            authUserId: value.authUserId,
+            value: { ...value, supportCapabilities },
+            expiresAt: Date.now() + CURRENT_USER_CACHE_TTL_MS,
+          }
         }
       }
       return value
@@ -177,7 +207,7 @@ async function tryFetchCurrentUserData(): Promise<CurrentUserFetchResult> {
   }
 }
 
-async function loadCurrentUserData(supabase: ReturnType<typeof createClient>): Promise<CurrentUserResult> {
+async function loadCurrentUserData(supabase: ReturnType<typeof createClient>): Promise<LoadedCurrentUser> {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError) {
@@ -216,7 +246,7 @@ async function loadCurrentUserData(supabase: ReturnType<typeof createClient>): P
     ? rolesData.map((role: unknown) => typeof role === "string" ? role : getRoleName(role)).filter((role): role is string => Boolean(role))
     : []
 
-  let supportCapabilities: string[] = []
+  let supportCapabilities: string[] | null = []
   if (userData?.id) {
     const { data: capabilitiesData, error: capabilitiesError } = await supabase
       .from('support_user_capabilities')
@@ -224,13 +254,13 @@ async function loadCurrentUserData(supabase: ReturnType<typeof createClient>): P
       .eq('usuario_id', userData.id)
       .is('revoked_at', null)
 
-    // Same reasoning as the roles RPC above: a failed query is not "no
-    // support capabilities", so it must not overwrite the ones already shown.
+    // Unlike the roles RPC above, this failure does not fail the load: the
+    // roles still apply, and null marks the capabilities as unresolved so
+    // the provider keeps the last known ones (see LoadedCurrentUser).
     if (capabilitiesError) {
-      throw new Error('Error al obtener capacidades de soporte: ' + capabilitiesError.message)
-    }
-
-    if (capabilitiesData) {
+      console.error('Error al obtener capacidades de soporte:', capabilitiesError.message)
+      supportCapabilities = null
+    } else if (capabilitiesData) {
       supportCapabilities = capabilitiesData
         .map((row: { capability: string }) => row.capability)
         .filter((capability): capability is SupportCapability => SUPPORT_CAPABILITIES.includes(capability as SupportCapability))
@@ -270,6 +300,12 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
   const authGenerationRef = useRef(0)
   const signedInDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Last support capabilities that actually resolved, and for whom. Seeded
+  // from `initial` so a revalidation whose capabilities query fails keeps
+  // the server-resolved ones.
+  const knownSupportCapabilitiesRef = useRef<KnownSupportCapabilitiesRef['current']>(
+    initial ? { authUserId: initial.authUserId, capabilities: initial.supportCapabilities } : null
+  )
   // Whether the very first mount fetch below should behave like the
   // talleres:refresh-session listener further down — a background
   // revalidation that only ever updates state on success — instead of a
@@ -317,7 +353,7 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
           setAuthUserId(result.data.authUserId)
           setUsuario(result.data.usuario)
           setRoles(result.data.roles)
-          setSupportCapabilities(result.data.supportCapabilities)
+          setSupportCapabilities(resolveSupportCapabilities(result.data, knownSupportCapabilitiesRef))
           setPlatformSession(result.data.platformSession)
         } else if (result.kind === 'auth_error') {
           // Unlike a data/RPC error below, a failed auth.getUser() means the
@@ -405,6 +441,9 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
       }
       if (event === 'SIGNED_OUT') {
         authGenerationRef.current += 1
+        // Forget them on sign-out: a later failed capabilities query must
+        // not bring back what this session had.
+        knownSupportCapabilitiesRef.current = null
         setAuthUserId(null)
         setUsuario(null)
         setRoles([])
@@ -438,9 +477,10 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
   // module-level cache (15s TTL) returns the stale value and the UI
   // never updates. See Finding 7 in the 4R review for cache semantics.
   //
-  // Only an `ok` result is applied: a failed roles RPC or capabilities query
-  // now comes back as `error` (see loadCurrentUserData), which keeps the
-  // roles already shown and is retried once, like the mount fetch above.
+  // Only an `ok` result is applied: a failed roles RPC now comes back as
+  // `error` (see loadCurrentUserData), which keeps the roles already shown
+  // and is retried once, like the mount fetch above. A failed capabilities
+  // query alone is still `ok` and keeps the last known capabilities.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const refresh = async (isRetry: boolean): Promise<void> => {
@@ -452,7 +492,7 @@ export function CurrentUserProvider({ children, initial }: { children: ReactNode
           setAuthUserId(result.data.authUserId)
           setUsuario(result.data.usuario)
           setRoles(result.data.roles)
-          setSupportCapabilities(result.data.supportCapabilities)
+          setSupportCapabilities(resolveSupportCapabilities(result.data, knownSupportCapabilitiesRef))
           setPlatformSession(result.data.platformSession)
         } else if (result.kind === 'error' && !isRetry) {
           scheduleLoadRetry(loadRetryRef, () => {
