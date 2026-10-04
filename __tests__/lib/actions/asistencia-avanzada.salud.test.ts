@@ -38,6 +38,8 @@ function consulta(llamadas: Llamada[], data: unknown) {
 
 function montar(roles: string[], opciones: { puedeVerGrupo?: boolean } = {}) {
   const vista: Llamada[] = []
+  const usuarios: Llamada[] = []
+  const asignaciones: Llamada[] = []
   const sesion = {
     auth: { getUser: jest.fn(async () => ({ data: { user: { id: authId } } })) },
     rpc: jest.fn(async () => ({ data: opciones.puedeVerGrupo ?? true, error: null })),
@@ -48,20 +50,23 @@ function montar(roles: string[], opciones: { puedeVerGrupo?: boolean } = {}) {
   const admin = {
     rpc: jest.fn(async () => ({ data: [grupoDg], error: null })),
     from: jest.fn((tabla: string) => {
-      if (tabla === 'usuarios') return consulta([], { id: usuarioId })
-      if (tabla === 'director_etapa_grupos') return consulta([], [{ grupo_id: grupoDe }])
+      if (tabla === 'usuarios') return consulta(usuarios, { id: usuarioId })
+      if (tabla === 'director_etapa_grupos') return consulta(asignaciones, [{ grupo_id: grupoDe }])
       return consulta(vista, [])
     }),
   }
   createSupabaseServerClient.mockResolvedValue(sesion)
   createSupabaseAdminClient.mockReturnValue(admin)
   getUserWithRoles.mockResolvedValue({ user: { id: authId }, roles })
-  return { sesion, admin, vista }
+  return { sesion, admin, vista, usuarios, asignaciones }
 }
 
 const filtroGrupos = (vista: Llamada[]) => vista.find(([m, a]) => m === 'in' && a[0] === 'grupo_id')?.[1][1]
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => {
+  jest.clearAllMocks()
+  createSupabaseAdminClient.mockReset()
+})
 
 describe('obtenerSaludMiembrosGrupo', () => {
   it.each([['lider'], ['miembro']])('denies %s without reading the view', async (rol) => {
@@ -108,10 +113,27 @@ describe('obtenerMiembrosEnRiesgo', () => {
   })
 
   it('limits a director de etapa to their groups', async () => {
-    const { vista } = montar(['director-etapa'])
+    const { vista, usuarios, asignaciones } = montar(['director-etapa'])
 
     expect((await obtenerMiembrosEnRiesgo()).success).toBe(true)
+    expect(usuarios).toContainEqual(['eq', ['auth_id', authId]])
+    expect(asignaciones).toContainEqual(['eq', ['segmento_lideres.usuario_id', usuarioId]])
+    expect(asignaciones).toContainEqual(['eq', ['segmento_lideres.tipo_lider', 'director_etapa']])
     expect(filtroGrupos(vista)).toEqual([grupoDe])
+  })
+
+  it('returns the typed failure when the service client cannot be created', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    montar(['director-etapa'])
+    createSupabaseAdminClient.mockImplementation(() => {
+      throw new Error('Faltan variables de entorno')
+    })
+
+    const r = await obtenerMiembrosEnRiesgo()
+
+    expect(r.success).toBe(false)
+    expect(r.error).toEqual(expect.any(String))
+    errorSpy.mockRestore()
   })
 
   it('limits a director general to the groups of the DG rule', async () => {

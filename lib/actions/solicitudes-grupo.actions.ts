@@ -477,7 +477,17 @@ export async function obtenerHistorialMiembro(
   }
 
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-  const { data, error } = await createSupabaseAdminClient()
+  let lectorDb: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    lectorDb = createSupabaseAdminClient();
+  } catch (error) {
+    console.error(
+      "[obtenerHistorialMiembro] Sin cliente de servicio:",
+      error instanceof Error ? error.message : String(error),
+    );
+    return { success: false, error: "No se pudo cargar el historial" };
+  }
+  const { data, error } = await lectorDb
     .from("v_historial_miembro")
     .select("*")
     .eq("usuario_id", usuarioId)

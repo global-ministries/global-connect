@@ -113,7 +113,16 @@ async function resolverLectorSalud(
   if (!roles.some((r) => ROLES_LECTORES_SALUD.includes(r))) return { error: SIN_PERMISO_SALUD };
 
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-  const adminDb = createSupabaseAdminClient();
+  let adminDb: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    adminDb = createSupabaseAdminClient();
+  } catch (error) {
+    console.error(
+      "[resolverLectorSalud] Sin cliente de servicio:",
+      error instanceof Error ? error.message : String(error),
+    );
+    return { error: "No se pudo cargar la salud de los miembros" };
+  }
   const { data: usuario } = await adminDb
     .from("usuarios")
     .select("id")

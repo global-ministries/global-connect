@@ -11,7 +11,8 @@
 --     DG rule or the director de etapa's groups) and
 --     lib/actions/solicitudes-grupo.actions.ts (listarSolicitudesPendientes,
 --     obtenerHistorialMiembro). app/(auth)/grupos-vida/[id]/salud/page.tsx
---     shows "Sin permisos" to a leader.
+--     shows "Sin permisos" to a leader. A director de etapa is not yet
+--     group-scoped in the two solicitudes readers (owner decision pending).
 --   v_mapa_grupos_vida stays readable by authenticated: every leader keeps
 --     their people up to date so they appear on the map.
 --

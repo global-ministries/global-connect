@@ -1,4 +1,4 @@
-import { listarSolicitudesPendientes } from '@/lib/actions/solicitudes-grupo.actions'
+import { listarSolicitudesPendientes, obtenerHistorialMiembro } from '@/lib/actions/solicitudes-grupo.actions'
 
 const createSupabaseServerClient = jest.fn()
 const createSupabaseAdminClient = jest.fn()
@@ -93,5 +93,60 @@ describe('listarSolicitudesPendientes expiring overdue requests', () => {
     expect(result).toEqual({ success: true, data: [] })
     expect(service.from).not.toHaveBeenCalledWith('v_solicitudes_pendientes')
     expect(session.from).not.toHaveBeenCalledWith('v_solicitudes_pendientes')
+  })
+})
+
+// v_historial_miembro is closed to signed-in sessions: only director de etapa
+// and above read it, through the service client.
+describe('obtenerHistorialMiembro role gate', () => {
+  const usuarioId = '44444444-4444-4444-4444-444444444444'
+  const movimiento = { id: 'm1', usuario_id: usuarioId, creado_en: '2026-01-01' }
+
+  beforeEach(() => {
+    createSupabaseServerClient.mockReset()
+    createSupabaseAdminClient.mockReset()
+    getUserWithRoles.mockReset()
+  })
+
+  it.each([['lider'], ['miembro']])('denies %s without reading the view', async (rol) => {
+    getUserWithRoles.mockResolvedValue({ user: { id: authId }, roles: [rol] })
+    const session = createClient([movimiento])
+    const service = createClient([movimiento])
+    createSupabaseServerClient.mockResolvedValue(session)
+    createSupabaseAdminClient.mockReturnValue(service)
+
+    const result = await obtenerHistorialMiembro(usuarioId)
+
+    expect(result.success).toBe(false)
+    expect(service.from).not.toHaveBeenCalled()
+    expect(session.from).not.toHaveBeenCalled()
+  })
+
+  it.each([['director-etapa'], ['director-general'], ['admin']])('reads through the service client for %s', async (rol) => {
+    getUserWithRoles.mockResolvedValue({ user: { id: authId }, roles: [rol] })
+    const session = createClient([])
+    const service = createClient([movimiento])
+    createSupabaseServerClient.mockResolvedValue(session)
+    createSupabaseAdminClient.mockReturnValue(service)
+
+    const result = await obtenerHistorialMiembro(usuarioId)
+
+    expect(result).toEqual({ success: true, data: [movimiento] })
+    expect(service.from).toHaveBeenCalledWith('v_historial_miembro')
+    expect(session.from).not.toHaveBeenCalled()
+  })
+
+  it('returns the typed failure when the service client cannot be created', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    getUserWithRoles.mockResolvedValue({ user: { id: authId }, roles: ['admin'] })
+    createSupabaseServerClient.mockResolvedValue(createClient([]))
+    createSupabaseAdminClient.mockImplementation(() => {
+      throw new Error('Faltan variables de entorno')
+    })
+
+    const result = await obtenerHistorialMiembro(usuarioId)
+
+    expect(result).toEqual({ success: false, error: expect.any(String) })
+    errorSpy.mockRestore()
   })
 })
