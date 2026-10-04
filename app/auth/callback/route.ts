@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { destinoTrasConfirmar } from '@/lib/supabase/vincular-sesion'
 
 /**
  * Auth callback Route Handler.
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/auth/reset-password', requestUrl.origin))
   }
 
-  // Para confirmación de email, signup, o magic link → destino o dashboard
-  return NextResponse.redirect(new URL(next, requestUrl.origin))
+  // Para confirmación de email, signup, o magic link → vincular la ficha con el
+  // correo ya confirmado y luego ir al destino o al dashboard
+  return NextResponse.redirect(await destinoTrasConfirmar(supabase, new URL(next, requestUrl.origin)))
 }
