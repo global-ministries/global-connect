@@ -5,6 +5,7 @@ import { getUserWithRoles } from "@/lib/getUserWithRoles";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { upsertDireccion } from "@/lib/helpers/direccion.helper";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const createGroupSchema = z.object({
   nombre: z.string().min(1, "El nombre del grupo es requerido"),
@@ -77,8 +78,11 @@ export async function updateGroup(groupId: string, data: unknown) {
         .eq("id", groupId)
         .single();
 
+      // The address is written with the service client after the
+      // puede_editar_grupo check above: creating one needs RETURNING, which
+      // the direcciones SELECT policy denies until a group points at it.
       const direccionId = await upsertDireccion(
-        supabase,
+        createSupabaseAdminClient(),
         grupoActual?.direccion_anfitrion_id ?? null,
         validatedData.direccion
       );

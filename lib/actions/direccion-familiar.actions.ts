@@ -1,6 +1,7 @@
 "use server"
 
 import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 
 /** Etiqueta legible para cada tipo de relación. */
 const RELACION_LABELS: Record<string, string> = {
@@ -40,7 +41,22 @@ export async function obtenerSugerenciasDireccionFamiliar(
   usuarioId: string
 ): Promise<{ sugerencias: SugerenciaDireccionFamiliar[] }> {
   try {
-    const supabase = await createSupabaseServerClient()
+    // Only someone who may edit this person gets suggestions. The relatives
+    // and their addresses are then read with the service client: the
+    // direcciones policy only opens addresses of people the caller may see,
+    // and a relative is often not one of them.
+    const sesion = await createSupabaseServerClient()
+    const {
+      data: { user },
+    } = await sesion.auth.getUser()
+    if (!user) return { sugerencias: [] }
+    const { data: permitido } = await sesion.rpc("puede_editar_usuario", {
+      p_auth_id: user.id,
+      p_target_user_id: usuarioId,
+    })
+    if (!permitido) return { sugerencias: [] }
+
+    const supabase = createSupabaseAdminClient()
 
     // Buscar relaciones del usuario (ambas direcciones de la relación)
     const { data: relaciones, error: relError } = await supabase
