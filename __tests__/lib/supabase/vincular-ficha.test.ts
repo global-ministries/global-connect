@@ -2,13 +2,26 @@ import { vincularFichaConfirmada } from '@/lib/supabase/vincular-ficha'
 
 type Ficha = { id: string; auth_id: string | null; email: string | null; cedula: string | null }
 
-/** Minimal in-memory stand-in for the `usuarios` table, enough for the linker's queries. */
-function crearAdmin(fichas: Ficha[]) {
+type Otras = {
+  usuario_roles?: { usuario_id: string; roles_sistema: { nombre_interno: string } }[]
+  dream_team_servicios?: { persona_id: string; estado: string }[]
+  vinculos_pendientes?: { ficha_id: string; auth_user_id: string; estado: string }[]
+}
+
+/** Minimal in-memory stand-in for the tables the linker reads, enough for its queries. */
+function crearAdmin(fichas: Ficha[], otras: Otras = {}) {
   const tabla = fichas.map((f) => ({ ...f }))
+  const tablas: Record<string, Record<string, unknown>[]> = {
+    usuarios: tabla,
+    usuario_roles: [...(otras.usuario_roles ?? [])],
+    dream_team_servicios: [...(otras.dream_team_servicios ?? [])],
+    vinculos_pendientes: [...(otras.vinculos_pendientes ?? [])],
+  }
   const inserts: Record<string, unknown>[] = []
+  const pendientes: Record<string, unknown>[] = []
   const updates: { valores: Record<string, unknown>; filtros: [string, unknown][] }[] = []
 
-  function consulta() {
+  function consulta(tabla: Record<string, unknown>[]) {
     const filtros: [string, unknown][] = []
     const patrones: [string, RegExp][] = []
     const filtrar = () =>
@@ -43,21 +56,26 @@ function crearAdmin(fichas: Ficha[]) {
       order() {
         return builder
       },
-      then(resolve: (r: { data: Ficha[]; error: null }) => unknown) {
+      then(resolve: (r: { data: Record<string, unknown>[]; error: null }) => unknown) {
         return Promise.resolve({ data: filtrar(), error: null }).then(resolve)
       },
     }
     return { builder, filtros, filtrar }
   }
 
-  const from = jest.fn(() => ({
-    select: () => consulta().builder,
+  const from = jest.fn((nombre: string) => ({
+    select: () => consulta(tablas[nombre]).builder,
     insert: (filas: Record<string, unknown>[]) => {
-      inserts.push(...filas)
+      // Inserted fichas are only recorded, so assertions over `tabla` see the fixtures.
+      if (nombre === 'usuarios') inserts.push(...filas)
+      else {
+        pendientes.push(...filas)
+        tablas[nombre].push(...filas)
+      }
       return Promise.resolve({ error: null })
     },
     update: (valores: Record<string, unknown>) => {
-      const c = consulta()
+      const c = consulta(tablas[nombre])
       const registro = { valores, filtros: c.filtros }
       updates.push(registro)
       const builder = {
@@ -79,7 +97,7 @@ function crearAdmin(fichas: Ficha[]) {
     },
   }))
 
-  return { admin: { from } as never, tabla, inserts, updates }
+  return { admin: { from } as never, tabla, inserts, pendientes, updates }
 }
 
 function usuario(over: Partial<{ email_confirmed_at: string | null; cedula: string }> = {}) {
@@ -213,5 +231,65 @@ describe('vincularFichaConfirmada', () => {
         cedula: '22328215',
       }),
     ])
+  })
+  describe('a cedula match on a ficha that holds a service role', () => {
+    const ficha = { id: 'f1', auth_id: null, email: null, cedula: '22328215' }
+    const rol = (nombre_interno: string) => ({ usuario_id: 'f1', roles_sistema: { nombre_interno } })
+
+    it.each(['lider', 'director-etapa', 'director-general', 'pastor', 'admin'])(
+      'stores a pending request instead of linking when the ficha is %s',
+      async (nombre) => {
+        const { admin, tabla, inserts, pendientes } = crearAdmin([{ ...ficha }], {
+          usuario_roles: [rol('miembro'), rol(nombre)],
+        })
+        const res = await vincularFichaConfirmada(admin, usuario())
+        expect(res.estado).toBe('pendiente_aprobacion')
+        expect(tabla[0].auth_id).toBeNull()
+        expect(inserts).toHaveLength(0)
+        expect(pendientes).toEqual([{ ficha_id: 'f1', auth_user_id: 'auth-1' }])
+      },
+    )
+
+    it('stores a pending request when the ficha has an active Dream Team service', async () => {
+      const { admin, tabla, pendientes } = crearAdmin([{ ...ficha }], {
+        dream_team_servicios: [{ persona_id: 'f1', estado: 'activo' }],
+      })
+      const res = await vincularFichaConfirmada(admin, usuario())
+      expect(res.estado).toBe('pendiente_aprobacion')
+      expect(tabla[0].auth_id).toBeNull()
+      expect(pendientes).toHaveLength(1)
+    })
+
+    it('does not open a second request for the same account and ficha', async () => {
+      const { admin, pendientes } = crearAdmin([{ ...ficha }], {
+        usuario_roles: [rol('lider')],
+        vinculos_pendientes: [{ ficha_id: 'f1', auth_user_id: 'auth-1', estado: 'pendiente' }],
+      })
+      const res = await vincularFichaConfirmada(admin, usuario())
+      expect(res.estado).toBe('pendiente_aprobacion')
+      expect(pendientes).toHaveLength(0)
+    })
+
+    it('links as today when the ficha is only a miembro or has a paused service', async () => {
+      const { admin, tabla, pendientes } = crearAdmin([{ ...ficha }], {
+        usuario_roles: [rol('miembro')],
+        dream_team_servicios: [{ persona_id: 'f1', estado: 'pausado' }],
+      })
+      const res = await vincularFichaConfirmada(admin, usuario())
+      expect(res.estado).toBe('vinculada')
+      expect(tabla[0].auth_id).toBe('auth-1')
+      expect(pendientes).toHaveLength(0)
+    })
+
+    it('still links by the confirmed email even when the ficha is a leader', async () => {
+      const { admin, tabla, pendientes } = crearAdmin(
+        [{ id: 'f1', auth_id: null, email: 'bea@example.com', cedula: '22328215' }],
+        { usuario_roles: [rol('lider')] },
+      )
+      const res = await vincularFichaConfirmada(admin, usuario())
+      expect(res.estado).toBe('vinculada')
+      expect(tabla[0].auth_id).toBe('auth-1')
+      expect(pendientes).toHaveLength(0)
+    })
   })
 })

@@ -59,6 +59,8 @@ function estadoDelHook(overrides: { busqueda?: string; cargando?: boolean } = {}
 
 let hookState = estadoDelHook()
 
+// The pending-links card loads through a server action; it has its own tests.
+jest.mock('@/components/users/vinculos-pendientes-card', () => ({ VinculosPendientesCard: () => null }))
 jest.mock('@/hooks/use-usuarios-con-permisos', () => ({
   useUsuariosConPermisos: () => hookState,
 }))

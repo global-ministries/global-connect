@@ -66,4 +66,13 @@ describe('auth callback route', () => {
     expect(vincularFichaConfirmada).not.toHaveBeenCalled()
     expect(response.headers.get('location')).toBe('https://global.test/auth/reset-password')
   })
+
+  it('sends the person to the pending-approval page when a director must approve', async () => {
+    cliente({ id: 'auth-1' })
+    vincularFichaConfirmada.mockResolvedValue({ estado: 'pendiente_aprobacion' })
+
+    const response = await GET({ url: 'https://global.test/auth/callback?code=c' } as Request)
+
+    expect(response.headers.get('location')).toBe('https://global.test/auth/vinculo-pendiente')
+  })
 })

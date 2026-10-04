@@ -6895,6 +6895,36 @@ export type Database = {
           },
         ]
       }
+      vinculos_pendientes: {
+        Row: {
+          auth_user_id: string
+          creado_en: string
+          estado: string
+          ficha_id: string
+          id: string
+          resuelto_en: string | null
+          resuelto_por: string | null
+        }
+        Insert: {
+          auth_user_id: string
+          creado_en?: string
+          estado?: string
+          ficha_id: string
+          id?: string
+          resuelto_en?: string | null
+          resuelto_por?: string | null
+        }
+        Update: {
+          auth_user_id?: string
+          creado_en?: string
+          estado?: string
+          ficha_id?: string
+          id?: string
+          resuelto_en?: string | null
+          resuelto_por?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       v_casas_anfitrionas_disponibles: {
@@ -8758,6 +8788,21 @@ export type Database = {
           nombre_taller_snapshot: string
           persona_id: string
           taller_id: string
+        }[]
+      }
+      vinculo_pendiente_resolver: {
+        Args: { p_aprobar: boolean; p_id: string }
+        Returns: Json
+      }
+      vinculos_pendientes_listar: {
+        Args: never
+        Returns: {
+          cedula_enmascarada: string
+          correo_solicitante: string | null
+          creado_en: string
+          ficha_id: string
+          id: string
+          nombre_enmascarado: string
         }[]
       }
     }

@@ -6,6 +6,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { prepararCedula } from "@/lib/utils/cedula";
 import { vincularFichaConfirmada } from "@/lib/supabase/vincular-ficha";
 
+const MENSAJE_PENDIENTE_APROBACION = "Tu cuenta está pendiente de aprobación por tu director";
+
 export async function login(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -64,6 +66,9 @@ export async function signup(formData: FormData) {
     if (vinculo.estado === "error") {
       return { success: false, message: "Ocurrió un error inesperado. Por favor, inténtalo de nuevo." };
     }
+    if (vinculo.estado === "pendiente_aprobacion") {
+      return { success: true, message: MENSAJE_PENDIENTE_APROBACION };
+    }
     return {
       success: true,
       message: "¡Registro exitoso! Tu cuenta ha sido creada y verificada automáticamente.",
@@ -89,4 +94,45 @@ export async function updatePassword(newPassword: string) {
     return { error: "No se pudo actualizar la contraseña. Inténtalo de nuevo." };
   }
   redirect("/dashboard");
+}
+export type VinculoPendiente = {
+  id: string;
+  ficha_id: string;
+  nombre_enmascarado: string;
+  cedula_enmascarada: string;
+  correo_solicitante: string | null;
+  creado_en: string;
+};
+
+/**
+ * Pending links by cédula the signed-in person may resolve. The RPC filters by
+ * the caller's hierarchy and masks the ficha; an empty list hides the card.
+ */
+export async function listarVinculosPendientes(): Promise<{ ok: boolean; solicitudes: VinculoPendiente[] }> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("vinculos_pendientes_listar");
+  if (error) return { ok: false, solicitudes: [] };
+  return { ok: true, solicitudes: (data ?? []) as VinculoPendiente[] };
+}
+
+const MENSAJES_RESOLVER: Record<string, string> = {
+  FICHA_YA_VINCULADA: "Esa ficha ya tiene una cuenta. La solicitud quedó rechazada.",
+  CUENTA_YA_VINCULADA: "Esa cuenta ya tiene otra ficha. La solicitud quedó rechazada.",
+  YA_RESUELTO: "Otra persona ya resolvió esta solicitud.",
+};
+
+export async function resolverVinculoPendiente(
+  id: string,
+  aprobar: boolean
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("vinculo_pendiente_resolver", { p_id: id, p_aprobar: aprobar });
+  const resultado = data as { ok?: boolean; codigo?: string } | null;
+  if (error || !resultado?.ok) {
+    return {
+      ok: false,
+      message: MENSAJES_RESOLVER[resultado?.codigo ?? ""] ?? "No se pudo resolver la solicitud.",
+    };
+  }
+  return { ok: true };
 }

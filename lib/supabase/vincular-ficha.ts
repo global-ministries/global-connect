@@ -11,10 +11,21 @@ export type UsuarioConfirmado = {
 }
 
 export type ResultadoVinculo =
-  | { estado: 'sin_confirmar' | 'ya_vinculada' | 'vinculada' | 'creada' | 'ambigua' }
+  | {
+      estado:
+        | 'sin_confirmar'
+        | 'ya_vinculada'
+        | 'vinculada'
+        | 'creada'
+        | 'ambigua'
+        | 'pendiente_aprobacion'
+    }
   | { estado: 'error' }
 
 type Ficha = { id: string; auth_id: string | null; email: string | null }
+
+/** Roles that make a ficha worth taking over: a cédula alone is not enough for them. */
+const ROLES_DE_SERVICIO = new Set(['lider', 'director-etapa', 'director-general', 'pastor', 'admin'])
 
 function texto(valor: unknown): string {
   return typeof valor === 'string' ? valor.trim() : ''
@@ -38,7 +49,9 @@ function mismoCorreo(a: string | null, b: string): boolean {
  * 2. Unclaimed fichas with the confirmed email (case-insensitive): exactly one is linked; several
  *    leave the account unlinked for an administrator to resolve.
  * 3. Otherwise the unclaimed ficha with the typed cédula (UNIQUE), only when it
- *    has no email or the same confirmed email.
+ *    has no email or the same confirmed email. When that ficha holds a service
+ *    role or an active Dream Team service, a pending request is stored for its
+ *    directors to approve (vinculos_pendientes) instead of linking.
  * 4. Otherwise a placeholder ficha is created, without the cédula when that
  *    cédula already belongs to another ficha.
  */
@@ -80,7 +93,12 @@ export async function vincularFichaConfirmada(
       (f) => !f.auth_id && (!texto(f.email) || mismoCorreo(f.email, email)),
     )
     if (elegibles.length > 1) return { estado: 'ambigua' }
-    if (elegibles.length === 1) return vincular(admin, elegibles[0].id, user.id)
+    if (elegibles.length === 1) {
+      const servicio = await tieneServicio(admin, elegibles[0].id)
+      if (servicio === null) return { estado: 'error' }
+      if (servicio) return pedirAprobacion(admin, elegibles[0].id, user.id)
+      return vincular(admin, elegibles[0].id, user.id)
+    }
     if (fichas.length > 0) cedulaLibre = null
   }
 
@@ -106,4 +124,43 @@ async function vincular(admin: AdminClient, fichaId: string, authId: string): Pr
     .eq('id', fichaId)
     .is('auth_id', null)
   return error ? { estado: 'error' } : { estado: 'vinculada' }
+}
+
+/** true when the ficha holds a service role or an active Dream Team service; null on error. */
+async function tieneServicio(admin: AdminClient, fichaId: string): Promise<boolean | null> {
+  const roles = await admin
+    .from('usuario_roles')
+    .select('roles_sistema!usuario_roles_rol_id_fkey(nombre_interno)')
+    .eq('usuario_id', fichaId)
+  if (roles.error) return null
+  const filas = (roles.data ?? []) as { roles_sistema: { nombre_interno: string } | null }[]
+  if (filas.some((f) => ROLES_DE_SERVICIO.has(f.roles_sistema?.nombre_interno ?? ''))) return true
+
+  const servicios = await admin
+    .from('dream_team_servicios')
+    .select('id')
+    .eq('persona_id', fichaId)
+    .eq('estado', 'activo')
+  if (servicios.error) return null
+  return (servicios.data ?? []).length > 0
+}
+
+async function pedirAprobacion(
+  admin: AdminClient,
+  fichaId: string,
+  authId: string,
+): Promise<ResultadoVinculo> {
+  const abierta = await admin
+    .from('vinculos_pendientes')
+    .select('id')
+    .eq('ficha_id', fichaId)
+    .eq('auth_user_id', authId)
+    .eq('estado', 'pendiente')
+  if (abierta.error) return { estado: 'error' }
+  if ((abierta.data ?? []).length > 0) return { estado: 'pendiente_aprobacion' }
+
+  const { error } = await admin
+    .from('vinculos_pendientes')
+    .insert([{ ficha_id: fichaId, auth_user_id: authId }])
+  return error ? { estado: 'error' } : { estado: 'pendiente_aprobacion' }
 }

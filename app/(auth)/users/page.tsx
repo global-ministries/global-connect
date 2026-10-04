@@ -11,6 +11,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { FiltrosUsuarios as FiltrosUsuariosUI } from '@/components/ui/filtros-usuarios'
 import type { FiltrosUsuarios as FiltrosUsuariosType } from '@/components/ui/filtros-usuarios'
 import { useCampus } from '@/hooks/useCampus'
+import { VinculosPendientesCard } from '@/components/users/vinculos-pendientes-card'
 
 type RolSeleccionable = 'miembro' | 'lider' | 'pastor' | 'director-etapa' | 'director-general' | 'admin'
 
@@ -239,6 +240,9 @@ export default function PaginaUsuarios() {
           </div>
         ) : null}
       >
+
+        {/* Signups by cédula waiting for this director; renders nothing when there are none */}
+        <VinculosPendientesCard />
 
         {/* Tarjetas de Estadísticas */}
         <div className="space-y-4">
