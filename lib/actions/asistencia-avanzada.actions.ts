@@ -87,6 +87,72 @@ export async function registrarAsistenciaV2(
 
 // ─── Salud de Miembros ───────────────────────────────────────────────
 
+const ROLES_LECTORES_SALUD = ["admin", "pastor", "director-general", "director-etapa"];
+const SIN_PERMISO_SALUD = "No tienes permiso para ver la salud de los miembros";
+
+type LectorSalud =
+  | { error: string }
+  | {
+      usuarioId: string;
+      roles: string[];
+      adminDb: ReturnType<typeof import("@/lib/supabase/admin").createSupabaseAdminClient>;
+    };
+
+/**
+ * v_salud_miembros_grupo is closed to signed-in sessions (migration
+ * 20261004100000); only director de etapa and above read it, through the
+ * service client, after this check.
+ */
+async function resolverLectorSalud(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
+): Promise<LectorSalud> {
+  const { getUserWithRoles } = await import("@/lib/getUserWithRoles");
+  const userData = await getUserWithRoles(supabase);
+  if (!userData?.user) return { error: "No autenticado" };
+  const roles = userData.roles ?? [];
+  if (!roles.some((r) => ROLES_LECTORES_SALUD.includes(r))) return { error: SIN_PERMISO_SALUD };
+
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminDb = createSupabaseAdminClient();
+  const { data: usuario } = await adminDb
+    .from("usuarios")
+    .select("id")
+    .eq("auth_id", userData.user.id)
+    .maybeSingle();
+  if (!usuario) return { error: SIN_PERMISO_SALUD };
+  return { usuarioId: usuario.id, roles, adminDb };
+}
+
+/**
+ * Groups whose health a reader may list: every group for admin and pastor
+ * (null), the DG rule (gdv_dg_grupos_activos_visibles) for a director general,
+ * the assigned groups for a director de etapa.
+ */
+async function grupoIdsVisiblesSalud(
+  lector: Exclude<LectorSalud, { error: string }>
+): Promise<{ error: string } | { grupoIds: string[] | null }> {
+  if (lector.roles.some((r) => r === "admin" || r === "pastor")) return { grupoIds: null };
+
+  const ids = new Set<string>();
+  if (lector.roles.includes("director-general")) {
+    const { data, error } = await lector.adminDb.rpc("gdv_dg_grupos_activos_visibles", {
+      p_usuario_id: lector.usuarioId,
+    });
+    if (error) return { error: "No se pudieron obtener los grupos del director general" };
+    for (const id of (data ?? []) as string[]) ids.add(id);
+  }
+  if (lector.roles.includes("director-etapa")) {
+    const { data, error } = await lector.adminDb
+      .from("director_etapa_grupos")
+      .select("grupo_id, segmento_lideres!inner(usuario_id, tipo_lider)")
+      .eq("segmento_lideres.usuario_id", lector.usuarioId)
+      .eq("segmento_lideres.tipo_lider", "director_etapa");
+    if (error) return { error: "No se pudieron obtener los grupos del director de etapa" };
+    for (const row of data ?? []) ids.add(row.grupo_id);
+  }
+  return { grupoIds: [...ids] };
+}
+
 /**
  * Obtiene la vista de salud de los miembros de un grupo.
  * Datos desde v_salud_miembros_grupo.
@@ -99,11 +165,20 @@ export async function obtenerSaludMiembrosGrupo(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "No autenticado" };
+  const lector = await resolverLectorSalud(supabase);
+  if ("error" in lector) return { success: false, error: lector.error };
 
-  const { data, error } = await supabase
-    .from("v_salud_miembros_grupo" as "grupo_miembros")
+  // Same group scope as the grupos policies: puede_ver_grupo, pinned to the
+  // session person, through the session client.
+  const { data: puedeVer, error: errorScope } = await supabase.rpc("puede_ver_grupo", {
+    p_user_id: lector.usuarioId,
+    p_grupo_id: grupoId,
+  });
+  if (errorScope) return { success: false, error: errorScope.message };
+  if (!puedeVer) return { success: false, error: SIN_PERMISO_SALUD };
+
+  const { data, error } = await lector.adminDb
+    .from("v_salud_miembros_grupo")
     .select("*")
     .eq("grupo_id", grupoId);
 
@@ -123,15 +198,20 @@ export async function obtenerSaludMiembrosGrupo(
  */
 export async function obtenerMiembrosEnRiesgo(): Promise<Res<SaludMiembro[]>> {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "No autenticado" };
+  const lector = await resolverLectorSalud(supabase);
+  if ("error" in lector) return { success: false, error: lector.error };
+
+  const alcance = await grupoIdsVisiblesSalud(lector);
+  if ("error" in alcance) return { success: false, error: alcance.error };
+  if (alcance.grupoIds && alcance.grupoIds.length === 0) return { success: true, data: [] };
 
   // Supabase JS no soporta != directo en views.
-  // Traemos critico, riesgo, atencion con queries separadas y combinamos.
-  const { data, error } = await supabase
+  let query = lector.adminDb
     .from("v_salud_miembros_grupo")
     .select("*")
-    .not("nivel_riesgo", "eq", "normal")
+    .not("nivel_riesgo", "eq", "normal");
+  if (alcance.grupoIds) query = query.in("grupo_id", alcance.grupoIds);
+  const { data, error } = await query
     .order("semanas_ausente", { ascending: false })
     .limit(200);
 

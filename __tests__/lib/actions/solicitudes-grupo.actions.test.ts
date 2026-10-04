@@ -34,7 +34,7 @@ describe('listarSolicitudesPendientes expiring overdue requests', () => {
     createSupabaseServerClient.mockReset()
     createSupabaseAdminClient.mockReset()
     getUserWithRoles.mockReset()
-    getUserWithRoles.mockResolvedValue({ user: { id: authId }, roles: ['lider'] })
+    getUserWithRoles.mockResolvedValue({ user: { id: authId }, roles: ['director-etapa'] })
   })
 
   it('expires them with the service client, never with the session client', async () => {
@@ -52,8 +52,8 @@ describe('listarSolicitudesPendientes expiring overdue requests', () => {
 
   it('still lists the pending requests, and logs the error, when expiring fails', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    createSupabaseServerClient.mockResolvedValue(createClient([pendingRequest]))
-    createSupabaseAdminClient.mockReturnValue(createClient([], { data: null, error: { message: 'connection reset' } }))
+    createSupabaseServerClient.mockResolvedValue(createClient([]))
+    createSupabaseAdminClient.mockReturnValue(createClient([pendingRequest], { data: null, error: { message: 'connection reset' } }))
 
     const result = await listarSolicitudesPendientes()
 
@@ -63,7 +63,7 @@ describe('listarSolicitudesPendientes expiring overdue requests', () => {
     errorSpy.mockRestore()
   })
 
-  it('still lists the pending requests, and logs the error, when the service client cannot be created', async () => {
+  it('fails without listing, and logs the error, when the service client cannot be created', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     createSupabaseServerClient.mockResolvedValue(createClient([pendingRequest]))
     createSupabaseAdminClient.mockImplementation(() => {
@@ -72,12 +72,26 @@ describe('listarSolicitudesPendientes expiring overdue requests', () => {
 
     const result = await listarSolicitudesPendientes()
 
-    expect(result.success).toBe(true)
-    expect(result.data).toEqual([expect.objectContaining({ id: 's1' })])
+    // The view is closed to signed-in sessions, so there is no fallback read.
+    expect(result.success).toBe(false)
     expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining('expirar_solicitudes_vencidas'),
       'Faltan variables de entorno SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY',
     )
     errorSpy.mockRestore()
+  })
+
+  it('gives a leader the empty list without reading the view', async () => {
+    getUserWithRoles.mockResolvedValue({ user: { id: authId }, roles: ['lider'] })
+    const session = createClient([pendingRequest])
+    const service = createClient([pendingRequest])
+    createSupabaseServerClient.mockResolvedValue(session)
+    createSupabaseAdminClient.mockReturnValue(service)
+
+    const result = await listarSolicitudesPendientes()
+
+    expect(result).toEqual({ success: true, data: [] })
+    expect(service.from).not.toHaveBeenCalledWith('v_solicitudes_pendientes')
+    expect(session.from).not.toHaveBeenCalledWith('v_solicitudes_pendientes')
   })
 })
