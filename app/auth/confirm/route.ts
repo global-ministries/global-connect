@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { destinoTrasConfirmar } from '@/lib/supabase/vincular-sesion'
 
 const EMAIL_OTP_TYPES = new Set<EmailOtpType>([
   'signup',
@@ -62,5 +63,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(getSafeRecoveryRedirect(requestUrl), requestUrl.origin))
   }
 
-  return NextResponse.redirect(new URL(getSafeRedirect(requestUrl), requestUrl.origin))
+  return NextResponse.redirect(
+    await destinoTrasConfirmar(supabase, new URL(getSafeRedirect(requestUrl), requestUrl.origin))
+  )
 }
