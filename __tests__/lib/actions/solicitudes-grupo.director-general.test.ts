@@ -64,7 +64,7 @@ function createAdminClient(
 }
 
 const listers = [
-  { name: 'listarSolicitudesPendientes', run: listarSolicitudesPendientes, groupsTable: 'v_solicitudes_pendientes', onAdmin: false },
+  { name: 'listarSolicitudesPendientes', run: listarSolicitudesPendientes, groupsTable: 'v_solicitudes_pendientes', onAdmin: true },
   { name: 'listarSolicitudesCompletadas', run: listarSolicitudesCompletadas, groupsTable: 'solicitudes_grupo', onAdmin: true },
 ] as const
 

@@ -56,6 +56,9 @@ const procesarSolicitudSchema = z.object({
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
+/** Roles that read v_solicitudes_pendientes and v_historial_miembro. */
+const ROLES_LECTORES_SOLICITUDES = ["admin", "pastor", "director-general", "director-etapa"];
+
 /**
  * IDs de los grupos activos que ve un director general (auth id), según la
  * regla única de la base de datos (`gdv_dg_grupos_activos_visibles`): todo el
@@ -204,6 +207,11 @@ export async function listarSolicitudesPendientes(): Promise<
   const userData = await getUserWithRoles(supabase);
   const esAdmin = userData?.roles?.some((r: string) => ['admin', 'pastor'].includes(r));
   const esDG = !esAdmin && userData?.roles?.some((r: string) => r === 'director-general');
+  // v_solicitudes_pendientes is closed to signed-in sessions (migration
+  // 20261004100000): only director de etapa and above read it, through the
+  // service client. Anybody below gets the empty list.
+  const esLectorSolicitudes = userData?.roles?.some((r: string) => ROLES_LECTORES_SOLICITUDES.includes(r));
+  if (!esLectorSolicitudes) return { success: true, data: [] };
 
   let grupoIdsPermitidos: string[] | null = null;
   if (esDG && userData?.user?.id) {
@@ -213,7 +221,18 @@ export async function listarSolicitudesPendientes(): Promise<
     if (grupoIdsPermitidos.length === 0) return { success: true, data: [] };
   }
 
-  let query = supabase
+  let lectorDb: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    lectorDb = createSupabaseAdminClient();
+  } catch (error) {
+    console.error(
+      "[listarSolicitudesPendientes] Sin cliente de servicio:",
+      error instanceof Error ? error.message : String(error),
+    );
+    return { success: false, error: "No se pudieron cargar las solicitudes" };
+  }
+
+  let query = lectorDb
     .from("v_solicitudes_pendientes")
     .select("*")
     .order("creado_en", { ascending: false });
@@ -447,10 +466,28 @@ export async function obtenerHistorialMiembro(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: "No autenticado" };
+  const { getUserWithRoles } = await import("@/lib/getUserWithRoles");
+  const userData = await getUserWithRoles(supabase);
+  if (!userData?.user) return { success: false, error: "No autenticado" };
+  // v_historial_miembro is closed to signed-in sessions (migration
+  // 20261004100000): only director de etapa and above read it, through the
+  // service client.
+  if (!userData.roles?.some((r: string) => ROLES_LECTORES_SOLICITUDES.includes(r))) {
+    return { success: false, error: "No tienes permiso para ver el historial" };
+  }
 
-  const { data, error } = await supabase
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  let lectorDb: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    lectorDb = createSupabaseAdminClient();
+  } catch (error) {
+    console.error(
+      "[obtenerHistorialMiembro] Sin cliente de servicio:",
+      error instanceof Error ? error.message : String(error),
+    );
+    return { success: false, error: "No se pudo cargar el historial" };
+  }
+  const { data, error } = await lectorDb
     .from("v_historial_miembro")
     .select("*")
     .eq("usuario_id", usuarioId)

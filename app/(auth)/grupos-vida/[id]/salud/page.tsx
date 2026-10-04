@@ -4,6 +4,10 @@ import { ContenedorDashboard, TituloSistema, BotonSistema } from "@/components/u
 import VistaSaludMiembros from "@/components/grupos/VistaSaludMiembros.client"
 import { obtenerSaludMiembrosGrupo } from "@/lib/actions/asistencia-avanzada.actions"
 import Link from "next/link"
+import { getUserWithRoles } from "@/lib/getUserWithRoles"
+
+/** Member health is for director de etapa and above; leaders get "Sin permisos". */
+const ROLES_SALUD = ["admin", "pastor", "director-general", "director-etapa"]
 
 /** Forma mínima del resultado de obtener_detalle_grupo relevante para esta página */
 interface GrupoDetalle {
@@ -31,15 +35,20 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
 )
     }
 
-    const [{ data: puedeEditar }, saludResult, { data: grupoRaw }] = await Promise.all([
-        supabase.rpc("puede_editar_grupo", { p_auth_id: user.id, p_grupo_id: id }),
-        obtenerSaludMiembrosGrupo(id),
-        supabase.rpc("obtener_detalle_grupo", { p_auth_id: user.id, p_grupo_id: id }),
-    ])
+    const userData = await getUserWithRoles(supabase)
+    const esLectorSalud = (userData?.roles ?? []).some((r) => ROLES_SALUD.includes(r))
+
+    const [{ data: puedeEditar }, saludResult, { data: grupoRaw }] = esLectorSalud
+        ? await Promise.all([
+            supabase.rpc("puede_editar_grupo", { p_auth_id: user.id, p_grupo_id: id }),
+            obtenerSaludMiembrosGrupo(id),
+            supabase.rpc("obtener_detalle_grupo", { p_auth_id: user.id, p_grupo_id: id }),
+        ])
+        : [{ data: false }, { success: false as const, data: undefined }, { data: null }]
 
     const grupo = grupoRaw as GrupoDetalle | null
 
-    if (!grupo || !puedeEditar) {
+    if (!esLectorSalud || !grupo || !puedeEditar) {
         return (
 <ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
                     <div className="flex items-center justify-center min-h-[50vh]">

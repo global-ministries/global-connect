@@ -56,7 +56,8 @@ const lectores = [
   {
     nombre: 'listarSolicitudesPendientes',
     ejecutar: listarSolicitudesPendientes,
-    servidor: () => ({ v_solicitudes_pendientes: [{ ...solicitudBase }] }),
+    servidor: () => ({}),
+    admin: () => ({ v_solicitudes_pendientes: [{ ...solicitudBase }] }),
   },
   {
     nombre: 'listarSolicitudesCompletadas',
