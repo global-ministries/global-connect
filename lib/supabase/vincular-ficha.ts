@@ -20,6 +20,11 @@ function texto(valor: unknown): string {
   return typeof valor === 'string' ? valor.trim() : ''
 }
 
+/** ILIKE pattern that matches the value literally, ignoring case only. */
+function patronLiteral(valor: string): string {
+  return valor.replace(/[\\%_]/g, (c) => `\\${c}`)
+}
+
 function mismoCorreo(a: string | null, b: string): boolean {
   return (a ?? '').trim().toLowerCase() === b.toLowerCase()
 }
@@ -30,7 +35,7 @@ function mismoCorreo(a: string | null, b: string): boolean {
  * their ficha.
  *
  * 1. A ficha already bound to this account: nothing to do.
- * 2. Unclaimed fichas with the confirmed email: exactly one is linked; several
+ * 2. Unclaimed fichas with the confirmed email (case-insensitive): exactly one is linked; several
  *    leave the account unlinked for an administrator to resolve.
  * 3. Otherwise the unclaimed ficha with the typed cédula (UNIQUE), only when it
  *    has no email or the same confirmed email.
@@ -54,7 +59,7 @@ export async function vincularFichaConfirmada(
   const porCorreo = await admin
     .from('usuarios')
     .select('id, auth_id, email')
-    .eq('email', email)
+    .ilike('email', patronLiteral(email))
     .is('auth_id', null)
     .order('id')
   if (porCorreo.error) return { estado: 'error' }

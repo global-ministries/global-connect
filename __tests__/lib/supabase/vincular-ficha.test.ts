@@ -10,11 +10,28 @@ function crearAdmin(fichas: Ficha[]) {
 
   function consulta() {
     const filtros: [string, unknown][] = []
+    const patrones: [string, RegExp][] = []
     const filtrar = () =>
-      tabla.filter((fila) =>
-        filtros.every(([col, val]) => (fila as Record<string, unknown>)[col] === val),
+      tabla.filter(
+        (fila) =>
+          filtros.every(([col, val]) => (fila as Record<string, unknown>)[col] === val) &&
+          patrones.every(([col, re]) => re.test(String((fila as Record<string, unknown>)[col] ?? ''))),
       )
     const builder = {
+      // ILIKE semantics: % and _ are wildcards unless escaped with a backslash.
+      ilike(col: string, patron: string) {
+        let re = ''
+        for (let i = 0; i < patron.length; i++) {
+          const c = patron[i]
+          if (c === '\\' && i + 1 < patron.length) re += patron[++i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          else if (c === '%') re += '.*'
+          else if (c === '_') re += '.'
+          else re += c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        }
+        // eslint-disable-next-line security/detect-non-literal-regexp -- test double, pattern built from escaped fixtures
+        patrones.push([col, new RegExp(`^${re}$`, 'i')])
+        return builder
+      },
       eq(col: string, val: unknown) {
         filtros.push([col, val])
         return builder
@@ -103,6 +120,35 @@ describe('vincularFichaConfirmada', () => {
     expect(res.estado).toBe('vinculada')
     expect(tabla[0].auth_id).toBe('auth-1')
     expect(inserts).toHaveLength(0)
+  })
+
+  it('matches the confirmed email case-insensitively', async () => {
+    const { admin, tabla } = crearAdmin([
+      { id: 'f1', auth_id: null, email: 'Bea@Example.COM', cedula: null },
+    ])
+    const res = await vincularFichaConfirmada(admin, usuario())
+    expect(res.estado).toBe('vinculada')
+    expect(tabla[0].auth_id).toBe('auth-1')
+  })
+
+  it('treats % and _ in the email literally', async () => {
+    const { admin, tabla } = crearAdmin([
+      { id: 'f1', auth_id: null, email: 'bxa@example.com', cedula: null },
+      { id: 'f2', auth_id: null, email: 'b%a@example.com', cedula: null },
+    ])
+    const res = await vincularFichaConfirmada(admin, { ...usuario(), email: 'b_a@example.com' })
+    expect(res.estado).toBe('creada')
+    expect(tabla.every((f) => f.auth_id === null)).toBe(true)
+  })
+
+  it('refuses when the email matches several fichas that differ only in case', async () => {
+    const { admin, tabla } = crearAdmin([
+      { id: 'f1', auth_id: null, email: 'bea@example.com', cedula: null },
+      { id: 'f2', auth_id: null, email: 'BEA@example.com', cedula: null },
+    ])
+    const res = await vincularFichaConfirmada(admin, usuario())
+    expect(res.estado).toBe('ambigua')
+    expect(tabla.every((f) => f.auth_id === null)).toBe(true)
   })
 
   it('only claims a ficha whose auth_id is still null when updating', async () => {
