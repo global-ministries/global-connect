@@ -162,6 +162,7 @@ async function loadExplorar(): Promise<readonly {
   descripcion: string | null
   fecha_apertura: string | null
   fecha_cierre: string | null
+  momento_envio_acceso: string
 }[]> {
   const result = await loadParticipanteContext()
   if (!result.ok) throw new Error('expected ok:true')
@@ -213,6 +214,39 @@ describe('loadParticipanteExplorar — PR40 lookup contract', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]!.id).toBe(EDICION_ID)
     expect(rows[0]!.cohorte_id).toBe(COHORTE_ID)
+    // A taller without momento_envio_acceso reads as the default.
+    expect(rows[0]!.momento_envio_acceso).toBe('al_aprobar')
+  })
+
+  it('surfaces the taller momento_envio_acceso for the partner picker copy', async () => {
+    const EDICION_ID = '00000000-0000-0000-0000-00000000ed09'
+    setupExplorarMock({
+      taller_ediciones: {
+        data: [
+          {
+            id: EDICION_ID,
+            nombre_snapshot: 'Octubre 2026',
+            tipo: 'pareja',
+            estado: 'abierto',
+            taller_id: '00000000-0000-0000-0000-00000000ta19',
+            taller: {
+              slug: 'novios',
+              nombre: 'Novios',
+              modalidad_default: 'periodo_general',
+              descripcion: null,
+              momento_envio_acceso: 'al_inscribirse',
+            },
+          },
+        ],
+        error: null,
+      },
+      talleres_crecimiento_cohortes: { data: [], error: null },
+      taller_periodos_generales: { data: [], error: null },
+      taller_inscripciones: { data: [], error: null },
+    })
+
+    const rows = await loadExplorar()
+    expect(rows[0]!.momento_envio_acceso).toBe('al_inscribirse')
   })
 
   it('returns null cohorte_id when no cohorte is associated to the edicion', async () => {

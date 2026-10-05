@@ -27,8 +27,10 @@ import { revalidatePath } from 'next/cache'
 
 import { requireTalleresApiAuthenticated } from '@/lib/platform/talleres/api-helpers'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { enviarInvitacionesPendientes } from '@/lib/platform/talleres/invitacion-acceso-envio'
 import {
   cedulaParaRpc,
+  MENSAJE_FICHA_NUEVA_NO_DISPONIBLE,
   MENSAJES_PAREJA,
   parejaParaRpc,
   parseBusquedaPareja,
@@ -155,10 +157,11 @@ export async function inscribirseATaller(input: InscribirseInput): Promise<Inscr
 
   const pareja = validarPareja(input.pareja)
   if (!pareja.ok) {
-    return pareja.error === 'CEDULA_INVALIDA'
-      ? { ok: false, error: 'CEDULA_INVALIDA', message: MENSAJES_PAREJA.CEDULA_INVALIDA }
-      : fallo('invalid-input')
+    return pareja.error === 'invalid-input'
+      ? fallo('invalid-input')
+      : { ok: false, error: pareja.error, message: MENSAJES_PAREJA[pareja.error] }
   }
+  const fichaNueva = pareja.pareja?.modo === 'ficha_nueva'
 
   const sesion = await abrirSesion()
   if (!sesion.ok) return sesion
@@ -172,8 +175,17 @@ export async function inscribirseATaller(input: InscribirseInput): Promise<Inscr
   const resultado = parseResultadoInscribirme(data)
   if (resultado === null) return { ok: false, error: 'internal', message: MENSAJE_INSCRIPCION_FALLIDA }
   if (!resultado.ok) {
-    return { ok: false, error: resultado.codigo, message: MENSAJES_PAREJA[resultado.codigo] }
+    const message =
+      fichaNueva && resultado.codigo === 'LIMITE_ALCANZADO'
+        ? MENSAJE_FICHA_NUEVA_NO_DISPONIBLE
+        : MENSAJES_PAREJA[resultado.codigo]
+    return { ok: false, error: resultado.codigo, message }
   }
+
+  // A new partner ficha queues an access invitation. The database decides
+  // whether it is due now (taller set to 'al_inscribirse') or after the
+  // approval; the sender only mails the due ones and never throws.
+  if (fichaNueva) await enviarInvitacionesPendientes()
 
   revalidatePath('/talleres/explorar')
   // T10 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/

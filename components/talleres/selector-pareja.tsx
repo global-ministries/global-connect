@@ -17,6 +17,12 @@
  *      (`buscarParejaPorCedula`) that only shows the masked name ("María G.")
  *      and asks "Sí, es mi pareja". A miss shows the neutral message.
  *
+ *   3. "Mi pareja no está en el sistema" (under the cédula search): a short
+ *      form (cédula, nombre, apellido, correo, fecha de nacimiento, género)
+ *      sent as modo `ficha_nueva`. The RPC creates the partner's ficha and
+ *      queues an access email, sent at approval or at enrollment depending
+ *      on the taller (`momentoEnvioAcceso`).
+ *
  * Confirming calls `inscribirseATaller`; the RPC is the authority and may
  * still refuse (cupo, partner already enrolled, …), shown inside the
  * dialog. The parent mounts this component only while it is open, so every
@@ -31,13 +37,23 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { UserAvatar } from '@/components/ui/UserAvatar'
 
 import { buscarParejaPorCedula, inscribirseATaller, miConyugeRegistrado } from '@/app/(auth)/talleres/explorar/actions'
-import type { ConyugeRegistrado, ParejaInscripcion, VinculoPareja } from '@/lib/platform/talleres/inscripcion-pareja'
+import type {
+  ConyugeRegistrado,
+  GeneroPareja,
+  ParejaInscripcion,
+  VinculoPareja,
+} from '@/lib/platform/talleres/inscripcion-pareja'
+
+/** When the new partner's access email goes out (talleres.momento_envio_acceso). */
+export type MomentoEnvioAcceso = 'al_aprobar' | 'al_inscribirse'
 
 export interface SelectorParejaProps {
   /** taller_ediciones.id of the selected couple edición. */
   readonly edicionId: string
   /** The edición's own vínculo (`link_type`); null means the member chooses. */
   readonly vinculoEdicion: VinculoPareja | null
+  /** Only changes the copy of the new-partner form; defaults to 'al_aprobar'. */
+  readonly momentoEnvioAcceso?: MomentoEnvioAcceso
   readonly onCerrar: () => void
   /** Called once the RPC accepted the enrollment. */
   readonly onInscrito: () => void
@@ -49,6 +65,34 @@ type Paso =
   | { readonly tipo: 'conyuge'; readonly conyuge: ConyugeRegistrado }
   | { readonly tipo: 'cedula' }
   | { readonly tipo: 'confirmar'; readonly cedula: string; readonly nombreMostrado: string }
+  | { readonly tipo: 'ficha_nueva' }
+
+interface FormularioFicha {
+  readonly cedula: string
+  readonly nombre: string
+  readonly apellido: string
+  readonly email: string
+  readonly fechaNacimiento: string
+  readonly genero: GeneroPareja | ''
+}
+
+const FICHA_VACIA: FormularioFicha = { cedula: '', nombre: '', apellido: '', email: '', fechaNacimiento: '', genero: '' }
+
+const AVISO_ENVIO: Readonly<Record<MomentoEnvioAcceso, string>> = {
+  al_aprobar: 'Le enviaremos un acceso a su correo cuando la coordinación apruebe la inscripción.',
+  al_inscribirse: 'Le enviaremos un acceso a su correo al inscribirse.',
+}
+
+function fichaCompleta(ficha: FormularioFicha): boolean {
+  return (
+    ficha.cedula.trim() !== '' &&
+    ficha.nombre.trim() !== '' &&
+    ficha.apellido.trim() !== '' &&
+    ficha.email.trim() !== '' &&
+    ficha.fechaNacimiento !== '' &&
+    ficha.genero !== ''
+  )
+}
 
 const ERROR_TRANSPORTE = 'No se pudo completar la operación. Inténtalo de nuevo.'
 
@@ -57,12 +101,19 @@ function pasoInicial(vinculo: VinculoPareja | null): Paso {
   return vinculo === 'matrimonio' ? { tipo: 'cargando-conyuge' } : { tipo: 'cedula' }
 }
 
-export function SelectorPareja({ edicionId, vinculoEdicion, onCerrar, onInscrito }: SelectorParejaProps): ReactElement {
+export function SelectorPareja({
+  edicionId,
+  vinculoEdicion,
+  momentoEnvioAcceso = 'al_aprobar',
+  onCerrar,
+  onInscrito,
+}: SelectorParejaProps): ReactElement {
   const [paso, setPaso] = useState<Paso>(() => pasoInicial(vinculoEdicion))
   // Only set when the edición leaves the vínculo open; it is then sent to the RPC.
   const [vinculoElegido, setVinculoElegido] = useState<VinculoPareja | null>(null)
   const [conyugeDescartado, setConyugeDescartado] = useState(false)
   const [cedula, setCedula] = useState('')
+  const [ficha, setFicha] = useState<FormularioFicha>(FICHA_VACIA)
   const [aviso, setAviso] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   // Only the latest spouse lookup may write the state.
@@ -108,6 +159,31 @@ export function SelectorPareja({ edicionId, vinculoEdicion, onCerrar, onInscrito
   function volverACedula(): void {
     setAviso(null)
     setPaso({ tipo: 'cedula' })
+  }
+
+  function abrirFichaNueva(): void {
+    setAviso(null)
+    setFicha((actual) => (actual.cedula === '' ? { ...actual, cedula: cedula.trim() } : actual))
+    setPaso({ tipo: 'ficha_nueva' })
+  }
+
+  function campoFicha<K extends keyof FormularioFicha>(campo: K, valor: FormularioFicha[K]): void {
+    setFicha((actual) => ({ ...actual, [campo]: valor }))
+  }
+
+  function enviarFichaNueva(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault()
+    if (!fichaCompleta(ficha) || ficha.genero === '') return
+    inscribir({
+      modo: 'ficha_nueva',
+      cedula: ficha.cedula.trim(),
+      nombre: ficha.nombre.trim(),
+      apellido: ficha.apellido.trim(),
+      email: ficha.email.trim(),
+      fechaNacimiento: ficha.fechaNacimiento,
+      genero: ficha.genero,
+      ...vinculo,
+    })
   }
 
   function buscar(event: FormEvent<HTMLFormElement>): void {
@@ -226,6 +302,81 @@ export function SelectorPareja({ edicionId, vinculoEdicion, onCerrar, onInscrito
             />
             <BotonSistema type="submit" icono={Search} disabled={pending || cedula.trim() === ''}>
               {pending ? 'Buscando…' : 'Buscar'}
+            </BotonSistema>
+            <button
+              type="button"
+              onClick={abrirFichaNueva}
+              disabled={pending}
+              className="self-start text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+            >
+              Mi pareja no está en el sistema
+            </button>
+          </form>
+        )}
+
+        {paso.tipo === 'ficha_nueva' && (
+          <form className="flex flex-col gap-3" onSubmit={enviarFichaNueva}>
+            <TextoSistema variante="sutil" tamaño="sm">
+              {`Registra los datos de tu pareja. ${AVISO_ENVIO[momentoEnvioAcceso]}`}
+            </TextoSistema>
+            <InputSistema
+              label="Cédula"
+              value={ficha.cedula}
+              onChange={(e) => campoFicha('cedula', e.target.value)}
+              placeholder="Ej.: 12345678"
+              autoComplete="off"
+              maxLength={20}
+            />
+            <InputSistema
+              label="Nombre"
+              value={ficha.nombre}
+              onChange={(e) => campoFicha('nombre', e.target.value)}
+              autoComplete="off"
+              maxLength={100}
+            />
+            <InputSistema
+              label="Apellido"
+              value={ficha.apellido}
+              onChange={(e) => campoFicha('apellido', e.target.value)}
+              autoComplete="off"
+              maxLength={100}
+            />
+            <InputSistema
+              label="Correo"
+              type="email"
+              value={ficha.email}
+              onChange={(e) => campoFicha('email', e.target.value)}
+              autoComplete="off"
+              maxLength={254}
+            />
+            <InputSistema
+              label="Fecha de nacimiento"
+              type="date"
+              value={ficha.fechaNacimiento}
+              onChange={(e) => campoFicha('fechaNacimiento', e.target.value)}
+            />
+            <fieldset className="flex flex-col gap-1">
+              <legend className="text-sm font-medium">Género</legend>
+              <div className="flex gap-4">
+                {(['Femenino', 'Masculino'] as const).map((opcion) => (
+                  <label key={opcion} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="genero-pareja"
+                      value={opcion}
+                      checked={ficha.genero === opcion}
+                      onChange={() => campoFicha('genero', opcion)}
+                    />
+                    {opcion}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <BotonSistema type="submit" disabled={pending || !fichaCompleta(ficha)}>
+              {pending ? 'Inscribiendo…' : 'Inscribirnos juntos'}
+            </BotonSistema>
+            <BotonSistema type="button" variante="outline" onClick={volverACedula} disabled={pending}>
+              Buscar por cédula
             </BotonSistema>
           </form>
         )}

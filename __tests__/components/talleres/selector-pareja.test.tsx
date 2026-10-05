@@ -247,3 +247,74 @@ describe('SelectorPareja — closing', () => {
     expect(inscribirseMock).not.toHaveBeenCalled()
   })
 })
+
+describe('SelectorPareja — the partner is not in the system', () => {
+  async function abrirFichaNueva(momento?: 'al_aprobar' | 'al_inscribirse') {
+    render(
+      <SelectorPareja
+        edicionId="ed-1"
+        vinculoEdicion="novios"
+        momentoEnvioAcceso={momento}
+        onCerrar={onCerrar}
+        onInscrito={onInscrito}
+      />,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /mi pareja no está en el sistema/i }))
+  }
+
+  function llenar() {
+    fireEvent.change(screen.getByLabelText(/^cédula$/i), { target: { value: '12345678' } })
+    fireEvent.change(screen.getByLabelText(/^nombre$/i), { target: { value: 'Ana' } })
+    fireEvent.change(screen.getByLabelText(/^apellido$/i), { target: { value: 'García' } })
+    fireEvent.change(screen.getByLabelText(/^correo$/i), { target: { value: 'ana@example.com' } })
+    fireEvent.change(screen.getByLabelText(/fecha de nacimiento/i), { target: { value: '1990-05-17' } })
+    fireEvent.click(screen.getByLabelText(/^femenino$/i))
+  }
+
+  it('says the access goes out when the coordination approves, by default', async () => {
+    await abrirFichaNueva()
+    expect(screen.getByText(/le enviaremos un acceso.*cuando la coordinación apruebe/i)).toBeInTheDocument()
+  })
+
+  it('says the access goes out at enrollment when the taller is set that way', async () => {
+    await abrirFichaNueva('al_inscribirse')
+    expect(screen.getByText(/le enviaremos un acceso.*al inscribirse/i)).toBeInTheDocument()
+  })
+
+  it('enrolls with modo ficha_nueva and every field', async () => {
+    await abrirFichaNueva()
+    llenar()
+    fireEvent.click(screen.getByRole('button', { name: /inscribirnos juntos/i }))
+
+    await waitFor(() =>
+      expect(inscribirseMock).toHaveBeenCalledWith({
+        edicionId: 'ed-1',
+        pareja: {
+          modo: 'ficha_nueva',
+          cedula: '12345678',
+          nombre: 'Ana',
+          apellido: 'García',
+          email: 'ana@example.com',
+          fechaNacimiento: '1990-05-17',
+          genero: 'Femenino',
+        },
+      }),
+    )
+    await waitFor(() => expect(onInscrito).toHaveBeenCalledTimes(1))
+  })
+
+  it('shows the neutral refusal inside the dialog', async () => {
+    inscribirseMock.mockResolvedValue({ ok: false, error: 'PAREJA_NO_CONFIRMADA', message: NO_CONFIRMADA })
+    await abrirFichaNueva()
+    llenar()
+    fireEvent.click(screen.getByRole('button', { name: /inscribirnos juntos/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(NO_CONFIRMADA)
+    expect(onInscrito).not.toHaveBeenCalled()
+  })
+
+  it('keeps the submit disabled until every field is filled', async () => {
+    await abrirFichaNueva()
+    expect(screen.getByRole('button', { name: /inscribirnos juntos/i })).toBeDisabled()
+  })
+})

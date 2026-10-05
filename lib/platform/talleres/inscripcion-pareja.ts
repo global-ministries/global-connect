@@ -10,6 +10,10 @@
  *     encontrada:false}` | `{ok:false, codigo}`;
  *   - `talleres_inscribirme(p_edicion_id, p_pareja)` → jsonb `{ok:true,
  *     inscripcion_id, estado, pareja_origen}` | `{ok:false, codigo}`.
+ *     Mode `ficha_nueva` (odd/tasks/talleres-conyuge-invitacion.md C2)
+ *     creates the partner's ficha from `{cedula, nombre, apellido, email,
+ *     fecha_nacimiento, genero}` and queues an access invitation; it
+ *     answers LIMITE_ALCANZADO when the mode is not available to the caller.
  *
  * Plain module (no 'use server', no Supabase import) so the Explorar server
  * actions and the partner picker share one set of parsers and one Spanish
@@ -30,6 +34,21 @@ const VINCULOS: readonly VinculoPareja[] = ['matrimonio', 'novios']
  * `conyugeDescartado` marks a cédula search that follows "No es mi cónyuge
  * actual" on the registered-spouse card.
  */
+export type GeneroPareja = 'Masculino' | 'Femenino'
+
+const GENEROS: readonly GeneroPareja[] = ['Masculino', 'Femenino']
+
+/** A partner who is not in the system yet: the RPC creates the ficha. */
+export interface FichaNuevaPareja {
+  readonly cedula: string
+  readonly nombre: string
+  readonly apellido: string
+  readonly email: string
+  /** YYYY-MM-DD */
+  readonly fechaNacimiento: string
+  readonly genero: GeneroPareja
+}
+
 export type ParejaInscripcion =
   | { readonly modo: 'conyuge_registrado'; readonly vinculo?: VinculoPareja }
   | {
@@ -38,6 +57,7 @@ export type ParejaInscripcion =
       readonly vinculo?: VinculoPareja
       readonly conyugeDescartado?: boolean
     }
+  | ({ readonly modo: 'ficha_nueva'; readonly vinculo?: VinculoPareja } & FichaNuevaPareja)
 
 /** Codes `talleres_inscribirme` RETURNS as `{ok:false, codigo}`. */
 export const CODIGOS_INSCRIBIRME = [
@@ -68,6 +88,10 @@ export const CODIGOS_ELEVADOS = [
   'COMPANERO_NO_APLICA',
   'MODO_INVALIDO',
   'CEDULA_INVALIDA',
+  'NOMBRE_INVALIDO',
+  'EMAIL_INVALIDO',
+  'FECHA_NACIMIENTO_INVALIDA',
+  'GENERO_INVALIDO',
   'PERSONA_YA_EN_EDICION',
 ] as const
 export type CodigoElevado = (typeof CODIGOS_ELEVADOS)[number]
@@ -97,13 +121,24 @@ export const MENSAJES_PAREJA: Readonly<Record<CodigoPareja, string>> = {
   MODO_INVALIDO: 'No se pudo identificar a tu pareja. Vuelve a intentarlo.',
   CEDULA_INVALIDA:
     'Revisa la cédula: debe tener de 6 a 8 números, o una E y de 6 a 9 números si es extranjera.',
+  NOMBRE_INVALIDO: 'Escribe el nombre y el apellido de tu pareja.',
+  EMAIL_INVALIDO: 'Revisa el correo de tu pareja: no parece una dirección válida.',
+  FECHA_NACIMIENTO_INVALIDA: 'Revisa la fecha de nacimiento de tu pareja.',
+  GENERO_INVALIDO: 'Indica el género de tu pareja.',
   PERSONA_YA_EN_EDICION:
     'Uno de los dos ya figura en una inscripción de esta edición. Pide ayuda a la coordinación del taller.',
 }
 
-export type OrigenPareja = 'conyuge_registrado' | 'cedula'
+export type OrigenPareja = 'conyuge_registrado' | 'cedula' | 'ficha_nueva'
 
-const ORIGENES: readonly OrigenPareja[] = ['conyuge_registrado', 'cedula']
+const ORIGENES: readonly OrigenPareja[] = ['conyuge_registrado', 'cedula', 'ficha_nueva']
+
+/**
+ * LIMITE_ALCANZADO on a `ficha_nueva` enrollment means the mode is not
+ * available to the caller right now, not that they searched too much.
+ */
+export const MENSAJE_FICHA_NUEVA_NO_DISPONIBLE =
+  'No es posible registrar a tu pareja desde aquí en este momento. Pide ayuda a la coordinación del taller.'
 
 export type ResultadoInscribirme =
   | { readonly ok: true; readonly inscripcionId: string; readonly parejaOrigen: OrigenPareja | null }
@@ -171,8 +206,20 @@ export function parseConyugeRegistrado(raw: unknown): ConyugeRegistrado | null {
 /** The `p_pareja` jsonb for `talleres_inscribirme` (null for an individual edición). */
 export function parejaParaRpc(pareja: ParejaInscripcion | null): Record<string, string | boolean> | null {
   if (pareja === null) return null
-  const base: Record<string, string | boolean> =
-    pareja.modo === 'cedula' ? { modo: 'cedula', cedula: pareja.cedula } : { modo: 'conyuge_registrado' }
+  let base: Record<string, string | boolean>
+  if (pareja.modo === 'ficha_nueva') {
+    base = {
+      modo: 'ficha_nueva',
+      cedula: pareja.cedula,
+      nombre: pareja.nombre,
+      apellido: pareja.apellido,
+      email: pareja.email,
+      fecha_nacimiento: pareja.fechaNacimiento,
+      genero: pareja.genero,
+    }
+  } else {
+    base = pareja.modo === 'cedula' ? { modo: 'cedula', cedula: pareja.cedula } : { modo: 'conyuge_registrado' }
+  }
   if (pareja.vinculo) base.vinculo = pareja.vinculo
   if (pareja.modo === 'cedula' && pareja.conyugeDescartado === true) base.conyuge_descartado = true
   return base
@@ -186,7 +233,62 @@ export function cedulaParaRpc(valor: unknown): string | null {
 
 export type ValidacionPareja =
   | { readonly ok: true; readonly pareja: ParejaInscripcion | null }
-  | { readonly ok: false; readonly error: 'invalid-input' | 'CEDULA_INVALIDA' }
+  | { readonly ok: false; readonly error: 'invalid-input' | ErrorFichaNueva }
+
+/** Input errors the server catches before spending an RPC call. */
+export type ErrorFichaNueva =
+  | 'CEDULA_INVALIDA'
+  | 'NOMBRE_INVALIDO'
+  | 'EMAIL_INVALIDO'
+  | 'FECHA_NACIMIENTO_INVALIDA'
+  | 'GENERO_INVALIDO'
+
+const LARGO_MAXIMO_NOMBRE = 100
+const LARGO_MAXIMO_EMAIL = 254
+const PATRON_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PATRON_FECHA = /^(\d{4})-(\d{2})-(\d{2})$/
+
+function nombreValido(valor: unknown): string | null {
+  if (typeof valor !== 'string') return null
+  const limpio = valor.trim().replace(/\s+/g, ' ')
+  return limpio.length > 0 && limpio.length <= LARGO_MAXIMO_NOMBRE ? limpio : null
+}
+
+function emailValido(valor: unknown): string | null {
+  if (typeof valor !== 'string') return null
+  const limpio = valor.trim().toLowerCase()
+  return limpio.length <= LARGO_MAXIMO_EMAIL && PATRON_EMAIL.test(limpio) ? limpio : null
+}
+
+/** A real calendar date between 1900-01-01 and today (UTC). */
+function fechaNacimientoValida(valor: unknown, hoy: Date = new Date()): string | null {
+  if (typeof valor !== 'string') return null
+  const partes = PATRON_FECHA.exec(valor.trim())
+  if (!partes) return null
+  const [, anio, mes, dia] = partes
+  const fecha = new Date(Date.UTC(Number(anio), Number(mes) - 1, Number(dia)))
+  if (fecha.getUTCFullYear() !== Number(anio) || fecha.getUTCMonth() !== Number(mes) - 1 || fecha.getUTCDate() !== Number(dia)) {
+    return null
+  }
+  if (Number(anio) < 1900 || fecha.getTime() > hoy.getTime()) return null
+  return valor.trim()
+}
+
+function validarFichaNueva(
+  raw: Readonly<Record<string, unknown>>,
+): { readonly ok: true; readonly ficha: FichaNuevaPareja } | { readonly ok: false; readonly error: ErrorFichaNueva } {
+  const cedula = cedulaParaRpc(raw.cedula)
+  if (cedula === null) return { ok: false, error: 'CEDULA_INVALIDA' }
+  const nombre = nombreValido(raw.nombre)
+  const apellido = nombreValido(raw.apellido)
+  if (nombre === null || apellido === null) return { ok: false, error: 'NOMBRE_INVALIDO' }
+  const email = emailValido(raw.email)
+  if (email === null) return { ok: false, error: 'EMAIL_INVALIDO' }
+  const fechaNacimiento = fechaNacimientoValida(raw.fechaNacimiento)
+  if (fechaNacimiento === null) return { ok: false, error: 'FECHA_NACIMIENTO_INVALIDA' }
+  if (!esUnoDe(GENEROS, raw.genero)) return { ok: false, error: 'GENERO_INVALIDO' }
+  return { ok: true, ficha: { cedula, nombre, apellido, email, fechaNacimiento, genero: raw.genero } }
+}
 
 /**
  * Server-side check of what the browser sent (a server action receives
@@ -205,6 +307,11 @@ export function validarPareja(raw: unknown): ValidacionPareja {
 
   if (raw.modo === 'conyuge_registrado') {
     return { ok: true, pareja: vinculo ? { modo: 'conyuge_registrado', vinculo } : { modo: 'conyuge_registrado' } }
+  }
+  if (raw.modo === 'ficha_nueva') {
+    const ficha = validarFichaNueva(raw)
+    if (!ficha.ok) return ficha
+    return { ok: true, pareja: { modo: 'ficha_nueva', ...ficha.ficha, ...(vinculo ? { vinculo } : {}) } }
   }
   if (raw.modo !== 'cedula') return { ok: false, error: 'invalid-input' }
 
