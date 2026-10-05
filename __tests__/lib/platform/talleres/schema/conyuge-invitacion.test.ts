@@ -175,6 +175,12 @@ describe('conyuge invitación migration', () => {
       expect(blocks.invitacion_acceso_verificar).toMatch(/estado\s*=\s*'bloqueada'/)
     })
 
+    it('consultar returns the creator name with an initial and the vinculo', () => {
+      expect(blocks.invitacion_acceso_consultar).toMatch(/'nombre_invitante',\s*v_invitante/)
+      expect(blocks.invitacion_acceso_consultar).toMatch(/'vinculo',\s*v_vinculo/)
+      expect(blocks.invitacion_acceso_consultar).toMatch(/i\.link_type/)
+    })
+
     it('links the ficha only when auth_id IS NULL', () => {
       expect(blocks.invitacion_acceso_vincular).toMatch(/WHERE\s+id\s*=\s*v_inv\.usuario_id\s+AND\s+auth_id\s+IS\s+NULL/i)
     })

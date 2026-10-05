@@ -479,9 +479,9 @@ SELECT pg_temp.assert_rows('9: enviada, envios 1, error cleared, no longer pendi
   $$SELECT 1 FROM public.invitaciones_acceso WHERE id = (SELECT id FROM t_ci_inv WHERE cedula = '99800010')
      AND estado = 'enviada' AND envios = 1 AND ultimo_error IS NULL AND ultimo_envio_en IS NOT NULL
      AND id NOT IN (SELECT invitacion_id FROM public.invitacion_acceso_pendientes_de_envio())$$, 1);
-SELECT pg_temp.capture('9: consultar with the token', 'cons_ok',
+SELECT pg_temp.capture('9: consultar returns the names and the vinculo', 'cons_ok',
   $$SELECT public.invitacion_acceso_consultar((SELECT h FROM t_ci_hash WHERE k = 'h1'))$$,
-  '{"valida":true,"taller_nombre":"ZZ CI Matrimonio","nombre_invitado":"Ana María"}');
+  '{"valida":true,"taller_nombre":"ZZ CI Matrimonio","nombre_invitado":"Ana María","nombre_invitante":"Mario Z.","vinculo":"matrimonio"}');
 SELECT pg_temp.capture('9: a resend rotates the token', 'prep_rot',
   $$SELECT public.invitacion_acceso_preparar_envio((SELECT id FROM t_ci_inv WHERE cedula = '99800010'),
      (SELECT h FROM t_ci_hash WHERE k = 'h2'), now() + interval '7 days') -> 'ok'$$, 'true');

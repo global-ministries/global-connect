@@ -557,8 +557,11 @@ CREATE TRIGGER trg_taller_inscripciones_cancela_invitaciones
 -- F. Activation functions (service_role)
 -- ===========================================================================
 
--- {"valida":true,"taller_nombre","nombre_invitado"} for an unexpired
--- token of an enviada or activando invitation; {"valida":false} otherwise.
+-- {"valida":true,"taller_nombre","nombre_invitado","nombre_invitante",
+--  "vinculo"} for an unexpired token of an enviada or activando
+-- invitation; {"valida":false} otherwise. nombre_invitante is the
+-- creator's nombre plus the initial of the apellido; vinculo is the
+-- inscription's link_type (matrimonio, novios or null).
 CREATE OR REPLACE FUNCTION public.invitacion_acceso_consultar(p_token_hash text)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -569,10 +572,19 @@ AS $function$
 DECLARE
   v_taller text;
   v_invitado text;
+  v_invitante text;
+  v_vinculo text;
 BEGIN
-  SELECT t.nombre, u.nombre INTO v_taller, v_invitado
+  SELECT t.nombre, u.nombre,
+         CASE WHEN c.id IS NULL THEN NULL
+              WHEN upper(left(btrim(c.apellido), 1)) = '' THEN btrim(c.nombre)
+              ELSE btrim(c.nombre) || ' ' || upper(left(btrim(c.apellido), 1)) || '.' END,
+         i.link_type
+    INTO v_taller, v_invitado, v_invitante, v_vinculo
     FROM public.invitaciones_acceso ia
     JOIN public.usuarios u ON u.id = ia.usuario_id
+    LEFT JOIN public.usuarios c ON c.id = ia.creado_por
+    LEFT JOIN public.taller_inscripciones i ON i.id = ia.inscripcion_id
     LEFT JOIN public.taller_ediciones te ON te.id = ia.edicion_id
     LEFT JOIN public.talleres t ON t.id = te.taller_id
    WHERE p_token_hash IS NOT NULL
@@ -582,12 +594,18 @@ BEGIN
   IF NOT FOUND THEN
     RETURN jsonb_build_object('valida', false);
   END IF;
-  RETURN jsonb_build_object('valida', true, 'taller_nombre', v_taller, 'nombre_invitado', v_invitado);
+  RETURN jsonb_build_object(
+    'valida', true,
+    'taller_nombre', v_taller,
+    'nombre_invitado', v_invitado,
+    'nombre_invitante', v_invitante,
+    'vinculo', v_vinculo
+  );
 END;
 $function$;
 
 COMMENT ON FUNCTION public.invitacion_acceso_consultar(text) IS
-  'Activation: {valida:true, taller_nombre, nombre_invitado} when the token hash belongs to an enviada or activando invitation that has not expired; {valida:false} otherwise.';
+  'Activation: {valida:true, taller_nombre, nombre_invitado, nombre_invitante ("<nombre> <initial>."), vinculo (the inscription link_type: matrimonio, novios or null)} when the token hash belongs to an enviada or activando invitation that has not expired; {valida:false} otherwise.';
 
 REVOKE ALL ON FUNCTION public.invitacion_acceso_consultar(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.invitacion_acceso_consultar(text) TO service_role;
