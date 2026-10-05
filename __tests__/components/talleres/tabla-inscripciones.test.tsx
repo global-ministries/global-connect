@@ -105,6 +105,9 @@ function makeRow(overrides: Partial<{
   sobre_cupo_por_nombre: string | null
   sobre_cupo_en: string | null
   unit_estado: string | null
+  pareja_origen: string | null
+  acceso_estado: string | null
+  acceso_ultimo_envio_fallido: boolean
 }>) {
   return {
     id: 'insc-1',
@@ -617,5 +620,46 @@ describe('TablaInscripciones — Resultado (cierre de edición)', () => {
       rows: [makeRow({ id: 'insc-1', estado: 'aprobado', unit_estado: 'no_completado' })],
     })
     expect(screen.getByText('Resultado: No completado')).toBeInTheDocument()
+  })
+})
+
+describe('TablaInscripciones — new partner ficha', () => {
+  const fichaNueva = makeRow({ id: 'insc-9', pareja_origen: 'ficha_nueva', acceso_estado: 'enviada' })
+
+  it('marks the inscription and shows the access status', () => {
+    renderTabla({ rows: [fichaNueva] })
+    expect(screen.getAllByText('Ficha nueva creada por el miembro').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Acceso enviado').length).toBeGreaterThan(0)
+  })
+
+  it('shows a failed last send', () => {
+    renderTabla({ rows: [makeRow({ pareja_origen: 'ficha_nueva', acceso_estado: 'en_espera', acceso_ultimo_envio_fallido: true })] })
+    expect(screen.getAllByText('Acceso por enviar').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('El último envío falló').length).toBeGreaterThan(0)
+  })
+
+  it('shows no mark for other inscriptions', () => {
+    renderTabla({ rows: [makeRow({ pareja_origen: 'cedula' })] })
+    expect(screen.queryByText('Ficha nueva creada por el miembro')).not.toBeInTheDocument()
+  })
+
+  it('lets a writer resend the access', async () => {
+    const onReenviarAcceso = jest.fn(async () => ({ ok: true, message: 'Acceso reenviado.' }))
+    renderTabla({ rows: [fichaNueva], onReenviarAcceso })
+    await userEvent.click(screen.getAllByRole('button', { name: 'Reenviar acceso' })[0])
+    expect(onReenviarAcceso).toHaveBeenCalledWith('insc-9')
+    expect((await screen.findAllByText('Acceso reenviado.')).length).toBeGreaterThan(0)
+  })
+
+  it('hides the resend once the account was activated or without write access', () => {
+    const onReenviarAcceso = jest.fn()
+    const { unmount } = renderTabla({
+      rows: [makeRow({ pareja_origen: 'ficha_nueva', acceso_estado: 'aceptada' })],
+      onReenviarAcceso,
+    })
+    expect(screen.queryByRole('button', { name: 'Reenviar acceso' })).not.toBeInTheDocument()
+    unmount()
+    renderTabla({ rows: [fichaNueva], onReenviarAcceso, canWrite: false })
+    expect(screen.queryByRole('button', { name: 'Reenviar acceso' })).not.toBeInTheDocument()
   })
 })

@@ -129,6 +129,7 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
         cierreInscripcionOffsetDias: -5,
         intervaloEdicionesDias: 28,
         clasesMinimasParaCompletar: null,
+        momentoEnvioAcceso: 'al_aprobar',
       }),
     )
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
@@ -221,5 +222,34 @@ describe('ConfiguracionTaller — editor: cadencia y duración (moved from Clase
       duracionMinutos: 90,
     })
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
+  })
+})
+
+describe('ConfiguracionTaller — envío del acceso al cónyuge nuevo', () => {
+  it('editor: offers the field only for a couple taller and saves it', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, tipo: 'pareja', momentoEnvioAcceso: 'al_aprobar' })} />)
+
+    fireEvent.change(screen.getByLabelText(/envío del acceso al cónyuge nuevo/i), {
+      target: { value: 'al_inscribirse' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ momentoEnvioAcceso: 'al_inscribirse' }),
+      ),
+    )
+  })
+
+  it('editor: hides the field for an individual taller', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, tipo: 'individual' })} />)
+    expect(screen.queryByLabelText(/envío del acceso al cónyuge nuevo/i)).not.toBeInTheDocument()
+  })
+
+  it('read-only: shows the setting for a couple taller', () => {
+    render(<ConfiguracionTaller {...baseProps({ tipo: 'pareja', momentoEnvioAcceso: 'al_inscribirse' })} />)
+    expect(screen.getByText('Envío del acceso al cónyuge nuevo')).toBeInTheDocument()
+    expect(screen.getByText('Al inscribirse')).toBeInTheDocument()
   })
 })

@@ -35,6 +35,10 @@ jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }))
 
+jest.mock('@/lib/platform/talleres/invitacion-acceso-envio', () => ({
+  enviarInvitacionesPendientes: jest.fn().mockResolvedValue({ enviadas: 0, fallidas: 0, omitidas: 0 }),
+}))
+
 const isTalleresEnabledMock = jest.requireMock('@/lib/platform/talleres/flags')
   .isTalleresEnabled as jest.Mock
 const requireTalleresApiAuthenticatedMock = jest.requireMock(
@@ -208,7 +212,7 @@ describe('inscribirseATaller — input and gate', () => {
     gateConRpc(rpc)
     const result = await inscribirseATaller({
       edicionId: TALLER_ID,
-      pareja: { modo: 'ficha_nueva' } as unknown as { modo: 'conyuge_registrado' },
+      pareja: { modo: 'otro' } as unknown as { modo: 'conyuge_registrado' },
     })
     expect(result).toEqual({ ok: false, error: 'invalid-input', message: expect.any(String) })
     expect(rpc).not.toHaveBeenCalled()
@@ -354,5 +358,76 @@ describe('buscarParejaPorCedula', () => {
       error: 'internal',
       message: expect.any(String),
     })
+  })
+})
+
+// ─── ficha_nueva: the partner is not in the system ───────────────────────
+
+describe('inscribirseATaller — ficha_nueva', () => {
+  const enviarMock = jest.requireMock('@/lib/platform/talleres/invitacion-acceso-envio')
+    .enviarInvitacionesPendientes as jest.Mock
+
+  const PAREJA = {
+    modo: 'ficha_nueva' as const,
+    cedula: '12345678',
+    nombre: 'Ana',
+    apellido: 'García',
+    email: 'ana@example.com',
+    fechaNacimiento: '1990-05-17',
+    genero: 'Femenino' as const,
+  }
+
+  beforeEach(() => enviarMock.mockClear())
+
+  it('sends the new-ficha payload and then runs the due access emails', async () => {
+    const rpc = rpcConResultado({ ok: true, inscripcion_id: 'insc-9', estado: 'pendiente', pareja_origen: 'ficha_nueva' })
+    gateConRpc(rpc)
+
+    const result = await inscribirseATaller({ edicionId: TALLER_ID, pareja: PAREJA })
+
+    expect(result).toEqual({ ok: true, inscripcionId: 'insc-9' })
+    expect(rpc).toHaveBeenCalledWith('talleres_inscribirme', {
+      p_edicion_id: TALLER_ID,
+      p_pareja: {
+        modo: 'ficha_nueva',
+        cedula: '12345678',
+        nombre: 'Ana',
+        apellido: 'García',
+        email: 'ana@example.com',
+        fecha_nacimiento: '1990-05-17',
+        genero: 'Femenino',
+      },
+    })
+    expect(enviarMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not run the sender for the other modes', async () => {
+    gateConRpc(rpcConResultado({ ok: true, inscripcion_id: 'insc-1', estado: 'pendiente', pareja_origen: 'cedula' }))
+    await inscribirseATaller({ edicionId: TALLER_ID, pareja: { modo: 'cedula', cedula: '12345678' } })
+    expect(enviarMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid email before any RPC', async () => {
+    const rpc = rpcConResultado(null)
+    gateConRpc(rpc)
+    const result = await inscribirseATaller({ edicionId: TALLER_ID, pareja: { ...PAREJA, email: 'nope' } })
+    expect(result).toMatchObject({ ok: false, error: 'EMAIL_INVALIDO' })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('maps a raised FECHA_NACIMIENTO_INVALIDA to its message', async () => {
+    gateConRpc(rpcConResultado(null, { code: '22023', message: 'FECHA_NACIMIENTO_INVALIDA' }))
+    const result = await inscribirseATaller({ edicionId: TALLER_ID, pareja: PAREJA })
+    expect(result).toMatchObject({ ok: false, error: 'FECHA_NACIMIENTO_INVALIDA' })
+  })
+
+  it('reads LIMITE_ALCANZADO as the mode being unavailable, without mentioning searches', async () => {
+    gateConRpc(rpcConResultado({ ok: false, codigo: 'LIMITE_ALCANZADO' }))
+    const result = await inscribirseATaller({ edicionId: TALLER_ID, pareja: PAREJA })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error).toBe('LIMITE_ALCANZADO')
+    expect(result.message).not.toMatch(/búsquedas/)
+    expect(enviarMock).not.toHaveBeenCalled()
   })
 })

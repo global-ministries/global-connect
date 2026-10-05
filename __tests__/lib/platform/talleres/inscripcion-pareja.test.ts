@@ -55,8 +55,14 @@ describe('parseResultadoInscribirme', () => {
 
   it('degrades an unknown pareja_origen to null instead of rejecting the success', () => {
     expect(
-      parseResultadoInscribirme({ ok: true, inscripcion_id: 'insc-4', pareja_origen: 'ficha_nueva' }),
+      parseResultadoInscribirme({ ok: true, inscripcion_id: 'insc-4', pareja_origen: 'otro_origen' }),
     ).toEqual({ ok: true, inscripcionId: 'insc-4', parejaOrigen: null })
+  })
+
+  it('recognizes the ficha_nueva origin', () => {
+    expect(
+      parseResultadoInscribirme({ ok: true, inscripcion_id: 'insc-5', pareja_origen: 'ficha_nueva' }),
+    ).toEqual({ ok: true, inscripcionId: 'insc-5', parejaOrigen: 'ficha_nueva' })
   })
 })
 
@@ -172,12 +178,66 @@ describe('validarPareja', () => {
   })
 
   it.each([
-    ['an unknown modo', { modo: 'ficha_nueva', cedula: '12345678' }],
+    ['an unknown modo', { modo: 'otro', cedula: '12345678' }],
     ['a non-object', 'conyuge_registrado'],
     ['an invalid vínculo', { modo: 'conyuge_registrado', vinculo: 'amigos' }],
     ['a non-boolean conyugeDescartado', { modo: 'cedula', cedula: '12345678', conyugeDescartado: 'si' }],
   ])('rejects %s as invalid-input', (_caso, raw) => {
     expect(validarPareja(raw)).toEqual({ ok: false, error: 'invalid-input' })
+  })
+})
+
+describe('validarPareja — ficha_nueva', () => {
+  const FICHA = {
+    modo: 'ficha_nueva',
+    cedula: ' V-12.345.678 ',
+    nombre: ' Ana ',
+    apellido: ' García ',
+    email: ' Ana@Example.com ',
+    fechaNacimiento: '1990-05-17',
+    genero: 'Femenino',
+  }
+
+  it('normalizes a complete new-ficha partner', () => {
+    expect(validarPareja({ ...FICHA, vinculo: 'matrimonio' })).toEqual({
+      ok: true,
+      pareja: {
+        modo: 'ficha_nueva',
+        cedula: '12345678',
+        nombre: 'Ana',
+        apellido: 'García',
+        email: 'ana@example.com',
+        fechaNacimiento: '1990-05-17',
+        genero: 'Femenino',
+        vinculo: 'matrimonio',
+      },
+    })
+  })
+
+  it.each([
+    ['cedula', '12-ab', 'CEDULA_INVALIDA'],
+    ['nombre', '  ', 'NOMBRE_INVALIDO'],
+    ['apellido', '', 'NOMBRE_INVALIDO'],
+    ['email', 'ana@', 'EMAIL_INVALIDO'],
+    ['fechaNacimiento', '1990-02-31', 'FECHA_NACIMIENTO_INVALIDA'],
+    ['fechaNacimiento', '2999-01-01', 'FECHA_NACIMIENTO_INVALIDA'],
+    ['genero', 'Otro', 'GENERO_INVALIDO'],
+  ])('rejects an invalid %s (%s) with %s', (campo, valor, error) => {
+    expect(validarPareja({ ...FICHA, [campo]: valor })).toEqual({ ok: false, error })
+  })
+
+  it('sends the RPC the documented ficha_nueva shape', () => {
+    const validada = validarPareja(FICHA)
+    if (!validada.ok) throw new Error('expected ok')
+    expect(parejaParaRpc(validada.pareja)).toEqual({
+      modo: 'ficha_nueva',
+      cedula: '12345678',
+      nombre: 'Ana',
+      apellido: 'García',
+      email: 'ana@example.com',
+      fecha_nacimiento: '1990-05-17',
+      genero: 'Femenino',
+    })
   })
 })
 

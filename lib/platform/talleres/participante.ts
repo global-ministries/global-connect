@@ -336,6 +336,11 @@ export interface ParticipanteExplorarRow {
    * the cónyuge picker and which link_type to send on self-enroll (PR G).
    */
   readonly link_type: 'matrimonio' | 'novios' | null
+  /**
+   * When a new partner's access email goes out (talleres.momento_envio_acceso,
+   * odd/tasks/talleres-conyuge-invitacion.md C2). Only drives the picker copy.
+   */
+  readonly momento_envio_acceso: 'al_aprobar' | 'al_inscribirse'
   readonly edicion: string
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
@@ -410,7 +415,7 @@ export async function loadParticipanteExplorar(
     .from('taller_ediciones')
     .select(
       `id, nombre_snapshot, tipo, link_type, estado, taller_id, cierre_inscripcion,
-       taller:talleres!taller_id (slug, nombre, modalidad_default, descripcion)`,
+       taller:talleres!taller_id (slug, nombre, modalidad_default, descripcion, momento_envio_acceso)`,
     )
     .in('estado', ['abierto', 'en_curso'])
     .order('created_at', { ascending: false })
@@ -429,6 +434,7 @@ export async function loadParticipanteExplorar(
       nombre: string
       modalidad_default: 'periodo_general' | 'permanente_custom'
       descripcion: string | null
+      momento_envio_acceso?: string | null
     } | null
   }>
 
@@ -516,6 +522,7 @@ export async function loadParticipanteExplorar(
       slug: row.taller?.slug ?? '',
       tipo: row.tipo,
       link_type: row.link_type ?? null,
+      momento_envio_acceso: row.taller?.momento_envio_acceso === 'al_inscribirse' ? 'al_inscribirse' : 'al_aprobar',
       edicion: row.nombre_snapshot,
       estado: row.estado,
       ya_inscrito: inscritosIds.has(row.id),

@@ -52,6 +52,10 @@ function mismoCorreo(a: string | null, b: string): boolean {
  *    has no email or the same confirmed email. When that ficha holds a service
  *    role or an active Dream Team service, a pending request is stored for its
  *    directors to approve (vinculos_pendientes) instead of linking.
+ * Fichas with an open access invitation (a spouse ficha created at a taller
+ * enrollment) are never candidates in 2 or 3: that person claims the ficha
+ * through /activar, which checks the invitation token and the cédula.
+ *
  * 4. Otherwise a placeholder ficha is created, without the cédula when that
  *    cédula already belongs to another ficha.
  */
@@ -76,7 +80,8 @@ export async function vincularFichaConfirmada(
     .is('auth_id', null)
     .order('id')
   if (porCorreo.error) return { estado: 'error' }
-  const candidatasCorreo = (porCorreo.data ?? []) as Ficha[]
+  const candidatasCorreo = await sinInvitacionAbierta(admin, (porCorreo.data ?? []) as Ficha[])
+  if (candidatasCorreo === null) return { estado: 'error' }
   if (candidatasCorreo.length > 1) return { estado: 'ambigua' }
   if (candidatasCorreo.length === 1) return vincular(admin, candidatasCorreo[0].id, user.id)
 
@@ -89,9 +94,11 @@ export async function vincularFichaConfirmada(
       .order('id')
     if (porCedula.error) return { estado: 'error' }
     const fichas = (porCedula.data ?? []) as Ficha[]
-    const elegibles = fichas.filter(
-      (f) => !f.auth_id && (!texto(f.email) || mismoCorreo(f.email, email)),
+    const elegibles = await sinInvitacionAbierta(
+      admin,
+      fichas.filter((f) => !f.auth_id && (!texto(f.email) || mismoCorreo(f.email, email))),
     )
+    if (elegibles === null) return { estado: 'error' }
     if (elegibles.length > 1) return { estado: 'ambigua' }
     if (elegibles.length === 1) {
       const servicio = await tieneServicio(admin, elegibles[0].id)
@@ -115,6 +122,17 @@ export async function vincularFichaConfirmada(
     },
   ])
   return error ? { estado: 'error' } : { estado: 'creada' }
+}
+
+/** The fichas without an open access invitation; null on error. */
+async function sinInvitacionAbierta(admin: AdminClient, fichas: Ficha[]): Promise<Ficha[] | null> {
+  const libres: Ficha[] = []
+  for (const ficha of fichas) {
+    const { data, error } = await admin.rpc('ficha_tiene_invitacion_abierta', { p_usuario_id: ficha.id })
+    if (error) return null
+    if (data !== true) libres.push(ficha)
+  }
+  return libres
 }
 
 async function vincular(admin: AdminClient, fichaId: string, authId: string): Promise<ResultadoVinculo> {

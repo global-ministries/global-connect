@@ -6,6 +6,8 @@ type Otras = {
   usuario_roles?: { usuario_id: string; roles_sistema: { nombre_interno: string } }[]
   dream_team_servicios?: { persona_id: string; estado: string }[]
   vinculos_pendientes?: { ficha_id: string; auth_user_id: string; estado: string }[]
+  /** Fichas with an open access invitation (ficha_tiene_invitacion_abierta). */
+  invitadas?: string[]
 }
 
 /** Minimal in-memory stand-in for the tables the linker reads, enough for its queries. */
@@ -97,7 +99,16 @@ function crearAdmin(fichas: Ficha[], otras: Otras = {}) {
     },
   }))
 
-  return { admin: { from } as never, tabla, inserts, pendientes, updates }
+  const invitadas = new Set(otras.invitadas ?? [])
+  const rpc = jest.fn((nombre: string, args: { p_usuario_id: string }) =>
+    Promise.resolve(
+      nombre === 'ficha_tiene_invitacion_abierta'
+        ? { data: invitadas.has(args.p_usuario_id), error: null }
+        : { data: null, error: { message: `unexpected rpc ${nombre}` } },
+    ),
+  )
+
+  return { admin: { from, rpc } as never, tabla, inserts, pendientes, updates }
 }
 
 function usuario(over: Partial<{ email_confirmed_at: string | null; cedula: string }> = {}) {
@@ -290,6 +301,29 @@ describe('vincularFichaConfirmada', () => {
       expect(res.estado).toBe('vinculada')
       expect(tabla[0].auth_id).toBe('auth-1')
       expect(pendientes).toHaveLength(0)
+    })
+  })
+
+  describe('fichas with an open access invitation', () => {
+    it('skips the ficha with the confirmed email while its invitation is open', async () => {
+      const { admin, tabla } = crearAdmin(
+        [{ id: 'f1', auth_id: null, email: 'bea@example.com', cedula: null }],
+        { invitadas: ['f1'] },
+      )
+      const res = await vincularFichaConfirmada(admin, usuario({ cedula: '' }))
+      expect(res.estado).not.toBe('vinculada')
+      expect(tabla[0].auth_id).toBeNull()
+    })
+
+    it('skips the ficha with the typed cédula while its invitation is open', async () => {
+      const { admin, tabla, inserts } = crearAdmin(
+        [{ id: 'f1', auth_id: null, email: null, cedula: '22328215' }],
+        { invitadas: ['f1'] },
+      )
+      const res = await vincularFichaConfirmada(admin, usuario())
+      expect(res.estado).toBe('creada')
+      expect(tabla[0].auth_id).toBeNull()
+      expect(inserts[0].cedula).toBeNull()
     })
   })
 })

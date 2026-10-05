@@ -2432,6 +2432,154 @@ export type Database = {
           },
         ]
       }
+      invitaciones_acceso: {
+        Row: {
+          aceptada_en: string | null
+          activando_en: string | null
+          auth_user_id: string | null
+          creado_por: string | null
+          created_at: string
+          edicion_id: string | null
+          envios: number
+          estado: string
+          id: string
+          inscripcion_id: string | null
+          intentos_activacion: number
+          origen: string
+          token_expira_en: string | null
+          token_hash: string | null
+          ultimo_envio_en: string | null
+          ultimo_error: string | null
+          updated_at: string
+          usuario_id: string
+        }
+        Insert: {
+          aceptada_en?: string | null
+          activando_en?: string | null
+          auth_user_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          edicion_id?: string | null
+          envios?: number
+          estado?: string
+          id?: string
+          inscripcion_id?: string | null
+          intentos_activacion?: number
+          origen: string
+          token_expira_en?: string | null
+          token_hash?: string | null
+          ultimo_envio_en?: string | null
+          ultimo_error?: string | null
+          updated_at?: string
+          usuario_id: string
+        }
+        Update: {
+          aceptada_en?: string | null
+          activando_en?: string | null
+          auth_user_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          edicion_id?: string | null
+          envios?: number
+          estado?: string
+          id?: string
+          inscripcion_id?: string | null
+          intentos_activacion?: number
+          origen?: string
+          token_expira_en?: string | null
+          token_hash?: string | null
+          ultimo_envio_en?: string | null
+          ultimo_error?: string | null
+          updated_at?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitaciones_acceso_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_edicion_id_fkey"
+            columns: ["edicion_id"]
+            isOneToOne: false
+            referencedRelation: "taller_ediciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_inscripcion_id_fkey"
+            columns: ["inscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "taller_inscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_acceso_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
       municipios: {
         Row: {
           estado_id: string
@@ -5986,6 +6134,7 @@ export type Database = {
           id: string
           intervalo_ediciones_dias: number | null
           modalidad_default: string
+          momento_envio_acceso: string
           nombre: string
           regimen: string
           slug: string
@@ -6007,6 +6156,7 @@ export type Database = {
           id?: string
           intervalo_ediciones_dias?: number | null
           modalidad_default?: string
+          momento_envio_acceso?: string
           nombre: string
           regimen?: string
           slug: string
@@ -6028,6 +6178,7 @@ export type Database = {
           id?: string
           intervalo_ediciones_dias?: number | null
           modalidad_default?: string
+          momento_envio_acceso?: string
           nombre?: string
           regimen?: string
           slug?: string
@@ -6923,7 +7074,78 @@ export type Database = {
           resuelto_en?: string | null
           resuelto_por?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vinculos_pendientes_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vinculos_pendientes_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "vinculos_pendientes_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "vinculos_pendientes_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "vinculos_pendientes_ficha_id_fkey"
+            columns: ["ficha_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "vinculos_pendientes_resuelto_por_fkey"
+            columns: ["resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vinculos_pendientes_resuelto_por_fkey"
+            columns: ["resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "vinculos_pendientes_resuelto_por_fkey"
+            columns: ["resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "vinculos_pendientes_resuelto_por_fkey"
+            columns: ["resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "vinculos_pendientes_resuelto_por_fkey"
+            columns: ["resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
       }
     }
     Views: {
@@ -7726,6 +7948,10 @@ export type Database = {
           servicio_id: string
         }[]
       }
+      dream_team_clave_nombre: {
+        Args: { p_apellido: string; p_nombre: string }
+        Returns: string
+      }
       dream_team_contactos_personas: {
         Args: { p_persona_ids: string[] }
         Returns: {
@@ -7815,6 +8041,10 @@ export type Database = {
       es_lider_usuario: { Args: { target_user_id: string }; Returns: boolean }
       es_superadmin: { Args: { p_auth_uid: string }; Returns: boolean }
       expirar_solicitudes_vencidas: { Args: never; Returns: number }
+      ficha_tiene_invitacion_abierta: {
+        Args: { p_usuario_id: string }
+        Returns: boolean
+      }
       gdv_dg_grupos_activos_visibles: {
         Args: { p_usuario_id: string }
         Returns: string[]
@@ -7838,6 +8068,42 @@ export type Database = {
       grant_support_capability: {
         Args: { p_capability: string; p_target_usuario_id: string }
         Returns: undefined
+      }
+      invitacion_acceso_consultar: {
+        Args: { p_token_hash: string }
+        Returns: Json
+      }
+      invitacion_acceso_pendientes_de_envio: {
+        Args: never
+        Returns: {
+          edicion_id: string
+          inscripcion_id: string
+          invitacion_id: string
+        }[]
+      }
+      invitacion_acceso_preparar_envio: {
+        Args: {
+          p_expira_en: string
+          p_invitacion_id: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
+      invitacion_acceso_registrar_envio: {
+        Args: { p_error?: string; p_id: string; p_ok: boolean }
+        Returns: Json
+      }
+      invitacion_acceso_verificar: {
+        Args: { p_cedula: string; p_token_hash: string }
+        Returns: Json
+      }
+      invitacion_acceso_vincular: {
+        Args: {
+          p_auth_user_id: string
+          p_confirma_conyuge: boolean
+          p_id: string
+        }
+        Returns: Json
       }
       is_admin: { Args: never; Returns: boolean }
       listar_eventos_grupo: {
@@ -8344,6 +8610,10 @@ export type Database = {
         Args: { p_auth_id: string; p_casa_id: string }
         Returns: boolean
       }
+      puede_editar_direccion: {
+        Args: { p_direccion_id: string }
+        Returns: boolean
+      }
       puede_editar_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string }
         Returns: boolean
@@ -8370,6 +8640,10 @@ export type Database = {
         Returns: boolean
       }
       puede_ver_debug_toolbar: { Args: { p_auth_id: string }; Returns: boolean }
+      puede_ver_direccion: {
+        Args: { p_direccion_id: string }
+        Returns: boolean
+      }
       puede_ver_grupo: {
         Args: { p_grupo_id: string; p_user_id: string }
         Returns: boolean
@@ -8783,12 +9057,16 @@ export type Database = {
           fecha_completitud: string
           firmantes_snapshot: Json
           id: string
-          nombre_pareja_snapshot: string | null
+          nombre_pareja_snapshot: string
           nombre_participante_snapshot: string
           nombre_taller_snapshot: string
           persona_id: string
           taller_id: string
         }[]
+      }
+      vinculo_pendiente_puede_resolver: {
+        Args: { p_actor: string; p_ficha: string }
+        Returns: boolean
       }
       vinculo_pendiente_resolver: {
         Args: { p_aprobar: boolean; p_id: string }
@@ -8798,7 +9076,7 @@ export type Database = {
         Args: never
         Returns: {
           cedula_enmascarada: string
-          correo_solicitante: string | null
+          correo_solicitante: string
           creado_en: string
           ficha_id: string
           id: string
@@ -9236,3 +9514,4 @@ export const Constants = {
     },
   },
 } as const
+

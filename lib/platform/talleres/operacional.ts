@@ -307,7 +307,7 @@ export async function loadCoordInscripcionesPendientes(
     .from('taller_inscripciones')
     .select(
       `id, taller_id, cohorte_id, estado, link_type, created_at, updated_at,
-       persona_principal_id, companero_id`,
+       persona_principal_id, companero_id, pareja_origen`,
     )
   query =
     estados && estados.length > 0
@@ -446,6 +446,7 @@ export async function loadCoordInscripcionesPendientes(
         : null,
       link_type: (r.link_type as 'matrimonio' | 'novios' | null) ?? null,
       estado: r.estado as InscripcionAdminRow['estado'],
+      pareja_origen: typeof r.pareja_origen === 'string' ? r.pareja_origen : null,
       created_at: r.created_at as string,
       updated_at: r.updated_at as string,
       // T2 (odd/tasks/talleres-inscripcion-a-grupo.md) — this pendientes

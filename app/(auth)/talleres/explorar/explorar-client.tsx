@@ -49,6 +49,8 @@ interface TallerRow {
    * registered spouse first; null makes the member choose the vínculo.
    */
   readonly link_type: 'matrimonio' | 'novios' | null
+  /** When a new partner's access email goes out; only changes the picker copy. */
+  readonly momento_envio_acceso?: 'al_aprobar' | 'al_inscribirse'
   readonly edicion: string
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
@@ -233,6 +235,7 @@ export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
           key={selected.id}
           edicionId={selected.id}
           vinculoEdicion={selected.link_type}
+          momentoEnvioAcceso={selected.momento_envio_acceso}
           onCerrar={() => setPickerOpen(false)}
           onInscrito={confirmarInscripcion}
         />

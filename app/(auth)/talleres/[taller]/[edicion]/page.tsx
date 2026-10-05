@@ -122,11 +122,13 @@ import {
   type EdicionLocalDetalle,
 } from '@/lib/platform/talleres/operacional'
 import { loadAdminInscripciones } from '@/lib/platform/talleres/admin-inscripciones'
+import { conEstadoAcceso } from '@/lib/platform/talleres/invitacion-acceso-estado'
 import { loadGruposDeCohorte, loadGruposInstanciados } from '@/lib/platform/talleres/grupo-detalle'
 import { loadServidoresDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
 import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
 import {
   approveInscripcionAction,
+  reenviarAccesoAction,
   rejectInscripcionAction,
 } from '@/lib/platform/talleres/inscripciones-actions'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
@@ -200,6 +202,8 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
 
   const permisos = await cargarPermisos(client, taller.dream_team_equipo_id)
   const inscripciones = await loadAdminInscripciones(client, { edicion_id: edicion.id })
+  // Access status for the inscriptions whose partner ficha the member created.
+  const filasInscripciones = await conEstadoAcceso(inscripciones.rows)
   // T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — best
   // effort, same "never blocks the page" contract as refrescarEstados
   // Ediciones: a failed/unauthorized call just hides the Cupo line.
@@ -345,10 +349,11 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
             <EstadoVacio icono={Users} titulo="No hay inscritos todavía" />
           ) : (
             <TablaInscripciones
-              rows={inscripciones.rows}
+              rows={filasInscripciones}
               canWrite={permisos.aprobarInscripciones}
               onApprove={approveInscripcionAction}
               onReject={rejectInscripcionAction}
+              onReenviarAcceso={reenviarAccesoAction}
               seleccion={permisos.gestionarGrupos ? { grupos } : undefined}
               mostrarResultado={edicion.cerrada_en !== null}
             />

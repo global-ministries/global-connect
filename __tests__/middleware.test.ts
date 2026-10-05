@@ -310,6 +310,36 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
     }
   })
 
+  // The spouse access email links to /activar/<token>; the route swaps the
+  // token for a cookie and redirects to /activar. Both must open without a
+  // session, and the middleware must not call getUser there (the token
+  // path would otherwise reach the timeout breadcrumb).
+  describe('spouse access activation', () => {
+    it.each(['/activar', '/activar/abcDEF123_-xyz'])('lets a visitor without a session open %s', async (path) => {
+      const request = createMockRequest(path)
+      const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+      expect(getUserMock).not.toHaveBeenCalled()
+      expect(nextResponseRedirectMock).not.toHaveBeenCalled()
+      expect(result.type).toBe('next')
+    })
+
+    it.each(['/activarx', '/activar/abc/extra'])('still sends a visitor without a session on %s to login', async (path) => {
+      queueFastResult(null)
+
+      const request = createMockRequest(path)
+      await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+      expect(nextResponseRedirectMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('treats the activation paths as public', () => {
+      expect(isPublicPath('/activar')).toBe(true)
+      expect(isPublicPath('/activar/tok')).toBe(true)
+      expect(isPublicPath('/activar/tok/x')).toBe(false)
+    })
+  })
+
   // The QR on a printed certificate points at /verificar-certificado/<codigo>.
   // Anyone outside the church must be able to open it without a session, so
   // the middleware must not send visitors to login there — and only there.

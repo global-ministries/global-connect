@@ -24,8 +24,18 @@
 
 import {
   approveInscripcionAction,
+  reenviarAccesoAction,
   rejectInscripcionAction,
 } from '@/lib/platform/talleres/inscripciones-actions'
+
+jest.mock('@/lib/platform/talleres/invitacion-acceso-envio', () => ({
+  enviarInvitacionesPendientes: jest.fn().mockResolvedValue({ enviadas: 0, fallidas: 0, omitidas: 0 }),
+  enviarInvitacionAcceso: jest.fn().mockResolvedValue('enviada'),
+}))
+
+jest.mock('@/lib/supabase/admin', () => ({
+  createSupabaseAdminClient: jest.fn(),
+}))
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(),
@@ -462,5 +472,86 @@ describe('inscripcionId guard', () => {
     const result = await rejectInscripcionAction('', 'motivo válido')
     expect(result.ok).toBe(false)
     expect(result.error).toBe('NOT_FOUND_OR_NOT_PENDIENTE')
+  })
+})
+// ─── Access invitation for a new partner ficha ───────────────────────────
+
+const envioMock = jest.requireMock('@/lib/platform/talleres/invitacion-acceso-envio') as {
+  enviarInvitacionesPendientes: jest.Mock
+  enviarInvitacionAcceso: jest.Mock
+}
+const adminMock = jest.requireMock('@/lib/supabase/admin').createSupabaseAdminClient as jest.Mock
+
+describe('approveInscripcionAction — access invitations', () => {
+  it('runs the due access emails after a successful approval', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.write'] })
+    await approveInscripcionAction(INSCRIPCION_ID)
+    expect(envioMock.enviarInvitacionesPendientes).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not run the sender when the approval is refused', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.read'] })
+    await approveInscripcionAction(INSCRIPCION_ID)
+    expect(envioMock.enviarInvitacionesPendientes).not.toHaveBeenCalled()
+  })
+})
+
+describe('reenviarAccesoAction', () => {
+  function conInscripcion(fila: { id: string; pareja_origen: string | null } | null, invitaciones: { id: string }[]) {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.write'] })
+    const selectBuilder: { eq: jest.Mock; maybeSingle: jest.Mock } = {
+      eq: jest.fn(() => selectBuilder),
+      maybeSingle: jest.fn().mockResolvedValue({ data: fila, error: null }),
+    }
+    createSupabaseServerClientMock.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: AUTH_UID } }, error: null }) },
+      from: jest.fn(() => ({ select: jest.fn(() => selectBuilder) })),
+    })
+    const adminBuilder: { eq: jest.Mock; order: jest.Mock; limit: jest.Mock } = {
+      eq: jest.fn(() => adminBuilder),
+      order: jest.fn(() => adminBuilder),
+      limit: jest.fn().mockResolvedValue({ data: invitaciones, error: null }),
+    }
+    const adminFrom = jest.fn(() => ({ select: jest.fn(() => adminBuilder) }))
+    adminMock.mockReturnValue({ from: adminFrom })
+    return { adminFrom, adminBuilder }
+  }
+
+  it('resends the latest invitation of a visible ficha_nueva inscription', async () => {
+    const { adminFrom, adminBuilder } = conInscripcion({ id: INSCRIPCION_ID, pareja_origen: 'ficha_nueva' }, [
+      { id: 'inv-1' },
+    ])
+    const result = await reenviarAccesoAction(INSCRIPCION_ID)
+    expect(result.ok).toBe(true)
+    expect(adminFrom).toHaveBeenCalledWith('invitaciones_acceso')
+    expect(adminBuilder.eq).toHaveBeenCalledWith('inscripcion_id', INSCRIPCION_ID)
+    expect(envioMock.enviarInvitacionAcceso).toHaveBeenCalledWith('inv-1')
+  })
+
+  it('refuses an inscription that did not create a new ficha', async () => {
+    conInscripcion({ id: INSCRIPCION_ID, pareja_origen: 'cedula' }, [{ id: 'inv-1' }])
+    const result = await reenviarAccesoAction(INSCRIPCION_ID)
+    expect(result.ok).toBe(false)
+    expect(envioMock.enviarInvitacionAcceso).not.toHaveBeenCalled()
+  })
+
+  it('refuses an inscription the coordinator cannot see', async () => {
+    conInscripcion(null, [{ id: 'inv-1' }])
+    const result = await reenviarAccesoAction(INSCRIPCION_ID)
+    expect(result).toMatchObject({ ok: false, error: 'NOT_FOUND_OR_NOT_PENDIENTE' })
+    expect(adminMock).not.toHaveBeenCalled()
+  })
+
+  it('reports an invitation that is no longer active', async () => {
+    conInscripcion({ id: INSCRIPCION_ID, pareja_origen: 'ficha_nueva' }, [{ id: 'inv-1' }])
+    envioMock.enviarInvitacionAcceso.mockResolvedValueOnce('omitida')
+    const result = await reenviarAccesoAction(INSCRIPCION_ID)
+    expect(result).toMatchObject({ ok: false, error: 'ACCESO_NO_DISPONIBLE' })
+  })
+
+  it('requires a write capability', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.read'] })
+    const result = await reenviarAccesoAction(INSCRIPCION_ID)
+    expect(result).toMatchObject({ ok: false, error: 'FORBIDDEN' })
   })
 })
