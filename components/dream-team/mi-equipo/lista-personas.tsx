@@ -40,6 +40,16 @@ export interface ListaPersonasProps {
   /** With write access every editable row gets the actions menu. */
   readonly puedeEditar: boolean
   readonly onActualizado: () => void
+  /** Every active campus shift, in campus order; when there is any, each row names its shifts. */
+  readonly turnos?: readonly { readonly id: string; readonly label: string }[]
+}
+
+const SIN_TURNOS: NonNullable<ListaPersonasProps['turnos']> = []
+
+/** "Domingo 9:00, Domingo 11:00", or "—" when the person has none. */
+function textoDeTurnos(turnoIds: readonly string[] | undefined, turnos: NonNullable<ListaPersonasProps['turnos']>): string {
+  const nombres = turnos.filter((turno) => turnoIds?.includes(turno.id)).map((turno) => turno.label)
+  return nombres.length > 0 ? nombres.join(', ') : '—'
 }
 
 const ANILLO = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-background'
@@ -80,6 +90,7 @@ export function ListaPersonas({
   hayBusqueda,
   puedeEditar,
   onActualizado,
+  turnos = SIN_TURNOS,
 }: ListaPersonasProps): ReactElement {
   return (
     <TarjetaSistema className="overflow-hidden p-0">
@@ -126,7 +137,13 @@ export function ListaPersonas({
       ) : (
         <ul aria-label="Personas del equipo" className="divide-y divide-border">
           {personas.map((persona) => (
-            <FilaPersona key={persona.clave} persona={persona} puedeEditar={puedeEditar} onActualizado={onActualizado} />
+            <FilaPersona
+              key={persona.clave}
+              persona={persona}
+              puedeEditar={puedeEditar}
+              onActualizado={onActualizado}
+              turnos={turnos}
+            />
           ))}
         </ul>
       )}
@@ -138,10 +155,12 @@ function FilaPersona({
   persona,
   puedeEditar,
   onActualizado,
+  turnos,
 }: {
   readonly persona: PersonaVista
   readonly puedeEditar: boolean
   readonly onActualizado: () => void
+  readonly turnos: NonNullable<ListaPersonasProps['turnos']>
 }): ReactElement {
   const esGdv = persona.origen === 'grupos_vida'
   return (
@@ -167,6 +186,9 @@ function FilaPersona({
           )}
         </div>
         <p className="hidden truncate text-sm text-muted-foreground md:block">{persona.equipoLabel}</p>
+        {turnos.length > 0 && (
+          <p className="truncate text-sm text-muted-foreground">{`Turno: ${textoDeTurnos(persona.turnoIds, turnos)}`}</p>
+        )}
         {/* [overflow-wrap:anywhere] lets a long stored phone break instead of pushing the row wider on phones. */}
         <div className="min-w-0 [overflow-wrap:anywhere]">
           <TelefonoServidor telefono={persona.telefono} />

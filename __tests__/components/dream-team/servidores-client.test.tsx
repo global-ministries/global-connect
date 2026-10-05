@@ -24,6 +24,7 @@ import {
   ID_CORO,
   ID_DHAH,
   ID_PDP,
+  ID_TALLERES,
   arbolServidores,
   fila,
   todasLasFilas,
@@ -31,6 +32,11 @@ import {
 } from '@/tests/helpers/servidores-conexion'
 
 const replace = jest.fn()
+let campusActivoId: string | null = null
+
+jest.mock('@/hooks/useCampus', () => ({
+  useCampus: () => ({ campusId: campusActivoId }),
+}))
 const refresh = jest.fn()
 
 jest.mock('next/navigation', () => ({
@@ -60,6 +66,7 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
 }))
 
 beforeEach(() => {
+  campusActivoId = null
   replace.mockClear()
   refresh.mockClear()
 })
@@ -362,9 +369,11 @@ describe('ServidoresClient — Grupos de Vida directors', () => {
       director('dg', 'Zoe General', 'Director general', { fechaInicio: '2026-09-10T10:00:00Z' }),
     ]
     render(<ServidoresClient {...props({ filas })} />)
-    expect(within(filaDe('Yara Etapa')).getByText('—')).toBeInTheDocument()
+    // The Inicio cell (the shift cell, after it, shows its own dash).
+    const inicio = (nombre: string) => within(filaDe(nombre)).getAllByRole('cell')[4]
+    expect(inicio('Yara Etapa')).toHaveTextContent(/^—$/)
     expect(filaDe('Yara Etapa')).not.toHaveTextContent('1970')
-    expect(within(filaDe('Zoe General')).queryByText('—')).not.toBeInTheDocument()
+    expect(inicio('Zoe General')).not.toHaveTextContent('—')
     expect(filaDe('Zoe General')).toHaveTextContent('2026')
   })
 
@@ -417,7 +426,7 @@ describe('ServidoresClient — phone', () => {
     render(<ServidoresClient {...props({ filas, puedeEditar: true })} />)
     expect(within(tarjetaDe('Marta Ruiz')).queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
     await userEvent.click(within(tarjetaDe('Ana Ruiz')).getByRole('button', { name: 'Acciones para Ana Ruiz' }))
-    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Ver su equipo'])
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Turnos', 'Ver su equipo'])
   })
 
   it('has a "Filtros" button that counts the filters it holds and opens a bottom sheet with Equipo, Rol and the quick filters', async () => {
@@ -494,7 +503,7 @@ describe('ServidoresClient — row menu and assigner', () => {
     expect(menuDe('Luis Barrios')).toHaveClass('h-11', 'w-11')
 
     await userEvent.click(menuDe('Luis Barrios'))
-    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Ver su equipo'])
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Turnos', 'Ver su equipo'])
     expect(screen.getByRole('menuitem', { name: 'Ver su equipo' })).toHaveAttribute('href', '/dream-team/mi-equipo?direccion=dir-conexion')
 
     await userEvent.click(screen.getByRole('menuitem', { name: 'Cambiar etapa' }))
@@ -531,5 +540,59 @@ describe('ServidoresClient — row menu and assigner', () => {
     const opciones = Array.from((within(dialogo).getByLabelText('Equipo') as HTMLSelectElement).options).map((o) => o.text)
     expect(opciones).toContain('— Coro')
     expect(opciones).not.toContain('Matrimonios')
+  })
+})
+
+describe('ServidoresClient — área drill-down inside a dirección', () => {
+  const opcionesDe = (etiqueta: string) => Array.from((screen.getAllByLabelText(etiqueta)[0] as HTMLSelectElement).options).map((o) => o.text)
+
+  it('offers the areas of the chosen dirección and narrows the equipos and rows to the area', async () => {
+    render(<ServidoresClient {...props()} />)
+    expect(screen.queryByLabelText('Área')).not.toBeInTheDocument()
+
+    await userEvent.selectOptions(screen.getByLabelText('Dirección'), ID_CONEXION)
+    expect(opcionesDe('Área')).toEqual(['Todas', 'Talleres'])
+
+    await userEvent.selectOptions(screen.getByLabelText('Área'), ID_TALLERES)
+    expect(opcionesDe('Equipo')).toEqual(['Todos', 'De Hombre a Hombre', 'Mujer de Hoy', 'Parejas', 'Punto de Partida'])
+    expect(filasDeTabla()).toHaveLength(37)
+    expect(replace).toHaveBeenLastCalledWith(
+      `/admin/dream-team/servidores?direccion=${ID_CONEXION}&area=${ID_TALLERES}`,
+      { scroll: false },
+    )
+  })
+})
+
+describe('ServidoresClient — shift column and campus', () => {
+  const T9 = '00000000-0000-4000-8000-000000000009'
+  const TCCS = '00000000-0000-4000-8000-000000000017'
+  const turnos = [
+    { id: T9, campusId: 'bqt', nombre: 'Domingo 9:00', diaSemana: 0, hora: '09:00', orden: 1, activo: true },
+    { id: TCCS, campusId: 'ccs', nombre: 'Sábado 17:00', diaSemana: 6, hora: '17:00', orden: 1, activo: true },
+  ]
+  const filas = [
+    fila('1', 'Ana Ruiz', ID_DHAH, 'Facilitador', { turnoIds: [T9] }),
+    fila('2', 'Beto Paz', ID_DHAH, 'Facilitador', { turnoIds: [] }),
+  ]
+
+  it('shows the shifts as a table column and on the cards, with a dash when none', () => {
+    render(<ServidoresClient {...props({ filas, turnos })} />)
+    expect(within(tabla()).getByRole('columnheader', { name: 'Turno' })).toBeInTheDocument()
+    const celdas = (nombre: string) =>
+      within(filasDeTabla().find((r) => r.textContent?.includes(nombre)) as HTMLElement)
+        .getAllByRole('cell')
+        .map((c) => c.textContent)
+    expect(celdas('Ana Ruiz')).toContain('Domingo 9:00')
+    expect(celdas('Beto Paz')).toContain('—')
+    const tarjetas = screen.getByRole('list', { name: 'Servicios en tarjetas' })
+    expect(within(tarjetas).getByText('Turno: Domingo 9:00')).toBeInTheDocument()
+    expect(within(tarjetas).getByText('Turno: —')).toBeInTheDocument()
+  })
+
+  it('the Turno filter offers only the shifts of the campus selected in the app', () => {
+    campusActivoId = 'bqt'
+    render(<ServidoresClient {...props({ filas, turnos })} />)
+    const opciones = Array.from((screen.getAllByLabelText('Turno')[0] as HTMLSelectElement).options).map((o) => o.text)
+    expect(opciones).toEqual(['Todos', 'Domingo 9:00', 'Sin turno'])
   })
 })

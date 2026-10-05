@@ -7,7 +7,7 @@
  * the server from `?direccion=`), one card per team inside it and the people
  * of the selected team. Everything below the header is derived on the client
  * from the already-loaded view model (lib/platform/dream-team/mi-equipo-vista.ts):
- * the selected team, the estado filter and the name search are local state —
+ * the selected team, the estado and shift filters and the name search are local state —
  * only the direccion lives in the URL.
  *
  * Everything that crosses in from the server page is plain serializable data.
@@ -20,8 +20,10 @@ import { Network, Plus } from 'lucide-react'
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
 import { BotonSistema, ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { useCampus } from '@/hooks/useCampus'
 import { AsignadorServicioDialog } from '@/components/dream-team/asignador-servicio-dialog'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { SelectorTurno } from '@/components/dream-team/turnos/selector-turno'
 import {
   TODOS_LOS_EQUIPOS,
   contadoresPorEstado,
@@ -47,7 +49,14 @@ export interface MiEquipoClientProps {
   readonly puedeEditar: boolean
   readonly equiposAsignables: readonly EquipoAsignable[]
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
+  /**
+   * Every active campus shift, in campus order: names the shifts of each
+   * person; the "Turno" filter offers those of the campus selected in the app.
+   */
+  readonly turnos?: readonly { readonly id: string; readonly label: string; readonly campusId?: string }[]
 }
+
+const SIN_TURNOS: NonNullable<MiEquipoClientProps['turnos']> = []
 
 export function MiEquipoClient(props: MiEquipoClientProps): ReactElement {
   if (!props.vista) {
@@ -78,13 +87,21 @@ function MiEquipoVistaDireccion({
   puedeEditar,
   equiposAsignables,
   rolesPorEquipo,
+  turnos = SIN_TURNOS,
 }: MiEquipoClientProps & { readonly vista: VistaDireccion }): ReactElement {
   const router = useRouter()
   const toast = useNotificaciones()
+  // The campus selected in the app header (read only); `null` = every campus.
+  const { campusId } = useCampus()
+  const turnosDelCampus = useMemo(
+    () => turnos.filter((opcion) => campusId === null || opcion.campusId === undefined || opcion.campusId === campusId),
+    [turnos, campusId],
+  )
   const [asignadorAbierto, setAsignadorAbierto] = useState(false)
   const [seleccionadoId, setSeleccionadoId] = useState<string>(TODOS_LOS_EQUIPOS)
   const [filtro, setFiltro] = useState<FiltroEstado>('todos')
   const [query, setQuery] = useState('')
+  const [turno, setTurno] = useState<string | null>(null)
 
   // A refresh can drop the selected team from the data; never leave the list pointing at nothing.
   const tarjetaSeleccionada =
@@ -94,14 +111,15 @@ function MiEquipoVistaDireccion({
     () => personasDeSeleccion(vista.personas, tarjetaSeleccionada.id),
     [vista.personas, tarjetaSeleccionada.id],
   )
-  // Counters follow the search but not the estado filter, so each pill shows what it would list.
-  const porNombre = useMemo(() => filtrarPersonas(delEquipo, { query }), [delEquipo, query])
+  // Counters follow the search and the shift but not the estado filter, so each pill shows what it would list.
+  const porNombre = useMemo(() => filtrarPersonas(delEquipo, { query, turno }), [delEquipo, query, turno])
   const contadores = useMemo(() => contadoresPorEstado(porNombre), [porNombre])
   const visibles = useMemo(() => filtrarPersonas(porNombre, { estado: filtro }), [porNombre, filtro])
 
   function revisarPendientes(): void {
     setSeleccionadoId(TODOS_LOS_EQUIPOS)
     setQuery('')
+    setTurno(null)
     setFiltro('por_activar')
   }
 
@@ -146,6 +164,12 @@ function MiEquipoVistaDireccion({
         onSeleccionar={setSeleccionadoId}
       />
 
+      {turnosDelCampus.length > 0 && (
+        <div className="max-w-xs">
+          <SelectorTurno turnos={turnosDelCampus} valor={turno} onCambio={setTurno} />
+        </div>
+      )}
+
       <ListaPersonas
         titulo={tarjetaSeleccionada.label}
         subtitulo={subtituloDeLista(visibles.length, lineaResponsable, query)}
@@ -156,6 +180,7 @@ function MiEquipoVistaDireccion({
         hayBusqueda={query.trim() !== ''}
         puedeEditar={puedeEditar}
         onActualizado={() => router.refresh()}
+        turnos={turnos}
       />
 
       {puedeEditar && (

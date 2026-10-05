@@ -31,6 +31,11 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
 }))
 
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: async () => ({}) }))
+jest.mock('@/lib/platform/dream-team/turnos', () => ({
+  ...jest.requireActual('@/lib/platform/dream-team/turnos'),
+  fetchTurnos: async () => [],
+  fetchTurnosDeServicios: async () => new Map(),
+}))
 
 const EQUIPOS: DreamTeamEquipo[] = [
   { id: 'dir-a', experiencia: 'talleres_crecimiento', label: 'Dirección A', activo: true },
@@ -297,8 +302,10 @@ describe('filters from the URL', () => {
     const { filtrosIniciales } = await renderizar({
       etapa: 'activo',
       direccion: 'dir-a',
+      area: 'eq-a',
       equipo: 'eq-a1',
       rol: 'Coordinador',
+      turno: 't-1',
       inicio: 'mes',
       sin_cuenta: '1',
       varios: '1',
@@ -309,8 +316,10 @@ describe('filters from the URL', () => {
     expect(filtrosIniciales).toEqual({
       etapa: 'activo',
       direccion: 'dir-a',
+      area: 'eq-a',
       equipo: 'eq-a1',
       rol: 'Coordinador',
+      turno: 't-1',
       inicio: 'mes',
       sinCuenta: true,
       varios: true,

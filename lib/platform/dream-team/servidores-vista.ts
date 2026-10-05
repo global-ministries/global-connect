@@ -3,13 +3,14 @@ import type { NodoEquipoArbol } from './estructura-arbol'
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado, type PersonaId } from './types'
 import { ESTADO_LABELS } from '@/components/dream-team/labels'
 import { normalizarTelefono } from '@/lib/utils/telefono'
+import { SIN_TURNO, coincideTurno, ordenarTurnos, type Turno } from './turnos'
 
 /**
  * Pure view model behind /admin/dream-team/servidores (no I/O, no React).
  *
  * It answers work questions over the flat list of servicios: who serves where
  * and in which stage, who has no account, who serves in several teams. It owns
- * every filter rule, the reactive counters, the dirección → equipo cascade,
+ * every filter rule, the reactive counters, the dirección → área → equipo cascade,
  * sorting, grouping, the active-filter pills, the footer text and the URL
  * codec, so the screen only renders and the rules are testable without a DOM.
  *
@@ -45,6 +46,8 @@ export interface FilaServidor {
   readonly version?: number
   /** Whether the row offers actions (a Dream Team servicio the viewer can edit). */
   readonly editable: boolean
+  /** Campus service shifts of a Dream Team servicio; absent or empty = none assigned yet. */
+  readonly turnoIds?: readonly string[]
 }
 
 export type Inicio = 'cualquiera' | 'mes' | 'trimestre'
@@ -55,8 +58,12 @@ export type SentidoOrden = 'asc' | 'desc'
 export interface FiltrosServidores {
   readonly etapa: DreamTeamEstado | null
   readonly direccion: string | null
+  /** An inner node of the dirección (e.g. Waumba Land): keeps its whole subtree. */
+  readonly area: string | null
   readonly equipo: string | null
   readonly rol: string | null
+  /** A shift id, `SIN_TURNO` for servicios without one, or `null` for no filter. */
+  readonly turno: string | null
   readonly inicio: Inicio
   readonly sinCuenta: boolean
   readonly varios: boolean
@@ -68,8 +75,10 @@ export interface FiltrosServidores {
 export const FILTROS_INICIALES: FiltrosServidores = {
   etapa: null,
   direccion: null,
+  area: null,
   equipo: null,
   rol: null,
+  turno: null,
   inicio: 'cualquiera',
   sinCuenta: false,
   varios: false,
@@ -97,21 +106,35 @@ export interface NodoIndexado {
   readonly direccionLabel: string
   /** Visible ancestors, root first, joined with " · ". Empty for a root. */
   readonly ruta: string
+  /** Ancestor ids, root first. Empty for a root. */
+  readonly ancestros: readonly string[]
+  /** Labels from below the dirección down to this node. Empty for a root. */
+  readonly rutaArea: readonly string[]
+  readonly tieneHijos: boolean
 }
 
 /** Maps every node id to its label, dirección and ancestor path. */
 export function indexarArbol(arbol: readonly NodoArbol<NodoEquipoArbol>[]): ReadonlyMap<string, NodoIndexado> {
   const indice = new Map<string, NodoIndexado>()
-  function visitar(nodo: NodoArbol<NodoEquipoArbol>, raiz: NodoEquipoArbol, ancestros: readonly string[]): void {
+  function visitar(
+    nodo: NodoArbol<NodoEquipoArbol>,
+    raiz: NodoEquipoArbol,
+    ancestros: readonly string[],
+    ancestroIds: readonly string[],
+  ): void {
+    const esRaiz = ancestroIds.length === 0
     indice.set(nodo.equipo.id, {
       label: nodo.equipo.label,
       direccionId: raiz.id,
       direccionLabel: raiz.label,
       ruta: ancestros.join(' · '),
+      ancestros: ancestroIds,
+      rutaArea: esRaiz ? [] : [...ancestros.slice(1), nodo.equipo.label],
+      tieneHijos: nodo.hijos.length > 0,
     })
-    for (const hijo of nodo.hijos) visitar(hijo, raiz, [...ancestros, nodo.equipo.label])
+    for (const hijo of nodo.hijos) visitar(hijo, raiz, [...ancestros, nodo.equipo.label], [...ancestroIds, nodo.equipo.id])
   }
-  for (const raiz of arbol) visitar(raiz, raiz.equipo, [])
+  for (const raiz of arbol) visitar(raiz, raiz.equipo, [], [])
   return indice
 }
 
@@ -120,6 +143,8 @@ export function indexarArbol(arbol: readonly NodoArbol<NodoEquipoArbol>[]): Read
 export interface FilaVista extends FilaServidor {
   /** Non-retired servicios of this person across every equipo (>= 2 means "en varios equipos"). */
   readonly equiposDeLaPersona: number
+  /** The shift names, in campus order, joined with ", "; "—" when none. */
+  readonly turnosTexto: string
 }
 
 export type ItemLista =
@@ -133,6 +158,12 @@ export interface Opcion {
 
 export interface OpcionEquipo extends Opcion {
   readonly direccionId: string
+}
+
+export interface OpcionArea extends Opcion {
+  readonly direccionId: string
+  /** Depth below the dirección: 1 for its direct children. */
+  readonly nivel: number
 }
 
 export interface Pastilla {
@@ -157,13 +188,17 @@ export interface VistaServidores {
   }
   readonly opciones: {
     readonly direcciones: readonly Opcion[]
+    /** Inner nodes of the chosen dirección with servicios below; empty without a dirección. */
+    readonly areas: readonly OpcionArea[]
     readonly equipos: readonly OpcionEquipo[]
     readonly roles: readonly Opcion[]
+    /** The campus shifts, in campus order; empty when no campus has any. */
+    readonly turnos: readonly Opcion[]
   }
   readonly visibles: readonly FilaVista[]
   readonly items: readonly ItemLista[]
   readonly pastillas: readonly Pastilla[]
-  /** Active filters that live in the phone sheet: equipo, rol, sin cuenta, en varios equipos. */
+  /** Active filters that live in the phone sheet: equipo, rol, turno, sin cuenta, en varios equipos. */
   readonly filtrosEnHoja: number
   readonly pie: { readonly resumen: string; readonly orden: string }
 }
@@ -222,13 +257,22 @@ type Salvo = 'etapa' | 'sinCuenta' | 'varios' | null
 interface Contexto {
   readonly equiposPorPersona: ReadonlyMap<string, number>
   readonly hoy: Date
+  readonly indice: ReadonlyMap<string, NodoIndexado>
+}
+
+/** Whether `equipoId` is `areaId` or hangs below it. */
+function enArea(equipoId: string, areaId: string, indice: ReadonlyMap<string, NodoIndexado>): boolean {
+  return equipoId === areaId || (indice.get(equipoId)?.ancestros.includes(areaId) ?? false)
 }
 
 function pasa(fila: FilaServidor, f: FiltrosServidores, contexto: Contexto, salvo: Salvo): boolean {
   if (!coincideTexto(fila, f.q)) return false
   if (f.direccion !== null && fila.direccionId !== f.direccion) return false
+  if (f.area !== null && !enArea(fila.equipoId, f.area, contexto.indice)) return false
   if (f.equipo !== null && fila.equipoId !== f.equipo) return false
   if (f.rol !== null && fila.rolLabel !== f.rol) return false
+  // Shifts are a Dream Team notion: a Grupos de Vida row never matches a shift filter.
+  if (f.turno !== null && (fila.origen !== 'dream_team' || !coincideTurno(fila.turnoIds, f.turno))) return false
   if (!coincideInicio(fila, f.inicio, contexto.hoy)) return false
   if (salvo !== 'sinCuenta' && f.sinCuenta && fila.tieneCuenta !== false) return false
   if (salvo !== 'varios' && f.varios && (contexto.equiposPorPersona.get(fila.personaId) ?? 0) < 2) return false
@@ -331,12 +375,23 @@ function agrupar(filas: readonly FilaVista[], como: Agrupar): ItemLista[] {
 
 // ── Filters: cascade and pills ───────────────────────────────────────────
 
-/** An equipo fixes its dirección: the dirección follows the equipo, never the other way round. */
+/**
+ * An equipo or an área fixes its dirección: the dirección follows them, never
+ * the other way round. An equipo outside the área drops the área.
+ */
 function normalizarFiltros(
-  filtros: FiltrosServidores,
+  pedidos: FiltrosServidores,
   indice: ReadonlyMap<string, NodoIndexado>,
   filas: readonly FilaServidor[],
 ): FiltrosServidores {
+  let filtros = pedidos
+  if (filtros.area !== null && filtros.equipo !== null && indice.has(filtros.equipo) && !enArea(filtros.equipo, filtros.area, indice)) {
+    filtros = { ...filtros, area: null }
+  }
+  if (filtros.area !== null) {
+    const direccion = indice.get(filtros.area)?.direccionId
+    if (direccion !== undefined) filtros = { ...filtros, direccion }
+  }
   if (filtros.equipo === null) return filtros
   const direccion =
     indice.get(filtros.equipo)?.direccionId ?? filas.find((fila) => fila.equipoId === filtros.equipo)?.direccionId
@@ -350,9 +405,21 @@ export function parcheElegirEquipo(equipoId: string | null, opciones: readonly O
   return direccion === undefined ? { equipo: equipoId } : { equipo: equipoId, direccion }
 }
 
-/** The patch that picks a dirección: the equipo is dropped, its options change with it. */
+/** The patch that picks a dirección: the área and the equipo are dropped, their options change with it. */
 export function parcheElegirDireccion(direccionId: string | null): Partial<FiltrosServidores> {
-  return { direccion: direccionId, equipo: null }
+  return { direccion: direccionId, area: null, equipo: null }
+}
+
+/** The patch that picks an área: the equipo is dropped and the dirección follows the área. */
+export function parcheElegirArea(areaId: string | null, opciones: readonly OpcionArea[]): Partial<FiltrosServidores> {
+  if (areaId === null) return { area: null, equipo: null }
+  const direccion = opciones.find((opcion) => opcion.id === areaId)?.direccionId
+  return direccion === undefined ? { area: areaId, equipo: null } : { area: areaId, equipo: null, direccion }
+}
+
+/** "Waumba Land › Sala B". */
+function etiquetaArea(nodo: NodoIndexado | undefined, id: string): string {
+  return nodo && nodo.rutaArea.length > 0 ? nodo.rutaArea.join(' › ') : (nodo?.label ?? id)
 }
 
 function textoOrden(orden: FiltrosServidores['orden']): string {
@@ -367,22 +434,35 @@ const ETIQUETA_INICIO: Readonly<Record<Exclude<Inicio, 'cualquiera'>, string>> =
 function construirPastillas(
   f: FiltrosServidores,
   direccionLabel: (id: string) => string,
+  areaLabel: (id: string) => string,
   equipoLabel: (id: string) => string,
+  turnoLabel: (id: string) => string,
 ): Pastilla[] {
   const pastillas: Pastilla[] = []
   function agregar(clave: string, etiqueta: string, parche: Partial<FiltrosServidores>): void {
     pastillas.push({ clave, etiqueta, quitarEtiqueta: `Quitar el filtro ${etiqueta}`, parche })
   }
   if (f.etapa !== null) agregar('etapa', `Etapa: ${ESTADO_LABELS[f.etapa]}`, { etapa: null })
-  if (f.direccion !== null) agregar('direccion', direccionLabel(f.direccion), { direccion: null, equipo: null })
+  if (f.direccion !== null) agregar('direccion', direccionLabel(f.direccion), { direccion: null, area: null, equipo: null })
+  if (f.area !== null) agregar('area', `Área: ${areaLabel(f.area)}`, { area: null, equipo: null })
   if (f.equipo !== null) agregar('equipo', `Equipo: ${equipoLabel(f.equipo)}`, { equipo: null })
   if (f.rol !== null) agregar('rol', `Rol: ${f.rol}`, { rol: null })
+  if (f.turno !== null) agregar('turno', f.turno === SIN_TURNO ? 'Sin turno' : `Turno: ${turnoLabel(f.turno)}`, { turno: null })
   if (f.inicio !== 'cualquiera') agregar('inicio', ETIQUETA_INICIO[f.inicio], { inicio: 'cualquiera' })
   if (f.sinCuenta) agregar('sin_cuenta', 'Sin cuenta', { sinCuenta: false })
   if (f.varios) agregar('varios', 'En varios equipos', { varios: false })
   if (f.q.trim() !== '') agregar('q', `«${f.q.trim()}»`, { q: '' })
   return pastillas
 }
+
+/** The shift names of a servicio in campus order; "—" when it has none (or is not a Dream Team row). */
+function textoDeTurnos(turnoIds: readonly string[] | undefined, turnos: readonly Turno[]): string {
+  if (!turnoIds || turnoIds.length === 0) return SIN_TURNOS_TEXTO
+  const nombres = turnos.filter((turno) => turnoIds.includes(turno.id)).map((turno) => turno.nombre)
+  return nombres.length > 0 ? nombres.join(', ') : SIN_TURNOS_TEXTO
+}
+
+export const SIN_TURNOS_TEXTO = '—'
 
 // ── The view ─────────────────────────────────────────────────────────────
 
@@ -392,9 +472,20 @@ export interface EntradaVistaServidores {
   readonly filtros: FiltrosServidores
   /** Injected so tests do not depend on the clock. */
   readonly hoy?: Date
+  /** Every active shift: names the shift column, and (by campus) the filter options. */
+  readonly turnos?: readonly Turno[]
+  /** The campus selected in the app; the filter offers only its shifts. `null` = every campus. */
+  readonly campusId?: string | null
 }
 
-export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = new Date() }: EntradaVistaServidores): VistaServidores {
+export function calcularVistaServidores({
+  filas,
+  arbol,
+  filtros: pedidos,
+  hoy = new Date(),
+  turnos = [],
+  campusId = null,
+}: EntradaVistaServidores): VistaServidores {
   const indice = indexarArbol(arbol)
   const filtros = normalizarFiltros(pedidos, indice, filas)
 
@@ -403,10 +494,12 @@ export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = 
     if (fila.estado === 'retirado') continue
     equiposPorPersona.set(fila.personaId, (equiposPorPersona.get(fila.personaId) ?? 0) + 1)
   }
-  const contexto: Contexto = { equiposPorPersona, hoy }
+  const contexto: Contexto = { equiposPorPersona, hoy, indice }
+  const turnosOrdenados = ordenarTurnos(turnos)
   const conVista = (fila: FilaServidor): FilaVista => ({
     ...fila,
     equiposDeLaPersona: equiposPorPersona.get(fila.personaId) ?? 0,
+    turnosTexto: textoDeTurnos(fila.turnoIds, turnosOrdenados),
   })
 
   // Counters: every filter except the one the counter belongs to.
@@ -430,8 +523,24 @@ export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = 
   }
   const porLabel = (a: Opcion, b: Opcion): number => a.label.localeCompare(b.label, ES)
   const direcciones = [...direccionesConServicios].map(([id, label]) => ({ id, label })).sort(porLabel)
+  const areasConServicios = new Map<string, OpcionArea>()
+  if (filtros.direccion !== null) {
+    for (const fila of filas) {
+      if (fila.direccionId !== filtros.direccion) continue
+      const nodo = indice.get(fila.equipoId)
+      if (!nodo) continue
+      for (const id of [...nodo.ancestros.slice(1), fila.equipoId]) {
+        const area = indice.get(id)
+        if (!area || area.rutaArea.length === 0 || !area.tieneHijos || areasConServicios.has(id)) continue
+        areasConServicios.set(id, { id, label: etiquetaArea(area, id), direccionId: area.direccionId, nivel: area.rutaArea.length })
+      }
+    }
+  }
+  const areas = [...areasConServicios.values()].sort(porLabel)
   let equipos = [...equiposConServicios.values()].filter(
-    (equipo) => filtros.direccion === null || equipo.direccionId === filtros.direccion,
+    (equipo) =>
+      (filtros.direccion === null || equipo.direccionId === filtros.direccion) &&
+      (filtros.area === null || enArea(equipo.id, filtros.area, indice)),
   )
   if (filtros.equipo !== null && !equipos.some((equipo) => equipo.id === filtros.equipo)) {
     // A link to an equipo without servicios still shows its own selection.
@@ -448,6 +557,9 @@ export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = 
   const roles = [...new Set(filas.map((fila) => fila.rolLabel))]
     .sort(compararRol)
     .map((rol) => ({ id: rol, label: rol }))
+  const opcionesTurno = turnosOrdenados
+    .filter((turno) => campusId === null || turno.campusId === campusId)
+    .map((turno) => ({ id: turno.id, label: turno.nombre }))
 
   // Visible rows: sorted, then grouped.
   const visibles = ordenar(
@@ -458,6 +570,7 @@ export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = 
 
   const etiquetaDireccion = (id: string): string => direccionesConServicios.get(id) ?? indice.get(id)?.label ?? id
   const etiquetaEquipo = (id: string): string => equipos.find((equipo) => equipo.id === id)?.label ?? id
+  const etiquetaTurno = (id: string): string => turnosOrdenados.find((turno) => turno.id === id)?.nombre ?? id
 
   return {
     filtros,
@@ -467,12 +580,23 @@ export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = 
       sinCuenta: { cantidad: cantidadSinCuenta, activo: filtros.sinCuenta },
       varios: { cantidad: cantidadVarios, activo: filtros.varios },
     },
-    opciones: { direcciones, equipos, roles },
+    opciones: { direcciones, areas, equipos, roles, turnos: opcionesTurno },
     visibles,
     items: agrupar(visibles, filtros.agrupar),
-    pastillas: construirPastillas(filtros, etiquetaDireccion, etiquetaEquipo),
+    pastillas: construirPastillas(
+      filtros,
+      etiquetaDireccion,
+      (id) => etiquetaArea(indice.get(id), id),
+      etiquetaEquipo,
+      etiquetaTurno,
+    ),
     filtrosEnHoja:
-      (filtros.equipo !== null ? 1 : 0) + (filtros.rol !== null ? 1 : 0) + (filtros.sinCuenta ? 1 : 0) + (filtros.varios ? 1 : 0),
+      (filtros.area !== null ? 1 : 0) +
+      (filtros.equipo !== null ? 1 : 0) +
+      (filtros.rol !== null ? 1 : 0) +
+      (filtros.turno !== null ? 1 : 0) +
+      (filtros.sinCuenta ? 1 : 0) +
+      (filtros.varios ? 1 : 0),
     pie: {
       resumen: `${plural(visibles.length, 'servicio', 'servicios')} · ${plural(personasVisibles, 'persona', 'personas')}`,
       orden: `Orden: ${textoOrden(filtros.orden)}`,
@@ -527,8 +651,10 @@ export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores
   return {
     etapa: esEstado(etapa) ? etapa : null,
     direccion: textoOpcional(leer(parametros, 'direccion')),
+    area: textoOpcional(leer(parametros, 'area')),
     equipo: textoOpcional(leer(parametros, 'equipo')),
     rol: textoOpcional(leer(parametros, 'rol')),
+    turno: textoOpcional(leer(parametros, 'turno')),
     inicio: inicio === 'mes' || inicio === 'trimestre' ? inicio : 'cualquiera',
     sinCuenta: esVerdadero(leer(parametros, 'sin_cuenta')),
     varios: esVerdadero(leer(parametros, 'varios')),
@@ -543,8 +669,10 @@ export function escribirFiltrosEnUrl(filtros: FiltrosServidores): string {
   const parametros = new URLSearchParams()
   if (filtros.etapa !== null) parametros.set('etapa', filtros.etapa)
   if (filtros.direccion !== null) parametros.set('direccion', filtros.direccion)
+  if (filtros.area !== null) parametros.set('area', filtros.area)
   if (filtros.equipo !== null) parametros.set('equipo', filtros.equipo)
   if (filtros.rol !== null) parametros.set('rol', filtros.rol)
+  if (filtros.turno !== null) parametros.set('turno', filtros.turno)
   if (filtros.inicio !== 'cualquiera') parametros.set('inicio', filtros.inicio)
   if (filtros.sinCuenta) parametros.set('sin_cuenta', '1')
   if (filtros.varios) parametros.set('varios', '1')

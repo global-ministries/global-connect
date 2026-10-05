@@ -19,6 +19,7 @@
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado, type PersonaId } from './types'
 import type { NodoArbol } from './arbol'
 import type { NodoEquipoArbol } from './estructura-arbol'
+import { coincideTurno } from './turnos'
 
 /** Id of the synthetic "Toda la dirección" selection. */
 export const TODOS_LOS_EQUIPOS = 'todos'
@@ -57,6 +58,8 @@ export interface PersonaEntrada {
    */
   readonly telefono?: string | null
   readonly tieneCuenta?: boolean | null
+  /** Campus service shifts of a Dream Team servicio (D12); absent or empty = none yet. */
+  readonly turnoIds?: readonly string[]
 }
 
 export interface PersonaVista {
@@ -79,6 +82,8 @@ export interface PersonaVista {
   readonly telefono: string | null
   /** false = known to have no account; null = unknown (not visible to the caller). */
   readonly tieneCuenta: boolean | null
+  /** Campus service shifts of the servicio; absent or empty = none yet. */
+  readonly turnoIds?: readonly string[]
 }
 
 export interface ResponsableVista {
@@ -181,6 +186,7 @@ function aVista(entrada: PersonaEntrada, equipoId: string, equipoLabel: string):
     editable: entrada.origen === 'dream_team',
     telefono: entrada.telefono ?? null,
     tieneCuenta: entrada.tieneCuenta ?? null,
+    turnoIds: entrada.turnoIds ?? [],
   }
 }
 
@@ -298,14 +304,20 @@ export function contadoresPorEstado(personas: readonly { readonly estado: DreamT
 /** Case- and diacritic-insensitive name search plus an optional estado filter. */
 export function filtrarPersonas(
   personas: readonly PersonaVista[],
-  { estado = 'todos', query = '' }: { readonly estado?: FiltroEstado; readonly query?: string },
+  {
+    estado = 'todos',
+    query = '',
+    turno = null,
+  }: { readonly estado?: FiltroEstado; readonly query?: string; readonly turno?: string | null },
 ): PersonaVista[] {
   const consulta = normalizarTexto(query)
   return personas.filter(
     (persona) =>
       (estado === 'todos' ||
         (estado === 'por_activar' ? ESTADOS_POR_ACTIVAR.includes(persona.estado) : persona.estado === estado)) &&
-      (consulta === '' || normalizarTexto(persona.nombre).includes(consulta)),
+      (consulta === '' || normalizarTexto(persona.nombre).includes(consulta)) &&
+      // Shifts are a Dream Team notion: a Grupos de Vida leader never matches a shift filter.
+      (turno === null || (persona.origen === 'dream_team' && coincideTurno(persona.turnoIds, turno))),
   )
 }
 

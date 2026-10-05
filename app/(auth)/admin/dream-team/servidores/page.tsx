@@ -14,7 +14,7 @@
  * renders, filters, sorts and groups them and drives the assigner and the
  * stage-advance API calls.
  *
- * The filters come from the URL (`?etapa=&direccion=&equipo=&rol=&inicio=
+ * The filters come from the URL (`?etapa=&direccion=&area=&equipo=&rol=&turno=&inicio=
  * &sin_cuenta=1&varios=1&q=&agrupar=&orden=`), including the legacy `?equipo=`
  * and `?estado=` of the links from Talleres and Estructura.
  *
@@ -38,6 +38,7 @@ import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import { fetchTurnos, fetchTurnosDeServicios, type Turno } from '@/lib/platform/dream-team/turnos'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
 import { ServidoresClient } from '@/components/dream-team/servidores/servidores-client'
 import {
@@ -139,6 +140,20 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
   }
   const puedeEditar = hasDreamTeamWriteCapability(session)
 
+  // Campus service shifts (D12): the filter's options and each servicio's
+  // assignment. A convenience on top of the pool — if the lookup fails the
+  // page renders without the filter, and the failure is logged.
+  const [turnos, turnosPorServicio] = await Promise.all([
+    fetchTurnos(supabase),
+    fetchTurnosDeServicios(
+      supabase,
+      servicios.map((servicio) => servicio.id),
+    ),
+  ]).catch((error: unknown): [Turno[], ReadonlyMap<string, readonly string[]>] => {
+    console.error('[dream-team/servidores] shifts lookup failed', error)
+    return [[], new Map()]
+  })
+
   const filas: readonly FilaServidor[] = [
     ...servicios.map(
       (servicio): FilaServidor => ({
@@ -156,6 +171,7 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
         servicioId: servicio.id,
         version: servicio.version,
         editable: puedeEditar,
+        turnoIds: turnosPorServicio.get(servicio.id) ?? [],
       }),
     ),
     ...lideresGdv.map(
@@ -185,6 +201,7 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
       rolesPorEquipo={rolesPorEquipo}
       puedeEditar={puedeEditar}
       filtrosIniciales={leerFiltrosDeUrl(parametros)}
+      turnos={turnos.filter((turno) => turno.activo)}
     />
   )
 }

@@ -23,6 +23,7 @@ import { FolderTree } from 'lucide-react'
 
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { useCampus } from '@/hooks/useCampus'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
 import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
@@ -33,8 +34,11 @@ import {
   type UsoServicios,
 } from '@/lib/platform/dream-team/estructura-vista'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import type { Turno } from '@/lib/platform/dream-team/turnos'
 
 import { DetalleEquipoVista } from './detalle-equipo'
+import { TurnosCampus, type CampusOpcion } from './turnos-campus'
+import { TurnosEquipo } from './turnos-equipo'
 import { OrganigramaMovil } from './organigrama-movil'
 import { PanelOrganigrama, RielOrganigrama } from './panel-arbol'
 import { usePanelAbierto } from './use-panel-abierto'
@@ -47,6 +51,15 @@ export interface EstructuraClientProps {
   /** The team the server resolved from `?equipo=` (or the default); empty when there is no tree. */
   readonly equipoId: string
   readonly puedeEditar: boolean
+  /** Campus service shifts (D12); absent when they could not be loaded. */
+  readonly turnos?: TurnosEstructura
+}
+
+export interface TurnosEstructura {
+  readonly campus: readonly CampusOpcion[]
+  readonly turnos: readonly Turno[]
+  /** The selected real team's own shifts and the ones it serves in after inheritance. */
+  readonly delEquipo?: { readonly equipoId: string; readonly propios: readonly string[]; readonly efectivos: readonly string[] }
 }
 
 export function EstructuraClient(props: EstructuraClientProps): ReactElement {
@@ -64,9 +77,19 @@ export function EstructuraClient(props: EstructuraClientProps): ReactElement {
   return <EstructuraConArbol {...props} />
 }
 
-function EstructuraConArbol({ arbol, rolesPorEquipo, uso, talleres, equipoId, puedeEditar }: EstructuraClientProps): ReactElement {
+function EstructuraConArbol({
+  arbol,
+  rolesPorEquipo,
+  uso,
+  talleres,
+  equipoId,
+  puedeEditar,
+  turnos,
+}: EstructuraClientProps): ReactElement {
   const router = useRouter()
   const toast = useNotificaciones()
+  // The campus selected in the app header (read only): the shift cards show only its shifts.
+  const { campusId } = useCampus()
   const vista = useMemo(
     () => crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres }),
     [arbol, rolesPorEquipo, uso, talleres],
@@ -130,6 +153,31 @@ function EstructuraConArbol({ arbol, rolesPorEquipo, uso, talleres, equipoId, pu
               direccionId={vista.direccionDe(detalle.id) ?? detalle.id}
               puedeEditar={puedeEditar}
               onSeleccionar={seleccionar}
+              onActualizado={() => router.refresh()}
+              toast={toast}
+            />
+          )}
+          {/* Only once the server answered for this very team: a click changes the selection before the refetch. */}
+          {detalle && turnos?.delEquipo?.equipoId === detalle.id && (
+            <TurnosEquipo
+              key={`${detalle.id}:${turnos.delEquipo.propios.join(',')}:${turnos.delEquipo.efectivos.join(',')}`}
+              equipoId={detalle.id}
+              equipoLabel={detalle.label}
+              turnos={turnos.turnos}
+              campusId={campusId}
+              propios={turnos.delEquipo.propios}
+              efectivos={turnos.delEquipo.efectivos}
+              puedeEditar={puedeEditar}
+              onActualizado={() => router.refresh()}
+              toast={toast}
+            />
+          )}
+          {turnos && (
+            <TurnosCampus
+              campus={turnos.campus}
+              turnos={turnos.turnos}
+              campusId={campusId}
+              puedeEditar={puedeEditar}
               onActualizado={() => router.refresh()}
               toast={toast}
             />

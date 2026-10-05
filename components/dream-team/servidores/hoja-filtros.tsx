@@ -2,8 +2,8 @@
 
 /**
  * Servidores on phones: the "Filtros · N" button and the bottom sheet behind
- * it. The sheet holds what does not fit the phone bar — Equipo, Rol and the
- * quick filters — with "Limpiar" (empties exactly those filters) and "Ver N"
+ * it. The sheet holds what does not fit the phone bar — Dirección, Área,
+ * Equipo, Rol, Turno and the quick filters — with "Limpiar" (empties exactly those filters) and "Ver N"
  * (closes the sheet; N is what the list now shows). Every change applies live.
  */
 import { useState, type ReactElement } from 'react'
@@ -12,8 +12,15 @@ import { Filter } from 'lucide-react'
 import { BotonSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { parcheElegirEquipo, type FiltrosServidores, type VistaServidores } from '@/lib/platform/dream-team/servidores-vista'
+import {
+  parcheElegirDireccion,
+  parcheElegirEquipo,
+  type FiltrosServidores,
+  type VistaServidores,
+} from '@/lib/platform/dream-team/servidores-vista'
+import { SelectorTurno } from '@/components/dream-team/turnos/selector-turno'
 import { ANILLO } from './contadores-etapa'
+import { SelectorArea } from './barra-filtros'
 
 export interface HojaFiltrosProps {
   readonly vista: VistaServidores
@@ -22,7 +29,7 @@ export interface HojaFiltrosProps {
 }
 
 const TODOS = ''
-const LIMPIAR_HOJA: Partial<FiltrosServidores> = { equipo: null, rol: null, sinCuenta: false, varios: false }
+const LIMPIAR_HOJA: Partial<FiltrosServidores> = { area: null, equipo: null, rol: null, sinCuenta: false, varios: false }
 
 export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): ReactElement {
   const [abierta, setAbierta] = useState(false)
@@ -46,6 +53,13 @@ export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): R
         </SheetHeader>
         <div className="grid gap-4 p-4">
           <SelectSistema
+            label="Dirección"
+            opciones={[{ valor: TODOS, etiqueta: 'Todas' }, ...opciones.direcciones.map((d) => ({ valor: d.id, etiqueta: d.label }))]}
+            value={filtros.direccion ?? TODOS}
+            onValueChange={(valor) => onCambio(parcheElegirDireccion(valor === TODOS ? null : valor))}
+          />
+          <SelectorArea vista={vista} onCambio={onCambio} />
+          <SelectSistema
             label="Equipo"
             opciones={[{ valor: TODOS, etiqueta: 'Todos' }, ...opciones.equipos.map((e) => ({ valor: e.id, etiqueta: e.label }))]}
             value={filtros.equipo ?? TODOS}
@@ -57,6 +71,7 @@ export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): R
             value={filtros.rol ?? TODOS}
             onValueChange={(valor) => onCambio({ rol: valor === TODOS ? null : valor })}
           />
+          <SelectorTurno turnos={opciones.turnos} valor={filtros.turno} onCambio={(turno) => onCambio({ turno })} />
           <div className="flex flex-wrap gap-2">
             {rapidosLista.map((rapido) => (
               <button

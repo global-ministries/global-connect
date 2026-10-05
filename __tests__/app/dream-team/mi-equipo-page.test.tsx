@@ -29,6 +29,11 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
 }))
 
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: async () => ({}) }))
+jest.mock('@/lib/platform/dream-team/turnos', () => ({
+  ...jest.requireActual('@/lib/platform/dream-team/turnos'),
+  fetchTurnos: async () => [],
+  fetchTurnosDeServicios: async () => new Map(),
+}))
 
 const EQUIPOS: DreamTeamEquipo[] = [
   { id: 'dir-a', experiencia: 'talleres_crecimiento', label: 'Dirección A', activo: true },

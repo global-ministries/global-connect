@@ -29,6 +29,7 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
 
 // The island imports the server actions; loading them under jsdom is out of scope for a page test.
 jest.mock('@/app/(auth)/admin/dream-team/estructura/actions', () => ({}))
+jest.mock('@/app/(auth)/admin/dream-team/estructura/turnos-actions', () => ({}))
 
 const TALLERES = [
   { slug: 'equipo-uno', nombre: 'Taller Uno', dream_team_equipo_id: 'eq-a1' },

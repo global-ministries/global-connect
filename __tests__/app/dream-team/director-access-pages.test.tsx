@@ -44,6 +44,7 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: async () => ({}) }))
 // The Estructura island imports the server actions; loading them under jsdom is out of scope for a page test.
 jest.mock('@/app/(auth)/admin/dream-team/estructura/actions', () => ({}))
+jest.mock('@/app/(auth)/admin/dream-team/estructura/turnos-actions', () => ({}))
 
 let mockEquipos: DreamTeamEquipo[] = []
 let mockLideres: DreamTeamLiderGdv[] = []
