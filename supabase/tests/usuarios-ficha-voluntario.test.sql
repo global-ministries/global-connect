@@ -392,6 +392,13 @@ SELECT pg_temp.assert_eq('f: the table comment says it is private on purpose and
 
 -- ── g. an authenticated session and anon can not touch it ───────────
 
+-- The helpers below run as authenticated and as anon. Grant them explicitly:
+-- a default ACL (staging has one) can keep new functions, temp ones too, from
+-- PUBLIC, and the suite would abort with 42501 at the first helper call.
+GRANT EXECUTE ON FUNCTION pg_temp.fail(text, text), pg_temp.assert_eq(text, text, text),
+  pg_temp.assert_raises(text, text, text), pg_temp.as_persona(uuid), pg_temp.id(text, int)
+  TO authenticated, anon;
+
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(pg_temp.id('au', 1));
 
