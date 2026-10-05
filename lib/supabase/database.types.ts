@@ -5985,6 +5985,7 @@ export type Database = {
           estado: string
           id: string
           intervalo_ediciones_dias: number | null
+          momento_envio_acceso: string
           modalidad_default: string
           nombre: string
           regimen: string
@@ -6006,6 +6007,7 @@ export type Database = {
           estado?: string
           id?: string
           intervalo_ediciones_dias?: number | null
+          momento_envio_acceso?: string
           modalidad_default?: string
           nombre: string
           regimen?: string
@@ -6027,6 +6029,7 @@ export type Database = {
           estado?: string
           id?: string
           intervalo_ediciones_dias?: number | null
+          momento_envio_acceso?: string
           modalidad_default?: string
           nombre?: string
           regimen?: string
@@ -6894,6 +6897,33 @@ export type Database = {
             referencedColumns: ["miembro_id"]
           },
         ]
+      }
+      invitaciones_acceso: {
+        Row: {
+          creado_en: string
+          enviado_en: string | null
+          estado: string
+          id: string
+          inscripcion_id: string | null
+          usuario_id: string
+        }
+        Insert: {
+          creado_en?: string
+          enviado_en?: string | null
+          estado?: string
+          id?: string
+          inscripcion_id?: string | null
+          usuario_id: string
+        }
+        Update: {
+          creado_en?: string
+          enviado_en?: string | null
+          estado?: string
+          id?: string
+          inscripcion_id?: string | null
+          usuario_id?: string
+        }
+        Relationships: []
       }
       vinculos_pendientes: {
         Row: {
@@ -7828,6 +7858,34 @@ export type Database = {
         Returns: boolean
       }
       generate_taller_sesiones: { Args: { p_grupo_id: string }; Returns: Json }
+      ficha_tiene_invitacion_abierta: {
+        Args: { p_usuario_id: string }
+        Returns: boolean
+      }
+      invitacion_acceso_consultar: {
+        Args: { p_token_hash: string }
+        Returns: Json
+      }
+      invitacion_acceso_pendientes_de_envio: {
+        Args: never
+        Returns: { id: string }[]
+      }
+      invitacion_acceso_preparar_envio: {
+        Args: { p_expira_en: string; p_invitacion_id: string; p_token_hash: string }
+        Returns: Json
+      }
+      invitacion_acceso_registrar_envio: {
+        Args: { p_error?: string | null; p_id: string; p_ok: boolean }
+        Returns: undefined
+      }
+      invitacion_acceso_verificar: {
+        Args: { p_cedula: string; p_token_hash: string }
+        Returns: Json
+      }
+      invitacion_acceso_vincular: {
+        Args: { p_auth_user_id: string; p_confirma_conyuge: boolean; p_id: string }
+        Returns: Json
+      }
       get_my_internal_id: { Args: never; Returns: string }
       get_personas_under_me: {
         Args: { p_auth_id: string }
