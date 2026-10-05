@@ -191,7 +191,11 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       puedeEditar={hasDreamTeamWriteCapability(session)}
       equiposAsignables={asignables}
       rolesPorEquipo={rolesPorEquipo}
-      turnos={ordenarTurnos(turnos.filter((turno) => turno.activo)).map((turno) => ({ id: turno.id, label: turno.nombre }))}
+      turnos={ordenarTurnos(turnos.filter((turno) => turno.activo)).map((turno) => ({
+        id: turno.id,
+        label: turno.nombre,
+        campusId: turno.campusId,
+      }))}
     />
   )
 }

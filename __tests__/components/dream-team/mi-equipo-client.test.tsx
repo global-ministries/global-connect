@@ -29,6 +29,11 @@ import {
 } from '@/tests/helpers/mi-equipo-conexion'
 
 const replace = jest.fn()
+let campusActivoId: string | null = null
+
+jest.mock('@/hooks/useCampus', () => ({
+  useCampus: () => ({ campusId: campusActivoId }),
+}))
 const refresh = jest.fn()
 
 jest.mock('next/navigation', () => ({
@@ -48,6 +53,7 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
 }))
 
 beforeEach(() => {
+  campusActivoId = null
   replace.mockClear()
   refresh.mockClear()
 })
@@ -395,5 +401,33 @@ describe('MiEquipoClient — Agregar persona', () => {
     await userEvent.selectOptions(screen.getByLabelText('Rol'), 'rol-fac')
     await userEvent.click(screen.getByRole('button', { name: 'Crear' }))
     expect(refresh).toHaveBeenCalled()
+  })
+})
+
+describe('MiEquipoClient — shifts', () => {
+  const T9 = '00000000-0000-4000-8000-000000000009'
+  const TCCS = '00000000-0000-4000-8000-000000000017'
+  const turnos = [
+    { id: T9, label: 'Domingo 9:00', campusId: 'bqt' },
+    { id: TCCS, label: 'Sábado 17:00', campusId: 'ccs' },
+  ]
+  const conTurno: PersonasPorEquipo = {
+    ...personasPorEquipoConexion,
+    [ID_CONEXION]: personasPorEquipoConexion[ID_CONEXION].map((p) => ({ ...p, turnoIds: [T9] })),
+  }
+
+  it('shows each person\'s shifts, with a dash when none', () => {
+    render(<MiEquipoClient {...propsConexion({ vista: vistaDeDireccion(arbolConexion, conTurno, ID_CONEXION), turnos })} />)
+    const antholy = filas().find((f) => f.textContent?.includes('Antholy Ludovic Gómez')) as HTMLElement
+    expect(within(antholy).getByText('Turno: Domingo 9:00')).toBeInTheDocument()
+    const otra = filas().find((f) => f.textContent?.includes('Edmir Muñoz')) as HTMLElement
+    expect(within(otra).getByText('Turno: —')).toBeInTheDocument()
+  })
+
+  it('the Turno filter offers only the shifts of the campus selected in the app', () => {
+    campusActivoId = 'ccs'
+    render(<MiEquipoClient {...propsConexion({ turnos })} />)
+    const opciones = Array.from((screen.getByLabelText('Turno') as HTMLSelectElement).options).map((o) => o.text)
+    expect(opciones).toEqual(['Todos', 'Sábado 17:00', 'Sin turno'])
   })
 })

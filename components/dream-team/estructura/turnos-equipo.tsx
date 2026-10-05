@@ -23,6 +23,11 @@ export interface TurnosEquipoProps {
   readonly equipoId: string
   readonly equipoLabel: string
   readonly turnos: readonly Turno[]
+  /**
+   * The campus selected in the app: only its shifts are shown and edited, and
+   * the restriction of other campuses is kept as is. `null` = every campus.
+   */
+  readonly campusId?: string | null
   /** The team's own restriction; empty = it inherits. */
   readonly propios: readonly string[]
   /** The shifts it serves in after inheritance. */
@@ -36,6 +41,7 @@ export function TurnosEquipo({
   equipoId,
   equipoLabel,
   turnos,
+  campusId = null,
   propios,
   efectivos,
   puedeEditar,
@@ -45,8 +51,12 @@ export function TurnosEquipo({
   const idBase = useId()
   const [isPending, startTransition] = useTransition()
   const [elegidos, setElegidos] = useState<ReadonlySet<string>>(() => new Set(efectivos))
-  const heredado = propios.length === 0
-  const activos = ordenarTurnos(turnos.filter((turno) => turno.activo))
+  const delCampus = turnos.filter((turno) => campusId === null || turno.campusId === campusId)
+  const idsDelCampus = new Set(delCampus.map((turno) => turno.id))
+  // The restriction this screen does not show (other campuses) travels unchanged on every save.
+  const otrosCampus = propios.filter((id) => !idsDelCampus.has(id))
+  const heredado = propios.every((id) => !idsDelCampus.has(id))
+  const activos = ordenarTurnos(delCampus.filter((turno) => turno.activo))
   const nombres = activos.filter((turno) => efectivos.includes(turno.id)).map((turno) => turno.nombre)
 
   function alternar(id: string): void {
@@ -101,7 +111,7 @@ export function TurnosEquipo({
                 variante="outline"
                 tamaño="sm"
                 disabled={isPending}
-                onClick={() => guardar([], `${equipoLabel} vuelve a heredar los turnos.`)}
+                onClick={() => guardar(otrosCampus, `${equipoLabel} vuelve a heredar los turnos.`)}
               >
                 Heredar del equipo superior
               </BotonSistema>
@@ -112,7 +122,7 @@ export function TurnosEquipo({
               disabled={isPending || elegidos.size === 0}
               onClick={() =>
                 guardar(
-                  activos.filter((turno) => elegidos.has(turno.id)).map((turno) => turno.id),
+                  [...otrosCampus, ...activos.filter((turno) => elegidos.has(turno.id)).map((turno) => turno.id)],
                   'Turnos del equipo guardados.',
                 )
               }

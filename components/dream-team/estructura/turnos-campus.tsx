@@ -23,6 +23,8 @@ export interface CampusOpcion {
 export interface TurnosCampusProps {
   readonly campus: readonly CampusOpcion[]
   readonly turnos: readonly Turno[]
+  /** The campus selected in the app: only it is listed. `null` (or unknown) = every campus. */
+  readonly campusId?: string | null
   readonly puedeEditar: boolean
   readonly onActualizado: () => void
   readonly toast: Toast
@@ -150,7 +152,16 @@ function FormularioTurnoNuevo({
   )
 }
 
-export function TurnosCampus({ campus, turnos, puedeEditar, onActualizado, toast }: TurnosCampusProps): ReactElement {
+export function TurnosCampus({
+  campus: todos,
+  turnos,
+  campusId = null,
+  puedeEditar,
+  onActualizado,
+  toast,
+}: TurnosCampusProps): ReactElement {
+  const elegido = todos.filter((opcion) => opcion.id === campusId)
+  const campus = elegido.length > 0 ? elegido : todos
   const varios = campus.length > 1
   const grupos = campus
     .map((opcion) => ({ ...opcion, turnos: ordenarTurnos(turnos.filter((turno) => turno.campusId === opcion.id)) }))

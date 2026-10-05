@@ -102,3 +102,63 @@ describe('TurnosEquipo', () => {
     expect(screen.queryByRole('checkbox', { name: /Sábado 17:00/ })).not.toBeInTheDocument()
   })
 })
+
+describe('shifts of the campus selected in the app', () => {
+  const TCCS = '00000000-0000-4000-8000-000000000021'
+  const conOtroCampus: Turno[] = [
+    ...turnos,
+    { id: TCCS, campusId: 'ccs', nombre: 'Sábado 18:00', diaSemana: 6, hora: '18:00', orden: 1, activo: true },
+  ]
+  const dosCampus = [...campus, { id: 'ccs', nombre: 'Caracas' }]
+
+  it('TurnosCampus lists only the selected campus, and every campus when none is selected', () => {
+    const { rerender } = render(
+      <TurnosCampus campus={dosCampus} turnos={conOtroCampus} campusId="bqt" puedeEditar={false} onActualizado={jest.fn()} toast={toast()} />,
+    )
+    expect(screen.getByText('Domingo 9:00')).toBeInTheDocument()
+    expect(screen.queryByText('Sábado 18:00')).not.toBeInTheDocument()
+    rerender(
+      <TurnosCampus campus={dosCampus} turnos={conOtroCampus} campusId={null} puedeEditar={false} onActualizado={jest.fn()} toast={toast()} />,
+    )
+    expect(screen.getByText('Sábado 18:00')).toBeInTheDocument()
+  })
+
+  it('TurnosEquipo offers only the selected campus and keeps the restriction of other campuses when saving', async () => {
+    render(
+      <TurnosEquipo
+        equipoLabel="Sala 3"
+        turnos={conOtroCampus}
+        campusId="bqt"
+        onActualizado={jest.fn()}
+        equipoId="e1"
+        propios={[T9, TCCS]}
+        efectivos={[T9, TCCS]}
+        puedeEditar
+        toast={toast()}
+      />,
+    )
+    expect(screen.queryByRole('checkbox', { name: /Sábado 18:00/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Sábado 18:00/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('checkbox', { name: /Domingo 11:00/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar turnos' }))
+    await waitFor(() => expect(guardarEquipo).toHaveBeenCalledWith({ equipoId: 'e1', turnoIds: [TCCS, T9, T11] }))
+  })
+
+  it('TurnosEquipo goes back to inheriting only for the selected campus', async () => {
+    render(
+      <TurnosEquipo
+        equipoLabel="Sala 3"
+        turnos={conOtroCampus}
+        campusId="bqt"
+        onActualizado={jest.fn()}
+        equipoId="e1"
+        propios={[T9, TCCS]}
+        efectivos={[T9, TCCS]}
+        puedeEditar
+        toast={toast()}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Heredar del equipo superior' }))
+    await waitFor(() => expect(guardarEquipo).toHaveBeenCalledWith({ equipoId: 'e1', turnoIds: [TCCS] }))
+  })
+})

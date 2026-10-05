@@ -20,6 +20,7 @@ import { Network, Plus } from 'lucide-react'
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
 import { BotonSistema, ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { useCampus } from '@/hooks/useCampus'
 import { AsignadorServicioDialog } from '@/components/dream-team/asignador-servicio-dialog'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { SelectorTurno } from '@/components/dream-team/turnos/selector-turno'
@@ -48,8 +49,11 @@ export interface MiEquipoClientProps {
   readonly puedeEditar: boolean
   readonly equiposAsignables: readonly EquipoAsignable[]
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
-  /** The campus service shifts offered by the "Turno" filter (id + name). */
-  readonly turnos?: readonly { readonly id: string; readonly label: string }[]
+  /**
+   * Every active campus shift, in campus order: names the shifts of each
+   * person; the "Turno" filter offers those of the campus selected in the app.
+   */
+  readonly turnos?: readonly { readonly id: string; readonly label: string; readonly campusId?: string }[]
 }
 
 const SIN_TURNOS: NonNullable<MiEquipoClientProps['turnos']> = []
@@ -87,6 +91,12 @@ function MiEquipoVistaDireccion({
 }: MiEquipoClientProps & { readonly vista: VistaDireccion }): ReactElement {
   const router = useRouter()
   const toast = useNotificaciones()
+  // The campus selected in the app header (read only); `null` = every campus.
+  const { campusId } = useCampus()
+  const turnosDelCampus = useMemo(
+    () => turnos.filter((opcion) => campusId === null || opcion.campusId === undefined || opcion.campusId === campusId),
+    [turnos, campusId],
+  )
   const [asignadorAbierto, setAsignadorAbierto] = useState(false)
   const [seleccionadoId, setSeleccionadoId] = useState<string>(TODOS_LOS_EQUIPOS)
   const [filtro, setFiltro] = useState<FiltroEstado>('todos')
@@ -154,9 +164,9 @@ function MiEquipoVistaDireccion({
         onSeleccionar={setSeleccionadoId}
       />
 
-      {turnos.length > 0 && (
+      {turnosDelCampus.length > 0 && (
         <div className="max-w-xs">
-          <SelectorTurno turnos={turnos} valor={turno} onCambio={setTurno} />
+          <SelectorTurno turnos={turnosDelCampus} valor={turno} onCambio={setTurno} />
         </div>
       )}
 
@@ -170,6 +180,7 @@ function MiEquipoVistaDireccion({
         hayBusqueda={query.trim() !== ''}
         puedeEditar={puedeEditar}
         onActualizado={() => router.refresh()}
+        turnos={turnos}
       />
 
       {puedeEditar && (

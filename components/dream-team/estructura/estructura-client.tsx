@@ -23,6 +23,7 @@ import { FolderTree } from 'lucide-react'
 
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { useCampus } from '@/hooks/useCampus'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
 import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
@@ -87,6 +88,8 @@ function EstructuraConArbol({
 }: EstructuraClientProps): ReactElement {
   const router = useRouter()
   const toast = useNotificaciones()
+  // The campus selected in the app header (read only): the shift cards show only its shifts.
+  const { campusId } = useCampus()
   const vista = useMemo(
     () => crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres }),
     [arbol, rolesPorEquipo, uso, talleres],
@@ -161,6 +164,7 @@ function EstructuraConArbol({
               equipoId={detalle.id}
               equipoLabel={detalle.label}
               turnos={turnos.turnos}
+              campusId={campusId}
               propios={turnos.delEquipo.propios}
               efectivos={turnos.delEquipo.efectivos}
               puedeEditar={puedeEditar}
@@ -172,6 +176,7 @@ function EstructuraConArbol({
             <TurnosCampus
               campus={turnos.campus}
               turnos={turnos.turnos}
+              campusId={campusId}
               puedeEditar={puedeEditar}
               onActualizado={() => router.refresh()}
               toast={toast}
