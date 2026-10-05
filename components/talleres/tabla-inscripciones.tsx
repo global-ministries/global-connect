@@ -479,6 +479,7 @@ export function TablaInscripciones({
                           <AccesoFichaNueva
                             inscripcionId={row.id}
                             accesoEstado={row.acceso_estado}
+                        ultimoEnvioFallido={row.acceso_ultimo_envio_fallido === true}
                             puedeReenviar={rowCanWrite}
                             onReenviarAcceso={onReenviarAcceso}
                           />
@@ -569,6 +570,7 @@ export function TablaInscripciones({
                       <AccesoFichaNueva
                         inscripcionId={row.id}
                         accesoEstado={row.acceso_estado}
+                        ultimoEnvioFallido={row.acceso_ultimo_envio_fallido === true}
                         puedeReenviar={rowCanWrite}
                         onReenviarAcceso={onReenviarAcceso}
                       />

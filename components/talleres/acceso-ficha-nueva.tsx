@@ -15,13 +15,12 @@ import type { InscripcionActionResult } from '@/lib/platform/talleres/inscripcio
 export type ReenviarAccesoAction = (inscripcionId: string) => Promise<InscripcionActionResult>
 
 const ESTADOS_ACCESO: Readonly<Record<string, string>> = {
-  pendiente: 'Acceso por enviar',
+  en_espera: 'Acceso por enviar',
   enviada: 'Acceso enviado',
-  fallida: 'El envío del acceso falló',
-  usada: 'Cuenta activada',
-  vencida: 'Acceso vencido',
-  bloqueada: 'Acceso bloqueado',
+  activando: 'Activación en curso',
+  aceptada: 'Cuenta activada',
   cancelada: 'Acceso cancelado',
+  bloqueada: 'Acceso bloqueado',
 }
 
 /** Spanish label for an invitation estado; null when unknown or missing. */
@@ -32,6 +31,8 @@ export function estadoAccesoLabel(estado: string | null | undefined): string | n
 export interface AccesoFichaNuevaProps {
   readonly inscripcionId: string
   readonly accesoEstado: string | null | undefined
+  /** The invitation's ultimo_error is set: the last send failed. */
+  readonly ultimoEnvioFallido?: boolean
   readonly puedeReenviar: boolean
   readonly onReenviarAcceso?: ReenviarAccesoAction
 }
@@ -39,13 +40,14 @@ export interface AccesoFichaNuevaProps {
 export function AccesoFichaNueva({
   inscripcionId,
   accesoEstado,
+  ultimoEnvioFallido = false,
   puedeReenviar,
   onReenviarAcceso,
 }: AccesoFichaNuevaProps): ReactElement {
   const [pending, startTransition] = useTransition()
   const [mensaje, setMensaje] = useState<{ readonly ok: boolean; readonly texto: string } | null>(null)
   const estado = estadoAccesoLabel(accesoEstado)
-  const mostrarReenvio = puedeReenviar && onReenviarAcceso !== undefined && accesoEstado !== 'usada'
+  const mostrarReenvio = puedeReenviar && onReenviarAcceso !== undefined && accesoEstado !== 'aceptada' && accesoEstado !== 'activando'
 
   function reenviar(): void {
     if (pending || !onReenviarAcceso) return
@@ -68,6 +70,11 @@ export function AccesoFichaNueva({
       {estado && (
         <TextoSistema variante="sutil" className="text-xs">
           {estado}
+        </TextoSistema>
+      )}
+      {ultimoEnvioFallido && (
+        <TextoSistema variante="sutil" className="text-xs">
+          El último envío falló
         </TextoSistema>
       )}
       {mostrarReenvio && (

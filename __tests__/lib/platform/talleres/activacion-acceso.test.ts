@@ -87,7 +87,7 @@ describe('activarCuenta', () => {
   it('creates a confirmed account and links it to the invitation', async () => {
     const { admin, rpc, createUser } = crearAdmin({
       invitacion_acceso_verificar: VERIFICADA,
-      invitacion_acceso_vincular: { data: { ok: true }, error: null },
+      invitacion_acceso_vincular: { data: { ok: true, conyuge_registrado: true }, error: null },
     })
     expect(await activarCuenta(admin, entrada)).toEqual({ ok: true, email: 'ana@example.com' })
     expect(createUser).toHaveBeenCalledWith({ email: 'ana@example.com', password: 'secreta123', email_confirm: true })
@@ -110,9 +110,9 @@ describe('activarCuenta', () => {
   it('removes the new account when the link is refused', async () => {
     const { admin, deleteUser } = crearAdmin({
       invitacion_acceso_verificar: VERIFICADA,
-      invitacion_acceso_vincular: { data: { ok: false, codigo: 'ENLACE_INVALIDO' }, error: null },
+      invitacion_acceso_vincular: { data: { ok: false, codigo: 'FICHA_YA_VINCULADA' }, error: null },
     })
-    expect(await activarCuenta(admin, entrada)).toMatchObject({ ok: false, codigo: 'ENLACE_INVALIDO' })
+    expect(await activarCuenta(admin, entrada)).toMatchObject({ ok: false, codigo: 'FICHA_YA_VINCULADA' })
     expect(deleteUser).toHaveBeenCalledWith('auth-9')
   })
 
@@ -120,6 +120,13 @@ describe('activarCuenta', () => {
     const { admin, createUser } = crearAdmin({ invitacion_acceso_verificar: VERIFICADA })
     createUser.mockResolvedValueOnce({ data: { user: null }, error: { message: 'A user with this email address has already been registered', code: 'email_exists' } })
     expect(await activarCuenta(admin, entrada)).toMatchObject({ ok: false, codigo: 'YA_TIENE_CUENTA' })
+  })
+
+  it('maps INVITACION_INVALIDA from verificar', async () => {
+    const { admin } = crearAdmin({
+      invitacion_acceso_verificar: { data: { ok: false, codigo: 'INVITACION_INVALIDA' }, error: null },
+    })
+    expect(await activarCuenta(admin, entrada)).toMatchObject({ ok: false, codigo: 'INVITACION_INVALIDA' })
   })
 
   it('stops when the cédula does not match', async () => {

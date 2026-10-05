@@ -117,7 +117,7 @@ export async function enviarInvitacionAcceso(id: string, deps?: DependenciasEnvi
       return 'fallida'
     }
     const preparada = parsePreparada(data)
-    // Refused (already used, cancelled, …): nothing to send or record.
+    // Refused (INVITACION_NO_DISPONIBLE, TOKEN_INVALIDO): nothing to send or record.
     if (preparada === null) return 'omitida'
 
     const urlActivar = `${d.urlBase ?? urlBasePorDefecto()}/activar/${token}`
@@ -163,7 +163,7 @@ export async function enviarInvitacionesPendientes(deps?: DependenciasEnvio): Pr
       return resumen
     }
     for (const fila of data as unknown[]) {
-      const id = texto((fila as { id?: unknown } | null)?.id)
+      const id = texto((fila as { invitacion_id?: unknown } | null)?.invitacion_id)
       if (id === null) continue
       const resultado = await enviarInvitacionAcceso(id, d)
       if (resultado === 'enviada') resumen.enviadas += 1

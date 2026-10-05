@@ -6900,27 +6900,63 @@ export type Database = {
       }
       invitaciones_acceso: {
         Row: {
-          creado_en: string
-          enviado_en: string | null
+          aceptada_en: string | null
+          activando_en: string | null
+          auth_user_id: string | null
+          creado_por: string | null
+          created_at: string
+          edicion_id: string | null
+          envios: number
           estado: string
           id: string
           inscripcion_id: string | null
+          intentos_activacion: number
+          origen: string
+          token_expira_en: string | null
+          token_hash: string | null
+          ultimo_envio_en: string | null
+          ultimo_error: string | null
+          updated_at: string
           usuario_id: string
         }
         Insert: {
-          creado_en?: string
-          enviado_en?: string | null
+          aceptada_en?: string | null
+          activando_en?: string | null
+          auth_user_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          edicion_id?: string | null
+          envios?: number
           estado?: string
           id?: string
           inscripcion_id?: string | null
+          intentos_activacion?: number
+          origen: string
+          token_expira_en?: string | null
+          token_hash?: string | null
+          ultimo_envio_en?: string | null
+          ultimo_error?: string | null
+          updated_at?: string
           usuario_id: string
         }
         Update: {
-          creado_en?: string
-          enviado_en?: string | null
+          aceptada_en?: string | null
+          activando_en?: string | null
+          auth_user_id?: string | null
+          creado_por?: string | null
+          created_at?: string
+          edicion_id?: string | null
+          envios?: number
           estado?: string
           id?: string
           inscripcion_id?: string | null
+          intentos_activacion?: number
+          origen?: string
+          token_expira_en?: string | null
+          token_hash?: string | null
+          ultimo_envio_en?: string | null
+          ultimo_error?: string | null
+          updated_at?: string
           usuario_id?: string
         }
         Relationships: []
@@ -7868,7 +7904,11 @@ export type Database = {
       }
       invitacion_acceso_pendientes_de_envio: {
         Args: never
-        Returns: { id: string }[]
+        Returns: {
+          edicion_id: string | null
+          inscripcion_id: string | null
+          invitacion_id: string
+        }[]
       }
       invitacion_acceso_preparar_envio: {
         Args: { p_expira_en: string; p_invitacion_id: string; p_token_hash: string }

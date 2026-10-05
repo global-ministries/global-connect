@@ -7,12 +7,16 @@
  * Every call goes through service_role RPCs (admin client) keyed by the
  * sha256 of the token, never the raw token:
  *   - `invitacion_acceso_consultar(p_token_hash)` → `{valida, taller_nombre,
- *     nombre_invitado}` (optional `nombre_invitante` and `vinculo` are used
- *     for the spouse confirmation when present);
+ *     nombre_invitado, vinculo, nombre_invitante}`;
  *   - `invitacion_acceso_verificar(p_token_hash, p_cedula)` → `{ok,
- *     invitacion_id, email}` | `{ok:false, codigo, intentos_restantes?}`;
+ *     invitacion_id, email}` | `{ok:false, codigo: CEDULA_NO_COINCIDE
+ *     (+intentos_restantes) | BLOQUEADA | INVITACION_INVALIDA}`;
  *   - `invitacion_acceso_vincular(p_id, p_auth_user_id, p_confirma_conyuge)`
- *     → `{ok}` | `{ok:false, codigo}`.
+ *     → `{ok, conyuge_registrado}` | `{ok:false, codigo: INVITACION_INVALIDA
+ *     | AUTH_NO_COINCIDE | FICHA_YA_VINCULADA}`.
+ *
+ * ENLACE_INVALIDO (no or malformed cookie) and YA_TIENE_CUENTA (GoTrue
+ * refuses the email) are app-side codes, not RPC answers.
  */
 
 import { cedulaParaRpc } from '@/lib/platform/talleres/inscripcion-pareja'
@@ -54,6 +58,9 @@ export interface ClienteActivacion {
 
 export type CodigoActivacion =
   | 'ENLACE_INVALIDO'
+  | 'INVITACION_INVALIDA'
+  | 'AUTH_NO_COINCIDE'
+  | 'FICHA_YA_VINCULADA'
   | 'CEDULA_NO_COINCIDE'
   | 'BLOQUEADA'
   | 'YA_TIENE_CUENTA'
@@ -64,6 +71,10 @@ export type CodigoActivacion =
 const MENSAJES: Readonly<Record<CodigoActivacion, string>> = {
   ENLACE_INVALIDO:
     'Este enlace no es válido o ya venció. Pide a la coordinación del taller que te reenvíe el acceso.',
+  INVITACION_INVALIDA:
+    'Esta invitación ya no está disponible. Pide a la coordinación del taller que te reenvíe el acceso.',
+  AUTH_NO_COINCIDE: 'No se pudo completar la activación. Inténtalo de nuevo.',
+  FICHA_YA_VINCULADA: 'Esta ficha ya tiene una cuenta. Inicia sesión o recupera tu contraseña.',
   CEDULA_NO_COINCIDE: 'La cédula no coincide con la de la invitación.',
   BLOQUEADA:
     'Este acceso se bloqueó por demasiados intentos. Pide a la coordinación del taller que te reenvíe el acceso.',
@@ -95,7 +106,13 @@ function texto(valor: unknown): string | null {
   return typeof valor === 'string' && valor.trim() !== '' ? valor.trim() : null
 }
 
-const CODIGOS_RPC: readonly CodigoActivacion[] = ['ENLACE_INVALIDO', 'CEDULA_NO_COINCIDE', 'BLOQUEADA', 'YA_TIENE_CUENTA']
+const CODIGOS_RPC: readonly CodigoActivacion[] = [
+  'CEDULA_NO_COINCIDE',
+  'BLOQUEADA',
+  'INVITACION_INVALIDA',
+  'AUTH_NO_COINCIDE',
+  'FICHA_YA_VINCULADA',
+]
 
 function codigoRpc(valor: unknown): CodigoActivacion {
   return typeof valor === 'string' && (CODIGOS_RPC as readonly string[]).includes(valor)

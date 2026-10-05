@@ -97,4 +97,6 @@ export interface InscripcionAdminRow {
    */
   readonly pareja_origen?: string | null
   readonly acceso_estado?: string | null
+  /** true when the invitation's ultimo_error is set (the last send failed). */
+  readonly acceso_ultimo_envio_fallido?: boolean
 }

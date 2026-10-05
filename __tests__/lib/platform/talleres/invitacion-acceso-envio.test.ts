@@ -96,7 +96,7 @@ describe('enviarInvitacionAcceso', () => {
 
   it('skips an invitation the database refuses to prepare', async () => {
     const { rpc, enviarCorreo, deps } = crearDeps({
-      invitacion_acceso_preparar_envio: { data: { ok: false, codigo: 'YA_USADA' }, error: null },
+      invitacion_acceso_preparar_envio: { data: { ok: false, codigo: 'INVITACION_NO_DISPONIBLE' }, error: null },
     })
 
     expect(await enviarInvitacionAcceso('inv-1', deps)).toBe('omitida')
@@ -116,7 +116,13 @@ describe('enviarInvitacionAcceso', () => {
 describe('enviarInvitacionesPendientes', () => {
   it('sends every pending invitation and counts the outcomes', async () => {
     const { enviarCorreo, deps } = crearDeps({
-      invitacion_acceso_pendientes_de_envio: { data: [{ id: 'a' }, { id: 'b' }], error: null },
+      invitacion_acceso_pendientes_de_envio: {
+        data: [
+          { invitacion_id: 'a', inscripcion_id: 'i-a', edicion_id: 'e' },
+          { invitacion_id: 'b', inscripcion_id: 'i-b', edicion_id: 'e' },
+        ],
+        error: null,
+      },
       invitacion_acceso_preparar_envio: { data: PREPARADA, error: null },
     })
     enviarCorreo.mockResolvedValueOnce({ success: true }).mockResolvedValueOnce({ success: false, error: 'x' })

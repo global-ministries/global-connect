@@ -38,7 +38,8 @@ export function ActivarCuentaForm({
   const [aviso, setAviso] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  const pideConyuge = vinculo === 'matrimonio' && nombreInvitante !== null
+  const pideConyuge = vinculo === 'matrimonio'
+  const nombreConyuge = nombreInvitante ?? 'quien te inscribió'
 
   function verificar(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()
@@ -112,9 +113,9 @@ export function ActivarCuentaForm({
                 type="checkbox"
                 checked={confirmaConyuge}
                 onChange={(e) => setConfirmaConyuge(e.target.checked)}
-                aria-label={`Confirmo que ${nombreInvitante} es mi cónyuge`}
+                aria-label={`Confirmo que ${nombreConyuge} es mi cónyuge`}
               />
-              <span>{`Confirmo que ${nombreInvitante} es mi cónyuge`}</span>
+              <span>{`Confirmo que ${nombreConyuge} es mi cónyuge`}</span>
             </label>
           )}
           <BotonSistema type="submit" disabled={pending || password.length < LARGO_MINIMO}>

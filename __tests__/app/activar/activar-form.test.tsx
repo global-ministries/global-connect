@@ -64,6 +64,12 @@ describe('ActivarCuentaForm', () => {
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/talleres/mi-recorrido'))
   })
 
+  it('asks for the spouse confirmation for matrimonio even without the inviter name', async () => {
+    render(<ActivarCuentaForm tallerNombre="M" nombreInvitado="Ana" nombreInvitante={null} vinculo="matrimonio" />)
+    await pasarCedula()
+    expect(screen.getByLabelText(/es mi cónyuge/i)).toBeInTheDocument()
+  })
+
   it('has no spouse confirmation for novios', async () => {
     render(<ActivarCuentaForm tallerNombre="Novios" nombreInvitado="Ana" nombreInvitante="Luis" vinculo="novios" />)
     await pasarCedula()

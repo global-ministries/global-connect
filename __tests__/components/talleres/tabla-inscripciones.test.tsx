@@ -107,6 +107,7 @@ function makeRow(overrides: Partial<{
   unit_estado: string | null
   pareja_origen: string | null
   acceso_estado: string | null
+  acceso_ultimo_envio_fallido: boolean
 }>) {
   return {
     id: 'insc-1',
@@ -631,6 +632,12 @@ describe('TablaInscripciones — new partner ficha', () => {
     expect(screen.getAllByText('Acceso enviado').length).toBeGreaterThan(0)
   })
 
+  it('shows a failed last send', () => {
+    renderTabla({ rows: [makeRow({ pareja_origen: 'ficha_nueva', acceso_estado: 'en_espera', acceso_ultimo_envio_fallido: true })] })
+    expect(screen.getAllByText('Acceso por enviar').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('El último envío falló').length).toBeGreaterThan(0)
+  })
+
   it('shows no mark for other inscriptions', () => {
     renderTabla({ rows: [makeRow({ pareja_origen: 'cedula' })] })
     expect(screen.queryByText('Ficha nueva creada por el miembro')).not.toBeInTheDocument()
@@ -647,7 +654,7 @@ describe('TablaInscripciones — new partner ficha', () => {
   it('hides the resend once the account was activated or without write access', () => {
     const onReenviarAcceso = jest.fn()
     const { unmount } = renderTabla({
-      rows: [makeRow({ pareja_origen: 'ficha_nueva', acceso_estado: 'usada' })],
+      rows: [makeRow({ pareja_origen: 'ficha_nueva', acceso_estado: 'aceptada' })],
       onReenviarAcceso,
     })
     expect(screen.queryByRole('button', { name: 'Reenviar acceso' })).not.toBeInTheDocument()

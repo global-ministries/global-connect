@@ -228,7 +228,7 @@ export async function reenviarAccesoAction(inscripcionId: string): Promise<Inscr
     .from('invitaciones_acceso')
     .select('id')
     .eq('inscripcion_id', inscripcionId)
-    .order('creado_en', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(1)
   const invitacionId = (invitaciones ?? [])[0]?.id
   if (errorInvitacion || !invitacionId) {

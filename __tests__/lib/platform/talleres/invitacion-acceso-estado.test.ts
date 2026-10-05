@@ -22,15 +22,15 @@ describe('conEstadoAcceso', () => {
   it('adds the latest invitation estado to the ficha_nueva rows only', async () => {
     const { admin, builder } = adminCon({
       data: [
-        { inscripcion_id: 'a', estado: 'enviada' },
-        { inscripcion_id: 'a', estado: 'vencida' },
+        { inscripcion_id: 'a', estado: 'en_espera', ultimo_error: 'rate limited' },
+        { inscripcion_id: 'a', estado: 'cancelada', ultimo_error: null },
       ],
       error: null,
     })
     const filas = await conEstadoAcceso(FILAS, () => admin)
     expect(builder.in).toHaveBeenCalledWith('inscripcion_id', ['a'])
     expect(filas).toEqual([
-      { id: 'a', pareja_origen: 'ficha_nueva', acceso_estado: 'enviada' },
+      { id: 'a', pareja_origen: 'ficha_nueva', acceso_estado: 'en_espera', acceso_ultimo_envio_fallido: true },
       { id: 'b', pareja_origen: 'cedula' },
     ])
   })
