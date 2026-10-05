@@ -17,6 +17,9 @@
 --   h. Narrowing a node's shifts removes the assignments that no longer fit in
 --      the node and its descendants (a descendant with its own restriction is
 --      judged by it); deactivating a shift removes its assignments.
+--   i. Moving a servicio to another node, or changing the person's principal
+--      campus, removes the assignments that no longer fit; unrelated campus
+--      rows keep them.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
 -- of the failing cases (0 failing cases = all ok).
@@ -333,6 +336,47 @@ SELECT pg_temp.assert_eq('g: RLS is on for the three tables',
 SELECT pg_temp.assert_eq('g: the pruning trigger functions are not executable by authenticated',
   $q$SELECT (has_function_privilege('authenticated', 'public.dream_team_equipo_turnos_podar()', 'EXECUTE')
           OR has_function_privilege('authenticated', 'public.dream_team_turnos_podar_inactivo()', 'EXECUTE'))::text$q$,
+  'false');
+
+-- ── i. moving a servicio or changing the principal campus prunes ─────
+-- State here: se5 (P2, principal Z2) on T5; se6 (P1 in S2) on T2; T1 inactive.
+
+SELECT pg_temp.assert_ok('i: se6 moves to E, which serves every Z1 shift',
+  $q$UPDATE public.dream_team_servicios SET equipo_id = pg_temp.id('eq', 4) WHERE id = pg_temp.id('se', 6)$q$);
+SELECT pg_temp.assert_eq('i: se6 keeps T2 in E',
+  $q$SELECT string_agg(turno_id::text, ',') FROM public.dream_team_servicio_turnos WHERE servicio_id = pg_temp.id('se', 6)$q$,
+  pg_temp.id('tu', 2)::text);
+SELECT pg_temp.assert_ok('i: se6 moves to S, which inherits N (only T1)',
+  $q$UPDATE public.dream_team_servicios SET equipo_id = pg_temp.id('eq', 3) WHERE id = pg_temp.id('se', 6)$q$);
+SELECT pg_temp.assert_eq('i: se6 loses T2, which S does not serve',
+  $q$SELECT count(*)::text FROM public.dream_team_servicio_turnos WHERE servicio_id = pg_temp.id('se', 6)$q$,
+  '0');
+
+SELECT pg_temp.assert_ok('i: a non-principal campus row for P2 is added',
+  $q$INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+     SELECT pg_temp.id('us', 5), c.id, false FROM public.campus c WHERE c.codigo = 'BQT'$q$);
+SET CONSTRAINTS public.dream_team_usuario_campus_podar IMMEDIATE;
+SET CONSTRAINTS public.dream_team_usuario_campus_podar DEFERRED;
+SELECT pg_temp.assert_eq('i: P2 keeps T5 while Z2 stays principal',
+  $q$SELECT string_agg(turno_id::text, ',') FROM public.dream_team_servicio_turnos WHERE servicio_id = pg_temp.id('se', 5)$q$,
+  pg_temp.id('tu', 5)::text);
+
+-- Two statements, as the app does (one principal per person is a unique index);
+-- the deferred trigger judges the final state, not the gap between them.
+SELECT pg_temp.assert_ok('i: P2 drops Z2 as principal',
+  $q$UPDATE public.usuario_campus SET es_campus_principal = false
+      WHERE usuario_id = pg_temp.id('us', 5) AND campus_id = pg_temp.id('ca', 2)$q$);
+SELECT pg_temp.assert_ok('i: P2 takes Z1 as principal',
+  $q$UPDATE public.usuario_campus SET es_campus_principal = true
+      WHERE usuario_id = pg_temp.id('us', 5) AND campus_id = pg_temp.id('ca', 1)$q$);
+SET CONSTRAINTS public.dream_team_usuario_campus_podar IMMEDIATE;
+SET CONSTRAINTS public.dream_team_usuario_campus_podar DEFERRED;
+SELECT pg_temp.assert_eq('i: P2 loses T5, a shift of its old campus',
+  $q$SELECT count(*)::text FROM public.dream_team_servicio_turnos WHERE servicio_id = pg_temp.id('se', 5)$q$,
+  '0');
+SELECT pg_temp.assert_eq('i: the new pruning trigger functions are not executable by authenticated',
+  $q$SELECT (has_function_privilege('authenticated', 'public.dream_team_servicios_podar_turnos()', 'EXECUTE')
+          OR has_function_privilege('authenticated', 'public.dream_team_usuario_campus_podar_turnos()', 'EXECUTE'))::text$q$,
   'false');
 
 SELECT count(*) AS failing_cases, coalesce(string_agg(case_name, E'\n'), 'all cases ok') AS detail
