@@ -608,7 +608,15 @@ export interface UpdateTallerConfiguracionInput {
   readonly intervaloEdicionesDias: number | null
   /** null = todas las clases dictadas; otherwise an integer 1..50. */
   readonly clasesMinimasParaCompletar: number | null
+  /**
+   * When a new partner ficha gets its access email (talleres.
+   * momento_envio_acceso, odd/tasks/talleres-conyuge-invitacion.md C2).
+   * Omitted = the column is left as it is.
+   */
+  readonly momentoEnvioAcceso?: 'al_aprobar' | 'al_inscribirse'
 }
+
+const MOMENTOS_ENVIO_ACCESO = ['al_aprobar', 'al_inscribirse'] as const
 
 const TIPOS_TALLER = ['individual', 'pareja'] as const
 const VINCULOS_TALLER = ['matrimonio', 'novios'] as const
@@ -670,6 +678,14 @@ export async function updateTallerConfiguracion(
     }
   }
 
+  if (input.momentoEnvioAcceso !== undefined && !MOMENTOS_ENVIO_ACCESO.includes(input.momentoEnvioAcceso)) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: 'El envío del acceso debe ser al aprobar o al inscribirse.',
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
   const { data, error } = await client
@@ -681,6 +697,7 @@ export async function updateTallerConfiguracion(
       cierre_inscripcion_offset_dias: input.cierreInscripcionOffsetDias,
       intervalo_ediciones_dias: input.intervaloEdicionesDias,
       clases_minimas_para_completar: clasesMinimas,
+      ...(input.momentoEnvioAcceso !== undefined ? { momento_envio_acceso: input.momentoEnvioAcceso } : {}),
     })
     .eq('id', input.tallerId)
     .select('id')

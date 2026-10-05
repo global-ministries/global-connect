@@ -23,6 +23,10 @@
  * save: the completion rule talleres_cerrar_edicion applies when a
  * director closes an edición. An empty field is sent as null and means
  * every clase dictada.
+ *
+ * Ficha nueva del cónyuge (odd/tasks/talleres-conyuge-invitacion.md C2) —
+ * couple talleres also choose when a partner ficha created at enrollment
+ * gets its access email: al aprobar (default) or al inscribirse.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -47,9 +51,18 @@ export interface ConfiguracionTallerProps {
   readonly intervaloEdicionesDias: number | null
   /** null = todas las clases dictadas. */
   readonly clasesMinimasParaCompletar: number | null
+  /** talleres.momento_envio_acceso; defaults to 'al_aprobar'. */
+  readonly momentoEnvioAcceso?: MomentoEnvioAcceso
   readonly cadenciaDias: number
   readonly duracionMinutos: number | null
   readonly puedeEditar: boolean
+}
+
+type MomentoEnvioAcceso = 'al_aprobar' | 'al_inscribirse'
+
+const MOMENTO_ENVIO_LABEL: Record<MomentoEnvioAcceso, string> = {
+  al_aprobar: 'Al aprobar',
+  al_inscribirse: 'Al inscribirse',
 }
 
 const REGIMEN_EXPLICACION: Record<'temporada' | 'cadencia', string> = {
@@ -66,6 +79,7 @@ export function ConfiguracionTaller({
   cierreInscripcionOffsetDias,
   intervaloEdicionesDias,
   clasesMinimasParaCompletar,
+  momentoEnvioAcceso = 'al_aprobar',
   cadenciaDias,
   duracionMinutos,
   puedeEditar,
@@ -85,6 +99,8 @@ export function ConfiguracionTaller({
     clasesMinimasParaCompletar !== null ? String(clasesMinimasParaCompletar) : '',
   )
 
+  const [momentoSel, setMomentoSel] = useState<MomentoEnvioAcceso>(momentoEnvioAcceso)
+
   const [cadencia, setCadencia] = useState(String(cadenciaDias))
   const [duracion, setDuracion] = useState(duracionMinutos !== null ? String(duracionMinutos) : '')
 
@@ -103,6 +119,7 @@ export function ConfiguracionTaller({
         cierreInscripcionOffsetDias: cierreNum,
         intervaloEdicionesDias: intervaloNum,
         clasesMinimasParaCompletar: clasesMinimasNum,
+        ...(tipoSel === 'pareja' ? { momentoEnvioAcceso: momentoSel } : {}),
       })
       if (result.ok) {
         router.refresh()
@@ -170,6 +187,18 @@ export function ConfiguracionTaller({
               opciones={[
                 { valor: 'matrimonio', etiqueta: 'Matrimonios' },
                 { valor: 'novios', etiqueta: 'Novios' },
+              ]}
+            />
+          )}
+
+          {tipoSel === 'pareja' && (
+            <SelectSistema
+              label="Envío del acceso al cónyuge nuevo"
+              value={momentoSel}
+              onValueChange={(v) => setMomentoSel(v as MomentoEnvioAcceso)}
+              opciones={[
+                { valor: 'al_aprobar', etiqueta: MOMENTO_ENVIO_LABEL.al_aprobar },
+                { valor: 'al_inscribirse', etiqueta: MOMENTO_ENVIO_LABEL.al_inscribirse },
               ]}
             />
           )}
@@ -267,6 +296,9 @@ export function ConfiguracionTaller({
         <dl className="mt-3 grid gap-3 sm:grid-cols-2">
           <Campo titulo="Tipo">{tipoTallerLabel(tipo)}</Campo>
           {tipo === 'pareja' && <Campo titulo="Vínculo">{vinculoLabel(vinculo)}</Campo>}
+          {tipo === 'pareja' && (
+            <Campo titulo="Envío del acceso al cónyuge nuevo">{MOMENTO_ENVIO_LABEL[momentoEnvioAcceso]}</Campo>
+          )}
           <Campo titulo="Régimen">{regimenLabel(regimen)}</Campo>
           <Campo titulo="Cierre de inscripción">{cierreRelativoLabel(cierreInscripcionOffsetDias)}</Campo>
           {regimen === 'cadencia' && intervaloEdicionesDias !== null && (

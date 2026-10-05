@@ -510,3 +510,25 @@ describe('crearEdicion — RPC error mapping', () => {
     if (!result.ok) expect(result.error).toBe('forbidden')
   })
 })
+
+describe('updateTallerConfiguracion — momento del envío del acceso al cónyuge nuevo', () => {
+  it('saves momento_envio_acceso when it is sent', async () => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, momentoEnvioAcceso: 'al_inscribirse' })
+    expect(result.ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ momento_envio_acceso: 'al_inscribirse' }))
+  })
+
+  it('leaves the column alone when a stale client omits it', async () => {
+    const { updateMock } = setupConfiguracion({})
+    await updateTallerConfiguracion(validConfiguracionInput)
+    expect(updateMock.mock.calls[0][0]).not.toHaveProperty('momento_envio_acceso')
+  })
+
+  it('rejects an unknown value', async () => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, momentoEnvioAcceso: 'nunca' as never })
+    expect(result).toMatchObject({ ok: false, error: 'invalid-input' })
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+})
