@@ -2,7 +2,8 @@
 
 /**
  * Servidores — the visible filter bar: search (name or phone), Dirección,
- * Equipo (narrowed by the dirección), Rol and Inicio; below it the quick
+ * Equipo (narrowed by the dirección), Rol, Turno (when the campus has shifts)
+ * and Inicio; below it the quick
  * filters with their counters and the "Agrupar" segmented control. Below `md`
  * only the search stays, next to the "Filtros · N" button of the bottom sheet
  * (hoja-filtros.tsx).
@@ -20,6 +21,7 @@ import {
   type Inicio,
   type VistaServidores,
 } from '@/lib/platform/dream-team/servidores-vista'
+import { SelectorTurno } from '@/components/dream-team/turnos/selector-turno'
 import { ANILLO } from './contadores-etapa'
 import { HojaFiltros } from './hoja-filtros'
 
@@ -51,7 +53,14 @@ export function BarraFiltros({ vista, onCambio }: BarraFiltrosProps): ReactEleme
 
   return (
     <section aria-label="Filtros" className="space-y-3">
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]">
+      <div
+        className={cn(
+          'grid gap-3',
+          opciones.turnos.length > 0
+            ? 'md:grid-cols-[minmax(0,1.4fr)_repeat(5,minmax(0,1fr))]'
+            : 'md:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]',
+        )}
+      >
         <div className="flex items-end gap-2">
           <div className="min-w-0 flex-1">
             <InputSistema
@@ -84,6 +93,7 @@ export function BarraFiltros({ vista, onCambio }: BarraFiltrosProps): ReactEleme
             value={filtros.rol ?? TODOS}
             onValueChange={(valor) => onCambio({ rol: valor === TODOS ? null : valor })}
           />
+          <SelectorTurno turnos={opciones.turnos} valor={filtros.turno} onCambio={(turno) => onCambio({ turno })} />
           <SelectSistema
             label="Inicio"
             opciones={OPCIONES_INICIO.map((o) => ({ valor: o.valor, etiqueta: o.etiqueta }))}

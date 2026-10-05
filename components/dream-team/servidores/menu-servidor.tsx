@@ -2,17 +2,18 @@
 
 /**
  * Servidores — the per-row "⋯" menu (a 44px button): "Cambiar etapa" (the
- * shared stage dialog, controlled mode) and "Ver su equipo" (Mi equipo on the
- * person's dirección).
+ * shared stage dialog, controlled mode), "Turnos" (the campus service shifts
+ * of the servicio) and "Ver su equipo" (Mi equipo on the person's dirección).
  *
  * Renders nothing for a row without actions: a read-only viewer, or a Grupos
  * de Vida leader (its lifecycle is managed in Grupos de Vida).
  */
 import { useState, type ReactElement } from 'react'
 import Link from 'next/link'
-import { ArrowRightLeft, MoreHorizontal, Users } from 'lucide-react'
+import { ArrowRightLeft, Clock, MoreHorizontal, Users } from 'lucide-react'
 
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
+import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { FilaServidor } from '@/lib/platform/dream-team/servidores-vista'
 import { TRANSICIONES_VALIDAS } from '@/lib/platform/dream-team/state-machine'
@@ -31,9 +32,12 @@ export function tieneMenu(fila: FilaServidor): boolean {
 
 export function MenuServidor({ fila, onActualizado, className }: MenuServidorProps): ReactElement | null {
   const [etapaAbierta, setEtapaAbierta] = useState(false)
+  const [turnosAbierto, setTurnosAbierto] = useState(false)
   if (!tieneMenu(fila) || fila.servicioId === undefined || fila.version === undefined) return null
 
   const puedeCambiarEtapa = (TRANSICIONES_VALIDAS[fila.estado]?.size ?? 0) > 0
+  // A retired servicio no longer serves, so it has no shifts to change.
+  const puedeElegirTurnos = fila.estado !== 'retirado'
 
   return (
     <>
@@ -59,6 +63,12 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
               Cambiar etapa
             </DropdownMenuItem>
           )}
+          {puedeElegirTurnos && (
+            <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setTurnosAbierto(true)}>
+              <Clock aria-hidden="true" />
+              Turnos
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem asChild className="min-h-11 px-3 text-sm">
             <Link href={`/dream-team/mi-equipo?direccion=${encodeURIComponent(fila.direccionId)}`}>
               <Users aria-hidden="true" />
@@ -78,6 +88,16 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
           onAbiertoChange={setEtapaAbierta}
           ocultarBoton
           onSuccess={onActualizado}
+        />
+      )}
+
+      {puedeElegirTurnos && (
+        <TurnosServicioDialog
+          servicioId={fila.servicioId}
+          nombre={fila.nombre}
+          abierto={turnosAbierto}
+          onAbiertoChange={setTurnosAbierto}
+          onGuardado={onActualizado}
         />
       )}
     </>

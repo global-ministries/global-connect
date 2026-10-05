@@ -13,6 +13,7 @@ import { BotonSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { parcheElegirEquipo, type FiltrosServidores, type VistaServidores } from '@/lib/platform/dream-team/servidores-vista'
+import { SelectorTurno } from '@/components/dream-team/turnos/selector-turno'
 import { ANILLO } from './contadores-etapa'
 
 export interface HojaFiltrosProps {
@@ -57,6 +58,7 @@ export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): R
             value={filtros.rol ?? TODOS}
             onValueChange={(valor) => onCambio({ rol: valor === TODOS ? null : valor })}
           />
+          <SelectorTurno turnos={opciones.turnos} valor={filtros.turno} onCambio={(turno) => onCambio({ turno })} />
           <div className="flex flex-wrap gap-2">
             {rapidosLista.map((rapido) => (
               <button

@@ -3,6 +3,7 @@ import type { NodoEquipoArbol } from './estructura-arbol'
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado, type PersonaId } from './types'
 import { ESTADO_LABELS } from '@/components/dream-team/labels'
 import { normalizarTelefono } from '@/lib/utils/telefono'
+import { SIN_TURNO, coincideTurno, ordenarTurnos, type Turno } from './turnos'
 
 /**
  * Pure view model behind /admin/dream-team/servidores (no I/O, no React).
@@ -45,6 +46,8 @@ export interface FilaServidor {
   readonly version?: number
   /** Whether the row offers actions (a Dream Team servicio the viewer can edit). */
   readonly editable: boolean
+  /** Campus service shifts of a Dream Team servicio; absent or empty = none assigned yet. */
+  readonly turnoIds?: readonly string[]
 }
 
 export type Inicio = 'cualquiera' | 'mes' | 'trimestre'
@@ -57,6 +60,8 @@ export interface FiltrosServidores {
   readonly direccion: string | null
   readonly equipo: string | null
   readonly rol: string | null
+  /** A shift id, `SIN_TURNO` for servicios without one, or `null` for no filter. */
+  readonly turno: string | null
   readonly inicio: Inicio
   readonly sinCuenta: boolean
   readonly varios: boolean
@@ -70,6 +75,7 @@ export const FILTROS_INICIALES: FiltrosServidores = {
   direccion: null,
   equipo: null,
   rol: null,
+  turno: null,
   inicio: 'cualquiera',
   sinCuenta: false,
   varios: false,
@@ -159,11 +165,13 @@ export interface VistaServidores {
     readonly direcciones: readonly Opcion[]
     readonly equipos: readonly OpcionEquipo[]
     readonly roles: readonly Opcion[]
+    /** The campus shifts, in campus order; empty when no campus has any. */
+    readonly turnos: readonly Opcion[]
   }
   readonly visibles: readonly FilaVista[]
   readonly items: readonly ItemLista[]
   readonly pastillas: readonly Pastilla[]
-  /** Active filters that live in the phone sheet: equipo, rol, sin cuenta, en varios equipos. */
+  /** Active filters that live in the phone sheet: equipo, rol, turno, sin cuenta, en varios equipos. */
   readonly filtrosEnHoja: number
   readonly pie: { readonly resumen: string; readonly orden: string }
 }
@@ -229,6 +237,8 @@ function pasa(fila: FilaServidor, f: FiltrosServidores, contexto: Contexto, salv
   if (f.direccion !== null && fila.direccionId !== f.direccion) return false
   if (f.equipo !== null && fila.equipoId !== f.equipo) return false
   if (f.rol !== null && fila.rolLabel !== f.rol) return false
+  // Shifts are a Dream Team notion: a Grupos de Vida row never matches a shift filter.
+  if (f.turno !== null && (fila.origen !== 'dream_team' || !coincideTurno(fila.turnoIds, f.turno))) return false
   if (!coincideInicio(fila, f.inicio, contexto.hoy)) return false
   if (salvo !== 'sinCuenta' && f.sinCuenta && fila.tieneCuenta !== false) return false
   if (salvo !== 'varios' && f.varios && (contexto.equiposPorPersona.get(fila.personaId) ?? 0) < 2) return false
@@ -368,6 +378,7 @@ function construirPastillas(
   f: FiltrosServidores,
   direccionLabel: (id: string) => string,
   equipoLabel: (id: string) => string,
+  turnoLabel: (id: string) => string,
 ): Pastilla[] {
   const pastillas: Pastilla[] = []
   function agregar(clave: string, etiqueta: string, parche: Partial<FiltrosServidores>): void {
@@ -377,6 +388,7 @@ function construirPastillas(
   if (f.direccion !== null) agregar('direccion', direccionLabel(f.direccion), { direccion: null, equipo: null })
   if (f.equipo !== null) agregar('equipo', `Equipo: ${equipoLabel(f.equipo)}`, { equipo: null })
   if (f.rol !== null) agregar('rol', `Rol: ${f.rol}`, { rol: null })
+  if (f.turno !== null) agregar('turno', f.turno === SIN_TURNO ? 'Sin turno' : `Turno: ${turnoLabel(f.turno)}`, { turno: null })
   if (f.inicio !== 'cualquiera') agregar('inicio', ETIQUETA_INICIO[f.inicio], { inicio: 'cualquiera' })
   if (f.sinCuenta) agregar('sin_cuenta', 'Sin cuenta', { sinCuenta: false })
   if (f.varios) agregar('varios', 'En varios equipos', { varios: false })
@@ -392,9 +404,17 @@ export interface EntradaVistaServidores {
   readonly filtros: FiltrosServidores
   /** Injected so tests do not depend on the clock. */
   readonly hoy?: Date
+  /** The campus shifts the filter offers. */
+  readonly turnos?: readonly Turno[]
 }
 
-export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = new Date() }: EntradaVistaServidores): VistaServidores {
+export function calcularVistaServidores({
+  filas,
+  arbol,
+  filtros: pedidos,
+  hoy = new Date(),
+  turnos = [],
+}: EntradaVistaServidores): VistaServidores {
   const indice = indexarArbol(arbol)
   const filtros = normalizarFiltros(pedidos, indice, filas)
 
@@ -448,6 +468,7 @@ export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = 
   const roles = [...new Set(filas.map((fila) => fila.rolLabel))]
     .sort(compararRol)
     .map((rol) => ({ id: rol, label: rol }))
+  const opcionesTurno = ordenarTurnos(turnos).map((turno) => ({ id: turno.id, label: turno.nombre }))
 
   // Visible rows: sorted, then grouped.
   const visibles = ordenar(
@@ -458,6 +479,7 @@ export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = 
 
   const etiquetaDireccion = (id: string): string => direccionesConServicios.get(id) ?? indice.get(id)?.label ?? id
   const etiquetaEquipo = (id: string): string => equipos.find((equipo) => equipo.id === id)?.label ?? id
+  const etiquetaTurno = (id: string): string => opcionesTurno.find((turno) => turno.id === id)?.label ?? id
 
   return {
     filtros,
@@ -467,12 +489,16 @@ export function calcularVistaServidores({ filas, arbol, filtros: pedidos, hoy = 
       sinCuenta: { cantidad: cantidadSinCuenta, activo: filtros.sinCuenta },
       varios: { cantidad: cantidadVarios, activo: filtros.varios },
     },
-    opciones: { direcciones, equipos, roles },
+    opciones: { direcciones, equipos, roles, turnos: opcionesTurno },
     visibles,
     items: agrupar(visibles, filtros.agrupar),
-    pastillas: construirPastillas(filtros, etiquetaDireccion, etiquetaEquipo),
+    pastillas: construirPastillas(filtros, etiquetaDireccion, etiquetaEquipo, etiquetaTurno),
     filtrosEnHoja:
-      (filtros.equipo !== null ? 1 : 0) + (filtros.rol !== null ? 1 : 0) + (filtros.sinCuenta ? 1 : 0) + (filtros.varios ? 1 : 0),
+      (filtros.equipo !== null ? 1 : 0) +
+      (filtros.rol !== null ? 1 : 0) +
+      (filtros.turno !== null ? 1 : 0) +
+      (filtros.sinCuenta ? 1 : 0) +
+      (filtros.varios ? 1 : 0),
     pie: {
       resumen: `${plural(visibles.length, 'servicio', 'servicios')} · ${plural(personasVisibles, 'persona', 'personas')}`,
       orden: `Orden: ${textoOrden(filtros.orden)}`,
@@ -529,6 +555,7 @@ export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores
     direccion: textoOpcional(leer(parametros, 'direccion')),
     equipo: textoOpcional(leer(parametros, 'equipo')),
     rol: textoOpcional(leer(parametros, 'rol')),
+    turno: textoOpcional(leer(parametros, 'turno')),
     inicio: inicio === 'mes' || inicio === 'trimestre' ? inicio : 'cualquiera',
     sinCuenta: esVerdadero(leer(parametros, 'sin_cuenta')),
     varios: esVerdadero(leer(parametros, 'varios')),
@@ -545,6 +572,7 @@ export function escribirFiltrosEnUrl(filtros: FiltrosServidores): string {
   if (filtros.direccion !== null) parametros.set('direccion', filtros.direccion)
   if (filtros.equipo !== null) parametros.set('equipo', filtros.equipo)
   if (filtros.rol !== null) parametros.set('rol', filtros.rol)
+  if (filtros.turno !== null) parametros.set('turno', filtros.turno)
   if (filtros.inicio !== 'cualquiera') parametros.set('inicio', filtros.inicio)
   if (filtros.sinCuenta) parametros.set('sin_cuenta', '1')
   if (filtros.varios) parametros.set('varios', '1')

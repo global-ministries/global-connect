@@ -5,7 +5,8 @@
  *
  * Only what the API supports today: "Cambiar etapa", which opens the shared
  * stage dialog (`<AvanceEtapaControl>` in controlled mode, PATCH
- * /api/dream-team/servicios/[id]). There is no API to change a servicio's rol
+ * /api/dream-team/servicios/[id]), and "Turnos", the campus service shifts of
+ * the servicio (PUT /api/dream-team/servicios/[id]/turnos). There is no API to change a servicio's rol
  * or to remove someone from a team, so those actions are deliberately absent.
  *
  * Renders nothing when there is nothing to do: a Grupos de Vida leader (its
@@ -13,9 +14,10 @@
  * transition (retirado).
  */
 import { useState, type ReactElement } from 'react'
-import { ArrowRightLeft, MoreHorizontal } from 'lucide-react'
+import { ArrowRightLeft, Clock, MoreHorizontal } from 'lucide-react'
 
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
+import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
 import { TRANSICIONES_VALIDAS } from '@/lib/platform/dream-team/state-machine'
@@ -36,6 +38,7 @@ export function tieneAccionesDisponibles(persona: PersonaVista): boolean {
 
 export function MenuPersona({ persona, onActualizado }: MenuPersonaProps): ReactElement | null {
   const [etapaAbierta, setEtapaAbierta] = useState(false)
+  const [turnosAbierto, setTurnosAbierto] = useState(false)
   if (!tieneAccionesDisponibles(persona) || persona.servicioId === undefined || persona.version === undefined) return null
 
   return (
@@ -56,6 +59,10 @@ export function MenuPersona({ persona, onActualizado }: MenuPersonaProps): React
             <ArrowRightLeft aria-hidden="true" />
             Cambiar etapa
           </DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setTurnosAbierto(true)}>
+            <Clock aria-hidden="true" />
+            Turnos
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -68,6 +75,14 @@ export function MenuPersona({ persona, onActualizado }: MenuPersonaProps): React
         onAbiertoChange={setEtapaAbierta}
         ocultarBoton
         onSuccess={onActualizado}
+      />
+
+      <TurnosServicioDialog
+        servicioId={persona.servicioId}
+        nombre={persona.nombre}
+        abierto={turnosAbierto}
+        onAbiertoChange={setTurnosAbierto}
+        onGuardado={onActualizado}
       />
     </>
   )

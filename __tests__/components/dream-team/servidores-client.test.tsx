@@ -417,7 +417,7 @@ describe('ServidoresClient — phone', () => {
     render(<ServidoresClient {...props({ filas, puedeEditar: true })} />)
     expect(within(tarjetaDe('Marta Ruiz')).queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
     await userEvent.click(within(tarjetaDe('Ana Ruiz')).getByRole('button', { name: 'Acciones para Ana Ruiz' }))
-    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Ver su equipo'])
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Turnos', 'Ver su equipo'])
   })
 
   it('has a "Filtros" button that counts the filters it holds and opens a bottom sheet with Equipo, Rol and the quick filters', async () => {
@@ -494,7 +494,7 @@ describe('ServidoresClient — row menu and assigner', () => {
     expect(menuDe('Luis Barrios')).toHaveClass('h-11', 'w-11')
 
     await userEvent.click(menuDe('Luis Barrios'))
-    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Ver su equipo'])
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Turnos', 'Ver su equipo'])
     expect(screen.getByRole('menuitem', { name: 'Ver su equipo' })).toHaveAttribute('href', '/dream-team/mi-equipo?direccion=dir-conexion')
 
     await userEvent.click(screen.getByRole('menuitem', { name: 'Cambiar etapa' }))

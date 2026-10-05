@@ -287,10 +287,10 @@ describe('MiEquipoClient — actions menu (criterion 5, second half)', () => {
     expect(screen.queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
   })
 
-  it('offers only what the API supports: Cambiar etapa', async () => {
+  it('offers only what the API supports: Cambiar etapa and Turnos', async () => {
     render(<MiEquipoClient {...editable()} />)
     await userEvent.click(menuDe('Luis Barrios'))
-    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa'])
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Turnos'])
   })
 
   it('leaves Grupos de Vida leaders and terminal estados without a menu', () => {

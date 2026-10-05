@@ -31,6 +31,13 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace, refresh, push: jest.fn() }),
 }))
 
+// The shift cards (turnos-*.tsx) import their own server actions.
+jest.mock('@/app/(auth)/admin/dream-team/estructura/turnos-actions', () => ({
+  crearTurno: jest.fn(),
+  cambiarActivoTurno: jest.fn(),
+  guardarTurnosEquipo: jest.fn(),
+}))
+
 jest.mock('@/app/(auth)/admin/dream-team/estructura/actions', () => ({
   crearEquipo: jest.fn(),
   renombrarEquipo: jest.fn(),

@@ -40,7 +40,12 @@ import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
-import { EstructuraClient } from '@/components/dream-team/estructura/estructura-client'
+import { EstructuraClient, type TurnosEstructura } from '@/components/dream-team/estructura/estructura-client'
+import {
+  fetchTurnos,
+  fetchTurnosDisponibles,
+  fetchTurnosPropiosDeEquipo,
+} from '@/lib/platform/dream-team/turnos'
 
 export const metadata = { title: 'Estructura' }
 
@@ -126,6 +131,12 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
   const equipoPedido = Array.isArray(pedido) ? pedido[0] : (pedido as string | undefined)
   const equipoId = equipoPedido && vista.detalle(equipoPedido) ? equipoPedido : (vista.equipoPorDefecto() ?? '')
 
+  // Campus service shifts (D12): the campus list for every viewer, and for the
+  // selected REAL team its own restriction plus the shifts it serves in after
+  // inheritance (resolved in the database, which sees the ancestors). A
+  // convenience on top of the tree: on failure the cards are left out.
+  const turnosEstructura = await cargarTurnos(client, equipos.some((equipo) => equipo.id === equipoId) ? equipoId : null)
+
   return (
     <EstructuraClient
       arbol={arbol}
@@ -134,6 +145,31 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
       talleres={talleres}
       equipoId={equipoId}
       puedeEditar={puedeEditar}
+      turnos={turnosEstructura}
     />
   )
+}
+
+async function cargarTurnos(
+  client: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  equipoId: string | null,
+): Promise<TurnosEstructura | undefined> {
+  try {
+    const [turnos, { data: campus, error }] = await Promise.all([
+      fetchTurnos(client),
+      client.from('campus').select('id, nombre').eq('activo', true).order('nombre'),
+    ])
+    if (error) throw error
+    const delEquipo = equipoId
+      ? {
+          equipoId,
+          propios: await fetchTurnosPropiosDeEquipo(client, equipoId),
+          efectivos: await fetchTurnosDisponibles(client, equipoId, turnos),
+        }
+      : undefined
+    return { campus: campus ?? [], turnos, delEquipo }
+  } catch (error) {
+    console.error('[dream-team/estructura] shifts lookup failed', error)
+    return undefined
+  }
 }

@@ -32,6 +32,7 @@ import { AsignadorServicioDialog, type NodoPlano } from '@/components/dream-team
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
 import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import type { Turno } from '@/lib/platform/dream-team/turnos'
 import {
   calcularVistaServidores,
   escribirFiltrosEnUrl,
@@ -52,6 +53,8 @@ export interface ServidoresClientProps {
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
   readonly puedeEditar: boolean
   readonly filtrosIniciales: FiltrosServidores
+  /** The campus service shifts offered by the "Turno" filter. */
+  readonly turnos?: readonly Turno[]
 }
 
 const RETRASO_BUSQUEDA_MS = 300
@@ -80,13 +83,23 @@ const SIN_FILTROS: Partial<FiltrosServidores> = {
   direccion: null,
   equipo: null,
   rol: null,
+  turno: null,
   inicio: 'cualquiera',
   sinCuenta: false,
   varios: false,
   q: '',
 }
 
-export function ServidoresClient({ filas, arbol, rolesPorEquipo, puedeEditar, filtrosIniciales }: ServidoresClientProps): ReactElement {
+const SIN_TURNOS: readonly Turno[] = []
+
+export function ServidoresClient({
+  filas,
+  arbol,
+  rolesPorEquipo,
+  puedeEditar,
+  filtrosIniciales,
+  turnos = SIN_TURNOS,
+}: ServidoresClientProps): ReactElement {
   const router = useRouter()
   const pathname = usePathname() ?? ''
   const toast = useNotificaciones()
@@ -102,7 +115,7 @@ export function ServidoresClient({ filas, arbol, rolesPorEquipo, puedeEditar, fi
     [],
   )
 
-  const vista = useMemo(() => calcularVistaServidores({ filas, arbol, filtros }), [filas, arbol, filtros])
+  const vista = useMemo(() => calcularVistaServidores({ filas, arbol, filtros, turnos }), [filas, arbol, filtros, turnos])
   const nodosPlanos = useMemo(() => aplanarArbol(arbol), [arbol])
 
   function sincronizarUrl(siguiente: FiltrosServidores, diferir: boolean): void {

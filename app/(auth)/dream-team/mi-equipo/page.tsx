@@ -41,6 +41,7 @@ import {
   type PersonaEntrada,
 } from '@/lib/platform/dream-team/mi-equipo-vista'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import { fetchTurnos, fetchTurnosDeServicios, ordenarTurnos, type Turno } from '@/lib/platform/dream-team/turnos'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
 import { MiEquipoClient } from '@/components/dream-team/mi-equipo/mi-equipo-client'
 
@@ -118,6 +119,20 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
     },
   )
 
+  // Campus service shifts (D12): the filter's options and each servicio's
+  // assignment. Like contacts, a convenience: on failure the page renders
+  // without the filter and the failure is logged.
+  const [turnos, turnosPorServicio] = await Promise.all([
+    fetchTurnos(supabase),
+    fetchTurnosDeServicios(
+      supabase,
+      servicios.map((servicio) => servicio.id),
+    ),
+  ]).catch((error: unknown): [Turno[], ReadonlyMap<string, readonly string[]>] => {
+    console.error('[dream-team/mi-equipo] shifts lookup failed', error)
+    return [[], new Map()]
+  })
+
   const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv))
   const equipoIdsVisibles = new Set([...equipos.map((equipo) => equipo.id), ...nodosGdv.map((nodo) => nodo.nodoId)])
 
@@ -140,6 +155,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       version: servicio.version,
       telefono: contactoPorId.get(servicio.personaId)?.telefono ?? null,
       tieneCuenta: contactoPorId.get(servicio.personaId)?.tieneCuenta ?? null,
+      turnoIds: turnosPorServicio.get(servicio.id) ?? [],
     })
   }
   // A leader of two groups is two rows (one per group), hence the equipo in the key.
@@ -175,6 +191,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       puedeEditar={hasDreamTeamWriteCapability(session)}
       equiposAsignables={asignables}
       rolesPorEquipo={rolesPorEquipo}
+      turnos={ordenarTurnos(turnos.filter((turno) => turno.activo)).map((turno) => ({ id: turno.id, label: turno.nombre }))}
     />
   )
 }

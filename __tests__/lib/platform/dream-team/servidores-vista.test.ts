@@ -375,6 +375,7 @@ describe('URL codec', () => {
       direccion: ID_CONEXION,
       equipo: ID_PDP,
       rol: 'Coordinador',
+      turno: null,
       inicio: 'mes',
       sinCuenta: true,
       varios: true,
