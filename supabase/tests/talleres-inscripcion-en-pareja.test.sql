@@ -377,8 +377,9 @@ SELECT pg_temp.assert_rows('1: pareja_origen text NULL and conyuge_registrado_de
      WHERE table_schema = 'public' AND table_name = 'taller_inscripciones'
        AND ((column_name = 'pareja_origen' AND data_type = 'text' AND is_nullable = 'YES')
          OR (column_name = 'conyuge_registrado_descartado' AND data_type = 'boolean' AND is_nullable = 'NO' AND column_default = 'false'))$$, 2);
-SELECT pg_temp.assert_sqlstate('1: pareja_origen refuses a value outside conyuge_registrado/cedula',
-  $$UPDATE public.taller_inscripciones SET pareja_origen = 'ficha_nueva' WHERE id = 'bb000000-0000-4000-8000-000000000060'$$, '23514');
+-- 20261004150000 adds ficha_nueva to the allowed values.
+SELECT pg_temp.assert_sqlstate('1: pareja_origen refuses a value outside conyuge_registrado/cedula/ficha_nueva',
+  $$UPDATE public.taller_inscripciones SET pareja_origen = 'otro' WHERE id = 'bb000000-0000-4000-8000-000000000060'$$, '23514');
 SELECT pg_temp.assert_rows('1: CHECK taller_inscripciones_companero_distinto exists',
   $$SELECT 1 FROM pg_constraint
      WHERE conrelid = 'public.taller_inscripciones'::regclass AND conname = 'taller_inscripciones_companero_distinto'
