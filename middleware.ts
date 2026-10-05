@@ -54,11 +54,29 @@ function isPublicCertificateVerificationPath(path: string) {
   return codigo.length > 0 && !codigo.includes('/')
 }
 
+/**
+ * Spouse access activation (odd/tasks/talleres-conyuge-invitacion.md C2).
+ * The email links to `/activar/<token>`, a route that swaps the token for an
+ * HttpOnly cookie and redirects to `/activar`. Like SKIP_AUTH_PATHS these
+ * pages do their own gating, so getUser() is skipped: no network call and no
+ * breadcrumb carrying the token path. Matches the bare path and exactly one
+ * token segment.
+ */
+const ACTIVATION_ROOT = '/activar'
+
+function isActivationPath(path: string) {
+  if (path === ACTIVATION_ROOT) return true
+  if (!path.startsWith(`${ACTIVATION_ROOT}/`)) return false
+  const token = path.slice(ACTIVATION_ROOT.length + 1)
+  return token.length > 0 && !token.includes('/')
+}
+
 export function isPublicPath(path: string) {
   return (
     SKIP_AUTH_PATHS.has(path) ||
     ALWAYS_CHECK_AUTH_PATHS.has(path) ||
-    isPublicCertificateVerificationPath(path)
+    isPublicCertificateVerificationPath(path) ||
+    isActivationPath(path)
   )
 }
 
@@ -116,7 +134,7 @@ export async function middleware(request: NextRequest) {
   // /dashboard. Ver Finding 2 en 4R. Las otras paths "públicas" de auth UI
   // (/signup, /reset-password, /verify-email) viven en SKIP_AUTH_PATHS porque
   // no redirigen logueados — solo las manejan sus propios page handlers.
-  if (SKIP_AUTH_PATHS.has(path)) {
+  if (SKIP_AUTH_PATHS.has(path) || isActivationPath(path)) {
     return supabaseResponse
   }
 
