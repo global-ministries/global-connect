@@ -44,6 +44,24 @@ function makePersonaId(name: string): PersonaId {
   return personaId(makeTestId(name))
 }
 
+// dream_team_servicios.persona_id references usuarios(id) (ON DELETE RESTRICT),
+// so every volunteer a test seeds needs a usuarios row. They are removed in
+// cleanupAll, after the servicios that reference them.
+const seededPersonaIds = new Set<string>()
+
+async function seedPersona(client: SupabaseClient, id: PersonaId) {
+  if (seededPersonaIds.has(id)) return
+  const { error } = await client.from('usuarios').insert({
+    id,
+    nombre: 'ZZ Test',
+    apellido: 'Dream Team',
+    genero: 'Otro',
+    estado_civil: 'Soltero',
+  })
+  if (error) throw error
+  seededPersonaIds.add(id)
+}
+
 function makeEquipo(overrides: Partial<DreamTeamEquipo> = {}): DreamTeamEquipo {
   return {
     id: makeTestId('equipo'),
@@ -129,6 +147,11 @@ async function cleanupAll(client: SupabaseClient, servicioIds: string[]) {
     await client.from('dream_team_roles').delete().in('id', rolIds)
     await client.from('dream_team_equipos').delete().in('id', equipoIds)
   }
+
+  if (seededPersonaIds.size > 0) {
+    await client.from('usuarios').delete().in('id', [...seededPersonaIds])
+    seededPersonaIds.clear()
+  }
 }
 
 async function truncateDreamTeamTables(client: SupabaseClient) {
@@ -172,6 +195,7 @@ describeIntegration('[integration:supabase] Caso Ana — DPS + Estudiantes end-t
 
   it('recorre el caso Ana completo: asignación, activación, pausa, aislamiento, reactivación y métricas', async () => {
     const ana = makePersonaId('ana')
+    await seedPersona(client, ana)
     const now = new Date().toISOString()
 
     // ── Setup ─────────────────────────────────────────────────────────
@@ -217,6 +241,7 @@ describeIntegration('[integration:supabase] Caso Ana — DPS + Estudiantes end-t
       estado: 'en_orientacion',
       motivoActual: 'admin_promocion',
       expectedVersion: dpsServicio.version,
+      actorPersonaId: ana,
     })
 
     // Promoción 2: en_orientacion → activo (grants emitidos)
@@ -246,6 +271,7 @@ describeIntegration('[integration:supabase] Caso Ana — DPS + Estudiantes end-t
       estado: 'activo',
       motivoActual: 'admin_promocion',
       expectedVersion: dpsEnOrientacion.version,
+      actorPersonaId: ana,
     })
     expect(dpsActivo.estado).toBe('activo')
 
@@ -277,6 +303,7 @@ describeIntegration('[integration:supabase] Caso Ana — DPS + Estudiantes end-t
       estado: 'en_orientacion',
       motivoActual: 'admin_promocion',
       expectedVersion: estServicio.version,
+      actorPersonaId: ana,
     })
 
     const estActivation = await transitionWithGrants({
@@ -307,6 +334,7 @@ describeIntegration('[integration:supabase] Caso Ana — DPS + Estudiantes end-t
       estado: 'activo',
       motivoActual: 'admin_promocion',
       expectedVersion: estEnOrientacion.version,
+      actorPersonaId: ana,
     })
     expect(estActivo.estado).toBe('activo')
 
@@ -349,6 +377,7 @@ describeIntegration('[integration:supabase] Caso Ana — DPS + Estudiantes end-t
       estado: 'en_pausa',
       motivoActual: 'gdv_liderazgo_removed',
       expectedVersion: estActivo.version,
+      actorPersonaId: ana,
     })
     expect(estPausado.estado).toBe('en_pausa')
 
@@ -395,6 +424,7 @@ describeIntegration('[integration:supabase] Caso Ana — DPS + Estudiantes end-t
       estado: 'activo',
       motivoActual: 'admin_reactivacion',
       expectedVersion: estPausado.version,
+      actorPersonaId: ana,
     })
     expect(estReactivado.estado).toBe('activo')
 

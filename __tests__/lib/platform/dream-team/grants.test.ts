@@ -493,3 +493,55 @@ describe('Facilitador role grants the same capabilities as Líder', () => {
     expect(keys).toEqual(['dream_team.serve', 'dream_team.lead', 'dps.team.lead'])
   })
 })
+
+// D2 (odd/tasks/ninos-voluntarios-waumba.md): the Waumba Land sub-areas have an
+// "entrenador" role that gets exactly what "lider" gets. Before, an unknown label
+// fell back to no generic capability at all, so an active entrenador was minted
+// only the experience-specific serve capability.
+describe('Entrenador role grants the same capabilities as Líder', () => {
+  const equipoMaternal = { id: 'equipo-ninos-maternal', experiencia: 'ninos' as const }
+
+  it.each([['Entrenador'], ['entrenador'], ['ENTRENADOR'], [' Entrenador ']])(
+    'mints for "%s" exactly what Líder mints, on every experience',
+    (label) => {
+      for (const equipo of [equipoDps, equipoEstudiantes, equipoMaternal]) {
+        const lider = buildGrantsForServicio(equipo, { id: 'rol-x', label: 'Líder' })
+        expect(buildGrantsForServicio(equipo, { id: 'rol-x', label })).toEqual(lider)
+      }
+    },
+  )
+
+  it('mints dream_team.serve, dream_team.lead and ninos.team.serve on a ninos sub-area, all on that equipo', () => {
+    expect(buildGrantsForServicio(equipoMaternal, { id: 'rol-entrenador', label: 'entrenador' })).toEqual([
+      { capabilityKey: 'dream_team.serve', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-ninos-maternal' },
+      { capabilityKey: 'dream_team.lead', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-ninos-maternal' },
+      { capabilityKey: 'ninos.team.serve', experience: 'ninos', scopeType: 'equipo', scopeId: 'equipo-ninos-maternal' },
+    ])
+  })
+
+  it('counts as a lead for the experience-specific capability on estudiantes', () => {
+    const keys = buildGrantsForServicio(equipoEstudiantes, { id: 'rol-entrenador', label: 'Entrenador' }).map(
+      (grant) => grant.capabilityKey,
+    )
+    expect(keys).toEqual(['dream_team.serve', 'dream_team.lead', 'estudiantes.team.lead'])
+  })
+})
+
+// D3: ninos.team.serve was declared with scope type 'salon' while scopeIdForGrant
+// fills it with the equipo id, so the grant claimed to be a classroom and held a
+// team id. It is now an equipo-scoped capability, like estudiantes.team.*.
+describe('ninos.team.serve scoping', () => {
+  it('a ninos voluntario gets ninos.team.serve scoped to the equipo where they serve', () => {
+    const equipoMaternal = { id: 'equipo-ninos-maternal', experiencia: 'ninos' as const }
+    const serve = buildGrantsForServicio(equipoMaternal, rolVoluntario).find(
+      (grant) => grant.capabilityKey === 'ninos.team.serve',
+    )
+
+    expect(serve).toEqual({
+      capabilityKey: 'ninos.team.serve',
+      experience: 'ninos',
+      scopeType: 'equipo',
+      scopeId: 'equipo-ninos-maternal',
+    })
+  })
+})

@@ -249,14 +249,15 @@ const ORDEN_ETAPA: Readonly<Record<DreamTeamEstado, number>> = {
 
 /**
  * Hierarchy first, then alphabetical: Director (Dream Team) and Director
- * general, Director de etapa, Coordinador, Líder, Aprendiz, the rest.
+ * general, Director de etapa, Coordinador, Líder and Entrenador, Aprendiz,
+ * the rest.
  */
 function rangoDeRol(rol: string): number {
   const clave = sinAcentos(rol)
   if (clave === 'director de etapa') return 1
   if (clave.startsWith('director')) return 0
   if (clave.startsWith('coordinador')) return 2
-  if (clave.startsWith('lider')) return 3
+  if (clave.startsWith('lider') || clave.startsWith('entrenador')) return 3
   if (clave.startsWith('colider') || clave.startsWith('aprendiz')) return 4
   return 5
 }

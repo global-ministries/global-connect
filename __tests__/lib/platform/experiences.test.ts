@@ -181,6 +181,20 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
       expect(estudiantes.scopeTypes).toContain('salon')
     })
 
+    it('extends ninos with equipo scope type while preserving salon', () => {
+      const ninos = (PLATFORM_EXPERIENCE_CATALOG as Record<string, { scopeTypes: readonly string[] }>).ninos
+      expect(ninos.scopeTypes).toContain('equipo')
+      expect(ninos.scopeTypes).toContain('salon')
+    })
+
+    it('declares every capability with a scope type its experience allows', () => {
+      const catalog = PLATFORM_EXPERIENCE_CATALOG as Record<string, { scopeTypes: readonly string[] }>
+      const mismatches = Object.entries(PLATFORM_CAPABILITIES as Record<string, { experience: string; scopeType: string }>)
+        .filter(([, definition]) => !catalog[definition.experience].scopeTypes.includes(definition.scopeType))
+        .map(([key]) => key)
+      expect(mismatches).toEqual([])
+    })
+
     it('preserves all Fase 1 experience catalogs', () => {
       const expected = [
         'grupos_vida',
@@ -337,9 +351,11 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
       expect(result.ok).toBe(true)
     })
 
-    it('resolves ninos.team.serve with salon scope', () => {
-      const input = makeInput('ninos.team.serve', { experience: 'ninos', type: 'salon', id: 'waumbaland-3-4' }, [
-        { key: 'ninos.team.serve', scope: { experience: 'ninos', type: 'salon', id: 'waumbaland-3-4' }, source: 'dream-team' },
+    // D3 (odd/tasks/ninos-voluntarios-waumba.md): the Dream Team flow mints it
+    // with the equipo id, so it is an equipo-scoped capability.
+    it('resolves ninos.team.serve with equipo scope', () => {
+      const input = makeInput('ninos.team.serve', { experience: 'ninos', type: 'equipo', id: 'waumbaland-maternal' }, [
+        { key: 'ninos.team.serve', scope: { experience: 'ninos', type: 'equipo', id: 'waumbaland-maternal' }, source: 'dream-team' },
       ])
       const result = resolvePlatformCapability(input)
       expect(result.ok).toBe(true)
@@ -358,6 +374,16 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
     it('rejects dream_team.serve required with dps experience as conflicting_scope', () => {
       const input = makeInput('dream_team.serve', { experience: 'dps', type: 'equipo' }, [
         { key: 'dream_team.serve', scope: { experience: 'dps', type: 'equipo' }, source: 'dream-team' },
+      ])
+      const result = resolvePlatformCapability(input)
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.reason).toBe('conflicting_scope')
+    })
+
+    it('rejects ninos.team.serve required with salon scope as conflicting_scope', () => {
+      const input = makeInput('ninos.team.serve', { experience: 'ninos', type: 'salon', id: 'waumbaland-3-4' }, [
+        { key: 'ninos.team.serve', scope: { experience: 'ninos', type: 'salon', id: 'waumbaland-3-4' }, source: 'dream-team' },
       ])
       const result = resolvePlatformCapability(input)
       expect(result.ok).toBe(false)

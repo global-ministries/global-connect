@@ -32,6 +32,12 @@ export interface DreamTeamServicioUpdate {
   readonly detalleMotivo?: string
   readonly fechaFin?: string
   readonly expectedVersion: number
+  /**
+   * The person making the change (usuarios.id of the session user), recorded as
+   * the actor of the history row a state change appends. Required so no caller
+   * can fall back to the volunteer, which is what the history used to record.
+   */
+  readonly actorPersonaId: PersonaId
 }
 
 // Un nodo del árbol organizativo se desactiva con `activo = false`, nunca se

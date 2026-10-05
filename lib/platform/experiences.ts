@@ -5,7 +5,7 @@ export type PlatformScopeType = (typeof PLATFORM_SCOPE_TYPES)[number]
 export const PLATFORM_EXPERIENCE_CATALOG = {
   grupos_vida: { label: 'Grupos de Vida', scopeTypes: ['etapa', 'grupo'] },
   dps: { label: 'DPS', scopeTypes: ['equipo'] },
-  ninos: { label: 'Niños', scopeTypes: ['salon'] },
+  ninos: { label: 'Niños', scopeTypes: ['salon', 'equipo'] },
   estudiantes: { label: 'Estudiantes', scopeTypes: ['salon', 'equipo'] },
   the_living_room: { label: 'The Living Room', scopeTypes: ['experience'] },
   talleres_crecimiento: { label: 'Talleres de Crecimiento', scopeTypes: ['taller'] },
@@ -70,7 +70,9 @@ export const PLATFORM_CAPABILITIES = {
   'estudiantes.team.serve': { experience: 'estudiantes', scopeType: 'equipo' },
   'estudiantes.team.lead': { experience: 'estudiantes', scopeType: 'equipo' },
   'talleres_crecimiento.team.serve': { experience: 'talleres_crecimiento', scopeType: 'taller' },
-  'ninos.team.serve': { experience: 'ninos', scopeType: 'salon' },
+  // Minted by the Dream Team flow with the id of the equipo (sub-area) where the
+  // person serves, like estudiantes.team.*; classrooms (salon) stay for ninos.room.read.
+  'ninos.team.serve': { experience: 'ninos', scopeType: 'equipo' },
   'the_living_room.team.serve': { experience: 'the_living_room', scopeType: 'experience' },
   // Operating Core capabilities
   'operating_core.events.read': { experience: 'operating_core', scopeType: 'experience' },

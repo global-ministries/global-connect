@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { hasDreamTeamReadCapability, hasDreamTeamWriteCapability, isDreamTeamEnabled, requireDreamTeamSession } from '@/lib/platform/dream-team/route-access'
-import { DREAM_TEAM_MOTIVOS } from '@/lib/platform/dream-team/types'
+import { DREAM_TEAM_MOTIVOS, personaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamEstado, DreamTeamMotivo } from '@/lib/platform/dream-team/types'
 import { transitionWithGrants } from '@/lib/platform/dream-team/servicios'
 import { createPlatformGrantAudit } from '@/lib/platform/grants'
@@ -63,12 +63,15 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     // dream_team_apply_servicio_grants is idempotent on 'grant' — it reactivates an
     // already-revoked row — so this round trip is correct either way. Persisting the
     // snapshot is a future optimization (skip recomputation), not a correctness requirement.
+    // The actor is the session user (usuarios.id), never the volunteer: it signs both the
+    // grant audit events and the history row the update appends.
+    const actorPersonaId = personaId(s.personaId)
     const result = await transitionWithGrants({
       servicio,
       estadoNuevo: estado as DreamTeamEstado,
       motivo: motivo as DreamTeamMotivo,
       detalleMotivo: typeof detalleMotivo === 'string' ? detalleMotivo : undefined,
-      actorPersonaId: s.personaId,
+      actorPersonaId,
       fecha: new Date().toISOString(),
       audit: createPlatformGrantAudit(),
       equipo,
@@ -83,7 +86,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       // the update then failed, we'd be left with orphaned grants and no matching state change.
       // In this order, a capability-apply failure below still leaves the servicio transitioned,
       // which the caller can safely retry — dream_team_apply_servicio_grants is idempotent.
-      updated = await repo.updateServicio(id, { estado: estado as DreamTeamEstado, motivoActual: motivo as DreamTeamMotivo, detalleMotivo: typeof detalleMotivo === 'string' ? detalleMotivo : undefined, expectedVersion })
+      updated = await repo.updateServicio(id, { estado: estado as DreamTeamEstado, motivoActual: motivo as DreamTeamMotivo, detalleMotivo: typeof detalleMotivo === 'string' ? detalleMotivo : undefined, expectedVersion, actorPersonaId })
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error && error.code === 'CONCURRENCY_CONFLICT') return NextResponse.json({ error: 'Conflicto de versión' }, { status: 409 })
       throw error

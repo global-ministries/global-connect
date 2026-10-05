@@ -90,6 +90,24 @@ function makePersonaId(name: string): PersonaId {
   return personaId(makeTestId(name))
 }
 
+// dream_team_servicios.persona_id references usuarios(id) (ON DELETE RESTRICT),
+// so every volunteer a test seeds needs a usuarios row. They are removed in
+// cleanupAll, after the servicios that reference them.
+const seededPersonaIds = new Set<string>()
+
+async function seedPersona(client: SupabaseClient, id: PersonaId) {
+  if (seededPersonaIds.has(id)) return
+  const { error } = await client.from('usuarios').insert({
+    id,
+    nombre: 'ZZ Test',
+    apellido: 'Dream Team',
+    genero: 'Otro',
+    estado_civil: 'Soltero',
+  })
+  if (error) throw error
+  seededPersonaIds.add(id)
+}
+
 function makeEquipo(overrides: Partial<DreamTeamEquipo> = {}): DreamTeamEquipo {
   return {
     id: makeTestId('equipo'),
@@ -169,6 +187,11 @@ async function cleanupAll(client: SupabaseClient, servicioIds: string[]) {
     await client.from('dream_team_requisitos').delete().in('rol_id', rolIds)
     await client.from('dream_team_roles').delete().in('id', rolIds)
     await client.from('dream_team_equipos').delete().in('id', equipoIds)
+  }
+
+  if (seededPersonaIds.size > 0) {
+    await client.from('usuarios').delete().in('id', [...seededPersonaIds])
+    seededPersonaIds.clear()
   }
 }
 
@@ -275,6 +298,7 @@ describeIntegration('[integration:supabase] DreamTeamParticipationSupabaseWriter
     const { equipo, rol } = await seedEquipoRol(client)
     const repo = createSupabaseDreamTeamRepository(client)
     const input = makeServicioInput(equipo.id, rol.id, overrides)
+    await seedPersona(client, input.personaId)
     const servicio = await repo.createServicio(input)
     createdServicioIds.push(servicio.id)
     return { equipo, rol, servicio }

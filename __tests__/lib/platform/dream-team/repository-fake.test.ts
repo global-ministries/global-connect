@@ -18,6 +18,9 @@ function makePersonaId(name: string) {
   return personaId(name)
 }
 
+// The session user who changes a servicio's state; never the volunteer.
+const ACTOR = makePersonaId('persona-actor')
+
 function makeServicioInput(
   overrides: Partial<Omit<DreamTeamServicio, 'id' | 'version'>> = {},
 ): Omit<DreamTeamServicio, 'id' | 'version'> {
@@ -199,6 +202,7 @@ describe('InMemoryDreamTeamRepository', () => {
         estado: 'en_pausa',
         motivoActual: 'admin_pausa',
         expectedVersion: created.version,
+        actorPersonaId: ACTOR,
       })
 
       expect(updated.version).toBe(created.version + 1)
@@ -217,6 +221,7 @@ describe('InMemoryDreamTeamRepository', () => {
           estado: 'en_pausa',
           motivoActual: 'admin_pausa',
           expectedVersion: created.version + 99,
+          actorPersonaId: ACTOR,
         }),
       ).rejects.toThrow(ConcurrencyConflictError)
 
@@ -233,6 +238,7 @@ describe('InMemoryDreamTeamRepository', () => {
         motivoActual: 'admin_pausa',
         detalleMotivo: 'pausa administrativa',
         expectedVersion: created.version,
+        actorPersonaId: ACTOR,
       })
 
       const historial = await repo.listHistorial(created.id)
@@ -243,6 +249,26 @@ describe('InMemoryDreamTeamRepository', () => {
       expect(historial[0].detalleMotivo).toBe('pausa administrativa')
     })
 
+    // The history row records who made the change. It used to record the
+    // volunteer (the servicio's own persona) whoever changed the state.
+    it('records the acting persona as the history actor, not the volunteer', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const created = await repo.createServicio(makeServicioInput({ estado: 'activo' }))
+      const coordinador = makePersonaId('persona-coordinador')
+
+      await repo.updateServicio(created.id, {
+        estado: 'en_pausa',
+        motivoActual: 'admin_pausa',
+        expectedVersion: created.version,
+        actorPersonaId: coordinador,
+      })
+
+      const historial = await repo.listHistorial(created.id)
+      expect(historial).toHaveLength(1)
+      expect(historial[0].actorPersonaId).toBe(coordinador)
+      expect(historial[0].actorPersonaId).not.toBe(created.personaId)
+    })
+
     it('does not append historial when estado is unchanged', async () => {
       const repo = createInMemoryDreamTeamRepository()
       const created = await repo.createServicio(makeServicioInput({ estado: 'activo' }))
@@ -250,6 +276,7 @@ describe('InMemoryDreamTeamRepository', () => {
       await repo.updateServicio(created.id, {
         motivoActual: 'admin_promocion',
         expectedVersion: created.version,
+        actorPersonaId: ACTOR,
       })
 
       const historial = await repo.listHistorial(created.id)
@@ -264,6 +291,7 @@ describe('InMemoryDreamTeamRepository', () => {
         estado: 'retirado',
         motivoActual: 'admin_retiro',
         expectedVersion: created.version,
+        actorPersonaId: ACTOR,
       })
 
       expect(updated.estado).toBe('retirado')
@@ -692,6 +720,7 @@ describe('InMemoryDreamTeamRepository', () => {
         estado: 'en_pausa',
         motivoActual: 'gdv_liderazgo_removed',
         expectedVersion: dps.version,
+        actorPersonaId: ACTOR,
       })
 
       const dpsHistorial = await repo.listHistorial(dps.id)

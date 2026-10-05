@@ -17,15 +17,18 @@ const createRepo = jest.requireMock('@/lib/platform/dream-team/repository-supaba
 
 const authId = '11111111-1111-1111-1111-111111111111'
 const actorPersonaId = personaId('22222222-2222-2222-2222-222222222222')
+// The volunteer is a different person from the session user who changes the state,
+// so a test can tell who the history and the grants are recorded for.
+const voluntarioPersonaId = personaId('33333333-3333-3333-3333-333333333333')
 const readCap = { key: 'dream_team.metrics.read', experience: 'dream_team', scopeType: 'experience', source: 'test' }
 const manageCap = { key: 'dream_team.requirements.manage', experience: 'dream_team', scopeType: 'experience', source: 'test' }
 const directorCap = { key: 'dream_team.director.coordinate', experience: 'dream_team', scopeType: 'experience', source: 'test' }
 const equipoDPS = { id: 'equipo-dps', experiencia: 'dps' as const, label: 'DPS Producción', activo: true }
 const rolCámara = { id: 'rol-cam', equipoId: 'equipo-dps', label: 'Cámara', activo: true }
 const reqCámara = { id: 'req-cam', equipoId: 'equipo-dps', rolId: 'rol-cam', codigo: 'capacitacion-dps', label: 'Capacitación DPS', tipo: 'capacitacion' as const, obligatoriedad: 'requerido' as const }
-const servicioPostulado = { id: 'srv-postulado', personaId: actorPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam', estado: 'postulado' as const, fechaInicio: new Date().toISOString(), motivoActual: 'admin_asignacion' as const, version: 1 }
-const servicioEnOrientacion = { id: 'srv-orientacion', personaId: actorPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam', estado: 'en_orientacion' as const, fechaInicio: new Date().toISOString(), motivoActual: 'admin_promocion' as const, version: 1 }
-const servicioActivo = { id: 'srv-activo', personaId: actorPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam', estado: 'activo' as const, fechaInicio: new Date().toISOString(), motivoActual: 'admin_promocion' as const, version: 1 }
+const servicioPostulado = { id: 'srv-postulado', personaId: voluntarioPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam', estado: 'postulado' as const, fechaInicio: new Date().toISOString(), motivoActual: 'admin_asignacion' as const, version: 1 }
+const servicioEnOrientacion = { id: 'srv-orientacion', personaId: voluntarioPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam', estado: 'en_orientacion' as const, fechaInicio: new Date().toISOString(), motivoActual: 'admin_promocion' as const, version: 1 }
+const servicioActivo = { id: 'srv-activo', personaId: voluntarioPersonaId, equipoId: 'equipo-dps', rolId: 'rol-cam', estado: 'activo' as const, fechaInicio: new Date().toISOString(), motivoActual: 'admin_promocion' as const, version: 1 }
 const historialInicial = { id: 'hist-1', servicioId: 'srv-postulado', estadoAnterior: 'postulado' as const, estadoNuevo: 'postulado' as const, motivo: 'admin_asignacion' as const, actorPersonaId, fecha: new Date().toISOString() }
 const verificacionInicial = { id: 'ver-1', servicioId: 'srv-postulado', requisitoId: 'req-cam', estado: 'pendiente' as const }
 
@@ -79,6 +82,14 @@ describe('PATCH /api/dream-team/servicios/[id]', () => {
     expect(b.historial).toHaveLength(2)
     expect(b.historial[b.historial.length - 1].estadoNuevo).toBe('en_orientacion')
   })
+
+  it('records the session persona as the history actor, not the volunteer', async () => {
+    auth([directorCap]); repo()
+    const b = await (await PATCH(request('/api/dream-team/servicios/srv-activo', { method: 'PATCH', body: JSON.stringify({ estado: 'en_pausa', motivo: 'admin_pausa', expectedVersion: 1 }) }), ctx('srv-activo'))).json()
+    expect(b.historial).toHaveLength(1)
+    expect(b.historial[0].actorPersonaId).toBe(actorPersonaId)
+    expect(b.historial[0].actorPersonaId).not.toBe(voluntarioPersonaId)
+  })
 })
 
 // Fase 4.1 — transitionWithGrants wiring: activating/pausing a servicio must
@@ -95,7 +106,7 @@ describe('PATCH /api/dream-team/servicios/[id] — grants wiring', () => {
 
     const calls = fake.getAppliedServicioGrantsCalls()
     expect(calls).toHaveLength(1)
-    expect(calls[0].personaId).toBe(actorPersonaId)
+    expect(calls[0].personaId).toBe(voluntarioPersonaId)
     expect(calls[0].accion).toBe('grant')
     expect(calls[0].grants).toEqual([expectedGrant])
   })

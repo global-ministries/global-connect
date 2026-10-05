@@ -60,19 +60,20 @@ export function experienciaLabel(key: string): string {
 
 /**
  * Dream Team roles are stored lowercase, without accents (`director`,
- * `coordinador`, `lider`, `voluntario`). This is the Spanish display label
- * for each of the four known roles.
+ * `coordinador`, `lider`, `entrenador`, `voluntario`). This is the Spanish
+ * display label for each known role.
  */
 export const ROL_LABELS: Readonly<Record<string, string>> = {
   director: 'Director',
   coordinador: 'Coordinador',
   lider: 'Líder',
+  entrenador: 'Entrenador',
   voluntario: 'Voluntario',
 }
 
 /**
  * Resolves a stored rol label to its Spanish display label. An unknown rol
- * (not one of the four above) falls back to capitalizing just its first
+ * (not one of the known ones above) falls back to capitalizing just its first
  * letter, rather than a raw lowercase key.
  */
 export function rolLabel(label: string): string {
@@ -91,6 +92,8 @@ export const ROL_BADGE_VARIANTE: Readonly<Record<string, BadgeVariante>> = {
   director: 'warning',
   coordinador: 'info',
   lider: 'default',
+  // Entrenador gets what Líder gets (grants.ts), so it shares its badge.
+  entrenador: 'default',
   voluntario: 'default',
 }
 

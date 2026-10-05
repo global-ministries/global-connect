@@ -63,6 +63,8 @@ const ROLE_TO_GENERIC_CAPABILITIES: Record<string, readonly string[]> = {
   [normalizeLabel('Líder')]: ['dream_team.serve', 'dream_team.lead'],
   [normalizeLabel('Líder de grupo')]: ['dream_team.serve', 'dream_team.lead', 'dream_team.gdv.lead'],
   [normalizeLabel('Facilitador')]: ['dream_team.serve', 'dream_team.lead'],
+  // Entrenador (the Waumba Land trainer, formerly "mentor") gets exactly what Líder gets.
+  [normalizeLabel('Entrenador')]: ['dream_team.serve', 'dream_team.lead'],
   [normalizeLabel('Coordinador')]: ['dream_team.serve', 'dream_team.coordinate'],
   // Director mints the equipo-scoped dream_team.direct (area director), NOT the global
   // dream_team.director.coordinate. That capability is declared with scopeType 'experience', so
@@ -102,6 +104,7 @@ function resolveExperienceSpecificCapability(
     label === normalizeLabel('Líder') ||
     label === normalizeLabel('Líder de grupo') ||
     label === normalizeLabel('Facilitador') ||
+    label === normalizeLabel('Entrenador') ||
     label === normalizeLabel('Coordinador')
   const isDirector = label === normalizeLabel('Director')
 

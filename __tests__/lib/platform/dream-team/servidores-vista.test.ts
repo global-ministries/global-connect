@@ -461,6 +461,16 @@ describe('Grupos de Vida directors', () => {
     expect(roles).toEqual(['Director', 'Director de etapa', 'Coordinador', 'Líder de grupo'])
   })
 
+  // D2 (odd/tasks/ninos-voluntarios-waumba.md): an entrenador gets what a líder
+  // gets, so it ranks with the líderes, above the aprendices and the voluntarios.
+  it('ranks Entrenador with the líderes, below Coordinador and above Aprendiz', () => {
+    const coordinador = fila('c', 'Bea Coordinadora', ID_DHAH, 'Coordinador')
+    const entrenador = fila('t', 'Tina Entrenadora', ID_CORO, 'Entrenador')
+    const voluntario = fila('v', 'Uma Voluntaria', ID_CORO, 'Voluntario')
+    const roles = vista({}, [voluntario, aprendiz, entrenador, lider, coordinador]).opciones.roles.map((r) => r.label)
+    expect(roles).toEqual(['Coordinador', 'Entrenador', 'Líder de grupo', 'Aprendiz de grupo', 'Voluntario'])
+  })
+
   it('filters by the exact director role label', () => {
     expect(vista({ rol: 'Director de etapa' }, filas).visibles.map((f) => f.nombre)).toEqual(['Yara Etapa'])
     expect(vista({ rol: 'Director general' }, filas).visibles.map((f) => f.nombre)).toEqual(['Zoe General'])
