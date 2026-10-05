@@ -4,7 +4,8 @@
  * Servidores — the table: one `TarjetaSistema p-0` with sortable header
  * buttons (`aria-sort` on the active column header), group header rows and one
  * row per servicio: avatar, name with its marks, equipo with its path, role
- * and etapa badges, start date and the "⋯" menu.
+ * and etapa badges, the campus shifts ("—" when none), start date and the
+ * "⋯" menu.
  */
 import type { ReactElement } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
@@ -110,6 +111,12 @@ export function TablaServidores({ items, orden, onOrdenar, onActualizado }: Tabl
                 </th>
               )
             })}
+            <th
+              scope="col"
+              className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+            >
+              Turno
+            </th>
             <th scope="col" className="w-14 px-2 py-2">
               <span className="sr-only">Acciones</span>
             </th>
@@ -119,7 +126,7 @@ export function TablaServidores({ items, orden, onOrdenar, onActualizado }: Tabl
           {items.map((item) =>
             item.tipo === 'grupo' ? (
               <tr key={`grupo-${item.clave}`} className="bg-muted/40">
-                <th scope="row" colSpan={COLUMNAS_ORDEN.length + 1} className="px-4 py-2 text-left">
+                <th scope="row" colSpan={COLUMNAS_ORDEN.length + 2} className="px-4 py-2 text-left">
                   <span className="text-sm font-semibold text-foreground">{item.titulo}</span>
                   <span className="ml-3 text-sm font-normal text-muted-foreground">{item.detalle}</span>
                 </th>
@@ -169,6 +176,7 @@ function FilaTabla({ fila, onActualizado }: { readonly fila: FilaVista; readonly
         </BadgeSistema>
       </td>
       <td className="whitespace-nowrap px-4 py-2 text-sm text-muted-foreground">{formatearFecha(fila.fechaInicio)}</td>
+      <td className="px-4 py-2 text-sm text-muted-foreground">{fila.turnosTexto}</td>
       <td className="px-2 py-2">
         <MenuServidor fila={fila} onActualizado={onActualizado} />
       </td>

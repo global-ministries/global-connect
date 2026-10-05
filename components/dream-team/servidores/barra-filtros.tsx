@@ -2,7 +2,8 @@
 
 /**
  * Servidores — the visible filter bar: search (name or phone), Dirección,
- * Equipo (narrowed by the dirección), Rol, Turno (when the campus has shifts)
+ * Área (the inner nodes of the dirección, as indented paths, once one is
+ * chosen), Equipo (narrowed by the dirección and the área), Rol, Turno (when the campus has shifts)
  * and Inicio; below it the quick
  * filters with their counters and the "Agrupar" segmented control. Below `md`
  * only the search stays, next to the "Filtros · N" button of the bottom sheet
@@ -14,6 +15,7 @@ import { Search } from 'lucide-react'
 import { InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { cn } from '@/lib/utils'
 import {
+  parcheElegirArea,
   parcheElegirDireccion,
   parcheElegirEquipo,
   type Agrupar,
@@ -44,6 +46,30 @@ const OPCIONES_AGRUPAR: ReadonlyArray<{ readonly valor: Agrupar; readonly etique
   { valor: 'persona', etiqueta: 'Por persona' },
 ]
 
+// Literal class names so Tailwind keeps them: search plus 4, 5 or 6 selects.
+const COLUMNAS: Readonly<Record<number, string>> = {
+  4: 'md:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]',
+  5: 'md:grid-cols-[minmax(0,1.4fr)_repeat(5,minmax(0,1fr))]',
+  6: 'md:grid-cols-[minmax(0,1.4fr)_repeat(6,minmax(0,1fr))]',
+}
+
+/** "Área": the inner nodes of the chosen dirección, indented by depth. Hidden when there are none. */
+export function SelectorArea({ vista, onCambio }: BarraFiltrosProps): ReactElement | null {
+  const { filtros, opciones } = vista
+  if (opciones.areas.length === 0) return null
+  return (
+    <SelectSistema
+      label="Área"
+      opciones={[
+        { valor: TODOS, etiqueta: 'Todas' },
+        ...opciones.areas.map((a) => ({ valor: a.id, etiqueta: a.label })),
+      ]}
+      value={filtros.area ?? TODOS}
+      onValueChange={(valor) => onCambio(parcheElegirArea(valor === TODOS ? null : valor, opciones.areas))}
+    />
+  )
+}
+
 export function BarraFiltros({ vista, onCambio }: BarraFiltrosProps): ReactElement {
   const { filtros, opciones, rapidos } = vista
   const rapidosLista = [
@@ -53,14 +79,7 @@ export function BarraFiltros({ vista, onCambio }: BarraFiltrosProps): ReactEleme
 
   return (
     <section aria-label="Filtros" className="space-y-3">
-      <div
-        className={cn(
-          'grid gap-3',
-          opciones.turnos.length > 0
-            ? 'md:grid-cols-[minmax(0,1.4fr)_repeat(5,minmax(0,1fr))]'
-            : 'md:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]',
-        )}
-      >
+      <div className={cn('grid gap-3', COLUMNAS[4 + (opciones.turnos.length > 0 ? 1 : 0) + (opciones.areas.length > 0 ? 1 : 0)])}>
         <div className="flex items-end gap-2">
           <div className="min-w-0 flex-1">
             <InputSistema
@@ -81,6 +100,7 @@ export function BarraFiltros({ vista, onCambio }: BarraFiltrosProps): ReactEleme
             value={filtros.direccion ?? TODOS}
             onValueChange={(valor) => onCambio(parcheElegirDireccion(valor === TODOS ? null : valor))}
           />
+          <SelectorArea vista={vista} onCambio={onCambio} />
           <SelectSistema
             label="Equipo"
             opciones={[{ valor: TODOS, etiqueta: 'Todos' }, ...opciones.equipos.map((e) => ({ valor: e.id, etiqueta: e.label }))]}

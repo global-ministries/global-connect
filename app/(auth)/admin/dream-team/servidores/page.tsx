@@ -14,7 +14,7 @@
  * renders, filters, sorts and groups them and drives the assigner and the
  * stage-advance API calls.
  *
- * The filters come from the URL (`?etapa=&direccion=&equipo=&rol=&turno=&inicio=
+ * The filters come from the URL (`?etapa=&direccion=&area=&equipo=&rol=&turno=&inicio=
  * &sin_cuenta=1&varios=1&q=&agrupar=&orden=`), including the legacy `?equipo=`
  * and `?estado=` of the links from Talleres and Estructura.
  *

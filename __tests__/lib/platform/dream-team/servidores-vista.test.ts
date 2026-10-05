@@ -26,6 +26,7 @@ import {
   ID_DHAH,
   ID_PAREJAS,
   ID_PDP,
+  ID_TALLERES,
   arbolServidores,
   fila,
   filasConexion,
@@ -157,7 +158,7 @@ describe('dirección → equipo cascade', () => {
   })
 
   it('the patches keep the cascade consistent', () => {
-    expect(parcheElegirDireccion(ID_CONEXION)).toEqual({ direccion: ID_CONEXION, equipo: null })
+    expect(parcheElegirDireccion(ID_CONEXION)).toEqual({ direccion: ID_CONEXION, area: null, equipo: null })
     const opciones = vista().opciones.equipos
     expect(parcheElegirEquipo(ID_CORO, opciones)).toEqual({ equipo: ID_CORO, direccion: ID_ALABANZA })
     expect(parcheElegirEquipo(null, opciones)).toEqual({ equipo: null })
@@ -185,6 +186,9 @@ describe('dirección → equipo cascade', () => {
       direccionId: ID_CONEXION,
       direccionLabel: 'Dirección de Conexión',
       ruta: 'Dirección de Conexión · Talleres',
+      ancestros: [ID_CONEXION, ID_TALLERES],
+      rutaArea: ['Talleres', 'Punto de Partida'],
+      tieneHijos: false,
     })
     expect(indice.get(ID_CONEXION)?.ruta).toBe('')
   })
@@ -338,7 +342,7 @@ describe('pills', () => {
     expect(v.pastillas[0].quitarEtiqueta).toBe('Quitar el filtro Etapa: Activo')
     expect(v.pastillas[0].parche).toEqual({ etapa: null })
     // Removing the dirección pill also drops the equipo that depends on it.
-    expect(v.pastillas[1].parche).toEqual({ direccion: null, equipo: null })
+    expect(v.pastillas[1].parche).toEqual({ direccion: null, area: null, equipo: null })
     expect(v.pastillas[6].parche).toEqual({ varios: false })
   })
 
@@ -373,6 +377,7 @@ describe('URL codec', () => {
     const filtros: FiltrosServidores = {
       etapa: 'en_pausa',
       direccion: ID_CONEXION,
+      area: null,
       equipo: ID_PDP,
       rol: 'Coordinador',
       turno: null,

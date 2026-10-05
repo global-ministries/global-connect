@@ -26,6 +26,7 @@ import { UserPlus } from 'lucide-react'
 import { BotonSistema, ContenedorDashboard, TextoSistema } from '@/components/ui/sistema-diseno'
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { useCampus } from '@/hooks/useCampus'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { AsignadorServicioDialog, type NodoPlano } from '@/components/dream-team/asignador-servicio-dialog'
 
@@ -53,7 +54,7 @@ export interface ServidoresClientProps {
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
   readonly puedeEditar: boolean
   readonly filtrosIniciales: FiltrosServidores
-  /** The campus service shifts offered by the "Turno" filter. */
+  /** Every active campus shift: names the Turno column; the filter offers those of the selected campus. */
   readonly turnos?: readonly Turno[]
 }
 
@@ -81,6 +82,7 @@ function aplanarArbol(nodos: readonly NodoArbol<NodoEquipoArbol>[]): NodoPlano[]
 const SIN_FILTROS: Partial<FiltrosServidores> = {
   etapa: null,
   direccion: null,
+  area: null,
   equipo: null,
   rol: null,
   turno: null,
@@ -103,6 +105,8 @@ export function ServidoresClient({
   const router = useRouter()
   const pathname = usePathname() ?? ''
   const toast = useNotificaciones()
+  // The campus selected in the app header; read only, `null` = every campus.
+  const { campusId } = useCampus()
 
   const [filtros, setFiltros] = useState<FiltrosServidores>(filtrosIniciales)
   const [asignadorAbierto, setAsignadorAbierto] = useState(false)
@@ -115,7 +119,10 @@ export function ServidoresClient({
     [],
   )
 
-  const vista = useMemo(() => calcularVistaServidores({ filas, arbol, filtros, turnos }), [filas, arbol, filtros, turnos])
+  const vista = useMemo(
+    () => calcularVistaServidores({ filas, arbol, filtros, turnos, campusId }),
+    [filas, arbol, filtros, turnos, campusId],
+  )
   const nodosPlanos = useMemo(() => aplanarArbol(arbol), [arbol])
 
   function sincronizarUrl(siguiente: FiltrosServidores, diferir: boolean): void {
