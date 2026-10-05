@@ -14,6 +14,9 @@
 --      shift the node does not serve is rejected.
 --   f. Reading the assignments follows the servicio's read policy.
 --   g. anon cannot execute the helper function.
+--   h. Narrowing a node's shifts removes the assignments that no longer fit in
+--      the node and its descendants (a descendant with its own restriction is
+--      judged by it); deactivating a shift removes its assignments.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
 -- of the failing cases (0 failing cases = all ok).
@@ -120,10 +123,12 @@ INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label,
   (pg_temp.id('eq', 1), 'experiencia', NULL, 'ZZ Tu R', true),
   (pg_temp.id('eq', 2), 'ninos', pg_temp.id('eq', 1), 'ZZ Tu N', true),
   (pg_temp.id('eq', 3), 'ninos', pg_temp.id('eq', 2), 'ZZ Tu S', true),
-  (pg_temp.id('eq', 4), 'estudiantes', pg_temp.id('eq', 1), 'ZZ Tu E', true);
+  (pg_temp.id('eq', 4), 'estudiantes', pg_temp.id('eq', 1), 'ZZ Tu E', true),
+  (pg_temp.id('eq', 5), 'ninos', pg_temp.id('eq', 3), 'ZZ Tu S2', true);
 
 INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
-  (pg_temp.id('ro', 1), pg_temp.id('eq', 3), 'voluntario', true);
+  (pg_temp.id('ro', 1), pg_temp.id('eq', 3), 'voluntario', true),
+  (pg_temp.id('ro', 2), pg_temp.id('eq', 5), 'voluntario', true);
 
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id) VALUES
   (pg_temp.id('us', 1), 'dream_team.org.manage', 'dream_team', 'experience', NULL),
@@ -134,7 +139,8 @@ INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, exp
 INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado) VALUES
   (pg_temp.id('se', 3), pg_temp.id('us', 3), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'activo'),
   (pg_temp.id('se', 4), pg_temp.id('us', 4), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'activo'),
-  (pg_temp.id('se', 5), pg_temp.id('us', 5), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'activo');
+  (pg_temp.id('se', 5), pg_temp.id('us', 5), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'activo'),
+  (pg_temp.id('se', 6), pg_temp.id('us', 4), pg_temp.id('eq', 5), pg_temp.id('ro', 2), 'activo');
 
 -- Table grants are explicit in the migration; the helpers need theirs here.
 GRANT INSERT, SELECT ON t_tu_failures TO authenticated;
@@ -266,6 +272,49 @@ SELECT pg_temp.assert_eq('f: the director reads the assignments of the branch',
   $q$SELECT count(*)::text FROM public.dream_team_servicio_turnos WHERE servicio_id IN (pg_temp.id('se', 4), pg_temp.id('se', 5))$q$,
   '2');
 
+-- ── h. narrowing and deactivating prune the assignments ──────────────
+-- State here: N restricted to T1, T2; S inherits; P1 (se4) on T1; P2 (se5)
+-- on T5 of Z2.
+
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_ok('h: fixture assignments on T1 and T2',
+  $q$INSERT INTO public.dream_team_servicio_turnos (servicio_id, turno_id) VALUES
+       (pg_temp.id('se', 3), pg_temp.id('tu', 1)), (pg_temp.id('se', 3), pg_temp.id('tu', 2)),
+       (pg_temp.id('se', 4), pg_temp.id('tu', 2)),
+       (pg_temp.id('se', 6), pg_temp.id('tu', 1)), (pg_temp.id('se', 6), pg_temp.id('tu', 2))$q$);
+
+SELECT pg_temp.assert_ok('h: S2 restricts itself to T2 and T3',
+  $q$INSERT INTO public.dream_team_equipo_turnos (equipo_id, turno_id) VALUES
+       (pg_temp.id('eq', 5), pg_temp.id('tu', 2)), (pg_temp.id('eq', 5), pg_temp.id('tu', 3))$q$);
+SELECT pg_temp.assert_eq('h: the S2 servicio loses T1, which S2 no longer serves',
+  $q$SELECT string_agg(turno_id::text, ',') FROM public.dream_team_servicio_turnos WHERE servicio_id = pg_temp.id('se', 6)$q$,
+  pg_temp.id('tu', 2)::text);
+
+SELECT pg_temp.assert_ok('h: N narrows to T1',
+  $q$DELETE FROM public.dream_team_equipo_turnos WHERE equipo_id = pg_temp.id('eq', 2) AND turno_id = pg_temp.id('tu', 2)$q$);
+SELECT pg_temp.assert_eq('h: servicios of S, which inherits N, keep only T1',
+  $q$SELECT string_agg(servicio_id::text || '=' || turno_id::text, ',' ORDER BY servicio_id, turno_id)
+       FROM public.dream_team_servicio_turnos
+      WHERE servicio_id IN (pg_temp.id('se', 3), pg_temp.id('se', 4))$q$,
+  pg_temp.id('se', 3)::text || '=' || pg_temp.id('tu', 1)::text || ',' ||
+  pg_temp.id('se', 4)::text || '=' || pg_temp.id('tu', 1)::text);
+SELECT pg_temp.assert_eq('h: S2 keeps T2 under its own restriction',
+  $q$SELECT string_agg(turno_id::text, ',') FROM public.dream_team_servicio_turnos WHERE servicio_id = pg_temp.id('se', 6)$q$,
+  pg_temp.id('tu', 2)::text);
+SELECT pg_temp.assert_eq('h: a shift of another campus is untouched',
+  $q$SELECT string_agg(turno_id::text, ',') FROM public.dream_team_servicio_turnos WHERE servicio_id = pg_temp.id('se', 5)$q$,
+  pg_temp.id('tu', 5)::text);
+
+SELECT pg_temp.assert_ok('h: org.manage deactivates T1',
+  $q$UPDATE public.dream_team_turnos SET activo = false WHERE id = pg_temp.id('tu', 1)$q$);
+SELECT pg_temp.assert_eq('h: a deactivated shift keeps no assignment',
+  $q$SELECT count(*)::text FROM public.dream_team_servicio_turnos WHERE turno_id = pg_temp.id('tu', 1)$q$,
+  '0');
+SELECT pg_temp.assert_eq('h: other shifts keep theirs',
+  $q$SELECT count(*)::text FROM public.dream_team_servicio_turnos
+      WHERE servicio_id IN (pg_temp.id('se', 5), pg_temp.id('se', 6))$q$,
+  '2');
+
 RESET ROLE;
 
 -- ── g. privileges ────────────────────────────────────────────────────
@@ -281,6 +330,10 @@ SELECT pg_temp.assert_eq('g: RLS is on for the three tables',
       WHERE relnamespace = 'public'::regnamespace
         AND relname IN ('dream_team_turnos', 'dream_team_equipo_turnos', 'dream_team_servicio_turnos')$q$,
   'dream_team_equipo_turnos=true,dream_team_servicio_turnos=true,dream_team_turnos=true');
+SELECT pg_temp.assert_eq('g: the pruning trigger functions are not executable by authenticated',
+  $q$SELECT (has_function_privilege('authenticated', 'public.dream_team_equipo_turnos_podar()', 'EXECUTE')
+          OR has_function_privilege('authenticated', 'public.dream_team_turnos_podar_inactivo()', 'EXECUTE'))::text$q$,
+  'false');
 
 SELECT count(*) AS failing_cases, coalesce(string_agg(case_name, E'\n'), 'all cases ok') AS detail
   FROM t_tu_failures;
