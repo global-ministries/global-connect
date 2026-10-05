@@ -139,6 +139,9 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // redesigned /admin/dream-team/servidores screen (filters, counters, sort,
   // grouping, URL codec).
   'lib/platform/dream-team/servidores-vista.ts',
+  // turnos.ts — new (2026-10-05): campus service shifts (fetch, ordering and
+  // assignment helpers) for Servidores, Mi equipo and Estructura.
+  'lib/platform/dream-team/turnos.ts',
   'lib/platform/dream-team/types.ts',
 
   // PR24 (2026-08-14): fix sidebar 404 — talleres admin href /admin/talleres
