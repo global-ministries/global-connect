@@ -65,8 +65,10 @@ import {
 import { cargarPermisosPorEquipos, PERMISOS_TALLER_ALL_FALSE } from '@/lib/platform/talleres/permisos'
 import {
   approveInscripcionAction,
+  reenviarAccesoAction,
   rejectInscripcionAction,
 } from '@/lib/platform/talleres/inscripciones-actions'
+import { conEstadoAcceso } from '@/lib/platform/talleres/invitacion-acceso-estado'
 import {
   aprobarSolicitudRetiroAction,
   rechazarSolicitudRetiroAction,
@@ -163,6 +165,8 @@ export default async function PendientesPage(ctx?: RouteContext) {
     loadPendientesInscripciones(client, estadosParaLoader(estadoFiltro)),
     loadPendientesSolicitudes(client),
   ])
+  // Access status for the inscriptions whose partner ficha the member created.
+  const filasInscripciones = await conEstadoAcceso(inscripciones.rows)
 
   // One distinct-equipo set across BOTH sections, so a viewer who is
   // e.g. coordinador of the same equipo for both an inscripcion and a
@@ -247,10 +251,11 @@ export default async function PendientesPage(ctx?: RouteContext) {
                 />
               ) : (
                 <TablaInscripciones
-                  rows={inscripciones.rows}
+                  rows={filasInscripciones}
                   canWrite={writableInscripcionIds}
                   onApprove={approveInscripcionAction}
                   onReject={rejectInscripcionAction}
+                  onReenviarAcceso={reenviarAccesoAction}
                 />
               )}
             </div>

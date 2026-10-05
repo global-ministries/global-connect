@@ -71,6 +71,7 @@ import {
   type InscripcionApproveAction,
   type InscripcionRejectAction,
 } from './inscripcion-actions'
+import { AccesoFichaNueva, type ReenviarAccesoAction } from './acceso-ficha-nueva'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { unitEstadoBadgeVariante, unitEstadoLabel } from '@/components/talleres/labels'
 
@@ -107,6 +108,8 @@ export interface TablaInscripcionesProps {
   readonly seleccion?: SeleccionGrupoProps
   /** Adds the Resultado (unit_estado) column; the edición page sets it once closed. */
   readonly mostrarResultado?: boolean
+  /** "Reenviar acceso" for inscriptions whose partner ficha the member created. */
+  readonly onReenviarAcceso?: ReenviarAccesoAction
 }
 
 function resolveCanWrite(canWrite: CanWriteInscripcion, row: InscripcionAdminRow): boolean {
@@ -354,6 +357,7 @@ export function TablaInscripciones({
   onReject,
   seleccion,
   mostrarResultado = false,
+  onReenviarAcceso,
 }: TablaInscripcionesProps): React.ReactElement {
   // Hooks must run unconditionally (rules-of-hooks) — the seleccion FEATURE
   // is what's conditional (whether the checkbox column/bulk bar render),
@@ -469,7 +473,17 @@ export function TablaInscripciones({
                       {linkLabel ?? <span className="text-muted-foreground/50">—</span>}
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {row.companero_nombre ?? <span className="text-muted-foreground/50">—</span>}
+                      <div className="flex flex-col gap-1">
+                        {row.companero_nombre ?? <span className="text-muted-foreground/50">—</span>}
+                        {row.pareja_origen === 'ficha_nueva' && (
+                          <AccesoFichaNueva
+                            inscripcionId={row.id}
+                            accesoEstado={row.acceso_estado}
+                            puedeReenviar={rowCanWrite}
+                            onReenviarAcceso={onReenviarAcceso}
+                          />
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       {formatFecha(row.created_at)}
@@ -549,6 +563,16 @@ export function TablaInscripciones({
                     <TextoSistema variante="sutil" className="mt-1 block text-xs">
                       + {row.companero_nombre}
                     </TextoSistema>
+                  )}
+                  {row.pareja_origen === 'ficha_nueva' && (
+                    <div className="mt-1">
+                      <AccesoFichaNueva
+                        inscripcionId={row.id}
+                        accesoEstado={row.acceso_estado}
+                        puedeReenviar={rowCanWrite}
+                        onReenviarAcceso={onReenviarAcceso}
+                      />
+                    </div>
                   )}
                   {row.sobre_cupo && (
                     <div className="mt-1">

@@ -21,6 +21,12 @@
  *     `trg_taller_inscripciones_couple_unit` trigger (otherwise
  *     the UPDATE is rejected with a CHECK violation).
  *
+ * Talleres — ficha nueva del cónyuge (odd/tasks/talleres-conyuge-invitacion.md
+ * C2): a successful approval runs the access sender (the database decides
+ * which invitations are due), and `reenviarAccesoAction(inscripcionId)`
+ * mails a fresh access link for an inscription whose partner ficha was
+ * created by the member.
+ *
  * Capability gate mirrors the page-level gate and the RLS policy:
  *   talleres_crecimiento.director.write
  *   OR talleres_crecimiento.admin.manage
@@ -47,6 +53,8 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { enviarInvitacionAcceso, enviarInvitacionesPendientes } from '@/lib/platform/talleres/invitacion-acceso-envio'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
 export type InscripcionError =
   | 'talleres-disabled'
@@ -56,6 +64,8 @@ export type InscripcionError =
   | 'UPDATE_FAILED'
   | 'NOT_FOUND_OR_NOT_PENDIENTE'
   | 'INVALID_MOTIVO'
+  | 'ACCESO_NO_DISPONIBLE'
+  | 'ENVIO_FALLIDO'
 
 export interface InscripcionActionResult {
   readonly ok: boolean
@@ -175,8 +185,71 @@ export async function approveInscripcionAction(
     }
   }
 
+  // A partner ficha created at enrollment may now be due its access email
+  // (taller set to 'al_aprobar'). The sender never throws.
+  await enviarInvitacionesPendientes()
+
   revalidateInscripcionSurfaces()
   return { ok: true, message: 'Inscripci\u00f3n aprobada.' }
+}
+
+/**
+ * Mails a fresh access link for the partner ficha created at this
+ * inscription. The coordinator must hold a write capability and see the
+ * inscription through RLS; the invitation itself is service_role only, so
+ * it is read and prepared with the admin client after both checks.
+ */
+export async function reenviarAccesoAction(inscripcionId: string): Promise<InscripcionActionResult> {
+  const auth = await requireInscripcionWriteCap(inscripcionId)
+  if (!auth.ok) {
+    return { ok: false, error: auth.error, message: auth.message }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = auth.supabase
+  const { data: inscripcion, error } = await client
+    .from('taller_inscripciones')
+    .select('id, pareja_origen')
+    .eq('id', inscripcionId)
+    .maybeSingle()
+  if (error || !inscripcion) {
+    return { ok: false, error: 'NOT_FOUND_OR_NOT_PENDIENTE', message: 'No encontramos esa inscripción.' }
+  }
+  if (inscripcion.pareja_origen !== 'ficha_nueva') {
+    return {
+      ok: false,
+      error: 'ACCESO_NO_DISPONIBLE',
+      message: 'Esta inscripción no tiene un acceso pendiente para enviar.',
+    }
+  }
+
+  const admin = createSupabaseAdminClient()
+  const { data: invitaciones, error: errorInvitacion } = await admin
+    .from('invitaciones_acceso')
+    .select('id')
+    .eq('inscripcion_id', inscripcionId)
+    .order('creado_en', { ascending: false })
+    .limit(1)
+  const invitacionId = (invitaciones ?? [])[0]?.id
+  if (errorInvitacion || !invitacionId) {
+    return {
+      ok: false,
+      error: 'ACCESO_NO_DISPONIBLE',
+      message: 'Esta inscripción no tiene un acceso pendiente para enviar.',
+    }
+  }
+
+  const resultado = await enviarInvitacionAcceso(invitacionId)
+  revalidateInscripcionSurfaces()
+  if (resultado === 'enviada') return { ok: true, message: 'Acceso reenviado.' }
+  if (resultado === 'omitida') {
+    return {
+      ok: false,
+      error: 'ACCESO_NO_DISPONIBLE',
+      message: 'El acceso ya no está activo: la cuenta fue activada o la invitación se cerró.',
+    }
+  }
+  return { ok: false, error: 'ENVIO_FALLIDO', message: 'No se pudo enviar el correo. Inténtalo de nuevo más tarde.' }
 }
 
 /**

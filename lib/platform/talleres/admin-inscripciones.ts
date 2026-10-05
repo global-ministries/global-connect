@@ -99,7 +99,7 @@ export async function loadAdminInscripciones(
     .select(
       `id, taller_id, estado, link_type, created_at, updated_at,
        cohorte_id, persona_principal_id, companero_id, grupo_id,
-       sobre_cupo, sobre_cupo_en, unit_estado`,
+       sobre_cupo, sobre_cupo_en, unit_estado, pareja_origen`,
     )
     .order('created_at', { ascending: false })
     .limit(500)
@@ -317,6 +317,7 @@ export async function loadAdminInscripciones(
       })(),
       sobre_cupo_en: (r.sobre_cupo_en as string | null) ?? null,
       unit_estado: typeof r.unit_estado === 'string' ? r.unit_estado : null,
+      pareja_origen: typeof r.pareja_origen === 'string' ? r.pareja_origen : null,
     })
   }
 

@@ -89,4 +89,12 @@ export interface InscripcionAdminRow {
    * loadAdminInscripciones (the edición page's loader) populates it.
    */
   readonly unit_estado?: string | null
+  /**
+   * Talleres — ficha nueva del cónyuge (odd/tasks/talleres-conyuge-invitacion.md
+   * C2): how the partner was identified ('conyuge_registrado' | 'cedula' |
+   * 'ficha_nueva'), and for 'ficha_nueva' the access invitation estado read
+   * with the admin client (null when unknown). Optional: older loaders omit them.
+   */
+  readonly pareja_origen?: string | null
+  readonly acceso_estado?: string | null
 }
