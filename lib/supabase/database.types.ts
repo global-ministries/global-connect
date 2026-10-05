@@ -1450,6 +1450,39 @@ export type Database = {
         }
         Relationships: []
       }
+      dream_team_equipo_turnos: {
+        Row: {
+          created_at: string
+          equipo_id: string
+          turno_id: string
+        }
+        Insert: {
+          created_at?: string
+          equipo_id: string
+          turno_id: string
+        }
+        Update: {
+          created_at?: string
+          equipo_id?: string
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_equipo_turnos_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dream_team_equipo_turnos_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dream_team_equipos: {
         Row: {
           activo: boolean
@@ -1711,6 +1744,39 @@ export type Database = {
           },
         ]
       }
+      dream_team_servicio_turnos: {
+        Row: {
+          created_at: string
+          servicio_id: string
+          turno_id: string
+        }
+        Insert: {
+          created_at?: string
+          servicio_id: string
+          turno_id: string
+        }
+        Update: {
+          created_at?: string
+          servicio_id?: string
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_servicio_turnos_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dream_team_servicio_turnos_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dream_team_servicios: {
         Row: {
           created_at: string
@@ -1799,6 +1865,50 @@ export type Database = {
             columns: ["rol_id"]
             isOneToOne: false
             referencedRelation: "dream_team_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dream_team_turnos: {
+        Row: {
+          activo: boolean
+          campus_id: string
+          created_at: string
+          dia_semana: number
+          hora: string
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          campus_id: string
+          created_at?: string
+          dia_semana: number
+          hora: string
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          campus_id?: string
+          created_at?: string
+          dia_semana?: number
+          hora?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_turnos_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
             referencedColumns: ["id"]
           },
         ]
@@ -8008,6 +8118,10 @@ export type Database = {
           id: string
           nombre: string
         }[]
+      }
+      dream_team_turnos_del_equipo: {
+        Args: { p_campus_id: string; p_equipo_id: string }
+        Returns: string[]
       }
       eliminar_miembro_de_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string; p_usuario_id: string }
