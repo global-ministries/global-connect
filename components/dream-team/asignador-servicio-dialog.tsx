@@ -9,6 +9,10 @@
  * `equipoIdInicial` preselects the equipo each time the dialog opens; the
  * person still picks the role. Creating the servicio POSTs
  * /api/dream-team/servicios (it starts in `postulado`).
+ *
+ * When the person is not in the system yet, "Registrar persona nueva" swaps
+ * the search for RegistrarPersonaForm (T7), which registers and assigns them
+ * in one step with the equipo and rol chosen here.
  */
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -17,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { BotonSistema, InputSistema, SelectSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import type { useNotificaciones } from '@/hooks/use-notificaciones'
 import { rolLabel } from '@/components/dream-team/labels'
+import { RegistrarPersonaForm } from '@/components/dream-team/registrar-persona-form'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 
 export interface NodoPlano {
@@ -69,6 +74,7 @@ export function AsignadorServicioDialog({
   const [equipoId, setEquipoId] = useState('')
   const [rolId, setRolId] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [registrando, setRegistrando] = useState(false)
 
   const requestSeqRef = useRef(0)
 
@@ -79,6 +85,7 @@ export function AsignadorServicioDialog({
     setPersona(null)
     setEquipoId(equipoIdInicial ?? '')
     setRolId('')
+    setRegistrando(false)
   }, [abierto, equipoIdInicial])
 
   useEffect(() => {
@@ -145,6 +152,30 @@ export function AsignadorServicioDialog({
     }
   }
 
+  const selectores = (
+    <>
+      <SelectSistema
+        label="Equipo"
+        opciones={nodosPlanos.map((n) => ({ valor: n.id, etiqueta: n.etiqueta }))}
+        placeholder="Elige un equipo"
+        value={equipoId}
+        onValueChange={(v) => {
+          setEquipoId(v)
+          setRolId('')
+        }}
+      />
+
+      <SelectSistema
+        label="Rol"
+        opciones={rolesDelNodo.map((r) => ({ valor: r.id, etiqueta: rolLabel(r.label) }))}
+        placeholder={equipoId ? 'Elige un rol' : 'Elige primero un equipo'}
+        value={rolId}
+        onValueChange={setRolId}
+        disabled={!equipoId}
+      />
+    </>
+  )
+
   return (
     <Dialog open={abierto} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -154,7 +185,22 @@ export function AsignadorServicioDialog({
         </DialogHeader>
 
         <div className="grid gap-3">
-          {persona ? (
+          {registrando ? (
+            <>
+              {selectores}
+              <RegistrarPersonaForm
+                equipoId={equipoId}
+                rolId={rolId}
+                toast={toast}
+                onCreada={onAsignado}
+                onCancelar={() => setRegistrando(false)}
+                onElegir={(p) => {
+                  setPersona(p)
+                  setRegistrando(false)
+                }}
+              />
+            </>
+          ) : persona ? (
             <div className="flex items-center justify-between gap-3 rounded border border-border px-3 py-2">
               <TextoSistema className="min-w-0 truncate font-medium">{nombreCompleto(persona)}</TextoSistema>
               <BotonSistema type="button" variante="ghost" tamaño="sm" onClick={() => setPersona(null)}>
@@ -199,31 +245,26 @@ export function AsignadorServicioDialog({
                   ))}
                 </ul>
               )}
+              {!buscando && (
+                <BotonSistema
+                  type="button"
+                  variante="ghost"
+                  tamaño="sm"
+                  className="mt-1"
+                  onClick={() => setRegistrando(true)}
+                >
+                  Registrar persona nueva
+                </BotonSistema>
+              )}
             </div>
           )}
 
-          <SelectSistema
-            label="Equipo"
-            opciones={nodosPlanos.map((n) => ({ valor: n.id, etiqueta: n.etiqueta }))}
-            placeholder="Elige un equipo"
-            value={equipoId}
-            onValueChange={(v) => {
-              setEquipoId(v)
-              setRolId('')
-            }}
-          />
+          {!registrando && selectores}
 
-          <SelectSistema
-            label="Rol"
-            opciones={rolesDelNodo.map((r) => ({ valor: r.id, etiqueta: rolLabel(r.label) }))}
-            placeholder={equipoId ? 'Elige un rol' : 'Elige primero un equipo'}
-            value={rolId}
-            onValueChange={setRolId}
-            disabled={!equipoId}
-          />
         </div>
 
-        <div className="mt-4 flex justify-end gap-2">
+        {!registrando && (
+          <div className="mt-4 flex justify-end gap-2">
           <BotonSistema type="button" variante="outline" tamaño="sm" onClick={onClose}>
             Cancelar
           </BotonSistema>
@@ -237,7 +278,8 @@ export function AsignadorServicioDialog({
           >
             {enviando ? 'Creando…' : 'Crear'}
           </BotonSistema>
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )
