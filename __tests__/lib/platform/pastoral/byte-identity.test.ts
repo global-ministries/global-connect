@@ -142,6 +142,9 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // turnos.ts — new (2026-10-05): campus service shifts (fetch, ordering and
   // assignment helpers) for Servidores, Mi equipo and Estructura.
   'lib/platform/dream-team/turnos.ts',
+  // alta-persona.ts — new (2026-10-06): body validation and RPC mapping for
+  // registering a new person from the Dream Team assigner (T7/T9).
+  'lib/platform/dream-team/alta-persona.ts',
   'lib/platform/dream-team/types.ts',
 
   // PR24 (2026-08-14): fix sidebar 404 — talleres admin href /admin/talleres
@@ -157,6 +160,12 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // one-line structural change reflected in the registry, no impact
   // on the byte-identity contract.
   'lib/platform/navigation.ts',
+
+  // feat/dream-team-alta-persona (2026-10-06): enum_tipo_relacion gained the
+  // gender-neutral kinships 'abuelo' and 'tio' (20261006110000), used to link
+  // a child's representative. family.ts mirrors the enum, so it lists both,
+  // labels them (Abuelo/a, Tío/a) and gives them no symmetric inverse.
+  'lib/platform/family.ts',
 ])
 
 describe('Byte-identity — protected files unchanged (I-1 to I-16)', () => {

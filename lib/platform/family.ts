@@ -10,6 +10,8 @@ export const PLATFORM_FAMILY_RELATION_TYPES = [
   'hijo',
   'tutor',
   'hermano',
+  'abuelo',
+  'tio',
   'otro_familiar',
 ] as const
 
@@ -97,6 +99,8 @@ export function invertPlatformFamilyRelation(type: PlatformFamilyRelationType | 
     case 'hermano':
       return 'hermano'
     case 'tutor':
+    case 'abuelo':
+    case 'tio':
     case 'otro_familiar':
       return null
     default:
@@ -111,6 +115,8 @@ export const PLATFORM_FAMILY_RELATION_LABELS = {
   hijo: 'Hijo / Hija',
   tutor: 'Tutor',
   hermano: 'Hermano / Hermana',
+  abuelo: 'Abuelo/a',
+  tio: 'Tío/a',
   otro_familiar: 'Otro familiar',
   autorizado: 'Autorizado',
   contacto: 'Contacto',

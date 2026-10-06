@@ -47,6 +47,8 @@ export interface MiEquipoClientProps {
   readonly vista: VistaDireccion | null
   readonly direccionId: string
   readonly puedeEditar: boolean
+  /** May register NEW people (the volunteer coordinator), even without assigning existing ones. */
+  readonly puedeRegistrar?: boolean
   readonly equiposAsignables: readonly EquipoAsignable[]
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
   /**
@@ -85,10 +87,12 @@ function MiEquipoVistaDireccion({
   vista,
   direccionId,
   puedeEditar,
+  puedeRegistrar = false,
   equiposAsignables,
   rolesPorEquipo,
   turnos = SIN_TURNOS,
 }: MiEquipoClientProps & { readonly vista: VistaDireccion }): ReactElement {
+  const puedeAgregar = puedeEditar || puedeRegistrar
   const router = useRouter()
   const toast = useNotificaciones()
   // The campus selected in the app header (read only); `null` = every campus.
@@ -146,7 +150,7 @@ function MiEquipoVistaDireccion({
         query={query}
         onQueryChange={setQuery}
         accion={
-          puedeEditar ? (
+          puedeAgregar ? (
             <BotonSistema type="button" icono={Plus} className="hidden md:inline-flex" onClick={() => setAsignadorAbierto(true)}>
               Agregar persona
             </BotonSistema>
@@ -183,7 +187,7 @@ function MiEquipoVistaDireccion({
         turnos={turnos}
       />
 
-      {puedeEditar && (
+      {puedeAgregar && (
         <>
           <BotonFlotante icono={Plus} label="Agregar persona" onClick={() => setAsignadorAbierto(true)} />
           <AsignadorServicioDialog
@@ -198,6 +202,8 @@ function MiEquipoVistaDireccion({
               router.refresh()
             }}
             toast={toast}
+            soloRegistrar={!puedeEditar}
+            turnos={turnosDelCampus}
           />
         </>
       )}

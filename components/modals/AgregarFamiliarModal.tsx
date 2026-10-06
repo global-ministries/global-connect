@@ -142,6 +142,8 @@ export function AgregarFamiliarModal({
     { valor: "conyuge", etiqueta: "Cónyuge" },
     { valor: "hermano", etiqueta: "Hermano/Hermana" },
     { valor: "tutor", etiqueta: "Tutor" },
+    { valor: "abuelo", etiqueta: "Abuelo/a" },
+    { valor: "tio", etiqueta: "Tío/a" },
     { valor: "otro_familiar", etiqueta: "Otro Familiar" },
   ]
 

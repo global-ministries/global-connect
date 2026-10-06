@@ -5,9 +5,16 @@ import { hasDreamTeamReadCapability, hasDreamTeamWriteCapability, isDreamTeamEna
 import { DREAM_TEAM_ESTADOS, DREAM_TEAM_MOTIVOS, personaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamEstado, DreamTeamMotivo } from '@/lib/platform/dream-team/types'
 import type { DreamTeamServicioFiltros } from '@/lib/platform/dream-team/repository'
+import { esUuid } from '@/lib/platform/dream-team/alta-persona'
 import { randomUUID } from 'node:crypto'
 
 const bad = (message: string) => NextResponse.json({ error: message }, { status: 400 })
+const personaNoEncontrada = () => NextResponse.json({ error: 'Persona no encontrada' }, { status: 422 })
+// The persona's existence is not checked with a SELECT first: usuarios RLS hides most people from
+// an area director, so a pre-check would refuse real people. The FK on dream_team_servicios is the
+// authority; its violation (23503) is mapped to the same 422.
+const isForeignKeyViolation = (error: unknown) =>
+  typeof error === 'object' && error !== null && (error as { code?: unknown }).code === '23503'
 
 function parseFiltros(searchParams: URLSearchParams): DreamTeamServicioFiltros | { error: string } {
   const f: Record<string, unknown> = {}
@@ -55,12 +62,19 @@ export async function POST(req: NextRequest) {
     if (!pid || !equipoId || !rolId || typeof pid !== 'string' || typeof equipoId !== 'string' || typeof rolId !== 'string') {
       return bad('personaId, equipoId y rolId son requeridos')
     }
+    if (!esUuid(pid)) return personaNoEncontrada()
     if (motivo !== undefined && (typeof motivo !== 'string' || !DREAM_TEAM_MOTIVOS.includes(motivo as never))) return bad('motivo inválido')
     const repo = createSupabaseDreamTeamRepository(await createSupabaseServerClient())
     if (!(await repo.listEquipos()).some((x) => x.id === equipoId)) return bad('Equipo no encontrado')
     if (!(await repo.listRolesPorEquipo(equipoId)).some((x) => x.id === rolId)) return bad('Rol no encontrado')
     const motivoActual = ((motivo as DreamTeamMotivo | undefined) ?? 'admin_asignacion') as DreamTeamMotivo
-    const servicio = await repo.createServicio({ personaId: personaId(pid), equipoId, rolId, estado: 'postulado', fechaInicio: new Date().toISOString(), motivoActual })
+    let servicio
+    try {
+      servicio = await repo.createServicio({ personaId: personaId(pid), equipoId, rolId, estado: 'postulado', fechaInicio: new Date().toISOString(), motivoActual })
+    } catch (error) {
+      if (isForeignKeyViolation(error)) return personaNoEncontrada()
+      throw error
+    }
     const requisitos = await repo.listRequisitosPorRol(rolId)
     const verificaciones = await Promise.all(requisitos.map((r) => repo.upsertRequisitoVerificacion({ id: randomUUID(), servicioId: servicio.id, requisitoId: r.id, estado: 'pendiente' })))
     await repo.appendHistorial({ servicioId: servicio.id, estadoAnterior: 'postulado', estadoNuevo: 'postulado', motivo: motivoActual, actorPersonaId: personaId(s.personaId), fecha: new Date().toISOString() })

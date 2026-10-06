@@ -77,4 +77,20 @@ describe('POST /api/dream-team/servicios', () => {
     expect(b.historial).toHaveLength(1)
     expect(b.historial[0].actorPersonaId).toBe(actorPersonaId)
   })
+
+  it('422 when personaId is not a uuid, before touching the database', async () => {
+    auth([directorCap]); repo({ equipos: [equipoDPS], roles: [rolCámara] })
+    const res = await POST(request('/api/dream-team/servicios', { method: 'POST', body: JSON.stringify({ personaId: 'nope', equipoId: 'equipo-dps', rolId: 'rol-cam' }) }))
+    expect(res.status).toBe(422)
+    expect((await res.json()).error).toBe('Persona no encontrada')
+  })
+
+  it('422 instead of a 500 when the persona does not exist (FK 23503)', async () => {
+    auth([directorCap])
+    const fake = createInMemoryDreamTeamRepository({ seed: { equipos: [equipoDPS], roles: [rolCámara] } })
+    createRepo.mockReturnValue({ ...fake, createServicio: jest.fn().mockRejectedValue({ code: '23503', message: 'fk' }) })
+    const res = await POST(request('/api/dream-team/servicios', { method: 'POST', body: JSON.stringify({ personaId: '44444444-4444-4444-4444-444444444444', equipoId: 'equipo-dps', rolId: 'rol-cam' }) }))
+    expect(res.status).toBe(422)
+    expect((await res.json()).error).toBe('Persona no encontrada')
+  })
 })

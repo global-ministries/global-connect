@@ -326,21 +326,33 @@ export function filtrarPersonas(
 export interface EquipoAsignable {
   readonly id: string
   readonly etiqueta: string
+  /** Path below the direccion ("Talleres › Parejas"); the direccion itself is its own label. */
+  readonly ruta: readonly string[]
 }
 
 /**
  * The equipos a person can be assigned to from a direccion: the REAL nodes of
  * its branch (a virtual Grupos de Vida node is not a `dream_team_equipos` row,
- * so a servicio can't target it), depth-indented like the servidores assigner.
+ * so a servicio can't target it), depth-indented like the servidores assigner,
+ * with the path the assigner's tree-aware picker shows.
  */
 export function equiposAsignables(arbol: ArbolVista, direccionId: string): EquipoAsignable[] {
   const raiz = arbol.find((nodo) => nodo.equipo.id === direccionId)
   if (!raiz) return []
-  return nodosDeLaRama(raiz)
-    .filter((nodo) => nodo.equipo.origen === 'dream_team')
-    .map((nodo) => {
-      const profundidad = nodo.nivel - raiz.nivel
+  const nivelRaiz = raiz.nivel
+  const resultado: EquipoAsignable[] = []
+  function visitar(nodo: NodoArbol<NodoEquipoArbol>, ruta: readonly string[]): void {
+    if (nodo.equipo.origen === 'dream_team') {
+      const profundidad = nodo.nivel - nivelRaiz
       const prefijo = profundidad > 0 ? `${'—'.repeat(profundidad)} ` : ''
-      return { id: nodo.equipo.id, etiqueta: `${prefijo}${nodo.equipo.label}` }
-    })
+      resultado.push({
+        id: nodo.equipo.id,
+        etiqueta: `${prefijo}${nodo.equipo.label}`,
+        ruta: ruta.length > 0 ? ruta : [nodo.equipo.label],
+      })
+    }
+    nodo.hijos.forEach((hijo) => visitar(hijo, [...ruta, hijo.equipo.label]))
+  }
+  visitar(raiz, [])
+  return resultado
 }

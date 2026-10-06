@@ -8123,6 +8123,46 @@ export type Database = {
         Args: { p_campus_id: string; p_equipo_id: string }
         Returns: string[]
       }
+      dream_team_registrar_persona: {
+        Args: {
+          p_apellido: string
+          p_bautizado?: boolean
+          p_campus_id?: string
+          p_cedula?: string
+          p_equipo_id: string
+          p_estado_civil: Database["public"]["Enums"]["enum_estado_civil"]
+          p_fecha_bautizo?: string
+          p_fecha_nacimiento?: string
+          p_genero: Database["public"]["Enums"]["enum_genero"]
+          p_nombre: string
+          p_redes_sociales?: string
+          p_representante_id?: string
+          p_representante_tipo?: Database["public"]["Enums"]["enum_tipo_relacion"]
+          p_rol_id: string
+          p_talla_franela?: string
+          p_telefono?: string
+        }
+        Returns: Json
+      }
+      dream_team_equipos_registrables: {
+        Args: never
+        Returns: {
+          equipo_id: string
+        }[]
+      }
+      dream_team_opciones_registro: { Args: never; Returns: Json }
+      dream_team_puede_registrar_persona: {
+        Args: { p_equipo_id: string }
+        Returns: boolean
+      }
+      dream_team_persona_por_cedula: {
+        Args: { p_cedula: string }
+        Returns: {
+          apellido: string
+          id: string
+          nombre: string
+        }[]
+      }
       eliminar_miembro_de_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string; p_usuario_id: string }
         Returns: Json
@@ -9248,6 +9288,8 @@ export type Database = {
         | "tutor"
         | "hermano"
         | "otro_familiar"
+        | "abuelo"
+        | "tio"
       operating_core_capacity_source: "base" | "override"
       operating_core_event_estado: "active" | "cancelled"
       operating_core_event_kind:
@@ -9521,6 +9563,8 @@ export const Constants = {
         "tutor",
         "hermano",
         "otro_familiar",
+        "abuelo",
+        "tio",
       ],
       operating_core_capacity_source: ["base", "override"],
       operating_core_event_estado: ["active", "cancelled"],

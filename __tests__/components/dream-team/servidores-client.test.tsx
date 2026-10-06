@@ -523,7 +523,7 @@ describe('ServidoresClient — row menu and assigner', () => {
     expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Ver su equipo'])
   })
 
-  it('opens the assigner from the primary action, and its Equipo select never lists a virtual Grupos de Vida node', async () => {
+  it('opens the assigner from the primary action, and its Equipo picker never lists a virtual Grupos de Vida node', async () => {
     const arbolConGdv = [
       ...arbolServidores,
       {
@@ -532,14 +532,23 @@ describe('ServidoresClient — row menu and assigner', () => {
         nivel: 0,
       },
     ]
+    global.fetch = jest.fn(async (url: RequestInfo | URL) =>
+      String(url).startsWith('/api/dream-team/usuarios/buscar')
+        ? { ok: true, json: async () => [{ id: 'u-1', email: null, nombre: 'Ana', apellido: 'Uno' }] }
+        : { ok: true, json: async () => ({ equipos: [] }) },
+    ) as unknown as typeof fetch
     render(<ServidoresClient {...props({ arbol: arbolConGdv, puedeEditar: true })} />)
     await userEvent.click(screen.getAllByRole('button', { name: 'Asignar servicio' })[0])
 
-    const dialogo = screen.getByRole('dialog')
+    const dialogo = screen.getByRole('dialog', { name: 'Asignar servicio' })
     expect(within(dialogo).getByRole('heading', { name: 'Asignar servicio' })).toBeInTheDocument()
-    const opciones = Array.from((within(dialogo).getByLabelText('Equipo') as HTMLSelectElement).options).map((o) => o.text)
-    expect(opciones).toContain('— Coro')
-    expect(opciones).not.toContain('Matrimonios')
+    await userEvent.type(within(dialogo).getByLabelText('Buscar persona'), 'ana')
+    await userEvent.click(await within(dialogo).findByRole('button', { name: /Ana Uno/ }))
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Siguiente' }))
+    // The picker is on step 2; the equipos are listed by path, like the Área filter.
+    const radios = Array.from(dialogo.querySelectorAll('[role="radio"]')).map((r) => r.getAttribute('aria-label') ?? '')
+    expect(radios.some((ruta) => / › Coro$/.test(ruta))).toBe(true)
+    expect(radios.some((ruta) => ruta.includes('Matrimonios'))).toBe(false)
   })
 })
 

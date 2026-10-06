@@ -10,6 +10,8 @@ const RELACION_LABELS: Record<string, string> = {
   hijo: "Hijo/a",
   tutor: "Tutor",
   hermano: "Hermano/a",
+  abuelo: "Abuelo/a",
+  tio: "Tío/a",
   otro_familiar: "Familiar",
 }
 

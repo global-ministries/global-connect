@@ -17,6 +17,8 @@ export const RELACIONES_FAMILIARES = {
     'padre': 'Padre',
     'hijo': 'Hijo/a',
     'hermano': 'Hermano/a',
+    'abuelo': 'Abuelo/a',
+    'tio': 'Tío/a',
     'tutor': 'Tutor',
     'tutelado': 'Tutelado/a',
     'otro_familiar': 'Otro Familiar',
@@ -28,6 +30,8 @@ export const RELACIONES_FAMILIARES = {
     'padre': 'from-blue-500 to-blue-600',
     'hijo': 'from-green-500 to-green-600',
     'hermano': 'from-indigo-500 to-indigo-600',
+    'abuelo': 'from-amber-500 to-amber-600',
+    'tio': 'from-teal-500 to-teal-600',
     'tutor': 'from-purple-500 to-purple-600',
     'tutelado': 'from-purple-400 to-purple-500',
     'otro_familiar': 'from-gray-500 to-gray-600',
@@ -45,6 +49,10 @@ export function obtenerNombreRelacion(tipoRelacion: string, familiar?: any): str
         return familiar.genero === 'Femenino' ? 'Hija' : 'Hijo'
       case 'hermano':
         return familiar.genero === 'Femenino' ? 'Hermana' : 'Hermano'
+      case 'abuelo':
+        return familiar.genero === 'Femenino' ? 'Abuela' : 'Abuelo'
+      case 'tio':
+        return familiar.genero === 'Femenino' ? 'Tía' : 'Tío'
       case 'tutor':
         return familiar.genero === 'Femenino' ? 'Tutora' : 'Tutor'
       case 'tutelado':
