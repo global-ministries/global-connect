@@ -12,7 +12,12 @@
  *
  * When the person is not in the system yet, "Registrar persona nueva" swaps
  * the search for RegistrarPersonaForm (T7), which registers and assigns them
- * in one step with the equipo and rol chosen here.
+ * in one step with the equipo and rol chosen here. Only the volunteer
+ * coordinator of an area (and org.manage, admin, pastor) may register: the
+ * option shows only when GET /api/dream-team/usuarios/registrables lists some
+ * equipo, and while registering the equipo and rol selectors offer exactly
+ * those equipos (the database enforces the same set). `soloRegistrar` opens
+ * straight into the form, for a registrar who may not assign existing people.
  */
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -23,6 +28,7 @@ import type { useNotificaciones } from '@/hooks/use-notificaciones'
 import { rolLabel } from '@/components/dream-team/labels'
 import { RegistrarPersonaForm } from '@/components/dream-team/registrar-persona-form'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import type { OpcionRegistro } from '@/lib/platform/dream-team/alta-persona'
 
 export interface NodoPlano {
   readonly id: string
@@ -55,6 +61,19 @@ export interface AsignadorServicioDialogProps {
   readonly equipoIdInicial?: string
   /** Dialog title; defaults to "Asignar servicio" (the servidores pool wording). */
   readonly titulo?: string
+  /** Opens straight into "Registrar persona nueva" (a registrar who may not assign existing people). */
+  readonly soloRegistrar?: boolean
+}
+
+async function cargarOpcionesRegistro(signal: AbortSignal): Promise<OpcionRegistro[]> {
+  try {
+    const res = await fetch('/api/dream-team/usuarios/registrables', { cache: 'no-store', signal })
+    if (!res.ok) return []
+    const body = (await res.json()) as { equipos?: OpcionRegistro[] }
+    return Array.isArray(body.equipos) ? body.equipos : []
+  } catch {
+    return []
+  }
 }
 
 export function AsignadorServicioDialog({
@@ -66,6 +85,7 @@ export function AsignadorServicioDialog({
   toast,
   equipoIdInicial,
   titulo = 'Asignar servicio',
+  soloRegistrar = false,
 }: AsignadorServicioDialogProps): ReactElement {
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<UsuarioResult[]>([])
@@ -75,6 +95,7 @@ export function AsignadorServicioDialog({
   const [rolId, setRolId] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [registrando, setRegistrando] = useState(false)
+  const [opcionesRegistro, setOpcionesRegistro] = useState<readonly OpcionRegistro[] | null>(null)
 
   const requestSeqRef = useRef(0)
 
@@ -85,8 +106,27 @@ export function AsignadorServicioDialog({
     setPersona(null)
     setEquipoId(equipoIdInicial ?? '')
     setRolId('')
-    setRegistrando(false)
-  }, [abierto, equipoIdInicial])
+    setRegistrando(soloRegistrar)
+  }, [abierto, equipoIdInicial, soloRegistrar])
+
+  useEffect(() => {
+    if (!abierto) return
+    const controller = new AbortController()
+    setOpcionesRegistro(null)
+    void cargarOpcionesRegistro(controller.signal).then((opciones) => {
+      if (!controller.signal.aborted) setOpcionesRegistro(opciones)
+    })
+    return () => controller.abort()
+  }, [abierto])
+
+  // While registering, the equipo must be one the actor may register into.
+  useEffect(() => {
+    if (!registrando || equipoId === '' || opcionesRegistro === null) return
+    if (!opcionesRegistro.some((o) => o.id === equipoId)) {
+      setEquipoId('')
+      setRolId('')
+    }
+  }, [registrando, equipoId, opcionesRegistro])
 
   useEffect(() => {
     if (!abierto) return
@@ -127,7 +167,15 @@ export function AsignadorServicioDialog({
     }
   }, [query, persona, abierto])
 
-  const rolesDelNodo = equipoId ? (rolesPorEquipo[equipoId] ?? []) : []
+  const puedeRegistrar = (opcionesRegistro?.length ?? 0) > 0
+  const equiposDelSelector = registrando
+    ? (opcionesRegistro ?? []).map((o) => ({ valor: o.id, etiqueta: o.etiqueta }))
+    : nodosPlanos.map((n) => ({ valor: n.id, etiqueta: n.etiqueta }))
+  const rolesDelNodo: readonly { readonly id: string; readonly label: string }[] = !equipoId
+    ? []
+    : registrando
+      ? (opcionesRegistro?.find((o) => o.id === equipoId)?.roles ?? [])
+      : (rolesPorEquipo[equipoId] ?? [])
 
   async function crear(): Promise<void> {
     if (!persona || !equipoId || !rolId || enviando) return
@@ -156,7 +204,7 @@ export function AsignadorServicioDialog({
     <>
       <SelectSistema
         label="Equipo"
-        opciones={nodosPlanos.map((n) => ({ valor: n.id, etiqueta: n.etiqueta }))}
+        opciones={equiposDelSelector}
         placeholder="Elige un equipo"
         value={equipoId}
         onValueChange={(v) => {
@@ -193,7 +241,7 @@ export function AsignadorServicioDialog({
                 rolId={rolId}
                 toast={toast}
                 onCreada={onAsignado}
-                onCancelar={() => setRegistrando(false)}
+                onCancelar={soloRegistrar ? onClose : () => setRegistrando(false)}
                 onElegir={(p) => {
                   setPersona(p)
                   setRegistrando(false)
@@ -245,7 +293,7 @@ export function AsignadorServicioDialog({
                   ))}
                 </ul>
               )}
-              {!buscando && (
+              {!buscando && puedeRegistrar && (
                 <BotonSistema
                   type="button"
                   variante="ghost"

@@ -4,7 +4,9 @@
  *
  * The database does the work in one transaction
  * (dream_team_registrar_persona, 20261006100000_dream_team_alta_persona.sql):
- * it creates the person and their servicio postulado, or answers with the
+ * only the volunteer coordinator of the area, dream_team.org.manage, admin or
+ * pastor may call it (20261006110100); it creates the person and their
+ * servicio postulado, or answers with the
  * person who already holds the cedula ('existente') or the namesakes born the
  * same day ('coincidencias') without writing anything. This module only
  * validates the request body (same rules as the function, so the form gets a
@@ -14,11 +16,48 @@ import { prepararCedula } from '@/lib/utils/cedula'
 
 export const GENEROS = ['Masculino', 'Femenino', 'Otro'] as const
 export const ESTADOS_CIVILES = ['Soltero', 'Casado', 'Divorciado', 'Viudo'] as const
-export const TIPOS_REPRESENTANTE = ['padre', 'tutor'] as const
+// relaciones_usuarios reads "usuario2 is <tipo> of usuario1": the representative is
+// usuario2. The values are gender-neutral; 'hermano' covers an older sibling.
+export const TIPOS_REPRESENTANTE = ['padre', 'tutor', 'abuelo', 'tio', 'hermano', 'otro_familiar'] as const
 
 export type Genero = (typeof GENEROS)[number]
 export type EstadoCivil = (typeof ESTADOS_CIVILES)[number]
 export type TipoRepresentante = (typeof TIPOS_REPRESENTANTE)[number]
+
+export const TIPO_REPRESENTANTE_LABELS: Readonly<Record<TipoRepresentante, string>> = {
+  padre: 'Padre/Madre',
+  tutor: 'Tutor/a',
+  abuelo: 'Abuelo/a',
+  tio: 'Tío/a',
+  hermano: 'Hermano/a mayor',
+  otro_familiar: 'Otro familiar',
+}
+
+/** An equipo the actor may register a new person into, with its active roles. */
+export interface OpcionRegistro {
+  readonly id: string
+  readonly etiqueta: string
+  readonly roles: readonly { readonly id: string; readonly label: string }[]
+}
+
+/** Maps the jsonb of dream_team_opciones_registro, dropping malformed entries. */
+export function mapOpcionesRegistro(data: unknown): OpcionRegistro[] {
+  if (!Array.isArray(data)) return []
+  return data.flatMap((o) => {
+    if (!o || typeof o !== 'object') return []
+    const { id, etiqueta, roles } = o as Record<string, unknown>
+    if (typeof id !== 'string' || typeof etiqueta !== 'string') return []
+    const lista = Array.isArray(roles) ? roles : []
+    return [{
+      id,
+      etiqueta,
+      roles: lista.flatMap((r) => {
+        const { id: rid, label } = (r ?? {}) as Record<string, unknown>
+        return typeof rid === 'string' && typeof label === 'string' ? [{ id: rid, label }] : []
+      }),
+    }]
+  })
+}
 
 export interface AltaPersonaInput {
   readonly equipoId: string
@@ -193,3 +232,18 @@ export function rpcArgs(input: AltaPersonaInput, campusId: string | null) {
 
 /** The cookie useCampus mirrors the selected campus to (hooks/useCampus.tsx). */
 export const CAMPUS_COOKIE = 'gc_campus_activo'
+
+/**
+ * Whether the caller may register a NEW person into some equipo (the volunteer
+ * coordinator may hold no write capability at all). Fails closed: any error is false.
+ */
+export async function puedeRegistrarEnAlgunEquipo(supabase: {
+  rpc: (fn: 'dream_team_equipos_registrables') => PromiseLike<{ data: unknown; error: unknown }>
+}): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('dream_team_equipos_registrables')
+    return !error && Array.isArray(data) && data.length > 0
+  } catch {
+    return false
+  }
+}

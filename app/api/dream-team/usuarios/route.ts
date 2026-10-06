@@ -4,8 +4,11 @@
  * Registers a person who is not in the system yet and assigns them a servicio
  * in the same step (T7/T9 of odd/tasks/ninos-voluntarios-waumba.md). The
  * database function dream_team_registrar_persona does it in one transaction,
- * authorizes the actor (auth.uid()) against the target equipo exactly like the
- * dream_team_servicios INSERT policy, and never duplicates a person:
+ * authorizes the actor (auth.uid()) against the target equipo (only the
+ * volunteer coordinator of the area, dream_team.org.manage, admin or pastor;
+ * 20261006110100) and never duplicates a person. There is no capability gate
+ * here: the coordinator's only grant is dream_team.coordinate, so the function
+ * is the one authority (42501 -> 403):
  *   201 { resultado: 'creada', personaId, nombre, servicioId }
  *   200 { resultado: 'existente', personaId, nombre }      cedula already held
  *   200 { resultado: 'coincidencias', candidatos }         same name + birth date
@@ -15,11 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import {
-  hasDreamTeamWriteCapability,
-  isDreamTeamEnabled,
-  requireDreamTeamSession,
-} from '@/lib/platform/dream-team/route-access'
+import { isDreamTeamEnabled, requireDreamTeamSession } from '@/lib/platform/dream-team/route-access'
 import {
   CAMPUS_COOKIE,
   esUuid,
@@ -34,7 +33,6 @@ export async function POST(req: NextRequest) {
     if (!isDreamTeamEnabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     const session = await requireDreamTeamSession()
     if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
-    if (!hasDreamTeamWriteCapability(session)) return NextResponse.json({ error: 'Permiso denegado' }, { status: 403 })
 
     let body: unknown
     try { body = await req.json() } catch { return NextResponse.json({ error: 'Body inválido' }, { status: 400 }) }

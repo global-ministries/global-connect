@@ -431,3 +431,15 @@ describe('MiEquipoClient — shifts', () => {
     expect(opciones).toEqual(['Todos', 'Sábado 17:00', 'Sin turno'])
   })
 })
+
+describe('MiEquipoClient — the volunteer coordinator registers new people', () => {
+  it('offers Agregar persona to a registrar without write access, and to nobody else', () => {
+    const { unmount } = render(<MiEquipoClient {...propsConexion({ puedeRegistrar: true })} />)
+    expect(screen.getAllByRole('button', { name: 'Agregar persona' }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
+    unmount()
+
+    render(<MiEquipoClient {...propsConexion()} />)
+    expect(screen.queryByRole('button', { name: 'Agregar persona' })).not.toBeInTheDocument()
+  })
+})

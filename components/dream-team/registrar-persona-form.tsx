@@ -9,7 +9,8 @@
  * the cedula ('existente') or the namesakes born the same day
  * ('coincidencias'); then the coordinator picks one of them instead and the
  * dialog assigns them as usual. Children may have no cedula: then the birth
- * date is required. The optional representative (padre/madre/tutor) is found
+ * date is required. The optional representative (padre/madre, tutor, abuelo/a,
+ * tío/a, hermano/a mayor or another relative) is found
  * by cedula and only linked; their cedula is never stored on the child.
  */
 import { useState, type ReactElement } from 'react'
@@ -19,6 +20,8 @@ import type { useNotificaciones } from '@/hooks/use-notificaciones'
 import {
   ESTADOS_CIVILES,
   GENEROS,
+  TIPO_REPRESENTANTE_LABELS,
+  TIPOS_REPRESENTANTE,
   type AltaPersonaResultado,
   type PersonaCandidata,
   type TipoRepresentante,
@@ -187,14 +190,14 @@ export function RegistrarPersonaForm({
       )}
 
       <div className="grid gap-2">
-        <TextoSistema tamaño="sm" className="font-medium">Representante (padre/madre/tutor, opcional)</TextoSistema>
+        <TextoSistema tamaño="sm" className="font-medium">Representante (familiar o tutor, opcional)</TextoSistema>
         {representante ? (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-border px-3 py-2">
             <TextoSistema className="min-w-0 truncate">{`${representante.nombre} ${representante.apellido}`}</TextoSistema>
             <div className="flex items-center gap-2">
               <SelectSistema
                 aria-label="Tipo de representante"
-                opciones={[{ valor: 'padre', etiqueta: 'Padre/Madre' }, { valor: 'tutor', etiqueta: 'Tutor' }]}
+                opciones={TIPOS_REPRESENTANTE.map((t) => ({ valor: t, etiqueta: TIPO_REPRESENTANTE_LABELS[t] }))}
                 value={tipoRep}
                 onValueChange={(v) => setTipoRep(v as TipoRepresentante)}
               />

@@ -11,6 +11,7 @@ jest.mock('@/lib/auth/platformSessionReadOnly', () => ({ resolveReadOnlyPlatform
 
 import { POST } from '@/app/api/dream-team/usuarios/route'
 import { GET as GET_CEDULA } from '@/app/api/dream-team/usuarios/cedula/route'
+import { GET as GET_OPCIONES } from '@/app/api/dream-team/usuarios/registrables/route'
 
 const createClient = jest.requireMock('@/lib/supabase/server').createSupabaseServerClient as jest.Mock
 const resolveSession = jest.requireMock('@/lib/auth/platformSessionReadOnly').resolveReadOnlyPlatformSession as jest.Mock
@@ -51,7 +52,12 @@ describe('POST /api/dream-team/usuarios', () => {
     expect((await post({ ...base, cedula: '12345678' })).status).toBe(404)
   })
   it('401 without a session', async () => { setup([], {}, null); expect((await post({ ...base, cedula: '1234567' })).status).toBe(401) })
-  it('403 without a write capability', async () => { setup([readCap]); expect((await post({ ...base, cedula: '1234567' })).status).toBe(403) })
+  it('leaves authority to the database: the volunteer coordinator holds no write capability', async () => {
+    // Their only grant is dream_team.coordinate; dream_team_registrar_persona decides.
+    setup([readCap], { data: { resultado: 'creada', persona_id: 'n', nombre: 'A P', servicio_id: 's' } })
+    expect((await post({ ...base, cedula: '1234567' })).status).toBe(201)
+    expect(rpc).toHaveBeenCalledWith('dream_team_registrar_persona', expect.anything())
+  })
 
   it('400 without a cedula and without a birth date, before any RPC', async () => {
     setup([writeCap])
@@ -115,7 +121,10 @@ describe('POST /api/dream-team/usuarios', () => {
 describe('GET /api/dream-team/usuarios/cedula', () => {
   const get = (q: string) => GET_CEDULA(new NextRequest(new URL(`http://localhost/api/dream-team/usuarios/cedula?cedula=${encodeURIComponent(q)}`)))
 
-  it('403 without a write capability', async () => { setup([readCap]); expect((await get('12345678')).status).toBe(403) })
+  it('403 when the function refuses (not a registrar, 42501)', async () => {
+    setup([readCap], { error: { code: '42501', message: 'sin_autoridad' } })
+    expect((await get('12345678')).status).toBe(403)
+  })
 
   it('finds by the normalized cedula', async () => {
     setup([writeCap], { data: [{ id: REP, nombre: 'Rep', apellido: 'Uno' }] })
@@ -128,5 +137,31 @@ describe('GET /api/dream-team/usuarios/cedula', () => {
     setup([writeCap])
     expect(await (await get('  ')).json()).toEqual({ persona: null })
     expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('GET /api/dream-team/usuarios/registrables', () => {
+  const get = () => GET_OPCIONES()
+
+  it('401 without a session', async () => { setup([], {}, null); expect((await get()).status).toBe(401) })
+
+  it('answers the equipos and roles the actor may register into', async () => {
+    setup([readCap], { data: [{ id: EQ, etiqueta: 'Waumba Land › Bebés', roles: [{ id: ROL, label: 'voluntario' }] }] })
+    const res = await get()
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ equipos: [{ id: EQ, etiqueta: 'Waumba Land › Bebés', roles: [{ id: ROL, label: 'voluntario' }] }] })
+    expect(rpc).toHaveBeenCalledWith('dream_team_opciones_registro')
+  })
+
+  it('answers an empty list to everyone else', async () => {
+    setup([writeCap], { data: [] })
+    expect(await (await get()).json()).toEqual({ equipos: [] })
+  })
+
+  it('500 without leaking the database detail', async () => {
+    setup([writeCap], { error: { code: 'XX000', message: 'boom secret' } })
+    const res = await get()
+    expect(res.status).toBe(500)
+    expect(JSON.stringify(await res.json())).not.toMatch(/secret/)
   })
 })

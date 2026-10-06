@@ -8144,6 +8144,17 @@ export type Database = {
         }
         Returns: Json
       }
+      dream_team_equipos_registrables: {
+        Args: never
+        Returns: {
+          equipo_id: string
+        }[]
+      }
+      dream_team_opciones_registro: { Args: never; Returns: Json }
+      dream_team_puede_registrar_persona: {
+        Args: { p_equipo_id: string }
+        Returns: boolean
+      }
       dream_team_persona_por_cedula: {
         Args: { p_cedula: string }
         Returns: {
@@ -9277,6 +9288,8 @@ export type Database = {
         | "tutor"
         | "hermano"
         | "otro_familiar"
+        | "abuelo"
+        | "tio"
       operating_core_capacity_source: "base" | "override"
       operating_core_event_estado: "active" | "cancelled"
       operating_core_event_kind:
@@ -9550,6 +9563,8 @@ export const Constants = {
         "tutor",
         "hermano",
         "otro_familiar",
+        "abuelo",
+        "tio",
       ],
       operating_core_capacity_source: ["base", "override"],
       operating_core_event_estado: ["active", "cancelled"],

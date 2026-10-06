@@ -2,9 +2,14 @@
 -- from the Dream Team assigner.
 --
 -- Covers:
---   a. Who may register: whoever may create a servicio in the equipo (the
---      dream_team_servicios INSERT policy). A director of another subtree, a
---      plain volunteer and a session without a persona are refused (42501).
+--   a. Who may register (20261006110100): the volunteer coordinator, i.e. an
+--      ACTIVE servicio as Coordinador in an "Atención al Voluntario" equipo,
+--      into any equipo under that node's parent (not the parent itself, not
+--      another area); dream_team.org.manage; admin or pastor. Refused (42501):
+--      the area director (dream_team.direct, who may still assign existing
+--      people), the Entrenador of Atención al Voluntario, a director of another
+--      subtree, a plain volunteer and a session without a persona.
+--      dream_team_equipos_registrables lists exactly that set.
 --   b. A new person: usuarios row without auth, the 'miembro' role, the
 --      actor's principal campus as principal, and the servicio postulado with
 --      its history row and one pendiente verificacion per requisito, all in
@@ -18,20 +23,26 @@
 --   f. Campus: a selected campus the actor belongs to is used; one they do
 --      not belong to is refused (42501).
 --   g. T9: an optional representative is linked (child usuario1, the
---      representative usuario2, tipo padre or tutor); the child keeps no
---      cedula; an unknown representative fails the whole call (22023).
---   h. dream_team_persona_por_cedula: finds by normalized cedula for a
---      Dream Team writer, refuses anyone else.
---   i. anon cannot execute either function.
+--      representative usuario2, tipo padre, tutor, abuelo, tio, hermano or
+--      otro_familiar); the child keeps no cedula; an unknown representative
+--      or a tipo like conyuge fails the whole call (22023).
+--   h. dream_team_persona_por_cedula: finds by normalized cedula for whoever
+--      may register somewhere, refuses anyone else (the area director too).
+--   i. anon cannot execute any of the functions.
+--   j. dream_team_opciones_registro: the registrable equipos with their
+--      active roles, labelled "<parent> › <label>"; empty for anyone else.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
--- of the failing cases (0 rows = all ok). concat_ws renders booleans as t/f.
+-- of the failing cases ('ALL OK' when none). concat_ws renders booleans as t/f.
 --
--- Identities (usuario n = auth n): 1 DIR dream_team.direct on N, principal
--- campus Z1, also in Z2; 2 OUT dream_team.direct on E; 3 VOL dream_team.serve
--- on S; 4 EXIST cedula 12345678; 5 NAMESAKE "Ana Pérez" born 2018-03-04;
--- 6 REP cedula 87654321; 7 no persona row (auth only).
--- Tree: R → N → S; R → E. Rol 1 on S with one requisito; rol 2 on E.
+-- Identities (usuario n = auth n): 1 COORD, active servicio as Coordinador in
+-- AV, principal campus Z1, also in Z2; 2 OUT dream_team.direct on E; 3 VOL
+-- dream_team.serve on S; 4 EXIST cedula 12345678; 5 NAMESAKE "Ana Pérez" born
+-- 2018-03-04; 6 REP cedula 87654321; 7 no persona row (auth only); 8 DIR
+-- dream_team.direct on N; 9 TRAINER, active servicio as Entrenador in AV;
+-- 10 ORG unscoped dream_team.org.manage, principal campus Z1.
+-- Tree: R → N → S; N → AV ("Atención al Voluntario"); R → E. Rol 1 on S with
+-- one requisito; rol 2 on E; rol 3 Coordinador and rol 4 Entrenador on AV.
 
 BEGIN;
 
@@ -108,11 +119,11 @@ $$;
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'ap-' || n || '@example.test', now(),
        '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
-  FROM generate_series(1, 7) AS n;
+  FROM generate_series(1, 10) AS n;
 
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
 SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Ap', 'U' || n, 'ap-' || n || '@example.test', 'Soltero', 'Otro'
-  FROM generate_series(1, 3) AS n;
+  FROM generate_series(1, 10) AS n WHERE n NOT IN (4, 5, 6, 7);
 INSERT INTO public.usuarios (id, nombre, apellido, cedula, estado_civil, genero) VALUES
   (pg_temp.id('us', 4), 'ZZ Existe', 'Cedula', '12345678', 'Casado', 'Femenino'),
   (pg_temp.id('us', 6), 'ZZ Repre', 'Sentante', '87654321', 'Casado', 'Masculino');
@@ -126,17 +137,26 @@ INSERT INTO public.campus (id, nombre, codigo) VALUES
 
 INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal) VALUES
   (pg_temp.id('us', 1), pg_temp.id('ca', 1), true),
-  (pg_temp.id('us', 1), pg_temp.id('ca', 2), false);
+  (pg_temp.id('us', 1), pg_temp.id('ca', 2), false),
+  (pg_temp.id('us', 10), pg_temp.id('ca', 1), true);
 
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'experiencia', NULL, 'ZZ Ap R', true),
   (pg_temp.id('eq', 2), 'ninos', pg_temp.id('eq', 1), 'ZZ Ap N', true),
   (pg_temp.id('eq', 3), 'ninos', pg_temp.id('eq', 2), 'ZZ Ap S', true),
-  (pg_temp.id('eq', 4), 'estudiantes', pg_temp.id('eq', 1), 'ZZ Ap E', true);
+  (pg_temp.id('eq', 4), 'estudiantes', pg_temp.id('eq', 1), 'ZZ Ap E', true),
+  (pg_temp.id('eq', 5), 'ninos', pg_temp.id('eq', 2), ' Atencion al voluntario ', true);
 
 INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
   (pg_temp.id('ro', 1), pg_temp.id('eq', 3), 'voluntario', true),
-  (pg_temp.id('ro', 2), pg_temp.id('eq', 4), 'voluntario', true);
+  (pg_temp.id('ro', 2), pg_temp.id('eq', 4), 'voluntario', true),
+  (pg_temp.id('ro', 3), pg_temp.id('eq', 5), 'Coordinador', true),
+  (pg_temp.id('ro', 4), pg_temp.id('eq', 5), 'Entrenador', true),
+  (pg_temp.id('ro', 5), pg_temp.id('eq', 2), 'voluntario', true);
+
+INSERT INTO public.dream_team_servicios (persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual)
+VALUES (pg_temp.id('us', 1), pg_temp.id('eq', 5), pg_temp.id('ro', 3), 'activo', now(), 'admin_asignacion'),
+       (pg_temp.id('us', 9), pg_temp.id('eq', 5), pg_temp.id('ro', 4), 'activo', now(), 'admin_asignacion');
 
 INSERT INTO public.dream_team_requisitos (id, equipo_id, rol_id, codigo, label, tipo, obligatoriedad)
 SELECT pg_temp.id('rq', 1), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'zz-ap', 'ZZ Ap requisito',
@@ -144,7 +164,8 @@ SELECT pg_temp.id('rq', 1), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'zz-ap', '
        (enum_range(NULL::public.dream_team_obligatoriedad))[1];
 
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id) VALUES
-  (pg_temp.id('us', 1), 'dream_team.direct', 'dream_team', 'equipo', pg_temp.id('eq', 2)::text),
+  (pg_temp.id('us', 8), 'dream_team.direct', 'dream_team', 'equipo', pg_temp.id('eq', 2)::text),
+  (pg_temp.id('us', 10), 'dream_team.org.manage', 'dream_team', 'experience', NULL),
   (pg_temp.id('us', 2), 'dream_team.direct', 'dream_team', 'equipo', pg_temp.id('eq', 4)::text),
   (pg_temp.id('us', 3), 'dream_team.serve', 'dream_team', 'equipo', pg_temp.id('eq', 3)::text);
 
@@ -172,11 +193,59 @@ SELECT pg_temp.assert_raises('a: a session without a persona is refused',
   $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 3), p_rol_id => pg_temp.id('ro', 1),
        p_nombre => 'ZZ Intruso', p_apellido => 'Tres', p_genero => 'Masculino', p_estado_civil => 'Soltero',
        p_cedula => '30111224')$q$, '42501');
+SELECT pg_temp.as_persona(8);
+SELECT pg_temp.assert_raises('a: the area director (dream_team.direct) no longer registers',
+  $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 3), p_rol_id => pg_temp.id('ro', 1),
+       p_nombre => 'ZZ Intruso', p_apellido => 'Cuatro', p_genero => 'Masculino', p_estado_civil => 'Soltero',
+       p_cedula => '30111225')$q$, '42501');
+SELECT pg_temp.assert_eq('a: the area director may register nowhere',
+  $q$SELECT public.dream_team_puede_registrar_persona(NULL)::text$q$, 'false');
+SELECT pg_temp.as_persona(9);
+SELECT pg_temp.assert_raises('a: the Entrenador of Atención al Voluntario is refused',
+  $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 3), p_rol_id => pg_temp.id('ro', 1),
+       p_nombre => 'ZZ Intruso', p_apellido => 'Cinco', p_genero => 'Masculino', p_estado_civil => 'Soltero',
+       p_cedula => '30111226')$q$, '42501');
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_eq('a: the coordinator registers under the parent area only (S and AV, not N, R or E)',
+  $q$SELECT string_agg(x.k, ',' ORDER BY x.k)
+       FROM (SELECT CASE r.equipo_id WHEN pg_temp.id('eq', 3) THEN 'S' WHEN pg_temp.id('eq', 5) THEN 'AV'
+                                     WHEN pg_temp.id('eq', 2) THEN 'N' WHEN pg_temp.id('eq', 1) THEN 'R'
+                                     WHEN pg_temp.id('eq', 4) THEN 'E' END AS k
+               FROM public.dream_team_equipos_registrables() r) x
+      WHERE x.k IS NOT NULL$q$,
+  'AV,S');
+SELECT pg_temp.assert_raises('a: the coordinator is refused in another area',
+  $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 4), p_rol_id => pg_temp.id('ro', 2),
+       p_nombre => 'ZZ Intruso', p_apellido => 'Seis', p_genero => 'Masculino', p_estado_civil => 'Soltero',
+       p_cedula => '30111227')$q$, '42501');
+SELECT pg_temp.assert_raises('a: the coordinator is refused in the parent area itself',
+  $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 2), p_rol_id => pg_temp.id('ro', 5),
+       p_nombre => 'ZZ Intruso', p_apellido => 'Siete', p_genero => 'Masculino', p_estado_civil => 'Soltero',
+       p_cedula => '30111228')$q$, '42501');
+SELECT pg_temp.as_persona(10);
+SELECT pg_temp.registrar('a: dream_team.org.manage registers anywhere', 'a10',
+  $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 4), p_rol_id => pg_temp.id('ro', 2),
+       p_nombre => 'ZZ Org', p_apellido => 'Manage', p_genero => 'Masculino', p_estado_civil => 'Soltero',
+       p_cedula => '30111229')$q$);
+SELECT pg_temp.assert_eq('a: org.manage answers creada',
+  $q$SELECT pg_temp.res('a10') ->> 'resultado'$q$, 'creada');
+
+RESET ROLE;
+UPDATE public.dream_team_servicios SET estado = 'en_pausa'
+ WHERE persona_id = pg_temp.id('us', 1) AND equipo_id = pg_temp.id('eq', 5);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_eq('a: a paused coordinator may register nowhere',
+  $q$SELECT public.dream_team_puede_registrar_persona(NULL)::text$q$, 'false');
+RESET ROLE;
+UPDATE public.dream_team_servicios SET estado = 'activo'
+ WHERE persona_id = pg_temp.id('us', 1) AND equipo_id = pg_temp.id('eq', 5);
+SET LOCAL ROLE authenticated;
 
 -- ── b. a new person with cedula ──────────────────────────────────────
 
 SELECT pg_temp.as_persona(1);
-SELECT pg_temp.registrar('b: the director registers a new person', 'b',
+SELECT pg_temp.registrar('b: the volunteer coordinator registers a new person', 'b',
   $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 3), p_rol_id => pg_temp.id('ro', 1),
        p_nombre => '  ZZ Nueva ', p_apellido => 'Persona', p_genero => 'Femenino', p_estado_civil => 'Soltero',
        p_cedula => 'v-30.555.666', p_fecha_nacimiento => '2000-01-02', p_telefono => '04140000000',
@@ -293,7 +362,15 @@ SELECT pg_temp.assert_raises('g: an unknown representative fails the call',
   $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 3), p_rol_id => pg_temp.id('ro', 1),
        p_nombre => 'ZZ Niña', p_apellido => 'Huérfana', p_genero => 'Femenino', p_estado_civil => 'Soltero',
        p_fecha_nacimiento => '2017-02-02', p_representante_id => pg_temp.id('us', 99))$q$, '22023');
-SELECT pg_temp.assert_raises('g: a representative tipo other than padre or tutor is refused',
+SELECT pg_temp.registrar('g: a grandparent as representative', 'g2',
+  $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 3), p_rol_id => pg_temp.id('ro', 1),
+       p_nombre => 'ZZ Nieto', p_apellido => 'Sentante', p_genero => 'Masculino', p_estado_civil => 'Soltero',
+       p_fecha_nacimiento => '2016-01-01', p_representante_id => pg_temp.id('us', 6), p_representante_tipo => 'abuelo')$q$);
+SELECT pg_temp.registrar('g: an uncle as representative', 'g3',
+  $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 3), p_rol_id => pg_temp.id('ro', 1),
+       p_nombre => 'ZZ Sobrino', p_apellido => 'Sentante', p_genero => 'Masculino', p_estado_civil => 'Soltero',
+       p_fecha_nacimiento => '2016-02-02', p_representante_id => pg_temp.id('us', 6), p_representante_tipo => 'tio')$q$);
+SELECT pg_temp.assert_raises('g: a representative tipo like conyuge is refused',
   $q$SELECT public.dream_team_registrar_persona(p_equipo_id => pg_temp.id('eq', 3), p_rol_id => pg_temp.id('ro', 1),
        p_nombre => 'ZZ Niña', p_apellido => 'Tipo', p_genero => 'Femenino', p_estado_civil => 'Soltero',
        p_fecha_nacimiento => '2017-02-03', p_representante_id => pg_temp.id('us', 6), p_representante_tipo => 'conyuge')$q$, '22023');
@@ -303,6 +380,11 @@ SELECT pg_temp.assert_eq('g: the link child -> representative (tutor), child wit
        FROM public.relaciones_usuarios r JOIN public.usuarios u ON u.id = r.usuario1_id
       WHERE r.usuario1_id = (pg_temp.res('g') ->> 'persona_id')::uuid$q$,
   't|tutor|t');
+SELECT pg_temp.assert_eq('g: abuelo and tio links',
+  $q$SELECT string_agg(r.tipo_relacion::text, ',' ORDER BY r.tipo_relacion::text) FROM public.relaciones_usuarios r
+      WHERE r.usuario2_id = pg_temp.id('us', 6)
+        AND r.usuario1_id IN ((pg_temp.res('g2') ->> 'persona_id')::uuid, (pg_temp.res('g3') ->> 'persona_id')::uuid)$q$,
+  'abuelo,tio');
 SELECT pg_temp.assert_eq('g: the failed call left no person behind',
   $q$SELECT count(*)::text FROM public.usuarios WHERE nombre IN ('ZZ Niña')$q$, '0');
 
@@ -310,7 +392,7 @@ SELECT pg_temp.assert_eq('g: the failed call left no person behind',
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(1);
-SELECT pg_temp.assert_eq('h: a writer finds by normalized cedula',
+SELECT pg_temp.assert_eq('h: the volunteer coordinator finds by normalized cedula',
   $q$SELECT string_agg(p.id::text || '|' || p.nombre, ',') FROM public.dream_team_persona_por_cedula('V 87.654.321') p$q$,
   pg_temp.id('us', 6)::text || '|ZZ Repre');
 SELECT pg_temp.assert_eq('h: an unknown cedula finds nobody',
@@ -318,16 +400,34 @@ SELECT pg_temp.assert_eq('h: an unknown cedula finds nobody',
 SELECT pg_temp.as_persona(3);
 SELECT pg_temp.assert_raises('h: a plain volunteer is refused',
   $q$SELECT * FROM public.dream_team_persona_por_cedula('87654321')$q$, '42501');
+SELECT pg_temp.as_persona(8);
+SELECT pg_temp.assert_raises('h: the area director is refused',
+  $q$SELECT * FROM public.dream_team_persona_por_cedula('87654321')$q$, '42501');
 
+
+-- ── j. the registration options ──────────────────────────────────────
+
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_eq('j: the coordinator gets S (with its rol) and AV, labelled under their parent',
+  $q$SELECT string_agg(o ->> 'etiqueta' || ':' || jsonb_array_length(o -> 'roles'), ',' ORDER BY o ->> 'etiqueta')
+       FROM jsonb_array_elements(public.dream_team_opciones_registro()) o
+      WHERE (o ->> 'id')::uuid IN (pg_temp.id('eq', 3), pg_temp.id('eq', 5))$q$,
+  'ZZ Ap N ›  Atencion al voluntario :2,ZZ Ap N › ZZ Ap S:1');
+SELECT pg_temp.as_persona(8);
+SELECT pg_temp.assert_eq('j: the area director gets no options',
+  $q$SELECT public.dream_team_opciones_registro()::text$q$, '[]');
 RESET ROLE;
 
 -- ── i. anon ──────────────────────────────────────────────────────────
 
-SELECT pg_temp.assert_eq('i: anon cannot execute either function',
+SELECT pg_temp.assert_eq('i: anon cannot execute any of the functions',
   $q$SELECT (has_function_privilege('anon', 'public.dream_team_registrar_persona(uuid, uuid, text, text, public.enum_genero, public.enum_estado_civil, text, date, text, boolean, date, text, text, uuid, uuid, public.enum_tipo_relacion)', 'EXECUTE')
-          OR has_function_privilege('anon', 'public.dream_team_persona_por_cedula(text)', 'EXECUTE'))::text$q$,
+          OR has_function_privilege('anon', 'public.dream_team_persona_por_cedula(text)', 'EXECUTE')
+          OR has_function_privilege('anon', 'public.dream_team_puede_registrar_persona(uuid)', 'EXECUTE')
+          OR has_function_privilege('anon', 'public.dream_team_equipos_registrables()', 'EXECUTE')
+          OR has_function_privilege('anon', 'public.dream_team_opciones_registro()', 'EXECUTE'))::text$q$,
   'false');
 
-SELECT case_name FROM t_ap_failures;
+SELECT coalesce(string_agg(case_name, ' ## '), 'ALL OK') AS result FROM t_ap_failures;
 
 ROLLBACK;

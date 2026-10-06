@@ -198,6 +198,10 @@ describe('mi-equipo page — direccion resolution', () => {
     expect((await renderizar()).puedeEditar).toBe(false)
   })
 
+  it('does not offer registering when the registrables lookup is unavailable (fails closed)', async () => {
+    expect((await renderizar()).puedeRegistrar).toBe(false)
+  })
+
   it('shows an empty screen when nothing is reachable', async () => {
     mockEquipos = []
     const props = await renderizar()

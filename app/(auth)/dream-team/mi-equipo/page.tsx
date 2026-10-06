@@ -28,6 +28,7 @@ import {
   hasDreamTeamWriteCapability,
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
+import { puedeRegistrarEnAlgunEquipo } from '@/lib/platform/dream-team/alta-persona'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
@@ -178,6 +179,10 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   const direccionPedida = Array.isArray(pedida) ? pedida[0] : (pedida as string | undefined)
   const direccionId = direcciones.find((direccion) => direccion.id === direccionPedida)?.id ?? direcciones[0]?.id ?? ''
 
+  // Registering NEW people is the volunteer coordinator's (20261006110100), who may hold no
+  // write capability; the dialog then opens straight into the form. Fails closed.
+  const puedeRegistrar = await puedeRegistrarEnAlgunEquipo(supabase)
+
   const asignables = direccionId ? listarEquiposAsignables(arbol, direccionId) : []
   const rolesPorEquipo: Record<string, readonly DreamTeamRol[]> = Object.fromEntries(
     entradasRoles.filter(([equipoId]) => asignables.some((equipo) => equipo.id === equipoId)),
@@ -189,6 +194,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       vista={direccionId ? vistaDeDireccion(arbol, personasPorEquipo, direccionId) : null}
       direccionId={direccionId}
       puedeEditar={hasDreamTeamWriteCapability(session)}
+      puedeRegistrar={puedeRegistrar}
       equiposAsignables={asignables}
       rolesPorEquipo={rolesPorEquipo}
       turnos={ordenarTurnos(turnos.filter((turno) => turno.activo)).map((turno) => ({
