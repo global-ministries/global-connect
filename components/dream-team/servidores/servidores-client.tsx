@@ -61,21 +61,22 @@ export interface ServidoresClientProps {
 const RETRASO_BUSQUEDA_MS = 300
 
 /**
- * Flattens the tree into the assigner's "Equipo" select options — REAL
+ * Flattens the tree into the assigner's "Equipo" picker options — REAL
  * equipos only. A virtual Grupos de Vida node is never offered: assigning a
  * new servicio against it would target an id that isn't a `dream_team_equipos`
  * row. Its children are still walked; only the push is filtered.
  */
 function aplanarArbol(nodos: readonly NodoArbol<NodoEquipoArbol>[]): NodoPlano[] {
   const resultado: NodoPlano[] = []
-  function visitar(nodo: NodoArbol<NodoEquipoArbol>): void {
+  function visitar(nodo: NodoArbol<NodoEquipoArbol>, ruta: readonly string[]): void {
+    const rutaNodo = [...ruta, nodo.equipo.label]
     if (nodo.equipo.origen === 'dream_team') {
       const prefijo = nodo.nivel > 0 ? `${'—'.repeat(nodo.nivel)} ` : ''
-      resultado.push({ id: nodo.equipo.id, etiqueta: `${prefijo}${nodo.equipo.label}` })
+      resultado.push({ id: nodo.equipo.id, etiqueta: `${prefijo}${nodo.equipo.label}`, ruta: rutaNodo })
     }
-    nodo.hijos.forEach(visitar)
+    nodo.hijos.forEach((hijo) => visitar(hijo, rutaNodo))
   }
-  nodos.forEach(visitar)
+  nodos.forEach((nodo) => visitar(nodo, []))
   return resultado
 }
 
@@ -124,6 +125,14 @@ export function ServidoresClient({
     [filas, arbol, filtros, turnos, campusId],
   )
   const nodosPlanos = useMemo(() => aplanarArbol(arbol), [arbol])
+  // The assigner offers the shifts of the campus selected in the app (all of them without one).
+  const turnosAsignables = useMemo(
+    () =>
+      turnos
+        .filter((turno) => turno.activo && (campusId === null || turno.campusId === campusId))
+        .map((turno) => ({ id: turno.id, label: turno.nombre })),
+    [turnos, campusId],
+  )
 
   function sincronizarUrl(siguiente: FiltrosServidores, diferir: boolean): void {
     if (temporizadorUrl.current) clearTimeout(temporizadorUrl.current)
@@ -213,6 +222,7 @@ export function ServidoresClient({
         rolesPorEquipo={rolesPorEquipo}
         onAsignado={cerrarAsignadorYRefrescar}
         toast={toast}
+        turnos={turnosAsignables}
       />
     </ContenedorDashboard>
   )

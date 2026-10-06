@@ -390,14 +390,14 @@ describe('contact data on people rows', () => {
 })
 
 describe('equiposAsignables', () => {
-  it('lists the real equipos of the direccion branch, root first, indented by depth', () => {
+  it('lists the real equipos of the direccion branch, root first, indented by depth, with their path below the direccion', () => {
     expect(equiposAsignables(arbolConexion, ID_CONEXION)).toEqual([
-      { id: ID_CONEXION, etiqueta: 'Dirección de Conexión' },
-      { id: ID_TALLERES, etiqueta: '— Talleres' },
-      { id: ID_DHAH, etiqueta: '—— De Hombre a Hombre' },
-      { id: ID_PAREJAS, etiqueta: '—— Parejas' },
-      { id: ID_PDP, etiqueta: '—— Punto de Partida' },
-      { id: ID_MDH, etiqueta: '—— Mujer de Hoy' },
+      { id: ID_CONEXION, etiqueta: 'Dirección de Conexión', ruta: ['Dirección de Conexión'] },
+      { id: ID_TALLERES, etiqueta: '— Talleres', ruta: ['Talleres'] },
+      { id: ID_DHAH, etiqueta: '—— De Hombre a Hombre', ruta: ['Talleres', 'De Hombre a Hombre'] },
+      { id: ID_PAREJAS, etiqueta: '—— Parejas', ruta: ['Talleres', 'Parejas'] },
+      { id: ID_PDP, etiqueta: '—— Punto de Partida', ruta: ['Talleres', 'Punto de Partida'] },
+      { id: ID_MDH, etiqueta: '—— Mujer de Hoy', ruta: ['Talleres', 'Mujer de Hoy'] },
     ])
   })
 
@@ -411,7 +411,7 @@ describe('equiposAsignables', () => {
         nivel: 0,
       },
     ]
-    expect(equiposAsignables(gdv, 'gdv')).toEqual([{ id: 'gdv', etiqueta: 'Grupos de Vida' }])
+    expect(equiposAsignables(gdv, 'gdv')).toEqual([{ id: 'gdv', etiqueta: 'Grupos de Vida', ruta: ['Grupos de Vida'] }])
     expect(equiposAsignables(gdv, 'otra')).toEqual([])
   })
 })

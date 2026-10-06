@@ -203,6 +203,7 @@ function MiEquipoVistaDireccion({
             }}
             toast={toast}
             soloRegistrar={!puedeEditar}
+            turnos={turnosDelCampus}
           />
         </>
       )}

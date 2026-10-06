@@ -9,7 +9,7 @@
  * Conexión-shaped fixture (4 equipos, 38 personas).
  */
 import React from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { MiEquipoClient, type MiEquipoClientProps } from '@/components/dream-team/mi-equipo/mi-equipo-client'
@@ -355,13 +355,27 @@ describe('MiEquipoClient — actions menu (criterion 5, second half)', () => {
 
 describe('MiEquipoClient — Agregar persona', () => {
   const asignables = [
-    { id: ID_CONEXION, etiqueta: 'Dirección de Conexión' },
-    { id: 'eq-parejas', etiqueta: '—— Parejas' },
+    { id: ID_CONEXION, etiqueta: 'Dirección de Conexión', ruta: ['Dirección de Conexión'] },
+    { id: 'eq-parejas', etiqueta: '—— Parejas', ruta: ['Talleres', 'Parejas'] },
   ]
   const rolesPorEquipo = {
     'eq-parejas': [{ id: 'rol-fac', equipoId: 'eq-parejas', label: 'facilitador', activo: true }],
   }
   const conEdicion = () => propsConexion({ puedeEditar: true, equiposAsignables: asignables, rolesPorEquipo })
+
+  /** Step 1 of the panel: find "Nueva Persona" and go on to Equipo y rol. */
+  async function elegirPersona() {
+    global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+      if (String(url).startsWith('/api/dream-team/usuarios/buscar')) {
+        return { ok: true, json: async () => [{ id: 'u-1', email: 'nueva@test.com', nombre: 'Nueva', apellido: 'Persona' }] }
+      }
+      if (String(url).startsWith('/api/dream-team/usuarios/registrables')) return { ok: true, json: async () => ({ equipos: [] }) }
+      return { ok: true, status: 201, json: async () => ({ servicio: { id: 'srv-1' } }) }
+    }) as unknown as typeof fetch
+    await userEvent.type(screen.getByLabelText('Buscar persona', { selector: 'input[placeholder*="email"]' }), 'nueva')
+    await userEvent.click(await screen.findByRole('button', { name: /Nueva Persona/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+  }
 
   it('is offered only with write access (header button and phone floating button)', () => {
     const { unmount } = render(<MiEquipoClient {...conEdicion()} />)
@@ -375,32 +389,28 @@ describe('MiEquipoClient — Agregar persona', () => {
     render(<MiEquipoClient {...conEdicion()} />)
     await userEvent.click(tarjeta('Parejas'))
     await userEvent.click(screen.getAllByRole('button', { name: 'Agregar persona' })[0])
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect((screen.getByLabelText('Equipo') as HTMLSelectElement).value).toBe('eq-parejas')
+    expect(screen.getByRole('dialog', { name: 'Agregar persona' })).toBeInTheDocument()
+    await elegirPersona()
+    expect(screen.getByRole('radio', { name: 'Talleres › Parejas' })).toHaveAttribute('aria-checked', 'true')
     expect(within(screen.getByLabelText('Rol')).getByRole('option', { name: 'Facilitador' })).toBeInTheDocument()
   })
 
   it('preselects nothing while Toda la dirección is selected', async () => {
     render(<MiEquipoClient {...conEdicion()} />)
     await userEvent.click(screen.getAllByRole('button', { name: 'Agregar persona' })[0])
-    expect((screen.getByLabelText('Equipo') as HTMLSelectElement).value).toBe('')
+    await elegirPersona()
+    for (const radio of screen.getAllByRole('radio')) expect(radio).toHaveAttribute('aria-checked', 'false')
   })
 
   it('refreshes the page once a person is assigned', async () => {
-    global.fetch = jest.fn(async (url: RequestInfo | URL) => {
-      if (String(url).startsWith('/api/dream-team/usuarios/buscar')) {
-        return { ok: true, json: async () => [{ id: 'u-1', email: 'nueva@test.com', nombre: 'Nueva', apellido: 'Persona' }] }
-      }
-      return { ok: true, status: 201, json: async () => ({ servicio: {} }) }
-    }) as unknown as typeof fetch
     render(<MiEquipoClient {...conEdicion()} />)
     await userEvent.click(tarjeta('Parejas'))
     await userEvent.click(screen.getAllByRole('button', { name: 'Agregar persona' })[0])
-    await userEvent.type(screen.getByLabelText('Buscar persona', { selector: 'input[placeholder*="email"]' }), 'nueva')
-    await userEvent.click(await screen.findByRole('button', { name: /Nueva Persona/ }))
+    await elegirPersona()
     await userEvent.selectOptions(screen.getByLabelText('Rol'), 'rol-fac')
-    await userEvent.click(screen.getByRole('button', { name: 'Crear' }))
-    expect(refresh).toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+    await waitFor(() => expect(refresh).toHaveBeenCalled())
   })
 })
 
