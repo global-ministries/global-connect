@@ -16,13 +16,15 @@ import {
 
 describe('lib/platform/family', () => {
   describe('taxonomy constants', () => {
-    it('exposes the 6 current DB relation types in order', () => {
+    it('exposes the 8 current DB relation types in order', () => {
       expect(PLATFORM_FAMILY_RELATION_TYPES).toEqual([
         'conyuge',
         'padre',
         'hijo',
         'tutor',
         'hermano',
+        'abuelo',
+        'tio',
         'otro_familiar',
       ])
     })

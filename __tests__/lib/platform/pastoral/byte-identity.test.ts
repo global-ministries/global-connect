@@ -160,6 +160,12 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // one-line structural change reflected in the registry, no impact
   // on the byte-identity contract.
   'lib/platform/navigation.ts',
+
+  // feat/dream-team-alta-persona (2026-10-06): enum_tipo_relacion gained the
+  // gender-neutral kinships 'abuelo' and 'tio' (20261006110000), used to link
+  // a child's representative. family.ts mirrors the enum, so it lists both,
+  // labels them (Abuelo/a, Tío/a) and gives them no symmetric inverse.
+  'lib/platform/family.ts',
 ])
 
 describe('Byte-identity — protected files unchanged (I-1 to I-16)', () => {
