@@ -21,9 +21,8 @@ export const CANONICA_EXTRANJERA = /^E\d{6,9}$/
 /** Applies the canonical rule; NULL stays NULL and unrecognized input is returned as is. */
 export function normalizarCedula(valor: string | null | undefined): string | null {
   if (valor === null || valor === undefined) return null
-  const limpio = valor
-    .replace(MARCAS_INVISIBLES, '')
-    .replace(/^[\s\u00A0]+|[\s\u00A0]+$/g, '')
+  // trim() covers \u00A0 too and, unlike an anchored regex, cannot backtrack.
+  const limpio = valor.replace(MARCAS_INVISIBLES, '').trim()
   if (limpio === '') return valor
   const clave = limpio.replace(SEPARADORES, '').toUpperCase()
   const venezolana = VENEZOLANA.exec(clave)
