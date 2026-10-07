@@ -57,7 +57,11 @@ export function ListaSubequipos({ hijos, puedeAgregar, onSeleccionar }: ListaSub
               <span className="flex min-w-0 flex-col gap-0.5">
                 <span className="truncate text-sm font-medium text-foreground sm:text-base">{hijo.label}</span>
                 <span className="truncate text-sm text-muted-foreground">
-                  {hijo.responsable ? `${hijo.responsable.nombre} — ${hijo.responsable.rol}` : 'Sin responsable asignado'}
+                  {hijo.responsable
+                    ? `${hijo.responsable.nombre} — ${hijo.responsable.rol}${
+                        hijo.responsable.heredadoDe ? ` · heredado de ${hijo.responsable.heredadoDe.label}` : ''
+                      }`
+                    : 'Sin responsable asignado'}
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
