@@ -9277,7 +9277,7 @@ export type Database = {
         | "Viernes"
         | "Sábado"
         | "Domingo"
-      enum_estado_civil: "Soltero" | "Casado" | "Divorciado" | "Viudo"
+      enum_estado_civil: "Soltero" | "Casado" | "Divorciado" | "Viudo" | "No especificado"
       enum_genero: "Masculino" | "Femenino" | "Otro"
       enum_rol_grupo: "Líder" | "Colíder" | "Miembro"
       enum_tipo_lider: "director_general" | "director_etapa"
@@ -9552,7 +9552,7 @@ export const Constants = {
         "Sábado",
         "Domingo",
       ],
-      enum_estado_civil: ["Soltero", "Casado", "Divorciado", "Viudo"],
+      enum_estado_civil: ["Soltero", "Casado", "Divorciado", "Viudo", "No especificado"],
       enum_genero: ["Masculino", "Femenino", "Otro"],
       enum_rol_grupo: ["Líder", "Colíder", "Miembro"],
       enum_tipo_lider: ["director_general", "director_etapa"],

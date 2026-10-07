@@ -59,7 +59,7 @@ const userEditSchema = z.object({
 
   // Información personal
   fecha_nacimiento: z.string().optional(),
-  estado_civil: z.enum(["Soltero", "Casado", "Divorciado", "Viudo"]),
+  estado_civil: z.enum(["Soltero", "Casado", "Divorciado", "Viudo", "No especificado"]),
   genero: z.enum(["Masculino", "Femenino"]),
 
   // Información profesional
@@ -338,13 +338,14 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             name="estado_civil"
             label="Estado Civil"
             value={watch("estado_civil")}
-            onValueChange={(value) => setValue("estado_civil", value as "Soltero" | "Casado" | "Divorciado" | "Viudo")}
+            onValueChange={(value) => setValue("estado_civil", value as "Soltero" | "Casado" | "Divorciado" | "Viudo" | "No especificado")}
             error={errors.estado_civil?.message}
             opciones={[
               { valor: "Soltero", etiqueta: "Soltero" },
               { valor: "Casado", etiqueta: "Casado" },
               { valor: "Divorciado", etiqueta: "Divorciado" },
               { valor: "Viudo", etiqueta: "Viudo" },
+              { valor: "No especificado", etiqueta: "No especificado" },
             ]}
           />
         </div>

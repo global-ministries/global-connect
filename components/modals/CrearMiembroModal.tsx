@@ -18,7 +18,7 @@ export type UsuarioMin = {
 }
 
 type Genero = "Masculino" | "Femenino" | "Otro"
-type EstadoCivil = "Soltero" | "Casado" | "Divorciado" | "Viudo"
+type EstadoCivil = "Soltero" | "Casado" | "Divorciado" | "Viudo" | "No especificado"
 
 interface CrearMiembroModalProps {
   isOpen: boolean
@@ -169,6 +169,7 @@ export function CrearMiembroModal({ isOpen, onClose, onCreated }: CrearMiembroMo
                 { valor: "Casado", etiqueta: "Casado" },
                 { valor: "Divorciado", etiqueta: "Divorciado" },
                 { valor: "Viudo", etiqueta: "Viudo" },
+                { valor: "No especificado", etiqueta: "No especificado" },
               ]}
             />
           </div>

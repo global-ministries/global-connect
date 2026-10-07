@@ -7,6 +7,9 @@ import {
   contarUso,
   crearVistaEstructura,
 } from '@/lib/platform/dream-team/estructura-vista'
+import { construirArbol } from '@/lib/platform/dream-team/arbol'
+import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
+import { personaId } from '@/lib/platform/dream-team/types'
 import {
   ID_ATRACCION,
   ID_CONEXION,
@@ -163,8 +166,13 @@ describe('detalle', () => {
     expect(vista().detalle(ID_CONEXION)?.responsable).toEqual({ nombre: 'Antholy Ludovic Gómez', rol: 'Director' })
   })
 
-  it('has no responsable when the node has none', () => {
-    expect(vista().detalle(ID_GCP)?.responsable).toBeNull()
+  it('shows the parent responsable, as inherited, when the node has none', () => {
+    expect(vista().detalle(ID_GCP)?.responsable).toEqual({
+      nombre: 'Antholy Ludovic Gómez',
+      rol: 'Director',
+      heredadoDe: { id: ID_CONEXION, label: 'Dirección de Conexión' },
+    })
+    expect(vista().detalle(ID_INSIDE)?.responsable).toBeNull()
   })
 
   it('totals the whole branch and lists the children with their own responsable and count', () => {
@@ -231,5 +239,53 @@ describe('equipoPorDefecto and direccionDe', () => {
     expect(vista().direccionDe(ID_CONEXION)).toBe(ID_CONEXION)
     expect(vista().direccionDe(ID_GDV_GRUPO)).toBe(ID_GDV)
     expect(vista().direccionDe('nope')).toBeNull()
+  })
+})
+
+describe('inherited responsable', () => {
+  const equipo = (id: string, label: string, parentEquipoId?: string, responsables: NodoEquipoArbol['responsables'] = []): NodoEquipoArbol => ({
+    origen: 'dream_team',
+    id,
+    label,
+    parentEquipoId,
+    activo: true,
+    experiencia: 'talleres_crecimiento',
+    responsables,
+  })
+  const arbol = construirArbol([
+    equipo('raiz', 'Dirección Raíz', undefined, [{ personaId: personaId('p-1'), nombre: 'Persona Uno', rol: 'director' }]),
+    equipo('medio', 'Área Media', 'raiz'),
+    equipo('hoja', 'Equipo Hoja', 'medio'),
+    equipo('propio', 'Equipo Propio', 'medio', [{ personaId: personaId('p-2'), nombre: 'Persona Dos', rol: 'coordinador' }]),
+    equipo('sola', 'Dirección Sola'),
+    equipo('sola-hijo', 'Equipo Solo', 'sola'),
+  ])
+  const v = () => crearVistaEstructura(entradaEstructura({ arbol }))
+  const heredado = { nombre: 'Persona Uno', rol: 'Director', heredadoDe: { id: 'raiz', label: 'Dirección Raíz' } }
+
+  it('inherits the parent responsable, marked with the ancestor', () => {
+    expect(v().detalle('medio')?.responsable).toEqual(heredado)
+  })
+
+  it('inherits from the grandparent through a parent without one', () => {
+    expect(v().detalle('hoja')?.responsable).toEqual(heredado)
+  })
+
+  it('keeps the own responsable, not inherited', () => {
+    const responsable = v().detalle('propio')?.responsable
+    expect(responsable).toEqual({ nombre: 'Persona Dos', rol: 'Coordinador' })
+    expect(responsable).not.toHaveProperty('heredadoDe')
+    expect(v().detalle('raiz')?.responsable).not.toHaveProperty('heredadoDe')
+  })
+
+  it('has none when no ancestor has one', () => {
+    expect(v().detalle('sola')?.responsable).toBeNull()
+    expect(v().detalle('sola-hijo')?.responsable).toBeNull()
+  })
+
+  it('applies the same inheritance to the sub-equipos rows', () => {
+    const hijos = v().detalle('medio')?.hijos ?? []
+    expect(hijos.find((hijo) => hijo.id === 'hoja')?.responsable).toEqual(heredado)
+    expect(hijos.find((hijo) => hijo.id === 'propio')?.responsable).toEqual({ nombre: 'Persona Dos', rol: 'Coordinador' })
   })
 })

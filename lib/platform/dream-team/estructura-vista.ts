@@ -84,6 +84,11 @@ export interface ResponsableEquipo {
   readonly nombre: string
   /** Final Spanish text, e.g. `Coordinador`. */
   readonly rol: string
+  /**
+   * Set only when the team has no responsable of its own and shows the one of
+   * its nearest ancestor that has one. Display only: it grants nothing.
+   */
+  readonly heredadoDe?: { readonly id: string; readonly label: string }
 }
 
 export interface HijoDetalle {
@@ -166,9 +171,11 @@ export function crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres }: E
   const nodosPorId = new Map<string, Nodo>()
   const rutaPorId = new Map<string, readonly string[]>()
   const raizPorId = new Map<string, string>()
+  const padrePorId = new Map<string, Nodo>()
 
   function indexar(nodo: Nodo, camino: readonly string[], raizId: string): void {
     nodosPorId.set(nodo.equipo.id, nodo)
+    for (const hijo of nodo.hijos) padrePorId.set(hijo.equipo.id, nodo)
     rutaPorId.set(nodo.equipo.id, [...camino, nodo.equipo.label])
     raizPorId.set(nodo.equipo.id, raizId)
     for (const hijo of nodo.hijos) indexar(hijo, [...camino, nodo.equipo.label], raizId)
@@ -179,6 +186,17 @@ export function crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres }: E
   function propias(nodo: Nodo): number {
     const { equipo } = nodo
     return equipo.origen === 'grupos_vida' ? equipo.responsables.length : (uso.propias[equipo.id] ?? 0)
+  }
+
+  /** The node's own responsable, else the nearest ancestor's, marked as inherited. */
+  function responsableDe(nodo: Nodo): ResponsableEquipo | null {
+    const propio = elegirResponsable(nodo.equipo.responsables)
+    if (propio) return propio
+    for (let ancestro = padrePorId.get(nodo.equipo.id); ancestro; ancestro = padrePorId.get(ancestro.equipo.id)) {
+      const suyo = elegirResponsable(ancestro.equipo.responsables)
+      if (suyo) return { ...suyo, heredadoDe: { id: ancestro.equipo.id, label: ancestro.equipo.label } }
+    }
+    return null
   }
 
   const totales = new Map<string, number>()
@@ -253,7 +271,7 @@ export function crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres }: E
         experienciaLabel: equipo.origen === 'dream_team' ? experienciaLabel(equipo.experiencia) : ORIGEN_GRUPOS_VIDA_LABEL,
         activo: equipo.activo,
         editable: equipo.origen === 'dream_team',
-        responsable: elegirResponsable(equipo.responsables),
+        responsable: responsableDe(nodo),
         personasRama: personasRama(nodo),
         esRama: nodo.hijos.length > 0,
         taller: talleres[equipo.id] ?? null,
@@ -261,7 +279,7 @@ export function crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres }: E
           (hijo): HijoDetalle => ({
             id: hijo.equipo.id,
             label: hijo.equipo.label,
-            responsable: elegirResponsable(hijo.equipo.responsables),
+            responsable: responsableDe(hijo),
             personasRama: personasRama(hijo),
           }),
         ),

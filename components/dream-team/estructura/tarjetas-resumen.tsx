@@ -40,7 +40,18 @@ export function TarjetasResumen({ detalle, direccionId, puedeAsignar }: Tarjetas
         {responsable ? (
           <div>
             <p className="text-base font-semibold text-foreground">{responsable.nombre}</p>
-            <p className="text-sm text-muted-foreground">{responsable.rol}</p>
+            <p className="text-sm text-muted-foreground">
+              {responsable.heredadoDe ? `${responsable.rol} · heredado de ${responsable.heredadoDe.label}` : responsable.rol}
+            </p>
+            {responsable.heredadoDe && puedeAsignar && (
+              <EnlaceSistema
+                variante="marca"
+                href={`/admin/dream-team/servidores?equipo=${encodeURIComponent(detalle.id)}`}
+                className="flex min-h-[44px] items-center text-xs"
+              >
+                Asígnalo en Servidores
+              </EnlaceSistema>
+            )}
           </div>
         ) : (
           <div>

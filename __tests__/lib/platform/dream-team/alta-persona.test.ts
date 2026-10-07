@@ -15,6 +15,10 @@ describe('parseAltaPersona', () => {
     expect(parseAltaPersona({ ...base, genero: 'X', cedula: '1234567' })).toEqual({ error: 'Género inválido' })
     expect(parseAltaPersona({ ...base, estadoCivil: 'X', cedula: '1234567' })).toEqual({ error: 'Estado civil inválido' })
   })
+  it('accepts No especificado as estado civil', () => {
+    const r = parseAltaPersona({ ...base, estadoCivil: 'No especificado', cedula: '1234567' })
+    expect(r).not.toHaveProperty('error')
+  })
   it('requires a birth date when there is no cedula', () => {
     expect(parseAltaPersona({ ...base })).toEqual({ error: 'Sin cédula, la fecha de nacimiento es requerida' })
   })

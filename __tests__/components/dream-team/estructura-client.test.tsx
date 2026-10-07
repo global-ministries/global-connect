@@ -266,12 +266,13 @@ describe('EstructuraClient — team detail (criterion 2)', () => {
     expect(zona.getByText('Sin sub-equipos')).toBeInTheDocument()
   })
 
-  it('says a team has no taller and, without a responsable, points to Servidores', () => {
+  it('says a team has no taller and, without its own responsable, shows the inherited one and points to Servidores', () => {
     render(<EstructuraClient {...props({ equipoId: ID_GCP, puedeEditar: true })} />)
     const zona = within(detalle())
     expect(within(zona.getByRole('region', { name: 'Taller vinculado' })).getByText('Este equipo no tiene un taller.')).toBeInTheDocument()
     const responsable = zona.getByRole('region', { name: 'Responsable' })
-    expect(within(responsable).getByText('Sin responsable')).toBeInTheDocument()
+    expect(within(responsable).getByText('Antholy Ludovic Gómez')).toBeInTheDocument()
+    expect(within(responsable).getByText('Director · heredado de Dirección de Conexión')).toBeInTheDocument()
     expect(within(responsable).getByRole('link', { name: 'Asígnalo en Servidores' })).toHaveAttribute(
       'href',
       `/admin/dream-team/servidores?equipo=${ID_GCP}`,
@@ -386,7 +387,7 @@ describe('EstructuraClient — read-only viewers (criterion 6)', () => {
     }
     expect(zona.queryByRole('switch')).not.toBeInTheDocument()
     expect(zona.queryByRole('link', { name: 'Asígnalo en Servidores' })).not.toBeInTheDocument()
-    expect(zona.getByText('Sin responsable')).toBeInTheDocument()
+    expect(zona.getByText('Director · heredado de Dirección de Conexión')).toBeInTheDocument()
   })
 
   it('offers no action on a Grupos de Vida node even to an editor', () => {

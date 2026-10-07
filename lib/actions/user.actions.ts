@@ -67,7 +67,7 @@ interface UpdateUserData {
   
   // Informacion personal
   fecha_nacimiento?: string
-  estado_civil: "Soltero" | "Casado" | "Divorciado" | "Viudo"
+  estado_civil: "Soltero" | "Casado" | "Divorciado" | "Viudo" | "No especificado"
   genero: "Masculino" | "Femenino" | "Otro"
   
   // Informacion profesional

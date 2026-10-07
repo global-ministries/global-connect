@@ -15,7 +15,7 @@
 import { prepararCedula } from '@/lib/utils/cedula'
 
 export const GENEROS = ['Masculino', 'Femenino', 'Otro'] as const
-export const ESTADOS_CIVILES = ['Soltero', 'Casado', 'Divorciado', 'Viudo'] as const
+export const ESTADOS_CIVILES = ['Soltero', 'Casado', 'Divorciado', 'Viudo', 'No especificado'] as const
 // relaciones_usuarios reads "usuario2 is <tipo> of usuario1": the representative is
 // usuario2. The values are gender-neutral; 'hermano' covers an older sibling.
 export const TIPOS_REPRESENTANTE = ['padre', 'tutor', 'abuelo', 'tio', 'hermano', 'otro_familiar'] as const
