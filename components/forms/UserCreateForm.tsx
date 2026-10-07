@@ -18,7 +18,7 @@ const userCreateSchema = z.object({
   telefono: z.string().optional(),
   fecha_nacimiento: z.string().optional(),
   genero: z.enum(["Masculino", "Femenino", "Otro"]),
-  estado_civil: z.enum(["Soltero", "Casado", "Divorciado", "Viudo"]),
+  estado_civil: z.enum(["Soltero", "Casado", "Divorciado", "Viudo", "No especificado"]),
 })
 
 type UserCreateFormData = z.infer<typeof userCreateSchema>
@@ -202,6 +202,7 @@ export default function UserCreateForm() {
                     { valor: "Casado", etiqueta: "Casado" },
                     { valor: "Divorciado", etiqueta: "Divorciado" },
                     { valor: "Viudo", etiqueta: "Viudo" },
+                    { valor: "No especificado", etiqueta: "No especificado" },
                   ]}
                 />
               )}
