@@ -8,6 +8,8 @@ type Otras = {
   vinculos_pendientes?: { ficha_id: string; auth_user_id: string; estado: string }[]
   /** Fichas with an open access invitation (ficha_tiene_invitacion_abierta). */
   invitadas?: string[]
+  /** Open account invitations (invitaciones_cuenta) by the auth account they created. */
+  cuentas?: Record<string, { usuario_id: string; email: string }>
 }
 
 /** Minimal in-memory stand-in for the tables the linker reads, enough for its queries. */
@@ -100,11 +102,27 @@ function crearAdmin(fichas: Ficha[], otras: Otras = {}) {
   }))
 
   const invitadas = new Set(otras.invitadas ?? [])
-  const rpc = jest.fn((nombre: string, args: { p_usuario_id: string }) =>
+  const cuentas = { ...(otras.cuentas ?? {}) }
+  // Mirrors invitacion_cuenta_vincular (20261008120000): open invitation of this
+  // account, same email, ficha still without account.
+  function vincularInvitacion(authId: string, email: string): string {
+    const inv = cuentas[authId]
+    if (!inv) return 'sin_invitacion'
+    if (inv.email !== email.trim().toLowerCase()) return 'rechazada'
+    const ficha = tabla.find((f) => f.id === inv.usuario_id && f.auth_id === null)
+    if (!ficha) return 'rechazada'
+    ficha.auth_id = authId
+    delete cuentas[authId]
+    invitadas.delete(inv.usuario_id)
+    return 'vinculada'
+  }
+  const rpc = jest.fn((nombre: string, args: Record<string, string>) =>
     Promise.resolve(
       nombre === 'ficha_tiene_invitacion_abierta'
         ? { data: invitadas.has(args.p_usuario_id), error: null }
-        : { data: null, error: { message: `unexpected rpc ${nombre}` } },
+        : nombre === 'invitacion_cuenta_vincular'
+          ? { data: vincularInvitacion(args.p_auth_user_id, args.p_email), error: null }
+          : { data: null, error: { message: `unexpected rpc ${nombre}` } },
     ),
   )
 
@@ -325,5 +343,52 @@ describe('vincularFichaConfirmada', () => {
       expect(tabla[0].auth_id).toBeNull()
       expect(inserts[0].cedula).toBeNull()
     })
+  })
+})
+
+describe('vincularFichaConfirmada — account invitations (T12)', () => {
+  const invitada: Ficha = { id: 'f-inv', auth_id: null, email: 'bea@example.com', cedula: null }
+  const porCorreo: Ficha = { id: 'f-otra', auth_id: null, email: 'bea@example.com', cedula: 'V22328215' }
+
+  it('links exactly the invited ficha, ahead of the email and cédula heuristic', async () => {
+    const { admin, tabla, inserts } = crearAdmin([porCorreo, invitada], {
+      invitadas: ['f-inv'],
+      cuentas: { 'auth-1': { usuario_id: 'f-inv', email: 'bea@example.com' } },
+    })
+    await expect(vincularFichaConfirmada(admin, usuario())).resolves.toEqual({ estado: 'vinculada' })
+    expect(tabla.find((f) => f.id === 'f-inv')?.auth_id).toBe('auth-1')
+    expect(tabla.find((f) => f.id === 'f-otra')?.auth_id).toBeNull()
+    expect(inserts).toHaveLength(0)
+  })
+
+  it('does not link the invited ficha when the email does not match', async () => {
+    const { admin, tabla } = crearAdmin([invitada], {
+      invitadas: ['f-inv'],
+      cuentas: { 'auth-1': { usuario_id: 'f-inv', email: 'otra@example.com' } },
+    })
+    await vincularFichaConfirmada(admin, usuario())
+    expect(tabla.find((f) => f.id === 'f-inv')?.auth_id).toBeNull()
+  })
+
+  it('leaves an already-linked invited ficha untouched', async () => {
+    const yaVinculada: Ficha = { ...invitada, auth_id: 'auth-otra' }
+    const { admin, tabla } = crearAdmin([yaVinculada], {
+      cuentas: { 'auth-1': { usuario_id: 'f-inv', email: 'bea@example.com' } },
+    })
+    await vincularFichaConfirmada(admin, usuario())
+    expect(tabla.find((f) => f.id === 'f-inv')?.auth_id).toBe('auth-otra')
+  })
+
+  it('never takes a ficha with an open account invitation by email for another account', async () => {
+    const { admin, tabla } = crearAdmin([invitada], { invitadas: ['f-inv'] })
+    await vincularFichaConfirmada(admin, usuario())
+    expect(tabla.find((f) => f.id === 'f-inv')?.auth_id).toBeNull()
+  })
+
+  it('reports an error when the invitation lookup fails', async () => {
+    const { admin } = crearAdmin([invitada])
+    const rpc = (admin as unknown as { rpc: jest.Mock }).rpc
+    rpc.mockImplementationOnce(() => Promise.resolve({ data: null, error: { message: 'boom' } }))
+    await expect(vincularFichaConfirmada(admin, usuario())).resolves.toEqual({ estado: 'error' })
   })
 })

@@ -14,10 +14,11 @@
  */
 import { useState, type ReactElement } from 'react'
 import Link from 'next/link'
-import { ArrowRightLeft, Clock, MoreHorizontal, UserPen, Users } from 'lucide-react'
+import { ArrowRightLeft, Clock, MoreHorizontal, MailPlus, UserPen, Users } from 'lucide-react'
 
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
+import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { FilaServidor } from '@/lib/platform/dream-team/servidores-vista'
@@ -44,6 +45,7 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
   const [etapaAbierta, setEtapaAbierta] = useState(false)
   const [turnosAbierto, setTurnosAbierto] = useState(false)
   const [fichaAbierta, setFichaAbierta] = useState(false)
+  const [invitarAbierto, setInvitarAbierto] = useState(false)
   const toast = useNotificaciones()
   if (!tieneMenu(fila)) return null
 
@@ -52,6 +54,8 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
   // A retired servicio no longer serves, so it has no shifts to change.
   const puedeElegirTurnos = servicio !== null && fila.estado !== 'retirado'
   const puedeEditarFicha = fila.fichaEditable === true
+  // T12: the same people may invite someone without account to sign in.
+  const puedeInvitar = puedeEditarFicha && fila.tieneCuenta === false
 
   return (
     <>
@@ -87,6 +91,12 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
             <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setFichaAbierta(true)}>
               <UserPen aria-hidden="true" />
               Editar ficha
+            </DropdownMenuItem>
+          )}
+          {puedeInvitar && (
+            <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setInvitarAbierto(true)}>
+              <MailPlus aria-hidden="true" />
+              Invitar a la plataforma
             </DropdownMenuItem>
           )}
           <DropdownMenuItem asChild className="min-h-11 px-3 text-sm">
@@ -129,6 +139,16 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
           onAbiertoChange={setFichaAbierta}
           onGuardado={onActualizado}
           toast={toast}
+        />
+      )}
+
+      {puedeInvitar && (
+        <InvitarCuentaPanel
+          personaId={fila.personaId}
+          nombre={fila.nombre}
+          abierto={invitarAbierto}
+          onAbiertoChange={setInvitarAbierto}
+          onInvitada={onActualizado}
         />
       )}
     </>

@@ -27,7 +27,7 @@ export function EmailLayout({ preview, children }: EmailLayoutProps) {
                     {/* Header */}
                     <Section style={styles.header}>
                         <Img
-                            src="https://yosoyglobal.org/wp-content/uploads/2025/07/Global-Logo-obs-1.webp"
+                            src="https://miembros.yosoyglobal.org/email/logo-global.png"
                             width="160"
                             height="auto"
                             alt="Global"

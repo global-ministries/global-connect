@@ -19,11 +19,12 @@
  * transition (retirado), unless the ficha is editable.
  */
 import { useState, type ReactElement } from 'react'
-import { ArrowRightLeft, Clock, MoreHorizontal, UserPen } from 'lucide-react'
+import { ArrowRightLeft, Clock, MoreHorizontal, MailPlus, UserPen } from 'lucide-react'
 
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { EditarFichaPanel } from '@/components/dream-team/servidores/editar-ficha-panel'
+import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
@@ -53,6 +54,7 @@ export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true
   const [etapaAbierta, setEtapaAbierta] = useState(false)
   const [turnosAbierto, setTurnosAbierto] = useState(false)
   const [fichaAbierta, setFichaAbierta] = useState(false)
+  const [invitarAbierto, setInvitarAbierto] = useState(false)
   const toast = useNotificaciones()
   if (!tieneAccionesDisponibles(persona, puedeEditarServicio)) return null
 
@@ -61,6 +63,8 @@ export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true
       ? { id: persona.servicioId as string, version: persona.version as number }
       : null
   const puedeEditarFicha = persona.fichaEditable === true
+  // T12: the same people may invite someone without account to sign in.
+  const puedeInvitar = puedeEditarFicha && persona.tieneCuenta === false
 
   return (
     <>
@@ -92,6 +96,12 @@ export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true
             <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setFichaAbierta(true)}>
               <UserPen aria-hidden="true" />
               Editar ficha
+            </DropdownMenuItem>
+          )}
+          {puedeInvitar && (
+            <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setInvitarAbierto(true)}>
+              <MailPlus aria-hidden="true" />
+              Invitar a la plataforma
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -128,6 +138,16 @@ export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true
           onAbiertoChange={setFichaAbierta}
           onGuardado={onActualizado}
           toast={toast}
+        />
+      )}
+
+      {puedeInvitar && (
+        <InvitarCuentaPanel
+          personaId={persona.personaId}
+          nombre={persona.nombre}
+          abierto={invitarAbierto}
+          onAbiertoChange={setInvitarAbierto}
+          onInvitada={onActualizado}
         />
       )}
     </>

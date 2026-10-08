@@ -17,6 +17,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { formatPhoneForCall } from '@/lib/utils'
 import LocationPicker from "@/components/maps/LocationPicker.client"
 import { shouldShowEditAction, toPermissionRpcValue } from "./user-edit-permission"
+import { InvitarCuentaBoton } from "@/components/cuentas/invitar-cuenta-panel"
 
 // Roles que pueden ver el botón de llamada
 const ROLES_CON_LLAMADA = ['admin', 'pastor', 'director-general', 'director-etapa']
@@ -585,6 +586,10 @@ export default function PaginaDetalleUsuario() {
                   </button>
                 </Link>
               )}
+              {/* T12: only when the viewer may invite and the person has no account. */}
+              <div className="flex-1 empty:hidden">
+                <InvitarCuentaBoton personaId={usuario.id} nombre={usuario.nombre ?? ''} />
+              </div>
               <Link href={`/users/${usuario.id}/familia`} className="flex-1">
                 <button className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 rounded-xl transition-all duration-200 text-white shadow-lg hover:scale-105">
                   <Users className="w-6 h-6 mb-2" />
