@@ -73,7 +73,7 @@ describe('RegistrarFamiliaForm — existing parent', () => {
 const hijo: HijoEncontrado = {
   id: 'h1', nombre: 'Luis', apellido: 'Pérez', fecha_nacimiento: '2022-03-10', genero: 'Masculino', grado: null,
   alergias: null, necesidades_especiales: null, habitos: null, notas: null, puede_comer: null, cambio_panal: null,
-  autoriza_imagen: null, escolarizado: null, salon_preferido_id: null, es_vip_desde: null, autorizados: [],
+  autoriza_imagen: null, escolarizado: null, salon_preferido_id: null, es_vip_desde: null, tiene_ficha: true, autorizados: [],
 }
 
 describe('EditarNinoForm — identity', () => {

@@ -26,8 +26,12 @@ export type HijoEncontrado = {
   escolarizado: boolean | null
   salon_preferido_id: string | null
   es_vip_desde: string | null
+  /** False for a child linked to a parent (e.g. "Agregar Familiar") that has no ninos_fichas row yet. */
+  tiene_ficha: boolean
   autorizados: AutorizadoEncontrado[]
 }
+
+export type PadreDeFamilia = { id: string; nombre: string; apellido: string; telefono: string | null }
 
 export type FamiliaEncontrada = {
   id: string
@@ -36,6 +40,8 @@ export type FamiliaEncontrada = {
   telefono: string | null
   cedula: string | null
   hijos: HijoEncontrado[]
+  /** Every parent of the family's children, the matched parent first. */
+  padres: PadreDeFamilia[]
 }
 
 /** A ninos_salones row as selected by the screen. */
@@ -67,14 +73,48 @@ export function parseFamilias(data: unknown): FamiliaEncontrada[] {
   if (!Array.isArray(data)) return []
   return data
     .filter((f): f is Record<string, unknown> => esObjeto(f) && typeof f.id === 'string')
-    .map((f) => ({
-      ...(f as unknown as FamiliaEncontrada),
-      hijos: Array.isArray(f.hijos)
-        ? (f.hijos as unknown[])
-            .filter((h): h is HijoEncontrado => esObjeto(h) && typeof h.id === 'string')
-            .map((h) => ({ ...h, autorizados: Array.isArray(h.autorizados) ? h.autorizados : [] }))
-        : [],
-    }))
+    .map((f) => {
+      const familia = f as unknown as FamiliaEncontrada
+      const padres = Array.isArray(f.padres)
+        ? (f.padres as unknown[]).filter((p): p is PadreDeFamilia => esObjeto(p) && typeof p.id === 'string')
+        : []
+      return {
+        ...familia,
+        hijos: Array.isArray(f.hijos)
+          ? (f.hijos as unknown[])
+              .filter((h): h is Record<string, unknown> => esObjeto(h) && typeof h.id === 'string')
+              .map((h) => ({
+                ...(h as unknown as HijoEncontrado),
+                tiene_ficha: h.tiene_ficha !== false,
+                autorizados: Array.isArray(h.autorizados) ? (h.autorizados as AutorizadoEncontrado[]) : [],
+              }))
+          : [],
+        padres:
+          padres.length > 0
+            ? padres
+            : [{ id: familia.id, nombre: familia.nombre, apellido: familia.apellido, telefono: familia.telefono ?? null }],
+      }
+    })
+}
+
+/**
+ * One card per family: search results whose children overlap (the mother and
+ * the father of the same children both matched) are merged. The first result
+ * keeps its place and id; children and parents are listed once.
+ */
+export function agruparFamilias(familias: readonly FamiliaEncontrada[]): FamiliaEncontrada[] {
+  const grupos: FamiliaEncontrada[] = []
+  for (const f of familias) {
+    const ids = new Set(f.hijos.map((h) => h.id))
+    const grupo = ids.size > 0 ? grupos.find((g) => g.hijos.some((h) => ids.has(h.id))) : undefined
+    if (!grupo) {
+      grupos.push({ ...f, hijos: [...f.hijos], padres: [...f.padres] })
+      continue
+    }
+    for (const h of f.hijos) if (!grupo.hijos.some((x) => x.id === h.id)) grupo.hijos.push(h)
+    for (const p of f.padres) if (!grupo.padres.some((x) => x.id === p.id)) grupo.padres.push(p)
+  }
+  return grupos
 }
 
 export function aSalonSugerible(s: SalonFila): SalonVista {
