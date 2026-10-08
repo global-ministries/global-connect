@@ -13,6 +13,7 @@ import { salonParaHijo, type HijoEncontrado, type SalonFila } from '@/lib/platfo
 import { EditarNinoForm } from './editar-nino-form'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
+import { PreregistrosPendientes } from './preregistros-pendientes'
 import { RegistrarFamiliaForm } from './registrar-familia-form'
 import { SalonSugerido } from './salon-sugerido'
 import { useBuscarFamilias } from './use-buscar-familias'
@@ -88,6 +89,13 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
             Nueva familia
           </BotonSistema>
         }
+      />
+
+      <PreregistrosPendientes
+        onConfirmado={(_padreId, consulta) => {
+          setQ(consulta)
+          void buscar(consulta)
+        }}
       />
 
       <form

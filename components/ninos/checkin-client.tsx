@@ -23,6 +23,7 @@ import { createClient } from '@/lib/supabase/client'
 import { registrarIngresoApi } from './api-visita'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
+import { PreregistrosPendientes } from './preregistros-pendientes'
 import { RetiroPanel } from './retiro-panel'
 import { SelectorServicio } from './selector-servicio'
 import { useBuscarFamilias } from './use-buscar-familias'
@@ -247,6 +248,12 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
             </TarjetaSistema>
           ) : resultado ? null : (
             <>
+              <PreregistrosPendientes
+                onConfirmado={(padreId, consulta) => {
+                  setQ(consulta)
+                  void buscarYElegir(consulta, padreId)
+                }}
+              />
               <form
                 className="flex items-start gap-2"
                 onSubmit={(e) => {

@@ -26,11 +26,16 @@ type Props = {
   /** consulta: "Nombre Apellido" of the first child, to find the family again. */
   onRegistrada: (padreId: string, consulta: string) => void
   onCancelar: () => void
+  /** Prefilled form (a pre-registration under review). */
+  inicial?: FamiliaForm
+  /** Replaces the direct RPC (e.g. confirming a pre-registration through its route). */
+  guardar?: (payload: FamiliaPayload) => Promise<{ padreId: string } | { error: string }>
+  textoGuardar?: string
 }
 
 /** Registers a new family (or adds children to a known parent) in one RPC call. */
-export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar }: Props) {
-  const [form, setForm] = useState<FamiliaForm>({
+export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar, inicial, guardar, textoGuardar }: Props) {
+  const [form, setForm] = useState<FamiliaForm>(inicial ?? {
     padre: { id: padreExistente?.id, nombre: '', apellido: '', telefono: '', cedula: '', genero: '' },
     hijos: [hijoVacio()],
     autorizados: [],
@@ -44,6 +49,13 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar 
 
   async function registrar(payload: FamiliaPayload) {
     setGuardando(true)
+    if (guardar) {
+      const r = await guardar(payload)
+      setGuardando(false)
+      if ('error' in r) setErrores([r.error])
+      else onRegistrada(r.padreId, payload.hijos[0] ? `${payload.hijos[0].nombre} ${payload.hijos[0].apellido}` : '')
+      return
+    }
     const { data, error } = await createClient().rpc('ninos_registrar_familia', { p: payload as unknown as Json })
     setGuardando(false)
     if (error) {
@@ -96,7 +108,7 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar 
     await registrar(r.payload)
   }
 
-  const textoBoton = padreExistente ? 'Agregar niño' : 'Registrar familia'
+  const textoBoton = textoGuardar ?? (padreExistente ? 'Agregar niño' : 'Registrar familia')
 
   return (
     <form onSubmit={enviar} className="space-y-6" noValidate>
