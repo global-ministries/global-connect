@@ -11,6 +11,7 @@
  */
 import { notFound } from 'next/navigation'
 
+import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { FamiliasClient } from '@/components/ninos/familias-client'
 import { fechaServicioCaracas } from '@/lib/platform/ninos/fecha'
 import type { SalonFila } from '@/lib/platform/ninos/familias-vista'
@@ -40,13 +41,13 @@ export default async function NinosFamiliasPage({ searchParams }: Props) {
       : undefined
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-4 md:max-w-5xl md:px-6 md:py-6 xl:max-w-7xl">
+    <ContenedorDashboard titulo="Familias">
       <FamiliasClient
         salones={(salones ?? []) as SalonFila[]}
         fechaServicio={fechaServicioCaracas()}
         registrarAlInicio={query.nueva === '1'}
         volverCheckin={volverCheckin}
       />
-    </main>
+    </ContenedorDashboard>
   )
 }

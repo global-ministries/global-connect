@@ -2,7 +2,7 @@
 
 import { AlertTriangle } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
+import { BadgeSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import type { SalonFila, SalonParaHijo } from '@/lib/platform/ninos/familias-vista'
 
 type Props = {
@@ -19,39 +19,28 @@ type Props = {
 export function SalonSugerido({ resultado, salones, onElegir, deshabilitado }: Props) {
   if (resultado.tipo !== 'ninguno') {
     return (
-      <Badge variant="secondary" className="whitespace-normal">
+      <BadgeSistema variante={resultado.tipo === 'elegido' ? 'success' : 'info'} tamaño="sm" className="whitespace-normal">
         {resultado.tipo === 'elegido' ? 'Salón asignado' : 'Salón sugerido'}: {resultado.salon.nombre}
-      </Badge>
+      </BadgeSistema>
     )
   }
 
-  const id = 'asignar-salon'
   return (
-    <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
-      <p className="flex items-center gap-2 text-sm font-medium">
+    <div className="space-y-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-3">
+      <p className="flex items-center gap-2 text-sm font-medium text-yellow-700 dark:text-yellow-400">
         <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
         Sin salón sugerido: asígnalo manualmente
       </p>
-      <label htmlFor={id} className="sr-only">
-        Asignar salón
-      </label>
-      <select
-        id={id}
+      <SelectSistema
         aria-label="Asignar salón"
-        className="h-11 w-full rounded-md border bg-background px-3 text-sm text-foreground"
+        opciones={[
+          { valor: '', etiqueta: 'Elige un salón…' },
+          ...salones.filter((s) => s.activo).map((s) => ({ valor: s.id, etiqueta: s.nombre })),
+        ]}
         defaultValue=""
         disabled={deshabilitado}
         onChange={(e) => e.target.value && onElegir(e.target.value)}
-      >
-        <option value="">Elige un salón…</option>
-        {salones
-          .filter((s) => s.activo)
-          .map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.nombre}
-            </option>
-          ))}
-      </select>
+      />
     </div>
   )
 }

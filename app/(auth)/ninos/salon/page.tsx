@@ -9,6 +9,7 @@
  */
 import { notFound } from 'next/navigation'
 
+import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { SalonClient } from '@/components/ninos/salon-client'
 import { resolverServicio, type TurnoFila } from '@/lib/platform/ninos/checkin'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
@@ -52,7 +53,7 @@ export default async function NinosSalonPage({ searchParams }: Props) {
   const salonId = lista.find((s) => s.id === query.salon)?.id ?? lista[0]?.id ?? null
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-4 md:px-6 md:py-6 lg:max-w-7xl">
+    <ContenedorDashboard titulo="Salones">
       <SalonClient
         salones={lista.map((s) => ({ id: s.id, nombre: s.nombre }))}
         turnos={listaTurnos}
@@ -60,6 +61,6 @@ export default async function NinosSalonPage({ searchParams }: Props) {
         salonId={salonId}
         puedeOperar={Boolean(puedeOperar)}
       />
-    </main>
+    </ContenedorDashboard>
   )
 }

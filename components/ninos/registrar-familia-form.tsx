@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Plus, X } from 'lucide-react'
+
+import { BotonSistema, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { createClient } from '@/lib/supabase/client'
 import {
-  GENEROS,
   hijoVacio,
   mensajeDeErrorFamilia,
   parseCoincidencias,
@@ -19,7 +18,7 @@ import {
 } from '@/lib/platform/ninos/familia'
 import type { Json } from '@/lib/supabase/database.types'
 
-import { CamposAutorizados, CamposNino, SELECT_CLASS } from './campos-nino'
+import { CamposAutorizados, CamposNino, OPCIONES_GENERO } from './campos-nino'
 
 type Props = {
   /** When set, the form only adds children to this parent. */
@@ -102,54 +101,62 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar 
   return (
     <form onSubmit={enviar} className="space-y-6" noValidate>
       {padreExistente ? (
-        <p className="text-sm text-muted-foreground">
+        <TextoSistema variante="sutil" tamaño="sm">
           Representante: <span className="font-medium text-foreground">{padreExistente.nombre}</span>
-        </p>
+        </TextoSistema>
       ) : (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">Representante</h2>
-          <div className="grid gap-3 sm:grid-cols-2 md:gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="padre-nombre">Nombre</Label>
-              <Input id="padre-nombre" aria-label="Nombre del representante" value={form.padre.nombre} onChange={(e) => setPadre('nombre', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="padre-apellido">Apellido</Label>
-              <Input id="padre-apellido" aria-label="Apellido del representante" value={form.padre.apellido} onChange={(e) => setPadre('apellido', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="padre-telefono">Teléfono</Label>
-              <Input id="padre-telefono" type="tel" inputMode="tel" value={form.padre.telefono} onChange={(e) => setPadre('telefono', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="padre-cedula">Cédula (opcional)</Label>
-              <Input id="padre-cedula" inputMode="numeric" value={form.padre.cedula} onChange={(e) => setPadre('cedula', e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="padre-genero">Género</Label>
-              <select
-                id="padre-genero"
-                aria-label="Género del representante"
-                className={SELECT_CLASS}
-                value={form.padre.genero}
-                onChange={(e) => setPadre('genero', e.target.value)}
-              >
-                <option value="">Elige…</option>
-                {GENEROS.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <TarjetaSistema className="space-y-4 p-4 md:p-6">
+          <TituloSistema nivel={3}>Representante</TituloSistema>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <InputSistema
+              id="padre-nombre"
+              label="Nombre"
+              aria-label="Nombre del representante"
+              value={form.padre.nombre}
+              onChange={(e) => setPadre('nombre', e.target.value)}
+            />
+            <InputSistema
+              id="padre-apellido"
+              label="Apellido"
+              aria-label="Apellido del representante"
+              value={form.padre.apellido}
+              onChange={(e) => setPadre('apellido', e.target.value)}
+            />
+            <InputSistema
+              id="padre-telefono"
+              label="Teléfono"
+              type="tel"
+              inputMode="tel"
+              value={form.padre.telefono}
+              onChange={(e) => setPadre('telefono', e.target.value)}
+            />
+            <InputSistema
+              id="padre-cedula"
+              label="Cédula (opcional)"
+              inputMode="numeric"
+              value={form.padre.cedula}
+              onChange={(e) => setPadre('cedula', e.target.value)}
+            />
+            <SelectSistema
+              id="padre-genero"
+              label="Género"
+              aria-label="Género del representante"
+              opciones={OPCIONES_GENERO}
+              value={form.padre.genero}
+              onValueChange={(v) => setPadre('genero', v)}
+            />
           </div>
-          <p className="text-xs text-muted-foreground">Si el teléfono o la cédula ya existen, te pediremos confirmar a esa persona.</p>
+          <TextoSistema variante="sutil" className="text-xs">
+            Si el teléfono o la cédula ya existen, te pediremos confirmar a esa persona.
+          </TextoSistema>
           {coincidencias.length > 0 && (
-            <div role="alert" className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
-              <p className="text-sm font-medium">Ya existe una persona con estos datos. ¿Es el representante?</p>
+            <div role="alert" className="space-y-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
+              <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
+                Ya existe una persona con estos datos. ¿Es el representante?
+              </p>
               <ul className="space-y-2">
                 {coincidencias.map((c) => (
-                  <li key={c.id} className="space-y-2 rounded-md bg-background p-2 text-foreground">
+                  <li key={c.id} className="space-y-3 rounded-xl border border-border bg-card p-3 text-foreground">
                     <p className="text-sm">
                       <span className="font-medium">
                         {c.nombre} {c.apellido}
@@ -157,67 +164,71 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar 
                       {c.telefono && <> · Tel. {c.telefono}</>}
                       {c.cedula && <> · Cédula {c.cedula}</>}
                     </p>
-                    <Button type="button" className="h-11 w-full" disabled={guardando} onClick={() => void confirmar(c.id)}>
+                    <BotonSistema type="button" className="w-full" disabled={guardando} onClick={() => void confirmar(c.id)}>
                       Sí, es esta persona
-                    </Button>
+                    </BotonSistema>
                   </li>
                 ))}
               </ul>
-              <Button type="button" variant="outline" className="h-11 w-full" onClick={() => setCoincidencias([])}>
+              <BotonSistema type="button" variante="outline" className="w-full" onClick={() => setCoincidencias([])}>
                 No, corregir datos
-              </Button>
+              </BotonSistema>
             </div>
           )}
-        </section>
+        </TarjetaSistema>
       )}
 
       <div className={form.hijos.length > 1 ? 'grid gap-4 xl:grid-cols-2' : 'grid gap-4'}>
         {form.hijos.map((h, i) => (
-          <section key={i} className="min-w-0 space-y-3 rounded-lg border p-3 md:p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold">Niño {i + 1}</h2>
+          <TarjetaSistema key={i} className="min-w-0 space-y-4 p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <TituloSistema nivel={3}>Niño {i + 1}</TituloSistema>
               {form.hijos.length > 1 && (
-                <button
+                <BotonSistema
                   type="button"
-                  className="text-sm text-muted-foreground underline"
+                  variante="ghost"
+                  tamaño="sm"
+                  icono={X}
                   onClick={() => setForm((f) => ({ ...f, hijos: f.hijos.filter((_, j) => j !== i) }))}
                 >
                   Quitar
-                </button>
+                </BotonSistema>
               )}
             </div>
             <CamposNino indice={i} hijo={h} onChange={(x) => setHijo(i, x)} />
-          </section>
+          </TarjetaSistema>
         ))}
       </div>
-      <button
+      <BotonSistema
         type="button"
-        className="text-sm font-medium text-primary underline"
+        variante="outline"
+        tamaño="sm"
+        icono={Plus}
         onClick={() => setForm((f) => ({ ...f, hijos: [...f.hijos, { ...hijoVacio(), apellido: f.hijos[0]?.apellido ?? '' }] }))}
       >
-        + Agregar otro niño
-      </button>
+        Agregar otro niño
+      </BotonSistema>
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Personas autorizadas para retirar</h2>
+      <TarjetaSistema className="space-y-4 p-4 md:p-6">
+        <TituloSistema nivel={3}>Personas autorizadas para retirar</TituloSistema>
         <CamposAutorizados autorizados={form.autorizados} onChange={(a) => setForm((f) => ({ ...f, autorizados: a }))} />
-      </section>
+      </TarjetaSistema>
 
       {errores.length > 0 && (
-        <ul role="alert" className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+        <ul role="alert" className="space-y-1 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
           {errores.map((e) => (
             <li key={e}>{e}</li>
           ))}
         </ul>
       )}
 
-      <div className="sticky bottom-0 flex gap-2 bg-background py-3">
-        <Button type="button" variant="outline" className="h-11 flex-1" onClick={onCancelar}>
+      <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t border-border bg-[var(--surface-primary)] py-4">
+        <BotonSistema type="button" variante="outline" className="flex-1 sm:flex-none" onClick={onCancelar}>
           Cancelar
-        </Button>
-        <Button type="submit" className="h-11 flex-1" disabled={guardando}>
+        </BotonSistema>
+        <BotonSistema type="submit" className="flex-1 sm:flex-none" disabled={guardando}>
           {guardando ? 'Guardando…' : textoBoton}
-        </Button>
+        </BotonSistema>
       </div>
     </form>
   )

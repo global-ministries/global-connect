@@ -1,11 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Phone } from 'lucide-react'
+import { Phone, RotateCcw, Search } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { BadgeSistema, BotonSistema, InputSistema } from '@/components/ui/sistema-diseno'
 import type { Servicio } from '@/lib/platform/ninos/checkin'
 import {
   agruparRetiro,
@@ -103,66 +101,76 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
   }
 
   return (
-    <section className="space-y-3" aria-label="Retiro">
+    <section className="space-y-4" aria-label="Retiro">
       <form className="flex items-end gap-2" onSubmit={onBuscar}>
-        <div className="flex-1 space-y-1">
-          <Label htmlFor="retiro-codigo">Código de seguridad</Label>
-          <Input
+        <div className="min-w-0 flex-1">
+          <InputSistema
             id="retiro-codigo"
+            label="Código de seguridad"
             inputMode="numeric"
             autoComplete="off"
             maxLength={4}
             placeholder="1234"
-            className="h-12 font-mono text-2xl tracking-widest"
+            className="font-mono text-2xl tracking-widest"
             value={texto}
             onChange={(e) => setTexto(e.target.value.replace(/\D/g, ''))}
           />
         </div>
-        <Button type="submit" className="h-12" disabled={cargando || !servicio.turnoId}>
+        <BotonSistema type="submit" icono={Search} disabled={cargando || !servicio.turnoId}>
           Buscar
-        </Button>
+        </BotonSistema>
       </form>
 
       {error && (
-        <p role="alert" className="text-sm font-medium text-destructive">
+        <p role="alert" className="text-sm font-medium text-red-500 dark:text-red-400">
           {error}
         </p>
       )}
       {hecho && (
-        <p role="status" className="text-sm font-medium text-green-700 dark:text-green-300">
+        <p role="status" className="rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-sm font-medium text-green-700 dark:text-green-400">
           {hecho}
         </p>
       )}
 
       {retiro && (
-        <div className="space-y-3 rounded-lg border p-3">
-          <ul className="space-y-1" aria-label="Niños con este código">
+        <div className="space-y-4 rounded-xl border border-border bg-card/50 p-4">
+          <ul className="divide-y divide-border" aria-label="Niños con este código">
             {retiro.adentro.map((f) => (
-              <li key={f.checkin_id} className="font-medium">
-                {f.nombre} {f.apellido} <span className="text-sm font-normal text-muted-foreground">— {f.salon}</span>
+              <li key={f.checkin_id} className="flex flex-wrap items-center justify-between gap-2 py-2 font-medium text-foreground">
+                <span>
+                  {f.nombre} {f.apellido}
+                </span>
+                <span className="text-sm font-normal text-muted-foreground">— {f.salon}</span>
               </li>
             ))}
             {retiro.retirados.map((f) => (
-              <li key={f.checkin_id} className="text-muted-foreground">
-                {f.nombre} {f.apellido} <span className="text-sm">— {textoRetirado(f)}</span>
+              <li key={f.checkin_id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-muted-foreground">
+                <span>
+                  {f.nombre} {f.apellido}
+                </span>
+                <BadgeSistema variante="default" tamaño="sm">
+                  {textoRetirado(f)}
+                </BadgeSistema>
               </li>
             ))}
           </ul>
 
           {retiro.adentro.length > 0 && (
             <>
-              <div className="space-y-1">
-                <p className="text-sm font-semibold">Autorizados para retirar</p>
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Autorizados para retirar</p>
                 {retiro.autorizados.length === 0 ? (
-                  <p className="text-sm text-amber-700 dark:text-amber-300">Sin personas autorizadas registradas.</p>
+                  <BadgeSistema variante="warning" tamaño="sm">
+                    Sin personas autorizadas registradas.
+                  </BadgeSistema>
                 ) : (
                   <ul className="space-y-1 text-sm">
                     {retiro.autorizados.map((a) => (
                       <li key={`${a.nombre}-${a.telefono ?? ''}`} className="flex flex-wrap items-center gap-x-2">
-                        <span className="font-medium">{a.nombre}</span>
+                        <span className="font-medium text-foreground">{a.nombre}</span>
                         {a.relacion && <span className="text-muted-foreground">({a.relacion})</span>}
                         {a.telefono && (
-                          <a href={`tel:${a.telefono}`} className="inline-flex items-center gap-1 underline">
+                          <a href={`tel:${a.telefono}`} className="inline-flex min-h-[44px] items-center gap-1 text-[var(--brand-primary)] hover:underline">
                             <Phone className="h-3 w-3" aria-hidden />
                             {a.telefono}
                           </a>
@@ -172,24 +180,21 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
                   </ul>
                 )}
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="retiro-quien">¿Quién retira?</Label>
-                <Input
-                  id="retiro-quien"
-                  className="h-11"
-                  placeholder="Nombre de quien retira"
-                  value={retiradoPor}
-                  onChange={(e) => setRetiradoPor(e.target.value)}
-                />
-              </div>
-              <Button className="h-12 w-full text-base" disabled={cargando} onClick={() => void confirmar()}>
+              <InputSistema
+                id="retiro-quien"
+                label="¿Quién retira?"
+                placeholder="Nombre de quien retira"
+                value={retiradoPor}
+                onChange={(e) => setRetiradoPor(e.target.value)}
+              />
+              <BotonSistema type="button" tamaño="lg" className="w-full" disabled={cargando} onClick={() => void confirmar()}>
                 {cargando ? 'Registrando…' : 'Confirmar retiro'}
-              </Button>
+              </BotonSistema>
             </>
           )}
-          <button type="button" className="text-sm text-muted-foreground underline" onClick={otroCodigo}>
+          <BotonSistema type="button" variante="ghost" tamaño="sm" icono={RotateCcw} onClick={otroCodigo}>
             Otro código
-          </button>
+          </BotonSistema>
         </div>
       )}
     </section>

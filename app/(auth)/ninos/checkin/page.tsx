@@ -9,6 +9,7 @@
  */
 import { notFound } from 'next/navigation'
 
+import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { CheckinClient } from '@/components/ninos/checkin-client'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { resolverServicio, type TurnoFila } from '@/lib/platform/ninos/checkin'
@@ -48,7 +49,7 @@ export default async function NinosCheckinPage({ searchParams }: Props) {
   const servicio = resolverServicio({ turno: query.turno, fecha: query.fecha }, listaTurnos, hoyEnCaracas())
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-4 md:max-w-6xl md:px-6 md:py-6">
+    <ContenedorDashboard titulo="Check-in">
       <CheckinClient
         salones={(salones ?? []) as SalonFila[]}
         turnos={listaTurnos}
@@ -56,6 +57,6 @@ export default async function NinosCheckinPage({ searchParams }: Props) {
         consultaInicial={query.q}
         padreInicial={query.padre}
       />
-    </main>
+    </ContenedorDashboard>
   )
 }

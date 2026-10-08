@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, Search, UserPlus } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Search, UserPlus, Users } from 'lucide-react'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { TabsList, TabsSistema, TabsTrigger } from '@/components/ui/TabsSistema'
+import { BadgeSistema, BotonSistema, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { cn } from '@/lib/utils'
 import {
   alertasDeHijo,
   armarCheckin,
@@ -20,7 +20,8 @@ import {
 import { salonParaHijo, type FamiliaEncontrada, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { createClient } from '@/lib/supabase/client'
 
-import { SELECT_CLASS } from './campos-nino'
+import { EncabezadoNinos } from './encabezado-ninos'
+import { EstadoVacio } from './estado-vacio'
 import { RetiroPanel } from './retiro-panel'
 import { SelectorServicio } from './selector-servicio'
 import { useBuscarFamilias } from './use-buscar-familias'
@@ -207,216 +208,255 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
 
   const turnoActual = turnos.find((t) => t.id === servicio.turnoId)
 
+  const urlNuevaFamilia = `/ninos/familias?nueva=1&volver=checkin&turno=${encodeURIComponent(servicio.turnoId ?? '')}&fecha=${servicio.fecha}`
+
   return (
-    <div className="space-y-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] md:items-start md:gap-6 md:space-y-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
-      <div className="min-w-0 space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl font-bold md:text-2xl">Check-in</h1>
-          <Button asChild variant="outline" className="h-11">
-            <Link href={`/ninos/familias?nueva=1&volver=checkin&turno=${encodeURIComponent(servicio.turnoId ?? '')}&fecha=${servicio.fecha}`}>
-              <UserPlus className="mr-2 h-4 w-4" aria-hidden />
-              Nueva familia
-            </Link>
-          </Button>
+    <>
+      <EncabezadoNinos
+        titulo="Check-in"
+        subtitulo="Ingreso y retiro de niños del servicio."
+        acciones={
+          <Link
+            href={urlNuevaFamilia}
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border-2 border-border px-4 py-3 font-medium text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+          >
+            <UserPlus className="h-5 w-5" aria-hidden />
+            Nueva familia
+          </Link>
+        }
+      />
+
+      <div className="space-y-6 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] md:items-start md:gap-6 md:space-y-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+        <div className="min-w-0 space-y-4">
+          <SelectorServicio idPrefijo="checkin" turnos={turnos} servicio={servicio} onCambiar={cambiarServicio} />
+
+          <TabsSistema value={pestana} onValueChange={(v) => setPestana(v as 'ingreso' | 'retiro')}>
+            <TabsList aria-label="Ingreso o retiro" className="grid w-full grid-cols-2 sm:inline-grid sm:w-auto">
+              {(['ingreso', 'retiro'] as const).map((p) => (
+                <TabsTrigger key={p} value={p} className="min-h-[44px] px-6" onClick={() => setPestana(p)}>
+                  {p === 'ingreso' ? 'Ingreso' : 'Retiro'}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </TabsSistema>
+
+          {pestana === 'retiro' ? (
+            <TarjetaSistema className="p-4 md:p-6">
+              <RetiroPanel servicio={servicio} onRetirado={() => void cargarOcupacion()} />
+            </TarjetaSistema>
+          ) : resultado ? null : (
+            <>
+              <form
+                className="flex items-start gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void buscarYElegir(q)
+                }}
+              >
+                <div className="min-w-0 flex-1">
+                  <InputSistema
+                    type="search"
+                    icono={Search}
+                    aria-label="Buscar familia"
+                    placeholder="Teléfono, nombre del representante o del niño"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
+                </div>
+                <BotonSistema type="submit" icono={Search} disabled={buscando} aria-label="Buscar" />
+              </form>
+
+              {errorBusqueda && (
+                <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+                  {errorBusqueda}
+                </p>
+              )}
+              {familias && familias.length === 0 && (
+                <EstadoVacio icono={Users} titulo="No se encontraron familias." subtitulo="Prueba con otro teléfono o nombre, o registra una nueva familia." />
+              )}
+
+              {!familia && familias && familias.length > 1 && (
+                <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {familias.map((f) => (
+                    <li key={f.id}>
+                      <button
+                        type="button"
+                        className="glass-panel flex h-full min-h-[44px] w-full items-center justify-between gap-3 rounded-2xl p-4 text-left transition-colors hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/40"
+                        onClick={() => elegirFamilia(f)}
+                      >
+                        <span className="min-w-0">
+                          <span className="block font-semibold text-foreground">
+                            {f.nombre} {f.apellido}
+                          </span>
+                          <span className="block text-sm text-muted-foreground">
+                            {f.hijos.map((h) => h.nombre).join(', ') || 'Sin niños registrados'}
+                          </span>
+                        </span>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {familia && (
+                <TarjetaSistema className="space-y-4 p-4 md:p-6">
+                  <div className="flex items-start justify-between gap-2">
+                    <TituloSistema nivel={3}>
+                      {familia.nombre} {familia.apellido}
+                    </TituloSistema>
+                    {familias && familias.length > 1 && (
+                      <BotonSistema type="button" variante="ghost" tamaño="sm" onClick={() => elegirFamilia(null)}>
+                        Otra familia
+                      </BotonSistema>
+                    )}
+                  </div>
+                  {familia.hijos.length === 0 && (
+                    <TextoSistema variante="sutil" tamaño="sm">
+                      Esta familia no tiene niños registrados.
+                    </TextoSistema>
+                  )}
+                  <ul className="divide-y divide-border rounded-xl border border-border">
+                    {familia.hijos.map((h) => {
+                      const codigo = ingresados[h.id]
+                      const sugerencia = salonParaHijo(h, salones, servicio.fecha)
+                      const salonId = salonDe(h.id)
+                      const nombre = `${h.nombre} ${h.apellido}`
+                      return (
+                        <li key={h.id} data-testid={`nino-${h.id}`} className="space-y-2 p-3">
+                          {codigo ? (
+                            <div className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                              {nombre}
+                              <BadgeSistema variante="success" tamaño="sm">
+                                Ya ingresó (código {codigo})
+                              </BadgeSistema>
+                            </div>
+                          ) : (
+                            <label className="flex min-h-[44px] cursor-pointer items-center gap-3 font-medium text-foreground">
+                              <input
+                                type="checkbox"
+                                className="h-5 w-5 shrink-0 rounded accent-[var(--brand-primary)]"
+                                aria-label={nombre}
+                                checked={Boolean(elegidos[h.id])}
+                                onChange={(e) => setElegidos((x) => ({ ...x, [h.id]: e.target.checked }))}
+                              />
+                              {nombre}
+                              {h.es_vip_desde && (
+                                <BadgeSistema variante="warning" tamaño="sm">
+                                  VIP
+                                </BadgeSistema>
+                              )}
+                            </label>
+                          )}
+                          {alertasDeHijo(h).length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {alertasDeHijo(h).map((a) => (
+                                <BadgeSistema key={a} variante="error" tamaño="sm">
+                                  {a}
+                                </BadgeSistema>
+                              ))}
+                            </div>
+                          )}
+                          {!codigo && (
+                            <div className="space-y-2">
+                              {sugerencia.tipo === 'ninguno' && !salonManual[h.id] && (
+                                <p className="flex items-center gap-2 text-sm font-medium text-yellow-700 dark:text-yellow-400">
+                                  <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+                                  Sin salón sugerido: asígnalo manualmente
+                                </p>
+                              )}
+                              <SelectSistema
+                                aria-label={`Salón de ${h.nombre}`}
+                                opciones={[{ valor: '', etiqueta: 'Elige un salón…' }, ...salones.map((s) => ({ valor: s.id, etiqueta: s.nombre }))]}
+                                value={salonId ?? ''}
+                                onValueChange={(v) => setSalonManual((x) => ({ ...x, [h.id]: v }))}
+                              />
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                  {error && (
+                    <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+                      {error}
+                    </p>
+                  )}
+                  <BotonSistema
+                    type="button"
+                    tamaño="lg"
+                    className="w-full"
+                    disabled={guardando || !servicio.turnoId}
+                    onClick={() => void registrarIngreso()}
+                  >
+                    {guardando ? 'Registrando…' : 'Registrar ingreso'}
+                  </BotonSistema>
+                </TarjetaSistema>
+              )}
+            </>
+          )}
         </div>
 
-        <SelectorServicio idPrefijo="checkin" turnos={turnos} servicio={servicio} onCambiar={cambiarServicio} />
-
-        <div role="tablist" aria-label="Ingreso o retiro" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-          {(['ingreso', 'retiro'] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              role="tab"
-              aria-selected={pestana === p}
-              className={`h-10 rounded-md text-sm font-medium ${pestana === p ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-              onClick={() => setPestana(p)}
-            >
-              {p === 'ingreso' ? 'Ingreso' : 'Retiro'}
-            </button>
-          ))}
-        </div>
-
-        {pestana === 'retiro' ? (
-          <RetiroPanel servicio={servicio} onRetirado={() => void cargarOcupacion()} />
-        ) : resultado ? null : (
-          <>
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault()
-                void buscarYElegir(q)
-              }}
-            >
-              <Input
-                aria-label="Buscar familia"
-                placeholder="Teléfono, nombre del representante o del niño"
-                className="h-11"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-              <Button type="submit" className="h-11" disabled={buscando} aria-label="Buscar">
-                <Search className="h-4 w-4" aria-hidden />
-              </Button>
-            </form>
-
-            {errorBusqueda && (
-              <p role="alert" className="text-sm text-destructive">
-                {errorBusqueda}
-              </p>
-            )}
-            {familias && familias.length === 0 && <p className="text-sm text-muted-foreground">No se encontraron familias.</p>}
-
-            {!familia && familias && familias.length > 1 && (
-              <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
-                {familias.map((f) => (
-                  <li key={f.id}>
-                    <button type="button" className="h-full min-h-11 w-full rounded-lg border p-3 text-left" onClick={() => elegirFamilia(f)}>
-                      <span className="font-semibold">
-                        {f.nombre} {f.apellido}
-                      </span>
-                      <span className="block text-sm text-muted-foreground">
-                        {f.hijos.map((h) => h.nombre).join(', ') || 'Sin niños registrados'}
-                      </span>
-                    </button>
+        <aside className="min-w-0 space-y-4 md:sticky md:top-20">
+          {pestana === 'ingreso' && resultado && (
+            <TarjetaSistema variante="elevated" className="space-y-4 border-2 border-[var(--brand-primary)] p-4 text-center md:p-6" aria-live="polite">
+              <p className="text-lg font-medium text-foreground">Código</p>
+              <p className="break-all font-mono text-7xl font-black tracking-widest text-[var(--brand-primary)]">{resultado.codigo}</p>
+              <p className="text-lg font-medium text-foreground">escríbelo en ambas etiquetas</p>
+              <ul className="divide-y divide-border rounded-xl border border-border text-left">
+                {resultado.lineas.map((l) => (
+                  <li key={l} className="px-3 py-2 text-foreground">
+                    {l}
+                  </li>
+                ))}
+              </ul>
+              {resultado.avisos.map((a) => (
+                <p
+                  key={a}
+                  role="alert"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-2 font-medium text-yellow-700 dark:text-yellow-400"
+                >
+                  <AlertTriangle className="h-4 w-4" aria-hidden />
+                  {a}
+                </p>
+              ))}
+              <BotonSistema type="button" tamaño="lg" className="w-full" onClick={siguienteFamilia}>
+                Siguiente familia
+              </BotonSistema>
+            </TarjetaSistema>
+          )}
+          <TarjetaSistema className="overflow-hidden p-0" aria-label="Ocupación de salones" role="region">
+            <div className="border-b border-border px-4 py-3">
+              <TituloSistema nivel={4}>Ocupación{turnoActual ? ` — ${turnoActual.nombre}` : ''}</TituloSistema>
+            </div>
+            {ocupacion === null ? (
+              <TextoSistema variante="sutil" tamaño="sm" className="px-4 py-3">
+                Cargando…
+              </TextoSistema>
+            ) : ocupacion.length === 0 ? (
+              <TextoSistema variante="sutil" tamaño="sm" className="px-4 py-3">
+                Sin salones para este servicio.
+              </TextoSistema>
+            ) : (
+              <ul className="grid grid-cols-2 gap-x-4 px-4 py-2 text-sm md:grid-cols-1 lg:grid-cols-2">
+                {ocupacion.map((o) => (
+                  <li key={o.salon_id} className="flex min-h-9 items-center justify-between gap-2 border-b border-border/50 last:border-0">
+                    <span className="truncate text-foreground">{o.nombre}</span>
+                    <span
+                      className={cn(
+                        'tabular-nums',
+                        o.presentes > o.capacidad ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-foreground',
+                      )}
+                    >
+                      {o.presentes}/{o.capacidad}
+                    </span>
                   </li>
                 ))}
               </ul>
             )}
-
-            {familia && (
-              <section className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold">
-                    {familia.nombre} {familia.apellido}
-                  </p>
-                  {familias && familias.length > 1 && (
-                    <button type="button" className="text-sm text-muted-foreground underline" onClick={() => elegirFamilia(null)}>
-                      Otra familia
-                    </button>
-                  )}
-                </div>
-                {familia.hijos.length === 0 && <p className="text-sm text-muted-foreground">Esta familia no tiene niños registrados.</p>}
-                <ul className="space-y-2">
-                  {familia.hijos.map((h) => {
-                    const codigo = ingresados[h.id]
-                    const sugerencia = salonParaHijo(h, salones, servicio.fecha)
-                    const salonId = salonDe(h.id)
-                    const nombre = `${h.nombre} ${h.apellido}`
-                    return (
-                      <li key={h.id} data-testid={`nino-${h.id}`} className="space-y-2 rounded-md bg-muted/50 p-2">
-                        {codigo ? (
-                          <p className="font-medium">
-                            {nombre}{' '}
-                            <span className="text-sm font-normal text-muted-foreground">Ya ingresó (código {codigo})</span>
-                          </p>
-                        ) : (
-                          <label className="flex min-h-11 items-center gap-3 font-medium">
-                            <input
-                              type="checkbox"
-                              className="h-5 w-5"
-                              aria-label={nombre}
-                              checked={Boolean(elegidos[h.id])}
-                              onChange={(e) => setElegidos((x) => ({ ...x, [h.id]: e.target.checked }))}
-                            />
-                            {nombre}
-                            {h.es_vip_desde && <Badge variant="outline">VIP</Badge>}
-                          </label>
-                        )}
-                        {alertasDeHijo(h).map((a) => (
-                          <p key={a} className="text-sm text-destructive">
-                            {a}
-                          </p>
-                        ))}
-                        {!codigo && (
-                          <div className="space-y-1">
-                            {sugerencia.tipo === 'ninguno' && !salonManual[h.id] && (
-                              <p className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-300">
-                                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-                                Sin salón sugerido: asígnalo manualmente
-                              </p>
-                            )}
-                            <select
-                              aria-label={`Salón de ${h.nombre}`}
-                              className={SELECT_CLASS}
-                              value={salonId ?? ''}
-                              onChange={(e) => setSalonManual((x) => ({ ...x, [h.id]: e.target.value }))}
-                            >
-                              <option value="">Elige un salón…</option>
-                              {salones.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.nombre}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-                {error && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {error}
-                  </p>
-                )}
-                <Button
-                  className="h-12 w-full text-base"
-                  disabled={guardando || !servicio.turnoId}
-                  onClick={() => void registrarIngreso()}
-                >
-                  {guardando ? 'Registrando…' : 'Registrar ingreso'}
-                </Button>
-              </section>
-            )}
-          </>
-        )}
+          </TarjetaSistema>
+        </aside>
       </div>
-
-      <aside className="min-w-0 space-y-4 md:sticky md:top-4">
-        {pestana === 'ingreso' && resultado && (
-          <section className="space-y-4 rounded-lg border-2 border-primary p-4 text-center md:p-6" aria-live="polite">
-            <p className="text-lg font-medium">Código</p>
-            <p className="break-all font-mono text-7xl font-black tracking-widest">{resultado.codigo}</p>
-            <p className="text-lg font-medium">escríbelo en ambas etiquetas</p>
-            <ul className="space-y-1 text-left">
-              {resultado.lineas.map((l) => (
-                <li key={l}>{l}</li>
-              ))}
-            </ul>
-            {resultado.avisos.map((a) => (
-              <p key={a} role="alert" className="flex items-center justify-center gap-2 font-medium text-amber-700 dark:text-amber-300">
-                <AlertTriangle className="h-4 w-4" aria-hidden />
-                {a}
-              </p>
-            ))}
-            <Button className="h-12 w-full text-base" onClick={siguienteFamilia}>
-              Siguiente familia
-            </Button>
-          </section>
-        )}
-        <section className="space-y-2 rounded-lg border p-3 md:p-4" aria-label="Ocupación de salones">
-          <h2 className="text-sm font-semibold">
-            Ocupación{turnoActual ? ` — ${turnoActual.nombre}` : ''}
-          </h2>
-          {ocupacion === null ? (
-            <p className="text-sm text-muted-foreground">Cargando…</p>
-          ) : ocupacion.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin salones para este servicio.</p>
-          ) : (
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm md:grid-cols-1 md:gap-y-2 md:text-base lg:grid-cols-2 lg:text-sm">
-              {ocupacion.map((o) => (
-                <li key={o.salon_id} className="flex justify-between gap-2">
-                  <span className="truncate">{o.nombre}</span>
-                  <span className={o.presentes > o.capacidad ? 'font-semibold text-destructive' : 'tabular-nums'}>
-                    {o.presentes}/{o.capacidad}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </aside>
-    </div>
+    </>
   )
 }

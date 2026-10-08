@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { Button } from '@/components/ui/button'
+import { BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { createClient } from '@/lib/supabase/client'
 import { mensajeDeErrorFamilia, validarAutorizados, validarEdicionNino, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
 import { hijoAForm, type HijoEncontrado } from '@/lib/platform/ninos/familias-vista'
@@ -52,23 +52,23 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
     <form onSubmit={enviar} className="space-y-6" noValidate>
       <CamposNino indice={0} hijo={form} onChange={setForm} />
       <section className="space-y-3">
-        <h2 className="text-base font-semibold">Personas autorizadas para retirar</h2>
+        <TituloSistema nivel={3}>Personas autorizadas para retirar</TituloSistema>
         <CamposAutorizados autorizados={autorizados} onChange={setAutorizados} />
       </section>
       {errores.length > 0 && (
-        <ul role="alert" className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+        <ul role="alert" className="space-y-1 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
           {errores.map((e) => (
             <li key={e}>{e}</li>
           ))}
         </ul>
       )}
-      <div className="sticky bottom-0 flex gap-2 bg-background py-3">
-        <Button type="button" variant="outline" className="h-11 flex-1" onClick={onCancelar}>
+      <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-background py-4">
+        <BotonSistema type="button" variante="outline" className="flex-1 sm:flex-none" onClick={onCancelar}>
           Cancelar
-        </Button>
-        <Button type="submit" className="h-11 flex-1" disabled={guardando}>
+        </BotonSistema>
+        <BotonSistema type="submit" className="flex-1 sm:flex-none" disabled={guardando}>
           {guardando ? 'Guardando…' : 'Guardar ficha'}
-        </Button>
+        </BotonSistema>
       </div>
     </form>
   )
