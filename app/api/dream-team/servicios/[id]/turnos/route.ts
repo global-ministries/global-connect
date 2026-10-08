@@ -8,20 +8,25 @@ import {
   requireDreamTeamSession,
 } from '@/lib/platform/dream-team/route-access'
 import {
+  fetchFrecuenciasDeServicios,
   fetchTurnos,
   fetchTurnosDeServicios,
   fetchTurnosDisponibles,
   guardarTurnosDeServicio,
+  validarFrecuencias,
   validarTurnoIds,
 } from '@/lib/platform/dream-team/turnos'
 
 /**
  * The service shifts of one servicio (D12).
  *
- * GET  → { turnos, asignados }: the shifts the servicio's node serves in (after
+ * GET  → { turnos, asignados, frecuencias }: the shifts the servicio's node serves in (after
  *        inheritance) plus any already assigned, so a shift that stopped being
- *        offered can still be seen and removed.
- * PUT  { turnoIds } → { asignados }: replaces the assignment. RLS lets the
+ *        offered can still be seen and removed. `frecuencias` lists the biweekly
+ *        ones (T10); the rest are weekly.
+ * PUT  { turnoIds, frecuencias? } → { asignados }: replaces the assignment;
+ *        `frecuencias` (turnoId → { frecuencia, fechaAncla }) sets each shift's
+ *        frequency, unlisted ones weekly; without it stored ones are kept. RLS lets the
  *        same people who edit the servicio do it; a trigger rejects a shift of
  *        another campus, an inactive one or one the node does not serve (422).
  */
@@ -45,13 +50,18 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     if (!servicio) return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
 
     const turnos = await fetchTurnos(supabase)
-    const [disponibles, porServicio] = await Promise.all([
+    const [disponibles, porServicio, frecuenciasPorServicio] = await Promise.all([
       fetchTurnosDisponibles(supabase, servicio.equipoId, turnos),
       fetchTurnosDeServicios(supabase, [id]),
+      fetchFrecuenciasDeServicios(supabase, [id]),
     ])
     const asignados = porServicio.get(id) ?? []
     const ofrecidos = new Set([...disponibles, ...asignados])
-    return NextResponse.json({ turnos: turnos.filter((turno) => ofrecidos.has(turno.id)), asignados })
+    return NextResponse.json({
+      turnos: turnos.filter((turno) => ofrecidos.has(turno.id)),
+      asignados,
+      frecuencias: frecuenciasPorServicio.get(id) ?? {},
+    })
   } catch (error) {
     console.error('[dream-team/servicios/[id]/turnos] GET error:', error)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
@@ -74,13 +84,15 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     }
     const validacion = validarTurnoIds((body as { turnoIds?: unknown } | null)?.turnoIds)
     if (!validacion.ok) return NextResponse.json({ error: validacion.message }, { status: 400 })
+    const frecuencias = validarFrecuencias((body as { frecuencias?: unknown }).frecuencias, validacion.turnoIds)
+    if (!frecuencias.ok) return NextResponse.json({ error: frecuencias.message }, { status: 400 })
 
     const supabase = await createSupabaseServerClient()
     const servicio = await createSupabaseDreamTeamRepository(supabase).getServicioById(id)
     if (!servicio) return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
 
     try {
-      await guardarTurnosDeServicio(supabase, id, validacion.turnoIds)
+      await guardarTurnosDeServicio(supabase, id, validacion.turnoIds, frecuencias.frecuencias)
     } catch (error) {
       if (codigo(error) === '23514') {
         return NextResponse.json(

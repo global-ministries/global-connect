@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/database.types'
+import { FRECUENCIA_SEMANAL, validarFrecuencia, type FrecuenciaTurno } from '@/lib/platform/dream-team/frecuencia-turno'
 
 /**
  * Campus service shifts ("turnos", D12 in odd/tasks/ninos-voluntarios-waumba.md).
@@ -67,6 +68,29 @@ export function validarTurnoIds(valor: unknown): ResultadoValidacion<{ readonly 
   const turnoIds = [...new Set(valor as string[])]
   if (turnoIds.length > TURNOS_MAX) return { ok: false, message: `No se pueden asignar más de ${TURNOS_MAX} turnos.` }
   return { ok: true, turnoIds }
+}
+
+/** Frequency per assigned shift id; a shift with no entry is `semanal`. */
+export type FrecuenciasPorTurno = Readonly<Record<string, FrecuenciaTurno>>
+
+/**
+ * Validates the optional `frecuencias` of a PUT: one entry per shift id, each
+ * shift among `turnoIds`. Absent = keep what is stored (new shifts weekly).
+ */
+export function validarFrecuencias(
+  valor: unknown,
+  turnoIds: readonly string[],
+): ResultadoValidacion<{ readonly frecuencias: FrecuenciasPorTurno | undefined }> {
+  if (valor === undefined || valor === null) return { ok: true, frecuencias: undefined }
+  if (typeof valor !== 'object' || Array.isArray(valor)) return { ok: false, message: 'frecuencias debe ser un objeto.' }
+  const frecuencias: Record<string, FrecuenciaTurno> = {}
+  for (const [turnoId, entrada] of Object.entries(valor as Record<string, unknown>)) {
+    if (!turnoIds.includes(turnoId)) return { ok: false, message: 'frecuencias menciona un turno no asignado.' }
+    const resultado = validarFrecuencia(entrada)
+    if (!resultado.ok) return resultado
+    frecuencias[turnoId] = resultado.valor
+  }
+  return { ok: true, frecuencias }
 }
 
 export interface DatosTurno {
@@ -174,6 +198,42 @@ export async function fetchTurnosDeServicios(
   return mapa
 }
 
+interface AsignacionRow {
+  readonly servicio_id: string
+  readonly turno_id: string
+  readonly frecuencia: string
+  readonly fecha_ancla: string | null
+}
+
+function aFrecuencia(row: Pick<AsignacionRow, 'frecuencia' | 'fecha_ancla'>): FrecuenciaTurno {
+  return row.frecuencia === 'quincenal' && row.fecha_ancla
+    ? { frecuencia: 'quincenal', fechaAncla: row.fecha_ancla }
+    : FRECUENCIA_SEMANAL
+}
+
+/** The frequency of each assigned shift, per servicio (only `quincenal` entries; the rest are weekly). */
+export async function fetchFrecuenciasDeServicios(
+  client: DbClient,
+  servicioIds: readonly string[],
+): Promise<ReadonlyMap<string, FrecuenciasPorTurno>> {
+  const unicos = [...new Set(servicioIds)]
+  const mapa = new Map<string, Record<string, FrecuenciaTurno>>()
+  for (let i = 0; i < unicos.length; i += LOTE) {
+    const { data, error } = await client
+      .from('dream_team_servicio_turnos')
+      .select('servicio_id, turno_id, frecuencia, fecha_ancla')
+      .in('servicio_id', unicos.slice(i, i + LOTE))
+      .eq('frecuencia', 'quincenal')
+    if (error) fallar(error)
+    for (const row of (data ?? []) as AsignacionRow[]) {
+      const porTurno = mapa.get(row.servicio_id) ?? {}
+      porTurno[row.turno_id] = aFrecuencia(row)
+      mapa.set(row.servicio_id, porTurno)
+    }
+  }
+  return mapa
+}
+
 /**
  * The active shift ids a node serves in, across the campuses that have
  * shifts. The inheritance walk runs in the database
@@ -203,8 +263,8 @@ export async function fetchTurnosPropiosDeEquipo(client: DbClient, equipoId: str
 
 async function reemplazar(
   client: DbClient,
-  tabla: 'dream_team_servicio_turnos' | 'dream_team_equipo_turnos',
-  columna: 'servicio_id' | 'equipo_id',
+  tabla: 'dream_team_equipo_turnos',
+  columna: 'equipo_id',
   id: string,
   turnoIds: readonly string[],
 ): Promise<void> {
@@ -223,9 +283,58 @@ async function reemplazar(
   }
 }
 
-/** Replaces the shifts of a servicio. The database rejects a shift the servicio cannot take (23514). */
-export function guardarTurnosDeServicio(client: DbClient, servicioId: string, turnoIds: readonly string[]): Promise<void> {
-  return reemplazar(client, 'dream_team_servicio_turnos', 'servicio_id', servicioId, turnoIds)
+/**
+ * Replaces the shifts of a servicio. The database rejects a shift the servicio
+ * cannot take (23514). With `frecuencias`, every listed shift gets that
+ * frequency and every other one becomes weekly; without it, kept shifts keep
+ * theirs and new ones are weekly.
+ */
+export async function guardarTurnosDeServicio(
+  client: DbClient,
+  servicioId: string,
+  turnoIds: readonly string[],
+  frecuencias?: FrecuenciasPorTurno,
+): Promise<void> {
+  const { data, error } = await client
+    .from('dream_team_servicio_turnos')
+    .select('turno_id, frecuencia, fecha_ancla')
+    .eq('servicio_id', servicioId)
+  if (error) fallar(error)
+  const filas = (data ?? []) as Omit<AsignacionRow, 'servicio_id'>[]
+  const { agregar, quitar } = cambiosDeTurnos(
+    filas.map((row) => row.turno_id),
+    turnoIds,
+  )
+  const deseada = (turnoId: string): FrecuenciaTurno => frecuencias?.[turnoId] ?? FRECUENCIA_SEMANAL
+  const columnas = (f: FrecuenciaTurno) => ({ frecuencia: f.frecuencia, fecha_ancla: f.fechaAncla })
+
+  if (quitar.length > 0) {
+    const { error: errorBorrar } = await client
+      .from('dream_team_servicio_turnos')
+      .delete()
+      .eq('servicio_id', servicioId)
+      .in('turno_id', [...quitar])
+    if (errorBorrar) fallar(errorBorrar)
+  }
+  if (frecuencias) {
+    for (const fila of filas) {
+      if (quitar.includes(fila.turno_id)) continue
+      const actual = aFrecuencia(fila)
+      const nueva = deseada(fila.turno_id)
+      if (actual.frecuencia === nueva.frecuencia && actual.fechaAncla === nueva.fechaAncla) continue
+      const { error: errorActualizar } = await client
+        .from('dream_team_servicio_turnos')
+        .update(columnas(nueva))
+        .eq('servicio_id', servicioId)
+        .eq('turno_id', fila.turno_id)
+      if (errorActualizar) fallar(errorActualizar)
+    }
+  }
+  if (agregar.length > 0) {
+    const nuevas = agregar.map((turnoId) => ({ servicio_id: servicioId, turno_id: turnoId, ...columnas(deseada(turnoId)) }))
+    const { error: errorInsertar } = await client.from('dream_team_servicio_turnos').insert(nuevas)
+    if (errorInsertar) fallar(errorInsertar)
+  }
 }
 
 /** Replaces the restriction of a node; an empty list makes it inherit again. */

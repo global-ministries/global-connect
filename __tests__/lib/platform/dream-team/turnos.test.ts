@@ -3,12 +3,14 @@ import {
   cambiosDeTurnos,
   coincideTurno,
   detalleTurno,
+  fetchFrecuenciasDeServicios,
   fetchTurnos,
   fetchTurnosDeServicios,
   fetchTurnosDisponibles,
   guardarTurnosDeServicio,
   ordenarTurnos,
   validarDatosTurno,
+  validarFrecuencias,
   validarTurnoIds,
   type Turno,
 } from '@/lib/platform/dream-team/turnos'
@@ -107,7 +109,7 @@ function cliente(respuestas: Record<string, Respuesta>) {
       llamadas.push({ tabla, op, args })
       return b
     }
-    for (const op of ['select', 'in', 'eq', 'order', 'insert', 'delete']) b[op] = registrar(op)
+    for (const op of ['select', 'in', 'eq', 'order', 'insert', 'delete', 'update']) b[op] = registrar(op)
     b.then = (resolver: (r: Respuesta) => unknown) => resolver(respuestas[tabla] ?? { data: [], error: null })
     return b
   }
@@ -181,7 +183,7 @@ describe('guardarTurnosDeServicio', () => {
     const inserts = c.llamadas.filter((l) => l.op === 'insert')
     const deletes = c.llamadas.filter((l) => l.op === 'delete')
     expect(inserts).toHaveLength(1)
-    expect(inserts[0].args[0]).toEqual([{ servicio_id: 's1', turno_id: T3 }])
+    expect(inserts[0].args[0]).toEqual([{ servicio_id: 's1', turno_id: T3, frecuencia: 'semanal', fecha_ancla: null }])
     expect(deletes).toHaveLength(1)
     expect(c.llamadas.some((l) => l.op === 'in' && JSON.stringify(l.args) === JSON.stringify(['turno_id', [T1]]))).toBe(true)
   })
@@ -190,5 +192,68 @@ describe('guardarTurnosDeServicio', () => {
     const c = cliente({ dream_team_servicio_turnos: { data: [{ turno_id: T1 }], error: null } })
     await guardarTurnosDeServicio(c as never, 's1', [T1])
     expect(c.llamadas.some((l) => l.op === 'insert' || l.op === 'delete')).toBe(false)
+  })
+
+  it('without frecuencias keeps the stored frequency of kept shifts', async () => {
+    const c = cliente({
+      dream_team_servicio_turnos: { data: [{ turno_id: T1, frecuencia: 'quincenal', fecha_ancla: '2026-10-04' }], error: null },
+    })
+    await guardarTurnosDeServicio(c as never, 's1', [T1])
+    expect(c.llamadas.some((l) => l.op === 'update')).toBe(false)
+  })
+
+  it('with frecuencias updates the changed ones and inserts new shifts with theirs', async () => {
+    const c = cliente({
+      dream_team_servicio_turnos: {
+        data: [
+          { turno_id: T1, frecuencia: 'semanal', fecha_ancla: null },
+          { turno_id: T2, frecuencia: 'quincenal', fecha_ancla: '2026-10-04' },
+        ],
+        error: null,
+      },
+    })
+    await guardarTurnosDeServicio(c as never, 's1', [T1, T2, T3], {
+      [T1]: { frecuencia: 'quincenal', fechaAncla: '2026-10-11' },
+      [T3]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' },
+    })
+    const updates = c.llamadas.filter((l) => l.op === 'update')
+    expect(updates.map((l) => l.args[0])).toEqual([
+      { frecuencia: 'quincenal', fecha_ancla: '2026-10-11' },
+      { frecuencia: 'semanal', fecha_ancla: null },
+    ])
+    const inserts = c.llamadas.filter((l) => l.op === 'insert')
+    expect(inserts[0].args[0]).toEqual([{ servicio_id: 's1', turno_id: T3, frecuencia: 'quincenal', fecha_ancla: '2026-10-04' }])
+  })
+})
+
+describe('validarFrecuencias', () => {
+  it('is optional', () => {
+    expect(validarFrecuencias(undefined, [T1])).toEqual({ ok: true, frecuencias: undefined })
+  })
+
+  it('accepts a frequency per assigned shift', () => {
+    expect(validarFrecuencias({ [T1]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' } }, [T1])).toEqual({
+      ok: true,
+      frecuencias: { [T1]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' } },
+    })
+  })
+
+  it('rejects a shift that is not assigned, a non-Sunday anchor and a non-object', () => {
+    expect(validarFrecuencias({ [T2]: { frecuencia: 'semanal' } }, [T1]).ok).toBe(false)
+    expect(validarFrecuencias({ [T1]: { frecuencia: 'quincenal', fechaAncla: '2026-10-05' } }, [T1]).ok).toBe(false)
+    expect(validarFrecuencias([], [T1]).ok).toBe(false)
+  })
+})
+
+describe('fetchFrecuenciasDeServicios', () => {
+  it('maps the biweekly assignments by servicio and shift', async () => {
+    const c = cliente({
+      dream_team_servicio_turnos: {
+        data: [{ servicio_id: 's1', turno_id: T1, frecuencia: 'quincenal', fecha_ancla: '2026-10-04' }],
+        error: null,
+      },
+    })
+    const mapa = await fetchFrecuenciasDeServicios(c as never, ['s1'])
+    expect(mapa.get('s1')).toEqual({ [T1]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' } })
   })
 })
