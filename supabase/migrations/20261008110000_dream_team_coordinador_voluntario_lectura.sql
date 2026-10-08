@@ -99,3 +99,9 @@ AS $function$
       or u.id in (select l.persona_id from public.dream_team_lideres_gdv() l)
     );
 $function$;
+
+-- CREATE OR REPLACE keeps the existing ACL; state it explicitly anyway.
+REVOKE ALL ON FUNCTION public.dream_team_resolver_nombres(uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.dream_team_resolver_nombres(uuid[]) TO authenticated;
+REVOKE ALL ON FUNCTION public.dream_team_contactos_personas(uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.dream_team_contactos_personas(uuid[]) TO authenticated;
