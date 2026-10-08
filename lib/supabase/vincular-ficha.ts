@@ -46,6 +46,10 @@ function mismoCorreo(a: string | null, b: string): boolean {
  * their ficha.
  *
  * 1. A ficha already bound to this account: nothing to do.
+ * 1b. An account created by an invitation by email (invitaciones_cuenta,
+ *    20261008120000) is bound to exactly the invited ficha when the
+ *    invitation is open, the email matches and the ficha has no account
+ *    (invitacion_cuenta_vincular). This wins over 2 and 3.
  * 2. Unclaimed fichas with the confirmed email (case-insensitive): exactly one is linked; several
  *    leave the account unlinked for an administrator to resolve.
  * 3. Otherwise the unclaimed ficha with the typed cédula (UNIQUE), only when it
@@ -53,8 +57,8 @@ function mismoCorreo(a: string | null, b: string): boolean {
  *    role or an active Dream Team service, a pending request is stored for its
  *    directors to approve (vinculos_pendientes) instead of linking.
  * Fichas with an open access invitation (a spouse ficha created at a taller
- * enrollment) are never candidates in 2 or 3: that person claims the ficha
- * through /activar, which checks the invitation token and the cédula.
+ * enrollment, claimed through /activar) or an open account invitation (claimed
+ * in 1b) are never candidates in 2 or 3.
  *
  * 4. Otherwise a placeholder ficha is created, without the cédula when that
  *    cédula already belongs to another ficha.
@@ -72,6 +76,13 @@ export async function vincularFichaConfirmada(
   const propia = await admin.from('usuarios').select('id').eq('auth_id', user.id)
   if (propia.error) return { estado: 'error' }
   if ((propia.data ?? []).length > 0) return { estado: 'ya_vinculada' }
+
+  const invitacion = await admin.rpc('invitacion_cuenta_vincular' as never, {
+    p_auth_user_id: user.id,
+    p_email: email,
+  } as never)
+  if (invitacion.error) return { estado: 'error' }
+  if (invitacion.data === 'vinculada') return { estado: 'vinculada' }
 
   const porCorreo = await admin
     .from('usuarios')
