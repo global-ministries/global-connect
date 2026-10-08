@@ -8,6 +8,8 @@ import type { FamiliaEncontrada, HijoEncontrado } from '@/lib/platform/ninos/fam
 const rpc = jest.fn()
 jest.mock('@/lib/supabase/client', () => ({ createClient: () => ({ rpc }) }))
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn() }) }))
+// The pending pre-registrations card (N8) reads its own RPC; out of scope here.
+jest.mock('@/components/ninos/preregistros-pendientes', () => ({ PreregistrosPendientes: () => null }))
 
 beforeEach(() => rpc.mockReset())
 
