@@ -20,6 +20,12 @@
 --   f. invitacion_cuenta_estado returns the latest invitation to an admin and
 --      NULL to a plain user; invitacion_cuenta_sin_cuenta lists only fichas
 --      without account, and nothing to a plain user.
+--   g. (20261008130000) A director-etapa may check and invite a 'miembro' and
+--      a 'lider' ficha but is refused for a 'pastor' and a 'director-etapa'
+--      ficha.
+--   h. (20261008130000) A group Líder may invite a 'miembro' member of their
+--      group, is refused for a 'miembro' outside their group and for a
+--      'lider'-role member of their group; a plain miembro is still refused.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK — nothing here is kept. The MCP
 -- connection is postgres (BYPASSRLS), so the authorization cases switch to
@@ -205,6 +211,102 @@ SELECT pg_temp.ok('d: already-linked ficha rechazada',
   public.invitacion_cuenta_vincular(otra_auth, 'ic-b@example.test') = 'rechazada') FROM t_ctx;
 SELECT pg_temp.ok('d: already-linked ficha keeps its account',
   (SELECT auth_id FROM public.usuarios WHERE id = c.ficha2_id) = c.ajena_auth) FROM t_ctx c;
+
+-- g/h. Directors and group leaders (migration 20261008130000).
+-- Runs p_sql and records whether it succeeded (a refusal must not abort the run).
+CREATE FUNCTION pg_temp.pasa(p_caso text, p_sql text) RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+  EXECUTE p_sql;
+  PERFORM pg_temp.ok(p_caso, true);
+EXCEPTION WHEN OTHERS THEN
+  PERFORM pg_temp.ok(p_caso, false, SQLSTATE || ' ' || SQLERRM);
+END $$;
+GRANT EXECUTE ON FUNCTION pg_temp.pasa(text, text) TO PUBLIC;
+
+CREATE TEMP TABLE t_dl ON COMMIT DROP AS
+SELECT gen_random_uuid() AS dir_auth,  gen_random_uuid() AS dir_id,
+       gen_random_uuid() AS lid_auth,  gen_random_uuid() AS lid_id,
+       gen_random_uuid() AS t_miembro, gen_random_uuid() AS t_lider,
+       gen_random_uuid() AS t_pastor,  gen_random_uuid() AS t_director,
+       gen_random_uuid() AS t_fuera,
+       (SELECT g.id FROM public.grupos g ORDER BY g.id LIMIT 1) AS grupo_id;
+GRANT SELECT ON t_dl TO PUBLIC;
+
+INSERT INTO auth.users (id, instance_id, aud, role, email)
+SELECT x, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+       'ic-test-' || x || '@example.test'
+FROM t_dl, unnest(ARRAY[dir_auth, lid_auth]) AS x;
+
+INSERT INTO public.usuarios (id, auth_id, nombre, apellido, genero, estado_civil, email)
+SELECT v.id, v.auth_id, 'DL', v.apellido, 'Otro'::public.enum_genero,
+       'Soltero'::public.enum_estado_civil, v.email
+FROM t_dl d, LATERAL (VALUES
+  (d.dir_id,     d.dir_auth, 'Director',     NULL),
+  (d.lid_id,     d.lid_auth, 'Lider',        NULL),
+  (d.t_miembro,  NULL,       'T Miembro',    'ic-dl-miembro@example.test'),
+  (d.t_lider,    NULL,       'T Lider',      'ic-dl-lider@example.test'),
+  (d.t_pastor,   NULL,       'T Pastor',     'ic-dl-pastor@example.test'),
+  (d.t_director, NULL,       'T Director',   'ic-dl-director@example.test'),
+  (d.t_fuera,    NULL,       'T Fuera',      'ic-dl-fuera@example.test')
+) AS v(id, auth_id, apellido, email);
+
+INSERT INTO public.usuario_roles (usuario_id, rol_id)
+SELECT v.usuario_id, rs.id
+FROM t_dl d, LATERAL (VALUES
+  (d.dir_id, 'director-etapa'), (d.lid_id, 'lider'),
+  (d.t_miembro, 'miembro'), (d.t_lider, 'lider'), (d.t_pastor, 'pastor'),
+  (d.t_director, 'director-etapa'), (d.t_fuera, 'miembro')
+) AS v(usuario_id, rol)
+JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
+
+INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol)
+SELECT d.grupo_id, v.usuario_id, v.rol::public.enum_rol_grupo
+FROM t_dl d, LATERAL (VALUES
+  (d.lid_id, 'Líder'), (d.t_miembro, 'Miembro'), (d.t_lider, 'Miembro')
+) AS v(usuario_id, rol);
+
+SET LOCAL ROLE authenticated;
+
+-- g. Director de etapa: miembro and lider fichas yes; pastor and director no.
+SELECT pg_temp.como(dir_auth) FROM t_dl;
+SELECT pg_temp.ok('g: director sees a miembro ficha',
+  public.invitacion_cuenta_estado(t_miembro) IS NOT NULL) FROM t_dl;
+SELECT pg_temp.pasa('g: director invites a lider ficha',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_lider, 'ic-dl-lider@example.test'))
+FROM t_dl;
+SELECT pg_temp.falla('g: director refused for a pastor ficha',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_pastor, 'ic-dl-pastor@example.test'),
+  'sin_autoridad') FROM t_dl;
+SELECT pg_temp.falla('g: director refused for a director ficha',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_director, 'ic-dl-director@example.test'),
+  'sin_autoridad') FROM t_dl;
+SELECT pg_temp.ok('g: director does not see pastor or director fichas',
+  public.invitacion_cuenta_estado(t_pastor) IS NULL
+  AND public.invitacion_cuenta_estado(t_director) IS NULL) FROM t_dl;
+
+-- h. Group leader: only miembro-role members of their group.
+SELECT pg_temp.como(lid_auth) FROM t_dl;
+SELECT pg_temp.pasa('h: leader invites a miembro of their group',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_miembro, 'ic-dl-miembro@example.test'))
+FROM t_dl;
+SELECT pg_temp.falla('h: leader refused for a miembro outside their group',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_fuera, 'ic-dl-fuera@example.test'),
+  'sin_autoridad') FROM t_dl;
+SELECT pg_temp.falla('h: leader refused for a lider-role member of their group',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_lider, 'ic-dl-lider@example.test'),
+  'sin_autoridad') FROM t_dl;
+SELECT pg_temp.ok('h: leader lists only the miembro of their group',
+  ARRAY(SELECT public.invitacion_cuenta_sin_cuenta(ARRAY[t_miembro, t_lider, t_fuera, t_pastor]))
+    = ARRAY[t_miembro]) FROM t_dl;
+
+-- h. A plain miembro is still refused.
+SELECT pg_temp.como(c.plano_auth) FROM t_ctx c;
+SELECT pg_temp.falla('h: plain user refused for a miembro ficha',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_miembro, 'ic-dl-miembro@example.test'),
+  'sin_autoridad') FROM t_dl;
+
+RESET ROLE;
 
 SELECT caso, detalle FROM t_res WHERE NOT ok
 UNION ALL
