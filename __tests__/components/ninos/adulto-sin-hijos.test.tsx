@@ -47,21 +47,27 @@ describe('Familias: an adult without children (N11)', () => {
 })
 
 describe('VincularHijoForm', () => {
-  it('finds a child and links it to the adult with ninos_vincular_padre', async () => {
+  it('finds a child (with or without family) and links it to the adult with ninos_vincular_padre', async () => {
     rpc
-      .mockResolvedValueOnce({
-        data: [{ id: 'p1', nombre: 'Pablo', apellido: 'Ruiz', telefono: null, cedula: null,
-                 hijos: [{ id: 'h1', nombre: 'Cami', apellido: 'Ruiz', tiene_ficha: true, autorizados: [] }] }],
-        error: null,
-      })
+      .mockResolvedValueOnce({ data: [{ id: 'h1', nombre: 'Cami', apellido: 'Ruiz', edad_anos: 8, cedula: '•••5504' }], error: null })
       .mockResolvedValueOnce({ data: { vinculados: 1 }, error: null })
     const onVinculado = jest.fn()
     render(<VincularHijoForm adulto={{ id: 'a1', nombre: 'Adela Ruiz' }} onVinculado={onVinculado} onCancelar={jest.fn()} />)
-    fireEvent.change(screen.getByLabelText('Nombre o cédula del niño'), { target: { value: 'Cami' } })
+    fireEvent.change(screen.getByLabelText('Nombre o cédula del niño'), { target: { value: 'Cami Ruiz' } })
     fireEvent.click(screen.getByRole('button', { name: 'Buscar niño' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Vincular a Cami Ruiz' }))
+    expect(await screen.findByText('8 años · C.I. •••5504')).toBeInTheDocument()
+    expect(rpc).toHaveBeenCalledWith('ninos_buscar_hijos_vincular', { p_q: 'Cami Ruiz', p_padre_id: 'a1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Vincular a Cami Ruiz' }))
     await waitFor(() => expect(onVinculado).toHaveBeenCalled())
     expect(rpc).toHaveBeenLastCalledWith('ninos_vincular_padre', { p_nino_ids: ['h1'], p_padre_id: 'a1', p_padre_nuevo: null })
+  })
+
+  it('asks for more than two characters before searching', () => {
+    render(<VincularHijoForm adulto={{ id: 'a1', nombre: 'Adela Ruiz' }} onVinculado={jest.fn()} onCancelar={jest.fn()} />)
+    fireEvent.change(screen.getByLabelText('Nombre o cédula del niño'), { target: { value: 'Ca' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar niño' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Escribe el nombre y el apellido del niño, o su cédula.')
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('says so when no child is found', async () => {

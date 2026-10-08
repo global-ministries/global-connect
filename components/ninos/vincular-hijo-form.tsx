@@ -6,7 +6,7 @@ import { Link2, Search } from 'lucide-react'
 import { BotonSistema, InputSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { createClient } from '@/lib/supabase/client'
 import { mensajeDeErrorFamilia } from '@/lib/platform/ninos/familia'
-import { hijosParaVincular, parseFamilias, type HijoEncontrado } from '@/lib/platform/ninos/familias-vista'
+import { detalleHijo, parseHijosParaVincular, type HijoParaVincular } from '@/lib/platform/ninos/familias-vista'
 
 type Props = {
   adulto: { id: string; nombre: string }
@@ -15,34 +15,36 @@ type Props = {
 }
 
 /**
- * "Vincular hijo existente" (N11): finds a Niños child already in the system
- * (by name or exact cédula, through ninos_buscar_familias) and links the
- * adult as their parent with ninos_vincular_padre.
+ * "Vincular hijo existente" (N11, N12): finds a child under 13 already in the
+ * system, with or without a ficha or a family (first and last name, full
+ * name or exact cédula, through ninos_buscar_hijos_vincular), and links the
+ * adult as their parent with ninos_vincular_padre. Only name, age and masked
+ * cédula are shown.
  */
 export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
   const [q, setQ] = useState('')
-  const [hijos, setHijos] = useState<HijoEncontrado[] | null>(null)
+  const [hijos, setHijos] = useState<HijoParaVincular[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
 
   async function buscar() {
-    if (q.trim().length < 2) {
-      setError('Escribe el nombre o la cédula del niño.')
+    if (q.trim().length < 3) {
+      setError('Escribe el nombre y el apellido del niño, o su cédula.')
       return
     }
     setError(null)
     setGuardando(true)
-    const { data, error: err } = await createClient().rpc('ninos_buscar_familias', { p_q: q.trim() })
+    const { data, error: err } = await createClient().rpc('ninos_buscar_hijos_vincular', { p_q: q.trim(), p_padre_id: adulto.id })
     setGuardando(false)
     if (err) {
       setError(mensajeDeErrorFamilia(err))
       setHijos(null)
       return
     }
-    setHijos(hijosParaVincular(parseFamilias(data), adulto.id))
+    setHijos(parseHijosParaVincular(data))
   }
 
-  async function vincular(h: HijoEncontrado) {
+  async function vincular(h: HijoParaVincular) {
     setError(null)
     setGuardando(true)
     const { error: err } = await createClient().rpc('ninos_vincular_padre', {
@@ -75,7 +77,7 @@ export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
             type="search"
             icono={Search}
             aria-label="Nombre o cédula del niño"
-            placeholder="Nombre o cédula del niño"
+            placeholder="Nombre y apellido, o cédula"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -97,8 +99,11 @@ export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
         <ul className="divide-y divide-border rounded-xl border border-border">
           {hijos.map((h) => (
             <li key={h.id} className="flex items-center justify-between gap-2 p-3">
-              <span className="min-w-0 break-words font-medium text-foreground">
-                {h.nombre} {h.apellido}
+              <span className="min-w-0">
+                <span className="block break-words font-medium text-foreground">
+                  {h.nombre} {h.apellido}
+                </span>
+                <span className="block text-xs text-muted-foreground">{detalleHijo(h)}</span>
               </span>
               <BotonSistema
                 type="button"
