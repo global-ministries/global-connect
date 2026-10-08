@@ -217,6 +217,9 @@ const MENSAJES: Record<string, string> = {
   sin_campus: 'No hay salones activos en tus áreas.',
   padre_existente: 'Ya existe una persona con ese teléfono o cédula. Confírmala antes de guardar.',
   nino_no_encontrado: 'No se encontró el niño. Búscalo de nuevo.',
+  ficha_existente: 'Este niño ya tiene ficha. Búscalo de nuevo.',
+  sin_padre: 'El niño no está vinculado a ningún representante.',
+  vinculo_invalido: 'Esa persona no puede ser padre o madre de este niño.',
 }
 
 /** Spanish copy for an RPC error; the RPCs raise a snake_case code as the message. */
@@ -273,6 +276,55 @@ export function validarEdicionNino(
       fecha_nacimiento: h.fechaNacimiento,
       genero: h.genero,
       ...fichaPayload(h),
+    },
+  }
+}
+
+/** A new mother or father added to an existing family (ninos_vincular_padre). */
+export type PadreNuevoForm = {
+  nombre: string
+  apellido: string
+  telefono: string
+  cedula: string
+  email: string
+  genero: string
+}
+
+export type PadreNuevoPayload = {
+  nombre: string
+  apellido: string
+  telefono: string
+  genero: Genero
+  cedula: string | null
+  email: string | null
+}
+
+export function padreNuevoVacio(): PadreNuevoForm {
+  return { nombre: '', apellido: '', telefono: '', cedula: '', email: '', genero: '' }
+}
+
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+export function validarPadreNuevo(
+  p: PadreNuevoForm,
+): { ok: true; payload: PadreNuevoPayload } | { ok: false; errores: string[] } {
+  const errores: string[] = []
+  const email = texto(p.email)
+  if (!texto(p.nombre)) errores.push('El nombre es obligatorio.')
+  if (!texto(p.apellido)) errores.push('El apellido es obligatorio.')
+  if (!telefonoValido(p.telefono)) errores.push('El teléfono no es válido.')
+  if (!esGenero(p.genero)) errores.push('El género es obligatorio.')
+  if (email && !EMAIL.test(email)) errores.push('El correo no es válido.')
+  if (errores.length > 0 || !esGenero(p.genero)) return { ok: false, errores }
+  return {
+    ok: true,
+    payload: {
+      nombre: p.nombre.trim(),
+      apellido: p.apellido.trim(),
+      telefono: p.telefono.trim(),
+      genero: p.genero,
+      cedula: texto(p.cedula),
+      email,
     },
   }
 }

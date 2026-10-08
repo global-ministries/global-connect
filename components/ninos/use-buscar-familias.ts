@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react'
 
 import { mensajeDeErrorFamilia } from '@/lib/platform/ninos/familia'
-import { parseFamilias, type FamiliaEncontrada } from '@/lib/platform/ninos/familias-vista'
+import { agruparFamilias, parseFamilias, type FamiliaEncontrada } from '@/lib/platform/ninos/familias-vista'
 import { createClient } from '@/lib/supabase/client'
 
 /** The Familias search (ninos_buscar_familias), shared by Familias and Check-in. */
@@ -24,7 +24,8 @@ export function useBuscarFamilias() {
       setFamilias(null)
       return null
     }
-    const encontradas = parseFamilias(data)
+    // One card per family even when both parents matched.
+    const encontradas = agruparFamilias(parseFamilias(data))
     setFamilias(encontradas)
     return encontradas
   }, [])

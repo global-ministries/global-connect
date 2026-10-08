@@ -2,17 +2,18 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Pencil, Plus, Search, UserPlus, Users } from 'lucide-react'
+import { ArrowLeft, ClipboardPlus, Pencil, Plus, Search, UserPlus, Users } from 'lucide-react'
 
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { BadgeSistema, BotonSistema, InputSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { createClient } from '@/lib/supabase/client'
 import { mensajeDeErrorFamilia } from '@/lib/platform/ninos/familia'
-import { salonParaHijo, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 
+import { AgregarPadreForm } from './agregar-padre-form'
 import { EditarNinoForm } from './editar-nino-form'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
+import { PanelLateralNinos } from './panel-lateral'
 import { RegistrarFamiliaForm } from './registrar-familia-form'
 import { SalonSugerido } from './salon-sugerido'
 import { useBuscarFamilias } from './use-buscar-familias'
@@ -34,6 +35,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
   const router = useRouter()
   const [vista, setVista] = useState<Vista>({ tipo: registrarAlInicio ? 'registrar' : 'buscar' })
   const [editando, setEditando] = useState<HijoEncontrado | null>(null)
+  const [agregandoPadre, setAgregandoPadre] = useState<FamiliaEncontrada | null>(null)
   const { q, setQ, familias, error, setError, buscando, buscar } = useBuscarFamilias()
 
   async function elegirSalon(hijoId: string, salonId: string) {
@@ -73,8 +75,9 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
     )
   }
 
-  const cerrarEdicion = async () => {
+  const cerrarPanel = async () => {
     setEditando(null)
+    setAgregandoPadre(null)
     if (q.trim().length >= 2) await buscar(q)
   }
 
@@ -122,11 +125,11 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
       <ul className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
         {familias?.map((f) => (
           <li key={f.id} className="min-w-0">
-            <TarjetaSistema className="space-y-4 p-4 md:p-5">
+            <TarjetaSistema data-testid="familia-tarjeta" className="space-y-4 p-4 md:p-5">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="break-words text-[15px] font-semibold text-foreground">
-                    {f.nombre} {f.apellido}
+                    {f.padres.map((p) => `${p.nombre} ${p.apellido}`).join(' · ')}
                   </p>
                   {f.telefono && <TextoSistema variante="sutil" tamaño="sm">{f.telefono}</TextoSistema>}
                 </div>
@@ -153,18 +156,31 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
                               VIP
                             </BadgeSistema>
                           )}
+                          {!h.tiene_ficha && (
+                            <BadgeSistema variante="info" tamaño="sm">
+                              Sin ficha de niños
+                            </BadgeSistema>
+                          )}
                         </p>
                         {h.alergias && <p className="text-sm font-medium text-destructive">Alergias: {h.alergias}</p>}
                       </div>
-                      <BotonSistema type="button" variante="ghost" tamaño="sm" icono={Pencil} onClick={() => setEditando(h)}>
-                        Editar
-                      </BotonSistema>
+                      {h.tiene_ficha ? (
+                        <BotonSistema type="button" variante="ghost" tamaño="sm" icono={Pencil} onClick={() => setEditando(h)}>
+                          Editar
+                        </BotonSistema>
+                      ) : (
+                        <BotonSistema type="button" variante="outline" tamaño="sm" icono={ClipboardPlus} className="shrink-0" onClick={() => setEditando(h)}>
+                          Completar ficha
+                        </BotonSistema>
+                      )}
                     </div>
-                    <SalonSugerido
-                      resultado={salonParaHijo(h, salones, fechaServicio)}
-                      salones={salones}
-                      onElegir={(salonId) => void elegirSalon(h.id, salonId)}
-                    />
+                    {h.tiene_ficha && (
+                      <SalonSugerido
+                        resultado={salonParaHijo(h, salones, fechaServicio)}
+                        salones={salones}
+                        onElegir={(salonId) => void elegirSalon(h.id, salonId)}
+                      />
+                    )}
                   </li>
                 ))}
                 {f.hijos.length === 0 && (
@@ -175,24 +191,42 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
                   </li>
                 )}
               </ul>
+              {f.hijos.length > 0 && (
+                <BotonSistema type="button" variante="ghost" tamaño="sm" icono={UserPlus} onClick={() => setAgregandoPadre(f)}>
+                  Agregar padre o madre
+                </BotonSistema>
+              )}
             </TarjetaSistema>
           </li>
         ))}
       </ul>
 
-      <Sheet open={editando !== null} onOpenChange={(abierto) => !abierto && setEditando(null)}>
-        <SheetContent side="right" className="h-dvh w-full max-w-none gap-0 p-0 sm:w-[560px] sm:max-w-[560px]">
-          <SheetHeader className="border-b border-border pr-12">
-            <SheetTitle>Editar ficha</SheetTitle>
-            <SheetDescription>{editando ? `Datos de ${editando.nombre} ${editando.apellido}.` : ''}</SheetDescription>
-          </SheetHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4">
-            {editando && (
-              <EditarNinoForm key={editando.id} hijo={editando} onCancelar={() => setEditando(null)} onGuardado={() => void cerrarEdicion()} />
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+      <PanelLateralNinos
+        abierto={editando !== null}
+        titulo={editando && !editando.tiene_ficha ? 'Completar ficha' : 'Editar ficha'}
+        descripcion={editando ? `Datos de ${editando.nombre} ${editando.apellido}.` : ''}
+        onCerrar={() => setEditando(null)}
+      >
+        {editando && (
+          <EditarNinoForm key={editando.id} hijo={editando} onCancelar={() => setEditando(null)} onGuardado={() => void cerrarPanel()} />
+        )}
+      </PanelLateralNinos>
+
+      <PanelLateralNinos
+        abierto={agregandoPadre !== null}
+        titulo="Agregar padre o madre"
+        descripcion="Vincula a otra persona como padre o madre de estos niños."
+        onCerrar={() => setAgregandoPadre(null)}
+      >
+        {agregandoPadre && (
+          <AgregarPadreForm
+            key={agregandoPadre.id}
+            familia={agregandoPadre}
+            onCancelar={() => setAgregandoPadre(null)}
+            onVinculado={() => void cerrarPanel()}
+          />
+        )}
+      </PanelLateralNinos>
     </>
   )
 }

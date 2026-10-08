@@ -28,6 +28,7 @@ const hijoBase = {
   escolarizado: null,
   salon_preferido_id: null,
   es_vip_desde: '2026-10-08',
+  tiene_ficha: true,
   autorizados: [{ id: 'a1', nombre: 'Rosa', telefono: null, relacion: 'Abuela' }],
 }
 

@@ -16,7 +16,10 @@ type Props = {
   onCancelar: () => void
 }
 
-/** Edits a child's name, birth date, gender and ficha, and replaces its pickup list (ninos_actualizar_nino). */
+/**
+ * Edits a child's name, birth date, gender and ficha, and replaces its pickup list (ninos_actualizar_nino).
+ * For a linked child without a ficha the same form creates it (ninos_crear_ficha).
+ */
 export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
   const [form, setForm] = useState<HijoForm>(() => hijoAForm(hijo))
   const [autorizados, setAutorizados] = useState<AutorizadoForm[]>(() =>
@@ -36,10 +39,17 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
     }
     setErrores([])
     setGuardando(true)
-    const { error } = await createClient().rpc('ninos_actualizar_nino', {
-      p_nino_id: hijo.id,
-      p: { ...ficha.payload, autorizados: aut.payload } as unknown as Json,
-    })
+    // A child linked from the profile has no ficha yet: saving creates it.
+    const { error } = hijo.tiene_ficha !== false
+      ? await createClient().rpc('ninos_actualizar_nino', {
+          p_nino_id: hijo.id,
+          p: { ...ficha.payload, autorizados: aut.payload } as unknown as Json,
+        })
+      : await createClient().rpc('ninos_crear_ficha', {
+          p_nino_id: hijo.id,
+          p_ficha: ficha.payload as unknown as Json,
+          p_autorizados: aut.payload as unknown as Json,
+        })
     setGuardando(false)
     if (error) {
       setErrores([mensajeDeErrorFamilia(error)])
@@ -67,7 +77,7 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
           Cancelar
         </BotonSistema>
         <BotonSistema type="submit" className="flex-1 sm:flex-none" disabled={guardando}>
-          {guardando ? 'Guardando…' : 'Guardar ficha'}
+          {guardando ? 'Guardando…' : hijo.tiene_ficha !== false ? 'Guardar ficha' : 'Crear ficha'}
         </BotonSistema>
       </div>
     </form>

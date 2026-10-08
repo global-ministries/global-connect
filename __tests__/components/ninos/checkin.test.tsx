@@ -45,7 +45,7 @@ function hijo(h: Partial<HijoEncontrado> & { id: string; nombre: string }): Hijo
   return {
     apellido: 'Pérez', fecha_nacimiento: '2025-06-01', genero: 'Masculino', grado: null, alergias: null,
     necesidades_especiales: null, habitos: null, notas: null, puede_comer: null, cambio_panal: null,
-    autoriza_imagen: null, escolarizado: null, salon_preferido_id: null, es_vip_desde: null, autorizados: [], ...h,
+    autoriza_imagen: null, escolarizado: null, salon_preferido_id: null, es_vip_desde: null, tiene_ficha: true, autorizados: [], ...h,
   }
 }
 
