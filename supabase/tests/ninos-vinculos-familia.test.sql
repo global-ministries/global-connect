@@ -11,6 +11,8 @@
 --      searches show the child and the card lists both parents; self links
 --      and cycles are refused.
 --   d. A new second parent is created (never reusing a known phone).
+--   g. (20261008152000) an adult hijo without birth date and a 20-year-old
+--      hijo are not shown and get no ficha (fuera_de_rango).
 --   e. A random user is denied; f. anon cannot execute the RPCs.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
@@ -93,9 +95,14 @@ INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil,
   (pg_temp.id('us', 3), NULL, 'ZZ Pedro', 'ZZ Nv', NULL, 'Casado', 'Masculino', '04129990941', '1990-01-01'),
   (pg_temp.id('us', 4), NULL, 'ZZ Kiko', 'ZZ Nv', NULL, 'No especificado', 'Masculino', NULL, '2021-05-05'),
   (pg_temp.id('us', 5), NULL, 'ZZ Olga', 'ZZ Nv', NULL, 'No especificado', 'Femenino', NULL, '2020-02-02'),
-  (pg_temp.id('us', 6), NULL, 'ZZ Marta', 'ZZ Nv', NULL, 'Casado', 'Femenino', '04129990942', '1991-01-01');
+  (pg_temp.id('us', 6), NULL, 'ZZ Marta', 'ZZ Nv', NULL, 'Casado', 'Femenino', '04129990942', '1991-01-01'),
+  (pg_temp.id('us', 7), NULL, 'ZZ Adulto', 'ZZ Nv', NULL, 'Casado', 'Masculino', NULL, NULL),
+  (pg_temp.id('us', 8), NULL, 'ZZ Veinte', 'ZZ Nv', NULL, 'Soltero', 'Femenino', NULL,
+   (current_date - interval '20 years')::date);
 INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal) VALUES
-  (pg_temp.id('us', 4), pg_temp.id('us', 3), 'padre', true);
+  (pg_temp.id('us', 4), pg_temp.id('us', 3), 'padre', true),
+  (pg_temp.id('us', 7), pg_temp.id('us', 3), 'padre', false),
+  (pg_temp.id('us', 3), pg_temp.id('us', 8), 'hijo', false);
 
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'ninos', NULL, 'ZZ Nv R', true),
@@ -125,6 +132,13 @@ SELECT pg_temp.assert_eq('a: K appears in P''s family with tiene_ficha false',
   $q$SELECT h ->> 'tiene_ficha' FROM jsonb_array_elements(public.ninos_buscar_familias('ZZ Pedro')) f,
             jsonb_array_elements(f -> 'hijos') h
       WHERE f ->> 'id' = pg_temp.id('us', 3)::text AND h ->> 'id' = pg_temp.id('us', 4)::text$q$, 'false');
+SELECT pg_temp.assert_eq('a: an adult hijo without birth date and a 20-year-old hijo are not shown',
+  $q$SELECT count(*)::text FROM jsonb_array_elements(public.ninos_buscar_familias('ZZ Pedro')) f,
+            jsonb_array_elements(f -> 'hijos') h
+      WHERE h ->> 'id' IN (pg_temp.id('us', 7)::text, pg_temp.id('us', 8)::text)$q$, '0');
+SELECT pg_temp.assert_eq('a: searching the adults by name finds no family',
+  $q$SELECT (jsonb_array_length(public.ninos_buscar_familias('ZZ Adulto'))
+            + jsonb_array_length(public.ninos_buscar_familias('ZZ Veinte')))::text$q$, '0');
 SELECT pg_temp.assert_raises('a: check-in of K without ficha is refused',
   $q$SELECT * FROM public.ninos_checkin(ARRAY[pg_temp.id('us', 4)], pg_temp.ctx('turno')::uuid, '2030-02-03',
        ARRAY[pg_temp.id('sa', 1)])$q$, '22023');
@@ -145,6 +159,19 @@ SELECT pg_temp.assert_raises('b: a second ficha is refused (ficha_existente)',
   $q$SELECT public.ninos_crear_ficha(pg_temp.id('us', 4), '{}'::jsonb, '[]'::jsonb)$q$, '23505');
 SELECT pg_temp.assert_raises('b: a child with no parent link is refused (sin_padre)',
   $q$SELECT public.ninos_crear_ficha(pg_temp.id('us', 5), '{}'::jsonb, '[]'::jsonb)$q$, '22023');
+SELECT pg_temp.assert_raises('b: a 20-year-old hijo is refused (fuera_de_rango)',
+  $q$SELECT public.ninos_crear_ficha(pg_temp.id('us', 8), '{}'::jsonb, '[]'::jsonb)$q$, '22023');
+DO $$
+BEGIN
+  PERFORM public.ninos_crear_ficha(pg_temp.id('us', 7), '{}'::jsonb, '[]'::jsonb);
+  PERFORM pg_temp.fail('b: unknown birth date message', 'no error');
+EXCEPTION WHEN invalid_parameter_value THEN
+  IF SQLERRM <> 'fuera_de_rango' THEN PERFORM pg_temp.fail('b: unknown birth date message', SQLERRM); END IF;
+END $$;
+SELECT pg_temp.assert_raises('b: a birth date sent in the ficha must be in range too',
+  $q$SELECT public.ninos_crear_ficha(pg_temp.id('us', 7), '{"fecha_nacimiento": "2000-01-01"}'::jsonb, NULL)$q$, '22023');
+SELECT pg_temp.assert_raises('b: the adult cannot get a second parent through Niños',
+  $q$SELECT public.ninos_vincular_padre(ARRAY[pg_temp.id('us', 7)], pg_temp.id('us', 6), NULL)$q$, '22023');
 SELECT pg_temp.assert_eq('b: no ficha was left for O',
   $q$SELECT count(*)::text FROM public.ninos_fichas WHERE usuario_id = pg_temp.id('us', 5)$q$, '0');
 SELECT pg_temp.assert_raises('b: invalid ficha data rolls back the insert',

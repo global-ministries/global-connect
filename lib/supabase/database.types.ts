@@ -8147,6 +8147,8 @@ export type Database = {
         Args: { p_nino_ids: string[]; p_padre_id: string | null; p_padre_nuevo: Json | null }
         Returns: Json
       }
+      ninos_edad_maxima_anos: { Args: never; Returns: number }
+      ninos_en_rango_edad: { Args: { p_fecha_nacimiento: string }; Returns: boolean }
       ninos_enmascarar: {
         Args: { p_valor: string; p_visibles: number }
         Returns: string
