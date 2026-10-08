@@ -32,16 +32,19 @@
 --      'enviada', its auth_user_id is this account, the email matches and the
 --      ficha still has auth_id NULL; marks it aceptada. Returns
 --      'vinculada' | 'sin_invitacion' | 'rechazada' (service_role).
---   6. public.invitacion_cuenta_estado(p_usuario_id): the latest invitation
---      (estado, email, created_at) for whoever may invite; NULL otherwise.
+--   6. public.invitacion_cuenta_estado(p_usuario_id): for whoever may invite,
+--      {sin_cuenta, email_ficha, invitacion: latest (estado, email,
+--      created_at)}; NULL otherwise. public.invitacion_cuenta_sin_cuenta(ids):
+--      the given fichas without account the actor may invite (person menus).
 --   7. public.ficha_tiene_invitacion_abierta also counts an 'enviada' account
 --      invitation, so the email/cedula heuristic never takes that ficha.
 --
--- Blast radius: one new table, five new functions, one replaced function
+-- Blast radius: one new table, six new functions, one replaced function
 -- (same signature, grants and owner). No change to usuarios policies.
 --
 -- Rollback:
 --   (restore ficha_tiene_invitacion_abierta from 20261004150000)
+--   DROP FUNCTION IF EXISTS public.invitacion_cuenta_sin_cuenta(uuid[]);
 --   DROP FUNCTION IF EXISTS public.invitacion_cuenta_estado(uuid);
 --   DROP FUNCTION IF EXISTS public.invitacion_cuenta_vincular(uuid, text);
 --   DROP FUNCTION IF EXISTS public.invitacion_cuenta_registrar_envio(uuid, uuid);
@@ -239,19 +242,46 @@ STABLE
 SECURITY DEFINER
 SET search_path TO ''
 AS $function$
-  SELECT jsonb_build_object('estado', ic.estado, 'email', ic.email, 'created_at', ic.created_at)
-    FROM public.invitaciones_cuenta ic
-   WHERE ic.usuario_id = p_usuario_id
-     AND public.invitacion_cuenta_puede_invitar(p_usuario_id)
-   ORDER BY ic.created_at DESC
-   LIMIT 1;
+  SELECT jsonb_build_object(
+           'sin_cuenta', u.auth_id IS NULL,
+           'email_ficha', u.email,
+           'invitacion', (
+             SELECT jsonb_build_object('estado', ic.estado, 'email', ic.email, 'created_at', ic.created_at)
+               FROM public.invitaciones_cuenta ic
+              WHERE ic.usuario_id = u.id
+              ORDER BY ic.created_at DESC
+              LIMIT 1))
+    FROM public.usuarios u
+   WHERE u.id = p_usuario_id
+     AND public.invitacion_cuenta_puede_invitar(p_usuario_id);
 $function$;
 
 COMMENT ON FUNCTION public.invitacion_cuenta_estado(uuid) IS
-  'The latest account invitation of a ficha (estado, email, created_at) for whoever may invite.';
+  'For whoever may invite: whether the ficha has no account, its email and its latest account '
+  'invitation (estado, email, created_at); NULL for anyone else.';
 
 REVOKE ALL ON FUNCTION public.invitacion_cuenta_estado(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.invitacion_cuenta_estado(uuid) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.invitacion_cuenta_sin_cuenta(p_usuario_ids uuid[])
+RETURNS SETOF uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+  SELECT u.id
+    FROM public.usuarios u
+   WHERE u.id = ANY (coalesce(p_usuario_ids, '{}'::uuid[]))
+     AND u.auth_id IS NULL
+     AND public.invitacion_cuenta_puede_invitar(u.id);
+$function$;
+
+COMMENT ON FUNCTION public.invitacion_cuenta_sin_cuenta(uuid[]) IS
+  'Among the given fichas, the ones without account that the actor may invite (for the person menus).';
+
+REVOKE ALL ON FUNCTION public.invitacion_cuenta_sin_cuenta(uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.invitacion_cuenta_sin_cuenta(uuid[]) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.ficha_tiene_invitacion_abierta(p_usuario_id uuid)
 RETURNS boolean

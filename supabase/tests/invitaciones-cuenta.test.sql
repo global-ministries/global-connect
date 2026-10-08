@@ -18,7 +18,8 @@
 --      got an account is untouched (rechazada).
 --   e. ficha_tiene_invitacion_abierta counts an open account invitation.
 --   f. invitacion_cuenta_estado returns the latest invitation to an admin and
---      NULL to a plain user.
+--      NULL to a plain user; invitacion_cuenta_sin_cuenta lists only fichas
+--      without account, and nothing to a plain user.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK — nothing here is kept. The MCP
 -- connection is postgres (BYPASSRLS), so the authorization cases switch to
@@ -137,10 +138,15 @@ FROM t_ctx;
 
 -- f. State for an admin and for a plain user.
 SELECT pg_temp.ok('f: admin sees the open invitation',
-  public.invitacion_cuenta_estado(ficha_id) ->> 'estado' = 'enviada') FROM t_ctx;
+  public.invitacion_cuenta_estado(ficha_id) #>> '{invitacion,estado}' = 'enviada'
+  AND (public.invitacion_cuenta_estado(ficha_id) ->> 'sin_cuenta')::boolean) FROM t_ctx;
+SELECT pg_temp.ok('f: admin lists the fichas without account',
+  ARRAY(SELECT public.invitacion_cuenta_sin_cuenta(ARRAY[ficha_id, conectada_id])) = ARRAY[ficha_id])
+FROM t_ctx;
 SELECT pg_temp.como(plano_auth) FROM t_ctx;
 SELECT pg_temp.ok('f: plain user sees nothing',
-  public.invitacion_cuenta_estado(ficha_id) IS NULL) FROM t_ctx;
+  public.invitacion_cuenta_estado(ficha_id) IS NULL
+  AND NOT EXISTS (SELECT public.invitacion_cuenta_sin_cuenta(ARRAY[ficha_id]))) FROM t_ctx;
 
 RESET ROLE;
 
