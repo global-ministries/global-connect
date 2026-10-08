@@ -28,7 +28,7 @@ import {
   hasDreamTeamWriteCapability,
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
-import { puedeRegistrarEnAlgunEquipo } from '@/lib/platform/dream-team/alta-persona'
+import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-persona'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
@@ -62,9 +62,15 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   const session = await requireDreamTeamSession({ includeRoles: true })
   if (!session) redirect('/login')
 
-  if (!hasDreamTeamMiEquipoAccess(session)) notFound()
-
   const supabase = await createSupabaseServerClient()
+  // Registering NEW people and fixing their ficha is the volunteer coordinator's
+  // (20261006110100, 20261008100000), whose servicio mints no read capability
+  // (only dream_team.serve and dream_team.coordinate). Whoever may register
+  // somewhere opens Mi equipo too; what they see stays RLS-scoped. Fails closed.
+  const equiposRegistrables = await fetchEquiposRegistrables(supabase)
+  const puedeRegistrar = equiposRegistrables.size > 0
+  if (!hasDreamTeamMiEquipoAccess(session) && !puedeRegistrar) notFound()
+
   const repo = createSupabaseDreamTeamRepository(supabase)
 
   // RLS scopes listEquipos() to the caller's own branch (or globally for
@@ -157,6 +163,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       telefono: contactoPorId.get(servicio.personaId)?.telefono ?? null,
       tieneCuenta: contactoPorId.get(servicio.personaId)?.tieneCuenta ?? null,
       turnoIds: turnosPorServicio.get(servicio.id) ?? [],
+      fichaEditable: servicio.estado !== 'retirado' && equiposRegistrables.has(servicio.equipoId),
     })
   }
   // A leader of two groups is two rows (one per group), hence the equipo in the key.
@@ -178,10 +185,6 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   const pedida = (await searchParams)?.direccion
   const direccionPedida = Array.isArray(pedida) ? pedida[0] : (pedida as string | undefined)
   const direccionId = direcciones.find((direccion) => direccion.id === direccionPedida)?.id ?? direcciones[0]?.id ?? ''
-
-  // Registering NEW people is the volunteer coordinator's (20261006110100), who may hold no
-  // write capability; the dialog then opens straight into the form. Fails closed.
-  const puedeRegistrar = await puedeRegistrarEnAlgunEquipo(supabase)
 
   const asignables = direccionId ? listarEquiposAsignables(arbol, direccionId) : []
   const rolesPorEquipo: Record<string, readonly DreamTeamRol[]> = Object.fromEntries(

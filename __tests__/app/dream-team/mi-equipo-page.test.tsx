@@ -28,7 +28,12 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
   hasDreamTeamWriteCapability: () => hasDreamTeamWriteCapability(),
 }))
 
-jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: async () => ({}) }))
+// dream_team_equipos_registrables: `null` = the lookup fails (no rpc at all).
+let mockRegistrables: { equipo_id: string }[] | null = null
+jest.mock('@/lib/supabase/server', () => ({
+  createSupabaseServerClient: async () =>
+    mockRegistrables === null ? {} : { rpc: async () => ({ data: mockRegistrables, error: null }) },
+}))
 jest.mock('@/lib/platform/dream-team/turnos', () => ({
   ...jest.requireActual('@/lib/platform/dream-team/turnos'),
   fetchTurnos: async () => [],
@@ -131,6 +136,7 @@ beforeEach(() => {
   mockEquipos = EQUIPOS
   mockLideres = LIDERES_BASE
   mockNodosGdv = []
+  mockRegistrables = null
   isDreamTeamEnabled.mockReturnValue(true)
   requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
   hasDreamTeamMiEquipoAccess.mockReturnValue(true)
@@ -152,6 +158,30 @@ describe('mi-equipo page — authorization', () => {
     requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
     hasDreamTeamMiEquipoAccess.mockReturnValue(false)
     await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
+  })
+})
+
+describe('mi-equipo page — the volunteer coordinator (T7/T11)', () => {
+  it('opens for someone who may register new people even without a read capability', async () => {
+    hasDreamTeamMiEquipoAccess.mockReturnValue(false)
+    hasDreamTeamWriteCapability.mockReturnValue(false)
+    mockRegistrables = [{ equipo_id: 'eq-a1' }]
+    const props = await renderizar()
+    expect(props.puedeRegistrar).toBe(true)
+    expect(props.puedeEditar).toBe(false)
+  })
+
+  it('still 404s without access when the registrables lookup answers nothing', async () => {
+    hasDreamTeamMiEquipoAccess.mockReturnValue(false)
+    mockRegistrables = []
+    await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
+  })
+
+  it('marks the ficha editable only for servicios in a registrable equipo', async () => {
+    mockRegistrables = [{ equipo_id: 'eq-a1' }]
+    const personas = (await renderizar({ direccion: 'dir-a' })).vista?.personas ?? []
+    const ficha = Object.fromEntries(personas.map((p) => [p.nombre, p.fichaEditable]))
+    expect(ficha).toMatchObject({ 'Bea Coordinadora': true, 'Carla Facilitadora': true, 'Ana Directora': false, 'Lidia Lider': false })
   })
 })
 

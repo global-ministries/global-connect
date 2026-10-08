@@ -206,7 +206,9 @@ function FilaPersona({
           </BadgeSistema>
         </span>
       </div>
-      {puedeEditar && <MenuPersona persona={persona} onActualizado={onActualizado} />}
+      {(puedeEditar || persona.fichaEditable === true) && (
+        <MenuPersona persona={persona} puedeEditarServicio={puedeEditar} onActualizado={onActualizado} />
+      )}
     </li>
   )
 }
