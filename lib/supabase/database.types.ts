@@ -8051,6 +8051,29 @@ export type Database = {
         Returns: undefined
       }
       ninos_buscar_familias: { Args: { p_q: string }; Returns: Json }
+      ninos_buscar_padre: {
+        Args: { p_cedula: string; p_telefono: string }
+        Returns: Json
+      }
+      ninos_enmascarar: {
+        Args: { p_valor: string; p_visibles: number }
+        Returns: string
+      }
+      ninos_ocupacion: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: {
+          area: string
+          capacidad: number
+          nombre: string
+          orden: number
+          presentes: number
+          salon_id: string
+        }[]
+      }
+      ninos_padre_coincidencias: {
+        Args: { p_cedula: string; p_telefono: string }
+        Returns: Json
+      }
       ninos_registrar_familia: { Args: { p: Json }; Returns: Json }
       ninos_texto: { Args: { p: Json; p_key: string }; Returns: string }
       _puede_ver_segmento_lider: {
