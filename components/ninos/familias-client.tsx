@@ -51,8 +51,8 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
 
   if (vista.tipo === 'registrar' || vista.tipo === 'agregar') {
     return (
-      <div className="space-y-4">
-        <h1 className="text-xl font-bold">{vista.tipo === 'registrar' ? 'Nueva familia' : 'Agregar niño'}</h1>
+      <div className="mx-auto w-full max-w-3xl space-y-4 xl:max-w-5xl">
+        <h1 className="text-xl font-bold md:text-2xl">{vista.tipo === 'registrar' ? 'Nueva familia' : 'Agregar niño'}</h1>
         <RegistrarFamiliaForm
           padreExistente={vista.tipo === 'agregar' ? vista.padre : undefined}
           onCancelar={volverCheckin && vista.tipo === 'registrar' ? () => router.push(volverCheckin) : volver}
@@ -68,8 +68,8 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
 
   if (vista.tipo === 'editar') {
     return (
-      <div className="space-y-4">
-        <h1 className="text-xl font-bold">Editar ficha</h1>
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        <h1 className="text-xl font-bold md:text-2xl">Editar ficha</h1>
         <EditarNinoForm hijo={vista.hijo} onCancelar={volver} onGuardado={volver} />
       </div>
     )
@@ -78,7 +78,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">Familias</h1>
+        <h1 className="text-xl font-bold md:text-2xl">Familias</h1>
         <Button className="h-11" onClick={() => setVista({ tipo: 'registrar' })}>
           <UserPlus className="mr-2 h-4 w-4" aria-hidden />
           Nueva familia
@@ -86,7 +86,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
       </div>
 
       <form
-        className="flex gap-2"
+        className="flex gap-2 md:max-w-2xl"
         onSubmit={(e) => {
           e.preventDefault()
           void buscar(q)
@@ -111,12 +111,12 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
       )}
       {familias && familias.length === 0 && <p className="text-sm text-muted-foreground">No se encontraron familias.</p>}
 
-      <ul className="space-y-3">
+      <ul className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
         {familias?.map((f) => (
-          <li key={f.id} className="space-y-3 rounded-lg border p-3">
+          <li key={f.id} className="min-w-0 space-y-3 rounded-lg border p-3 md:p-4">
             <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold">
+              <div className="min-w-0">
+                <p className="break-words font-semibold">
                   {f.nombre} {f.apellido}
                 </p>
                 {f.telefono && <p className="text-sm text-muted-foreground">{f.telefono}</p>}
@@ -134,7 +134,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
               {f.hijos.map((h) => (
                 <li key={h.id} className="space-y-2 rounded-md bg-muted/50 p-2">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0 break-words">
                       <p className="font-medium">
                         {h.nombre} {h.apellido}
                         {h.es_vip_desde && (

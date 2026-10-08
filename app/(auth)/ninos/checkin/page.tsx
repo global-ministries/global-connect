@@ -48,7 +48,7 @@ export default async function NinosCheckinPage({ searchParams }: Props) {
   const servicio = resolverServicio({ turno: query.turno, fecha: query.fecha }, listaTurnos, hoyEnCaracas())
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-4">
+    <main className="mx-auto w-full max-w-2xl px-4 py-4 md:max-w-6xl md:px-6 md:py-6">
       <CheckinClient
         salones={(salones ?? []) as SalonFila[]}
         turnos={listaTurnos}

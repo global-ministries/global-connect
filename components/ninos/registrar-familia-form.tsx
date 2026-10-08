@@ -108,7 +108,7 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar 
       ) : (
         <section className="space-y-3">
           <h2 className="text-base font-semibold">Representante</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 md:gap-4">
             <div className="space-y-1">
               <Label htmlFor="padre-nombre">Nombre</Label>
               <Input id="padre-nombre" aria-label="Nombre del representante" value={form.padre.nombre} onChange={(e) => setPadre('nombre', e.target.value)} />
@@ -171,23 +171,25 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar 
         </section>
       )}
 
-      {form.hijos.map((h, i) => (
-        <section key={i} className="space-y-3 rounded-lg border p-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">Niño {i + 1}</h2>
-            {form.hijos.length > 1 && (
-              <button
-                type="button"
-                className="text-sm text-muted-foreground underline"
-                onClick={() => setForm((f) => ({ ...f, hijos: f.hijos.filter((_, j) => j !== i) }))}
-              >
-                Quitar
-              </button>
-            )}
-          </div>
-          <CamposNino indice={i} hijo={h} onChange={(x) => setHijo(i, x)} />
-        </section>
-      ))}
+      <div className={form.hijos.length > 1 ? 'grid gap-4 xl:grid-cols-2' : 'grid gap-4'}>
+        {form.hijos.map((h, i) => (
+          <section key={i} className="min-w-0 space-y-3 rounded-lg border p-3 md:p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold">Niño {i + 1}</h2>
+              {form.hijos.length > 1 && (
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground underline"
+                  onClick={() => setForm((f) => ({ ...f, hijos: f.hijos.filter((_, j) => j !== i) }))}
+                >
+                  Quitar
+                </button>
+              )}
+            </div>
+            <CamposNino indice={i} hijo={h} onChange={(x) => setHijo(i, x)} />
+          </section>
+        ))}
+      </div>
       <button
         type="button"
         className="text-sm font-medium text-primary underline"

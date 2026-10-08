@@ -52,7 +52,7 @@ export default async function NinosSalonPage({ searchParams }: Props) {
   const salonId = lista.find((s) => s.id === query.salon)?.id ?? lista[0]?.id ?? null
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-4">
+    <main className="mx-auto w-full max-w-2xl px-4 py-4 md:px-6 md:py-6 lg:max-w-7xl">
       <SalonClient
         salones={lista.map((s) => ({ id: s.id, nombre: s.nombre }))}
         turnos={listaTurnos}
