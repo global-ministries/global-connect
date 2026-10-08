@@ -1,6 +1,7 @@
 import {
   cambiosDeFicha,
   fetchEquiposRegistrables,
+  puedeRegistrarParaNavegacion,
   formularioDesdeFicha,
   mapFicha,
   mapFichaError,
@@ -111,3 +112,18 @@ describe('fetchEquiposRegistrables', () => {
     expect(await fetchEquiposRegistrables({ rpc: jest.fn().mockRejectedValue(new Error('x')) })).toEqual(new Set())
   })
 })
+
+describe('puedeRegistrarParaNavegacion (the sidebar flag, computed in the (auth) layout)', () => {
+  const rpcCon = (data: unknown) => ({ rpc: jest.fn().mockResolvedValue({ data, error: null }) })
+  it('is true when the registrables lookup answers some equipo', async () => {
+    expect(await puedeRegistrarParaNavegacion(rpcCon([{ equipo_id: 'e1' }]), true)).toBe(true)
+  })
+  it('is false for none, without a client, or with Dream Team off (no lookup then)', async () => {
+    expect(await puedeRegistrarParaNavegacion(rpcCon([]), true)).toBe(false)
+    expect(await puedeRegistrarParaNavegacion(null, true)).toBe(false)
+    const cliente = rpcCon([{ equipo_id: 'e1' }])
+    expect(await puedeRegistrarParaNavegacion(cliente, false)).toBe(false)
+    expect(cliente.rpc).not.toHaveBeenCalled()
+  })
+})
+

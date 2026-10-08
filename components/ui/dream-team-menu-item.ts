@@ -8,6 +8,7 @@ import {
   type DreamTeamNavItem,
 } from '@/lib/platform/dream-team/navigation'
 import type { PlatformSession } from '@/lib/platform/session/types'
+import { useDreamTeamAcceso } from '@/hooks/useDreamTeamAcceso'
 
 /**
  * The "Dream Team" section of the navigation, shared by the desktop sidebar
@@ -71,7 +72,12 @@ export function buildDreamTeamMenuItem(items: readonly DreamTeamNavItem[]): Drea
  */
 export function useDreamTeamMenuItem(platformSession: PlatformSession | null | undefined): DreamTeamMenuItem | null {
   const enabled = isDreamTeamEnabledClient()
-  const navItems = useMemo(() => getDreamTeamNavItems(platformSession, enabled), [platformSession, enabled])
+  // The volunteer coordinator's flag comes from the (auth) layout (hooks/useDreamTeamAcceso).
+  const { puedeRegistrar } = useDreamTeamAcceso()
+  const navItems = useMemo(
+    () => getDreamTeamNavItems(platformSession, enabled, { puedeRegistrar }),
+    [platformSession, enabled, puedeRegistrar],
+  )
   return useMemo(() => buildDreamTeamMenuItem(navItems), [navItems])
 }
 

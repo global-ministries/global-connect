@@ -104,3 +104,19 @@ describe('isDreamTeamEnabledClient parity with isDreamTeamEnabled', () => {
     expect(isDreamTeamEnabledClient()).toBe(isDreamTeamEnabled(process.env))
   })
 })
+
+describe('getDreamTeamNavItems — the volunteer coordinator (T11)', () => {
+  it('gives Mi equipo alone to someone who may register people (flag computed server-side)', () => {
+    expect(getDreamTeamNavItems(makeSession([serveCap]), true, { puedeRegistrar: true }).map((i) => i.href)).toEqual([
+      '/dream-team/mi-equipo',
+    ])
+  })
+  it('gives nothing without the flag, and nothing with the Dream Team flag off', () => {
+    expect(getDreamTeamNavItems(makeSession([serveCap]), true, { puedeRegistrar: false })).toEqual([])
+    expect(getDreamTeamNavItems(makeSession([serveCap]), false, { puedeRegistrar: true })).toEqual([])
+  })
+  it('keeps the three screens for a read capability', () => {
+    expect(getDreamTeamNavItems(makeSession([orgManageCap]), true, { puedeRegistrar: true })).toEqual(DREAM_TEAM_NAV_ITEMS)
+  })
+})
+

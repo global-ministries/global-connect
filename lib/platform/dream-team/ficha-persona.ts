@@ -212,3 +212,16 @@ export async function fetchEquiposRegistrables(supabase: {
     return new Set()
   }
 }
+
+/**
+ * The sidebar flag for the volunteer coordinator (hooks/useDreamTeamAcceso):
+ * whether the user may register new people somewhere. Computed once by the
+ * (auth) layout; false without a client or with Dream Team off (no lookup).
+ */
+export async function puedeRegistrarParaNavegacion(
+  supabase: Parameters<typeof fetchEquiposRegistrables>[0] | null,
+  enabled: boolean,
+): Promise<boolean> {
+  if (!enabled || !supabase) return false
+  return (await fetchEquiposRegistrables(supabase)).size > 0
+}
