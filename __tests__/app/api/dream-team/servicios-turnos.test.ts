@@ -15,6 +15,7 @@ jest.mock('@/lib/platform/dream-team/turnos', () => ({
   fetchTurnos: jest.fn(),
   fetchTurnosDisponibles: jest.fn(),
   fetchTurnosDeServicios: jest.fn(),
+  fetchFrecuenciasDeServicios: jest.fn(),
   guardarTurnosDeServicio: jest.fn(),
 }))
 
@@ -65,6 +66,9 @@ beforeEach(() => {
   turnosMock.fetchTurnos.mockResolvedValue([turno(T1, 'Domingo 9:00', 1), turno(T2, 'Domingo 11:00', 2), turno(T3, 'Sábado', 3)])
   turnosMock.fetchTurnosDisponibles.mockResolvedValue([T1, T2])
   turnosMock.fetchTurnosDeServicios.mockResolvedValue(new Map([['srv-1', [T3]]]))
+  turnosMock.fetchFrecuenciasDeServicios.mockResolvedValue(
+    new Map([['srv-1', { [T3]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' } }]]),
+  )
   turnosMock.guardarTurnosDeServicio.mockResolvedValue(undefined)
 })
 
@@ -83,6 +87,7 @@ describe('GET /api/dream-team/servicios/[id]/turnos', () => {
     auth([readCap])
     const cuerpo = await (await GET(request(), ctx())).json()
     expect(cuerpo.asignados).toEqual([T3])
+    expect(cuerpo.frecuencias).toEqual({ [T3]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' } })
     expect(cuerpo.turnos.map((t: { id: string }) => t.id)).toEqual([T1, T2, T3])
     expect(turnosMock.fetchTurnosDisponibles).toHaveBeenCalledWith(expect.anything(), 'equipo-sala', expect.any(Array))
   })
@@ -105,7 +110,21 @@ describe('PUT /api/dream-team/servicios/[id]/turnos', () => {
     const respuesta = await put({ turnoIds: [T1, T2] })
     expect(respuesta.status).toBe(200)
     expect(await respuesta.json()).toEqual({ asignados: [T1, T2] })
-    expect(turnosMock.guardarTurnosDeServicio).toHaveBeenCalledWith(expect.anything(), 'srv-1', [T1, T2])
+    expect(turnosMock.guardarTurnosDeServicio).toHaveBeenCalledWith(expect.anything(), 'srv-1', [T1, T2], undefined)
+  })
+
+  it('saves a biweekly frequency with its anchor Sunday', async () => {
+    auth([directorCap])
+    const frecuencias = { [T1]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' } }
+    expect((await put({ turnoIds: [T1], frecuencias })).status).toBe(200)
+    expect(turnosMock.guardarTurnosDeServicio).toHaveBeenCalledWith(expect.anything(), 'srv-1', [T1], frecuencias)
+  })
+
+  it('400 for a biweekly frequency whose anchor is not a Sunday', async () => {
+    auth([directorCap])
+    const frecuencias = { [T1]: { frecuencia: 'quincenal', fechaAncla: '2026-10-05' } }
+    expect((await put({ turnoIds: [T1], frecuencias })).status).toBe(400)
+    expect(turnosMock.guardarTurnosDeServicio).not.toHaveBeenCalled()
   })
 
   it('422 when the database rejects a shift for this servicio', async () => {

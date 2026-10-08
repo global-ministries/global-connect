@@ -19,7 +19,7 @@
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado, type PersonaId } from './types'
 import type { NodoArbol } from './arbol'
 import type { NodoEquipoArbol } from './estructura-arbol'
-import { coincideTurno } from './turnos'
+import { coincideTurno, type FrecuenciasPorTurno } from './turnos'
 
 /** Id of the synthetic "Toda la dirección" selection. */
 export const TODOS_LOS_EQUIPOS = 'todos'
@@ -60,6 +60,8 @@ export interface PersonaEntrada {
   readonly tieneCuenta?: boolean | null
   /** Campus service shifts of a Dream Team servicio (D12); absent or empty = none yet. */
   readonly turnoIds?: readonly string[]
+  /** Biweekly shifts of the servicio (T10); a shift with no entry is weekly. */
+  readonly frecuencias?: FrecuenciasPorTurno
   /** Whether the viewer may fix the person's ficha (T11; checked again by dream_team_editar_ficha). */
   readonly fichaEditable?: boolean
 }
@@ -86,6 +88,8 @@ export interface PersonaVista {
   readonly tieneCuenta: boolean | null
   /** Campus service shifts of the servicio; absent or empty = none yet. */
   readonly turnoIds?: readonly string[]
+  /** Biweekly shifts of the servicio (T10); a shift with no entry is weekly. */
+  readonly frecuencias?: FrecuenciasPorTurno
   /** Whether the viewer may fix the person's ficha (T11; checked again by dream_team_editar_ficha). */
   readonly fichaEditable?: boolean
 }
@@ -191,6 +195,7 @@ function aVista(entrada: PersonaEntrada, equipoId: string, equipoLabel: string):
     telefono: entrada.telefono ?? null,
     tieneCuenta: entrada.tieneCuenta ?? null,
     turnoIds: entrada.turnoIds ?? [],
+    frecuencias: entrada.frecuencias ?? {},
     fichaEditable: entrada.fichaEditable === true,
   }
 }

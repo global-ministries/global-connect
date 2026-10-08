@@ -3,7 +3,8 @@ import type { NodoEquipoArbol } from './estructura-arbol'
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado, type PersonaId } from './types'
 import { ESTADO_LABELS } from '@/components/dream-team/labels'
 import { normalizarTelefono } from '@/lib/utils/telefono'
-import { SIN_TURNO, coincideTurno, ordenarTurnos, type Turno } from './turnos'
+import { isoLocal, nombreConFrecuencia } from './frecuencia-turno'
+import { SIN_TURNO, coincideTurno, ordenarTurnos, type FrecuenciasPorTurno, type Turno } from './turnos'
 
 /**
  * Pure view model behind /admin/dream-team/servidores (no I/O, no React).
@@ -54,6 +55,8 @@ export interface FilaServidor {
   readonly fichaEditable?: boolean
   /** Campus service shifts of a Dream Team servicio; absent or empty = none assigned yet. */
   readonly turnoIds?: readonly string[]
+  /** Biweekly shifts of the servicio (T10); a shift with no entry is weekly. */
+  readonly frecuencias?: FrecuenciasPorTurno
 }
 
 export type Inicio = 'cualquiera' | 'mes' | 'trimestre'
@@ -462,9 +465,16 @@ function construirPastillas(
 }
 
 /** The shift names of a servicio in campus order; "—" when it has none (or is not a Dream Team row). */
-function textoDeTurnos(turnoIds: readonly string[] | undefined, turnos: readonly Turno[]): string {
+function textoDeTurnos(
+  turnoIds: readonly string[] | undefined,
+  turnos: readonly Turno[],
+  frecuencias: FrecuenciasPorTurno | undefined,
+  hoy: Date,
+): string {
   if (!turnoIds || turnoIds.length === 0) return SIN_TURNOS_TEXTO
-  const nombres = turnos.filter((turno) => turnoIds.includes(turno.id)).map((turno) => turno.nombre)
+  const nombres = turnos
+    .filter((turno) => turnoIds.includes(turno.id))
+    .map((turno) => nombreConFrecuencia(turno.nombre, frecuencias?.[turno.id], isoLocal(hoy)))
   return nombres.length > 0 ? nombres.join(', ') : SIN_TURNOS_TEXTO
 }
 
@@ -505,7 +515,7 @@ export function calcularVistaServidores({
   const conVista = (fila: FilaServidor): FilaVista => ({
     ...fila,
     equiposDeLaPersona: equiposPorPersona.get(fila.personaId) ?? 0,
-    turnosTexto: textoDeTurnos(fila.turnoIds, turnosOrdenados),
+    turnosTexto: textoDeTurnos(fila.turnoIds, turnosOrdenados, fila.frecuencias, hoy),
   })
 
   // Counters: every filter except the one the counter belongs to.
