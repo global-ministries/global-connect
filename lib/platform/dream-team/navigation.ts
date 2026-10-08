@@ -61,13 +61,17 @@ const DREAM_TEAM_MI_EQUIPO_ONLY: readonly DreamTeamNavItem[] = DREAM_TEAM_NAV_IT
  * A session that passes hasDreamTeamReadCapability gets the three items in
  * DREAM_TEAM_NAV_ITEMS order; a Grupos de Vida director without a capability
  * gets Mi equipo alone (Servidores and Estructura still need a capability).
+ * So does whoever may register new people (`acceso.puedeRegistrar`, the
+ * volunteer coordinator of an area, T11): a fact the session does not carry,
+ * computed server-side by the (auth) layout and handed down.
  */
 export function getDreamTeamNavItems(
   session: PlatformSession | null | undefined,
   enabled: boolean,
+  acceso: { readonly puedeRegistrar?: boolean } = {},
 ): readonly DreamTeamNavItem[] {
   if (!enabled || !session) return []
   if (hasDreamTeamReadCapability(session)) return DREAM_TEAM_NAV_ITEMS
-  if (isGdvDirectorSession(session)) return DREAM_TEAM_MI_EQUIPO_ONLY
+  if (isGdvDirectorSession(session) || acceso.puedeRegistrar === true) return DREAM_TEAM_MI_EQUIPO_ONLY
   return []
 }

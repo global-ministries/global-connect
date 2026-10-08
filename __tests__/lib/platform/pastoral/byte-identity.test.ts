@@ -145,6 +145,9 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // alta-persona.ts — new (2026-10-06): body validation and RPC mapping for
   // registering a new person from the Dream Team assigner (T7/T9).
   'lib/platform/dream-team/alta-persona.ts',
+  // ficha-persona.ts — new (2026-10-07): body validation, RPC mapping and form
+  // diff for fixing a person's ficha from Servidores (T11).
+  'lib/platform/dream-team/ficha-persona.ts',
   'lib/platform/dream-team/types.ts',
 
   // PR24 (2026-08-14): fix sidebar 404 — talleres admin href /admin/talleres

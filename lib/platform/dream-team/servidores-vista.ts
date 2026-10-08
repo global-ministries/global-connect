@@ -46,6 +46,12 @@ export interface FilaServidor {
   readonly version?: number
   /** Whether the row offers actions (a Dream Team servicio the viewer can edit). */
   readonly editable: boolean
+  /**
+   * Whether the viewer may fix the person's ficha (T11): the volunteer
+   * coordinator of the area, org.manage, admin or pastor, for a non-retired
+   * servicio. The database checks it again (dream_team_editar_ficha).
+   */
+  readonly fichaEditable?: boolean
   /** Campus service shifts of a Dream Team servicio; absent or empty = none assigned yet. */
   readonly turnoIds?: readonly string[]
 }

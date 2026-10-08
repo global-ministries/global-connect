@@ -3,22 +3,28 @@
 /**
  * Servidores — the per-row "⋯" menu (a 44px button): "Cambiar etapa" (the
  * shared stage dialog, controlled mode), "Turnos" (the campus service shifts
- * of the servicio) and "Ver su equipo" (Mi equipo on the person's dirección).
+ * of the servicio), "Editar ficha" (the person's personal data, T11; for the
+ * volunteer coordinator, org.manage, admin or pastor, see
+ * lib/platform/dream-team/ficha-persona.ts) and "Ver su equipo" (Mi equipo on
+ * the person's dirección).
  *
- * Renders nothing for a row without actions: a read-only viewer, or a Grupos
- * de Vida leader (its lifecycle is managed in Grupos de Vida).
+ * Renders nothing for a row without actions: a read-only viewer who may not
+ * fix the ficha either, or a Grupos de Vida leader (its lifecycle is managed in
+ * Grupos de Vida).
  */
 import { useState, type ReactElement } from 'react'
 import Link from 'next/link'
-import { ArrowRightLeft, Clock, MoreHorizontal, Users } from 'lucide-react'
+import { ArrowRightLeft, Clock, MoreHorizontal, UserPen, Users } from 'lucide-react'
 
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { FilaServidor } from '@/lib/platform/dream-team/servidores-vista'
 import { TRANSICIONES_VALIDAS } from '@/lib/platform/dream-team/state-machine'
 import { cn } from '@/lib/utils'
 import { ANILLO } from './contadores-etapa'
+import { EditarFichaPanel } from './editar-ficha-panel'
 
 export interface MenuServidorProps {
   readonly fila: FilaServidor
@@ -26,18 +32,26 @@ export interface MenuServidorProps {
   readonly className?: string
 }
 
-export function tieneMenu(fila: FilaServidor): boolean {
+function editaServicio(fila: FilaServidor): boolean {
   return fila.editable && fila.servicioId !== undefined && fila.version !== undefined
+}
+
+export function tieneMenu(fila: FilaServidor): boolean {
+  return editaServicio(fila) || fila.fichaEditable === true
 }
 
 export function MenuServidor({ fila, onActualizado, className }: MenuServidorProps): ReactElement | null {
   const [etapaAbierta, setEtapaAbierta] = useState(false)
   const [turnosAbierto, setTurnosAbierto] = useState(false)
-  if (!tieneMenu(fila) || fila.servicioId === undefined || fila.version === undefined) return null
+  const [fichaAbierta, setFichaAbierta] = useState(false)
+  const toast = useNotificaciones()
+  if (!tieneMenu(fila)) return null
 
-  const puedeCambiarEtapa = (TRANSICIONES_VALIDAS[fila.estado]?.size ?? 0) > 0
+  const servicio = editaServicio(fila) ? { id: fila.servicioId as string, version: fila.version as number } : null
+  const puedeCambiarEtapa = servicio !== null && (TRANSICIONES_VALIDAS[fila.estado]?.size ?? 0) > 0
   // A retired servicio no longer serves, so it has no shifts to change.
-  const puedeElegirTurnos = fila.estado !== 'retirado'
+  const puedeElegirTurnos = servicio !== null && fila.estado !== 'retirado'
+  const puedeEditarFicha = fila.fichaEditable === true
 
   return (
     <>
@@ -69,6 +83,12 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
               Turnos
             </DropdownMenuItem>
           )}
+          {puedeEditarFicha && (
+            <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setFichaAbierta(true)}>
+              <UserPen aria-hidden="true" />
+              Editar ficha
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem asChild className="min-h-11 px-3 text-sm">
             <Link href={`/dream-team/mi-equipo?direccion=${encodeURIComponent(fila.direccionId)}`}>
               <Users aria-hidden="true" />
@@ -80,9 +100,9 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
 
       {puedeCambiarEtapa && (
         <AvanceEtapaControl
-          servicioId={fila.servicioId}
+          servicioId={servicio.id}
           estadoActual={fila.estado}
-          version={fila.version}
+          version={servicio.version}
           puedeEditar
           abierto={etapaAbierta}
           onAbiertoChange={setEtapaAbierta}
@@ -93,11 +113,22 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
 
       {puedeElegirTurnos && (
         <TurnosServicioDialog
-          servicioId={fila.servicioId}
+          servicioId={servicio.id}
           nombre={fila.nombre}
           abierto={turnosAbierto}
           onAbiertoChange={setTurnosAbierto}
           onGuardado={onActualizado}
+        />
+      )}
+
+      {puedeEditarFicha && (
+        <EditarFichaPanel
+          personaId={fila.personaId}
+          nombre={fila.nombre}
+          abierto={fichaAbierta}
+          onAbiertoChange={setFichaAbierta}
+          onGuardado={onActualizado}
+          toast={toast}
         />
       )}
     </>

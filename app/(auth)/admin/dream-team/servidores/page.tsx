@@ -35,6 +35,7 @@ import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/rep
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol, responsablesDreamTeamPorEquipo } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
+import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-persona'
 import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
@@ -139,6 +140,10 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
     }
   }
   const puedeEditar = hasDreamTeamWriteCapability(session)
+  // "Editar ficha" (T11): the equipos whose people the viewer may fix the
+  // personal data of (the volunteer coordinator of the area, org.manage, admin
+  // or pastor). Fails closed to none; the RPC checks it again on save.
+  const equiposFicha = await fetchEquiposRegistrables(supabase)
 
   // Campus service shifts (D12): the filter's options and each servicio's
   // assignment. A convenience on top of the pool — if the lookup fails the
@@ -171,6 +176,7 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
         servicioId: servicio.id,
         version: servicio.version,
         editable: puedeEditar,
+        fichaEditable: servicio.estado !== 'retirado' && equiposFicha.has(servicio.equipoId),
         turnoIds: turnosPorServicio.get(servicio.id) ?? [],
       }),
     ),

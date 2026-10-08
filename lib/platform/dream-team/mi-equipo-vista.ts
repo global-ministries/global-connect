@@ -60,6 +60,8 @@ export interface PersonaEntrada {
   readonly tieneCuenta?: boolean | null
   /** Campus service shifts of a Dream Team servicio (D12); absent or empty = none yet. */
   readonly turnoIds?: readonly string[]
+  /** Whether the viewer may fix the person's ficha (T11; checked again by dream_team_editar_ficha). */
+  readonly fichaEditable?: boolean
 }
 
 export interface PersonaVista {
@@ -84,6 +86,8 @@ export interface PersonaVista {
   readonly tieneCuenta: boolean | null
   /** Campus service shifts of the servicio; absent or empty = none yet. */
   readonly turnoIds?: readonly string[]
+  /** Whether the viewer may fix the person's ficha (T11; checked again by dream_team_editar_ficha). */
+  readonly fichaEditable?: boolean
 }
 
 export interface ResponsableVista {
@@ -187,6 +191,7 @@ function aVista(entrada: PersonaEntrada, equipoId: string, equipoLabel: string):
     telefono: entrada.telefono ?? null,
     tieneCuenta: entrada.tieneCuenta ?? null,
     turnoIds: entrada.turnoIds ?? [],
+    fichaEditable: entrada.fichaEditable === true,
   }
 }
 
