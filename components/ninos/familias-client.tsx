@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, UserPlus } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -8,22 +9,21 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase/client'
 import { mensajeDeErrorFamilia } from '@/lib/platform/ninos/familia'
-import {
-  parseFamilias,
-  salonParaHijo,
-  type FamiliaEncontrada,
-  type HijoEncontrado,
-  type SalonFila,
-} from '@/lib/platform/ninos/familias-vista'
+import { salonParaHijo, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 
 import { EditarNinoForm } from './editar-nino-form'
 import { RegistrarFamiliaForm } from './registrar-familia-form'
 import { SalonSugerido } from './salon-sugerido'
+import { useBuscarFamilias } from './use-buscar-familias'
 
 type Props = {
   salones: SalonFila[]
   /** YYYY-MM-DD of the next service, used for age-based suggestions. */
   fechaServicio: string
+  /** Open the registration form directly (?nueva=1). */
+  registrarAlInicio?: boolean
+  /** Check-in URL to return to after registering (?volver=checkin). */
+  volverCheckin?: string
 }
 
 type Vista =
@@ -33,26 +33,10 @@ type Vista =
   | { tipo: 'editar'; hijo: HijoEncontrado }
 
 /** Mobile-first Familias screen: search, register, add a child, edit a ficha. */
-export function FamiliasClient({ salones, fechaServicio }: Props) {
-  const [vista, setVista] = useState<Vista>({ tipo: 'buscar' })
-  const [q, setQ] = useState('')
-  const [familias, setFamilias] = useState<FamiliaEncontrada[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [buscando, setBuscando] = useState(false)
-
-  const buscar = useCallback(async (texto: string) => {
-    if (texto.trim().length < 2) return
-    setBuscando(true)
-    setError(null)
-    const { data, error: err } = await createClient().rpc('ninos_buscar_familias', { p_q: texto.trim() })
-    setBuscando(false)
-    if (err) {
-      setError(mensajeDeErrorFamilia(err))
-      setFamilias(null)
-      return
-    }
-    setFamilias(parseFamilias(data))
-  }, [])
+export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volverCheckin }: Props) {
+  const router = useRouter()
+  const [vista, setVista] = useState<Vista>({ tipo: registrarAlInicio ? 'registrar' : 'buscar' })
+  const { q, setQ, familias, error, setError, buscando, buscar } = useBuscarFamilias()
 
   async function elegirSalon(hijoId: string, salonId: string) {
     const { error: err } = await createClient().from('ninos_fichas').update({ salon_preferido_id: salonId }).eq('usuario_id', hijoId)
@@ -71,8 +55,12 @@ export function FamiliasClient({ salones, fechaServicio }: Props) {
         <h1 className="text-xl font-bold">{vista.tipo === 'registrar' ? 'Nueva familia' : 'Agregar niño'}</h1>
         <RegistrarFamiliaForm
           padreExistente={vista.tipo === 'agregar' ? vista.padre : undefined}
-          onCancelar={volver}
-          onRegistrada={volver}
+          onCancelar={volverCheckin && vista.tipo === 'registrar' ? () => router.push(volverCheckin) : volver}
+          onRegistrada={(padreId, consulta) =>
+            volverCheckin && vista.tipo === 'registrar'
+              ? router.push(`${volverCheckin}&padre=${encodeURIComponent(padreId)}&q=${encodeURIComponent(consulta)}`)
+              : void volver()
+          }
         />
       </div>
     )

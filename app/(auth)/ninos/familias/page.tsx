@@ -5,36 +5,48 @@
  * ninos_puede_operar_algun_area() allows (Anfitriones, area coordinators,
  * Directora de Niños, admin, pastor); everyone else gets a 404. Every write
  * goes through SECURITY DEFINER RPCs that re-check that authority.
+ *
+ * ?nueva=1&volver=checkin&turno=&fecha= opens the registration and returns to
+ * the check-in with the new family selected (N4).
  */
 import { notFound } from 'next/navigation'
 
 import { FamiliasClient } from '@/components/ninos/familias-client'
+import { fechaServicioPorDefecto, hoyLocal } from '@/lib/platform/ninos/checkin'
 import type { SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Familias — Niños' }
 
-/** Today when it is Sunday, otherwise the next Sunday (YYYY-MM-DD, UTC). */
-function proximoDomingo(hoy = new Date()): string {
-  const d = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate()))
-  d.setUTCDate(d.getUTCDate() + ((7 - d.getUTCDay()) % 7))
-  return d.toISOString().slice(0, 10)
+type Props = {
+  readonly searchParams: Promise<{ readonly nueva?: string; readonly volver?: string; readonly turno?: string; readonly fecha?: string }>
 }
 
-export default async function NinosFamiliasPage() {
+export default async function NinosFamiliasPage({ searchParams }: Props) {
   const supabase = await createSupabaseServerClient()
   const { data: puede } = await supabase.rpc('ninos_puede_operar_algun_area')
   if (!puede) notFound()
 
+  const query = await searchParams
   const { data: salones } = await supabase
     .from('ninos_salones')
     .select('id, nombre, area, edad_min_meses, edad_max_meses, grado_min, grado_max, es_necesidades_especiales, activo, orden')
     .eq('activo', true)
     .order('orden')
 
+  const volverCheckin =
+    query.volver === 'checkin'
+      ? `/ninos/checkin?turno=${encodeURIComponent(query.turno ?? '')}&fecha=${encodeURIComponent(query.fecha ?? '')}`
+      : undefined
+
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-4">
-      <FamiliasClient salones={(salones ?? []) as SalonFila[]} fechaServicio={proximoDomingo()} />
+      <FamiliasClient
+        salones={(salones ?? []) as SalonFila[]}
+        fechaServicio={fechaServicioPorDefecto(hoyLocal())}
+        registrarAlInicio={query.nueva === '1'}
+        volverCheckin={volverCheckin}
+      />
     </main>
   )
 }
