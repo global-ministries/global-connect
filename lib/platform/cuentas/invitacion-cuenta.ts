@@ -69,14 +69,21 @@ export type ResultadoInvitacion =
   | { readonly ok: true; readonly email: string }
   | { readonly ok: false; readonly status: number; readonly error: string; readonly codigo?: string }
 
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+// Split instead of a regex: linear on any input (no ReDoS).
+function esEmailValido(email: string): boolean {
+  if (/\s/.test(email)) return false
+  const partes = email.split('@')
+  if (partes.length !== 2 || !partes[0]) return false
+  const etiquetas = partes[1].split('.')
+  return etiquetas.length >= 2 && etiquetas.every((e) => e.length > 0)
+}
 const ESTADOS = new Set(['enviada', 'aceptada', 'cancelada', 'expirada'])
 
 export function parseInvitacion(body: unknown): EntradaInvitacion | { error: string } {
   if (typeof body !== 'object' || body === null) return { error: 'Body inválido' }
   const datos = body as Record<string, unknown>
   const email = typeof datos.email === 'string' ? datos.email.trim().toLowerCase() : ''
-  if (!EMAIL.test(email) || email.length > 254) return { error: 'Escribe un correo válido' }
+  if (email.length > 254 || !esEmailValido(email)) return { error: 'Escribe un correo válido' }
   return { email, reemplazarEmail: datos.reemplazarEmail === true }
 }
 

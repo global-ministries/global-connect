@@ -91,8 +91,18 @@ function dependencias(supabase: { rpc: unknown }): DependenciasInvitacion {
         template: createElement(InvitacionCuentaEmail, { nombre, urlAceptar: enlace }),
         idempotencyKey,
       }),
-    urlBase: process.env.NEXT_PUBLIC_SITE_URL || 'https://connect.yosoyglobal.org',
+    urlBase: urlBaseSitio(),
   }
+}
+
+// The configured site URL wins; a Vercel preview falls back to its own branch URL
+// so the invite link opens the deployment that sent it.
+function urlBaseSitio(): string {
+  const configurada = process.env.NEXT_PUBLIC_SITE_URL
+  if (configurada) return configurada.replace(/\/+$/, '')
+  const vercel = process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL
+  if (vercel) return `https://${vercel}`
+  return 'https://miembros.yosoyglobal.org'
 }
 
 export async function POST(req: NextRequest, ctx: Ctx) {

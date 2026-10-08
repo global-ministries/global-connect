@@ -15,7 +15,7 @@ export interface InvitacionCuentaEmailProps {
  */
 export function InvitacionCuentaEmail({
   nombre = 'Hola',
-  urlAceptar = 'https://connect.yosoyglobal.org',
+  urlAceptar = 'https://miembros.yosoyglobal.org',
 }: InvitacionCuentaEmailProps) {
   return (
     <EmailLayout preview="Te invitamos a crear tu cuenta en GlobalConnect">

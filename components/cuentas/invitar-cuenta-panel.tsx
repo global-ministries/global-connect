@@ -46,10 +46,10 @@ export function useEstadoInvitacion(personaId: string, activo: boolean) {
   useEffect(() => {
     if (!activo) return
     let vigente = true
-    setError(null)
     ;(async () => {
       try {
         const res = await fetch(urlInvitacion(personaId), { cache: 'no-store' })
+        if (vigente) setError(null)
         if (!res.ok) {
           if (vigente) {
             setEstado(null)
