@@ -20,6 +20,7 @@ import {
 import { salonParaHijo, type FamiliaEncontrada, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { createClient } from '@/lib/supabase/client'
 
+import { registrarIngresoApi } from './api-visita'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
 import { RetiroPanel } from './retiro-panel'
@@ -155,11 +156,11 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
     }
     setError(null)
     setGuardando(true)
-    const { data, error: err } = await createClient().rpc('ninos_checkin', {
-      p_nino_ids: armado.ninoIds,
-      p_salon_ids: armado.salonIds,
-      p_turno_id: servicio.turnoId,
-      p_fecha: servicio.fecha,
+    const { data, error: err } = await registrarIngresoApi({
+      ninoIds: armado.ninoIds,
+      salonIds: armado.salonIds,
+      turnoId: servicio.turnoId,
+      fecha: servicio.fecha,
     })
     setGuardando(false)
     if (err || !data || data.length === 0) {

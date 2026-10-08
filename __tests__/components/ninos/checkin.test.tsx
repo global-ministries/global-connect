@@ -58,7 +58,32 @@ const familia = {
   ],
 }
 
+const fetchMock = jest.fn()
+global.fetch = fetchMock as unknown as typeof fetch
+
+/** Check-in and check-out go through /api/ninos/{checkin,checkout} (N9); the rest is RPC. */
+const RUTAS: Record<string, string> = { '/api/ninos/checkin': 'ninos_checkin', '/api/ninos/checkout': 'ninos_checkout' }
+
+/** The body a route sent, as the RPC arguments it stands for. */
+function llamadaRuta(nombre: string): unknown {
+  const llamada = fetchMock.mock.calls.find(([url]) => RUTAS[url as string] === nombre)
+  if (!llamada) return undefined
+  const b = JSON.parse((llamada[1] as { body: string }).body)
+  return nombre === 'ninos_checkin'
+    ? { p_nino_ids: b.ninoIds, p_salon_ids: b.salonIds, p_turno_id: b.turnoId, p_fecha: b.fecha }
+    : { p_codigo: b.codigo, p_turno_id: b.turnoId, p_fecha: b.fecha, p_retirado_por: b.retiradoPor }
+}
+
 function responder(overrides: Record<string, unknown> = {}) {
+  fetchMock.mockReset()
+  fetchMock.mockImplementation((url: string) => {
+    const r = (overrides[RUTAS[url]] ?? { data: [], error: null }) as { data: unknown; error: { code?: string } | null }
+    return Promise.resolve({
+      ok: !r.error,
+      status: r.error ? 409 : 200,
+      json: async () => (r.error ? { error: { code: r.error.code } } : { filas: r.data }),
+    })
+  })
   rpc.mockImplementation((nombre: string) => {
     if (nombre in overrides) return Promise.resolve(overrides[nombre])
     if (nombre === 'ninos_buscar_familias') return Promise.resolve({ data: [familia], error: null })
@@ -122,7 +147,7 @@ describe('CheckinClient', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Eva Pérez' }))
     fireEvent.click(screen.getByRole('button', { name: 'Registrar ingreso' }))
     expect(await screen.findByText('Eva no tiene salón: asígnalo antes de registrar.')).toBeInTheDocument()
-    expect(rpc).not.toHaveBeenCalledWith('ninos_checkin', expect.anything())
+    expect(llamadaRuta('ninos_checkin')).toBeUndefined()
   })
 
   it('registers the check-in and shows the code very large with the rooms and warnings', async () => {
@@ -147,7 +172,7 @@ describe('CheckinClient', () => {
     expect(screen.getByText('Luis Pérez → Maternal')).toBeInTheDocument()
     expect(screen.getByText('Eva Pérez → 1º grado')).toBeInTheDocument()
     expect(screen.getByText('Salón lleno: Maternal 21/20')).toBeInTheDocument()
-    expect(rpc).toHaveBeenCalledWith('ninos_checkin', {
+    expect(llamadaRuta('ninos_checkin')).toEqual({
       p_nino_ids: ['h1', 'h2'],
       p_salon_ids: ['s1', 's2'],
       p_turno_id: 't9',
@@ -198,7 +223,7 @@ describe('CheckinClient', () => {
     fireEvent.change(screen.getByLabelText('¿Quién retira?'), { target: { value: 'Ana Pérez' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
     await waitFor(() =>
-      expect(rpc).toHaveBeenCalledWith('ninos_checkout', {
+      expect(llamadaRuta('ninos_checkout')).toEqual({
         p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11', p_retirado_por: 'Ana Pérez',
       }),
     )

@@ -15,6 +15,8 @@ import {
 } from '@/lib/platform/ninos/retiro'
 import { createClient } from '@/lib/supabase/client'
 
+import { registrarRetiroApi } from './api-visita'
+
 type Props = {
   servicio: Servicio
   /** Called after a confirmed check-out (e.g. to refresh a room list). */
@@ -75,11 +77,11 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
     }
     setError(null)
     setCargando(true)
-    const { data, error: err } = await createClient().rpc('ninos_checkout', {
-      p_codigo: codigo,
-      p_turno_id: servicio.turnoId,
-      p_fecha: servicio.fecha,
-      p_retirado_por: retiradoPor.trim(),
+    const { data, error: err } = await registrarRetiroApi({
+      codigo,
+      turnoId: servicio.turnoId,
+      fecha: servicio.fecha,
+      retiradoPor: retiradoPor.trim(),
     })
     setCargando(false)
     if (err) {
