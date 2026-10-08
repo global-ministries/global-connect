@@ -220,6 +220,7 @@ const MENSAJES: Record<string, string> = {
   ficha_existente: 'Este niño ya tiene ficha. Búscalo de nuevo.',
   sin_padre: 'El niño no está vinculado a ningún representante.',
   vinculo_invalido: 'Esa persona no puede ser padre o madre de este niño.',
+  fuera_de_rango: 'Solo se registran en Niños los menores de 13 años con fecha de nacimiento.',
 }
 
 /** Spanish copy for an RPC error; the RPCs raise a snake_case code as the message. */
@@ -327,4 +328,18 @@ export function validarPadreNuevo(
       email,
     },
   }
+}
+
+/**
+ * Niños age limit, mirror of SQL ninos_edad_maxima_anos(): a linked child
+ * without a ficha counts as a Niños child only under this age (UpStreet ends
+ * at 6th grade). Keep both in sync.
+ */
+export const EDAD_MAXIMA_NINOS_ANOS = 13
+
+/** Mirror of SQL ninos_en_rango_edad: known birth date, not in the future, under the limit on `hoy`. */
+export function enRangoNinos(fechaNacimiento: string, hoy: string): boolean {
+  if (!fechaPasadaValida(fechaNacimiento, hoy)) return false
+  const limite = `${String(Number(hoy.slice(0, 4)) - EDAD_MAXIMA_NINOS_ANOS).padStart(4, '0')}${hoy.slice(4)}`
+  return fechaNacimiento > limite
 }

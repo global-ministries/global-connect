@@ -4,8 +4,9 @@ import { useState } from 'react'
 
 import { BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { createClient } from '@/lib/supabase/client'
-import { mensajeDeErrorFamilia, validarAutorizados, validarEdicionNino, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
+import { enRangoNinos, mensajeDeErrorFamilia, validarAutorizados, validarEdicionNino, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
 import { hijoAForm, type HijoEncontrado } from '@/lib/platform/ninos/familias-vista'
+import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { CamposAutorizados, CamposNino } from './campos-nino'
@@ -35,6 +36,11 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
     const errs = [...(ficha.ok ? [] : ficha.errores), ...aut.errores]
     if (!ficha.ok || errs.length > 0) {
       setErrores(errs)
+      return
+    }
+    // A new ficha is only for children in the Niños age range (the RPC checks it too).
+    if (hijo.tiene_ficha === false && !enRangoNinos(ficha.payload.fecha_nacimiento, hoyEnCaracas())) {
+      setErrores([mensajeDeErrorFamilia({ message: 'fuera_de_rango' })])
       return
     }
     setErrores([])
