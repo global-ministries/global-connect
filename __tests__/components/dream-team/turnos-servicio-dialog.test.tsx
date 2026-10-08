@@ -47,7 +47,37 @@ it('saves the chosen shifts', async () => {
   const [url, init] = fetchMock.mock.calls[1]
   expect(url).toBe('/api/dream-team/servicios/srv-1/turnos')
   expect(init.method).toBe('PUT')
-  expect(JSON.parse(init.body)).toEqual({ turnoIds: [T9, T11] })
+  expect(JSON.parse(init.body)).toEqual({
+    turnoIds: [T9, T11],
+    frecuencias: { [T9]: { frecuencia: 'semanal', fechaAncla: null }, [T11]: { frecuencia: 'semanal', fechaAncla: null } },
+  })
+})
+
+it('makes a chosen shift biweekly from an anchor Sunday', async () => {
+  fetchMock.mockReturnValueOnce(
+    respuesta(200, { turnos, asignados: [T9], frecuencias: { [T9]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' } } }),
+  )
+  fetchMock.mockReturnValueOnce(respuesta(200, { asignados: [T9] }))
+  const onGuardado = abrir()
+  const selector = await screen.findByRole('combobox', { name: 'Frecuencia de Domingo 9:00' })
+  expect(selector).toHaveValue('quincenal')
+  expect(screen.getByLabelText('Domingo de referencia de Domingo 9:00')).toHaveValue('2026-10-04')
+  expect(screen.getByText(/Quincenal \(semana B\)/)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+  await waitFor(() => expect(onGuardado).toHaveBeenCalled())
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body).frecuencias).toEqual({
+    [T9]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' },
+  })
+})
+
+it('refuses to save a biweekly shift whose anchor is not a Sunday', async () => {
+  fetchMock.mockReturnValueOnce(
+    respuesta(200, { turnos, asignados: [T9], frecuencias: { [T9]: { frecuencia: 'quincenal', fechaAncla: '2026-10-05' } } }),
+  )
+  abrir()
+  await userEvent.click(await screen.findByRole('button', { name: 'Guardar' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Elige un domingo de referencia para Domingo 9:00.')
+  expect(fetchMock).toHaveBeenCalledTimes(1)
 })
 
 it('shows the server message when a shift is rejected', async () => {
