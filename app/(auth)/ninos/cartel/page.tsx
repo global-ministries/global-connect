@@ -14,6 +14,14 @@ import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { qrSvg, urlBaseCartel, urlRegistro } from '@/lib/platform/ninos/cartel'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
+// Print only the poster: the app sidebar, header and bottom nav live in the
+// (auth) layout, so this page-scoped rule hides everything but the poster.
+const ESTILO_IMPRESION = `@media print {
+  body * { visibility: hidden !important; }
+  [data-cartel-imprimible], [data-cartel-imprimible] * { visibility: visible !important; }
+  [data-cartel-imprimible] { position: absolute; inset: 0 auto auto 0; width: 100%; margin: 0; }
+}`
+
 export const metadata = { title: 'Cartel de registro — Niños' }
 
 export default async function NinosCartelPage() {
@@ -29,7 +37,10 @@ export default async function NinosCartelPage() {
 
   return (
     <ContenedorDashboard titulo="Cartel de registro">
-      <div className="mx-auto flex max-w-xl flex-col items-center gap-6 rounded-3xl border border-border bg-white p-8 text-center text-neutral-900 print:border-0 print:p-0">
+      <style>{ESTILO_IMPRESION}</style>
+      <div
+        data-cartel-imprimible
+        className="mx-auto flex max-w-xl flex-col items-center gap-6 rounded-3xl border border-border bg-white p-8 text-center text-neutral-900 print:border-0 print:p-0">
         <p className="text-sm font-semibold uppercase tracking-widest text-orange-600">Waumba Land · UpStreet</p>
         <h1 className="text-3xl font-bold sm:text-4xl">¿Primera vez con tus niños?</h1>
         <p className="text-lg">Escanea el código y registra a tu familia antes de llegar a la mesa de check-in.</p>
@@ -37,7 +48,7 @@ export default async function NinosCartelPage() {
         <div className="w-64 max-w-full sm:w-80" aria-label="Código QR del registro de familias" role="img" dangerouslySetInnerHTML={{ __html: svg }} />
         <p className="break-all text-sm text-neutral-600">{url}</p>
       </div>
-      <div className="mt-6 flex justify-center">
+      <div className="mt-6 flex justify-center print:hidden">
         <BotonImprimir />
       </div>
     </ContenedorDashboard>

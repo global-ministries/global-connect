@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ComponentType } from 'react'
-import { Baby, ClipboardCheck, House, UsersRound } from 'lucide-react'
+import { Baby, ClipboardCheck, House, QrCode, UsersRound } from 'lucide-react'
 
 import { useNinosAcceso, type NinosAcceso } from '@/hooks/useNinosAcceso'
 
@@ -38,6 +38,10 @@ export function getNinosNavItems(acceso: NinosAcceso): NinosMenuChild[] {
   }
   if (acceso.puedeVerSalon || acceso.puedeOperar) {
     items.push({ id: 'ninos-salon', label: 'Salones', href: '/ninos/salon', icon: House })
+  }
+  // Same gate as /ninos/cartel: ninos_puede_operar_algun_area().
+  if (acceso.puedeOperar) {
+    items.push({ id: 'ninos-cartel', label: 'Cartel QR', href: '/ninos/cartel', icon: QrCode })
   }
   if (ASISTENCIA_LISTA && acceso.puedeOperar) {
     items.push({ id: 'ninos-asistencia', label: 'Asistencia', href: '/ninos/asistencia' })

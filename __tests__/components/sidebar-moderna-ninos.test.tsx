@@ -57,6 +57,7 @@ describe('SidebarModerna Niños section', () => {
     expect(screen.getByRole('link', { name: 'Check-in' })).toHaveAttribute('href', '/ninos/checkin')
     expect(screen.getByRole('link', { name: 'Familias' })).toHaveAttribute('href', '/ninos/familias')
     expect(screen.getByRole('link', { name: 'Salones' })).toHaveAttribute('href', '/ninos/salon')
+    expect(screen.getByRole('link', { name: 'Cartel QR' })).toHaveAttribute('href', '/ninos/cartel')
     expect(screen.queryByRole('link', { name: 'Asistencia' })).not.toBeInTheDocument()
   })
 
@@ -66,6 +67,7 @@ describe('SidebarModerna Niños section', () => {
     expect(screen.getByRole('link', { name: 'Salones' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Check-in' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Familias' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Cartel QR' })).not.toBeInTheDocument()
   })
 
   it('shows nothing without access', () => {
