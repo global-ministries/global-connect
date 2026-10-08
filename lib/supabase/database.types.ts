@@ -8073,6 +8073,14 @@ export type Database = {
         Args: { p_cedula: string; p_telefono: string }
         Returns: Json
       }
+      ninos_crear_ficha: {
+        Args: { p_autorizados: Json; p_ficha: Json; p_nino_id: string }
+        Returns: undefined
+      }
+      ninos_vincular_padre: {
+        Args: { p_nino_ids: string[]; p_padre_id: string | null; p_padre_nuevo: Json | null }
+        Returns: Json
+      }
       ninos_enmascarar: {
         Args: { p_valor: string; p_visibles: number }
         Returns: string
