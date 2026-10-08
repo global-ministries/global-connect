@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import { BotonSistema, InputSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 
 import { activarCuentaAction, verificarCedulaActivacion } from './actions'
+import { InputContrasena } from "@/components/ui/input-contrasena"
 
 export interface ActivarCuentaFormProps {
   readonly tallerNombre: string
@@ -96,9 +97,8 @@ export function ActivarCuentaForm({
 
       {paso === 'password' && (
         <form className="flex flex-col gap-3" onSubmit={activar}>
-          <InputSistema
+          <InputContrasena
             label="Contraseña"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
