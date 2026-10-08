@@ -12,6 +12,7 @@
 --   e. Only the confirming operator invites, and only with the given email.
 --   f. ninos_correos_visita returns the parent email only to the operator
 --      who made the check-in / check-out.
+--   g. A parent linked in the reverse form (parent → child, 'hijo') is found too.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
 -- of the failing cases ('ALL OK' when none).
@@ -246,6 +247,22 @@ SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_eq('f: the check-in operator does not get the retiro email',
   $q$SELECT count(*)::text FROM public.ninos_correos_visita(ARRAY[pg_temp.ctx('nino')::uuid], pg_temp.ctx('turno')::uuid, DATE '2099-01-04', 'retiro')$q$,
   '0');
+RESET ROLE;
+
+-- ── g. reverse link form (parent = usuario1, child = usuario2, 'hijo') ─
+
+INSERT INTO public.usuarios (id, nombre, apellido, email, estado_civil, genero)
+VALUES (pg_temp.id('us', 9), 'ZZ Np Papá', 'Prueba', 'zz-np-papa@example.test', 'No especificado', 'Masculino');
+INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal)
+VALUES (pg_temp.id('us', 9), pg_temp.ctx('nino')::uuid, 'hijo', false);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(1);
+SELECT count(*) FROM public.ninos_checkin(ARRAY[pg_temp.ctx('nino')::uuid], pg_temp.ctx('turno')::uuid,
+  DATE '2099-01-11', ARRAY[pg_temp.id('sa', 1)]);
+SELECT pg_temp.assert_eq('g: both parents, either link form, get the email',
+  $q$SELECT string_agg(email, ',' ORDER BY email)
+       FROM public.ninos_correos_visita(ARRAY[pg_temp.ctx('nino')::uuid], pg_temp.ctx('turno')::uuid, DATE '2099-01-11', 'ingreso')$q$,
+  'zz-np-mama@example.test,zz-np-papa@example.test');
 RESET ROLE;
 
 SET LOCAL ROLE anon;

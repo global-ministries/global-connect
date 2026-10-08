@@ -26,7 +26,9 @@
 --      (no account, email given in the pre-registration). Same row and
 --      checks as invitacion_cuenta_crear, which an anfitrión may not call.
 --   7. ninos_correos_visita(ninos, turno, fecha, evento) — parent emails of
---      the children of a check-in ('ingreso') or check-out ('retiro'), only
+--      the children of a check-in ('ingreso') or check-out ('retiro'), read
+--      from relaciones_usuarios in both directions (child→padre/tutor and
+--      parent→hijo), only
 --      for the rows the caller made (entrada_por / salida_por).
 --
 -- Rollback:
@@ -250,8 +252,14 @@ AS $$
     FROM public.ninos_checkins c
     JOIN public.ninos_salones s ON s.id = c.salon_id
     JOIN public.usuarios n ON n.id = c.nino_id
-    JOIN public.relaciones_usuarios r ON r.usuario1_id = c.nino_id AND r.tipo_relacion::text IN ('padre', 'madre', 'tutor')
-    JOIN public.usuarios p ON p.id = r.usuario2_id
+    -- Parent links in both stored forms: child → parent ('padre'/'madre'/'tutor')
+    -- and parent → child ('hijo'), as profile links may store the reverse.
+    JOIN (SELECT r.usuario1_id AS nino_id, r.usuario2_id AS padre_id FROM public.relaciones_usuarios r
+           WHERE r.tipo_relacion::text IN ('padre', 'madre', 'tutor')
+          UNION
+          SELECT r.usuario2_id, r.usuario1_id FROM public.relaciones_usuarios r
+           WHERE r.tipo_relacion::text = 'hijo') r ON r.nino_id = c.nino_id
+    JOIN public.usuarios p ON p.id = r.padre_id
    WHERE public.ninos_usuario_actual() IS NOT NULL
      AND c.nino_id = ANY (p_nino_ids) AND c.turno_id = p_turno_id AND c.fecha = p_fecha
      AND ((p_evento = 'ingreso' AND c.entrada_por = public.ninos_usuario_actual())
