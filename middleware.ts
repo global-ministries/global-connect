@@ -23,6 +23,10 @@ const SKIP_AUTH_PATHS = new Set([
   '/auth/callback',
   '/auth/confirm',
   '/auth/reset-password',
+  // Public family pre-registration (QR at the church entrance; N8 of
+  // odd/tasks/ninos-checkin.md). The page reads only campus names and posts
+  // to /api/ninos/preregistro, which api/ already keeps out of the matcher.
+  '/ninos/registro',
 ])
 
 /**
