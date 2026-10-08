@@ -8,6 +8,18 @@ import { NextRequest } from 'next/server'
 
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: jest.fn() }))
 jest.mock('@/lib/email/send', () => ({ sendEmail: jest.fn() }))
+const tareasAfter: Array<() => unknown> = []
+jest.mock('next/server', () => ({
+  ...jest.requireActual('next/server'),
+  after: (tarea: () => unknown) => {
+    tareasAfter.push(tarea)
+  },
+}))
+
+/** Runs what the route left for after the response. */
+async function despuesDeResponder() {
+  for (const t of tareasAfter.splice(0)) await t()
+}
 
 import { POST as checkin } from '@/app/api/ninos/checkin/route'
 import { POST as checkout } from '@/app/api/ninos/checkout/route'
@@ -37,7 +49,10 @@ const req = (ruta: string, body: unknown) =>
 const cuerpoCheckin = { ninoIds: [N1], salonIds: [S1], turnoId: T1, fecha: '2026-10-11' }
 const cuerpoCheckout = { codigo: '4821', turnoId: T1, fecha: '2026-10-11', retiradoPor: 'Ana' }
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => {
+  jest.clearAllMocks()
+  tareasAfter.length = 0
+})
 
 describe('POST /api/ninos/checkin', () => {
   it('401 without a session', async () => {
@@ -60,6 +75,9 @@ describe('POST /api/ninos/checkin', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ filas })
     expect(rpc).toHaveBeenCalledWith('ninos_checkin', { p_nino_ids: [N1], p_salon_ids: [S1], p_turno_id: T1, p_fecha: '2026-10-11' })
+    // The response does not wait for the emails.
+    expect(sendEmail).not.toHaveBeenCalled()
+    await despuesDeResponder()
     expect(rpc).toHaveBeenCalledWith('ninos_correos_visita', { p_nino_ids: [N1], p_turno_id: T1, p_fecha: '2026-10-11', p_evento: 'ingreso' })
     expect(sendEmail).toHaveBeenCalledTimes(1)
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'ana@example.test', idempotencyKey: 'ninos-ingreso-v1-p1' }))
@@ -70,6 +88,7 @@ describe('POST /api/ninos/checkin', () => {
     const res = await checkin(req('checkin', cuerpoCheckin))
     expect(res.status).toBe(409)
     expect(await res.json()).toEqual({ error: { code: '23505' } })
+    expect(tareasAfter).toHaveLength(0)
     expect(sendEmail).not.toHaveBeenCalled()
   })
 
@@ -78,6 +97,8 @@ describe('POST /api/ninos/checkin', () => {
     setup({ ninos_checkin: { data: [{ nino_id: N1, salon_id: S1, codigo: '4821' }] }, ninos_correos_visita: { data: [fila] } })
     sendEmail.mockRejectedValue(new Error('resend down'))
     expect((await checkin(req('checkin', cuerpoCheckin))).status).toBe(200)
+    await expect(despuesDeResponder()).resolves.toBeUndefined()
+    expect(log).toHaveBeenCalled()
     expect(JSON.stringify(log.mock.calls)).not.toContain('ana@example.test')
     log.mockRestore()
   })
@@ -91,6 +112,8 @@ describe('POST /api/ninos/checkout', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ filas })
     expect(rpc).toHaveBeenCalledWith('ninos_checkout', { p_codigo: '4821', p_turno_id: T1, p_fecha: '2026-10-11', p_retirado_por: 'Ana' })
+    expect(sendEmail).not.toHaveBeenCalled()
+    await despuesDeResponder()
     expect(rpc).toHaveBeenCalledWith('ninos_correos_visita', { p_nino_ids: [N1], p_turno_id: T1, p_fecha: '2026-10-11', p_evento: 'retiro' })
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'ninos-retiro-v1-p1' }))
   })
@@ -98,6 +121,7 @@ describe('POST /api/ninos/checkout', () => {
   it('no rows released: no email lookup', async () => {
     setup({ ninos_checkout: { data: [] } })
     expect((await checkout(req('checkout', cuerpoCheckout))).status).toBe(200)
+    expect(tareasAfter).toHaveLength(0)
     expect(rpc).not.toHaveBeenCalledWith('ninos_correos_visita', expect.anything())
   })
 

@@ -14,8 +14,20 @@ const payload = {
   autorizados: [],
 } as unknown as FamiliaPayload
 
+let pendientes: Array<() => Promise<void>> = []
+/** Runs the tasks the resolver left for after the response. */
+async function despuesDeResponder() {
+  const tareas = pendientes
+  pendientes = []
+  for (const t of tareas) await t()
+}
+
 function deps(over: Partial<DependenciasResolver> = {}): DependenciasResolver {
+  pendientes = []
   return {
+    enSegundoPlano: (tarea) => {
+      pendientes.push(tarea)
+    },
     rpcUsuario: jest.fn().mockResolvedValue({ data: { padre_id: 'p1', padre_nuevo: true, estado: 'confirmado' }, error: null }),
     enviarBienvenida: jest.fn().mockResolvedValue({ success: true }),
     invitar: jest.fn().mockResolvedValue({ ok: true, email: 'ana@example.test' }),
@@ -54,14 +66,17 @@ describe('resolverPreregistro', () => {
     expect(d.rpcUsuario).toHaveBeenCalledWith('ninos_preregistro_resolver', {
       p_id: ID, p_accion: 'confirmar', p_payload: { ...payload, padre: { ...payload.padre, email: 'ana@example.test' } },
     })
-    expect(d.enviarBienvenida).toHaveBeenCalledWith({ to: 'ana@example.test', nombre: 'Ana', idempotencyKey: `ninos-bienvenida-${ID}` })
     expect(d.invitar).toHaveBeenCalledWith('ana@example.test')
-    expect(r).toEqual({ status: 200, body: { ok: true, estado: 'confirmado', padreId: 'p1', correo: 'enviado', invitacion: 'enviada' } })
+    expect(r).toEqual({ status: 200, body: { ok: true, estado: 'confirmado', padreId: 'p1', correo: 'programado', invitacion: 'enviada' } })
+    expect(d.enviarBienvenida).not.toHaveBeenCalled()
+    await despuesDeResponder()
+    expect(d.enviarBienvenida).toHaveBeenCalledWith({ to: 'ana@example.test', nombre: 'Ana', idempotencyKey: `ninos-bienvenida-${ID}` })
   })
 
   it('without email sends nothing', async () => {
     const d = deps()
     const r = await resolverPreregistro(d, ID, { accion: 'confirmar', payload, email: null })
+    await despuesDeResponder()
     expect(d.enviarBienvenida).not.toHaveBeenCalled()
     expect(d.invitar).not.toHaveBeenCalled()
     expect(r.body).toMatchObject({ correo: 'sin_correo', invitacion: 'no' })
@@ -70,7 +85,7 @@ describe('resolverPreregistro', () => {
   it('a parent who already has an account gets the welcome but no invitation', async () => {
     const d = deps({ invitar: jest.fn().mockResolvedValue({ ok: false, status: 409, error: 'x', codigo: 'ya_tiene_cuenta' }) })
     const r = await resolverPreregistro(d, ID, { accion: 'confirmar', payload, email: 'ana@example.test' })
-    expect(r.body).toMatchObject({ ok: true, correo: 'enviado', invitacion: 'no' })
+    expect(r.body).toMatchObject({ ok: true, correo: 'programado', invitacion: 'no' })
   })
 
   it('email failures never undo the confirmation', async () => {
@@ -80,7 +95,9 @@ describe('resolverPreregistro', () => {
       invitar: jest.fn().mockResolvedValue({ ok: false, status: 502, error: 'x' }),
     })
     const r = await resolverPreregistro(d, ID, { accion: 'confirmar', payload, email: 'ana@example.test' })
-    expect(r).toEqual({ status: 200, body: { ok: true, estado: 'confirmado', padreId: 'p1', correo: 'fallo', invitacion: 'fallo' } })
+    expect(r).toEqual({ status: 200, body: { ok: true, estado: 'confirmado', padreId: 'p1', correo: 'programado', invitacion: 'fallo' } })
+    await expect(despuesDeResponder()).resolves.toBeUndefined()
+    expect(log).toHaveBeenCalledWith('[ninos/preregistro] bienvenida falló:', ID)
     expect(JSON.stringify(log.mock.calls)).not.toContain('ana@example.test')
     log.mockRestore()
   })

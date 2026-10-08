@@ -3,10 +3,11 @@
  *
  * { ninoIds, salonIds, turnoId, fecha } → { filas } (the ninos_checkin rows).
  * The RPC runs AS THE USER, so the authority stays in SQL. Then the parents
- * with an email get one email per family visit (best effort: a failure is
- * logged without personal data and the check-in still succeeds).
+ * with an email get one email per family visit, sent after the response with
+ * after() (best effort: a failure is logged without personal data and the
+ * check-in still succeeds).
  */
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 import { enviarAvisos } from '@/lib/platform/ninos/notificaciones'
 import { parseCheckin, statusDeError } from '@/lib/platform/ninos/visita-api'
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     })
     if (error) return NextResponse.json({ error: { code: error.code } }, { status: statusDeError(error.code) })
 
-    await enviarAvisos(dependenciasAvisos(supabase), { ninoIds: e.ninoIds, turnoId: e.turnoId, fecha: e.fecha, evento: 'ingreso' })
+    after(() => enviarAvisos(dependenciasAvisos(supabase), { ninoIds: e.ninoIds, turnoId: e.turnoId, fecha: e.fecha, evento: 'ingreso' }))
     return NextResponse.json({ filas: data ?? [] })
   } catch {
     console.error('[ninos/checkin] error inesperado')

@@ -10,7 +10,7 @@
  * ninos_preregistro_invitar (only the confirming operator, only that email).
  */
 import { createElement } from 'react'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 import { sendEmail } from '@/lib/email/send'
 import { InvitacionCuentaEmail } from '@/lib/email/invitacion-cuenta-email'
@@ -85,6 +85,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
             template: createElement(NinosBienvenidaEmail, { nombre }),
             idempotencyKey,
           }),
+        enSegundoPlano: (tarea) => after(tarea),
         invitar: async (email) => {
           const inv = await enviarInvitacionCuenta(dependenciasInvitacion(supabase, id), id, { email, reemplazarEmail: false })
           return inv.ok ? { ok: true } : { ok: false, codigo: inv.codigo }

@@ -47,6 +47,8 @@ export type DependenciasResolver = {
   rpcUsuario: (nombre: string, args: Record<string, unknown>) => PromiseLike<RespuestaRpc>
   enviarBienvenida: (correo: { to: string; nombre: string; idempotencyKey: string }) => Promise<{ success: boolean }>
   invitar: (email: string) => Promise<ResultadoInvitar>
+  /** Runs a task after the response is sent (next/server after() in the route). */
+  enSegundoPlano: (tarea: () => Promise<void>) => void
 }
 
 export type RespuestaRuta = { status: number; body: Record<string, unknown> }
@@ -77,17 +79,21 @@ export async function resolverPreregistro(deps: DependenciasResolver, id: string
   if (error) return errorRpc(error)
   const padreId = esObjeto(data) && typeof data.padre_id === 'string' ? data.padre_id : null
 
-  let correo: 'enviado' | 'fallo' | 'sin_correo' = 'sin_correo'
+  let correo: 'programado' | 'sin_correo' = 'sin_correo'
   let invitacion: 'enviada' | 'no' | 'fallo' = 'no'
   if (r.email) {
     const nombre = 'nombre' in r.payload.padre ? r.payload.padre.nombre : ''
-    try {
-      const envio = await deps.enviarBienvenida({ to: r.email, nombre, idempotencyKey: `ninos-bienvenida-${id}` })
-      correo = envio.success ? 'enviado' : 'fallo'
-    } catch {
-      correo = 'fallo'
-    }
-    if (correo === 'fallo') console.error('[ninos/preregistro] bienvenida falló:', id)
+    const to = r.email
+    deps.enSegundoPlano(async () => {
+      let ok = false
+      try {
+        ok = (await deps.enviarBienvenida({ to, nombre, idempotencyKey: `ninos-bienvenida-${id}` })).success
+      } catch {
+        ok = false
+      }
+      if (!ok) console.error('[ninos/preregistro] bienvenida falló:', id)
+    })
+    correo = 'programado'
     try {
       const inv = await deps.invitar(r.email)
       invitacion = inv.ok ? 'enviada' : inv.codigo === 'ya_tiene_cuenta' || inv.codigo === 'email_distinto' ? 'no' : 'fallo'

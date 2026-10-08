@@ -5,7 +5,7 @@
  * The RPC runs AS THE USER (authority in SQL); then one email per family
  * visit to the parents with an email (best effort, never fails the call).
  */
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 import { enviarAvisos } from '@/lib/platform/ninos/notificaciones'
 import { parseCheckout, statusDeError } from '@/lib/platform/ninos/visita-api'
@@ -31,12 +31,9 @@ export async function POST(req: NextRequest) {
 
     const filas = Array.isArray(data) ? (data as { nino_id: string }[]) : []
     if (filas.length > 0) {
-      await enviarAvisos(dependenciasAvisos(supabase), {
-        ninoIds: filas.map((f) => f.nino_id),
-        turnoId: e.turnoId,
-        fecha: e.fecha,
-        evento: 'retiro',
-      })
+      const ninoIds = filas.map((f) => f.nino_id)
+      // Sent after the response; enviarAvisos never throws and logs no personal data.
+      after(() => enviarAvisos(dependenciasAvisos(supabase), { ninoIds, turnoId: e.turnoId, fecha: e.fecha, evento: 'retiro' }))
     }
     return NextResponse.json({ filas })
   } catch {

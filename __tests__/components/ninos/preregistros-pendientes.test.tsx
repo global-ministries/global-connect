@@ -34,7 +34,7 @@ function responder(coincidencias: unknown[] = []) {
 beforeEach(() => {
   rpc.mockReset()
   fetchMock.mockReset()
-  fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true, padreId: 'p1', correo: 'enviado', invitacion: 'enviada' }) })
+  fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true, padreId: 'p1', correo: 'programado', invitacion: 'enviada' }) })
 })
 
 describe('PreregistrosPendientes', () => {

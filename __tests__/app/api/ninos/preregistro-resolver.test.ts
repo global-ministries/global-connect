@@ -9,6 +9,13 @@ import { NextRequest } from 'next/server'
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: jest.fn() }))
 jest.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: jest.fn() }))
 jest.mock('@/lib/email/send', () => ({ sendEmail: jest.fn() }))
+const tareasAfter: Array<() => unknown> = []
+jest.mock('next/server', () => ({
+  ...jest.requireActual('next/server'),
+  after: (tarea: () => unknown) => {
+    tareasAfter.push(tarea)
+  },
+}))
 
 import { POST } from '@/app/api/ninos/preregistro/[id]/route'
 
@@ -68,9 +75,13 @@ describe('POST /api/ninos/preregistro/[id]', () => {
     setup()
     const res = await post({ accion: 'confirmar', payload, email: 'ana@example.test' })
     expect(res.status).toBe(200)
-    expect(await res.json()).toMatchObject({ ok: true, padreId: 'p1', correo: 'enviado', invitacion: 'enviada' })
+    expect(await res.json()).toMatchObject({ ok: true, padreId: 'p1', correo: 'programado', invitacion: 'enviada' })
     expect(rpc).toHaveBeenCalledWith('ninos_preregistro_invitar', { p_id: ID, p_email: 'ana@example.test' })
     expect(adminRpc).toHaveBeenCalledWith('invitacion_cuenta_registrar_envio', { p_id: 'inv1', p_auth_user_id: 'au-n' })
+    // The invitation goes out before the response; the welcome after it.
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+    expect(tareasAfter).toHaveLength(1)
+    await tareasAfter.splice(0)[0]()
     expect(sendEmail).toHaveBeenCalledTimes(2)
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: 'Bienvenidos a Waumba Land / UpStreet', idempotencyKey: `ninos-bienvenida-${ID}` }))
   })
