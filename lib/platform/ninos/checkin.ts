@@ -3,6 +3,9 @@
  * from the URL query, the aligned arrays sent to ninos_checkin, and the
  * capacity warnings read back from it.
  */
+import { fechaServicioPorDefecto } from './fecha'
+
+export { fechaServicioPorDefecto }
 
 /** A dream_team_turnos row as selected by the screen. */
 export type TurnoFila = { id: string; nombre: string; hora: string; orden: number }
@@ -15,21 +18,6 @@ function esFechaValida(value: string | undefined): value is string {
   if (!value || !ISO_DATE.test(value)) return false
   const d = new Date(`${value}T00:00:00Z`)
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value
-}
-
-/** `hoy` (YYYY-MM-DD) when it is a Sunday, otherwise the coming Sunday. */
-export function fechaServicioPorDefecto(hoy: string): string {
-  const d = new Date(`${hoy}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + ((7 - d.getUTCDay()) % 7))
-  return d.toISOString().slice(0, 10)
-}
-
-/** Today's date in the browser/server local time zone, YYYY-MM-DD. */
-export function hoyLocal(ahora: Date = new Date()): string {
-  const y = ahora.getFullYear()
-  const m = String(ahora.getMonth() + 1).padStart(2, '0')
-  const d = String(ahora.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
 }
 
 /** The service from the query (?turno=&fecha=), falling back to defaults. */
@@ -96,4 +84,11 @@ export function alertasDeHijo(h: AlertasFicha): string[] {
   if (h.puede_comer === false) alertas.push('No puede comer merienda')
   if (h.autoriza_imagen === false) alertas.push('Sin fotos')
   return alertas
+}
+
+/** The rooms picked by hand that differ from the suggestion, to save as salon_preferido_id. */
+export function preferidosAGuardar(
+  filas: readonly { ninoId: string; salonId: string; sugeridoId: string | null }[],
+): { ninoId: string; salonId: string }[] {
+  return filas.filter((f) => f.salonId !== f.sugeridoId).map(({ ninoId, salonId }) => ({ ninoId, salonId }))
 }

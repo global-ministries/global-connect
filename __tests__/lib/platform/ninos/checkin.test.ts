@@ -4,6 +4,7 @@ import {
   avisosDeCapacidad,
   fechaServicioPorDefecto,
   mensajeDeErrorCheckin,
+  preferidosAGuardar,
   resolverServicio,
   type TurnoFila,
 } from '@/lib/platform/ninos/checkin'
@@ -92,5 +93,20 @@ describe('alertasDeHijo', () => {
   })
   it('is empty when nothing applies', () => {
     expect(alertasDeHijo({ alergias: null, necesidades_especiales: null, cambio_panal: null, puede_comer: true, autoriza_imagen: null })).toEqual([])
+  })
+})
+
+describe('preferidosAGuardar', () => {
+  it('keeps only the rooms that differ from the suggestion', () => {
+    expect(
+      preferidosAGuardar([
+        { ninoId: 'h1', salonId: 's1', sugeridoId: 's1' },
+        { ninoId: 'h2', salonId: 's2', sugeridoId: 's1' },
+        { ninoId: 'h3', salonId: 's3', sugeridoId: null },
+      ]),
+    ).toEqual([
+      { ninoId: 'h2', salonId: 's2' },
+      { ninoId: 'h3', salonId: 's3' },
+    ])
   })
 })

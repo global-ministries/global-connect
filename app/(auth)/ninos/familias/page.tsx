@@ -12,7 +12,7 @@
 import { notFound } from 'next/navigation'
 
 import { FamiliasClient } from '@/components/ninos/familias-client'
-import { fechaServicioPorDefecto, hoyLocal } from '@/lib/platform/ninos/checkin'
+import { fechaServicioCaracas } from '@/lib/platform/ninos/fecha'
 import type { SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
@@ -43,7 +43,7 @@ export default async function NinosFamiliasPage({ searchParams }: Props) {
     <main className="mx-auto w-full max-w-2xl px-4 py-4">
       <FamiliasClient
         salones={(salones ?? []) as SalonFila[]}
-        fechaServicio={fechaServicioPorDefecto(hoyLocal())}
+        fechaServicio={fechaServicioCaracas()}
         registrarAlInicio={query.nueva === '1'}
         volverCheckin={volverCheckin}
       />
