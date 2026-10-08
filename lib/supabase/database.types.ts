@@ -1747,16 +1747,22 @@ export type Database = {
       dream_team_servicio_turnos: {
         Row: {
           created_at: string
+          fecha_ancla: string | null
+          frecuencia: string
           servicio_id: string
           turno_id: string
         }
         Insert: {
           created_at?: string
+          fecha_ancla?: string | null
+          frecuencia?: string
           servicio_id: string
           turno_id: string
         }
         Update: {
           created_at?: string
+          fecha_ancla?: string | null
+          frecuencia?: string
           servicio_id?: string
           turno_id?: string
         }
@@ -8122,6 +8128,10 @@ export type Database = {
       dream_team_turnos_del_equipo: {
         Args: { p_campus_id: string; p_equipo_id: string }
         Returns: string[]
+      }
+      dream_team_turno_sirve_en: {
+        Args: { p_domingo: string; p_fecha_ancla: string; p_frecuencia: string }
+        Returns: boolean
       }
       dream_team_registrar_persona: {
         Args: {
