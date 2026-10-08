@@ -8046,6 +8046,13 @@ export type Database = {
         Returns: boolean
       }
       ninos_usuario_actual: { Args: never; Returns: string }
+      ninos_actualizar_nino: {
+        Args: { p: Json; p_nino_id: string }
+        Returns: undefined
+      }
+      ninos_buscar_familias: { Args: { p_q: string }; Returns: Json }
+      ninos_registrar_familia: { Args: { p: Json }; Returns: Json }
+      ninos_texto: { Args: { p: Json; p_key: string }; Returns: string }
       _puede_ver_segmento_lider: {
         Args: {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]
