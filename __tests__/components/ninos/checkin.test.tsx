@@ -7,6 +7,8 @@ import type { HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vi
 const rpc = jest.fn()
 const checkinsAbiertos = jest.fn()
 const replace = jest.fn()
+const actualizar = jest.fn()
+const filtro = jest.fn()
 
 jest.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
@@ -14,7 +16,14 @@ jest.mock('@/lib/supabase/client', () => ({
     from: () => {
       const chain = {
         select: () => chain,
-        eq: () => chain,
+        update: (v: unknown) => {
+          actualizar(v)
+          return chain
+        },
+        eq: (...a: unknown[]) => {
+          filtro(...a)
+          return chain
+        },
         in: () => checkinsAbiertos(),
       }
       return chain
@@ -145,6 +154,10 @@ describe('CheckinClient', () => {
       p_fecha: '2026-10-11',
     })
     await waitFor(() => expect(rpc.mock.calls.filter(([n]) => n === 'ninos_ocupacion').length).toBeGreaterThanOrEqual(2))
+    // Only Eva's hand-picked room differs from the suggestion: it becomes her preferred room.
+    expect(actualizar).toHaveBeenCalledTimes(1)
+    expect(actualizar).toHaveBeenCalledWith({ salon_preferido_id: 's2' })
+    expect(filtro).toHaveBeenCalledWith('usuario_id', 'h2')
 
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente familia' }))
     expect(screen.getByLabelText('Buscar familia')).toHaveValue('')
@@ -157,5 +170,67 @@ describe('CheckinClient', () => {
       'href',
       '/ninos/familias?nueva=1&volver=checkin&turno=t9&fecha=2026-10-11',
     )
+  })
+
+  it('has a Retiro tab that looks up a code and confirms the check-out', async () => {
+    responder({
+      ninos_buscar_codigo: {
+        data: [
+          {
+            checkin_id: 'c1', nino_id: 'h1', nombre: 'Luis', apellido: 'Pérez', salon_id: 's1', salon: 'Maternal',
+            entrada_at: '2026-10-11T13:00:00Z', salida_at: null, retirado_por_nombre: null,
+            autorizados: [{ nombre: 'Abuela Rosa', telefono: '04141112233', relacion: 'Abuela' }],
+          },
+        ],
+        error: null,
+      },
+      ninos_checkout: { data: [{ nino_id: 'h1', salon_id: 's1', salida_at: '2026-10-11T14:42:00Z' }], error: null },
+    })
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Retiro' }))
+    fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '4821' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+
+    expect(await screen.findByText('Abuela Rosa')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /04141112233/ })).toHaveAttribute('href', 'tel:04141112233')
+    expect(rpc).toHaveBeenCalledWith('ninos_buscar_codigo', { p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11' })
+
+    fireEvent.change(screen.getByLabelText('¿Quién retira?'), { target: { value: 'Ana Pérez' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
+    await waitFor(() =>
+      expect(rpc).toHaveBeenCalledWith('ninos_checkout', {
+        p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11', p_retirado_por: 'Ana Pérez',
+      }),
+    )
+    expect(await screen.findByText(/Retiro registrado/)).toBeInTheDocument()
+  })
+
+  it('a wrong code shows a clear message', async () => {
+    responder({ ninos_buscar_codigo: { data: [], error: null } })
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Retiro' }))
+    fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '9999' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('No hay niños con el código 9999 en este servicio.')
+  })
+
+  it('a child already out shows when and by whom', async () => {
+    responder({
+      ninos_buscar_codigo: {
+        data: [
+          {
+            checkin_id: 'c1', nino_id: 'h1', nombre: 'Luis', apellido: 'Pérez', salon_id: 's1', salon: 'Maternal',
+            entrada_at: '2026-10-11T13:00:00Z', salida_at: '2026-10-11T14:42:00Z', retirado_por_nombre: 'Ana', autorizados: [],
+          },
+        ],
+        error: null,
+      },
+    })
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Retiro' }))
+    fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '4821' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+    expect(await screen.findByText(/Retirado a las 10:42 por Ana/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Confirmar retiro' })).not.toBeInTheDocument()
   })
 })

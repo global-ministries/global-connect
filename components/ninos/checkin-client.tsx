@@ -8,12 +8,12 @@ import { AlertTriangle, Search, UserPlus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   alertasDeHijo,
   armarCheckin,
   avisosDeCapacidad,
   mensajeDeErrorCheckin,
+  preferidosAGuardar,
   type Servicio,
   type TurnoFila,
 } from '@/lib/platform/ninos/checkin'
@@ -21,7 +21,10 @@ import { salonParaHijo, type FamiliaEncontrada, type SalonFila } from '@/lib/pla
 import { createClient } from '@/lib/supabase/client'
 
 import { SELECT_CLASS } from './campos-nino'
+import { RetiroPanel } from './retiro-panel'
+import { SelectorServicio } from './selector-servicio'
 import { useBuscarFamilias } from './use-buscar-familias'
+import { useRefrescoVisible } from './use-refresco'
 
 type Props = {
   salones: SalonFila[]
@@ -54,6 +57,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [resultado, setResultado] = useState<Resultado | null>(null)
+  const [pestana, setPestana] = useState<'ingreso' | 'retiro'>('ingreso')
 
   const nombreSalon = useCallback((id: string) => salones.find((s) => s.id === id)?.nombre ?? 'salón', [salones])
 
@@ -66,6 +70,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
   useEffect(() => {
     void cargarOcupacion()
   }, [cargarOcupacion])
+  useRefrescoVisible(() => void cargarOcupacion())
 
   const cargarIngresados = useCallback(
     async (f: FamiliaEncontrada | null) => {
@@ -160,6 +165,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
       setError(err ? mensajeDeErrorCheckin(err) : mensajeDeErrorCheckin(null))
       return
     }
+    void guardarPreferidos(armado.ninoIds, armado.salonIds)
     const nombres = Object.fromEntries(salones.map((s) => [s.id, s.nombre]))
     setResultado({
       codigo: data[0].codigo,
@@ -170,6 +176,27 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
       avisos: avisosDeCapacidad(data, nombres),
     })
     void cargarOcupacion()
+  }
+
+  /** Remembers a hand-picked room on the ficha so it is preselected next Sunday (same path as Familias). */
+  async function guardarPreferidos(ninoIds: string[], salonIds: string[]) {
+    if (!familia) return
+    const cambios = preferidosAGuardar(
+      ninoIds.map((ninoId, i) => {
+        const h = familia.hijos.find((x) => x.id === ninoId)
+        const r = h ? salonParaHijo(h, salones, servicio.fecha) : null
+        return { ninoId, salonId: salonIds[i], sugeridoId: r && r.tipo !== 'ninguno' ? r.salon.id : null }
+      }),
+    )
+    if (cambios.length === 0) return
+    const supabase = createClient()
+    try {
+      await Promise.all(
+        cambios.map((c) => supabase.from('ninos_fichas').update({ salon_preferido_id: c.salonId }).eq('usuario_id', c.ninoId)),
+      )
+    } catch {
+      // Best effort: the check-in is already saved; the room is just not remembered.
+    }
   }
 
   function siguienteFamilia() {
@@ -192,42 +219,26 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
         </Button>
       </div>
 
-      <section className="grid grid-cols-2 gap-2" aria-label="Servicio elegido">
-        <div className="space-y-1">
-          <Label htmlFor="checkin-turno">Servicio</Label>
-          <select
-            id="checkin-turno"
-            className={SELECT_CLASS}
-            value={servicio.turnoId ?? ''}
-            onChange={(e) => cambiarServicio({ ...servicio, turnoId: e.target.value || null })}
+      <SelectorServicio idPrefijo="checkin" turnos={turnos} servicio={servicio} onCambiar={cambiarServicio} />
+
+      <div role="tablist" aria-label="Ingreso o retiro" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+        {(['ingreso', 'retiro'] as const).map((p) => (
+          <button
+            key={p}
+            type="button"
+            role="tab"
+            aria-selected={pestana === p}
+            className={`h-10 rounded-md text-sm font-medium ${pestana === p ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
+            onClick={() => setPestana(p)}
           >
-            {turnos.length === 0 && <option value="">Sin servicios</option>}
-            {turnos.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="checkin-fecha">Fecha</Label>
-          <Input
-            id="checkin-fecha"
-            type="date"
-            className="h-11"
-            value={servicio.fecha}
-            onChange={(e) => e.target.value && cambiarServicio({ ...servicio, fecha: e.target.value })}
-          />
-        </div>
-      </section>
+            {p === 'ingreso' ? 'Ingreso' : 'Retiro'}
+          </button>
+        ))}
+      </div>
 
-      {!servicio.turnoId && (
-        <p role="alert" className="text-sm text-destructive">
-          No hay servicios configurados para tu campus.
-        </p>
-      )}
-
-      {resultado ? (
+      {pestana === 'retiro' ? (
+        <RetiroPanel servicio={servicio} onRetirado={() => void cargarOcupacion()} />
+      ) : resultado ? (
         <section className="space-y-4 rounded-lg border-2 border-primary p-4 text-center" aria-live="polite">
           <p className="text-lg font-medium">Código</p>
           <p className="font-mono text-7xl font-black tracking-widest">{resultado.codigo}</p>
