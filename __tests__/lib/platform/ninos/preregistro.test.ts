@@ -40,7 +40,7 @@ describe('parsePreregistro', () => {
           {
             nombre: 'Sofía', apellido: 'Pérez', fecha_nacimiento: '2021-03-04', genero: 'Femenino', grado: null,
             alergias: 'Maní', necesidades_especiales: null, habitos: null, notas: null, puede_comer: true,
-            cambio_panal: null, autoriza_imagen: false, escolarizado: null,
+            cambio_panal: null, autoriza_imagen: false, escolarizado: null, salon_preferido_id: null,
           },
         ],
         autorizados: [{ nombre: 'Abuela Rosa', telefono: '04141112233', relacion: 'Abuela' }],

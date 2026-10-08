@@ -69,4 +69,22 @@ describe('PreregistroPublico', () => {
     expect(await screen.findByText('Elige tu campus.')).toBeInTheDocument()
     await waitFor(() => expect(fetchMock).not.toHaveBeenCalled())
   })
+
+  it('offers the optional level with the Waumba rooms of the chosen campus and sends it', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) })
+    const sala = {
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', campus_id: campus[0].id, nombre: 'Preescolar III', area: 'waumba' as const,
+      edad_min_meses: 48, edad_max_meses: 59, grado_min: null, grado_max: null, es_necesidades_especiales: false, activo: true, orden: 40,
+    }
+    const otra = { ...sala, id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', campus_id: 'otro', nombre: 'Otro campus' }
+    render(<PreregistroPublico campus={campus} salones={[sala, otra]} />)
+    llenar()
+    const nivel = screen.getByLabelText('Nivel (si lo sabes)')
+    expect(nivel).toHaveTextContent('Preescolar III')
+    expect(nivel).not.toHaveTextContent('Otro campus')
+    fireEvent.change(nivel, { target: { value: `salon:${sala.id}` } })
+    fireEvent.click(screen.getByRole('button', { name: /enviar/i }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).hijos[0].salonPreferidoId).toBe(sala.id)
+  })
 })

@@ -141,6 +141,28 @@ export function hijosParaVincular(familias: readonly FamiliaEncontrada[], adulto
   return hijos
 }
 
+/** A child offered by ninos_buscar_hijos_vincular (N12): only name, age and masked cédula. */
+export type HijoParaVincular = { id: string; nombre: string; apellido: string; edad_anos: number | null; cedula: string | null }
+
+export function parseHijosParaVincular(data: unknown): HijoParaVincular[] {
+  if (!Array.isArray(data)) return []
+  return data
+    .filter((h): h is Record<string, unknown> => typeof h === 'object' && h !== null && typeof (h as { id?: unknown }).id === 'string')
+    .map((h) => ({
+      id: h.id as string,
+      nombre: typeof h.nombre === 'string' ? h.nombre : '',
+      apellido: typeof h.apellido === 'string' ? h.apellido : '',
+      edad_anos: typeof h.edad_anos === 'number' ? h.edad_anos : null,
+      cedula: typeof h.cedula === 'string' ? h.cedula : null,
+    }))
+}
+
+/** "8 años · C.I. •••5504" */
+export function detalleHijo(h: HijoParaVincular): string {
+  const edad = h.edad_anos === null ? null : h.edad_anos === 1 ? '1 año' : `${h.edad_anos} años`
+  return [edad, h.cedula ? `C.I. ${h.cedula}` : null].filter(Boolean).join(' · ')
+}
+
 export function aSalonSugerible(s: SalonFila): SalonVista {
   return {
     id: s.id,
@@ -177,6 +199,7 @@ export function hijoAForm(h: HijoEncontrado): HijoForm {
     fechaNacimiento: h.fecha_nacimiento ?? '',
     genero: h.genero ?? '',
     grado: h.grado === null ? '' : String(h.grado),
+    salonPreferidoId: h.salon_preferido_id ?? '',
     alergias: h.alergias ?? '',
     necesidadesEspeciales: h.necesidades_especiales ?? '',
     habitos: h.habitos ?? '',

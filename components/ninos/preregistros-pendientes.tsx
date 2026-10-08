@@ -9,6 +9,8 @@ import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
 import { formDesdePreregistro, type PreregistroPayload } from '@/lib/platform/ninos/preregistro'
 import { createClient } from '@/lib/supabase/client'
 
+import type { SalonNivel } from '@/lib/platform/ninos/nivel'
+
 import { RegistrarFamiliaForm } from './registrar-familia-form'
 
 type Pendiente = { id: string; campus_id: string; created_at: string; payload: PreregistroPayload }
@@ -16,6 +18,8 @@ type Pendiente = { id: string; campus_id: string; created_at: string; payload: P
 type Props = {
   /** After confirming: the parent id and "Nombre Apellido" of the first child, to select the family. */
   onConfirmado: (padreId: string, consulta: string) => void
+  /** The rooms that define each child's level. */
+  salones?: readonly SalonNivel[]
 }
 
 const AVISO_CORREO: Record<string, string> = {
@@ -38,7 +42,7 @@ async function resolver(id: string, body: unknown): Promise<{ ok: boolean; datos
 }
 
 /** "Pre-registros pendientes" of the caller's campuses (N8), shown at check-in and Familias. */
-export function PreregistrosPendientes({ onConfirmado }: Props) {
+export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
   const [lista, setLista] = useState<Pendiente[]>([])
   const [abierto, setAbierto] = useState<Pendiente | null>(null)
   const [email, setEmail] = useState('')
@@ -140,6 +144,7 @@ export function PreregistrosPendientes({ onConfirmado }: Props) {
                   key={abierto.id}
                   inicial={formDesdePreregistro(abierto.payload).form}
                   textoGuardar="Confirmar familia"
+                  salones={salones}
                   onCancelar={() => setAbierto(null)}
                   guardar={async (payload) => {
                     const r = await resolver(abierto.id, { accion: 'confirmar', payload, email: email.trim() })

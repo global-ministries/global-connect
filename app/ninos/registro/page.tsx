@@ -5,10 +5,13 @@
  * family fills in its data; the form posts to /api/ninos/preregistro and the
  * anfitrión confirms it at the table. The campus list comes from the
  * service-role-only RPC ninos_preregistro_campus (names of campuses with an
- * active room; nothing personal). ?campus= preselects one.
+ * active room; nothing personal). ?campus= preselects one. The active rooms
+ * (names and age/grade ranges only) give each child's level and its
+ * suggestion (N12).
  */
 import { PreregistroPublico } from '@/components/ninos/preregistro-publico'
 import { TextoSistema } from '@/components/ui/sistema-diseno'
+import type { SalonPublico } from '@/components/ninos/preregistro-publico'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
 export const metadata = { title: 'Registro de familia — Niños' }
@@ -18,8 +21,17 @@ type Props = { readonly searchParams: Promise<{ readonly campus?: string }> }
 
 export default async function NinosRegistroPage({ searchParams }: Props) {
   const { campus: campusInicial } = await searchParams
-  const { data } = await createSupabaseAdminClient().rpc('ninos_preregistro_campus')
+  const admin = createSupabaseAdminClient()
+  const [{ data }, { data: filas }] = await Promise.all([
+    admin.rpc('ninos_preregistro_campus'),
+    admin
+      .from('ninos_salones')
+      .select('id, campus_id, nombre, area, edad_min_meses, edad_max_meses, grado_min, grado_max, es_necesidades_especiales, activo, orden')
+      .eq('activo', true)
+      .order('orden'),
+  ])
   const campus = (data ?? []) as { id: string; nombre: string }[]
+  const salones = (filas ?? []) as SalonPublico[]
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[var(--surface-primary)] via-[var(--surface-secondary)] to-[var(--surface-primary)]">
@@ -31,7 +43,7 @@ export default async function NinosRegistroPage({ searchParams }: Props) {
         {campus.length === 0 ? (
           <TextoSistema className="text-center">El registro no está disponible en este momento. Acércate a la mesa de check-in.</TextoSistema>
         ) : (
-          <PreregistroPublico campus={campus} campusInicial={campusInicial} />
+          <PreregistroPublico campus={campus} campusInicial={campusInicial} salones={salones} />
         )}
       </div>
     </main>

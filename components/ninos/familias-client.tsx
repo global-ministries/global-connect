@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ClipboardPlus, Pencil, Plus, Search, UserPlus, Users } from 'lucide-react'
 
 import { BadgeSistema, BotonSistema, InputSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { createClient } from '@/lib/supabase/client'
 import { mensajeDeErrorFamilia } from '@/lib/platform/ninos/familia'
-import { salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { aSalonSugerible, salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 
 import { AdultoSinHijos } from './adulto-sin-hijos'
 import { AgregarPadreForm } from './agregar-padre-form'
@@ -35,6 +35,7 @@ type Vista = { tipo: 'buscar' } | { tipo: 'registrar' } | { tipo: 'agregar'; pad
 
 /** Mobile-first Familias screen: search, register, add a child; a child's ficha is edited in a side panel. */
 export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volverCheckin }: Props) {
+  const salonesNivel = useMemo(() => salones.map(aSalonSugerible), [salones])
   const router = useRouter()
   const [vista, setVista] = useState<Vista>({ tipo: registrarAlInicio ? 'registrar' : 'buscar' })
   const [editando, setEditando] = useState<HijoEncontrado | null>(null)
@@ -67,6 +68,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
           />
         </div>
         <RegistrarFamiliaForm
+          salones={salonesNivel}
           padreExistente={vista.tipo === 'agregar' ? vista.padre : undefined}
           onCancelar={cancelar}
           onRegistrada={(padreId, consulta) =>
@@ -99,6 +101,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
       />
 
       <PreregistrosPendientes
+        salones={salonesNivel}
         onConfirmado={(_padreId, consulta) => {
           setQ(consulta)
           void buscar(consulta)
@@ -228,7 +231,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
         onCerrar={() => setEditando(null)}
       >
         {editando && (
-          <EditarNinoForm key={editando.id} hijo={editando} onCancelar={() => setEditando(null)} onGuardado={() => void cerrarPanel()} />
+          <EditarNinoForm salones={salonesNivel} key={editando.id} hijo={editando} onCancelar={() => setEditando(null)} onGuardado={() => void cerrarPanel()} />
         )}
       </PanelLateralNinos>
 

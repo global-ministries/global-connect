@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { CheckCircle2, Mail, Phone, Plus, User, X } from 'lucide-react'
 
 import {
@@ -12,6 +12,7 @@ import {
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
 import { hijoVacio, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
+import { aSalonSugerible, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { LIMITES_PREREGISTRO, parsePreregistro } from '@/lib/platform/ninos/preregistro'
 
@@ -19,10 +20,15 @@ import { CamposAutorizados, CamposNino } from './campos-nino'
 
 type Campus = { id: string; nombre: string }
 
+/** An active room as read by the public page (no personal data). */
+export type SalonPublico = SalonFila & { campus_id: string }
+
 type Props = {
   campus: Campus[]
   /** From the QR (?campus=), when it names one of `campus`. */
   campusInicial?: string
+  /** Active rooms of every campus listed: they give each child's level. */
+  salones?: SalonPublico[]
 }
 
 type Padre = { nombre: string; apellido: string; telefono: string; email: string; cedula: string }
@@ -30,7 +36,7 @@ type Padre = { nombre: string; apellido: string; telefono: string; email: string
 export const MENSAJE_LISTO = '¡Listo! Acércate a la mesa de check-in y di tu nombre.'
 
 /** Public, no-login family pre-registration (N8). Shows nothing back but the confirmation. */
-export function PreregistroPublico({ campus, campusInicial }: Props) {
+export function PreregistroPublico({ campus, campusInicial, salones = [] }: Props) {
   const unico = campus.length === 1 ? campus[0].id : ''
   const [campusId, setCampusId] = useState(campus.some((c) => c.id === campusInicial) ? (campusInicial as string) : unico)
   const [padre, setPadre] = useState<Padre>({ nombre: '', apellido: '', telefono: '', email: '', cedula: '' })
@@ -42,6 +48,12 @@ export function PreregistroPublico({ campus, campusInicial }: Props) {
   const [listo, setListo] = useState(false)
 
   const set = (k: keyof Padre, v: string) => setPadre((p) => ({ ...p, [k]: v }))
+  const salonesCampus = useMemo(() => salones.filter((s) => s.campus_id === campusId).map(aSalonSugerible), [salones, campusId])
+  // A room belongs to one campus: changing the campus drops the rooms already chosen.
+  const cambiarCampus = (id: string) => {
+    setCampusId(id)
+    setHijos((xs) => xs.map((h) => ({ ...h, salonPreferidoId: '' })))
+  }
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
@@ -95,7 +107,7 @@ export function PreregistroPublico({ campus, campusInicial }: Props) {
           label="Campus"
           opciones={[{ valor: '', etiqueta: 'Elige…' }, ...campus.map((c) => ({ valor: c.id, etiqueta: c.nombre }))]}
           value={campusId}
-          onValueChange={setCampusId}
+          onValueChange={cambiarCampus}
         />
       )}
 
@@ -123,7 +135,13 @@ export function PreregistroPublico({ campus, campusInicial }: Props) {
               </BotonSistema>
             )}
           </div>
-          <CamposNino indice={i} hijo={h} onChange={(x) => setHijos((xs) => xs.map((y, j) => (j === i ? x : y)))} />
+          <CamposNino
+            indice={i}
+            hijo={h}
+            onChange={(x) => setHijos((xs) => xs.map((y, j) => (j === i ? x : y)))}
+            salones={salonesCampus}
+            publico
+          />
         </TarjetaSistema>
       ))}
       {hijos.length < LIMITES_PREREGISTRO.hijos && (

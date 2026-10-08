@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { enRangoNinos, mensajeDeErrorFamilia, validarAutorizados, validarEdicionNino, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
 import { hijoAForm, type HijoEncontrado } from '@/lib/platform/ninos/familias-vista'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
+import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { CamposAutorizados, CamposNino } from './campos-nino'
@@ -15,13 +16,15 @@ type Props = {
   hijo: HijoEncontrado
   onGuardado: () => void
   onCancelar: () => void
+  /** The rooms that define the child's level and its suggestion. */
+  salones?: readonly SalonNivel[]
 }
 
 /**
  * Edits a child's name, birth date, gender and ficha, and replaces its pickup list (ninos_actualizar_nino).
  * For a linked child without a ficha the same form creates it (ninos_crear_ficha).
  */
-export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
+export function EditarNinoForm({ hijo, onGuardado, onCancelar, salones }: Props) {
   const [form, setForm] = useState<HijoForm>(() => hijoAForm(hijo))
   const [autorizados, setAutorizados] = useState<AutorizadoForm[]>(() =>
     hijo.autorizados.map((a) => ({ nombre: a.nombre, telefono: a.telefono ?? '', relacion: a.relacion ?? '' })),
@@ -66,7 +69,7 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
 
   return (
     <form onSubmit={enviar} className="space-y-6" noValidate>
-      <CamposNino indice={0} hijo={form} onChange={setForm} />
+      <CamposNino indice={0} hijo={form} onChange={setForm} salones={salones} />
       <section className="space-y-3">
         <TituloSistema nivel={3}>Personas autorizadas para retirar</TituloSistema>
         <CamposAutorizados autorizados={autorizados} onChange={setAutorizados} />

@@ -16,6 +16,7 @@ import {
   type HijoForm,
   type PadreCoincidencia,
 } from '@/lib/platform/ninos/familia'
+import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { CamposAutorizados, CamposNino, OPCIONES_GENERO } from './campos-nino'
@@ -31,10 +32,12 @@ type Props = {
   /** Replaces the direct RPC (e.g. confirming a pre-registration through its route). */
   guardar?: (payload: FamiliaPayload) => Promise<{ padreId: string } | { error: string }>
   textoGuardar?: string
+  /** The rooms that define the child's level and its suggestion. */
+  salones?: readonly SalonNivel[]
 }
 
 /** Registers a new family (or adds children to a known parent) in one RPC call. */
-export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar, inicial, guardar, textoGuardar }: Props) {
+export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar, inicial, guardar, textoGuardar, salones }: Props) {
   const [form, setForm] = useState<FamiliaForm>(inicial ?? {
     padre: { id: padreExistente?.id, nombre: '', apellido: '', telefono: '', cedula: '', genero: '' },
     hijos: [hijoVacio()],
@@ -207,7 +210,7 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
                 </BotonSistema>
               )}
             </div>
-            <CamposNino indice={i} hijo={h} onChange={(x) => setHijo(i, x)} />
+            <CamposNino indice={i} hijo={h} onChange={(x) => setHijo(i, x)} salones={salones} />
           </TarjetaSistema>
         ))}
       </div>

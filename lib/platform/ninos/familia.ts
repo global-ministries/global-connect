@@ -36,6 +36,8 @@ export type HijoForm = {
   fechaNacimiento: string
   genero: string
   grado: string
+  /** A Waumba room chosen as the level (ninos_fichas.salon_preferido_id); '' for none. */
+  salonPreferidoId: string
   alergias: string
   necesidadesEspeciales: string
   habitos: string
@@ -60,6 +62,7 @@ export type FichaPayload = {
   cambio_panal: boolean | null
   autoriza_imagen: boolean | null
   escolarizado: boolean | null
+  salon_preferido_id: string | null
 }
 
 export type HijoPayload = FichaPayload & {
@@ -88,6 +91,7 @@ export function hijoVacio(): HijoForm {
     fechaNacimiento: '',
     genero: '',
     grado: '',
+    salonPreferidoId: '',
     alergias: '',
     necesidadesEspeciales: '',
     habitos: '',
@@ -126,6 +130,13 @@ export function parseGrado(value: string): number | null | 'invalido' {
   return Number.isInteger(n) && n >= 0 && n <= 6 ? n : 'invalido'
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** '' (no room) or a room id. */
+function salonValido(value: string): boolean {
+  return value.trim() === '' || UUID.test(value.trim())
+}
+
 /** Ficha fields shared by registration and edition. */
 export function fichaPayload(h: HijoForm): FichaPayload {
   const grado = parseGrado(h.grado)
@@ -139,6 +150,7 @@ export function fichaPayload(h: HijoForm): FichaPayload {
     cambio_panal: h.cambioPanal,
     autoriza_imagen: h.autorizaImagen,
     escolarizado: h.escolarizado,
+    salon_preferido_id: texto(h.salonPreferidoId),
   }
 }
 
@@ -192,6 +204,7 @@ export function validarFamilia(form: FamiliaForm, hoy: string = new Date().toISO
     if (!fechaPasadaValida(h.fechaNacimiento, hoy)) errores.push(`${n}: la fecha de nacimiento no es válida.`)
     if (!esGenero(h.genero)) errores.push(`${n}: el género es obligatorio.`)
     if (parseGrado(h.grado) === 'invalido') errores.push(`${n}: el grado no es válido.`)
+    if (!salonValido(h.salonPreferidoId)) errores.push(`${n}: el nivel no es válido.`)
     if (esGenero(h.genero)) {
       hijos.push({
         nombre: h.nombre.trim(),
@@ -268,6 +281,7 @@ export function validarEdicionNino(
   if (!fechaPasadaValida(h.fechaNacimiento, hoy)) errores.push('La fecha de nacimiento no es válida.')
   if (!esGenero(h.genero)) errores.push('El género es obligatorio.')
   if (parseGrado(h.grado) === 'invalido') errores.push('El grado no es válido.')
+  if (!salonValido(h.salonPreferidoId)) errores.push('El nivel no es válido.')
   if (errores.length > 0 || !esGenero(h.genero)) return { ok: false, errores }
   return {
     ok: true,

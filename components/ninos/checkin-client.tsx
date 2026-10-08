@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, ArrowRight, ClipboardPlus, Search, UserPlus, Users } from 'lucide-react'
@@ -17,7 +17,7 @@ import {
   type Servicio,
   type TurnoFila,
 } from '@/lib/platform/ninos/checkin'
-import { salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { aSalonSugerible, salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { createClient } from '@/lib/supabase/client'
 
 import { AdultoSinHijos } from './adulto-sin-hijos'
@@ -54,6 +54,7 @@ function urlCheckin(s: Servicio): string {
 
 /** Mobile-first check-in: pick the service, find a family, choose children and rooms, issue the code. */
 export function CheckinClient({ salones, turnos, servicio: servicioInicial, consultaInicial, padreInicial }: Props) {
+  const salonesNivel = useMemo(() => salones.map(aSalonSugerible), [salones])
   const router = useRouter()
   const [servicio, setServicio] = useState<Servicio>(servicioInicial)
   const { q, setQ, familias, error: errorBusqueda, buscando, buscar, limpiar } = useBuscarFamilias()
@@ -259,6 +260,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
           ) : resultado ? null : (
             <>
               <PreregistrosPendientes
+                salones={salonesNivel}
                 onConfirmado={(padreId, consulta) => {
                   setQ(consulta)
                   void buscarYElegir(consulta, padreId)
@@ -503,6 +505,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
         {completando && (
           <EditarNinoForm
             key={completando.id}
+            salones={salonesNivel}
             hijo={completando}
             onCancelar={() => setCompletando(null)}
             onGuardado={() => {
@@ -522,6 +525,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
       >
         {paraAdulto?.tipo === 'agregar' && (
           <RegistrarFamiliaForm
+            salones={salonesNivel}
             key={paraAdulto.id}
             padreExistente={{ id: paraAdulto.id, nombre: paraAdulto.nombre }}
             onCancelar={() => setParaAdulto(null)}
