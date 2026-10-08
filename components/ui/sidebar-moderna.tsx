@@ -36,6 +36,7 @@ import { useBranding } from '@/hooks/useBranding'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
 import { canAccess } from '@/lib/navigation/canAccess'
 import { insertDreamTeamMenuItem, useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
+import { insertNinosMenuItem, useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
 
 interface SidebarModernaProps {
   className?: string
@@ -166,12 +167,17 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   // sees which) is shared with the mobile drawer, see
   // components/ui/dream-team-menu-item.ts and lib/platform/dream-team/navigation.ts.
   const dreamTeamMenuItem: MenuItem | null = useDreamTeamMenuItem(platformSession)
+  // Niños — server-fed flags (hooks/useNinosAcceso), see components/ninos/ninos-menu-item.ts.
+  const ninosMenuItem: MenuItem | null = useNinosMenuItem()
 
   // Inserted right after 'grupos-vida' (before the platform navigation
   // items), the same slot it occupies in the design.
   const primaryMenuItems = useMemo(
-    () => [...insertDreamTeamMenuItem<MenuItem>(menuItems, dreamTeamMenuItem), ...platformNavigationItems],
-    [dreamTeamMenuItem, platformNavigationItems]
+    () => [
+      ...insertNinosMenuItem<MenuItem>(insertDreamTeamMenuItem<MenuItem>(menuItems, dreamTeamMenuItem), ninosMenuItem),
+      ...platformNavigationItems,
+    ],
+    [dreamTeamMenuItem, ninosMenuItem, platformNavigationItems]
   )
 
 
@@ -206,6 +212,9 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
       if (isDreamTeamChildActive) {
         newOpen.add(dreamTeamMenuItem.id)
       }
+    }
+    if (ninosMenuItem?.children?.some(child => pathname === child.href || pathname?.startsWith(child.href + '/'))) {
+      newOpen.add(ninosMenuItem.id)
     }
     // PR25 + PR27 — also auto-expand the talleres sub-menu when the
     // active route is under the talleres admin tree. The
@@ -264,7 +273,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
       newOpen.forEach(id => merged.add(id))
       return merged
     })
-  }, [pathname, platformNavigationItems, dreamTeamMenuItem])
+  }, [pathname, platformNavigationItems, dreamTeamMenuItem, ninosMenuItem])
 
   // PR21.2 + PR21.3: When the browser tab becomes visible again (user
   // switches back to the tab), refresh the server tree AND dispatch a
