@@ -20,16 +20,19 @@ import {
 import { salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { createClient } from '@/lib/supabase/client'
 
+import { AdultoSinHijos } from './adulto-sin-hijos'
 import { registrarIngresoApi } from './api-visita'
 import { EditarNinoForm } from './editar-nino-form'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
 import { PanelLateralNinos } from './panel-lateral'
 import { PreregistrosPendientes } from './preregistros-pendientes'
+import { RegistrarFamiliaForm } from './registrar-familia-form'
 import { RetiroPanel } from './retiro-panel'
 import { SelectorServicio } from './selector-servicio'
 import { useBuscarFamilias } from './use-buscar-familias'
 import { useRefrescoVisible } from './use-refresco'
+import { VincularHijoForm } from './vincular-hijo-form'
 
 type Props = {
   salones: SalonFila[]
@@ -64,6 +67,8 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [pestana, setPestana] = useState<'ingreso' | 'retiro'>('ingreso')
   const [completando, setCompletando] = useState<HijoEncontrado | null>(null)
+  /** An adult without children (N11): add a new child or link an existing one. */
+  const [paraAdulto, setParaAdulto] = useState<{ tipo: 'agregar' | 'vincular'; id: string; nombre: string } | null>(null)
 
   const nombreSalon = useCallback((id: string) => salones.find((s) => s.id === id)?.nombre ?? 'salón', [salones])
 
@@ -312,7 +317,15 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                 </ul>
               )}
 
-              {familia && (
+              {familia?.sin_hijos && (
+                <AdultoSinHijos
+                  adulto={familia}
+                  onAgregarNino={() => setParaAdulto({ tipo: 'agregar', id: familia.id, nombre: `${familia.nombre} ${familia.apellido}` })}
+                  onVincularHijo={() => setParaAdulto({ tipo: 'vincular', id: familia.id, nombre: `${familia.nombre} ${familia.apellido}` })}
+                />
+              )}
+
+              {familia && !familia.sin_hijos && (
                 <TarjetaSistema className="space-y-4 p-4 md:p-6">
                   <div className="flex items-start justify-between gap-2">
                     <TituloSistema nivel={3}>{familia.padres.map((p) => `${p.nombre} ${p.apellido}`).join(' · ')}</TituloSistema>
@@ -496,6 +509,37 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
               setCompletando(null)
               // Reload the family so the child can be checked in right away.
               if (familia) void buscarYElegir(q, familia.id)
+            }}
+          />
+        )}
+      </PanelLateralNinos>
+
+      <PanelLateralNinos
+        abierto={paraAdulto !== null}
+        titulo={paraAdulto?.tipo === 'vincular' ? 'Vincular hijo existente' : 'Agregar niño'}
+        descripcion={paraAdulto ? `Representante: ${paraAdulto.nombre}.` : ''}
+        onCerrar={() => setParaAdulto(null)}
+      >
+        {paraAdulto?.tipo === 'agregar' && (
+          <RegistrarFamiliaForm
+            key={paraAdulto.id}
+            padreExistente={{ id: paraAdulto.id, nombre: paraAdulto.nombre }}
+            onCancelar={() => setParaAdulto(null)}
+            onRegistrada={(padreId) => {
+              setParaAdulto(null)
+              void buscarYElegir(q, padreId)
+            }}
+          />
+        )}
+        {paraAdulto?.tipo === 'vincular' && (
+          <VincularHijoForm
+            key={paraAdulto.id}
+            adulto={{ id: paraAdulto.id, nombre: paraAdulto.nombre }}
+            onCancelar={() => setParaAdulto(null)}
+            onVinculado={() => {
+              const id = paraAdulto.id
+              setParaAdulto(null)
+              void buscarYElegir(q, id)
             }}
           />
         )}

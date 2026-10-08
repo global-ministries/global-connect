@@ -42,6 +42,11 @@ export type FamiliaEncontrada = {
   hijos: HijoEncontrado[]
   /** Every parent of the family's children, the matched parent first. */
   padres: PadreDeFamilia[]
+  /**
+   * True for an existing adult with no Niños children, found by exact cédula
+   * or phone (N11). Their telefono/cedula come masked (•••1234).
+   */
+  sin_hijos?: boolean
 }
 
 /** A ninos_salones row as selected by the screen. */
@@ -80,6 +85,7 @@ export function parseFamilias(data: unknown): FamiliaEncontrada[] {
         : []
       return {
         ...familia,
+        sin_hijos: f.sin_hijos === true,
         hijos: Array.isArray(f.hijos)
           ? (f.hijos as unknown[])
               .filter((h): h is Record<string, unknown> => esObjeto(h) && typeof h.id === 'string')
@@ -115,6 +121,24 @@ export function agruparFamilias(familias: readonly FamiliaEncontrada[]): Familia
     for (const p of f.padres) if (!grupo.padres.some((x) => x.id === p.id)) grupo.padres.push(p)
   }
   return grupos
+}
+
+/**
+ * The children an adult can be linked to from a search: each child once,
+ * skipping those already in the adult's own family.
+ */
+export function hijosParaVincular(familias: readonly FamiliaEncontrada[], adultoId: string): HijoEncontrado[] {
+  const propios = new Set(familias.filter((f) => f.id === adultoId).flatMap((f) => f.hijos.map((h) => h.id)))
+  const vistos = new Set<string>()
+  const hijos: HijoEncontrado[] = []
+  for (const f of familias) {
+    for (const h of f.hijos) {
+      if (propios.has(h.id) || vistos.has(h.id)) continue
+      vistos.add(h.id)
+      hijos.push(h)
+    }
+  }
+  return hijos
 }
 
 export function aSalonSugerible(s: SalonFila): SalonVista {

@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { mensajeDeErrorFamilia } from '@/lib/platform/ninos/familia'
 import { salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 
+import { AdultoSinHijos } from './adulto-sin-hijos'
 import { AgregarPadreForm } from './agregar-padre-form'
 import { EditarNinoForm } from './editar-nino-form'
 import { EncabezadoNinos } from './encabezado-ninos'
@@ -18,6 +19,7 @@ import { PreregistrosPendientes } from './preregistros-pendientes'
 import { RegistrarFamiliaForm } from './registrar-familia-form'
 import { SalonSugerido } from './salon-sugerido'
 import { useBuscarFamilias } from './use-buscar-familias'
+import { VincularHijoForm } from './vincular-hijo-form'
 
 type Props = {
   salones: SalonFila[]
@@ -37,6 +39,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
   const [vista, setVista] = useState<Vista>({ tipo: registrarAlInicio ? 'registrar' : 'buscar' })
   const [editando, setEditando] = useState<HijoEncontrado | null>(null)
   const [agregandoPadre, setAgregandoPadre] = useState<FamiliaEncontrada | null>(null)
+  const [vinculandoHijo, setVinculandoHijo] = useState<{ id: string; nombre: string } | null>(null)
   const { q, setQ, familias, error, setError, buscando, buscar } = useBuscarFamilias()
 
   async function elegirSalon(hijoId: string, salonId: string) {
@@ -79,6 +82,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
   const cerrarPanel = async () => {
     setEditando(null)
     setAgregandoPadre(null)
+    setVinculandoHijo(null)
     if (q.trim().length >= 2) await buscar(q)
   }
 
@@ -133,78 +137,86 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
       <ul className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
         {familias?.map((f) => (
           <li key={f.id} className="min-w-0">
-            <TarjetaSistema data-testid="familia-tarjeta" className="space-y-4 p-4 md:p-5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="break-words text-[15px] font-semibold text-foreground">
-                    {f.padres.map((p) => `${p.nombre} ${p.apellido}`).join(' · ')}
-                  </p>
-                  {f.telefono && <TextoSistema variante="sutil" tamaño="sm">{f.telefono}</TextoSistema>}
+            {f.sin_hijos ? (
+              <AdultoSinHijos
+                adulto={f}
+                onAgregarNino={() => setVista({ tipo: 'agregar', padre: { id: f.id, nombre: `${f.nombre} ${f.apellido}` } })}
+                onVincularHijo={() => setVinculandoHijo({ id: f.id, nombre: `${f.nombre} ${f.apellido}` })}
+              />
+            ) : (
+              <TarjetaSistema data-testid="familia-tarjeta" className="space-y-4 p-4 md:p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="break-words text-[15px] font-semibold text-foreground">
+                      {f.padres.map((p) => `${p.nombre} ${p.apellido}`).join(' · ')}
+                    </p>
+                    {f.telefono && <TextoSistema variante="sutil" tamaño="sm">{f.telefono}</TextoSistema>}
+                  </div>
+                  <BotonSistema
+                    type="button"
+                    variante="outline"
+                    tamaño="sm"
+                    icono={Plus}
+                    className="shrink-0"
+                    onClick={() => setVista({ tipo: 'agregar', padre: { id: f.id, nombre: `${f.nombre} ${f.apellido}` } })}
+                  >
+                    Agregar niño
+                  </BotonSistema>
                 </div>
-                <BotonSistema
-                  type="button"
-                  variante="outline"
-                  tamaño="sm"
-                  icono={Plus}
-                  className="shrink-0"
-                  onClick={() => setVista({ tipo: 'agregar', padre: { id: f.id, nombre: `${f.nombre} ${f.apellido}` } })}
-                >
-                  Agregar niño
-                </BotonSistema>
-              </div>
-              <ul className="divide-y divide-border rounded-xl border border-border">
-                {f.hijos.map((h) => (
-                  <li key={h.id} className="space-y-2 p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 break-words">
-                        <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
-                          {h.nombre} {h.apellido}
-                          {h.es_vip_desde && (
-                            <BadgeSistema variante="warning" tamaño="sm">
-                              VIP
-                            </BadgeSistema>
-                          )}
-                          {!h.tiene_ficha && (
-                            <BadgeSistema variante="info" tamaño="sm">
-                              Sin ficha de niños
-                            </BadgeSistema>
-                          )}
-                        </p>
-                        {h.alergias && <p className="text-sm font-medium text-destructive">Alergias: {h.alergias}</p>}
+                <ul className="divide-y divide-border rounded-xl border border-border">
+                  {f.hijos.map((h) => (
+                    <li key={h.id} className="space-y-2 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 break-words">
+                          <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                            {h.nombre} {h.apellido}
+                            {h.es_vip_desde && (
+                              <BadgeSistema variante="warning" tamaño="sm">
+                                VIP
+                              </BadgeSistema>
+                            )}
+                            {!h.tiene_ficha && (
+                              <BadgeSistema variante="info" tamaño="sm">
+                                Sin ficha de niños
+                              </BadgeSistema>
+                            )}
+                          </p>
+                          {h.alergias && <p className="text-sm font-medium text-destructive">Alergias: {h.alergias}</p>}
+                        </div>
+                        {h.tiene_ficha ? (
+                          <BotonSistema type="button" variante="ghost" tamaño="sm" icono={Pencil} onClick={() => setEditando(h)}>
+                            Editar
+                          </BotonSistema>
+                        ) : (
+                          <BotonSistema type="button" variante="outline" tamaño="sm" icono={ClipboardPlus} className="shrink-0" onClick={() => setEditando(h)}>
+                            Completar ficha
+                          </BotonSistema>
+                        )}
                       </div>
-                      {h.tiene_ficha ? (
-                        <BotonSistema type="button" variante="ghost" tamaño="sm" icono={Pencil} onClick={() => setEditando(h)}>
-                          Editar
-                        </BotonSistema>
-                      ) : (
-                        <BotonSistema type="button" variante="outline" tamaño="sm" icono={ClipboardPlus} className="shrink-0" onClick={() => setEditando(h)}>
-                          Completar ficha
-                        </BotonSistema>
+                      {h.tiene_ficha && (
+                        <SalonSugerido
+                          resultado={salonParaHijo(h, salones, fechaServicio)}
+                          salones={salones}
+                          onElegir={(salonId) => void elegirSalon(h.id, salonId)}
+                        />
                       )}
-                    </div>
-                    {h.tiene_ficha && (
-                      <SalonSugerido
-                        resultado={salonParaHijo(h, salones, fechaServicio)}
-                        salones={salones}
-                        onElegir={(salonId) => void elegirSalon(h.id, salonId)}
-                      />
-                    )}
-                  </li>
-                ))}
-                {f.hijos.length === 0 && (
-                  <li className="p-3">
-                    <TextoSistema variante="sutil" tamaño="sm">
-                      Sin niños registrados.
-                    </TextoSistema>
-                  </li>
+                    </li>
+                  ))}
+                  {f.hijos.length === 0 && (
+                    <li className="p-3">
+                      <TextoSistema variante="sutil" tamaño="sm">
+                        Sin niños registrados.
+                      </TextoSistema>
+                    </li>
+                  )}
+                </ul>
+                {f.hijos.length > 0 && (
+                  <BotonSistema type="button" variante="ghost" tamaño="sm" icono={UserPlus} onClick={() => setAgregandoPadre(f)}>
+                    Agregar padre o madre
+                  </BotonSistema>
                 )}
-              </ul>
-              {f.hijos.length > 0 && (
-                <BotonSistema type="button" variante="ghost" tamaño="sm" icono={UserPlus} onClick={() => setAgregandoPadre(f)}>
-                  Agregar padre o madre
-                </BotonSistema>
-              )}
-            </TarjetaSistema>
+              </TarjetaSistema>
+            )}
           </li>
         ))}
       </ul>
@@ -231,6 +243,22 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
             key={agregandoPadre.id}
             familia={agregandoPadre}
             onCancelar={() => setAgregandoPadre(null)}
+            onVinculado={() => void cerrarPanel()}
+          />
+        )}
+      </PanelLateralNinos>
+
+      <PanelLateralNinos
+        abierto={vinculandoHijo !== null}
+        titulo="Vincular hijo existente"
+        descripcion="Busca a un niño que ya está registrado y vincúlalo a esta persona."
+        onCerrar={() => setVinculandoHijo(null)}
+      >
+        {vinculandoHijo && (
+          <VincularHijoForm
+            key={vinculandoHijo.id}
+            adulto={vinculandoHijo}
+            onCancelar={() => setVinculandoHijo(null)}
             onVinculado={() => void cerrarPanel()}
           />
         )}
