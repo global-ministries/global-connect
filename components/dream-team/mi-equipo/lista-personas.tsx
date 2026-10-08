@@ -28,6 +28,8 @@ import { cn } from '@/lib/utils'
 import { MenuPersona } from './menu-persona'
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado } from '@/lib/platform/dream-team/types'
 import type { ContadoresPorEstado, FiltroEstado, PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
+import { isoLocal, nombreConFrecuencia } from '@/lib/platform/dream-team/frecuencia-turno'
+import type { FrecuenciasPorTurno } from '@/lib/platform/dream-team/turnos'
 
 export interface ListaPersonasProps {
   readonly titulo: string
@@ -46,9 +48,16 @@ export interface ListaPersonasProps {
 
 const SIN_TURNOS: NonNullable<ListaPersonasProps['turnos']> = []
 
-/** "Domingo 9:00, Domingo 11:00", or "—" when the person has none. */
-function textoDeTurnos(turnoIds: readonly string[] | undefined, turnos: NonNullable<ListaPersonasProps['turnos']>): string {
-  const nombres = turnos.filter((turno) => turnoIds?.includes(turno.id)).map((turno) => turno.label)
+/** "Domingo 9:00, Domingo 11:00 · Quincenal (semana B) · próximo 18 oct", or "—" when the person has none. */
+function textoDeTurnos(
+  turnoIds: readonly string[] | undefined,
+  turnos: NonNullable<ListaPersonasProps['turnos']>,
+  frecuencias: FrecuenciasPorTurno | undefined,
+): string {
+  const hoy = isoLocal(new Date())
+  const nombres = turnos
+    .filter((turno) => turnoIds?.includes(turno.id))
+    .map((turno) => nombreConFrecuencia(turno.label, frecuencias?.[turno.id], hoy))
   return nombres.length > 0 ? nombres.join(', ') : '—'
 }
 
@@ -187,7 +196,7 @@ function FilaPersona({
         </div>
         <p className="hidden truncate text-sm text-muted-foreground md:block">{persona.equipoLabel}</p>
         {turnos.length > 0 && (
-          <p className="truncate text-sm text-muted-foreground">{`Turno: ${textoDeTurnos(persona.turnoIds, turnos)}`}</p>
+          <p className="truncate text-sm text-muted-foreground">{`Turno: ${textoDeTurnos(persona.turnoIds, turnos, persona.frecuencias)}`}</p>
         )}
         {/* [overflow-wrap:anywhere] lets a long stored phone break instead of pushing the row wider on phones. */}
         <div className="min-w-0 [overflow-wrap:anywhere]">

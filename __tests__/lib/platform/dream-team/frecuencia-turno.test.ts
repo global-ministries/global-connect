@@ -1,4 +1,6 @@
 import {
+  isoLocal,
+  nombreConFrecuencia,
   proximoDomingoDeServicio,
   semanaDeAncla,
   sirveEnDomingo,
@@ -80,5 +82,19 @@ describe('validarFrecuencia', () => {
     expect(validarFrecuencia({ frecuencia: 'quincenal', fechaAncla: '2026-10-05' }).ok).toBe(false)
     expect(validarFrecuencia({ frecuencia: 'quincenal', fechaAncla: '2026-02-30' }).ok).toBe(false)
     expect(validarFrecuencia({ frecuencia: 'mensual' }).ok).toBe(false)
+  })
+})
+
+describe('nombreConFrecuencia and isoLocal', () => {
+  it('leaves a weekly shift name alone and annotates a biweekly one', () => {
+    expect(nombreConFrecuencia('Domingo 9:00', undefined, '2026-10-08')).toBe('Domingo 9:00')
+    expect(nombreConFrecuencia('Domingo 9:00', SEMANAL, '2026-10-08')).toBe('Domingo 9:00')
+    expect(nombreConFrecuencia('Domingo 9:00', QUINCENAL, '2026-10-08')).toBe(
+      'Domingo 9:00 · Quincenal (semana B) · próximo 18 oct',
+    )
+  })
+
+  it('formats a local date', () => {
+    expect(isoLocal(new Date(2026, 0, 4))).toBe('2026-01-04')
   })
 })

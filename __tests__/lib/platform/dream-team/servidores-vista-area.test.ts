@@ -151,6 +151,16 @@ describe('shift column', () => {
     expect(texto('Beto')).toBe('—')
     expect(texto('Gabi')).toBe('—')
   })
+
+  it('names the biweekly week and the next Sunday served (T10)', () => {
+    const conQuincenal = filas.map((f) =>
+      f.nombre === 'Ana' ? { ...f, frecuencias: { [T11]: { frecuencia: 'quincenal' as const, fechaAncla: '2026-10-04' } } } : f,
+    )
+    const v = calcularVistaServidores({ filas: conQuincenal, arbol, filtros: FILTROS_INICIALES, turnos, hoy: new Date(2026, 9, 8) })
+    expect(v.visibles.find((f) => f.nombre === 'Ana')?.turnosTexto).toBe(
+      'Domingo 9:00, Domingo 11:00 · Quincenal (semana B) · próximo 18 oct',
+    )
+  })
 })
 
 describe('campus-scoped shift options', () => {

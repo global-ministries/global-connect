@@ -19,6 +19,7 @@ import { BotonSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import {
   FRECUENCIA_SEMANAL,
   esDomingo,
+  isoLocal,
   proximoDomingoDeServicio,
   textoFrecuencia,
   type FrecuenciaTurno,
@@ -37,12 +38,6 @@ type Carga =
   | { readonly estado: 'cargando' }
   | { readonly estado: 'error'; readonly mensaje: string }
   | { readonly estado: 'listo'; readonly turnos: readonly Turno[] }
-
-/** Today as a local calendar day, "YYYY-MM-DD". */
-function hoyIso(): string {
-  const hoy = new Date()
-  return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
-}
 
 async function mensajeDe(respuesta: Response, porDefecto: string): Promise<string> {
   try {
@@ -66,7 +61,7 @@ export function TurnosServicioDialog({
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [frecuencias, setFrecuencias] = useState<FrecuenciasPorTurno>({})
-  const hoy = hoyIso()
+  const hoy = isoLocal(new Date())
   const url = `/api/dream-team/servicios/${encodeURIComponent(servicioId)}/turnos`
 
   useEffect(() => {

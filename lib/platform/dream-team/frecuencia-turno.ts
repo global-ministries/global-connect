@@ -83,6 +83,17 @@ export function textoFrecuencia(frecuencia: FrecuenciaTurno, hoy: string): strin
   return `Quincenal (semana ${semanaDeAncla(frecuencia.fechaAncla)}) · próximo ${proximo.getUTCDate()} ${MESES[proximo.getUTCMonth()]}`
 }
 
+/** "Domingo 9:00", or "Domingo 9:00 · Quincenal (semana B) · próximo 18 oct" for a biweekly shift. */
+export function nombreConFrecuencia(nombre: string, frecuencia: FrecuenciaTurno | undefined, hoy: string): string {
+  if (!frecuencia || frecuencia.frecuencia === 'semanal' || frecuencia.fechaAncla === null) return nombre
+  return `${nombre} · ${textoFrecuencia(frecuencia, hoy)}`
+}
+
+/** A Date as its local calendar day, "YYYY-MM-DD". */
+export function isoLocal(fecha: Date): string {
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`
+}
+
 export type ResultadoFrecuencia =
   | { readonly ok: true; readonly valor: FrecuenciaTurno }
   | { readonly ok: false; readonly message: string }
