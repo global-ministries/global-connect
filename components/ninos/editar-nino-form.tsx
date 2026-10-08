@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
-import { fichaPayload, mensajeDeErrorFamilia, parseGrado, validarAutorizados, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
+import { mensajeDeErrorFamilia, validarAutorizados, validarEdicionNino, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
 import { hijoAForm, type HijoEncontrado } from '@/lib/platform/ninos/familias-vista'
 import type { Json } from '@/lib/supabase/database.types'
 
@@ -16,7 +16,7 @@ type Props = {
   onCancelar: () => void
 }
 
-/** Edits a child's ficha and replaces its pickup list (ninos_actualizar_nino). */
+/** Edits a child's name, birth date, gender and ficha, and replaces its pickup list (ninos_actualizar_nino). */
 export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
   const [form, setForm] = useState<HijoForm>(() => hijoAForm(hijo))
   const [autorizados, setAutorizados] = useState<AutorizadoForm[]>(() =>
@@ -28,9 +28,9 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
     const aut = validarAutorizados(autorizados)
-    const errs = [...aut.errores]
-    if (parseGrado(form.grado) === 'invalido') errs.push('El grado no es válido.')
-    if (errs.length > 0) {
+    const ficha = validarEdicionNino(form)
+    const errs = [...(ficha.ok ? [] : ficha.errores), ...aut.errores]
+    if (!ficha.ok || errs.length > 0) {
       setErrores(errs)
       return
     }
@@ -38,7 +38,7 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
     setGuardando(true)
     const { error } = await createClient().rpc('ninos_actualizar_nino', {
       p_nino_id: hijo.id,
-      p: { ...fichaPayload(form), autorizados: aut.payload } as unknown as Json,
+      p: { ...ficha.payload, autorizados: aut.payload } as unknown as Json,
     })
     setGuardando(false)
     if (error) {
@@ -50,10 +50,7 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar }: Props) {
 
   return (
     <form onSubmit={enviar} className="space-y-6" noValidate>
-      <p className="text-sm text-muted-foreground">
-        {hijo.nombre} {hijo.apellido}
-      </p>
-      <CamposNino indice={0} hijo={form} onChange={setForm} soloFicha />
+      <CamposNino indice={0} hijo={form} onChange={setForm} />
       <section className="space-y-3">
         <h2 className="text-base font-semibold">Personas autorizadas para retirar</h2>
         <CamposAutorizados autorizados={autorizados} onChange={setAutorizados} />

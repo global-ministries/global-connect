@@ -10,9 +10,12 @@ import {
   GENEROS,
   hijoVacio,
   mensajeDeErrorFamilia,
+  parseCoincidencias,
   validarFamilia,
   type FamiliaForm,
+  type FamiliaPayload,
   type HijoForm,
+  type PadreCoincidencia,
 } from '@/lib/platform/ninos/familia'
 import type { Json } from '@/lib/supabase/database.types'
 
@@ -21,7 +24,8 @@ import { CamposAutorizados, CamposNino, SELECT_CLASS } from './campos-nino'
 type Props = {
   /** When set, the form only adds children to this parent. */
   padreExistente?: { id: string; nombre: string }
-  onRegistrada: (padreId: string) => void
+  /** consulta: "Nombre Apellido" of the first child, to find the family again. */
+  onRegistrada: (padreId: string, consulta: string) => void
   onCancelar: () => void
 }
 
@@ -34,9 +38,23 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar 
   })
   const [errores, setErrores] = useState<string[]>([])
   const [guardando, setGuardando] = useState(false)
+  const [coincidencias, setCoincidencias] = useState<PadreCoincidencia[]>([])
 
   const setPadre = (campo: keyof FamiliaForm['padre'], v: string) => setForm((f) => ({ ...f, padre: { ...f.padre, [campo]: v } }))
   const setHijo = (i: number, h: HijoForm) => setForm((f) => ({ ...f, hijos: f.hijos.map((x, j) => (j === i ? h : x)) }))
+
+  async function registrar(payload: FamiliaPayload) {
+    setGuardando(true)
+    const { data, error } = await createClient().rpc('ninos_registrar_familia', { p: payload as unknown as Json })
+    setGuardando(false)
+    if (error) {
+      setErrores([mensajeDeErrorFamilia(error)])
+      return
+    }
+    const padreId = (data as { padre_id?: string } | null)?.padre_id
+    const primero = payload.hijos[0]
+    if (padreId) onRegistrada(padreId, primero ? `${primero.nombre} ${primero.apellido}` : '')
+  }
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
@@ -46,15 +64,37 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar 
       return
     }
     setErrores([])
+    if ('id' in r.payload.padre) {
+      await registrar(r.payload)
+      return
+    }
+    // A known phone or cédula is never reused silently: the anfitrión confirms it first.
     setGuardando(true)
-    const { data, error } = await createClient().rpc('ninos_registrar_familia', { p: r.payload as unknown as Json })
+    const { data, error } = await createClient().rpc('ninos_buscar_padre', {
+      p_cedula: form.padre.cedula.trim(),
+      p_telefono: form.padre.telefono.trim(),
+    })
     setGuardando(false)
     if (error) {
       setErrores([mensajeDeErrorFamilia(error)])
       return
     }
-    const padreId = (data as { padre_id?: string } | null)?.padre_id
-    if (padreId) onRegistrada(padreId)
+    const encontrados = parseCoincidencias(data)
+    if (encontrados.length > 0) {
+      setCoincidencias(encontrados)
+      return
+    }
+    await registrar(r.payload)
+  }
+
+  async function confirmar(padreId: string) {
+    const r = validarFamilia({ ...form, padre: { ...form.padre, id: padreId } })
+    setCoincidencias([])
+    if (!r.ok) {
+      setErrores(r.errores)
+      return
+    }
+    await registrar(r.payload)
   }
 
   const textoBoton = padreExistente ? 'Agregar niño' : 'Registrar familia'
@@ -103,7 +143,31 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar 
               </select>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Si el teléfono o la cédula ya existen, se usa esa persona.</p>
+          <p className="text-xs text-muted-foreground">Si el teléfono o la cédula ya existen, te pediremos confirmar a esa persona.</p>
+          {coincidencias.length > 0 && (
+            <div role="alert" className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+              <p className="text-sm font-medium">Ya existe una persona con estos datos. ¿Es el representante?</p>
+              <ul className="space-y-2">
+                {coincidencias.map((c) => (
+                  <li key={c.id} className="space-y-2 rounded-md bg-background p-2 text-foreground">
+                    <p className="text-sm">
+                      <span className="font-medium">
+                        {c.nombre} {c.apellido}
+                      </span>
+                      {c.telefono && <> · Tel. {c.telefono}</>}
+                      {c.cedula && <> · Cédula {c.cedula}</>}
+                    </p>
+                    <Button type="button" className="h-11 w-full" disabled={guardando} onClick={() => void confirmar(c.id)}>
+                      Sí, es esta persona
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              <Button type="button" variant="outline" className="h-11 w-full" onClick={() => setCoincidencias([])}>
+                No, corregir datos
+              </Button>
+            </div>
+          )}
         </section>
       )}
 

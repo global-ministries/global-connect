@@ -38,8 +38,10 @@ describe('RegistrarFamiliaForm', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it('registers the family in one RPC call', async () => {
-    rpc.mockResolvedValue({ data: { padre_id: 'p1', padre_nuevo: true, hijos: ['h1'] }, error: null })
+  it('registers the family after an empty parent lookup', async () => {
+    rpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: { padre_id: 'p1', padre_nuevo: true, hijos: ['h1'] }, error: null })
     const onRegistrada = jest.fn()
     render(<RegistrarFamiliaForm onRegistrada={onRegistrada} onCancelar={jest.fn()} />)
 
@@ -53,7 +55,7 @@ describe('RegistrarFamiliaForm', () => {
     fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Masculino' } })
     fireEvent.click(screen.getByRole('button', { name: 'Registrar familia' }))
 
-    await waitFor(() => expect(onRegistrada).toHaveBeenCalledWith('p1'))
+    await waitFor(() => expect(onRegistrada).toHaveBeenCalledWith('p1', 'Luis Pérez'))
     expect(rpc).toHaveBeenCalledWith('ninos_registrar_familia', {
       p: expect.objectContaining({
         padre: expect.objectContaining({ nombre: 'Ana', telefono: '04145551234', genero: 'Femenino' }),

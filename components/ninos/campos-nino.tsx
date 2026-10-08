@@ -31,20 +31,16 @@ type CamposNinoProps = {
   indice: number
   hijo: HijoForm
   onChange: (h: HijoForm) => void
-  /** Name, birth date and gender live in usuarios and are not editable here. */
-  soloFicha?: boolean
 }
 
 /** The child's personal data and ficha fields. */
-export function CamposNino({ indice, hijo, onChange, soloFicha }: CamposNinoProps) {
+export function CamposNino({ indice, hijo, onChange }: CamposNinoProps) {
   const n = indice + 1
   const set = <K extends keyof HijoForm>(k: K, v: HijoForm[K]) => onChange({ ...hijo, [k]: v })
   const id = (campo: string) => `nino-${n}-${campo}`
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {!soloFicha && (
-        <>
           <div className="space-y-1">
             <Label htmlFor={id('nombre')}>Nombre</Label>
             <Input id={id('nombre')} aria-label={`Nombre del niño ${n}`} value={hijo.nombre} onChange={(e) => set('nombre', e.target.value)} />
@@ -74,8 +70,6 @@ export function CamposNino({ indice, hijo, onChange, soloFicha }: CamposNinoProp
               ))}
             </select>
           </div>
-        </>
-      )}
       <div className="space-y-1">
         <Label htmlFor={id('grado')}>Grado (UpStreet)</Label>
         <select id={id('grado')} className={SELECT_CLASS} value={hijo.grado} onChange={(e) => set('grado', e.target.value)}>

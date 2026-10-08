@@ -215,6 +215,8 @@ const MENSAJES: Record<string, string> = {
   hijo_ya_registrado: 'Uno de los niños ya está registrado con este representante.',
   padre_no_encontrado: 'No se encontró el representante. Búscalo de nuevo.',
   sin_campus: 'No hay salones activos en tus áreas.',
+  padre_existente: 'Ya existe una persona con ese teléfono o cédula. Confírmala antes de guardar.',
+  nino_no_encontrado: 'No se encontró el niño. Búscalo de nuevo.',
 }
 
 /** Spanish copy for an RPC error; the RPCs raise a snake_case code as the message. */
@@ -224,4 +226,53 @@ export function mensajeDeErrorFamilia(error: { code?: string; message?: string }
   if (error?.code === '42501') return MENSAJES.sin_autoridad
   if (error?.code === '22023') return 'Revisa los datos: hay campos inválidos.'
   return 'No se pudo guardar. Intenta de nuevo.'
+}
+
+/** An existing person returned by ninos_buscar_padre (phone and cédula masked). */
+export type PadreCoincidencia = {
+  id: string
+  nombre: string
+  apellido: string
+  telefono: string | null
+  cedula: string | null
+  coincide_por: 'cedula' | 'telefono'
+}
+
+export function parseCoincidencias(data: unknown): PadreCoincidencia[] {
+  if (!Array.isArray(data)) return []
+  return data.filter(
+    (c): c is PadreCoincidencia =>
+      typeof c === 'object' && c !== null && typeof (c as { id?: unknown }).id === 'string',
+  )
+}
+
+export type EdicionNinoPayload = FichaPayload & {
+  nombre: string
+  apellido: string
+  fecha_nacimiento: string
+  genero: Genero
+}
+
+/** Validates the edit screen: the child's name, birth date and gender plus the ficha. */
+export function validarEdicionNino(
+  h: HijoForm,
+  hoy: string = new Date().toISOString().slice(0, 10),
+): { ok: true; payload: EdicionNinoPayload } | { ok: false; errores: string[] } {
+  const errores: string[] = []
+  if (!texto(h.nombre)) errores.push('El nombre es obligatorio.')
+  if (!texto(h.apellido)) errores.push('El apellido es obligatorio.')
+  if (!fechaPasadaValida(h.fechaNacimiento, hoy)) errores.push('La fecha de nacimiento no es válida.')
+  if (!esGenero(h.genero)) errores.push('El género es obligatorio.')
+  if (parseGrado(h.grado) === 'invalido') errores.push('El grado no es válido.')
+  if (errores.length > 0 || !esGenero(h.genero)) return { ok: false, errores }
+  return {
+    ok: true,
+    payload: {
+      nombre: h.nombre.trim(),
+      apellido: h.apellido.trim(),
+      fecha_nacimiento: h.fechaNacimiento,
+      genero: h.genero,
+      ...fichaPayload(h),
+    },
+  }
 }
