@@ -1,4 +1,10 @@
-import { mensajeDeErrorFamilia, padreNuevoVacio, validarPadreNuevo } from '@/lib/platform/ninos/familia'
+import {
+  EDAD_MAXIMA_NINOS_ANOS,
+  enRangoNinos,
+  mensajeDeErrorFamilia,
+  padreNuevoVacio,
+  validarPadreNuevo,
+} from '@/lib/platform/ninos/familia'
 import { agruparFamilias, parseFamilias, type FamiliaEncontrada } from '@/lib/platform/ninos/familias-vista'
 
 function hijo(id: string, extra: Record<string, unknown> = {}) {
@@ -97,5 +103,28 @@ describe('mensajeDeErrorFamilia (N10 codes)', () => {
     ['vinculo_invalido', 'Esa persona no puede ser padre o madre de este niño.'],
   ])('%s', (codigo, texto) => {
     expect(mensajeDeErrorFamilia({ message: codigo })).toBe(texto)
+  })
+})
+
+describe('enRangoNinos (mirror of ninos_en_rango_edad)', () => {
+  it('uses a 13-year limit', () => {
+    expect(EDAD_MAXIMA_NINOS_ANOS).toBe(13)
+  })
+
+  it.each([
+    ['2021-05-05', true],
+    ['2013-10-09', true],
+    ['2013-10-08', false],
+    ['2006-01-01', false],
+    ['2026-10-09', false],
+    ['', false],
+  ])('%s → %s on 2026-10-08', (fecha, esperado) => {
+    expect(enRangoNinos(fecha, '2026-10-08')).toBe(esperado)
+  })
+
+  it('has Spanish copy for fuera_de_rango', () => {
+    expect(mensajeDeErrorFamilia({ message: 'fuera_de_rango' })).toBe(
+      'Solo se registran en Niños los menores de 13 años con fecha de nacimiento.',
+    )
   })
 })

@@ -122,3 +122,18 @@ describe('AgregarPadreForm', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 })
+
+describe('EditarNinoForm — age range (N10)', () => {
+  it('does not create a ficha for someone 13 or older', async () => {
+    render(
+      <EditarNinoForm
+        hijo={{ ...familia.hijos[1], fecha_nacimiento: '2000-01-01' }}
+        onGuardado={jest.fn()}
+        onCancelar={jest.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Crear ficha' }))
+    expect(await screen.findByText('Solo se registran en Niños los menores de 13 años con fecha de nacimiento.')).toBeInTheDocument()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+})
