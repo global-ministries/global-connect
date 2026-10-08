@@ -42,7 +42,7 @@ import {
   type PersonaEntrada,
 } from '@/lib/platform/dream-team/mi-equipo-vista'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
-import { fetchTurnos, fetchTurnosDeServicios, ordenarTurnos, type Turno } from '@/lib/platform/dream-team/turnos'
+import { fetchFrecuenciasDeServicios, fetchTurnos, fetchTurnosDeServicios, ordenarTurnos, type Turno } from '@/lib/platform/dream-team/turnos'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
 import { MiEquipoClient } from '@/components/dream-team/mi-equipo/mi-equipo-client'
 
@@ -129,6 +129,11 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   // Campus service shifts (D12): the filter's options and each servicio's
   // assignment. Like contacts, a convenience: on failure the page renders
   // without the filter and the failure is logged.
+  // Frequency is display-only: a failed read shows every turno as weekly.
+  const frecuenciasPorServicio = await fetchFrecuenciasDeServicios(
+    supabase,
+    servicios.map((servicio) => servicio.id),
+  ).catch(() => new Map<string, never>())
   const [turnos, turnosPorServicio] = await Promise.all([
     fetchTurnos(supabase),
     fetchTurnosDeServicios(
@@ -163,6 +168,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       telefono: contactoPorId.get(servicio.personaId)?.telefono ?? null,
       tieneCuenta: contactoPorId.get(servicio.personaId)?.tieneCuenta ?? null,
       turnoIds: turnosPorServicio.get(servicio.id) ?? [],
+      frecuencias: frecuenciasPorServicio.get(servicio.id),
       fichaEditable: servicio.estado !== 'retirado' && equiposRegistrables.has(servicio.equipoId),
     })
   }

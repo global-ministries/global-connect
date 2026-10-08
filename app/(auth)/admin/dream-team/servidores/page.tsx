@@ -39,7 +39,7 @@ import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-person
 import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
-import { fetchTurnos, fetchTurnosDeServicios, type Turno } from '@/lib/platform/dream-team/turnos'
+import { fetchFrecuenciasDeServicios, fetchTurnos, fetchTurnosDeServicios, type Turno } from '@/lib/platform/dream-team/turnos'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
 import { ServidoresClient } from '@/components/dream-team/servidores/servidores-client'
 import {
@@ -148,6 +148,11 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
   // Campus service shifts (D12): the filter's options and each servicio's
   // assignment. A convenience on top of the pool — if the lookup fails the
   // page renders without the filter, and the failure is logged.
+  // Frequency is display-only: a failed read shows every turno as weekly.
+  const frecuenciasPorServicio = await fetchFrecuenciasDeServicios(
+    supabase,
+    servicios.map((servicio) => servicio.id),
+  ).catch(() => new Map<string, never>())
   const [turnos, turnosPorServicio] = await Promise.all([
     fetchTurnos(supabase),
     fetchTurnosDeServicios(
@@ -178,6 +183,7 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
         editable: puedeEditar,
         fichaEditable: servicio.estado !== 'retirado' && equiposFicha.has(servicio.equipoId),
         turnoIds: turnosPorServicio.get(servicio.id) ?? [],
+        frecuencias: frecuenciasPorServicio.get(servicio.id),
       }),
     ),
     ...lideresGdv.map(
