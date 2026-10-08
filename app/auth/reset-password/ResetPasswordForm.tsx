@@ -7,7 +7,6 @@ import { createClient } from '@/lib/supabase/client'
 import {
   FondoAutenticacion,
   TarjetaSistema,
-  InputSistema,
   BotonSistema,
   TituloSistema,
   TextoSistema,
