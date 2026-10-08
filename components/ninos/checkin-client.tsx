@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, ArrowRight, Search, UserPlus, Users } from 'lucide-react'
+import { AlertTriangle, ArrowRight, ClipboardPlus, Search, UserPlus, Users } from 'lucide-react'
 
 import { TabsList, TabsSistema, TabsTrigger } from '@/components/ui/TabsSistema'
 import { BadgeSistema, BotonSistema, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
@@ -17,11 +17,13 @@ import {
   type Servicio,
   type TurnoFila,
 } from '@/lib/platform/ninos/checkin'
-import { salonParaHijo, type FamiliaEncontrada, type SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { createClient } from '@/lib/supabase/client'
 
+import { EditarNinoForm } from './editar-nino-form'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
+import { PanelLateralNinos } from './panel-lateral'
 import { RetiroPanel } from './retiro-panel'
 import { SelectorServicio } from './selector-servicio'
 import { useBuscarFamilias } from './use-buscar-familias'
@@ -59,6 +61,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
   const [guardando, setGuardando] = useState(false)
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [pestana, setPestana] = useState<'ingreso' | 'retiro'>('ingreso')
+  const [completando, setCompletando] = useState<HijoEncontrado | null>(null)
 
   const nombreSalon = useCallback((id: string) => salones.find((s) => s.id === id)?.nombre ?? 'salón', [salones])
 
@@ -108,7 +111,9 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
     async (texto: string, padreId?: string) => {
       const encontradas = await buscar(texto)
       if (!encontradas) return
-      const f = encontradas.find((x) => x.id === padreId) ?? (encontradas.length === 1 ? encontradas[0] : null)
+      const f =
+        encontradas.find((x) => x.id === padreId || x.padres.some((p) => p.id === padreId)) ??
+        (encontradas.length === 1 ? encontradas[0] : null)
       elegirFamilia(f ?? null)
     },
     [buscar, elegirFamilia],
@@ -146,7 +151,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
   async function registrarIngreso() {
     if (!familia || !servicio.turnoId) return
     const seleccion = familia.hijos
-      .filter((h) => elegidos[h.id] && !ingresados[h.id])
+      .filter((h) => h.tiene_ficha && elegidos[h.id] && !ingresados[h.id])
       .map((h) => ({ ninoId: h.id, salonId: salonDe(h.id), nombre: h.nombre }))
     const armado = armarCheckin(seleccion)
     if (!armado.ok) {
@@ -286,7 +291,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                       >
                         <span className="min-w-0">
                           <span className="block font-semibold text-foreground">
-                            {f.nombre} {f.apellido}
+                            {f.padres.map((p) => `${p.nombre} ${p.apellido}`).join(' · ')}
                           </span>
                           <span className="block text-sm text-muted-foreground">
                             {f.hijos.map((h) => h.nombre).join(', ') || 'Sin niños registrados'}
@@ -302,9 +307,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
               {familia && (
                 <TarjetaSistema className="space-y-4 p-4 md:p-6">
                   <div className="flex items-start justify-between gap-2">
-                    <TituloSistema nivel={3}>
-                      {familia.nombre} {familia.apellido}
-                    </TituloSistema>
+                    <TituloSistema nivel={3}>{familia.padres.map((p) => `${p.nombre} ${p.apellido}`).join(' · ')}</TituloSistema>
                     {familias && familias.length > 1 && (
                       <BotonSistema type="button" variante="ghost" tamaño="sm" onClick={() => elegirFamilia(null)}>
                         Otra familia
@@ -324,7 +327,19 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                       const nombre = `${h.nombre} ${h.apellido}`
                       return (
                         <li key={h.id} data-testid={`nino-${h.id}`} className="space-y-2 p-3">
-                          {codigo ? (
+                          {!h.tiene_ficha ? (
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                                {nombre}
+                                <BadgeSistema variante="info" tamaño="sm">
+                                  Sin ficha de niños
+                                </BadgeSistema>
+                              </span>
+                              <BotonSistema type="button" variante="outline" tamaño="sm" icono={ClipboardPlus} onClick={() => setCompletando(h)}>
+                                Completar ficha
+                              </BotonSistema>
+                            </div>
+                          ) : codigo ? (
                             <div className="flex flex-wrap items-center gap-2 font-medium text-foreground">
                               {nombre}
                               <BadgeSistema variante="success" tamaño="sm">
@@ -357,7 +372,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                               ))}
                             </div>
                           )}
-                          {!codigo && (
+                          {!codigo && h.tiene_ficha && (
                             <div className="space-y-2">
                               {sugerencia.tipo === 'ninguno' && !salonManual[h.id] && (
                                 <p className="flex items-center gap-2 text-sm font-medium text-yellow-700 dark:text-yellow-400">
@@ -457,6 +472,26 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
           </TarjetaSistema>
         </aside>
       </div>
+
+      <PanelLateralNinos
+        abierto={completando !== null}
+        titulo="Completar ficha"
+        descripcion={completando ? `Datos de ${completando.nombre} ${completando.apellido}.` : ''}
+        onCerrar={() => setCompletando(null)}
+      >
+        {completando && (
+          <EditarNinoForm
+            key={completando.id}
+            hijo={completando}
+            onCancelar={() => setCompletando(null)}
+            onGuardado={() => {
+              setCompletando(null)
+              // Reload the family so the child can be checked in right away.
+              if (familia) void buscarYElegir(q, familia.id)
+            }}
+          />
+        )}
+      </PanelLateralNinos>
     </>
   )
 }

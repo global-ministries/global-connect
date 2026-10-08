@@ -234,3 +234,34 @@ describe('CheckinClient', () => {
     expect(screen.queryByRole('button', { name: 'Confirmar retiro' })).not.toBeInTheDocument()
   })
 })
+
+describe('CheckinClient — child without ficha (N10)', () => {
+  it('cannot be checked in and offers "Completar ficha" in the side panel', async () => {
+    responder({
+      ninos_buscar_familias: {
+        data: [
+          {
+            ...familia,
+            hijos: [...familia.hijos, hijo({ id: 'h4', nombre: 'Mia', tiene_ficha: false })],
+            padres: [
+              { id: 'p1', nombre: 'Ana', apellido: 'Pérez', telefono: null },
+              { id: 'p2', nombre: 'Juan', apellido: 'Pérez', telefono: null },
+            ],
+          },
+        ],
+        error: null,
+      },
+    })
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    fireEvent.change(screen.getByLabelText('Buscar familia'), { target: { value: 'Pérez' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+    expect(await screen.findByText('Ana Pérez · Juan Pérez')).toBeInTheDocument()
+
+    const mia = screen.getByTestId('nino-h4')
+    expect(within(mia).getByText('Sin ficha de niños')).toBeInTheDocument()
+    expect(within(mia).queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(within(mia).queryByLabelText('Salón de Mia')).not.toBeInTheDocument()
+    fireEvent.click(within(mia).getByRole('button', { name: 'Completar ficha' }))
+    expect(await screen.findByRole('button', { name: 'Crear ficha' })).toBeInTheDocument()
+  })
+})
