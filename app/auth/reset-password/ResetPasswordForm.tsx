@@ -7,11 +7,11 @@ import { createClient } from '@/lib/supabase/client'
 import {
   FondoAutenticacion,
   TarjetaSistema,
-  InputSistema,
   BotonSistema,
   TituloSistema,
   TextoSistema,
 } from "@/components/ui/sistema-diseno"
+import { InputContrasena } from "@/components/ui/input-contrasena"
 
 export default function ResetPasswordForm() {
   const [password, setPassword] = useState("")
@@ -98,9 +98,8 @@ export default function ResetPasswordForm() {
         </div>
 
         <form className="space-y-6" onSubmit={manejarSubmit}>
-          <InputSistema
+          <InputContrasena
             label="Nueva Contraseña"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Tu nueva contraseña"
@@ -108,9 +107,8 @@ export default function ResetPasswordForm() {
             required
           />
 
-          <InputSistema
+          <InputContrasena
             label="Confirmar Contraseña"
-            type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Confirma tu nueva contraseña"

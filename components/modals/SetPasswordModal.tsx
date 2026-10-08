@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { InputSistema, BotonSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { InputContrasena } from "@/components/ui/input-contrasena"
 
 const esquema = z.object({
   nuevaContrasena: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
@@ -81,15 +82,13 @@ export function SetPasswordModal({ isOpen, onClose, userId }: { isOpen: boolean;
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
-            <InputSistema
-              type="password"
+            <InputContrasena
               label="Nueva Contraseña"
               placeholder="Ingresa una contraseña segura"
               error={errors.nuevaContrasena?.message}
               {...register('nuevaContrasena')}
             />
-            <InputSistema
-              type="password"
+            <InputContrasena
               label="Confirmar Contraseña"
               placeholder="Repite la contraseña"
               error={errors.confirmarContrasena?.message}

@@ -33,10 +33,12 @@ interface InputSistemaProps extends React.InputHTMLAttributes<HTMLInputElement> 
   error?: string
   /** Etiqueta visible del input */
   label?: string
+  /** Elemento a la derecha dentro del input (p. ej. un botón para ver la contraseña) */
+  accesorio?: React.ReactNode
 }
 
 export const InputSistema = React.forwardRef<HTMLInputElement, InputSistemaProps>(
-  ({ className, type, icono: Icono, error, label, id: idProp, ...props }, ref) => {
+  ({ className, type, icono: Icono, error, label, accesorio, id: idProp, ...props }, ref) => {
     const idGenerado = useId()
     const id = idProp ?? idGenerado
     const idError = `${id}-error`
@@ -65,12 +67,16 @@ export const InputSistema = React.forwardRef<HTMLInputElement, InputSistemaProps
               "transition-[border-color,box-shadow] duration-200 ease-expo text-foreground placeholder:text-muted-foreground",
               "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
               Icono && "pl-10",
+              accesorio && "pr-12",
               error && "border-red-300 dark:border-red-500/50 focus:border-red-500 focus:ring-red-500/20",
               className
             )}
             ref={ref}
             {...props}
           />
+          {accesorio && (
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">{accesorio}</div>
+          )}
         </div>
         {error && (
           <p id={idError} role="alert" className="text-red-500 dark:text-red-400 text-sm mt-1">
