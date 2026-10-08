@@ -4,9 +4,9 @@
 -- Covers:
 --   a. An Anfitriones volunteer registers a family (new parent, two children,
 --      one pickup person): relations child→padre, fichas, VIP, pickup rows.
---   b. A second registration with the same phone reuses the parent (no
---      duplicate) and is not VIP; the search finds the family by phone, by
---      parent name and by child name.
+--   b. New-parent data with the same phone is refused (padre_existente);
+--      the explicit padre.id reuses the parent (no duplicate, not VIP); the
+--      search finds the family by phone, by parent name and by child name.
 --   c. Registering the same child again for that parent is refused.
 --   d. ninos_actualizar_nino edits the ficha and replaces the pickup list.
 --   e. Atomicity: an invalid second child rolls back the whole call.
@@ -143,7 +143,7 @@ SELECT pg_temp.assert_eq('a: relaciones child→padre (tipo padre)',
   $q$SELECT count(*)::text FROM public.relaciones_usuarios
       WHERE usuario2_id = (pg_temp.ctx('r1')::jsonb ->> 'padre_id')::uuid AND tipo_relacion = 'padre'$q$, '2');
 SELECT pg_temp.assert_eq('a: fichas are VIP since today with the allergy',
-  $q$SELECT string_agg((f.es_vip_desde = current_date)::text || ':' || f.alergias || ':' || f.cambio_panal, ',')
+  $q$SELECT string_agg((f.es_vip_desde = (now() AT TIME ZONE 'America/Caracas')::date)::text || ':' || f.alergias || ':' || f.cambio_panal, ',')
        FROM public.ninos_fichas f
       WHERE f.usuario_id IN (SELECT jsonb_array_elements_text(pg_temp.ctx('r1')::jsonb -> 'hijos')::uuid)$q$,
   'true:ZZ maní:true,true:ZZ maní:true');
@@ -157,12 +157,16 @@ SELECT pg_temp.assert_eq('a: the parent phone is stored normalized',
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(1);
 
--- ── b. same phone → same parent, not VIP; search ─────────────────────
+-- ── b. same phone refused; explicit id reuses; search ─────────────────────
 
+SELECT pg_temp.assert_raises('b: new-parent data matching an existing phone is refused (padre_existente)',
+  $q$SELECT public.ninos_registrar_familia(pg_temp.familia('ZZ Otra',
+       jsonb_build_array(pg_temp.hijo('ZZ Teo', '2021-01-15'))))$q$, '23505');
 INSERT INTO t_nf_ctx (k, v)
-SELECT 'r2', public.ninos_registrar_familia(pg_temp.familia('ZZ Otra',
-         jsonb_build_array(pg_temp.hijo('ZZ Teo', '2021-01-15'))))::text;
-SELECT pg_temp.assert_eq('b: the parent is reused by phone',
+SELECT 'r2', public.ninos_registrar_familia(jsonb_build_object(
+         'padre', jsonb_build_object('id', pg_temp.ctx('r1')::jsonb ->> 'padre_id'),
+         'hijos', jsonb_build_array(pg_temp.hijo('ZZ Teo', '2021-01-15'))))::text;
+SELECT pg_temp.assert_eq('b: the explicit padre.id reuses the parent, not VIP',
   $q$SELECT ((pg_temp.ctx('r2')::jsonb ->> 'padre_id') = (pg_temp.ctx('r1')::jsonb ->> 'padre_id'))::text
             || ':' || (pg_temp.ctx('r2')::jsonb ->> 'padre_nuevo')$q$, 'true:false');
 SELECT pg_temp.assert_eq('b: search by phone finds one parent with three children',

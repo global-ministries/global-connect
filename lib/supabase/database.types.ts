@@ -8030,6 +8030,7 @@ export type Database = {
           codigo: string
           entrada_at: string
           fecha_nacimiento: string
+          grado: number
           habitos: string
           necesidades_especiales: string
           nino_id: string
@@ -8037,6 +8038,23 @@ export type Database = {
           puede_comer: boolean
         }[]
       }
+      ninos_buscar_codigo: {
+        Args: { p_codigo: string; p_fecha: string; p_turno_id: string }
+        Returns: {
+          apellido: string
+          autorizados: Json
+          checkin_id: string
+          entrada_at: string
+          nino_id: string
+          nombre: string
+          retirado_por_nombre: string
+          salida_at: string
+          salon: string
+          salon_id: string
+        }[]
+      }
+      ninos_hoy: { Args: never; Returns: string }
+      ninos_puede_ver_algun_salon: { Args: never; Returns: boolean }
       ninos_puede_configurar: { Args: { p_equipo_id: string }; Returns: boolean }
       ninos_puede_operar: { Args: { p_equipo_id: string }; Returns: boolean }
       ninos_puede_operar_algun_area: { Args: never; Returns: boolean }
