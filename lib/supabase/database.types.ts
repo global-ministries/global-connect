@@ -8135,6 +8135,10 @@ export type Database = {
         Returns: undefined
       }
       ninos_buscar_familias: { Args: { p_q: string }; Returns: Json }
+      ninos_buscar_hijos_vincular: {
+        Args: { p_padre_id: string; p_q: string }
+        Returns: Json
+      }
       ninos_buscar_padre: {
         Args: { p_cedula: string; p_telefono: string }
         Returns: Json
