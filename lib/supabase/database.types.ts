@@ -7468,6 +7468,42 @@ export type Database = {
           },
         ]
       }
+      ninos_preregistros: {
+        Row: {
+          campus_id: string
+          confirmado_at: string | null
+          confirmado_por: string | null
+          created_at: string
+          estado: string
+          familia_padre_id: string | null
+          id: string
+          ip_hash: string | null
+          payload: Json
+        }
+        Insert: {
+          campus_id: string
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          estado?: string
+          familia_padre_id?: string | null
+          id?: string
+          ip_hash?: string | null
+          payload: Json
+        }
+        Update: {
+          campus_id?: string
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          estado?: string
+          familia_padre_id?: string | null
+          id?: string
+          ip_hash?: string | null
+          payload?: Json
+        }
+        Relationships: []
+      }
       ninos_salones: {
         Row: {
           activo: boolean
@@ -8058,6 +8094,36 @@ export type Database = {
       ninos_puede_configurar: { Args: { p_equipo_id: string }; Returns: boolean }
       ninos_puede_operar: { Args: { p_equipo_id: string }; Returns: boolean }
       ninos_puede_operar_algun_area: { Args: never; Returns: boolean }
+      ninos_correos_visita: {
+        Args: { p_evento: string; p_fecha: string; p_nino_ids: string[]; p_turno_id: string }
+        Returns: {
+          codigo: string
+          email: string
+          entrada_at: string
+          nino_genero: string | null
+          nino_nombre: string
+          padre_id: string
+          padre_nombre: string
+          retirado_por_nombre: string | null
+          salida_at: string | null
+          salon: string
+          visita_id: string
+        }[]
+      }
+      ninos_preregistro_campus: { Args: never; Returns: { id: string; nombre: string }[] }
+      ninos_preregistro_crear: {
+        Args: { p_campus_id: string; p_ip_hash: string; p_payload: Json }
+        Returns: string
+      }
+      ninos_preregistro_invitar: { Args: { p_email: string; p_id: string }; Returns: Json }
+      ninos_preregistro_resolver: {
+        Args: { p_accion: string; p_id: string; p_payload?: Json }
+        Returns: Json
+      }
+      ninos_preregistros_pendientes: {
+        Args: never
+        Returns: { campus_id: string; created_at: string; id: string; payload: Json }[]
+      }
       ninos_puede_ver_salon: { Args: { p_equipo_id: string }; Returns: boolean }
       ninos_sirve_en_subarea: {
         Args: { p_equipo_id: string; p_labels: string[] }
