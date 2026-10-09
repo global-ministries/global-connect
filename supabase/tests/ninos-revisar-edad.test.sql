@@ -142,6 +142,12 @@ SELECT pg_temp.assert_eq('a: the 8-year-old K is not in the review list',
   $q$SELECT jsonb_array_length(public.ninos_buscar_hijos_revisar_edad('Zqkiara Zqrevisa', pg_temp.id('us', 3)))::text$q$, '0');
 SELECT pg_temp.assert_eq('a: the 30-year-old single O is found by cédula',
   $q$SELECT h ->> 'edad_anos' FROM jsonb_array_elements(public.ninos_buscar_hijos_revisar_edad('99995707', pg_temp.id('us', 3))) h$q$, '30');
+SELECT pg_temp.assert_eq('a: a single first name (N14) finds T, never the married M',
+  $q$SELECT string_agg(h ->> 'id', ',') FROM jsonb_array_elements(public.ninos_buscar_hijos_revisar_edad('zqteo', pg_temp.id('us', 3))) h
+      WHERE h ->> 'id' IN (pg_temp.id('us', 5)::text)$q$, pg_temp.id('us', 5)::text);
+SELECT pg_temp.assert_eq('a: a single last name (N14) excludes married M, S and the under-13 K',
+  $q$SELECT count(*)::text FROM jsonb_array_elements(public.ninos_buscar_hijos_revisar_edad('Zqrevisa', pg_temp.id('us', 3))) h
+      WHERE h ->> 'id' IN (pg_temp.id('us', 4)::text, pg_temp.id('us', 8)::text, pg_temp.id('us', 9)::text)$q$, '0');
 SELECT pg_temp.assert_eq('a: only name, age and masked cédula',
   $q$SELECT (SELECT string_agg(k, ',' ORDER BY k) FROM jsonb_object_keys(h) k) || '|' || (h ->> 'edad_anos') || '|' || (h ->> 'cedula')
        FROM jsonb_array_elements(public.ninos_buscar_hijos_revisar_edad('Zqteo Zqrevisa', pg_temp.id('us', 3))) h$q$,

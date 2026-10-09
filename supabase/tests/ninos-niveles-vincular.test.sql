@@ -128,8 +128,14 @@ SELECT pg_temp.assert_eq('a: the full name finds K',
 SELECT pg_temp.assert_eq('a: the exact cédula finds K',
   $q$SELECT count(*)::text FROM jsonb_array_elements(public.ninos_buscar_hijos_vincular('99995504', pg_temp.id('us', 3))) h
       WHERE h ->> 'id' = pg_temp.id('us', 4)::text$q$, '1');
-SELECT pg_temp.assert_eq('a: one name alone finds nothing',
-  $q$SELECT jsonb_array_length(public.ninos_buscar_hijos_vincular('Zqkiara', pg_temp.id('us', 3)))::text$q$, '0');
+SELECT pg_temp.assert_eq('a: a single first name (N14, accent/case-insensitive) finds K',
+  $q$SELECT count(*)::text FROM jsonb_array_elements(public.ninos_buscar_hijos_vincular('ZQKÍARA', pg_temp.id('us', 3))) h
+      WHERE h ->> 'id' = pg_temp.id('us', 4)::text$q$, '1');
+SELECT pg_temp.assert_eq('a: a single last name (N14) finds K but never the 13+ T',
+  $q$SELECT string_agg(h ->> 'id', ',') FROM jsonb_array_elements(public.ninos_buscar_hijos_vincular('zqnivel', pg_temp.id('us', 3))) h
+      WHERE h ->> 'id' IN (pg_temp.id('us', 4)::text, pg_temp.id('us', 5)::text)$q$, pg_temp.id('us', 4)::text);
+SELECT pg_temp.assert_eq('a: a single word of two letters finds nothing',
+  $q$SELECT jsonb_array_length(public.ninos_buscar_hijos_vincular('zq', pg_temp.id('us', 3)))::text$q$, '0');
 SELECT pg_temp.assert_eq('a: two characters of the first name find nothing',
   $q$SELECT jsonb_array_length(public.ninos_buscar_hijos_vincular('zq zqnivel', pg_temp.id('us', 3)))::text$q$, '0');
 SELECT pg_temp.assert_eq('a: only name, age and masked cédula',

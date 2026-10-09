@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 import { FamiliasClient } from '@/components/ninos/familias-client'
 import { VincularHijoForm } from '@/components/ninos/vincular-hijo-form'
@@ -62,11 +62,11 @@ describe('VincularHijoForm', () => {
     expect(rpc).toHaveBeenLastCalledWith('ninos_vincular_padre', { p_nino_ids: ['h1'], p_padre_id: 'a1', p_padre_nuevo: null })
   })
 
-  it('asks for more than two characters before searching', () => {
+  it('asks for at least three letters before searching', () => {
     render(<VincularHijoForm adulto={{ id: 'a1', nombre: 'Adela Ruiz' }} onVinculado={jest.fn()} onCancelar={jest.fn()} />)
     fireEvent.change(screen.getByLabelText('Nombre o cédula del niño'), { target: { value: 'Ca' } })
     fireEvent.click(screen.getByRole('button', { name: 'Buscar niño' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Escribe el nombre y el apellido del niño, o su cédula.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Escribe al menos 3 letras del nombre o del apellido, o la cédula.')
     expect(rpc).not.toHaveBeenCalled()
   })
 
@@ -76,6 +76,49 @@ describe('VincularHijoForm', () => {
     fireEvent.change(screen.getByLabelText('Nombre o cédula del niño'), { target: { value: 'Nadie' } })
     fireEvent.click(screen.getByRole('button', { name: 'Buscar niño' }))
     expect(await screen.findByText('No se encontraron niños.')).toBeInTheDocument()
+  })
+
+  describe('fast search (N14)', () => {
+    afterEach(() => jest.useRealTimers())
+
+    it('searches a single first name as you type, after a short pause', async () => {
+      jest.useFakeTimers()
+      rpc.mockResolvedValue({ data: [{ id: 'h1', nombre: 'Camila', apellido: 'Ruiz', edad_anos: 8, cedula: null }], error: null })
+      render(<VincularHijoForm adulto={{ id: 'a1', nombre: 'Adela Ruiz' }} onVinculado={jest.fn()} onCancelar={jest.fn()} />)
+      const input = screen.getByLabelText('Nombre o cédula del niño')
+      fireEvent.change(input, { target: { value: 'ca' } })
+      fireEvent.change(input, { target: { value: 'cam' } })
+      fireEvent.change(input, { target: { value: 'camila' } })
+      expect(rpc).not.toHaveBeenCalled()
+      await act(async () => {
+        jest.advanceTimersByTime(300)
+      })
+      expect(rpc).toHaveBeenCalledTimes(1)
+      expect(rpc).toHaveBeenCalledWith('ninos_buscar_hijos_vincular', { p_q: 'camila', p_padre_id: 'a1' })
+      expect(screen.getByText('Camila Ruiz')).toBeInTheDocument()
+    })
+
+    it('does not search as you type with fewer than three letters', async () => {
+      jest.useFakeTimers()
+      render(<VincularHijoForm adulto={{ id: 'a1', nombre: 'Adela Ruiz' }} onVinculado={jest.fn()} onCancelar={jest.fn()} />)
+      fireEvent.change(screen.getByLabelText('Nombre o cédula del niño'), { target: { value: 'ca' } })
+      await act(async () => {
+        jest.advanceTimersByTime(1000)
+      })
+      expect(rpc).not.toHaveBeenCalled()
+    })
+
+    it('Enter searches at once and cancels the pending typed search', async () => {
+      jest.useFakeTimers()
+      rpc.mockResolvedValue({ data: [], error: null })
+      render(<VincularHijoForm adulto={{ id: 'a1', nombre: 'Adela Ruiz' }} onVinculado={jest.fn()} onCancelar={jest.fn()} />)
+      fireEvent.change(screen.getByLabelText('Nombre o cédula del niño'), { target: { value: 'camila' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Buscar niño' }))
+      await act(async () => {
+        jest.advanceTimersByTime(1000)
+      })
+      expect(rpc).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('Revisar edad (N13)', () => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarCheck, Link2, Search } from 'lucide-react'
 
 import { BotonSistema, InputSistema, TextoSistema } from '@/components/ui/sistema-diseno'
@@ -17,6 +17,9 @@ type Props = {
 
 type Pestana = 'menores' | 'revisar'
 
+const MIN_LETRAS = 3
+const ESPERA_MS = 300
+
 const PESTANAS: { valor: Pestana; etiqueta: string }[] = [
   { valor: 'menores', etiqueta: 'Menores de 13' },
   { valor: 'revisar', etiqueta: 'Revisar edad' },
@@ -31,7 +34,9 @@ const PESTANAS: { valor: Pestana; etiqueta: string }[] = [
  * no birth date who are not married (ninos_buscar_hijos_revisar_edad), for
  * children registered with a wrong date; linking requires a corrected birth
  * date under 13, saved by ninos_vincular_revisando_edad before the link.
- * Only name, age and masked cédula are shown.
+ * Only name, age and masked cédula are shown. N14: a single word of 3+
+ * letters (first OR last name) also searches, and the search runs as you
+ * type (debounced) as well as on Enter / the button.
  */
 export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
   const [pestana, setPestana] = useState<Pestana>('menores')
@@ -41,8 +46,21 @@ export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
   const [guardando, setGuardando] = useState(false)
   const [corrigiendo, setCorrigiendo] = useState<string | null>(null)
   const [fechaCorregida, setFechaCorregida] = useState('')
+  const ultimaBusqueda = useRef(0)
+  const espera = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (q.trim().length < MIN_LETRAS) return
+    espera.current = setTimeout(() => void buscar(), ESPERA_MS)
+    return () => {
+      if (espera.current) clearTimeout(espera.current)
+    }
+    // buscar reads the current q and pestana; re-run only when they change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, pestana])
 
   function cambiarPestana(p: Pestana) {
+    ultimaBusqueda.current++
     setPestana(p)
     setHijos(null)
     setError(null)
@@ -50,16 +68,20 @@ export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
   }
 
   async function buscar() {
-    if (q.trim().length < 3) {
-      setError('Escribe el nombre y el apellido del niño, o su cédula.')
+    // Enter / the button searches now: the pending typed search is not needed.
+    if (espera.current) clearTimeout(espera.current)
+    espera.current = null
+    if (q.trim().length < MIN_LETRAS) {
+      setError('Escribe al menos 3 letras del nombre o del apellido, o la cédula.')
       return
     }
+    const id = ++ultimaBusqueda.current
     setError(null)
     setCorrigiendo(null)
-    setGuardando(true)
     const rpcBuscar = pestana === 'menores' ? 'ninos_buscar_hijos_vincular' : 'ninos_buscar_hijos_revisar_edad'
     const { data, error: err } = await createClient().rpc(rpcBuscar, { p_q: q.trim(), p_padre_id: adulto.id })
-    setGuardando(false)
+    // A newer search (typing or a tab change) already started: drop this one.
+    if (id !== ultimaBusqueda.current) return
     if (err) {
       setError(mensajeDeErrorFamilia(err))
       setHijos(null)
@@ -144,7 +166,7 @@ export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
             type="search"
             icono={Search}
             aria-label="Nombre o cédula del niño"
-            placeholder="Nombre y apellido, o cédula"
+            placeholder="Nombre, apellido o cédula"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
