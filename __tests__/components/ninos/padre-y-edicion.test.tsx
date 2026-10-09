@@ -77,19 +77,25 @@ const hijo: HijoEncontrado = {
 }
 
 describe('EditarNinoForm — identity', () => {
+  it('offers only Masculino and Femenino as gender', () => {
+    render(<EditarNinoForm hijo={hijo} onGuardado={jest.fn()} onCancelar={jest.fn()} />)
+    const opciones = Array.from((screen.getByLabelText('Género del niño 1') as HTMLSelectElement).options).map((o) => o.value)
+    expect(opciones).toEqual(['', 'Masculino', 'Femenino'])
+  })
+
   it('edits the name, birth date and gender through ninos_actualizar_nino', async () => {
     rpc.mockResolvedValue({ data: null, error: null })
     const onGuardado = jest.fn()
     render(<EditarNinoForm hijo={hijo} onGuardado={onGuardado} onCancelar={jest.fn()} />)
     fireEvent.change(screen.getByLabelText('Nombre del niño 1'), { target: { value: 'Luis Miguel' } })
     fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2022-04-11' } })
-    fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Otro' } })
+    fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Femenino' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar ficha' }))
 
     await waitFor(() => expect(onGuardado).toHaveBeenCalled())
     expect(rpc).toHaveBeenCalledWith('ninos_actualizar_nino', {
       p_nino_id: 'h1',
-      p: expect.objectContaining({ nombre: 'Luis Miguel', apellido: 'Pérez', fecha_nacimiento: '2022-04-11', genero: 'Otro' }),
+      p: expect.objectContaining({ nombre: 'Luis Miguel', apellido: 'Pérez', fecha_nacimiento: '2022-04-11', genero: 'Femenino' }),
     })
   })
 

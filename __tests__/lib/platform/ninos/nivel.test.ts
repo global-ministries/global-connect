@@ -108,7 +108,7 @@ describe('the level in payloads and forms', () => {
     const r = validarFamilia(
       {
         padre: { id: 'p1', nombre: '', apellido: '', telefono: '', cedula: '', genero: '' },
-        hijos: [{ ...hijoVacio(), nombre: 'A', apellido: 'B', fechaNacimiento: '2024-01-01', genero: 'Otro', salonPreferidoId: 'no-es-uuid' }],
+        hijos: [{ ...hijoVacio(), nombre: 'A', apellido: 'B', fechaNacimiento: '2024-01-01', genero: 'Femenino', salonPreferidoId: 'no-es-uuid' }],
         autorizados: [],
       },
       HOY,
@@ -118,7 +118,7 @@ describe('the level in payloads and forms', () => {
 
   it('the edit form reads the stored preferred room back', () => {
     const f = hijoAForm({
-      id: 'n', nombre: 'L', apellido: 'P', fecha_nacimiento: '2025-01-01', genero: 'Otro', grado: null, alergias: null,
+      id: 'n', nombre: 'L', apellido: 'P', fecha_nacimiento: '2025-01-01', genero: 'Femenino', grado: null, alergias: null,
       necesidades_especiales: null, habitos: null, notas: null, puede_comer: null, cambio_panal: null, autoriza_imagen: null,
       escolarizado: null, salon_preferido_id: 'mat', es_vip_desde: null, tiene_ficha: true, autorizados: [],
     })
@@ -149,7 +149,7 @@ describe('the check-in honors the preferred room before age', () => {
     }
     const mat = { ...fila, id: 'mat', nombre: 'Maternal', edad_min_meses: 0, edad_max_meses: 23, orden: 10 }
     const hijo = {
-      id: 'n', nombre: 'L', apellido: 'P', fecha_nacimiento: '2025-10-01', genero: 'Otro', grado: null, alergias: null,
+      id: 'n', nombre: 'L', apellido: 'P', fecha_nacimiento: '2025-10-01', genero: 'Femenino', grado: null, alergias: null,
       necesidades_especiales: null, habitos: null, notas: null, puede_comer: null, cambio_panal: null, autoriza_imagen: null,
       escolarizado: null, salon_preferido_id: 'pre1', es_vip_desde: null, tiene_ficha: true, autorizados: [],
     }

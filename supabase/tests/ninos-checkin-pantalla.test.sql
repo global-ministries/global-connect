@@ -170,12 +170,12 @@ SELECT pg_temp.assert_eq('b: with the explicit id the parent is reused, not VIP'
 -- ── c. edit the child's personal data ────────────────────────────────
 
 SELECT public.ninos_actualizar_nino((pg_temp.ctx('r1')::jsonb -> 'hijos' ->> 0)::uuid,
-  '{"nombre": "ZZ Luisito", "apellido": "ZZ Np2", "fecha_nacimiento": "2022-04-11", "genero": "Otro", "alergias": "ZZ soya"}'::jsonb);
+  '{"nombre": "ZZ Luisito", "apellido": "ZZ Np2", "fecha_nacimiento": "2022-04-11", "genero": "Femenino", "alergias": "ZZ soya"}'::jsonb);
 RESET ROLE;
 SELECT pg_temp.assert_eq('c: name, birth date and gender changed',
   $q$SELECT u.nombre || ':' || u.apellido || ':' || u.fecha_nacimiento::date || ':' || u.genero || ':' || f.alergias
        FROM public.usuarios u JOIN public.ninos_fichas f ON f.usuario_id = u.id
-      WHERE u.id = (pg_temp.ctx('r1')::jsonb -> 'hijos' ->> 0)::uuid$q$, 'ZZ Luisito:ZZ Np2:2022-04-11:Otro:ZZ soya');
+      WHERE u.id = (pg_temp.ctx('r1')::jsonb -> 'hijos' ->> 0)::uuid$q$, 'ZZ Luisito:ZZ Np2:2022-04-11:Femenino:ZZ soya');
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_raises('c: an invalid gender is refused',

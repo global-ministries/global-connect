@@ -8,7 +8,7 @@ import {
 import { agruparFamilias, parseFamilias, type FamiliaEncontrada } from '@/lib/platform/ninos/familias-vista'
 
 function hijo(id: string, extra: Record<string, unknown> = {}) {
-  return { id, nombre: id, apellido: 'P', fecha_nacimiento: '2021-01-01', genero: 'Otro', autorizados: [], ...extra }
+  return { id, nombre: id, apellido: 'P', fecha_nacimiento: '2021-01-01', genero: 'Femenino', autorizados: [], ...extra }
 }
 
 describe('parseFamilias (N10)', () => {
@@ -79,6 +79,12 @@ describe('validarPadreNuevo', () => {
         'El teléfono no es válido.',
         'El género es obligatorio.',
       ])
+  })
+
+  it('rejects a gender other than Masculino or Femenino', () => {
+    const r = validarPadreNuevo({ ...padreNuevoVacio(), nombre: 'Luis', apellido: 'P', telefono: '0414 555 1234', genero: 'Otro' })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errores).toEqual(['El género es obligatorio.'])
   })
 
   it('rejects an invalid email', () => {

@@ -5,7 +5,7 @@
  * volunteer early, readable errors.
  */
 
-export const GENEROS = ['Masculino', 'Femenino', 'Otro'] as const
+export const GENEROS = ['Masculino', 'Femenino'] as const
 export type Genero = (typeof GENEROS)[number]
 
 /** PreK = 0, 1st–6th = 1..6 (same scale as sugerirSalon). */
