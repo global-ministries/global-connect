@@ -22,6 +22,7 @@ import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
 import { canAccess } from '@/lib/navigation/canAccess'
 import { insertDreamTeamMenuItem, useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
+import { insertNinosMenuItem, useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
 
 // ── SubItem type ──
 interface SubItem {
@@ -125,8 +126,13 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   // 'grupos-vida' like there. Built dynamically from the session, so it is not
   // part of the static `mainMenuItems`.
   const dreamTeamMenuItem: MobileMenuItem | null = useDreamTeamMenuItem(platformSession)
+  // Niños — same server-fed section as the desktop sidebar.
+  const ninosMenuItem: MobileMenuItem | null = useNinosMenuItem()
   const primaryMenuItems = [
-    ...insertDreamTeamMenuItem<MobileMenuItem>(mainMenuItems, dreamTeamMenuItem),
+    ...insertNinosMenuItem<MobileMenuItem>(
+      insertDreamTeamMenuItem<MobileMenuItem>(mainMenuItems, dreamTeamMenuItem),
+      ninosMenuItem,
+    ),
     ...platformNavigationItems,
   ]
 
@@ -136,6 +142,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
     const itemsConSubmenu = [
       ...mainMenuItems,
       ...(dreamTeamMenuItem ? [dreamTeamMenuItem] : []),
+      ...(ninosMenuItem ? [ninosMenuItem] : []),
       ...platformNavigationItems,
       ...footerMenuItems,
     ]
@@ -155,7 +162,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       newOpen.forEach(id => merged.add(id))
       return merged
     })
-  }, [pathname, platformNavigationItems, dreamTeamMenuItem])
+  }, [pathname, platformNavigationItems, dreamTeamMenuItem, ninosMenuItem])
 
   const toggleSubmenu = (id: string) => {
     setOpenSubmenus(prev => {

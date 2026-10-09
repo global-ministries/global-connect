@@ -40,8 +40,9 @@ export async function sendEmail({
   )
 
   if (error) {
+    // Never log the recipient address (personal data); the count is enough to triage.
     console.error('[Email] Error enviando:', {
-      to,
+      destinatarios: Array.isArray(to) ? to.length : 1,
       subject,
       error: error.message,
     })

@@ -7263,6 +7263,316 @@ export type Database = {
           },
         ]
       }
+      ninos_autorizados_retiro: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id: string
+          nino_id: string
+          nombre: string
+          relacion: string | null
+          telefono: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nino_id: string
+          nombre: string
+          relacion?: string | null
+          telefono?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nino_id?: string
+          nombre?: string
+          relacion?: string | null
+          telefono?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_autorizados_retiro_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ninos_checkins: {
+        Row: {
+          campus_id: string
+          codigo: string
+          entrada_at: string
+          entrada_por: string | null
+          fecha: string
+          id: string
+          nino_id: string
+          retirado_por_nombre: string | null
+          salida_at: string | null
+          salida_por: string | null
+          salon_id: string
+          turno_id: string
+          visita_id: string
+        }
+        Insert: {
+          campus_id: string
+          codigo: string
+          entrada_at?: string
+          entrada_por?: string | null
+          fecha: string
+          id?: string
+          nino_id: string
+          retirado_por_nombre?: string | null
+          salida_at?: string | null
+          salida_por?: string | null
+          salon_id: string
+          turno_id: string
+          visita_id: string
+        }
+        Update: {
+          campus_id?: string
+          codigo?: string
+          entrada_at?: string
+          entrada_por?: string | null
+          fecha?: string
+          id?: string
+          nino_id?: string
+          retirado_por_nombre?: string | null
+          salida_at?: string | null
+          salida_por?: string | null
+          salon_id?: string
+          turno_id?: string
+          visita_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_checkins_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_entrada_por_fkey"
+            columns: ["entrada_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_salida_por_fkey"
+            columns: ["salida_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "ninos_salones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ninos_fichas: {
+        Row: {
+          alergias: string | null
+          autoriza_imagen: boolean | null
+          cambio_panal: boolean | null
+          created_at: string
+          es_vip_desde: string | null
+          escolarizado: boolean | null
+          grado: number | null
+          habitos: string | null
+          necesidades_especiales: string | null
+          notas: string | null
+          puede_comer: boolean | null
+          salon_preferido_id: string | null
+          updated_at: string
+          updated_by: string | null
+          usuario_id: string
+        }
+        Insert: {
+          alergias?: string | null
+          autoriza_imagen?: boolean | null
+          cambio_panal?: boolean | null
+          created_at?: string
+          es_vip_desde?: string | null
+          escolarizado?: boolean | null
+          grado?: number | null
+          habitos?: string | null
+          necesidades_especiales?: string | null
+          notas?: string | null
+          puede_comer?: boolean | null
+          salon_preferido_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          usuario_id: string
+        }
+        Update: {
+          alergias?: string | null
+          autoriza_imagen?: boolean | null
+          cambio_panal?: boolean | null
+          created_at?: string
+          es_vip_desde?: string | null
+          escolarizado?: boolean | null
+          grado?: number | null
+          habitos?: string | null
+          necesidades_especiales?: string | null
+          notas?: string | null
+          puede_comer?: boolean | null
+          salon_preferido_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_fichas_salon_preferido_id_fkey"
+            columns: ["salon_preferido_id"]
+            isOneToOne: false
+            referencedRelation: "ninos_salones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ninos_preregistros: {
+        Row: {
+          campus_id: string
+          confirmado_at: string | null
+          confirmado_por: string | null
+          created_at: string
+          estado: string
+          familia_padre_id: string | null
+          id: string
+          ip_hash: string | null
+          payload: Json
+        }
+        Insert: {
+          campus_id: string
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          estado?: string
+          familia_padre_id?: string | null
+          id?: string
+          ip_hash?: string | null
+          payload: Json
+        }
+        Update: {
+          campus_id?: string
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          estado?: string
+          familia_padre_id?: string | null
+          id?: string
+          ip_hash?: string | null
+          payload?: Json
+        }
+        Relationships: []
+      }
+      ninos_salones: {
+        Row: {
+          activo: boolean
+          area: string
+          campus_id: string
+          capacidad: number
+          created_at: string
+          edad_max_meses: number | null
+          edad_min_meses: number | null
+          equipo_id: string
+          es_necesidades_especiales: boolean
+          grado_max: number | null
+          grado_min: number | null
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          area: string
+          campus_id: string
+          capacidad?: number
+          created_at?: string
+          edad_max_meses?: number | null
+          edad_min_meses?: number | null
+          equipo_id: string
+          es_necesidades_especiales?: boolean
+          grado_max?: number | null
+          grado_min?: number | null
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          area?: string
+          campus_id?: string
+          capacidad?: number
+          created_at?: string
+          edad_max_meses?: number | null
+          edad_min_meses?: number | null
+          equipo_id?: string
+          es_necesidades_especiales?: boolean
+          grado_max?: number | null
+          grado_min?: number | null
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_salones_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_salones_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_casas_anfitrionas_disponibles: {
@@ -7717,6 +8027,161 @@ export type Database = {
       }
     }
     Functions: {
+      ninos_checkin: {
+        Args: {
+          p_fecha: string
+          p_nino_ids: string[]
+          p_salon_ids: string[]
+          p_turno_id: string
+        }
+        Returns: {
+          capacidad: number
+          codigo: string
+          nino_id: string
+          ocupacion: number
+          salon_id: string
+          sobre_capacidad: boolean
+        }[]
+      }
+      ninos_checkout: {
+        Args: {
+          p_codigo: string
+          p_fecha: string
+          p_retirado_por: string
+          p_turno_id: string
+        }
+        Returns: {
+          nino_id: string
+          salida_at: string
+          salon_id: string
+        }[]
+      }
+      ninos_lista_salon: {
+        Args: { p_fecha: string; p_salon_id: string; p_turno_id: string }
+        Returns: {
+          alergias: string
+          apellido: string
+          autoriza_imagen: boolean
+          cambio_panal: boolean
+          codigo: string
+          entrada_at: string
+          fecha_nacimiento: string
+          grado: number
+          habitos: string
+          necesidades_especiales: string
+          nino_id: string
+          nombre: string
+          puede_comer: boolean
+        }[]
+      }
+      ninos_buscar_codigo: {
+        Args: { p_codigo: string; p_fecha: string; p_turno_id: string }
+        Returns: {
+          apellido: string
+          autorizados: Json
+          checkin_id: string
+          entrada_at: string
+          nino_id: string
+          nombre: string
+          retirado_por_nombre: string
+          salida_at: string
+          salon: string
+          salon_id: string
+        }[]
+      }
+      ninos_hoy: { Args: never; Returns: string }
+      ninos_puede_ver_algun_salon: { Args: never; Returns: boolean }
+      ninos_puede_configurar: { Args: { p_equipo_id: string }; Returns: boolean }
+      ninos_puede_operar: { Args: { p_equipo_id: string }; Returns: boolean }
+      ninos_puede_operar_algun_area: { Args: never; Returns: boolean }
+      ninos_correos_visita: {
+        Args: { p_evento: string; p_fecha: string; p_nino_ids: string[]; p_turno_id: string }
+        Returns: {
+          codigo: string
+          email: string
+          entrada_at: string
+          nino_genero: string | null
+          nino_nombre: string
+          padre_id: string
+          padre_nombre: string
+          retirado_por_nombre: string | null
+          salida_at: string | null
+          salon: string
+          visita_id: string
+        }[]
+      }
+      ninos_preregistro_campus: { Args: never; Returns: { id: string; nombre: string }[] }
+      ninos_preregistro_crear: {
+        Args: { p_campus_id: string; p_ip_hash: string; p_payload: Json }
+        Returns: string
+      }
+      ninos_preregistro_invitar: { Args: { p_email: string; p_id: string }; Returns: Json }
+      ninos_preregistro_resolver: {
+        Args: { p_accion: string; p_id: string; p_payload?: Json }
+        Returns: Json
+      }
+      ninos_preregistros_pendientes: {
+        Args: never
+        Returns: { campus_id: string; created_at: string; id: string; payload: Json }[]
+      }
+      ninos_puede_ver_salon: { Args: { p_equipo_id: string }; Returns: boolean }
+      ninos_sirve_en_subarea: {
+        Args: { p_equipo_id: string; p_labels: string[] }
+        Returns: boolean
+      }
+      ninos_usuario_actual: { Args: never; Returns: string }
+      ninos_actualizar_nino: {
+        Args: { p: Json; p_nino_id: string }
+        Returns: undefined
+      }
+      ninos_buscar_familias: { Args: { p_q: string }; Returns: Json }
+      ninos_buscar_hijos_revisar_edad: {
+        Args: { p_padre_id: string; p_q: string }
+        Returns: Json
+      }
+      ninos_buscar_hijos_vincular: {
+        Args: { p_padre_id: string; p_q: string }
+        Returns: Json
+      }
+      ninos_buscar_padre: {
+        Args: { p_cedula: string; p_telefono: string }
+        Returns: Json
+      }
+      ninos_crear_ficha: {
+        Args: { p_autorizados: Json; p_ficha: Json; p_nino_id: string }
+        Returns: undefined
+      }
+      ninos_vincular_padre: {
+        Args: { p_nino_ids: string[]; p_padre_id: string | null; p_padre_nuevo: Json | null }
+        Returns: Json
+      }
+      ninos_vincular_revisando_edad: {
+        Args: { p_fecha_nacimiento: string; p_nino_id: string; p_padre_id: string | null; p_padre_nuevo: Json | null }
+        Returns: Json
+      }
+      ninos_edad_maxima_anos: { Args: never; Returns: number }
+      ninos_en_rango_edad: { Args: { p_fecha_nacimiento: string }; Returns: boolean }
+      ninos_enmascarar: {
+        Args: { p_valor: string; p_visibles: number }
+        Returns: string
+      }
+      ninos_ocupacion: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: {
+          area: string
+          capacidad: number
+          nombre: string
+          orden: number
+          presentes: number
+          salon_id: string
+        }[]
+      }
+      ninos_padre_coincidencias: {
+        Args: { p_cedula: string; p_telefono: string }
+        Returns: Json
+      }
+      ninos_registrar_familia: { Args: { p: Json }; Returns: Json }
+      ninos_texto: { Args: { p: Json; p_key: string }; Returns: string }
       _puede_ver_segmento_lider: {
         Args: {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]

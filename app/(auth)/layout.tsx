@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { createSupabaseServerClient, createSupabaseServerClientOrNull } from "@/lib/supabase/server"
 import { resolveCurrentUserSnapshot } from "@/lib/auth/currentUserSnapshot"
 import { DreamTeamAccesoProvider } from "@/hooks/useDreamTeamAcceso"
+import { NinosAccesoProvider } from "@/hooks/useNinosAcceso"
 import { isDreamTeamEnabled } from "@/lib/platform/dream-team/route-access"
 import { puedeRegistrarParaNavegacion } from "@/lib/platform/dream-team/ficha-persona"
 
@@ -18,6 +19,22 @@ interface PropiedadesLayoutTablero {
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>
 
 const DEFAULT_BRANDING = { logoLightUrl: null as string | null, logoDarkUrl: null as string | null, faviconUrl: null as string | null }
+
+// Niños sidebar flags (odd/tasks/ninos-checkin.md, N6): two definer checks,
+// fail closed on any error.
+async function resolveNinosAcceso(supabase: SupabaseServerClient | null) {
+  const sinAcceso = { puedeOperar: false, puedeVerSalon: false }
+  if (!supabase) return sinAcceso
+  try {
+    const [operar, ver] = await Promise.all([
+      supabase.rpc("ninos_puede_operar_algun_area"),
+      supabase.rpc("ninos_puede_ver_algun_salon"),
+    ])
+    return { puedeOperar: operar.data === true, puedeVerSalon: ver.data === true }
+  } catch {
+    return sinAcceso
+  }
+}
 
 async function resolveBranding(supabase: SupabaseServerClient) {
   // Obtener datos de branding para pasar a sidebar/header
@@ -59,10 +76,11 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
   // resolveCurrentUserSnapshot's doc comment.
   // The Dream Team sidebar links Mi equipo for the volunteer coordinator, whose
   // session carries no read capability: one registrables lookup, fails closed.
-  const [branding, initialCurrentUser, dreamTeamPuedeRegistrar] = await Promise.all([
+  const [branding, initialCurrentUser, dreamTeamPuedeRegistrar, ninosAcceso] = await Promise.all([
     supabase ? resolveBranding(supabase) : Promise.resolve(DEFAULT_BRANDING),
     resolveCurrentUserSnapshot(supabase ?? undefined),
     puedeRegistrarParaNavegacion(supabase, isDreamTeamEnabled()),
+    resolveNinosAcceso(supabase),
   ])
 
   return (
@@ -75,15 +93,17 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
           loading starts true and the client fetch runs as a normal load. */}
       <CurrentUserProvider initial={initialCurrentUser ?? undefined}>
         <DreamTeamAccesoProvider puedeRegistrar={dreamTeamPuedeRegistrar}>
-          <CampusProvider>
-            <div className="min-h-screen bg-[var(--surface-primary)]">
-              <HeaderMovil />
-              <div className="pt-16 pb-20 md:pt-0 md:pb-0">
-                <DashboardLayout>{children}</DashboardLayout>
+          <NinosAccesoProvider puedeOperar={ninosAcceso.puedeOperar} puedeVerSalon={ninosAcceso.puedeVerSalon}>
+            <CampusProvider>
+              <div className="min-h-screen bg-[var(--surface-primary)]">
+                <HeaderMovil />
+                <div className="pt-16 pb-20 md:pt-0 md:pb-0">
+                  <DashboardLayout>{children}</DashboardLayout>
+                </div>
+                <MenuInferiorMovil />
               </div>
-              <MenuInferiorMovil />
-            </div>
-          </CampusProvider>
+            </CampusProvider>
+          </NinosAccesoProvider>
         </DreamTeamAccesoProvider>
       </CurrentUserProvider>
     </BrandingProvider>
