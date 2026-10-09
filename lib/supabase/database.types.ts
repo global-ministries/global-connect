@@ -8135,6 +8135,10 @@ export type Database = {
         Returns: undefined
       }
       ninos_buscar_familias: { Args: { p_q: string }; Returns: Json }
+      ninos_buscar_hijos_revisar_edad: {
+        Args: { p_padre_id: string; p_q: string }
+        Returns: Json
+      }
       ninos_buscar_hijos_vincular: {
         Args: { p_padre_id: string; p_q: string }
         Returns: Json
@@ -8149,6 +8153,10 @@ export type Database = {
       }
       ninos_vincular_padre: {
         Args: { p_nino_ids: string[]; p_padre_id: string | null; p_padre_nuevo: Json | null }
+        Returns: Json
+      }
+      ninos_vincular_revisando_edad: {
+        Args: { p_fecha_nacimiento: string; p_nino_id: string; p_padre_id: string | null; p_padre_nuevo: Json | null }
         Returns: Json
       }
       ninos_edad_maxima_anos: { Args: never; Returns: number }

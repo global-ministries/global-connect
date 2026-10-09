@@ -234,6 +234,7 @@ const MENSAJES: Record<string, string> = {
   sin_padre: 'El niño no está vinculado a ningún representante.',
   vinculo_invalido: 'Esa persona no puede ser padre o madre de este niño.',
   fuera_de_rango: 'Solo se registran en Niños los menores de 13 años con fecha de nacimiento.',
+  edad_fuera_de_rango: 'Con esa fecha tendría 13 años o más: corrige la fecha de nacimiento para vincularlo.',
 }
 
 /** Spanish copy for an RPC error; the RPCs raise a snake_case code as the message. */

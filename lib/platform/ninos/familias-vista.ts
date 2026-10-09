@@ -157,9 +157,9 @@ export function parseHijosParaVincular(data: unknown): HijoParaVincular[] {
     }))
 }
 
-/** "8 años · C.I. •••5504" */
+/** "8 años · C.I. •••5504"; an unknown age (only in "Revisar edad") reads "Sin fecha de nacimiento". */
 export function detalleHijo(h: HijoParaVincular): string {
-  const edad = h.edad_anos === null ? null : h.edad_anos === 1 ? '1 año' : `${h.edad_anos} años`
+  const edad = h.edad_anos === null ? 'Sin fecha de nacimiento' : h.edad_anos === 1 ? '1 año' : `${h.edad_anos} años`
   return [edad, h.cedula ? `C.I. ${h.cedula}` : null].filter(Boolean).join(' · ')
 }
 

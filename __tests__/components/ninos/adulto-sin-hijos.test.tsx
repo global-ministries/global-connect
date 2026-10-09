@@ -77,4 +77,61 @@ describe('VincularHijoForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Buscar niño' }))
     expect(await screen.findByText('No se encontraron niños.')).toBeInTheDocument()
   })
+
+  describe('Revisar edad (N13)', () => {
+    async function abrirRevisar(resultado: unknown[]) {
+      rpc.mockResolvedValueOnce({ data: resultado, error: null })
+      render(<VincularHijoForm adulto={{ id: 'a1', nombre: 'Adela Ruiz' }} onVinculado={onVinculado} onCancelar={jest.fn()} />)
+      fireEvent.click(screen.getByRole('tab', { name: 'Revisar edad' }))
+      fireEvent.change(screen.getByLabelText('Nombre o cédula del niño'), { target: { value: 'Teo Ruiz' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Buscar niño' }))
+      await screen.findByText('Teo Ruiz')
+    }
+    const onVinculado = jest.fn()
+    beforeEach(() => onVinculado.mockReset())
+
+    it('searches people 13+ or without birth date with ninos_buscar_hijos_revisar_edad', async () => {
+      await abrirRevisar([
+        { id: 't1', nombre: 'Teo', apellido: 'Ruiz', edad_anos: 30, cedula: '•••5705' },
+        { id: 'u1', nombre: 'Uma', apellido: 'Ruiz', edad_anos: null, cedula: null },
+      ])
+      expect(rpc).toHaveBeenCalledWith('ninos_buscar_hijos_revisar_edad', { p_q: 'Teo Ruiz', p_padre_id: 'a1' })
+      expect(screen.getByText('30 años · C.I. •••5705')).toBeInTheDocument()
+      expect(screen.getByText('Sin fecha de nacimiento')).toBeInTheDocument()
+    })
+
+    it('blocks a corrected birth date that is still 13 or older', async () => {
+      await abrirRevisar([{ id: 't1', nombre: 'Teo', apellido: 'Ruiz', edad_anos: 30, cedula: null }])
+      fireEvent.click(screen.getByRole('button', { name: 'Corregir edad de Teo Ruiz' }))
+      fireEvent.change(screen.getByLabelText('Fecha de nacimiento corregida de Teo Ruiz'), { target: { value: '2000-01-01' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar fecha y vincular a Teo Ruiz' }))
+      expect(screen.getByRole('alert')).toHaveTextContent('Con esa fecha tendría 13 años o más')
+      expect(rpc).toHaveBeenCalledTimes(1)
+    })
+
+    it('saves the corrected date and links with ninos_vincular_revisando_edad', async () => {
+      await abrirRevisar([{ id: 't1', nombre: 'Teo', apellido: 'Ruiz', edad_anos: 30, cedula: null }])
+      rpc.mockResolvedValueOnce({ data: { vinculados: 1 }, error: null })
+      const fecha = `${new Date().getFullYear() - 6}-01-15`
+      fireEvent.click(screen.getByRole('button', { name: 'Corregir edad de Teo Ruiz' }))
+      fireEvent.change(screen.getByLabelText('Fecha de nacimiento corregida de Teo Ruiz'), { target: { value: fecha } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar fecha y vincular a Teo Ruiz' }))
+      await waitFor(() => expect(onVinculado).toHaveBeenCalled())
+      expect(rpc).toHaveBeenLastCalledWith('ninos_vincular_revisando_edad', {
+        p_nino_id: 't1', p_fecha_nacimiento: fecha, p_padre_id: 'a1', p_padre_nuevo: null,
+      })
+    })
+
+    it('shows the server refusal for an out-of-range date', async () => {
+      await abrirRevisar([{ id: 't1', nombre: 'Teo', apellido: 'Ruiz', edad_anos: 30, cedula: null }])
+      rpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'edad_fuera_de_rango' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Corregir edad de Teo Ruiz' }))
+      fireEvent.change(screen.getByLabelText('Fecha de nacimiento corregida de Teo Ruiz'), {
+        target: { value: `${new Date().getFullYear() - 6}-01-15` },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar fecha y vincular a Teo Ruiz' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('Con esa fecha tendría 13 años o más')
+      expect(onVinculado).not.toHaveBeenCalled()
+    })
+  })
 })
