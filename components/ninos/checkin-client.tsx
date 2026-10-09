@@ -49,7 +49,7 @@ type Ocupacion = { salon_id: string; nombre: string; presentes: number; capacida
 type Resultado = { codigo: string; lineas: string[]; avisos: string[] }
 
 function urlCheckin(s: Servicio): string {
-  return `/ninos/checkin?turno=${encodeURIComponent(s.turnoId ?? '')}&fecha=${s.fecha}`
+  return `/ninos/checkin?turno=${encodeURIComponent(s.turnoId ?? '')}&fecha=${encodeURIComponent(s.fecha)}`
 }
 
 /** Mobile-first check-in: pick the service, find a family, choose children and rooms, issue the code. */
@@ -221,7 +221,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
 
   const turnoActual = turnos.find((t) => t.id === servicio.turnoId)
 
-  const urlNuevaFamilia = `/ninos/familias?nueva=1&volver=checkin&turno=${encodeURIComponent(servicio.turnoId ?? '')}&fecha=${servicio.fecha}`
+  const urlNuevaFamilia = `/ninos/familias?nueva=1&volver=checkin&turno=${encodeURIComponent(servicio.turnoId ?? '')}&fecha=${encodeURIComponent(servicio.fecha)}`
 
   return (
     <>
