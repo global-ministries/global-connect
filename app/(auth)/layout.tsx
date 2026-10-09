@@ -20,17 +20,18 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient
 
 const DEFAULT_BRANDING = { logoLightUrl: null as string | null, logoDarkUrl: null as string | null, faviconUrl: null as string | null }
 
-// Niños sidebar flags (odd/tasks/ninos-checkin.md, N6): two definer checks,
+// Niños sidebar flags (odd/tasks/ninos-checkin.md, N6/N7): three definer checks,
 // fail closed on any error.
 async function resolveNinosAcceso(supabase: SupabaseServerClient | null) {
-  const sinAcceso = { puedeOperar: false, puedeVerSalon: false }
+  const sinAcceso = { puedeOperar: false, puedeVerSalon: false, puedeConfigurar: false }
   if (!supabase) return sinAcceso
   try {
-    const [operar, ver] = await Promise.all([
+    const [operar, ver, configurar] = await Promise.all([
       supabase.rpc("ninos_puede_operar_algun_area"),
       supabase.rpc("ninos_puede_ver_algun_salon"),
+      supabase.rpc("ninos_puede_configurar_algun_area"),
     ])
-    return { puedeOperar: operar.data === true, puedeVerSalon: ver.data === true }
+    return { puedeOperar: operar.data === true, puedeVerSalon: ver.data === true, puedeConfigurar: configurar.data === true }
   } catch {
     return sinAcceso
   }
@@ -93,7 +94,8 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
           loading starts true and the client fetch runs as a normal load. */}
       <CurrentUserProvider initial={initialCurrentUser ?? undefined}>
         <DreamTeamAccesoProvider puedeRegistrar={dreamTeamPuedeRegistrar}>
-          <NinosAccesoProvider puedeOperar={ninosAcceso.puedeOperar} puedeVerSalon={ninosAcceso.puedeVerSalon}>
+          <NinosAccesoProvider puedeOperar={ninosAcceso.puedeOperar} puedeVerSalon={ninosAcceso.puedeVerSalon}
+            puedeConfigurar={ninosAcceso.puedeConfigurar}>
             <CampusProvider>
               <div className="min-h-screen bg-[var(--surface-primary)]">
                 <HeaderMovil />
