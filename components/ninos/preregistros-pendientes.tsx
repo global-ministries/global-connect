@@ -41,6 +41,11 @@ async function resolver(id: string, body: unknown): Promise<{ ok: boolean; datos
   }
 }
 
+async function leerPendientes(): Promise<Pendiente[]> {
+  const { data } = await createClient().rpc('ninos_preregistros_pendientes')
+  return Array.isArray(data) ? (data as Pendiente[]) : []
+}
+
 /** "Pre-registros pendientes" of the caller's campuses (N8), shown at check-in and Familias. */
 export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
   const [lista, setLista] = useState<Pendiente[]>([])
@@ -51,13 +56,18 @@ export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
   const [ocupado, setOcupado] = useState(false)
 
   const cargar = useCallback(async () => {
-    const { data } = await createClient().rpc('ninos_preregistros_pendientes')
-    setLista(Array.isArray(data) ? (data as Pendiente[]) : [])
+    setLista(await leerPendientes())
   }, [])
 
   useEffect(() => {
-    void cargar()
-  }, [cargar])
+    let vigente = true
+    void leerPendientes().then((pendientes) => {
+      if (vigente) setLista(pendientes)
+    })
+    return () => {
+      vigente = false
+    }
+  }, [])
 
   function abrir(p: Pendiente) {
     setAbierto(p)
