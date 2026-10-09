@@ -143,6 +143,39 @@ describe('VincularHijoForm', () => {
       expect(screen.getByText('Sin fecha de nacimiento')).toBeInTheDocument()
     })
 
+    it('shows the current birth date (dd/mm/aaaa) so the host sees why it must be corrected (N15)', async () => {
+      await abrirRevisar([
+        { id: 't1', nombre: 'Teo', apellido: 'Ruiz', edad_anos: 13, cedula: '•••4332', fecha_nacimiento: '2013-03-08' },
+        { id: 'u1', nombre: 'Uma', apellido: 'Ruiz', edad_anos: null, cedula: null, fecha_nacimiento: null },
+      ])
+      expect(screen.getByText('13 años · Nac. 08/03/2013 · C.I. •••4332')).toBeInTheDocument()
+      expect(screen.getByText('Sin fecha de nacimiento')).toBeInTheDocument()
+    })
+
+    it('prefills the correction with the current birth date, or leaves it empty when unknown (N15)', async () => {
+      await abrirRevisar([
+        { id: 't1', nombre: 'Teo', apellido: 'Ruiz', edad_anos: 13, cedula: null, fecha_nacimiento: '2013-03-08' },
+        { id: 'u1', nombre: 'Uma', apellido: 'Ruiz', edad_anos: null, cedula: null, fecha_nacimiento: null },
+      ])
+      fireEvent.click(screen.getByRole('button', { name: 'Corregir edad de Teo Ruiz' }))
+      expect(screen.getByLabelText('Fecha de nacimiento corregida de Teo Ruiz')).toHaveValue('2013-03-08')
+      fireEvent.click(screen.getByRole('button', { name: 'Corregir edad de Uma Ruiz' }))
+      expect(screen.getByLabelText('Fecha de nacimiento corregida de Uma Ruiz')).toHaveValue('')
+      expect(screen.getByRole('button', { name: 'Guardar fecha y vincular a Uma Ruiz' })).toBeDisabled()
+    })
+
+    it('does not show the birth date in "Menores de 13" (N15)', async () => {
+      rpc.mockResolvedValueOnce({
+        data: [{ id: 'h1', nombre: 'Teo', apellido: 'Ruiz', edad_anos: 8, cedula: null, fecha_nacimiento: '2018-03-08' }],
+        error: null,
+      })
+      render(<VincularHijoForm adulto={{ id: 'a1', nombre: 'Adela Ruiz' }} onVinculado={onVinculado} onCancelar={jest.fn()} />)
+      fireEvent.change(screen.getByLabelText('Nombre o cédula del niño'), { target: { value: 'Teo Ruiz' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Buscar niño' }))
+      expect(await screen.findByText('8 años')).toBeInTheDocument()
+      expect(screen.queryByText(/Nac\./)).not.toBeInTheDocument()
+    })
+
     it('blocks a corrected birth date that is still 13 or older', async () => {
       await abrirRevisar([{ id: 't1', nombre: 'Teo', apellido: 'Ruiz', edad_anos: 30, cedula: null }])
       fireEvent.click(screen.getByRole('button', { name: 'Corregir edad de Teo Ruiz' }))

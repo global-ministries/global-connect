@@ -193,7 +193,7 @@ export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
                   <span className="block break-words font-medium text-foreground">
                     {h.nombre} {h.apellido}
                   </span>
-                  <span className="block text-xs text-muted-foreground">{detalleHijo(h)}</span>
+                  <span className="block text-xs text-muted-foreground">{detalleHijo(h, { conFecha: pestana === 'revisar' })}</span>
                 </span>
                 {pestana === 'menores' ? (
                   <BotonSistema
@@ -219,7 +219,8 @@ export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
                     aria-label={`Corregir edad de ${h.nombre} ${h.apellido}`}
                     onClick={() => {
                       setCorrigiendo(h.id)
-                      setFechaCorregida('')
+                      // Start from the current date so the host only adjusts what is wrong (often the year).
+                      setFechaCorregida(h.fecha_nacimiento ?? '')
                       setError(null)
                     }}
                   >

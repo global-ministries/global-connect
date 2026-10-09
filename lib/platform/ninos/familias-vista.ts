@@ -141,8 +141,18 @@ export function hijosParaVincular(familias: readonly FamiliaEncontrada[], adulto
   return hijos
 }
 
-/** A child offered by ninos_buscar_hijos_vincular (N12): only name, age and masked cédula. */
-export type HijoParaVincular = { id: string; nombre: string; apellido: string; edad_anos: number | null; cedula: string | null }
+/**
+ * A child offered by ninos_buscar_hijos_vincular (N12): only name, age and masked cédula.
+ * "Revisar edad" (N15) also returns the current birth date (yyyy-mm-dd); null elsewhere or when unknown.
+ */
+export type HijoParaVincular = {
+  id: string
+  nombre: string
+  apellido: string
+  edad_anos: number | null
+  cedula: string | null
+  fecha_nacimiento: string | null
+}
 
 export function parseHijosParaVincular(data: unknown): HijoParaVincular[] {
   if (!Array.isArray(data)) return []
@@ -154,13 +164,25 @@ export function parseHijosParaVincular(data: unknown): HijoParaVincular[] {
       apellido: typeof h.apellido === 'string' ? h.apellido : '',
       edad_anos: typeof h.edad_anos === 'number' ? h.edad_anos : null,
       cedula: typeof h.cedula === 'string' ? h.cedula : null,
+      fecha_nacimiento:
+        typeof h.fecha_nacimiento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(h.fecha_nacimiento) ? h.fecha_nacimiento : null,
     }))
 }
 
-/** "8 años · C.I. •••5504"; an unknown age (only in "Revisar edad") reads "Sin fecha de nacimiento". */
-export function detalleHijo(h: HijoParaVincular): string {
+/**
+ * "8 años · C.I. •••5504"; an unknown age (only in "Revisar edad") reads "Sin fecha de nacimiento".
+ * With conFecha (N15, "Revisar edad") the current birth date follows the age: "13 años · Nac. 08/03/2013 · C.I. •••4332".
+ */
+export function detalleHijo(h: HijoParaVincular, opciones: { conFecha?: boolean } = {}): string {
   const edad = h.edad_anos === null ? 'Sin fecha de nacimiento' : h.edad_anos === 1 ? '1 año' : `${h.edad_anos} años`
-  return [edad, h.cedula ? `C.I. ${h.cedula}` : null].filter(Boolean).join(' · ')
+  const nac = opciones.conFecha && h.edad_anos !== null && h.fecha_nacimiento ? `Nac. ${fechaDdMmAaaa(h.fecha_nacimiento)}` : null
+  return [edad, nac, h.cedula ? `C.I. ${h.cedula}` : null].filter(Boolean).join(' · ')
+}
+
+/** "2013-03-08" → "08/03/2013" (no time zone involved). */
+function fechaDdMmAaaa(iso: string): string {
+  const [a, m, d] = iso.split('-')
+  return `${d}/${m}/${a}`
 }
 
 export function aSalonSugerible(s: SalonFila): SalonVista {

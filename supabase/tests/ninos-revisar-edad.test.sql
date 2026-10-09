@@ -6,7 +6,9 @@
 --      single O and a person U with no birth date (youngest first, unknown
 --      last), with name, age and masked cédula only; never an 8-year-old K
 --      (that is the normal tab), a married M (estado_civil Casado) or a
---      person S with a conyuge relation.
+--      person S with a conyuge relation. N15
+--      (20261008159000_ninos_revisar_edad_fecha.sql): also the current birth
+--      date as yyyy-mm-dd (null when unknown).
 --   b. ninos_vincular_revisando_edad refuses a corrected date still 13+, a
 --      married person and a future date; with a date under 13 it writes the
 --      date and links T to A.
@@ -148,10 +150,15 @@ SELECT pg_temp.assert_eq('a: a single first name (N14) finds T, never the marrie
 SELECT pg_temp.assert_eq('a: a single last name (N14) excludes married M, S and the under-13 K',
   $q$SELECT count(*)::text FROM jsonb_array_elements(public.ninos_buscar_hijos_revisar_edad('Zqrevisa', pg_temp.id('us', 3))) h
       WHERE h ->> 'id' IN (pg_temp.id('us', 4)::text, pg_temp.id('us', 8)::text, pg_temp.id('us', 9)::text)$q$, '0');
-SELECT pg_temp.assert_eq('a: only name, age and masked cédula',
+SELECT pg_temp.assert_eq('a: only name, age, birth date and masked cédula',
   $q$SELECT (SELECT string_agg(k, ',' ORDER BY k) FROM jsonb_object_keys(h) k) || '|' || (h ->> 'edad_anos') || '|' || (h ->> 'cedula')
        FROM jsonb_array_elements(public.ninos_buscar_hijos_revisar_edad('Zqteo Zqrevisa', pg_temp.id('us', 3))) h$q$,
-  'apellido,cedula,edad_anos,id,nombre|15|•••5705');
+  'apellido,cedula,edad_anos,fecha_nacimiento,id,nombre|15|•••5705');
+SELECT pg_temp.assert_eq('a: N15 returns the current birth date as yyyy-mm-dd',
+  $q$SELECT h ->> 'fecha_nacimiento' FROM jsonb_array_elements(public.ninos_buscar_hijos_revisar_edad('Zqteo Zqrevisa', pg_temp.id('us', 3))) h$q$,
+  to_char((public.ninos_hoy() - interval '15 years')::date, 'YYYY-MM-DD'));
+SELECT pg_temp.assert_eq('a: N15 unknown birth date comes back as null',
+  $q$SELECT coalesce(h ->> 'fecha_nacimiento', 'null') FROM jsonb_array_elements(public.ninos_buscar_hijos_revisar_edad('Zqsinfecha Zqrevisa', pg_temp.id('us', 3))) h$q$, 'null');
 SELECT pg_temp.assert_eq('a: no email or phone in the result',
   $q$SELECT (public.ninos_buscar_hijos_revisar_edad('Zqteo Zqrevisa', pg_temp.id('us', 3))::text ~ '(zqteo@|04129995705)')::text$q$, 'false');
 SELECT pg_temp.assert_eq('a: unknown age comes back as null',
