@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ComponentType } from 'react'
-import { Baby, ClipboardCheck, House, QrCode, UsersRound } from 'lucide-react'
+import { Baby, ChartColumn, ClipboardCheck, House, QrCode, UsersRound } from 'lucide-react'
 
 import { useNinosAcceso, type NinosAcceso } from '@/hooks/useNinosAcceso'
 
@@ -27,9 +27,6 @@ export interface NinosMenuItem {
   children: NinosMenuChild[]
 }
 
-/** Asistencia (N7) stays hidden until that screen exists. */
-const ASISTENCIA_LISTA = false
-
 export function getNinosNavItems(acceso: NinosAcceso): NinosMenuChild[] {
   const items: NinosMenuChild[] = []
   if (acceso.puedeOperar) {
@@ -43,8 +40,9 @@ export function getNinosNavItems(acceso: NinosAcceso): NinosMenuChild[] {
   if (acceso.puedeOperar) {
     items.push({ id: 'ninos-cartel', label: 'Cartel QR', href: '/ninos/cartel', icon: QrCode })
   }
-  if (ASISTENCIA_LISTA && acceso.puedeOperar) {
-    items.push({ id: 'ninos-asistencia', label: 'Asistencia', href: '/ninos/asistencia' })
+  // Same gate as /ninos/reportes: ninos_puede_configurar_algun_area() (not Anfitriones or Líderes).
+  if (acceso.puedeConfigurar) {
+    items.push({ id: 'ninos-reportes', label: 'Reportes', href: '/ninos/reportes', icon: ChartColumn })
   }
   return items
 }
@@ -56,8 +54,11 @@ export function buildNinosMenuItem(items: readonly NinosMenuChild[]): NinosMenuI
 }
 
 export function useNinosMenuItem(): NinosMenuItem | null {
-  const { puedeOperar, puedeVerSalon } = useNinosAcceso()
-  return useMemo(() => buildNinosMenuItem(getNinosNavItems({ puedeOperar, puedeVerSalon })), [puedeOperar, puedeVerSalon])
+  const { puedeOperar, puedeVerSalon, puedeConfigurar } = useNinosAcceso()
+  return useMemo(
+    () => buildNinosMenuItem(getNinosNavItems({ puedeOperar, puedeVerSalon, puedeConfigurar })),
+    [puedeOperar, puedeVerSalon, puedeConfigurar],
+  )
 }
 
 /** Inserts the section right after `afterId` (Dream Team, else Grupos de Vida), or last. */

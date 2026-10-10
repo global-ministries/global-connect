@@ -37,9 +37,9 @@ jest.mock('@/lib/platform/talleres/flags', () => ({
 }))
 
 
-function renderCon(acceso: { puedeOperar: boolean; puedeVerSalon: boolean }) {
+function renderCon(acceso: { puedeOperar: boolean; puedeVerSalon: boolean; puedeConfigurar?: boolean }) {
   return render(
-    <NinosAccesoProvider puedeOperar={acceso.puedeOperar} puedeVerSalon={acceso.puedeVerSalon}>
+    <NinosAccesoProvider puedeOperar={acceso.puedeOperar} puedeVerSalon={acceso.puedeVerSalon} puedeConfigurar={acceso.puedeConfigurar}>
       <SidebarModerna />
     </NinosAccesoProvider>,
   )
@@ -58,7 +58,13 @@ describe('SidebarModerna Niños section', () => {
     expect(screen.getByRole('link', { name: 'Familias' })).toHaveAttribute('href', '/ninos/familias')
     expect(screen.getByRole('link', { name: 'Salones' })).toHaveAttribute('href', '/ninos/salon')
     expect(screen.getByRole('link', { name: 'Cartel QR' })).toHaveAttribute('href', '/ninos/cartel')
-    expect(screen.queryByRole('link', { name: 'Asistencia' })).not.toBeInTheDocument()
+    expect(document.querySelector('a[href="/ninos/reportes"]')).toBeNull()
+  })
+
+  it('shows Reportes only to whoever configures (directors, coordinators, admin)', () => {
+    renderCon({ puedeOperar: true, puedeVerSalon: true, puedeConfigurar: true })
+    const enlaces = screen.getAllByRole('link', { name: 'Reportes' }).map((a) => a.getAttribute('href'))
+    expect(enlaces).toContain('/ninos/reportes')
   })
 
   it('shows only Salones to a líder who sees a room', () => {

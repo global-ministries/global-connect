@@ -8094,6 +8094,11 @@ export type Database = {
       ninos_puede_configurar: { Args: { p_equipo_id: string }; Returns: boolean }
       ninos_puede_operar: { Args: { p_equipo_id: string }; Returns: boolean }
       ninos_puede_operar_algun_area: { Args: never; Returns: boolean }
+      ninos_puede_configurar_algun_area: { Args: never; Returns: boolean }
+      ninos_reporte_asistencia: {
+        Args: { p_campus_id?: string; p_desde: string; p_hasta: string; p_turno_id?: string }
+        Returns: Json
+      }
       ninos_correos_visita: {
         Args: { p_evento: string; p_fecha: string; p_nino_ids: string[]; p_turno_id: string }
         Returns: {
