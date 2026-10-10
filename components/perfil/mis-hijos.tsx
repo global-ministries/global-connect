@@ -8,15 +8,19 @@
  * session; the SQL decides which children are theirs.
  */
 import { useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 
 import { EditarNinoForm, type PayloadEdicionNino } from '@/components/ninos/editar-nino-form'
 import { PanelLateralNinos } from '@/components/ninos/panel-lateral'
-import { TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { mensajeDeErrorMisHijos, miHijoAEncontrado, parseMisHijos, type MiHijo } from '@/lib/platform/ninos/mis-hijos'
 import { createClient } from '@/lib/supabase/client'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { TarjetaMiHijo } from './mis-hijos-tarjeta'
+
+/** The notice after a save; desactualizado when the list could not be read again. */
+type Aviso = { texto: string; desactualizado: boolean }
 
 type Props = {
   /** The children read on the server (ninos_mis_hijos); the section is only rendered when there is one. */
@@ -26,7 +30,8 @@ type Props = {
 export function MisHijos({ hijos: iniciales }: Props) {
   const [hijos, setHijos] = useState(iniciales)
   const [editando, setEditando] = useState<MiHijo | null>(null)
-  const [aviso, setAviso] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [recargando, setRecargando] = useState(false)
 
   async function guardar(hijo: MiHijo, payload: PayloadEdicionNino): Promise<{ error: string } | null> {
     const { error } = await createClient().rpc('ninos_mis_hijos_guardar', {
@@ -36,15 +41,28 @@ export function MisHijos({ hijos: iniciales }: Props) {
     return error ? { error: mensajeDeErrorMisHijos(error) } : null
   }
 
-  async function recargar() {
+  /** Reads the list again; false when it could not be refreshed (the cards keep the old data). */
+  async function recargar(): Promise<boolean> {
+    setRecargando(true)
     const { data, error } = await createClient().rpc('ninos_mis_hijos')
-    if (!error) setHijos(parseMisHijos(data))
+    setRecargando(false)
+    if (error) return false
+    setHijos(parseMisHijos(data))
+    return true
   }
 
-  function guardado(hijo: MiHijo) {
+  async function guardado(hijo: MiHijo) {
     setEditando(null)
-    setAviso(`Guardamos los datos de ${hijo.nombre}.`)
-    void recargar()
+    const ok = await recargar()
+    setAviso(
+      ok
+        ? { texto: `Guardamos los datos de ${hijo.nombre}.`, desactualizado: false }
+        : { texto: `Guardamos los datos de ${hijo.nombre}, pero no pudimos actualizar la lista.`, desactualizado: true },
+    )
+  }
+
+  async function reintentar() {
+    if (await recargar()) setAviso(null)
   }
 
   return (
@@ -57,10 +75,21 @@ export function MisHijos({ hijos: iniciales }: Props) {
           Mantén sus datos al día: el equipo de Niños los usa el domingo al recibirlos.
         </TextoSistema>
       </div>
-      {aviso && (
+      {aviso && !aviso.desactualizado && (
         <p role="status" className="rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">
-          {aviso}
+          {aviso.texto}
         </p>
+      )}
+      {aviso?.desactualizado && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-3 text-sm text-yellow-700 dark:text-yellow-400"
+        >
+          <p>{aviso.texto}</p>
+          <BotonSistema type="button" variante="outline" tamaño="sm" icono={RefreshCw} disabled={recargando} onClick={() => void reintentar()}>
+            Actualizar lista
+          </BotonSistema>
+        </div>
       )}
       <ul className="grid gap-3 sm:grid-cols-2">
         {hijos.map((h) => (
@@ -93,7 +122,7 @@ export function MisHijos({ hijos: iniciales }: Props) {
             identidadEditable={editando.puede_editar_identidad}
             guardar={(payload) => guardar(editando, payload)}
             onCancelar={() => setEditando(null)}
-            onGuardado={() => guardado(editando)}
+            onGuardado={() => void guardado(editando)}
           />
         )}
       </PanelLateralNinos>

@@ -2,15 +2,22 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { EditarNinoForm } from '@/components/ninos/editar-nino-form'
 import type { HijoEncontrado } from '@/lib/platform/ninos/familias-vista'
+import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 
 const rpc = jest.fn()
 jest.mock('@/lib/supabase/client', () => ({ createClient: () => ({ rpc }) }))
 jest.mock('@/lib/platform/ninos/fecha', () => ({
   ...jest.requireActual('@/lib/platform/ninos/fecha'),
-  hoyEnCaracas: () => '2026-10-10',
+  hoyEnCaracas: jest.fn(),
 }))
 
-beforeEach(() => rpc.mockReset())
+// The Caracas date the form must validate against (never the UTC date of the machine).
+const hoy = jest.mocked(hoyEnCaracas)
+
+beforeEach(() => {
+  rpc.mockReset()
+  hoy.mockReturnValue('2026-10-10')
+})
 
 const SALA = 'f9a10000-0000-4000-9a06-000000000001'
 
@@ -93,5 +100,19 @@ describe('EditarNinoForm — team mode with guardar', () => {
     await waitFor(() => expect(guardar).toHaveBeenCalled())
     expect(guardar.mock.calls[0][0]).toMatchObject({ salon_preferido_id: SALA, nombre: 'Luis' })
     expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
+describe('EditarNinoForm — parent mode uses the Caracas date', () => {
+  it('refuses a birth date after today in Caracas even if it is already past elsewhere', async () => {
+    // Caracas is still on 2020-01-01; the machine clock is years later.
+    hoy.mockReturnValue('2020-01-01')
+    const guardar = jest.fn()
+    render(<EditarNinoForm hijo={{ ...hijo, fecha_nacimiento: '2019-05-05' }} modo="padre" guardar={guardar} onGuardado={jest.fn()} onCancelar={jest.fn()} />)
+    fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2020-01-02' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('La fecha de nacimiento no es válida.')
+    expect(guardar).not.toHaveBeenCalled()
   })
 })

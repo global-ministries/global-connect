@@ -59,6 +59,28 @@ describe('MisHijos', () => {
     await waitFor(() => expect(screen.getAllByTestId('mi-hijo')[0]).toHaveTextContent('Alergias: Maní y huevo'))
   })
 
+  it('says the data was saved but not refreshed when the reload fails, and retries', async () => {
+    rpc
+      .mockResolvedValueOnce({ data: { campos: ['alergias'] }, error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: '500', message: 'fetch failed' } })
+      .mockResolvedValueOnce({ data: [{ ...luis, alergias: 'Maní y huevo' }], error: null })
+    render(<MisHijos hijos={parseMisHijos([luis])} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Editar datos de Luis' }))
+    fireEvent.change(screen.getByLabelText('Alergias'), { target: { value: 'Maní y huevo' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    expect(
+      await screen.findByText('Guardamos los datos de Luis, pero no pudimos actualizar la lista.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Guardamos los datos de Luis.')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('mi-hijo')[0]).toHaveTextContent('Alergias: Maní')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar lista' }))
+    await waitFor(() => expect(screen.getAllByTestId('mi-hijo')[0]).toHaveTextContent('Alergias: Maní y huevo'))
+    expect(rpc).toHaveBeenNthCalledWith(3, 'ninos_mis_hijos')
+    expect(screen.queryByRole('button', { name: 'Actualizar lista' })).not.toBeInTheDocument()
+  })
+
   it('a child with an own account is edited without identity fields', () => {
     render(<MisHijos hijos={parseMisHijos([luis, eva])} />)
     fireEvent.click(screen.getByRole('button', { name: 'Editar datos de Eva' }))

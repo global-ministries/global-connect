@@ -68,7 +68,7 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar, salones, modo = '
   const [guardando, setGuardando] = useState(false)
 
   function validar(): Validacion {
-    const r = esPadre ? validarEdicionMisHijos(form, autorizados, { identidadEditable }) : validarEdicionEquipo(form, autorizados)
+    const r = esPadre ? validarEdicionMisHijos(form, autorizados, { identidadEditable }, hoyEnCaracas()) : validarEdicionEquipo(form, autorizados)
     if (!r.ok) return r
     // A new ficha is only for children in the Niños age range (the RPCs check it too).
     const nacimiento = r.payload.fecha_nacimiento ?? hijo.fecha_nacimiento ?? ''

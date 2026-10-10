@@ -175,7 +175,8 @@ export function validarEdicionMisHijos(
   h: HijoForm,
   autorizados: readonly AutorizadoForm[],
   opciones: { identidadEditable: boolean },
-  hoy: string = new Date().toISOString().slice(0, 10),
+  /** Today in Caracas (hoyEnCaracas()), never the UTC date: in a Caracas evening that is already tomorrow. */
+  hoy: string,
 ): { ok: true; payload: PayloadMisHijos } | { ok: false; errores: string[] } {
   const errores: string[] = []
   // The room is never the parent's: it cannot make the form invalid either.
