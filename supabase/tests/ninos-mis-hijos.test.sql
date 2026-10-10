@@ -1,7 +1,7 @@
--- M1 (odd/tasks/ninos-mis-hijos.md) — "Mis hijos" in Mi Perfil, read side
--- (20261010140000_ninos_mis_hijos.sql).
+-- M1/M2 (odd/tasks/ninos-mis-hijos.md) — "Mis hijos" in Mi Perfil
+-- (20261010140000_ninos_mis_hijos.sql, 20261010141000_ninos_mis_hijos_guardar.sql).
 --
--- Covers:
+-- Covers (read, M1):
 --   a. Both link directions show the child (child → me as padre, me → child
 --      as hijo), a linked child without ficha under 13 too; an adult hijo
 --      without ficha is hidden. Ordered by birth date.
@@ -13,8 +13,24 @@
 --   d. A 'conyuge' link alone gives nothing; a user without children gets [].
 --   e. Another family's child is never listed; ninos_es_mi_hijo agrees.
 --   f. No current user → sin_autoridad.
---   g. authenticated cannot execute the internal ninos_es_mi_hijo; anon
---      cannot execute any new function.
+-- Covers (write, M2):
+--   h. A parent saves ficha fields and the pickup list: changed fields
+--      returned, room and VIP untouched, one audit row (padre, before/after).
+--   i. A tutor saves too.
+--   j. A child without ficha: a birth date of 13+ or in the future is
+--      refused (edad_fuera_de_rango, no ficha created); a valid save creates it.
+--   k. Another family's child, an adult hijo, an unknown id and the conyuge
+--      get nino_no_encontrado; no current user gets sin_autoridad.
+--   l. Staff-only and unknown keys: campo_no_permitido, nothing written.
+--   m. Limits: > 6 pickup people, > 500 characters; 6 and 500 accepted;
+--      yes/no fields must be booleans.
+--   n. Identity: refused for a child with an own account, editable otherwise;
+--      gender Masculino/Femenino only.
+--   o. A save without changes writes no audit row.
+--   p. Staff ninos_actualizar_nino: same authority and validation, and an
+--      audit row with origen 'equipo'; the full history of a child.
+--   g. Privileges: authenticated cannot execute the internal helpers nor read
+--      the audit table; anon cannot execute any new function.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
 -- of the failing cases ('ALL OK' when none).
@@ -113,6 +129,16 @@ BEGIN
 END;
 $$;
 
+-- The caller saves child p_n; the result is kept under p_k (an error is a failed case).
+CREATE OR REPLACE FUNCTION pg_temp.guardar(p_k text, p_n int, p jsonb) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO t_mh_ctx (k, v) VALUES (p_k, public.ninos_mis_hijos_guardar(pg_temp.id('us', p_n), p)::text);
+EXCEPTION
+  WHEN OTHERS THEN
+    PERFORM pg_temp.fail('setup ' || p_k, SQLSTATE || ' ' || SQLERRM);
+END;
+$$;
+
 -- ── fixtures (as postgres) ───────────────────────────────────────────
 
 INSERT INTO t_mh_ctx (k, v)
@@ -174,7 +200,8 @@ INSERT INTO public.ninos_autorizados_retiro (nino_id, nombre, telefono, relacion
 GRANT INSERT, SELECT, UPDATE ON t_mh_failures, t_mh_ctx TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION pg_temp.fail(text, text), pg_temp.assert_eq(text, text, text),
   pg_temp.assert_raises(text, text, text, text), pg_temp.assert_denied(text, text), pg_temp.as_persona(int),
-  pg_temp.id(text, int), pg_temp.ctx(text), pg_temp.mi_hijo(int), pg_temp.mis_nombres() TO authenticated, anon;
+  pg_temp.id(text, int), pg_temp.ctx(text), pg_temp.mi_hijo(int), pg_temp.mis_nombres(),
+  pg_temp.guardar(text, int, jsonb) TO authenticated, anon;
 
 -- ── e (internal helper, as postgres with the parent's claims) ───────
 
@@ -250,11 +277,168 @@ SELECT set_config('request.jwt.claim.sub', '', true);
 SELECT pg_temp.assert_raises('f: no auth user gets sin_autoridad',
   $q$SELECT public.ninos_mis_hijos()$q$, '42501', 'sin_autoridad');
 
+-- ── h. a parent saves (M2) ───────────────────────────────────────────
+
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.guardar('h1', 11, '{"alergias": "ZZ huevo", "autorizados": [
+  {"nombre": "ZZ Tía Mh", "telefono": "04120000001", "relacion": "Tía"},
+  {"nombre": "ZZ Abuela Mh", "telefono": "04120000002", "relacion": "Abuela"}]}'::jsonb);
+SELECT pg_temp.assert_eq('h: the save returns the changed fields',
+  $q$SELECT pg_temp.ctx('h1')$q$, '{"campos": ["alergias", "autorizados"]}');
+SELECT pg_temp.assert_eq('h: Mis hijos shows the new data',
+  $q$SELECT (pg_temp.mi_hijo(11) ->> 'alergias') || '|' ||
+            (SELECT string_agg(a ->> 'nombre', ',' ORDER BY a ->> 'nombre') FROM jsonb_array_elements(pg_temp.mi_hijo(11) -> 'autorizados') a)$q$,
+  'ZZ huevo|ZZ Abuela Mh,ZZ Tía Mh');
+
+RESET ROLE;
+SELECT pg_temp.assert_eq('h: room and VIP untouched, updated_by is the parent',
+  $q$SELECT concat_ws('|', (f.salon_preferido_id = pg_temp.id('sa', 1))::text, (f.es_vip_desde IS NOT NULL)::text,
+                     (f.updated_by = pg_temp.id('us', 1))::text)
+       FROM public.ninos_fichas f WHERE f.usuario_id = pg_temp.id('us', 11)$q$, 'true|true|true');
+SELECT pg_temp.assert_eq('h: the old pickup rows are inactive',
+  $q$SELECT count(*)::text FROM public.ninos_autorizados_retiro a WHERE a.nino_id = pg_temp.id('us', 11) AND NOT a.activo$q$, '2');
+SELECT pg_temp.assert_eq('h: one audit row: padre, actor, fields, pickup list before and after',
+  $q$SELECT string_agg(concat_ws('|', c.origen, (c.actor_id = pg_temp.id('us', 1))::text, array_to_string(c.campos, ','),
+                                 c.autorizados_antes::text, jsonb_array_length(c.autorizados_despues)), ';')
+       FROM public.ninos_fichas_cambios c WHERE c.nino_id = pg_temp.id('us', 11)$q$,
+  'padre|true|alergias,autorizados|[{"nombre": "ZZ Abuela Mh", "relacion": "Abuela", "telefono": "04120000002"}]|2');
+SET LOCAL ROLE authenticated;
+
+-- ── i. tutor ─────────────────────────────────────────────────────────
+
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.assert_eq('i: the tutor saves too',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"notas": "ZZ nota del tutor"}'::jsonb)::text$q$,
+  '{"campos": ["notas"]}');
+
+-- ── j. a child without ficha ─────────────────────────────────────────
+
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_raises('j: a birth date that makes Dos 13 or older is refused',
+  format($q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 12), '{"fecha_nacimiento": "%s"}'::jsonb)$q$,
+         (public.ninos_hoy() - interval '14 years')::date), '22023', 'edad_fuera_de_rango');
+SELECT pg_temp.assert_raises('j: a future birth date is refused',
+  format($q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 12), '{"fecha_nacimiento": "%s"}'::jsonb)$q$,
+         public.ninos_hoy() + 1), '22023', 'edad_fuera_de_rango');
+SELECT pg_temp.assert_eq('j: the refused calls created no ficha',
+  $q$SELECT pg_temp.mi_hijo(12) ->> 'tiene_ficha'$q$, 'false');
+SELECT pg_temp.guardar('j1', 12, '{"alergias": "ZZ polen", "habitos": "ZZ siesta"}'::jsonb);
+SELECT pg_temp.assert_eq('j: a valid save creates the ficha',
+  $q$SELECT pg_temp.ctx('j1') || '|' || (pg_temp.mi_hijo(12) ->> 'tiene_ficha') || '|' || (pg_temp.mi_hijo(12) ->> 'alergias')$q$,
+  '{"campos": ["alergias", "habitos"]}|true|ZZ polen');
+
+-- ── k. not my child ──────────────────────────────────────────────────
+
+SELECT pg_temp.assert_raises('k: another family''s child is refused',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 14), '{"alergias": "x"}'::jsonb)$q$, '22023', 'nino_no_encontrado');
+SELECT pg_temp.assert_raises('k: an adult hijo without ficha is refused',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 13), '{"alergias": "x"}'::jsonb)$q$, '22023', 'nino_no_encontrado');
+SELECT pg_temp.assert_raises('k: an unknown id gets the same answer',
+  $q$SELECT public.ninos_mis_hijos_guardar(gen_random_uuid(), '{"alergias": "x"}'::jsonb)$q$, '22023', 'nino_no_encontrado');
+SELECT pg_temp.as_persona(4);
+SELECT pg_temp.assert_raises('k: the other family''s parent cannot save Uno',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"alergias": "x"}'::jsonb)$q$, '22023', 'nino_no_encontrado');
+SELECT pg_temp.as_persona(3);
+SELECT pg_temp.assert_raises('k: the conyuge cannot save Uno',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"alergias": "x"}'::jsonb)$q$, '22023', 'nino_no_encontrado');
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT pg_temp.assert_raises('k: no current user gets sin_autoridad',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{}'::jsonb)$q$, '42501', 'sin_autoridad');
+
+-- ── l. staff-only and unknown keys ───────────────────────────────────
+
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_raises('l: the room is staff-only',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"salon_preferido_id": null}'::jsonb)$q$, '42501', 'campo_no_permitido');
+SELECT pg_temp.assert_raises('l: VIP is staff-only',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"es_vip_desde": "2026-01-01"}'::jsonb)$q$, '42501', 'campo_no_permitido');
+SELECT pg_temp.assert_raises('l: origen is staff-only',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"origen": "padre"}'::jsonb)$q$, '42501', 'campo_no_permitido');
+SELECT pg_temp.assert_raises('l: an unknown key is refused even next to allowed ones',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"alergias": "ZZ otra", "telefono": "1"}'::jsonb)$q$,
+  '42501', 'campo_no_permitido');
+SELECT pg_temp.assert_eq('l: nothing of the refused calls was written',
+  $q$SELECT pg_temp.mi_hijo(11) ->> 'alergias'$q$, 'ZZ huevo');
+
+-- ── m. limits ────────────────────────────────────────────────────────
+
+SELECT pg_temp.assert_raises('m: more than 6 pickup people are refused',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), jsonb_build_object('autorizados',
+       (SELECT jsonb_agg(jsonb_build_object('nombre', 'ZZ P' || n)) FROM generate_series(1, 7) n)))$q$,
+  '22023', 'limite_autorizados');
+SELECT pg_temp.assert_raises('m: a text over 500 characters is refused',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), jsonb_build_object('alergias', repeat('x', 501)))$q$,
+  '22023', 'texto_muy_largo');
+SELECT pg_temp.assert_raises('m: a pickup name over 500 characters is refused',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), jsonb_build_object('autorizados',
+       jsonb_build_array(jsonb_build_object('nombre', repeat('x', 501)))))$q$,
+  '22023', 'texto_muy_largo');
+SELECT pg_temp.assert_eq('m: 6 pickup people and 500 characters are accepted (Cinco, ficha fields only)',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 15), jsonb_build_object('notas', repeat('n', 500),
+       'autorizados', (SELECT jsonb_agg(jsonb_build_object('nombre', 'ZZ P' || n)) FROM generate_series(1, 6) n)))::text$q$,
+  '{"campos": ["notas", "autorizados"]}');
+SELECT pg_temp.assert_raises('m: a yes/no field must be a boolean',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"puede_comer": "si"}'::jsonb)$q$, '22023', 'datos_invalidos');
+
+-- ── n. identity ──────────────────────────────────────────────────────
+
+SELECT pg_temp.assert_raises('n: the identity of a child with an own account is refused',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 15), '{"nombre": "ZZ Otro"}'::jsonb)$q$, '42501', 'campo_no_permitido');
+SELECT pg_temp.guardar('n1', 11, jsonb_build_object('nombre', 'ZZ Unito',
+  'fecha_nacimiento', (public.ninos_hoy() - interval '6 years')::date));
+SELECT pg_temp.assert_eq('n: the identity of a child without an account is editable',
+  $q$SELECT pg_temp.ctx('n1') || '|' || (pg_temp.mi_hijo(11) ->> 'nombre') || '|' || (pg_temp.mi_hijo(11) ->> 'edad')$q$,
+  '{"campos": ["nombre", "fecha_nacimiento"]}|ZZ Unito|6');
+SELECT pg_temp.assert_raises('n: gender is Masculino or Femenino only',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"genero": "Otro"}'::jsonb)$q$, '22023', 'datos_invalidos');
+
+-- ── o. no changes ────────────────────────────────────────────────────
+
+SELECT pg_temp.assert_eq('o: a save without changes returns no fields',
+  $q$SELECT public.ninos_mis_hijos_guardar(pg_temp.id('us', 11), '{"alergias": "ZZ huevo"}'::jsonb)::text$q$, '{"campos": []}');
+
+-- ── p. the staff path ────────────────────────────────────────────────
+
+SELECT pg_temp.assert_raises('p: a parent is still not staff',
+  $q$SELECT public.ninos_actualizar_nino(pg_temp.id('us', 11), '{"notas": "x"}'::jsonb)$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.as_persona(6);
+SELECT public.ninos_actualizar_nino(pg_temp.id('us', 11), '{"notas": "ZZ nota del equipo", "salon_preferido_id": null}'::jsonb);
+SELECT pg_temp.assert_raises('p: the staff path keeps its validation (grade 9)',
+  $q$SELECT public.ninos_actualizar_nino(pg_temp.id('us', 11), '{"grado": 9}'::jsonb)$q$, '22023', 'datos_invalidos');
+SELECT pg_temp.assert_raises('p: the staff path keeps nino_no_encontrado for a person without ficha',
+  $q$SELECT public.ninos_actualizar_nino(pg_temp.id('us', 13), '{"notas": "x"}'::jsonb)$q$, '22023', 'nino_no_encontrado');
+
+RESET ROLE;
+SELECT pg_temp.assert_eq('p: the staff edit wrote the notes and cleared the room',
+  $q$SELECT f.notas || ':' || (f.salon_preferido_id IS NULL)::text FROM public.ninos_fichas f WHERE f.usuario_id = pg_temp.id('us', 11)$q$,
+  'ZZ nota del equipo:true');
+SELECT pg_temp.assert_eq('p: history of Uno (origen:actor:fields:pickup before:after)',
+  $q$SELECT string_agg(x, ';' ORDER BY x COLLATE "C") FROM (
+       SELECT concat_ws(':', c.origen,
+                        CASE c.actor_id WHEN pg_temp.id('us', 1) THEN 'A' WHEN pg_temp.id('us', 2) THEN 'T'
+                                        WHEN pg_temp.id('us', 6) THEN 'E' END,
+                        array_to_string(c.campos, ','), coalesce(jsonb_array_length(c.autorizados_antes)::text, '-'),
+                        coalesce(jsonb_array_length(c.autorizados_despues)::text, '-')) AS x
+         FROM public.ninos_fichas_cambios c WHERE c.nino_id = pg_temp.id('us', 11)) h$q$,
+  'equipo:E:notas,salon_preferido_id:-:-;padre:A:alergias,autorizados:1:2;padre:A:nombre,fecha_nacimiento:-:-;padre:T:notas:-:-');
+SELECT pg_temp.assert_eq('p: history of Dos and Cinco',
+  $q$SELECT string_agg(concat_ws(':', c.origen, array_to_string(c.campos, ','), coalesce(jsonb_array_length(c.autorizados_antes)::text, '-'),
+                                 coalesce(jsonb_array_length(c.autorizados_despues)::text, '-')), ';' ORDER BY c.nino_id)
+       FROM public.ninos_fichas_cambios c WHERE c.nino_id IN (pg_temp.id('us', 12), pg_temp.id('us', 15))$q$,
+  'padre:alergias,habitos:-:-;padre:notas,autorizados:0:6');
+SET LOCAL ROLE authenticated;
+
 -- ── g. privileges ────────────────────────────────────────────────────
 
 SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_denied('g: authenticated cannot execute ninos_es_mi_hijo',
   $q$SELECT public.ninos_es_mi_hijo(gen_random_uuid())$q$);
+SELECT pg_temp.assert_denied('g: authenticated cannot execute ninos_aplicar_ficha',
+  $q$SELECT public.ninos_aplicar_ficha(pg_temp.id('us', 11), '{}'::jsonb, 'padre')$q$);
+SELECT pg_temp.assert_denied('g: authenticated cannot execute ninos_ficha_estado',
+  $q$SELECT public.ninos_ficha_estado(pg_temp.id('us', 11))$q$);
+SELECT pg_temp.assert_denied('g: authenticated cannot read ninos_fichas_cambios',
+  $q$SELECT count(*) FROM public.ninos_fichas_cambios$q$);
 
 RESET ROLE;
 SET LOCAL ROLE anon;
@@ -263,6 +447,12 @@ SELECT pg_temp.assert_denied('g: anon cannot execute ninos_mis_hijos',
   $q$SELECT public.ninos_mis_hijos()$q$);
 SELECT pg_temp.assert_denied('g: anon cannot execute ninos_es_mi_hijo',
   $q$SELECT public.ninos_es_mi_hijo(gen_random_uuid())$q$);
+SELECT pg_temp.assert_denied('g: anon cannot execute ninos_mis_hijos_guardar',
+  $q$SELECT public.ninos_mis_hijos_guardar(gen_random_uuid(), '{}'::jsonb)$q$);
+SELECT pg_temp.assert_denied('g: anon cannot execute ninos_aplicar_ficha',
+  $q$SELECT public.ninos_aplicar_ficha(gen_random_uuid(), '{}'::jsonb, 'padre')$q$);
+SELECT pg_temp.assert_denied('g: anon cannot execute ninos_ficha_estado',
+  $q$SELECT public.ninos_ficha_estado(gen_random_uuid())$q$);
 
 RESET ROLE;
 
