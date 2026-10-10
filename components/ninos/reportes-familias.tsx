@@ -2,7 +2,7 @@
  * Niños — new families of /ninos/reportes (odd/tasks/ninos-checkin.md, N16),
  * split by whether they came back. A family is one first visit; it came back
  * when any of its new children did (decided by the server). "Primera visita
- * reciente" means no service has happened since that visit yet.
+ * reciente" means the campus of that visit has held no service since.
  */
 import type { ReactElement } from 'react'
 
@@ -22,7 +22,7 @@ const GRUPOS: { estado: EstadoRetorno; titulo: string; ayuda: string; variante: 
   {
     estado: 'pendiente',
     titulo: 'Primera visita reciente',
-    ayuda: 'Aún no ha habido otro servicio desde su primera visita.',
+    ayuda: 'Aún no ha habido otro servicio en su campus desde su primera visita.',
     variante: 'default',
   },
 ]

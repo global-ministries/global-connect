@@ -27,11 +27,12 @@
 --   totales  NEW. The same figures over the whole range.
 --   nuevos   each new child also gets `estado`: 'volvio' when the child has a
 --            check-in on a later fecha (any room, no upper date bound),
---            'pendiente' when nobody at all has a check-in after the child's
---            first fecha (no service has happened since), else 'no_volvio';
---            `visitas` (distinct fechas so far, any room), `ultima_fecha`,
---            and `estado_familia`: the family (visita_id of the first
---            check-in) returned when any of its new children returned.
+--            'pendiente' when no room of the campus of the child's first
+--            visit has a check-in by anyone after that fecha (that campus has
+--            held no service since), else 'no_volvio'; `visitas` (distinct
+--            fechas so far, any room), `ultima_fecha`, and `estado_familia`:
+--            the family (visita_id of the first check-in) returned when any
+--            of its new children returned.
 --   ausentes unchanged.
 -- Definer rights and search_path '' as before, EXECUTE only for authenticated.
 
@@ -50,7 +51,6 @@ AS $$
 DECLARE
   v_salones uuid[];
   v_ref date;
-  v_ultima_fecha date;
   v_salones_json jsonb;
   v_dias jsonb;
   v_meses jsonb;
@@ -110,8 +110,8 @@ BEGIN
   -- New children: first check-in ever (any room) inside the range, and that
   -- first check-in is in a room the caller may read. Whether they came back
   -- looks at every room with no upper date bound; a later service on the
-  -- same fecha is not a return.
-  v_ultima_fecha := (SELECT max(c.fecha) FROM public.ninos_checkins c);
+  -- same fecha is not a return. 'pendiente' only looks at the campus of the
+  -- first visit: no check-in by anyone in any of its rooms since that fecha.
   WITH primera AS (
     SELECT DISTINCT ON (c.nino_id) c.nino_id, c.fecha, c.salon_id, c.turno_id, c.visita_id
       FROM public.ninos_checkins c
@@ -121,9 +121,12 @@ BEGIN
   ), nuevo AS (
     SELECT p.nino_id, p.fecha, p.salon_id, p.visita_id, h.visitas, h.ultima_fecha,
            CASE WHEN h.ultima_fecha > p.fecha THEN 'volvio'
-                WHEN v_ultima_fecha <= p.fecha THEN 'pendiente'
+                WHEN NOT EXISTS (SELECT 1 FROM public.ninos_checkins x
+                                   JOIN public.ninos_salones xs ON xs.id = x.salon_id
+                                  WHERE xs.campus_id = ps.campus_id AND x.fecha > p.fecha) THEN 'pendiente'
                 ELSE 'no_volvio' END AS estado
       FROM primera p
+      JOIN public.ninos_salones ps ON ps.id = p.salon_id
       CROSS JOIN LATERAL (
         SELECT count(DISTINCT x.fecha)::int AS visitas, max(x.fecha) AS ultima_fecha
           FROM public.ninos_checkins x WHERE x.nino_id = p.nino_id

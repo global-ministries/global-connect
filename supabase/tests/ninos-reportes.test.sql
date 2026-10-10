@@ -23,19 +23,23 @@
 --   k. totales: distinct children over the whole range, per service and per
 --      area, service days, average per service day, new children/families.
 --   l. New children: estado volvio (a later fecha, any room, no upper date
---      bound) / no_volvio / pendiente (nobody came after the first visit),
---      visitas, ultima_fecha and the family state (any child returned).
+--      bound) / no_volvio / pendiente (nobody came to the campus of the first
+--      visit after it), visitas, ultima_fecha and the family state.
+--   m. pendiente is per campus: a later check-in at another campus keeps it;
+--      one by another child at the same campus gives no_volvio.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
 -- of the failing cases ('ALL OK' when none).
 --
--- Identities (usuario n = auth n): 1 ANFITRION, 2 COORDINADOR, 3 RANDOM;
--- 5..8 children, 10 parent of 7; 11..18 N16 children (15 and 16 siblings).
--- Tree: R → W → A ("Anfitriones"); X (another area). Rooms S1 (upstreet,
--- cap 2), S3 (waumba) and S4 (upstreet) in W; S2 in X. Services T1 and T2 are
--- the first two Sunday turnos of Barquisimeto. N7 Sundays 2099-01-04 …
--- 2099-02-08 (reference Sunday 2099-02-08); N16 Sundays 2099-03-01 …
--- 2099-04-12, the last fecha of every check-in.
+-- Identities (usuario n = auth n): 1 ANFITRION, 2 COORDINADOR, 3 RANDOM,
+-- 4 COORDINADOR of Y; 5..8 children, 10 parent of 7; 11..18 N16 children (15
+-- and 16 siblings); 19, 20 children of campus B.
+-- Tree: R → W → A ("Anfitriones"); X and Y (other areas). Rooms S1 (upstreet,
+-- cap 2), S3 (waumba) and S4 (upstreet) in W; S2 in X; S5 in Y at campus B (a
+-- fixture campus with one Sunday service TB). Services T1 and T2 are the first
+-- two Sunday turnos of Barquisimeto. N7 Sundays 2099-01-04 … 2099-02-08
+-- (reference Sunday 2099-02-08); N16 Sundays 2099-03-01 … 2099-04-12, the last
+-- fecha of every check-in.
 
 BEGIN;
 
@@ -80,7 +84,8 @@ $$;
 CREATE OR REPLACE FUNCTION pg_temp.id(p_kind text, p_n int) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
   SELECT format('f9700000-0000-4000-%s-%s',
            CASE p_kind WHEN 'au' THEN '9701' WHEN 'us' THEN '9702' WHEN 'eq' THEN '9704'
-                       WHEN 'ro' THEN '9705' WHEN 'sa' THEN '9706' WHEN 'vi' THEN '9707' END,
+                       WHEN 'ro' THEN '9705' WHEN 'sa' THEN '9706' WHEN 'vi' THEN '9707'
+                       WHEN 'ca' THEN '9708' WHEN 'tu' THEN '9709' END,
            lpad(to_hex(p_n), 12, '0'))::uuid;
 $$;
 
@@ -137,16 +142,16 @@ SELECT 'campus', t.campus_id::text FROM public.dream_team_turnos t WHERE t.id = 
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'nr-' || n || '@example.test', now(),
        '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
-  FROM generate_series(1, 3) AS n;
+  FROM generate_series(1, 4) AS n;
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
 SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Nr', 'U' || n, 'nr-' || n || '@example.test', 'Soltero', 'Femenino'
-  FROM generate_series(1, 3) AS n;
+  FROM generate_series(1, 4) AS n;
 INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero, fecha_nacimiento)
 SELECT pg_temp.id('us', n), 'ZZ Nino', 'N' || n, 'No especificado', 'Femenino', DATE '2092-01-01'
   FROM generate_series(5, 8) AS n;
 INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero, fecha_nacimiento)
 SELECT pg_temp.id('us', n), 'ZZ Nino', 'N' || n, 'No especificado', 'Femenino', DATE '2092-01-01'
-  FROM generate_series(11, 18) AS n;
+  FROM generate_series(11, 20) AS n;
 INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero)
 VALUES (pg_temp.id('us', 10), 'ZZ Padre', 'P10', 'Casado', 'Masculino');
 INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion)
@@ -156,22 +161,29 @@ INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label,
   (pg_temp.id('eq', 1), 'ninos', NULL, 'ZZ Nr R', true),
   (pg_temp.id('eq', 2), 'ninos', pg_temp.id('eq', 1), 'ZZ Nr W', true),
   (pg_temp.id('eq', 3), 'ninos', pg_temp.id('eq', 2), 'Anfitriones', true),
-  (pg_temp.id('eq', 5), 'ninos', NULL, 'ZZ Nr X', true);
+  (pg_temp.id('eq', 5), 'ninos', NULL, 'ZZ Nr X', true),
+  (pg_temp.id('eq', 6), 'ninos', NULL, 'ZZ Nr Y', true);
 INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
   (pg_temp.id('ro', 1), pg_temp.id('eq', 3), 'voluntario', true);
 INSERT INTO public.dream_team_servicios (persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual) VALUES
   (pg_temp.id('us', 1), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'activo', now(), 'admin_asignacion');
 DELETE FROM public.dream_team_capability_grants
- WHERE persona_id IN (SELECT pg_temp.id('us', n) FROM generate_series(1, 3) n);
+ WHERE persona_id IN (SELECT pg_temp.id('us', n) FROM generate_series(1, 4) n);
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id) VALUES
-  (pg_temp.id('us', 2), 'dream_team.coordinate', 'dream_team', 'equipo', pg_temp.id('eq', 2)::text);
+  (pg_temp.id('us', 2), 'dream_team.coordinate', 'dream_team', 'equipo', pg_temp.id('eq', 2)::text),
+  (pg_temp.id('us', 4), 'dream_team.coordinate', 'dream_team', 'equipo', pg_temp.id('eq', 6)::text);
+
+INSERT INTO public.campus (id, nombre, codigo) VALUES (pg_temp.id('ca', 1), 'ZZ Nr Campus B', 'ZZNRB');
+INSERT INTO public.dream_team_turnos (id, campus_id, nombre, dia_semana, hora, orden) VALUES
+  (pg_temp.id('tu', 1), pg_temp.id('ca', 1), 'ZZ Nr Domingo B', 0, TIME '09:00', 1);
 
 INSERT INTO public.ninos_salones (id, campus_id, equipo_id, area, nombre, capacidad, grado_min, grado_max, orden) VALUES
   (pg_temp.id('sa', 1), pg_temp.ctx('campus')::uuid, pg_temp.id('eq', 2), 'upstreet', 'ZZ Nr S1', 2, 1, 1, 1),
   (pg_temp.id('sa', 2), pg_temp.ctx('campus')::uuid, pg_temp.id('eq', 5), 'upstreet', 'ZZ Nr S2', 20, 2, 2, 2);
 INSERT INTO public.ninos_salones (id, campus_id, equipo_id, area, nombre, capacidad, edad_min_meses, edad_max_meses, grado_min, grado_max, orden) VALUES
   (pg_temp.id('sa', 3), pg_temp.ctx('campus')::uuid, pg_temp.id('eq', 2), 'waumba', 'ZZ Nr S3', 20, 24, 35, NULL, NULL, 3),
-  (pg_temp.id('sa', 4), pg_temp.ctx('campus')::uuid, pg_temp.id('eq', 2), 'upstreet', 'ZZ Nr S4', 20, NULL, NULL, 3, 3, 4);
+  (pg_temp.id('sa', 4), pg_temp.ctx('campus')::uuid, pg_temp.id('eq', 2), 'upstreet', 'ZZ Nr S4', 20, NULL, NULL, 3, 3, 4),
+  (pg_temp.id('sa', 5), pg_temp.id('ca', 1), pg_temp.id('eq', 6), 'waumba', 'ZZ Nr S5', 20, 24, 35, NULL, NULL, 5);
 INSERT INTO public.ninos_fichas (usuario_id, grado)
 SELECT pg_temp.id('us', n), 1 FROM generate_series(5, 8) AS n;
 
@@ -212,6 +224,13 @@ SELECT pg_temp.id('us', x.n), pg_temp.id('sa', x.s), pg_temp.ctx(CASE x.t WHEN 1
     (17, 3, 1, DATE '2099-04-05', 23, TIME '13:00', NULL),
     (18, 3, 1, DATE '2099-04-12', 24, TIME '13:00', NULL)
   ) AS x(n, s, t, f, v, ent, sal);
+
+-- Case m, campus B: 20 comes on 2099-03-29 and 19 on 2099-04-05, then campus
+-- B has nothing more; campus Barquisimeto still has 18 on 2099-04-12.
+INSERT INTO public.ninos_checkins (nino_id, salon_id, turno_id, campus_id, fecha, visita_id, codigo, entrada_at, salida_at)
+SELECT pg_temp.id('us', x.n), pg_temp.id('sa', 5), pg_temp.id('tu', 1), pg_temp.id('ca', 1), x.f, pg_temp.id('vi', x.v),
+       '1236', x.f + TIME '13:00', NULL
+  FROM (VALUES (20, DATE '2099-03-29', 25), (19, DATE '2099-04-05', 26)) AS x(n, f, v);
 
 -- Case i: child 14 leaves S1 and enters S4 within the same service. Today
 -- UNIQUE (nino_id, fecha, turno_id) forbids that second row, so the
@@ -352,6 +371,16 @@ SELECT pg_temp.assert_eq('l: the N7 range keeps its new children and gains their
   $q$SELECT string_agg(concat_ws(':', replace(n.e ->> 'nombre', 'ZZ Nino ', ''), n.e ->> 'estado'), ',' ORDER BY n.i)
        FROM jsonb_array_elements(pg_temp.rep() -> 'nuevos') WITH ORDINALITY AS n(e, i)$q$,
   'N5:volvio,N6:volvio,N7:no_volvio');
+
+-- ── m. pendiente is per campus (N16, R3-001) ─────────────────────────
+
+SELECT pg_temp.as_persona(4);
+SELECT pg_temp.assert_eq('m: a later check-in only at another campus keeps the first visit pendiente',
+  $q$SELECT n.e ->> 'estado' FROM jsonb_array_elements(pg_temp.rep2(DATE '2099-03-01', DATE '2099-04-30') -> 'nuevos') n(e)
+      WHERE n.e ->> 'nombre' = 'ZZ Nino N19'$q$, 'pendiente');
+SELECT pg_temp.assert_eq('m: a later check-in by another child at the same campus gives no_volvio',
+  $q$SELECT n.e ->> 'estado' FROM jsonb_array_elements(pg_temp.rep2(DATE '2099-03-01', DATE '2099-04-30') -> 'nuevos') n(e)
+      WHERE n.e ->> 'nombre' = 'ZZ Nino N20'$q$, 'no_volvio');
 
 -- ── g. anon ──────────────────────────────────────────────────────────
 

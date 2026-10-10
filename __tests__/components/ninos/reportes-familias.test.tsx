@@ -46,6 +46,8 @@ describe('FamiliasNuevas', () => {
     expect(within(recientes).getByRole('heading')).toHaveTextContent(/^Primera visita reciente\s*1$/)
     expect(within(recientes).getByText('Niña Cuatro')).toBeInTheDocument()
     expect(within(recientes).getByText('Sin padres vinculados')).toBeInTheDocument()
+    // Pending is per campus: a service at another campus does not count.
+    expect(within(recientes).getByText('Aún no ha habido otro servicio en su campus desde su primera visita.')).toBeInTheDocument()
   })
 
   it('says so when a group has no families', () => {
