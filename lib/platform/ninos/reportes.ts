@@ -1,10 +1,17 @@
 /**
- * Niños attendance reports (odd/tasks/ninos-checkin.md, N7). The server
- * (ninos_reporte_asistencia) does every aggregation over check-ins; these
- * helpers only shape its rows for the page and the CSV export.
+ * Niños attendance reports (odd/tasks/ninos-checkin.md, N7 and N16). The
+ * server (ninos_reporte_asistencia) does every aggregation over check-ins,
+ * including every count of distinct children per day, month, range, service
+ * and area. These helpers only read and shape its rows for the page and the
+ * CSV export: they never add rows up to get a number of children.
  */
 
 export type AreaNinos = 'waumba' | 'upstreet'
+
+/** Areas in the order the page shows them. */
+export const AREAS: readonly AreaNinos[] = ['waumba', 'upstreet']
+
+export const NOMBRE_AREA: Record<AreaNinos, string> = { waumba: 'Waumba Land', upstreet: 'UpStreet' }
 
 export interface FilaSalonReporte {
   fecha: string
@@ -16,18 +23,66 @@ export interface FilaSalonReporte {
   salon_orden: number
   area: AreaNinos
   capacidad: number
-  /** Children checked in to the room in that service. */
+  /** Distinct children checked in to the room in that service. */
   ninos: number
+  checkins: number
   /** Most children present at the same time. */
   pico: number
 }
 
-export interface DiaReporte {
-  fecha: string
-  /** Distinct children that day (a child in both services counts once). */
+export interface ConteoTurno {
+  turno_id: string
+  turno: string
+  turno_orden: number
+  /** Distinct children in that service. */
   ninos: number
   checkins: number
 }
+
+export interface ConteoArea {
+  area: AreaNinos
+  /** Distinct children in that area. */
+  ninos: number
+  checkins: number
+}
+
+/** Distinct children of a period, overall, per service and per area. */
+export interface ConteosPeriodo {
+  ninos: number
+  checkins: number
+  turnos: ConteoTurno[]
+  areas: ConteoArea[]
+}
+
+export interface DiaReporte extends ConteosPeriodo {
+  fecha: string
+}
+
+export interface ResumenPeriodo extends ConteosPeriodo {
+  /** Service days: dates with check-ins. */
+  dias: number
+  /** Average of the distinct children per service day; null without service days. */
+  promedio: number | null
+  nuevos: number
+  familias_nuevas: number
+}
+
+export interface MesReporte extends ResumenPeriodo {
+  /** First day of the month, YYYY-MM-01. */
+  mes: string
+  /** The part of the month inside the range. */
+  desde: string
+  hasta: string
+  /** The range does not cover the whole month. */
+  parcial: boolean
+}
+
+/**
+ * volvio: came back on a later date; no_volvio: their campus held a service
+ * since and the child did not come; pendiente: no service has happened at the
+ * campus of the first visit since then.
+ */
+export type EstadoRetorno = 'volvio' | 'no_volvio' | 'pendiente'
 
 export interface NinoNuevo {
   nino_id: string
@@ -36,6 +91,12 @@ export interface NinoNuevo {
   salon: string
   visita_id: string
   padres: string[]
+  estado: EstadoRetorno
+  /** The family (the first visit) came back when any of its new children did. */
+  estado_familia: EstadoRetorno
+  /** Distinct dates attended so far. */
+  visitas: number
+  ultima_fecha: string
 }
 
 export interface NinoAusente {
@@ -52,13 +113,19 @@ export interface Reporte {
   domingo_referencia: string | null
   salones: FilaSalonReporte[]
   dias: DiaReporte[]
+  meses: MesReporte[]
+  totales: ResumenPeriodo
   nuevos: NinoNuevo[]
   ausentes: NinoAusente[]
 }
 
-export const NOMBRE_AREA: Record<AreaNinos, string> = { waumba: 'Waumba Land', upstreet: 'UpStreet' }
+export type VistaAsistencia = 'domingo' | 'mes'
 
 const SEMANAS_POR_DEFECTO = 8
+const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+] as const
 
 function sumarDias(fecha: string, dias: number): string {
   const d = new Date(`${fecha}T00:00:00Z`)
@@ -73,57 +140,152 @@ export function rangoPorDefecto(hoy: string): { desde: string; hasta: string } {
   return { desde: sumarDias(hasta, -7 * (SEMANAS_POR_DEFECTO - 1)), hasta }
 }
 
+/** First and last day of the month `desplazamiento` months away from the month of `hoy`. */
+function limitesMes(hoy: string, desplazamiento: number): { desde: string; hasta: string } {
+  const [anio, mes] = hoy.split('-').map(Number)
+  const desde = new Date(Date.UTC(anio, mes - 1 + desplazamiento, 1))
+  const hasta = new Date(Date.UTC(anio, mes + desplazamiento, 0))
+  return { desde: desde.toISOString().slice(0, 10), hasta: hasta.toISOString().slice(0, 10) }
+}
+
+export type ClaveRango = 'domingos' | 'este-mes' | 'mes-anterior' | 'seis-meses'
+
+export interface RangoRapido {
+  clave: ClaveRango
+  etiqueta: string
+  desde: string
+  hasta: string
+}
+
+/**
+ * Quick ranges from `hoy` (YYYY-MM-DD, Caracas). The current month ends
+ * today, so it shows as partial in the monthly view.
+ */
+export function rangosRapidos(hoy: string): RangoRapido[] {
+  return [
+    { clave: 'domingos', etiqueta: `Últimos ${SEMANAS_POR_DEFECTO} domingos`, ...rangoPorDefecto(hoy) },
+    { clave: 'este-mes', etiqueta: 'Este mes', desde: limitesMes(hoy, 0).desde, hasta: hoy },
+    { clave: 'mes-anterior', etiqueta: 'Mes anterior', ...limitesMes(hoy, -1) },
+    { clave: 'seis-meses', etiqueta: 'Últimos 6 meses', desde: limitesMes(hoy, -5).desde, hasta: hoy },
+  ]
+}
+
 function lista<T>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : []
 }
 
+function objeto(v: unknown): Record<string, unknown> {
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+}
+
+function conListas<T extends object>(fila: T): T & Pick<ConteosPeriodo, 'turnos' | 'areas'> {
+  const o = fila as Record<string, unknown>
+  return { ...fila, turnos: lista<ConteoTurno>(o.turnos), areas: lista<ConteoArea>(o.areas) }
+}
+
+const ESTADOS: readonly EstadoRetorno[] = ['volvio', 'no_volvio', 'pendiente']
+
+function estadoRetorno(v: unknown): EstadoRetorno {
+  return ESTADOS.find((e) => e === v) ?? 'pendiente'
+}
+
+const RESUMEN_VACIO: ResumenPeriodo = {
+  ninos: 0,
+  checkins: 0,
+  dias: 0,
+  promedio: null,
+  nuevos: 0,
+  familias_nuevas: 0,
+  turnos: [],
+  areas: [],
+}
+
 /** Reads the RPC's jsonb defensively. */
 export function leerReporte(data: unknown): Reporte {
-  const o = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>
+  const o = objeto(data)
   return {
     domingo_referencia: typeof o.domingo_referencia === 'string' ? o.domingo_referencia : null,
     salones: lista<FilaSalonReporte>(o.salones),
-    dias: lista<DiaReporte>(o.dias),
-    nuevos: lista<NinoNuevo>(o.nuevos),
+    dias: lista<DiaReporte>(o.dias).map(conListas),
+    meses: lista<MesReporte>(o.meses).map(conListas),
+    totales: conListas({ ...RESUMEN_VACIO, ...(objeto(o.totales) as Partial<ResumenPeriodo>) }),
+    nuevos: lista<NinoNuevo>(o.nuevos).map((n) => ({
+      ...n,
+      estado: estadoRetorno(n.estado),
+      estado_familia: estadoRetorno(n.estado_familia ?? n.estado),
+    })),
     ausentes: lista<NinoAusente>(o.ausentes),
   }
 }
 
-export interface ResumenDia {
+/** Distinct children of one service in a period (0 when nobody came to it). */
+export function ninosDeTurno(p: Pick<ConteosPeriodo, 'turnos'>, turnoId: string): number {
+  return p.turnos.find((t) => t.turno_id === turnoId)?.ninos ?? 0
+}
+
+/** Distinct children of one area in a period (0 when nobody came to it). */
+export function ninosDeArea(p: Pick<ConteosPeriodo, 'areas'>, area: AreaNinos): number {
+  return p.areas.find((a) => a.area === area)?.ninos ?? 0
+}
+
+/** Every service seen in any of the periods, once and in service order: the table columns. */
+export function columnasTurno(periodos: readonly Pick<ConteosPeriodo, 'turnos'>[]): { turno_id: string; turno: string }[] {
+  const vistos = new Map<string, ConteoTurno>()
+  for (const p of periodos) for (const t of p.turnos) if (!vistos.has(t.turno_id)) vistos.set(t.turno_id, t)
+  return [...vistos.values()]
+    .sort((a, b) => a.turno_orden - b.turno_orden || a.turno.localeCompare(b.turno))
+    .map(({ turno_id, turno }) => ({ turno_id, turno }))
+}
+
+/** YYYY-MM-DD → DD/MM/YYYY. */
+export function fechaCorta(f: string): string {
+  const [a, m, d] = f.split('-')
+  return `${d}/${m}/${a}`
+}
+
+/** YYYY-MM-01 → 'Marzo 2026'. */
+export function nombreMes(mes: string): string {
+  const [a, m] = mes.split('-')
+  return `${MESES[Number(m) - 1] ?? m} ${a}`
+}
+
+/** One decimal with a decimal comma; a dash when there were no service days. */
+export function formatoPromedio(v: number | null): string {
+  if (v === null) return '—'
+  return Number.isInteger(v) ? String(v) : v.toFixed(1).replace('.', ',')
+}
+
+/** ['Ana', 'Beto', 'Caro'] → 'Ana, Beto y Caro'. */
+export function unirNombres(nombres: readonly string[]): string {
+  if (nombres.length <= 1) return nombres[0] ?? ''
+  return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
+}
+
+export interface FamiliaNueva {
+  visita_id: string
   fecha: string
-  total: number
-  turnos: { turno: string; ninos: number }[]
-  waumba: number
-  upstreet: number
+  estado: EstadoRetorno
+  ninos: NinoNuevo[]
+  /** Parents of every child of the family, once each. */
+  padres: string[]
 }
 
-/** One row per Sunday: distinct total (server), then check-ins per service and per area. */
-export function resumenPorDia(filas: readonly FilaSalonReporte[], dias: readonly DiaReporte[]): ResumenDia[] {
-  return dias.map((d) => {
-    const delDia = filas.filter((f) => f.fecha === d.fecha)
-    const turnos = new Map<string, { turno: string; orden: number; ninos: number }>()
-    let waumba = 0
-    let upstreet = 0
-    for (const f of delDia) {
-      const t = turnos.get(f.turno_id) ?? { turno: f.turno, orden: f.turno_orden, ninos: 0 }
-      t.ninos += f.ninos
-      turnos.set(f.turno_id, t)
-      if (f.area === 'waumba') waumba += f.ninos
-      else upstreet += f.ninos
-    }
-    return {
-      fecha: d.fecha,
-      total: d.ninos,
-      turnos: [...turnos.values()].sort((a, b) => a.orden - b.orden).map(({ turno, ninos }) => ({ turno, ninos })),
-      waumba,
-      upstreet,
-    }
-  })
-}
-
-/** A family is one first visit (siblings share the visita of their check-in). */
-export function familiasNuevas(nuevos: readonly NinoNuevo[]): number {
-  return new Set(nuevos.map((n) => n.visita_id)).size
+/**
+ * New families grouped by whether they came back. A family is one first visit
+ * (siblings share the visita of their check-in); its state comes from the
+ * server. Families keep the server's order.
+ */
+export function familiasPorEstado(nuevos: readonly NinoNuevo[]): Record<EstadoRetorno, FamiliaNueva[]> {
+  const familias = new Map<string, FamiliaNueva>()
+  for (const n of nuevos) {
+    const f = familias.get(n.visita_id) ?? { visita_id: n.visita_id, fecha: n.fecha, estado: n.estado_familia, ninos: [], padres: [] }
+    f.ninos.push(n)
+    for (const p of n.padres) if (!f.padres.includes(p)) f.padres.push(p)
+    familias.set(n.visita_id, f)
+  }
+  const grupos: Record<EstadoRetorno, FamiliaNueva[]> = { volvio: [], no_volvio: [], pendiente: [] }
+  for (const f of familias.values()) grupos[f.estado].push(f)
+  return grupos
 }
 
 /** Peak as a percentage of capacity, rounded. */
