@@ -78,9 +78,9 @@ export interface MesReporte extends ResumenPeriodo {
 }
 
 /**
- * volvio: came back on a later date; no_volvio: services happened since and
- * the child did not come; pendiente: no service has happened since the first
- * visit.
+ * volvio: came back on a later date; no_volvio: their campus held a service
+ * since and the child did not come; pendiente: no service has happened at the
+ * campus of the first visit since then.
  */
 export type EstadoRetorno = 'volvio' | 'no_volvio' | 'pendiente'
 
