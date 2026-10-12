@@ -28,3 +28,13 @@ export function safeInternalPath(valor: unknown): string | null {
   }
   return esRutaInterna(decodificada) ? valor : null
 }
+
+/**
+ * The login form data plus the `redirect` of the address bar (`location.search`),
+ * when there is one. The sign-in action validates it with safeInternalPath.
+ */
+export function conDestino(datos: FormData, busqueda: string): FormData {
+  const destino = new URLSearchParams(busqueda).get('redirect')
+  if (destino) datos.append('redirect', destino)
+  return datos
+}

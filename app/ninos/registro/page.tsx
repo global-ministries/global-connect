@@ -11,6 +11,7 @@
  */
 import { EntradaRegistro } from '@/components/ninos/registro/entrada-registro'
 import { TextoSistema } from '@/components/ui/sistema-diseno'
+import { tieneSesionAcotada } from '@/lib/auth/sesion-acotada'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClientOrNull } from '@/lib/supabase/server'
 
@@ -24,10 +25,8 @@ export default async function NinosRegistroPage({ searchParams }: Props) {
   const admin = createSupabaseAdminClient()
   const { data } = await admin.rpc('ninos_preregistro_campus')
   const campus = (data ?? []) as { id: string; nombre: string }[]
-  // A failure to read the session must not block the public form: treat it as signed out.
-  const supabase = await createSupabaseServerClientOrNull()
-  const sesion = supabase ? await supabase.auth.getUser().catch(() => null) : null
-  const conSesion = Boolean(sesion?.data.user)
+  // Bounded: a failed or slow session lookup counts as signed out, so the form always renders.
+  const conSesion = await tieneSesionAcotada(await createSupabaseServerClientOrNull())
 
   return (
     // One flat background so the sticky action bar blends in. overflow-x-clip (not
