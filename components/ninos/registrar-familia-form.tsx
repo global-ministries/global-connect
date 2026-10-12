@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Plus, X } from 'lucide-react'
 
@@ -10,7 +10,10 @@ import {
   hijoVacio,
   mensajeDeErrorFamilia,
   parseCoincidencias,
+  parseConyuge,
+  rolDeConyuge,
   validarFamilia,
+  type Conyuge,
   type FamiliaForm,
   type FamiliaPayload,
   type HijoForm,
@@ -46,6 +49,27 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
   const [errores, setErrores] = useState<string[]>([])
   const [guardando, setGuardando] = useState(false)
   const [coincidencias, setCoincidencias] = useState<PadreCoincidencia[]>([])
+  // The existing adult's recorded spouse: offered as second parent, never linked without an explicit check.
+  const [conyuge, setConyuge] = useState<Conyuge | null>(null)
+  const [vincularConyuge, setVincularConyuge] = useState(false)
+
+  const padreExistenteId = padreExistente?.id
+  useEffect(() => {
+    if (!padreExistenteId || guardar) return
+    let vigente = true
+    async function cargarConyuge(id: string) {
+      try {
+        const res = await createClient().rpc('ninos_conyuge_de', { p_usuario_id: id })
+        if (vigente && !res?.error) setConyuge(parseConyuge(res?.data))
+      } catch {
+        // Without the lookup the form still registers the children for the adult alone.
+      }
+    }
+    void cargarConyuge(padreExistenteId)
+    return () => {
+      vigente = false
+    }
+  }, [padreExistenteId, guardar])
 
   const setPadre = (campo: keyof FamiliaForm['padre'], v: string) => setForm((f) => ({ ...f, padre: { ...f.padre, [campo]: v } }))
   const setHijo = (i: number, h: HijoForm) => setForm((f) => ({ ...f, hijos: f.hijos.map((x, j) => (j === i ? h : x)) }))
@@ -59,7 +83,11 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
       else onRegistrada(r.padreId, payload.hijos[0] ? `${payload.hijos[0].nombre} ${payload.hijos[0].apellido}` : '')
       return
     }
-    const { data, error } = await createClient().rpc('ninos_registrar_familia', { p: payload as unknown as Json })
+    const conConyuge: FamiliaPayload =
+      conyuge && vincularConyuge && 'id' in payload.padre && payload.padre.id === padreExistenteId
+        ? { ...payload, conyuge_id: conyuge.id }
+        : payload
+    const { data, error } = await createClient().rpc('ninos_registrar_familia', { p: conConyuge as unknown as Json })
     setGuardando(false)
     if (error) {
       setErrores([mensajeDeErrorFamilia(error)])
@@ -223,6 +251,23 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
       >
         Agregar otro niño
       </BotonSistema>
+
+      {conyuge && (
+        <TarjetaSistema className="space-y-2 p-4 md:p-6">
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-3 font-medium text-foreground">
+            <input
+              type="checkbox"
+              className="h-5 w-5 shrink-0 rounded accent-[var(--brand-primary)]"
+              checked={vincularConyuge}
+              onChange={(e) => setVincularConyuge(e.target.checked)}
+            />
+            ¿Vincular también a {`${conyuge.nombre} ${conyuge.apellido}`.trim()} como {rolDeConyuge(conyuge.genero)}?
+          </label>
+          <TextoSistema variante="sutil" className="text-xs">
+            Figura como cónyuge del representante. Márcalo solo si también es padre o madre de estos niños.
+          </TextoSistema>
+        </TarjetaSistema>
+      )}
 
       <TarjetaSistema className="space-y-4 p-4 md:p-6">
         <TituloSistema nivel={3}>Personas autorizadas para retirar</TituloSistema>
