@@ -1,7 +1,7 @@
 'use client'
 
 /** Steps 1 (parent) and 2 (children) of the public registration wizard. */
-import { Phone, Plus, User, X } from 'lucide-react'
+import { IdCard, Phone, Plus, User, Users, X } from 'lucide-react'
 
 import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { LIMITES_PREREGISTRO } from '@/lib/platform/ninos/preregistro'
@@ -10,6 +10,8 @@ import { idCampo, type Errores, type HijoRegistro, type PadreRegistro } from './
 import { Bloque, OpcionesGrandes } from './piezas'
 
 type Campus = { id: string; nombre: string }
+
+const AYUDA_CEDULA = 'reg-cedula-ayuda'
 
 type PasoPadreProps = {
   padre: PadreRegistro
@@ -38,6 +40,7 @@ export function PasoPadre({ padre, campus, campusId, errores, onPadre, onCampus 
         id={id('nombre')}
         label="Tu nombre"
         icono={User}
+        placeholder="Ej.: María"
         autoComplete="given-name"
         enterKeyHint="next"
         value={padre.nombre}
@@ -47,7 +50,8 @@ export function PasoPadre({ padre, campus, campusId, errores, onPadre, onCampus 
       <InputSistema
         id={id('apellido')}
         label="Tu apellido"
-        icono={User}
+        icono={Users}
+        placeholder="Ej.: González"
         autoComplete="family-name"
         enterKeyHint="next"
         value={padre.apellido}
@@ -66,16 +70,21 @@ export function PasoPadre({ padre, campus, campusId, errores, onPadre, onCampus 
         onChange={(e) => onPadre('telefono', e.target.value)}
         error={errores[id('telefono')]}
       />
-      <div className="rounded-xl bg-muted/40 p-3">
+      {/* A plain field like the others; the helper is its accessible description. */}
+      <div className="space-y-2">
         <InputSistema
           id={id('cedula')}
           label="Cédula (opcional)"
+          icono={IdCard}
           inputMode="numeric"
-          className="bg-card"
+          placeholder="Solo números"
+          aria-describedby={AYUDA_CEDULA}
           value={padre.cedula}
           onChange={(e) => onPadre('cedula', e.target.value)}
         />
-        <p className="mt-2 text-xs text-muted-foreground">Nos ayuda a encontrarte más rápido la próxima vez.</p>
+        <p id={AYUDA_CEDULA} className="text-sm text-muted-foreground">
+          Si la escribes, el equipo puede encontrarte y no registrarte dos veces.
+        </p>
       </div>
     </div>
   )
@@ -136,6 +145,8 @@ export function PasoHijos({ hijos, hoy, errores, onHijo, onAgregar, onQuitar }: 
               label="Fecha de nacimiento"
               aria-label={`Fecha de nacimiento del niño ${n}`}
               type="date"
+              // iOS Safari gives native date inputs an intrinsic width that ignores w-full.
+              className="min-w-0 appearance-none [&::-webkit-date-and-time-value]:text-left"
               max={hoy}
               value={h.fechaNacimiento}
               onChange={(e) => onHijo(i, { fechaNacimiento: e.target.value })}

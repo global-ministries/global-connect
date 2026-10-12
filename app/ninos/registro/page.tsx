@@ -7,10 +7,12 @@
  * the table, where the room is assigned from the birth date. The campus list
  * comes from the service-role-only RPC ninos_preregistro_campus (names of
  * campuses with an active room; nothing personal). ?campus= preselects one.
+ * A visitor who is already signed in is pointed to /perfil instead (R2).
  */
-import { RegistroFamilia } from '@/components/ninos/registro/registro-familia'
+import { EntradaRegistro } from '@/components/ninos/registro/entrada-registro'
 import { TextoSistema } from '@/components/ui/sistema-diseno'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { createSupabaseServerClientOrNull } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Registro de familia — Niños' }
 export const dynamic = 'force-dynamic'
@@ -22,18 +24,21 @@ export default async function NinosRegistroPage({ searchParams }: Props) {
   const admin = createSupabaseAdminClient()
   const { data } = await admin.rpc('ninos_preregistro_campus')
   const campus = (data ?? []) as { id: string; nombre: string }[]
+  // A failure to read the session must not block the public form: treat it as signed out.
+  const supabase = await createSupabaseServerClientOrNull()
+  const sesion = supabase ? await supabase.auth.getUser().catch(() => null) : null
+  const conSesion = Boolean(sesion?.data.user)
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[var(--surface-primary)] via-[var(--surface-secondary)] to-[var(--surface-primary)]">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute left-10 top-20 h-32 w-32 rounded-full bg-gradient-to-br from-orange-300/20 to-orange-400/20 blur-xl" />
-        <div className="absolute bottom-24 right-10 h-40 w-40 rounded-full bg-gradient-to-br from-orange-200/10 to-orange-300/10 blur-2xl" />
-      </div>
-      <div className="relative z-10 mx-auto w-full max-w-xl px-4 py-6 sm:px-6 sm:py-12">
+    // One flat background so the sticky action bar blends in. overflow-x-clip (not
+    // overflow-hidden) guards against horizontal scroll without turning <main> into a
+    // scroll container, which kept the action bar from ever sticking.
+    <main className="min-h-dvh overflow-x-clip bg-background">
+      <div className="relative mx-auto flex min-h-dvh w-full min-w-0 max-w-xl flex-col px-4 pt-6 sm:px-6 sm:py-12">
         {campus.length === 0 ? (
           <TextoSistema className="text-center">El registro no está disponible en este momento. Acércate a la mesa de check-in.</TextoSistema>
         ) : (
-          <RegistroFamilia campus={campus} campusInicial={campusInicial} />
+          <EntradaRegistro conSesion={conSesion} campus={campus} campusInicial={campusInicial} />
         )}
       </div>
     </main>

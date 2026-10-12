@@ -325,6 +325,14 @@ describe('RegistroFamilia', () => {
     expect(trampa.closest('[aria-hidden="true"]')).not.toBeNull()
   })
 
+  it('explains why the optional cédula helps and gives the names an example', () => {
+    render(<RegistroFamilia campus={campus} />)
+    const cedula = screen.getByLabelText('Cédula (opcional)')
+    expect(cedula).toHaveAccessibleDescription(/encontrarte y no registrarte dos veces/i)
+    expect(screen.getByLabelText('Tu nombre')).toHaveAttribute('placeholder')
+    expect(screen.getByLabelText('Tu apellido')).toHaveAttribute('placeholder')
+  })
+
   it('asks for the campus in the first step only when there are several', () => {
     const { unmount } = render(<RegistroFamilia campus={campus} />)
     expect(screen.queryByLabelText('Campus')).not.toBeInTheDocument()

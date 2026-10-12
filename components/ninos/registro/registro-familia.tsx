@@ -7,7 +7,7 @@
  * the confirmation. It never links to /signup: the account invitation is sent
  * when the table confirms, bound to the new parent ficha.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, ArrowRight, Send } from 'lucide-react'
 
 import { BotonSistema, TextoSistema } from '@/components/ui/sistema-diseno'
@@ -41,6 +41,8 @@ type Props = {
   campus: Campus[]
   /** From the QR (?campus=), when it names one of `campus`. */
   campusInicial?: string
+  /** Secondary line under the first step's heading (the sign-in link for account holders). */
+  aviso?: ReactNode
 }
 
 const ENCABEZADOS: Record<Paso, { titulo: string; ayuda: string }> = {
@@ -60,7 +62,7 @@ function focoEn(id: string | undefined) {
   if (id) document.getElementById(id)?.focus()
 }
 
-export function RegistroFamilia({ campus, campusInicial }: Props) {
+export function RegistroFamilia({ campus, campusInicial, aviso }: Props) {
   const campusIds = campus.map((c) => c.id)
   const inicial = campusIds.includes(campusInicial ?? '') ? (campusInicial as string) : campus.length === 1 ? campus[0].id : ''
   const [datos, setDatos] = useState<DatosRegistro>({
@@ -188,7 +190,9 @@ export function RegistroFamilia({ campus, campusInicial }: Props) {
             : 'Continuar'
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-6">
+    // A flex column so the action bar can sit at the bottom of short steps instead of
+    // leaving an empty band under it; min-w-0 keeps every field inside the gutter.
+    <form onSubmit={onSubmit} noValidate className="flex min-w-0 flex-1 flex-col gap-6">
       <header className="space-y-4">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-orange-600 dark:text-orange-400">
           Waumba Land · UpStreet
@@ -201,6 +205,7 @@ export function RegistroFamilia({ campus, campusInicial }: Props) {
           {encabezado}
         </h2>
         <TextoSistema variante="sutil">{ayuda}</TextoSistema>
+        {paso === 1 && aviso}
       </div>
 
       {paso === 1 && (
@@ -278,7 +283,11 @@ export function RegistroFamilia({ campus, campusInicial }: Props) {
         </ul>
       )}
 
-      <div className="sticky bottom-0 -mx-4 flex gap-3 border-t border-border bg-background/90 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:backdrop-blur-none">
+      {/*
+        Sticky action bar on phones: same background as the page (no bleed, no band),
+        a short fade instead of a border, and room for the home indicator.
+      */}
+      <div className="sticky bottom-0 z-10 mt-auto flex gap-3 bg-background pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:-top-4 before:h-4 before:bg-gradient-to-t before:from-background before:to-transparent sm:static sm:mt-2 sm:bg-transparent sm:p-0 sm:before:hidden">
         {paso > 1 && !editando && (
           <BotonSistema type="button" variante="outline" tamaño="lg" icono={ArrowLeft} className="px-4" onClick={() => ir((paso - 1) as Paso)}>
             Atrás
