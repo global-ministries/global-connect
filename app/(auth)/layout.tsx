@@ -20,18 +20,25 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient
 
 const DEFAULT_BRANDING = { logoLightUrl: null as string | null, logoDarkUrl: null as string | null, faviconUrl: null as string | null }
 
-// Niños sidebar flags (odd/tasks/ninos-checkin.md, N6/N7): three definer checks,
-// fail closed on any error.
+// Niños sidebar flags (odd/tasks/ninos-checkin.md, N6/N7, and
+// odd/tasks/ninos-asistencia-voluntarios.md, V2): four definer checks, fail
+// closed on any error.
 async function resolveNinosAcceso(supabase: SupabaseServerClient | null) {
-  const sinAcceso = { puedeOperar: false, puedeVerSalon: false, puedeConfigurar: false }
+  const sinAcceso = { puedeOperar: false, puedeVerSalon: false, puedeConfigurar: false, puedeMarcarVoluntarios: false }
   if (!supabase) return sinAcceso
   try {
-    const [operar, ver, configurar] = await Promise.all([
+    const [operar, ver, configurar, marcarVoluntarios] = await Promise.all([
       supabase.rpc("ninos_puede_operar_algun_area"),
       supabase.rpc("ninos_puede_ver_algun_salon"),
       supabase.rpc("ninos_puede_configurar_algun_area"),
+      supabase.rpc("ninos_puede_marcar_voluntarios_algun_area"),
     ])
-    return { puedeOperar: operar.data === true, puedeVerSalon: ver.data === true, puedeConfigurar: configurar.data === true }
+    return {
+      puedeOperar: operar.data === true,
+      puedeVerSalon: ver.data === true,
+      puedeConfigurar: configurar.data === true,
+      puedeMarcarVoluntarios: marcarVoluntarios.data === true,
+    }
   } catch {
     return sinAcceso
   }
@@ -95,7 +102,7 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
       <CurrentUserProvider initial={initialCurrentUser ?? undefined}>
         <DreamTeamAccesoProvider puedeRegistrar={dreamTeamPuedeRegistrar}>
           <NinosAccesoProvider puedeOperar={ninosAcceso.puedeOperar} puedeVerSalon={ninosAcceso.puedeVerSalon}
-            puedeConfigurar={ninosAcceso.puedeConfigurar}>
+            puedeConfigurar={ninosAcceso.puedeConfigurar} puedeMarcarVoluntarios={ninosAcceso.puedeMarcarVoluntarios}>
             <CampusProvider>
               <div className="min-h-screen bg-[var(--surface-primary)]">
                 <HeaderMovil />

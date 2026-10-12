@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ComponentType } from 'react'
-import { Baby, ChartColumn, ClipboardCheck, House, QrCode, UsersRound } from 'lucide-react'
+import { Baby, ChartColumn, ClipboardCheck, House, QrCode, UserCheck, UsersRound } from 'lucide-react'
 
 import { useNinosAcceso, type NinosAcceso } from '@/hooks/useNinosAcceso'
 
@@ -36,6 +36,10 @@ export function getNinosNavItems(acceso: NinosAcceso): NinosMenuChild[] {
   if (acceso.puedeVerSalon || acceso.puedeOperar) {
     items.push({ id: 'ninos-salon', label: 'Salones', href: '/ninos/salon', icon: House })
   }
+  // Same gate as /ninos/voluntarios: ninos_puede_marcar_voluntarios_algun_area().
+  if (acceso.puedeMarcarVoluntarios) {
+    items.push({ id: 'ninos-voluntarios', label: 'Voluntarios', href: '/ninos/voluntarios', icon: UserCheck })
+  }
   // Same gate as /ninos/cartel: ninos_puede_operar_algun_area().
   if (acceso.puedeOperar) {
     items.push({ id: 'ninos-cartel', label: 'Cartel QR', href: '/ninos/cartel', icon: QrCode })
@@ -54,10 +58,10 @@ export function buildNinosMenuItem(items: readonly NinosMenuChild[]): NinosMenuI
 }
 
 export function useNinosMenuItem(): NinosMenuItem | null {
-  const { puedeOperar, puedeVerSalon, puedeConfigurar } = useNinosAcceso()
+  const { puedeOperar, puedeVerSalon, puedeConfigurar, puedeMarcarVoluntarios } = useNinosAcceso()
   return useMemo(
-    () => buildNinosMenuItem(getNinosNavItems({ puedeOperar, puedeVerSalon, puedeConfigurar })),
-    [puedeOperar, puedeVerSalon, puedeConfigurar],
+    () => buildNinosMenuItem(getNinosNavItems({ puedeOperar, puedeVerSalon, puedeConfigurar, puedeMarcarVoluntarios })),
+    [puedeOperar, puedeVerSalon, puedeConfigurar, puedeMarcarVoluntarios],
   )
 }
 

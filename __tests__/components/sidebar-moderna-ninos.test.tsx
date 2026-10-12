@@ -37,12 +37,27 @@ jest.mock('@/lib/platform/talleres/flags', () => ({
 }))
 
 
-function renderCon(acceso: { puedeOperar: boolean; puedeVerSalon: boolean; puedeConfigurar?: boolean }) {
+function renderCon(acceso: {
+  puedeOperar: boolean
+  puedeVerSalon: boolean
+  puedeConfigurar?: boolean
+  puedeMarcarVoluntarios?: boolean
+}) {
   return render(
-    <NinosAccesoProvider puedeOperar={acceso.puedeOperar} puedeVerSalon={acceso.puedeVerSalon} puedeConfigurar={acceso.puedeConfigurar}>
+    <NinosAccesoProvider
+      puedeOperar={acceso.puedeOperar}
+      puedeVerSalon={acceso.puedeVerSalon}
+      puedeConfigurar={acceso.puedeConfigurar}
+      puedeMarcarVoluntarios={acceso.puedeMarcarVoluntarios}
+    >
       <SidebarModerna />
     </NinosAccesoProvider>,
   )
+}
+
+/** Every link target in document order. */
+function hrefs(): (string | null)[] {
+  return screen.getAllByRole('link').map((a) => a.getAttribute('href'))
 }
 
 describe('SidebarModerna Niños section', () => {
@@ -65,6 +80,27 @@ describe('SidebarModerna Niños section', () => {
     renderCon({ puedeOperar: true, puedeVerSalon: true, puedeConfigurar: true })
     const enlaces = screen.getAllByRole('link', { name: 'Reportes' }).map((a) => a.getAttribute('href'))
     expect(enlaces).toContain('/ninos/reportes')
+  })
+
+  it('hides Voluntarios without the marking flag (anfitriones, líderes)', () => {
+    renderCon({ puedeOperar: true, puedeVerSalon: true })
+    expect(document.querySelector('a[href="/ninos/voluntarios"]')).toBeNull()
+  })
+
+  it('shows Voluntarios right after Salones to whoever marks volunteers', () => {
+    renderCon({ puedeOperar: true, puedeVerSalon: true, puedeMarcarVoluntarios: true })
+    expect(screen.getByRole('link', { name: 'Voluntarios' })).toHaveAttribute('href', '/ninos/voluntarios')
+    const orden = hrefs()
+    expect(orden.indexOf('/ninos/voluntarios')).toBe(orden.indexOf('/ninos/salon') + 1)
+    expect(orden.indexOf('/ninos/cartel')).toBe(orden.indexOf('/ninos/voluntarios') + 1)
+  })
+
+  it('opens the section on Voluntarios for a team coordinator with no other Niños access', () => {
+    renderCon({ puedeOperar: false, puedeVerSalon: false, puedeMarcarVoluntarios: true })
+    expect(screen.getByRole('link', { name: 'Niños' })).toHaveAttribute('href', '/ninos/voluntarios')
+    expect(screen.getByRole('link', { name: 'Voluntarios' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Check-in' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Salones' })).not.toBeInTheDocument()
   })
 
   it('shows only Salones to a líder who sees a room', () => {
