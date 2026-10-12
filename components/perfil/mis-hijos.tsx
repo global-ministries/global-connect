@@ -5,8 +5,9 @@
  * logged-in parent's children, one card each, their data edited in a side
  * panel with the shared Niños form in parent mode, and "Agregar a mis hijos"
  * to register a child from home (always shown, also with no children). Reads
- * and saves go through the definer RPCs ninos_mis_hijos / ninos_mis_hijos_guardar
- * / ninos_mis_hijos_registrar with the user's session; the SQL decides which
+ * and saves go through the definer RPCs ninos_mis_hijos / ninos_mis_hijos_registrar
+ * and the route /api/ninos/mis-hijos/[id] (ninos_mis_hijos_guardar plus the
+ * pickup-change email) with the user's session; the SQL decides which
  * children are theirs. A likely duplicate waits as a pending request until
  * the check-in table confirms it.
  */
@@ -24,7 +25,6 @@ import {
   type ResultadoRegistro,
 } from '@/lib/platform/ninos/mis-hijos-registrar'
 import { createClient } from '@/lib/supabase/client'
-import type { Json } from '@/lib/supabase/database.types'
 
 import { RegistrarMisHijosForm } from './mis-hijos-registrar'
 import { TarjetaMiHijo } from './mis-hijos-tarjeta'
@@ -51,11 +51,19 @@ export function MisHijos({ hijos: iniciales, pendientes: pendientesIniciales = [
   const [recargando, setRecargando] = useState(false)
 
   async function guardar(hijo: MiHijo, payload: PayloadEdicionNino): Promise<{ error: string } | null> {
-    const { error } = await createClient().rpc('ninos_mis_hijos_guardar', {
-      p_nino_id: hijo.id,
-      p: payload as unknown as Json,
-    })
-    return error ? { error: mensajeDeErrorMisHijos(error) } : null
+    // Through the route: it emails the other parents when the pickup list changes (M6c).
+    try {
+      const res = await fetch(`/api/ninos/mis-hijos/${encodeURIComponent(hijo.id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload }),
+      })
+      if (res.ok) return null
+      const datos = ((await res.json().catch(() => null)) ?? {}) as { error?: { code?: string; message?: string } }
+      return { error: mensajeDeErrorMisHijos(datos.error ?? null) }
+    } catch {
+      return { error: mensajeDeErrorMisHijos(null) }
+    }
   }
 
   /** Reads the list again; false when it could not be refreshed (the cards keep the old data). */

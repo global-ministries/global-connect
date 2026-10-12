@@ -143,10 +143,10 @@ INSERT INTO public.ninos_preregistros (id, campus_id, payload) VALUES
    jsonb_build_object('padre', jsonb_build_object('nombre', 'ZZ Qr', 'apellido', 'ZZ Me', 'telefono', '04129990989'),
                       'hijos', jsonb_build_array(pg_temp.hijo('ZZ Qrito', 4)), 'autorizados', '[]'::jsonb));
 
-GRANT INSERT, SELECT, UPDATE ON t_me_failures, t_me_ctx TO authenticated, anon;
+GRANT INSERT, SELECT, UPDATE ON t_me_failures, t_me_ctx TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION pg_temp.fail(text, text), pg_temp.assert_eq(text, text, text),
   pg_temp.assert_raises(text, text, text, text), pg_temp.assert_denied(text, text), pg_temp.as_persona(int),
-  pg_temp.id(text, int), pg_temp.ctx(text), pg_temp.nac(int), pg_temp.hijo(text, int, jsonb) TO authenticated, anon;
+  pg_temp.id(text, int), pg_temp.ctx(text), pg_temp.nac(int), pg_temp.hijo(text, int, jsonb) TO authenticated, anon, service_role;
 
 SET LOCAL ROLE authenticated;
 
@@ -284,6 +284,34 @@ SELECT pg_temp.assert_eq('d: the from-home history stays',
 SELECT pg_temp.assert_eq('d: clients cannot execute the trigger function',
   $q$SELECT (has_function_privilege('authenticated', 'public.ninos_checkins_confirmar_desde_casa()', 'EXECUTE')
              OR has_function_privilege('anon', 'public.ninos_checkins_confirmar_desde_casa()', 'EXECUTE'))::text$q$, 'false');
+
+-- ── e. pickup-change email recipients (service role only) ────────────
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.assert_eq('e: R changes X''s pickup list from Mis hijos',
+  format($q$SELECT public.ninos_mis_hijos_guardar(%L, %L) ->> 'campos'$q$, pg_temp.id('us', 11),
+         '{"autorizados": [{"nombre": "ZZ Tía Me", "telefono": "04120000001", "relacion": "Tía"}]}'),
+  '["autorizados"]');
+SELECT pg_temp.assert_denied('e: a parent cannot read the recipients',
+  format($q$SELECT public.ninos_aviso_autorizados(%L, %L)$q$, pg_temp.id('us', 11), pg_temp.id('au', 5)));
+RESET ROLE;
+SET LOCAL ROLE anon;
+SELECT pg_temp.assert_denied('e: anon cannot read the recipients',
+  format($q$SELECT public.ninos_aviso_autorizados(%L, %L)$q$, pg_temp.id('us', 11), pg_temp.id('au', 5)));
+RESET ROLE;
+SET LOCAL ROLE service_role;
+SELECT pg_temp.assert_eq('e: the other parent (O) is the only recipient, with the new list',
+  format($q$SELECT concat_ws('|', r ->> 'nino_nombre', r ->> 'actor_nombre', r -> 'autorizados' -> 0 ->> 'nombre',
+                             r -> 'autorizados' -> 0 ->> 'relacion', ((r -> 'autorizados' -> 0) ? 'telefono')::text,
+                             jsonb_array_length(r -> 'destinatarios'), r -> 'destinatarios' -> 0 ->> 'email',
+                             (r ->> 'cambio_id' IS NOT NULL)::text)
+              FROM public.ninos_aviso_autorizados(%L, %L) r$q$, pg_temp.id('us', 11), pg_temp.id('au', 5)),
+  'ZZ Equis|ZZ Rita ZZ Me|ZZ Tía Me|Tía|false|1|me-1@example.test|true');
+SELECT pg_temp.assert_eq('e: nothing for an account that made no pickup change',
+  format($q$SELECT coalesce(public.ninos_aviso_autorizados(%L, %L)::text, 'NULL')$q$, pg_temp.id('us', 11), pg_temp.id('au', 1)),
+  'NULL');
+RESET ROLE;
 
 SELECT coalesce(string_agg(case_name, ' ## '), 'ALL OK') AS result FROM t_me_failures;
 

@@ -278,3 +278,52 @@ AS $$
   AND (f.usuario_id IS NOT NULL OR public.ninos_en_rango_edad(u.fecha_nacimiento::date));
 $$;
 REVOKE ALL ON FUNCTION public.ninos_familia_hijos(uuid) FROM PUBLIC, anon, authenticated;
+
+-- ── M6c. Pickup-change email to the other parents (D2) ───────────────
+--
+-- When a parent changes the authorized pickup list from Mis hijos, the other
+-- linked parents get an email. The route handler saves through
+-- ninos_mis_hijos_guardar as the user and, after the response, reads the
+-- recipients here with the service role: the parent's client never receives
+-- another parent's email address.
+--   7. ninos_aviso_autorizados(p_nino_id uuid, p_auth_id uuid) → jsonb, for
+--      service_role only. The latest pickup-list change ('autorizados' in
+--      ninos_fichas_cambios, origen 'padre') made on that child by the account
+--      p_auth_id in the last 10 minutes, or NULL. Returns {cambio_id,
+--      nino_nombre, actor_nombre, autorizados: [{nombre, relacion}],
+--      destinatarios: [{id, nombre, email}]} — every other parent or tutor
+--      linked to the child (both link directions) with an email.
+--
+-- Rollback (M6c): DROP FUNCTION IF EXISTS public.ninos_aviso_autorizados(uuid, uuid);
+
+CREATE OR REPLACE FUNCTION public.ninos_aviso_autorizados(p_nino_id uuid, p_auth_id uuid)
+RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO ''
+AS $$
+  SELECT jsonb_build_object(
+           'cambio_id', c.id,
+           'nino_nombre', n.nombre,
+           'actor_nombre', trim(a.nombre || ' ' || coalesce(a.apellido, '')),
+           'autorizados', (SELECT coalesce(jsonb_agg(jsonb_build_object('nombre', x.v ->> 'nombre', 'relacion', x.v ->> 'relacion')
+                                                     ORDER BY x.n), '[]'::jsonb)
+                             FROM jsonb_array_elements(coalesce(c.autorizados_despues, '[]'::jsonb)) WITH ORDINALITY x(v, n)),
+           'destinatarios', (SELECT coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'nombre', p.nombre, 'email', p.email)
+                                                       ORDER BY p.apellido, p.nombre), '[]'::jsonb)
+                               FROM public.usuarios p
+                              WHERE p.id <> a.id AND p.email IS NOT NULL AND btrim(p.email) <> ''
+                                AND p.id IN (SELECT r.usuario2_id FROM public.relaciones_usuarios r
+                                              WHERE r.usuario1_id = n.id AND r.tipo_relacion IN ('padre', 'tutor')
+                                             UNION
+                                             SELECT r.usuario1_id FROM public.relaciones_usuarios r
+                                              WHERE r.usuario2_id = n.id AND r.tipo_relacion = 'hijo')))
+    FROM public.ninos_fichas_cambios c
+    JOIN public.usuarios a ON a.id = c.actor_id
+    JOIN public.usuarios n ON n.id = c.nino_id
+   WHERE c.nino_id = p_nino_id AND a.auth_id = p_auth_id AND c.origen = 'padre'
+     AND 'autorizados' = ANY (c.campos) AND c.created_at > now() - interval '10 minutes'
+   ORDER BY c.created_at DESC
+   LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION public.ninos_aviso_autorizados(uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ninos_aviso_autorizados(uuid, uuid) TO service_role;
