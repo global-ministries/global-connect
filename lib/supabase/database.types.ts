@@ -8190,6 +8190,15 @@ export type Database = {
         Args: { p_campus_id?: string; p_desde: string; p_hasta: string; p_turno_id?: string }
         Returns: Json
       }
+      ninos_reporte_voluntarios: {
+        Args: {
+          p_campus_id?: string
+          p_desde: string
+          p_hasta: string
+          p_turno_id?: string
+        }
+        Returns: Json
+      }
       ninos_correos_visita: {
         Args: { p_evento: string; p_fecha: string; p_nino_ids: string[]; p_turno_id: string }
         Returns: {
