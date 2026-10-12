@@ -1,4 +1,4 @@
-import { horaServicio, mensajeDeErrorPrecheck, parseMisPrechecks } from '@/lib/platform/ninos/precheck'
+import { horaServicio, llegandoAFamilia, mensajeDeErrorPrecheck, parseLlegando, parseMisPrechecks } from '@/lib/platform/ninos/precheck'
 
 describe('parseMisPrechecks', () => {
   it('reads the services in the window and the notices', () => {
@@ -36,5 +36,30 @@ describe('mensajeDeErrorPrecheck', () => {
     expect(mensajeDeErrorPrecheck({ code: '22023', message: 'limite_diario' })).toBe('Llegaste al límite de avisos de hoy.')
     expect(mensajeDeErrorPrecheck({ code: '42501', message: 'sin_autoridad' })).toBe('No tienes permiso para avisar a la mesa.')
     expect(mensajeDeErrorPrecheck(null)).toBe('No se pudo avisar a la mesa. Intenta de nuevo.')
+  })
+})
+
+describe('parseLlegando', () => {
+  const familia = {
+    padre: { id: 'p1', nombre: 'Ana', apellido: 'Pérez' },
+    avisado_at: '2026-10-11T12:40:00Z',
+    hijos: [{ id: 'h1', nombre: 'Luis', apellido: 'Pérez', tiene_ficha: true, autorizados: null, desde_casa: true }],
+  }
+
+  it('reads each arriving family with its notified children', () => {
+    const [f] = parseLlegando([familia, { padre: null }, { padre: { id: 'p2' }, hijos: [] }])
+    expect(f.padre).toEqual({ id: 'p1', nombre: 'Ana', apellido: 'Pérez' })
+    expect(f.avisadoAt).toBe('2026-10-11T12:40:00Z')
+    expect(f.hijos).toHaveLength(1)
+    expect(f.hijos[0]).toEqual(expect.objectContaining({ id: 'h1', tiene_ficha: true, desde_casa: true, autorizados: [] }))
+    expect(parseLlegando([familia, { padre: { id: 'p2' }, hijos: [] }])).toHaveLength(1)
+    expect(parseLlegando(null)).toEqual([])
+  })
+
+  it('turns the family into the check-in card shape', () => {
+    const f = llegandoAFamilia(parseLlegando([familia])[0])
+    expect(f.id).toBe('p1')
+    expect(f.padres).toEqual([{ id: 'p1', nombre: 'Ana', apellido: 'Pérez', telefono: null }])
+    expect(f.hijos.map((h) => h.id)).toEqual(['h1'])
   })
 })

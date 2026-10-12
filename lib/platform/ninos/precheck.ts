@@ -3,7 +3,9 @@
  * ninos_mis_prechecks() for "Voy en camino" in Mis hijos and maps the errors
  * of ninos_precheck_avisar / ninos_precheck_cancelar to Spanish. The SQL
  * decides the window, the children and the caps; this only reads its answer.
+ * The table side (P3) parses ninos_prechecks_pendientes() for "Llegando".
  */
+import { parseFamilias, type FamiliaEncontrada, type HijoEncontrado } from './familias-vista'
 
 /** A service of today that still takes notices (its window is open). */
 export type ServicioPrecheck = { turnoId: string; nombre: string; hora: string; campus: string }
@@ -57,4 +59,43 @@ export function mensajeDeErrorPrecheck(error: { code?: string; message?: string 
   if (MENSAJES[clave]) return MENSAJES[clave]
   if (error?.code === '42501') return MENSAJES.sin_autoridad
   return 'No se pudo avisar a la mesa. Intenta de nuevo.'
+}
+
+/** A family on its way, as ninos_prechecks_pendientes() returns it for the table (P3). */
+export type FamiliaLlegando = {
+  padre: { id: string; nombre: string; apellido: string }
+  avisadoAt: string
+  /** Only the children the parent notified, in the ninos_familia_hijos shape. */
+  hijos: HijoEncontrado[]
+}
+
+export function parseLlegando(data: unknown): FamiliaLlegando[] {
+  if (!Array.isArray(data)) return []
+  return data
+    .filter((f): f is Objeto => esObjeto(f) && esObjeto(f.padre) && typeof f.padre.id === 'string')
+    .map((f) => {
+      const padre = f.padre as Objeto
+      const familia = parseFamilias([
+        { id: padre.id, nombre: texto(padre.nombre), apellido: texto(padre.apellido), telefono: null, cedula: null, hijos: f.hijos },
+      ])[0]
+      return {
+        padre: { id: padre.id as string, nombre: texto(padre.nombre), apellido: texto(padre.apellido) },
+        avisadoAt: texto(f.avisado_at),
+        hijos: familia.hijos,
+      }
+    })
+    .filter((f) => f.hijos.length > 0)
+}
+
+/** The arriving family as the check-in card expects it (to pick a room by hand). */
+export function llegandoAFamilia(f: FamiliaLlegando): FamiliaEncontrada {
+  return {
+    id: f.padre.id,
+    nombre: f.padre.nombre,
+    apellido: f.padre.apellido,
+    telefono: null,
+    cedula: null,
+    hijos: f.hijos,
+    padres: [{ id: f.padre.id, nombre: f.padre.nombre, apellido: f.padre.apellido, telefono: null }],
+  }
 }
