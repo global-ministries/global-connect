@@ -73,6 +73,23 @@ describe('RegistrarFamiliaForm: spouse as second parent', () => {
     expect(payloadRegistrado()).toEqual(expect.objectContaining({ padre: { id: 'p1' }, conyuge_id: 'c1' }))
   })
 
+  it('shows a readable error when the spouse is no longer valid', async () => {
+    rpc.mockImplementation((fn: string) =>
+      Promise.resolve(
+        fn === 'ninos_conyuge_de'
+          ? { data: conyuge, error: null }
+          : { data: null, error: { code: '22023', message: 'conyuge_invalido' } },
+      ),
+    )
+    const onRegistrada = jest.fn()
+    render(<RegistrarFamiliaForm padreExistente={{ id: 'p1', nombre: 'Pedro Ruiz' }} onRegistrada={onRegistrada} onCancelar={jest.fn()} />)
+    fireEvent.click(await screen.findByRole('checkbox', { name: /Vincular también a Marta Ruiz/ }))
+    llenarHijo()
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar niño' }))
+    expect(await screen.findByText('Esa persona ya no figura como cónyuge del representante. Vuelve a abrir el formulario.')).toBeInTheDocument()
+    expect(onRegistrada).not.toHaveBeenCalled()
+  })
+
   it('does not look up a spouse when registering a new family', () => {
     responder(conyuge)
     render(<RegistrarFamiliaForm onRegistrada={jest.fn()} onCancelar={jest.fn()} />)

@@ -7,7 +7,8 @@
 -- * ninos_registrar_familia(p jsonb): optional key conyuge_id. Accepted only
 --   for an EXISTING adult and only when it is that adult's recorded spouse;
 --   otherwise 'conyuge_invalido' (22023) and nothing is created. Each new
---   child is then also stored as (child, spouse, 'padre', es_principal false).
+--   child is then also stored as (child, spouse, 'padre', es_principal false),
+--   and a child the spouse already has is refused as 'hijo_ya_registrado'.
 --   Same signature and body as 20261008156000_ninos_genero_binario.sql
 --   otherwise.
 --
@@ -164,7 +165,11 @@ BEGIN
       RAISE EXCEPTION 'datos_invalidos' USING ERRCODE = '22023', DETAIL = 'hijo: salon_preferido_id';
     END IF;
 
-    IF EXISTS (SELECT 1 FROM jsonb_array_elements(public.ninos_familia_hijos(v_padre)) e(h)
+    -- A child already linked to the adult, or to the spouse being linked, is not duplicated.
+    IF EXISTS (SELECT 1 FROM jsonb_array_elements(public.ninos_familia_hijos(v_padre)
+                 || CASE WHEN v_conyuge IS NOT NULL
+                         THEN coalesce(public.ninos_familia_hijos(v_conyuge), '[]'::jsonb)
+                         ELSE '[]'::jsonb END) e(h)
                 WHERE (e.h ->> 'fecha_nacimiento')::date = v_nac
                   AND public.dream_team_clave_nombre(e.h ->> 'nombre', e.h ->> 'apellido')
                     = public.dream_team_clave_nombre(public.ninos_texto(v_hijo, 'nombre'), public.ninos_texto(v_hijo, 'apellido'))) THEN

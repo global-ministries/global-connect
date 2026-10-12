@@ -9,7 +9,8 @@
 --   c. Spouse accepted: every new child is linked to both, the spouse as
 --      (child, spouse, 'padre').
 --   d. A non-spouse, the adult itself, or a spouse with a NEW adult is
---      refused and nothing is created.
+--      refused and nothing is created; a child the spouse already has is
+--      refused as hijo_ya_registrado and no duplicate is created.
 --   e. A random user is denied; f. anon cannot execute the RPCs.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
@@ -89,6 +90,10 @@ CREATE OR REPLACE FUNCTION pg_temp.hijos_rechazados() RETURNS text LANGUAGE sql 
   SELECT count(*)::text FROM public.usuarios WHERE apellido = 'ZZ Fc' AND nombre LIKE 'ZZ Hx%';
 $$;
 
+CREATE OR REPLACE FUNCTION pg_temp.cuantos(p_hijo text) RETURNS text LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT count(*)::text FROM public.usuarios WHERE apellido = 'ZZ Fc' AND nombre = p_hijo;
+$$;
+
 -- ── fixtures (as postgres) ───────────────────────────────────────────
 
 INSERT INTO t_fc_ctx (k, v)
@@ -128,7 +133,7 @@ INSERT INTO public.ninos_salones (id, campus_id, equipo_id, area, nombre, capaci
 GRANT INSERT, SELECT ON t_fc_failures, t_fc_ctx TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION pg_temp.fail(text, text), pg_temp.assert_eq(text, text, text),
   pg_temp.assert_raises(text, text, text), pg_temp.as_persona(int), pg_temp.id(text, int),
-  pg_temp.familia(int, text, uuid), pg_temp.padres_de(text), pg_temp.hijos_rechazados() TO authenticated, anon;
+  pg_temp.familia(int, text, uuid), pg_temp.padres_de(text), pg_temp.hijos_rechazados(), pg_temp.cuantos(text) TO authenticated, anon;
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(1);
@@ -177,6 +182,12 @@ SELECT pg_temp.assert_raises('d: a spouse with a new adult is refused',
   $q$SELECT public.ninos_registrar_familia(jsonb_build_object(
        'padre', jsonb_build_object('nombre', 'ZZ Nuevo', 'apellido', 'ZZ Fc', 'telefono', '04129990961', 'genero', 'Masculino'),
        'hijos', pg_temp.familia(3, 'ZZ Hx4', NULL) -> 'hijos', 'conyuge_id', pg_temp.id('us', 4)))$q$, '22023');
+-- R registers a child alone; W (R's spouse) then offers R for the same child.
+SELECT public.ninos_registrar_familia(pg_temp.familia(7, 'ZZ Hd', NULL));
+SELECT pg_temp.assert_raises('d: a child the spouse already has is refused',
+  $q$SELECT public.ninos_registrar_familia(pg_temp.familia(8, 'ZZ Hd', pg_temp.id('us', 7)))$q$, '23505');
+SELECT pg_temp.assert_eq('d: the spouse''s child was not duplicated',
+  $q$SELECT pg_temp.cuantos('ZZ Hd')$q$, '1');
 SELECT pg_temp.assert_eq('d: no refused child was created',
   $q$SELECT pg_temp.hijos_rechazados()$q$, '0');
 
@@ -195,6 +206,8 @@ SET LOCAL ROLE anon;
 SELECT set_config('request.jwt.claim.sub', '', true), set_config('request.jwt.claim.role', 'anon', true);
 SELECT pg_temp.assert_raises('f: anon cannot execute ninos_conyuge_de',
   $q$SELECT public.ninos_conyuge_de(gen_random_uuid())$q$, '42501');
+SELECT pg_temp.assert_raises('f: anon cannot register with a spouse',
+  $q$SELECT public.ninos_registrar_familia(pg_temp.familia(3, 'ZZ Hx6', pg_temp.id('us', 4)))$q$, '42501');
 
 RESET ROLE;
 
