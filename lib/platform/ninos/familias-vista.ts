@@ -26,6 +26,8 @@ export type HijoEncontrado = {
   escolarizado: boolean | null
   salon_preferido_id: string | null
   es_vip_desde: string | null
+  /** Registered by a parent from Mi Perfil and not checked in yet (M6b, D1): the table confirms room and data once. */
+  desde_casa?: boolean
   /** False for a child linked to a parent (e.g. "Agregar Familiar") that has no ninos_fichas row yet. */
   tiene_ficha: boolean
   autorizados: AutorizadoEncontrado[]
@@ -92,6 +94,7 @@ export function parseFamilias(data: unknown): FamiliaEncontrada[] {
               .map((h) => ({
                 ...(h as unknown as HijoEncontrado),
                 tiene_ficha: h.tiene_ficha !== false,
+                desde_casa: h.desde_casa === true,
                 autorizados: Array.isArray(h.autorizados) ? (h.autorizados as AutorizadoEncontrado[]) : [],
               }))
           : [],

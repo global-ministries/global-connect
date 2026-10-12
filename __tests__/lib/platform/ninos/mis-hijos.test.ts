@@ -1,6 +1,7 @@
 import { hijoVacio, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
 import {
   LIMITES_MIS_HIJOS,
+  esMayorDeEdad,
   mensajeDeErrorMisHijos,
   miHijoAEncontrado,
   parseMisHijos,
@@ -194,5 +195,23 @@ describe('mensajeDeErrorMisHijos', () => {
     )
     expect(mensajeDeErrorMisHijos({ code: '22023', message: 'datos_invalidos' })).toBe('Revisa los datos: hay campos inválidos.')
     expect(mensajeDeErrorMisHijos(null)).toBe('No se pudo guardar. Intenta de nuevo.')
+  })
+})
+
+describe('esMayorDeEdad (G8: no Mis hijos for a minor account)', () => {
+  it('is true from the 18th birthday on, in the Caracas date', () => {
+    expect(esMayorDeEdad('2008-10-12', '2026-10-12')).toBe(true)
+    expect(esMayorDeEdad('2008-10-13', '2026-10-12')).toBe(false)
+    expect(esMayorDeEdad('2012-01-01', '2026-10-12')).toBe(false)
+  })
+
+  it('an unknown or malformed birth date counts as adult', () => {
+    expect(esMayorDeEdad(null, '2026-10-12')).toBe(true)
+    expect(esMayorDeEdad('', '2026-10-12')).toBe(true)
+    expect(esMayorDeEdad('no-fecha', '2026-10-12')).toBe(true)
+  })
+
+  it('a timestamp keeps its date part', () => {
+    expect(esMayorDeEdad('2010-05-05T00:00:00+00:00', '2026-10-12')).toBe(false)
   })
 })
