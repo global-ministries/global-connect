@@ -248,6 +248,43 @@ SELECT pg_temp.assert_eq('b: the request is confirmed with R as the family paren
        FROM public.ninos_preregistros r WHERE r.id = pg_temp.ctx('pre')::uuid$q$,
   'confirmado:true:true');
 
+-- ── d. "Registrado desde casa" until the first check-in ──────────────
+
+INSERT INTO t_me_ctx (k, v)
+SELECT 'turno', t.id::text FROM public.dream_team_turnos t
+ WHERE t.campus_id = pg_temp.ctx('campus')::uuid AND t.activo ORDER BY t.dia_semana, t.hora LIMIT 1;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(5);
+INSERT INTO t_me_ctx (k, v)
+SELECT 'casa', public.ninos_mis_hijos_registrar(jsonb_build_object(
+  'campus_id', pg_temp.ctx('campus'),
+  'hijos', jsonb_build_array(pg_temp.hijo('ZZ Nuevo', 4), pg_temp.hijo('ZZ Otro', 6))))::text;
+RESET ROLE;
+INSERT INTO t_me_ctx (k, v)
+SELECT 'nuevo', e.r ->> 'id' FROM jsonb_array_elements(pg_temp.ctx('casa')::jsonb -> 'registrados') e(r)
+ WHERE e.r ->> 'nombre' = 'ZZ Nuevo';
+SELECT pg_temp.assert_eq('d: both children registered from home carry the badge',
+  $q$SELECT string_agg((e.h ->> 'nombre') || ':' || (e.h ->> 'desde_casa'), ',' ORDER BY e.h ->> 'nombre')
+       FROM jsonb_array_elements(public.ninos_familia_hijos(pg_temp.id('us', 5))) e(h)$q$,
+  'ZZ Equis:false,ZZ Nuevo:true,ZZ Otro:true,zz zeta:false');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(6);
+SELECT pg_temp.assert_eq('d: the anfitrión checks ZZ Nuevo in',
+  $q$SELECT count(*)::text FROM public.ninos_checkin(ARRAY[pg_temp.ctx('nuevo')::uuid], pg_temp.ctx('turno')::uuid,
+                                                      DATE '2099-01-04', ARRAY[pg_temp.id('sa', 1)])$q$, '1');
+RESET ROLE;
+SELECT pg_temp.assert_eq('d: the first check-in clears the badge of that child only',
+  $q$SELECT string_agg((e.h ->> 'nombre') || ':' || (e.h ->> 'desde_casa'), ',' ORDER BY e.h ->> 'nombre')
+       FROM jsonb_array_elements(public.ninos_familia_hijos(pg_temp.id('us', 5))) e(h)
+      WHERE e.h ->> 'nombre' IN ('ZZ Nuevo', 'ZZ Otro')$q$,
+  'ZZ Nuevo:false,ZZ Otro:true');
+SELECT pg_temp.assert_eq('d: the from-home history stays',
+  $q$SELECT (f.desde_casa_at IS NOT NULL AND f.desde_casa_por = pg_temp.id('us', 5) AND f.desde_casa_confirmado_at IS NOT NULL)::text
+       FROM public.ninos_fichas f WHERE f.usuario_id = pg_temp.ctx('nuevo')::uuid$q$, 'true');
+SELECT pg_temp.assert_eq('d: clients cannot execute the trigger function',
+  $q$SELECT (has_function_privilege('authenticated', 'public.ninos_checkins_confirmar_desde_casa()', 'EXECUTE')
+             OR has_function_privilege('anon', 'public.ninos_checkins_confirmar_desde_casa()', 'EXECUTE'))::text$q$, 'false');
+
 SELECT coalesce(string_agg(case_name, ' ## '), 'ALL OK') AS result FROM t_me_failures;
 
 ROLLBACK;

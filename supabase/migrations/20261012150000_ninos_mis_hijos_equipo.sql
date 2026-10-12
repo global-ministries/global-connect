@@ -204,3 +204,77 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION public.ninos_preregistros_cuentas() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.ninos_preregistros_cuentas() TO authenticated;
+
+-- ── M6b. "Registrado desde casa" until the first check-in (D1) ───────
+--
+-- A child registered from home (ninos_fichas.desde_casa_at) carries a badge
+-- in the staff family and check-in views until the first check-in, so the
+-- anfitrión confirms the room and the data once. The first check-in stamps
+-- desde_casa_confirmado_at; desde_casa_at/por stay as history (they also
+-- feed the per-account daily cap of ninos_mis_hijos_registrar). VIP / first
+-- visit is unchanged: set at the table as today (adopted default).
+--   4. ninos_fichas.desde_casa_confirmado_at.
+--   5. Trigger ninos_checkins_desde_casa (AFTER INSERT on ninos_checkins):
+--      stamps the child's ficha. Its function is not executable by clients.
+--   6. ninos_familia_hijos(uuid): same body as 20261008152000 plus
+--      'desde_casa' (registered from home and never checked in). Internal, as
+--      before.
+--
+-- Rollback (M6b): re-run ninos_familia_hijos from 20261008152000_ninos_rango_edad.sql;
+--   DROP TRIGGER IF EXISTS ninos_checkins_desde_casa ON public.ninos_checkins;
+--   DROP FUNCTION IF EXISTS public.ninos_checkins_confirmar_desde_casa();
+--   and remove the column ninos_fichas.desde_casa_confirmado_at.
+
+ALTER TABLE public.ninos_fichas ADD COLUMN IF NOT EXISTS desde_casa_confirmado_at timestamptz;
+
+CREATE OR REPLACE FUNCTION public.ninos_checkins_confirmar_desde_casa()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $$
+BEGIN
+  UPDATE public.ninos_fichas f
+     SET desde_casa_confirmado_at = now()
+   WHERE f.usuario_id = NEW.nino_id AND f.desde_casa_at IS NOT NULL AND f.desde_casa_confirmado_at IS NULL;
+  RETURN NULL;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.ninos_checkins_confirmar_desde_casa() FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE TRIGGER ninos_checkins_desde_casa
+  AFTER INSERT ON public.ninos_checkins
+  FOR EACH ROW EXECUTE FUNCTION public.ninos_checkins_confirmar_desde_casa();
+
+CREATE OR REPLACE FUNCTION public.ninos_familia_hijos(p_padre_id uuid)
+RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO ''
+AS $$
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+           'id', u.id, 'nombre', u.nombre, 'apellido', u.apellido,
+           'fecha_nacimiento', u.fecha_nacimiento::date, 'genero', u.genero,
+           'tiene_ficha', f.usuario_id IS NOT NULL,
+           'grado', f.grado, 'alergias', f.alergias, 'necesidades_especiales', f.necesidades_especiales,
+           'habitos', f.habitos, 'notas', f.notas, 'puede_comer', f.puede_comer,
+           'cambio_panal', f.cambio_panal, 'autoriza_imagen', f.autoriza_imagen,
+           'escolarizado', f.escolarizado, 'salon_preferido_id', f.salon_preferido_id,
+           'es_vip_desde', f.es_vip_desde,
+           'desde_casa', coalesce(f.desde_casa_at IS NOT NULL AND f.desde_casa_confirmado_at IS NULL, false),
+           'autorizados', (SELECT coalesce(jsonb_agg(jsonb_build_object(
+                              'id', a.id, 'nombre', a.nombre, 'telefono', a.telefono, 'relacion', a.relacion)
+                              ORDER BY a.created_at), '[]'::jsonb)
+                             FROM public.ninos_autorizados_retiro a WHERE a.nino_id = u.id AND a.activo))
+           ORDER BY u.fecha_nacimiento, u.nombre), '[]'::jsonb)
+  FROM public.usuarios u
+  LEFT JOIN public.ninos_fichas f ON f.usuario_id = u.id
+  WHERE u.id IN (
+    SELECT r.usuario1_id FROM public.relaciones_usuarios r
+     WHERE r.usuario2_id = p_padre_id AND r.tipo_relacion IN ('padre', 'tutor')
+    UNION
+    SELECT r.usuario2_id FROM public.relaciones_usuarios r
+     WHERE r.usuario1_id = p_padre_id AND r.tipo_relacion = 'hijo'
+  )
+  AND (f.usuario_id IS NOT NULL OR public.ninos_en_rango_edad(u.fecha_nacimiento::date));
+$$;
+REVOKE ALL ON FUNCTION public.ninos_familia_hijos(uuid) FROM PUBLIC, anon, authenticated;

@@ -70,6 +70,21 @@ describe('FamiliasClient card (N10)', () => {
   })
 })
 
+describe('FamiliasClient card — registered from home (M6b)', () => {
+  it('shows the "Registrado desde casa" badge only on that child', async () => {
+    rpc.mockResolvedValueOnce({
+      data: [{ ...familia, hijos: [hijo({ id: 'h1', nombre: 'Luis', desde_casa: true }), hijo({ id: 'h3', nombre: 'Teo' })] }],
+      error: null,
+    })
+    render(<FamiliasClient salones={[]} fechaServicio="2026-10-11" />)
+    fireEvent.change(screen.getByLabelText('Buscar familia'), { target: { value: 'Pérez' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+    const tarjeta = (await screen.findAllByTestId('familia-tarjeta'))[0]
+    expect(within(tarjeta).getAllByText('Registrado desde casa')).toHaveLength(1)
+    expect(within(tarjeta).getByText('Registrado desde casa').closest('li')).toHaveTextContent('Luis')
+  })
+})
+
 describe('AgregarPadreForm', () => {
   it('links an existing person after an explicit confirmation, for the checked children', async () => {
     rpc

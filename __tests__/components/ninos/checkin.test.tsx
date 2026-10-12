@@ -260,6 +260,21 @@ describe('CheckinClient', () => {
   })
 })
 
+describe('CheckinClient — registered from home (M6b)', () => {
+  it('flags the child so the anfitrión confirms room and data on the first check-in', async () => {
+    responder({
+      ninos_buscar_familias: {
+        data: [{ ...familia, hijos: [hijo({ id: 'h1', nombre: 'Luis', desde_casa: true }), hijo({ id: 'h3', nombre: 'Teo' })] }],
+        error: null,
+      },
+    })
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    await buscarFamilia()
+    expect(within(screen.getByTestId('nino-h1')).getByText('Registrado desde casa')).toBeInTheDocument()
+    expect(within(screen.getByTestId('nino-h3')).queryByText('Registrado desde casa')).not.toBeInTheDocument()
+  })
+})
+
 describe('CheckinClient — child without ficha (N10)', () => {
   it('cannot be checked in and offers "Completar ficha" in the side panel', async () => {
     responder({
