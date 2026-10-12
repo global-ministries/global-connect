@@ -60,16 +60,18 @@ export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
   const [guardando, setGuardando] = useState(false)
   const [conyuge, setConyuge] = useState<Conyuge | null>(null)
 
+  // A string key, not the array: a re-render with a new padres array must not refetch.
+  const padresClave = familia.padres.map((p) => p.id).join(',')
   useEffect(() => {
     let vigente = true
-    const yaEsPadre = new Set(familia.padres.map((p) => p.id))
+    const yaEsPadre = new Set(padresClave.split(','))
     void buscarConyuge(familia.id).then((c) => {
       if (vigente && c && !yaEsPadre.has(c.id)) setConyuge(c)
     })
     return () => {
       vigente = false
     }
-  }, [familia.id, familia.padres])
+  }, [familia.id, padresClave])
 
   const ninoIds = familia.hijos.filter((h) => elegidos[h.id]).map((h) => h.id)
   const setCampo = (k: keyof PadreNuevoForm, v: string) => setNuevo((p) => ({ ...p, [k]: v }))
