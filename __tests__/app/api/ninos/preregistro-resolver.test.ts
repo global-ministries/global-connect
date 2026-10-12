@@ -85,4 +85,15 @@ describe('POST /api/ninos/preregistro/[id]', () => {
     expect(sendEmail).toHaveBeenCalledTimes(2)
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: 'Bienvenidos a Waumba Land / UpStreet', idempotencyKey: `ninos-bienvenida-${ID}` }))
   })
+
+  it('resends a failed invitation through the same preregistro-bound RPC, without resolving again', async () => {
+    setup()
+    const res = await post({ accion: 'invitar', email: 'ana@example.test' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ ok: true, invitacion: 'enviada' })
+    expect(rpc).toHaveBeenCalledWith('ninos_preregistro_invitar', { p_id: ID, p_email: 'ana@example.test' })
+    expect(rpc).not.toHaveBeenCalledWith('ninos_preregistro_resolver', expect.anything())
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+    expect(tareasAfter).toHaveLength(0)
+  })
 })

@@ -3,6 +3,8 @@
  * pre-registration at the table (N8 of odd/tasks/ninos-checkin.md).
  *
  * { accion: 'descartar' } | { accion: 'confirmar', payload, email? }
+ * | { accion: 'invitar', email } (resend a failed invitation: same RPC, so
+ * still only the confirming operator, only that email, within the hour)
  * The RPC runs AS THE CALLER (ninos_preregistro_resolver checks the campus
  * authority and registers the family). With an email: the welcome email and,
  * when the parent has no account, the account invitation — the shared flow

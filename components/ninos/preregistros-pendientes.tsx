@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ClipboardList, Mail, Trash2 } from 'lucide-react'
+import { ClipboardList, Mail, RotateCw, Trash2 } from 'lucide-react'
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { BadgeSistema, BotonSistema, InputSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
@@ -25,6 +25,11 @@ type Props = {
 const AVISO_CORREO: Record<string, string> = {
   enviado: 'Enviamos el correo de bienvenida.',
   fallo: 'No se pudo enviar el correo de bienvenida.',
+}
+
+const AVISO_INVITACION: Record<string, string> = {
+  enviada: 'Le enviamos una invitación para crear su cuenta.',
+  fallo: 'No se pudo enviar la invitación para crear la cuenta.',
 }
 
 async function resolver(id: string, body: unknown): Promise<{ ok: boolean; datos: Record<string, unknown> }> {
@@ -54,6 +59,9 @@ export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
+  /** The last confirmed pre-registration whose account invitation failed (resend within the hour). */
+  const [fallida, setFallida] = useState<{ id: string; email: string } | null>(null)
+  const [reenvio, setReenvio] = useState<{ error: boolean; texto: string } | null>(null)
 
   const cargar = useCallback(async () => {
     setLista(await leerPendientes())
@@ -88,6 +96,22 @@ export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
     void cargar()
   }
 
+  async function reenviarInvitacion() {
+    if (!fallida) return
+    setOcupado(true)
+    const r = await resolver(fallida.id, { accion: 'invitar', email: fallida.email })
+    setOcupado(false)
+    if (r.ok) {
+      setReenvio({ error: false, texto: `Invitación reenviada a ${fallida.email}.` })
+      setFallida(null)
+      return
+    }
+    const mensaje = typeof r.datos.error === 'string' ? r.datos.error : 'No se pudo enviar la invitación. Intenta de nuevo.'
+    setReenvio({ error: true, texto: mensaje })
+    // Only a transient failure can be retried; a refusal (time, operator, account) cannot.
+    if (typeof r.datos.codigo === 'string') setFallida(null)
+  }
+
   if (lista.length === 0 && !aviso) return null
 
   return (
@@ -100,6 +124,19 @@ export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
       {aviso && (
         <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
           {aviso}
+        </p>
+      )}
+      {fallida && (
+        <BotonSistema type="button" variante="outline" tamaño="sm" icono={RotateCw} disabled={ocupado} onClick={() => void reenviarInvitacion()}>
+          Reenviar invitación
+        </BotonSistema>
+      )}
+      {reenvio && (
+        <p
+          role={reenvio.error ? 'alert' : 'status'}
+          className={reenvio.error ? 'text-sm text-red-500 dark:text-red-400' : 'text-sm text-emerald-700 dark:text-emerald-400'}
+        >
+          {reenvio.texto}
         </p>
       )}
       <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -161,7 +198,13 @@ export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
                     if (!r.ok || typeof r.datos.padreId !== 'string') {
                       return { error: typeof r.datos.error === 'string' ? r.datos.error : 'No se pudo confirmar.' }
                     }
-                    setAviso(['Familia registrada.', AVISO_CORREO[String(r.datos.correo)] ?? ''].filter(Boolean).join(' '))
+                    setAviso(
+                      ['Familia registrada.', AVISO_CORREO[String(r.datos.correo)], AVISO_INVITACION[String(r.datos.invitacion)]]
+                        .filter(Boolean)
+                        .join(' '),
+                    )
+                    setReenvio(null)
+                    setFallida(r.datos.invitacion === 'fallo' && email.trim() ? { id: abierto.id, email: email.trim().toLowerCase() } : null)
                     return { padreId: r.datos.padreId }
                   }}
                   onRegistrada={(padreId, consulta) => {
