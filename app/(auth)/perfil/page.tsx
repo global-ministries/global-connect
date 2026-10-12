@@ -8,6 +8,7 @@ import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/u
 import { MisHijos } from '@/components/perfil/mis-hijos'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
 import { parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
+import { parsePendientesMisHijos } from '@/lib/platform/ninos/mis-hijos-registrar'
 
 export default async function PerfilPage() {
   // Crear cliente Supabase correctamente
@@ -176,6 +177,7 @@ export default async function PerfilPage() {
     { data: municipios },
     { data: parroquias },
     { data: misHijosData },
+    { data: pendientesData },
   ] = await Promise.all([
     adminSupabase.from('ocupaciones').select('id, nombre').order('nombre'),
     adminSupabase.from('profesiones').select('id, nombre').order('nombre'),
@@ -184,8 +186,10 @@ export default async function PerfilPage() {
     adminSupabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
     adminSupabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
     supabase.rpc('ninos_mis_hijos'),
+    supabase.rpc('ninos_mis_hijos_pendientes'),
   ])
   const misHijos = parseMisHijos(misHijosData)
+  const misHijosPendientes = parsePendientesMisHijos(pendientesData)
 
   // Obtener sugerencias de dirección familiar
   const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(usuario.id)
@@ -209,7 +213,8 @@ export default async function PerfilPage() {
             sugerenciasDireccion={sugerenciasDireccion}
             esPerfil={true}
           />
-          {misHijos.length > 0 && <MisHijos hijos={misHijos} />}
+          {/* Always shown: a parent without children registers them here (M5). */}
+          <MisHijos hijos={misHijos} pendientes={misHijosPendientes} />
         </div>
       </ContenedorDashboard>
 )
