@@ -1,5 +1,5 @@
 -- M3 (odd/tasks/ninos-mis-hijos.md) — register a child from home
--- (20261012110000_ninos_mis_hijos_registrar.sql).
+-- (20261012140000_ninos_mis_hijos_registrar.sql).
 --
 -- Covers:
 --   a. Campus for the form: only campus with an active room, my principal
