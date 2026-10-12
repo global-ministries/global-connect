@@ -246,11 +246,11 @@ SELECT pg_temp.assert_eq('f: a random user gets nothing',
 SELECT pg_temp.as_persona(2);
 SELECT count(*) FROM public.ninos_checkout(
   (SELECT c.codigo FROM public.ninos_checkins c WHERE c.nino_id = pg_temp.ctx('nino')::uuid AND c.fecha = DATE '2099-01-04'),
-  pg_temp.ctx('turno')::uuid, DATE '2099-01-04', 'ZZ Ana');
+  pg_temp.ctx('turno')::uuid, DATE '2099-01-04', 'ZZ Np Mamá Prueba');
 SELECT pg_temp.assert_eq('f: the operator who checked out gets the retiro email',
   $q$SELECT string_agg(email || ':' || retirado_por_nombre, ',')
        FROM public.ninos_correos_visita(ARRAY[pg_temp.ctx('nino')::uuid], pg_temp.ctx('turno')::uuid, DATE '2099-01-04', 'retiro')$q$,
-  'zz-np-mama@example.test:ZZ Ana');
+  'zz-np-mama@example.test:ZZ Np Mamá Prueba');
 SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_eq('f: the check-in operator does not get the retiro email',
   $q$SELECT count(*)::text FROM public.ninos_correos_visita(ARRAY[pg_temp.ctx('nino')::uuid], pg_temp.ctx('turno')::uuid, DATE '2099-01-04', 'retiro')$q$,
