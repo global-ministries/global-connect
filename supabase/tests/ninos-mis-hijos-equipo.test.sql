@@ -12,11 +12,18 @@
 --      confirmed with R as the family parent.
 --   c. existente_id must be the person with the child's name key and birth
 --      date (nino_no_encontrado), and is refused on a public QR request.
+--   d. "Registrado desde casa": both children R registers from home carry
+--      desde_casa until their own first check-in; the history stays.
+--   e. Pickup-change recipients: R changes X's pickup list; only the service
+--      role reads the other parent (O) and the new list, never a parent or
+--      anon; nothing for an account that made no change.
+--   f. A minor account (G8) sees no children, cannot edit or register; an
+--      adult without a birth date keeps Mis hijos.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
 -- of the failing cases ('ALL OK' when none).
 --
--- Identities (usuario n = auth n): 1 PADRE O, 5 REQUESTER R, 6 ANFITRION.
+-- Identities (usuario n = auth n): 1 PADRE O, 5 REQUESTER R, 6 ANFITRION, 7 TEEN (16).
 -- Children: 11 X (O's, ficha), 12 Z (O's, ficha).
 -- Tree: R → W → Anfitriones. Room S1 in W on the Barquisimeto campus.
 
@@ -311,6 +318,35 @@ SELECT pg_temp.assert_eq('e: the other parent (O) is the only recipient, with th
 SELECT pg_temp.assert_eq('e: nothing for an account that made no pickup change',
   format($q$SELECT coalesce(public.ninos_aviso_autorizados(%L, %L)::text, 'NULL')$q$, pg_temp.id('us', 11), pg_temp.id('au', 1)),
   'NULL');
+RESET ROLE;
+
+-- ── f. no Mis hijos for an account of a minor (G8) ───────────────────
+
+INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+VALUES (pg_temp.id('au', 7), 'authenticated', 'authenticated', 'me-7@example.test', now(),
+        '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now());
+INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero, fecha_nacimiento) VALUES
+  (pg_temp.id('us', 7), pg_temp.id('au', 7), 'ZZ Teen', 'ZZ Me', 'me-7@example.test', 'Soltero', 'Masculino', pg_temp.nac(16));
+-- A teen wrongly linked as X's parent.
+INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal) VALUES
+  (pg_temp.id('us', 11), pg_temp.id('us', 7), 'padre', false);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(7);
+SELECT pg_temp.assert_eq('f: a minor sees no children', $q$SELECT public.ninos_mis_hijos()::text$q$, '[]');
+SELECT pg_temp.assert_raises('f: a minor cannot edit the linked child',
+  format($q$SELECT public.ninos_mis_hijos_guardar(%L, '{"alergias": "x"}')$q$, pg_temp.id('us', 11)),
+  '22023', 'nino_no_encontrado');
+SELECT pg_temp.assert_raises('f: a minor gets no campus list',
+  $q$SELECT public.ninos_mis_hijos_campus()$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.assert_raises('f: a minor cannot register children',
+  format($q$SELECT public.ninos_mis_hijos_registrar(%L)$q$,
+         jsonb_build_object('campus_id', pg_temp.ctx('campus'), 'hijos', jsonb_build_array(pg_temp.hijo('ZZ Teenito', 1)))),
+  '42501', 'sin_autoridad');
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.assert_eq('f: an adult without a birth date keeps Mis hijos',
+  $q$SELECT (jsonb_array_length(public.ninos_mis_hijos()) > 0)::text$q$, 'true');
+SELECT pg_temp.assert_denied('f: clients cannot execute ninos_es_mayor_de_edad',
+  format($q$SELECT public.ninos_es_mayor_de_edad(%L)$q$, pg_temp.id('us', 5)));
 RESET ROLE;
 
 SELECT coalesce(string_agg(case_name, ' ## '), 'ALL OK') AS result FROM t_me_failures;
