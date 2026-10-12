@@ -79,6 +79,61 @@ describe('PreregistrosPendientes', () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).payload.padre).toEqual({ id: 'px' })
   })
 
+  describe('a request made from an account', () => {
+    const desdeCuenta = {
+      ...pendiente,
+      id: 'pr2',
+      payload: { ...pendiente.payload, padre: { ...pendiente.payload.padre, nombre: 'Rita', apellido: 'Gómez' } },
+    }
+    const cuenta = {
+      id: 'pr2',
+      solicitante: { id: 'u5', nombre: 'Rita', apellido: 'Gómez' },
+      coincidencias: [
+        { indice: 0, id: 'x1', nombre: 'Sofia', apellido: 'Perez', fecha_nacimiento: '2021-03-04', tiene_ficha: true, padres: ['Olga Díaz'] },
+      ],
+    }
+
+    beforeEach(() => {
+      rpc.mockImplementation((nombre: string) => {
+        if (nombre === 'ninos_preregistros_pendientes') return Promise.resolve({ data: [desdeCuenta], error: null })
+        if (nombre === 'ninos_preregistros_cuentas') return Promise.resolve({ data: [cuenta], error: null })
+        return Promise.resolve({ data: null, error: null })
+      })
+    })
+
+    it('says which account asked for it', async () => {
+      render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+      expect(await screen.findByText('Desde la cuenta de Rita Gómez')).toBeInTheDocument()
+    })
+
+    it('preselects the requester as the parent and links the matching child when chosen', async () => {
+      const onConfirmado = jest.fn()
+      render(<PreregistrosPendientes onConfirmado={onConfirmado} />)
+      fireEvent.click(await screen.findByRole('button', { name: /Rita Gómez/ }))
+      expect(screen.getByText(/Representante:/)).toHaveTextContent('Representante: Rita Gómez')
+      expect(screen.queryByLabelText('Género del representante')).not.toBeInTheDocument()
+      expect(screen.getByText(/Olga Díaz/)).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Es este niño: vincular' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar familia' }))
+      await waitFor(() => expect(onConfirmado).toHaveBeenCalledWith('p1', 'Sofía Pérez'))
+      expect(rpc).not.toHaveBeenCalledWith('ninos_buscar_padre', expect.anything())
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+      expect(body.payload.padre).toEqual({ id: 'u5' })
+      expect(body.payload.hijos[0]).toMatchObject({ nombre: 'Sofía', existente_id: 'x1' })
+    })
+
+    it('creates the child when the team says it is another one', async () => {
+      render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+      fireEvent.click(await screen.findByRole('button', { name: /Rita Gómez/ }))
+      fireEvent.click(screen.getByRole('button', { name: 'Es este niño: vincular' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Es otro niño' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar familia' }))
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).payload.hijos[0]).not.toHaveProperty('existente_id')
+    })
+  })
+
   it('discards', async () => {
     responder()
     render(<PreregistrosPendientes onConfirmado={jest.fn()} />)

@@ -8208,6 +8208,7 @@ export type Database = {
       ninos_mis_hijos_guardar: { Args: { p: Json; p_nino_id: string }; Returns: Json }
       ninos_mis_hijos_pendientes: { Args: never; Returns: Json }
       ninos_mis_hijos_registrar: { Args: { p: Json }; Returns: Json }
+      ninos_preregistros_cuentas: { Args: never; Returns: Json }
       _puede_ver_segmento_lider: {
         Args: {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]
