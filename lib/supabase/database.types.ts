@@ -7311,6 +7311,8 @@ export type Database = {
           id: string
           nino_id: string
           retirado_por_nombre: string | null
+          retiro_motivo: string | null
+          retiro_otra_persona: boolean
           salida_at: string | null
           salida_por: string | null
           salon_id: string
@@ -7326,6 +7328,8 @@ export type Database = {
           id?: string
           nino_id: string
           retirado_por_nombre?: string | null
+          retiro_motivo?: string | null
+          retiro_otra_persona?: boolean
           salida_at?: string | null
           salida_por?: string | null
           salon_id: string
@@ -7341,6 +7345,8 @@ export type Database = {
           id?: string
           nino_id?: string
           retirado_por_nombre?: string | null
+          retiro_motivo?: string | null
+          retiro_otra_persona?: boolean
           salida_at?: string | null
           salida_por?: string | null
           salon_id?: string
@@ -8047,6 +8053,7 @@ export type Database = {
         Args: {
           p_codigo: string
           p_fecha: string
+          p_motivo_otra?: string
           p_retirado_por: string
           p_turno_id: string
         }
@@ -8121,6 +8128,15 @@ export type Database = {
         Returns: string
       }
       ninos_preregistro_invitar: { Args: { p_email: string; p_id: string }; Returns: Json }
+      ninos_retiro_opciones: {
+        Args: { p_codigo: string; p_fecha: string; p_turno_id: string }
+        Returns: {
+          nombre: string
+          relacion: string
+          telefono: string
+          tipo: string
+        }[]
+      }
       ninos_preregistro_resolver: {
         Args: { p_accion: string; p_id: string; p_payload?: Json }
         Returns: Json

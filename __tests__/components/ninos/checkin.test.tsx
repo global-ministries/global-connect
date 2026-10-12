@@ -71,7 +71,7 @@ function llamadaRuta(nombre: string): unknown {
   const b = JSON.parse((llamada[1] as { body: string }).body)
   return nombre === 'ninos_checkin'
     ? { p_nino_ids: b.ninoIds, p_salon_ids: b.salonIds, p_turno_id: b.turnoId, p_fecha: b.fecha }
-    : { p_codigo: b.codigo, p_turno_id: b.turnoId, p_fecha: b.fecha, p_retirado_por: b.retiradoPor }
+    : { p_codigo: b.codigo, p_turno_id: b.turnoId, p_fecha: b.fecha, p_retirado_por: b.retiradoPor, p_motivo_otra: b.motivoOtra ?? null }
 }
 
 function responder(overrides: Record<string, unknown> = {}) {
@@ -197,37 +197,81 @@ describe('CheckinClient', () => {
     )
   })
 
-  it('has a Retiro tab that looks up a code and confirms the check-out', async () => {
-    responder({
-      ninos_buscar_codigo: {
-        data: [
-          {
-            checkin_id: 'c1', nino_id: 'h1', nombre: 'Luis', apellido: 'Pérez', salon_id: 's1', salon: 'Maternal',
-            entrada_at: '2026-10-11T13:00:00Z', salida_at: null, retirado_por_nombre: null,
-            autorizados: [{ nombre: 'Abuela Rosa', telefono: '04141112233', relacion: 'Abuela' }],
-          },
-        ],
-        error: null,
-      },
-      ninos_checkout: { data: [{ nino_id: 'h1', salon_id: 's1', salida_at: '2026-10-11T14:42:00Z' }], error: null },
-    })
+  const filaAdentro = {
+    checkin_id: 'c1', nino_id: 'h1', nombre: 'Luis', apellido: 'Pérez', salon_id: 's1', salon: 'Maternal',
+    entrada_at: '2026-10-11T13:00:00Z', salida_at: null, retirado_por_nombre: null,
+    autorizados: [{ nombre: 'Abuela Rosa', telefono: '04141112233', relacion: 'Abuela' }],
+  }
+  const opciones = [
+    { nombre: 'Ana Pérez', telefono: '04145550000', relacion: 'Representante', tipo: 'representante' },
+    { nombre: 'Abuela Rosa', telefono: '04141112233', relacion: 'Abuela', tipo: 'autorizado' },
+  ]
+
+  async function buscarCodigo() {
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Retiro' }))
     fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '4821' } })
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+  }
 
-    expect(await screen.findByText('Abuela Rosa')).toBeInTheDocument()
+  it('has a Retiro tab that looks up a code and confirms who picks up from the list', async () => {
+    responder({
+      ninos_buscar_codigo: { data: [filaAdentro], error: null },
+      ninos_retiro_opciones: { data: opciones, error: null },
+      ninos_checkout: { data: [{ nino_id: 'h1', salon_id: 's1', salida_at: '2026-10-11T14:42:00Z' }], error: null },
+    })
+    await buscarCodigo()
+
+    expect(await screen.findByRole('radio', { name: /Ana Pérez/ })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Abuela Rosa/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /04141112233/ })).toHaveAttribute('href', 'tel:04141112233')
     expect(rpc).toHaveBeenCalledWith('ninos_buscar_codigo', { p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11' })
+    expect(rpc).toHaveBeenCalledWith('ninos_retiro_opciones', { p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11' })
 
-    fireEvent.change(screen.getByLabelText('¿Quién retira?'), { target: { value: 'Ana Pérez' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Elige quién retira al niño.')
+    expect(llamadaRuta('ninos_checkout')).toBeUndefined()
+
+    fireEvent.click(screen.getByRole('radio', { name: /Abuela Rosa/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
     await waitFor(() =>
       expect(llamadaRuta('ninos_checkout')).toEqual({
-        p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11', p_retirado_por: 'Ana Pérez',
+        p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11', p_retirado_por: 'Abuela Rosa', p_motivo_otra: null,
       }),
     )
     expect(await screen.findByText(/Retiro registrado/)).toBeInTheDocument()
+  })
+
+  it('"Otra persona" needs a name and a reason, and sends both', async () => {
+    responder({
+      ninos_buscar_codigo: { data: [filaAdentro], error: null },
+      ninos_retiro_opciones: { data: opciones, error: null },
+      ninos_checkout: { data: [{ nino_id: 'h1', salon_id: 's1', salida_at: '2026-10-11T14:42:00Z' }], error: null },
+    })
+    await buscarCodigo()
+    fireEvent.click(await screen.findByRole('radio', { name: 'Otra persona' }))
+    fireEvent.change(screen.getByLabelText('Nombre de quien retira'), { target: { value: 'Carla Gómez' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escribe por qué retira una persona que no está en la lista.')
+
+    fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'La mamá avisó por teléfono' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
+    await waitFor(() =>
+      expect(llamadaRuta('ninos_checkout')).toEqual({
+        p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11', p_retirado_por: 'Carla Gómez', p_motivo_otra: 'La mamá avisó por teléfono',
+      }),
+    )
+  })
+
+  it('without anyone on the list only "Otra persona" is offered', async () => {
+    responder({
+      ninos_buscar_codigo: { data: [{ ...filaAdentro, autorizados: [] }], error: null },
+      ninos_retiro_opciones: { data: [], error: null },
+    })
+    await buscarCodigo()
+    expect(await screen.findByText('Sin personas autorizadas ni representantes registrados.')).toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(1)
+    expect(screen.getByRole('radio', { name: 'Otra persona' })).toBeInTheDocument()
   })
 
   it('a wrong code shows a clear message', async () => {
