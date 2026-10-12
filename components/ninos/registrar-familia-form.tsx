@@ -20,6 +20,7 @@ import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { CamposAutorizados, CamposNino, OPCIONES_GENERO } from './campos-nino'
+import { InvitarFamiliaNueva } from './invitar-familia-nueva'
 
 type Props = {
   /** When set, the form only adds children to this parent. */
@@ -46,6 +47,8 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
   const [errores, setErrores] = useState<string[]>([])
   const [guardando, setGuardando] = useState(false)
   const [coincidencias, setCoincidencias] = useState<PadreCoincidencia[]>([])
+  /** A NEW parent was just created here: offer the account invitation before going on. */
+  const [registrada, setRegistrada] = useState<{ padreId: string; consulta: string } | null>(null)
 
   const setPadre = (campo: keyof FamiliaForm['padre'], v: string) => setForm((f) => ({ ...f, padre: { ...f.padre, [campo]: v } }))
   const setHijo = (i: number, h: HijoForm) => setForm((f) => ({ ...f, hijos: f.hijos.map((x, j) => (j === i ? h : x)) }))
@@ -59,15 +62,22 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
       else onRegistrada(r.padreId, payload.hijos[0] ? `${payload.hijos[0].nombre} ${payload.hijos[0].apellido}` : '')
       return
     }
-    const { data, error } = await createClient().rpc('ninos_registrar_familia', { p: payload as unknown as Json })
+    // A new parent goes through the table's RPC, which records who created it (for the invitation).
+    const nuevo = !('id' in payload.padre)
+    const { data, error } = await createClient().rpc(nuevo ? 'ninos_registrar_familia_mesa' : 'ninos_registrar_familia', {
+      p: payload as unknown as Json,
+    })
     setGuardando(false)
     if (error) {
       setErrores([mensajeDeErrorFamilia(error)])
       return
     }
-    const padreId = (data as { padre_id?: string } | null)?.padre_id
+    const res = data as { padre_id?: string; padre_nuevo?: boolean } | null
     const primero = payload.hijos[0]
-    if (padreId) onRegistrada(padreId, primero ? `${primero.nombre} ${primero.apellido}` : '')
+    const consulta = primero ? `${primero.nombre} ${primero.apellido}` : ''
+    if (!res?.padre_id) return
+    if (res.padre_nuevo) setRegistrada({ padreId: res.padre_id, consulta })
+    else onRegistrada(res.padre_id, consulta)
   }
 
   async function enviar(e: React.FormEvent) {
@@ -112,6 +122,10 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
   }
 
   const textoBoton = textoGuardar ?? (padreExistente ? 'Agregar niño' : 'Registrar familia')
+
+  if (registrada) {
+    return <InvitarFamiliaNueva padreId={registrada.padreId} onContinuar={() => onRegistrada(registrada.padreId, registrada.consulta)} />
+  }
 
   return (
     <form onSubmit={enviar} className="space-y-6" noValidate>
