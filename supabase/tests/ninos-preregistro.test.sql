@@ -166,9 +166,9 @@ INSERT INTO t_np_ctx (k, v)
 SELECT 'pre2', min(id::text) FROM public.ninos_preregistros WHERE ip_hash = repeat('b', 64);
 INSERT INTO t_np_ctx (k, v)
 SELECT 'pre_vieja', max(id::text) FROM public.ninos_preregistros WHERE ip_hash = repeat('b', 64);
--- One second before this week's Monday 00:00 America/Caracas.
+-- Outside the rolling 7-day window (20261012130000_ninos_cobertura_pendientes.sql).
 UPDATE public.ninos_preregistros
-   SET created_at = (date_trunc('week', public.ninos_hoy()::timestamp) AT TIME ZONE 'America/Caracas') - interval '1 second'
+   SET created_at = now() - interval '8 days'
  WHERE id = pg_temp.ctx('pre_vieja')::uuid;
 
 -- ── c. list ──────────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_eq('c: the anfitrión lists the pending one',
   $q$SELECT count(*)::text FROM public.ninos_preregistros_pendientes() WHERE id = pg_temp.ctx('pre')::uuid$q$, '1');
-SELECT pg_temp.assert_eq('c: a pending one from before this week''s Monday is not listed',
+SELECT pg_temp.assert_eq('c: a pending one older than 7 days is not listed',
   $q$SELECT count(*)::text FROM public.ninos_preregistros_pendientes() WHERE id = pg_temp.ctx('pre_vieja')::uuid$q$, '0');
 SELECT pg_temp.as_persona(3);
 SELECT pg_temp.assert_eq('c: a random user lists nothing',
