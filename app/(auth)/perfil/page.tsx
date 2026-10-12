@@ -10,6 +10,7 @@ import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-fam
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { esMayorDeEdad, parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
 import { parsePendientesMisHijos } from '@/lib/platform/ninos/mis-hijos-registrar'
+import { parseMisPrechecks } from '@/lib/platform/ninos/precheck'
 
 export default async function PerfilPage() {
   // Crear cliente Supabase correctamente
@@ -182,6 +183,7 @@ export default async function PerfilPage() {
     { data: parroquias },
     { data: misHijosData },
     { data: pendientesData },
+    { data: prechecksData },
   ] = await Promise.all([
     adminSupabase.from('ocupaciones').select('id, nombre').order('nombre'),
     adminSupabase.from('profesiones').select('id, nombre').order('nombre'),
@@ -191,9 +193,11 @@ export default async function PerfilPage() {
     adminSupabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
     conMisHijos ? supabase.rpc('ninos_mis_hijos') : sinDatos,
     conMisHijos ? supabase.rpc('ninos_mis_hijos_pendientes') : sinDatos,
+    conMisHijos ? supabase.rpc('ninos_mis_prechecks') : sinDatos,
   ])
   const misHijos = parseMisHijos(misHijosData)
   const misHijosPendientes = parsePendientesMisHijos(pendientesData)
+  const misPrechecks = parseMisPrechecks(prechecksData)
 
   // Obtener sugerencias de dirección familiar
   const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(usuario.id)
@@ -218,7 +222,7 @@ export default async function PerfilPage() {
             esPerfil={true}
           />
           {/* Shown to every adult account: a parent without children registers them here (M5). */}
-          {conMisHijos && <MisHijos hijos={misHijos} pendientes={misHijosPendientes} />}
+          {conMisHijos && <MisHijos hijos={misHijos} pendientes={misHijosPendientes} prechecks={misPrechecks} />}
         </div>
       </ContenedorDashboard>
 )
