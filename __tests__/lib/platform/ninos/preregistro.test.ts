@@ -117,10 +117,18 @@ describe('hashIp / ipDeSolicitud', () => {
     expect(h).not.toContain('1.2.3.4')
     expect(hashIp('1.2.3.4', 'otra')).not.toBe(h)
   })
-  it('takes the first x-forwarded-for address, then x-real-ip', () => {
-    expect(ipDeSolicitud(new Headers({ 'x-forwarded-for': '9.9.9.9, 10.0.0.1' }))).toBe('9.9.9.9')
-    expect(ipDeSolicitud(new Headers({ 'x-real-ip': '8.8.8.8' }))).toBe('8.8.8.8')
+  it('prefers x-real-ip, which the platform sets and a client cannot spoof', () => {
+    expect(ipDeSolicitud(new Headers({ 'x-real-ip': '8.8.8.8', 'x-forwarded-for': '1.1.1.1, 8.8.8.8' }))).toBe('8.8.8.8')
+    expect(ipDeSolicitud(new Headers({ 'x-real-ip': ' 8.8.8.8 ' }))).toBe('8.8.8.8')
+  })
+  it('without x-real-ip, takes the LAST x-forwarded-for hop, never the client-controlled first one', () => {
+    expect(ipDeSolicitud(new Headers({ 'x-forwarded-for': '6.6.6.6, 9.9.9.9' }))).toBe('9.9.9.9')
+    expect(ipDeSolicitud(new Headers({ 'x-forwarded-for': '9.9.9.9' }))).toBe('9.9.9.9')
+    expect(ipDeSolicitud(new Headers({ 'x-forwarded-for': '6.6.6.6, 9.9.9.9, ' }))).toBe('9.9.9.9')
+  })
+  it('answers desconocida without any usable header', () => {
     expect(ipDeSolicitud(new Headers())).toBe('desconocida')
+    expect(ipDeSolicitud(new Headers({ 'x-real-ip': ' ', 'x-forwarded-for': ' , ' }))).toBe('desconocida')
   })
 })
 
