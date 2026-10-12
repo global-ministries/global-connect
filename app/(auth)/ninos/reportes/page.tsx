@@ -6,10 +6,14 @@
  * admin and pastor). Anfitriones and Líderes get a 404. Every aggregate comes
  * from ninos_reporte_asistencia, which also checks authority per room.
  * Query: ?desde=&hasta=&campus=&turno= (default: the last 8 Sundays).
+ * ?reporte=voluntarios switches to the volunteer attendance tab
+ * (odd/tasks/ninos-asistencia-voluntarios.md, V5; ninos_reporte_voluntarios).
  */
 import { notFound } from 'next/navigation'
 
 import { ReportesClient, type FiltrosReporte } from '@/components/ninos/reportes-client'
+import { PestanasReportes } from '@/components/ninos/reportes-pestanas'
+import { ReportesVoluntariosClient } from '@/components/ninos/reportes-voluntarios-client'
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { rangoPorDefecto } from '@/lib/platform/ninos/reportes'
@@ -18,7 +22,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 export const metadata = { title: 'Reportes — Niños' }
 
 type Props = {
-  readonly searchParams: Promise<{ readonly desde?: string; readonly hasta?: string; readonly campus?: string; readonly turno?: string }>
+  readonly searchParams: Promise<{ readonly desde?: string; readonly hasta?: string; readonly campus?: string; readonly turno?: string; readonly reporte?: string }>
 }
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/
@@ -54,9 +58,16 @@ export default async function NinosReportesPage({ searchParams }: Props) {
     turnoId: listaTurnos.find((t) => t.id === query.turno)?.id ?? '',
   }
 
+  const voluntarios = query.reporte === 'voluntarios'
+
   return (
     <ContenedorDashboard titulo="Reportes">
-      <ReportesClient campus={listaCampus} turnos={listaTurnos} filtrosIniciales={filtros} />
+      <PestanasReportes actual={voluntarios ? 'voluntarios' : 'ninos'} filtros={filtros} />
+      {voluntarios ? (
+        <ReportesVoluntariosClient campus={listaCampus} turnos={listaTurnos} filtrosIniciales={filtros} />
+      ) : (
+        <ReportesClient campus={listaCampus} turnos={listaTurnos} filtrosIniciales={filtros} />
+      )}
     </ContenedorDashboard>
   )
 }
