@@ -53,6 +53,7 @@ const ENCABEZADOS: Record<Paso, { titulo: string; ayuda: string }> = {
 }
 
 const MENSAJE_LIMITE = 'Hay muchos registros en este momento. Espera unos minutos y toca «Enviar registro» otra vez; tus datos siguen aquí.'
+const MENSAJE_SERVIDOR = 'Tuvimos un problema al enviar. Intenta de nuevo en un momento; tus datos siguen aquí.'
 const MENSAJE_RED = 'No pudimos enviar tu registro. Revisa tu conexión y toca «Enviar registro» otra vez; tus datos siguen aquí.'
 
 function focoEn(id: string | undefined) {
@@ -78,12 +79,19 @@ export function RegistroFamilia({ campus, campusInicial }: Props) {
   const [listo, setListo] = useState(false)
   const titulo = useRef<HTMLHeadingElement>(null)
   const montado = useRef(false)
+  /** Focused once the errors render: a step-level alert does not exist before. */
+  const focoPendiente = useRef<string | undefined>(undefined)
   const hoy = hoyEnCaracas()
 
   useEffect(() => {
     if (montado.current) titulo.current?.focus()
     montado.current = true
   }, [paso])
+
+  useEffect(() => {
+    focoEn(focoPendiente.current)
+    focoPendiente.current = undefined
+  }, [errores])
 
   const ir = (p: Paso) => {
     setErrores({})
@@ -104,11 +112,9 @@ export function RegistroFamilia({ campus, campusInicial }: Props) {
 
   function avanzar() {
     const e = validarPaso(paso, datos, campusIds, hoy)
+    focoPendiente.current = Object.keys(e)[0]
     setErrores(e)
-    if (Object.keys(e).length > 0) {
-      focoEn(Object.keys(e)[0])
-      return
-    }
+    if (focoPendiente.current) return
     if (paso === 4) setAutorizados((as) => as.filter((a) => !autorizadoEnBlanco(a)))
     if (editando) {
       // An edit may leave a later step incomplete (e.g. a new child without health answers).
@@ -150,7 +156,8 @@ export function RegistroFamilia({ campus, campusInicial }: Props) {
         return
       }
       const respuesta = (await res.json().catch(() => null)) as { errores?: string[] } | null
-      setErrorEnvio(respuesta?.errores?.length ? respuesta.errores : [MENSAJE_RED])
+      // The server answered, so the connection is fine: only a thrown fetch means "network".
+      setErrorEnvio(respuesta?.errores?.length ? respuesta.errores : [MENSAJE_SERVIDOR])
     } catch {
       setErrorEnvio([MENSAJE_RED])
     } finally {
@@ -251,6 +258,17 @@ export function RegistroFamilia({ campus, campusInicial }: Props) {
         <label htmlFor="pre-sitio">Sitio web</label>
         <input id="pre-sitio" name="sitioWeb" type="text" tabIndex={-1} autoComplete="off" value={sitioWeb} onChange={(e) => setSitioWeb(e.target.value)} />
       </div>
+
+      {errores[idCampo.paso] && (
+        <p
+          id={idCampo.paso}
+          role="alert"
+          tabIndex={-1}
+          className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 dark:text-red-400"
+        >
+          {errores[idCampo.paso]}
+        </p>
+      )}
 
       {errorEnvio.length > 0 && (
         <ul role="alert" className="space-y-1 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">

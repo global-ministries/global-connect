@@ -110,6 +110,17 @@ describe('RegistroFamilia', () => {
     expect(screen.getByText('Elige si es niño o niña.')).toBeInTheDocument()
   })
 
+  it('blocks the children step on a future birth date with the shared validation', () => {
+    render(<RegistroFamilia campus={campus} />)
+    pasoPadre()
+    pasoHijo()
+    escribir('Fecha de nacimiento del niño 1', '2099-01-01')
+    continuar()
+    expect(screen.getByText('Paso 2 de 6')).toBeInTheDocument()
+    expect(screen.getByText('Elige una fecha de nacimiento válida.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Fecha de nacimiento del niño 1')).toHaveFocus()
+  })
+
   it('moves focus to the step heading and marks the current step', () => {
     render(<RegistroFamilia campus={campus} />)
     pasoPadre()
@@ -232,6 +243,55 @@ describe('RegistroFamilia', () => {
     expect(screen.getByText('Ana María Prueba')).toBeInTheDocument()
   })
 
+  it('sends a child added from the review only after its health step is answered', async () => {
+    fetchMock.mockResolvedValue(ok)
+    render(<RegistroFamilia campus={campus} />)
+    hastaRevisar()
+    pulsar('Editar tus niños')
+    expect(screen.getByText('Paso 2 de 6')).toBeInTheDocument()
+    pulsar('Agregar otro niño')
+    pasoHijo(2, 'Luz')
+    pulsar('Guardar y revisar')
+
+    expect(screen.getByText('Paso 3 de 6')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: '¿Sol tiene alergias?' })).getByRole('button', { name: 'No' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    pulsar('Guardar y revisar')
+    expect(screen.getByText('Paso 3 de 6')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Enviar registro' })).not.toBeInTheDocument()
+
+    elegir('¿Luz tiene alergias?', 'No')
+    elegir('¿Luz tiene alguna necesidad especial?', 'No')
+    pulsar('Guardar y revisar')
+    expect(screen.getByRole('heading', { name: 'Revisa y envía' })).toBeInTheDocument()
+    pulsar('Enviar registro')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(cuerpo().hijos.map((h: { nombre: string }) => h.nombre)).toEqual(['Sol', 'Luz'])
+    expect(cuerpo().hijos[1]).toMatchObject({ apellido: 'Prueba', fechaNacimiento: '2021-03-04', genero: 'Femenino', alergias: '' })
+  })
+
+  it('shows a server-fault message when the server fails without details', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, json: async () => { throw new Error('no body') } })
+    render(<RegistroFamilia campus={campus} />)
+    hastaRevisar()
+    pulsar('Enviar registro')
+    expect(await screen.findByText('Tuvimos un problema al enviar. Intenta de nuevo en un momento; tus datos siguen aquí.')).toBeInTheDocument()
+    expect(screen.queryByText(/Revisa tu conexión/)).not.toBeInTheDocument()
+    expect(screen.getByText('Ana Prueba')).toBeInTheDocument()
+  })
+
+  it('shows the server validation errors when it rejects the data', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ errores: ['El teléfono no es válido.'] }) })
+    render(<RegistroFamilia campus={campus} />)
+    hastaRevisar()
+    pulsar('Enviar registro')
+    expect(await screen.findByText('El teléfono no es válido.')).toBeInTheDocument()
+    expect(screen.queryByText(/Tuvimos un problema/)).not.toBeInTheDocument()
+    expect(screen.getByText('Ana Prueba')).toBeInTheDocument()
+  })
+
   it('keeps every answer and offers a retry when rate limited', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({ errores: ['limite'] }) })
     render(<RegistroFamilia campus={campus} />)
@@ -252,7 +312,9 @@ describe('RegistroFamilia', () => {
     hastaRevisar()
     pulsar('Enviar registro')
     expect(await screen.findByText(/Revisa tu conexión/)).toBeInTheDocument()
+    expect(screen.queryByText(/Tuvimos un problema/)).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Revisa y envía' })).toBeInTheDocument()
+    expect(screen.getByText('Ana Prueba')).toBeInTheDocument()
   })
 
   it('has a hidden honeypot field out of the tab order', () => {

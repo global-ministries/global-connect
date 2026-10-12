@@ -47,6 +47,8 @@ export type Errores = Record<string, string>
 
 export const idCampo = {
   campus: 'reg-campus',
+  /** A step-level error that belongs to no single field. */
+  paso: 'reg-paso-error',
   padre: (campo: keyof PadreRegistro) => `reg-${campo}`,
   hijo: (i: number, campo: 'nombre' | 'apellido' | 'nacimiento' | 'genero' | 'tiene-alergias' | 'alergias' | 'tiene-nee' | 'nee') =>
     `reg-nino-${i + 1}-${campo}`,
@@ -94,18 +96,25 @@ function validarPadre(d: DatosRegistro, campusIds: readonly string[]): Errores {
   return e
 }
 
-/** Which fields of one child the shared family validation rejects. */
-function camposInvalidos(h: HijoRegistro, hoy: string): Set<string> {
+type ErroresHijo = { campos: Set<string>; otros: string[] }
+
+/**
+ * Which fields of one child the shared family validation rejects. Any message
+ * it cannot place on a field is kept in `otros`, so it still blocks the step.
+ */
+function erroresHijo(h: HijoRegistro, i: number, hoy: string): ErroresHijo {
   const r = validarFamilia({ padre: { id: 'registro', nombre: '', apellido: '', telefono: '', cedula: '', genero: '' }, hijos: [aHijoForm(h)], autorizados: [] }, hoy)
-  const malos = new Set<string>()
-  if (r.ok) return malos
+  const res: ErroresHijo = { campos: new Set(), otros: [] }
+  if (r.ok) return res
   for (const m of r.errores) {
-    if (m.includes('el nombre')) malos.add('nombre')
-    else if (m.includes('el apellido')) malos.add('apellido')
-    else if (m.includes('fecha de nacimiento')) malos.add('nacimiento')
-    else if (m.includes('el género')) malos.add('genero')
+    if (m.includes('el nombre')) res.campos.add('nombre')
+    else if (m.includes('el apellido')) res.campos.add('apellido')
+    else if (m.includes('fecha de nacimiento')) res.campos.add('nacimiento')
+    else if (m.includes('el género')) res.campos.add('genero')
+    // Validated alone, the child is always "Niño 1"; name it by its place in the wizard.
+    else res.otros.push(m.replace(/^Niño \d+:/, `Niño ${i + 1}:`))
   }
-  return malos
+  return res
 }
 
 const MENSAJES_HIJO: Record<string, string> = {
@@ -117,12 +126,15 @@ const MENSAJES_HIJO: Record<string, string> = {
 
 function validarHijos(d: DatosRegistro, hoy: string): Errores {
   const e: Errores = {}
+  const otros: string[] = []
   d.hijos.forEach((h, i) => {
-    const malos = camposInvalidos(h, hoy)
+    const { campos, otros: delHijo } = erroresHijo(h, i, hoy)
     for (const campo of ['nombre', 'apellido', 'nacimiento', 'genero'] as const) {
-      if (malos.has(campo)) e[idCampo.hijo(i, campo)] = MENSAJES_HIJO[campo]
+      if (campos.has(campo)) e[idCampo.hijo(i, campo)] = MENSAJES_HIJO[campo]
     }
+    otros.push(...delHijo)
   })
+  if (otros.length > 0) e[idCampo.paso] = otros.join(' ')
   return e
 }
 
