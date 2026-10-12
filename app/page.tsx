@@ -47,7 +47,12 @@ export default function PaginaLogin() {
     setError("")
 
     try {
-      const result = await login(new FormData(e.currentTarget))
+      const datos = new FormData(e.currentTarget)
+      // Where to go after signing in (?redirect=, set by the middleware or a public page).
+      // Read at submit time to avoid a Suspense boundary; the action validates it.
+      const destino = new URLSearchParams(window.location.search).get("redirect")
+      if (destino) datos.append("redirect", destino)
+      const result = await login(datos)
       if (result?.error) {
         setError(result.error)
         setCargando(false)
