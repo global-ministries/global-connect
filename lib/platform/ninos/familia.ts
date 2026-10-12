@@ -5,6 +5,8 @@
  * volunteer early, readable errors.
  */
 
+import { hoyEnCaracas } from './fecha'
+
 export const GENEROS = ['Masculino', 'Femenino'] as const
 export type Genero = (typeof GENEROS)[number]
 
@@ -171,7 +173,7 @@ export function validarAutorizados(autorizados: readonly AutorizadoForm[]): {
   return { errores, payload }
 }
 
-export function validarFamilia(form: FamiliaForm, hoy: string = new Date().toISOString().slice(0, 10)): ResultadoValidacion {
+export function validarFamilia(form: FamiliaForm, hoy: string = hoyEnCaracas()): ResultadoValidacion {
   const errores: string[] = []
 
   let padre: FamiliaPayload['padre'] | null = null
@@ -274,7 +276,7 @@ export type EdicionNinoPayload = FichaPayload & {
 /** Validates the edit screen: the child's name, birth date and gender plus the ficha. */
 export function validarEdicionNino(
   h: HijoForm,
-  hoy: string = new Date().toISOString().slice(0, 10),
+  hoy: string = hoyEnCaracas(),
 ): { ok: true; payload: EdicionNinoPayload } | { ok: false; errores: string[] } {
   const errores: string[] = []
   if (!texto(h.nombre)) errores.push('El nombre es obligatorio.')
