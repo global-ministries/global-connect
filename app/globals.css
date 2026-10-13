@@ -276,6 +276,11 @@
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
   }
 
+  /* Action footers (PieAccionesSistema): 12px, or the home-indicator inset */
+  .safe-area-pb-md {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+  }
+
   .safe-area-pl {
     padding-left: env(safe-area-inset-left, 0px);
   }

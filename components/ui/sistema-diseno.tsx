@@ -622,6 +622,89 @@ export const ContenedorDashboard = React.forwardRef<HTMLDivElement, ContenedorDa
 )
 ContenedorDashboard.displayName = "ContenedorDashboard"
 
+// ─── Página del Sistema ───
+/**
+ * Page widths (docs/design-system.md). Exactly two:
+ * - default: lists, dashboards and tables use the full content width.
+ * - form: single-column forms and detail views, capped at 768px and
+ *   left-aligned under the header title so nothing jumps sideways.
+ */
+export const ANCHOS_PAGINA = {
+  default: "max-w-none",
+  form: "max-w-3xl",
+} as const
+
+export type AnchoPagina = keyof typeof ANCHOS_PAGINA
+
+interface PaginaSistemaProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
+  /** Page title, shown in the sticky desktop header (the mobile header resolves its own). */
+  titulo?: string
+  /** Short muted text above the content. */
+  descripcion?: React.ReactNode
+  /** Header actions (desktop). Mobile actions stay with the page, e.g. a FAB. */
+  acciones?: React.ReactNode
+  /** Optional back link in the desktop header. */
+  regreso?: { href: string; texto: string }
+  breadcrumbs?: React.ReactNode
+  /** `default` (wide) for lists and dashboards, `form` for single-column forms. */
+  ancho?: AnchoPagina
+}
+
+/**
+ * The page layout primitive: one header (title, back link, actions), one set
+ * of gutters (16px mobile, 24px tablet, 48px desktop, aligned with the desktop
+ * header) and one vertical rhythm (`space-y-6`) for every authenticated page.
+ */
+export const PaginaSistema = React.forwardRef<HTMLDivElement, PaginaSistemaProps>(
+  ({ titulo, descripcion, acciones, regreso, breadcrumbs, ancho = 'default', className, children, ...props }, ref) => (
+    <ContenedorDashboard
+      ref={ref}
+      titulo={titulo}
+      accionPrincipal={acciones}
+      botonRegreso={regreso}
+      breadcrumbs={breadcrumbs}
+      {...props}
+    >
+      <div data-ancho={ancho} className={cn("w-full space-y-6", ANCHOS_PAGINA[ancho], className)}>
+        {descripcion && (
+          <p className="-mt-2 text-sm text-muted-foreground md:text-[15px]">{descripcion}</p>
+        )}
+        {children}
+      </div>
+    </ContenedorDashboard>
+  )
+)
+PaginaSistema.displayName = "PaginaSistema"
+
+// ─── Pie de Acciones ───
+interface PieAccionesSistemaProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Sticks to the bottom of the scrolling container (default). */
+  fijo?: boolean
+}
+
+/**
+ * Action footer for forms, pages and panels: top border, page background and
+ * safe-area bottom padding. On mobile the actions stack full width with the
+ * last child on top, so put the secondary action first and the primary last;
+ * from `sm` up they sit in a right-aligned row.
+ */
+export const PieAccionesSistema = React.forwardRef<HTMLDivElement, PieAccionesSistemaProps>(
+  ({ fijo = true, className, ...props }, ref) => (
+    <div
+      ref={ref}
+      data-slot="pie-acciones"
+      className={cn(
+        fijo && "sticky bottom-0 z-10",
+        "flex flex-col-reverse gap-2 border-t border-border bg-[var(--surface-primary)] pt-3 safe-area-pb-md",
+        "*:w-full sm:flex-row sm:items-center sm:justify-end sm:*:w-auto",
+        className
+      )}
+      {...props}
+    />
+  )
+)
+PieAccionesSistema.displayName = "PieAccionesSistema"
+
 // ─── Badge del Sistema ───
 interface BadgeSistemaProps extends React.HTMLAttributes<HTMLSpanElement> {
   variante?: 'default' | 'success' | 'warning' | 'error' | 'info'

@@ -21,6 +21,54 @@ Measured before deciding the scale, so adopting it does not make pages jump.
 | Radius | Controls `rounded-xl` (sistema) vs `rounded-md` (ui/*); surfaces `rounded-2xl` (TarjetaSistema) vs `rounded-xl` (ui/card) vs `rounded-3xl` (modals). |
 | Brand colors | `coloresMarca` duplicated the CSS variables as hex (unused). |
 
+## Page layout: `PaginaSistema`
+
+Every authenticated page uses `PaginaSistema` (it builds on
+`ContenedorDashboard`, which existing pages keep until they migrate).
+
+| Width | Class | Use |
+| --- | --- | --- |
+| `default` | `max-w-none` (full content width) | Lists, dashboards, tables, maps |
+| `form` | `max-w-3xl` (768px), left-aligned | Single-column forms and detail views |
+
+- Gutters: 16px mobile, 24px from `sm`, 48px from `lg`, the same as the
+  desktop header so content lines up with the title. Values kept from the
+  inventory so adopting the primitive does not shift pages.
+- Vertical rhythm: `space-y-6` between sections.
+- Header: `titulo`, `regreso` (back link), `acciones` and `breadcrumbs` render
+  in the sticky desktop header; `descripcion` renders as muted text above the
+  content. On mobile the top bar shows the route title and pages keep their
+  own mobile actions (FAB or in-page buttons).
+- `className` applies to the content column.
+
+```tsx
+<PaginaSistema titulo="Crear Temporada" ancho="form" regreso={{ href: "/grupos-vida/temporadas", texto: "Temporadas" }}>
+  …
+</PaginaSistema>
+```
+
+## Action footer: `PieAccionesSistema`
+
+Top border, page background, `safe-area-pb-md` bottom padding (12px or the
+home-indicator inset). Sticky to the bottom of its scroll container by
+default (`fijo={false}` to sit at the end). On mobile actions stack full
+width with the last child on top; from `sm` they form a right-aligned row.
+Put the secondary action first and the primary action last.
+
+## Side panel: `PanelLateralSistema`
+
+`components/ui/panel-lateral-sistema.tsx`, built on `ui/sheet`.
+
+| Size | Width | Use |
+| --- | --- | --- |
+| `md` | 480px | Short forms, details |
+| `lg` | 640px | Forms with repeated rows (e.g. several children) |
+
+Full width on mobile. Fixed header (title, optional description), a
+scrolling body that is a `@container` — lay out fields with `@md:`/`@lg:` so
+they follow the panel width, not the viewport — and `PieAccionesSistema` for
+the `pie` actions. Padding is 16px mobile, 24px from `sm`.
+
 ## Control size scale
 
 Buttons and form controls share three heights. Both `BotonSistema` and
