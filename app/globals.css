@@ -86,6 +86,8 @@
   --warning-foreground: oklch(0.22 0.02 60);
   --info: oklch(0.55 0.15 250);
   --info-foreground: oklch(0.98 0 0);
+  --danger: oklch(0.577 0.245 27.325);
+  --danger-foreground: oklch(0.98 0 0);
 
   color-scheme: light;
 }
@@ -151,6 +153,8 @@
   --warning-foreground: oklch(0.15 0 0);
   --info: oklch(0.60 0.15 250);
   --info-foreground: oklch(0.15 0 0);
+  --danger: oklch(0.637 0.237 25.331);
+  --danger-foreground: oklch(0.15 0 0);
 }
 
 @theme inline {
@@ -199,6 +203,8 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
 
   /* ─── Extended animations ─── */
   --animate-glass-shimmer: glass-shimmer 2s ease-in-out infinite;

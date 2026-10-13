@@ -5,25 +5,41 @@ import { LucideIcon, ChevronDown } from 'lucide-react'
 // Lazy load DesktopHeader (client component) to keep this file server-compatible
 const DesktopHeader = React.lazy(() => import('./desktop-header').then(m => ({ default: m.DesktopHeader })))
 
-// Colores de marca definidos
+/**
+ * Brand and status colors as CSS variables (defined in app/globals.css), so
+ * they follow light/dark mode and never drift from the theme. Prefer the
+ * Tailwind classes (`text-success`, `bg-danger`, `text-muted-foreground`…);
+ * use these only where a class cannot reach (inline styles, SVG attributes).
+ * See docs/design-system.md.
+ */
 export const coloresMarca = {
-  grisOscuro: '#363D45',
-  naranja: '#E96C20',
-  negro: '#000000',
-  blanco: '#FFFFFF',
-  grisClaro: '#F8F9FA',
-  grisTexto: '#6B7280',
-  grisTextoClaro: '#9CA3AF',
-  error: '#EF4444',
-  exito: '#10B981',
-  advertencia: '#F59E0B',
-}
+  grisOscuro: 'var(--brand-dark)',
+  naranja: 'var(--brand-primary)',
+  negro: 'var(--foreground)',
+  blanco: 'var(--card)',
+  grisClaro: 'var(--surface-primary)',
+  grisTexto: 'var(--muted-foreground)',
+  grisTextoClaro: 'var(--muted-foreground)',
+  error: 'var(--danger)',
+  exito: 'var(--success)',
+  advertencia: 'var(--warning)',
+} as const
+
+/**
+ * Control size scale shared by buttons and form controls
+ * (docs/design-system.md):
+ * - sm 36px: dense tables and toolbars only (44px on touch screens)
+ * - md 44px: default for every form and action
+ * - lg 48px: hero and primary mobile calls to action
+ * Controls use the `rounded-xl` radius; surfaces (cards, panels) `rounded-2xl`.
+ */
+const ALTO_CONTROL = "h-11"
 
 // ─── Input del Sistema ───
 /**
  * Input accesible del design system con soporte para iconos, errores y labels.
  *
- * Incluye min-h-[44px] para touch targets (WCAG), aria-describedby para errores,
+ * Altura md del sistema (44px, touch target WCAG), aria-describedby para errores,
  * aria-invalid cuando hay error, y asociación automática label+input vía id generado.
  */
 interface InputSistemaProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -62,7 +78,8 @@ export const InputSistema = React.forwardRef<HTMLInputElement, InputSistemaProps
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? idError : undefined}
             className={cn(
-              "block w-full min-h-[44px] py-3 px-3 border border-border rounded-xl bg-card/50",
+              "block w-full py-2 px-3 text-base border border-border rounded-xl bg-card/50",
+              ALTO_CONTROL,
               "focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] focus:outline-none",
               "transition-[border-color,box-shadow] duration-200 ease-expo text-foreground placeholder:text-muted-foreground",
               "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
@@ -94,7 +111,7 @@ InputSistema.displayName = "InputSistema"
  * Select accesible del design system con estilos glass y dark mode nativo.
  *
  * Wrapper sobre <select> nativo con los mismos patrones de InputSistema:
- * min-h-[44px], focus-ring, aria-describedby para errores.
+ * altura md (44px), focus-ring, aria-describedby para errores.
  */
 interface OpcionSelect {
   /** Valor interno de la opción */
@@ -150,7 +167,8 @@ export const SelectSistema = React.forwardRef<HTMLSelectElement, SelectSistemaPr
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? idError : undefined}
             className={cn(
-              "block w-full min-h-[44px] py-3 px-3 pr-10 border border-border rounded-xl bg-card/50",
+              "block w-full py-2 px-3 pr-10 text-base border border-border rounded-xl bg-card/50",
+              ALTO_CONTROL,
               "focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] focus:outline-none",
               "transition-[border-color,box-shadow] duration-200 ease-expo text-foreground",
               "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
@@ -223,7 +241,7 @@ export const TextareaSistema = React.forwardRef<HTMLTextAreaElement, TextareaSis
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? idError : undefined}
           className={cn(
-            "block w-full min-h-[44px] py-3 px-3 border border-border rounded-xl bg-card/50",
+            "block w-full min-h-11 py-2.5 px-3 text-base border border-border rounded-xl bg-card/50",
             "focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] focus:outline-none",
             "transition-[border-color,box-shadow] duration-200 ease-expo text-foreground placeholder:text-muted-foreground",
             "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
@@ -245,12 +263,40 @@ export const TextareaSistema = React.forwardRef<HTMLTextAreaElement, TextareaSis
 TextareaSistema.displayName = "TextareaSistema"
 
 // ─── Botón del Sistema ───
-interface BotonSistemaProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+type TamañoControl = 'sm' | 'md' | 'lg'
+
+interface BotonSistemaBaseProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variante?: 'primario' | 'secundario' | 'outline' | 'ghost'
-  tamaño?: 'sm' | 'md' | 'lg'
+  /** sm 36px (dense toolbars only), md 44px (default), lg 48px (hero / mobile primary). */
+  tamaño?: TamañoControl
   cargando?: boolean
   icono?: LucideIcon
   iconoPosicion?: 'izquierda' | 'derecha'
+}
+
+/**
+ * An icon-only button (`soloIcono`) is a square of the control height and has
+ * no visible text, so the type requires an `aria-label` and forbids children.
+ */
+type BotonSistemaProps =
+  | (BotonSistemaBaseProps & { soloIcono?: false })
+  | (Omit<BotonSistemaBaseProps, 'children' | 'aria-label'> & {
+      soloIcono: true
+      icono: LucideIcon
+      'aria-label': string
+      children?: never
+    })
+
+const ALTOS_BOTON: Record<TamañoControl, string> = {
+  sm: "h-9 pointer-coarse:h-11",
+  md: ALTO_CONTROL,
+  lg: "h-12",
+}
+
+const ANCHOS_BOTON_ICONO: Record<TamañoControl, string> = {
+  sm: "w-9 pointer-coarse:w-11",
+  md: "w-11",
+  lg: "w-12",
 }
 
 export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProps>(
@@ -261,11 +307,12 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
     cargando = false,
     icono: Icono,
     iconoPosicion = 'izquierda',
+    soloIcono = false,
     children,
     disabled,
     ...props
   }, ref) => {
-    const baseClasses = "inline-flex items-center justify-center font-medium rounded-xl transition-[background-color,box-shadow,transform] duration-200 ease-expo focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background press-scale touch-manipulation min-h-[44px]"
+    const baseClasses = "inline-flex shrink-0 items-center justify-center font-medium rounded-xl transition-[background-color,box-shadow,transform] duration-200 ease-expo focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background press-scale touch-manipulation"
 
     const variantes = {
       primario: "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl focus:ring-orange-500",
@@ -274,18 +321,22 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
       ghost: "text-muted-foreground hover:text-foreground hover:bg-accent focus:ring-ring"
     }
 
-    const tamaños = {
-      sm: "px-3 py-2 text-sm gap-2",
-      md: "px-4 py-3 text-base gap-2",
-      lg: "px-6 py-4 text-lg gap-3"
+    const tamaños: Record<TamañoControl, string> = {
+      sm: "px-3 text-sm gap-1.5",
+      md: "px-4 text-base gap-2",
+      lg: "px-6 text-lg gap-2"
     }
+
+    const claseIcono = "h-5 w-5"
 
     return (
       <button
         className={cn(
           baseClasses,
           variantes[variante],
+          ALTOS_BOTON[tamaño],
           tamaños[tamaño],
+          soloIcono && [ANCHOS_BOTON_ICONO[tamaño], "px-0"],
           (disabled || cargando) && "opacity-50 cursor-not-allowed",
           className
         )}
@@ -294,15 +345,15 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
         {...props}
       >
         {cargando ? (
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+          <svg className={cn("animate-spin", claseIcono)} viewBox="0 0 24 24" aria-hidden="true">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
           </svg>
         ) : (
-          Icono && iconoPosicion === 'izquierda' && <Icono className="h-5 w-5" />
+          Icono && (soloIcono || iconoPosicion === 'izquierda') && <Icono className={claseIcono} aria-hidden="true" />
         )}
         {children}
-        {!cargando && Icono && iconoPosicion === 'derecha' && <Icono className="h-5 w-5" />}
+        {!cargando && !soloIcono && Icono && iconoPosicion === 'derecha' && <Icono className={claseIcono} aria-hidden="true" />}
       </button>
     )
   }
