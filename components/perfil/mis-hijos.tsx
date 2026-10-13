@@ -115,7 +115,7 @@ export function MisHijos({ hijos: iniciales, pendientes: pendientesIniciales = [
   }
 
   return (
-    <section aria-labelledby="mis-hijos-titulo" className="space-y-4">
+    <section id="mis-hijos" aria-labelledby="mis-hijos-titulo" className="scroll-mt-24 space-y-4">
       <div className="space-y-1">
         <TituloSistema nivel={2} id="mis-hijos-titulo">
           Mis hijos
