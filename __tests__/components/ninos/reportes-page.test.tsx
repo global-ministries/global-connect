@@ -50,6 +50,7 @@ jest.mock('@/components/ninos/reportes-voluntarios-client', () => ({
 
 beforeEach(() => {
   rpc.mockReset()
+  from.mockClear()
   rpc.mockResolvedValue({ data: true, error: null })
 })
 
@@ -69,6 +70,27 @@ describe('/ninos/reportes page', () => {
       turnos: ['Domingo 9:00'],
     })
     expect(screen.getByRole('link', { name: 'Voluntarios' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('gives a sub-area coordinator only the volunteers report, with the turnos they mark', async () => {
+    rpc.mockImplementation(async (fn: string) =>
+      fn === 'ninos_puede_configurar_algun_area'
+        ? { data: false, error: null }
+        : fn === 'ninos_puede_marcar_voluntarios_algun_area'
+          ? { data: true, error: null }
+          : {
+              data: [
+                { id: 't9', nombre: 'Domingo 9:00', campus_id: 'c1', campus: 'Campus Uno', dia_semana: 0, orden: 1 },
+                { id: 't7', nombre: 'Miércoles 7:00', campus_id: 'c1', campus: 'Campus Uno', dia_semana: 3, orden: 2 },
+              ],
+              error: null,
+            },
+    )
+    render(await NinosReportesPage({ searchParams: Promise.resolve({ campus: 'c1' }) }))
+    expect(screen.queryByTestId('reporte-ninos')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Niños' })).not.toBeInTheDocument()
+    expect(JSON.parse(screen.getByTestId('reporte-voluntarios').textContent ?? '').turnos).toEqual(['Domingo 9:00'])
+    expect(from).not.toHaveBeenCalledWith('ninos_salones')
   })
 
   it('is a 404 for whoever cannot see the reports', async () => {

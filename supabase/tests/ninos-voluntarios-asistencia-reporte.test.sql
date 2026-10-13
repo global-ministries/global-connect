@@ -2,8 +2,7 @@
 -- (20261012120000_ninos_voluntarios_reporte.sql).
 --
 -- Covers:
---   a. Gate: a team coordinator (no area) and a random user get
---      'sin_autoridad'; NULL, reversed and > 366-day ranges 'rango_invalido'.
+--   a. Gate: a random user gets 'sin_autoridad'; NULL, reversed and > 366-day ranges 'rango_invalido'.
 --   b. Per service (turno 9:00): expected, Presente, Avisó, Faltó, sin marcar
 --      and extras per fecha, area and equipo; future dates are not counted;
 --      a volunteer without a turno and nobody marked is never counted.
@@ -12,6 +11,9 @@
 --   d. Without the turno filter, the 11:00 volunteer's unmarked services count.
 --   e. Scope: an area coordinator sees only their area.
 --   f. Privileges: anon cannot execute it.
+--   g. V6 (20261012170000_ninos_voluntarios_reporte_coordinador.sql): a
+--      sub-area coordinator sees only their own team; a random user is still
+--      refused; the full-scope viewer (b–d) is unchanged.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
 -- of the failing cases ('ALL OK' when none).
@@ -182,9 +184,6 @@ SET LOCAL ROLE authenticated;
 
 -- ── a. gate and range ────────────────────────────────────────────────
 
-SELECT pg_temp.as_persona(1);
-SELECT pg_temp.assert_raises('a: a team coordinator without an area gets sin_autoridad',
-  $q$SELECT pg_temp.rep(true)$q$, '42501', 'sin_autoridad');
 SELECT pg_temp.as_persona(5);
 SELECT pg_temp.assert_raises('a: a random user gets sin_autoridad',
   $q$SELECT pg_temp.rep(true)$q$, '42501', 'sin_autoridad');
@@ -229,6 +228,19 @@ SELECT pg_temp.assert_eq('d: the 11:00 service rows appear',
 SELECT pg_temp.as_persona(6);
 SELECT pg_temp.assert_eq('e: an area coordinator sees only their area',
   $q$SELECT pg_temp.voluntarios(true)$q$, 'V18:3/0/0/1/2/0/1');
+
+-- ── g. sub-area coordinator (V6) ─────────────────────────────────────
+
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_eq('g: a sub-area coordinator sees only the volunteers of their team',
+  $q$SELECT pg_temp.voluntarios(true)$q$,
+  'V11:3/1/0/2/0/0/2,V10:3/1/0/2/0/0/0,V12:3/0/0/0/3/0/0,V13:0/1/0/0/0/1/0');
+SELECT pg_temp.assert_eq('g: a sub-area coordinator gets no service rows of other teams',
+  $q$SELECT string_agg(DISTINCT s ->> 'equipo', ',') FROM jsonb_array_elements(pg_temp.rep(false) -> 'servicios') s$q$,
+  'ZZ Nr A');
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.assert_raises('g: a non-coordinator is still refused',
+  $q$SELECT pg_temp.rep(true)$q$, '42501', 'sin_autoridad');
 
 -- ── f. privileges ────────────────────────────────────────────────────
 

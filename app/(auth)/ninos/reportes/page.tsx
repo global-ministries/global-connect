@@ -8,6 +8,10 @@
  * Query: ?desde=&hasta=&campus=&turno= (default: the last 8 Sundays).
  * ?reporte=voluntarios switches to the volunteer attendance tab
  * (odd/tasks/ninos-asistencia-voluntarios.md, V5; ninos_reporte_voluntarios).
+ * Whoever may only mark volunteers (ninos_puede_marcar_voluntarios_algun_area,
+ * e.g. a sub-area coordinator; V6) gets just that tab, scoped by the RPC to the
+ * equipos they mark, with the Sunday turnos from ninos_voluntarios_turnos (they
+ * cannot read ninos_salones).
  */
 import { notFound } from 'next/navigation'
 
@@ -29,45 +33,68 @@ const FECHA = /^\d{4}-\d{2}-\d{2}$/
 
 export default async function NinosReportesPage({ searchParams }: Props) {
   const supabase = await createSupabaseServerClient()
-  const { data: puede } = await supabase.rpc('ninos_puede_configurar_algun_area')
-  if (!puede) notFound()
+  const { data: puedeConfigurar } = await supabase.rpc('ninos_puede_configurar_algun_area')
+  if (!puedeConfigurar) {
+    const { data: puedeMarcar } = await supabase.rpc('ninos_puede_marcar_voluntarios_algun_area')
+    if (!puedeMarcar) notFound()
+  }
 
   const query = await searchParams
-  const { data: salones } = await supabase.from('ninos_salones').select('campus_id').eq('activo', true)
-  const campusIds = [...new Set((salones ?? []).map((s) => s.campus_id))]
-  const [{ data: campus }, { data: turnos }] = campusIds.length
-    ? await Promise.all([
-        supabase.from('campus').select('id, nombre').in('id', campusIds).order('nombre'),
-        supabase
-          .from('dream_team_turnos')
-          .select('id, nombre, campus_id, orden')
-          .in('campus_id', campusIds)
-          .eq('activo', true)
-          .eq('dia_semana', 0)
-          .order('orden'),
-      ])
-    : [{ data: [] }, { data: [] }]
+  const { campus, turnos } = puedeConfigurar ? await opcionesCompletas(supabase) : await opcionesDeVoluntarios(supabase)
 
   const porDefecto = rangoPorDefecto(hoyEnCaracas())
-  const listaCampus = (campus ?? []).map((c) => ({ id: c.id, nombre: c.nombre }))
-  const listaTurnos = (turnos ?? []).map((t) => ({ id: t.id, nombre: t.nombre, campusId: t.campus_id }))
   const filtros: FiltrosReporte = {
     desde: query.desde && FECHA.test(query.desde) ? query.desde : porDefecto.desde,
     hasta: query.hasta && FECHA.test(query.hasta) ? query.hasta : porDefecto.hasta,
-    campusId: listaCampus.find((c) => c.id === query.campus)?.id ?? '',
-    turnoId: listaTurnos.find((t) => t.id === query.turno)?.id ?? '',
+    campusId: campus.find((c) => c.id === query.campus)?.id ?? '',
+    turnoId: turnos.find((t) => t.id === query.turno)?.id ?? '',
   }
 
-  const voluntarios = query.reporte === 'voluntarios'
+  const voluntarios = !puedeConfigurar || query.reporte === 'voluntarios'
 
   return (
     <ContenedorDashboard titulo="Reportes">
-      <PestanasReportes actual={voluntarios ? 'voluntarios' : 'ninos'} filtros={filtros} />
+      {puedeConfigurar ? <PestanasReportes actual={voluntarios ? 'voluntarios' : 'ninos'} filtros={filtros} /> : null}
       {voluntarios ? (
-        <ReportesVoluntariosClient campus={listaCampus} turnos={listaTurnos} filtrosIniciales={filtros} />
+        <ReportesVoluntariosClient campus={campus} turnos={turnos} filtrosIniciales={filtros} />
       ) : (
-        <ReportesClient campus={listaCampus} turnos={listaTurnos} filtrosIniciales={filtros} />
+        <ReportesClient campus={campus} turnos={turnos} filtrosIniciales={filtros} />
       )}
     </ContenedorDashboard>
   )
+}
+
+type Supabase = Awaited<ReturnType<typeof createSupabaseServerClient>>
+type Opciones = { campus: { id: string; nombre: string }[]; turnos: { id: string; nombre: string; campusId: string }[] }
+
+/** Campuses with active rooms and their active Sunday turnos (children's report viewers). */
+async function opcionesCompletas(supabase: Supabase): Promise<Opciones> {
+  const { data: salones } = await supabase.from('ninos_salones').select('campus_id').eq('activo', true)
+  const campusIds = [...new Set((salones ?? []).map((s) => s.campus_id))]
+  if (!campusIds.length) return { campus: [], turnos: [] }
+  const [{ data: campus }, { data: turnos }] = await Promise.all([
+    supabase.from('campus').select('id, nombre').in('id', campusIds).order('nombre'),
+    supabase
+      .from('dream_team_turnos')
+      .select('id, nombre, campus_id, orden')
+      .in('campus_id', campusIds)
+      .eq('activo', true)
+      .eq('dia_semana', 0)
+      .order('orden'),
+  ])
+  return {
+    campus: (campus ?? []).map((c) => ({ id: c.id, nombre: c.nombre })),
+    turnos: (turnos ?? []).map((t) => ({ id: t.id, nombre: t.nombre, campusId: t.campus_id })),
+  }
+}
+
+/** The Sunday turnos the caller marks volunteers in, and their campuses (volunteer-only viewers). */
+async function opcionesDeVoluntarios(supabase: Supabase): Promise<Opciones> {
+  const { data } = await supabase.rpc('ninos_voluntarios_turnos')
+  const domingos = (data ?? []).filter((t) => t.dia_semana === 0)
+  const campus = new Map(domingos.map((t) => [t.campus_id, { id: t.campus_id, nombre: t.campus }]))
+  return {
+    campus: [...campus.values()],
+    turnos: domingos.map((t) => ({ id: t.id, nombre: t.nombre, campusId: t.campus_id })),
+  }
 }
