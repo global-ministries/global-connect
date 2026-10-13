@@ -200,9 +200,9 @@ export function CamposAutorizados({ autorizados, onChange }: CamposAutorizadosPr
     onChange(autorizados.map((a, j) => (j === i ? { ...a, [campo]: v } : a)))
 
   return (
-    <div className="space-y-3">
+    <div className="@container space-y-3">
       {autorizados.map((a, i) => (
-        <div key={i} className="grid gap-3 rounded-xl border border-border bg-muted/30 p-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-start">
+        <div key={i} className="grid gap-3 rounded-xl border border-border bg-muted/30 p-3 @xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] @xl:items-start">
           <InputSistema aria-label={`Nombre del autorizado ${i + 1}`} placeholder="Nombre" value={a.nombre} onChange={(e) => set(i, 'nombre', e.target.value)} />
           <InputSistema
             aria-label={`Teléfono del autorizado ${i + 1}`}

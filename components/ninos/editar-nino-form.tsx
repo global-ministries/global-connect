@@ -11,6 +11,7 @@ import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { CamposAutorizados, CamposNino } from './campos-nino'
+import { PieFormulario } from './pie-formulario'
 
 type Props = {
   hijo: HijoEncontrado
@@ -81,14 +82,14 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar, salones }: Props)
           ))}
         </ul>
       )}
-      <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-background py-4">
+      <PieFormulario>
         <BotonSistema type="button" variante="outline" className="flex-1 sm:flex-none" onClick={onCancelar}>
           Cancelar
         </BotonSistema>
         <BotonSistema type="submit" className="flex-1 sm:flex-none" disabled={guardando}>
           {guardando ? 'Guardando…' : hijo.tiene_ficha !== false ? 'Guardar ficha' : 'Crear ficha'}
         </BotonSistema>
-      </div>
+      </PieFormulario>
     </form>
   )
 }

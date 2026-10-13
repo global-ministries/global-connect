@@ -18,6 +18,7 @@ import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { CamposAutorizados, OPCIONES_GENERO } from './campos-nino'
+import { PieFormulario } from './pie-formulario'
 import { TarjetasHijos } from './tarjetas-hijos'
 
 type Props = {
@@ -213,14 +214,14 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
         </ul>
       )}
 
-      <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t border-border bg-[var(--surface-primary)] py-4">
+      <PieFormulario>
         <BotonSistema type="button" variante="outline" className="flex-1 sm:flex-none" onClick={onCancelar}>
           Cancelar
         </BotonSistema>
         <BotonSistema type="submit" className="flex-1 sm:flex-none" disabled={guardando}>
           {guardando ? 'Guardando…' : textoBoton}
         </BotonSistema>
-      </div>
+      </PieFormulario>
     </form>
   )
 }

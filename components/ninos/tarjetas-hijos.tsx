@@ -70,7 +70,7 @@ export function TarjetasHijos({ hijos, onCambiar, onQuitar, onAgregar, salones }
               tarjetas.current[i] = el
             }}
             data-testid={`nino-${i + 1}`}
-            className="min-w-0 space-y-4 p-4 md:p-5"
+            className={expandido ? 'min-w-0 space-y-4 p-4 md:p-5' : 'min-w-0 px-4 py-2 md:px-5'}
           >
             <div className="flex items-center justify-between gap-2">
               {varios && !expandido ? (
