@@ -246,6 +246,35 @@ SELECT pg_temp.assert_raises('g: anon cannot read the snapshot rows',
 
 RESET ROLE;
 
+-- ── h. scheduled freeze and unauthorized marking (20261012180100) ────
+
+-- T2 on P has no snapshot yet (every call above was scoped to T1).
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_raises('h: a caller without authority on the servicio cannot mark',
+  $q$SELECT public.ninos_voluntarios_marcar(pg_temp.id('tu', 2), DATE '2026-10-11', ARRAY[pg_temp.id('se', 12)], 'presente')$q$,
+  '42501');
+RESET ROLE;
+SELECT pg_temp.assert_eq('h: an unauthorized mark does not freeze the date',
+  $q$SELECT count(*)::text FROM public.ninos_voluntarios_rosters WHERE turno_id = pg_temp.id('tu', 2) AND fecha = DATE '2026-10-11'$q$,
+  '0');
+SELECT pg_temp.assert_eq('h: the scheduled freeze freezes the missing past date of every active turno',
+  $q$SELECT (public.ninos_voluntarios_congelar_pendientes() >= 1)::text$q$, 'true');
+SELECT pg_temp.assert_eq('h: the scheduled snapshot of T2 has the volunteer now assigned there',
+  $q$SELECT string_agg(u.apellido, ',' ORDER BY u.apellido) FROM public.ninos_voluntarios_roster_servicios z
+       JOIN public.dream_team_servicios sv ON sv.id = z.servicio_id JOIN public.usuarios u ON u.id = sv.persona_id
+      WHERE z.turno_id = pg_temp.id('tu', 2) AND z.fecha = DATE '2026-10-11'$q$, 'V11');
+SELECT pg_temp.assert_eq('h: the scheduled freeze does not overwrite T1',
+  $q$SELECT pg_temp.congelado()$q$, 'V10@ZZ Rc A,V11@ZZ Rc A,V12@ZZ Rc B');
+SELECT pg_temp.assert_eq('h: running it again freezes nothing for these turnos',
+  $q$SELECT count(*)::text FROM public.ninos_voluntarios_rosters
+       WHERE turno_id IN (pg_temp.id('tu', 1), pg_temp.id('tu', 2)) AND public.ninos_voluntarios_congelar(turno_id, fecha)$q$,
+  '0');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.assert_raises('h: authenticated cannot run the scheduled freeze',
+  $q$SELECT public.ninos_voluntarios_congelar_pendientes()$q$, '42501');
+RESET ROLE;
+
 SELECT coalesce(string_agg(case_name, ' ## '), 'ALL OK') AS result FROM t_rc_failures;
 
 ROLLBACK;
