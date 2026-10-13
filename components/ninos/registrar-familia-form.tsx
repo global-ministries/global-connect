@@ -2,8 +2,6 @@
 
 import { useState } from 'react'
 
-import { Plus, X } from 'lucide-react'
-
 import { BotonSistema, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -19,7 +17,8 @@ import {
 import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import type { Json } from '@/lib/supabase/database.types'
 
-import { CamposAutorizados, CamposNino, OPCIONES_GENERO } from './campos-nino'
+import { CamposAutorizados, OPCIONES_GENERO } from './campos-nino'
+import { TarjetasHijos } from './tarjetas-hijos'
 
 type Props = {
   /** When set, the form only adds children to this parent. */
@@ -111,7 +110,7 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
     await registrar(r.payload)
   }
 
-  const textoBoton = textoGuardar ?? (padreExistente ? 'Agregar niño' : 'Registrar familia')
+  const textoBoton = textoGuardar ?? (padreExistente ? (form.hijos.length > 1 ? `Agregar ${form.hijos.length} niños` : 'Agregar niño') : 'Registrar familia')
 
   return (
     <form onSubmit={enviar} className="space-y-6" noValidate>
@@ -193,36 +192,13 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
         </TarjetaSistema>
       )}
 
-      <div className={form.hijos.length > 1 ? 'grid gap-4 xl:grid-cols-2' : 'grid gap-4'}>
-        {form.hijos.map((h, i) => (
-          <TarjetaSistema key={i} className="min-w-0 space-y-4 p-4 md:p-6">
-            <div className="flex items-center justify-between gap-2">
-              <TituloSistema nivel={3}>Niño {i + 1}</TituloSistema>
-              {form.hijos.length > 1 && (
-                <BotonSistema
-                  type="button"
-                  variante="ghost"
-                  tamaño="sm"
-                  icono={X}
-                  onClick={() => setForm((f) => ({ ...f, hijos: f.hijos.filter((_, j) => j !== i) }))}
-                >
-                  Quitar
-                </BotonSistema>
-              )}
-            </div>
-            <CamposNino indice={i} hijo={h} onChange={(x) => setHijo(i, x)} salones={salones} />
-          </TarjetaSistema>
-        ))}
-      </div>
-      <BotonSistema
-        type="button"
-        variante="outline"
-        tamaño="sm"
-        icono={Plus}
-        onClick={() => setForm((f) => ({ ...f, hijos: [...f.hijos, { ...hijoVacio(), apellido: f.hijos[0]?.apellido ?? '' }] }))}
-      >
-        Agregar otro niño
-      </BotonSistema>
+      <TarjetasHijos
+        hijos={form.hijos}
+        salones={salones}
+        onCambiar={setHijo}
+        onQuitar={(i) => setForm((f) => ({ ...f, hijos: f.hijos.filter((_, j) => j !== i) }))}
+        onAgregar={() => setForm((f) => ({ ...f, hijos: [...f.hijos, { ...hijoVacio(), apellido: f.hijos[0]?.apellido ?? '' }] }))}
+      />
 
       <TarjetaSistema className="space-y-4 p-4 md:p-6">
         <TituloSistema nivel={3}>Personas autorizadas para retirar</TituloSistema>

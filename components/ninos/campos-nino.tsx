@@ -107,79 +107,83 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
     onChange(aplicarNivel(siguiente, sugerido))
   }
 
+  // Container query: two columns only when the card itself is wide enough, so a
+  // narrow side sheet never truncates selects or the date input.
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <InputSistema
-        id={id('nombre')}
-        label="Nombre"
-        aria-label={`Nombre del niño ${n}`}
-        value={hijo.nombre}
-        onChange={(e) => set('nombre', e.target.value)}
-      />
-      <InputSistema
-        id={id('apellido')}
-        label="Apellido"
-        aria-label={`Apellido del niño ${n}`}
-        value={hijo.apellido}
-        onChange={(e) => set('apellido', e.target.value)}
-      />
-      <InputSistema
-        id={id('nacimiento')}
-        label="Fecha de nacimiento"
-        type="date"
-        aria-label={`Fecha de nacimiento del niño ${n}`}
-        value={hijo.fechaNacimiento}
-        onChange={(e) => cambiarFecha(e.target.value)}
-      />
-      <SelectSistema
-        id={id('genero')}
-        label="Género"
-        aria-label={`Género del niño ${n}`}
-        opciones={OPCIONES_GENERO}
-        value={hijo.genero}
-        onValueChange={(v) => set('genero', v)}
-      />
-      <div className="space-y-2">
-        <SelectNivel
-          id={id('nivel')}
-          label={publico ? 'Nivel (si lo sabes)' : 'Nivel'}
-          value={nivel}
-          salones={salones}
-          onValueChange={(v) => {
-            nivelAuto.current = null
-            onChange(aplicarNivel(hijo, v))
-          }}
+    <div className="@container">
+      <div className="grid gap-4 @lg:grid-cols-2">
+        <InputSistema
+          id={id('nombre')}
+          label="Nombre"
+          aria-label={`Nombre del niño ${n}`}
+          value={hijo.nombre}
+          onChange={(e) => set('nombre', e.target.value)}
         />
-        {sinSugerencia && (
-          <p className="flex items-start gap-2 text-xs text-yellow-700 dark:text-yellow-400">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            {publico
-              ? 'Si no lo sabes, lo asignamos en la mesa de check-in.'
-              : 'Sin salón sugerido para esta edad: elige el nivel o asígnalo manualmente.'}
-          </p>
-        )}
-      </div>
-      <SelectSiNo id={id('escolarizado')} label="¿Escolarizado?" value={hijo.escolarizado} onChange={(v) => set('escolarizado', v)} />
-      <SelectSiNo id={id('comer')} label="¿Puede comer merienda?" value={hijo.puedeComer} onChange={(v) => set('puedeComer', v)} />
-      <SelectSiNo id={id('panal')} label="¿Necesita cambio de pañal?" value={hijo.cambioPanal} onChange={(v) => set('cambioPanal', v)} />
-      <SelectSiNo id={id('imagen')} label="¿Autoriza fotos?" value={hijo.autorizaImagen} onChange={(v) => set('autorizaImagen', v)} />
-      <div className="sm:col-span-2">
-        <TextareaSistema id={id('alergias')} label="Alergias" filas={2} value={hijo.alergias} onChange={(e) => set('alergias', e.target.value)} />
-      </div>
-      <div className="sm:col-span-2">
-        <TextareaSistema
-          id={id('nee')}
-          label="Necesidades especiales"
-          filas={2}
-          value={hijo.necesidadesEspeciales}
-          onChange={(e) => set('necesidadesEspeciales', e.target.value)}
+        <InputSistema
+          id={id('apellido')}
+          label="Apellido"
+          aria-label={`Apellido del niño ${n}`}
+          value={hijo.apellido}
+          onChange={(e) => set('apellido', e.target.value)}
         />
-      </div>
-      <div className="sm:col-span-2">
-        <TextareaSistema id={id('habitos')} label="Hábitos" filas={2} value={hijo.habitos} onChange={(e) => set('habitos', e.target.value)} />
-      </div>
-      <div className="sm:col-span-2">
-        <TextareaSistema id={id('notas')} label="Notas" filas={2} value={hijo.notas} onChange={(e) => set('notas', e.target.value)} />
+        <InputSistema
+          id={id('nacimiento')}
+          label="Fecha de nacimiento"
+          type="date"
+          aria-label={`Fecha de nacimiento del niño ${n}`}
+          value={hijo.fechaNacimiento}
+          onChange={(e) => cambiarFecha(e.target.value)}
+        />
+        <SelectSistema
+          id={id('genero')}
+          label="Género"
+          aria-label={`Género del niño ${n}`}
+          opciones={OPCIONES_GENERO}
+          value={hijo.genero}
+          onValueChange={(v) => set('genero', v)}
+        />
+        <div className="space-y-2">
+          <SelectNivel
+            id={id('nivel')}
+            label={publico ? 'Nivel (si lo sabes)' : 'Nivel'}
+            value={nivel}
+            salones={salones}
+            onValueChange={(v) => {
+              nivelAuto.current = null
+              onChange(aplicarNivel(hijo, v))
+            }}
+          />
+          {sinSugerencia && (
+            <p className="flex items-start gap-2 text-xs text-yellow-700 dark:text-yellow-400">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              {publico
+                ? 'Si no lo sabes, lo asignamos en la mesa de check-in.'
+                : 'Sin salón sugerido para esta edad: elige el nivel o asígnalo manualmente.'}
+            </p>
+          )}
+        </div>
+        <SelectSiNo id={id('escolarizado')} label="¿Escolarizado?" value={hijo.escolarizado} onChange={(v) => set('escolarizado', v)} />
+        <SelectSiNo id={id('comer')} label="¿Puede comer merienda?" value={hijo.puedeComer} onChange={(v) => set('puedeComer', v)} />
+        <SelectSiNo id={id('panal')} label="¿Necesita cambio de pañal?" value={hijo.cambioPanal} onChange={(v) => set('cambioPanal', v)} />
+        <SelectSiNo id={id('imagen')} label="¿Autoriza fotos?" value={hijo.autorizaImagen} onChange={(v) => set('autorizaImagen', v)} />
+        <div className="@lg:col-span-2">
+          <TextareaSistema id={id('alergias')} label="Alergias" filas={2} value={hijo.alergias} onChange={(e) => set('alergias', e.target.value)} />
+        </div>
+        <div className="@lg:col-span-2">
+          <TextareaSistema
+            id={id('nee')}
+            label="Necesidades especiales"
+            filas={2}
+            value={hijo.necesidadesEspeciales}
+            onChange={(e) => set('necesidadesEspeciales', e.target.value)}
+          />
+        </div>
+        <div className="@lg:col-span-2">
+          <TextareaSistema id={id('habitos')} label="Hábitos" filas={2} value={hijo.habitos} onChange={(e) => set('habitos', e.target.value)} />
+        </div>
+        <div className="@lg:col-span-2">
+          <TextareaSistema id={id('notas')} label="Notas" filas={2} value={hijo.notas} onChange={(e) => set('notas', e.target.value)} />
+        </div>
       </div>
     </div>
   )
