@@ -2,8 +2,9 @@
 
 import { CheckCircle } from "lucide-react"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from '@/lib/supabase/client'
+import { destinoTrasContrasena } from '@/lib/auth/destino-mis-hijos'
 import {
   FondoAutenticacion,
   TarjetaSistema,
@@ -20,6 +21,8 @@ export default function ResetPasswordForm() {
   const [error, setError] = useState("")
   const [exito, setExito] = useState(false)
   const router = useRouter()
+  // A Niños invitation carries next=/perfil#mis-hijos; anything outside /perfil falls back to /dashboard.
+  const destino = destinoTrasContrasena(useSearchParams().get('next'))
   // La sesión ya está establecida via cookies por /auth/callback
 
   const manejarSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -50,7 +53,7 @@ export default function ResetPasswordForm() {
       } else {
         setExito(true)
         setTimeout(() => {
-          router.push('/dashboard')
+          router.push(destino)
         }, 2000)
       }
     } catch (err) {
@@ -77,7 +80,7 @@ export default function ResetPasswordForm() {
               Tu contraseña ha sido cambiada exitosamente.
             </TextoSistema>
             <TextoSistema variante="muted" tamaño="sm">
-              Serás redirigido al dashboard en unos segundos...
+              Te llevaremos a tu cuenta en unos segundos...
             </TextoSistema>
           </div>
         </TarjetaSistema>
