@@ -44,8 +44,9 @@ export function getNinosNavItems(acceso: NinosAcceso): NinosMenuChild[] {
   if (acceso.puedeOperar) {
     items.push({ id: 'ninos-cartel', label: 'Cartel QR', href: '/ninos/cartel', icon: QrCode })
   }
-  // Same gate as /ninos/reportes: ninos_puede_configurar_algun_area() (not Anfitriones or Líderes).
-  if (acceso.puedeConfigurar) {
+  // Same gate as /ninos/reportes: configurers see every report; volunteer markers see
+  // only the volunteer report, scoped to the teams they mark.
+  if (acceso.puedeConfigurar || acceso.puedeMarcarVoluntarios) {
     items.push({ id: 'ninos-reportes', label: 'Reportes', href: '/ninos/reportes', icon: ChartColumn })
   }
   return items
