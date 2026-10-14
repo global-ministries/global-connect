@@ -56,10 +56,13 @@ describe('cargarMisHijosDashboard', () => {
     user = { id: 'auth-1' } as object | null,
     fechaNacimiento = '1990-01-01' as string | null,
     hijosData = filasHijos as unknown,
+    hijosError = null as unknown,
     prechecksData = { servicios: [{ turno_id: 't1', nombre: 'Primer servicio', hora: '09:00:00', campus: 'Centro' }], avisos: [] } as unknown,
   } = {}) {
     const rpc = jest.fn((nombre: string) =>
-      Promise.resolve({ data: nombre === 'ninos_mis_hijos' ? hijosData : prechecksData, error: null }),
+      Promise.resolve(
+        nombre === 'ninos_mis_hijos' ? { data: hijosData, error: hijosError } : { data: prechecksData, error: null },
+      ),
     )
     createServer.mockResolvedValue({ auth: { getUser: jest.fn().mockResolvedValue({ data: { user }, error: null }) }, rpc })
     const maybeSingle = jest.fn().mockResolvedValue({ data: { fecha_nacimiento: fechaNacimiento }, error: null })
@@ -94,5 +97,21 @@ describe('cargarMisHijosDashboard', () => {
     expect(await cargarMisHijosDashboard()).toBeNull()
     createServer.mockRejectedValue(new Error('boom'))
     expect(await cargarMisHijosDashboard()).toBeNull()
+  })
+
+  it('hides the card quietly and logs when the children RPC fails', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {})
+    setup({ hijosError: { message: 'rpc down' } })
+    expect(await cargarMisHijosDashboard()).toBeNull()
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('Mis hijos'), 'rpc down')
+    log.mockRestore()
+  })
+
+  it('hides the card quietly and logs when loading throws', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {})
+    createServer.mockRejectedValue(new Error('boom'))
+    expect(await cargarMisHijosDashboard()).toBeNull()
+    expect(log).toHaveBeenCalledWith(expect.stringContaining('Mis hijos'), expect.any(Error))
+    log.mockRestore()
   })
 })

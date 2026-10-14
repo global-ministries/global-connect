@@ -52,4 +52,11 @@ describe('enlaceInvitacionConDestino', () => {
     const next = new URL(enlace.searchParams.get('next') as string, 'https://miembros.example')
     expect(next.searchParams.get('next')).toBe('/dashboard')
   })
+
+  it.each(['', 'not a url', '/auth/confirm?token_hash=h'])(
+    'never throws: an unparseable link %p is returned unchanged',
+    (enlace) => {
+      expect(enlaceInvitacionConDestino(enlace, DESTINO_MIS_HIJOS)).toBe(enlace)
+    },
+  )
 })

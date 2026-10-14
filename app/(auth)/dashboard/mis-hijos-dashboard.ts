@@ -32,11 +32,15 @@ export async function cargarMisHijosDashboard(): Promise<DatosMisHijosDashboard 
       supabase.rpc('ninos_mis_hijos'),
       supabase.rpc('ninos_mis_prechecks'),
     ])
-    if (error) return null
+    if (error) {
+      console.error('Mis hijos dashboard card hidden:', error.message)
+      return null
+    }
     const hijos = parseMisHijos(hijosData)
     if (hijos.length === 0) return null
     return { hijos, prechecks: parseMisPrechecks(prechecksData) }
-  } catch {
+  } catch (error) {
+    console.error('Mis hijos dashboard card hidden:', error)
     return null
   }
 }

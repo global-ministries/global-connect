@@ -27,10 +27,17 @@ export function destinoTrasContrasena(next: string | null | undefined): string {
 
 /**
  * Rewrites an invitation confirm link (/auth/confirm?…&next=/auth/reset-password)
- * so the password page receives the post-password destination.
+ * so the password page receives the post-password destination. It never
+ * throws: an unparseable link is returned unchanged, so the email still goes
+ * out with the plain invitation (landing on /dashboard).
  */
 export function enlaceInvitacionConDestino(enlace: string, destino: string): string {
-  const url = new URL(enlace)
+  let url: URL
+  try {
+    url = new URL(enlace)
+  } catch {
+    return enlace
+  }
   const pagina = `${PAGINA_CONTRASENA}?${new URLSearchParams({ next: destinoTrasContrasena(destino) })}`
   url.searchParams.set('next', pagina)
   return url.toString()
