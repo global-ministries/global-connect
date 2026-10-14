@@ -118,12 +118,13 @@ and reach for it only where a class cannot (inline styles, SVG attributes).
 
 ## Follow-ups
 
-- Lint guardrail: a `no-restricted-imports` warning for `@/components/ui/button`,
-  `ui/card` and `boton-gradiente` outside `components/ui/**` was not added. The
-  repository lint budget is at its 480-warning cap and the rule would raise it.
-  Add it once migrations lower the count.
-- `ui/button` `size="icon"` does not require `aria-label` at the type level yet:
-  `components/dashboard/widgets/KpisGruposPanel.tsx` and the calendar day cells
-  use it without one.
+- Lint guardrail: `eslint.config.mjs` forbids `ui/button`, `ui/card` and
+  `boton-gradiente` (as an error) only in the paths listed in
+  `migratedToDesignSystem`. Add each area there when it migrates. A repo-wide
+  warning would raise the 480-warning lint budget, so it waits until
+  migrations lower the count.
+- `ui/button` `size="icon"` does not require `aria-label` at the type level yet.
+  The calendar day cells still use it without one; `KpisGruposPanel` now has
+  its label but keeps a 32px (`h-8 w-8`) override below the 44px icon size.
 - `ui/card` still uses `rounded-xl`; move it to the surface radius when cards
   migrate.
