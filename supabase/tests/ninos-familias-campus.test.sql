@@ -15,6 +15,14 @@
 --   c. An admin finds every family.
 --   d. A user who operates no Niños area is refused; e. anon cannot execute.
 --
+-- R3d (20261013110000_ninos_alcance_campus_fichas_escrituras.sql):
+--   f. Direct reads and updates of ninos_fichas / ninos_autorizados_retiro
+--      (RLS) only reach rows of the caller's campuses; admin reaches all.
+--   g. ninos_crear_ficha, ninos_vincular_padre and
+--      ninos_vincular_revisando_edad refuse a child or parent outside the
+--      caller's campuses ('22023', as if not found) and still work inside
+--      them; admin works on every campus.
+--
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
 -- of the failing cases ('ALL OK' when none).
 
@@ -151,6 +159,29 @@ INSERT INTO public.ninos_checkins (nino_id, salon_id, turno_id, campus_id, fecha
 VALUES (pg_temp.id('us', 15), pg_temp.id('sa', 1), pg_temp.ctx('turno')::uuid, pg_temp.ctx('campus_a')::uuid,
         DATE '2026-01-04', pg_temp.id('vi', 1), '5315', now(), now());
 
+-- R3d fixtures. Fichas for the children of A (11), B (13) and C (15); a
+-- pickup person for 11 and 13. Extra people (none named 'Zzfcamp', so the
+-- searches above are unchanged): 17 a child of B's parent 12 without ficha,
+-- 18 a child of A's parent 10 without ficha, 19 an unlinked child on A,
+-- 20 an adult on B (an age-review candidate).
+INSERT INTO public.ninos_fichas (usuario_id) VALUES
+  (pg_temp.id('us', 11)), (pg_temp.id('us', 13)), (pg_temp.id('us', 15));
+INSERT INTO public.ninos_autorizados_retiro (nino_id, nombre) VALUES
+  (pg_temp.id('us', 11), 'ZZ Fc Retira A'), (pg_temp.id('us', 13), 'ZZ Fc Retira B');
+INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero, cedula, fecha_nacimiento) VALUES
+  (pg_temp.id('us', 17), 'XQ Eva',  'Xqfcamp Dos',  'No especificado', 'Femenino',  'V-99995317', '2021-01-01'),
+  (pg_temp.id('us', 18), 'XQ Ema',  'Xqfcamp Uno',  'No especificado', 'Femenino',  'V-99995318', '2021-01-01'),
+  (pg_temp.id('us', 19), 'XQ Fito', 'Xqfcamp Solo', 'No especificado', 'Masculino', 'V-99995319', '2021-01-01'),
+  (pg_temp.id('us', 20), 'XQ Gil',  'Xqfcamp Adul', 'Soltero',         'Masculino', 'V-99995320', '1990-01-01');
+INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal) VALUES
+  (pg_temp.id('us', 17), pg_temp.id('us', 12), 'padre', true),
+  (pg_temp.id('us', 18), pg_temp.id('us', 10), 'padre', true);
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal) VALUES
+  (pg_temp.id('us', 17), pg_temp.id('ca', 2), true),
+  (pg_temp.id('us', 18), pg_temp.ctx('campus_a')::uuid, true),
+  (pg_temp.id('us', 19), pg_temp.ctx('campus_a')::uuid, true),
+  (pg_temp.id('us', 20), pg_temp.id('ca', 2), true);
+
 GRANT INSERT, SELECT, UPDATE ON t_fc_failures, t_fc_ctx TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION pg_temp.fail(text, text), pg_temp.assert_eq(text, text, text),
   pg_temp.assert_raises(text, text, text), pg_temp.as_persona(int), pg_temp.id(text, int),
@@ -211,6 +242,78 @@ SELECT pg_temp.assert_raises('d: a random user cannot search children to link',
 SELECT pg_temp.assert_raises('d: a random user cannot search for age review',
   $q$SELECT public.ninos_buscar_hijos_revisar_edad('zzfcamp', NULL)$q$, '42501');
 
+-- ── f. direct reads and updates (RLS) ────────────────────────────────
+
+-- Fixture numbers of the fichas / pickup rows the caller can read.
+RESET ROLE;
+CREATE OR REPLACE FUNCTION pg_temp.fichas_visibles() RETURNS text LANGUAGE sql STABLE AS $$
+  SELECT coalesce(string_agg(n::text, ',' ORDER BY n), '')
+    FROM generate_series(1, 40) n
+   WHERE EXISTS (SELECT 1 FROM public.ninos_fichas f WHERE f.usuario_id = pg_temp.id('us', n));
+$$;
+CREATE OR REPLACE FUNCTION pg_temp.retiro_visibles() RETURNS text LANGUAGE sql STABLE AS $$
+  SELECT coalesce(string_agg(n::text, ',' ORDER BY n), '')
+    FROM generate_series(1, 40) n
+   WHERE EXISTS (SELECT 1 FROM public.ninos_autorizados_retiro a WHERE a.nino_id = pg_temp.id('us', n));
+$$;
+GRANT EXECUTE ON FUNCTION pg_temp.fichas_visibles(), pg_temp.retiro_visibles() TO authenticated;
+SET LOCAL ROLE authenticated;
+
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_eq('f: the Anfitrión of A reads A''s and C''s fichas, never B''s',
+  $q$SELECT pg_temp.fichas_visibles()$q$, '11,15');
+SELECT pg_temp.assert_eq('f: the Anfitrión of A reads A''s pickup list, never B''s',
+  $q$SELECT pg_temp.retiro_visibles()$q$, '11');
+SELECT pg_temp.assert_eq('f: the Anfitrión of A cannot update B''s ficha',
+  $q$WITH u AS (UPDATE public.ninos_fichas SET notas = 'x' WHERE usuario_id = pg_temp.id('us', 13) RETURNING 1)
+     SELECT count(*)::text FROM u$q$, '0');
+SELECT pg_temp.assert_eq('f: the Anfitrión of A cannot update B''s pickup list',
+  $q$WITH u AS (UPDATE public.ninos_autorizados_retiro SET activo = false WHERE nino_id = pg_temp.id('us', 13) RETURNING 1)
+     SELECT count(*)::text FROM u$q$, '0');
+SELECT pg_temp.assert_eq('f: the Anfitrión of A updates A''s ficha',
+  $q$WITH u AS (UPDATE public.ninos_fichas SET notas = 'x' WHERE usuario_id = pg_temp.id('us', 11) RETURNING 1)
+     SELECT count(*)::text FROM u$q$, '1');
+SELECT pg_temp.assert_raises('f: the Anfitrión of A cannot insert a pickup person for B''s child',
+  $q$INSERT INTO public.ninos_autorizados_retiro (nino_id, nombre) VALUES (pg_temp.id('us', 13), 'ZZ Fc Intruso')$q$, '42501');
+
+SELECT pg_temp.as_persona(4);
+SELECT pg_temp.assert_eq('f: the Anfitrión of B reads B''s and C''s fichas, never A''s',
+  $q$SELECT pg_temp.fichas_visibles()$q$, '13,15');
+SELECT pg_temp.assert_eq('f: the Anfitrión of B reads B''s pickup list, never A''s',
+  $q$SELECT pg_temp.retiro_visibles()$q$, '13');
+
+SELECT pg_temp.as_persona(3);
+SELECT pg_temp.assert_eq('f: admin reads every ficha',
+  $q$SELECT pg_temp.fichas_visibles()$q$, '11,13,15');
+SELECT pg_temp.assert_eq('f: admin reads every pickup list',
+  $q$SELECT pg_temp.retiro_visibles()$q$, '11,13');
+
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.assert_eq('f: a random user reads no ficha',
+  $q$SELECT pg_temp.fichas_visibles()$q$, '');
+
+-- ── g. write RPCs ────────────────────────────────────────────────────
+
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_raises('g: A cannot create a ficha for B''s child',
+  $q$SELECT public.ninos_crear_ficha(pg_temp.id('us', 17), '{}'::jsonb, '[]'::jsonb)$q$, '22023');
+SELECT pg_temp.assert_raises('g: A cannot link B''s child to A''s parent',
+  $q$SELECT public.ninos_vincular_padre(ARRAY[pg_temp.id('us', 13)], pg_temp.id('us', 10), NULL)$q$, '22023');
+SELECT pg_temp.assert_raises('g: A cannot link A''s child to B''s parent',
+  $q$SELECT public.ninos_vincular_padre(ARRAY[pg_temp.id('us', 19)], pg_temp.id('us', 12), NULL)$q$, '22023');
+SELECT pg_temp.assert_raises('g: A cannot review the age of B''s adult',
+  $q$SELECT public.ninos_vincular_revisando_edad(pg_temp.id('us', 20), DATE '2021-01-01', pg_temp.id('us', 10), NULL)$q$, '22023');
+SELECT pg_temp.assert_eq('g: A creates a ficha for A''s child',
+  $q$SELECT public.ninos_crear_ficha(pg_temp.id('us', 18), '{}'::jsonb, '[]'::jsonb)::text$q$, '');
+SELECT pg_temp.assert_eq('g: A links A''s unlinked child to A''s parent',
+  $q$SELECT (public.ninos_vincular_padre(ARRAY[pg_temp.id('us', 19)], pg_temp.id('us', 10), NULL) ->> 'vinculados')$q$, '1');
+
+SELECT pg_temp.as_persona(3);
+SELECT pg_temp.assert_eq('g: admin creates a ficha for B''s child',
+  $q$SELECT public.ninos_crear_ficha(pg_temp.id('us', 17), '{}'::jsonb, '[]'::jsonb)::text$q$, '');
+SELECT pg_temp.assert_eq('g: admin reviews the age of B''s adult and links them',
+  $q$SELECT (public.ninos_vincular_revisando_edad(pg_temp.id('us', 20), DATE '2021-01-01', pg_temp.id('us', 12), NULL) ->> 'vinculados')$q$, '1');
+
 -- ── e. anon ──────────────────────────────────────────────────────────
 
 RESET ROLE;
@@ -224,6 +327,8 @@ SELECT pg_temp.assert_raises('e: anon cannot execute ninos_buscar_hijos_revisar_
   $q$SELECT public.ninos_buscar_hijos_revisar_edad('zzfcamp', NULL)$q$, '42501');
 SELECT pg_temp.assert_raises('e: anon cannot execute ninos_en_alcance',
   $q$SELECT public.ninos_en_alcance(NULL, NULL)$q$, '42501');
+SELECT pg_temp.assert_raises('e: anon cannot execute ninos_en_mi_alcance',
+  $q$SELECT public.ninos_en_mi_alcance(NULL)$q$, '42501');
 
 RESET ROLE;
 

@@ -8171,6 +8171,7 @@ export type Database = {
         Args: { p_campus: string[] | null; p_persona_id: string }
         Returns: boolean
       }
+      ninos_en_mi_alcance: { Args: { p_persona_id: string }; Returns: boolean }
       ninos_enmascarar: {
         Args: { p_valor: string; p_visibles: number }
         Returns: string
