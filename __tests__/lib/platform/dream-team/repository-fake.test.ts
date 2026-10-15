@@ -40,7 +40,7 @@ function makeEquipo(id: string): DreamTeamEquipo {
 }
 
 function makeRol(id: string, equipoId: string): DreamTeamRol {
-  return { id, equipoId, label: id, activo: true }
+  return { id, equipoId, label: id, nivel: 'voluntario', activo: true }
 }
 
 function makeRequisito(id: string, rolId: string): DreamTeamRequisito {
@@ -508,7 +508,7 @@ describe('InMemoryDreamTeamRepository', () => {
       const repo = createInMemoryDreamTeamRepository()
       const equipo = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
 
-      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Voluntario', activo: true })
+      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Voluntario', nivel: 'voluntario', activo: true })
 
       expect(rol.id).toMatch(/^[0-9a-fA-F-]{36}$/)
       expect(rol.equipoId).toBe(equipo.id)
@@ -559,7 +559,7 @@ describe('InMemoryDreamTeamRepository', () => {
     it('renames a rol via updateRol', async () => {
       const repo = createInMemoryDreamTeamRepository()
       const equipo = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
-      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Voluntario', activo: true })
+      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Voluntario', nivel: 'voluntario', activo: true })
 
       const updated = await repo.updateRol(rol.id, { label: 'Voluntario Senior' })
 
@@ -568,10 +568,24 @@ describe('InMemoryDreamTeamRepository', () => {
       expect(list[0].label).toBe('Voluntario Senior')
     })
 
+    it('creates a rol with its nivel and changes it via updateRol', async () => {
+      const repo = createInMemoryDreamTeamRepository()
+      const equipo = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
+      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Operador', nivel: 'voluntario', activo: true })
+      expect(rol.nivel).toBe('voluntario')
+
+      const updated = await repo.updateRol(rol.id, { nivel: 'lider' })
+
+      expect(updated.nivel).toBe('lider')
+      expect(updated.label).toBe('Operador')
+      const list = await repo.listRolesPorEquipo(equipo.id)
+      expect(list[0].nivel).toBe('lider')
+    })
+
     it('deactivates a rol via updateRol without removing it from listRolesPorEquipo', async () => {
       const repo = createInMemoryDreamTeamRepository()
       const equipo = await repo.createEquipo({ experiencia: 'dps', label: 'Dirección DPS', activo: true })
-      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Voluntario', activo: true })
+      const rol = await repo.createRol({ equipoId: equipo.id, label: 'Voluntario', nivel: 'voluntario', activo: true })
 
       const updated = await repo.updateRol(rol.id, { activo: false })
 

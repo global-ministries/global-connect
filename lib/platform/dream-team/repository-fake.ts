@@ -237,6 +237,7 @@ export function createInMemoryDreamTeamRepository(
       const updated: DreamTeamRol = {
         ...current,
         ...(patch.label !== undefined ? { label: patch.label } : {}),
+        ...(patch.nivel !== undefined ? { nivel: patch.nivel } : {}),
         ...(patch.activo !== undefined ? { activo: patch.activo } : {}),
         ...(patch.parentRolId !== undefined ? { parentRolId: patch.parentRolId ?? undefined } : {}),
       }

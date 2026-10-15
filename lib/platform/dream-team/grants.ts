@@ -88,10 +88,10 @@ export function mappedRoleLabels(): readonly string[] {
 // ── Experience-specific capability (hybrid model) ────────────────────
 
 // The role labels that pick the lead or the director tier below; any other label serves.
-const LEAD_ROLE_LABELS: ReadonlySet<string> = new Set(
+export const LEAD_ROLE_LABELS: ReadonlySet<string> = new Set(
   ['Líder', 'Líder de grupo', 'Facilitador', 'Entrenador', 'Coordinador'].map(normalizeLabel),
 )
-const DIRECTOR_ROLE_LABELS: ReadonlySet<string> = new Set(['Director'].map(normalizeLabel))
+export const DIRECTOR_ROLE_LABELS: ReadonlySet<string> = new Set(['Director'].map(normalizeLabel))
 
 interface ExperienceSpecificTiers {
   readonly serve: string
@@ -134,7 +134,7 @@ export function leadOrDirectorRoleLabels(): readonly string[] {
 // roles as lowercase, no-diacritic labels ('coordinador', 'director'), while role labels
 // shown in the UI are capitalized and accented ('Coordinador', 'Director'). Both must
 // resolve to the same generic/experience-specific capabilities.
-function normalizeLabel(label: string): string {
+export function normalizeLabel(label: string): string {
   return label
     .trim()
     .toLowerCase()

@@ -7,6 +7,7 @@ import React from 'react'
 
 import type { DreamTeamEquipo, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
 import { personaId } from '@/lib/platform/dream-team/types'
+import { nivelDesdeLabel } from '@/lib/platform/dream-team/nivel-rol'
 
 const notFound = jest.fn(() => {
   throw new Error('NEXT_NOT_FOUND')
@@ -54,6 +55,7 @@ const ROLES: DreamTeamRol[] = ['director', 'coordinador', 'facilitador'].map((la
   id: `rol-${label}`,
   equipoId: 'x',
   label,
+  nivel: nivelDesdeLabel(label),
   activo: true,
 }))
 const servicio = (

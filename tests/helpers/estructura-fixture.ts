@@ -8,6 +8,7 @@ import { construirArbol, type NodoArbol } from '@/lib/platform/dream-team/arbol'
 import type { NodoEquipoArbol, ResponsableNodo } from '@/lib/platform/dream-team/estructura-arbol'
 import type { EntradaVistaEstructura } from '@/lib/platform/dream-team/estructura-vista'
 import { contarUso } from '@/lib/platform/dream-team/estructura-vista'
+import { nivelDesdeLabel } from '@/lib/platform/dream-team/nivel-rol'
 import { personaId, type DreamTeamRol, type DreamTeamServicio } from '@/lib/platform/dream-team/types'
 
 export const ID_CONEXION = 'dir-conexion'
@@ -98,6 +99,7 @@ function rolesDe(equipoId: string, etiquetas: readonly string[], inactivos: read
     id: `rol-${equipoId}-${label}`,
     equipoId,
     label,
+    nivel: nivelDesdeLabel(label),
     activo: !inactivos.includes(label),
   }))
 }

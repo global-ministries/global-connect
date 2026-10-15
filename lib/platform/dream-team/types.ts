@@ -21,10 +21,18 @@ export interface DreamTeamEquipo {
   readonly activo: boolean
 }
 
+/**
+ * The authority level of a rol, kept apart from its display label so two areas
+ * can name the same level differently. Highest first: director, coordinador,
+ * lider, voluntario (see lib/platform/dream-team/nivel-rol.ts).
+ */
+export type DreamTeamNivelRol = 'director' | 'coordinador' | 'lider' | 'voluntario'
+
 export interface DreamTeamRol {
   readonly id: string
   readonly equipoId: string
   readonly label: string
+  readonly nivel: DreamTeamNivelRol
   readonly parentRolId?: string
   readonly activo: boolean
 }
