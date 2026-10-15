@@ -11,13 +11,11 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { getPersonasUnderMe, visiblePersonaIdsOrNone } from '@/lib/platform/pastoral/hierarchical-visibility'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
-import { TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { TituloSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
+import { CLASE_ENLACE_BOTON } from '@/components/pastoral/estilos'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { ArrowRight } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,15 +69,16 @@ export default async function AsistidoUnoAUnoListPage() {
   const past = sesiones.filter((s) => s.estado === 'completed' || s.estado === 'cancelled')
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Mis Sesiones 1:1"
       descripcion="Tu seguimiento pastoral"
+      regreso={{ href: '/asistido', texto: 'Volver al roadmap' }}
     >
-      <Link href="/asistido" className="block mb-4">
-        <Button variant="ghost" size="sm">
-          <ArrowRight className="h-4 w-4 rotate-180" />
+      {/* The desktop header shows the back link; mobile keeps it in the page. */}
+      <Link href="/asistido" className={`${CLASE_ENLACE_BOTON} md:hidden`}>
+        <BotonSistema tabIndex={-1} variante="ghost" tamaño="sm" icono={ArrowLeft}>
           Volver al roadmap
-        </Button>
+        </BotonSistema>
       </Link>
 
       <TarjetaSistema>
@@ -125,6 +124,6 @@ export default async function AsistidoUnoAUnoListPage() {
           </div>
         </TarjetaSistema>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

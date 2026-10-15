@@ -12,10 +12,8 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralOneOnOneReadCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { getVisiblePastoralOneOnOneIds } from '@/lib/platform/pastoral/hierarchical-visibility'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
-import { TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { TituloSistema } from '@/components/ui/sistema-diseno'
-import { Badge } from '@/components/ui/badge'
+import { BadgeSistema, PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { etiquetaEstadoUnoAUno, varianteEstadoUnoAUno } from '@/components/pastoral/OneOnOneCard'
 import { MentorPanel } from '@/components/pastoral/MentorPanel'
 import { PastoralTimeline } from '@/components/pastoral/PastoralTimeline'
 import Link from 'next/link'
@@ -112,8 +110,9 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
   ].sort((a, b) => new Date(a.isoDate).getTime() - new Date(b.isoDate).getTime())
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo={`Sesión 1:1 con ${assistedPersonaId.slice(0, 8)}…`}
+      ancho="form"
       breadcrumbs={
         <div className="flex items-center gap-1 text-sm">
           <Link href="/lider/uno-auno" className="text-muted-foreground hover:text-foreground">
@@ -123,20 +122,14 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
           <span>Detalle</span>
         </div>
       }
-      botonRegreso={{ href: '/lider/uno-auno', texto: 'Volver' }}
+      regreso={{ href: '/lider/uno-auno', texto: 'Volver' }}
     >
       {/* State + meta */}
       <TarjetaSistema>
-        <div className="flex items-center gap-3 mb-4">
-          <Badge
-            variant={
-              typedRow.estado === 'completed' ? 'default' :
-              typedRow.estado === 'cancelled' ? 'destructive' :
-              typedRow.estado === 'in_progress' ? 'secondary' : 'outline'
-            }
-          >
-            {typedRow.estado}
-          </Badge>
+        <div className="mb-4 flex items-center gap-3">
+          <BadgeSistema variante={varianteEstadoUnoAUno(typedRow.estado)} tamaño="sm">
+            {etiquetaEstadoUnoAUno(typedRow.estado)}
+          </BadgeSistema>
           <span className="text-sm text-muted-foreground">
             v{typedRow.version}
           </span>
@@ -188,8 +181,8 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
           {typedRow.pastoral_one_on_one_notas && typedRow.pastoral_one_on_one_notas.length > 0 && (
             <div className="space-y-3 mb-4">
               {typedRow.pastoral_one_on_one_notas.map((n) => (
-                <div key={n.id} className="text-sm border-l-2 border-border pl-3">
-                  <p>{n.contenido}</p>
+                <div key={n.id} className="border-l-2 border-border pl-3 text-sm">
+                  <p className="whitespace-pre-wrap break-words">{n.contenido}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {format(new Date(n.created_at), "d 'de' MMM yyyy HH:mm", { locale: es })}
                   </p>
@@ -208,6 +201,6 @@ export default async function LiderUnoAUnoDetailPage({ params }: Props) {
           <PastoralTimeline items={timelineItems} />
         </TarjetaSistema>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

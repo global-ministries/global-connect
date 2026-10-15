@@ -17,12 +17,6 @@ jest.mock('next/navigation', () => ({
   }),
 }))
 
-// Mock UI components
-jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, variant, 'aria-label': ariaLabel }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; variant?: string; 'aria-label'?: string }) => (
-    <button onClick={onClick} disabled={disabled} data-variant={variant} aria-label={ariaLabel}>{children}</button>
-  ),
-}))
 
 describe('ValidateStepButton', () => {
   const defaultProps = {

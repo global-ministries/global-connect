@@ -12,8 +12,8 @@
 
 import React, { useReducer, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { BotonSistema } from '@/components/ui/sistema-diseno'
+import { CheckCircle2, AlertCircle } from 'lucide-react'
 
 interface ValidateStepButtonProps {
   readonly oneOnOneId: string
@@ -99,9 +99,9 @@ export default function ValidateStepButton({
 
   if (state.isSuccess) {
     return (
-      <div className="flex items-center gap-2 p-3 border border-green-200 rounded-lg bg-green-50">
-        <CheckCircle2 className="h-5 w-5 text-green-600" />
-        <span className="text-sm font-medium text-green-700">Paso validado exitosamente</span>
+      <div className="flex items-center gap-2 rounded-2xl border border-success/30 bg-success/10 p-3" role="status">
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+        <span className="text-sm font-medium text-foreground">Paso validado exitosamente</span>
       </div>
     )
   }
@@ -109,28 +109,24 @@ export default function ValidateStepButton({
   if (state.error) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2 p-3 border border-red-200 rounded-lg bg-red-50">
-          <AlertCircle className="h-5 w-5 text-red-600" />
-          <span className="text-sm text-red-700">{state.error}</span>
+        <div className="flex items-center gap-2 rounded-2xl border border-danger/30 bg-danger/10 p-3" role="alert">
+          <AlertCircle className="h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
+          <span className="text-sm text-danger">{state.error}</span>
         </div>
-        <Button variant="outline" size="sm" onClick={handleReset}>
+        <BotonSistema variante="outline" onClick={handleReset}>
           Reintentar
-        </Button>
+        </BotonSistema>
       </div>
     )
   }
 
   return (
-    <Button
-      variant="default"
+    <BotonSistema
       onClick={handleValidate}
-      disabled={state.isSubmitting}
+      cargando={state.isSubmitting}
       aria-label={state.isSubmitting ? 'Validando paso...' : `Validar paso ${stepId}`}
     >
-      {state.isSubmitting ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : null}
       {state.isSubmitting ? 'Validando...' : `Validar paso`}
-    </Button>
+    </BotonSistema>
   )
 }

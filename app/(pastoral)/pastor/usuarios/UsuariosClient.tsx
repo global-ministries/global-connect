@@ -9,11 +9,10 @@
 import React from 'react'
 import Link from 'next/link'
 import { Settings } from 'lucide-react'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
-import { TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { BadgeSistema, BotonSistema, PaginaSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { CLASE_ENLACE_BOTON, CLASE_ITEM_LISTA } from '@/components/pastoral/estilos'
+import { cn } from '@/lib/utils'
 
 type CapabilityEntry = {
   readonly capability_key: string
@@ -41,9 +40,9 @@ function CapabilityBadge({ capabilityKey }: { capabilityKey: string }) {
   const action = parts[parts.length - 1]?.replace(/_/g, ' ') ?? capabilityKey
 
   return (
-    <Badge variant="secondary" className="text-xs">
+    <BadgeSistema tamaño="sm">
       {action}
-    </Badge>
+    </BadgeSistema>
   )
 }
 
@@ -51,73 +50,97 @@ function getActiveCapabilities(capabilities: CapabilityEntry[]): CapabilityEntry
   return capabilities.filter((c) => !c.revoked_at)
 }
 
+function Capabilities({ capabilities }: { capabilities: CapabilityEntry[] }) {
+  const activeCaps = getActiveCapabilities(capabilities)
+  return (
+    <div className="flex flex-wrap gap-1">
+      {activeCaps.length === 0 ? (
+        <span className="text-xs text-muted-foreground">Sin capabilities</span>
+      ) : (
+        activeCaps.map((cap) => (
+          <CapabilityBadge key={cap.capability_key} capabilityKey={cap.capability_key} />
+        ))
+      )}
+    </div>
+  )
+}
+
+function EnlaceGestionar({ usuarioId, className }: { usuarioId: string; className?: string }) {
+  return (
+    <Link href={`/pastor/grants/${usuarioId}`} className={cn(CLASE_ENLACE_BOTON, className)}>
+      <BotonSistema tabIndex={-1} variante="outline" tamaño="sm" icono={Settings} className="w-full">
+        Gestionar
+      </BotonSistema>
+    </Link>
+  )
+}
+
 export default function UsuariosClient({ usuarios, error }: UsuariosClientProps) {
   if (error) {
     return (
-      <ContenedorDashboard titulo="Gestión de Usuarios" descripcion="Administrar capabilities pastoral">
+      <PaginaSistema titulo="Gestión de Usuarios" descripcion="Administrar capabilities pastoral">
         <TarjetaSistema>
-          <p className="text-red-500">{error}</p>
+          <p className="text-danger" role="alert">{error}</p>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
   return (
-    <ContenedorDashboard titulo="Gestión de Usuarios" descripcion="Administrar capabilities pastoral">
+    <PaginaSistema titulo="Gestión de Usuarios" descripcion="Administrar capabilities pastoral">
       {usuarios.length === 0 ? (
         <TarjetaSistema>
           <p className="text-muted-foreground">No hay usuarios registrados.</p>
         </TarjetaSistema>
       ) : (
-        <TarjetaSistema>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="min-w-[600px] sm:min-w-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Capabilities</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
+        <>
+          {/* Mobile: one card per usuario, no horizontal scroll at 360px. */}
+          <ul className="space-y-3 md:hidden">
+            {usuarios.map((usuario) => (
+              <li key={usuario.id} className={cn(CLASE_ITEM_LISTA, 'space-y-3')}>
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">
+                    {usuario.nombre} {usuario.apellido}
+                  </p>
+                  <p className="break-all text-sm text-muted-foreground">{usuario.email}</p>
+                </div>
+                <Capabilities capabilities={usuario.capabilities} />
+                <EnlaceGestionar usuarioId={usuario.id} className="w-full" />
+              </li>
+            ))}
+          </ul>
+
+          {/* Desktop: table. */}
+          <TarjetaSistema className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Capabilities</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {usuarios.map((usuario) => (
+                  <TableRow key={usuario.id}>
+                    <TableCell className="whitespace-normal break-all font-medium">{usuario.email}</TableCell>
+                    <TableCell>
+                      {usuario.nombre} {usuario.apellido}
+                    </TableCell>
+                    <TableCell className="whitespace-normal">
+                      <Capabilities capabilities={usuario.capabilities} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <EnlaceGestionar usuarioId={usuario.id} />
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {usuarios.map((usuario) => {
-                    const activeCaps = getActiveCapabilities(usuario.capabilities)
-                    return (
-                      <TableRow key={usuario.id}>
-                        <TableCell className="font-medium">{usuario.email}</TableCell>
-                        <TableCell>
-                          {usuario.nombre} {usuario.apellido}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {activeCaps.length === 0 ? (
-                              <span className="text-xs text-muted-foreground">Sin capabilities</span>
-                            ) : (
-                              activeCaps.map((cap) => (
-                                <CapabilityBadge key={cap.capability_key} capabilityKey={cap.capability_key} />
-                              ))
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Link href={`/pastor/grants/${usuario.id}`}>
-                            <Button variant="outline" size="sm">
-                              <Settings className="h-4 w-4 mr-1" />
-                              Gestionar
-                            </Button>
-                          </Link>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </TarjetaSistema>
+                ))}
+              </TableBody>
+            </Table>
+          </TarjetaSistema>
+        </>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }
