@@ -321,7 +321,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
     }
 
     return (
-        <div className="space-y-4 max-w-4xl">
+        <div className="space-y-4">
             {secciones.map((seccion) => {
                 const Icono = seccion.icono
                 const abierta = seccionAbierta === seccion.id
