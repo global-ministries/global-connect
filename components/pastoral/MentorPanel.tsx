@@ -24,10 +24,9 @@
 import React, { useReducer, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { CaptureUXState, PASTORAL_CAPTURE_UX_SHAPE, PastoralCaptureContext, canTransitionUX, isTerminal } from '@/lib/platform/pastoral/capture-ux/pastoral-capture-ux'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { BadgeSistema, BotonSistema, TarjetaSistema, TextareaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { Badge } from '@/components/ui/badge'
+import { CLASE_BOTON_PELIGRO } from './estilos'
 import { ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -99,11 +98,11 @@ const STATE_LABELS: Record<CaptureUXState, string> = {
 
 const STATE_ICON: Record<CaptureUXState, React.ReactNode> = {
   idle: null,
-  in_progress: <Loader2 className="h-4 w-4 animate-spin" />,
-  awaiting_resolution: <AlertTriangle className="h-4 w-4 text-yellow-600" />,
-  confirmed: <CheckCircle2 className="h-4 w-4 text-green-600" />,
-  overridden: <AlertTriangle className="h-4 w-4 text-orange-600" />,
-  rejected: <XCircle className="h-4 w-4 text-red-600" />,
+  in_progress: <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />,
+  awaiting_resolution: <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />,
+  confirmed: <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />,
+  overridden: <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />,
+  rejected: <XCircle className="h-4 w-4 text-danger" aria-hidden="true" />,
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -160,10 +159,10 @@ export function MentorPanel({
   )
 
   // Available actions based on current state
-  const availableActions: { to: CaptureUXState; label: string; variant: 'default' | 'destructive' | 'outline' }[] = []
+  const availableActions: { to: CaptureUXState; label: string; variant: 'primario' | 'peligro' | 'outline' }[] = []
   if (state.captureState === 'in_progress' || state.captureState === 'awaiting_resolution') {
-    availableActions.push({ to: 'confirmed', label: 'Confirmar', variant: 'default' })
-    availableActions.push({ to: 'rejected', label: 'Rechazar', variant: 'destructive' })
+    availableActions.push({ to: 'confirmed', label: 'Confirmar', variant: 'primario' })
+    availableActions.push({ to: 'rejected', label: 'Rechazar', variant: 'peligro' })
   }
   if (state.captureState === 'confirmed') {
     availableActions.push({ to: 'overridden', label: 'Anular', variant: 'outline' })
@@ -176,96 +175,83 @@ export function MentorPanel({
       className={className}
     >
       <CollapsibleTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
+        <BotonSistema
+          variante="outline"
           className="w-full justify-between"
           aria-label={state.isOpen ? 'Cerrar panel del mentor' : 'Abrir panel del mentor'}
         >
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 items-center gap-2">
             Panel del Mentor
             {state.captureState !== 'idle' && (
-              <Badge variant="secondary" className="text-xs">
+              <BadgeSistema tamaño="sm">
                 {STATE_LABELS[state.captureState]}
-              </Badge>
+              </BadgeSistema>
             )}
           </span>
           {state.isOpen ? (
-            <ChevronUp className="h-4 w-4" />
+            <ChevronUp className="h-4 w-4 shrink-0" aria-hidden="true" />
           ) : (
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4 shrink-0" aria-hidden="true" />
           )}
-        </Button>
+        </BotonSistema>
       </CollapsibleTrigger>
 
       <CollapsibleContent className="mt-3">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base">Captura Rápida 1:1</CardTitle>
-              <Badge variant="outline" className="text-xs">
-                {PASTORAL_CAPTURE_UX_SHAPE}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Current state indicator */}
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-              {STATE_ICON[state.captureState]}
-              <span className="text-sm font-medium">
-                {STATE_LABELS[state.captureState]}
-              </span>
-            </div>
+        <TarjetaSistema className="space-y-4 p-4 sm:p-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <TituloSistema nivel={3}>Captura Rápida 1:1</TituloSistema>
+            <BadgeSistema tamaño="sm" className="font-mono">
+              {PASTORAL_CAPTURE_UX_SHAPE}
+            </BadgeSistema>
+          </div>
 
-            {/* Context info */}
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p>ID Sesión: <span className="font-mono">{oneOnOneId.slice(0, 8)}…</span></p>
-              <p>Contexto: <span className="font-medium text-foreground">{captureContext.oneOnOneId ? 'pastoral_one_on_one' : '—'}</span></p>
-            </div>
+          {/* Current state indicator */}
+          <div className="flex items-center gap-2 rounded-xl bg-muted/50 p-3">
+            {STATE_ICON[state.captureState]}
+            <span className="text-sm font-medium">
+              {STATE_LABELS[state.captureState]}
+            </span>
+          </div>
 
-            {/* Feedback input when rejecting */}
-            {state.captureState === 'in_progress' && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Nota de retroalimentación (opcional)</label>
-                <textarea
-                  className="w-full min-h-[60px] px-3 py-2 text-sm border border-border rounded-lg bg-card"
-                  placeholder="Observaciones de la sesión..."
-                  onChange={(e) => dispatch({ type: 'TRANSITION', to: state.captureState, feedback: e.target.value })}
-                  aria-label="Retroalimentación de la sesión"
-                />
-              </div>
+          {/* Context info */}
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>ID Sesión: <span className="font-mono">{oneOnOneId.slice(0, 8)}…</span></p>
+            <p>Contexto: <span className="font-medium text-foreground">{captureContext.oneOnOneId ? 'pastoral_one_on_one' : '—'}</span></p>
+          </div>
+
+          {/* Feedback input when rejecting */}
+          {state.captureState === 'in_progress' && (
+            <TextareaSistema
+              label="Nota de retroalimentación (opcional)"
+              placeholder="Observaciones de la sesión..."
+              onChange={(e) => dispatch({ type: 'TRANSITION', to: state.captureState, feedback: e.target.value })}
+            />
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            {availableActions.map(({ to, label, variant }) => (
+              <BotonSistema
+                key={to}
+                variante={variant === 'peligro' ? 'primario' : variant}
+                className={variant === 'peligro' ? CLASE_BOTON_PELIGRO : undefined}
+                disabled={!canTransition(to) || state.isSubmitting}
+                cargando={state.isSubmitting && canTransition(to)}
+                onClick={() => transitionTo(to, state.feedback)}
+              >
+                {label}
+              </BotonSistema>
+            ))}
+            {state.captureState !== 'idle' && !isTerminal(state.captureState) && (
+              <BotonSistema
+                variante="ghost"
+                onClick={() => dispatch({ type: 'CLOSE' })}
+              >
+                Cancelar
+              </BotonSistema>
             )}
-
-            {/* Action buttons */}
-            <div className="flex flex-wrap gap-2">
-              {availableActions.map(({ to, label, variant }) => (
-                <Button
-                  key={to}
-                  variant={variant}
-                  size="sm"
-                  disabled={!canTransition(to) || state.isSubmitting}
-                  onClick={() => transitionTo(to, state.feedback)}
-                  aria-label={label}
-                >
-                  {state.isSubmitting && canTransition(to) ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : null}
-                  {label}
-                </Button>
-              ))}
-              {state.captureState !== 'idle' && !isTerminal(state.captureState) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => dispatch({ type: 'CLOSE' })}
-                  aria-label="Cancelar"
-                >
-                  Cancelar
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </TarjetaSistema>
       </CollapsibleContent>
     </Collapsible>
   )

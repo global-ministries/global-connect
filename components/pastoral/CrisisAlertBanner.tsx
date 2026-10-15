@@ -13,8 +13,9 @@
 import React from 'react'
 import Link from 'next/link'
 import { AlertTriangle, ShieldAlert, ArrowRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { BotonSistema } from '@/components/ui/sistema-diseno'
+import { cn } from '@/lib/utils'
+import { CLASE_BOTON_PELIGRO, CLASE_ENLACE_BOTON } from './estilos'
 
 interface CrisisAlert {
   readonly oneOnOneId: string
@@ -49,55 +50,52 @@ export function CrisisAlertBanner({ alerts, className }: CrisisAlertBannerProps)
   const [mostUrgent, ...rest] = alerts
 
   return (
-    <Card
-      className={`border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-950/20 ${className ?? ''}`}
+    <section
+      aria-label="Alerta de crisis"
+      className={cn('rounded-2xl border border-danger/30 bg-danger/10 p-4', className)}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          {/* Icon */}
-          <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
             {/* Header */}
-            <div className="flex items-center gap-2 mb-1">
-              <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
-              <span className="text-sm font-semibold text-red-700 dark:text-red-300">
-                Alerta de Crisis Detectada
-              </span>
+            <div className="mb-1 flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
+              <span className="text-sm font-semibold text-danger">Alerta de Crisis Detectada</span>
             </div>
 
             {/* Most urgent alert */}
-            <p className="text-sm text-red-600/80 dark:text-red-400/80 font-medium">
+            <p className="text-sm font-medium text-foreground">
               {CATEGORY_LABELS[mostUrgent.categoria] ?? mostUrgent.categoria}
               {mostUrgent.assistedPersonaName && ` — ${mostUrgent.assistedPersonaName}`}
             </p>
 
             {/* Keyword (no sensitive content) */}
-            <p className="text-xs text-red-500/70 dark:text-red-500/60 mt-1">
+            <p className="mt-1 text-xs text-muted-foreground">
               Palabra detectada: &quot;{mostUrgent.keyword}&quot;
             </p>
 
             {/* Additional alerts count */}
             {rest.length > 0 && (
-              <p className="text-xs text-red-500/70 dark:text-red-500/60 mt-1">
+              <p className="mt-1 text-xs text-muted-foreground">
                 +{rest.length} alerta{rest.length !== 1 ? 's' : ''} adicional{rest.length !== 1 ? 'es' : ''}
               </p>
             )}
           </div>
-
-          {/* CTA */}
-          <Link href="/pastor/crisis">
-            <Button
-              variant="destructive"
-              size="sm"
-              className="shrink-0"
-              aria-label="Ver todas las alertas de crisis"
-            >
-              Ver alertas
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* CTA */}
+        <Link href="/pastor/crisis" className={cn(CLASE_ENLACE_BOTON, 'w-full sm:w-auto')}>
+          <BotonSistema
+            tabIndex={-1}
+            icono={ArrowRight}
+            iconoPosicion="derecha"
+            className={cn(CLASE_BOTON_PELIGRO, 'w-full sm:w-auto')}
+          >
+            Ver alertas
+          </BotonSistema>
+        </Link>
+      </div>
+    </section>
   )
 }

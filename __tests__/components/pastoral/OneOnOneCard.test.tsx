@@ -4,20 +4,7 @@
 
 import React from 'react'
 import { render, screen } from '@testing-library/react'
-import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
-
-jest.mock('@/components/ui/card', () => ({
-  Card: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="card" className={className}>{children}</div>
-  ),
-  CardContent: ({ children }: { children: React.ReactNode }) => <div data-testid="card-content">{children}</div>,
-}))
-
-jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children, variant }: { children: React.ReactNode; variant?: string }) => (
-    <span data-testid="badge" data-variant={variant}>{children}</span>
-  ),
-}))
+import { OneOnOneCard, varianteEstadoUnoAUno } from '@/components/pastoral/OneOnOneCard'
 
 describe('OneOnOneCard', () => {
   const defaultProps = {
@@ -34,28 +21,21 @@ describe('OneOnOneCard', () => {
     expect(screen.getByText('Juan Pérez')).toBeInTheDocument()
   })
 
-  it('renders scheduled badge', () => {
-    render(<OneOnOneCard {...defaultProps} />)
-    const badges = screen.getAllByTestId('badge')
-    const estadoBadge = badges.find((b) => b.textContent === 'Programado')
-    expect(estadoBadge).toBeDefined()
-    expect(estadoBadge).toHaveAttribute('data-variant', 'outline')
+  it.each([
+    ['scheduled', 'Programado', 'info'],
+    ['in_progress', 'En progreso', 'warning'],
+    ['completed', 'Completado', 'success'],
+    ['cancelled', 'Cancelado', 'error'],
+  ])('renders the %s state as "%s" with the %s status color', (estado, etiqueta, variante) => {
+    render(<OneOnOneCard {...defaultProps} estado={estado} />)
+    expect(screen.getByText(etiqueta)).toBeInTheDocument()
+    expect(varianteEstadoUnoAUno(estado)).toBe(variante)
   })
 
-  it('renders completed badge when estado is completed', () => {
-    render(<OneOnOneCard {...defaultProps} estado="completed" />)
-    const badges = screen.getAllByTestId('badge')
-    const estadoBadge = badges.find((b) => b.textContent === 'Completado')
-    expect(estadoBadge).toBeDefined()
-    expect(estadoBadge).toHaveAttribute('data-variant', 'default')
-  })
-
-  it('renders cancelled badge when estado is cancelled', () => {
-    render(<OneOnOneCard {...defaultProps} estado="cancelled" />)
-    const badges = screen.getAllByTestId('badge')
-    const estadoBadge = badges.find((b) => b.textContent === 'Cancelado')
-    expect(estadoBadge).toBeDefined()
-    expect(estadoBadge).toHaveAttribute('data-variant', 'destructive')
+  it('keeps an unknown state as its raw value with the neutral color', () => {
+    render(<OneOnOneCard {...defaultProps} estado="otro" />)
+    expect(screen.getByText('otro')).toBeInTheDocument()
+    expect(varianteEstadoUnoAUno('otro')).toBe('default')
   })
 
   it('renders steps count badge', () => {
@@ -70,8 +50,10 @@ describe('OneOnOneCard', () => {
 
   it('renders link to detail page', () => {
     render(<OneOnOneCard {...defaultProps} />)
-    const link = screen.getByRole('link')
+    const link = screen.getByRole('link', { name: 'Ver sesión 1:1 con Juan Pérez' })
     expect(link).toHaveAttribute('href', '/lider/uno-auno/123e4567')
+    // 44px touch target
+    expect(link).toHaveClass('size-11')
   })
 
   it('shows mentor name when showMentor is true', () => {

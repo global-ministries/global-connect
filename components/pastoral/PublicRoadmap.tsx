@@ -15,9 +15,8 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Calendar, CheckCircle2, ArrowRight, MapPin } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { BadgeSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { cn } from '@/lib/utils'
 import type { PublicRoadmap } from '@/lib/platform/pastoral/public-roadmap/types'
 
 interface PublicRoadmapProps {
@@ -43,94 +42,84 @@ const STEP_LABELS: Record<string, string> = {
 
 export function PublicRoadmap({ roadmap, className }: PublicRoadmapProps) {
   return (
-    <div className={`space-y-4 ${className ?? ''}`}>
+    <div className={cn('space-y-4', className)}>
       {/* Next 1:1 */}
       {roadmap.proximoUnoAuno && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Próxima Sesión 1:1</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">
-                    {roadmap.proximoUnoAuno.scheduledAtIso
-                      ? format(new Date(roadmap.proximoUnoAuno.scheduledAtIso), "d 'de' MMMM", { locale: es })
-                      : 'Sin fecha programada'}
-                  </span>
-                </div>
-                <Badge variant="outline">
-                  {roadmap.proximoUnoAuno.estado === 'scheduled' ? 'Programada' : 'En progreso'}
-                </Badge>
+        <TarjetaSistema className="p-4 sm:p-6">
+          <TituloSistema nivel={2} className="mb-3">Próxima Sesión 1:1</TituloSistema>
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 flex items-center gap-2">
+                <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="text-sm font-medium">
+                  {roadmap.proximoUnoAuno.scheduledAtIso
+                    ? format(new Date(roadmap.proximoUnoAuno.scheduledAtIso), "d 'de' MMMM", { locale: es })
+                    : 'Sin fecha programada'}
+                </span>
               </div>
-              <Link href={`/asistido/uno-auno`}>
-                <Button variant="ghost" size="sm" aria-label="Ver todas mis sesiones">
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
+              <BadgeSistema variante={roadmap.proximoUnoAuno.estado === 'scheduled' ? 'info' : 'warning'} tamaño="sm">
+                {roadmap.proximoUnoAuno.estado === 'scheduled' ? 'Programada' : 'En progreso'}
+              </BadgeSistema>
             </div>
-          </CardContent>
-        </Card>
+            <Link
+              href={`/asistido/uno-auno`}
+              aria-label="Ver todas mis sesiones"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          </div>
+        </TarjetaSistema>
       )}
 
       {/* Suggested next step */}
       {roadmap.proximoPasoSugerido && (
-        <Card className="border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/5">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-[var(--brand-primary)] shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-foreground mb-1">Tu próximo paso sugerido</p>
-                <p className="text-sm text-[var(--brand-primary)] font-semibold">
-                  {STEP_LABELS[roadmap.proximoPasoSugerido] ?? roadmap.proximoPasoSugerido}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Compartido por tu mentor después de tu última sesión.
-                </p>
-              </div>
+        <div className="rounded-2xl border border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/5 p-4">
+          <div className="flex items-start gap-3">
+            <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[var(--brand-primary)]" aria-hidden="true" />
+            <div>
+              <p className="mb-1 text-sm font-medium text-foreground">Tu próximo paso sugerido</p>
+              <p className="text-sm font-semibold text-[var(--brand-primary)]">
+                {STEP_LABELS[roadmap.proximoPasoSugerido] ?? roadmap.proximoPasoSugerido}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Compartido por tu mentor después de tu última sesión.
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Validated milestones */}
       {roadmap.pasosValidadosTotal.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Hitos Alcanzados</CardTitle>
-            <CardDescription>
-              Estos hitos fueron validados con tu mentor.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {roadmap.pasosValidadosTotal.map((step) => (
-                <li key={step.id} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-                  <span className="text-sm">
-                    {STEP_LABELS[step.stepKey] ?? step.stepKey}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-auto">
-                    {format(new Date(step.validatedAtIso), 'MMM yyyy', { locale: es })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <TarjetaSistema className="p-4 sm:p-6">
+          <TituloSistema nivel={2}>Hitos Alcanzados</TituloSistema>
+          <p className="mb-3 mt-1 text-sm text-muted-foreground">
+            Estos hitos fueron validados con tu mentor.
+          </p>
+          <ul className="space-y-2">
+            {roadmap.pasosValidadosTotal.map((step) => (
+              <li key={step.id} className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                <span className="min-w-0 text-sm">
+                  {STEP_LABELS[step.stepKey] ?? step.stepKey}
+                </span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {format(new Date(step.validatedAtIso), 'MMM yyyy', { locale: es })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </TarjetaSistema>
       )}
 
       {/* Empty state */}
       {roadmap.sesiones.length === 0 && (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Tu roadmap pastoral se generará cuando tu mentor programe tu primera sesión 1:1.
-            </p>
-          </CardContent>
-        </Card>
+        <TarjetaSistema className="p-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Tu roadmap pastoral se generará cuando tu mentor programe tu primera sesión 1:1.
+          </p>
+        </TarjetaSistema>
       )}
     </div>
   )

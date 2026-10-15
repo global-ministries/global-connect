@@ -15,6 +15,7 @@ import React from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CheckCircle2, Circle, AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface TimelineItem {
   readonly id: string
@@ -36,14 +37,14 @@ function ItemIcon({ type, isSharedMilestone }: { type: TimelineItem['type']; isS
   switch (type) {
     case 'step_validated':
       return isSharedMilestone
-        ? <CheckCircle2 className="h-5 w-5 text-[var(--brand-primary)]" />
-        : <CheckCircle2 className="h-5 w-5 text-green-600" />
+        ? <CheckCircle2 className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
+        : <CheckCircle2 className="h-5 w-5 text-success" aria-hidden="true" />
     case 'one_on_one':
-      return <Circle className="h-5 w-5 text-muted-foreground" />
+      return <Circle className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
     case 'triada_created':
-      return <Circle className="h-5 w-5 text-[var(--brand-primary)]" />
+      return <Circle className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
     case 'triada_disbanded':
-      return <AlertCircle className="h-5 w-5 text-yellow-600" />
+      return <AlertCircle className="h-5 w-5 text-warning" aria-hidden="true" />
   }
 }
 
@@ -59,7 +60,7 @@ export function PastoralTimeline({ items, className }: PastoralTimelineProps) {
   }
 
   return (
-    <ol className={`relative border-l-2 border-border pl-6 space-y-6 ${className ?? ''}`}>
+    <ol className={cn('relative space-y-6 border-l-2 border-border pl-6', className)}>
       {items.map((item) => (
         <li key={item.id} className="relative">
           {/* Icon */}

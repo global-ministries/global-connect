@@ -14,8 +14,9 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Users, ChevronRight, Clock } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { BadgeSistema } from '@/components/ui/sistema-diseno'
+import { cn } from '@/lib/utils'
+import { CLASE_ITEM_LISTA } from './estilos'
 
 interface TriadaCardProps {
   readonly id: string
@@ -30,13 +31,13 @@ interface TriadaCardProps {
 
 // ─── State badge ─────────────────────────────────────────────────────────────
 
-function estadoBadgeVariant(estado: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+function estadoBadgeVariant(estado: string): 'default' | 'success' | 'warning' | 'error' | 'info' {
   switch (estado) {
-    case 'pending_confirmation': return 'outline'
-    case 'active': return 'default'
-    case 'en_pausa': return 'secondary'
-    case 'disbanded': return 'destructive'
-    default: return 'outline'
+    case 'pending_confirmation': return 'warning'
+    case 'active': return 'success'
+    case 'en_pausa': return 'info'
+    case 'disbanded': return 'error'
+    default: return 'default'
   }
 }
 
@@ -75,47 +76,45 @@ export function TriadaCard({
   const formattedDate = format(new Date(createdAtIso), "d 'de' MMM 'de' yyyy", { locale: es })
 
   return (
-    <Card
-      className={`hover:border-[var(--brand-primary)]/40 transition-colors ${className ?? ''}`}
+    <div
+      className={cn(CLASE_ITEM_LISTA, 'transition-colors hover:border-[var(--brand-primary)]/40', className)}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            {/* Badges */}
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              <Badge variant={estadoBadgeVariant(estado)}>
-                {estadoLabel(estado)}
-              </Badge>
-              <Badge variant="secondary">
-                {contextoLabel(contexto)}
-              </Badge>
-            </div>
-
-            {/* Created date */}
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-1">
-              <Clock className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">Creada {formattedDate}</span>
-            </div>
-
-            {/* Members count */}
-            <div className="flex items-center gap-1.5 text-sm mt-1">
-              <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <span className="text-foreground">
-                {miembrosCount} miembro{miembrosCount !== 3 ? 's' : ''} (3 requeridos)
-              </span>
-            </div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          {/* Badges */}
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <BadgeSistema variante={estadoBadgeVariant(estado)} tamaño="sm">
+              {estadoLabel(estado)}
+            </BadgeSistema>
+            <BadgeSistema tamaño="sm">
+              {contextoLabel(contexto)}
+            </BadgeSistema>
           </div>
 
-          {/* Arrow */}
-          <Link
-            href={href}
-            className="shrink-0 p-2 rounded-lg hover:bg-accent transition-colors"
-            aria-label={`Ver tríada ${id}`}
-          >
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          </Link>
+          {/* Created date */}
+          <div className="mb-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">Creada {formattedDate}</span>
+          </div>
+
+          {/* Members count */}
+          <div className="mt-1 flex items-center gap-1.5 text-sm">
+            <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="text-foreground">
+              {miembrosCount} miembro{miembrosCount !== 3 ? 's' : ''} (3 requeridos)
+            </span>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Arrow: a 44px target */}
+        <Link
+          href={href}
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`Ver tríada ${id}`}
+        >
+          <ChevronRight className="h-5 w-5" aria-hidden="true" />
+        </Link>
+      </div>
+    </div>
   )
 }
