@@ -129,6 +129,13 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // helper functions, get_personas_under_me and the five pastoral enums. The
   // pastoral_* values of operating_core_participation_kind stay because the
   // enum values are not dropped.
+  // uno-a-uno T4 (2026-10-15, odd/tasks/uno-a-uno.md): the seven 1:1
+  // functions of 20261015120000_uno_a_uno_modelo.sql (mis_dirigidos,
+  // mis_uno_a_uno, uno_a_uno_agendar / _registrar / _registrar_sin_agenda /
+  // _reprogramar / _cancelar) are hand-added to the public Functions section,
+  // like the ninos_* entries, so the "Mis 1 a 1" page, its server actions and
+  // the (auth) layout's menu check call them typed. Additive only: no
+  // existing type is renamed or removed.
   'lib/supabase/database.types.ts',
 ])
 

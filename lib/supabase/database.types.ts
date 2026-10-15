@@ -8600,6 +8600,61 @@ export type Database = {
       }
       mi_campus_principal: { Args: { p_auth_uid: string }; Returns: string }
       mis_campus_ids: { Args: { p_auth_uid: string }; Returns: string[] }
+      // Hand-added (2026-10-15, odd/tasks/uno-a-uno.md T4): the 1:1 functions of
+      // supabase/migrations/20261015120000_uno_a_uno_modelo.sql.
+      mis_dirigidos: {
+        Args: never
+        Returns: {
+          apellido: string
+          contextos: string[]
+          conyuge_id: string | null
+          nombre: string
+          usuario_id: string
+        }[]
+      }
+      mis_uno_a_uno: {
+        Args: { p_desde?: string | null; p_hasta?: string | null }
+        Returns: {
+          cancelado_en: string | null
+          dirigidos: Json
+          estado: string
+          fecha_hora: string
+          id: string
+          lideres: Json
+          lugar: string | null
+          mi_lado: string
+          motivo_cancelacion: string | null
+          nota_privada: string | null
+          realizado_en: string | null
+          resumen: string | null
+        }[]
+      }
+      uno_a_uno_agendar: {
+        Args: { p_dirigido_id: string; p_fecha_hora: string; p_lugar?: string | null }
+        Returns: string
+      }
+      uno_a_uno_cancelar: {
+        Args: { p_id: string; p_motivo?: string | null }
+        Returns: undefined
+      }
+      uno_a_uno_registrar: {
+        Args: { p_fecha_hora?: string | null; p_id: string; p_nota_privada?: string | null; p_resumen: string }
+        Returns: undefined
+      }
+      uno_a_uno_registrar_sin_agenda: {
+        Args: {
+          p_dirigido_id: string
+          p_fecha_hora: string
+          p_lugar?: string | null
+          p_nota_privada?: string | null
+          p_resumen: string
+        }
+        Returns: string
+      }
+      uno_a_uno_reprogramar: {
+        Args: { p_fecha_hora: string; p_id: string }
+        Returns: undefined
+      }
       normalizar_cedula_ve: { Args: { p: string }; Returns: string }
       normalizar_telefono_ve: { Args: { p: string }; Returns: string }
       obtener_asistencia_evento: {
