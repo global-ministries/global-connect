@@ -15,10 +15,9 @@ import { requirePastoralSession } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { getPersonasUnderMe } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { loadPublicRoadmap } from '@/lib/platform/pastoral/public-roadmap/load-public-roadmap'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import AsistidoRoadmapClient from './AsistidoRoadmapClient'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -38,22 +37,22 @@ export default async function AsistidoRoadmapPage() {
   })
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Mi Camino Pastoral"
       descripcion="Tu seguimiento espiritual personal"
+      ancho="form"
     >
       {/* Roadmap content */}
       <AsistidoRoadmapClient roadmap={roadmap} />
 
       {/* Link to all sessions */}
       <div className="flex justify-end">
-        <Link href="/asistido/uno-auno">
-          <Button variant="outline" size="sm">
+        <BotonSistema asChild variante="outline" icono={ArrowRight} iconoPosicion="derecha" className="w-full sm:w-auto">
+          <Link href="/asistido/uno-auno">
             Ver todas mis sesiones
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
+          </Link>
+        </BotonSistema>
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

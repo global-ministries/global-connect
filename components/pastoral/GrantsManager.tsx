@@ -10,12 +10,11 @@
  *   - onSave: callback when saves complete
  */
 import React, { useState, useCallback } from 'react'
-import { Save, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Save } from 'lucide-react'
+import { BadgeSistema, BotonSistema, PieAccionesSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { CLASE_ITEM_LISTA } from './estilos'
 
 type CapabilityEntry = {
   readonly capability_key: string
@@ -156,34 +155,19 @@ export function GrantsManager({ usuarioId, usuarioNombre, capabilitiesIniciales,
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Capabilities de {usuarioNombre}</h2>
-          <p className="text-sm text-muted-foreground">
-            Activa o desactiva las capabilities pastoral para este usuario.
-          </p>
-        </div>
-        <Button onClick={handleSave} disabled={!hasChanges || saving} variant="default">
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Guardando...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Guardar cambios
-            </>
-          )}
-        </Button>
+      <div>
+        <TituloSistema nivel={2}>Capabilities de {usuarioNombre}</TituloSistema>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Activa o desactiva las capabilities pastoral para este usuario.
+        </p>
       </div>
 
       {saveResult && saveResult.length > 0 && (
-        <div className="p-4 rounded-lg bg-muted/50">
-          <h3 className="font-medium mb-2">Resultado:</h3>
+        <div className="rounded-2xl bg-muted/50 p-4" role="status">
+          <h3 className="mb-2 font-medium">Resultado:</h3>
           <ul className="space-y-1">
             {saveResult.map((r) => (
-              <li key={r.capability_key} className={cn('text-sm', r.success ? 'text-green-600' : 'text-red-600')}>
+              <li key={r.capability_key} className={cn('break-words text-sm', r.success ? 'text-success-text' : 'text-danger-text')}>
                 {r.action === 'grant' ? 'Otorgado' : 'Revocado'}: {r.capability_key} — {r.success ? 'OK' : 'Error'}
               </li>
             ))}
@@ -194,24 +178,40 @@ export function GrantsManager({ usuarioId, usuarioNombre, capabilitiesIniciales,
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {PASTORAL_CAPABILITIES.map((key) => {
           const isActive = enabled.get(key) ?? false
+          const label = getCapabilityLabel(key)
           return (
-            <Card key={key} className={cn(isActive && 'border-green-500/50')}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">{getCapabilityLabel(key)}</CardTitle>
-                  <Switch checked={isActive} onCheckedChange={(checked) => handleToggle(key, checked)} />
-                </div>
-                <CardDescription className="text-xs">{key}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Badge variant={isActive ? 'default' : 'secondary'}>
-                  {isActive ? 'Activo' : 'Inactivo'}
-                </Badge>
-              </CardContent>
-            </Card>
+            <div key={key} className={cn(CLASE_ITEM_LISTA, 'space-y-3', isActive && 'border-success/50')}>
+              {/* The whole label toggles the switch, so the target is the row, not the 18px track. */}
+              <label htmlFor={`capability-${key}`} className="flex min-h-11 cursor-pointer items-start justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold capitalize text-foreground">{label}</span>
+                  <span className="mt-0.5 block break-all font-mono text-xs text-muted-foreground">{key}</span>
+                </span>
+                <Switch
+                  id={`capability-${key}`}
+                  className="mt-0.5"
+                  checked={isActive}
+                  onCheckedChange={(checked) => handleToggle(key, checked)}
+                />
+              </label>
+              <BadgeSistema variante={isActive ? 'success' : 'default'} tamaño="sm">
+                {isActive ? 'Activo' : 'Inactivo'}
+              </BadgeSistema>
+            </div>
           )
         })}
       </div>
+
+      <PieAccionesSistema>
+        <BotonSistema
+          onClick={handleSave}
+          disabled={!hasChanges || saving}
+          cargando={saving}
+          icono={Save}
+        >
+          {saving ? 'Guardando...' : 'Guardar cambios'}
+        </BotonSistema>
+      </PieAccionesSistema>
     </div>
   )
 }

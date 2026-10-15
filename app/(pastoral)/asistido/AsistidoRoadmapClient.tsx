@@ -27,15 +27,15 @@ export default function AsistidoRoadmapClient({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-32 rounded-xl animate-pulse bg-muted" />
-        <div className="h-32 rounded-xl animate-pulse bg-muted" />
+        <div className="h-32 rounded-2xl animate-pulse bg-muted" />
+        <div className="h-32 rounded-2xl animate-pulse bg-muted" />
       </div>
     )
   }
 
   if (!roadmap) {
     return (
-      <div className="text-center py-12">
+      <div className="py-12 text-center" role="status">
         <p className="text-muted-foreground">
           No pudimos cargar tu roadmap. Intenta más tarde.
         </p>

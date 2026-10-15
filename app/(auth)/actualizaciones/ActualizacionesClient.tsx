@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { TarjetaSistema, TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import { Calendar, Sparkles, Wrench, Shield, Package, Users } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { actualizaciones, etiquetasRol, type RolSistema } from '@/lib/data/actualizaciones'
 
 /* ── Helpers ── */
@@ -26,6 +27,17 @@ const labelTipo = {
     mejora: 'Mejora',
     correccion: 'Corrección',
     seguridad: 'Seguridad',
+}
+
+/** Filter chip: 36px, 44px on touch screens (docs/design-system.md, sm). */
+function claseChip(activo: boolean) {
+    return cn(
+        'inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium transition-colors duration-200 pointer-coarse:h-11',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        activo
+            ? 'bg-brand text-brand-foreground'
+            : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+    )
 }
 
 /** Roles disponibles para filtrar. */
@@ -59,31 +71,29 @@ export default function ActualizacionesClient({ puedeVerTodo, rolUsuario }: Actu
         <>
             {/* ── Filtro por rol (solo visible para líderes+) ── */}
             {puedeVerTodo && (
-                <div className="mb-6">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <TextoSistema variante="muted" tamaño="sm">
+                <div className="mb-6" role="group" aria-labelledby="filtro-rol-titulo">
+                    <div className="mb-3 flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                        <TextoSistema id="filtro-rol-titulo" variante="muted" tamaño="sm">
                             Filtrar por rol
                         </TextoSistema>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <button
+                            type="button"
+                            aria-pressed={rolSeleccionado === null}
                             onClick={() => setRolSeleccionado(null)}
-                            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors duration-200 ${rolSeleccionado === null
-                                    ? 'bg-[var(--brand-primary)] text-white'
-                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                }`}
+                            className={claseChip(rolSeleccionado === null)}
                         >
                             Todos
                         </button>
                         {rolesFiltro.map((rol) => (
                             <button
+                                type="button"
                                 key={rol}
+                                aria-pressed={rolSeleccionado === rol}
                                 onClick={() => setRolSeleccionado(rol === rolSeleccionado ? null : rol)}
-                                className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors duration-200 ${rolSeleccionado === rol
-                                        ? 'bg-[var(--brand-primary)] text-white'
-                                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                    }`}
+                                className={claseChip(rolSeleccionado === rol)}
                             >
                                 {etiquetasRol[rol]}
                             </button>
@@ -108,21 +118,21 @@ export default function ActualizacionesClient({ puedeVerTodo, rolUsuario }: Actu
                         return (
                             <TarjetaSistema key={act.version} className="p-5 sm:p-6">
                                 {/* Header */}
-                                <div className="flex flex-wrap items-center gap-2 mb-1">
-                                    <TituloSistema nivel={3}>{act.titulo}</TituloSistema>
-                                    <BadgeSistema variante={colorTipo[act.tipo]} tamaño="sm">
-                                        <Icono className="w-3 h-3" />
+                                <div className="mb-1 flex flex-wrap items-center gap-2">
+                                    <TituloSistema nivel={2} className="text-base sm:text-lg">{act.titulo}</TituloSistema>
+                                    <BadgeSistema variante={colorTipo[act.tipo]} tamaño="sm" className="gap-1">
+                                        <Icono className="h-3 w-3" aria-hidden="true" />
                                         {labelTipo[act.tipo]}
                                     </BadgeSistema>
                                 </div>
 
-                                <div className="flex items-center gap-2 mb-3">
+                                <div className="mb-3 flex flex-wrap items-center gap-2">
                                     <TextoSistema variante="muted" tamaño="sm">
                                         v{act.version}
                                     </TextoSistema>
-                                    <span className="text-muted-foreground/40">•</span>
+                                    <span className="text-muted-foreground/40" aria-hidden="true">•</span>
                                     <div className="flex items-center gap-1 text-muted-foreground">
-                                        <Calendar className="w-3.5 h-3.5" />
+                                        <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
                                         <TextoSistema variante="muted" tamaño="sm">
                                             {new Date(act.fecha + 'T12:00:00').toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })}
                                         </TextoSistema>
@@ -133,7 +143,7 @@ export default function ActualizacionesClient({ puedeVerTodo, rolUsuario }: Actu
 
                                 {/* Label del rol cuando hay filtro activo */}
                                 {rolSeleccionado && detallesRol && (
-                                    <div className="flex items-center gap-1.5 mb-2">
+                                    <div className="mb-2 flex items-center gap-1.5">
                                         <BadgeSistema variante="info" tamaño="sm">
                                             {etiquetasRol[rolSeleccionado]}
                                         </BadgeSistema>
@@ -143,7 +153,7 @@ export default function ActualizacionesClient({ puedeVerTodo, rolUsuario }: Actu
                                 <ul className="space-y-1.5">
                                     {detallesVisibles.map((d, i) => (
                                         <li key={i} className="flex items-start gap-2">
-                                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[var(--brand-primary)] flex-shrink-0" />
+                                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-hidden="true" />
                                             <TextoSistema tamaño="sm">{d}</TextoSistema>
                                         </li>
                                     ))}

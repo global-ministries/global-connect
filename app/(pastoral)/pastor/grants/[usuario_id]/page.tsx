@@ -9,7 +9,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralAdminManageCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { GrantsManager } from '@/components/pastoral/GrantsManager'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 
 export const dynamic = 'force-dynamic'
 
@@ -67,16 +67,17 @@ export default async function PastorGrantsPage({ params }: PageProps) {
   const usuarioNombre = `${usuario.nombre} ${usuario.apellido}`
 
   return (
-    <ContenedorDashboard
+    // GrantsManager renders its own "Capabilities de …" heading, so the page
+    // carries no description (PaginaSistema would repeat it).
+    <PaginaSistema
       titulo="Gestionar Capabilities"
-      descripcion={`Capabilities para ${usuarioNombre}`}
-      botonRegreso={{ href: '/pastor/usuarios', texto: 'Volver a usuarios' }}
+      regreso={{ href: '/pastor/usuarios', texto: 'Volver a usuarios' }}
     >
       <GrantsManager
         usuarioId={usuario_id}
         usuarioNombre={usuarioNombre}
         capabilitiesIniciales={capabilities}
       />
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

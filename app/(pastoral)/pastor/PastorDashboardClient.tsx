@@ -2,13 +2,9 @@
 
 import React from 'react'
 import { AlertTriangle, Users, Calendar, UserCog } from 'lucide-react'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
-import { TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { TituloSistema } from '@/components/ui/sistema-diseno'
-import { CrisisAlertBanner } from '@/components/pastoral/CrisisAlertBanner'
-import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { BotonSistema, PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { CrisisAlertBanner } from '@/components/pastoral/CrisisAlertBanner'
 
 interface PastorDashboardClientProps {
   readonly metrics: {
@@ -39,20 +35,18 @@ function MetricCard({
   description?: string
 }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[var(--brand-primary)]/10">
-            <Icon className="h-5 w-5 text-[var(--brand-primary)]" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-xs text-muted-foreground">{title}</p>
-            {description && <p className="text-xs text-muted-foreground">{description}</p>}
-          </div>
+    <TarjetaSistema className="p-4">
+      <div className="flex items-center gap-3">
+        <div className="shrink-0 rounded-xl bg-brand/10 p-2">
+          <Icon className="h-5 w-5 text-brand" aria-hidden="true" />
         </div>
-      </CardContent>
-    </Card>
+        <div className="min-w-0">
+          <p className="text-2xl font-bold">{value}</p>
+          <p className="text-xs text-muted-foreground">{title}</p>
+          {description && <p className="text-xs text-muted-foreground">{description}</p>}
+        </div>
+      </div>
+    </TarjetaSistema>
   )
 }
 
@@ -62,7 +56,7 @@ export default function PastorDashboardClient({
   hasAdminManage = false,
 }: PastorDashboardClientProps) {
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Dashboard Pastoral"
       descripcion="Vista global de seguimiento pastoral — pastor/admin"
     >
@@ -70,7 +64,7 @@ export default function PastorDashboardClient({
         <CrisisAlertBanner alerts={crisisAlerts} />
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         <MetricCard
           title="Sesiones 1:1"
           value={metrics.unoAunoPorPeriodo}
@@ -94,17 +88,16 @@ export default function PastorDashboardClient({
       <TarjetaSistema>
         <TituloSistema nivel={2} className="mb-3">Accesos Rápidos</TituloSistema>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link href="/pastor/crisis">
-            <Button variant="destructive" size="sm">
-              <AlertTriangle className="h-4 w-4" />
+          <BotonSistema asChild variante="peligro" icono={AlertTriangle} className="w-full sm:w-auto">
+            <Link href="/pastor/crisis">
               Ver alertas de crisis
-            </Button>
-          </Link>
-          <Link href="/pastor/lecturas">
-            <Button variant="outline" size="sm">
+            </Link>
+          </BotonSistema>
+          <BotonSistema asChild variante="outline" className="w-full sm:w-auto">
+            <Link href="/pastor/lecturas">
               Ver sesiones 1:1
-            </Button>
-          </Link>
+            </Link>
+          </BotonSistema>
         </div>
       </TarjetaSistema>
 
@@ -112,15 +105,14 @@ export default function PastorDashboardClient({
         <TarjetaSistema>
           <TituloSistema nivel={2} className="mb-3">Administración</TituloSistema>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href="/pastor/usuarios">
-              <Button variant="outline" size="sm">
-                <UserCog className="h-4 w-4 mr-1" />
+            <BotonSistema asChild variante="outline" icono={UserCog} className="w-full sm:w-auto">
+              <Link href="/pastor/usuarios">
                 Gestión de usuarios
-              </Button>
-            </Link>
+              </Link>
+            </BotonSistema>
           </div>
         </TarjetaSistema>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

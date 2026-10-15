@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralReadAllCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
-import { ContenedorDashboard, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { getPersonasUnderMe, visiblePersonaIdsOrNone } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
 
@@ -47,7 +47,7 @@ export default async function PastorLecturasPage() {
   })
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Lectura de Sesiones"
       descripcion="Vista de solo lectura — pastor/admin (pastoral.read.all)"
     >
@@ -72,6 +72,6 @@ export default async function PastorLecturasPage() {
           </div>
         )}
       </TarjetaSistema>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

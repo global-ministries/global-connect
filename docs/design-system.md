@@ -190,3 +190,12 @@ and reach for it only where a class cannot (inline styles, SVG attributes).
   its label but keeps a 32px (`h-8 w-8`) override below the 44px icon size.
 - `ui/card` still uses `rounded-xl`; move it to the surface radius when cards
   migrate.
+- Pastoral (`app/(pastoral)`, `components/pastoral`), Notas de líderes,
+  Ayuda and Actualizaciones are migrated and import no `ui/button` or
+  `ui/card`; add them to `migratedToDesignSystem`. Widths: lists, dashboards
+  and the support queue `default`; the asistido roadmap, a 1:1 detail, its
+  capture form, the report form and the Actualizaciones feed `form`. Tables
+  that would scroll sideways at 360px (pastoral usuarios) render a card list
+  below `md`. Destructive pastoral actions recolor the primary button
+  (`components/pastoral/estilos.ts`); switch them to the danger variant and
+  the link-wrapped buttons to the `href` form once those land here.

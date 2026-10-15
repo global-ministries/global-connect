@@ -11,11 +11,15 @@
 
 import React, { useReducer, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import {
+  BadgeSistema,
+  BotonSistema,
+  PieAccionesSistema,
+  TarjetaSistema,
+  TextareaSistema,
+  TituloSistema,
+} from '@/components/ui/sistema-diseno'
+import { CheckCircle2, XCircle } from 'lucide-react'
 import type { CaptureUXState } from '@/lib/platform/pastoral/capture-ux/pastoral-capture-ux'
 
 interface CapturaFormProps {
@@ -99,93 +103,77 @@ export default function CapturaForm({ oneOnOneId, mentorPersonaId, assistedPerso
 
   if (state.submitted) {
     return (
-      <Card>
-        <CardContent className="p-6 text-center space-y-3">
-          {state.captureState === 'confirmed' ? (
-            <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto" />
-          ) : (
-            <XCircle className="h-12 w-12 text-red-600 mx-auto" />
-          )}
-          <CardTitle>
-            Sesión {state.captureState === 'confirmed' ? 'confirmada' : 'rechazada'}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            La sesión ha sido {state.captureState === 'confirmed' ? 'completada' : 'cancelada'} exitosamente.
-          </p>
-          <Button onClick={() => router.push('/lider/uno-auno')}>
-            Volver al listado
-          </Button>
-        </CardContent>
-      </Card>
+      <TarjetaSistema className="space-y-3 text-center" role="status">
+        {state.captureState === 'confirmed' ? (
+          <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden="true" />
+        ) : (
+          <XCircle className="mx-auto h-12 w-12 text-danger" aria-hidden="true" />
+        )}
+        <TituloSistema nivel={2}>
+          Sesión {state.captureState === 'confirmed' ? 'confirmada' : 'rechazada'}
+        </TituloSistema>
+        <p className="text-sm text-muted-foreground">
+          La sesión ha sido {state.captureState === 'confirmed' ? 'completada' : 'cancelada'} exitosamente.
+        </p>
+        <BotonSistema onClick={() => router.push('/lider/uno-auno')}>
+          Volver al listado
+        </BotonSistema>
+      </TarjetaSistema>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <CardTitle className="text-base">Captura Rápida Post-1:1</CardTitle>
-          <Badge variant="outline" className="text-xs">
-            pastoral_one_on_one
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Note input */}
-        <div className="space-y-2">
-          <label htmlFor="captura-nota" className="text-sm font-medium">
-            Nota de retroalimentación (opcional)
-          </label>
-          <Textarea
-            id="captura-nota"
-            value={state.nota}
-            onChange={(e) => dispatch({ type: 'SET_NOTA', nota: e.target.value })}
-            placeholder="Observaciones sobre la sesión..."
-            rows={4}
-            aria-label="Nota de retroalimentación"
-          />
-          <p className="text-xs text-muted-foreground">
-            Máx. 500 caracteres. Esta nota es privada del mentor.
-          </p>
-        </div>
+    <TarjetaSistema className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <TituloSistema nivel={2}>Captura Rápida Post-1:1</TituloSistema>
+        <BadgeSistema tamaño="sm" className="font-mono">
+          pastoral_one_on_one
+        </BadgeSistema>
+      </div>
 
-        {/* Error */}
-        {state.error && (
-          <p role="alert" className="text-sm text-red-600">
-            {state.error}
-          </p>
-        )}
+      {/* Note input */}
+      <div className="space-y-2">
+        <TextareaSistema
+          id="captura-nota"
+          label="Nota de retroalimentación (opcional)"
+          value={state.nota}
+          onChange={(e) => dispatch({ type: 'SET_NOTA', nota: e.target.value })}
+          placeholder="Observaciones sobre la sesión..."
+          filas={4}
+          aria-describedby="captura-nota-ayuda"
+        />
+        <p id="captura-nota-ayuda" className="text-xs text-muted-foreground">
+          Máx. 500 caracteres. Esta nota es privada del mentor.
+        </p>
+      </div>
 
-        {/* Actions */}
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            variant="default"
-            disabled={state.isSubmitting}
-            onClick={() => handleSubmit('confirmed')}
-            aria-label="Confirmar sesión"
-          >
-            {state.isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4" />
-            )}
-            Confirmar sesión
-          </Button>
-          <Button
-            variant="destructive"
-            disabled={state.isSubmitting}
-            onClick={() => handleSubmit('rejected')}
-            aria-label="Rechazar sesión"
-          >
-            {state.isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <XCircle className="h-4 w-4" />
-            )}
-            Rechazar
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Error */}
+      {state.error && (
+        <p role="alert" className="text-sm text-danger-text">
+          {state.error}
+        </p>
+      )}
+
+      {/* Actions: secondary first, primary last */}
+      <PieAccionesSistema fijo={false} className="bg-transparent">
+        <BotonSistema
+          variante="peligro"
+          icono={XCircle}
+          cargando={state.isSubmitting}
+          onClick={() => handleSubmit('rejected')}
+          aria-label="Rechazar sesión"
+        >
+          Rechazar
+        </BotonSistema>
+        <BotonSistema
+          icono={CheckCircle2}
+          cargando={state.isSubmitting}
+          onClick={() => handleSubmit('confirmed')}
+          aria-label="Confirmar sesión"
+        >
+          Confirmar sesión
+        </BotonSistema>
+      </PieAccionesSistema>
+    </TarjetaSistema>
   )
 }

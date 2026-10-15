@@ -1,13 +1,13 @@
 
-import { ContenedorDashboard, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { SupportTicketCreateForm } from './support-ticket-create-form'
 
 export default async function ReportarPage() {
   return (
-<ContenedorDashboard titulo="Reportar un problema" botonRegreso={{ href: '/ayuda', texto: 'Volver a Ayuda' }}>
-        <TarjetaSistema>
-          <SupportTicketCreateForm appBuildVersion={process.env.NEXT_PUBLIC_APP_VERSION ?? ''} />
-        </TarjetaSistema>
-      </ContenedorDashboard>
-)
+    <PaginaSistema titulo="Reportar un problema" ancho="form" regreso={{ href: '/ayuda', texto: 'Volver a Ayuda' }}>
+      <TarjetaSistema className="p-4 sm:p-6">
+        <SupportTicketCreateForm appBuildVersion={process.env.NEXT_PUBLIC_APP_VERSION ?? ''} />
+      </TarjetaSistema>
+    </PaginaSistema>
+  )
 }

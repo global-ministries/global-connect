@@ -10,12 +10,9 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralOneOnOneReadCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { getPersonasUnderMe, visiblePersonaIdsOrNone } from '@/lib/platform/pastoral/hierarchical-visibility'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
-import { TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { TituloSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -65,19 +62,18 @@ export default async function LiderUnoAUnoListPage() {
   const past = sesiones.filter((s) => s.estado === 'completed' || s.estado === 'cancelled')
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Mis Sesiones 1:1"
       descripcion="Seguimiento pastoral de tus sesiones"
     >
       <TarjetaSistema>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
           <TituloSistema nivel={2}>Programadas</TituloSistema>
-          <Link href="/api/pastoral/one-on-one">
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4" />
+          <BotonSistema asChild variante="outline" tamaño="sm" icono={Plus}>
+            <Link href="/api/pastoral/one-on-one">
               Nueva sesión
-            </Button>
-          </Link>
+            </Link>
+          </BotonSistema>
         </div>
         {upcoming.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">No hay sesiones programadas.</p>
@@ -118,6 +114,6 @@ export default async function LiderUnoAUnoListPage() {
           </div>
         </TarjetaSistema>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

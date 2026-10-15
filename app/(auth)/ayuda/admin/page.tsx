@@ -5,7 +5,9 @@ import { listStaffSupportTickets, updateSupportTicketStatus } from '@/lib/action
 import { formatSupportCategory, formatSupportSeverity, formatSupportStatus } from '@/lib/support/support-labels'
 
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table'
-import { BadgeSistema, BotonSistema, ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { BadgeSistema, BotonSistema, InputSistema, PaginaSistema, SelectSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+
+import { CLASE_ENLACE_DETALLE, CLASE_ICONO_TICKET, claseFiltro } from '../estilos'
 import { SupportTicketQueueStatusForm } from './support-ticket-admin-actions'
 
 type SupportAdminPageProps = {
@@ -92,7 +94,7 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
           {canManage && (
             <SupportTicketQueueStatusForm action={statusAction} ticketId={ticket.id} ticketNumber={ticket.ticketNumber} currentStatus={ticket.status} options={statusOptions} />
           )}
-          <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 focus-ring">
+          <Link href={`/ayuda/tickets/${ticket.id}`} className={CLASE_ENLACE_DETALLE}>
             <MessageSquare className="h-4 w-4" aria-hidden="true" />
             Responder #{ticket.ticketNumber}
           </Link>
@@ -104,72 +106,60 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
   ]
 
   return (
-<ContenedorDashboard titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
-        <div className="mb-5 flex items-center justify-between gap-2">
-          <SupportAdminStatusFilterPills activeFilter={activeStatusFilter} params={params} />
+    <PaginaSistema titulo="Cola de soporte" descripcion="Busca y prioriza tickets autorizados sin exponer vistas exclusivas del reportante.">
+      <div className="relative flex items-center justify-between gap-2">
+        <SupportAdminStatusFilterPills activeFilter={activeStatusFilter} params={params} />
 
-          <details className="group shrink-0 sm:relative">
-            <summary className="flex cursor-pointer list-none items-center justify-end gap-2 rounded-xl focus-ring [&::-webkit-details-marker]:hidden">
-            <span className="inline-flex min-h-[44px] items-center rounded-xl border-2 border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
-              <Filter className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+        <details className="group shrink-0 sm:relative">
+          <summary className="flex cursor-pointer list-none items-center justify-end gap-2 rounded-xl focus-ring [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex h-11 items-center rounded-xl border-2 border-border px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent">
+              <Filter className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="ml-2">Filtros</span>
               {activeFiltersCount > 0 && (
-                <span className="ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-orange-600 text-[10px] text-white">
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[11px] font-semibold text-brand-foreground">
                   {activeFiltersCount}
                 </span>
               )}
             </span>
-            </summary>
-            <form className="mt-4 grid gap-3 rounded-2xl border border-border bg-card/50 p-4 md:grid-cols-[minmax(0,1fr)_180px_180px_auto] sm:absolute sm:right-0 sm:top-full sm:z-20 sm:w-[min(48rem,calc(100vw-2rem))]" action="/ayuda/admin">
+          </summary>
+          {/* Mobile: the form drops below the whole toolbar at full width; from sm it floats under the button. */}
+          <form className="absolute inset-x-0 top-full z-20 mt-2 grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-lg sm:inset-x-auto sm:right-0 sm:top-full sm:w-[min(48rem,calc(100vw-2rem))] md:grid-cols-[minmax(0,1fr)_180px_180px_auto]" action="/ayuda/admin">
             {activeStatusFilter !== 'todos' && <input type="hidden" name="estado" value={activeStatusFilter} />}
-            <label className="space-y-2 text-sm font-medium text-foreground">
-              <span>Buscar tickets</span>
-              <input className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground placeholder:text-muted-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" name="search" type="search" role="searchbox" defaultValue={filters.search ?? ''} placeholder="Numero de ticket, titulo, descripcion" />
-            </label>
-            <label className="space-y-2 text-sm font-medium text-foreground">
-              <span>Estado</span>
-              <select className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20 disabled:cursor-not-allowed disabled:opacity-60" name="status" defaultValue={filters.status ?? ''} disabled={activeStatusFilter !== 'todos'}>
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.valor} value={option.valor}>{option.etiqueta}</option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-2 text-sm font-medium text-foreground">
-              <span>Categoria</span>
-              <input className="block min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-3 text-foreground placeholder:text-muted-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" name="category" defaultValue={filters.category ?? ''} placeholder="bug, access, billing" />
-            </label>
+            <InputSistema label="Buscar tickets" name="search" type="search" defaultValue={filters.search ?? ''} placeholder="Numero de ticket, titulo, descripcion" />
+            <SelectSistema label="Estado" name="status" defaultValue={filters.status ?? ''} opciones={STATUS_OPTIONS} disabled={activeStatusFilter !== 'todos'} />
+            <InputSistema label="Categoria" name="category" defaultValue={filters.category ?? ''} placeholder="bug, access, billing" />
             <div className="flex items-end">
-              <BotonSistema type="submit" tamaño="sm" className="w-full">Filtrar</BotonSistema>
+              <BotonSistema type="submit" className="w-full">Filtrar</BotonSistema>
             </div>
-            </form>
-          </details>
-        </div>
+          </form>
+        </details>
+      </div>
 
-        {!result.success ? (
-          <TarjetaSistema><TextoSistema variante="sutil">{result.error}</TextoSistema></TarjetaSistema>
-        ) : (
-          <>
-            <DataTable
-              rows={tickets}
-              columns={columns}
-              getRowKey={(ticket) => ticket.id}
-              caption="Cola de tickets de soporte autorizados para el equipo."
-              getRowHref={(ticket) => `/ayuda/tickets/${ticket.id}`}
-              getRowLabel={(ticket) => `#${ticket.ticketNumber} ${ticket.title}`}
-              emptyState={<TextoSistema variante="sutil">Ningun ticket de soporte coincide con estos filtros.</TextoSistema>}
-              className="hidden md:block"
-            />
-            <TicketsMobileList tickets={tickets} canManage={canManage} statusAction={statusAction} statusOptions={statusOptions} />
-          </>
-        )}
-      </ContenedorDashboard>
-)
+      {!result.success ? (
+        <TarjetaSistema><TextoSistema variante="sutil">{result.error}</TextoSistema></TarjetaSistema>
+      ) : (
+        <>
+          <DataTable
+            rows={tickets}
+            columns={columns}
+            getRowKey={(ticket) => ticket.id}
+            caption="Cola de tickets de soporte autorizados para el equipo."
+            getRowHref={(ticket) => `/ayuda/tickets/${ticket.id}`}
+            getRowLabel={(ticket) => `#${ticket.ticketNumber} ${ticket.title}`}
+            emptyState={<TextoSistema variante="sutil">Ningun ticket de soporte coincide con estos filtros.</TextoSistema>}
+            className="hidden md:block"
+          />
+          <TicketsMobileList tickets={tickets} canManage={canManage} statusAction={statusAction} statusOptions={statusOptions} />
+        </>
+      )}
+    </PaginaSistema>
+  )
 }
 
 function SupportAdminStatusFilterPills({ activeFilter, params }: { activeFilter: SupportAdminStatusFilter; params?: Awaited<SupportAdminPageProps['searchParams']> }) {
   return (
-    <div className="min-w-0 overflow-x-auto">
-      <div className="inline-flex items-center gap-1 rounded-2xl bg-card/60 border border-border/30 p-1 shadow-sm backdrop-blur">
+    <nav aria-label="Filtrar tickets por estado" className="min-w-0 overflow-x-auto">
+      <div className="inline-flex items-center gap-1 rounded-2xl border border-border/30 bg-card/60 p-1 shadow-sm backdrop-blur">
         {SUPPORT_ADMIN_STATUS_FILTERS.map((filter) => {
           const isActive = filter.value === activeFilter
 
@@ -178,25 +168,21 @@ function SupportAdminStatusFilterPills({ activeFilter, params }: { activeFilter:
               key={filter.value}
               href={buildSupportAdminStatusFilterHref(filter.value, params)}
               aria-current={isActive ? 'page' : undefined}
-              className={`px-3.5 py-2 text-sm font-medium rounded-xl text-muted-foreground transition-colors hover:bg-muted ${
-                isActive
-                  ? 'bg-orange-500 text-white'
-                  : ''
-              }`}
+              className={claseFiltro(isActive)}
             >
               {filter.label}
             </Link>
           )
         })}
       </div>
-    </div>
+    </nav>
   )
 }
 
 function TicketIdentity({ ticket }: { ticket: StaffTicketRow }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-r from-orange-400 to-orange-500">
+      <div className={`h-10 w-16 ${CLASE_ICONO_TICKET}`}>
         <TicketIcon className="h-4 w-4 text-white" aria-hidden="true" />
       </div>
       <div className="min-w-0">
@@ -225,15 +211,15 @@ function TicketsMobileList({ tickets, canManage, statusAction, statusOptions }: 
       {tickets.map((ticket) => (
         <TarjetaSistema key={ticket.id} className="space-y-4 p-4">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-8 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-r from-orange-400 to-orange-500">
+            <div className={`mt-0.5 h-8 w-12 ${CLASE_ICONO_TICKET}`}>
               <TicketIcon className="h-4 w-4 text-white" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="mb-2 flex items-start justify-between gap-2">
-                <Link href={`/ayuda/tickets/${ticket.id}`} className="min-w-0 flex-1 truncate rounded-md font-semibold text-foreground hover:text-[var(--brand-primary)] focus-ring" aria-label={`#${ticket.ticketNumber} ${ticket.title}`}>
+                <Link href={`/ayuda/tickets/${ticket.id}`} className="min-w-0 flex-1 truncate rounded-md font-semibold text-foreground hover:text-brand-text focus-ring" aria-label={`#${ticket.ticketNumber} ${ticket.title}`}>
                   #{ticket.ticketNumber} {ticket.title}
                 </Link>
-                <BadgeSistema variante="info" tamaño="sm" className="flex-shrink-0">
+                <BadgeSistema variante="info" tamaño="sm" className="shrink-0">
                   {formatSupportStatus(ticket.status)}
                 </BadgeSistema>
               </div>
@@ -253,7 +239,7 @@ function TicketsMobileList({ tickets, canManage, statusAction, statusOptions }: 
               <SupportTicketQueueStatusForm action={statusAction} ticketId={ticket.id} ticketNumber={ticket.ticketNumber} currentStatus={ticket.status} options={statusOptions} />
             )}
             <div className="flex justify-end">
-              <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 focus-ring">
+              <Link href={`/ayuda/tickets/${ticket.id}`} className={CLASE_ENLACE_DETALLE}>
                 <MessageSquare className="h-4 w-4" aria-hidden="true" />
                 Responder #{ticket.ticketNumber}
               </Link>
