@@ -192,15 +192,19 @@ export function SelectorPareja({
     if (cedulaTipeada === '' || pending) return
     setAviso(null)
     startTransition(async () => {
+      // Updates after an await leave the transition unless wrapped again; unwrapped,
+      // the confirm step can render while `pending` still disables its buttons.
       try {
         const result = await buscarParejaPorCedula(edicionId, cedulaTipeada)
-        if (result.ok && result.encontrada) {
-          setPaso({ tipo: 'confirmar', cedula: cedulaTipeada, nombreMostrado: result.nombreMostrado })
-        } else {
-          setAviso(result.message)
-        }
+        startTransition(() => {
+          if (result.ok && result.encontrada) {
+            setPaso({ tipo: 'confirmar', cedula: cedulaTipeada, nombreMostrado: result.nombreMostrado })
+          } else {
+            setAviso(result.message)
+          }
+        })
       } catch {
-        setAviso(ERROR_TRANSPORTE)
+        startTransition(() => setAviso(ERROR_TRANSPORTE))
       }
     })
   }
@@ -212,9 +216,9 @@ export function SelectorPareja({
       try {
         const result = await inscribirseATaller({ edicionId, pareja })
         if (result.ok) onInscrito()
-        else setAviso(result.message)
+        else startTransition(() => setAviso(result.message))
       } catch {
-        setAviso(ERROR_TRANSPORTE)
+        startTransition(() => setAviso(ERROR_TRANSPORTE))
       }
     })
   }
