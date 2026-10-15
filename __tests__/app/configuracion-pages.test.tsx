@@ -9,9 +9,7 @@ jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: () => cr
 jest.mock('@/lib/getUserWithRoles', () => ({ getUserWithRoles: (...args: unknown[]) => getUserWithRoles(...args) }))
 jest.mock('next/navigation', () => ({ redirect: (path: string) => redirect(path) }))
 jest.mock('@/components/layout/dashboard-layout', () => ({ DashboardLayout: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }))
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo: string }) => <section><h1>{titulo}</h1>{children}</section>,
-}))
+jest.mock('@/components/ui/desktop-header', () => ({ DesktopHeader: ({ titulo }: { titulo?: string }) => <h1>{titulo}</h1> }))
 jest.mock('@/app/(auth)/configuracion/ConfiguracionGlobalClient', () => ({ ConfiguracionGlobalClient: () => <div data-testid="configuracion-global-client" /> }))
 
 const originalEnabled = process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED
@@ -64,7 +62,7 @@ describe('configuracion pages render through the platform route guard without ch
 
     await act(async () => { render(await PaginaConfiguracion()) })
 
-    expect(screen.getByRole('heading', { name: 'Configuración' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Configuración' })).toBeInTheDocument()
     expect(screen.getByTestId('configuracion-global-client')).toBeInTheDocument()
   })
 })
