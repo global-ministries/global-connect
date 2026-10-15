@@ -135,14 +135,38 @@ replacing them.
 Semantic tokens in `app/globals.css`, light and dark, exposed to Tailwind 4
 through `@theme inline` (`bg-success`, `text-danger`, `border-warning/30`…).
 
-| Token | Foreground | Use |
-| --- | --- | --- |
-| `--success` | `--success-foreground` | Done, saved, present |
-| `--warning` | `--warning-foreground` | Needs attention, pending |
-| `--danger` | `--danger-foreground` | Errors, destructive actions |
-| `--info` | `--info-foreground` | Neutral notices |
+| Fill | Text on the fill | Text on surfaces | Use |
+| --- | --- | --- | --- |
+| `--success` | `--success-foreground` | `--success-text` | Done, saved, present |
+| `--warning` | `--warning-foreground` | `--warning-text` | Needs attention, pending |
+| `--danger` | `--danger-foreground` | `--danger-text` | Errors, destructive actions |
+| `--info` | `--info-foreground` | `--info-text` | Neutral notices |
+
+- Fills (`bg-warning`, `bg-success/10`, `border-danger/30`) are for
+  backgrounds, borders, dots and icons. They are not text-safe: `--warning`
+  is about 2:1 on white.
+- Text and icons that must be read on a card, the page or a tinted badge use
+  the `-text` tokens (`text-warning-text`, `text-danger-text`). Each reaches at
+  least 4.5:1 on the card, the page and its own 15% tint, in light and dark.
+- `-foreground` is only for text on the solid fill (`bg-danger
+  text-danger-foreground`).
+
+```tsx
+<span className="rounded-full bg-warning/15 px-2 text-warning-text">Pendiente</span>
+```
 
 Use these instead of raw palette colors (`text-red-600`, `bg-green-500/10`).
+
+## Brand color
+
+| Class | Token | Use |
+| --- | --- | --- |
+| `bg-brand`, `border-brand` | `--brand-primary` (#E96C20) | Brand fills, active indicators |
+| `text-brand-foreground` | white | Large or bold text and icons on `bg-brand` (3.2:1) |
+| `bg-brand-tint` | `--brand-accent-strong` | Selected rows, soft brand backgrounds |
+| `text-brand-text` | `--brand-text` | Orange text at body size (≥ 4.5:1, light and dark) |
+
+`text-brand` is 3.2:1 on white: keep it for icons and large headings.
 `coloresMarca` now points at the CSS variables; prefer the Tailwind classes
 and reach for it only where a class cannot (inline styles, SVG attributes).
 
