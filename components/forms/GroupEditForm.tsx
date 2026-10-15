@@ -7,10 +7,10 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { InputSistema, SelectSistema, TextareaSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno";
+import { InputSistema, SelectSistema, TextareaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
 import { updateGroup } from "@/lib/actions/group.actions";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
+import { COLUMNAS_CAMPOS, SeccionFormulario } from "./seccion-formulario";
 
 // Esquema de validación con Zod
 const groupEditSchema = z.object({
@@ -177,20 +177,20 @@ export default function GroupEditForm({
   return (
     <form onSubmit={handleSubmit(onSubmit, (formErrors) => {
       console.error("Errores de validación del formulario:", formErrors);
-    })} className="space-y-8">
-      {/* Información Básica */}
-      <TarjetaSistema>
-        <h3 className="text-xl font-bold text-foreground mb-6">Información Básica</h3>
-        <div className="space-y-6">
-          <InputSistema
-            label="Nombre del Grupo"
-            placeholder="Ingresa el nombre del grupo"
-            error={errors.nombre?.message}
-            disabled={readOnly || isLoading}
-            {...register("nombre")}
-          />
+    })} className="space-y-6">
+      <div className="divide-y divide-border [&>*]:py-6 [&>*:first-child]:pt-0">
+        <SeccionFormulario titulo="Información Básica" tarjeta={false}>
+          <div className={COLUMNAS_CAMPOS[2]}>
+            <div className="@lg:col-span-2">
+              <InputSistema
+                label="Nombre del Grupo"
+                placeholder="Ingresa el nombre del grupo"
+                error={errors.nombre?.message}
+                disabled={readOnly || isLoading}
+                {...register("nombre")}
+              />
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Controller
               name="temporada_id"
               control={control}
@@ -222,9 +222,7 @@ export default function GroupEditForm({
                 />
               )}
             />
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Controller
               name="dia_reunion"
               control={control}
@@ -256,82 +254,80 @@ export default function GroupEditForm({
                 />
               )}
             />
-          </div>
 
-          <div className="flex flex-row items-center justify-between rounded-xl border border-border p-4">
-            <div className="space-y-0.5">
-              <Label className="text-base font-medium text-foreground">Grupo Activo</Label>
-              <p className="text-sm text-muted-foreground">
-                Indica si el grupo está activo y operativo
-              </p>
-            </div>
-            <Controller
-              name="activo"
-              control={control}
-              render={({ field }) => (
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                  disabled={readOnly || isLoading}
-                />
-              )}
-            />
-          </div>
-        </div>
-      </TarjetaSistema>
-
-      {/* Casa Anfitriona */}
-      <TarjetaSistema>
-        <div className="mb-6 space-y-2">
-          <h3 className="text-xl font-bold text-foreground">Casa Anfitriona</h3>
-          <p className="text-sm text-muted-foreground">
-            La visibilidad en el mapa se obtiene únicamente desde una Casa Anfitriona aprobada.
-          </p>
-        </div>
-
-        {selectedCasa && (
-          <div className="rounded-lg border border-border/50 p-3 text-sm">
-            <p className="font-medium text-foreground">Casa Anfitriona asignada</p>
-            <p className="text-muted-foreground">
-              {selectedCasa.nombre_lugar} — {selectedCasa.anfitrion_nombre}
-            </p>
-          </div>
-        )}
-
-        <div className="mt-4 rounded-lg border border-border/50 bg-muted/30 p-3 text-sm text-muted-foreground">
-          {hasValidAssignedCasa ? (
-            <p>
-              El grupo usa la ubicación aprobada de la Casa Anfitriona asignada. Las coordenadas manuales no se copian al grupo.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {grupo.casa_anfitriona_id && (
-                <p>
-                  La Casa Anfitriona asignada ya no está disponible para edición desde este formulario. Usa el flujo guiado para recuperar o cambiar la asignación.
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-border p-4 @lg:col-span-2">
+              <div className="space-y-0.5">
+                <label htmlFor="grupo-activo" className="block text-sm font-medium text-foreground">Grupo Activo</label>
+                <p className="text-sm text-muted-foreground">
+                  Indica si el grupo está activo y operativo
                 </p>
-              )}
-              <p>
-                Las direcciones manuales quedan solo como referencia interna y no hacen visible el grupo en el mapa.
-              </p>
-              <Link className="inline-flex font-medium text-primary underline-offset-4 hover:underline" href={assignmentHref}>
-                Asignar Casa Anfitriona
-              </Link>
+              </div>
+              <Controller
+                name="activo"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    id="grupo-activo"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={readOnly || isLoading}
+                  />
+                )}
+              />
             </div>
-          )}
-        </div>
-      </TarjetaSistema>
-
-      {/* Dirección manual — solo visible si NO hay casa anfitriona aprobada y disponible */}
-      {!hasValidAssignedCasa && (
-        <TarjetaSistema>
-          <div className="mb-6 space-y-2">
-            <h3 className="text-xl font-bold text-foreground">Dirección manual de referencia</h3>
-            <p className="text-sm text-muted-foreground">
-              Conserva datos operativos legados, pero no se usa como fuente del mapa de Grupos de Vida.
-            </p>
           </div>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        </SeccionFormulario>
+
+        <SeccionFormulario
+          titulo="Casa Anfitriona"
+          tarjeta={false}
+          descripcion="La visibilidad en el mapa se obtiene únicamente desde una Casa Anfitriona aprobada."
+        >
+          <div className="space-y-4">
+            {selectedCasa && (
+              <div className="rounded-xl border border-border p-4 text-sm">
+                <p className="font-medium text-foreground">Casa Anfitriona asignada</p>
+                <p className="text-muted-foreground">
+                  {selectedCasa.nombre_lugar} — {selectedCasa.anfitrion_nombre}
+                </p>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+              {hasValidAssignedCasa ? (
+                <p>
+                  El grupo usa la ubicación aprobada de la Casa Anfitriona asignada. Las coordenadas manuales no se copian al grupo.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {grupo.casa_anfitriona_id && (
+                    <p>
+                      La Casa Anfitriona asignada ya no está disponible para edición desde este formulario. Usa el flujo guiado para recuperar o cambiar la asignación.
+                    </p>
+                  )}
+                  <p>
+                    Las direcciones manuales quedan solo como referencia interna y no hacen visible el grupo en el mapa.
+                  </p>
+                  <Link
+                    className="-mx-2 inline-flex min-h-11 items-center rounded-xl px-2 font-medium text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    href={assignmentHref}
+                  >
+                    Asignar Casa Anfitriona
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </SeccionFormulario>
+
+        {/* Dirección manual — solo visible si NO hay casa anfitriona aprobada y disponible */}
+        {!hasValidAssignedCasa && (
+          <SeccionFormulario
+            titulo="Dirección manual de referencia"
+            tarjeta={false}
+            descripcion="Conserva datos operativos legados, pero no se usa como fuente del mapa de Grupos de Vida."
+          >
+            <div className={COLUMNAS_CAMPOS[2]}>
               <InputSistema
                 label="Calle"
                 placeholder="Ingresa la calle"
@@ -346,9 +342,7 @@ export default function GroupEditForm({
                 disabled={readOnly || isLoading}
                 {...register("direccion.barrio")}
               />
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputSistema
                 label="Código Postal"
                 placeholder="Ingresa el código postal"
@@ -371,30 +365,30 @@ export default function GroupEditForm({
                   />
                 )}
               />
+
+              <div className="@lg:col-span-2">
+                <TextareaSistema
+                  label="Referencia"
+                  placeholder="Ingresa puntos de referencia"
+                  disabled={readOnly || isLoading}
+                  error={errors.direccion?.referencia?.message}
+                  {...register("direccion.referencia")}
+                />
+              </div>
             </div>
+          </SeccionFormulario>
+        )}
 
-            <TextareaSistema
-              label="Referencia"
-              placeholder="Ingresa puntos de referencia"
-              disabled={readOnly || isLoading}
-              error={errors.direccion?.referencia?.message}
-              {...register("direccion.referencia")}
-            />
-          </div>
-        </TarjetaSistema>
-      )}
-
-      {/* Notas Privadas */}
-      <TarjetaSistema>
-        <h3 className="text-xl font-bold text-foreground mb-6">Notas Privadas</h3>
-        <TextareaSistema
-          label="Notas (solo para líderes)"
-          placeholder="Ingresa notas privadas sobre el grupo"
-          disabled={readOnly || isLoading}
-          error={errors.notas_privadas?.message}
-          {...register("notas_privadas")}
-        />
-      </TarjetaSistema>
+        <SeccionFormulario titulo="Notas Privadas" tarjeta={false}>
+          <TextareaSistema
+            label="Notas (solo para líderes)"
+            placeholder="Ingresa notas privadas sobre el grupo"
+            disabled={readOnly || isLoading}
+            error={errors.notas_privadas?.message}
+            {...register("notas_privadas")}
+          />
+        </SeccionFormulario>
+      </div>
 
       {/* Botones */}
       <div className="flex gap-4">

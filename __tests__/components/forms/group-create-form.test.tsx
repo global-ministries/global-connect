@@ -38,6 +38,7 @@ jest.mock('@/components/ui/sistema-diseno', () => {
       </button>
     ),
     InputSistema: MockInputSistema,
+    PieAccionesSistema: ({ children }: { children: React.ReactNode }) => <div data-slot="pie-acciones">{children}</div>,
     SelectSistema: ({ disabled, error, id, label, onValueChange, opciones, placeholder, value }: { disabled?: boolean; error?: string; id?: string; label?: string; onValueChange?: (value: string) => void; opciones: Array<{ valor: string; etiqueta: string }>; placeholder?: string; value?: string }) => (
       <label>
         {label}

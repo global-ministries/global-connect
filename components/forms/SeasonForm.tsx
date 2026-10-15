@@ -4,9 +4,9 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { InputSistema, BotonSistema } from "@/components/ui/sistema-diseno"
+import { InputSistema, BotonSistema, PieAccionesSistema } from "@/components/ui/sistema-diseno"
 import { createSeason, updateSeason } from "@/lib/actions/season.actions"
+import { COLUMNAS_CAMPOS } from "./seccion-formulario"
 
 const seasonSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido"),
@@ -66,17 +66,17 @@ export default function SeasonForm({ initialData }: SeasonFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Nombre */}
-        <InputSistema
-          label="Nombre de la Temporada *"
-          placeholder="Ej: Temporada 2025"
-          error={errors.nombre?.message}
-          {...register("nombre")}
-        />
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="@container space-y-6">
+      <div className={COLUMNAS_CAMPOS[2]}>
+        <div className="@lg:col-span-2">
+          <InputSistema
+            label="Nombre de la Temporada *"
+            placeholder="Ej: Temporada 2025"
+            error={errors.nombre?.message}
+            {...register("nombre")}
+          />
+        </div>
 
-        {/* Fecha de Inicio */}
         <InputSistema
           label="Fecha de Inicio *"
           type="date"
@@ -84,7 +84,6 @@ export default function SeasonForm({ initialData }: SeasonFormProps) {
           {...register("fecha_inicio")}
         />
 
-        {/* Fecha de Fin */}
         <InputSistema
           label="Fecha de Fin *"
           type="date"
@@ -93,23 +92,22 @@ export default function SeasonForm({ initialData }: SeasonFormProps) {
         />
 
         {/* Activa */}
-        <div className="space-y-2">
-          <Label htmlFor="activa">¿Activa?</Label>
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="activa"
-              checked={activaValue}
-              onCheckedChange={(checked) => setValue("activa", checked)}
-            />
-            <Label htmlFor="activa" className="text-sm text-muted-foreground">
+        <div className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-border p-4 @lg:col-span-2">
+          <div className="space-y-0.5">
+            <label htmlFor="activa" className="block text-sm font-medium text-foreground">¿Activa?</label>
+            <p className="text-sm text-muted-foreground">
               {activaValue ? "Sí" : "No"}
-            </Label>
+            </p>
           </div>
+          <Switch
+            id="activa"
+            checked={activaValue}
+            onCheckedChange={(checked) => setValue("activa", checked)}
+          />
         </div>
       </div>
 
-      {/* Botón de envío */}
-      <div className="flex justify-end">
+      <PieAccionesSistema fijo={false} className="bg-transparent">
         <BotonSistema
           type="submit"
           variante="primario"
@@ -117,7 +115,7 @@ export default function SeasonForm({ initialData }: SeasonFormProps) {
         >
           {isEditMode ? "Guardar Cambios" : "Crear Temporada"}
         </BotonSistema>
-      </div>
+      </PieAccionesSistema>
     </form>
   )
 }
