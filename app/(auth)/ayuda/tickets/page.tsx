@@ -1,11 +1,13 @@
 import Link from 'next/link'
-import { Eye, TicketIcon } from 'lucide-react'
+import { Eye, Plus, TicketIcon } from 'lucide-react'
 
 import { listSupportTickets } from '@/lib/actions/support.actions'
 import { formatSupportCategory, formatSupportSeverity, formatSupportStatus } from '@/lib/support/support-labels'
 
 import { DataTable, type DataTableColumn } from '@/components/ui/data-table'
-import { BadgeSistema, BotonSistema, ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { BadgeSistema, BotonSistema, PaginaSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+
+import { CLASE_ENLACE_DETALLE, CLASE_ICONO_TICKET, claseFiltro } from '../estilos'
 
 const TICKET_FILTERS = [
   { value: 'todos', label: 'Todos' },
@@ -59,7 +61,7 @@ export default async function TicketsPage({ searchParams }: { searchParams?: Pro
       key: 'actions',
       header: 'Acciones',
       cell: (ticket) => (
-        <Link href={`/ayuda/tickets/${ticket.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 focus-ring">
+        <Link href={`/ayuda/tickets/${ticket.id}`} className={CLASE_ENLACE_DETALLE}>
           <Eye className="h-4 w-4" aria-hidden="true" />
           Ver detalle
         </Link>
@@ -69,27 +71,40 @@ export default async function TicketsPage({ searchParams }: { searchParams?: Pro
   ]
 
   return (
-<ContenedorDashboard titulo="Mis tickets de soporte" accionPrincipal={<Link href="/ayuda/reportar"><BotonSistema tamaño="sm">Nuevo ticket</BotonSistema></Link>}>
+    <PaginaSistema
+      titulo="Mis tickets de soporte"
+      acciones={
+        <Link href="/ayuda/reportar" className="inline-flex rounded-xl focus-ring">
+          <BotonSistema tabIndex={-1} tamaño="sm" icono={Plus}>Nuevo ticket</BotonSistema>
+        </Link>
+      }
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <TicketFilterPills activeFilter={activeFilter} />
-        <DataTable
-          rows={filteredTickets}
-          columns={columns}
-          getRowKey={(ticket) => ticket.id}
-          caption="Historial de tickets de soporte enviados por ti."
-          getRowHref={(ticket) => `/ayuda/tickets/${ticket.id}`}
-          getRowLabel={(ticket) => `#${ticket.ticketNumber} ${ticket.title}`}
-          emptyState={<TextoSistema variante="sutil">{getEmptyStateMessage(activeFilter)}</TextoSistema>}
-          className="hidden md:block"
-        />
-        <TicketsMobileList tickets={filteredTickets} emptyMessage={getEmptyStateMessage(activeFilter)} />
-      </ContenedorDashboard>
-)
+        {/* The desktop header holds this action; mobile keeps it in the page. */}
+        <Link href="/ayuda/reportar" className="inline-flex w-full rounded-xl focus-ring md:hidden">
+          <BotonSistema tabIndex={-1} icono={Plus} className="w-full">Nuevo ticket</BotonSistema>
+        </Link>
+      </div>
+      <DataTable
+        rows={filteredTickets}
+        columns={columns}
+        getRowKey={(ticket) => ticket.id}
+        caption="Historial de tickets de soporte enviados por ti."
+        getRowHref={(ticket) => `/ayuda/tickets/${ticket.id}`}
+        getRowLabel={(ticket) => `#${ticket.ticketNumber} ${ticket.title}`}
+        emptyState={<TextoSistema variante="sutil">{getEmptyStateMessage(activeFilter)}</TextoSistema>}
+        className="hidden md:block"
+      />
+      <TicketsMobileList tickets={filteredTickets} emptyMessage={getEmptyStateMessage(activeFilter)} />
+    </PaginaSistema>
+  )
 }
 
 function TicketFilterPills({ activeFilter }: { activeFilter: TicketFilter }) {
   return (
-    <div className="mb-5 overflow-x-auto">
-      <div className="inline-flex items-center gap-1 rounded-2xl bg-card/60 border border-border/30 p-1 shadow-sm backdrop-blur">
+    <nav aria-label="Filtrar tickets por estado" className="min-w-0 overflow-x-auto">
+      <div className="inline-flex items-center gap-1 rounded-2xl border border-border/30 bg-card/60 p-1 shadow-sm backdrop-blur">
         {TICKET_FILTERS.map((filter) => {
           const isActive = filter.value === activeFilter
           const href = filter.value === 'todos' ? '/ayuda/tickets' : `/ayuda/tickets?estado=${filter.value}`
@@ -99,25 +114,21 @@ function TicketFilterPills({ activeFilter }: { activeFilter: TicketFilter }) {
               key={filter.value}
               href={href}
               aria-current={isActive ? 'page' : undefined}
-              className={`px-3.5 py-2 text-sm font-medium rounded-xl text-muted-foreground transition-colors hover:bg-muted ${
-                isActive
-                  ? 'bg-orange-500 text-white'
-                  : ''
-              }`}
+              className={claseFiltro(isActive)}
             >
               {filter.label}
             </Link>
           )
         })}
       </div>
-    </div>
+    </nav>
   )
 }
 
 function TicketIdentity({ ticket }: { ticket: TicketRow }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-r from-orange-400 to-orange-500">
+      <div className={`h-10 w-16 ${CLASE_ICONO_TICKET}`}>
         <TicketIcon className="h-4 w-4 text-white" aria-hidden="true" />
       </div>
       <div className="min-w-0">
@@ -146,7 +157,7 @@ function TicketsMobileList({ tickets, emptyMessage }: { tickets: TicketRow[]; em
       {tickets.map((ticket) => (
         <TarjetaSistema key={ticket.id} className="p-4">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-8 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-r from-orange-400 to-orange-500">
+            <div className={`mt-0.5 h-8 w-12 ${CLASE_ICONO_TICKET}`}>
               <TicketIcon className="h-4 w-4 text-white" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
@@ -154,7 +165,7 @@ function TicketsMobileList({ tickets, emptyMessage }: { tickets: TicketRow[]; em
                 <Link href={`/ayuda/tickets/${ticket.id}`} className="min-w-0 flex-1 truncate rounded-md font-semibold text-foreground hover:text-[var(--brand-primary)] focus-ring" aria-label={`#${ticket.ticketNumber} ${ticket.title}`}>
                   #{ticket.ticketNumber} {ticket.title}
                 </Link>
-                <BadgeSistema variante="info" tamaño="sm" className="flex-shrink-0">
+                <BadgeSistema variante="info" tamaño="sm" className="shrink-0">
                   {formatSupportStatus(ticket.status)}
                 </BadgeSistema>
               </div>
@@ -167,7 +178,7 @@ function TicketsMobileList({ tickets, emptyMessage }: { tickets: TicketRow[]; em
                 </div>
                 <div className="text-xs text-muted-foreground/70">{formatTicketDate(ticket.createdAt)}</div>
               </div>
-              <Link href={`/ayuda/tickets/${ticket.id}`} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 focus-ring">
+              <Link href={`/ayuda/tickets/${ticket.id}`} className={`mt-2 ${CLASE_ENLACE_DETALLE}`}>
                 <Eye className="h-4 w-4" aria-hidden="true" />
                 Ver detalle
               </Link>

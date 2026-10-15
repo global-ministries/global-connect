@@ -34,7 +34,7 @@ export function SupportTicketReplyComposer({ action, isStaffReply }: { action: S
         <TextoSistema variante="sutil" tamaño="sm">{isStaffReply ? 'Tu respuesta será visible para el solicitante.' : 'Agrega información o responde al equipo que revisa tu caso.'}</TextoSistema>
       </div>
       <TextareaSistema name="body" label={isStaffReply ? 'Respuesta de soporte' : 'Respuesta al equipo de soporte'} filas={4} required />
-      <BotonSistema type="submit" disabled={isPending}>{isPending ? 'Enviando...' : isStaffReply ? 'Enviar respuesta al solicitante' : 'Enviar respuesta'}</BotonSistema>
+      <BotonSistema type="submit" disabled={isPending} className="w-full sm:w-auto">{isPending ? 'Enviando...' : isStaffReply ? 'Enviar respuesta al solicitante' : 'Enviar respuesta'}</BotonSistema>
     </form>
   )
 }
@@ -59,7 +59,7 @@ export function SupportTicketStatusForm({ action, currentStatus, options }: { ac
   return (
     <form action={formAction} className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
       <SelectSistema label="Nuevo estado" name="status" defaultValue={currentStatus} opciones={options} />
-      <BotonSistema type="submit" disabled={isPending}>{isPending ? 'Actualizando...' : 'Actualizar estado'}</BotonSistema>
+      <BotonSistema type="submit" disabled={isPending} className="w-full sm:w-auto">{isPending ? 'Actualizando...' : 'Actualizar estado'}</BotonSistema>
     </form>
   )
 }
