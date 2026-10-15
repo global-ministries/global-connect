@@ -102,6 +102,22 @@ function algunTextoLargo(objetos: readonly Objeto[]): boolean {
   return objetos.some((o) => Object.values(o).some((v) => typeof v === 'string' && v.length > LIMITES_PREREGISTRO.texto))
 }
 
+export type CampoPadrePreregistro = 'nombre' | 'apellido' | 'telefono' | 'email'
+
+/**
+ * The parent's field errors, keyed by field in form order. Shared by
+ * parsePreregistro and the public wizard, which validates one step at a time.
+ */
+export function erroresPadrePreregistro(padre: Objeto): Partial<Record<CampoPadrePreregistro, string>> {
+  const errores: Partial<Record<CampoPadrePreregistro, string>> = {}
+  const email = cadena(padre, 'email').trim().toLowerCase()
+  if (!cadena(padre, 'nombre').trim()) errores.nombre = 'Escribe tu nombre.'
+  if (!cadena(padre, 'apellido').trim()) errores.apellido = 'Escribe tu apellido.'
+  if (cadena(padre, 'telefono').trim().replace(/\D/g, '').length < 7) errores.telefono = 'Escribe un teléfono válido.'
+  if (email && !esEmailValido(email)) errores.email = 'Escribe un correo válido o déjalo vacío.'
+  return errores
+}
+
 /** Parses the untrusted public form body. `hoy` is the Caracas date (YYYY-MM-DD). */
 export function parsePreregistro(body: unknown, hoy: string): ResultadoPreregistro {
   if (!esObjeto(body)) return { ok: false, errores: ['Formulario inválido.'] }
@@ -126,10 +142,7 @@ export function parsePreregistro(body: unknown, hoy: string): ResultadoPreregist
   const telefono = cadena(padre, 'telefono').trim()
   const email = cadena(padre, 'email').trim().toLowerCase()
   const cedula = cadena(padre, 'cedula').trim()
-  if (!nombre) errores.push('Escribe tu nombre.')
-  if (!apellido) errores.push('Escribe tu apellido.')
-  if (telefono.replace(/\D/g, '').length < 7) errores.push('Escribe un teléfono válido.')
-  if (email && !esEmailValido(email)) errores.push('Escribe un correo válido o déjalo vacío.')
+  errores.push(...Object.values(erroresPadrePreregistro(padre)))
 
   // Children and pickup people: the same rules as the table form. The parent
   // block is validated above, so a placeholder id skips it there.
