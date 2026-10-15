@@ -137,7 +137,7 @@ function FormularioRolNuevo({
           disabled={isPending}
         />
       </div>
-      <BotonSistema type="submit" variante="outline" tamaño="sm" disabled={isPending || !label}>
+      <BotonSistema type="submit" variante="outline" disabled={isPending || !label}>
         Agregar rol
       </BotonSistema>
     </form>

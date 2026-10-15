@@ -144,7 +144,7 @@ function FormularioTurnoNuevo({
       />
       <InputSistema label="Hora" type="time" value={hora} onChange={(event) => setHora(event.target.value)} disabled={isPending} />
       <div className="flex items-end">
-        <BotonSistema type="submit" variante="outline" tamaño="sm" disabled={isPending || !label || !campusId || !hora}>
+        <BotonSistema type="submit" variante="outline" disabled={isPending || !label || !campusId || !hora}>
           Agregar turno
         </BotonSistema>
       </div>
