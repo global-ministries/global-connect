@@ -1,6 +1,7 @@
 import React, { useId } from 'react'
 import { cn } from '@/lib/utils'
 import { LucideIcon, ChevronDown } from 'lucide-react'
+import { Slot, Slottable } from '@radix-ui/react-slot'
 
 // Lazy load DesktopHeader (client component) to keep this file server-compatible
 const DesktopHeader = React.lazy(() => import('./desktop-header').then(m => ({ default: m.DesktopHeader })))
@@ -266,26 +267,33 @@ TextareaSistema.displayName = "TextareaSistema"
 type TamañoControl = 'sm' | 'md' | 'lg'
 
 interface BotonSistemaBaseProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variante?: 'primario' | 'secundario' | 'outline' | 'ghost'
+  /** `peligro`: destructive actions (eliminar, desactivar). */
+  variante?: 'primario' | 'secundario' | 'outline' | 'ghost' | 'peligro'
   /** sm 36px (dense toolbars only), md 44px (default), lg 48px (hero / mobile primary). */
   tamaño?: TamañoControl
   cargando?: boolean
   icono?: LucideIcon
   iconoPosicion?: 'izquierda' | 'derecha'
+  /**
+   * Renders the single child (e.g. a `next/link` `Link`) with the button
+   * styles and icons, so navigation is one tab stop instead of a link
+   * wrapping a button. `disabled`/`cargando` become `aria-disabled`.
+   */
+  asChild?: boolean
 }
 
 /**
  * An icon-only button (`soloIcono`) is a square of the control height and has
- * no visible text, so the type requires an `aria-label` and forbids children.
+ * no visible text, so the type requires an `aria-label` and forbids children
+ * (except the single element it renders as with `asChild`).
  */
 type BotonSistemaProps =
   | (BotonSistemaBaseProps & { soloIcono?: false })
-  | (Omit<BotonSistemaBaseProps, 'children' | 'aria-label'> & {
+  | (Omit<BotonSistemaBaseProps, 'children' | 'aria-label' | 'asChild'> & {
       soloIcono: true
       icono: LucideIcon
       'aria-label': string
-      children?: never
-    })
+    } & ({ asChild?: false; children?: never } | { asChild: true; children: React.ReactElement }))
 
 const ALTOS_BOTON: Record<TamañoControl, string> = {
   sm: "h-9 pointer-coarse:h-11",
@@ -308,6 +316,7 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
     icono: Icono,
     iconoPosicion = 'izquierda',
     soloIcono = false,
+    asChild = false,
     children,
     disabled,
     ...props
@@ -318,7 +327,8 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
       primario: "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl focus:ring-orange-500",
       secundario: "bg-secondary hover:bg-secondary/80 text-secondary-foreground shadow-lg hover:shadow-xl focus:ring-secondary",
       outline: "border-2 border-border hover:border-border/80 text-foreground hover:bg-accent focus:ring-ring",
-      ghost: "text-muted-foreground hover:text-foreground hover:bg-accent focus:ring-ring"
+      ghost: "text-muted-foreground hover:text-foreground hover:bg-accent focus:ring-ring",
+      peligro: "bg-danger hover:bg-danger/90 text-danger-foreground shadow-lg hover:shadow-xl focus:ring-danger"
     }
 
     const tamaños: Record<TamañoControl, string> = {
@@ -328,19 +338,24 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
     }
 
     const claseIcono = "h-5 w-5"
+    const inactivo = disabled || cargando
+    const Comp = asChild ? Slot : "button"
 
     return (
-      <button
+      <Comp
         className={cn(
           baseClasses,
           variantes[variante],
           ALTOS_BOTON[tamaño],
           tamaños[tamaño],
           soloIcono && [ANCHOS_BOTON_ICONO[tamaño], "px-0"],
-          (disabled || cargando) && "opacity-50 cursor-not-allowed",
+          inactivo && "opacity-50 cursor-not-allowed",
+          asChild && inactivo && "pointer-events-none",
           className
         )}
-        disabled={disabled || cargando}
+        {...(asChild
+          ? { "aria-disabled": inactivo || undefined }
+          : { disabled: inactivo })}
         ref={ref}
         {...props}
       >
@@ -352,9 +367,9 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
         ) : (
           Icono && (soloIcono || iconoPosicion === 'izquierda') && <Icono className={claseIcono} aria-hidden="true" />
         )}
-        {children}
+        {asChild ? <Slottable>{children}</Slottable> : children}
         {!cargando && !soloIcono && Icono && iconoPosicion === 'derecha' && <Icono className={claseIcono} aria-hidden="true" />}
-      </button>
+      </Comp>
     )
   }
 )

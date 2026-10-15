@@ -83,6 +83,14 @@ mobile with the primary on top, a right-aligned row from `sm`) with the
 default md buttons, and scroll inside (`max-h-[calc(100dvh-2rem)]
 overflow-y-auto`) when the content can grow.
 
+## Close buttons in sheets and dialogs
+
+The built-in close button of `ui/sheet` and `ui/dialog` (and so of
+`PanelLateralSistema`) is a 44px square (`size-11`) at `top-2 right-2`, with
+a 16px icon, the control radius, a `focus-visible` ring and the accessible
+name "Cerrar". Headers next to it reserve `pr-14` so titles never run under
+it. Hide it on dialogs with `showCloseButton={false}`, as before.
+
 ## Control size scale
 
 Buttons and form controls share three heights. Both `BotonSistema` and
@@ -102,6 +110,36 @@ migrate.
 - An icon-only `BotonSistema` (`soloIcono`) requires `aria-label` and takes no
   children; the type rejects anything else.
 
+## Button variants and links
+
+| `variante` | Look | Use |
+| --- | --- | --- |
+| `primario` (default) | Orange gradient | The one main action of a view |
+| `secundario` | Secondary fill | Supporting actions |
+| `outline` | 2px border | Neutral actions, cancel |
+| `ghost` | Text only | Toolbars, low-emphasis actions |
+| `peligro` | `bg-danger` / `text-danger-foreground` | Destructive actions (eliminar, desactivar) |
+
+Do not fake the danger look with class overrides: the primary gradient is a
+`background-image`, so `bg-red-*` on top of it needs `bg-none` hacks.
+
+Navigation that looks like a button uses `asChild` with a single `Link`
+child. The link gets the button classes and icons, and stays one tab stop
+(no `Link` wrapping a button with `tabIndex={-1}`):
+
+```tsx
+<BotonSistema asChild variante="outline" icono={ArrowRight} iconoPosicion="derecha">
+  <Link href="/grupos-vida">Ver grupos</Link>
+</BotonSistema>
+
+<BotonSistema asChild soloIcono icono={Pencil} aria-label="Editar">
+  <Link href={`/fichas/${id}`} />
+</BotonSistema>
+```
+
+With `asChild`, `disabled` and `cargando` set `aria-disabled` and
+`pointer-events-none` instead of the button attribute.
+
 ## Radius
 
 | Token | Class | Value | Use |
@@ -119,14 +157,38 @@ replacing them.
 Semantic tokens in `app/globals.css`, light and dark, exposed to Tailwind 4
 through `@theme inline` (`bg-success`, `text-danger`, `border-warning/30`…).
 
-| Token | Foreground | Use |
-| --- | --- | --- |
-| `--success` | `--success-foreground` | Done, saved, present |
-| `--warning` | `--warning-foreground` | Needs attention, pending |
-| `--danger` | `--danger-foreground` | Errors, destructive actions |
-| `--info` | `--info-foreground` | Neutral notices |
+| Fill | Text on the fill | Text on surfaces | Use |
+| --- | --- | --- | --- |
+| `--success` | `--success-foreground` | `--success-text` | Done, saved, present |
+| `--warning` | `--warning-foreground` | `--warning-text` | Needs attention, pending |
+| `--danger` | `--danger-foreground` | `--danger-text` | Errors, destructive actions |
+| `--info` | `--info-foreground` | `--info-text` | Neutral notices |
+
+- Fills (`bg-warning`, `bg-success/10`, `border-danger/30`) are for
+  backgrounds, borders, dots and icons. They are not text-safe: `--warning`
+  is about 2:1 on white.
+- Text and icons that must be read on a card, the page or a tinted badge use
+  the `-text` tokens (`text-warning-text`, `text-danger-text`). Each reaches at
+  least 4.5:1 on the card, the page and its own 15% tint, in light and dark.
+- `-foreground` is only for text on the solid fill (`bg-danger
+  text-danger-foreground`).
+
+```tsx
+<span className="rounded-full bg-warning/15 px-2 text-warning-text">Pendiente</span>
+```
 
 Use these instead of raw palette colors (`text-red-600`, `bg-green-500/10`).
+
+## Brand color
+
+| Class | Token | Use |
+| --- | --- | --- |
+| `bg-brand`, `border-brand` | `--brand-primary` (#E96C20) | Brand fills, active indicators |
+| `text-brand-foreground` | white | Large or bold text and icons on `bg-brand` (3.2:1) |
+| `bg-brand-tint` | `--brand-accent-strong` | Selected rows, soft brand backgrounds |
+| `text-brand-text` | `--brand-text` | Orange text at body size (≥ 4.5:1, light and dark) |
+
+`text-brand` is 3.2:1 on white: keep it for icons and large headings.
 `coloresMarca` now points at the CSS variables; prefer the Tailwind classes
 and reach for it only where a class cannot (inline styles, SVG attributes).
 
