@@ -75,7 +75,6 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
 
   return (
 <PaginaSistema
-        ancho="form"
         titulo={`Registrar Asistencia - ${grupo.nombre}`}
         descripcion="Registra la asistencia y notas pastorales de la reunión."
         regreso={{ href: `/grupos-vida/${id}`, texto: "Volver al grupo" }}

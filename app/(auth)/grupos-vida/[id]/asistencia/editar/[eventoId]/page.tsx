@@ -4,7 +4,7 @@ import RegistroAsistenciaAvanzado from '@/components/grupos/RegistroAsistenciaAv
 import { Eye, History } from 'lucide-react'
 
 import {
-  PaginaSistema, TarjetaSistema, BotonSistema, TituloSistema,
+  PaginaSistema, BotonSistema, TituloSistema,
 } from '@/components/ui/sistema-diseno'
 import { obtenerConfiguracionGrupos } from '@/lib/actions/configuracion-grupos-vida.actions'
 import type { TipoPresencia, MotivoTardanza, TiempoTardanza } from '@/lib/types/asistencia-avanzada.types'
@@ -150,7 +150,6 @@ export default async function EditarAsistenciaPage({
 
   return (
 <PaginaSistema
-        ancho="form"
         titulo={`Editar Asistencia - ${grupo.nombre}`}
         descripcion={`Fecha: ${formatearFecha(ev.fecha)}`}
         regreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
@@ -171,20 +170,18 @@ export default async function EditarAsistenciaPage({
           </div>
         }
       >
-        <TarjetaSistema className="p-4 sm:p-6">
-          <RegistroAsistenciaAvanzado
-            grupoId={id}
-            miembros={(grupo.miembros || []).map((m) => ({
-              id: m.id,
-              nombre: m.nombre,
-              apellido: m.apellido,
-              rol: m.rol || undefined,
-            }))}
-            initialData={initialData}
-            isEdit
-            configuracion={configuracion}
-          />
-        </TarjetaSistema>
+        <RegistroAsistenciaAvanzado
+          grupoId={id}
+          miembros={(grupo.miembros || []).map((m) => ({
+            id: m.id,
+            nombre: m.nombre,
+            apellido: m.apellido,
+            rol: m.rol || undefined,
+          }))}
+          initialData={initialData}
+          isEdit
+          configuracion={configuracion}
+        />
       </PaginaSistema>
 )
 }
