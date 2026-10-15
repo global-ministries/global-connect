@@ -69,6 +69,14 @@ scrolling body that is a `@container` — lay out fields with `@md:`/`@lg:` so
 they follow the panel width, not the viewport — and `PieAccionesSistema` for
 the `pie` actions. Padding is 16px mobile, 24px from `sm`.
 
+## Close buttons in sheets and dialogs
+
+The built-in close button of `ui/sheet` and `ui/dialog` (and so of
+`PanelLateralSistema`) is a 44px square (`size-11`) at `top-2 right-2`, with
+a 16px icon, the control radius, a `focus-visible` ring and the accessible
+name "Cerrar". Headers next to it reserve `pr-14` so titles never run under
+it. Hide it on dialogs with `showCloseButton={false}`, as before.
+
 ## Control size scale
 
 Buttons and form controls share three heights. Both `BotonSistema` and
