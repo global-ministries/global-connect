@@ -200,7 +200,39 @@ value, optional link) and one percentage scale for bars and figures (≥80
 success, ≥60 warning, ≥40 brand, below danger). Their lists switch to columns by
 container width (`@xl` / `@2xl`), so they never scroll sideways at 360px.
 
+## Navigation
+
+One registry, `lib/navegacion/registro.ts`, lists the app's own entries (id,
+label, href, icon, `roles` / `capabilities`, group, bottom-bar priority). The
+desktop sidebar, the mobile drawer and the mobile bottom bar all read it;
+`components/navegacion/use-entradas-navegacion.ts` adds Dream Team and Niños
+after Grupos de Vida and appends the platform items. Who sees an entry is
+still decided only by `canAccess` (`lib/navigation/canAccess.ts`).
+
+- Add or rename an entry in the registry, never in a surface.
+- Name an entry after the page it opens: `/ayuda/admin` is "Cola de soporte",
+  `/configuracion/soporte` is "Configuración de soporte",
+  `/grupos-vida/dashboard-riesgo` is "Salud de los Grupos".
+- The bottom bar shows the entries with `prioridadMovil`, under the same role
+  rule as the sidebar (a member no longer sees Usuarios there).
+- Look comes from `components/navegacion/estilos-navegacion.ts`: 44px entries
+  (`min-h-11`), the active entry on `bg-brand-tint text-brand-text` with a
+  `text-brand` icon, `focus-ring`, and 44px icon-only buttons
+  (`CLASE_BOTON_ICONO_NAV`) that always carry an `aria-label`.
+- The collapsed sidebar labels each link (`aria-label`) and shows its tooltip
+  on hover and on keyboard focus.
+- The top bar and the bottom bar pad by the safe-area insets; the (auth)
+  layout offsets the page by the same heights.
+- `tests`: `__tests__/components/navegacion/paridad-navegacion.test.tsx` pins
+  the visible hrefs per role and per surface.
+
 ## Follow-ups
+
+- Navigation: "Dashboard" stays in English until the dashboard page and its
+  tests move to "Inicio" together. The drawer still shows Talleres as a plain
+  link (only the sidebar opens `TalleresNavSubmenu`). With platform navigation
+  on, the bottom bar shows every platform item (no five-item cap); labels
+  truncate instead of scrolling.
 
 - Lint guardrail: `eslint.config.mjs` forbids `ui/button`, `ui/card` and
   `boton-gradiente` (as an error) only in the paths listed in
