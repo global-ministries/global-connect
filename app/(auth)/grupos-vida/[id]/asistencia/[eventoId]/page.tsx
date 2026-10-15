@@ -3,7 +3,7 @@ import Link from 'next/link'
 import AttendanceList from "@/components/grupos/AttendanceList.client";
 import { Edit, Calendar, Clock, BookOpen, StickyNote, Users, AlertTriangle } from 'lucide-react'
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema, BadgeSistema, SeparadorSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema, BadgeSistema, SeparadorSistema } from '@/components/ui/sistema-diseno'
 
 /** Evento devuelto por obtener_evento_grupo (v2) */
 interface EventoGrupo {
@@ -41,7 +41,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -51,7 +51,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             </Link>
           </div>
         </div>
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 
   const [{ data: evento }, { data: puedeEditar }, asistenciaRes, { data: grupoData }] = await Promise.all([
@@ -84,7 +84,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
 
   const ev: EventoGrupo | undefined = Array.isArray(evento) ? (evento[0] as EventoGrupo) : undefined
   if (!ev) return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -95,7 +95,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             </Link>
           </div>
         </div>
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 
   const asistentes = Array.isArray(asistenciaRes.data)
@@ -136,10 +136,11 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
+        ancho="form"
         titulo={`Asistencia del ${formatearFecha(ev.fecha)}`}
-        botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
-        accionPrincipal={
+        regreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
+        acciones={
           puedeEditar ? (
             <Link href={`/grupos-vida/${id}/asistencia/editar/${eventoId}`}>
               <BotonSistema variante="outline" tamaño="sm" className="gap-2">
@@ -288,6 +289,6 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             <TextoSistema className="whitespace-pre-wrap">{ev.notas_privadas_lider}</TextoSistema>
           </TarjetaSistema>
         )}
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }

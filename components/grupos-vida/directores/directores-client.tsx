@@ -19,7 +19,7 @@ import { useMemo, useState, type ReactElement } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Plus, Users } from 'lucide-react'
 
-import { ContenedorDashboard, InputSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, InputSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { cn } from '@/lib/utils'
 import { filtrarDirectoresEtapa, type VistaDirectores } from '@/lib/platform/grupos-vida/directores-vista'
 import { AgregarDirectorDialog } from './agregar-director-dialog'
@@ -79,9 +79,11 @@ export function DirectoresClient({ vista, tabInicial }: DirectoresClientProps): 
   )
 
   return (
-    <ContenedorDashboard titulo="Directores" accionPrincipal={puedeAgregar ? botonAgregar('hidden md:inline-flex') : null}>
-      <p className="-mt-2 text-sm text-muted-foreground md:text-[15px]">{SUBTITULO}</p>
-
+    <PaginaSistema
+      titulo="Directores"
+      descripcion={SUBTITULO}
+      acciones={puedeAgregar ? botonAgregar('hidden md:inline-flex') : null}
+    >
       <FranjaPorOrdenar items={vista.porOrdenar} />
 
       <div role="tablist" aria-label="Tipo de director" className="flex gap-2 border-b border-border">
@@ -178,6 +180,6 @@ export function DirectoresClient({ vista, tabInicial }: DirectoresClientProps): 
       {puedeAgregar && botonAgregar('w-full md:hidden')}
 
       {puedeAgregar && <AgregarDirectorDialog abierto={agregando} onClose={() => setAgregando(false)} segmentos={vista.segmentos} />}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

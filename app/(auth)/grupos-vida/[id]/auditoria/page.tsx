@@ -3,7 +3,7 @@ import AuditViewer from "@/components/grupos/AuditViewer.client";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { ContenedorDashboard, BotonSistema } from "@/components/ui/sistema-diseno";
+import { PaginaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
 
 export default async function GrupoAuditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,7 +19,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
 
   if (!detalle) {
     return (
-<ContenedorDashboard>
+<PaginaSistema>
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">No tienes acceso a esta auditoría.</p>
             <Link href={`/grupos-vida/${id}`}>
@@ -29,7 +29,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
               </BotonSistema>
             </Link>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 );
   }
 
@@ -38,7 +38,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
 
   if (!puedeVerAuditoria) {
     return (
-<ContenedorDashboard>
+<PaginaSistema>
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">No tienes permiso para ver la auditoría.</p>
             <Link href={`/grupos-vida/${id}`}>
@@ -48,20 +48,20 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
               </BotonSistema>
             </Link>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 );
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo="Auditoría"
-        subtitulo={`Historial de cambios del grupo ${detalle.nombre}`}
-        botonRegreso={{
+        descripcion={`Historial de cambios del grupo ${detalle.nombre}`}
+        regreso={{
           href: `/grupos-vida/${id}`,
           texto: "Volver al grupo"
         }}
       >
         <AuditViewer grupoId={id} />
-      </ContenedorDashboard>
+      </PaginaSistema>
 );
 }

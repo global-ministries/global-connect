@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import GroupEditForm from "@/components/forms/GroupEditForm";
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno';
+import { PaginaSistema, TarjetaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -32,7 +32,7 @@ export default async function EditGroupPage({ params }: PageProps) {
 
   if (error || !grupo) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -47,7 +47,7 @@ export default async function EditGroupPage({ params }: PageProps) {
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 );
   }
 
@@ -114,10 +114,11 @@ export default async function EditGroupPage({ params }: PageProps) {
     });
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo="Editar Grupo"
+        ancho="form"
         descripcion={`Modifica la información del grupo "${grupo.nombre}"`}
-        botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
+        regreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
       >
         {/* Formulario */}
         <TarjetaSistema className="p-6">
@@ -135,6 +136,6 @@ export default async function EditGroupPage({ params }: PageProps) {
             readOnly={!puedeEditar}
           />
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
 );
 }

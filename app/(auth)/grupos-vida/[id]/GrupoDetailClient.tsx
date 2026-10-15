@@ -9,7 +9,7 @@ import { useNotificaciones } from "@/hooks/use-notificaciones";
 import { crearSolicitudGrupo } from "@/lib/actions/solicitudes-grupo.actions";
 import { useRouter } from "next/navigation";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
-import { ContenedorDashboard, TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
+import { PaginaSistema, TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 
 const MapModal = dynamic(() => import("@/components/modals/MapModal"), {
@@ -198,10 +198,10 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   };
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo={grupo.nombre}
-      subtitulo={`${grupo.segmento_nombre || ''} ${grupo.temporada_nombre ? `• ${grupo.temporada_nombre}` : ''}`}
-      botonRegreso={{ href: '/grupos-vida', texto: 'Volver' }}
+      descripcion={[grupo.segmento_nombre, grupo.temporada_nombre].filter(Boolean).join(' • ') || undefined}
+      regreso={{ href: '/grupos-vida', texto: 'Volver' }}
     >
 
       {/* Tarjeta Principal — Header del Grupo */}
@@ -546,6 +546,6 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         message={`Se enviará una solicitud para eliminar a ${pendingRequestName} del grupo de vida. Un superior revisará y aprobará la solicitud. ¿Deseas continuar?`}
         isLoading={requestingId != null}
       />
-    </ContenedorDashboard>
+    </PaginaSistema>
   );
 }

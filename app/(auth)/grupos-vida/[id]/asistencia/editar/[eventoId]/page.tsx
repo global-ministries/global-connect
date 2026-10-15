@@ -4,7 +4,7 @@ import RegistroAsistenciaAvanzado from '@/components/grupos/RegistroAsistenciaAv
 import { Eye, History } from 'lucide-react'
 
 import {
-  ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema,
+  PaginaSistema, TarjetaSistema, BotonSistema, TituloSistema,
 } from '@/components/ui/sistema-diseno'
 import { obtenerConfiguracionGrupos } from '@/lib/actions/configuracion-grupos-vida.actions'
 import type { TipoPresencia, MotivoTardanza, TiempoTardanza } from '@/lib/types/asistencia-avanzada.types'
@@ -52,7 +52,7 @@ export default async function EditarAsistenciaPage({
 
   if (!user) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -62,7 +62,7 @@ export default async function EditarAsistenciaPage({
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
@@ -79,7 +79,7 @@ export default async function EditarAsistenciaPage({
 
   if (!ev || !puedeEditar || !grupo) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <div className="text-red-500 text-6xl mb-4">⚠️</div>
@@ -90,7 +90,7 @@ export default async function EditarAsistenciaPage({
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
@@ -149,11 +149,12 @@ export default async function EditarAsistenciaPage({
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
+        ancho="form"
         titulo={`Editar Asistencia - ${grupo.nombre}`}
         descripcion={`Fecha: ${formatearFecha(ev.fecha)}`}
-        botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
-        accionPrincipal={
+        regreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
+        acciones={
           <div className="flex items-center gap-2">
             <Link href={`/grupos-vida/${id}/asistencia/${eventoId}`}>
               <BotonSistema variante="outline" tamaño="sm" className="gap-2">
@@ -184,6 +185,6 @@ export default async function EditarAsistenciaPage({
             configuracion={configuracion}
           />
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }
