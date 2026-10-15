@@ -108,7 +108,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
           )}
         </div>
       </div>
-      {error && <div className="text-sm text-red-600">{error}</div>}
+      {error && <div className="text-sm text-danger">{error}</div>}
 
       {/* Estados */}
       {loading && (

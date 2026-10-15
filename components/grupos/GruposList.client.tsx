@@ -438,7 +438,7 @@ export default function GruposListClient({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
                         {grupo.eliminado ? (
-                          <BadgeSistema variante="default" tamaño="sm" className="bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
+                          <BadgeSistema variante="default" tamaño="sm" className="bg-danger/10 text-danger border-danger/30">Eliminado</BadgeSistema>
                         ) : grupo.activo ? (
                           <BadgeSistema variante="success" tamaño="sm">Activo</BadgeSistema>
                         ) : (
@@ -451,13 +451,13 @@ export default function GruposListClient({
                             canRestore && (
                               <button
                                 onClick={() => restaurarGrupo(grupo.id, grupo.nombre)}
-                                className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium"
+                                className="inline-flex items-center gap-1 text-success hover:text-success/80 text-xs font-medium"
                               >Restaurar</button>
                             )
                           ) : (
                             <button
                               onClick={() => eliminarGrupo(grupo.id, grupo.nombre)}
-                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-medium"
+                              className="inline-flex items-center gap-1 text-danger hover:text-danger/80 text-xs font-medium"
                             >
                               <Trash2 className="w-4 h-4" /> Papelera
                             </button>
@@ -526,7 +526,7 @@ export default function GruposListClient({
                         )}
                       </div>
                       {grupo.eliminado ? (
-                        <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0 bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
+                        <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0 bg-danger/10 text-danger border-danger/30">Eliminado</BadgeSistema>
                       ) : grupo.activo ? (
                         <BadgeSistema variante="success" tamaño="sm" className="ml-2 flex-shrink-0">Activo</BadgeSistema>
                       ) : (

@@ -300,7 +300,7 @@ function EstadoVacio({
     variante?: "default" | "error";
 }) {
     return (
-        <div className={`flex items-center gap-2 p-4 text-sm ${variante === "error" ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
+        <div className={`flex items-center gap-2 p-4 text-sm ${variante === "error" ? "text-danger" : "text-muted-foreground"}`}>
             <Icono className={`h-4 w-4 ${animado ? "animate-spin" : ""}`} />
             {texto}
         </div>

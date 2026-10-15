@@ -36,7 +36,7 @@ const ETIQUETA_NIVEL: Record<string, { texto: string; variante: 'error' | 'warni
 const ICONO_NIVEL: Record<string, React.ReactNode> = {
     critico: <ShieldAlert className="h-4 w-4 text-destructive" />,
     riesgo: <TrendingDown className="h-4 w-4 text-warning" />,
-    atencion: <AlertTriangle className="h-4 w-4 text-yellow-500" />,
+    atencion: <AlertTriangle className="h-4 w-4 text-warning" />,
 }
 
 export default function MiembrosRiesgoClient({ miembros }: Props) {
@@ -71,7 +71,7 @@ export default function MiembrosRiesgoClient({ miembros }: Props) {
             <div className="grid grid-cols-3 gap-3">
                 <button
                     onClick={() => setFiltroNivel(filtroNivel === 'critico' ? 'todos' : 'critico')}
-                    className={`p-3 rounded-xl border transition-colors duration-200 text-left ${filtroNivel === 'critico' ? 'border-red-500/50 bg-red-500/10' : 'border-border hover:bg-muted/30'}`}
+                    className={`p-3 rounded-xl border transition-colors duration-200 text-left ${filtroNivel === 'critico' ? 'border-danger/50 bg-danger/10' : 'border-border hover:bg-muted/30'}`}
                 >
                     <p className="text-xl font-bold text-destructive">{conteo.critico}</p>
                     <p className="text-xs text-muted-foreground">Críticos</p>
@@ -85,9 +85,9 @@ export default function MiembrosRiesgoClient({ miembros }: Props) {
                 </button>
                 <button
                     onClick={() => setFiltroNivel(filtroNivel === 'atencion' ? 'todos' : 'atencion')}
-                    className={`p-3 rounded-xl border transition-colors duration-200 text-left ${filtroNivel === 'atencion' ? 'border-yellow-500/50 bg-yellow-500/10' : 'border-border hover:bg-muted/30'}`}
+                    className={`p-3 rounded-xl border transition-colors duration-200 text-left ${filtroNivel === 'atencion' ? 'border-warning/50 bg-warning/10' : 'border-border hover:bg-muted/30'}`}
                 >
-                    <p className="text-xl font-bold text-yellow-500">{conteo.atencion}</p>
+                    <p className="text-xl font-bold text-warning">{conteo.atencion}</p>
                     <p className="text-xs text-muted-foreground">Atención</p>
                 </button>
             </div>
@@ -160,7 +160,7 @@ export default function MiembrosRiesgoClient({ miembros }: Props) {
                                             <td className="px-4 py-3 text-right">
                                                 <Link
                                                     href={`/grupos-vida/${m.grupo_id}/salud`}
-                                                    className="text-xs text-blue-500 hover:text-blue-400 transition-colors duration-200 flex items-center gap-1 justify-end"
+                                                    className="text-xs text-info hover:text-info/80 transition-colors duration-200 flex items-center gap-1 justify-end"
                                                 >
                                                     <Eye className="h-3.5 w-3.5" />
                                                     Ver grupo

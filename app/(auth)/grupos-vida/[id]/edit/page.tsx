@@ -35,7 +35,7 @@ export default async function EditGroupPage({ params }: PageProps) {
 <PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <div className="text-danger text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Grupo no encontrado</TituloSistema>
               <p className="text-muted-foreground mb-4">
                 El grupo solicitado no existe o no tienes acceso para editarlo.

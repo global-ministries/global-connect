@@ -477,7 +477,7 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                                 <TextoSistema variante="muted" tamaño="sm">Direcciones</TextoSistema>
                             </div>
                             <div>
-                                <TextoSistema className="text-lg font-bold text-green-600">{geoStats.conCoordenadas}</TextoSistema>
+                                <TextoSistema className="text-lg font-bold text-success">{geoStats.conCoordenadas}</TextoSistema>
                                 <TextoSistema variante="muted" tamaño="sm">Con coordenadas</TextoSistema>
                             </div>
                             <div>

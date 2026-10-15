@@ -82,7 +82,7 @@ export default async function EditarAsistenciaPage({
 <PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <div className="text-danger text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Sin permisos o evento no encontrado</TituloSistema>
               <p className="text-muted-foreground mb-4">No tienes permiso para editar o el evento no existe.</p>
               <Link href={`/grupos-vida/${id}`}>

@@ -184,9 +184,9 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
           {/* Controles y filtros */}
           <div className="px-4 sm:px-6 py-3 sm:py-4 bg-muted border-b border-border space-y-3">
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                <TextoSistema className="text-sm text-red-700">{error}</TextoSistema>
+              <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-danger mt-0.5 flex-shrink-0" />
+                <TextoSistema className="text-sm text-danger">{error}</TextoSistema>
               </div>
             )}
 
@@ -363,8 +363,8 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
             </div>
             <div className="px-6 py-5 space-y-4">
               <TextoSistema className="text-sm">Vas a dejar asignados únicamente los grupos marcados.</TextoSistema>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <TextoSistema className="text-sm text-amber-900">
+              <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
+                <TextoSistema className="text-sm text-foreground">
                   Se quitarán <strong>{confirmReplace.quitar}</strong> y quedarán <strong>{confirmReplace.agregar}</strong> seleccionados.
                 </TextoSistema>
               </div>

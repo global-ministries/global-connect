@@ -12,15 +12,15 @@ interface Props {
 const NIVEL_CONFIG = {
     normal: {
         icono: Heart,
-        color: "text-emerald-500",
-        bgColor: "bg-emerald-500/10",
+        color: "text-success",
+        bgColor: "bg-success/10",
         badge: "success" as const,
         label: "Normal",
     },
     atencion: {
         icono: AlertTriangle,
-        color: "text-amber-500",
-        bgColor: "bg-amber-500/10",
+        color: "text-warning",
+        bgColor: "bg-warning/10",
         badge: "warning" as const,
         label: "Atención",
     },
@@ -33,8 +33,8 @@ const NIVEL_CONFIG = {
     },
     critico: {
         icono: ShieldAlert,
-        color: "text-red-600",
-        bgColor: "bg-red-600/10",
+        color: "text-danger",
+        bgColor: "bg-danger/10",
         badge: "error" as const,
         label: "Crítico",
     },
@@ -118,8 +118,8 @@ export default function VistaSaludMiembros({ miembros, grupoId }: Props) {
                                     </span>
                                 </div>
                                 <div className="col-span-2 text-center">
-                                    <span className={`text-sm font-medium ${m.pct_asistencia >= 80 ? "text-emerald-500" :
-                                            m.pct_asistencia >= 50 ? "text-amber-500" : "text-destructive"
+                                    <span className={`text-sm font-medium ${m.pct_asistencia >= 80 ? "text-success" :
+                                            m.pct_asistencia >= 50 ? "text-warning" : "text-destructive"
                                         }`}>
                                         {m.pct_asistencia}%
                                     </span>

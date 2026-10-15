@@ -87,7 +87,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
 <PaginaSistema>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
-            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <div className="text-danger text-6xl mb-4">⚠️</div>
             <TituloSistema nivel={2}>Evento no encontrado</TituloSistema>
             <p className="text-muted-foreground mb-4">No hay acceso o el evento no existe.</p>
             <Link href={`/grupos-vida/${id}`}>
@@ -153,9 +153,9 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
       >
         {/* No hubo reunión */}
         {ev.no_hubo_reunion && (
-          <TarjetaSistema className="p-4 border-yellow-500/30 bg-yellow-500/5">
+          <TarjetaSistema className="p-4 border-warning/30 bg-warning/5">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
+              <AlertTriangle className="w-5 h-5 text-warning shrink-0" />
               <div>
                 <TextoSistema className="font-medium">No hubo reunión esta semana</TextoSistema>
                 {ev.motivo_no_reunion && (
@@ -251,15 +251,15 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">Presentes</TextoSistema>
-              <TituloSistema nivel={2} className="text-emerald-500">{presentes}</TituloSistema>
+              <TituloSistema nivel={2} className="text-success">{presentes}</TituloSistema>
             </TarjetaSistema>
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">Tardes</TextoSistema>
-              <TituloSistema nivel={2} className="text-amber-500">{tardes}</TituloSistema>
+              <TituloSistema nivel={2} className="text-warning">{tardes}</TituloSistema>
             </TarjetaSistema>
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">Ausentes</TextoSistema>
-              <TituloSistema nivel={2} className="text-red-500">{ausentes}</TituloSistema>
+              <TituloSistema nivel={2} className="text-danger">{ausentes}</TituloSistema>
             </TarjetaSistema>
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">% Asistencia</TextoSistema>
@@ -281,7 +281,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
 
         {/* Notas privadas del líder (solo para quien puede editar) */}
         {puedeEditar && ev.notas_privadas_lider && (
-          <TarjetaSistema className="p-4 sm:p-6 border-blue-500/20 bg-blue-500/5">
+          <TarjetaSistema className="p-4 sm:p-6 border-info/20 bg-info/5">
             <div className="flex items-center gap-2 mb-2">
               <BadgeSistema variante="info" tamaño="sm">Solo líder</BadgeSistema>
               <TextoSistema className="font-medium" tamaño="sm">Notas privadas del líder</TextoSistema>
