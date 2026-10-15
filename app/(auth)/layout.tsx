@@ -99,7 +99,8 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
             <CampusProvider>
               <div className="min-h-screen bg-[var(--surface-primary)]">
                 <HeaderMovil />
-                <div className="pt-16 pb-20 md:pt-0 md:pb-0">
+                {/* Clears the mobile top bar (inset + 52px) and bottom bar (inset + 64px). */}
+                <div className="pt-[calc(max(env(safe-area-inset-top),12px)_+_3.25rem)] pb-[calc(max(env(safe-area-inset-bottom),8px)_+_4rem)] md:pt-0 md:pb-0">
                   <DashboardLayout>{children}</DashboardLayout>
                 </div>
                 <MenuInferiorMovil />
