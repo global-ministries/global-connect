@@ -83,7 +83,7 @@ export default function GroupAuditPreview({ grupoId }: { grupoId: string }) {
         {items.map((it) => {
           const date = new Date(it.happened_at);
           return (
-            <li key={it.id} className="p-3 bg-card/60 rounded-md flex items-start gap-3">
+            <li key={it.id} className="p-3 bg-card/60 rounded-xl flex items-start gap-3">
               {it.action === "CREATE" && <Badge color="green">Alta</Badge>}
               {it.action === "UPDATE" && <Badge color="yellow">Cambio</Badge>}
               {it.action === "DELETE" && <Badge color="red">Baja</Badge>}

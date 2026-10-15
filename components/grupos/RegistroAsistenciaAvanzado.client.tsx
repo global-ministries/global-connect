@@ -404,7 +404,7 @@ export default function RegistroAsistenciaAvanzado({
                                     placeholder="Peticiones de oración compartidas..."
                                     filas={2}
                                 />
-                                <div className="flex items-start gap-2 p-3 rounded-lg bg-muted">
+                                <div className="flex items-start gap-2 p-3 rounded-xl bg-muted">
                                     <Lock className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                                     <div className="flex-1">
                                         <TextareaSistema

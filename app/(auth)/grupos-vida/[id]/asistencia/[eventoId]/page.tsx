@@ -170,7 +170,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
         <TarjetaSistema className="p-4 sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
               </div>
               <div>
@@ -180,7 +180,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             </div>
             {ev.hora && (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
                   <Clock className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div>
@@ -191,7 +191,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             )}
             {ev.tema && (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
                   <BookOpen className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div>
@@ -202,7 +202,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             )}
             {(ev.conteo_visitantes ?? 0) > 0 && (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
                   <Users className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div>

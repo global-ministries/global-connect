@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { CheckCircle, Home, Search } from "lucide-react"
 import { asignarCasaAnfitrionaAGrupo } from "@/lib/actions/casas-anfitrionas.actions"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
-import { BadgeSistema, BotonSistema, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from "@/components/ui/sistema-diseno"
+import { BadgeSistema, BotonSistema, InputSistema, PieAccionesSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from "@/components/ui/sistema-diseno"
 
 export type AssignmentGroupOption = {
   id: string
@@ -160,9 +160,13 @@ export function AsignarCasaAnfitrionaClient({ casas, grupos, initialGroupId }: A
             </div>
           )}
 
-          <BotonSistema type="submit" icono={CheckCircle} cargando={isSubmitting} disabled={!canSubmit}>
-            Asignar Casa Anfitriona
-          </BotonSistema>
+          <PieAccionesSistema fijo={false} className="bg-transparent">
+
+            <BotonSistema type="submit" icono={CheckCircle} cargando={isSubmitting} disabled={!canSubmit}>
+              Asignar Casa Anfitriona
+            </BotonSistema>
+
+          </PieAccionesSistema>
         </form>
       </TarjetaSistema>
 

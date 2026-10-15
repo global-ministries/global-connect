@@ -64,7 +64,7 @@ export default function VistaSaludMiembros({ miembros, grupoId }: Props) {
                         return (
                             <TarjetaSistema key={nivel} variante="default" className="p-3">
                                 <div className="flex items-center gap-2">
-                                    <div className={`p-2 rounded-lg ${config.bgColor}`}>
+                                    <div className={`p-2 rounded-xl ${config.bgColor}`}>
                                         <Icono className={`h-4 w-4 ${config.color}`} />
                                     </div>
                                     <div>
@@ -101,7 +101,7 @@ export default function VistaSaludMiembros({ miembros, grupoId }: Props) {
                             {/* Desktop */}
                             <div className="hidden sm:grid grid-cols-12 gap-2 items-center">
                                 <div className="col-span-4 flex items-center gap-2">
-                                    <div className={`p-1.5 rounded-lg ${config.bgColor}`}>
+                                    <div className={`p-1.5 rounded-xl ${config.bgColor}`}>
                                         <Icono className={`h-3.5 w-3.5 ${config.color}`} />
                                     </div>
                                     <div>
@@ -135,7 +135,7 @@ export default function VistaSaludMiembros({ miembros, grupoId }: Props) {
                             <div className="sm:hidden">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-lg ${config.bgColor}`}>
+                                        <div className={`p-1.5 rounded-xl ${config.bgColor}`}>
                                             <Icono className={`h-3.5 w-3.5 ${config.color}`} />
                                         </div>
                                         <div>

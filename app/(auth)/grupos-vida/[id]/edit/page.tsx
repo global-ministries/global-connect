@@ -123,7 +123,7 @@ export default async function EditGroupPage({ params }: PageProps) {
         {/* Formulario */}
         <TarjetaSistema className="p-6">
           {!puedeEditar && (
-            <div className="mb-6 rounded-md border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-800">
+            <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-800">
               Este grupo está en modo solo lectura para tu rol. No puedes editarlo porque no eres el director de etapa asignado ni tienes permisos superiores.
             </div>
           )}

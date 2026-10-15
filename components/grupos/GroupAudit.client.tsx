@@ -157,7 +157,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
             <select
               value={action}
               onChange={(e) => setAction(e.target.value as any)}
-              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             >
               <option value="">Todas las acciones</option>
               <option value="CREATE">Alta</option>
@@ -171,7 +171,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
               value={actor}
               onChange={(e) => setActor(e.target.value)}
               placeholder="Nombre del actor"
-              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
           </div>
           <div>
@@ -180,7 +180,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
               type="date"
               value={desde}
               onChange={(e) => setDesde(e.target.value)}
-              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
           </div>
           <div>
@@ -189,7 +189,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
               type="date"
               value={hasta}
               onChange={(e) => setHasta(e.target.value)}
-              className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             />
           </div>
         </div>
@@ -212,7 +212,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
           return (
             <div key={it.id}>
               {/* Versión Móvil - Lista Simple */}
-              <div className="sm:hidden flex items-center gap-3 p-3 bg-card rounded-lg border border-border">
+              <div className="sm:hidden flex items-center gap-3 p-3 bg-card rounded-xl border border-border">
                 <div className="flex-shrink-0">
                   {it.action === "CREATE" && <BadgeAuditoria color="green">Alta</BadgeAuditoria>}
                   {it.action === "UPDATE" && <BadgeAuditoria color="yellow">Cambio</BadgeAuditoria>}

@@ -22,14 +22,14 @@ const AddMemberModal = dynamic(() => import("@/components/modals/AddMemberModal"
 });
 const GroupPDFExportButton = dynamic(() => import("@/components/grupos/GroupPDFExportButton"), {
   ssr: false,
-  loading: () => <div className="w-full h-10 bg-muted animate-pulse rounded-lg"></div>
+  loading: () => <div className="w-full h-10 bg-muted animate-pulse rounded-xl"></div>
 });
 
 import { ReactNode } from "react";
 
 function GlassCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`backdrop-blur-2xl bg-card/30 border border-border rounded-3xl p-6 lg:p-8 shadow-2xl ${className}`}>
+    <div className={`backdrop-blur-2xl bg-card/30 border border-border rounded-2xl p-6 lg:p-8 shadow-2xl ${className}`}>
       {children}
     </div>
   );
@@ -361,7 +361,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                             type="button"
                             aria-label="Quitar miembro del grupo"
                             title="Eliminar del grupo"
-                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
+                            className="p-1.5 rounded-xl hover:bg-destructive/10 text-destructive transition-colors"
                             onClick={() => onRemoveMember(miembro.id)}
                             disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
                           >
@@ -372,7 +372,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                             type="button"
                             aria-label="Solicitar eliminación del miembro"
                             title="Solicitar eliminación"
-                            className="p-1.5 rounded-lg hover:bg-orange-500/10 text-orange-500 transition-colors"
+                            className="p-1.5 rounded-xl hover:bg-orange-500/10 text-orange-500 transition-colors"
                             onClick={() => {
                               setPendingRequestId(miembro.id);
                               setPendingRequestName(`${miembro.nombre} ${miembro.apellido}`);

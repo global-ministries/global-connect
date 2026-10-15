@@ -55,7 +55,7 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
     <>
       <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-[310] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
-        <div className="bg-card rounded-t-2xl sm:rounded-3xl shadow-2xl w-full sm:max-w-4xl max-h-[92vh] sm:max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-border">
+        <div className="bg-card rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl max-h-[92vh] sm:max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-border">
           {/* Header */}
           <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border bg-gradient-to-br from-accent to-card">
             <div className="flex items-center justify-between">
@@ -89,7 +89,7 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                   value={buscar}
                   onChange={e => setBuscar(e.target.value)}
                   placeholder="Nombre o líder"
-                  className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                  className="border border-border rounded-xl px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                 />
               </div>
               <div className="grid grid-cols-2 sm:flex gap-2">
@@ -98,7 +98,7 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                   <select
                     value={filtroTemporada}
                     onChange={e => setFiltroTemporada(e.target.value)}
-                    className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                    className="border border-border rounded-xl px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                   >
                     <option value="">Todas</option>
                     {temporadas.map(t => <option key={t}>{t}</option>)}
@@ -109,7 +109,7 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                   <select
                     value={filtroActivo}
                     onChange={e => setFiltroActivo(e.target.value as any)}
-                    className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                    className="border border-border rounded-xl px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                   >
                     <option value="todos">Todos</option>
                     <option value="activos">Activos</option>

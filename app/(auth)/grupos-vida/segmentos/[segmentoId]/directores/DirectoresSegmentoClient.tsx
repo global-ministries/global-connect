@@ -134,12 +134,12 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                   </div>
                   <div>
                     {!esSuperior ? (
-                      <span className="text-[11px] px-2 py-1 rounded border bg-card text-foreground">{actual || '—'}</span>
+                      <span className="text-[11px] px-2 py-1 rounded-xl border bg-card text-foreground">{actual || '—'}</span>
                     ) : (
                       <div className="flex items-center gap-2">
                         <select
                           disabled={!esSuperior || ubicaciones.length === 0}
-                          className="border rounded px-2 py-1 text-[11px] bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                          className="border rounded-xl px-2 py-1 text-[11px] bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                           value={(function () { if (!actual) return ''; const m = ubicaciones.find(u => u.nombre === actual); return m ? m.id : '' })()}
                           onChange={async (e) => {
                             const nuevaId = e.target.value
@@ -178,7 +178,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                                 toast({ title: 'Ciudad quitada' })
                               }
                             }}
-                            className="text-[10px] px-2 py-1 border rounded bg-card hover:bg-muted disabled:opacity-40"
+                            className="text-[10px] px-2 py-1 border rounded-xl bg-card hover:bg-muted disabled:opacity-40"
                           >Quitar</button>
                         )}
                       </div>
@@ -213,12 +213,12 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                   <div className="text-[10px] text-muted-foreground mb-2 truncate">{d.usuario_id}</div>
                   <div className="flex items-center gap-2 mb-3">
                     {!esSuperior ? (
-                      <span className="text-[11px] px-2 py-1 rounded border bg-card text-foreground">{actual || '—'}</span>
+                      <span className="text-[11px] px-2 py-1 rounded-xl border bg-card text-foreground">{actual || '—'}</span>
                     ) : (
                       <>
                         <select
                           disabled={!esSuperior || ubicaciones.length === 0}
-                          className="border rounded px-2 py-1 text-[11px] bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                          className="border rounded-xl px-2 py-1 text-[11px] bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                           value={(function () { if (!actual) return ''; const m = ubicaciones.find(u => u.nombre === actual); return m ? m.id : '' })()}
                           onChange={async (e) => {
                             const nuevaId = e.target.value
@@ -257,7 +257,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                                 toast({ title: 'Ciudad quitada' })
                               }
                             }}
-                            className="text-[10px] px-2 py-1 border rounded bg-card hover:bg-muted disabled:opacity-40"
+                            className="text-[10px] px-2 py-1 border rounded-xl bg-card hover:bg-muted disabled:opacity-40"
                           >Quitar</button>
                         )}
                       </>
@@ -305,7 +305,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
       )}
       {esSuperior && showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30">
-          <div className="bg-card rounded shadow-lg w-full max-w-md p-4 space-y-4">
+          <div className="bg-card rounded-2xl shadow-lg w-full max-w-md p-4 space-y-4">
             <div className="flex items-center justify-between">
               <TituloSistema nivel={4}>Agregar Director</TituloSistema>
               <button onClick={() => setShowModal(false)} className="text-xs text-muted-foreground hover:text-foreground">Cerrar</button>
@@ -316,7 +316,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
               <select
                 value={ciudadSeleccionada}
                 onChange={e => setCiudadSeleccionada(e.target.value)}
-                className="w-full border rounded px-2 py-1 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                className="w-full border rounded-xl px-2 py-1 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
               >
                 <option value="">(Sin asignar ahora)</option>
                 {ubicaciones.map(u => (
@@ -324,7 +324,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                 ))}
               </select>
             </div>
-            <div className="border rounded max-h-64 overflow-auto divide-y">
+            <div className="border rounded-xl max-h-64 overflow-auto divide-y">
               {loadingCandidatos && <div className="p-3 text-sm">Cargando...</div>}
               {!loadingCandidatos && candidatos.length === 0 && <div className="p-3 text-sm text-muted-foreground">Sin candidatos disponibles</div>}
               {!loadingCandidatos && candidatos.map(c => (

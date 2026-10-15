@@ -47,6 +47,7 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
       {children}
     </button>
   ),
+  PieAccionesSistema: ({ children }: { children: React.ReactNode }) => <div data-slot="pie-acciones">{children}</div>,
   PaginaSistema: ({ acciones, children, titulo }: { acciones?: React.ReactNode; children: React.ReactNode; titulo: string }) => (
     <section>
       <h1>{titulo}</h1>
