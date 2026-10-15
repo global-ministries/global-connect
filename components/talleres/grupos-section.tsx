@@ -288,7 +288,7 @@ export function GruposSection({
                         }
                         className={
                           typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
-                            ? 'text-sm font-medium text-warning'
+                            ? 'text-sm font-medium text-warning-text'
                             : 'text-sm'
                         }
                         role={

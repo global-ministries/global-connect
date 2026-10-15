@@ -232,7 +232,7 @@ export function TemporadaDetailClient({
                     icono={X}
                     aria-label={`Quitar ${taller.nombre} de la temporada`}
                     title="Quitar de la temporada"
-                    className="hover:text-danger"
+                    className="hover:text-danger-text"
                     onClick={() => abrirQuitar(taller)}
                   />
                 )}

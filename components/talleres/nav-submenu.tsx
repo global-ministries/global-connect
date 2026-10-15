@@ -234,7 +234,7 @@ export function TalleresNavSubmenu({ sessionCapabilities, counters: propCounters
               aria-current={isActive ? 'page' : undefined}
               className={`flex min-h-9 items-center gap-2 rounded-xl px-2 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 ${
                 isActive
-                  ? 'bg-[var(--brand-accent)] text-[var(--brand-primary)] font-medium'
+                  ? 'bg-[var(--brand-accent)] text-brand-text font-medium'
                   : 'text-muted-foreground hover:bg-[var(--brand-accent)] hover:text-foreground'
               }`}
             >

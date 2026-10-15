@@ -218,7 +218,7 @@ export default async function PendientesPage(ctx?: RouteContext) {
             aria-current={estadoFiltro === valor ? 'true' : undefined}
             className={`rounded-full border px-3 py-1 text-sm transition-colors ${
               estadoFiltro === valor
-                ? 'border-[var(--brand-primary)] bg-[var(--brand-accent)] font-medium text-[var(--brand-primary)]'
+                ? 'border-brand bg-[var(--brand-accent)] font-medium text-brand-text'
                 : 'border-border text-muted-foreground hover:bg-[var(--brand-accent)] hover:text-foreground'
             }`}
           >
