@@ -14,7 +14,8 @@ import { cn } from '@/lib/utils'
 import { useBranding } from '@/hooks/useBranding'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useEntradasNavegacion, type EntradaMenu } from '@/components/navegacion/use-entradas-navegacion'
-import { ENTRADAS_NAVEGACION, esRutaActiva } from '@/lib/navegacion/registro'
+import { ENTRADAS_NAVEGACION, esEntradaActiva, esRutaActiva } from '@/lib/navegacion/registro'
+import { CLASE_BOTON_ICONO_NAV, claseEnlaceNav, claseIconoNav, claseSubEnlaceNav } from '@/components/navegacion/estilos-navegacion'
 
 function formatearRol(roles: string[]): string {
   if (!roles || roles.length === 0) return 'Usuario'
@@ -133,15 +134,10 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
         href={item.href}
         prefetch={false}
         aria-current={active ? "page" : undefined}
-        className={cn(
-          "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
-          "transition-[background-color,color,transform] duration-200 ease-expo",
-          "press-scale focus-ring touch-manipulation",
-          active ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]" : "text-foreground hover:bg-[var(--brand-accent)]"
-        )}
+        className={claseEnlaceNav(active)}
       >
-        <Icon className={cn("w-5 h-5 flex-shrink-0", active ? "text-[var(--brand-primary)]" : "text-muted-foreground")} />
-        <span className="font-medium text-sm">{item.label}</span>
+        <Icon aria-hidden="true" className={cn(claseIconoNav(active), "size-5")} />
+        <span className="text-sm">{item.label}</span>
       </Link>
     )
   }
@@ -171,14 +167,15 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       ['/grupos-vida/mapa', 'Mapa de Grupos'],
       [/\/grupos-vida\/reportes/, 'Reportes'],
       [/\/grupos-vida\/importar/, 'Importar Grupos'],
+      // Before the catch-all below, which used to swallow them as 'Detalle del Grupo'.
+      ['/grupos-vida/dashboard-riesgo', 'Salud de los Grupos'],
+      ['/grupos-vida/solicitudes', 'Solicitudes'],
+      ['/grupos-vida/configuracion', 'Configuración Grupos'],
       [/\/grupos-vida\/[^/]+/, 'Detalle del Grupo'],
       [/\/users\/[^/]+\/asistencia/, 'Asistencia del Usuario'],
       [/\/users\/[^/]+\/edit/, 'Editar Usuario'],
       [/\/users\/create/, 'Crear Usuario'],
       [/\/users\/[^/]+/, 'Detalle del Usuario'],
-      ['/grupos-vida/dashboard-riesgo', 'Salud de los Grupos'],
-      ['/grupos-vida/solicitudes', 'Solicitudes'],
-      ['/grupos-vida/configuracion', 'Configuración Grupos'],
       [/^\/dream-team\/mi-equipo/, 'Mi equipo'],
       [/^\/admin\/dream-team\/servidores/, 'Servidores'],
       [/^\/admin\/dream-team\/estructura/, 'Estructura'],
@@ -204,17 +201,20 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       {/* ── Top Bar ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-b border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">
         <div className={cn(
-          "flex items-center justify-between px-4 safe-area-pt",
+          // Height: the top inset (at least 12px) + a 44px row + 8px. The (auth)
+          // layout offsets the page by the same amount.
+          "flex items-center justify-between gap-2 px-2 safe-area-pt safe-area-pl safe-area-pr",
           "transition-[padding] duration-300 ease-expo",
-          scrolled ? "py-2" : "py-3"
+          scrolled ? "pb-1" : "pb-2"
         )}>
           {/* Left: Hamburger */}
           <button
             onClick={() => setDrawerOpen(true)}
             aria-label="Abrir menú"
-            className="p-2 rounded-xl text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
+            aria-expanded={drawerOpen}
+            className={cn(CLASE_BOTON_ICONO_NAV, "text-foreground")}
           >
-            <Menu className="w-5 h-5" />
+            <Menu aria-hidden="true" className="size-5" />
           </button>
 
           {/* Center: Logo on dashboard, page title otherwise */}
@@ -242,9 +242,9 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
             <button
               onClick={() => toast.info('Próximamente')}
               aria-label="Notificaciones"
-              className="p-2 rounded-xl hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring"
+              className={CLASE_BOTON_ICONO_NAV}
             >
-              <Bell className="w-[18px] h-[18px] text-muted-foreground" />
+              <Bell aria-hidden="true" className="size-[18px]" />
             </button>
 
             <div className="relative" ref={userMenuRef}>
@@ -252,7 +252,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                 onClick={() => setUserMenuOpen(prev => !prev)}
                 aria-label="Menú de usuario"
                 aria-expanded={userMenuOpen}
-                className="press-scale focus-ring touch-manipulation rounded-full"
+                className="inline-flex size-11 items-center justify-center rounded-full press-scale focus-ring touch-manipulation"
               >
                 {loading ? (
                   <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
@@ -278,7 +278,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                     <p className="font-semibold text-sm text-foreground truncate">
                       {usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Usuario'}
                     </p>
-                    <p className="text-xs text-[var(--brand-primary)] font-medium mt-0.5">
+                    <p className="text-xs text-brand-text font-medium mt-0.5">
                       {formatearRol(roles)}
                     </p>
                     {usuario?.email && (
@@ -293,7 +293,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                     <Link
                       href="/perfil"
                       prefetch={false}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
+                      className="flex items-center gap-3 px-4 py-2.5 min-h-11 text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
                     >
                       <User className="w-4 h-4 text-muted-foreground" />
                       Mi Perfil
@@ -305,7 +305,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                         else if (theme === 'dark') setTheme('system')
                         else setTheme('light')
                       }}
-                      className="flex items-center gap-3 px-4 py-2.5 w-full text-left text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
+                      className="flex items-center gap-3 px-4 py-2.5 min-h-11 w-full text-left text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
                     >
                       {theme === 'light' ? <Sun className="w-4 h-4 text-muted-foreground" /> : theme === 'dark' ? <Moon className="w-4 h-4 text-muted-foreground" /> : <Monitor className="w-4 h-4 text-muted-foreground" />}
                       Tema
@@ -316,7 +316,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                     <form action={logout}>
                       <button
                         type="submit"
-                        className="flex items-center gap-3 px-4 py-2.5 w-full text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
+                        className="flex items-center gap-3 px-4 py-2.5 w-full text-left min-h-11 text-sm text-danger-text hover:bg-danger/10 transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
                       >
                         <LogOut className="w-4 h-4" />
                         Cerrar Sesión
@@ -360,9 +360,9 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           <button
             onClick={closeDrawer}
             aria-label="Cerrar menú"
-            className="p-2 rounded-xl text-muted-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
+            className={CLASE_BOTON_ICONO_NAV}
           >
-            <X className="w-5 h-5" />
+            <X aria-hidden="true" className="size-5" />
           </button>
         </div>
 
@@ -388,7 +388,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
               <p className="font-medium text-sm text-foreground truncate">
                 {usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Usuario'}
               </p>
-              <p className="text-xs text-[var(--brand-primary)] font-medium">
+              <p className="text-xs text-brand-text font-medium">
                 {formatearRol(roles)}
               </p>
             </div>
@@ -401,14 +401,14 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
         </div>
 
         {/* ── Main Navigation with Submenus ── */}
-        <nav className="flex-1 overflow-y-auto px-3 py-1">
+        <nav aria-label="Navegación principal" className="flex-1 overflow-y-auto px-3 py-1">
           <ul className="space-y-0.5">
-            {primaryMenuItems
-              .map(item => {
+            {primaryMenuItems.map(item => {
               const Icon = item.icon
               const visibleChildren = item.children ?? []
               const hasChildren = visibleChildren.length > 0
-              const active = isActive(item.href)
+              // A section is highlighted on its own route and on its children's routes.
+              const active = esEntradaActiva(pathname, item)
               const isOpen = openSubmenus.has(item.id)
 
               return (
@@ -416,38 +416,25 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                   {hasChildren ? (
                     <>
                       {/* Parent item with expandable children */}
-                      <div className="flex items-center">
+                      <div className="flex items-center min-w-0">
                         <Link
                           href={item.href}
                           prefetch={false}
-                          aria-current={active ? "page" : undefined}
-                          className={cn(
-                            "flex-1 flex items-center gap-3 px-3 py-2.5 rounded-l-xl min-h-[44px]",
-                            "transition-[background-color,color,transform] duration-200 ease-expo",
-                            "press-scale focus-ring touch-manipulation",
-                            active
-                              ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
-                              : "text-foreground hover:bg-[var(--brand-accent)]"
-                          )}
+                          aria-current={pathname === item.href ? "page" : undefined}
+                          className={cn(claseEnlaceNav(active), "flex-1 min-w-0 rounded-r-none")}
                         >
-                          <Icon className={cn(
-                            "w-5 h-5 flex-shrink-0",
-                            active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                          )} />
-                          <span className="font-medium text-sm">{item.label}</span>
+                          <Icon aria-hidden="true" className={cn(claseIconoNav(active), "size-5")} />
+                          <span className="text-sm truncate">{item.label}</span>
                         </Link>
                         <button
+                          type="button"
                           onClick={() => toggleSubmenu(item.id)}
                           aria-label={isOpen ? `Cerrar ${item.label}` : `Abrir ${item.label}`}
                           aria-expanded={isOpen}
-                          className={cn(
-                            "p-2.5 rounded-r-xl min-h-[44px] flex items-center transition-colors duration-200 touch-manipulation",
-                            "hover:bg-[var(--brand-accent)]",
-                            active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                          )}
+                          className={cn(CLASE_BOTON_ICONO_NAV, "rounded-l-none", active && "bg-brand-tint text-brand")}
                         >
-                          <ChevronDown className={cn(
-                            "w-4 h-4 transition-transform duration-200",
+                          <ChevronDown aria-hidden="true" className={cn(
+                            "size-4 transition-transform duration-200",
                             isOpen && "rotate-180"
                           )} />
                         </button>
@@ -457,7 +444,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                       <div
                         className={cn(
                           "overflow-hidden transition-[max-height,opacity] duration-300 ease-expo",
-                          isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                          isOpen ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"
                         )}
                       >
                         <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
@@ -470,20 +457,10 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                                   href={child.href}
                                   prefetch={false}
                                   aria-current={childActive ? "page" : undefined}
-                                  className={cn(
-                                    "flex items-center gap-3 px-3 py-2 rounded-lg min-h-[36px] text-sm",
-                                    "transition-[background-color,color] duration-200 ease-expo",
-                                    "focus-ring touch-manipulation",
-                                    childActive
-                                      ? "bg-[var(--brand-accent)] text-[var(--brand-primary)] font-medium"
-                                      : "text-muted-foreground hover:bg-[var(--brand-accent)] hover:text-foreground"
-                                  )}
+                                  className={claseSubEnlaceNav(childActive)}
                                 >
                                   {ChildIcon && (
-                                    <ChildIcon className={cn(
-                                      "w-4 h-4 flex-shrink-0",
-                                      childActive ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                                    )} />
+                                    <ChildIcon aria-hidden="true" className={cn(claseIconoNav(childActive), "size-4")} />
                                   )}
                                   <span className="truncate">{child.label}</span>
                                 </Link>
@@ -499,20 +476,10 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                       href={item.href}
                       prefetch={false}
                       aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
-                        "transition-[background-color,color,transform] duration-200 ease-expo",
-                        "press-scale focus-ring touch-manipulation",
-                        active
-                          ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
-                          : "text-foreground hover:bg-[var(--brand-accent)]"
-                      )}
+                      className={claseEnlaceNav(active)}
                     >
-                      <Icon className={cn(
-                        "w-5 h-5 flex-shrink-0",
-                        active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                      )} />
-                      <span className="font-medium text-sm">{item.label}</span>
+                      <Icon aria-hidden="true" className={cn(claseIconoNav(active), "size-5")} />
+                      <span className="text-sm truncate">{item.label}</span>
                     </Link>
                   )}
                 </li>
@@ -549,7 +516,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           <form action={logout}>
             <button
               type="submit"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-left min-h-[44px] text-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-[background-color,color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-left min-h-[44px] text-foreground hover:bg-danger/10 hover:text-danger-text transition-[background-color,color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
             >
               <LogOut className="w-5 h-5 flex-shrink-0 text-muted-foreground" />
               <span className="font-medium text-sm">Cerrar Sesión</span>

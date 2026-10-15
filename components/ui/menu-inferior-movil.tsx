@@ -46,39 +46,37 @@ export function MenuInferiorMovil() {
 
   return (
     <nav aria-label="Navegación inferior" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-t border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">
-      <div className="flex items-center justify-around px-2 py-2 safe-area-pb">
+      {/* Height: 8px + a 56px item + the bottom inset (at least 8px); the (auth) layout pads the page by it. */}
+      <ul className="flex min-w-0 items-stretch justify-around gap-1 px-2 pt-2 safe-area-pb safe-area-pl safe-area-pr">
         {navigationItems.map((elemento) => {
           const Icono = elemento.icono
-
           const esActivo = esRutaActiva(pathname, elemento.enlace)
 
           return (
-            <Link
-              key={elemento.id}
-              href={elemento.enlace}
-              prefetch={false}
-              aria-label={`Navegar a ${elemento.nombre}`}
-              aria-current={esActivo ? "page" : undefined}
-              className={cn(
-                "flex flex-col items-center justify-center px-3 py-2 rounded-xl min-w-0 flex-1 min-h-[44px]",
-                "transition-[background-color,color,transform] duration-200 ease-expo",
-                "press-scale focus-ring",
-                esActivo
-                  ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
-                  : "text-muted-foreground hover:text-[var(--brand-primary)] hover:bg-[var(--brand-accent)]"
-              )}
-            >
-              <Icono className={cn("w-5 h-5 mb-1", esActivo ? "text-[var(--brand-primary)]" : "text-muted-foreground")} />
-              <span className={cn(
-                "text-xs font-medium truncate max-w-full",
-                esActivo ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-              )}>
-                {elemento.nombre}
-              </span>
-            </Link>
+            <li key={elemento.id} className="flex min-w-0 flex-1">
+              <Link
+                href={elemento.enlace}
+                prefetch={false}
+                aria-label={`Navegar a ${elemento.nombre}`}
+                aria-current={esActivo ? "page" : undefined}
+                className={cn(
+                  "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5",
+                  "transition-[background-color,color,transform] duration-200 ease-expo",
+                  "press-scale focus-ring touch-manipulation",
+                  esActivo
+                    ? "bg-brand-tint text-brand-text"
+                    : "text-muted-foreground hover:bg-[var(--brand-accent)] hover:text-foreground"
+                )}
+              >
+                <Icono aria-hidden="true" className={cn("size-5 shrink-0", esActivo ? "text-brand" : "text-muted-foreground")} />
+                <span className={cn("max-w-full truncate text-xs", esActivo ? "font-semibold" : "font-medium")}>
+                  {elemento.nombre}
+                </span>
+              </Link>
+            </li>
           )
         })}
-      </div>
+      </ul>
     </nav>
   )
 }
