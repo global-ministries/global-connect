@@ -190,3 +190,11 @@ and reach for it only where a class cannot (inline styles, SVG attributes).
   its label but keeps a 32px (`h-8 w-8`) override below the 44px icon size.
 - `ui/card` still uses `rounded-xl`; move it to the surface radius when cards
   migrate.
+- Usuarios migrated (list, filters panel, detail, edit, create, attendance)
+  and imports no legacy UI. Add `app/(auth)/users/**`, `components/users/**`
+  and `components/ui/filtros-usuarios.tsx` to `migratedToDesignSystem`.
+  `UserEditForm`, `UserCreateForm` and `ReporteAsistenciaUsuario` live outside
+  the area and migrate with the forms.
+- `BotonSistema` has no link form. Navigation buttons wrap it in `Link` and
+  pass `tabIndex={-1}` so the link is the only tab stop; an `asChild` or
+  `href` prop would remove the nested interactive element.
