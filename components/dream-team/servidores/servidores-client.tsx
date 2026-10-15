@@ -23,7 +23,7 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { UserPlus } from 'lucide-react'
 
-import { BotonSistema, ContenedorDashboard, TextoSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useCampus } from '@/hooks/useCampus'
@@ -166,9 +166,15 @@ export function ServidoresClient({
   const sinServicios = filas.length === 0
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Servidores"
-      accionPrincipal={
+      descripcion={
+        <>
+          {vista.total.servicios} {vista.total.servicios === 1 ? 'servicio' : 'servicios'} de {vista.total.personas}{' '}
+          {vista.total.personas === 1 ? 'persona' : 'personas'}
+        </>
+      }
+      acciones={
         puedeEditar ? (
           <BotonSistema type="button" variante="primario" tamaño="sm" icono={UserPlus} onClick={() => setAsignadorAbierto(true)}>
             Asignar servicio
@@ -176,10 +182,6 @@ export function ServidoresClient({
         ) : null
       }
     >
-      <TextoSistema variante="sutil">
-        {vista.total.servicios} {vista.total.servicios === 1 ? 'servicio' : 'servicios'} de {vista.total.personas}{' '}
-        {vista.total.personas === 1 ? 'persona' : 'personas'}
-      </TextoSistema>
 
       <ContadoresEtapa
         contadores={vista.contadoresEtapa}
@@ -224,6 +226,6 @@ export function ServidoresClient({
         toast={toast}
         turnos={turnosAsignables}
       />
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

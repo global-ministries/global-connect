@@ -15,7 +15,7 @@
 import type { ReactElement } from 'react'
 import { ChevronRight, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react'
 
-import { InputSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, InputSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { cn } from '@/lib/utils'
 import type { FilaArbol } from '@/lib/platform/dream-team/estructura-vista'
 
@@ -53,7 +53,7 @@ function FilaDelArbol({
           aria-label={`${fila.abierto ? 'Contraer' : 'Expandir'} ${fila.label}`}
           onClick={() => onAlternarNodo(fila.id)}
           className={cn(
-            'flex h-11 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+            'flex h-11 w-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground pointer-coarse:w-11 transition-colors hover:bg-accent hover:text-foreground',
             ANILLO_FOCO,
           )}
         >
@@ -63,7 +63,7 @@ function FilaDelArbol({
           />
         </button>
       ) : (
-        <span aria-hidden="true" className="w-8 shrink-0" />
+        <span aria-hidden="true" className="w-8 shrink-0 pointer-coarse:w-11" />
       )}
       <button
         type="button"
@@ -175,19 +175,16 @@ export function PanelOrganigrama({ onCerrar, ...arbol }: PanelOrganigramaProps):
         <TituloSistema nivel={2} className="text-xl">
           Organigrama
         </TituloSistema>
-        <button
+        <BotonSistema
           type="button"
+          variante="ghost"
+          soloIcono
+          icono={PanelLeftClose}
           aria-label="Cerrar el organigrama"
           title="Cerrar el organigrama"
           aria-expanded={true}
           onClick={onCerrar}
-          className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-            ANILLO_FOCO,
-          )}
-        >
-          <PanelLeftClose aria-hidden="true" className="h-5 w-5" />
-        </button>
+        />
       </div>
       <ArbolNavegable {...arbol} />
     </aside>
@@ -198,19 +195,17 @@ export function PanelOrganigrama({ onCerrar, ...arbol }: PanelOrganigramaProps):
 export function RielOrganigrama({ onAbrir }: { readonly onAbrir: () => void }): ReactElement {
   return (
     <div className="hidden w-16 shrink-0 justify-center lg:flex">
-      <button
+      <BotonSistema
         type="button"
+        variante="outline"
+        soloIcono
+        icono={PanelLeftOpen}
         aria-label="Abrir el organigrama"
         title="Abrir el organigrama"
         aria-expanded={false}
         onClick={onAbrir}
-        className={cn(
-          'flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-foreground transition-colors hover:bg-accent',
-          ANILLO_FOCO,
-        )}
-      >
-        <PanelLeftOpen aria-hidden="true" className="h-5 w-5" />
-      </button>
+        className="bg-card"
+      />
     </div>
   )
 }

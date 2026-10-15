@@ -95,7 +95,7 @@ export function TablaServidores({ items, orden, onOrdenar, onActualizado }: Tabl
                     onClick={() => onOrdenar(columna)}
                     aria-label={`Ordenar por ${ETIQUETA_COLUMNA[columna].toLowerCase()}`}
                     className={cn(
-                      '-mx-2 flex min-h-[44px] items-center gap-1 rounded-lg px-2 uppercase tracking-wider transition-colors hover:bg-accent',
+                      '-mx-2 flex min-h-[44px] items-center gap-1 rounded-xl px-2 uppercase tracking-wider transition-colors hover:bg-accent',
                       activa ? 'text-foreground' : 'text-muted-foreground',
                       ANILLO,
                     )}

@@ -20,11 +20,10 @@ import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { FilaServidor } from '@/lib/platform/dream-team/servidores-vista'
 import { TRANSICIONES_VALIDAS } from '@/lib/platform/dream-team/state-machine'
-import { cn } from '@/lib/utils'
-import { ANILLO } from './contadores-etapa'
 import { EditarFichaPanel } from './editar-ficha-panel'
 
 export interface MenuServidorProps {
@@ -62,17 +61,14 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
       {/* modal={false}: the stage dialog opens from an item, and a modal menu would fight it for focus and pointer events. */}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <button
+          <BotonSistema
             type="button"
+            variante="ghost"
+            soloIcono
+            icono={MoreHorizontal}
             aria-label={`Acciones para ${fila.nombre}`}
-            className={cn(
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-              ANILLO,
-              className,
-            )}
-          >
-            <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-          </button>
+            className={className}
+          />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-56">
           {puedeCambiarEtapa && (

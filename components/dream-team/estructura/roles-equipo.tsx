@@ -65,19 +65,16 @@ function RolFila({
 
       {puedeEditar ? (
         <>
-          <button
+          <BotonSistema
             type="button"
+            variante="ghost"
+            soloIcono
+            icono={Pencil}
             aria-label={`Renombrar el rol ${rol.label}`}
             title="Renombrar rol"
             disabled={isPending}
             onClick={onRenombrar}
-            className={cn(
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-              ANILLO_FOCO,
-            )}
-          >
-            <Pencil aria-hidden="true" className="h-[18px] w-[18px]" />
-          </button>
+          />
           <button
             type="button"
             role="switch"
