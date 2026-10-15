@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { X, Filter as FilterIcon, ChevronDown } from "lucide-react"
-import { Button } from "./button"
-import { Badge } from "./badge"
+import { useId, useState, type ReactNode } from "react"
+import { X, Filter as FilterIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import { BotonSistema } from "./sistema-diseno"
+import { PanelLateralSistema } from "./panel-lateral-sistema"
 
 export interface FiltrosUsuarios {
   roles: string[]
@@ -18,6 +20,57 @@ interface FiltrosUsuariosProps {
   onFiltrosChange: (filtros: FiltrosUsuarios) => void
   rolesDisponibles: { nombre_interno: string; nombre_visible: string }[]
   onLimpiarFiltros: () => void
+}
+
+const ANILLO =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+
+/** Toggle chip (control radius, 44px). Pressed chips take the brand tint. */
+function ChipFiltro({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={activo}
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-11 items-center rounded-xl border px-4 text-sm font-medium transition-colors touch-manipulation",
+        activo
+          ? "border-[var(--brand-primary)] bg-[var(--brand-accent-strong)] text-foreground"
+          : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
+        ANILLO,
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** Active filter summary: the whole pill removes the filter. */
+function ChipActivo({ etiqueta, onQuitar }: { etiqueta: string; onQuitar: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onQuitar}
+      aria-label={`Quitar filtro: ${etiqueta}`}
+      className={cn(
+        "inline-flex h-9 pointer-coarse:h-11 items-center gap-1.5 rounded-full border border-border bg-muted pl-3 pr-2 text-sm text-foreground transition-colors hover:bg-accent touch-manipulation",
+        ANILLO,
+      )}
+    >
+      {etiqueta}
+      <X className="size-3.5 text-muted-foreground" aria-hidden="true" />
+    </button>
+  )
+}
+
+function GrupoFiltro({ titulo, children }: { titulo: string; children: ReactNode }) {
+  const id = useId()
+  return (
+    <section aria-labelledby={id} className="space-y-2">
+      <h3 id={id} className="text-sm font-medium text-foreground">{titulo}</h3>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </section>
+  )
 }
 
 export function FiltrosUsuarios({
@@ -59,13 +112,13 @@ export function FiltrosUsuarios({
     onFiltrosChange({ ...filtros, estado: nuevosEstados })
   }
 
-  const tieneFiltrosActivos = () => {
-    return filtros.roles.length > 0 ||
-      filtros.conEmail !== null ||
-      filtros.conTelefono !== null ||
-      filtros.enGrupo !== null ||
-      filtros.estado.length > 0
-  }
+  const cantidadActivos =
+    filtros.roles.length +
+    (filtros.conEmail !== null ? 1 : 0) +
+    (filtros.conTelefono !== null ? 1 : 0) +
+    (filtros.enGrupo !== null ? 1 : 0) +
+    filtros.estado.length
+  const tieneFiltrosActivos = cantidadActivos > 0
 
   const obtenerTextoFiltroEmail = () => {
     if (filtros.conEmail === true) return "Con email"
@@ -86,258 +139,114 @@ export function FiltrosUsuarios({
   }
 
   return (
-    <div className="relative">
-      <Button
-        variant="outline"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2"
+    <>
+      <BotonSistema
+        variante="outline"
+        onClick={() => setIsOpen(true)}
+        icono={FilterIcon}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
-        <FilterIcon className="w-4 h-4" />
         Filtros
-        {tieneFiltrosActivos() && (
-          <Badge variant="secondary" className="ml-1">
-            {filtros.roles.length +
-              (filtros.conEmail !== null ? 1 : 0) +
-              (filtros.conTelefono !== null ? 1 : 0) +
-              (filtros.enGrupo !== null ? 1 : 0) +
-              filtros.estado.length}
-          </Badge>
+        {tieneFiltrosActivos && (
+          <span className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--brand-primary)] px-1.5 text-xs font-semibold tabular-nums text-white">
+            {cantidadActivos}
+          </span>
         )}
-        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </Button>
+      </BotonSistema>
 
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-          onClick={() => setIsOpen(false)}
-          aria-hidden="true"
-        >
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 w-full max-w-md md:max-w-lg bg-card border border-border rounded-2xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground">Filtros</h3>
-                <div className="flex items-center gap-2">
-                  {tieneFiltrosActivos() && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={onLimpiarFiltros}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      Limpiar
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsOpen(false)}
-                    aria-label="Cerrar"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
+      <PanelLateralSistema
+        abierto={isOpen}
+        onAbiertoChange={setIsOpen}
+        titulo="Filtros"
+        pie={
+          <>
+            {tieneFiltrosActivos && (
+              <BotonSistema variante="outline" onClick={onLimpiarFiltros}>
+                Limpiar
+              </BotonSistema>
+            )}
+            <BotonSistema variante="primario" onClick={() => setIsOpen(false)}>
+              Ver resultados
+            </BotonSistema>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          <GrupoFiltro titulo="Roles">
+            {rolesDisponibles.map((rol) => (
+              <ChipFiltro
+                key={rol.nombre_interno}
+                activo={filtros.roles.includes(rol.nombre_interno)}
+                onClick={() => toggleRol(rol.nombre_interno)}
+              >
+                {rol.nombre_visible}
+              </ChipFiltro>
+            ))}
+          </GrupoFiltro>
 
-              {/* Filtro por Roles */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-foreground mb-2">Roles</h4>
-                <div className="flex flex-wrap gap-2">
-                  {rolesDisponibles.map((rol) => (
-                    <Button
-                      key={rol.nombre_interno}
-                      variant={filtros.roles.includes(rol.nombre_interno) ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => toggleRol(rol.nombre_interno)}
-                      className="text-xs"
-                    >
-                      {rol.nombre_visible}
-                    </Button>
-                  ))}
-                </div>
-              </div>
+          <GrupoFiltro titulo="Estado del Email">
+            <ChipFiltro activo={filtros.conEmail === true} onClick={() => setConEmail(true)}>Con email</ChipFiltro>
+            <ChipFiltro activo={filtros.conEmail === false} onClick={() => setConEmail(false)}>Sin email</ChipFiltro>
+          </GrupoFiltro>
 
-              {/* Filtro por Email */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-foreground mb-2">Estado del Email</h4>
-                <div className="flex gap-2">
-                  <Button
-                    variant={filtros.conEmail === true ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setConEmail(true)}
-                    className="text-xs"
-                  >
-                    Con email
-                  </Button>
-                  <Button
-                    variant={filtros.conEmail === false ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setConEmail(false)}
-                    className="text-xs"
-                  >
-                    Sin email
-                  </Button>
-                </div>
-              </div>
+          <GrupoFiltro titulo="Estado del Teléfono">
+            <ChipFiltro activo={filtros.conTelefono === true} onClick={() => setConTelefono(true)}>Con teléfono</ChipFiltro>
+            <ChipFiltro activo={filtros.conTelefono === false} onClick={() => setConTelefono(false)}>Sin teléfono</ChipFiltro>
+          </GrupoFiltro>
 
-              {/* Filtro por Teléfono */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-foreground mb-2">Estado del Teléfono</h4>
-                <div className="flex gap-2">
-                  <Button
-                    variant={filtros.conTelefono === true ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setConTelefono(true)}
-                    className="text-xs"
-                  >
-                    Con teléfono
-                  </Button>
-                  <Button
-                    variant={filtros.conTelefono === false ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setConTelefono(false)}
-                    className="text-xs"
-                  >
-                    Sin teléfono
-                  </Button>
-                </div>
-              </div>
+          <GrupoFiltro titulo="Pertenencia a Grupos">
+            <ChipFiltro activo={filtros.enGrupo === true} onClick={() => setEnGrupo(true)}>En grupo</ChipFiltro>
+            <ChipFiltro activo={filtros.enGrupo === false} onClick={() => setEnGrupo(false)}>Sin grupo</ChipFiltro>
+          </GrupoFiltro>
 
-              {/* Filtro por pertenencia a Grupos */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-foreground mb-2">Pertenencia a Grupos</h4>
-                <div className="flex gap-2">
-                  <Button
-                    variant={filtros.enGrupo === true ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setEnGrupo(true)}
-                    className="text-xs"
-                  >
-                    En grupo
-                  </Button>
-                  <Button
-                    variant={filtros.enGrupo === false ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setEnGrupo(false)}
-                    className="text-xs"
-                  >
-                    Sin grupo
-                  </Button>
-                </div>
-              </div>
+          <GrupoFiltro titulo="Estado del Usuario">
+            <ChipFiltro activo={filtros.estado.includes('activo')} onClick={() => toggleEstado('activo')}>Activo</ChipFiltro>
+            <ChipFiltro activo={filtros.estado.includes('inactivo')} onClick={() => toggleEstado('inactivo')}>Inactivo</ChipFiltro>
+          </GrupoFiltro>
 
-              {/* Filtro por Estado */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-foreground mb-2">Estado del Usuario</h4>
-                <div className="flex gap-2">
-                  <Button
-                    variant={filtros.estado.includes('activo') ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => toggleEstado('activo')}
-                    className="text-xs"
-                  >
-                    Activo
-                  </Button>
-                  <Button
-                    variant={filtros.estado.includes('inactivo') ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => toggleEstado('inactivo')}
-                    className="text-xs"
-                  >
-                    Inactivo
-                  </Button>
-                </div>
-              </div>
+          {/* Filtros Activos */}
+          {tieneFiltrosActivos && (
+            <div className="border-t border-border pt-4">
+              <GrupoFiltro titulo="Filtros Activos">
+                {filtros.roles.map((rol) => {
+                  const rolInfo = rolesDisponibles.find(r => r.nombre_interno === rol)
+                  return <ChipActivo key={rol} etiqueta={rolInfo?.nombre_visible || rol} onQuitar={() => toggleRol(rol)} />
+                })}
 
-              {/* Filtros Activos */}
-              {tieneFiltrosActivos() && (
-                <div className="pt-3 border-t border-border">
-                  <h4 className="text-sm font-medium text-foreground mb-2">Filtros Activos</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {filtros.roles.map((rol) => {
-                      const rolInfo = rolesDisponibles.find(r => r.nombre_interno === rol)
-                      return (
-                        <Badge
-                          key={rol}
-                          variant="secondary"
-                          className="flex items-center gap-1"
-                        >
-                          {rolInfo?.nombre_visible || rol}
-                          <button
-                            onClick={() => toggleRol(rol)}
-                            className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </Badge>
-                      )
-                    })}
+                {filtros.conEmail !== null && (
+                  <ChipActivo
+                    etiqueta={obtenerTextoFiltroEmail()}
+                    onQuitar={() => setConEmail(filtros.conEmail === true ? true : false)}
+                  />
+                )}
 
-                    {filtros.conEmail !== null && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        {obtenerTextoFiltroEmail()}
-                        <button
-                          onClick={() => setConEmail(filtros.conEmail === true ? true : false)}
-                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    )}
+                {filtros.conTelefono !== null && (
+                  <ChipActivo
+                    etiqueta={obtenerTextoFiltroTelefono()}
+                    onQuitar={() => setConTelefono(filtros.conTelefono === true ? true : false)}
+                  />
+                )}
 
-                    {filtros.conTelefono !== null && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        {obtenerTextoFiltroTelefono()}
-                        <button
-                          onClick={() => setConTelefono(filtros.conTelefono === true ? true : false)}
-                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    )}
+                {filtros.enGrupo !== null && (
+                  <ChipActivo
+                    etiqueta={obtenerTextoFiltroEnGrupo()}
+                    onQuitar={() => setEnGrupo(filtros.enGrupo === true ? true : false)}
+                  />
+                )}
 
-                    {filtros.enGrupo !== null && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        {obtenerTextoFiltroEnGrupo()}
-                        <button
-                          onClick={() => setEnGrupo(filtros.enGrupo === true ? true : false)}
-                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    )}
-
-                    {filtros.estado.map((estado) => (
-                      <Badge
-                        key={estado}
-                        variant="secondary"
-                        className="flex items-center gap-1"
-                      >
-                        {estado === 'activo' ? 'Activo' : 'Inactivo'}
-                        <button
-                          onClick={() => toggleEstado(estado)}
-                          className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+                {filtros.estado.map((estado) => (
+                  <ChipActivo
+                    key={estado}
+                    etiqueta={estado === 'activo' ? 'Activo' : 'Inactivo'}
+                    onQuitar={() => toggleEstado(estado)}
+                  />
+                ))}
+              </GrupoFiltro>
             </div>
-          </div>
+          )}
         </div>
-      )}
-    </div>
+      </PanelLateralSistema>
+    </>
   )
 }

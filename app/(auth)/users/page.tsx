@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useMemo, useEffect, type FormEvent } from "react"
-import { Plus, Users, Mail, Phone, UserCheckIcon as UserEdit, Search, CheckSquare, Square } from "lucide-react"
+import { Plus, Users, Mail, Phone, UserCheckIcon as UserEdit, Search, CheckSquare, Square, ChevronDown, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { useUsuariosConPermisos } from '@/hooks/use-usuarios-con-permisos'
 
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import { ContenedorDashboard, TarjetaSistema, BotonSistema, InputSistema, BadgeSistema, TituloSistema, TextoSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, BotonSistema, InputSistema, SelectSistema, BadgeSistema, TituloSistema, TextoSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { FiltrosUsuarios as FiltrosUsuariosUI } from '@/components/ui/filtros-usuarios'
 import type { FiltrosUsuarios as FiltrosUsuariosType } from '@/components/ui/filtros-usuarios'
@@ -42,6 +42,28 @@ function obtenerVarianteBadgeRol(rol?: string): "default" | "success" | "warning
     default:
       return 'default'
   }
+}
+
+const OPCIONES_POR_PAGINA = [
+  { valor: '20', etiqueta: '20' },
+  { valor: '50', etiqueta: '50' },
+  { valor: '100', etiqueta: '100' },
+]
+
+/** Row checkbox with a 44px hit area around the 16px box. */
+function CasillaSeleccion({ nombre, marcada, onCambiar }: { nombre: string; marcada: boolean; onCambiar: () => void }) {
+  return (
+    <label className="-m-2 flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl">
+      <input
+        type="checkbox"
+        className="size-4 accent-[var(--brand-primary)]"
+        aria-label={`Seleccionar a ${nombre}`}
+        checked={marcada}
+        onChange={onCambiar}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </label>
+  )
 }
 
 function formatearEmail(email?: string | null): string {
@@ -168,78 +190,70 @@ export default function PaginaUsuarios() {
   }
 
   const estadisticasUsuarios = [
-    { titulo: "Total Usuarios", valor: estadisticas?.total_usuarios || 0, crecimiento: "+12.5%", esPositivo: true, icono: Users, color: "from-orange-500 to-orange-600" },
-    { titulo: "Con Email", valor: estadisticas?.con_email || 0, crecimiento: "+8.2%", esPositivo: true, icono: Mail, color: "from-gray-500 to-gray-600" },
-    { titulo: "Con Teléfono", valor: estadisticas?.con_telefono || 0, crecimiento: "+15.3%", esPositivo: true, icono: Phone, color: "from-orange-400 to-orange-500" },
-    { titulo: "Registrados Hoy", valor: estadisticas?.registrados_hoy || 0, crecimiento: "+5.7%", esPositivo: true, icono: UserEdit, color: "from-gray-400 to-gray-500" },
+    { titulo: "Total Usuarios", valor: estadisticas?.total_usuarios || 0, crecimiento: "+12.5%", icono: Users },
+    { titulo: "Con Email", valor: estadisticas?.con_email || 0, crecimiento: "+8.2%", icono: Mail },
+    { titulo: "Con Teléfono", valor: estadisticas?.con_telefono || 0, crecimiento: "+15.3%", icono: Phone },
+    { titulo: "Registrados Hoy", valor: estadisticas?.registrados_hoy || 0, crecimiento: "+5.7%", icono: UserEdit },
   ]
 
   if (cargando) {
     return (
-<ContenedorDashboard
-          titulo="Usuarios"
-          descripcion="Cargando información de usuarios..."
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <TarjetaSistema key={i} className="p-6">
-                <div className="flex items-center gap-4">
-                  <SkeletonSistema ancho="48px" alto="48px" redondo />
-                  <div className="space-y-2 flex-1">
-                    <SkeletonSistema ancho="80px" alto="20px" />
-                    <SkeletonSistema ancho="120px" alto="16px" />
-                  </div>
+      <PaginaSistema titulo="Usuarios">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <TarjetaSistema key={i} className="p-4">
+              <div className="flex items-center gap-3">
+                <SkeletonSistema ancho="48px" alto="48px" />
+                <div className="space-y-2 flex-1">
+                  <SkeletonSistema ancho="80px" alto="20px" />
+                  <SkeletonSistema ancho="120px" alto="16px" />
                 </div>
-              </TarjetaSistema>
-            ))}
-          </div>
+              </div>
+            </TarjetaSistema>
+          ))}
+        </div>
 
-          <TarjetaSistema className="p-6">
-            <div className="space-y-4">
-              <SkeletonSistema ancho="200px" alto="24px" />
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 border border-border rounded-lg">
-                  <SkeletonSistema ancho="48px" alto="48px" redondo />
-                  <div className="space-y-2 flex-1">
-                    <SkeletonSistema ancho="150px" alto="16px" />
-                    <SkeletonSistema ancho="200px" alto="14px" />
-                  </div>
-                  <SkeletonSistema ancho="80px" alto="32px" />
+        <div className="space-y-3">
+          <SkeletonSistema ancho="100%" alto="44px" />
+          {[...Array(5)].map((_, i) => (
+            <TarjetaSistema key={i} className="p-4">
+              <div className="flex items-center gap-4">
+                <SkeletonSistema ancho="48px" alto="48px" redondo />
+                <div className="space-y-2 flex-1 min-w-0">
+                  <SkeletonSistema ancho="60%" alto="16px" />
+                  <SkeletonSistema ancho="80%" alto="14px" />
                 </div>
-              ))}
-            </div>
-          </TarjetaSistema>
-        </ContenedorDashboard>
-)
+              </div>
+            </TarjetaSistema>
+          ))}
+        </div>
+      </PaginaSistema>
+    )
   }
 
+  const haySeleccion = esAdmin && seleccionados.size > 0
+
+  // Bulk role change: in the desktop header, and inline on mobile where the header is hidden.
+  const accionesSeleccion = haySeleccion ? (
+    <div className="flex flex-wrap items-center gap-2">
+      <SelectSistema
+        aria-label="Nuevo rol"
+        value={rolNuevo}
+        onValueChange={(valor) => setRolNuevo(valor as RolSeleccionable)}
+        opciones={ROLES_DISPONIBLES.map(r => ({ valor: r.nombre_interno, etiqueta: r.nombre_visible }))}
+        className="w-auto min-w-44"
+      />
+      <BotonSistema variante="primario" onClick={cambiarRolSeleccionados} cargando={cambiandoRol}>
+        Cambiar Rol ({seleccionados.size})
+      </BotonSistema>
+      <BotonSistema variante="outline" onClick={limpiarSeleccion} disabled={cambiandoRol}>
+        Cancelar
+      </BotonSistema>
+    </div>
+  ) : null
+
   return (
-<ContenedorDashboard
-        titulo="Usuarios"
-        descripcion=""
-        accionPrincipal={esAdmin && seleccionados.size > 0 ? (
-          <div className="flex items-center gap-2">
-            <select
-              value={rolNuevo}
-              onChange={(e) => setRolNuevo(e.target.value as RolSeleccionable)}
-              className="px-2 py-1 border border-border rounded text-sm bg-card focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]"
-            >
-              <option value="miembro">Miembro</option>
-              <option value="lider">Líder</option>
-              <option value="pastor">Pastor</option>
-              <option value="director-etapa">Director de Etapa</option>
-              <option value="director-general">Director General</option>
-              <option value="admin">Administrador</option>
-            </select>
-            <BotonSistema variante="primario" tamaño="sm" onClick={cambiarRolSeleccionados} cargando={cambiandoRol}>
-              Cambiar Rol ({seleccionados.size})
-            </BotonSistema>
-            <BotonSistema variante="outline" tamaño="sm" onClick={limpiarSeleccion} disabled={cambiandoRol}>
-              Cancelar
-            </BotonSistema>
-          </div>
-        ) : null}
-      >
+    <PaginaSistema titulo="Usuarios" acciones={accionesSeleccion}>
 
         {/* Signups by cédula waiting for this director; renders nothing when there are none */}
         <VinculosPendientesCard />
@@ -248,106 +262,42 @@ export default function PaginaUsuarios() {
         <div className="space-y-4">
           {/* Móvil: Solo Total Usuarios visible, resto colapsable */}
           <div className="md:hidden">
-            {/* Tarjeta Principal - Total Usuarios */}
-            <TarjetaSistema className="p-4 hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Users className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <TituloSistema nivel={3} className="text-foreground truncate">{estadisticas?.total_usuarios || 0}</TituloSistema>
-                    <BadgeSistema variante="success" tamaño="sm">+12.5%</BadgeSistema>
-                  </div>
-                  <TextoSistema variante="sutil" tamaño="sm" className="truncate">Total Usuarios</TextoSistema>
-                </div>
-              </div>
-            </TarjetaSistema>
+            <TarjetaEstadistica {...estadisticasUsuarios[0]} />
 
-            {/* Botón para mostrar/ocultar métricas adicionales */}
-            <button
+            <BotonSistema
+              variante="ghost"
+              tamaño="sm"
               onClick={() => setMostrarMetricasAdicionales(!mostrarMetricasAdicionales)}
-              className="w-full mt-3 p-3 bg-muted hover:bg-accent rounded-lg transition-colors flex items-center justify-center gap-2 text-muted-foreground"
+              aria-expanded={mostrarMetricasAdicionales}
+              icono={ChevronDown}
+              iconoPosicion="derecha"
+              className={`mt-3 w-full bg-muted [&>svg]:transition-transform ${mostrarMetricasAdicionales ? '[&>svg]:rotate-180' : ''}`}
             >
-              <span className="text-sm font-medium">
-                {mostrarMetricasAdicionales ? 'Ocultar métricas' : 'Ver más métricas'}
-              </span>
-              <svg
-                className={`w-4 h-4 transition-transform ${mostrarMetricasAdicionales ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+              {mostrarMetricasAdicionales ? 'Ocultar métricas' : 'Ver más métricas'}
+            </BotonSistema>
 
             {/* Métricas adicionales colapsables */}
             {mostrarMetricasAdicionales && (
               <div className="mt-3 space-y-3">
-                {estadisticasUsuarios.slice(1).map((estadistica, indice) => {
-                  const Icono = estadistica.icono
-                  return (
-                    <TarjetaSistema key={indice + 1} className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 bg-gradient-to-br ${estadistica.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                          <Icono className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <TituloSistema nivel={4} className="text-foreground truncate">{estadistica.valor}</TituloSistema>
-                            <BadgeSistema variante="success" tamaño="sm">
-                              {estadistica.crecimiento}
-                            </BadgeSistema>
-                          </div>
-                          <TextoSistema variante="sutil" tamaño="sm" className="truncate">
-                            {estadistica.titulo}
-                          </TextoSistema>
-                        </div>
-                      </div>
-                    </TarjetaSistema>
-                  )
-                })}
+                {estadisticasUsuarios.slice(1).map((estadistica) => (
+                  <TarjetaEstadistica key={estadistica.titulo} {...estadistica} />
+                ))}
               </div>
             )}
           </div>
 
           {/* Desktop: Grid normal */}
           <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {estadisticasUsuarios.map((estadistica, indice) => {
-              const Icono = estadistica.icono
-              return (
-                <TarjetaSistema key={indice} className="p-4 hover:shadow-lg transition-shadow duration-200">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 bg-gradient-to-br ${estadistica.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                      <Icono className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <TituloSistema nivel={3} className="text-foreground truncate">{estadistica.valor}</TituloSistema>
-                        <BadgeSistema variante="success" tamaño="sm">
-                          {estadistica.crecimiento}
-                        </BadgeSistema>
-                      </div>
-                      <TextoSistema variante="sutil" tamaño="sm" className="truncate">
-                        {estadistica.titulo}
-                      </TextoSistema>
-                    </div>
-                  </div>
-                </TarjetaSistema>
-              )
-            })}
+            {estadisticasUsuarios.map((estadistica) => (
+              <TarjetaEstadistica key={estadistica.titulo} {...estadistica} />
+            ))}
           </div>
         </div>
 
         {/* Lista de Usuarios */}
-        <div className="space-y-4">
-          {/* Encabezado Minimalista */}
-          <div className="flex items-center justify-between">
-            <div>
-              <TituloSistema nivel={2} className="mb-2">Usuarios</TituloSistema>
-            </div>
-          </div>
+        <section aria-labelledby="titulo-lista-usuarios" className="space-y-4">
+          {/* The page title already says "Usuarios"; the list heading is for screen readers. */}
+          <TituloSistema id="titulo-lista-usuarios" nivel={2} className="sr-only">Usuarios</TituloSistema>
 
           {/* Buscador Simple */}
           <div className="space-y-3">
@@ -362,164 +312,152 @@ export default function PaginaUsuarios() {
                   icono={Search}
                 />
               </div>
-              <BotonSistema type="submit" className="shrink-0">
+              <BotonSistema type="submit">
                 Buscar
               </BotonSistema>
             </form>
 
-            <div className="flex flex-col md:flex-row gap-2 md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Filtros avanzados */}
-              <div>
-                {(() => {
-                  const filtrosUI: FiltrosUsuariosType = {
-                    roles: filtros.roles,
-                    conEmail: filtros.con_email,
-                    conTelefono: filtros.con_telefono,
-                    enGrupo: filtros.en_grupo ?? null,
-                    estado: []
-                  }
-                  return (
-                    <FiltrosUsuariosUI
-                      filtros={filtrosUI}
-                      onFiltrosChange={(f) => {
-                        actualizarFiltros({ roles: f.roles, con_email: f.conEmail, con_telefono: f.conTelefono, en_grupo: f.enGrupo })
-                      }}
-                      rolesDisponibles={ROLES_DISPONIBLES}
-                      onLimpiarFiltros={limpiarFiltros}
-                    />
-                  )
-                })()}
-              </div>
+              {(() => {
+                const filtrosUI: FiltrosUsuariosType = {
+                  roles: filtros.roles,
+                  conEmail: filtros.con_email,
+                  conTelefono: filtros.con_telefono,
+                  enGrupo: filtros.en_grupo ?? null,
+                  estado: []
+                }
+                return (
+                  <FiltrosUsuariosUI
+                    filtros={filtrosUI}
+                    onFiltrosChange={(f) => {
+                      actualizarFiltros({ roles: f.roles, con_email: f.conEmail, con_telefono: f.conTelefono, en_grupo: f.enGrupo })
+                    }}
+                    rolesDisponibles={ROLES_DISPONIBLES}
+                    onLimpiarFiltros={limpiarFiltros}
+                  />
+                )
+              })()}
               {filtros.busqueda && (
-                <BotonSistema
-                  variante="outline"
-                  onClick={limpiarFiltros}
-                  tamaño="sm"
-                  className="w-full md:w-auto"
-                >
+                <BotonSistema variante="outline" onClick={limpiarFiltros}>
                   Limpiar Filtros
                 </BotonSistema>
               )}
 
               {esAdmin && (usuarios && usuarios.length > 0) && seleccionados.size > 0 && (
-                <div className="flex items-center gap-2 ml-auto">
-                  <BotonSistema
-                    variante="outline"
-                    tamaño="sm"
-                    onClick={toggleSeleccionPagina}
-                    icono={todosSeleccionadosEnPagina ? CheckSquare : Square}
-                  >
-                    {todosSeleccionadosEnPagina ? 'Deseleccionar todos (página)' : 'Seleccionar todos (página)'}
-                  </BotonSistema>
-                </div>
+                <BotonSistema
+                  variante="outline"
+                  onClick={toggleSeleccionPagina}
+                  icono={todosSeleccionadosEnPagina ? CheckSquare : Square}
+                  className="md:ml-auto"
+                >
+                  {todosSeleccionadosEnPagina ? 'Deseleccionar todos (página)' : 'Seleccionar todos (página)'}
+                </BotonSistema>
               )}
             </div>
+
+            {accionesSeleccion && <div className="md:hidden">{accionesSeleccion}</div>}
           </div>
 
           {/* Lista de Usuarios */}
-          <div className="space-y-2 md:space-y-3">
+          <ul className="space-y-2 md:space-y-3">
             {usuarios && usuarios.length > 0 ? (
-              usuarios.map((usuario) => (
-                <div key={usuario.id} className="block">
-                  {/* Versión Móvil */}
-                  <div className="md:hidden flex items-center gap-3 p-3 bg-card rounded-lg border border-border hover:bg-accent/50 transition-colors">
-                    {esAdmin && (
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4"
-                        checked={seleccionados.has(usuario.id)}
-                        onChange={() => toggleSeleccion(usuario.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    )}
-                    <Link href={`/users/${usuario.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                      <UserAvatar
-                        photoUrl={usuario.foto_perfil_url || null}
-                        nombre={usuario.nombre}
-                        apellido={usuario.apellido}
-                        size="md"
-                        className="flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-foreground truncate">
-                          {usuario.nombre} {usuario.apellido}
-                        </div>
-                        <div className="text-sm text-muted-foreground truncate">
-                          {formatearEmail(usuario.email)}
-                        </div>
-                      </div>
-                      <div className="text-muted-foreground/50">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </Link>
-                  </div>
-
-                  {/* Desktop */}
-                  <TarjetaSistema className="hidden md:block p-4 hover:shadow-md transition-shadow duration-200">
-                    <div className="flex items-center gap-4">
+              usuarios.map((usuario) => {
+                const nombreCompleto = `${usuario.nombre} ${usuario.apellido}`
+                return (
+                  <li key={usuario.id}>
+                    {/* Versión Móvil */}
+                    <div className="md:hidden flex items-center gap-3 p-3 bg-card rounded-2xl border border-border hover:bg-accent/50 transition-colors">
                       {esAdmin && (
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4"
-                          checked={seleccionados.has(usuario.id)}
-                          onChange={() => toggleSeleccion(usuario.id)}
-                          onClick={(e) => e.stopPropagation()}
+                        <CasillaSeleccion
+                          nombre={nombreCompleto}
+                          marcada={seleccionados.has(usuario.id)}
+                          onCambiar={() => toggleSeleccion(usuario.id)}
                         />
                       )}
-                      <Link href={`/users/${usuario.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                      <Link href={`/users/${usuario.id}`} className="flex min-h-11 items-center gap-3 flex-1 min-w-0">
                         <UserAvatar
                           photoUrl={usuario.foto_perfil_url || null}
                           nombre={usuario.nombre}
                           apellido={usuario.apellido}
-                          size="lg"
-                          className="flex-shrink-0 shadow-lg"
+                          size="md"
+                          className="flex-shrink-0"
                         />
-
-                        <div className="flex-1 min-w-0 grid grid-cols-4 gap-4">
-                          <div>
-                            <TituloSistema nivel={4} className="truncate hover:text-orange-600 transition-colors">
-                              {usuario.nombre} {usuario.apellido}
-                            </TituloSistema>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-foreground truncate">
+                            {nombreCompleto}
                           </div>
-
-                          <div>
-                            <TextoSistema tamaño="sm" className="truncate">
-                              {formatearEmail(usuario.email)}
-                            </TextoSistema>
-                          </div>
-
-                          <div>
-                            <TextoSistema tamaño="sm" className="truncate">
-                              {formatearTelefono(usuario.telefono)}
-                            </TextoSistema>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <BadgeSistema variante={obtenerVarianteBadgeRol(usuario.rol_nombre_interno)} tamaño="sm">
-                              {getRolLabel(usuario.rol_nombre_interno || '')}
-                            </BadgeSistema>
-                            <BadgeSistema variante="success" tamaño="sm">Activo</BadgeSistema>
+                          <div className="text-sm text-muted-foreground truncate">
+                            {formatearEmail(usuario.email)}
                           </div>
                         </div>
+                        <ChevronRight className="size-5 shrink-0 text-muted-foreground/50" aria-hidden="true" />
                       </Link>
                     </div>
-                  </TarjetaSistema>
-                </div>
-              ))
+
+                    {/* Desktop */}
+                    <TarjetaSistema className="hidden md:block p-4 hover:shadow-md transition-shadow duration-200">
+                      <div className="flex items-center gap-4">
+                        {esAdmin && (
+                          <CasillaSeleccion
+                            nombre={nombreCompleto}
+                            marcada={seleccionados.has(usuario.id)}
+                            onCambiar={() => toggleSeleccion(usuario.id)}
+                          />
+                        )}
+                        <Link href={`/users/${usuario.id}`} className="group flex items-center gap-4 flex-1 min-w-0">
+                          <UserAvatar
+                            photoUrl={usuario.foto_perfil_url || null}
+                            nombre={usuario.nombre}
+                            apellido={usuario.apellido}
+                            size="lg"
+                            className="flex-shrink-0 shadow-lg"
+                          />
+
+                          <div className="flex-1 min-w-0 grid grid-cols-4 gap-4">
+                            <div className="min-w-0">
+                              <TituloSistema nivel={4} className="truncate transition-colors group-hover:text-[var(--brand-primary)]">
+                                {nombreCompleto}
+                              </TituloSistema>
+                            </div>
+
+                            <div className="min-w-0">
+                              <TextoSistema tamaño="sm" className="truncate">
+                                {formatearEmail(usuario.email)}
+                              </TextoSistema>
+                            </div>
+
+                            <div className="min-w-0">
+                              <TextoSistema tamaño="sm" className="truncate">
+                                {formatearTelefono(usuario.telefono)}
+                              </TextoSistema>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <BadgeSistema variante={obtenerVarianteBadgeRol(usuario.rol_nombre_interno)} tamaño="sm">
+                                {getRolLabel(usuario.rol_nombre_interno || '')}
+                              </BadgeSistema>
+                              <BadgeSistema variante="success" tamaño="sm">Activo</BadgeSistema>
+                            </div>
+                          </div>
+                        </Link>
+                      </div>
+                    </TarjetaSistema>
+                  </li>
+                )
+              })
             ) : (
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
+              <li className="text-center py-12">
+                <Users className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" aria-hidden="true" />
                 <TituloSistema nivel={3} variante="sutil" className="mb-2">
                   {estadisticas?.total_usuarios === 0 ? 'No hay usuarios registrados' : 'No hay usuarios que coincidan con los filtros'}
                 </TituloSistema>
                 <TextoSistema variante="sutil">
                   {estadisticas?.total_usuarios === 0 ? 'Comienza creando el primer usuario de tu comunidad' : 'Intenta ajustar los filtros o cambiar de página'}
                 </TextoSistema>
-              </div>
+              </li>
             )}
-          </div>
+          </ul>
 
           {/* Controles de Paginación */}
           {estadisticas?.total_usuarios && estadisticas.total_usuarios > 0 && (
@@ -531,16 +469,14 @@ export default function PaginaUsuarios() {
 
                 {/* Selector de elementos por página */}
                 <div className="flex items-center gap-2">
-                  <TextoSistema tamaño="sm" variante="sutil">Mostrar:</TextoSistema>
-                  <select
-                    value={filtros.limite || 20}
-                    onChange={(e) => actualizarFiltros({ limite: parseInt(e.target.value) })}
-                    className="px-2 py-1 border border-border rounded text-sm bg-card focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)]"
-                  >
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
+                  <label htmlFor="usuarios-por-pagina" className="text-sm text-muted-foreground">Mostrar:</label>
+                  <SelectSistema
+                    id="usuarios-por-pagina"
+                    value={String(filtros.limite || 20)}
+                    onValueChange={(valor) => actualizarFiltros({ limite: parseInt(valor) })}
+                    opciones={OPCIONES_POR_PAGINA}
+                    className="w-24"
+                  />
                 </div>
               </div>
 
@@ -569,20 +505,33 @@ export default function PaginaUsuarios() {
 
           {/* Botón Agregar Miembro Fijo — solo roles con permiso */}
           {puedeCrear && (
-            <Link href="/users/create">
-              <div className="fixed bottom-20 md:bottom-6 right-4 z-30">
-                <BotonSistema
-                  variante="outline"
-                  className="border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 px-4 py-2 rounded-lg shadow-lg bg-card"
-                  tamaño="sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Agregar Miembro
-                </BotonSistema>
-              </div>
+            <Link href="/users/create" className="fixed bottom-20 md:bottom-6 right-4 z-30 rounded-xl">
+              <BotonSistema variante="primario" icono={Plus} tabIndex={-1}>
+                Agregar Miembro
+              </BotonSistema>
             </Link>
           )}
+        </section>
+      </PaginaSistema>
+  )
+}
+
+/** One KPI tile: brand-tinted icon, value, growth badge and label. */
+function TarjetaEstadistica({ titulo, valor, crecimiento, icono: Icono }: { titulo: string; valor: number; crecimiento: string; icono: typeof Users }) {
+  return (
+    <TarjetaSistema className="p-4 hover:shadow-lg transition-shadow duration-200">
+      <div className="flex items-center gap-3">
+        <div className="size-12 rounded-xl bg-[var(--brand-accent-strong)] text-[var(--brand-primary)] flex items-center justify-center flex-shrink-0">
+          <Icono className="size-6" aria-hidden="true" />
         </div>
-      </ContenedorDashboard>
-)
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <TituloSistema nivel={3} className="text-foreground truncate">{valor}</TituloSistema>
+            <BadgeSistema variante="success" tamaño="sm">{crecimiento}</BadgeSistema>
+          </div>
+          <TextoSistema variante="sutil" tamaño="sm" className="truncate">{titulo}</TextoSistema>
+        </div>
+      </div>
+    </TarjetaSistema>
+  )
 }
