@@ -73,6 +73,7 @@ jest.mock('@/components/ui/sistema-diseno', () => {
       </button>
     ),
     InputSistema: MockInputSistema,
+    PieAccionesSistema: ({ children }: { children: React.ReactNode }) => <div data-slot="pie-acciones">{children}</div>,
     SelectSistema: ({ disabled, label, onValueChange, opciones, placeholder, value }: { disabled?: boolean; label: string; onValueChange?: (value: string) => void; opciones: Array<{ valor: string; etiqueta: string }>; placeholder?: string; value?: string }) => (
       <label>
         {label}
@@ -198,7 +199,18 @@ describe('GroupEditForm host-home assignment guidance', () => {
     expect(screen.getByText('Dirección manual de referencia')).toBeInTheDocument()
     expect(screen.getByLabelText('Calle')).toBeInTheDocument()
   })
+
+  it.each([
+    [false, ['Cancelar', 'Guardar Cambios']],
+    [true, ['Volver']],
+  ])('keeps the actions in the system footer, primary last (readOnly %s)', (readOnly, textos) => {
+    const { container } = render(<GroupEditForm {...createProps({ readOnly })} />)
+
+    const pie = container.querySelector('[data-slot="pie-acciones"]') as HTMLElement
+    expect(Array.from(pie.querySelectorAll('button')).map((b) => b.textContent)).toEqual(textos)
+  })
 })
+
 
 function createProps(overrides: Partial<React.ComponentProps<typeof GroupEditForm>> = {}): React.ComponentProps<typeof GroupEditForm> {
   return {

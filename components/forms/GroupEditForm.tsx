@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
-import { InputSistema, SelectSistema, TextareaSistema, BotonSistema } from "@/components/ui/sistema-diseno";
+import { InputSistema, SelectSistema, TextareaSistema, BotonSistema, PieAccionesSistema } from "@/components/ui/sistema-diseno";
 import { updateGroup } from "@/lib/actions/group.actions";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
 import { COLUMNAS_CAMPOS, SeccionFormulario } from "./seccion-formulario";
@@ -390,8 +390,7 @@ export default function GroupEditForm({
         </SeccionFormulario>
       </div>
 
-      {/* Botones */}
-      <div className="flex gap-4">
+      <PieAccionesSistema fijo={false} className="bg-transparent">
         <BotonSistema
           type="button"
           variante="outline"
@@ -409,7 +408,7 @@ export default function GroupEditForm({
             Guardar Cambios
           </BotonSistema>
         )}
-      </div>
+      </PieAccionesSistema>
     </form>
   );
 }

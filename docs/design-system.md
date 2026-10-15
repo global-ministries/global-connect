@@ -150,6 +150,3 @@ container width (`@xl` / `@2xl`), so they never scroll sideways at 360px.
   its label but keeps a 32px (`h-8 w-8`) override below the 44px icon size.
 - `ui/card` still uses `rounded-xl`; move it to the surface radius when cards
   migrate.
-- `GroupEditForm` keeps its own button row: `__tests__/components/group-edit-form.test.tsx`
-  mocks `sistema-diseno` without `PieAccionesSistema`. Add it to that mock, then
-  move the buttons into the footer.
