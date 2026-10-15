@@ -52,7 +52,7 @@ export function PanelLateralSistema({
         // Without a description, tell Radix there is none instead of warning.
         {...(descripcion ? {} : { "aria-describedby": undefined })}
       >
-        <SheetHeader className="gap-1 border-b border-border px-4 py-4 pr-12 sm:px-6">
+        <SheetHeader className="gap-1 border-b border-border px-4 py-4 pr-14 sm:px-6 sm:pr-14">
           <SheetTitle className="text-lg">{titulo}</SheetTitle>
           {descripcion && <SheetDescription>{descripcion}</SheetDescription>}
         </SheetHeader>
