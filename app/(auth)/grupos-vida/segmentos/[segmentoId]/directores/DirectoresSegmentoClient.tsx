@@ -3,11 +3,14 @@ import { useEffect, useState } from 'react'
 import DirectorGroupsModal from './DirectorGroupsModal'
 import DirectorAssignedGroupsModal from './DirectorAssignedGroupsModal'
 import { useSegmentDirectors } from '@/hooks/useSegmentDirectors'
-import { Button } from '@/components/ui/button'
-import { TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { TituloSistema, TextoSistema, BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
+
+// Destructive action: BotonSistema has no danger variant yet, so the outline
+// button takes the danger token (docs/design-system.md, status colors).
+const CLASE_PELIGRO = "border-danger/40 text-danger hover:bg-danger/10 focus:ring-danger"
 
 interface Props { segmentoId: string; esSuperior?: boolean }
 
@@ -85,9 +88,9 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
           <TextoSistema variante="sutil" className="text-xs">Asigna ciudades a cada director de etapa.</TextoSistema>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>Refrescar</Button>
+          <BotonSistema variante="outline" tamaño="sm" onClick={refresh} disabled={loading}>Refrescar</BotonSistema>
           {esSuperior && (
-            <Button size="sm" onClick={async () => {
+            <BotonSistema tamaño="sm" onClick={async () => {
               setShowModal(true);
               setLoadingCandidatos(true);
               try {
@@ -101,7 +104,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
               } finally {
                 setLoadingCandidatos(false);
               }
-            }}>Agregar Director</Button>
+            }}>Agregar Director</BotonSistema>
           )}
         </div>
       </div>
@@ -185,17 +188,18 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                     )}
                   </div>
                   <div className="flex items-center gap-2 justify-end">
-                    <Button variant="outline" size="sm" onClick={() => abrirModalVerGrupos(d.id, d.nombre)}>Ver grupos</Button>
-                    <Button variant="secondary" size="sm" onClick={() => abrirModalGrupos(d.id, d.nombre)}>Asignar grupos</Button>
+                    <BotonSistema variante="outline" tamaño="sm" onClick={() => abrirModalVerGrupos(d.id, d.nombre)}>Ver grupos</BotonSistema>
+                    <BotonSistema variante="secundario" tamaño="sm" onClick={() => abrirModalGrupos(d.id, d.nombre)}>Asignar grupos</BotonSistema>
                     {esSuperior && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
+                      <BotonSistema
+                        variante="outline"
+                        tamaño="sm"
+                        className={CLASE_PELIGRO}
                         onClick={() => {
                           setPendingDeleteId(d.id)
                           setConfirmDeleteOpen(true)
                         }}
-                      >Eliminar</Button>
+                      >Eliminar</BotonSistema>
                     )}
                   </div>
                 </div>
@@ -260,17 +264,18 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Button variant="outline" size="sm" onClick={() => abrirModalVerGrupos(d.id, d.nombre)}>Ver grupos</Button>
-                    <Button variant="secondary" size="sm" onClick={() => abrirModalGrupos(d.id, d.nombre)}>Asignar grupos</Button>
+                    <BotonSistema variante="outline" tamaño="sm" onClick={() => abrirModalVerGrupos(d.id, d.nombre)}>Ver grupos</BotonSistema>
+                    <BotonSistema variante="secundario" tamaño="sm" onClick={() => abrirModalGrupos(d.id, d.nombre)}>Asignar grupos</BotonSistema>
                     {esSuperior && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
+                      <BotonSistema
+                        variante="outline"
+                        tamaño="sm"
+                        className={CLASE_PELIGRO}
                         onClick={() => {
                           setPendingDeleteId(d.id)
                           setConfirmDeleteOpen(true)
                         }}
-                      >Eliminar</Button>
+                      >Eliminar</BotonSistema>
                     )}
                   </div>
                 </div>
@@ -381,7 +386,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
               ))}
             </div>
             <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => { setShowModal(false); setCiudadSeleccionada(''); }} disabled={creando}>Cancelar</Button>
+              <BotonSistema variante="outline" tamaño="sm" onClick={() => { setShowModal(false); setCiudadSeleccionada(''); }} disabled={creando}>Cancelar</BotonSistema>
             </div>
           </div>
         </div>

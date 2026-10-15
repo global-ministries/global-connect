@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDirectorGroupAssignments } from '@/hooks/useDirectorGroupAssignments'
 import { useToast } from '@/hooks/use-toast'
-import { TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { TituloSistema, TextoSistema, BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { X, Save, Users, AlertTriangle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+
+// Destructive action: BotonSistema has no danger variant yet, so the outline
+// button takes the danger token (docs/design-system.md, status colors).
+const CLASE_PELIGRO = "border-danger/40 text-danger hover:bg-danger/10 focus:ring-danger"
 
 interface DirectorGroupsModalProps {
   open: boolean
@@ -167,10 +170,10 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <Button variant="default" size="sm" onClick={guardado} disabled={cargandoGuardar} className="hidden sm:flex">
+                <BotonSistema variante="primario" tamaño="sm" onClick={guardado} disabled={cargandoGuardar} className="hidden sm:flex">
                   <Save className="w-4 h-4 mr-1" />
                   {cargandoGuardar ? 'Guardando...' : 'Guardar'}
-                </Button>
+                </BotonSistema>
                 <button onClick={onClose} className="p-2 rounded-full hover:bg-accent transition-colors">
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -240,9 +243,9 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                 </div>
               </div>
               {(filtroActivo !== 'todos' || filtroTemporada || buscarLider) && (
-                <Button variant="outline" size="sm" className="self-end" onClick={() => { setFiltroActivo('todos'); setFiltroTemporada(''); setBuscarLider('') }}>
+                <BotonSistema variante="outline" tamaño="sm" className="self-end" onClick={() => { setFiltroActivo('todos'); setFiltroTemporada(''); setBuscarLider('') }}>
                   Limpiar
-                </Button>
+                </BotonSistema>
               )}
             </div>
             <div className="flex items-center justify-end gap-3">
@@ -309,10 +312,10 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
 
           {/* Botón fijo en móvil */}
           <div className="sm:hidden px-4 py-3 border-t border-border bg-card">
-            <Button variant="default" className="w-full" onClick={guardado} disabled={cargandoGuardar}>
+            <BotonSistema variante="primario" className="w-full" onClick={guardado} disabled={cargandoGuardar}>
               <Save className="w-4 h-4 mr-2" />
               {cargandoGuardar ? 'Guardando...' : `Guardar (${seleccion.size})`}
-            </Button>
+            </BotonSistema>
           </div>
         </div>
       </div>
@@ -340,8 +343,8 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
               </ul>
               <TextoSistema className="text-sm">¿Confirmas añadir también a <strong>{directorNombre || 'este director'}</strong>?</TextoSistema>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => setConfirmData(null)}>Cancelar</Button>
-                <Button variant="default" size="sm" onClick={confirmarAgregar}>Confirmar</Button>
+                <BotonSistema variante="outline" tamaño="sm" onClick={() => setConfirmData(null)}>Cancelar</BotonSistema>
+                <BotonSistema variante="primario" tamaño="sm" onClick={confirmarAgregar}>Confirmar</BotonSistema>
               </div>
             </div>
           </div>
@@ -369,8 +372,8 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                 ℹ️ Esta acción no afecta a otros directores del mismo grupo.
               </TextoSistema>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => setConfirmReplace(null)}>Cancelar</Button>
-                <Button variant="destructive" size="sm" onClick={() => { guardado() }}>Reemplazar</Button>
+                <BotonSistema variante="outline" tamaño="sm" onClick={() => setConfirmReplace(null)}>Cancelar</BotonSistema>
+                <BotonSistema variante="outline" tamaño="sm" className={CLASE_PELIGRO} onClick={() => { guardado() }}>Reemplazar</BotonSistema>
               </div>
             </div>
           </div>

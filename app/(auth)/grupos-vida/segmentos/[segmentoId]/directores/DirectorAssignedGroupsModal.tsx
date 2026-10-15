@@ -2,9 +2,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useDirectorGroupAssignments } from '@/hooks/useDirectorGroupAssignments'
 import { createPortal } from 'react-dom'
-import { TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { TituloSistema, TextoSistema, BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { X, RefreshCw, Users } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 interface Props {
   open: boolean
@@ -70,10 +69,10 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <Button variant="outline" size="sm" onClick={() => refresh()}>
+                <BotonSistema variante="outline" tamaño="sm" onClick={() => refresh()}>
                   <RefreshCw className="w-4 h-4 mr-1" />
                   Refrescar
-                </Button>
+                </BotonSistema>
                 <button onClick={onClose} className="p-2 rounded-full hover:bg-accent transition-colors">
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -119,9 +118,9 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                 </div>
               </div>
               {(buscar || filtroTemporada || filtroActivo !== 'todos') && (
-                <Button variant="outline" size="sm" className="self-end" onClick={() => { setBuscar(''); setFiltroTemporada(''); setFiltroActivo('todos') }}>
+                <BotonSistema variante="outline" tamaño="sm" className="self-end" onClick={() => { setBuscar(''); setFiltroTemporada(''); setFiltroActivo('todos') }}>
                   Limpiar
-                </Button>
+                </BotonSistema>
               )}
             </div>
             <div className="flex justify-end mt-2">

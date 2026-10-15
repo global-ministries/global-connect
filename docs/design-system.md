@@ -122,7 +122,12 @@ and reach for it only where a class cannot (inline styles, SVG attributes).
   `boton-gradiente` (as an error) only in the paths listed in
   `migratedToDesignSystem`. Add each area there when it migrates. A repo-wide
   warning would raise the 480-warning lint budget, so it waits until
-  migrations lower the count.
+  migrations lower the count. Migrated so far: Grupos de Vida
+  (`app/(auth)/grupos-vida`, `components/grupos`, `components/grupos-vida`).
+- `BotonSistema` has no danger variant. Destructive actions in Grupos de Vida
+  use the outline button with the danger token
+  (`border-danger/40 text-danger hover:bg-danger/10`); add a `peligro` variant
+  and replace those classes.
 - `ui/button` `size="icon"` does not require `aria-label` at the type level yet.
   The calendar day cells still use it without one; `KpisGruposPanel` now has
   its label but keeps a 32px (`h-8 w-8`) override below the 44px icon size.
