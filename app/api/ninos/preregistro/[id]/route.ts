@@ -12,6 +12,7 @@
 import { createElement } from 'react'
 import { after, NextRequest, NextResponse } from 'next/server'
 
+import { DESTINO_MIS_HIJOS, enlaceInvitacionConDestino } from '@/lib/auth/destino-mis-hijos'
 import { sendEmail } from '@/lib/email/send'
 import { InvitacionCuentaEmail } from '@/lib/email/invitacion-cuenta-email'
 import { NinosBienvenidaEmail } from '@/lib/email/ninos-bienvenida-email'
@@ -58,8 +59,18 @@ function dependenciasInvitacion(cliente: { rpc: unknown }, id: string): Dependen
         return { data: { userId: data.user.id, hashedToken: data.properties.hashed_token }, error: null }
       },
     },
+    // After choosing the password the parent lands on Mi Perfil → Mis hijos (R3b).
     enviarCorreo: ({ to, subject, nombre, enlace, idempotencyKey }) =>
-      sendEmail({ to, subject, template: createElement(InvitacionCuentaEmail, { nombre, urlAceptar: enlace }), idempotencyKey }),
+      sendEmail({
+        to,
+        subject,
+        template: createElement(InvitacionCuentaEmail, {
+          nombre,
+          urlAceptar: enlaceInvitacionConDestino(enlace, DESTINO_MIS_HIJOS),
+          deNinos: true,
+        }),
+        idempotencyKey,
+      }),
     urlBase: urlBaseSitio(),
   }
 }
@@ -82,7 +93,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           sendEmail({
             to,
             subject: 'Bienvenidos a Waumba Land / UpStreet',
-            template: createElement(NinosBienvenidaEmail, { nombre }),
+            template: createElement(NinosBienvenidaEmail, { nombre, urlMisHijos: `${urlBaseSitio()}${DESTINO_MIS_HIJOS}` }),
             idempotencyKey,
           }),
         enSegundoPlano: (tarea) => after(tarea),

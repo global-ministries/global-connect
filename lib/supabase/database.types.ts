@@ -7481,6 +7481,64 @@ export type Database = {
           },
         ]
       }
+      ninos_prechecks: {
+        Row: {
+          avisos: number
+          created_at: string
+          estado: string
+          fecha: string
+          id: string
+          nino_id: string
+          solicitado_por: string
+          turno_id: string
+          updated_at: string
+        }
+        Insert: {
+          avisos?: number
+          created_at?: string
+          estado?: string
+          fecha: string
+          id?: string
+          nino_id: string
+          solicitado_por: string
+          turno_id: string
+          updated_at?: string
+        }
+        Update: {
+          avisos?: number
+          created_at?: string
+          estado?: string
+          fecha?: string
+          id?: string
+          nino_id?: string
+          solicitado_por?: string
+          turno_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_prechecks_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ninos_preregistros: {
         Row: {
           campus_id: string
@@ -8209,6 +8267,10 @@ export type Database = {
       ninos_mis_hijos_pendientes: { Args: never; Returns: Json }
       ninos_mis_hijos_registrar: { Args: { p: Json }; Returns: Json }
       ninos_preregistros_cuentas: { Args: never; Returns: Json }
+      ninos_precheck_avisar: { Args: { p_nino_ids: string[]; p_turno_id: string }; Returns: Json }
+      ninos_precheck_cancelar: { Args: { p_turno_id: string }; Returns: Json }
+      ninos_mis_prechecks: { Args: never; Returns: Json }
+      ninos_prechecks_pendientes: { Args: { p_fecha: string; p_turno_id: string }; Returns: Json }
       _puede_ver_segmento_lider: {
         Args: {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]
