@@ -295,7 +295,7 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
               <button
                 type="button"
                 onClick={() => fetchDirectores(segmentoId)}
-                className="-my-3 -mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-medium text-[var(--brand-primary)] transition-colors duration-200 hover:bg-[var(--brand-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
+                className="-my-3 -mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-medium text-brand-text transition-colors duration-200 hover:bg-[var(--brand-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
                 disabled={cargandoDirectores}
               >
                 <RefreshCw className={cn("size-4", cargandoDirectores && "animate-spin motion-reduce:animate-none")} aria-hidden="true" />
@@ -324,7 +324,7 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
             );
           }} />
           {directoresError && (
-            <p className="text-sm text-danger">No se pudieron cargar los directores. Intenta recargar.</p>
+            <p className="text-sm text-danger-text">No se pudieron cargar los directores. Intenta recargar.</p>
           )}
         </div>
 

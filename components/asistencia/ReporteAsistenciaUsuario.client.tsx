@@ -179,14 +179,11 @@ export default function ReporteAsistenciaUsuarioClient({
                         </BadgeSistema>
                       </td>
                       <td className={cn(claseCelda, "hidden whitespace-nowrap text-right @3xl:table-cell")}>
-                        <Link
-                          href={`/grupos-vida/${evento.grupo_id}/asistencia/historial`}
-                          className="inline-block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <BotonSistema variante="ghost" tamaño="sm" icono={Eye} tabIndex={-1}>
+                        <BotonSistema asChild variante="ghost" tamaño="sm" icono={Eye}>
+                          <Link href={`/grupos-vida/${evento.grupo_id}/asistencia/historial`}>
                             Ver grupo
-                          </BotonSistema>
-                        </Link>
+                          </Link>
+                        </BotonSistema>
                       </td>
                     </tr>
                   ))

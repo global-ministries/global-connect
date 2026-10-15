@@ -365,7 +365,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               )}
             />
             {errors.telefono && (
-              <p role="alert" className="mt-1 text-sm text-danger">{errors.telefono.message}</p>
+              <p role="alert" className="mt-1 text-sm text-danger-text">{errors.telefono.message}</p>
             )}
           </div>
         </div>

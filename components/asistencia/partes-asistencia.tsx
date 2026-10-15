@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 type TonoKpi = "marca" | "info" | "exito" | "peligro" | "neutro"
 
 const TONOS_ICONO: Record<TonoKpi, string> = {
-  marca: "bg-[var(--brand-accent)] text-[var(--brand-primary)]",
+  marca: "bg-[var(--brand-accent)] text-brand",
   info: "bg-info/10 text-info",
   exito: "bg-success/10 text-success",
   peligro: "bg-danger/10 text-danger",
@@ -113,18 +113,18 @@ export function EstadoVacioAsistencia({ icono: Icono, titulo, descripcion }: Est
 export function claseBarraAsistencia(porcentaje: number) {
   if (porcentaje >= 80) return "bg-success"
   if (porcentaje >= 60) return "bg-warning"
-  if (porcentaje >= 40) return "bg-[var(--brand-primary)]"
+  if (porcentaje >= 40) return "bg-brand"
   return "bg-danger"
 }
 
 /**
- * Readable text color for a percentage figure: ≥80 success, ≥60 amber (the
- * warning token is too light for text on white), below that danger.
+ * Readable text color for a percentage figure (status `-text` tokens):
+ * ≥80 success, ≥60 warning, below that danger.
  */
 export function claseTextoAsistencia(porcentaje: number) {
-  if (porcentaje >= 80) return "text-success"
-  if (porcentaje >= 60) return "text-amber-700 dark:text-amber-400"
-  return "text-danger"
+  if (porcentaje >= 80) return "text-success-text"
+  if (porcentaje >= 60) return "text-warning-text"
+  return "text-danger-text"
 }
 
 /** Thin progress bar for an attendance percentage. */

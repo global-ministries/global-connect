@@ -4,10 +4,9 @@ import { cn } from "@/lib/utils"
 type TonoAviso = "error" | "info" | "marca"
 
 const TONOS: Record<TonoAviso, string> = {
-  error: "border-danger/30 bg-danger/10 font-medium text-danger",
+  error: "border-danger/30 bg-danger/10 font-medium text-danger-text",
   info: "border-info/30 bg-info/5 text-foreground",
-  // Brand orange has no readable text token yet (docs/design-system.md).
-  marca: "border-[color:var(--brand-primary)]/20 bg-[var(--brand-accent)] text-orange-800 dark:text-orange-300",
+  marca: "border-brand/20 bg-[var(--brand-accent)] text-brand-text",
 }
 
 interface AvisoFormularioProps extends React.HTMLAttributes<HTMLDivElement> {

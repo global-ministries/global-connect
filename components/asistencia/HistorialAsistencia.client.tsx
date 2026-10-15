@@ -221,19 +221,21 @@ const COLUMNAS_EVENTO = "@xl:grid-cols-[7rem_minmax(0,1fr)_6rem_4rem_8.5rem] @xl
 
 /** View and edit links of one event; icon-only when `compactas`. */
 function AccionesEvento({ grupoId, eventoId, compactas = false }: { grupoId: string; eventoId: string; compactas?: boolean }) {
-  const claseEnlace = "rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  const hrefVer = `/grupos-vida/${grupoId}/asistencia/${eventoId}`
   return (
     <div className="flex shrink-0 gap-1">
-      <Link href={`/grupos-vida/${grupoId}/asistencia/${eventoId}`} aria-label="Ver evento" className={claseEnlace}>
-        {compactas ? (
-          <BotonSistema variante="outline" tamaño="sm" soloIcono icono={Eye} aria-label="Ver evento" tabIndex={-1} />
-        ) : (
-          <BotonSistema variante="outline" tamaño="sm" icono={Eye} tabIndex={-1}>Ver</BotonSistema>
-        )}
-      </Link>
-      <Link href={`/grupos-vida/${grupoId}/asistencia/editar/${eventoId}`} aria-label="Editar evento" className={claseEnlace}>
-        <BotonSistema variante="ghost" tamaño="sm" soloIcono icono={Edit} aria-label="Editar evento" tabIndex={-1} />
-      </Link>
+      {compactas ? (
+        <BotonSistema asChild variante="outline" tamaño="sm" soloIcono icono={Eye} aria-label="Ver evento">
+          <Link href={hrefVer} />
+        </BotonSistema>
+      ) : (
+        <BotonSistema asChild variante="outline" tamaño="sm" icono={Eye}>
+          <Link href={hrefVer} aria-label="Ver evento">Ver</Link>
+        </BotonSistema>
+      )}
+      <BotonSistema asChild variante="ghost" tamaño="sm" soloIcono icono={Edit} aria-label="Editar evento">
+        <Link href={`/grupos-vida/${grupoId}/asistencia/editar/${eventoId}`} />
+      </BotonSistema>
     </div>
   )
 }

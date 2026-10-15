@@ -45,7 +45,7 @@ export function SeccionFormulario({
     <>
       <header className="mb-4 flex items-start gap-3 sm:mb-6">
         {Icono && (
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-accent)] text-[var(--brand-primary)]">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-accent)] text-brand">
             <Icono className="size-5" aria-hidden="true" />
           </span>
         )}

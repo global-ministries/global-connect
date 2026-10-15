@@ -81,10 +81,10 @@ describe('RankingAsistencia on the design system', () => {
 
 describe('attendance percentage scale', () => {
   it.each([
-    [80, 'bg-success', 'text-success'],
-    [60, 'bg-warning', 'text-amber-700 dark:text-amber-400'],
-    [40, 'bg-[var(--brand-primary)]', 'text-danger'],
-    [39, 'bg-danger', 'text-danger'],
+    [80, 'bg-success', 'text-success-text'],
+    [60, 'bg-warning', 'text-warning-text'],
+    [40, 'bg-brand', 'text-danger-text'],
+    [39, 'bg-danger', 'text-danger-text'],
   ])('%i%% maps to %s / %s', (porcentaje, barra, texto) => {
     expect(claseBarraAsistencia(porcentaje)).toBe(barra)
     expect(claseTextoAsistencia(porcentaje)).toBe(texto)
