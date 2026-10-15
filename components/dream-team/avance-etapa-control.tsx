@@ -157,7 +157,7 @@ export function AvanceEtapaControl({
               disabled={enviando}
             />
             {error && (
-              <TextoSistema role="alert" tamaño="sm" className="text-danger">
+              <TextoSistema role="alert" tamaño="sm" className="text-danger-text">
                 {error}
               </TextoSistema>
             )}

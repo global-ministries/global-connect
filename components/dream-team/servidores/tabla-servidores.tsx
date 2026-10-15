@@ -148,7 +148,7 @@ function FilaTabla({ fila, onActualizado }: { readonly fila: FilaVista; readonly
         <div className="flex items-center gap-3">
           <div
             aria-hidden="true"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent-strong)] text-sm font-bold text-[var(--brand-primary)]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-tint text-sm font-bold text-brand-text"
           >
             {inicialesDe(fila.nombre)}
           </div>

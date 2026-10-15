@@ -146,7 +146,7 @@ export function TurnosServicioDialog({
 
         {carga.estado === 'cargando' && <TextoSistema variante="sutil">Cargando turnos…</TextoSistema>}
         {carga.estado === 'error' && (
-          <TextoSistema role="alert" tamaño="sm" className="text-danger">
+          <TextoSistema role="alert" tamaño="sm" className="text-danger-text">
             {carga.mensaje}
           </TextoSistema>
         )}
@@ -220,7 +220,7 @@ export function TurnosServicioDialog({
         )}
 
         {error && (
-          <TextoSistema role="alert" tamaño="sm" className="text-danger">
+          <TextoSistema role="alert" tamaño="sm" className="text-danger-text">
             {error}
           </TextoSistema>
         )}

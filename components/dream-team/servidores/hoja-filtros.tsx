@@ -81,7 +81,7 @@ export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): R
                 className={cn(
                   'min-h-[44px] rounded-full border px-4 text-sm font-medium transition-colors',
                   rapido.activo
-                    ? 'border-[var(--brand-primary)] bg-[var(--brand-accent-strong)] text-foreground'
+                    ? 'border-brand bg-brand-tint text-foreground'
                     : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
                   ANILLO,
                 )}

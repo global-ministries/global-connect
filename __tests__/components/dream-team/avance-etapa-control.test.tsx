@@ -93,7 +93,7 @@ describe('AvanceEtapaControl', () => {
     expect(mensaje.textContent).toMatch(/recargá la página/i)
     expect(mensaje.textContent).not.toBe('Conflicto de versión')
     // The error uses the danger status token, not a raw palette color.
-    expect(mensaje).toHaveClass('text-danger')
+    expect(mensaje).toHaveClass('text-danger-text')
   })
 
   it('shows the server error message on another non-ok response', async () => {

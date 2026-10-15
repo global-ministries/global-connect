@@ -75,7 +75,7 @@ function TurnoFila({
             aria-hidden="true"
             className={cn(
               'flex h-6 w-11 items-center rounded-full p-[3px] transition-colors',
-              turno.activo ? 'justify-end bg-[var(--brand-primary)]' : 'justify-start bg-input',
+              turno.activo ? 'justify-end bg-brand' : 'justify-start bg-input',
             )}
           >
             <span className="h-[18px] w-[18px] rounded-full bg-background shadow-sm" />

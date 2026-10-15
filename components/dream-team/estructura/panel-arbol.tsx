@@ -72,7 +72,7 @@ function FilaDelArbol({
         className={cn(
           'flex min-h-[44px] min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border px-3 text-left text-sm text-foreground transition-colors',
           seleccionado
-            ? 'border-[var(--brand-primary)] bg-[var(--brand-accent)] font-semibold'
+            ? 'border-brand bg-[var(--brand-accent)] font-semibold'
             : cn('border-transparent hover:bg-accent', fila.profundidad === 0 ? 'font-semibold' : 'font-medium'),
           !fila.activo && !seleccionado && 'text-muted-foreground',
           ANILLO_FOCO,
