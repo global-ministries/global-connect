@@ -16,8 +16,6 @@ import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { getPersonasUnderMe } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { loadPublicRoadmap } from '@/lib/platform/pastoral/public-roadmap/load-public-roadmap'
 import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
-import { CLASE_ENLACE_BOTON } from '@/components/pastoral/estilos'
-import { cn } from '@/lib/utils'
 import AsistidoRoadmapClient from './AsistidoRoadmapClient'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
@@ -49,11 +47,11 @@ export default async function AsistidoRoadmapPage() {
 
       {/* Link to all sessions */}
       <div className="flex justify-end">
-        <Link href="/asistido/uno-auno" className={cn(CLASE_ENLACE_BOTON, 'w-full sm:w-auto')}>
-          <BotonSistema tabIndex={-1} variante="outline" icono={ArrowRight} iconoPosicion="derecha" className="w-full sm:w-auto">
+        <BotonSistema asChild variante="outline" icono={ArrowRight} iconoPosicion="derecha" className="w-full sm:w-auto">
+          <Link href="/asistido/uno-auno">
             Ver todas mis sesiones
-          </BotonSistema>
-        </Link>
+          </Link>
+        </BotonSistema>
       </div>
     </PaginaSistema>
   )

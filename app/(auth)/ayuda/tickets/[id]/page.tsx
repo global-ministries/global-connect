@@ -156,7 +156,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
                     <TextoSistema variante="muted" tamaño="sm">{attachment.contentType} · {formatAttachmentStatus(attachment.status)}</TextoSistema>
                   </div>
                   {attachment.status === 'uploaded' && (
-                    <a href={getAttachmentRoute(attachment.id)} aria-label={`Abrir ${attachment.filename}`} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-medium text-[var(--brand-primary)] transition-colors hover:bg-card focus-ring">
+                    <a href={getAttachmentRoute(attachment.id)} aria-label={`Abrir ${attachment.filename}`} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-medium text-brand-text transition-colors hover:bg-card focus-ring">
                       Abrir archivo
                     </a>
                   )}

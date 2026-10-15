@@ -19,7 +19,6 @@ import {
   TextareaSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
-import { CLASE_BOTON_PELIGRO } from '@/components/pastoral/estilos'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import type { CaptureUXState } from '@/lib/platform/pastoral/capture-ux/pastoral-capture-ux'
 
@@ -150,7 +149,7 @@ export default function CapturaForm({ oneOnOneId, mentorPersonaId, assistedPerso
 
       {/* Error */}
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-sm text-danger-text">
           {state.error}
         </p>
       )}
@@ -158,7 +157,7 @@ export default function CapturaForm({ oneOnOneId, mentorPersonaId, assistedPerso
       {/* Actions: secondary first, primary last */}
       <PieAccionesSistema fijo={false} className="bg-transparent">
         <BotonSistema
-          className={CLASE_BOTON_PELIGRO}
+          variante="peligro"
           icono={XCircle}
           cargando={state.isSubmitting}
           onClick={() => handleSubmit('rejected')}

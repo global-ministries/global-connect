@@ -12,7 +12,6 @@ import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { getPersonasUnderMe, visiblePersonaIdsOrNone } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { BotonSistema, PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
-import { CLASE_ENLACE_BOTON } from '@/components/pastoral/estilos'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 
@@ -70,11 +69,11 @@ export default async function LiderUnoAUnoListPage() {
       <TarjetaSistema>
         <div className="mb-4 flex items-center justify-between gap-3">
           <TituloSistema nivel={2}>Programadas</TituloSistema>
-          <Link href="/api/pastoral/one-on-one" className={CLASE_ENLACE_BOTON}>
-            <BotonSistema tabIndex={-1} variante="outline" tamaño="sm" icono={Plus}>
+          <BotonSistema asChild variante="outline" tamaño="sm" icono={Plus}>
+            <Link href="/api/pastoral/one-on-one">
               Nueva sesión
-            </BotonSistema>
-          </Link>
+            </Link>
+          </BotonSistema>
         </div>
         {upcoming.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">No hay sesiones programadas.</p>

@@ -116,7 +116,7 @@ export default async function SupportAdminPage({ searchParams }: SupportAdminPag
               <Filter className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="ml-2">Filtros</span>
               {activeFiltersCount > 0 && (
-                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--brand-primary)] px-1 text-[11px] font-semibold text-white">
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[11px] font-semibold text-brand-foreground">
                   {activeFiltersCount}
                 </span>
               )}
@@ -216,7 +216,7 @@ function TicketsMobileList({ tickets, canManage, statusAction, statusOptions }: 
             </div>
             <div className="min-w-0 flex-1">
               <div className="mb-2 flex items-start justify-between gap-2">
-                <Link href={`/ayuda/tickets/${ticket.id}`} className="min-w-0 flex-1 truncate rounded-md font-semibold text-foreground hover:text-[var(--brand-primary)] focus-ring" aria-label={`#${ticket.ticketNumber} ${ticket.title}`}>
+                <Link href={`/ayuda/tickets/${ticket.id}`} className="min-w-0 flex-1 truncate rounded-md font-semibold text-foreground hover:text-brand-text focus-ring" aria-label={`#${ticket.ticketNumber} ${ticket.title}`}>
                   #{ticket.ticketNumber} {ticket.title}
                 </Link>
                 <BadgeSistema variante="info" tamaño="sm" className="shrink-0">

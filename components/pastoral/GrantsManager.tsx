@@ -167,7 +167,7 @@ export function GrantsManager({ usuarioId, usuarioNombre, capabilitiesIniciales,
           <h3 className="mb-2 font-medium">Resultado:</h3>
           <ul className="space-y-1">
             {saveResult.map((r) => (
-              <li key={r.capability_key} className={cn('break-words text-sm', r.success ? 'text-success' : 'text-danger')}>
+              <li key={r.capability_key} className={cn('break-words text-sm', r.success ? 'text-success-text' : 'text-danger-text')}>
                 {r.action === 'grant' ? 'Otorgado' : 'Revocado'}: {r.capability_key} — {r.success ? 'OK' : 'Error'}
               </li>
             ))}

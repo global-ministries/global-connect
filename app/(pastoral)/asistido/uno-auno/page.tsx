@@ -13,7 +13,6 @@ import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { getPersonasUnderMe, visiblePersonaIdsOrNone } from '@/lib/platform/pastoral/hierarchical-visibility'
 import { BotonSistema, PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
-import { CLASE_ENLACE_BOTON } from '@/components/pastoral/estilos'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
@@ -75,11 +74,11 @@ export default async function AsistidoUnoAUnoListPage() {
       regreso={{ href: '/asistido', texto: 'Volver al roadmap' }}
     >
       {/* The desktop header shows the back link; mobile keeps it in the page. */}
-      <Link href="/asistido" className={`${CLASE_ENLACE_BOTON} md:hidden`}>
-        <BotonSistema tabIndex={-1} variante="ghost" tamaño="sm" icono={ArrowLeft}>
+      <BotonSistema asChild variante="ghost" tamaño="sm" icono={ArrowLeft} className="md:hidden">
+        <Link href="/asistido">
           Volver al roadmap
-        </BotonSistema>
-      </Link>
+        </Link>
+      </BotonSistema>
 
       <TarjetaSistema>
         <TituloSistema nivel={2} className="mb-3">Próximas Sesiones</TituloSistema>

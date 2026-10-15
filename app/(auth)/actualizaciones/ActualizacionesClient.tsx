@@ -35,7 +35,7 @@ function claseChip(activo: boolean) {
         'inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium transition-colors duration-200 pointer-coarse:h-11',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         activo
-            ? 'bg-[var(--brand-primary)] text-white'
+            ? 'bg-brand text-brand-foreground'
             : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
     )
 }
@@ -153,7 +153,7 @@ export default function ActualizacionesClient({ puedeVerTodo, rolUsuario }: Actu
                                 <ul className="space-y-1.5">
                                     {detallesVisibles.map((d, i) => (
                                         <li key={i} className="flex items-start gap-2">
-                                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-primary)]" aria-hidden="true" />
+                                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-hidden="true" />
                                             <TextoSistema tamaño="sm">{d}</TextoSistema>
                                         </li>
                                     ))}

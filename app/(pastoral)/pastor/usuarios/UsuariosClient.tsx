@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { Settings } from 'lucide-react'
 import { BadgeSistema, BotonSistema, PaginaSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { CLASE_ENLACE_BOTON, CLASE_ITEM_LISTA } from '@/components/pastoral/estilos'
+import { CLASE_ITEM_LISTA } from '@/components/pastoral/estilos'
 import { cn } from '@/lib/utils'
 
 type CapabilityEntry = {
@@ -67,11 +67,11 @@ function Capabilities({ capabilities }: { capabilities: CapabilityEntry[] }) {
 
 function EnlaceGestionar({ usuarioId, className }: { usuarioId: string; className?: string }) {
   return (
-    <Link href={`/pastor/grants/${usuarioId}`} className={cn(CLASE_ENLACE_BOTON, className)}>
-      <BotonSistema tabIndex={-1} variante="outline" tamaño="sm" icono={Settings} className="w-full">
+    <BotonSistema asChild variante="outline" tamaño="sm" icono={Settings} className={className}>
+      <Link href={`/pastor/grants/${usuarioId}`}>
         Gestionar
-      </BotonSistema>
-    </Link>
+      </Link>
+    </BotonSistema>
   )
 }
 
@@ -80,7 +80,7 @@ export default function UsuariosClient({ usuarios, error }: UsuariosClientProps)
     return (
       <PaginaSistema titulo="Gestión de Usuarios" descripcion="Administrar capabilities pastoral">
         <TarjetaSistema>
-          <p className="text-danger" role="alert">{error}</p>
+          <p className="text-danger-text" role="alert">{error}</p>
         </TarjetaSistema>
       </PaginaSistema>
     )

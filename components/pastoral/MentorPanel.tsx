@@ -26,7 +26,6 @@ import { useRouter } from 'next/navigation'
 import { CaptureUXState, PASTORAL_CAPTURE_UX_SHAPE, PastoralCaptureContext, canTransitionUX, isTerminal } from '@/lib/platform/pastoral/capture-ux/pastoral-capture-ux'
 import { BadgeSistema, BotonSistema, TarjetaSistema, TextareaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { CLASE_BOTON_PELIGRO } from './estilos'
 import { ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -233,8 +232,7 @@ export function MentorPanel({
             {availableActions.map(({ to, label, variant }) => (
               <BotonSistema
                 key={to}
-                variante={variant === 'peligro' ? 'primario' : variant}
-                className={variant === 'peligro' ? CLASE_BOTON_PELIGRO : undefined}
+                variante={variant}
                 disabled={!canTransition(to) || state.isSubmitting}
                 cargando={state.isSubmitting && canTransition(to)}
                 onClick={() => transitionTo(to, state.feedback)}

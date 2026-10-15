@@ -97,7 +97,7 @@ export default function NotesForm({ oneOnOneId }: NotesFormProps) {
   if (state.submitted) {
     return (
       <div className="space-y-3 rounded-2xl border border-success/30 bg-success/10 p-4" role="status">
-        <div className="flex items-center gap-2 text-success">
+        <div className="flex items-center gap-2 text-success-text">
           <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
           <span className="text-sm font-medium text-foreground">Nota agregada exitosamente</span>
         </div>
@@ -120,7 +120,7 @@ export default function NotesForm({ oneOnOneId }: NotesFormProps) {
       />
 
       {state.error && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-sm text-danger-text">
           {state.error}
         </p>
       )}

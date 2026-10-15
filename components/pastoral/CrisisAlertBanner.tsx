@@ -15,7 +15,6 @@ import Link from 'next/link'
 import { AlertTriangle, ShieldAlert, ArrowRight } from 'lucide-react'
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { cn } from '@/lib/utils'
-import { CLASE_BOTON_PELIGRO, CLASE_ENLACE_BOTON } from './estilos'
 
 interface CrisisAlert {
   readonly oneOnOneId: string
@@ -61,7 +60,7 @@ export function CrisisAlertBanner({ alerts, className }: CrisisAlertBannerProps)
             {/* Header */}
             <div className="mb-1 flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
-              <span className="text-sm font-semibold text-danger">Alerta de Crisis Detectada</span>
+              <span className="text-sm font-semibold text-danger-text">Alerta de Crisis Detectada</span>
             </div>
 
             {/* Most urgent alert */}
@@ -85,16 +84,17 @@ export function CrisisAlertBanner({ alerts, className }: CrisisAlertBannerProps)
         </div>
 
         {/* CTA */}
-        <Link href="/pastor/crisis" className={cn(CLASE_ENLACE_BOTON, 'w-full sm:w-auto')}>
-          <BotonSistema
-            tabIndex={-1}
-            icono={ArrowRight}
-            iconoPosicion="derecha"
-            className={cn(CLASE_BOTON_PELIGRO, 'w-full sm:w-auto')}
-          >
+        <BotonSistema
+          asChild
+          variante="peligro"
+          icono={ArrowRight}
+          iconoPosicion="derecha"
+          className="w-full sm:w-auto"
+        >
+          <Link href="/pastor/crisis">
             Ver alertas
-          </BotonSistema>
-        </Link>
+          </Link>
+        </BotonSistema>
       </div>
     </section>
   )

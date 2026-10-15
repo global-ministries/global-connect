@@ -74,17 +74,17 @@ export default async function TicketsPage({ searchParams }: { searchParams?: Pro
     <PaginaSistema
       titulo="Mis tickets de soporte"
       acciones={
-        <Link href="/ayuda/reportar" className="inline-flex rounded-xl focus-ring">
-          <BotonSistema tabIndex={-1} tamaño="sm" icono={Plus}>Nuevo ticket</BotonSistema>
-        </Link>
+        <BotonSistema asChild tamaño="sm" icono={Plus}>
+          <Link href="/ayuda/reportar">Nuevo ticket</Link>
+        </BotonSistema>
       }
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <TicketFilterPills activeFilter={activeFilter} />
         {/* The desktop header holds this action; mobile keeps it in the page. */}
-        <Link href="/ayuda/reportar" className="inline-flex w-full rounded-xl focus-ring md:hidden">
-          <BotonSistema tabIndex={-1} icono={Plus} className="w-full">Nuevo ticket</BotonSistema>
-        </Link>
+        <BotonSistema asChild icono={Plus} className="w-full md:hidden">
+          <Link href="/ayuda/reportar">Nuevo ticket</Link>
+        </BotonSistema>
       </div>
       <DataTable
         rows={filteredTickets}
@@ -162,7 +162,7 @@ function TicketsMobileList({ tickets, emptyMessage }: { tickets: TicketRow[]; em
             </div>
             <div className="min-w-0 flex-1">
               <div className="mb-2 flex items-start justify-between gap-2">
-                <Link href={`/ayuda/tickets/${ticket.id}`} className="min-w-0 flex-1 truncate rounded-md font-semibold text-foreground hover:text-[var(--brand-primary)] focus-ring" aria-label={`#${ticket.ticketNumber} ${ticket.title}`}>
+                <Link href={`/ayuda/tickets/${ticket.id}`} className="min-w-0 flex-1 truncate rounded-md font-semibold text-foreground hover:text-brand-text focus-ring" aria-label={`#${ticket.ticketNumber} ${ticket.title}`}>
                   #{ticket.ticketNumber} {ticket.title}
                 </Link>
                 <BadgeSistema variante="info" tamaño="sm" className="shrink-0">

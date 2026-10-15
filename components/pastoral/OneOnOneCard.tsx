@@ -79,7 +79,7 @@ export function OneOnOneCard({
 
   return (
     <div
-      className={cn(CLASE_ITEM_LISTA, 'transition-colors hover:border-[var(--brand-primary)]/40', className)}
+      className={cn(CLASE_ITEM_LISTA, 'transition-colors hover:border-brand/40', className)}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">

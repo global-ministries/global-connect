@@ -111,7 +111,7 @@ export default function ValidateStepButton({
       <div className="space-y-2">
         <div className="flex items-center gap-2 rounded-2xl border border-danger/30 bg-danger/10 p-3" role="alert">
           <AlertCircle className="h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
-          <span className="text-sm text-danger">{state.error}</span>
+          <span className="text-sm text-danger-text">{state.error}</span>
         </div>
         <BotonSistema variante="outline" onClick={handleReset}>
           Reintentar

@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { BotonSistema, PaginaSistema, TarjetaSistema, TituloSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
 import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
 import { CrisisAlertBanner } from '@/components/pastoral/CrisisAlertBanner'
-import { CLASE_ENLACE_BOTON } from '@/components/pastoral/estilos'
 
 interface LiderDashboardClientProps {
   readonly unoAunos: ReadonlyArray<{
@@ -43,14 +42,14 @@ export default function LiderDashboardClient({
       <TarjetaSistema>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <Calendar className="h-5 w-5 shrink-0 text-[var(--brand-primary)]" aria-hidden="true" />
+            <Calendar className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
             <TituloSistema nivel={2}>Próximas Sesiones 1:1</TituloSistema>
           </div>
-          <Link href="/lider/uno-auno" className={CLASE_ENLACE_BOTON}>
-            <BotonSistema tabIndex={-1} variante="ghost" tamaño="sm">
+          <BotonSistema asChild variante="ghost" tamaño="sm">
+            <Link href="/lider/uno-auno">
               Ver todas
-            </BotonSistema>
-          </Link>
+            </Link>
+          </BotonSistema>
         </div>
 
         {isLoading ? (

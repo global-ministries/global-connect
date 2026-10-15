@@ -5,8 +5,6 @@ import { AlertTriangle, Users, Calendar, UserCog } from 'lucide-react'
 import Link from 'next/link'
 import { BotonSistema, PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { CrisisAlertBanner } from '@/components/pastoral/CrisisAlertBanner'
-import { CLASE_BOTON_PELIGRO, CLASE_ENLACE_BOTON } from '@/components/pastoral/estilos'
-import { cn } from '@/lib/utils'
 
 interface PastorDashboardClientProps {
   readonly metrics: {
@@ -39,8 +37,8 @@ function MetricCard({
   return (
     <TarjetaSistema className="p-4">
       <div className="flex items-center gap-3">
-        <div className="shrink-0 rounded-xl bg-[var(--brand-primary)]/10 p-2">
-          <Icon className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
+        <div className="shrink-0 rounded-xl bg-brand/10 p-2">
+          <Icon className="h-5 w-5 text-brand" aria-hidden="true" />
         </div>
         <div className="min-w-0">
           <p className="text-2xl font-bold">{value}</p>
@@ -90,16 +88,16 @@ export default function PastorDashboardClient({
       <TarjetaSistema>
         <TituloSistema nivel={2} className="mb-3">Accesos Rápidos</TituloSistema>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link href="/pastor/crisis" className={cn(CLASE_ENLACE_BOTON, 'w-full sm:w-auto')}>
-            <BotonSistema tabIndex={-1} icono={AlertTriangle} className={cn(CLASE_BOTON_PELIGRO, 'w-full sm:w-auto')}>
+          <BotonSistema asChild variante="peligro" icono={AlertTriangle} className="w-full sm:w-auto">
+            <Link href="/pastor/crisis">
               Ver alertas de crisis
-            </BotonSistema>
-          </Link>
-          <Link href="/pastor/lecturas" className={cn(CLASE_ENLACE_BOTON, 'w-full sm:w-auto')}>
-            <BotonSistema tabIndex={-1} variante="outline" className="w-full sm:w-auto">
+            </Link>
+          </BotonSistema>
+          <BotonSistema asChild variante="outline" className="w-full sm:w-auto">
+            <Link href="/pastor/lecturas">
               Ver sesiones 1:1
-            </BotonSistema>
-          </Link>
+            </Link>
+          </BotonSistema>
         </div>
       </TarjetaSistema>
 
@@ -107,11 +105,11 @@ export default function PastorDashboardClient({
         <TarjetaSistema>
           <TituloSistema nivel={2} className="mb-3">Administración</TituloSistema>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href="/pastor/usuarios" className={cn(CLASE_ENLACE_BOTON, 'w-full sm:w-auto')}>
-              <BotonSistema tabIndex={-1} variante="outline" icono={UserCog} className="w-full sm:w-auto">
+            <BotonSistema asChild variante="outline" icono={UserCog} className="w-full sm:w-auto">
+              <Link href="/pastor/usuarios">
                 Gestión de usuarios
-              </BotonSistema>
-            </Link>
+              </Link>
+            </BotonSistema>
           </div>
         </TarjetaSistema>
       )}

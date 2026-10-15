@@ -74,12 +74,12 @@ export function PublicRoadmap({ roadmap, className }: PublicRoadmapProps) {
 
       {/* Suggested next step */}
       {roadmap.proximoPasoSugerido && (
-        <div className="rounded-2xl border border-[var(--brand-primary)]/30 bg-[var(--brand-primary)]/5 p-4">
+        <div className="rounded-2xl border border-brand/30 bg-brand/5 p-4">
           <div className="flex items-start gap-3">
-            <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[var(--brand-primary)]" aria-hidden="true" />
+            <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
             <div>
               <p className="mb-1 text-sm font-medium text-foreground">Tu próximo paso sugerido</p>
-              <p className="text-sm font-semibold text-[var(--brand-primary)]">
+              <p className="text-sm font-semibold text-brand-text">
                 {STEP_LABELS[roadmap.proximoPasoSugerido] ?? roadmap.proximoPasoSugerido}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">

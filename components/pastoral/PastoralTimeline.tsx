@@ -37,12 +37,12 @@ function ItemIcon({ type, isSharedMilestone }: { type: TimelineItem['type']; isS
   switch (type) {
     case 'step_validated':
       return isSharedMilestone
-        ? <CheckCircle2 className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
+        ? <CheckCircle2 className="h-5 w-5 text-brand" aria-hidden="true" />
         : <CheckCircle2 className="h-5 w-5 text-success" aria-hidden="true" />
     case 'one_on_one':
       return <Circle className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
     case 'triada_created':
-      return <Circle className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
+      return <Circle className="h-5 w-5 text-brand" aria-hidden="true" />
     case 'triada_disbanded':
       return <AlertCircle className="h-5 w-5 text-warning" aria-hidden="true" />
   }

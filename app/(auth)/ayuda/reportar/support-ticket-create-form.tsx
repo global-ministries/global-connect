@@ -93,7 +93,7 @@ export function SupportTicketCreateForm({ appBuildVersion }: { appBuildVersion: 
       <SelectSistema name="category" label="Categoria" defaultValue="bug" opciones={CATEGORY_OPTIONS} />
       <div className="space-y-2">
         <label htmlFor="support-attachments" className="block text-sm font-medium text-foreground">Adjuntos</label>
-        <input id="support-attachments" type="file" multiple accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime" onChange={handleFiles} className="block w-full min-w-0 rounded-xl border border-border bg-card/50 p-1.5 text-sm text-foreground file:mr-3 file:h-9 file:rounded-xl file:border-0 file:bg-[var(--brand-primary)] file:px-3 file:text-sm file:font-medium file:text-white focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" />
+        <input id="support-attachments" type="file" multiple accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime" onChange={handleFiles} className="block w-full min-w-0 rounded-xl border border-border bg-card/50 p-1.5 text-sm text-foreground file:mr-3 file:h-9 file:rounded-xl file:border-0 file:bg-brand file:px-3 file:text-sm file:font-medium file:text-white focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20" />
       </div>
       <SupportTicketDiagnosticsFields appBuildVersion={appBuildVersion} />
       <TextoSistema variante="muted" tamaño="sm">Recopilamos diagnosticos tecnicos seguros automaticamente: ruta sin parametros, navegador, sistema operativo, viewport, version de la app y referencia de Sentry. Nunca recopilamos cookies, contrasenas, localStorage, payloads sin procesar, URLs firmadas ni claves de objetos.</TextoSistema>
@@ -101,10 +101,10 @@ export function SupportTicketCreateForm({ appBuildVersion }: { appBuildVersion: 
       <div data-testid="support-attachment-status" className="break-words rounded-xl border border-border bg-card/50 p-3 text-sm text-muted-foreground" aria-live="polite">
         {statusText}
         {uploads.filter((upload) => upload.status === 'failed').map((upload) => (
-          <button key={upload.clientId} type="button" onClick={() => retryUpload(upload.clientId)} className="ml-1 inline-flex min-h-11 items-center rounded-xl px-2 font-medium text-[var(--brand-primary)] hover:bg-accent focus-ring">Reintentar {upload.name}</button>
+          <button key={upload.clientId} type="button" onClick={() => retryUpload(upload.clientId)} className="ml-1 inline-flex min-h-11 items-center rounded-xl px-2 font-medium text-brand-text hover:bg-accent focus-ring">Reintentar {upload.name}</button>
         ))}
       </div>
-      {state && !state.success && <p role="alert" className="text-sm text-danger">{state.error}</p>}
+      {state && !state.success && <p role="alert" className="text-sm text-danger-text">{state.error}</p>}
       {state?.success && <TextoSistema variante="muted" tamaño="sm">Ticket #{state.ticketNumber} creado. Los adjuntos finalizados quedan asociados al ticket de forma privada.</TextoSistema>}
       <PieAccionesSistema fijo={false} className="bg-transparent">
         <BotonSistema type="submit" disabled={isPending}>{isPending ? 'Enviando...' : 'Enviar ticket'}</BotonSistema>
