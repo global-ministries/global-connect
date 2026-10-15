@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { User, Mail, MapPin, Briefcase, Save, X, Lightbulb } from "lucide-react"
-import { InputSistema, SelectSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
+import { User, Mail, MapPin, Briefcase, Save, X, Lightbulb, Camera } from "lucide-react"
+import { InputSistema, SelectSistema, BotonSistema, PieAccionesSistema } from "@/components/ui/sistema-diseno"
 import { PhoneNumberInput } from "@/components/ui/PhoneNumberInput"
 import LocationPicker from "@/components/maps/LocationPicker.client"
-import { Label } from "@/components/ui/label"
+import { AvisoFormulario } from "./aviso-formulario"
+import { COLUMNAS_CAMPOS, SeccionFormulario } from "./seccion-formulario"
 import { updateUser } from "@/lib/actions/user.actions"
 import { geocodeAddress } from "@/lib/actions/location.actions"
 import { ProfilePhotoUploader } from "@/components/ui/ProfilePhotoUploader"
@@ -114,16 +115,10 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
   const toast = useNotificaciones()
   const router = useRouter()
 
-  // Obtener los IDs correctos para los selects de dirección
-  const parroquiaObj = usuario?.direccion?.parroquia
-  const municipioObj = parroquiaObj?.municipio
-  const estadoObj = municipioObj?.estado
-  const paisObj = estadoObj?.pais
-
   const {
     register,
     handleSubmit,
-    formState: { errors, isDirty },
+    formState: { errors },
     setValue,
     watch,
     control,
@@ -257,12 +252,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Foto de Perfil */}
-      <TarjetaSistema>
-        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-          <User className="w-5 h-5 text-[var(--brand-primary)]" />
-          Foto de Perfil
-        </h3>
+      <SeccionFormulario titulo="Foto de Perfil" icono={Camera}>
         <div className="flex justify-center">
           <ProfilePhotoUploader
             currentPhotoUrl={usuario?.foto_perfil_url}
@@ -273,15 +263,10 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             }}
           />
         </div>
-      </TarjetaSistema>
+      </SeccionFormulario>
 
-      {/* Información Básica */}
-      <TarjetaSistema>
-        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-          <User className="w-5 h-5 text-[var(--brand-primary)]" />
-          Información Básica
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <SeccionFormulario titulo="Información Básica" icono={User}>
+        <div className={COLUMNAS_CAMPOS[3]}>
           <InputSistema
             id="nombre"
             label="Nombre *"
@@ -349,15 +334,10 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             ]}
           />
         </div>
-      </TarjetaSistema>
+      </SeccionFormulario>
 
-      {/* Información de Contacto */}
-      <TarjetaSistema>
-        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-          <Mail className="w-5 h-5 text-[var(--brand-primary)]" />
-          Información de Contacto
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <SeccionFormulario titulo="Información de Contacto" icono={Mail}>
+        <div className={COLUMNAS_CAMPOS[2]}>
           <InputSistema
             id="email"
             label="Email"
@@ -370,7 +350,7 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
           />
 
           <div className="space-y-2">
-            <Label htmlFor="telefono" className="text-sm font-medium text-foreground">Teléfono</Label>
+            <label htmlFor="telefono" className="block text-sm font-medium text-foreground">Teléfono</label>
             <Controller
               name="telefono"
               control={control}
@@ -385,19 +365,14 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
               )}
             />
             {errors.telefono && (
-              <p role="alert" className="text-red-500 dark:text-red-400 text-sm mt-1">{errors.telefono.message}</p>
+              <p role="alert" className="mt-1 text-sm text-danger-text">{errors.telefono.message}</p>
             )}
           </div>
         </div>
-      </TarjetaSistema>
+      </SeccionFormulario>
 
-      {/* Información Profesional */}
-      <TarjetaSistema>
-        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-          <Briefcase className="w-5 h-5 text-[var(--brand-primary)]" />
-          Información Profesional
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <SeccionFormulario titulo="Información Profesional" icono={Briefcase}>
+        <div className={COLUMNAS_CAMPOS[2]}>
           <SelectSistema
             id="ocupacion_id"
             name="ocupacion_id"
@@ -426,237 +401,232 @@ export function UserEditForm({ usuario, ocupaciones, profesiones, paises, estado
             ]}
           />
         </div>
-      </TarjetaSistema>
+      </SeccionFormulario>
 
-      {/* Información de Ubicación */}
-      <TarjetaSistema>
-        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-[var(--brand-primary)]" />
-          Información de Ubicación
-        </h3>
-
-        {/* Sugerencias de dirección familiar */}
-        {sugerenciasDireccion.length > 0 && !usuario?.direccion?.calle && (
-          <TarjetaSistema variante="outlined" className="border-blue-500/30 bg-blue-500/5 p-4 mb-6">
-            <div className="flex items-start gap-3">
-              <Lightbulb className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-              <div className="space-y-2">
-                <p className="font-medium text-foreground text-sm">
-                  Sugerencias de dirección
-                </p>
-                {sugerenciasDireccion.map((s) => (
-                  <button
-                    key={s.familiar_id}
-                    type="button"
-                    onClick={() => {
-                      setValue("direccion.calle", s.direccion.calle, { shouldDirty: true })
-                      if (s.direccion.barrio) setValue("direccion.barrio", s.direccion.barrio, { shouldDirty: true })
-                      if (s.direccion.codigo_postal) setValue("direccion.codigo_postal", s.direccion.codigo_postal, { shouldDirty: true })
-                      if (s.direccion.referencia) setValue("direccion.referencia", s.direccion.referencia, { shouldDirty: true })
-                      if (s.direccion.parroquia_id) setValue("direccion.parroquia_id", s.direccion.parroquia_id, { shouldDirty: true })
-                      if (s.direccion.lat != null && s.direccion.lng != null) {
-                        setValue("direccion.lat", s.direccion.lat, { shouldDirty: true })
-                        setValue("direccion.lng", s.direccion.lng, { shouldDirty: true })
-                        setMapCenter({ lat: s.direccion.lat, lng: s.direccion.lng })
-                      }
-                    }}
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  >
-                    <span>Usar dirección de {s.relacion_label} ({s.familiar_nombre})</span>
-                    <span className="text-xs">📍 {s.direccion.calle}</span>
-                  </button>
-                ))}
-                <p className="text-xs text-muted-foreground">
-                  Si esta persona no vive en la misma dirección, ignora estas sugerencias.
-                </p>
+      <SeccionFormulario titulo="Información de Ubicación" icono={MapPin}>
+        <div className="space-y-6">
+          {/* Sugerencias de dirección familiar */}
+          {sugerenciasDireccion.length > 0 && !usuario?.direccion?.calle && (
+            <AvisoFormulario tono="info">
+              <div className="flex items-start gap-3">
+                <Lightbulb className="mt-0.5 size-5 shrink-0 text-info" aria-hidden="true" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <p className="font-medium text-foreground">
+                    Sugerencias de dirección
+                  </p>
+                  <ul className="space-y-1">
+                    {sugerenciasDireccion.map((s) => (
+                      <li key={s.familiar_id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setValue("direccion.calle", s.direccion.calle, { shouldDirty: true })
+                            if (s.direccion.barrio) setValue("direccion.barrio", s.direccion.barrio, { shouldDirty: true })
+                            if (s.direccion.codigo_postal) setValue("direccion.codigo_postal", s.direccion.codigo_postal, { shouldDirty: true })
+                            if (s.direccion.referencia) setValue("direccion.referencia", s.direccion.referencia, { shouldDirty: true })
+                            if (s.direccion.parroquia_id) setValue("direccion.parroquia_id", s.direccion.parroquia_id, { shouldDirty: true })
+                            if (s.direccion.lat != null && s.direccion.lng != null) {
+                              setValue("direccion.lat", s.direccion.lat, { shouldDirty: true })
+                              setValue("direccion.lng", s.direccion.lng, { shouldDirty: true })
+                              setMapCenter({ lat: s.direccion.lat, lng: s.direccion.lng })
+                            }
+                          }}
+                          className="-mx-2 flex min-h-11 w-[calc(100%+1rem)] flex-col items-start justify-center rounded-xl px-2 py-1.5 text-left text-muted-foreground transition-colors duration-200 hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="text-foreground">Usar dirección de {s.relacion_label} ({s.familiar_nombre})</span>
+                          <span className="flex items-center gap-1 text-xs">
+                            <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+                            {s.direccion.calle}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    Si esta persona no vive en la misma dirección, ignora estas sugerencias.
+                  </p>
+                </div>
               </div>
-            </div>
-          </TarjetaSistema>
-        )}
-        {/* Fila superior: Selectores */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <SelectSistema
-            id="direccion_pais_id"
-            name="direccion.pais_id"
-            label="País"
-            placeholder="Selecciona el país"
-            value={watch("direccion.pais_id")}
-            onValueChange={(value) => {
-              setValue("direccion.pais_id", value)
-              // Cascading reset: país cambia → limpiar estado, municipio, parroquia
-              setValue("direccion.estado_id", "")
-              setValue("direccion.municipio_id", "")
-              setValue("direccion.parroquia_id", "none")
-            }}
-            error={errors.direccion?.pais_id?.message}
-            opciones={paises.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
-          />
+            </AvisoFormulario>
+          )}
 
-          <SelectSistema
-            id="direccion_estado_id"
-            name="direccion.estado_id"
-            label="Estado"
-            placeholder="Selecciona el estado"
-            value={watch("direccion.estado_id")}
-            onValueChange={(value) => {
-              setValue("direccion.estado_id", value)
-              // Cascading reset: estado cambia → limpiar municipio, parroquia
-              setValue("direccion.municipio_id", "")
-              setValue("direccion.parroquia_id", "none")
-            }}
-            disabled={!watch("direccion.pais_id")}
-            error={errors.direccion?.estado_id?.message}
-            opciones={estados
-              .filter(e => !watch("direccion.pais_id") || e.pais_id === watch("direccion.pais_id"))
-              .map((e) => ({ valor: e.id, etiqueta: e.nombre }))}
-          />
-
-          <SelectSistema
-            id="direccion_municipio_id"
-            name="direccion.municipio_id"
-            label="Municipio"
-            placeholder="Selecciona el municipio"
-            value={watch("direccion.municipio_id")}
-            onValueChange={(value) => {
-              setValue("direccion.municipio_id", value)
-              // Cascading reset: municipio cambia → limpiar parroquia
-              setValue("direccion.parroquia_id", "none")
-            }}
-            disabled={!watch("direccion.estado_id")}
-            error={errors.direccion?.municipio_id?.message}
-            opciones={municipios
-              .filter(m => !watch("direccion.estado_id") || m.estado_id === watch("direccion.estado_id"))
-              .map((m) => ({ valor: m.id, etiqueta: m.nombre }))}
-          />
-
-          <SelectSistema
-            id="direccion_parroquia_id"
-            name="direccion.parroquia_id"
-            label="Parroquia"
-            placeholder="Selecciona la parroquia"
-            value={watch("direccion.parroquia_id")}
-            onValueChange={(value) => setValue("direccion.parroquia_id", value)}
-            disabled={!watch("direccion.municipio_id")}
-            error={errors.direccion?.parroquia_id?.message}
-            opciones={[
-              { valor: "none", etiqueta: "Sin parroquia" },
-              ...parroquias
-                .filter(p => !watch("direccion.municipio_id") || p.municipio_id === watch("direccion.municipio_id"))
-                .map((p) => ({ valor: p.id, etiqueta: p.nombre })),
-            ]}
-          />
-        </div>
-
-        {/* Sección central: Detalles de dirección */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <InputSistema
-            id="direccion_calle"
-            label="Calle *"
-            placeholder="Ingresa la calle"
-            autoComplete="address-line1"
-            error={errors.direccion?.calle?.message}
-            {...register("direccion.calle")}
-          />
-
-          <InputSistema
-            id="direccion_barrio"
-            label="Barrio"
-            placeholder="Ingresa el barrio"
-            autoComplete="address-line2"
-            {...register("direccion.barrio")}
-          />
-
-          <InputSistema
-            id="direccion_codigo_postal"
-            label="Código Postal"
-            placeholder="Ingresa el código postal"
-            autoComplete="postal-code"
-            {...register("direccion.codigo_postal")}
-          />
-
-          <InputSistema
-            id="direccion_referencia"
-            label="Referencia"
-            placeholder="Ingresa puntos de referencia"
-            autoComplete="off"
-            {...register("direccion.referencia")}
-          />
-        </div>
-
-        {/* Fila inferior: Mapa y coordenadas */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          <div className="lg:col-span-2">
-            <Controller
-              name="direccion"
-              control={control}
-              render={({ field }) => {
-                const lat = field.value?.lat ?? initialLat
-                const lng = field.value?.lng ?? initialLng
-                return (
-                  <LocationPicker
-                    lat={lat}
-                    lng={lng}
-                    center={mapCenter}
-                    onLocationChange={({ lat, lng }) => {
-                      field.onChange({ ...field.value, lat, lng })
-                      setValue("direccion.lat", lat, { shouldValidate: true, shouldDirty: true })
-                      setValue("direccion.lng", lng, { shouldValidate: true, shouldDirty: true })
-                      setMapCenter({ lat, lng })
-                    }}
-                  />
-                )
+          <div className={COLUMNAS_CAMPOS[4]}>
+            <SelectSistema
+              id="direccion_pais_id"
+              name="direccion.pais_id"
+              label="País"
+              placeholder="Selecciona el país"
+              value={watch("direccion.pais_id")}
+              onValueChange={(value) => {
+                setValue("direccion.pais_id", value)
+                // Cascading reset: país cambia → limpiar estado, municipio, parroquia
+                setValue("direccion.estado_id", "")
+                setValue("direccion.municipio_id", "")
+                setValue("direccion.parroquia_id", "none")
               }}
+              error={errors.direccion?.pais_id?.message}
+              opciones={paises.map((p) => ({ valor: p.id, etiqueta: p.nombre }))}
+            />
+
+            <SelectSistema
+              id="direccion_estado_id"
+              name="direccion.estado_id"
+              label="Estado"
+              placeholder="Selecciona el estado"
+              value={watch("direccion.estado_id")}
+              onValueChange={(value) => {
+                setValue("direccion.estado_id", value)
+                // Cascading reset: estado cambia → limpiar municipio, parroquia
+                setValue("direccion.municipio_id", "")
+                setValue("direccion.parroquia_id", "none")
+              }}
+              disabled={!watch("direccion.pais_id")}
+              error={errors.direccion?.estado_id?.message}
+              opciones={estados
+                .filter(e => !watch("direccion.pais_id") || e.pais_id === watch("direccion.pais_id"))
+                .map((e) => ({ valor: e.id, etiqueta: e.nombre }))}
+            />
+
+            <SelectSistema
+              id="direccion_municipio_id"
+              name="direccion.municipio_id"
+              label="Municipio"
+              placeholder="Selecciona el municipio"
+              value={watch("direccion.municipio_id")}
+              onValueChange={(value) => {
+                setValue("direccion.municipio_id", value)
+                // Cascading reset: municipio cambia → limpiar parroquia
+                setValue("direccion.parroquia_id", "none")
+              }}
+              disabled={!watch("direccion.estado_id")}
+              error={errors.direccion?.municipio_id?.message}
+              opciones={municipios
+                .filter(m => !watch("direccion.estado_id") || m.estado_id === watch("direccion.estado_id"))
+                .map((m) => ({ valor: m.id, etiqueta: m.nombre }))}
+            />
+
+            <SelectSistema
+              id="direccion_parroquia_id"
+              name="direccion.parroquia_id"
+              label="Parroquia"
+              placeholder="Selecciona la parroquia"
+              value={watch("direccion.parroquia_id")}
+              onValueChange={(value) => setValue("direccion.parroquia_id", value)}
+              disabled={!watch("direccion.municipio_id")}
+              error={errors.direccion?.parroquia_id?.message}
+              opciones={[
+                { valor: "none", etiqueta: "Sin parroquia" },
+                ...parroquias
+                  .filter(p => !watch("direccion.municipio_id") || p.municipio_id === watch("direccion.municipio_id"))
+                  .map((p) => ({ valor: p.id, etiqueta: p.nombre })),
+              ]}
             />
           </div>
-          <div className="flex flex-col gap-4">
+
+          <div className={COLUMNAS_CAMPOS[4]}>
             <InputSistema
-              id="direccion_latitud"
-              name="direccion.lat"
-              label="Latitud"
-              type="text"
-              value={String(watch("direccion")?.lat ?? '')}
-              disabled
+              id="direccion_calle"
+              label="Calle *"
+              placeholder="Ingresa la calle"
+              autoComplete="address-line1"
+              error={errors.direccion?.calle?.message}
+              {...register("direccion.calle")}
             />
+
             <InputSistema
-              id="direccion_longitud"
-              name="direccion.lng"
-              label="Longitud"
-              type="text"
-              value={String(watch("direccion")?.lng ?? '')}
-              disabled
+              id="direccion_barrio"
+              label="Barrio"
+              placeholder="Ingresa el barrio"
+              autoComplete="address-line2"
+              {...register("direccion.barrio")}
+            />
+
+            <InputSistema
+              id="direccion_codigo_postal"
+              label="Código Postal"
+              placeholder="Ingresa el código postal"
+              autoComplete="postal-code"
+              {...register("direccion.codigo_postal")}
+            />
+
+            <InputSistema
+              id="direccion_referencia"
+              label="Referencia"
+              placeholder="Ingresa puntos de referencia"
+              autoComplete="off"
+              {...register("direccion.referencia")}
             />
           </div>
-        </div>
-      </TarjetaSistema>
 
-      {/* Mensaje de Error */}
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-          <p className="text-red-600 dark:text-red-400 text-center font-medium">{error}</p>
+          {/* Mapa y coordenadas: lado a lado solo cuando la sección es ancha */}
+          <div className="grid items-start gap-4 @4xl:grid-cols-3">
+            <div className="min-w-0 overflow-hidden rounded-xl @4xl:col-span-2">
+              <Controller
+                name="direccion"
+                control={control}
+                render={({ field }) => {
+                  const lat = field.value?.lat ?? initialLat
+                  const lng = field.value?.lng ?? initialLng
+                  return (
+                    <LocationPicker
+                      lat={lat}
+                      lng={lng}
+                      center={mapCenter}
+                      onLocationChange={({ lat, lng }) => {
+                        field.onChange({ ...field.value, lat, lng })
+                        setValue("direccion.lat", lat, { shouldValidate: true, shouldDirty: true })
+                        setValue("direccion.lng", lng, { shouldValidate: true, shouldDirty: true })
+                        setMapCenter({ lat, lng })
+                      }}
+                    />
+                  )
+                }}
+              />
+            </div>
+            <div className="grid gap-4 @md:grid-cols-2 @4xl:grid-cols-1">
+              <InputSistema
+                id="direccion_latitud"
+                name="direccion.lat"
+                label="Latitud"
+                type="text"
+                value={String(watch("direccion")?.lat ?? '')}
+                disabled
+              />
+              <InputSistema
+                id="direccion_longitud"
+                name="direccion.lng"
+                label="Longitud"
+                type="text"
+                value={String(watch("direccion")?.lng ?? '')}
+                disabled
+              />
+            </div>
+          </div>
         </div>
-      )}
+      </SeccionFormulario>
 
-      {/* Botones de Acción */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-end pt-6">
+      {error && <AvisoFormulario tono="error">{error}</AvisoFormulario>}
+
+      <PieAccionesSistema fijo={false}>
         <BotonSistema
           type="button"
           variante="outline"
+          icono={X}
           onClick={() => window.history.back()}
           disabled={loading}
         >
-          <X className="w-4 h-4 mr-2" />
           Cancelar
         </BotonSistema>
 
         <BotonSistema
           type="submit"
           variante="primario"
+          icono={Save}
           cargando={loading}
         >
-          <Save className="w-4 h-4 mr-2" />
           Guardar Cambios
         </BotonSistema>
-      </div>
+      </PieAccionesSistema>
     </form>
   )
 }

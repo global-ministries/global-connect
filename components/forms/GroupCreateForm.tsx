@@ -7,7 +7,11 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import SelectLeaderModal from '@/components/modals/SelectLeaderModal';
 import { createGroup } from "@/lib/actions/group.actions";
-import { InputSistema, SelectSistema, BotonSistema } from "@/components/ui/sistema-diseno";
+import { RefreshCw, UserPlus } from "lucide-react";
+import { InputSistema, SelectSistema, BotonSistema, PieAccionesSistema } from "@/components/ui/sistema-diseno";
+import { cn } from "@/lib/utils";
+import { AvisoFormulario } from "./aviso-formulario";
+import { COLUMNAS_CAMPOS } from "./seccion-formulario";
 
 // Esquema de validación con Zod
 const groupCreateSchema = z.object({
@@ -95,7 +99,7 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
         if (data?.nombre) {
           setValue("nombre", data.nombre, { shouldValidate: true });
         }
-      } catch (e) {
+      } catch {
         // silenciar
       } finally {
         setSugerenciaCargando(false);
@@ -184,7 +188,7 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
             const match = (json.ubicaciones || []).find((u: { id: string; nombre: string }) => u.nombre === data.ubicacion);
             if (match) segmentoUbicacionId = match.id;
           }
-        } catch (e) {
+        } catch {
           // silencioso, no bloquea creación
         }
       }
@@ -215,23 +219,16 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="@container space-y-6">
+      {error && <AvisoFormulario tono="error">{error}</AvisoFormulario>}
       {esDirectorEtapa && (
-        <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
-          <p className="text-sm text-orange-700 dark:text-orange-400">
-            <strong>Nota:</strong> Como director de etapa, el grupo que crees quedará en estado <strong>pendiente de aprobación</strong>. Un administrador o pastor deberá aprobarlo para activarlo.
-          </p>
-        </div>
+        <AvisoFormulario tono="marca">
+          <strong>Nota:</strong> Como director de etapa, el grupo que crees quedará en estado <strong>pendiente de aprobación</strong>. Un administrador o pastor deberá aprobarlo para activarlo.
+        </AvisoFormulario>
       )}
-      {/* Campos en grid para consistencia visual */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Campo Nombre: ocupa dos columnas en md */}
-        <div className="space-y-2 md:col-span-2">
+      <div className={COLUMNAS_CAMPOS[2]}>
+        {/* El nombre se sugiere a partir de ubicación, temporada y segmento */}
+        <div className="@lg:col-span-2">
           <InputSistema
             id="nombre"
             label="Nombre del Grupo"
@@ -242,74 +239,66 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
           />
         </div>
 
-        {/* Campo Ubicación */}
-        <div className="space-y-2">
-          <Controller
-            name="ubicacion"
-            control={control}
-            render={({ field }) => (
-              <SelectSistema
-                label="Ubicación"
-                placeholder="Selecciona ubicación"
-                value={field.value}
-                onValueChange={field.onChange}
-                error={errors.ubicacion?.message as string}
-                opciones={[
-                  { valor: "Barquisimeto", etiqueta: "Barquisimeto" },
-                  { valor: "Cabudare", etiqueta: "Cabudare" },
-                ]}
-              />
-            )}
-          />
-        </div>
+        <Controller
+          name="ubicacion"
+          control={control}
+          render={({ field }) => (
+            <SelectSistema
+              label="Ubicación"
+              placeholder="Selecciona ubicación"
+              value={field.value}
+              onValueChange={field.onChange}
+              error={errors.ubicacion?.message as string}
+              opciones={[
+                { valor: "Barquisimeto", etiqueta: "Barquisimeto" },
+                { valor: "Cabudare", etiqueta: "Cabudare" },
+              ]}
+            />
+          )}
+        />
 
-        {/* Campo Temporada */}
-        <div className="space-y-2">
-          <Controller
-            name="temporada_id"
-            control={control}
-            render={({ field }) => (
-              <SelectSistema
-                label="Temporada"
-                placeholder="Selecciona una temporada"
-                value={field.value}
-                onValueChange={field.onChange}
-                error={errors.temporada_id?.message}
-                opciones={temporadas.map((t) => ({ valor: t.id, etiqueta: t.nombre }))}
-              />
-            )}
-          />
-        </div>
+        <Controller
+          name="temporada_id"
+          control={control}
+          render={({ field }) => (
+            <SelectSistema
+              label="Temporada"
+              placeholder="Selecciona una temporada"
+              value={field.value}
+              onValueChange={field.onChange}
+              error={errors.temporada_id?.message}
+              opciones={temporadas.map((t) => ({ valor: t.id, etiqueta: t.nombre }))}
+            />
+          )}
+        />
 
-        {/* Campo Segmento */}
-        <div className="space-y-2">
-          <Controller
-            name="segmento_id"
-            control={control}
-            render={({ field }) => (
-              <SelectSistema
-                label="Segmento"
-                placeholder="Selecciona un segmento"
-                value={field.value}
-                onValueChange={field.onChange}
-                error={errors.segmento_id?.message}
-                opciones={segmentos.map((s) => ({ valor: s.id, etiqueta: s.nombre }))}
-              />
-            )}
-          />
-        </div>
+        <Controller
+          name="segmento_id"
+          control={control}
+          render={({ field }) => (
+            <SelectSistema
+              label="Segmento"
+              placeholder="Selecciona un segmento"
+              value={field.value}
+              onValueChange={field.onChange}
+              error={errors.segmento_id?.message}
+              opciones={segmentos.map((s) => ({ valor: s.id, etiqueta: s.nombre }))}
+            />
+          )}
+        />
 
         {/* Director de Etapa */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex min-h-5 items-center justify-between gap-2">
             <label htmlFor="director-etapa" className="block text-sm font-medium text-foreground">Director de Etapa</label>
             {segmentoId && !esDirectorEtapa && (
               <button
                 type="button"
                 onClick={() => fetchDirectores(segmentoId)}
-                className="text-xs text-[var(--brand-primary)] hover:underline disabled:opacity-40"
+                className="-my-3 -mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-medium text-brand-text transition-colors duration-200 hover:bg-[var(--brand-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
                 disabled={cargandoDirectores}
               >
+                <RefreshCw className={cn("size-4", cargandoDirectores && "animate-spin motion-reduce:animate-none")} aria-hidden="true" />
                 {cargandoDirectores ? 'Actualizando...' : 'Recargar'}
               </button>
             )}
@@ -335,30 +324,29 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
             );
           }} />
           {directoresError && (
-            <p className="text-xs text-red-600 dark:text-red-400">No se pudieron cargar los directores. Intenta recargar.</p>
+            <p className="text-sm text-danger-text">No se pudieron cargar los directores. Intenta recargar.</p>
           )}
         </div>
 
         {/* Líder Inicial con modal global */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-foreground">Líder Inicial (opcional)</label>
-          <div className="flex items-center gap-3">
+        <div role="group" aria-labelledby="lider-inicial-titulo" className="space-y-2 @lg:col-span-2">
+          <p id="lider-inicial-titulo" className="text-sm font-medium text-foreground">Líder Inicial (opcional)</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <BotonSistema
               type="button"
               variante="outline"
+              icono={UserPlus}
               onClick={() => setShowLeaderModal(true)}
               disabled={!segmentoId}
-              className="min-w-[180px]"
             >
               {leaderResumen ? 'Cambiar líder' : 'Seleccionar líder'}
             </BotonSistema>
-            {leaderResumen && (
-              <div className="text-sm text-foreground truncate max-w-xs" title={leaderResumen}>
+            {leaderResumen ? (
+              <p className="min-w-0 max-w-full truncate text-sm text-foreground" title={leaderResumen}>
                 {leaderResumen}
-              </div>
-            )}
-            {!leaderResumen && (
-              <div className="text-xs text-muted-foreground">Opcional: puedes asignarlo después.</div>
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Opcional: puedes asignarlo después.</p>
             )}
           </div>
           <SelectLeaderModal
@@ -375,19 +363,16 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
         </div>
       </div>
 
-      {/* Botón de envío */}
-      <div className="pt-2">
+      <PieAccionesSistema fijo={false} className="bg-transparent">
         <BotonSistema
           type="submit"
           variante="primario"
-          tamaño="lg"
-          className="w-full md:w-auto md:min-w-[200px] md:ml-auto md:block"
           disabled={isLoading}
           cargando={isLoading}
         >
           {isLoading || sugerenciaCargando ? "Creando..." : "Crear Grupo y Continuar"}
         </BotonSistema>
-      </div>
+      </PieAccionesSistema>
     </form>
   );
 }

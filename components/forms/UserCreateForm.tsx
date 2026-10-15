@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation"
 import { createUser } from "@/lib/actions/user.actions"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { InputSistema, SelectSistema, BotonSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
+import { InputSistema, SelectSistema, BotonSistema, PieAccionesSistema } from "@/components/ui/sistema-diseno"
 import { normalizarCedula } from "@/lib/utils/cedula"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
 import { User, Mail, Phone, Calendar, Users } from "lucide-react"
+import { AvisoFormulario } from "./aviso-formulario"
+import { COLUMNAS_CAMPOS, SeccionFormulario } from "./seccion-formulario"
 
 const userCreateSchema = z.object({
   nombre: z.string().min(2, "El nombre es requerido"),
@@ -92,144 +94,116 @@ export default function UserCreateForm() {
   }
 
   return (
-    <TarjetaSistema>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Información Personal */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Información Personal
-          </h3>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <SeccionFormulario titulo="Información Personal" icono={User}>
+        <div className={COLUMNAS_CAMPOS[2]}>
+          <InputSistema
+            label="Nombre *"
+            placeholder="Nombre"
+            icono={User}
+            error={errors.nombre?.message}
+            {...register("nombre")}
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputSistema
-              label="Nombre *"
-              placeholder="Nombre"
-              icono={User}
-              error={errors.nombre?.message}
-              {...register("nombre")}
-            />
+          <InputSistema
+            label="Apellido *"
+            placeholder="Apellido"
+            error={errors.apellido?.message}
+            {...register("apellido")}
+          />
 
-            <InputSistema
-              label="Apellido *"
-              placeholder="Apellido"
-              error={errors.apellido?.message}
-              {...register("apellido")}
-            />
+          <InputSistema
+            label="Cédula"
+            placeholder="Número de cédula"
+            {...register("cedula", {
+              onBlur: (e) => setValue("cedula", normalizarCedula(e.target.value) ?? "", { shouldDirty: true }),
+            })}
+          />
 
-            <InputSistema
-              label="Cédula"
-              placeholder="Número de cédula"
-              {...register("cedula", {
-                onBlur: (e) => setValue("cedula", normalizarCedula(e.target.value) ?? "", { shouldDirty: true }),
-              })}
-            />
-
-            <InputSistema
-              label="Fecha de Nacimiento"
-              type="date"
-              icono={Calendar}
-              {...register("fecha_nacimiento")}
-            />
-          </div>
+          <InputSistema
+            label="Fecha de Nacimiento"
+            type="date"
+            icono={Calendar}
+            {...register("fecha_nacimiento")}
+          />
         </div>
+      </SeccionFormulario>
 
-        {/* Información de Contacto */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Mail className="w-5 h-5" />
-            Contacto
-          </h3>
+      <SeccionFormulario titulo="Contacto" icono={Mail}>
+        <div className={COLUMNAS_CAMPOS[2]}>
+          <InputSistema
+            label="Email"
+            type="email"
+            placeholder="correo@ejemplo.com"
+            icono={Mail}
+            error={errors.email?.message}
+            {...register("email")}
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputSistema
-              label="Email"
-              type="email"
-              placeholder="correo@ejemplo.com"
-              icono={Mail}
-              error={errors.email?.message}
-              {...register("email")}
-            />
-
-            <InputSistema
-              label="Teléfono"
-              placeholder="Número de teléfono"
-              icono={Phone}
-              {...register("telefono")}
-            />
-          </div>
+          <InputSistema
+            label="Teléfono"
+            placeholder="Número de teléfono"
+            icono={Phone}
+            {...register("telefono")}
+          />
         </div>
+      </SeccionFormulario>
 
-        {/* Información Adicional */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Información Adicional
-          </h3>
+      <SeccionFormulario titulo="Información Adicional" icono={Users}>
+        <div className={COLUMNAS_CAMPOS[2]}>
+          <Controller
+            name="genero"
+            control={control}
+            render={({ field }) => (
+              <SelectSistema
+                label="Género *"
+                placeholder="Selecciona el género"
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.genero?.message}
+                opciones={[
+                  { valor: "Masculino", etiqueta: "Masculino" },
+                  { valor: "Femenino", etiqueta: "Femenino" },
+                  { valor: "Otro", etiqueta: "Otro" },
+                ]}
+              />
+            )}
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Controller
-              name="genero"
-              control={control}
-              render={({ field }) => (
-                <SelectSistema
-                  label="Género *"
-                  placeholder="Selecciona el género"
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  error={errors.genero?.message}
-                  opciones={[
-                    { valor: "Masculino", etiqueta: "Masculino" },
-                    { valor: "Femenino", etiqueta: "Femenino" },
-                    { valor: "Otro", etiqueta: "Otro" },
-                  ]}
-                />
-              )}
-            />
-
-            <Controller
-              name="estado_civil"
-              control={control}
-              render={({ field }) => (
-                <SelectSistema
-                  label="Estado Civil *"
-                  placeholder="Selecciona el estado civil"
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  error={errors.estado_civil?.message}
-                  opciones={[
-                    { valor: "Soltero", etiqueta: "Soltero" },
-                    { valor: "Casado", etiqueta: "Casado" },
-                    { valor: "Divorciado", etiqueta: "Divorciado" },
-                    { valor: "Viudo", etiqueta: "Viudo" },
-                    { valor: "No especificado", etiqueta: "No especificado" },
-                  ]}
-                />
-              )}
-            />
-          </div>
+          <Controller
+            name="estado_civil"
+            control={control}
+            render={({ field }) => (
+              <SelectSistema
+                label="Estado Civil *"
+                placeholder="Selecciona el estado civil"
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.estado_civil?.message}
+                opciones={[
+                  { valor: "Soltero", etiqueta: "Soltero" },
+                  { valor: "Casado", etiqueta: "Casado" },
+                  { valor: "Divorciado", etiqueta: "Divorciado" },
+                  { valor: "Viudo", etiqueta: "Viudo" },
+                  { valor: "No especificado", etiqueta: "No especificado" },
+                ]}
+              />
+            )}
+          />
         </div>
+      </SeccionFormulario>
 
-        {/* Error general */}
-        {errors.root && (
-          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-            <p className="text-red-600 dark:text-red-400 text-center font-medium">{errors.root.message}</p>
-          </div>
-        )}
+      {errors.root && <AvisoFormulario tono="error">{errors.root.message}</AvisoFormulario>}
 
-        {/* Botón de envío */}
-        <div className="pt-4">
-          <BotonSistema
-            type="submit"
-            variante="primario"
-            tamaño="lg"
-            disabled={isSubmitting}
-            className="w-full md:w-auto md:min-w-[200px] md:ml-auto md:block"
-          >
-            {isSubmitting ? 'Creando...' : 'Crear y Continuar'}
-          </BotonSistema>
-        </div>
-      </form>
-    </TarjetaSistema>
+      <PieAccionesSistema fijo={false}>
+        <BotonSistema
+          type="submit"
+          variante="primario"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Creando...' : 'Crear y Continuar'}
+        </BotonSistema>
+      </PieAccionesSistema>
+    </form>
   )
 }
