@@ -88,6 +88,36 @@ migrate.
 - An icon-only `BotonSistema` (`soloIcono`) requires `aria-label` and takes no
   children; the type rejects anything else.
 
+## Button variants and links
+
+| `variante` | Look | Use |
+| --- | --- | --- |
+| `primario` (default) | Orange gradient | The one main action of a view |
+| `secundario` | Secondary fill | Supporting actions |
+| `outline` | 2px border | Neutral actions, cancel |
+| `ghost` | Text only | Toolbars, low-emphasis actions |
+| `peligro` | `bg-danger` / `text-danger-foreground` | Destructive actions (eliminar, desactivar) |
+
+Do not fake the danger look with class overrides: the primary gradient is a
+`background-image`, so `bg-red-*` on top of it needs `bg-none` hacks.
+
+Navigation that looks like a button uses `asChild` with a single `Link`
+child. The link gets the button classes and icons, and stays one tab stop
+(no `Link` wrapping a button with `tabIndex={-1}`):
+
+```tsx
+<BotonSistema asChild variante="outline" icono={ArrowRight} iconoPosicion="derecha">
+  <Link href="/grupos-vida">Ver grupos</Link>
+</BotonSistema>
+
+<BotonSistema asChild soloIcono icono={Pencil} aria-label="Editar">
+  <Link href={`/fichas/${id}`} />
+</BotonSistema>
+```
+
+With `asChild`, `disabled` and `cargando` set `aria-disabled` and
+`pointer-events-none` instead of the button attribute.
+
 ## Radius
 
 | Token | Class | Value | Use |
