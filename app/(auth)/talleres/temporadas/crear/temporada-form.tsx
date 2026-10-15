@@ -171,7 +171,7 @@ export function TallerTemporadaForm({ direcciones }: Props): ReactElement {
                   return (
                     <li key={taller.id}>
                       <label
-                        className={`flex min-h-[44px] items-center gap-3 rounded border p-3 ${
+                        className={`flex min-h-[44px] items-center gap-3 rounded-xl border border-border p-3 ${
                           esPorTemporada ? '' : 'opacity-60'
                         }`}
                       >

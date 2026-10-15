@@ -89,9 +89,6 @@ interface Feedback {
 }
 
 const ROL_LABELS: Record<string, string> = { lider: 'Líder', voluntario: 'Voluntario' }
-const BOTON_ICONO =
-  'inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground'
-
 function nombreCompleto(nombre: string | null, apellido: string | null): string {
   return (
     [nombre, apellido].filter((p): p is string => typeof p === 'string' && p.length > 0).join(' ') ||
@@ -232,7 +229,7 @@ export function GruposSection({
           {grupos.map((grupo) => (
             <li
               key={grupo.id}
-              className="rounded-lg border border-border/60 p-4"
+              className="rounded-2xl border border-border/60 p-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 {editandoId === grupo.id ? (
@@ -240,7 +237,8 @@ export function GruposSection({
                     <input
                       value={nombreEditado}
                       onChange={(e) => setNombreEditado(e.target.value)}
-                      className="min-h-[44px] rounded-lg border border-border bg-card/50 px-3 py-2"
+                      aria-label="Nombre del grupo"
+                      className="h-11 min-w-0 rounded-xl border border-border bg-card/50 px-3 py-2 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
                       autoFocus
                     />
                     <input
@@ -248,26 +246,27 @@ export function GruposSection({
                       min={1}
                       value={capacidadEditada}
                       onChange={(e) => setCapacidadEditada(e.target.value)}
-                      className="min-h-[44px] w-24 rounded-lg border border-border bg-card/50 px-3 py-2"
+                      aria-label="Capacidad del grupo"
+                      className="h-11 w-24 rounded-xl border border-border bg-card/50 px-3 py-2 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
                     />
-                    <button
+                    <BotonSistema
                       type="button"
+                      variante="ghost"
+                      soloIcono
+                      icono={Check}
                       aria-label="Guardar grupo"
                       title="Guardar grupo"
-                      className={BOTON_ICONO}
                       onClick={() => guardarGrupo(grupo.id)}
-                    >
-                      <Check className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <button
+                    />
+                    <BotonSistema
                       type="button"
+                      variante="ghost"
+                      soloIcono
+                      icono={X}
                       aria-label="Cancelar edición del grupo"
                       title="Cancelar"
-                      className={BOTON_ICONO}
                       onClick={() => setEditandoId(null)}
-                    >
-                      <X className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    />
                   </div>
                 ) : (
                   <div>
@@ -308,20 +307,20 @@ export function GruposSection({
                 )}
 
                 {puedeEditar && editandoId !== grupo.id && (
-                  <button
+                  <BotonSistema
                     type="button"
+                    variante="ghost"
+                    soloIcono
+                    icono={Pencil}
                     aria-label={`Editar grupo ${grupo.nombre}`}
                     title="Editar grupo"
-                    className={BOTON_ICONO}
                     onClick={() => {
                       setEditandoId(grupo.id)
                       setNombreEditado(grupo.nombre)
                       setCapacidadEditada(String(grupo.capacidad))
                       setFeedback(null)
                     }}
-                  >
-                    <Pencil className="h-4 w-4" aria-hidden="true" />
-                  </button>
+                  />
                 )}
               </div>
 
@@ -332,11 +331,13 @@ export function GruposSection({
                       {nombreCompleto(f.nombre, f.apellido)} · {ROL_LABELS[f.rol] ?? f.rol}
                     </TextoSistema>
                     {puedeEditar && (
-                      <button
+                      <BotonSistema
                         type="button"
+                        variante="ghost"
+                        soloIcono
+                        icono={UserMinus}
                         aria-label={`Quitar a ${nombreCompleto(f.nombre, f.apellido)} del grupo`}
                         title="Quitar del grupo"
-                        className={BOTON_ICONO}
                         onClick={() =>
                           setConfirmandoQuitar({
                             grupoId: grupo.id,
@@ -344,9 +345,7 @@ export function GruposSection({
                             nombre: nombreCompleto(f.nombre, f.apellido),
                           })
                         }
-                      >
-                        <UserMinus className="h-4 w-4" aria-hidden="true" />
-                      </button>
+                      />
                     )}
                   </li>
                 ))}

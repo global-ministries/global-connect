@@ -102,7 +102,7 @@ export function ApproveInscripcionButton({
       {feedback.kind === 'error' && (
         <p
           role="alert"
-          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700"
+          className="rounded-xl border border-danger/30 bg-danger/10 px-2 py-1 text-xs text-danger"
         >
           {feedback.message}
         </p>
@@ -110,7 +110,7 @@ export function ApproveInscripcionButton({
       {feedback.kind === 'success' && (
         <p
           role="status"
-          className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700"
+          className="rounded-xl border border-success/30 bg-success/10 px-2 py-1 text-xs text-success"
         >
           {feedback.message}
         </p>
@@ -159,14 +159,14 @@ export function RejectInscripcionButton({
             setConfirming(true)
           }}
           aria-label="Rechazar inscripci\u00f3n"
-          className="border-red-300 text-red-700 hover:bg-red-50"
+          className="border-danger/40 text-danger hover:bg-danger/10 focus:ring-danger"
         >
           Rechazar
         </BotonSistema>
         {feedback.kind === 'error' && (
           <p
             role="alert"
-            className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700"
+            className="rounded-xl border border-danger/30 bg-danger/10 px-2 py-1 text-xs text-danger"
           >
             {feedback.message}
           </p>
@@ -182,7 +182,7 @@ export function RejectInscripcionButton({
         onChange={(e) => setMotivo(e.target.value)}
         placeholder="Motivo de rechazo (obligatorio)"
         rows={2}
-        className="w-72 rounded border border-input bg-background px-2 py-1 text-xs"
+        className="w-full max-w-72 rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
         aria-label="Motivo de rechazo"
         disabled={pending}
       />
@@ -208,7 +208,7 @@ export function RejectInscripcionButton({
           cargando={pending}
           disabled={pending || motivo.trim().length === 0}
           onClick={submit}
-          className="bg-red-600 hover:bg-red-700 focus:ring-red-500"
+          className="bg-none bg-danger text-danger-foreground hover:bg-danger/90 focus:ring-danger"
         >
           {pending ? 'Rechazando…' : 'Confirmar rechazo'}
         </BotonSistema>
@@ -216,7 +216,7 @@ export function RejectInscripcionButton({
       {feedback.kind === 'error' && (
         <p
           role="alert"
-          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700"
+          className="rounded-xl border border-danger/30 bg-danger/10 px-2 py-1 text-xs text-danger"
         >
           {feedback.message}
         </p>
@@ -224,7 +224,7 @@ export function RejectInscripcionButton({
       {feedback.kind === 'success' && (
         <p
           role="status"
-          className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700"
+          className="rounded-xl border border-success/30 bg-success/10 px-2 py-1 text-xs text-success"
         >
           {feedback.message}
         </p>

@@ -85,7 +85,7 @@ export default async function CertificadoDetailPage(ctx: RouteContext) {
                   <BadgeSistema variante="success">Vigente</BadgeSistema>
                 )}
               </div>
-              <div className="mt-4 rounded border bg-muted/30 p-3 text-sm">
+              <div className="mt-4 rounded-xl border border-border bg-muted/30 p-3 text-sm">
                 <TextoSistema variante="sutil">Código de verificación</TextoSistema>
                 <code className="mt-1 block break-all font-mono text-base">
                   {cert.codigo_verificacion}

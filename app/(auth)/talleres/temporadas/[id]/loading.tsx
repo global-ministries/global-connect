@@ -27,7 +27,7 @@ export default function LoadingTemporadaDetalle() {
         <SkeletonSistema ancho="40%" alto="14px" />
         <div className="mt-3 space-y-2">
           {[...Array(4)].map((_, i) => (
-            <SkeletonSistema key={i} ancho="100%" alto="44px" className="rounded" />
+            <SkeletonSistema key={i} ancho="100%" alto="44px" className="rounded-xl" />
           ))}
         </div>
       </TarjetaSistema>

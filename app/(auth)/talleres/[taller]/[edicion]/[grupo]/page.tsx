@@ -514,7 +514,7 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                         <div className="flex flex-wrap items-center gap-2">
                           <Link
                             href={`${rutaGrupo(taller.slug, edicionIdParam, grupoId)}?clase=${s.id}#asistencia`}
-                            className="inline-flex min-h-[44px] items-center rounded-lg border-2 border-border px-3 text-sm font-medium text-foreground hover:bg-accent"
+                            className="inline-flex h-11 items-center rounded-xl border-2 border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             Pasar lista
                           </Link>

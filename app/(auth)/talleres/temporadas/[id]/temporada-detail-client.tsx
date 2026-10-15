@@ -59,10 +59,6 @@ const TRANSITIONS: Record<TemporadaEstado, ReadonlyArray<{ next: NextEstado; lab
   cancelado: [],
 }
 
-/** Same 44px icon-button hit area plantilla-grupos-section.tsx's own BOTON_ICONO uses. */
-const BOTON_ICONO =
-  'inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-destructive'
-
 /** Same UTC-anchored formatting the taller/edición pages already use for a `date`-only column. */
 function formatFechaCorta(value: string | null): string {
   if (!value) return '—'
@@ -229,15 +225,16 @@ export function TemporadaDetailClient({
                   </TextoSistema>
                 </div>
                 {canWrite && (
-                  <button
+                  <BotonSistema
                     type="button"
+                    variante="ghost"
+                    soloIcono
+                    icono={X}
                     aria-label={`Quitar ${taller.nombre} de la temporada`}
                     title="Quitar de la temporada"
-                    className={BOTON_ICONO}
+                    className="hover:text-danger"
                     onClick={() => abrirQuitar(taller)}
-                  >
-                    <X className="h-5 w-5" aria-hidden="true" />
-                  </button>
+                  />
                 )}
               </div>
             ))}
