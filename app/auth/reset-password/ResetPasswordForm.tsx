@@ -22,7 +22,7 @@ export default function ResetPasswordForm() {
   const [exito, setExito] = useState(false)
   const router = useRouter()
   // A Niños invitation carries next=/perfil#mis-hijos; anything outside /perfil falls back to /dashboard.
-  const destino = destinoTrasContrasena(useSearchParams().get('next'))
+  const destino = destinoTrasContrasena(useSearchParams()?.get('next'))
   // La sesión ya está establecida via cookies por /auth/callback
 
   const manejarSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
