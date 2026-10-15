@@ -72,7 +72,7 @@ export default function LiderDashboardClient({
                 scheduledAtIso={u.scheduledAtIso}
                 assistedPersonaName={u.assistedPersonaName}
                 pasosValidadosCount={u.pasosValidadosCount}
-                href={`/lider/uno-a-uno/${u.id}`}
+                href={`/lider/uno-auno/${u.id}`}
               />
             ))}
           </div>

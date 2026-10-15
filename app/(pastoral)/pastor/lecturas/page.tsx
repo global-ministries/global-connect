@@ -65,7 +65,7 @@ export default async function PastorLecturasPage() {
                 scheduledAtIso={u.scheduledAtIso}
                 assistedPersonaName={u.assistedPersonaName}
                 pasosValidadosCount={u.pasosValidadosCount}
-                href={`/pastor/lecturas/${u.id}`}
+                href={`/lider/uno-auno/${u.id}`}
                 showMentor
               />
             ))}

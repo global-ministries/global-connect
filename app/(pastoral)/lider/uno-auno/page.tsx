@@ -14,9 +14,6 @@ import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { TituloSistema } from '@/components/ui/sistema-diseno'
 import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,12 +69,6 @@ export default async function LiderUnoAUnoListPage() {
       <TarjetaSistema>
         <div className="flex items-center justify-between mb-4">
           <TituloSistema nivel={2}>Programadas</TituloSistema>
-          <Link href="/api/pastoral/one-on-one">
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4" />
-              Nueva sesión
-            </Button>
-          </Link>
         </div>
         {upcoming.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">No hay sesiones programadas.</p>
