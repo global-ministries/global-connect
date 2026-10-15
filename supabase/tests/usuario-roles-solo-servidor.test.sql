@@ -27,8 +27,9 @@
 -- The migration is copied byte for byte between the two marker comments below.
 --
 -- Run against STAGING inside BEGIN...ROLLBACK: nothing here is kept. Each probe
--- write is undone by its own savepoint, and so is what the trigger
--- trg_sync_pastoral_grants_on_role_change writes for it. The last statement
+-- write is undone by its own savepoint, and so is anything a trigger on
+-- usuario_roles writes for it (the pastoral trigger named in the migration copy
+-- below was dropped by 20261015110000_quitar_modulo_pastoral). The last statement
 -- returns the failing cases (kind 'failure', none expected), then the summary
 -- rows, because the MCP tool returns only the last result-producing statement.
 
