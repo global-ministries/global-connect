@@ -96,7 +96,7 @@ export function ResolverSolicitudRetiroControls({
       {feedback.kind === 'error' && (
         <p
           role="alert"
-          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700"
+          className="rounded-xl border border-danger/30 bg-danger/10 px-2 py-1 text-xs text-danger-text"
         >
           {feedback.message}
         </p>
@@ -104,7 +104,7 @@ export function ResolverSolicitudRetiroControls({
       {feedback.kind === 'success' && (
         <p
           role="status"
-          className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700"
+          className="rounded-xl border border-success/30 bg-success/10 px-2 py-1 text-xs text-success-text"
         >
           {feedback.message}
         </p>
@@ -131,7 +131,7 @@ export function ResolverSolicitudRetiroControls({
             tamaño="sm"
             icono={X}
             onClick={() => beginConfirm('rechazar')}
-            className="border-red-300 text-red-700 hover:bg-red-50"
+            className="border-danger/40 text-danger-text hover:bg-danger/10 focus:ring-danger"
           >
             Rechazar
           </BotonSistema>
@@ -162,17 +162,12 @@ export function ResolverSolicitudRetiroControls({
         </BotonSistema>
         <BotonSistema
           type="button"
-          variante="primario"
+          variante={isAprobar ? 'primario' : 'peligro'}
           tamaño="sm"
           icono={isAprobar ? Check : X}
           cargando={pending}
           disabled={pending}
           onClick={submit}
-          className={
-            isAprobar
-              ? undefined
-              : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-          }
         >
           {pending
             ? 'Procesando…'

@@ -149,7 +149,7 @@ function findByType(node: unknown, type: unknown): { props: Record<string, unkno
 /**
  * True when the tree contains an <a>/<Link> whose href is the given
  * path. Walks EVERY prop value, not just `children` — the explorar
- * link is passed as `accionPrincipal` to `<ContenedorDashboard>`, a
+ * link is passed as `acciones` to `<PaginaSistema>`, a
  * sibling prop to `children`, which a children-only walk would miss.
  */
 function containsHref(node: unknown, href: string): boolean {

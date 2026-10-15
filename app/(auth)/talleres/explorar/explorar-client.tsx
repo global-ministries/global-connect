@@ -168,10 +168,8 @@ export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
               disabled={t.ya_inscrito || t.cupo_completo}
               aria-pressed={selectedId === t.id}
               aria-label={`Seleccionar ${t.nombre} para inscripción`}
-              className={`w-full text-left transition ${
-                selectedId === t.id
-                  ? 'ring-2 ring-[var(--brand-primary)] rounded-md'
-                  : ''
+              className={`w-full rounded-2xl text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                selectedId === t.id ? 'ring-2 ring-[var(--brand-primary)]' : ''
               } ${t.ya_inscrito || t.cupo_completo ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               <TarjetaSistema variante="elevated" className="p-4">

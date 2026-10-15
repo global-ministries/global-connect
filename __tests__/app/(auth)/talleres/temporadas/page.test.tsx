@@ -20,7 +20,7 @@
 
 import TemporadasPage from '@/app/(auth)/talleres/temporadas/page'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
-import { ContenedorDashboard, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import type { TemporadaRow, DireccionConTalleres } from '@/lib/platform/talleres/temporadas'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
@@ -193,8 +193,8 @@ describe('TemporadasPage — puedeCrear (hide the control, never disable it)', (
     setup({ rows: [], direcciones: [makeDireccion({ puedeEditar: false })] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
-    const dashboard = findByType(element, ContenedorDashboard)
-    expect(dashboard?.props.accionPrincipal).toBeUndefined()
+    const dashboard = findByType(element, PaginaSistema)
+    expect(dashboard?.props.acciones).toBeUndefined()
   })
 
   it('shows "Crear Temporada" when at least one dirección has puedeEditar', async () => {
@@ -207,8 +207,8 @@ describe('TemporadasPage — puedeCrear (hide the control, never disable it)', (
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
-    const dashboard = findByType(element, ContenedorDashboard)
-    expect(extractText(dashboard?.props.accionPrincipal)).toMatch(/crear temporada/i)
+    const dashboard = findByType(element, PaginaSistema)
+    expect(extractText(dashboard?.props.acciones)).toMatch(/crear temporada/i)
   })
 })
 
@@ -289,7 +289,8 @@ describe('TemporadasPage — page shell', () => {
     setup({ rows: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
-    const dashboard = findByType(element, ContenedorDashboard)
+    const dashboard = findByType(element, PaginaSistema)
     expect(dashboard?.props.titulo).toBe('Temporadas')
+    expect(dashboard?.props.ancho ?? 'default').toBe('default')
   })
 })

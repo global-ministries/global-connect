@@ -11,7 +11,7 @@
  */
 
 import CertificadoDetailPage from '@/app/(auth)/talleres/mi-recorrido/certificados/[id]/page'
-import { ContenedorDashboard, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import type { ParticipanteCertificado } from '@/lib/platform/talleres/participante'
 
 jest.mock('@/lib/platform/talleres/participante', () => ({
@@ -95,12 +95,12 @@ describe('CertificadoDetailPage — gate + deny-by-default', () => {
 })
 
 describe('CertificadoDetailPage — back link returns to the certificados tab', () => {
-  it('botonRegreso points at /talleres/mi-recorrido?tab=certificados', async () => {
+  it('regreso points at /talleres/mi-recorrido?tab=certificados', async () => {
     setup(certificado())
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await CertificadoDetailPage({ params: Promise.resolve({ id: 'c-1' }) } as any)) as any
-    const dashboard = findByType(element, ContenedorDashboard)
-    expect(dashboard?.props.botonRegreso).toEqual({
+    const dashboard = findByType(element, PaginaSistema)
+    expect(dashboard?.props.regreso).toEqual({
       href: '/talleres/mi-recorrido?tab=certificados',
       texto: 'Mis Certificados',
     })

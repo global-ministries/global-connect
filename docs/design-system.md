@@ -190,3 +190,11 @@ and reach for it only where a class cannot (inline styles, SVG attributes).
   its label but keeps a 32px (`h-8 w-8`) override below the 44px icon size.
 - `ui/card` still uses `rounded-xl`; move it to the surface radius when cards
   migrate.
+- Talleres (`app/(auth)/talleres`, `components/talleres`) is migrated: every
+  page uses `PaginaSistema` (Crear Temporada and the certificate at `form`
+  width), icon-only actions are `BotonSistema soloIcono`, status feedback uses
+  the danger/success tokens and destructive confirms use
+  `bg-none bg-danger text-danger-foreground` (`bg-none` drops the primary
+  gradient, which a plain `bg-*` color cannot override). Pending: add these
+  paths to `migratedToDesignSystem` in `eslint.config.mjs`; `app/(auth)/admin/talleres`
+  belongs to the admin area.

@@ -4,11 +4,11 @@
  * elevated card shape (docs/talleres-de-punta-a-punta.md §9's loading.tsx
  * pattern: imitate the real shape, not a spinner).
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingCertificadoDetail() {
   return (
-    <ContenedorDashboard titulo="Certificado">
+    <PaginaSistema titulo="Certificado" ancho="form">
       <TarjetaSistema variante="elevated" className="p-6">
         <SkeletonSistema ancho="60%" alto="20px" />
         <SkeletonSistema ancho="40%" alto="14px" className="mt-3" />
@@ -16,6 +16,6 @@ export default function LoadingCertificadoDetail() {
         <SkeletonSistema ancho="100%" alto="56px" className="mt-4" />
         <SkeletonSistema ancho="50%" alto="14px" className="mt-4" />
       </TarjetaSistema>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

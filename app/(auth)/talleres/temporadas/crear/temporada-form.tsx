@@ -31,6 +31,7 @@ import {
   InputSistema,
   SelectSistema,
   BotonSistema,
+  PieAccionesSistema,
 } from '@/components/ui/sistema-diseno'
 
 import { createTemporada } from '../actions'
@@ -171,7 +172,7 @@ export function TallerTemporadaForm({ direcciones }: Props): ReactElement {
                   return (
                     <li key={taller.id}>
                       <label
-                        className={`flex min-h-[44px] items-center gap-3 rounded border p-3 ${
+                        className={`flex min-h-[44px] items-center gap-3 rounded-xl border border-border p-3 ${
                           esPorTemporada ? '' : 'opacity-60'
                         }`}
                       >
@@ -215,14 +216,14 @@ export function TallerTemporadaForm({ direcciones }: Props): ReactElement {
         </TextoSistema>
       )}
 
-      <div className="mt-4 flex items-center justify-end gap-2">
+      <PieAccionesSistema fijo={false} className="mt-4 bg-transparent">
         <BotonSistema type="button" variante="outline" onClick={() => router.push(rutaTemporadas())}>
           Cancelar
         </BotonSistema>
         <BotonSistema type="button" variante="primario" onClick={submit} disabled={!canSubmit}>
           {pending ? 'Creando…' : 'Crear temporada'}
         </BotonSistema>
-      </div>
+      </PieAccionesSistema>
     </TarjetaSistema>
   )
 }
