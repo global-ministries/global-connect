@@ -64,7 +64,7 @@ export default function ImportarGruposPage() {
 
         {error && (
           <TarjetaSistema className="mt-4">
-            <p className="text-red-600 text-sm">{error}</p>
+            <p className="text-danger-text text-sm">{error}</p>
           </TarjetaSistema>
         )}
 
@@ -73,7 +73,7 @@ export default function ImportarGruposPage() {
             <TituloSistema nivel={3}>Resultado</TituloSistema>
             <div className="mt-3 space-y-2 text-sm">
               {resultado.resultados?.map((r: any, idx: number) => (
-                <div key={idx} className={r.ok ? 'text-green-700' : 'text-red-600'}>
+                <div key={idx} className={r.ok ? 'text-success-text' : 'text-danger-text'}>
                   Fila {r.fila}: {r.detalle}
                   {r.grupoId && <span className="text-muted-foreground"> (ID: {r.grupoId})</span>}
                 </div>

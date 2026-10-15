@@ -175,7 +175,7 @@ export function SolicitudesPendientesClient({
                         <TabsTrigger value="pendientes">
                             Pendientes
                             {pendientes.length > 0 && (
-                                <span className="ml-1.5 text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded-full">
+                                <span className="ml-1.5 text-xs bg-warning/20 text-warning-text px-1.5 py-0.5 rounded-full">
                                     {pendientes.length}
                                 </span>
                             )}

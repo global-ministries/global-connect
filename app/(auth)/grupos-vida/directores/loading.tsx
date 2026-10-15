@@ -5,11 +5,11 @@
  * ordenar" strip, the two tabs and the general director cards, per
  * docs/sistema-diseno.md's `loading.tsx` skeleton pattern.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingDirectores() {
   return (
-    <ContenedorDashboard titulo="Directores">
+    <PaginaSistema titulo="Directores">
       <SkeletonSistema ancho="320px" alto="16px" />
 
       <SkeletonSistema alto="120px" className="rounded-2xl" />
@@ -31,6 +31,6 @@ export default function LoadingDirectores() {
           <SkeletonSistema alto="72px" className="rounded-xl" />
         </TarjetaSistema>
       ))}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

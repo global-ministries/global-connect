@@ -138,9 +138,9 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
             <TarjetaSistema className="p-6 animate-pulse">
                 <div className="h-6 bg-muted rounded w-1/3 mb-4" />
                 <div className="space-y-3">
-                    <div className="h-10 bg-muted rounded" />
-                    <div className="h-10 bg-muted rounded" />
-                    <div className="h-10 bg-muted rounded" />
+                    <div className="h-10 bg-muted rounded-xl" />
+                    <div className="h-10 bg-muted rounded-xl" />
+                    <div className="h-10 bg-muted rounded-xl" />
                 </div>
             </TarjetaSistema>
         );
@@ -477,7 +477,7 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                                 <TextoSistema variante="muted" tamaño="sm">Direcciones</TextoSistema>
                             </div>
                             <div>
-                                <TextoSistema className="text-lg font-bold text-green-600">{geoStats.conCoordenadas}</TextoSistema>
+                                <TextoSistema className="text-lg font-bold text-success-text">{geoStats.conCoordenadas}</TextoSistema>
                                 <TextoSistema variante="muted" tamaño="sm">Con coordenadas</TextoSistema>
                             </div>
                             <div>

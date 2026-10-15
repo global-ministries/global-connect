@@ -3,7 +3,7 @@ import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import SeasonForm from "@/components/forms/SeasonForm"
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -22,9 +22,8 @@ export default async function EditSeasonPage({ params }: Props) {
 
   if (error || !temporada) {
     return (
-<ContenedorDashboard
+<PaginaSistema
           titulo="Error"
-          descripcion="No se pudo cargar la temporada"
         >
           <TarjetaSistema className="p-8">
             <div className="text-center">
@@ -40,19 +39,20 @@ export default async function EditSeasonPage({ params }: Props) {
               </Link>
             </div>
           </TarjetaSistema>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo={temporada.nombre}
+        ancho="form"
         descripcion="Modifica la información de esta temporada"
-        botonRegreso={{ href: '/grupos-vida/temporadas', texto: 'Volver a Temporadas' }}
+        regreso={{ href: '/grupos-vida/temporadas', texto: 'Volver a Temporadas' }}
       >
         <TarjetaSistema>
           <SeasonForm initialData={temporada} />
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }

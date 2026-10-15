@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
-import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import RankingAsistenciaClient from '@/components/asistencia/RankingAsistencia.client'
 
 export default async function MasAusenciasPage({
@@ -15,7 +15,7 @@ export default async function MasAusenciasPage({
 
     if (!user) {
         return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
                     <div className="flex items-center justify-center min-h-[50vh]">
                         <div className="text-center">
                             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -25,7 +25,7 @@ export default async function MasAusenciasPage({
                             </Link>
                         </div>
                     </div>
-                </ContenedorDashboard>
+                </PaginaSistema>
 )
     }
 
@@ -49,11 +49,10 @@ export default async function MasAusenciasPage({
     const ranking = rankingData as any || { total_eventos: 0, miembros: [] }
 
     return (
-<ContenedorDashboard
+<PaginaSistema
                 titulo="Más Ausencias"
                 descripcion={`Miembros con más ausencias — ${grupo?.nombre || 'Grupo'}`}
-                botonRegreso={{ href: `/grupos-vida/${id}/asistencia/historial`, texto: 'Historial' }}
-                accionPrincipal={null}
+                regreso={{ href: `/grupos-vida/${id}/asistencia/historial`, texto: 'Historial' }}
             >
                 <RankingAsistenciaClient
                     modo="ausentes"
@@ -61,6 +60,6 @@ export default async function MasAusenciasPage({
                     totalEventos={ranking.total_eventos || 0}
                     grupoNombre={grupo?.nombre || 'Grupo'}
                 />
-            </ContenedorDashboard>
+            </PaginaSistema>
 )
 }

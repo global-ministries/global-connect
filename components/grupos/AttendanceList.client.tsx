@@ -183,7 +183,7 @@ export default function AttendanceList({
       {/* Presentes + Tardes */}
       <div className="rounded-xl border border-border/60 p-4">
         <div className="flex items-center gap-2 font-medium mb-3">
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="w-2 h-2 rounded-full bg-success" />
           Presentes ({presentes.length + tardes.length})
         </div>
         <ul className="space-y-0">
@@ -199,7 +199,7 @@ export default function AttendanceList({
       {/* Ausentes + Justificados */}
       <div className="rounded-xl border border-border/60 p-4">
         <div className="flex items-center gap-2 font-medium mb-3">
-          <span className="w-2 h-2 rounded-full bg-red-500" />
+          <span className="w-2 h-2 rounded-full bg-danger" />
           Ausentes ({ausentes.length + justificados.length})
         </div>
         <ul className="space-y-0">

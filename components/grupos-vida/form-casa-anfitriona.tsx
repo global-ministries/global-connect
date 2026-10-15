@@ -6,7 +6,7 @@ import { z } from "zod"
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { obtenerDireccionUsuario, obtenerRelacionesFamiliares } from "@/lib/actions/casas-anfitrionas.actions"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
-import { InputSistema, TextareaSistema, SelectSistema, BotonSistema, TituloSistema } from "@/components/ui/sistema-diseno"
+import { InputSistema, TextareaSistema, SelectSistema, BotonSistema, PieAccionesSistema, TituloSistema } from "@/components/ui/sistema-diseno"
 import { Home, MapPin, Hash, Save, Loader2, User, Users, Check } from "lucide-react"
 import LocationPicker from "@/components/maps/LocationPicker.client"
 import { SelectorPropietarioCasa } from "@/components/grupos-vida/selector-propietario-casa"
@@ -624,7 +624,7 @@ export function FormCasaAnfitriona({
                     {DIAS_SEMANA.map(({ key, label }) => (
                         <label
                             key={key}
-                            className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-2 transition-colors duration-200 hover:bg-muted/50"
+                            className="flex cursor-pointer items-center gap-2 rounded-xl border border-border p-2 transition-colors duration-200 hover:bg-muted/50"
                         >
                             <input
                                 type="checkbox"
@@ -647,7 +647,7 @@ export function FormCasaAnfitriona({
             />
 
             {/* Acciones */}
-            <div className="flex justify-end gap-3 pt-2">
+            <PieAccionesSistema fijo={false} className="bg-transparent">
                 <BotonSistema variante="outline" onClick={onCancelar} type="button">
                     Cancelar
                 </BotonSistema>
@@ -659,7 +659,7 @@ export function FormCasaAnfitriona({
                 >
                     {datosIniciales ? "Guardar cambios" : "Registrar casa"}
                 </BotonSistema>
-            </div>
+            </PieAccionesSistema>
         </form>
     );
 }

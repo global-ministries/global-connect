@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { extraerRelacion } from "@/lib/supabase/helpers";
 import { redirect, notFound } from "next/navigation";
-import { ContenedorDashboard } from "@/components/ui/sistema-diseno";
+import { PaginaSistema } from "@/components/ui/sistema-diseno";
 import { EditarCasaClient } from "./editar-casa-client";
 import { z } from "zod";
 import { obtenerUsuariosAsignablesCasaAnfitriona } from "@/lib/casas-anfitrionas/assignable-users";
@@ -153,9 +153,10 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
         : [];
 
     return (
-        <ContenedorDashboard
+        <PaginaSistema
             titulo={`Editar ${casa.nombre_lugar}`}
-            botonRegreso={{ href: `/grupos-vida/casas-anfitrionas/${id}`, texto: "Detalle" }}
+            ancho="form"
+            regreso={{ href: `/grupos-vida/casas-anfitrionas/${id}`, texto: "Detalle" }}
         >
             <EditarCasaClient
                 casaId={id}
@@ -166,6 +167,6 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
                 usuarios={usuariosOptions}
                 mostrarSelectorUsuario={permisosCasa.puedeCrearParaOtros}
             />
-        </ContenedorDashboard>
+        </PaginaSistema>
     );
 }

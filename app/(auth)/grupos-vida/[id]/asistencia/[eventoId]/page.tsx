@@ -3,7 +3,7 @@ import Link from 'next/link'
 import AttendanceList from "@/components/grupos/AttendanceList.client";
 import { Edit, Calendar, Clock, BookOpen, StickyNote, Users, AlertTriangle } from 'lucide-react'
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema, BadgeSistema, SeparadorSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema, BadgeSistema, SeparadorSistema } from '@/components/ui/sistema-diseno'
 
 /** Evento devuelto por obtener_evento_grupo (v2) */
 interface EventoGrupo {
@@ -41,7 +41,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -51,7 +51,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             </Link>
           </div>
         </div>
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 
   const [{ data: evento }, { data: puedeEditar }, asistenciaRes, { data: grupoData }] = await Promise.all([
@@ -84,10 +84,10 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
 
   const ev: EventoGrupo | undefined = Array.isArray(evento) ? (evento[0] as EventoGrupo) : undefined
   if (!ev) return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
-            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <div className="text-danger-text text-6xl mb-4">⚠️</div>
             <TituloSistema nivel={2}>Evento no encontrado</TituloSistema>
             <p className="text-muted-foreground mb-4">No hay acceso o el evento no existe.</p>
             <Link href={`/grupos-vida/${id}`}>
@@ -95,7 +95,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             </Link>
           </div>
         </div>
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 
   const asistentes = Array.isArray(asistenciaRes.data)
@@ -136,10 +136,11 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
+        ancho="form"
         titulo={`Asistencia del ${formatearFecha(ev.fecha)}`}
-        botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
-        accionPrincipal={
+        regreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
+        acciones={
           puedeEditar ? (
             <Link href={`/grupos-vida/${id}/asistencia/editar/${eventoId}`}>
               <BotonSistema variante="outline" tamaño="sm" className="gap-2">
@@ -152,9 +153,9 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
       >
         {/* No hubo reunión */}
         {ev.no_hubo_reunion && (
-          <TarjetaSistema className="p-4 border-yellow-500/30 bg-yellow-500/5">
+          <TarjetaSistema className="p-4 border-warning/30 bg-warning/5">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
+              <AlertTriangle className="w-5 h-5 text-warning shrink-0" />
               <div>
                 <TextoSistema className="font-medium">No hubo reunión esta semana</TextoSistema>
                 {ev.motivo_no_reunion && (
@@ -169,7 +170,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
         <TarjetaSistema className="p-4 sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
               </div>
               <div>
@@ -179,7 +180,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             </div>
             {ev.hora && (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
                   <Clock className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div>
@@ -190,7 +191,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             )}
             {ev.tema && (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
                   <BookOpen className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div>
@@ -201,7 +202,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             )}
             {(ev.conteo_visitantes ?? 0) > 0 && (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
                   <Users className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <div>
@@ -250,15 +251,15 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">Presentes</TextoSistema>
-              <TituloSistema nivel={2} className="text-emerald-500">{presentes}</TituloSistema>
+              <TituloSistema nivel={2} className="text-success-text">{presentes}</TituloSistema>
             </TarjetaSistema>
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">Tardes</TextoSistema>
-              <TituloSistema nivel={2} className="text-amber-500">{tardes}</TituloSistema>
+              <TituloSistema nivel={2} className="text-warning-text">{tardes}</TituloSistema>
             </TarjetaSistema>
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">Ausentes</TextoSistema>
-              <TituloSistema nivel={2} className="text-red-500">{ausentes}</TituloSistema>
+              <TituloSistema nivel={2} className="text-danger-text">{ausentes}</TituloSistema>
             </TarjetaSistema>
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">% Asistencia</TextoSistema>
@@ -280,7 +281,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
 
         {/* Notas privadas del líder (solo para quien puede editar) */}
         {puedeEditar && ev.notas_privadas_lider && (
-          <TarjetaSistema className="p-4 sm:p-6 border-blue-500/20 bg-blue-500/5">
+          <TarjetaSistema className="p-4 sm:p-6 border-info/20 bg-info/5">
             <div className="flex items-center gap-2 mb-2">
               <BadgeSistema variante="info" tamaño="sm">Solo líder</BadgeSistema>
               <TextoSistema className="font-medium" tamaño="sm">Notas privadas del líder</TextoSistema>
@@ -288,6 +289,6 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             <TextoSistema className="whitespace-pre-wrap">{ev.notas_privadas_lider}</TextoSistema>
           </TarjetaSistema>
         )}
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }
