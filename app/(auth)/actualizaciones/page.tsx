@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import ActualizacionesClient from './ActualizacionesClient'
 import type { RolSistema } from '@/lib/data/actualizaciones'
 
@@ -39,8 +39,9 @@ export default async function ActualizacionesPage() {
     const puedeVerTodo = rolMapeado !== 'miembro'
 
     return (
-        <ContenedorDashboard titulo="Actualizaciones" descripcion="Historial de cambios y mejoras del sistema">
+        // A reading feed: the form width keeps lines at a readable length.
+        <PaginaSistema titulo="Actualizaciones" descripcion="Historial de cambios y mejoras del sistema" ancho="form">
             <ActualizacionesClient puedeVerTodo={puedeVerTodo} rolUsuario={rolMapeado} />
-        </ContenedorDashboard>
+        </PaginaSistema>
     )
 }
