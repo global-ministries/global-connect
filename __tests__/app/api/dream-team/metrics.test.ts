@@ -22,8 +22,8 @@ const directorCap = { key: 'dream_team.director.coordinate', experience: 'dream_
 
 const equipoDPS = { id: 'equipo-dps-camara', experiencia: 'dps' as const, label: 'DPS Producción Técnica', activo: true }
 const equipoEstudiantes = { id: 'equipo-estudiantes-transit', experiencia: 'estudiantes' as const, label: 'Estudiantes Transit', activo: true }
-const rolVoluntario = { id: 'rol-voluntario', equipoId: 'equipo-dps-camara', label: 'Voluntario', activo: true }
-const rolLider = { id: 'rol-lider', equipoId: 'equipo-estudiantes-transit', label: 'Líder de grupo', activo: true }
+const rolVoluntario = { id: 'rol-voluntario', equipoId: 'equipo-dps-camara', label: 'Voluntario', nivel: 'voluntario' as const, activo: true }
+const rolLider = { id: 'rol-lider', equipoId: 'equipo-estudiantes-transit', label: 'Líder de grupo', nivel: 'lider' as const, activo: true }
 
 function request(path: string) {
   return new NextRequest(new URL(`http://localhost${path}`))

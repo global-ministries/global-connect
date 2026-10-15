@@ -20,6 +20,7 @@ import {
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import type { DreamTeamEquipo, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
 import { personaId } from '@/lib/platform/dream-team/types'
+import { nivelDesdeLabel } from '@/lib/platform/dream-team/nivel-rol'
 import type { NodoEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 
 function equipo(overrides: Partial<DreamTeamEquipo> & Pick<DreamTeamEquipo, 'id' | 'label'>): DreamTeamEquipo {
@@ -43,7 +44,7 @@ function servicio(overrides: Partial<DreamTeamServicio> & Pick<DreamTeamServicio
 }
 
 function rol(overrides: Partial<DreamTeamRol> & Pick<DreamTeamRol, 'id' | 'equipoId' | 'label'>): DreamTeamRol {
-  return { activo: true, ...overrides }
+  return { activo: true, nivel: nivelDesdeLabel(overrides.label), ...overrides }
 }
 
 describe('construirNodosArbol', () => {

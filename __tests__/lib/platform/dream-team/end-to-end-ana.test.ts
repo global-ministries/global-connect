@@ -8,6 +8,7 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { personaId } from '@/lib/platform/dream-team/types'
+import { nivelDesdeLabel } from '@/lib/platform/dream-team/nivel-rol'
 import type { DreamTeamEquipo, DreamTeamEstadoHistorial, DreamTeamRol, DreamTeamServicio, PersonaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamRepository, DreamTeamParticipationEventWriter } from '@/lib/platform/dream-team/repository'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
@@ -77,6 +78,7 @@ function makeRol(equipoId: string, overrides: Partial<DreamTeamRol> = {}): Dream
     id: makeTestId('rol'),
     equipoId,
     label: 'Rol de prueba',
+    nivel: nivelDesdeLabel(overrides.label ?? 'Rol de prueba'),
     activo: true,
     ...overrides,
   }

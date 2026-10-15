@@ -150,6 +150,7 @@ function makeRol(equipoId: string, overrides: Partial<DreamTeamRol> = {}): Dream
     id: makeTestId('rol'),
     equipoId,
     label: 'Rol de prueba',
+    nivel: 'voluntario',
     activo: true,
     ...overrides,
   }
@@ -581,11 +582,12 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
       })
       createdEquipoIds.push(equipo.id)
 
-      const rol = await repo.createRol({ equipoId: equipo.id, label: makeTestId('rol'), activo: true })
+      const rol = await repo.createRol({ equipoId: equipo.id, label: makeTestId('rol'), nivel: 'lider', activo: true })
       createdRolIds.push(rol.id)
 
       const list = await repo.listRolesPorEquipo(equipo.id)
       expect(list.map((r) => r.id)).toContain(rol.id)
+      expect(rol.nivel).toBe('lider')
     })
 
     it('renames and deactivates an equipo via updateEquipo', async () => {
@@ -610,7 +612,7 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
         activo: true,
       })
       createdEquipoIds.push(equipo.id)
-      const rol = await repo.createRol({ equipoId: equipo.id, label: makeTestId('rol-update'), activo: true })
+      const rol = await repo.createRol({ equipoId: equipo.id, label: makeTestId('rol-update'), nivel: 'lider', activo: true })
       createdRolIds.push(rol.id)
 
       const renamed = await repo.updateRol(rol.id, { label: 'Renamed rol' })
@@ -618,6 +620,9 @@ describeIntegration('[integration:supabase] createSupabaseDreamTeamRepository', 
 
       const deactivated = await repo.updateRol(rol.id, { activo: false })
       expect(deactivated.activo).toBe(false)
+
+      const promoted = await repo.updateRol(rol.id, { nivel: 'coordinador' })
+      expect(promoted.nivel).toBe('coordinador')
     })
   })
 

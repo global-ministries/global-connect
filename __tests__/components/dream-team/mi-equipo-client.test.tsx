@@ -359,7 +359,7 @@ describe('MiEquipoClient — Agregar persona', () => {
     { id: 'eq-parejas', etiqueta: '—— Parejas', ruta: ['Talleres', 'Parejas'] },
   ]
   const rolesPorEquipo = {
-    'eq-parejas': [{ id: 'rol-fac', equipoId: 'eq-parejas', label: 'facilitador', activo: true }],
+    'eq-parejas': [{ id: 'rol-fac', equipoId: 'eq-parejas', label: 'facilitador', nivel: 'lider' as const, activo: true }],
   }
   const conEdicion = () => propsConexion({ puedeEditar: true, equiposAsignables: asignables, rolesPorEquipo })
 

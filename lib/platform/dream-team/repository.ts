@@ -4,6 +4,7 @@ import type {
   DreamTeamEstadoHistorial,
   DreamTeamHistorialAppend,
   DreamTeamMotivo,
+  DreamTeamNivelRol,
   DreamTeamParticipationEvent,
   DreamTeamParticipationEventType,
   DreamTeamRequisito,
@@ -50,6 +51,7 @@ export interface DreamTeamEquipoUpdate {
 
 export interface DreamTeamRolUpdate {
   readonly label?: string
+  readonly nivel?: DreamTeamNivelRol
   readonly activo?: boolean
   readonly parentRolId?: string | null
 }

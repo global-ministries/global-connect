@@ -25,7 +25,8 @@ import {
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import type { DreamTeamRepository } from '@/lib/platform/dream-team/repository'
-import type { DreamTeamEquipo, DreamTeamRol } from '@/lib/platform/dream-team/types'
+import { esNivelRol } from '@/lib/platform/dream-team/nivel-rol'
+import type { DreamTeamEquipo, DreamTeamNivelRol, DreamTeamRol } from '@/lib/platform/dream-team/types'
 
 const ESTRUCTURA_PATH = '/admin/dream-team/estructura'
 const LABEL_MAX_LENGTH = 120
@@ -68,6 +69,8 @@ function validarLabel(label: string | undefined): string | { readonly error: Act
   }
   return trimmed
 }
+
+const NIVEL_INVALIDO = { error: 'invalid-input', message: 'El nivel del rol no es válido.' } as const
 
 function isPostgrestNoRowsError(error: unknown): boolean {
   return (error as { code?: string } | null)?.code === 'PGRST116'
@@ -181,6 +184,7 @@ export async function cambiarActivoEquipo(input: CambiarActivoEquipoInput): Prom
 export interface CrearRolInput {
   readonly equipoId: string
   readonly label: string
+  readonly nivel: DreamTeamNivelRol
   readonly parentRolId?: string
 }
 
@@ -191,6 +195,8 @@ export async function crearRol(input: CrearRolInput): Promise<RolActionResult> {
   const label = validarLabel(input.label)
   if (typeof label !== 'string') return { ok: false, ...label }
 
+  if (!esNivelRol(input.nivel)) return { ok: false, ...NIVEL_INVALIDO }
+
   if (!input.equipoId?.trim()) {
     return { ok: false, error: 'invalid-input', message: 'Falta el equipo.' }
   }
@@ -199,6 +205,7 @@ export async function crearRol(input: CrearRolInput): Promise<RolActionResult> {
     const rol = await ctx.repo.createRol({
       equipoId: input.equipoId,
       label,
+      nivel: input.nivel,
       activo: true,
       parentRolId: input.parentRolId,
     })
@@ -255,6 +262,34 @@ export async function cambiarActivoRol(input: CambiarActivoRolInput): Promise<Ro
 
   try {
     const rol = await ctx.repo.updateRol(input.id, { activo: input.activo })
+    revalidatePath(ESTRUCTURA_PATH)
+    return { ok: true, rol }
+  } catch (error) {
+    if (isPostgrestNoRowsError(error)) {
+      return { ok: false, error: 'not-found', message: 'El rol no existe o no es visible.' }
+    }
+    return { ok: false, error: 'internal', message: internalErrorMessage(error) }
+  }
+}
+
+export interface CambiarNivelRolInput {
+  readonly id: string
+  readonly nivel: DreamTeamNivelRol
+}
+
+// Changes only the authority level; the label and the people holding the rol stay as they are.
+export async function cambiarNivelRol(input: CambiarNivelRolInput): Promise<RolActionResult> {
+  const ctx = await resolveWriteContext()
+  if (!ctx.ok) return ctx
+
+  if (!esNivelRol(input.nivel)) return { ok: false, ...NIVEL_INVALIDO }
+
+  if (!input.id?.trim()) {
+    return { ok: false, error: 'invalid-input', message: 'Falta el rol.' }
+  }
+
+  try {
+    const rol = await ctx.repo.updateRol(input.id, { nivel: input.nivel })
     revalidatePath(ESTRUCTURA_PATH)
     return { ok: true, rol }
   } catch (error) {
