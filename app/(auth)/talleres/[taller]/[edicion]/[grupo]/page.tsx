@@ -91,7 +91,7 @@ import Link from 'next/link'
 import { Users, Calendar, ClipboardList, FileText } from 'lucide-react'
 
 import {
-  ContenedorDashboard,
+  PaginaSistema,
   BadgeSistema,
   TarjetaSistema,
   TextoSistema,
@@ -151,11 +151,11 @@ interface RouteContext {
 export default async function GrupoDetallePage(ctx: RouteContext) {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Grupo">
+      <PaginaSistema titulo="Grupo">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -167,11 +167,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Grupo">
+      <PaginaSistema titulo="Grupo">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -182,11 +182,11 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Grupo">
+      <PaginaSistema titulo="Grupo">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -320,9 +320,9 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   const lideres = asignaciones.filter((a) => a.rol === 'lider')
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo={grupo?.nombre ?? 'Grupo'}
-      botonRegreso={
+      regreso={
         edicion
           ? { href: rutaEdicion(taller.slug, edicion.id), texto: edicion.nombre_snapshot }
           : { href: rutaTaller(taller.slug), texto: taller.nombre }
@@ -661,7 +661,7 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
           )}
         </div>
       </section>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }
 

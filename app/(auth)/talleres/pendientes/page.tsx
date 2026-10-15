@@ -46,7 +46,7 @@
 import { LogOut, Users as UsersIcon } from 'lucide-react'
 import Link from 'next/link'
 
-import { ContenedorDashboard, BadgeSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, BadgeSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { ResolverSolicitudRetiroControls } from '@/components/talleres/resolver-solicitud-retiro-controls'
@@ -119,11 +119,11 @@ interface RouteContext {
 export default async function PendientesPage(ctx?: RouteContext) {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Pendientes">
+      <PaginaSistema titulo="Pendientes">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -132,11 +132,11 @@ export default async function PendientesPage(ctx?: RouteContext) {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Pendientes">
+      <PaginaSistema titulo="Pendientes">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -147,11 +147,11 @@ export default async function PendientesPage(ctx?: RouteContext) {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Pendientes">
+      <PaginaSistema titulo="Pendientes">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -206,9 +206,9 @@ export default async function PendientesPage(ctx?: RouteContext) {
     .map((row) => row.id)
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Pendientes"
-      subtitulo="Lo que espera tu decisión, en todos tus talleres."
+      descripcion="Lo que espera tu decisión, en todos tus talleres."
     >
       <nav aria-label="Filtrar inscripciones por estado" className="mb-4 flex flex-wrap gap-2">
         {ESTADO_FILTRO_VALUES.map((valor) => (
@@ -306,7 +306,7 @@ export default async function PendientesPage(ctx?: RouteContext) {
           </section>
         </div>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }
 

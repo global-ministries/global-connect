@@ -26,7 +26,7 @@
  * mechanism.
  */
 
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 
 import {
   loadParticipanteActiveTalleres,
@@ -51,11 +51,11 @@ export default async function MiRecorridoPage() {
   ])
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Mi Recorrido"
-      botonRegreso={{ href: '/dashboard', texto: 'Inicio' }}
+      regreso={{ href: '/dashboard', texto: 'Inicio' }}
     >
       <MiRecorridoTabs talleres={talleres} historial={historial} certificados={certificados} />
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

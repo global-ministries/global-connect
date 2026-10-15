@@ -4,11 +4,11 @@
  * (slug/fechas/estado) plus the estado-transitions + talleres-membership
  * card below it.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingTemporadaDetalle() {
   return (
-    <ContenedorDashboard titulo="Temporada">
+    <PaginaSistema titulo="Temporada">
       <TarjetaSistema variante="outlined" className="mb-4 p-4">
         <SkeletonSistema ancho="30%" alto="14px" />
         <SkeletonSistema ancho="60%" alto="12px" className="mt-3" />
@@ -31,6 +31,6 @@ export default function LoadingTemporadaDetalle() {
           ))}
         </div>
       </TarjetaSistema>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

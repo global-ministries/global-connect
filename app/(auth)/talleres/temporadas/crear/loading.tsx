@@ -2,11 +2,11 @@
  * T8 (odd/tasks/talleres-consolidar-pantallas.md) — loading skeleton for
  * /talleres/temporadas/crear. Mirrors the real form's field shape.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingTemporadaCrear() {
   return (
-    <ContenedorDashboard titulo="Crear Temporada">
+    <PaginaSistema titulo="Crear Temporada" ancho="form">
       <TarjetaSistema variante="elevated" className="p-5">
         <SkeletonSistema ancho="80%" alto="14px" className="mb-4" />
         <div className="grid gap-4 md:grid-cols-2">
@@ -21,6 +21,6 @@ export default function LoadingTemporadaCrear() {
           <SkeletonSistema ancho="140px" alto="44px" className="rounded-xl" />
         </div>
       </TarjetaSistema>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

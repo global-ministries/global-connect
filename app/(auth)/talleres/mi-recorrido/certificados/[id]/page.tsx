@@ -17,7 +17,7 @@
 
 import Link from 'next/link'
 
-import { ContenedorDashboard, TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import { Award, ExternalLink } from 'lucide-react'
 
 import {
@@ -52,9 +52,10 @@ export default async function CertificadoDetailPage(ctx: RouteContext) {
   const cert = await loadParticipanteCertificado(participant, id)
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Certificado"
-      botonRegreso={{ href: `${rutaMiRecorrido()}?tab=certificados`, texto: 'Mis Certificados' }}
+      ancho="form"
+      regreso={{ href: `${rutaMiRecorrido()}?tab=certificados`, texto: 'Mis Certificados' }}
     >
       {!cert ? (
         <TarjetaSistema variante="outlined" className="p-6 text-center">
@@ -102,6 +103,6 @@ export default async function CertificadoDetailPage(ctx: RouteContext) {
           </div>
         </TarjetaSistema>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

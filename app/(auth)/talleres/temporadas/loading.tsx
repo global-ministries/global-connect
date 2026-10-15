@@ -4,11 +4,11 @@
  * talleres-de-punta-a-punta.md §9's loading.tsx pattern: imitate the real
  * shape, not a spinner), same as /talleres/reportes' loading.tsx (T7).
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingTemporadas() {
   return (
-    <ContenedorDashboard titulo="Temporadas">
+    <PaginaSistema titulo="Temporadas">
       {/* Desktop — table shape */}
       <div className="hidden md:block">
         <TarjetaSistema className="p-0">
@@ -34,6 +34,6 @@ export default function LoadingTemporadas() {
           </TarjetaSistema>
         ))}
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }
