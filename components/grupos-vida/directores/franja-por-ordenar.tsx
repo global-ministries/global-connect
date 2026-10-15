@@ -61,7 +61,7 @@ export function FranjaPorOrdenar({ items }: FranjaPorOrdenarProps): ReactElement
             <Link
               href={item.href}
               className={cn(
-                '-ml-3 inline-flex min-h-[44px] items-center self-start rounded-[10px] px-3 text-sm font-semibold text-[var(--brand-primary)] transition-colors hover:bg-accent',
+                '-ml-3 inline-flex min-h-[44px] items-center self-start rounded-[10px] px-3 text-sm font-semibold text-brand-text transition-colors hover:bg-accent',
                 ANILLO,
               )}
             >

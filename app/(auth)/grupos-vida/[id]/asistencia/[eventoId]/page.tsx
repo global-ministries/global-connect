@@ -87,7 +87,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
 <PaginaSistema>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
-            <div className="text-danger text-6xl mb-4">⚠️</div>
+            <div className="text-danger-text text-6xl mb-4">⚠️</div>
             <TituloSistema nivel={2}>Evento no encontrado</TituloSistema>
             <p className="text-muted-foreground mb-4">No hay acceso o el evento no existe.</p>
             <Link href={`/grupos-vida/${id}`}>
@@ -251,15 +251,15 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">Presentes</TextoSistema>
-              <TituloSistema nivel={2} className="text-success">{presentes}</TituloSistema>
+              <TituloSistema nivel={2} className="text-success-text">{presentes}</TituloSistema>
             </TarjetaSistema>
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">Tardes</TextoSistema>
-              <TituloSistema nivel={2} className="text-warning">{tardes}</TituloSistema>
+              <TituloSistema nivel={2} className="text-warning-text">{tardes}</TituloSistema>
             </TarjetaSistema>
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">Ausentes</TextoSistema>
-              <TituloSistema nivel={2} className="text-danger">{ausentes}</TituloSistema>
+              <TituloSistema nivel={2} className="text-danger-text">{ausentes}</TituloSistema>
             </TarjetaSistema>
             <TarjetaSistema className="p-4 sm:p-6 text-center">
               <TextoSistema variante="sutil" tamaño="sm">% Asistencia</TextoSistema>

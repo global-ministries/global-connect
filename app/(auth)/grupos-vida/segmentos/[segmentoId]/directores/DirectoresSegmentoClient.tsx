@@ -8,9 +8,9 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
 
-// Destructive action: BotonSistema has no danger variant yet, so the outline
-// button takes the danger token (docs/design-system.md, status colors).
-const CLASE_PELIGRO = "border-danger/40 text-danger hover:bg-danger/10 focus:ring-danger"
+// Outlined destructive action: keeps the outline look with the readable danger
+// text token (docs/design-system.md, status colors).
+const CLASE_PELIGRO = "border-danger/40 text-danger-text hover:bg-danger/10 focus:ring-danger"
 
 interface Props { segmentoId: string; esSuperior?: boolean }
 
@@ -108,7 +108,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
           )}
         </div>
       </div>
-      {error && <div className="text-sm text-danger">{error}</div>}
+      {error && <div className="text-sm text-danger-text">{error}</div>}
 
       {/* Estados */}
       {loading && (

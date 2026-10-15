@@ -149,13 +149,13 @@ export function AsignarCasaAnfitrionaClient({ casas, grupos, initialGroupId }: A
           />
 
           {formError && (
-            <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger">
+            <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger-text">
               {formError}
             </div>
           )}
 
           {successMessage && (
-            <div role="status" className="rounded-xl border border-success/20 bg-success/10 p-3 text-sm text-success">
+            <div role="status" className="rounded-xl border border-success/20 bg-success/10 p-3 text-sm text-success-text">
               {successMessage}
             </div>
           )}

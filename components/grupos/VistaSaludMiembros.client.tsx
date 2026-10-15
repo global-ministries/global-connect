@@ -118,8 +118,8 @@ export default function VistaSaludMiembros({ miembros, grupoId }: Props) {
                                     </span>
                                 </div>
                                 <div className="col-span-2 text-center">
-                                    <span className={`text-sm font-medium ${m.pct_asistencia >= 80 ? "text-success" :
-                                            m.pct_asistencia >= 50 ? "text-warning" : "text-destructive"
+                                    <span className={`text-sm font-medium ${m.pct_asistencia >= 80 ? "text-success-text" :
+                                            m.pct_asistencia >= 50 ? "text-warning-text" : "text-destructive"
                                         }`}>
                                         {m.pct_asistencia}%
                                     </span>

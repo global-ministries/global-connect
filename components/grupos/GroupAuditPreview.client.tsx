@@ -13,10 +13,10 @@ type AuditItem = {
 function Badge({ children, color }: { children: React.ReactNode; color: "green" | "yellow" | "red" }) {
   const cls =
     color === "green"
-      ? "bg-success/10 text-success"
+      ? "bg-success/10 text-success-text"
       : color === "yellow"
-        ? "bg-yellow-100 text-yellow-700"
-        : "bg-danger/10 text-danger";
+        ? "bg-warning/10 text-warning-text"
+        : "bg-danger/10 text-danger-text";
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{children}</span>;
 }
 
@@ -69,13 +69,13 @@ export default function GroupAuditPreview({ grupoId }: { grupoId: string }) {
         <h3 className="text-lg lg:text-xl font-bold text-foreground">Últimos cambios</h3>
         <Link
           href={`/grupos-vida/${encodeURIComponent(grupoId)}/auditoria`}
-          className="text-sm text-info hover:underline"
+          className="text-sm text-info-text hover:underline"
         >
           Ver más
         </Link>
       </div>
       {loading && <p className="text-sm text-muted-foreground">Cargando...</p>}
-      {error && <div className="text-sm text-danger">{error}</div>}
+      {error && <div className="text-sm text-danger-text">{error}</div>}
       {!loading && !error && items.length === 0 && (
         <p className="text-muted-foreground text-sm">Sin movimientos recientes.</p>
       )}

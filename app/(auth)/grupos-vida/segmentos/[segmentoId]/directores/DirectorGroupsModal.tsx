@@ -5,9 +5,9 @@ import { useToast } from '@/hooks/use-toast'
 import { TituloSistema, TextoSistema, BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { X, Save, Users, AlertTriangle } from 'lucide-react'
 
-// Destructive action: BotonSistema has no danger variant yet, so the outline
-// button takes the danger token (docs/design-system.md, status colors).
-const CLASE_PELIGRO = "border-danger/40 text-danger hover:bg-danger/10 focus:ring-danger"
+// Outlined destructive action: keeps the outline look with the readable danger
+// text token (docs/design-system.md, status colors).
+const CLASE_PELIGRO = "border-danger/40 text-danger-text hover:bg-danger/10 focus:ring-danger"
 
 interface DirectorGroupsModalProps {
   open: boolean
@@ -186,7 +186,7 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
             {error && (
               <div className="bg-danger/10 border border-danger/30 rounded-xl p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-danger mt-0.5 flex-shrink-0" />
-                <TextoSistema className="text-sm text-danger">{error}</TextoSistema>
+                <TextoSistema className="text-sm text-danger-text">{error}</TextoSistema>
               </div>
             )}
 

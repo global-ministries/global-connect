@@ -53,7 +53,7 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
 <PaginaSistema>
                     <div className="flex items-center justify-center min-h-[50vh]">
                         <div className="text-center">
-                            <div className="text-danger text-6xl mb-4">⚠️</div>
+                            <div className="text-danger-text text-6xl mb-4">⚠️</div>
                             <TituloSistema nivel={2}>Sin permisos</TituloSistema>
                             <p className="text-muted-foreground mb-4">No tienes permiso para ver la salud de este grupo.</p>
                             <Link href={`/grupos-vida/${id}`}>

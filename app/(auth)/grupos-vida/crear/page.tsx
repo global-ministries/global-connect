@@ -27,7 +27,7 @@ export default async function CreateGroupPage() {
           regreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
         >
           <TarjetaSistema>
-            <div className="text-sm text-danger">No Tienes permisos para crear grupos.</div>
+            <div className="text-sm text-danger-text">No Tienes permisos para crear grupos.</div>
           </TarjetaSistema>
         </PaginaSistema>
 )

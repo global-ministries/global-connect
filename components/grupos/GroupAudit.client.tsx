@@ -196,7 +196,7 @@ export default function GroupAudit({ grupoId }: { grupoId: string }) {
       </TarjetaSistema>
       {error && (
         <TarjetaSistema className="p-4 border-danger/30 bg-danger/10">
-          <p className="text-sm text-danger">{error}</p>
+          <p className="text-sm text-danger-text">{error}</p>
         </TarjetaSistema>
       )}
 

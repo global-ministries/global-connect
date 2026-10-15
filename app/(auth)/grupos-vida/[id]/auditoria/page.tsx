@@ -21,7 +21,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
     return (
 <PaginaSistema>
           <div className="text-center py-12">
-            <p className="text-danger mb-4">No tienes acceso a esta auditoría.</p>
+            <p className="text-danger-text mb-4">No tienes acceso a esta auditoría.</p>
             <Link href={`/grupos-vida/${id}`}>
               <BotonSistema variante="outline" tamaño="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -40,7 +40,7 @@ export default async function GrupoAuditPage({ params }: { params: Promise<{ id:
     return (
 <PaginaSistema>
           <div className="text-center py-12">
-            <p className="text-danger mb-4">No tienes permiso para ver la auditoría.</p>
+            <p className="text-danger-text mb-4">No tienes permiso para ver la auditoría.</p>
             <Link href={`/grupos-vida/${id}`}>
               <BotonSistema variante="outline" tamaño="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />

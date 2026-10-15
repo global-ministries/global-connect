@@ -48,7 +48,7 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
         >
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-danger text-6xl mb-4">⚠️</div>
+              <div className="text-danger-text text-6xl mb-4">⚠️</div>
               <h2 className="text-2xl font-bold text-foreground mb-2">Error al cargar el reporte</h2>
               <p className="text-muted-foreground mb-4">
                 {reporteError.message || 'No se pudo obtener el reporte de asistencia semanal.'}

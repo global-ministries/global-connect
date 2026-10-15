@@ -247,13 +247,13 @@ export function SelectorPropietarioCasa({
                                                     {usuario.email || "Sin correo"} · C.I. {usuario.cedula || "sin cédula"}
                                                 </p>
                                                 {usuario.razonNoSeleccionable && (
-                                                    <p className="mt-1 truncate text-xs text-amber-700 dark:text-amber-400" title={usuario.razonNoSeleccionable}>
+                                                    <p className="mt-1 truncate text-xs text-warning-text" title={usuario.razonNoSeleccionable}>
                                                         {usuario.razonNoSeleccionable}
                                                     </p>
                                                 )}
                                             </div>
                                             {value === usuario.value && (
-                                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] text-white">
+                                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand text-brand-foreground">
                                                     <Check className="h-4 w-4" />
                                                 </div>
                                             )}
@@ -300,7 +300,7 @@ function EstadoVacio({
     variante?: "default" | "error";
 }) {
     return (
-        <div className={`flex items-center gap-2 p-4 text-sm ${variante === "error" ? "text-danger" : "text-muted-foreground"}`}>
+        <div className={`flex items-center gap-2 p-4 text-sm ${variante === "error" ? "text-danger-text" : "text-muted-foreground"}`}>
             <Icono className={`h-4 w-4 ${animado ? "animate-spin" : ""}`} />
             {texto}
         </div>

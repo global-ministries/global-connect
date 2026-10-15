@@ -80,14 +80,14 @@ export default function MiembrosRiesgoClient({ miembros }: Props) {
                     onClick={() => setFiltroNivel(filtroNivel === 'riesgo' ? 'todos' : 'riesgo')}
                     className={`p-3 rounded-xl border transition-colors duration-200 text-left ${filtroNivel === 'riesgo' ? 'border-orange-500/50 bg-orange-500/10' : 'border-border hover:bg-muted/30'}`}
                 >
-                    <p className="text-xl font-bold text-warning">{conteo.riesgo}</p>
+                    <p className="text-xl font-bold text-warning-text">{conteo.riesgo}</p>
                     <p className="text-xs text-muted-foreground">En riesgo</p>
                 </button>
                 <button
                     onClick={() => setFiltroNivel(filtroNivel === 'atencion' ? 'todos' : 'atencion')}
                     className={`p-3 rounded-xl border transition-colors duration-200 text-left ${filtroNivel === 'atencion' ? 'border-warning/50 bg-warning/10' : 'border-border hover:bg-muted/30'}`}
                 >
-                    <p className="text-xl font-bold text-warning">{conteo.atencion}</p>
+                    <p className="text-xl font-bold text-warning-text">{conteo.atencion}</p>
                     <p className="text-xs text-muted-foreground">Atención</p>
                 </button>
             </div>
@@ -160,7 +160,7 @@ export default function MiembrosRiesgoClient({ miembros }: Props) {
                                             <td className="px-4 py-3 text-right">
                                                 <Link
                                                     href={`/grupos-vida/${m.grupo_id}/salud`}
-                                                    className="text-xs text-info hover:text-info/80 transition-colors duration-200 flex items-center gap-1 justify-end"
+                                                    className="text-xs text-info-text hover:text-info-text/80 transition-colors duration-200 flex items-center gap-1 justify-end"
                                                 >
                                                     <Eye className="h-3.5 w-3.5" />
                                                     Ver grupo
