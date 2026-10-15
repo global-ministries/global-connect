@@ -63,7 +63,7 @@ describe('/users on the design system', () => {
 
     const enlace = screen.getByRole('link', { name: /Agregar Miembro/ })
     expect(enlace).toHaveAttribute('href', '/users/create')
-    // The inner button is not a second tab stop.
-    expect(within(enlace).getByRole('button', { hidden: true })).toHaveAttribute('tabindex', '-1')
+    // BotonSistema asChild renders the link itself: one tab stop, no nested button.
+    expect(within(enlace).queryByRole('button', { hidden: true })).not.toBeInTheDocument()
   })
 })

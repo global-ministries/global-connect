@@ -54,11 +54,11 @@ export default async function EditUserPage({ params }: Props) {
             <p className="text-muted-foreground text-sm mb-4">
               Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
             </p>
-            <Link href="/users" className="inline-block rounded-xl">
-              <BotonSistema variante="primario" tabIndex={-1}>
+            <BotonSistema asChild variante="primario">
+              <Link href="/users">
                 Volver a Usuarios
-              </BotonSistema>
-            </Link>
+              </Link>
+            </BotonSistema>
           </div>
         </div>
       </PaginaSistema>

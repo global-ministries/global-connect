@@ -416,7 +416,7 @@ export default function PaginaUsuarios() {
 
                           <div className="flex-1 min-w-0 grid grid-cols-4 gap-4">
                             <div className="min-w-0">
-                              <TituloSistema nivel={4} className="truncate transition-colors group-hover:text-[var(--brand-primary)]">
+                              <TituloSistema nivel={4} className="truncate transition-colors group-hover:text-brand-text">
                                 {nombreCompleto}
                               </TituloSistema>
                             </div>
@@ -505,11 +505,11 @@ export default function PaginaUsuarios() {
 
           {/* Botón Agregar Miembro Fijo — solo roles con permiso */}
           {puedeCrear && (
-            <Link href="/users/create" className="fixed bottom-20 md:bottom-6 right-4 z-30 rounded-xl">
-              <BotonSistema variante="primario" icono={Plus} tabIndex={-1}>
+            <BotonSistema asChild variante="primario" icono={Plus} className="fixed bottom-20 md:bottom-6 right-4 z-30">
+              <Link href="/users/create">
                 Agregar Miembro
-              </BotonSistema>
-            </Link>
+              </Link>
+            </BotonSistema>
           )}
         </section>
       </PaginaSistema>
@@ -521,7 +521,7 @@ function TarjetaEstadistica({ titulo, valor, crecimiento, icono: Icono }: { titu
   return (
     <TarjetaSistema className="p-4 hover:shadow-lg transition-shadow duration-200">
       <div className="flex items-center gap-3">
-        <div className="size-12 rounded-xl bg-[var(--brand-accent-strong)] text-[var(--brand-primary)] flex items-center justify-center flex-shrink-0">
+        <div className="size-12 rounded-xl bg-brand-tint text-brand flex items-center justify-center flex-shrink-0">
           <Icono className="size-6" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">

@@ -46,7 +46,7 @@ export function VinculosPendientesCard() {
   return (
     <TarjetaSistema className="p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <Link2 className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden="true" />
+        <Link2 className="h-5 w-5 text-brand" aria-hidden="true" />
         <TituloSistema nivel={3}>Vínculos pendientes</TituloSistema>
       </div>
       <TextoSistema variante="sutil" tamaño="sm">
@@ -54,7 +54,7 @@ export function VinculosPendientesCard() {
         reconoces a quien lo pide.
       </TextoSistema>
       {error && (
-        <TextoSistema tamaño="sm" className="text-danger" role="alert">
+        <TextoSistema tamaño="sm" className="text-danger-text" role="alert">
           {error}
         </TextoSistema>
       )}

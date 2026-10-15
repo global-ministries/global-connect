@@ -212,11 +212,11 @@ export default function PaginaDetalleUsuario() {
               <BotonSistema onClick={recargar} variante="primario">
                 Reintentar
               </BotonSistema>
-              <Link href="/users">
-                <BotonSistema variante="secundario" tabIndex={-1}>
+              <BotonSistema asChild variante="secundario">
+                <Link href="/users">
                   Volver a Usuarios
-                </BotonSistema>
-              </Link>
+                </Link>
+              </BotonSistema>
             </div>
           </div>
         </div>
@@ -278,17 +278,17 @@ export default function PaginaDetalleUsuario() {
 
           {/* Botones de acción compactos: icon-only on mobile, labelled from sm */}
           <div className="flex-shrink-0 flex gap-2">
-            <Link href={`/users/${usuario.id}/asistencia`} aria-label="Asistencia" className="rounded-xl">
-              <BotonSistema variante="outline" icono={BarChart3} tabIndex={-1} className="max-sm:w-11 max-sm:px-0">
+            <BotonSistema asChild variante="outline" icono={BarChart3} className="max-sm:w-11 max-sm:px-0">
+              <Link href={`/users/${usuario.id}/asistencia`} aria-label="Asistencia">
                 <span className="hidden sm:inline">Asistencia</span>
-              </BotonSistema>
-            </Link>
-            {puedeEditar && (
-              <Link href={`/users/${usuario.id}/edit`} aria-label="Editar" className="rounded-xl">
-                <BotonSistema variante="primario" icono={Edit} tabIndex={-1} className="max-sm:w-11 max-sm:px-0">
-                  <span className="hidden sm:inline">Editar</span>
-                </BotonSistema>
               </Link>
+            </BotonSistema>
+            {puedeEditar && (
+              <BotonSistema asChild variante="primario" icono={Edit} className="max-sm:w-11 max-sm:px-0">
+                <Link href={`/users/${usuario.id}/edit`} aria-label="Editar">
+                  <span className="hidden sm:inline">Editar</span>
+                </Link>
+              </BotonSistema>
             )}
           </div>
         </div>
@@ -404,7 +404,7 @@ export default function PaginaDetalleUsuario() {
                         {obtenerNombreRelacion(tipoMostrar, relacion.familiar)}
                       </p>
                       {relacion.es_principal && (
-                        <span className="inline-block px-2 py-1 bg-[var(--brand-accent-strong)] text-foreground text-xs rounded-full font-medium">
+                        <span className="inline-block px-2 py-1 bg-brand-tint text-foreground text-xs rounded-full font-medium">
                           Principal
                         </span>
                       )}
@@ -431,7 +431,7 @@ export default function PaginaDetalleUsuario() {
                     aria-label={`Eliminar relación con ${nombreFamiliar}`}
                     title="Eliminar familiar"
                     onClick={() => handleOpenConfirmationModal(relacion.id)}
-                    className="hover:text-danger"
+                    className="hover:text-danger-text"
                   />
                 </li>
               );
@@ -451,26 +451,26 @@ export default function PaginaDetalleUsuario() {
       <SeccionDetalle titulo="Acciones Rápidas">
         <div className="flex flex-col sm:flex-row gap-3">
           {puedeEditar && (
-            <Link href={`/users/${usuario.id}/edit`} className="flex-1 rounded-xl">
-              <BotonSistema variante="primario" icono={Edit} tabIndex={-1} className="w-full">
+            <BotonSistema asChild variante="primario" icono={Edit} className="flex-1 w-full">
+              <Link href={`/users/${usuario.id}/edit`}>
                 Editar Perfil
-              </BotonSistema>
-            </Link>
+              </Link>
+            </BotonSistema>
           )}
           {/* T12: only when the viewer may invite and the person has no account. */}
           <div className="flex-1 empty:hidden">
             <InvitarCuentaBoton personaId={usuario.id} nombre={usuario.nombre ?? ''} />
           </div>
-          <Link href={`/users/${usuario.id}/familia`} className="flex-1 rounded-xl">
-            <BotonSistema variante="outline" icono={Users} tabIndex={-1} className="w-full">
+          <BotonSistema asChild variante="outline" icono={Users} className="flex-1 w-full">
+            <Link href={`/users/${usuario.id}/familia`}>
               Ver Familia
-            </BotonSistema>
-          </Link>
-          <Link href={`/users/${usuario.id}/ruta-crecimiento`} className="flex-1 rounded-xl">
-            <BotonSistema variante="outline" icono={Shield} tabIndex={-1} className="w-full">
+            </Link>
+          </BotonSistema>
+          <BotonSistema asChild variante="outline" icono={Shield} className="flex-1 w-full">
+            <Link href={`/users/${usuario.id}/ruta-crecimiento`}>
               Ruta de Crecimiento
-            </BotonSistema>
-          </Link>
+            </Link>
+          </BotonSistema>
         </div>
       </SeccionDetalle>
 
@@ -501,7 +501,7 @@ function SeccionDetalle({ titulo, icono: Icono, accion, children }: { titulo: st
     <TarjetaSistema>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-          {Icono && <Icono className="size-5 text-[var(--brand-primary)]" aria-hidden="true" />}
+          {Icono && <Icono className="size-5 text-brand" aria-hidden="true" />}
           {titulo}
         </h3>
         {accion}

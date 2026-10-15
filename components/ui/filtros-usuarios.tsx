@@ -35,7 +35,7 @@ function ChipFiltro({ activo, onClick, children }: { activo: boolean; onClick: (
       className={cn(
         "inline-flex h-11 items-center rounded-xl border px-4 text-sm font-medium transition-colors touch-manipulation",
         activo
-          ? "border-[var(--brand-primary)] bg-[var(--brand-accent-strong)] text-foreground"
+          ? "border-brand bg-brand-tint text-foreground"
           : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
         ANILLO,
       )}
@@ -149,7 +149,7 @@ export function FiltrosUsuarios({
       >
         Filtros
         {tieneFiltrosActivos && (
-          <span className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--brand-primary)] px-1.5 text-xs font-semibold tabular-nums text-white">
+          <span className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold tabular-nums text-brand-foreground">
             {cantidadActivos}
           </span>
         )}

@@ -40,7 +40,7 @@ export function UserList() {
   if (error) {
     return (
       <div className="flex justify-center py-10">
-        <span className="text-danger">{error}</span>
+        <span className="text-danger-text">{error}</span>
       </div>
     )
   }

@@ -25,11 +25,11 @@ export default async function AsistenciaUsuarioPage({
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
               <p className="text-muted-foreground mb-4">Debes iniciar sesión para acceder a esta página.</p>
-              <Link href="/login" className="inline-block rounded-xl">
-                <BotonSistema variante="primario" tabIndex={-1}>
+              <BotonSistema asChild variante="primario">
+                <Link href="/login">
                   Iniciar Sesión
-                </BotonSistema>
-              </Link>
+                </Link>
+              </BotonSistema>
             </div>
           </div>
       </PaginaSistema>
@@ -48,11 +48,11 @@ export default async function AsistenciaUsuarioPage({
               <AlertTriangle className="size-12 text-danger mx-auto mb-4" aria-hidden="true" />
               <TituloSistema nivel={2}>Usuario no encontrado</TituloSistema>
               <p className="text-muted-foreground mb-4">No se pudo encontrar el usuario solicitado.</p>
-              <Link href="/users" className="inline-block rounded-xl">
-                <BotonSistema variante="primario" tabIndex={-1}>
+              <BotonSistema asChild variante="primario">
+                <Link href="/users">
                   Volver a usuarios
-                </BotonSistema>
-              </Link>
+                </Link>
+              </BotonSistema>
             </div>
           </div>
       </PaginaSistema>
@@ -94,11 +94,11 @@ export default async function AsistenciaUsuarioPage({
                   </p>
                 </div>
               )}
-              <Link href={`/users/${id}`} className="mt-4 inline-block rounded-xl">
-                <BotonSistema variante="primario" tabIndex={-1}>
+              <BotonSistema asChild variante="primario" className="mt-4">
+                <Link href={`/users/${id}`}>
                   Volver al perfil
-                </BotonSistema>
-              </Link>
+                </Link>
+              </BotonSistema>
             </div>
           </div>
       </PaginaSistema>
