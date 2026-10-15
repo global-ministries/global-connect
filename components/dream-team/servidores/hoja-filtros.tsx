@@ -9,7 +9,7 @@
 import { useState, type ReactElement } from 'react'
 import { Filter } from 'lucide-react'
 
-import { BotonSistema, SelectSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, PieAccionesSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import {
@@ -42,9 +42,8 @@ export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): R
   return (
     <Sheet open={abierta} onOpenChange={setAbierta}>
       <SheetTrigger asChild>
-        <BotonSistema type="button" variante="outline" className={cn('shrink-0', className)}>
-          <Filter className="h-4 w-4" aria-hidden="true" />
-          <span className="ml-2">{filtrosEnHoja > 0 ? `Filtros · ${filtrosEnHoja}` : 'Filtros'}</span>
+        <BotonSistema type="button" variante="outline" icono={Filter} className={className}>
+          {filtrosEnHoja > 0 ? `Filtros · ${filtrosEnHoja}` : 'Filtros'}
         </BotonSistema>
       </SheetTrigger>
       <SheetContent side="bottom" className="max-h-[85vh] gap-0 overflow-y-auto rounded-t-2xl p-0">
@@ -91,15 +90,16 @@ export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): R
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <BotonSistema type="button" variante="outline" onClick={() => onCambio(LIMPIAR_HOJA)}>
-              Limpiar
-            </BotonSistema>
-            <BotonSistema type="button" onClick={() => setAbierta(false)}>
-              Ver {vista.visibles.length}
-            </BotonSistema>
-          </div>
         </div>
+        {/* Sticky so "Ver N" stays reachable while the filters scroll; two columns even on phones. */}
+        <PieAccionesSistema className="grid grid-cols-2 gap-3 bg-background px-4">
+          <BotonSistema type="button" variante="outline" onClick={() => onCambio(LIMPIAR_HOJA)}>
+            Limpiar
+          </BotonSistema>
+          <BotonSistema type="button" onClick={() => setAbierta(false)}>
+            Ver {vista.visibles.length}
+          </BotonSistema>
+        </PieAccionesSistema>
       </SheetContent>
     </Sheet>
   )
