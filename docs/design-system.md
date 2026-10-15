@@ -116,6 +116,28 @@ Use these instead of raw palette colors (`text-red-600`, `bg-green-500/10`).
 `coloresMarca` now points at the CSS variables; prefer the Tailwind classes
 and reach for it only where a class cannot (inline styles, SVG attributes).
 
+## Forms: `components/forms`
+
+Shared forms (users, groups, seasons) build on two local parts:
+
+- `SeccionFormulario`: a labelled section (`<h2>`, optional icon chip and
+  description) whose body is a `@container`. Default is a card; pass
+  `tarjeta={false}` when the page already wraps the form in a card, so cards
+  never nest (group and season forms).
+- `COLUMNAS_CAMPOS[2 | 3 | 4]`: field grids that follow the section width, not
+  the viewport: one column below 512px, two from `@lg`, three from `@4xl`, four
+  from `@5xl`. Span a full row with `@lg:col-span-2`.
+- `AvisoFormulario`: inline notice; `error` uses the danger token and
+  `role="alert"`, `info` the info token, `marca` the brand tint.
+- Actions go in `PieAccionesSistema fijo={false}` (the mobile bottom bar would
+  cover a sticky footer); add `bg-transparent` inside a card.
+
+Attendance reports (`components/asistencia`) share `FiltroFechasAsistencia`
+(collapsible date filter), `TarjetaKpiAsistencia` (token-tinted icon chip, label,
+value, optional link) and one percentage scale for bars and figures (≥80
+success, ≥60 warning, ≥40 brand, below danger). Their lists switch to columns by
+container width (`@xl` / `@2xl`), so they never scroll sideways at 360px.
+
 ## Follow-ups
 
 - Lint guardrail: `eslint.config.mjs` forbids `ui/button`, `ui/card` and
@@ -128,3 +150,6 @@ and reach for it only where a class cannot (inline styles, SVG attributes).
   its label but keeps a 32px (`h-8 w-8`) override below the 44px icon size.
 - `ui/card` still uses `rounded-xl`; move it to the surface radius when cards
   migrate.
+- `GroupEditForm` keeps its own button row: `__tests__/components/group-edit-form.test.tsx`
+  mocks `sistema-diseno` without `PieAccionesSistema`. Add it to that mock, then
+  move the buttons into the footer.
