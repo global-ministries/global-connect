@@ -1,134 +1,33 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LogoGlobalConnect } from '@/components/ui/logo-global-connect'
 import { SelectorCampus } from '@/components/ui/selector-campus'
 import {
-  Users,
-  UserCheck,
-  Settings,
-  HelpCircle,
   LogOut,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Home,
-  User,
-  Megaphone,
-  MapPin,
-  Calendar,
-  BarChart3,
-  House,
-  ShieldAlert,
-  ClipboardList,
-  UserCog
 } from 'lucide-react'
 import { BadgeSistema } from './sistema-diseno'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { TalleresNavSubmenu } from '@/components/talleres/nav-submenu'
-import { useCachedAccessCredentials } from '@/hooks/useCachedAccessCredentials'
 import { logout } from '@/lib/actions/auth.actions'
 import { ThemeToggle } from './theme-toggle'
 import { useBranding } from '@/hooks/useBranding'
-import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
-import { canAccess } from '@/lib/navigation/canAccess'
-import { insertDreamTeamMenuItem, useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
-import { insertNinosMenuItem, useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
+import { esEntradaTalleres, useEntradasNavegacion, type EntradaMenu } from '@/components/navegacion/use-entradas-navegacion'
+import { esEntradaActiva, esRutaActiva } from '@/lib/navegacion/registro'
 
 interface SidebarModernaProps {
   className?: string
 }
 
-interface SubItem {
-  id: string
-  label: string
-  href: string
-  icon?: React.ComponentType<{ className?: string }>
-  /** Roles que pueden ver este sub-item. Si no se define, es visible para todos. */
-  roles?: string[]
-  /** Support capabilities que pueden ver este sub-item. Si no se define, es visible para todos. */
-  capabilities?: string[]
-}
-
-interface MenuItem {
-  id: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  href: string
+type MenuItem = EntradaMenu & {
   badge?: string | number
   badgeVariant?: 'default' | 'success' | 'warning' | 'error' | 'info'
-  children?: SubItem[]
-  className?: string
-  /** Roles que pueden ver este item. Si no se define, es visible para todos. */
-  roles?: string[]
-  /** Support capabilities que pueden ver este item. Si no se define, es visible para todos. */
-  capabilities?: string[]
 }
-
-const SUPPORT_CONFIGURATION_ROLES = ['admin', 'pastor', 'director-general']
-
-const menuItems: MenuItem[] = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: Home,
-    href: '/dashboard',
-  },
-  {
-    id: 'usuarios',
-    label: 'Usuarios',
-    icon: Users,
-    href: '/users',
-    roles: ['admin', 'pastor', 'director-general', 'director-etapa', 'lider'],
-  },
-  {
-    id: 'grupos-vida',
-    label: 'Grupos de Vida',
-    icon: UserCheck,
-    href: '/grupos-vida',
-    children: [
-      { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-directores', label: 'Directores', href: '/grupos-vida/directores', icon: UserCog, roles: ['admin', 'pastor', 'director-general'] },
-      { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar, roles: ['admin', 'pastor', 'director-general'] },
-      { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-solicitudes', label: 'Solicitudes', href: '/grupos-vida/solicitudes', icon: ClipboardList, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-config', label: 'Configuración', href: '/grupos-vida/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
-    ],
-  },
-  {
-    id: 'configuracion-global',
-    label: 'Configuración',
-    icon: Settings,
-    href: '/configuracion',
-    roles: ['admin', 'pastor', 'director-general'],
-    children: [
-      { id: 'config-general', label: 'General', href: '/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
-      { id: 'config-soporte', label: 'Soporte', href: '/configuracion/soporte', icon: HelpCircle, roles: SUPPORT_CONFIGURATION_ROLES, capabilities: ['support.manage'] },
-    ],
-  },
-  {
-    id: 'soporte-admin',
-    label: 'Soporte',
-    icon: HelpCircle,
-    href: '/ayuda/admin',
-    capabilities: ['support.view', 'support.reply', 'support.manage'],
-  },
-]
-
-const footerItems: MenuItem[] = [
-  {
-    id: 'actualizaciones',
-    label: 'Actualizaciones',
-    icon: Megaphone,
-    href: '/actualizaciones',
-  },
-]
 
 // ─── Active indicator pill ───
 function ActivePill() {
@@ -149,7 +48,6 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const [tooltip, setTooltip] = useState<{ label: string; top: number } | null>(null)
   const router = useRouter()
   const pathname = usePathname()
-  const { usuario, roles, supportCapabilities = [], platformSession, loading } = useCurrentUser()
 
   // Restore collapsed preference after mount to avoid SSR/client mismatch (#224)
   useEffect(() => {
@@ -158,28 +56,11 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     setIsCollapsed(parseSidebarCollapsed(saved))
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
-  const effectiveRoles = useCachedAccessCredentials({ values: roles, loading, isSignedIn: !!usuario })
-  const effectiveSupportCapabilities = useCachedAccessCredentials({ values: supportCapabilities, loading, isSignedIn: !!usuario })
-  const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
+  // Every entry, its order and who sees it come from the navigation registry
+  // (lib/navegacion/registro.ts), shared with the mobile drawer and bottom bar.
+  const { principales, pie, cuenta, platformSession } = useEntradasNavegacion()
+  const primaryMenuItems: MenuItem[] = principales
   const branding = useBranding()
-
-  // Dream Team — the section (entries, icons, flag handling and the rule of who
-  // sees which) is shared with the mobile drawer, see
-  // components/ui/dream-team-menu-item.ts and lib/platform/dream-team/navigation.ts.
-  const dreamTeamMenuItem: MenuItem | null = useDreamTeamMenuItem(platformSession)
-  // Niños — server-fed flags (hooks/useNinosAcceso), see components/ninos/ninos-menu-item.ts.
-  const ninosMenuItem: MenuItem | null = useNinosMenuItem()
-
-  // Inserted right after 'grupos-vida' (before the platform navigation
-  // items), the same slot it occupies in the design.
-  const primaryMenuItems = useMemo(
-    () => [
-      ...insertNinosMenuItem<MenuItem>(insertDreamTeamMenuItem<MenuItem>(menuItems, dreamTeamMenuItem), ninosMenuItem),
-      ...platformNavigationItems,
-    ],
-    [dreamTeamMenuItem, ninosMenuItem, platformNavigationItems]
-  )
-
 
   // ─── Tooltip hover handlers (collapsed mode) ───
   const showTooltip = (e: React.MouseEvent, label: string) => {
@@ -192,29 +73,10 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   // Auto-expand submenus when a child route is active
   useEffect(() => {
     const newOpen = new Set<string>()
-    for (const item of menuItems) {
-      if (item.children) {
-        const isChildActive = item.children.some(child =>
-          pathname === child.href || pathname?.startsWith(child.href + '/')
-        )
-        if (isChildActive) {
-          newOpen.add(item.id)
-        }
+    for (const item of primaryMenuItems) {
+      if (item.children?.some(child => esRutaActiva(pathname, child.href))) {
+        newOpen.add(item.id)
       }
-    }
-    // Dream Team isn't part of the static `menuItems` array above (it's
-    // built dynamically from the session, see dreamTeamMenuItem), so it
-    // needs its own auto-expand check with the same child-route logic.
-    if (dreamTeamMenuItem?.children) {
-      const isDreamTeamChildActive = dreamTeamMenuItem.children.some(child =>
-        pathname === child.href || pathname?.startsWith(child.href + '/')
-      )
-      if (isDreamTeamChildActive) {
-        newOpen.add(dreamTeamMenuItem.id)
-      }
-    }
-    if (ninosMenuItem?.children?.some(child => pathname === child.href || pathname?.startsWith(child.href + '/'))) {
-      newOpen.add(ninosMenuItem.id)
     }
     // PR25 + PR27 — also auto-expand the talleres sub-menu when the
     // active route is under the talleres admin tree. The
@@ -256,8 +118,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         pathname.startsWith('/talleres/') ||
         pathname === '/admin/talleres' ||
         pathname.startsWith('/admin/talleres/'))
-    for (const item of platformNavigationItems) {
-      if (!item.id.startsWith('platform-talleres_')) continue
+    for (const item of primaryMenuItems) {
+      if (!esEntradaTalleres(item)) continue
       const href = item.href
       const isMatch =
         pathname === href ||
@@ -273,7 +135,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
       newOpen.forEach(id => merged.add(id))
       return merged
     })
-  }, [pathname, platformNavigationItems, dreamTeamMenuItem, ninosMenuItem])
+  }, [pathname, primaryMenuItems])
 
   // PR21.2 + PR21.3: When the browser tab becomes visible again (user
   // switches back to the tab), refresh the server tree AND dispatch a
@@ -341,21 +203,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     setShowLogoutModal(true)
   }
 
-  const isActive = (href: string): boolean => {
-    return pathname === href ||
-      (href !== "/dashboard" && !!pathname?.startsWith(href + '/'))
-  }
-
-  const isParentActive = (item: MenuItem): boolean => {
-    if (item.children) {
-      return item.children.some(child =>
-        pathname === child.href || !!pathname?.startsWith(child.href + '/')
-      ) || pathname === item.href
-    }
-    return isActive(item.href)
-  }
-
-  const accessCredentials = { roles: effectiveRoles, supportCapabilities: effectiveSupportCapabilities }
+  const isActive = (href: string): boolean => esRutaActiva(pathname, href)
+  const isParentActive = (item: MenuItem): boolean => esEntradaActiva(pathname, item)
 
   // ─── Shared link styles ───
   const linkClasses = (active: boolean) => cn(
@@ -382,6 +231,29 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     active ? "text-[var(--brand-primary)]" : "text-muted-foreground group-hover:text-foreground",
     isCollapsed ? "w-6 h-6" : "w-5 h-5"
   )
+
+  // ─── Footer and account links (registry groups 'pie' and 'cuenta') ───
+  const renderEnlacePie = (item: MenuItem) => {
+    const Icon = item.icon
+    const active = isActive(item.href)
+    return (
+      <Link
+        key={item.id}
+        href={item.href}
+        prefetch={false}
+        aria-current={active ? "page" : undefined}
+        className={linkClasses(active)}
+        onMouseEnter={(e) => showTooltip(e, item.label)}
+        onMouseLeave={hideTooltip}
+      >
+        {active && <ActivePill />}
+        <Icon className={iconClasses(active)} />
+        {!isCollapsed && (
+          <span className="font-medium truncate">{item.label}</span>
+        )}
+      </Link>
+    )
+  }
 
   // ─── Sidebar width for fixed tooltip positioning ───
   const sidebarWidth = isCollapsed ? 64 : 256
@@ -442,13 +314,10 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         <nav className="flex-1 px-3 py-2 overflow-y-auto" aria-label="Navegación principal">
           <ul className="space-y-0.5">
             {primaryMenuItems
-              .filter((item) => canAccess(item, accessCredentials))
               .map((item) => {
                 const Icon = item.icon
                 // Filter children by access — if none are visible, treat as simple link
-                const visibleChildren = item.children?.filter(
-                  (child) => canAccess(child, accessCredentials)
-                ) ?? []
+                const visibleChildren = item.children ?? []
                 // PR27 — platform items never carry `children: SubItem[]`
                 // (their view-item type has `children?: never`), but the
                 // talleres platform items still need a chevron so the
@@ -457,7 +326,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
                 // We detect the talleres prefix and treat those items as
                 // having children — the TalleresNavSubmenu is rendered
                 // in the standard submenu slot below.
-                const isTalleresPlatformItem = item.id.startsWith('platform-talleres_')
+                const isTalleresPlatformItem = esEntradaTalleres(item)
                 const hasChildren = visibleChildren.length > 0 || isTalleresPlatformItem
                 const parentActive = isParentActive(item)
                 const isOpen = openSubmenus.has(item.id)
@@ -620,45 +489,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
         {/* Footer con perfil y logout */}
         <div className="mt-auto p-3 border-t border-[var(--glass-border)] space-y-0.5">
           {/* Items secundarios */}
-          {footerItems.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.href)
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                prefetch={false}
-                aria-current={active ? "page" : undefined}
-                className={linkClasses(active)}
-                onMouseEnter={(e) => showTooltip(e, item.label)}
-                onMouseLeave={hideTooltip}
-              >
-                {active && <ActivePill />}
-                <Icon className={iconClasses(active)} />
-                {!isCollapsed && (
-                  <span className="font-medium truncate">{item.label}</span>
-                )}
-              </Link>
-            )
-          })}
-          <Link
-            href="/ayuda"
-            prefetch={false}
-            aria-current={isActive('/ayuda') ? "page" : undefined}
-            className={linkClasses(isActive('/ayuda'))}
-            onMouseEnter={(e) => showTooltip(e, 'Ayuda')}
-            onMouseLeave={hideTooltip}
-          >
-            {isActive('/ayuda') && <ActivePill />}
-            <HelpCircle className={cn(
-              "flex-shrink-0 transition-colors",
-              isActive('/ayuda') ? "text-[var(--brand-primary)]" : "text-muted-foreground group-hover:text-foreground",
-              isCollapsed ? "w-6 h-6" : "w-5 h-5"
-            )} />
-            {!isCollapsed && (
-              <span className="font-medium truncate">Ayuda</span>
-            )}
-          </Link>
+          {pie.map(renderEnlacePie)}
           {/* Theme Toggle — same layout as other footer items */}
           <div
             className={cn(
@@ -680,27 +511,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
             )}
           </div>
 
-          {/* Mi Perfil */}
-          <Link
-            href="/perfil"
-            prefetch={false}
-            aria-current={pathname === '/perfil' ? "page" : undefined}
-            className={linkClasses(pathname === '/perfil')}
-            onMouseEnter={(e) => showTooltip(e, 'Mi Perfil')}
-            onMouseLeave={hideTooltip}
-          >
-            {pathname === '/perfil' && <ActivePill />}
-
-            <User className={cn(
-              "flex-shrink-0 transition-colors",
-              pathname === '/perfil' ? "text-[var(--brand-primary)]" : "text-muted-foreground group-hover:text-foreground",
-              isCollapsed ? "w-6 h-6" : "w-5 h-5"
-            )} />
-
-            {!isCollapsed && (
-              <span className="font-medium">Mi Perfil</span>
-            )}
-          </Link>
+          {cuenta.map(renderEnlacePie)}
 
           {/* Cerrar Sesión */}
           <button

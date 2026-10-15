@@ -172,7 +172,7 @@ describe('navigation parity per permission set', () => {
     render(conProveedores(<MenuInferiorMovil />, PERFILES[perfil]))
     const barra = screen.getByRole('navigation', { name: 'Navegación inferior' })
 
-    await waitFor(() => expect(hrefsDe(barra)).toEqual(BARRA_INFERIOR_ANTES[perfil]))
+    await waitFor(() => expect(hrefsDe(barra)).toEqual(BARRA_INFERIOR_DESPUES[perfil]))
   })
 
   it('documents the bottom bar as the only intended difference', () => {

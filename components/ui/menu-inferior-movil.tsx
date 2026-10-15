@@ -3,12 +3,13 @@
 import { type ComponentType } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, UsersRound, HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { getPlatformNavigationFlags } from '@/lib/platform/flags'
 import { usePlatformNavigationViewItems, type PlatformNavigationViewItem } from '@/components/ui/platform-navigation-view-items'
 import { resolvePlatformNavigationGate } from '@/lib/platform/navigation'
+import { useCredencialesNavegacion } from '@/components/navegacion/use-entradas-navegacion'
+import { entradasBarraInferior, esRutaActiva, type EntradaNavegacion } from '@/lib/navegacion/registro'
 
 type MenuInferiorMovilItem = {
   nombre: string
@@ -17,17 +18,13 @@ type MenuInferiorMovilItem = {
   id: string
 }
 
-const elementosMenu: MenuInferiorMovilItem[] = [
-  { nombre: "Dashboard", icono: LayoutDashboard, enlace: "/dashboard", id: "dashboard" },
-  { nombre: "Usuarios", icono: Users, enlace: "/users", id: "users" },
-  { nombre: "Grupos de Vida", icono: UsersRound, enlace: "/grupos-vida", id: "grupos-vida" },
-  { nombre: "Ayuda", icono: HelpCircle, enlace: "/ayuda", id: "ayuda" },
-]
-
 export function MenuInferiorMovil() {
   const pathname = usePathname()
   const { platformSession, loading } = useCurrentUser()
   const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
+  // The bottom bar's own entries come from the navigation registry
+  // (lib/navegacion/registro.ts) and follow the same role rule as the sidebar.
+  const credenciales = useCredencialesNavegacion()
   const platformNavigationFlags = getPlatformNavigationFlags()
   const platformNavigationGate = resolvePlatformNavigationGate({
     flags: platformNavigationFlags,
@@ -45,7 +42,7 @@ export function MenuInferiorMovil() {
     ? []
     : showPlatformItems
       ? toMenuInferiorMovilItems(platformNavigationItems)
-      : elementosMenu
+      : toMenuInferiorMovilItems(entradasBarraInferior(credenciales))
 
   return (
     <nav aria-label="Navegación inferior" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-t border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">
@@ -53,8 +50,7 @@ export function MenuInferiorMovil() {
         {navigationItems.map((elemento) => {
           const Icono = elemento.icono
 
-          const esActivo = pathname === elemento.enlace ||
-            (elemento.enlace !== "/dashboard" && pathname?.startsWith(elemento.enlace))
+          const esActivo = esRutaActiva(pathname, elemento.enlace)
 
           return (
             <Link
@@ -87,7 +83,7 @@ export function MenuInferiorMovil() {
   )
 }
 
-function toMenuInferiorMovilItems(items: PlatformNavigationViewItem[]): MenuInferiorMovilItem[] {
+function toMenuInferiorMovilItems(items: ReadonlyArray<PlatformNavigationViewItem | EntradaNavegacion>): MenuInferiorMovilItem[] {
   return items.map((item) => ({
     nombre: item.label,
     icono: item.icon,
