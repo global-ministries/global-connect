@@ -12,7 +12,6 @@ export const PLATFORM_EXPERIENCE_CATALOG = {
   family: { label: 'Familia', scopeTypes: ['experience'] },
   dream_team: { label: 'Dream Team', scopeTypes: ['experience', 'equipo'] },
   operating_core: { label: 'Operating Core', scopeTypes: ['experience'] },
-  pastoral: { label: 'Pastoral', scopeTypes: ['one_on_one', 'triada', 'experience'] },
   // Organigrama seed (Dirección de Línea 1 nodes) — see dream_team_equipos tree.
   experiencia: { label: 'Experiencia', scopeTypes: ['experience', 'equipo'] },
   atraccion: { label: 'Atracción', scopeTypes: ['experience', 'equipo'] },
@@ -90,21 +89,6 @@ export const PLATFORM_CAPABILITIES = {
   'operating_core.outbox.drain': { experience: 'operating_core', scopeType: 'experience' },
   // Dashboard capabilities (S21)
   'operating_core.dashboards.read': { experience: 'operating_core', scopeType: 'experience' },
-  // Pastoral capabilities (F4 W01)
-  'pastoral.mentor.cascade.resolve': { experience: 'pastoral', scopeType: 'experience' },
-  'pastoral.one_on_one.create': { experience: 'pastoral', scopeType: 'one_on_one' },
-  'pastoral.one_on_one.read': { experience: 'pastoral', scopeType: 'one_on_one' },
-  'pastoral.one_on_one.write_notes': { experience: 'pastoral', scopeType: 'one_on_one' },
-  'pastoral.one_on_one.validate_step': { experience: 'pastoral', scopeType: 'one_on_one' },
-  'pastoral.one_on_one.complete': { experience: 'pastoral', scopeType: 'one_on_one' },
-  'pastoral.triada.create': { experience: 'pastoral', scopeType: 'triada' },
-  'pastoral.triada.read': { experience: 'pastoral', scopeType: 'triada' },
-  'pastoral.triada.write_notes': { experience: 'pastoral', scopeType: 'triada' },
-  'pastoral.triada.disband': { experience: 'pastoral', scopeType: 'triada' },
-  'pastoral.metrics.read': { experience: 'pastoral', scopeType: 'experience' },
-  'pastoral.read.all': { experience: 'pastoral', scopeType: 'experience' },
-  'pastoral.crisis.detect': { experience: 'pastoral', scopeType: 'experience' },
-  'pastoral.admin.manage': { experience: 'pastoral', scopeType: 'experience' },
 } satisfies Record<string, { experience: PlatformExperienceKey; scopeType: PlatformScopeType }>
 
 export type PlatformCapabilityKey = keyof typeof PLATFORM_CAPABILITIES

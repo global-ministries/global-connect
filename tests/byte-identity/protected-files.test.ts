@@ -99,6 +99,11 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // entry-point). Without this fix, the admin-cap user lands on a
   // read-only list with no way to create or edit talleres. Same
   // protected file, same one-line string change, mirror of PR24.
+  //
+  // (2026-10-15): the unused pastoral module was removed. Its eight menu
+  // entries (pastor_*, lider_*, asistido_roadmap) pointed at routes that no
+  // longer exist and were never reachable in production, so they go with it.
+  // The "1:1 Global" entry (uno_a_uno_global, The Living Room) stays.
   'lib/platform/navigation.ts',
   //
   // (2026-09-12): regenerated from STAGING. The file had zero `taller`
@@ -117,6 +122,13 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // in both. The only talleres object that differs is the compat view
   // `v_taller_periodos_generales_compat`, which exists in production, not in
   // staging, and which no application code queries.
+  //
+  // (2026-10-15): hand-edited, not regenerated, to drop exactly the objects
+  // that migration 20261015110000_quitar_modulo_pastoral removes: the nine
+  // pastoral_* tables, the empty legacy uno_a_uno_* tables, the pastoral
+  // helper functions, get_personas_under_me and the five pastoral enums. The
+  // pastoral_* values of operating_core_participation_kind stay because the
+  // enum values are not dropped.
   'lib/supabase/database.types.ts',
 ])
 

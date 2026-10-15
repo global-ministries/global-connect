@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ComponentType, type Dispatch, type SetStateAction } from 'react'
-import { AlertTriangle, BarChart3, Calendar, ClipboardList, MapPin, Megaphone, Settings, User, UserCheck, UserCog, Users } from 'lucide-react'
+import { ClipboardList, Megaphone, Settings, User, UserCheck, Users } from 'lucide-react'
 
 import { getPlatformNavigationFlags, type PlatformNavigationFlags } from '@/lib/platform/flags'
 import { resolvePlatformNavigation, resolvePlatformNavigationGate } from '@/lib/platform/navigation'
@@ -33,13 +33,6 @@ const PLATFORM_NAVIGATION_ICONS: Partial<Record<PlatformNavigationItemId, Compon
   dps_admin: Settings,
   nextgen_admin: Settings,
   uno_a_uno_global: User,
-  pastor_dashboard: BarChart3,
-  pastor_usuarios: UserCog,
-  pastor_crisis: AlertTriangle,
-  pastor_lecturas: ClipboardList,
-  lider_dashboard: User,
-  lider_uno_a_uno: Calendar,
-  asistido_roadmap: MapPin,
 } satisfies Partial<Record<PlatformNavigationItemId, ComponentType<{ className?: string }>>>
 
 export async function resolvePlatformNavigationViewItems(
@@ -55,9 +48,7 @@ export async function resolvePlatformNavigationViewItems(
   })
 
   return resolution.mode === 'platform'
-    ? dedupePlatformNavigationItemsByBaseId(
-        resolution.visibleItems.filter((item) => item.id !== 'lider_triada'),
-      )
+    ? dedupePlatformNavigationItemsByBaseId(resolution.visibleItems)
       .map(toPlatformNavigationViewItem)
       .filter((item): item is PlatformNavigationViewItem => item !== null)
     : []

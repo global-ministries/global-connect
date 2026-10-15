@@ -153,8 +153,8 @@ describe('PlatformSession builder', () => {
     }
     const capabilities = [
       {
-        key: 'pastoral.read.all',
-        experience: 'pastoral',
+        key: 'operating_core.dashboards.read',
+        experience: 'operating_core',
         scopeType: 'global',
         source: 'manual',
         grantedAt: '2026-07-24T10:00:00.000Z',

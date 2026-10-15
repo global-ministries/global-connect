@@ -122,21 +122,24 @@ describe('SidebarModerna platform navigation', () => {
     expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
   })
 
-  it('shows all pastoral links for a session with pastoral capabilities', async () => {
+  it('renders no pastoral link for leftover pastoral grants now that the pastoral module is gone', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentRoles = ['admin']
     currentUsuario = { id: 'usuario-1' }
     currentPlatformSession = withCapabilities([
+      { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
       { key: 'pastoral.read.all', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
       { key: 'pastoral.admin.manage', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
+    ], [
+      { experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', label: 'Grupos de Vida — Adultos' },
     ])
 
     render(<SidebarModerna />)
 
-    expect(await screen.findByRole('link', { name: 'Sesiones 1:1' })).toHaveAttribute('href', '/pastor')
-    expect(screen.getByRole('link', { name: 'Gestión de Usuarios' })).toHaveAttribute('href', '/pastor/usuarios')
-    expect(screen.getByRole('link', { name: 'Alertas de Crisis' })).toHaveAttribute('href', '/pastor/crisis')
-    expect(screen.getByRole('link', { name: 'Lecturas Pastorales' })).toHaveAttribute('href', '/pastor/lecturas')
+    expect(await screen.findByRole('link', { name: 'Grupos de Vida — Adultos' })).toHaveAttribute('href', '/grupos-vida')
+    expect(screen.queryByRole('link', { name: 'Sesiones 1:1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Alertas de Crisis' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Lecturas Pastorales' })).not.toBeInTheDocument()
   })
 
   it('does not render platform links for dashboard child routes that do not exist', async () => {
