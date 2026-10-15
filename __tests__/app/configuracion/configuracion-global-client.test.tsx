@@ -15,7 +15,7 @@ jest.mock('@/lib/actions/branding.actions', () => ({
 }))
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} />,
+  default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} />,
 }))
 
 import { ConfiguracionGlobalClient } from '@/app/(auth)/configuracion/ConfiguracionGlobalClient'
