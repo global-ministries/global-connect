@@ -57,7 +57,7 @@ export function GeocodificacionPanel({ sinCoordenadas }: GeocodificacionPanelPro
     return (
         <div className="space-y-3">
             <div className="flex items-center gap-2 rounded-xl bg-warning/10 p-3">
-                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-700 dark:text-warning" aria-hidden="true" />
+                <AlertTriangle className="h-5 w-5 shrink-0 text-warning-text" aria-hidden="true" />
                 <TextoSistema tamaño="sm">
                     {sinCoordenadas} dirección{sinCoordenadas !== 1 && "es"} sin coordenadas.
                     El proceso toma ~{Math.ceil(sinCoordenadas * 1.1 / 60)} minuto{Math.ceil(sinCoordenadas * 1.1 / 60) !== 1 && "s"} (rate limit de Nominatim/OSM).
@@ -78,11 +78,11 @@ export function GeocodificacionPanel({ sinCoordenadas }: GeocodificacionPanelPro
                     <TextoSistema tamaño="sm">
                         <span className="font-medium">Procesadas:</span> {resultado.totalProcesadas}
                     </TextoSistema>
-                    <TextoSistema tamaño="sm" className="text-success">
+                    <TextoSistema tamaño="sm" className="text-success-text">
                         <span className="font-medium">Geocodificadas:</span> {resultado.totalGeocodificadas}
                     </TextoSistema>
                     {resultado.totalFallidas > 0 && (
-                        <TextoSistema tamaño="sm" className="text-amber-700 dark:text-amber-400">
+                        <TextoSistema tamaño="sm" className="text-warning-text">
                             <span className="font-medium">Fallidas:</span> {resultado.totalFallidas}
                         </TextoSistema>
                     )}

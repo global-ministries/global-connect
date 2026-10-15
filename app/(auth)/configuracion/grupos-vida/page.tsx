@@ -60,11 +60,11 @@ export default async function ConfiguracionGruposPage() {
                         </div>
                         <div className="text-center">
                             <TextoSistema variante="muted" tamaño="sm">Con coordenadas</TextoSistema>
-                            <TextoSistema className="text-xl font-bold text-success">{conNum}</TextoSistema>
+                            <TextoSistema className="text-xl font-bold text-success-text">{conNum}</TextoSistema>
                         </div>
                         <div className="text-center">
                             <TextoSistema variante="muted" tamaño="sm">Sin coordenadas</TextoSistema>
-                            <TextoSistema className="text-xl font-bold text-amber-700 dark:text-amber-400">{sinNum}</TextoSistema>
+                            <TextoSistema className="text-xl font-bold text-warning-text">{sinNum}</TextoSistema>
                         </div>
                         <div className="text-center">
                             <TextoSistema variante="muted" tamaño="sm">Cobertura</TextoSistema>

@@ -37,15 +37,14 @@ const COLORES_NIVEL = {
 } as const
 
 /**
- * Readable text per level. `--warning` is too light for text on white, so the
- * two middle levels keep darker amber and orange until a warning text token
- * exists (docs/design-system.md).
+ * Readable text per level: the status `-text` tokens (docs/design-system.md).
+ * There is no orange status token, so `riesgo` keeps darker orange.
  */
 const TEXTO_NIVEL = {
-    normal: 'text-success',
-    atencion: 'text-amber-700 dark:text-amber-400',
+    normal: 'text-success-text',
+    atencion: 'text-warning-text',
     riesgo: 'text-orange-700 dark:text-orange-400',
-    critico: 'text-danger'
+    critico: 'text-danger-text'
 } as const
 
 /** Tinted tile behind each level's icon. */
@@ -332,7 +331,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                         <td className="px-4 py-3 text-sm font-medium text-foreground">{m.nombre}</td>
                                         <td className="px-4 py-3 text-sm text-muted-foreground">{m.grupo_nombre}</td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className="text-sm font-semibold text-danger">
+                                            <span className="text-sm font-semibold text-danger-text">
                                                 {m.semanas_ausente >= 99 ? 'Nunca asistió' : `${m.semanas_ausente} sem`}
                                             </span>
                                         </td>
@@ -350,7 +349,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                         <td className="px-4 py-3 text-right">
                                             <Link
                                                 href={`/grupos-vida/${m.grupo_id}/salud`}
-                                                className="inline-flex min-h-9 items-center justify-end gap-1 rounded-xl px-2 text-xs font-medium text-info transition-colors duration-200 hover:bg-info/10 pointer-coarse:min-h-11"
+                                                className="inline-flex min-h-9 items-center justify-end gap-1 rounded-xl px-2 text-xs font-medium text-info-text transition-colors duration-200 hover:bg-info/10 pointer-coarse:min-h-11"
                                             >
                                                 <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                                                 Ver grupo
@@ -376,7 +375,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     <div className="text-right">
-                                        <p className="text-sm font-semibold text-danger">
+                                        <p className="text-sm font-semibold text-danger-text">
                                             {m.semanas_ausente >= 99 ? '∞' : m.semanas_ausente} sem
                                         </p>
                                     </div>
@@ -390,7 +389,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                     <div className="mt-4 pt-3 border-t border-border flex justify-center">
                         <Link
                             href="/grupos-vida/miembros-riesgo"
-                            className="inline-flex h-11 items-center gap-2 px-4 rounded-xl text-sm font-medium text-info hover:bg-info/10 transition-colors duration-200"
+                            className="inline-flex h-11 items-center gap-2 px-4 rounded-xl text-sm font-medium text-info-text hover:bg-info/10 transition-colors duration-200"
                         >
                             <Users className="h-4 w-4" aria-hidden="true" />
                             Ver listado completo
@@ -580,7 +579,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
 
                 <TarjetaSistema variante="default" className="p-4 flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-warning/15">
-                        <Activity className="h-5 w-5 text-amber-700 dark:text-warning" aria-hidden="true" />
+                        <Activity className="h-5 w-5 text-warning-text" aria-hidden="true" />
                     </div>
                     <div>
                         <p className="text-lg font-bold text-foreground">{d.solicitudes_pendientes}</p>

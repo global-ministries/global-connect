@@ -473,12 +473,12 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                         type="button"
                                                         onClick={() => fileInputFaviconRef.current?.click()}
                                                         aria-label={faviconPreview ? "Cambiar favicon" : "Subir favicon"}
-                                                        className="w-16 h-16 rounded-xl border-2 border-dashed border-border hover:border-[var(--brand-primary)]/50 bg-muted/20 flex items-center justify-center transition-colors duration-200 cursor-pointer group flex-shrink-0"
+                                                        className="w-16 h-16 rounded-xl border-2 border-dashed border-border hover:border-brand/50 bg-muted/20 flex items-center justify-center transition-colors duration-200 cursor-pointer group flex-shrink-0"
                                                     >
                                                         {faviconPreview ? (
                                                             <Image src={faviconPreview} alt="Favicon" width={32} height={32} className="object-contain" />
                                                         ) : (
-                                                            <Upload className="h-5 w-5 text-muted-foreground group-hover:text-[var(--brand-primary)] transition-colors" aria-hidden="true" />
+                                                            <Upload className="h-5 w-5 text-muted-foreground group-hover:text-brand transition-colors" aria-hidden="true" />
                                                         )}
                                                     </button>
                                                     <TextoSistema variante="muted" tamaño="sm">
@@ -710,7 +710,7 @@ function ZonaLogo({ titulo, icono, preview, alt, fondoClassName, onElegir, onQui
                     type="button"
                     onClick={onElegir}
                     aria-label={preview ? `Cambiar ${titulo.toLowerCase()}` : `Subir ${titulo.toLowerCase()}`}
-                    className={`group flex h-36 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border transition-colors duration-200 hover:border-[var(--brand-primary)]/50 ${fondoClassName}`}
+                    className={`group flex h-36 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border transition-colors duration-200 hover:border-brand/50 ${fondoClassName}`}
                 >
                     {preview ? (
                         <div className="relative h-full w-full">
@@ -718,7 +718,7 @@ function ZonaLogo({ titulo, icono, preview, alt, fondoClassName, onElegir, onQui
                         </div>
                     ) : (
                         <>
-                            <Upload className="h-6 w-6 opacity-70 transition-colors group-hover:text-[var(--brand-primary)] group-hover:opacity-100" aria-hidden="true" />
+                            <Upload className="h-6 w-6 opacity-70 transition-colors group-hover:text-brand group-hover:opacity-100" aria-hidden="true" />
                             <span className="text-sm">Arrastra o haz clic</span>
                         </>
                     )}
@@ -732,7 +732,7 @@ function ZonaLogo({ titulo, icono, preview, alt, fondoClassName, onElegir, onQui
                         icono={Trash2}
                         aria-label={`Quitar ${titulo.toLowerCase()}`}
                         onClick={onQuitar}
-                        className="absolute right-2 top-2 border border-danger/40 bg-background/90 text-danger hover:bg-danger/10"
+                        className="absolute right-2 top-2 border border-danger/40 bg-background/90 text-danger-text hover:bg-danger/10"
                     />
                 )}
             </div>

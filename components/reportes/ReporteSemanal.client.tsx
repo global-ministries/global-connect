@@ -256,8 +256,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
                 vs. Semana Anterior
               </TextoSistema>
               <div className={`text-3xl font-bold ${reporte.kpis_globales.variacion_semana_anterior >= 0
-                ? 'text-success'
-                : 'text-danger'
+                ? 'text-success-text'
+                : 'text-danger-text'
                 }`}>
                 {reporte.kpis_globales.variacion_semana_anterior > 0 ? '+' : ''}
                 {reporte.kpis_globales.variacion_semana_anterior}%
@@ -286,8 +286,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
         {/* Grupos con Reunión / Activos */}
         <TarjetaSistema className="p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-[var(--brand-accent-strong)] rounded-xl flex-shrink-0">
-              <Users className="w-6 h-6 text-[var(--brand-primary)]" aria-hidden="true" />
+            <div className="p-3 bg-brand-tint rounded-xl flex-shrink-0">
+              <Users className="w-6 h-6 text-brand" aria-hidden="true" />
             </div>
             <div className="flex-1">
               <TextoSistema variante="sutil" tamaño="sm">
