@@ -5,7 +5,9 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { UserEditForm } from "@/components/forms/UserEditForm"
 
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
+import { MisHijos } from '@/components/perfil/mis-hijos'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
+import { parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
 
 export default async function PerfilPage() {
   // Crear cliente Supabase correctamente
@@ -164,14 +166,16 @@ export default async function PerfilPage() {
     profesion: profesion || undefined
   }
 
-  // Obtener catálogos en paralelo usando admin client
+  // Obtener catálogos en paralelo usando admin client.
+  // "Mis hijos" (Niños) is read with the user's session client: the RPC finds the parent through auth.uid().
   const [
     { data: ocupaciones },
     { data: profesiones },
     { data: paises },
     { data: estados },
     { data: municipios },
-    { data: parroquias }
+    { data: parroquias },
+    { data: misHijosData },
   ] = await Promise.all([
     adminSupabase.from('ocupaciones').select('id, nombre').order('nombre'),
     adminSupabase.from('profesiones').select('id, nombre').order('nombre'),
@@ -179,7 +183,9 @@ export default async function PerfilPage() {
     adminSupabase.from('estados').select('id, nombre, pais_id').order('nombre'),
     adminSupabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
     adminSupabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
+    supabase.rpc('ninos_mis_hijos'),
   ])
+  const misHijos = parseMisHijos(misHijosData)
 
   // Obtener sugerencias de dirección familiar
   const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(usuario.id)
@@ -203,6 +209,7 @@ export default async function PerfilPage() {
             sugerenciasDireccion={sugerenciasDireccion}
             esPerfil={true}
           />
+          {misHijos.length > 0 && <MisHijos hijos={misHijos} />}
         </div>
       </ContenedorDashboard>
 )
