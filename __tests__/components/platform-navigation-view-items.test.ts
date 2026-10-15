@@ -98,7 +98,7 @@ describe('platform navigation view items', () => {
       expect(itemsByHref['/pastor/crisis']?.icon).toBe(AlertTriangle)
       expect(itemsByHref['/pastor/lecturas']?.icon).toBe(ClipboardList)
       expect(itemsByHref['/lider']?.icon).toBe(User)
-       expect(itemsByHref['/lider/uno-a-uno']?.icon).toBe(Calendar)
+       expect(itemsByHref['/lider/uno-auno']?.icon).toBe(Calendar)
        expect(itemsByHref['/lider/triada']).toBeUndefined()
        expect(itemsByHref['/asistido']?.icon).toBe(MapPin)
     })

@@ -243,7 +243,7 @@ describe('Platform navigation resolver', () => {
       const result = await resolvePlatformNavigation({ flags: { enabled: true }, platformSession: session })
 
       const itemsById = Object.fromEntries(result.visibleItems.map((item) => [item.id, item]))
-      expect(itemsById.lider_uno_a_uno).toMatchObject({ href: '/lider/uno-a-uno', experience: 'pastoral' })
+      expect(itemsById.lider_uno_a_uno).toMatchObject({ href: '/lider/uno-auno', experience: 'pastoral' })
       expect(itemsById.lider_triada).toMatchObject({ href: '/lider/triada', experience: 'pastoral' })
       expect(itemsById.asistido_roadmap).toMatchObject({ href: '/asistido', experience: 'pastoral' })
     })

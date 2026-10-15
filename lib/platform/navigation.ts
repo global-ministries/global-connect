@@ -99,7 +99,7 @@ const PLATFORM_NAVIGATION_DEFINITIONS = [
   { id: 'pastor_crisis', capability: 'pastoral.read.all', label: 'Alertas de Crisis', availableHref: '/pastor/crisis', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
   { id: 'pastor_lecturas', capability: 'pastoral.read.all', label: 'Lecturas Pastorales', availableHref: '/pastor/lecturas', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'experience' } },
   { id: 'lider_dashboard', capability: 'pastoral.one_on_one.create', label: 'Dashboard del Líder', availableHref: '/lider', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'one_on_one', id: 'required' } },
-  { id: 'lider_uno_a_uno', capability: 'pastoral.one_on_one.read', label: '1:1 del Líder', availableHref: '/lider/uno-a-uno', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'one_on_one', id: 'required' } },
+  { id: 'lider_uno_a_uno', capability: 'pastoral.one_on_one.read', label: '1:1 del Líder', availableHref: '/lider/uno-auno', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'one_on_one', id: 'required' } },
   { id: 'lider_triada', capability: 'pastoral.triada.read', label: 'Tríadas del Líder', availableHref: '/lider/triada', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'triada', id: 'required' } },
   { id: 'asistido_roadmap', capability: 'pastoral.one_on_one.read', label: 'Mi Camino Pastoral', availableHref: '/asistido', experience: 'pastoral', fallbackScope: { experience: 'pastoral', type: 'one_on_one', id: 'required' } },
 ] satisfies readonly PlatformNavigationDefinition[]
