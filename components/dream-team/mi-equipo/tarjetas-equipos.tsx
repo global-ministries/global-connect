@@ -33,7 +33,7 @@ const ANILLO = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ri
 
 function claseSeleccion(activo: boolean): string {
   return activo
-    ? 'border-[var(--brand-primary)] bg-[var(--brand-accent)]'
+    ? 'border-brand bg-[var(--brand-accent)]'
     : 'border-border bg-card hover:bg-accent'
 }
 

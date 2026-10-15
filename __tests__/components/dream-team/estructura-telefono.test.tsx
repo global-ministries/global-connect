@@ -51,13 +51,14 @@ jest.mock('@/hooks/use-notificaciones', () => ({
   useNotificaciones: () => ({ success: jest.fn(), error: jest.fn(), info: jest.fn() }),
 }))
 
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ...jest.requireActual('@/components/ui/sistema-diseno'),
-  ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo?: string }) => (
-    <section>
+// PaginaSistema renders DesktopHeader behind React.lazy + Suspense; this
+// synchronous double shows the title and the header actions.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ titulo, accionPrincipal }: { titulo?: string; accionPrincipal?: React.ReactNode }) => (
+    <header>
       <h1>{titulo}</h1>
-      {children}
-    </section>
+      {accionPrincipal}
+    </header>
   ),
 }))
 

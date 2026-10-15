@@ -48,8 +48,8 @@ function Seccion({
   readonly children: ReactNode
 }): ReactElement {
   return (
-    <Collapsible open={abierta} onOpenChange={onAbrir} className="rounded-md border border-border">
-      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <Collapsible open={abierta} onOpenChange={onAbrir} className="rounded-xl border border-border">
+      <CollapsibleTrigger className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         {titulo}
         <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${abierta ? 'rotate-180' : ''}`} />
       </CollapsibleTrigger>
@@ -175,7 +175,7 @@ export function DatosPersonaNuevaCampos({ valor, onCambio, toast }: DatosPersona
           {menor ? 'Es menor de edad: vincula a su familiar o tutor.' : 'Familiar o tutor, para menores de edad.'}
         </TextoSistema>
         {valor.representante ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2">
             <TextoSistema className="min-w-0 truncate">{`${valor.representante.nombre} ${valor.representante.apellido}`}</TextoSistema>
             <div className="flex items-center gap-2">
               <SelectSistema

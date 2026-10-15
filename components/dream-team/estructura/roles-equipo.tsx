@@ -65,19 +65,16 @@ function RolFila({
 
       {puedeEditar ? (
         <>
-          <button
+          <BotonSistema
             type="button"
+            variante="ghost"
+            soloIcono
+            icono={Pencil}
             aria-label={`Renombrar el rol ${rol.label}`}
             title="Renombrar rol"
             disabled={isPending}
             onClick={onRenombrar}
-            className={cn(
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-              ANILLO_FOCO,
-            )}
-          >
-            <Pencil aria-hidden="true" className="h-[18px] w-[18px]" />
-          </button>
+          />
           <button
             type="button"
             role="switch"
@@ -92,7 +89,7 @@ function RolFila({
               aria-hidden="true"
               className={cn(
                 'flex h-6 w-11 items-center rounded-full p-[3px] transition-colors',
-                rol.activo ? 'justify-end bg-[var(--brand-primary)]' : 'justify-start bg-input',
+                rol.activo ? 'justify-end bg-brand' : 'justify-start bg-input',
               )}
             >
               <span className="h-[18px] w-[18px] rounded-full bg-background shadow-sm" />
@@ -140,7 +137,7 @@ function FormularioRolNuevo({
           disabled={isPending}
         />
       </div>
-      <BotonSistema type="submit" variante="outline" tamaño="sm" disabled={isPending || !label}>
+      <BotonSistema type="submit" variante="outline" disabled={isPending || !label}>
         Agregar rol
       </BotonSistema>
     </form>
