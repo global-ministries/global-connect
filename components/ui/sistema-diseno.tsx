@@ -1,29 +1,46 @@
 import React, { useId } from 'react'
 import { cn } from '@/lib/utils'
 import { LucideIcon, ChevronDown } from 'lucide-react'
+import { Slot, Slottable } from '@radix-ui/react-slot'
 
 // Lazy load DesktopHeader (client component) to keep this file server-compatible
 const DesktopHeader = React.lazy(() => import('./desktop-header').then(m => ({ default: m.DesktopHeader })))
 
-// Colores de marca definidos
+/**
+ * Brand and status colors as CSS variables (defined in app/globals.css), so
+ * they follow light/dark mode and never drift from the theme. Prefer the
+ * Tailwind classes (`text-success`, `bg-danger`, `text-muted-foreground`…);
+ * use these only where a class cannot reach (inline styles, SVG attributes).
+ * See docs/design-system.md.
+ */
 export const coloresMarca = {
-  grisOscuro: '#363D45',
-  naranja: '#E96C20',
-  negro: '#000000',
-  blanco: '#FFFFFF',
-  grisClaro: '#F8F9FA',
-  grisTexto: '#6B7280',
-  grisTextoClaro: '#9CA3AF',
-  error: '#EF4444',
-  exito: '#10B981',
-  advertencia: '#F59E0B',
-}
+  grisOscuro: 'var(--brand-dark)',
+  naranja: 'var(--brand-primary)',
+  negro: 'var(--foreground)',
+  blanco: 'var(--card)',
+  grisClaro: 'var(--surface-primary)',
+  grisTexto: 'var(--muted-foreground)',
+  grisTextoClaro: 'var(--muted-foreground)',
+  error: 'var(--danger)',
+  exito: 'var(--success)',
+  advertencia: 'var(--warning)',
+} as const
+
+/**
+ * Control size scale shared by buttons and form controls
+ * (docs/design-system.md):
+ * - sm 36px: dense tables and toolbars only (44px on touch screens)
+ * - md 44px: default for every form and action
+ * - lg 48px: hero and primary mobile calls to action
+ * Controls use the `rounded-xl` radius; surfaces (cards, panels) `rounded-2xl`.
+ */
+const ALTO_CONTROL = "h-11"
 
 // ─── Input del Sistema ───
 /**
  * Input accesible del design system con soporte para iconos, errores y labels.
  *
- * Incluye min-h-[44px] para touch targets (WCAG), aria-describedby para errores,
+ * Altura md del sistema (44px, touch target WCAG), aria-describedby para errores,
  * aria-invalid cuando hay error, y asociación automática label+input vía id generado.
  */
 interface InputSistemaProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -62,7 +79,8 @@ export const InputSistema = React.forwardRef<HTMLInputElement, InputSistemaProps
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? idError : undefined}
             className={cn(
-              "block w-full min-h-[44px] py-3 px-3 border border-border rounded-xl bg-card/50",
+              "block w-full py-2 px-3 text-base border border-border rounded-xl bg-card/50",
+              ALTO_CONTROL,
               "focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] focus:outline-none",
               "transition-[border-color,box-shadow] duration-200 ease-expo text-foreground placeholder:text-muted-foreground",
               "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
@@ -94,7 +112,7 @@ InputSistema.displayName = "InputSistema"
  * Select accesible del design system con estilos glass y dark mode nativo.
  *
  * Wrapper sobre <select> nativo con los mismos patrones de InputSistema:
- * min-h-[44px], focus-ring, aria-describedby para errores.
+ * altura md (44px), focus-ring, aria-describedby para errores.
  */
 interface OpcionSelect {
   /** Valor interno de la opción */
@@ -150,7 +168,8 @@ export const SelectSistema = React.forwardRef<HTMLSelectElement, SelectSistemaPr
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? idError : undefined}
             className={cn(
-              "block w-full min-h-[44px] py-3 px-3 pr-10 border border-border rounded-xl bg-card/50",
+              "block w-full py-2 px-3 pr-10 text-base border border-border rounded-xl bg-card/50",
+              ALTO_CONTROL,
               "focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] focus:outline-none",
               "transition-[border-color,box-shadow] duration-200 ease-expo text-foreground",
               "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
@@ -223,7 +242,7 @@ export const TextareaSistema = React.forwardRef<HTMLTextAreaElement, TextareaSis
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? idError : undefined}
           className={cn(
-            "block w-full min-h-[44px] py-3 px-3 border border-border rounded-xl bg-card/50",
+            "block w-full min-h-11 py-2.5 px-3 text-base border border-border rounded-xl bg-card/50",
             "focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] focus:outline-none",
             "transition-[border-color,box-shadow] duration-200 ease-expo text-foreground placeholder:text-muted-foreground",
             "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
@@ -245,12 +264,47 @@ export const TextareaSistema = React.forwardRef<HTMLTextAreaElement, TextareaSis
 TextareaSistema.displayName = "TextareaSistema"
 
 // ─── Botón del Sistema ───
-interface BotonSistemaProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variante?: 'primario' | 'secundario' | 'outline' | 'ghost'
-  tamaño?: 'sm' | 'md' | 'lg'
+type TamañoControl = 'sm' | 'md' | 'lg'
+
+interface BotonSistemaBaseProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** `peligro`: destructive actions (eliminar, desactivar). */
+  variante?: 'primario' | 'secundario' | 'outline' | 'ghost' | 'peligro'
+  /** sm 36px (dense toolbars only), md 44px (default), lg 48px (hero / mobile primary). */
+  tamaño?: TamañoControl
   cargando?: boolean
   icono?: LucideIcon
   iconoPosicion?: 'izquierda' | 'derecha'
+  /**
+   * Renders the single child (e.g. a `next/link` `Link`) with the button
+   * styles and icons, so navigation is one tab stop instead of a link
+   * wrapping a button. `disabled`/`cargando` become `aria-disabled`.
+   */
+  asChild?: boolean
+}
+
+/**
+ * An icon-only button (`soloIcono`) is a square of the control height and has
+ * no visible text, so the type requires an `aria-label` and forbids children
+ * (except the single element it renders as with `asChild`).
+ */
+type BotonSistemaProps =
+  | (BotonSistemaBaseProps & { soloIcono?: false })
+  | (Omit<BotonSistemaBaseProps, 'children' | 'aria-label' | 'asChild'> & {
+      soloIcono: true
+      icono: LucideIcon
+      'aria-label': string
+    } & ({ asChild?: false; children?: never } | { asChild: true; children: React.ReactElement }))
+
+const ALTOS_BOTON: Record<TamañoControl, string> = {
+  sm: "h-9 pointer-coarse:h-11",
+  md: ALTO_CONTROL,
+  lg: "h-12",
+}
+
+const ANCHOS_BOTON_ICONO: Record<TamañoControl, string> = {
+  sm: "w-9 pointer-coarse:w-11",
+  md: "w-11",
+  lg: "w-12",
 }
 
 export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProps>(
@@ -261,49 +315,61 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
     cargando = false,
     icono: Icono,
     iconoPosicion = 'izquierda',
+    soloIcono = false,
+    asChild = false,
     children,
     disabled,
     ...props
   }, ref) => {
-    const baseClasses = "inline-flex items-center justify-center font-medium rounded-xl transition-[background-color,box-shadow,transform] duration-200 ease-expo focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background press-scale touch-manipulation min-h-[44px]"
+    const baseClasses = "inline-flex shrink-0 items-center justify-center font-medium rounded-xl transition-[background-color,box-shadow,transform] duration-200 ease-expo focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background press-scale touch-manipulation"
 
     const variantes = {
       primario: "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl focus:ring-orange-500",
       secundario: "bg-secondary hover:bg-secondary/80 text-secondary-foreground shadow-lg hover:shadow-xl focus:ring-secondary",
       outline: "border-2 border-border hover:border-border/80 text-foreground hover:bg-accent focus:ring-ring",
-      ghost: "text-muted-foreground hover:text-foreground hover:bg-accent focus:ring-ring"
+      ghost: "text-muted-foreground hover:text-foreground hover:bg-accent focus:ring-ring",
+      peligro: "bg-danger hover:bg-danger/90 text-danger-foreground shadow-lg hover:shadow-xl focus:ring-danger"
     }
 
-    const tamaños = {
-      sm: "px-3 py-2 text-sm gap-2",
-      md: "px-4 py-3 text-base gap-2",
-      lg: "px-6 py-4 text-lg gap-3"
+    const tamaños: Record<TamañoControl, string> = {
+      sm: "px-3 text-sm gap-1.5",
+      md: "px-4 text-base gap-2",
+      lg: "px-6 text-lg gap-2"
     }
+
+    const claseIcono = "h-5 w-5"
+    const inactivo = disabled || cargando
+    const Comp = asChild ? Slot : "button"
 
     return (
-      <button
+      <Comp
         className={cn(
           baseClasses,
           variantes[variante],
+          ALTOS_BOTON[tamaño],
           tamaños[tamaño],
-          (disabled || cargando) && "opacity-50 cursor-not-allowed",
+          soloIcono && [ANCHOS_BOTON_ICONO[tamaño], "px-0"],
+          inactivo && "opacity-50 cursor-not-allowed",
+          asChild && inactivo && "pointer-events-none",
           className
         )}
-        disabled={disabled || cargando}
+        {...(asChild
+          ? { "aria-disabled": inactivo || undefined }
+          : { disabled: inactivo })}
         ref={ref}
         {...props}
       >
         {cargando ? (
-          <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+          <svg className={cn("animate-spin", claseIcono)} viewBox="0 0 24 24" aria-hidden="true">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
           </svg>
         ) : (
-          Icono && iconoPosicion === 'izquierda' && <Icono className="h-5 w-5" />
+          Icono && (soloIcono || iconoPosicion === 'izquierda') && <Icono className={claseIcono} aria-hidden="true" />
         )}
-        {children}
-        {!cargando && Icono && iconoPosicion === 'derecha' && <Icono className="h-5 w-5" />}
-      </button>
+        {asChild ? <Slottable>{children}</Slottable> : children}
+        {!cargando && !soloIcono && Icono && iconoPosicion === 'derecha' && <Icono className={claseIcono} aria-hidden="true" />}
+      </Comp>
     )
   }
 )
@@ -570,6 +636,89 @@ export const ContenedorDashboard = React.forwardRef<HTMLDivElement, ContenedorDa
   }
 )
 ContenedorDashboard.displayName = "ContenedorDashboard"
+
+// ─── Página del Sistema ───
+/**
+ * Page widths (docs/design-system.md). Exactly two:
+ * - default: lists, dashboards and tables use the full content width.
+ * - form: single-column forms and detail views, capped at 768px and
+ *   left-aligned under the header title so nothing jumps sideways.
+ */
+export const ANCHOS_PAGINA = {
+  default: "max-w-none",
+  form: "max-w-3xl",
+} as const
+
+export type AnchoPagina = keyof typeof ANCHOS_PAGINA
+
+interface PaginaSistemaProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
+  /** Page title, shown in the sticky desktop header (the mobile header resolves its own). */
+  titulo?: string
+  /** Short muted text above the content. */
+  descripcion?: React.ReactNode
+  /** Header actions (desktop). Mobile actions stay with the page, e.g. a FAB. */
+  acciones?: React.ReactNode
+  /** Optional back link in the desktop header. */
+  regreso?: { href: string; texto: string }
+  breadcrumbs?: React.ReactNode
+  /** `default` (wide) for lists and dashboards, `form` for single-column forms. */
+  ancho?: AnchoPagina
+}
+
+/**
+ * The page layout primitive: one header (title, back link, actions), one set
+ * of gutters (16px mobile, 24px tablet, 48px desktop, aligned with the desktop
+ * header) and one vertical rhythm (`space-y-6`) for every authenticated page.
+ */
+export const PaginaSistema = React.forwardRef<HTMLDivElement, PaginaSistemaProps>(
+  ({ titulo, descripcion, acciones, regreso, breadcrumbs, ancho = 'default', className, children, ...props }, ref) => (
+    <ContenedorDashboard
+      ref={ref}
+      titulo={titulo}
+      accionPrincipal={acciones}
+      botonRegreso={regreso}
+      breadcrumbs={breadcrumbs}
+      {...props}
+    >
+      <div data-ancho={ancho} className={cn("w-full space-y-6", ANCHOS_PAGINA[ancho], className)}>
+        {descripcion && (
+          <p className="-mt-2 text-sm text-muted-foreground md:text-[15px]">{descripcion}</p>
+        )}
+        {children}
+      </div>
+    </ContenedorDashboard>
+  )
+)
+PaginaSistema.displayName = "PaginaSistema"
+
+// ─── Pie de Acciones ───
+interface PieAccionesSistemaProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Sticks to the bottom of the scrolling container (default). */
+  fijo?: boolean
+}
+
+/**
+ * Action footer for forms, pages and panels: top border, page background and
+ * safe-area bottom padding. On mobile the actions stack full width with the
+ * last child on top, so put the secondary action first and the primary last;
+ * from `sm` up they sit in a right-aligned row.
+ */
+export const PieAccionesSistema = React.forwardRef<HTMLDivElement, PieAccionesSistemaProps>(
+  ({ fijo = true, className, ...props }, ref) => (
+    <div
+      ref={ref}
+      data-slot="pie-acciones"
+      className={cn(
+        fijo && "sticky bottom-0 z-10",
+        "flex flex-col-reverse gap-2 border-t border-border bg-[var(--surface-primary)] pt-3 safe-area-pb-md",
+        "*:w-full sm:flex-row sm:items-center sm:justify-end sm:*:w-auto",
+        className
+      )}
+      {...props}
+    />
+  )
+)
+PieAccionesSistema.displayName = "PieAccionesSistema"
 
 // ─── Badge del Sistema ───
 interface BadgeSistemaProps extends React.HTMLAttributes<HTMLSpanElement> {
