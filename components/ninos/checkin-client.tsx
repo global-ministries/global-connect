@@ -520,7 +520,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
       <PanelLateralNinos
         abierto={paraAdulto !== null}
         titulo={paraAdulto?.tipo === 'vincular' ? 'Vincular hijo existente' : 'Agregar niño'}
-        descripcion={paraAdulto ? `Representante: ${paraAdulto.nombre}.` : ''}
+        descripcion={paraAdulto?.tipo === 'vincular' ? `Representante: ${paraAdulto.nombre}.` : ''}
         onCerrar={() => setParaAdulto(null)}
       >
         {paraAdulto?.tipo === 'agregar' && (
