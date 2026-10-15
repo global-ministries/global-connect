@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import UserCreateForm from "@/components/forms/UserCreateForm"
 
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 
 export default async function CreateUserPage() {
   // Verificar permisos antes de mostrar el formulario
@@ -20,14 +20,12 @@ export default async function CreateUserPage() {
   }
 
   return (
-<ContenedorDashboard
-        titulo="Agregar Miembro"
-        botonRegreso={{ href: '/users', texto: 'Volver a Usuarios' }}
-      >
-        <div className="space-y-6">
-          {/* Formulario de creación */}
-          <UserCreateForm />
-        </div>
-      </ContenedorDashboard>
-)
+    <PaginaSistema
+      titulo="Agregar Miembro"
+      regreso={{ href: '/users', texto: 'Volver a Usuarios' }}
+      ancho="form"
+    >
+      <UserCreateForm />
+    </PaginaSistema>
+  )
 }

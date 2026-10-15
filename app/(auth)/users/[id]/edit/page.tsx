@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react"
+import { AlertTriangle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { UserEditForm } from "@/components/forms/UserEditForm"
 
-import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { AdminAccionesAsignarContrasena } from '@/components/admin/AdminAccionesAsignarContrasena.client'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
 
@@ -43,30 +43,26 @@ export default async function EditUserPage({ params }: Props) {
 
   if (errorUsuario || !usuario) {
     return (
-<ContenedorDashboard
-          titulo=""
-          descripcion=""
-          accionPrincipal={null}
-        >
-          <div className="flex items-center justify-center min-h-[50vh]">
-            <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
-              <TituloSistema nivel={2}>Usuario no encontrado</TituloSistema>
-              <p className="text-muted-foreground mb-4">
-                No se pudo cargar la información del usuario con ID: {id}
-              </p>
-              <p className="text-muted-foreground text-sm mb-4">
-                Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
-              </p>
-              <Link href="/users">
-                <BotonSistema variante="primario">
-                  Volver a Usuarios
-                </BotonSistema>
-              </Link>
-            </div>
+      <PaginaSistema regreso={{ href: '/users', texto: 'Volver a Usuarios' }}>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <AlertTriangle className="size-12 text-danger mx-auto mb-4" aria-hidden="true" />
+            <TituloSistema nivel={2}>Usuario no encontrado</TituloSistema>
+            <p className="text-muted-foreground mb-4">
+              No se pudo cargar la información del usuario con ID: {id}
+            </p>
+            <p className="text-muted-foreground text-sm mb-4">
+              Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
+            </p>
+            <Link href="/users" className="inline-block rounded-xl">
+              <BotonSistema variante="primario" tabIndex={-1}>
+                Volver a Usuarios
+              </BotonSistema>
+            </Link>
           </div>
-        </ContenedorDashboard>
-)
+        </div>
+      </PaginaSistema>
+    )
   }
 
   // Obtener dirección si existe
@@ -177,64 +173,36 @@ export default async function EditUserPage({ params }: Props) {
   // Obtener sugerencias de dirección familiar
   const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(id)
 
+  // Multi-column sections and the address map need the wide page width.
   return (
-    <>
-      {/* Header sticky como en ver usuario */}
-      <div className="sticky top-0 z-10 bg-card border-b border-border px-4 sm:px-6 lg:px-20 py-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4 sm:block sm:space-y-1">
-            {/* Botón de regreso en móvil */}
-            <div className="flex-shrink-0 sm:hidden">
-              <Link href={`/users/${id}`}>
-                <BotonSistema
-                  variante="ghost"
-                  tamaño="sm"
-                  className="p-2"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </BotonSistema>
-              </Link>
-            </div>
-            {/* Título */}
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                  {usuario.nombre} {usuario.apellido}
-                </h1>
-              </div>
-            </div>
-          </div>
-          {/* Botón de regreso en desktop */}
-          <div className="flex-shrink-0 hidden sm:block">
-            <Link href={`/users/${id}`}>
-              <BotonSistema
-                variante="ghost"
-                tamaño="sm"
-                className="p-2"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </BotonSistema>
-            </Link>
-          </div>
-        </div>
+    <PaginaSistema
+      titulo={`${usuario.nombre} ${usuario.apellido}`}
+      regreso={{ href: `/users/${id}`, texto: 'Volver al perfil' }}
+    >
+      {/* The desktop header carries the name and back link; mobile keeps its own. */}
+      <div className="space-y-1 md:hidden">
+        <Link
+          href={`/users/${id}`}
+          className="-ml-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-5" aria-hidden="true" />
+          Volver al perfil
+        </Link>
+        <h2 className="text-2xl font-bold text-foreground">{usuario.nombre} {usuario.apellido}</h2>
       </div>
-
-      {/* Contenido principal */}
-      <div className="px-4 sm:px-6 lg:px-20 py-6">
-        {esAdmin && (
-          <AdminAccionesAsignarContrasena userAuthId={usuario.auth_id} />
-        )}
-        <UserEditForm
-          usuario={usuarioCompleto}
-          ocupaciones={ocupaciones || []}
-          profesiones={profesiones || []}
-          paises={paises || []}
-          estados={estados || []}
-          municipios={municipios || []}
-          parroquias={parroquias || []}
-          sugerenciasDireccion={sugerenciasDireccion}
-        />
-      </div>
-    </>
+      {esAdmin && (
+        <AdminAccionesAsignarContrasena userAuthId={usuario.auth_id} />
+      )}
+      <UserEditForm
+        usuario={usuarioCompleto}
+        ocupaciones={ocupaciones || []}
+        profesiones={profesiones || []}
+        paises={paises || []}
+        estados={estados || []}
+        municipios={municipios || []}
+        parroquias={parroquias || []}
+        sugerenciasDireccion={sugerenciasDireccion}
+      />
+    </PaginaSistema>
   )
 }

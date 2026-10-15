@@ -1,7 +1,9 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
-import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { AlertTriangle, Lock } from 'lucide-react'
+
+import { PaginaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import ReporteAsistenciaUsuarioClient from '@/components/asistencia/ReporteAsistenciaUsuario.client'
 
 export default async function AsistenciaUsuarioPage({
@@ -18,20 +20,20 @@ export default async function AsistenciaUsuarioPage({
 
   if (!user) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+      <PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
               <p className="text-muted-foreground mb-4">Debes iniciar sesión para acceder a esta página.</p>
-              <Link href="/login">
-                <BotonSistema variante="primario">
+              <Link href="/login" className="inline-block rounded-xl">
+                <BotonSistema variante="primario" tabIndex={-1}>
                   Iniciar Sesión
                 </BotonSistema>
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
-)
+      </PaginaSistema>
+    )
   }
 
   // Obtener información básica del usuario
@@ -40,21 +42,21 @@ export default async function AsistenciaUsuarioPage({
 
   if (!usuarioData) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+      <PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <AlertTriangle className="size-12 text-danger mx-auto mb-4" aria-hidden="true" />
               <TituloSistema nivel={2}>Usuario no encontrado</TituloSistema>
               <p className="text-muted-foreground mb-4">No se pudo encontrar el usuario solicitado.</p>
-              <Link href="/users">
-                <BotonSistema variante="primario">
+              <Link href="/users" className="inline-block rounded-xl">
+                <BotonSistema variante="primario" tabIndex={-1}>
                   Volver a usuarios
                 </BotonSistema>
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
-)
+      </PaginaSistema>
+    )
   }
 
   // Obtener reporte de asistencia con filtros de fecha
@@ -74,16 +76,16 @@ export default async function AsistenciaUsuarioPage({
   // Verificar si hay error de permisos
   if (reporteError || (reporteData && (reporteData as any).error)) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+      <PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">🔒</div>
+              <Lock className="size-12 text-danger mx-auto mb-4" aria-hidden="true" />
               <TituloSistema nivel={2}>Sin permisos</TituloSistema>
               <p className="text-muted-foreground mb-4">
                 {(reporteData as any)?.error || 'No tienes permiso para ver el reporte de asistencia de este usuario.'}
               </p>
               {(reporteData as any)?.debug && (
-                <div className="mt-4 p-4 bg-muted rounded-lg text-left max-w-md mx-auto">
+                <div className="mt-4 p-4 bg-muted rounded-xl text-left max-w-md mx-auto break-all">
                   <p className="text-xs font-mono">
                     <strong>Debug:</strong><br />
                     Auth User ID: {(reporteData as any).debug.v_auth_user_id}<br />
@@ -92,15 +94,15 @@ export default async function AsistenciaUsuarioPage({
                   </p>
                 </div>
               )}
-              <Link href={`/users/${id}`} className="mt-4 inline-block">
-                <BotonSistema variante="primario">
+              <Link href={`/users/${id}`} className="mt-4 inline-block rounded-xl">
+                <BotonSistema variante="primario" tabIndex={-1}>
                   Volver al perfil
                 </BotonSistema>
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
-)
+      </PaginaSistema>
+    )
   }
 
   // Estructura por defecto si hay error
@@ -117,18 +119,19 @@ export default async function AsistenciaUsuarioPage({
 
   const nombreCompleto = `${usuarioData.nombre} ${usuarioData.apellido}`
 
+  // The report owns no page heading, so the page description is the only subtitle.
   return (
-<ContenedorDashboard
-        titulo={`Reporte de Asistencia - ${nombreCompleto}`}
-        descripcion="Análisis detallado del historial de asistencia"
-        botonRegreso={{ href: `/users/${id}`, texto: 'Volver al usuario' }}
-      >
-        <ReporteAsistenciaUsuarioClient
-          usuarioId={id}
-          reporte={reporte as any}
-          fechaInicio={fechaInicio || undefined}
-          fechaFin={fechaFin || undefined}
-        />
-      </ContenedorDashboard>
-)
+    <PaginaSistema
+      titulo={`Reporte de Asistencia - ${nombreCompleto}`}
+      descripcion="Análisis detallado del historial de asistencia"
+      regreso={{ href: `/users/${id}`, texto: 'Volver al usuario' }}
+    >
+      <ReporteAsistenciaUsuarioClient
+        usuarioId={id}
+        reporte={reporte as any}
+        fechaInicio={fechaInicio || undefined}
+        fechaFin={fechaFin || undefined}
+      />
+    </PaginaSistema>
+  )
 }
