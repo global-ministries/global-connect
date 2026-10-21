@@ -15,7 +15,7 @@ jest.mock('@/components/ui/desktop-header', () => ({
   ),
 }))
 
-import { PaginaSistema, PieAccionesSistema } from '@/components/ui/sistema-diseno'
+import { CamposSistema, PaginaSistema, PieAccionesSistema, SeccionesSistema } from '@/components/ui/sistema-diseno'
 import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
 
 describe('PaginaSistema', () => {
@@ -110,5 +110,26 @@ describe('PanelLateralSistema', () => {
       </PanelLateralSistema>
     )
     expect(screen.getByRole('dialog').querySelector('[data-slot="pie-acciones"]')).toBeNull()
+  })
+})
+
+describe('SeccionesSistema and CamposSistema', () => {
+  it('fits as many section columns as the width allows, at least 26rem and never wider than the container', () => {
+    render(<SeccionesSistema><div>Información básica</div><div>Casa anfitriona</div></SeccionesSistema>)
+    const secciones = screen.getByText('Información básica').parentElement
+    expect(secciones).toHaveAttribute('data-slot', 'secciones')
+    expect(secciones).toHaveClass('grid', 'grid-cols-[repeat(auto-fit,minmax(min(100%,26rem),1fr))]', 'items-start', '*:min-w-0')
+  })
+
+  it('fits as many field columns as the width allows, at least 16rem, keeping empty tracks', () => {
+    render(<CamposSistema><label>Nombre</label><label>Segmento</label></CamposSistema>)
+    const campos = screen.getByText('Nombre').parentElement
+    expect(campos).toHaveAttribute('data-slot', 'campos')
+    expect(campos).toHaveClass('grid', 'grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))]', '*:min-w-0')
+  })
+
+  it('keeps extra classes, so a page can add spacing or a full-row child', () => {
+    render(<SeccionesSistema className="mt-2"><div className="col-span-full">Miembros</div></SeccionesSistema>)
+    expect(screen.getByText('Miembros').parentElement).toHaveClass('grid', 'mt-2')
   })
 })
