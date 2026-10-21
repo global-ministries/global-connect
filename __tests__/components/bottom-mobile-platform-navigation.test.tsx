@@ -74,7 +74,8 @@ describe('MenuInferiorMovil platform navigation', () => {
     render(<MenuInferiorMovil />)
 
     expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
-    expect(screen.getByLabelText('Navegar a Usuarios')).toHaveAttribute('href', '/users')
+    // Members do not see Usuarios: the bottom bar follows the sidebar's role rule.
+    expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
     expect(screen.getByLabelText('Navegar a Ayuda')).toHaveAttribute('href', '/ayuda')
   })
@@ -87,7 +88,8 @@ describe('MenuInferiorMovil platform navigation', () => {
     render(<MenuInferiorMovil />)
 
     expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
-    expect(screen.getByLabelText('Navegar a Usuarios')).toHaveAttribute('href', '/users')
+    // Members do not see Usuarios: the bottom bar follows the sidebar's role rule.
+    expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
     expect(screen.getByLabelText('Navegar a Ayuda')).toHaveAttribute('href', '/ayuda')
   })
@@ -100,7 +102,8 @@ describe('MenuInferiorMovil platform navigation', () => {
     render(<MenuInferiorMovil />)
 
     expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
-    expect(screen.getByLabelText('Navegar a Usuarios')).toHaveAttribute('href', '/users')
+    // Members do not see Usuarios: the bottom bar follows the sidebar's role rule.
+    expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
     expect(screen.getByLabelText('Navegar a Ayuda')).toHaveAttribute('href', '/ayuda')
   })
@@ -113,7 +116,8 @@ describe('MenuInferiorMovil platform navigation', () => {
     render(<MenuInferiorMovil />)
 
     expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
-    expect(screen.getByLabelText('Navegar a Usuarios')).toHaveAttribute('href', '/users')
+    // Members do not see Usuarios: the bottom bar follows the sidebar's role rule.
+    expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
     expect(screen.getByLabelText('Navegar a Ayuda')).toHaveAttribute('href', '/ayuda')
   })
