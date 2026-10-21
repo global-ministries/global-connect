@@ -23,7 +23,6 @@ export default async function CreateGroupPage() {
     return (
 <PaginaSistema
           titulo="Crear Grupo"
-          ancho="form"
           regreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
         >
           <TarjetaSistema>
@@ -106,13 +105,11 @@ export default async function CreateGroupPage() {
   return (
 <PaginaSistema
         titulo="Crear Grupo"
-        ancho="form"
         descripcion="Ingresa los datos para crear un nuevo grupo"
         regreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
       >
-        <TarjetaSistema>
-          <GroupCreateForm temporadas={temporadas} segmentos={segmentos} userRoles={roles} directoresPropios={directoresPropios} />
-        </TarjetaSistema>
+        {/* The form renders its own section cards: no wrapper card around it. */}
+        <GroupCreateForm temporadas={temporadas} segmentos={segmentos} userRoles={roles} directoresPropios={directoresPropios} />
       </PaginaSistema>
 );
 }

@@ -1,7 +1,7 @@
 /**
- * Grupos de Vida pages adopt PaginaSistema (docs/design-system.md): lists keep
- * the full content width, single-column forms use the form width, and the
- * description is rendered above the content.
+ * Grupos de Vida pages adopt PaginaSistema (docs/design-system.md): every page,
+ * forms included, uses the full content width, and the description is rendered
+ * above the content.
  */
 import type { ReactElement } from 'react'
 import { render, screen } from '@testing-library/react'
@@ -40,9 +40,9 @@ function anchoDe(elemento: HTMLElement) {
 }
 
 describe('Grupos de Vida page widths', () => {
-  it('Configuración uses the form width and shows its description', async () => {
+  it('Configuración uses the full content width and shows its description', async () => {
     render((await ConfiguracionPage()) as ReactElement)
-    expect(anchoDe(screen.getByRole('form', { name: 'Configuración de grupos' }))).toBe('form')
+    expect(anchoDe(screen.getByRole('form', { name: 'Configuración de grupos' }))).toBe('default')
     expect(screen.getByText('Ajustes generales del módulo de grupos de vida')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: 'Configuración' })).toBeInTheDocument()
   })

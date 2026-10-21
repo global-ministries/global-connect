@@ -76,8 +76,9 @@ describe('CreateGroupPage segments by role', () => {
 })
 
 async function renderedForm() {
-  const page = (await CreateGroupPage()) as ReactElement<{ children: ReactElement<{ children: ReactElement }> }>
-  return page.props.children.props.children as ReactElement<{
+  // PaginaSistema renders the form directly: its sections are the cards.
+  const page = (await CreateGroupPage()) as ReactElement<{ children: ReactElement }>
+  return page.props.children as ReactElement<{
     segmentos: { id: string; nombre: string }[]
     directoresPropios: { id: string; segmento_id: string; nombre: string }[]
   }>

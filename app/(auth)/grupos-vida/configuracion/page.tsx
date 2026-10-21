@@ -27,7 +27,6 @@ export default async function ConfiguracionPage() {
     return (
 <PaginaSistema
                 titulo="Configuración"
-                ancho="form"
                 descripcion="Ajustes generales del módulo de grupos de vida"
                 regreso={{ href: "/grupos-vida", texto: "Grupos" }}
             >

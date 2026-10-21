@@ -48,8 +48,8 @@ jest.mock('@/components/ui/sistema-diseno', () => ({
     </button>
   ),
   PieAccionesSistema: ({ children }: { children: React.ReactNode }) => <div data-slot="pie-acciones">{children}</div>,
-  PaginaSistema: ({ acciones, children, titulo }: { acciones?: React.ReactNode; children: React.ReactNode; titulo: string }) => (
-    <section>
+  PaginaSistema: ({ acciones, ancho, children, titulo }: { acciones?: React.ReactNode; ancho?: string; children: React.ReactNode; titulo: string }) => (
+    <section data-ancho={ancho ?? 'default'}>
       <h1>{titulo}</h1>
       {acciones}
       {children}
@@ -203,6 +203,7 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(serverClient.rpc).not.toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', expect.anything())
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
     expect(screen.getByTestId('nueva-selector-visible')).toHaveTextContent('true')
+    expect(screen.getByTestId('nueva-selector-visible').closest('[data-ancho]')).toHaveAttribute('data-ancho', 'default')
   })
 
   it('denies edit access with the granular edit predicate before enriched admin reads', async () => {
@@ -241,6 +242,7 @@ describe('casas anfitrionas App Router permission wiring', () => {
     expect(serverClient.rpc).toHaveBeenCalledWith('obtener_permisos_casa_anfitriona', { p_auth_id: authId, p_casa_id: casaId })
     expect(serverClient.rpc).not.toHaveBeenCalledWith('puede_crear_casa_anfitriona_para', expect.anything())
     expect(screen.getByTestId('editar-selector-visible')).toHaveTextContent('true')
+    expect(screen.getByTestId('editar-selector-visible').closest('[data-ancho]')).toHaveAttribute('data-ancho', 'default')
     expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
     expect(screen.queryByText('Ana Permitida')).not.toBeInTheDocument()
     expect(screen.queryByText('Beto Fuera de scope')).not.toBeInTheDocument()

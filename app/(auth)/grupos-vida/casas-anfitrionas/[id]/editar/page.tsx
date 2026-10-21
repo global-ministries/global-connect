@@ -155,7 +155,6 @@ export default async function EditarCasaAnfitrionaPage({ params }: PageProps) {
     return (
         <PaginaSistema
             titulo={`Editar ${casa.nombre_lugar}`}
-            ancho="form"
             regreso={{ href: `/grupos-vida/casas-anfitrionas/${id}`, texto: "Detalle" }}
         >
             <EditarCasaClient

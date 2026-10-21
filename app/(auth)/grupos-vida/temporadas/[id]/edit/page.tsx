@@ -46,13 +46,11 @@ export default async function EditSeasonPage({ params }: Props) {
   return (
 <PaginaSistema
         titulo={temporada.nombre}
-        ancho="form"
         descripcion="Modifica la información de esta temporada"
         regreso={{ href: '/grupos-vida/temporadas', texto: 'Volver a Temporadas' }}
       >
-        <TarjetaSistema>
-          <SeasonForm initialData={temporada} />
-        </TarjetaSistema>
+        {/* The form renders its own section cards: no wrapper card around it. */}
+        <SeasonForm initialData={temporada} />
       </PaginaSistema>
 )
 }

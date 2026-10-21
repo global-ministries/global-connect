@@ -54,7 +54,6 @@ export default async function NuevaCasaAnfitrionaPage() {
     return (
 <PaginaSistema
                 titulo="Registrar Casa Anfitriona"
-                ancho="form"
                 regreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
             >
                 <TarjetaSistema className="p-4 sm:p-6">
