@@ -28,8 +28,8 @@ Every authenticated page uses `PaginaSistema` (it builds on
 
 | Width | Class | Use |
 | --- | --- | --- |
-| `default` | `max-w-none` (full content width) | Lists, dashboards, tables, maps |
-| `form` | `max-w-3xl` (768px), left-aligned | Single-column forms and detail views |
+| `default` | `max-w-none` (full content width) | Every page: lists, dashboards, tables, maps, forms, details |
+| `form` | `max-w-3xl` (768px), left-aligned | Deprecated. Kept until the last pages move to `SeccionesSistema`; do not use |
 
 - Gutters: 16px mobile, 24px from `sm`, 48px from `lg`, the same as the
   desktop header so content lines up with the title. Values kept from the
@@ -42,9 +42,46 @@ Every authenticated page uses `PaginaSistema` (it builds on
 - `className` applies to the content column.
 
 ```tsx
-<PaginaSistema titulo="Crear Temporada" ancho="form" regreso={{ href: "/grupos-vida/temporadas", texto: "Temporadas" }}>
+<PaginaSistema titulo="Crear Temporada" regreso={{ href: "/grupos-vida/temporadas", texto: "Temporadas" }}>
   …
 </PaginaSistema>
+```
+
+## Sections and fields: `SeccionesSistema`, `CamposSistema`
+
+Pages use the whole screen. Wider screens show more blocks side by side, and
+no width ever scrolls horizontally. Two grids do that, nested:
+
+| Primitive | Columns | Empty tracks | Use |
+| --- | --- | --- | --- |
+| `SeccionesSistema` | as many as fit, each ≥ 26rem | collapse: one or two sections stretch to fill | the cards of a form or detail page |
+| `CamposSistema` | as many as fit, each ≥ 16rem | kept: a short section keeps compact inputs | the fields inside one card |
+
+- Each track is `minmax(min(100%, N), 1fr)`, so on a phone everything is one
+  column and nothing overflows. Children get `min-w-0` for long text.
+- `col-span-full` on a direct child takes the whole row: a table of
+  members, a textarea, a map. `InputSistema` puts `className` on the input,
+  so wrap the field in a `div` to span it.
+- Do not wrap a form in a card and its sections in more cards; the sections
+  are the cards. The action footer (`PieAccionesSistema`) goes after the grid.
+- Use viewport breakpoints (`md:grid-cols-2`) only for page-level layouts,
+  never for fields inside a card: the card width depends on its column.
+
+```tsx
+<form>
+  <SeccionesSistema>
+    <TarjetaSistema>
+      <TituloSistema nivel={3}>Información básica</TituloSistema>
+      <CamposSistema>
+        <div className="col-span-full"><InputSistema label="Nombre" /></div>
+        <SelectSistema label="Temporada" />
+        <SelectSistema label="Segmento" />
+      </CamposSistema>
+    </TarjetaSistema>
+    <TarjetaSistema>…</TarjetaSistema>
+  </SeccionesSistema>
+  <PieAccionesSistema>…</PieAccionesSistema>
+</form>
 ```
 
 ## Action footer: `PieAccionesSistema`
@@ -178,7 +215,39 @@ Use these instead of raw palette colors (`text-red-600`, `bg-green-500/10`).
 `coloresMarca` now points at the CSS variables; prefer the Tailwind classes
 and reach for it only where a class cannot (inline styles, SVG attributes).
 
+## Navigation
+
+One registry, `lib/navegacion/registro.ts`, lists the app's own entries (id,
+label, href, icon, `roles` / `capabilities`, group, bottom-bar priority). The
+desktop sidebar, the mobile drawer and the mobile bottom bar all read it;
+`components/navegacion/use-entradas-navegacion.ts` adds Dream Team and Niños
+after Grupos de Vida and appends the platform items. Who sees an entry is
+still decided only by `canAccess` (`lib/navigation/canAccess.ts`).
+
+- Add or rename an entry in the registry, never in a surface.
+- Name an entry after the page it opens: `/ayuda/admin` is "Cola de soporte",
+  `/configuracion/soporte` is "Configuración de soporte",
+  `/grupos-vida/dashboard-riesgo` is "Salud de los Grupos".
+- The bottom bar shows the entries with `prioridadMovil`, under the same role
+  rule as the sidebar (a member no longer sees Usuarios there).
+- Look comes from `components/navegacion/estilos-navegacion.ts`: 44px entries
+  (`min-h-11`), the active entry on `bg-brand-tint text-brand-text` with a
+  `text-brand` icon, `focus-ring`, and 44px icon-only buttons
+  (`CLASE_BOTON_ICONO_NAV`) that always carry an `aria-label`.
+- The collapsed sidebar labels each link (`aria-label`) and shows its tooltip
+  on hover and on keyboard focus.
+- The top bar and the bottom bar pad by the safe-area insets; the (auth)
+  layout offsets the page by the same heights.
+- `tests`: `__tests__/components/navegacion/paridad-navegacion.test.tsx` pins
+  the visible hrefs per role and per surface.
+
 ## Follow-ups
+
+- Navigation: "Dashboard" stays in English until the dashboard page and its
+  tests move to "Inicio" together. The drawer still shows Talleres as a plain
+  link (only the sidebar opens `TalleresNavSubmenu`). With platform navigation
+  on, the bottom bar shows every platform item (no five-item cap); labels
+  truncate instead of scrolling.
 
 - Lint guardrail: `eslint.config.mjs` forbids `ui/button`, `ui/card` and
   `boton-gradiente` (as an error) only in the paths listed in
