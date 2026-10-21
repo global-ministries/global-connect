@@ -4,7 +4,7 @@ import { getUserWithRoles } from '@/lib/getUserWithRoles'
 import { checkPlatformRouteAccess } from '@/lib/platform/routeGuard'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
-import { BotonSistema, InputSistema, PaginaSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, CamposSistema, InputSistema, PaginaSistema, SeccionesSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { redirect } from 'next/navigation'
 
 const SUPPORT_CONFIGURATION_ROLES = ['admin', 'pastor', 'director-general']
@@ -31,11 +31,11 @@ export default async function SupportCapabilitiesPage() {
 
   if (!hasHigherRole || !hasSupportManage) {
     return (
-      <PaginaSistema titulo="Configuracion de soporte" ancho="form" regreso={{ href: '/dashboard', texto: 'Dashboard' }}>
-          <TarjetaSistema className="space-y-3">
-            <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
-            <TextoSistema variante="sutil">Esta configuracion requiere un rol de administracion alto y la capacidad support.manage. Si necesitas administrar soporte, solicita acceso a un administrador autorizado.</TextoSistema>
-          </TarjetaSistema>
+      <PaginaSistema titulo="Configuracion de soporte" regreso={{ href: '/dashboard', texto: 'Dashboard' }}>
+        <TarjetaSistema className="space-y-3">
+          <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
+          <TextoSistema variante="sutil">Esta configuracion requiere un rol de administracion alto y la capacidad support.manage. Si necesitas administrar soporte, solicita acceso a un administrador autorizado.</TextoSistema>
+        </TarjetaSistema>
       </PaginaSistema>
     )
   }
@@ -51,23 +51,29 @@ export default async function SupportCapabilitiesPage() {
   }
 
   return (
-    <PaginaSistema titulo="Configuracion de soporte" ancho="form" descripcion="Administra capacidades de soporte con cambios auditados y limitados al conjunto permitido.">
+    <PaginaSistema titulo="Configuracion de soporte" descripcion="Administra capacidades de soporte con cambios auditados y limitados al conjunto permitido.">
+      {/* Each form keeps its fields in a CamposSistema row, so wide screens
+          show user and capability side by side and phones stack them. */}
+      <SeccionesSistema>
         <TarjetaSistema className="space-y-4">
           <TituloSistema nivel={2}>Capacidades permitidas</TituloSistema>
           <TextoSistema variante="sutil">Solo se pueden administrar support.view, support.reply y support.manage para usuarios staff o admin.</TextoSistema>
-          <div className="grid gap-4 md:grid-cols-2">
-            <form action={grantAction} className="space-y-3">
+          <form action={grantAction} className="space-y-3">
+            <CamposSistema>
               <InputSistema label="Usuario destino" name="usuarioId" required placeholder="UUID del usuario" />
               <SelectSistema label="Capacidad" name="capability" opciones={CAPABILITY_OPTIONS} defaultValue="support.view" />
-              <BotonSistema type="submit">Otorgar capacidad</BotonSistema>
-            </form>
-            <form action={revokeAction} className="space-y-3">
+            </CamposSistema>
+            <BotonSistema type="submit">Otorgar capacidad</BotonSistema>
+          </form>
+          <form action={revokeAction} className="space-y-3">
+            <CamposSistema>
               <InputSistema label="Usuario destino" name="usuarioId" required placeholder="UUID del usuario" />
               <SelectSistema label="Capacidad" name="capability" opciones={CAPABILITY_OPTIONS} defaultValue="support.view" />
-              <BotonSistema type="submit" variante="outline">Revocar capacidad</BotonSistema>
-            </form>
-          </div>
+            </CamposSistema>
+            <BotonSistema type="submit" variante="outline">Revocar capacidad</BotonSistema>
+          </form>
         </TarjetaSistema>
+      </SeccionesSistema>
     </PaginaSistema>
   )
 }

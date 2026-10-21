@@ -43,7 +43,6 @@ export default async function PaginaConfiguracion() {
   return (
     <PaginaSistema
       titulo="Configuración"
-      ancho="form"
       regreso={{ href: "/dashboard", texto: "Dashboard" }}
     >
         <ConfiguracionGlobalClient

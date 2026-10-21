@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { PaginaSistema, TarjetaSistema, TextoSistema, TituloSistema, SeparadorSistema } from "@/components/ui/sistema-diseno";
+import { PaginaSistema, SeccionesSistema, TarjetaSistema, TextoSistema, TituloSistema, SeparadorSistema } from "@/components/ui/sistema-diseno";
 import { MapPin, Home, Settings } from "lucide-react";
 import { GeocodificacionPanel } from "./geocodificacion-panel";
 
@@ -36,74 +36,77 @@ export default async function ConfiguracionGruposPage() {
     return (
         <PaginaSistema
             titulo="Configuración de Grupos de Vida"
-            ancho="form"
             regreso={{ href: "/configuracion", texto: "Configuración" }}
         >
-            {/* Geocodificación */}
-            <TarjetaSistema>
-                <div className="space-y-4">
-                    <TituloSistema nivel={3} className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" aria-hidden="true" /> Geocodificación de Direcciones
-                    </TituloSistema>
-                    <TextoSistema variante="muted">
-                        Convierte direcciones sin coordenadas a latitud/longitud usando OpenStreetMap.
-                        Esto permite mostrar los grupos en el mapa interactivo.
-                    </TextoSistema>
+            {/* Geocoding takes the whole row (stats + action panel); the two
+                short cards share the next one on wide screens. */}
+            <SeccionesSistema>
+                {/* Geocodificación */}
+                <TarjetaSistema className="col-span-full">
+                    <div className="space-y-4">
+                        <TituloSistema nivel={3} className="flex items-center gap-2">
+                            <MapPin className="h-5 w-5" aria-hidden="true" /> Geocodificación de Direcciones
+                        </TituloSistema>
+                        <TextoSistema variante="muted">
+                            Convierte direcciones sin coordenadas a latitud/longitud usando OpenStreetMap.
+                            Esto permite mostrar los grupos en el mapa interactivo.
+                        </TextoSistema>
 
-                    <SeparadorSistema />
+                        <SeparadorSistema />
 
-                    {/* Estadísticas */}
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        <div className="text-center">
-                            <TextoSistema variante="muted" tamaño="sm">Total</TextoSistema>
-                            <TextoSistema className="text-xl font-bold">{totalNum}</TextoSistema>
+                        {/* Estadísticas */}
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <div className="text-center">
+                                <TextoSistema variante="muted" tamaño="sm">Total</TextoSistema>
+                                <TextoSistema className="text-xl font-bold">{totalNum}</TextoSistema>
+                            </div>
+                            <div className="text-center">
+                                <TextoSistema variante="muted" tamaño="sm">Con coordenadas</TextoSistema>
+                                <TextoSistema className="text-xl font-bold text-success-text">{conNum}</TextoSistema>
+                            </div>
+                            <div className="text-center">
+                                <TextoSistema variante="muted" tamaño="sm">Sin coordenadas</TextoSistema>
+                                <TextoSistema className="text-xl font-bold text-warning-text">{sinNum}</TextoSistema>
+                            </div>
+                            <div className="text-center">
+                                <TextoSistema variante="muted" tamaño="sm">Cobertura</TextoSistema>
+                                <TextoSistema className="text-xl font-bold">{porcentaje}%</TextoSistema>
+                            </div>
                         </div>
-                        <div className="text-center">
-                            <TextoSistema variante="muted" tamaño="sm">Con coordenadas</TextoSistema>
-                            <TextoSistema className="text-xl font-bold text-success-text">{conNum}</TextoSistema>
-                        </div>
-                        <div className="text-center">
-                            <TextoSistema variante="muted" tamaño="sm">Sin coordenadas</TextoSistema>
-                            <TextoSistema className="text-xl font-bold text-warning-text">{sinNum}</TextoSistema>
-                        </div>
-                        <div className="text-center">
-                            <TextoSistema variante="muted" tamaño="sm">Cobertura</TextoSistema>
-                            <TextoSistema className="text-xl font-bold">{porcentaje}%</TextoSistema>
-                        </div>
+
+                        <SeparadorSistema />
+
+                        {/* Panel de acción */}
+                        <GeocodificacionPanel sinCoordenadas={sinNum} />
                     </div>
+                </TarjetaSistema>
 
-                    <SeparadorSistema />
+                {/* Tipos de grupo */}
+                <TarjetaSistema>
+                    <div className="space-y-3">
+                        <TituloSistema nivel={3} className="flex items-center gap-2">
+                            <Settings className="h-5 w-5" aria-hidden="true" /> Tipos de Grupo
+                        </TituloSistema>
+                        <TextoSistema variante="muted">
+                            Administra los tipos de grupo disponibles en el sistema.
+                            Actualmente solo &quot;Grupos de Vida&quot; está disponible. Se habilitarán más tipos en fases futuras.
+                        </TextoSistema>
+                    </div>
+                </TarjetaSistema>
 
-                    {/* Panel de acción */}
-                    <GeocodificacionPanel sinCoordenadas={sinNum} />
-                </div>
-            </TarjetaSistema>
-
-            {/* Tipos de grupo */}
-            <TarjetaSistema>
-                <div className="space-y-3">
-                    <TituloSistema nivel={3} className="flex items-center gap-2">
-                        <Settings className="h-5 w-5" aria-hidden="true" /> Tipos de Grupo
-                    </TituloSistema>
-                    <TextoSistema variante="muted">
-                        Administra los tipos de grupo disponibles en el sistema.
-                        Actualmente solo &quot;Grupos de Vida&quot; está disponible. Se habilitarán más tipos en fases futuras.
-                    </TextoSistema>
-                </div>
-            </TarjetaSistema>
-
-            {/* Casas Anfitrionas config */}
-            <TarjetaSistema>
-                <div className="space-y-3">
-                    <TituloSistema nivel={3} className="flex items-center gap-2">
-                        <Home className="h-5 w-5" aria-hidden="true" /> Casas Anfitrionas
-                    </TituloSistema>
-                    <TextoSistema variante="muted">
-                        Configuración de casas anfitrionas y flujo de aprobación.
-                        Próximamente: criterios de auto-aprobación, notificaciones, y verificación por zona.
-                    </TextoSistema>
-                </div>
-            </TarjetaSistema>
+                {/* Casas Anfitrionas config */}
+                <TarjetaSistema>
+                    <div className="space-y-3">
+                        <TituloSistema nivel={3} className="flex items-center gap-2">
+                            <Home className="h-5 w-5" aria-hidden="true" /> Casas Anfitrionas
+                        </TituloSistema>
+                        <TextoSistema variante="muted">
+                            Configuración de casas anfitrionas y flujo de aprobación.
+                            Próximamente: criterios de auto-aprobación, notificaciones, y verificación por zona.
+                        </TextoSistema>
+                    </div>
+                </TarjetaSistema>
+            </SeccionesSistema>
         </PaginaSistema>
     );
 }

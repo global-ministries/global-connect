@@ -55,4 +55,14 @@ describe('ConfiguracionGlobalClient', () => {
     expect(screen.getByRole('button', { name: 'Subir logo modo claro' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Quitar logo modo claro' })).toBeNull()
   })
+
+  it('lays the settings sections out with SeccionesSistema and the organization fields with CamposSistema', () => {
+    const { container } = render(<ConfiguracionGlobalClient />)
+    const secciones = container.querySelector('[data-slot="secciones"]')
+    expect(secciones).not.toBeNull()
+    expect(secciones).toContainElement(screen.getByRole('button', { name: /Módulos del Sistema/ }))
+    for (const etiqueta of ['Nombre de la organización', 'Email de contacto', 'Dirección', 'Teléfono']) {
+      expect(screen.getByLabelText(etiqueta).closest('[data-slot="campos"]')).not.toBeNull()
+    }
+  })
 })

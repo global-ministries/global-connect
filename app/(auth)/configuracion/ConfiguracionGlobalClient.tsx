@@ -12,6 +12,8 @@ import {
     SeparadorSistema,
     BadgeSistema,
     PieAccionesSistema,
+    SeccionesSistema,
+    CamposSistema,
 } from "@/components/ui/sistema-diseno"
 import {
     Building2,
@@ -321,8 +323,9 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
         }
     }
 
+    // Each settings section is a card; wide screens show several side by side.
     return (
-        <div className="space-y-4">
+        <SeccionesSistema>
             {secciones.map((seccion) => {
                 const Icono = seccion.icono
                 const abierta = seccionAbierta === seccion.id
@@ -378,7 +381,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                 {/* Sección: Datos de la Organización */}
                                 {seccion.id === "organizacion" && (
                                     <div className="space-y-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <CamposSistema>
                                             <InputSistema
                                                 label="Nombre de la organización"
                                                 icono={Building2}
@@ -394,8 +397,6 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                 onChange={e => setOrgEmail(e.target.value)}
                                                 placeholder="contacto@ejemplo.com"
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <InputSistema
                                                 label="Dirección"
                                                 icono={MapPin}
@@ -410,7 +411,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                 onChange={e => setOrgTelefono(e.target.value)}
                                                 placeholder="+1 234 567 8900"
                                             />
-                                        </div>
+                                        </CamposSistema>
                                         <PieAccionesSistema fijo={false} className="bg-transparent">
                                             <BotonSistema
                                                 variante="primario"
@@ -437,7 +438,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                 Sube el logo de tu organización para modo claro y oscuro. Recomendado: PNG transparente, mínimo 200×200px.
                                             </TextoSistema>
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <CamposSistema>
                                                 <ZonaLogo
                                                     titulo="Logo modo claro"
                                                     icono={<Sun className="h-4 w-4 text-warning" aria-hidden="true" />}
@@ -459,7 +460,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                     onQuitar={() => handleRemoveLogo('dark')}
                                                 />
                                                 <input ref={fileInputDarkRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect('dark')} />
-                                            </div>
+                                            </CamposSistema>
 
                                             {/* Favicon */}
                                             <div className="mt-4 space-y-2">
@@ -501,7 +502,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                 Define los colores principales de tu organización. Se usan en botones, enlaces y elementos de acento.
                                             </TextoSistema>
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <CamposSistema>
                                                 {/* Color primario */}
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium text-foreground">Color primario</label>
@@ -553,7 +554,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                     </div>
                                                     <TextoSistema variante="muted" tamaño="sm">Gradientes, hover, elementos complementarios</TextoSistema>
                                                 </div>
-                                            </div>
+                                            </CamposSistema>
                                         </div>
 
                                         <SeparadorSistema />
@@ -679,7 +680,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                     </TarjetaSistema>
                 )
             })}
-        </div>
+        </SeccionesSistema>
     )
 }
 

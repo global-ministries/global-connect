@@ -1,7 +1,7 @@
 /**
  * Configuración and Administración pages adopt PaginaSistema
- * (docs/design-system.md): settings forms use the form width, list screens
- * (and their loading skeletons) keep the full content width.
+ * (docs/design-system.md): every page, settings forms included, uses the
+ * full content width (the 768px form cap is deprecated).
  */
 import type { ReactElement } from 'react'
 import { render, screen } from '@testing-library/react'
@@ -35,9 +35,9 @@ function anchoDe(elemento: HTMLElement) {
 }
 
 describe('Configuración and Administración page widths', () => {
-  it('Configuración uses the form width', async () => {
+  it('Configuración uses the full content width', async () => {
     render((await PaginaConfiguracion()) as ReactElement)
-    expect(anchoDe(screen.getByRole('form', { name: 'Configuración global' }))).toBe('form')
+    expect(anchoDe(screen.getByRole('form', { name: 'Configuración global' }))).toBe('default')
     expect(await screen.findByRole('heading', { level: 1, name: 'Configuración' })).toBeInTheDocument()
   })
 
