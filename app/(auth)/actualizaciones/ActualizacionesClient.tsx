@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { TarjetaSistema, TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { SeccionesSistema, TarjetaSistema, TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import { Calendar, Sparkles, Wrench, Shield, Package, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { actualizaciones, etiquetasRol, type RolSistema } from '@/lib/data/actualizaciones'
@@ -102,8 +102,8 @@ export default function ActualizacionesClient({ puedeVerTodo, rolUsuario }: Actu
                 </div>
             )}
 
-            {/* ── Lista de actualizaciones ── */}
-            <div className="space-y-6">
+            {/* ── Lista de actualizaciones (as many columns as fit) ── */}
+            <SeccionesSistema>
                 {actualizaciones
                     .filter((act) => {
                         if (!rolSeleccionado) return true
@@ -161,7 +161,7 @@ export default function ActualizacionesClient({ puedeVerTodo, rolUsuario }: Actu
                             </TarjetaSistema>
                         )
                     })}
-            </div>
+            </SeccionesSistema>
         </>
     )
 }

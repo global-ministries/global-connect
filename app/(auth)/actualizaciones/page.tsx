@@ -39,8 +39,7 @@ export default async function ActualizacionesPage() {
     const puedeVerTodo = rolMapeado !== 'miembro'
 
     return (
-        // A reading feed: the form width keeps lines at a readable length.
-        <PaginaSistema titulo="Actualizaciones" descripcion="Historial de cambios y mejoras del sistema" ancho="form">
+        <PaginaSistema titulo="Actualizaciones" descripcion="Historial de cambios y mejoras del sistema">
             <ActualizacionesClient puedeVerTodo={puedeVerTodo} rolUsuario={rolMapeado} />
         </PaginaSistema>
     )

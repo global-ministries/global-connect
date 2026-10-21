@@ -1,7 +1,7 @@
 /**
- * Ayuda adopts PaginaSistema (docs/design-system.md): the report form uses the
- * form width, the ticket lists keep the full content width, and the status
- * filters and ticket links keep a 44px touch target.
+ * Ayuda adopts PaginaSistema (docs/design-system.md): every page, the report
+ * form included, uses the full content width, and the status filters and
+ * ticket links keep a 44px touch target.
  */
 import type { ReactNode } from 'react'
 import { act, render, screen, within } from '@testing-library/react'
@@ -41,11 +41,18 @@ describe('Ayuda page widths', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Ayuda' })).toBeInTheDocument()
   })
 
-  it('the report form uses the form width with its submit in the action footer', async () => {
+  it('the report form uses the full width, sections and fields grids, and its submit in the action footer', async () => {
     await act(async () => {
       render(await ReportarPage())
     })
-    expect(anchoDe(screen.getByLabelText('Asunto'))).toBe('form')
+    expect(anchoDe(screen.getByLabelText('Asunto'))).toBe('default')
+    const secciones = document.querySelector('[data-slot="secciones"]')
+    expect(secciones).not.toBeNull()
+    for (const campo of [screen.getByLabelText('Asunto'), screen.getByLabelText('Descripcion'), screen.getByLabelText('Categoria')]) {
+      expect(campo.closest('[data-slot="campos"]')).not.toBeNull()
+    }
+    expect(secciones).toContainElement(screen.getByLabelText('Adjuntos'))
+    expect(secciones).toContainElement(screen.getByTestId('support-attachment-status'))
     expect(screen.getByLabelText('Categoria')).toHaveValue('bug')
     expect(screen.getByRole('button', { name: 'Enviar ticket' }).closest('[data-slot="pie-acciones"]')).not.toBeNull()
   })
