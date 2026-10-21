@@ -4,9 +4,15 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Switch } from "@/components/ui/switch"
-import { InputSistema, BotonSistema, PieAccionesSistema } from "@/components/ui/sistema-diseno"
+import {
+  InputSistema,
+  BotonSistema,
+  PieAccionesSistema,
+  SeccionesSistema,
+  TarjetaSistema,
+  CamposSistema,
+} from "@/components/ui/sistema-diseno"
 import { createSeason, updateSeason } from "@/lib/actions/season.actions"
-import { COLUMNAS_CAMPOS } from "./seccion-formulario"
 
 const seasonSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido"),
@@ -66,46 +72,50 @@ export default function SeasonForm({ initialData }: SeasonFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="@container space-y-6">
-      <div className={COLUMNAS_CAMPOS[2]}>
-        <div className="@lg:col-span-2">
-          <InputSistema
-            label="Nombre de la Temporada *"
-            placeholder="Ej: Temporada 2025"
-            error={errors.nombre?.message}
-            {...register("nombre")}
-          />
-        </div>
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      <SeccionesSistema>
+        <TarjetaSistema className="p-4 sm:p-6">
+          <CamposSistema>
+            <div className="col-span-full">
+              <InputSistema
+                label="Nombre de la Temporada *"
+                placeholder="Ej: Temporada 2025"
+                error={errors.nombre?.message}
+                {...register("nombre")}
+              />
+            </div>
 
-        <InputSistema
-          label="Fecha de Inicio *"
-          type="date"
-          error={errors.fecha_inicio?.message}
-          {...register("fecha_inicio")}
-        />
+            <InputSistema
+              label="Fecha de Inicio *"
+              type="date"
+              error={errors.fecha_inicio?.message}
+              {...register("fecha_inicio")}
+            />
 
-        <InputSistema
-          label="Fecha de Fin *"
-          type="date"
-          error={errors.fecha_fin?.message}
-          {...register("fecha_fin")}
-        />
+            <InputSistema
+              label="Fecha de Fin *"
+              type="date"
+              error={errors.fecha_fin?.message}
+              {...register("fecha_fin")}
+            />
 
-        {/* Activa */}
-        <div className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-border p-4 @lg:col-span-2">
-          <div className="space-y-0.5">
-            <label htmlFor="activa" className="block text-sm font-medium text-foreground">¿Activa?</label>
-            <p className="text-sm text-muted-foreground">
-              {activaValue ? "Sí" : "No"}
-            </p>
-          </div>
-          <Switch
-            id="activa"
-            checked={activaValue}
-            onCheckedChange={(checked) => setValue("activa", checked)}
-          />
-        </div>
-      </div>
+            {/* Activa */}
+            <div className="flex min-h-11 items-center justify-between gap-4 rounded-xl border border-border p-4">
+              <div className="space-y-0.5">
+                <label htmlFor="activa" className="block text-sm font-medium text-foreground">¿Activa?</label>
+                <p className="text-sm text-muted-foreground">
+                  {activaValue ? "Sí" : "No"}
+                </p>
+              </div>
+              <Switch
+                id="activa"
+                checked={activaValue}
+                onCheckedChange={(checked) => setValue("activa", checked)}
+              />
+            </div>
+          </CamposSistema>
+        </TarjetaSistema>
+      </SeccionesSistema>
 
       <PieAccionesSistema fijo={false} className="bg-transparent">
         <BotonSistema

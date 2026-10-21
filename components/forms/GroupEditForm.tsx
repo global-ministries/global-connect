@@ -7,10 +7,18 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
-import { InputSistema, SelectSistema, TextareaSistema, BotonSistema, PieAccionesSistema } from "@/components/ui/sistema-diseno";
+import {
+  InputSistema,
+  SelectSistema,
+  TextareaSistema,
+  BotonSistema,
+  PieAccionesSistema,
+  SeccionesSistema,
+  CamposSistema,
+} from "@/components/ui/sistema-diseno";
 import { updateGroup } from "@/lib/actions/group.actions";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
-import { COLUMNAS_CAMPOS, SeccionFormulario } from "./seccion-formulario";
+import { SeccionFormulario } from "./seccion-formulario";
 
 // Esquema de validación con Zod
 const groupEditSchema = z.object({
@@ -178,10 +186,10 @@ export default function GroupEditForm({
     <form onSubmit={handleSubmit(onSubmit, (formErrors) => {
       console.error("Errores de validación del formulario:", formErrors);
     })} className="space-y-6">
-      <div className="divide-y divide-border [&>*]:py-6 [&>*:first-child]:pt-0">
-        <SeccionFormulario titulo="Información Básica" tarjeta={false}>
-          <div className={COLUMNAS_CAMPOS[2]}>
-            <div className="@lg:col-span-2">
+      <SeccionesSistema>
+        <SeccionFormulario titulo="Información Básica">
+          <CamposSistema>
+            <div className="col-span-full">
               <InputSistema
                 label="Nombre del Grupo"
                 placeholder="Ingresa el nombre del grupo"
@@ -255,7 +263,7 @@ export default function GroupEditForm({
               )}
             />
 
-            <div className="flex items-center justify-between gap-4 rounded-xl border border-border p-4 @lg:col-span-2">
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-border p-4">
               <div className="space-y-0.5">
                 <label htmlFor="grupo-activo" className="block text-sm font-medium text-foreground">Grupo Activo</label>
                 <p className="text-sm text-muted-foreground">
@@ -275,12 +283,12 @@ export default function GroupEditForm({
                 )}
               />
             </div>
-          </div>
+          </CamposSistema>
         </SeccionFormulario>
 
         <SeccionFormulario
           titulo="Casa Anfitriona"
-          tarjeta={false}
+         
           descripcion="La visibilidad en el mapa se obtiene únicamente desde una Casa Anfitriona aprobada."
         >
           <div className="space-y-4">
@@ -324,10 +332,10 @@ export default function GroupEditForm({
         {!hasValidAssignedCasa && (
           <SeccionFormulario
             titulo="Dirección manual de referencia"
-            tarjeta={false}
+           
             descripcion="Conserva datos operativos legados, pero no se usa como fuente del mapa de Grupos de Vida."
           >
-            <div className={COLUMNAS_CAMPOS[2]}>
+            <CamposSistema>
               <InputSistema
                 label="Calle"
                 placeholder="Ingresa la calle"
@@ -366,7 +374,7 @@ export default function GroupEditForm({
                 )}
               />
 
-              <div className="@lg:col-span-2">
+              <div className="col-span-full">
                 <TextareaSistema
                   label="Referencia"
                   placeholder="Ingresa puntos de referencia"
@@ -375,20 +383,24 @@ export default function GroupEditForm({
                   {...register("direccion.referencia")}
                 />
               </div>
-            </div>
+            </CamposSistema>
           </SeccionFormulario>
         )}
 
-        <SeccionFormulario titulo="Notas Privadas" tarjeta={false}>
-          <TextareaSistema
-            label="Notas (solo para líderes)"
-            placeholder="Ingresa notas privadas sobre el grupo"
-            disabled={readOnly || isLoading}
-            error={errors.notas_privadas?.message}
-            {...register("notas_privadas")}
-          />
+        <SeccionFormulario titulo="Notas Privadas">
+          <CamposSistema>
+            <div className="col-span-full">
+              <TextareaSistema
+                label="Notas (solo para líderes)"
+                placeholder="Ingresa notas privadas sobre el grupo"
+                disabled={readOnly || isLoading}
+                error={errors.notas_privadas?.message}
+                {...register("notas_privadas")}
+              />
+            </div>
+          </CamposSistema>
         </SeccionFormulario>
-      </div>
+      </SeccionesSistema>
 
       <PieAccionesSistema fijo={false} className="bg-transparent">
         <BotonSistema

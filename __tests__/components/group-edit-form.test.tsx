@@ -67,6 +67,8 @@ jest.mock('@/components/ui/sistema-diseno', () => {
   MockTextareaSistema.displayName = 'MockTextareaSistema'
 
   return {
+    // Real layout primitives (sections and fields grids); only the controls are mocked.
+    ...jest.requireActual('@/components/ui/sistema-diseno'),
     BotonSistema: ({ cargando, children, disabled, onClick, type = 'button' }: React.ButtonHTMLAttributes<HTMLButtonElement> & { cargando?: boolean }) => (
       <button disabled={disabled || cargando} onClick={onClick} type={type}>
         {children}
@@ -83,7 +85,6 @@ jest.mock('@/components/ui/sistema-diseno', () => {
         </select>
       </label>
     ),
-    TarjetaSistema: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
     TextareaSistema: MockTextareaSistema,
   }
 })

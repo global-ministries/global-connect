@@ -5,12 +5,19 @@ import { useRouter } from "next/navigation"
 import { createUser } from "@/lib/actions/user.actions"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { InputSistema, SelectSistema, BotonSistema, PieAccionesSistema } from "@/components/ui/sistema-diseno"
+import {
+  InputSistema,
+  SelectSistema,
+  BotonSistema,
+  PieAccionesSistema,
+  SeccionesSistema,
+  CamposSistema,
+} from "@/components/ui/sistema-diseno"
 import { normalizarCedula } from "@/lib/utils/cedula"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
 import { User, Mail, Phone, Calendar, Users } from "lucide-react"
 import { AvisoFormulario } from "./aviso-formulario"
-import { COLUMNAS_CAMPOS, SeccionFormulario } from "./seccion-formulario"
+import { SeccionFormulario } from "./seccion-formulario"
 
 const userCreateSchema = z.object({
   nombre: z.string().min(2, "El nombre es requerido"),
@@ -95,103 +102,105 @@ export default function UserCreateForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <SeccionFormulario titulo="Información Personal" icono={User}>
-        <div className={COLUMNAS_CAMPOS[2]}>
-          <InputSistema
-            label="Nombre *"
-            placeholder="Nombre"
-            icono={User}
-            error={errors.nombre?.message}
-            {...register("nombre")}
-          />
+      <SeccionesSistema>
+        <SeccionFormulario titulo="Información Personal" icono={User}>
+          <CamposSistema>
+            <InputSistema
+              label="Nombre *"
+              placeholder="Nombre"
+              icono={User}
+              error={errors.nombre?.message}
+              {...register("nombre")}
+            />
 
-          <InputSistema
-            label="Apellido *"
-            placeholder="Apellido"
-            error={errors.apellido?.message}
-            {...register("apellido")}
-          />
+            <InputSistema
+              label="Apellido *"
+              placeholder="Apellido"
+              error={errors.apellido?.message}
+              {...register("apellido")}
+            />
 
-          <InputSistema
-            label="Cédula"
-            placeholder="Número de cédula"
-            {...register("cedula", {
-              onBlur: (e) => setValue("cedula", normalizarCedula(e.target.value) ?? "", { shouldDirty: true }),
-            })}
-          />
+            <InputSistema
+              label="Cédula"
+              placeholder="Número de cédula"
+              {...register("cedula", {
+                onBlur: (e) => setValue("cedula", normalizarCedula(e.target.value) ?? "", { shouldDirty: true }),
+              })}
+            />
 
-          <InputSistema
-            label="Fecha de Nacimiento"
-            type="date"
-            icono={Calendar}
-            {...register("fecha_nacimiento")}
-          />
-        </div>
-      </SeccionFormulario>
+            <InputSistema
+              label="Fecha de Nacimiento"
+              type="date"
+              icono={Calendar}
+              {...register("fecha_nacimiento")}
+            />
+          </CamposSistema>
+        </SeccionFormulario>
 
-      <SeccionFormulario titulo="Contacto" icono={Mail}>
-        <div className={COLUMNAS_CAMPOS[2]}>
-          <InputSistema
-            label="Email"
-            type="email"
-            placeholder="correo@ejemplo.com"
-            icono={Mail}
-            error={errors.email?.message}
-            {...register("email")}
-          />
+        <SeccionFormulario titulo="Contacto" icono={Mail}>
+          <CamposSistema>
+            <InputSistema
+              label="Email"
+              type="email"
+              placeholder="correo@ejemplo.com"
+              icono={Mail}
+              error={errors.email?.message}
+              {...register("email")}
+            />
 
-          <InputSistema
-            label="Teléfono"
-            placeholder="Número de teléfono"
-            icono={Phone}
-            {...register("telefono")}
-          />
-        </div>
-      </SeccionFormulario>
+            <InputSistema
+              label="Teléfono"
+              placeholder="Número de teléfono"
+              icono={Phone}
+              {...register("telefono")}
+            />
+          </CamposSistema>
+        </SeccionFormulario>
 
-      <SeccionFormulario titulo="Información Adicional" icono={Users}>
-        <div className={COLUMNAS_CAMPOS[2]}>
-          <Controller
-            name="genero"
-            control={control}
-            render={({ field }) => (
-              <SelectSistema
-                label="Género *"
-                placeholder="Selecciona el género"
-                value={field.value}
-                onValueChange={field.onChange}
-                error={errors.genero?.message}
-                opciones={[
-                  { valor: "Masculino", etiqueta: "Masculino" },
-                  { valor: "Femenino", etiqueta: "Femenino" },
-                  { valor: "Otro", etiqueta: "Otro" },
-                ]}
-              />
-            )}
-          />
+        <SeccionFormulario titulo="Información Adicional" icono={Users}>
+          <CamposSistema>
+            <Controller
+              name="genero"
+              control={control}
+              render={({ field }) => (
+                <SelectSistema
+                  label="Género *"
+                  placeholder="Selecciona el género"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  error={errors.genero?.message}
+                  opciones={[
+                    { valor: "Masculino", etiqueta: "Masculino" },
+                    { valor: "Femenino", etiqueta: "Femenino" },
+                    { valor: "Otro", etiqueta: "Otro" },
+                  ]}
+                />
+              )}
+            />
 
-          <Controller
-            name="estado_civil"
-            control={control}
-            render={({ field }) => (
-              <SelectSistema
-                label="Estado Civil *"
-                placeholder="Selecciona el estado civil"
-                value={field.value}
-                onValueChange={field.onChange}
-                error={errors.estado_civil?.message}
-                opciones={[
-                  { valor: "Soltero", etiqueta: "Soltero" },
-                  { valor: "Casado", etiqueta: "Casado" },
-                  { valor: "Divorciado", etiqueta: "Divorciado" },
-                  { valor: "Viudo", etiqueta: "Viudo" },
-                  { valor: "No especificado", etiqueta: "No especificado" },
-                ]}
-              />
-            )}
-          />
-        </div>
-      </SeccionFormulario>
+            <Controller
+              name="estado_civil"
+              control={control}
+              render={({ field }) => (
+                <SelectSistema
+                  label="Estado Civil *"
+                  placeholder="Selecciona el estado civil"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  error={errors.estado_civil?.message}
+                  opciones={[
+                    { valor: "Soltero", etiqueta: "Soltero" },
+                    { valor: "Casado", etiqueta: "Casado" },
+                    { valor: "Divorciado", etiqueta: "Divorciado" },
+                    { valor: "Viudo", etiqueta: "Viudo" },
+                    { valor: "No especificado", etiqueta: "No especificado" },
+                  ]}
+                />
+              )}
+            />
+          </CamposSistema>
+        </SeccionFormulario>
+      </SeccionesSistema>
 
       {errors.root && <AvisoFormulario tono="error">{errors.root.message}</AvisoFormulario>}
 
