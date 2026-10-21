@@ -40,7 +40,7 @@ export const metadata = { title: 'Crear Temporada' }
 export default async function CrearTemporadaPage() {
   if (!isTalleresEnabled()) {
     return (
-      <PaginaSistema titulo="Crear Temporada" ancho="form">
+      <PaginaSistema titulo="Crear Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
@@ -53,7 +53,7 @@ export default async function CrearTemporadaPage() {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <PaginaSistema titulo="Crear Temporada" ancho="form">
+      <PaginaSistema titulo="Crear Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
@@ -68,7 +68,7 @@ export default async function CrearTemporadaPage() {
   })
   if (!session) {
     return (
-      <PaginaSistema titulo="Crear Temporada" ancho="form">
+      <PaginaSistema titulo="Crear Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
@@ -84,7 +84,6 @@ export default async function CrearTemporadaPage() {
     return (
       <PaginaSistema
         titulo="Crear Temporada"
-        ancho="form"
         regreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
       >
         <TarjetaSistema variante="outlined" className="p-6 text-center">
@@ -105,7 +104,6 @@ export default async function CrearTemporadaPage() {
   return (
     <PaginaSistema
       titulo="Crear Temporada"
-      ancho="form"
       regreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
     >
       <TallerTemporadaForm direcciones={direccionesConTalleres} />
