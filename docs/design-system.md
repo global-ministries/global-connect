@@ -28,8 +28,8 @@ Every authenticated page uses `PaginaSistema` (it builds on
 
 | Width | Class | Use |
 | --- | --- | --- |
-| `default` | `max-w-none` (full content width) | Lists, dashboards, tables, maps |
-| `form` | `max-w-3xl` (768px), left-aligned | Single-column forms and detail views |
+| `default` | `max-w-none` (full content width) | Every page: lists, dashboards, tables, maps, forms, details |
+| `form` | `max-w-3xl` (768px), left-aligned | Deprecated. Kept until the last pages move to `SeccionesSistema`; do not use |
 
 - Gutters: 16px mobile, 24px from `sm`, 48px from `lg`, the same as the
   desktop header so content lines up with the title. Values kept from the
@@ -42,9 +42,46 @@ Every authenticated page uses `PaginaSistema` (it builds on
 - `className` applies to the content column.
 
 ```tsx
-<PaginaSistema titulo="Crear Temporada" ancho="form" regreso={{ href: "/grupos-vida/temporadas", texto: "Temporadas" }}>
+<PaginaSistema titulo="Crear Temporada" regreso={{ href: "/grupos-vida/temporadas", texto: "Temporadas" }}>
   …
 </PaginaSistema>
+```
+
+## Sections and fields: `SeccionesSistema`, `CamposSistema`
+
+Pages use the whole screen. Wider screens show more blocks side by side, and
+no width ever scrolls horizontally. Two grids do that, nested:
+
+| Primitive | Columns | Empty tracks | Use |
+| --- | --- | --- | --- |
+| `SeccionesSistema` | as many as fit, each ≥ 26rem | collapse: one or two sections stretch to fill | the cards of a form or detail page |
+| `CamposSistema` | as many as fit, each ≥ 16rem | kept: a short section keeps compact inputs | the fields inside one card |
+
+- Each track is `minmax(min(100%, N), 1fr)`, so on a phone everything is one
+  column and nothing overflows. Children get `min-w-0` for long text.
+- `col-span-full` on a direct child takes the whole row: a table of
+  members, a textarea, a map. `InputSistema` puts `className` on the input,
+  so wrap the field in a `div` to span it.
+- Do not wrap a form in a card and its sections in more cards; the sections
+  are the cards. The action footer (`PieAccionesSistema`) goes after the grid.
+- Use viewport breakpoints (`md:grid-cols-2`) only for page-level layouts,
+  never for fields inside a card: the card width depends on its column.
+
+```tsx
+<form>
+  <SeccionesSistema>
+    <TarjetaSistema>
+      <TituloSistema nivel={3}>Información básica</TituloSistema>
+      <CamposSistema>
+        <div className="col-span-full"><InputSistema label="Nombre" /></div>
+        <SelectSistema label="Temporada" />
+        <SelectSistema label="Segmento" />
+      </CamposSistema>
+    </TarjetaSistema>
+    <TarjetaSistema>…</TarjetaSistema>
+  </SeccionesSistema>
+  <PieAccionesSistema>…</PieAccionesSistema>
+</form>
 ```
 
 ## Action footer: `PieAccionesSistema`

@@ -639,10 +639,10 @@ ContenedorDashboard.displayName = "ContenedorDashboard"
 
 // ─── Página del Sistema ───
 /**
- * Page widths (docs/design-system.md). Exactly two:
- * - default: lists, dashboards and tables use the full content width.
- * - form: single-column forms and detail views, capped at 768px and
- *   left-aligned under the header title so nothing jumps sideways.
+ * Page widths (docs/design-system.md):
+ * - default: every page uses the full content width.
+ * - form: deprecated 768px cap, kept only until the remaining pages move to
+ *   SeccionesSistema/CamposSistema; do not use it on new pages.
  */
 export const ANCHOS_PAGINA = {
   default: "max-w-none",
@@ -661,7 +661,7 @@ interface PaginaSistemaProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 
   /** Optional back link in the desktop header. */
   regreso?: { href: string; texto: string }
   breadcrumbs?: React.ReactNode
-  /** `default` (wide) for lists and dashboards, `form` for single-column forms. */
+  /** `default` (full width) for every page; `form` is deprecated. */
   ancho?: AnchoPagina
 }
 
@@ -690,6 +690,52 @@ export const PaginaSistema = React.forwardRef<HTMLDivElement, PaginaSistemaProps
   )
 )
 PaginaSistema.displayName = "PaginaSistema"
+
+// ─── Secciones y Campos ───
+// Both grids add columns as the space grows and never shrink a track below
+// 100% of the container, so wide screens get more blocks side by side and
+// narrow ones never scroll horizontally. `col-span-full` on a child takes the
+// whole row (a wide table, a textarea).
+
+/**
+ * Lays out page sections (usually `TarjetaSistema`) in as many columns as fit,
+ * each at least 26rem. Empty tracks collapse, so one or two sections stretch
+ * to fill the row.
+ */
+export const SeccionesSistema = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      data-slot="secciones"
+      className={cn(
+        "grid grid-cols-[repeat(auto-fit,minmax(min(100%,26rem),1fr))] items-start gap-6 *:min-w-0",
+        className
+      )}
+      {...props}
+    />
+  )
+)
+SeccionesSistema.displayName = "SeccionesSistema"
+
+/**
+ * Lays out the fields of one section in as many columns as fit, each at least
+ * 16rem. Empty tracks are kept, so a short section does not stretch its
+ * inputs across a wide screen.
+ */
+export const CamposSistema = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      data-slot="campos"
+      className={cn(
+        "grid grid-cols-[repeat(auto-fill,minmax(min(100%,16rem),1fr))] gap-4 *:min-w-0",
+        className
+      )}
+      {...props}
+    />
+  )
+)
+CamposSistema.displayName = "CamposSistema"
 
 // ─── Pie de Acciones ───
 interface PieAccionesSistemaProps extends React.HTMLAttributes<HTMLDivElement> {
