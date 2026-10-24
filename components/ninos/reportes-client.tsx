@@ -16,16 +16,22 @@ import {
 import {
   NOMBRE_AREA,
   csvSalones,
-  familiasNuevas,
+  familiasPorEstado,
+  fechaCorta,
+  formatoPromedio,
   leerReporte,
-  resumenPorDia,
+  rangosRapidos,
   usoPico,
   type Reporte,
+  type VistaAsistencia,
 } from '@/lib/platform/ninos/reportes'
 import { createClient } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
 
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
+import { ANILLO, SelectorVista, TablaAsistencia, TD, TH } from './reportes-asistencia'
+import { FamiliasNuevas } from './reportes-familias'
 
 export type FiltrosReporte = { desde: string; hasta: string; campusId: string; turnoId: string }
 type CampusOpcion = { id: string; nombre: string }
@@ -35,18 +41,16 @@ type Props = {
   campus: CampusOpcion[]
   turnos: TurnoOpcion[]
   filtrosIniciales: FiltrosReporte
+  /** Today in Caracas (YYYY-MM-DD), for the quick ranges. */
+  hoy: string
+  vistaInicial?: VistaAsistencia
 }
 
-/** YYYY-MM-DD → DD/MM/YYYY. */
-function fechaCorta(f: string): string {
-  const [a, m, d] = f.split('-')
-  return `${d}/${m}/${a}`
-}
-
-function urlReportes(f: FiltrosReporte): string {
+function urlReportes(f: FiltrosReporte, vista: VistaAsistencia): string {
   const q = new URLSearchParams({ desde: f.desde, hasta: f.hasta })
   if (f.campusId) q.set('campus', f.campusId)
   if (f.turnoId) q.set('turno', f.turnoId)
+  if (vista === 'mes') q.set('vista', 'mes')
   return `/ninos/reportes?${q.toString()}`
 }
 
@@ -81,7 +85,7 @@ function Seccion({ titulo, acciones, children }: { titulo: string; acciones?: Re
 
 function Cifra({ etiqueta, valor, detalle }: { etiqueta: string; valor: number | string; detalle?: string }) {
   return (
-    <TarjetaSistema className="p-4">
+    <TarjetaSistema role="group" aria-label={etiqueta} className="p-4">
       <p className="text-sm text-muted-foreground">{etiqueta}</p>
       <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">{valor}</p>
       {detalle && <p className="mt-1 text-xs text-muted-foreground">{detalle}</p>}
@@ -89,13 +93,15 @@ function Cifra({ etiqueta, valor, detalle }: { etiqueta: string; valor: number |
   )
 }
 
-const TH = 'px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground'
-const TD = 'px-3 py-2 text-sm text-foreground'
+function plural(n: number, uno: string, varios: string): string {
+  return `${n} ${n === 1 ? uno : varios}`
+}
 
-/** Attendance per Sunday, service, area and room; new children and children who stopped coming. */
-export function ReportesClient({ campus, turnos, filtrosIniciales }: Props) {
+/** Attendance per Sunday or month, service, area and room; new families and children who stopped coming. */
+export function ReportesClient({ campus, turnos, filtrosIniciales, hoy, vistaInicial = 'domingo' }: Props) {
   const router = useRouter()
   const [filtros, setFiltros] = useState<FiltrosReporte>(filtrosIniciales)
+  const [vista, setVista] = useState<VistaAsistencia>(vistaInicial)
   const [reporte, setReporte] = useState<Reporte | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -130,51 +136,76 @@ export function ReportesClient({ campus, turnos, filtrosIniciales }: Props) {
     }
     setFiltros(f)
     setReporte(null)
-    router.replace(urlReportes(f))
+    router.replace(urlReportes(f, vista))
+  }
+
+  function cambiarVista(v: VistaAsistencia) {
+    // Both views come in the same report: no reload.
+    setVista(v)
+    router.replace(urlReportes(filtros, v))
   }
 
   const turnosVisibles = filtros.campusId ? turnos.filter((t) => t.campusId === filtros.campusId) : turnos
-  const resumen = useMemo(() => (reporte ? resumenPorDia(reporte.salones, reporte.dias) : []), [reporte])
-  const columnasTurno = useMemo(() => {
-    const vistos: string[] = []
-    for (const d of resumen) for (const t of d.turnos) if (!vistos.includes(t.turno)) vistos.push(t.turno)
-    return vistos
-  }, [resumen])
-  const promedio = resumen.length ? Math.round(resumen.reduce((s, d) => s + d.total, 0) / resumen.length) : 0
+  const rapidos = useMemo(() => rangosRapidos(hoy), [hoy])
+  const familias = useMemo(() => (reporte ? familiasPorEstado(reporte.nuevos) : null), [reporte])
 
   return (
     <>
-      <EncabezadoNinos titulo="Reportes de asistencia" subtitulo="Asistencia por domingo, servicio, área y salón." />
+      <EncabezadoNinos titulo="Reportes de asistencia" subtitulo="Asistencia por domingo y por mes, servicio, área y salón." />
 
-      <TarjetaSistema className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-4" aria-label="Filtros">
-        <InputSistema
-          id="reportes-desde"
-          label="Desde"
-          type="date"
-          value={filtros.desde}
-          onChange={(e) => e.target.value && cambiar({ desde: e.target.value })}
-        />
-        <InputSistema
-          id="reportes-hasta"
-          label="Hasta"
-          type="date"
-          value={filtros.hasta}
-          onChange={(e) => e.target.value && cambiar({ hasta: e.target.value })}
-        />
-        <SelectSistema
-          id="reportes-campus"
-          label="Campus"
-          opciones={[{ valor: '', etiqueta: 'Todos' }, ...campus.map((c) => ({ valor: c.id, etiqueta: c.nombre }))]}
-          value={filtros.campusId}
-          onValueChange={(v) => cambiar({ campusId: v })}
-        />
-        <SelectSistema
-          id="reportes-turno"
-          label="Servicio"
-          opciones={[{ valor: '', etiqueta: 'Todos' }, ...turnosVisibles.map((t) => ({ valor: t.id, etiqueta: t.nombre }))]}
-          value={filtros.turnoId}
-          onValueChange={(v) => cambiar({ turnoId: v })}
-        />
+      <TarjetaSistema className="space-y-3 p-4" aria-label="Filtros">
+        <div role="group" aria-label="Rangos rápidos" className="flex flex-wrap gap-2">
+          {rapidos.map((r) => {
+            const activo = filtros.desde === r.desde && filtros.hasta === r.hasta
+            return (
+              <button
+                key={r.clave}
+                type="button"
+                aria-pressed={activo}
+                onClick={() => cambiar({ desde: r.desde, hasta: r.hasta })}
+                className={cn(
+                  'min-h-[44px] rounded-full border px-4 text-sm font-medium transition-colors',
+                  activo
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-accent-strong)] text-foreground'
+                    : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                  ANILLO,
+                )}
+              >
+                {r.etiqueta}
+              </button>
+            )
+          })}
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <InputSistema
+            id="reportes-desde"
+            label="Desde"
+            type="date"
+            value={filtros.desde}
+            onChange={(e) => e.target.value && cambiar({ desde: e.target.value })}
+          />
+          <InputSistema
+            id="reportes-hasta"
+            label="Hasta"
+            type="date"
+            value={filtros.hasta}
+            onChange={(e) => e.target.value && cambiar({ hasta: e.target.value })}
+          />
+          <SelectSistema
+            id="reportes-campus"
+            label="Campus"
+            opciones={[{ valor: '', etiqueta: 'Todos' }, ...campus.map((c) => ({ valor: c.id, etiqueta: c.nombre }))]}
+            value={filtros.campusId}
+            onValueChange={(v) => cambiar({ campusId: v })}
+          />
+          <SelectSistema
+            id="reportes-turno"
+            label="Servicio"
+            opciones={[{ valor: '', etiqueta: 'Todos' }, ...turnosVisibles.map((t) => ({ valor: t.id, etiqueta: t.nombre }))]}
+            value={filtros.turnoId}
+            onValueChange={(v) => cambiar({ turnoId: v })}
+          />
+        </div>
       </TarjetaSistema>
 
       {error && (
@@ -191,11 +222,20 @@ export function ReportesClient({ campus, turnos, filtrosIniciales }: Props) {
         </TarjetaSistema>
       )}
 
-      {reporte && (
+      {reporte && familias && (
         <div className="space-y-8">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Cifra etiqueta="Promedio por domingo" valor={promedio} detalle={`${resumen.length} ${resumen.length === 1 ? 'domingo con asistencia' : 'domingos con asistencia'}`} />
-            <Cifra etiqueta="Familias nuevas" valor={familiasNuevas(reporte.nuevos)} detalle={`${reporte.nuevos.length} ${reporte.nuevos.length === 1 ? 'niño nuevo' : 'niños nuevos'}`} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Cifra etiqueta="Niños distintos" valor={reporte.totales.ninos} detalle={plural(reporte.totales.checkins, 'check-in', 'check-ins')} />
+            <Cifra
+              etiqueta="Promedio por domingo"
+              valor={formatoPromedio(reporte.totales.promedio)}
+              detalle={plural(reporte.totales.dias, 'domingo con asistencia', 'domingos con asistencia')}
+            />
+            <Cifra
+              etiqueta="Familias nuevas"
+              valor={reporte.totales.familias_nuevas}
+              detalle={`${plural(reporte.totales.nuevos, 'niño nuevo', 'niños nuevos')} · ${plural(familias.volvio.length, 'familia volvió', 'familias volvieron')}`}
+            />
             <Cifra
               etiqueta="Dejaron de venir"
               valor={reporte.ausentes.length}
@@ -203,43 +243,8 @@ export function ReportesClient({ campus, turnos, filtrosIniciales }: Props) {
             />
           </div>
 
-          <Seccion titulo="Por domingo">
-            {resumen.length === 0 ? (
-              <EstadoVacio icono={ChartColumn} titulo="No hay asistencia en este rango." />
-            ) : (
-              <TarjetaSistema className="overflow-x-auto p-0">
-                <table className="w-full min-w-[32rem]">
-                  <thead className="border-b border-border">
-                    <tr>
-                      <th className={TH}>Fecha</th>
-                      <th className={TH}>Total</th>
-                      {columnasTurno.map((t) => (
-                        <th key={t} className={TH}>
-                          {t}
-                        </th>
-                      ))}
-                      <th className={TH}>{NOMBRE_AREA.waumba}</th>
-                      <th className={TH}>{NOMBRE_AREA.upstreet}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {resumen.map((d) => (
-                      <tr key={d.fecha}>
-                        <td className={TD}>{fechaCorta(d.fecha)}</td>
-                        <td className={`${TD} font-semibold tabular-nums`}>{d.total}</td>
-                        {columnasTurno.map((t) => (
-                          <td key={t} className={`${TD} tabular-nums`}>
-                            {d.turnos.find((x) => x.turno === t)?.ninos ?? 0}
-                          </td>
-                        ))}
-                        <td className={`${TD} tabular-nums`}>{d.waumba}</td>
-                        <td className={`${TD} tabular-nums`}>{d.upstreet}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TarjetaSistema>
-            )}
+          <Seccion titulo="Asistencia" acciones={<SelectorVista vista={vista} onCambio={cambiarVista} />}>
+            <TablaAsistencia reporte={reporte} vista={vista} />
           </Seccion>
 
           <Seccion
@@ -314,18 +319,11 @@ export function ReportesClient({ campus, turnos, filtrosIniciales }: Props) {
           </Seccion>
 
           <div className="space-y-8 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
-            <Seccion titulo="Niños nuevos">
+            <Seccion titulo="Familias nuevas">
               {reporte.nuevos.length === 0 ? (
-                <EstadoVacio icono={UserPlus} titulo="No hubo niños nuevos en este rango." compacto />
+                <EstadoVacio icono={UserPlus} titulo="No hubo familias nuevas en este rango." compacto />
               ) : (
-                <ListaPersonas
-                  filas={reporte.nuevos.map((n) => ({
-                    id: n.nino_id,
-                    nombre: n.nombre,
-                    detalle: `Primera vez el ${fechaCorta(n.fecha)} · ${n.salon}`,
-                    padres: n.padres,
-                  }))}
-                />
+                <FamiliasNuevas nuevos={reporte.nuevos} />
               )}
             </Seccion>
             <Seccion titulo="Dejaron de venir">
