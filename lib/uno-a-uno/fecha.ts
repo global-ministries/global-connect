@@ -48,6 +48,13 @@ const FORMATO_LARGO = new Intl.DateTimeFormat('es-VE', {
   hourCycle: 'h23',
 })
 
+const FORMATO_CORTO = new Intl.DateTimeFormat('es-VE', {
+  timeZone: ZONA_UNO_A_UNO,
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
 const FORMATO_PARTES = new Intl.DateTimeFormat('en-CA', {
   timeZone: ZONA_UNO_A_UNO,
   year: 'numeric',
@@ -70,6 +77,14 @@ export function formatearFechaHora(instante: string | null): string {
   if (!date) return ''
   const p = partes(FORMATO_LARGO, date)
   return `${p.weekday} ${p.day} de ${p.month} de ${p.year}, ${p.hour}:${p.minute}`
+}
+
+/** "20 oct 2026" in Caracas time, for the supervision table (T8); empty for null or garbage. */
+export function formatearFecha(instante: string | null): string {
+  const date = instanteValido(instante)
+  if (!date) return ''
+  const p = partes(FORMATO_CORTO, date)
+  return `${p.day} ${p.month.replace('.', '')} ${p.year}`
 }
 
 /** The Caracas date and time of an instant, ready for date and time inputs. */

@@ -7,6 +7,7 @@
 import {
   desdeHaceDias,
   fechaHoraCaracasAIso,
+  formatearFecha,
   formatearFechaHora,
   hoyEnCaracas,
   partesEnCaracas,
@@ -74,5 +75,20 @@ describe('hoyEnCaracas', () => {
 describe('desdeHaceDias', () => {
   it('is the instant that many days before now', () => {
     expect(desdeHaceDias(90, new Date('2026-10-24T12:00:00Z'))).toBe('2026-07-26T12:00:00.000Z')
+  })
+})
+
+describe('formatearFecha (T8)', () => {
+  it('shows the short Caracas date of an instant', () => {
+    expect(formatearFecha('2026-10-20T19:30:00Z')).toBe('20 oct 2026')
+  })
+
+  it('uses the Caracas day near midnight UTC', () => {
+    expect(formatearFecha('2026-10-21T02:00:00Z')).toBe('20 oct 2026')
+  })
+
+  it('is empty for null or garbage', () => {
+    expect(formatearFecha(null)).toBe('')
+    expect(formatearFecha('no')).toBe('')
   })
 })
