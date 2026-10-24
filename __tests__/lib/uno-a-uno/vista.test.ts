@@ -154,6 +154,7 @@ describe('parsearLideresSupervision', () => {
         agendados: 1,
         ultimoRealizado: null,
         ubicaciones: [],
+        pareja: [{ id: 'l-2', nombre: 'Pedro', apellido: 'Ruiz' }],
       },
       {
         usuarioId: 'l-1',
@@ -165,7 +166,28 @@ describe('parsearLideresSupervision', () => {
         agendados: 0,
         ultimoRealizado: '2026-10-20T19:30:00Z',
         ubicaciones: [],
+        pareja: [{ id: 'l-1', nombre: 'Ana', apellido: null }],
       },
+    ])
+  })
+
+  // S11.2/S11.4: a couple who lead the same thing is one row with both people.
+  it('reads the couple of a row from pareja', () => {
+    const [fila] = parsearLideresSupervision([
+      {
+        usuario_id: 'l-1',
+        nombre: 'Alfredo',
+        apellido: 'Gomez',
+        pareja: [
+          { id: 'l-1', nombre: 'Alfredo', apellido: 'Gomez' },
+          { id: 'l-9', nombre: 'Blanca', apellido: 'Rojas' },
+          { id: 7, nombre: 'mal formado' },
+        ],
+      },
+    ])
+    expect(fila.pareja).toEqual([
+      { id: 'l-1', nombre: 'Alfredo', apellido: 'Gomez' },
+      { id: 'l-9', nombre: 'Blanca', apellido: 'Rojas' },
     ])
   })
 

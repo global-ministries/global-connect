@@ -145,6 +145,10 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // adds the last column `ubicaciones jsonb` (each leader's places in the
   // Dream Team tree) to uno_a_uno_supervision_lideres, hand-added the same
   // way. Additive only, like T4.
+  // uno-a-uno T11 (2026-10-24): 20261024180000_uno_a_uno_supervision_parejas.sql
+  // adds the last column `pareja jsonb` (the people of each row: a leader, or
+  // a couple who lead the same thing) to uno_a_uno_supervision_lideres,
+  // hand-added the same way. Additive only, like T4.
   'lib/supabase/database.types.ts',
 ])
 
