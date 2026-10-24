@@ -5,7 +5,12 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { UserEditForm } from "@/components/forms/UserEditForm"
 
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
+import { MisHijos } from '@/components/perfil/mis-hijos'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
+import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
+import { esMayorDeEdad, parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
+import { parsePendientesMisHijos } from '@/lib/platform/ninos/mis-hijos-registrar'
+import { parseMisPrechecks } from '@/lib/platform/ninos/precheck'
 
 export default async function PerfilPage() {
   // Crear cliente Supabase correctamente
@@ -164,14 +169,21 @@ export default async function PerfilPage() {
     profesion: profesion || undefined
   }
 
-  // Obtener catálogos en paralelo usando admin client
+  // Obtener catálogos en paralelo usando admin client.
+  // "Mis hijos" (Niños) is read with the user's session client: the RPC finds the parent through auth.uid().
+  // An account whose birth date says under 18 has no Mis hijos (G8; the SQL refuses it too).
+  const conMisHijos = esMayorDeEdad(usuario.fecha_nacimiento, hoyEnCaracas())
+  const sinDatos = Promise.resolve({ data: null })
   const [
     { data: ocupaciones },
     { data: profesiones },
     { data: paises },
     { data: estados },
     { data: municipios },
-    { data: parroquias }
+    { data: parroquias },
+    { data: misHijosData },
+    { data: pendientesData },
+    { data: prechecksData },
   ] = await Promise.all([
     adminSupabase.from('ocupaciones').select('id, nombre').order('nombre'),
     adminSupabase.from('profesiones').select('id, nombre').order('nombre'),
@@ -179,7 +191,13 @@ export default async function PerfilPage() {
     adminSupabase.from('estados').select('id, nombre, pais_id').order('nombre'),
     adminSupabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
     adminSupabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
+    conMisHijos ? supabase.rpc('ninos_mis_hijos') : sinDatos,
+    conMisHijos ? supabase.rpc('ninos_mis_hijos_pendientes') : sinDatos,
+    conMisHijos ? supabase.rpc('ninos_mis_prechecks') : sinDatos,
   ])
+  const misHijos = parseMisHijos(misHijosData)
+  const misHijosPendientes = parsePendientesMisHijos(pendientesData)
+  const misPrechecks = parseMisPrechecks(prechecksData)
 
   // Obtener sugerencias de dirección familiar
   const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(usuario.id)
@@ -203,6 +221,8 @@ export default async function PerfilPage() {
             sugerenciasDireccion={sugerenciasDireccion}
             esPerfil={true}
           />
+          {/* Shown to every adult account: a parent without children registers them here (M5). */}
+          {conMisHijos && <MisHijos hijos={misHijos} pendientes={misHijosPendientes} prechecks={misPrechecks} />}
         </div>
       </ContenedorDashboard>
 )

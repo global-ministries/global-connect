@@ -4,11 +4,15 @@ import { useRef } from 'react'
 import { AlertTriangle, ChevronDown, Plus, X } from 'lucide-react'
 
 import { BotonSistema, InputSistema, SelectSistema, TextareaSistema } from '@/components/ui/sistema-diseno'
-import { GENEROS, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
+import { GENEROS, GRADOS, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
+import { LIMITES_MIS_HIJOS } from '@/lib/platform/ninos/mis-hijos'
 import { aplicarNivel, gruposNivel, nivelSugerido, valorNivel, type SalonNivel } from '@/lib/platform/ninos/nivel'
 
 type SiNo = boolean | null
+
+/** 'equipo': the check-in team (level with rooms). 'padre': a parent in Mi Perfil (school grade, never a room). */
+export type ModoCamposNino = 'equipo' | 'padre'
 
 const OPCIONES_SI_NO = [
   { valor: '', etiqueta: 'Sin indicar' },
@@ -18,6 +22,12 @@ const OPCIONES_SI_NO = [
 
 /** Gender options with an empty "Elige…" choice first (shared with the representative's form). */
 export const OPCIONES_GENERO = [{ valor: '', etiqueta: 'Elige…' }, ...GENEROS.map((g) => ({ valor: g, etiqueta: g }))]
+
+/** The school grade a parent can pick: "Sin indicar", PreK and 1º–6º. */
+const OPCIONES_GRADO_PADRE = [
+  { valor: '', etiqueta: 'Sin indicar' },
+  ...GRADOS.filter((g) => g.valor !== '').map((g) => ({ valor: g.valor, etiqueta: g.label })),
+]
 
 function SelectSiNo({ id, label, value, onChange }: { id: string; label: string; value: SiNo; onChange: (v: SiNo) => void }) {
   return (
@@ -82,13 +92,20 @@ type CamposNinoProps = {
   salones?: readonly SalonNivel[]
   /** Public pre-registration: the level is optional ("si lo sabes"). */
   publico?: boolean
+  /** 'padre' (Mi Perfil → Mis hijos): the school grade instead of the level, never a room. Default 'equipo'. */
+  modo?: ModoCamposNino
+  /** False hides the name, birth date and gender (a child with an own account changes them there). */
+  identidadEditable?: boolean
 }
 
 /** The child's personal data and ficha fields. */
-export function CamposNino({ indice, hijo, onChange, salones = [], publico = false }: CamposNinoProps) {
+export function CamposNino({ indice, hijo, onChange, salones = [], publico = false, modo = 'equipo', identidadEditable = true }: CamposNinoProps) {
   const n = indice + 1
+  const esPadre = modo === 'padre'
   const set = <K extends keyof HijoForm>(k: K, v: HijoForm[K]) => onChange({ ...hijo, [k]: v })
   const id = (campo: string) => `nino-${n}-${campo}`
+  // A parent's texts follow the SQL limit of ninos_mis_hijos_guardar.
+  const maxTexto = esPadre ? LIMITES_MIS_HIJOS.texto : undefined
   // The level last preselected by the rules: a new birth date may replace it,
   // a level chosen by hand is never overridden.
   const nivelAuto = useRef<string | null>(null)
@@ -97,6 +114,11 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
 
   function cambiarFecha(fechaNacimiento: string) {
     const siguiente = { ...hijo, fechaNacimiento }
+    // A parent picks the grade by hand: the date never preselects a room.
+    if (esPadre) {
+      onChange(siguiente)
+      return
+    }
     const libre = (nivel === '' && hijo.salonPreferidoId === '') || (nivelAuto.current !== null && nivel === nivelAuto.current)
     if (!libre) {
       onChange(siguiente)
@@ -109,77 +131,118 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <InputSistema
-        id={id('nombre')}
-        label="Nombre"
-        aria-label={`Nombre del niño ${n}`}
-        value={hijo.nombre}
-        onChange={(e) => set('nombre', e.target.value)}
-      />
-      <InputSistema
-        id={id('apellido')}
-        label="Apellido"
-        aria-label={`Apellido del niño ${n}`}
-        value={hijo.apellido}
-        onChange={(e) => set('apellido', e.target.value)}
-      />
-      <InputSistema
-        id={id('nacimiento')}
-        label="Fecha de nacimiento"
-        type="date"
-        aria-label={`Fecha de nacimiento del niño ${n}`}
-        value={hijo.fechaNacimiento}
-        onChange={(e) => cambiarFecha(e.target.value)}
-      />
-      <SelectSistema
-        id={id('genero')}
-        label="Género"
-        aria-label={`Género del niño ${n}`}
-        opciones={OPCIONES_GENERO}
-        value={hijo.genero}
-        onValueChange={(v) => set('genero', v)}
-      />
-      <div className="space-y-2">
-        <SelectNivel
-          id={id('nivel')}
-          label={publico ? 'Nivel (si lo sabes)' : 'Nivel'}
-          value={nivel}
-          salones={salones}
-          onValueChange={(v) => {
-            nivelAuto.current = null
-            onChange(aplicarNivel(hijo, v))
-          }}
+      {identidadEditable ? (
+        <>
+          <InputSistema
+            id={id('nombre')}
+            label="Nombre"
+            aria-label={`Nombre del niño ${n}`}
+            value={hijo.nombre}
+            onChange={(e) => set('nombre', e.target.value)}
+          />
+          <InputSistema
+            id={id('apellido')}
+            label="Apellido"
+            aria-label={`Apellido del niño ${n}`}
+            value={hijo.apellido}
+            onChange={(e) => set('apellido', e.target.value)}
+          />
+          <InputSistema
+            id={id('nacimiento')}
+            label="Fecha de nacimiento"
+            type="date"
+            aria-label={`Fecha de nacimiento del niño ${n}`}
+            value={hijo.fechaNacimiento}
+            onChange={(e) => cambiarFecha(e.target.value)}
+          />
+          <SelectSistema
+            id={id('genero')}
+            label="Género"
+            aria-label={`Género del niño ${n}`}
+            opciones={OPCIONES_GENERO}
+            value={hijo.genero}
+            onValueChange={(v) => set('genero', v)}
+          />
+        </>
+      ) : (
+        <p className="rounded-xl border border-border bg-muted/30 p-3 text-sm text-muted-foreground sm:col-span-2">
+          {hijo.nombre} tiene su propia cuenta: su nombre, fecha de nacimiento y género se cambian desde ella.
+        </p>
+      )}
+      {esPadre ? (
+        <SelectSistema
+          id={id('grado')}
+          label="Grado escolar"
+          aria-label={`Grado escolar del niño ${n}`}
+          opciones={OPCIONES_GRADO_PADRE}
+          value={hijo.grado}
+          onValueChange={(v) => set('grado', v)}
         />
-        {sinSugerencia && (
-          <p className="flex items-start gap-2 text-xs text-yellow-700 dark:text-yellow-400">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            {publico
-              ? 'Si no lo sabes, lo asignamos en la mesa de check-in.'
-              : 'Sin salón sugerido para esta edad: elige el nivel o asígnalo manualmente.'}
-          </p>
-        )}
-      </div>
+      ) : (
+        <div className="space-y-2">
+          <SelectNivel
+            id={id('nivel')}
+            label={publico ? 'Nivel (si lo sabes)' : 'Nivel'}
+            value={nivel}
+            salones={salones}
+            onValueChange={(v) => {
+              nivelAuto.current = null
+              onChange(aplicarNivel(hijo, v))
+            }}
+          />
+          {sinSugerencia && (
+            <p className="flex items-start gap-2 text-xs text-yellow-700 dark:text-yellow-400">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              {publico
+                ? 'Si no lo sabes, lo asignamos en la mesa de check-in.'
+                : 'Sin salón sugerido para esta edad: elige el nivel o asígnalo manualmente.'}
+            </p>
+          )}
+        </div>
+      )}
       <SelectSiNo id={id('escolarizado')} label="¿Escolarizado?" value={hijo.escolarizado} onChange={(v) => set('escolarizado', v)} />
       <SelectSiNo id={id('comer')} label="¿Puede comer merienda?" value={hijo.puedeComer} onChange={(v) => set('puedeComer', v)} />
       <SelectSiNo id={id('panal')} label="¿Necesita cambio de pañal?" value={hijo.cambioPanal} onChange={(v) => set('cambioPanal', v)} />
       <SelectSiNo id={id('imagen')} label="¿Autoriza fotos?" value={hijo.autorizaImagen} onChange={(v) => set('autorizaImagen', v)} />
       <div className="sm:col-span-2">
-        <TextareaSistema id={id('alergias')} label="Alergias" filas={2} value={hijo.alergias} onChange={(e) => set('alergias', e.target.value)} />
+        <TextareaSistema
+          id={id('alergias')}
+          label="Alergias"
+          filas={2}
+          maxLength={maxTexto}
+          value={hijo.alergias}
+          onChange={(e) => set('alergias', e.target.value)}
+        />
       </div>
       <div className="sm:col-span-2">
         <TextareaSistema
           id={id('nee')}
           label="Necesidades especiales"
           filas={2}
+          maxLength={maxTexto}
           value={hijo.necesidadesEspeciales}
           onChange={(e) => set('necesidadesEspeciales', e.target.value)}
         />
       </div>
       <div className="sm:col-span-2">
-        <TextareaSistema id={id('habitos')} label="Hábitos" filas={2} value={hijo.habitos} onChange={(e) => set('habitos', e.target.value)} />
+        <TextareaSistema
+          id={id('habitos')}
+          label="Hábitos"
+          filas={2}
+          maxLength={maxTexto}
+          value={hijo.habitos}
+          onChange={(e) => set('habitos', e.target.value)}
+        />
       </div>
       <div className="sm:col-span-2">
-        <TextareaSistema id={id('notas')} label="Notas" filas={2} value={hijo.notas} onChange={(e) => set('notas', e.target.value)} />
+        <TextareaSistema
+          id={id('notas')}
+          label="Notas"
+          filas={2}
+          maxLength={maxTexto}
+          value={hijo.notas}
+          onChange={(e) => set('notas', e.target.value)}
+        />
       </div>
     </div>
   )
@@ -188,12 +251,15 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
 type CamposAutorizadosProps = {
   autorizados: AutorizadoForm[]
   onChange: (a: AutorizadoForm[]) => void
+  /** At most this many people (a parent's limit); no limit by default. */
+  maximo?: number
 }
 
 /** The people allowed to pick the children up. */
-export function CamposAutorizados({ autorizados, onChange }: CamposAutorizadosProps) {
+export function CamposAutorizados({ autorizados, onChange, maximo }: CamposAutorizadosProps) {
   const set = (i: number, campo: keyof AutorizadoForm, v: string) =>
     onChange(autorizados.map((a, j) => (j === i ? { ...a, [campo]: v } : a)))
+  const lleno = maximo !== undefined && autorizados.length >= maximo
 
   return (
     <div className="space-y-3">
@@ -218,15 +284,19 @@ export function CamposAutorizados({ autorizados, onChange }: CamposAutorizadosPr
           </BotonSistema>
         </div>
       ))}
-      <BotonSistema
-        type="button"
-        variante="outline"
-        tamaño="sm"
-        icono={Plus}
-        onClick={() => onChange([...autorizados, { nombre: '', telefono: '', relacion: '' }])}
-      >
-        Agregar persona autorizada
-      </BotonSistema>
+      {lleno ? (
+        <p className="text-sm text-muted-foreground">Máximo {maximo} personas.</p>
+      ) : (
+        <BotonSistema
+          type="button"
+          variante="outline"
+          tamaño="sm"
+          icono={Plus}
+          onClick={() => onChange([...autorizados, { nombre: '', telefono: '', relacion: '' }])}
+        >
+          Agregar persona autorizada
+        </BotonSistema>
+      )}
     </div>
   )
 }

@@ -8,13 +8,16 @@
  * so an existing parent is reused only when the anfitrión chose it (padre.id).
  * Afterwards, when the family gave an email: a welcome email and, if the
  * parent has no account, an account invitation (ninos_preregistro_invitar +
- * the shared invitation flow). Email problems never undo the confirmation.
+ * the shared invitation flow). Email problems never undo the confirmation;
+ * a failed invitation can be resent with { accion: 'invitar', email }.
  */
 import { mensajeDeErrorFamilia, type FamiliaPayload } from './familia'
 
 export type Resolucion =
   | { accion: 'descartar' }
   | { accion: 'confirmar'; payload: FamiliaPayload; email: string | null }
+  /** Resend a failed account invitation (same RPC, same operator and 1 h limit). */
+  | { accion: 'invitar'; email: string }
 
 type Objeto = Record<string, unknown>
 const esObjeto = (v: unknown): v is Objeto => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -30,6 +33,10 @@ function esEmailValido(email: string): boolean {
 export function parseResolucion(body: unknown): Resolucion | { error: string } {
   if (!esObjeto(body)) return { error: 'Solicitud inválida.' }
   if (body.accion === 'descartar') return { accion: 'descartar' }
+  if (body.accion === 'invitar') {
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+    return email && esEmailValido(email) ? { accion: 'invitar', email } : { error: 'Escribe un correo válido.' }
+  }
   if (body.accion !== 'confirmar') return { error: 'Acción inválida.' }
   const payload = body.payload
   if (!esObjeto(payload) || !esObjeto(payload.padre) || !Array.isArray(payload.hijos)) {
@@ -63,7 +70,40 @@ function errorRpc(error: { code?: string; message?: string }): RespuestaRuta {
   return { status, body: { error: mensajeDeErrorFamilia(error), ...(codigo && status !== 500 ? { codigo } : {}) } }
 }
 
+/** Resend after a failed invitation: ninos_preregistro_invitar still decides who and until when. */
+async function reenviarInvitacion(deps: DependenciasResolver, id: string, email: string): Promise<RespuestaRuta> {
+  let inv: ResultadoInvitar
+  try {
+    inv = await deps.invitar(email)
+  } catch {
+    inv = { ok: false }
+  }
+  if (inv.ok) return { status: 200, body: { ok: true, invitacion: 'enviada' } }
+  if (inv.codigo === 'ya_tiene_cuenta') {
+    return { status: 409, body: { error: 'Esta persona ya tiene una cuenta.', invitacion: 'no', codigo: inv.codigo } }
+  }
+  if (inv.codigo === 'sin_autoridad') {
+    return {
+      status: 403,
+      body: {
+        error: 'Ya no se puede reenviar desde aquí (pasó más de una hora o la confirmó otra persona). Un coordinador puede invitarla desde su ficha.',
+        invitacion: 'fallo',
+        codigo: inv.codigo,
+      },
+    }
+  }
+  if (inv.codigo === 'email_en_uso' || inv.codigo === 'email_distinto') {
+    return {
+      status: 409,
+      body: { error: 'Ese correo ya pertenece a otra persona o a otra cuenta.', invitacion: 'fallo', codigo: inv.codigo },
+    }
+  }
+  console.error('[ninos/preregistro] reenvío de invitación falló:', id)
+  return { status: 502, body: { error: 'No se pudo enviar la invitación. Intenta de nuevo.', invitacion: 'fallo' } }
+}
+
 export async function resolverPreregistro(deps: DependenciasResolver, id: string, r: Resolucion): Promise<RespuestaRuta> {
+  if (r.accion === 'invitar') return reenviarInvitacion(deps, id, r.email)
   if (r.accion === 'descartar') {
     const { error } = await deps.rpcUsuario('ninos_preregistro_resolver', { p_id: id, p_accion: 'descartar' })
     if (error) return errorRpc(error)

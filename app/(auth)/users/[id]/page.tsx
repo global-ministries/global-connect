@@ -4,7 +4,7 @@ import { Mail, Phone, PhoneCall, Calendar, Edit, Users, MapPin, User, Briefcase,
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useState, useEffect } from "react"
-import { obtenerNombreRelacion } from "@/lib/config/relaciones-familiares"
+import { obtenerNombreRelacion, tipoRelacionParaVista } from "@/lib/config/relaciones-familiares"
 import { AgregarFamiliarModal } from '@/components/modals/AgregarFamiliarModal'
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal"
 import { createClient } from "@/lib/supabase/client"
@@ -506,15 +506,7 @@ export default function PaginaDetalleUsuario() {
             {usuario.relaciones && usuario.relaciones.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {usuario.relaciones.map((relacion: any) => {
-                  // Determinar el tipo de relación a mostrar según el sentido
-                  let tipoMostrar = relacion.tipo_relacion;
-                  if (relacion.sentido === 'inverso') {
-                    // Si es inverso y no es reciproca, invertir
-                    const { invertirRelacion, esRelacionReciproca } = require('@/lib/config/relaciones-familiares');
-                    if (!esRelacionReciproca(relacion.tipo_relacion)) {
-                      tipoMostrar = invertirRelacion(relacion.tipo_relacion) || relacion.tipo_relacion;
-                    }
-                  }
+                  const tipoMostrar = tipoRelacionParaVista(relacion, usuario.id);
                   return (
                     <div key={relacion.id} className="flex items-center gap-3 p-4 bg-card/70 rounded-xl min-h-[80px] group">
                       <div className="flex-shrink-0 group-hover:scale-110 transition-transform duration-200">

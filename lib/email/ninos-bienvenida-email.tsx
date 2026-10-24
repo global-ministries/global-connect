@@ -1,12 +1,18 @@
 import { Text } from '@react-email/components'
+import { EmailButton } from '@/emails/components/EmailButton'
 import { EmailLayout } from '@/emails/components/EmailLayout'
 
 export interface NinosBienvenidaEmailProps {
   readonly nombre: string
+  /** Absolute link to Mi Perfil → Mis hijos (R3b). */
+  readonly urlMisHijos?: string
 }
 
 /** N8: sent after the anfitrión confirms a family pre-registration that carried an email. */
-export function NinosBienvenidaEmail({ nombre = '' }: NinosBienvenidaEmailProps) {
+export function NinosBienvenidaEmail({
+  nombre = '',
+  urlMisHijos = 'https://miembros.yosoyglobal.org/perfil#mis-hijos',
+}: NinosBienvenidaEmailProps) {
   return (
     <EmailLayout preview="Bienvenidos a Waumba Land / UpStreet">
       <Text style={styles.title}>Bienvenidos a Waumba Land / UpStreet</Text>
@@ -17,6 +23,10 @@ export function NinosBienvenidaEmail({ nombre = '' }: NinosBienvenidaEmailProps)
       <Text style={styles.text}>
         A este correo te avisaremos cuando tus niños ingresen a su salón y cuando sean retirados.
       </Text>
+      <Text style={styles.text}>
+        En GlobalConnect, en Mi Perfil → Mis hijos, puedes ver a tus niños y avisar a la mesa que van en camino.
+      </Text>
+      <EmailButton href={urlMisHijos}>Ver a mis hijos</EmailButton>
       <Text style={styles.hint}>Si no esperabas este correo, puedes ignorarlo.</Text>
     </EmailLayout>
   )

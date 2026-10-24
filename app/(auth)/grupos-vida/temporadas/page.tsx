@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import TemporadasListClient from "@/components/temporadas/TemporadasList.client"
 
-import { ContenedorDashboard, BotonSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 
 export default async function Page() {
   // Seguridad: verificar roles de liderazgo
@@ -33,22 +33,22 @@ export default async function Page() {
   const roles = userData.roles || []
 
   return (
-<ContenedorDashboard
-        titulo="Temporadas"
-        descripcion="Administra los períodos temporales de tu organización"
-        accionPrincipal={
-          <Link href="/grupos-vida/temporadas/crear">
-            <BotonSistema variante="primario" tamaño="sm">
-              <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Crear Temporada</span>
-            </BotonSistema>
-          </Link>
-        }
-      >
-        <TemporadasListClient 
-          temporadas={temporadas || []} 
-          userRoles={roles}
-        />
-      </ContenedorDashboard>
-)
+    <PaginaSistema
+      titulo="Temporadas"
+      descripcion="Administra los períodos temporales de tu organización"
+      acciones={
+        <Link href="/grupos-vida/temporadas/crear">
+          <BotonSistema variante="primario" tamaño="sm">
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Crear Temporada</span>
+          </BotonSistema>
+        </Link>
+      }
+    >
+      <TemporadasListClient
+        temporadas={temporadas || []}
+        userRoles={roles}
+      />
+    </PaginaSistema>
+  )
 }
