@@ -5,6 +5,7 @@ import { HeaderMovil } from '@/components/ui/header-movil'
 import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 import { SidebarModerna } from '@/components/ui/sidebar-moderna'
 import { NinosAccesoProvider } from '@/hooks/useNinosAcceso'
+import { UnoAUnoAccesoProvider } from '@/hooks/useUnoAUnoAcceso'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 /**
@@ -26,6 +27,8 @@ type Perfil = {
   supportCapabilities?: string[]
   platformSession?: PlatformSession | null
   ninos?: boolean
+  /** Leads someone (mis_dirigidos has a row): "Mis 1 a 1", odd/tasks/uno-a-uno.md T4. */
+  unoAUno?: boolean
   dreamTeam?: boolean
   platformNavigation?: boolean
 }
@@ -69,6 +72,7 @@ const PERFILES: Record<string, Perfil> = {
     ninos: true,
     platformSession: { ...baseSession, capabilities: [{ key: 'dream_team.org.manage', experience: 'dream_team', scopeType: 'experience', source: 'manual' }] },
   },
+  'lider-uno-a-uno': { roles: ['lider'], unoAUno: true },
   'plataforma-grupos-pastoral': {
     roles: ['lider'],
     platformNavigation: true,
@@ -106,6 +110,8 @@ const MENU_PRINCIPAL: Record<string, string[]> = {
     '/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/salon', '/ninos/cartel', '/ninos/reportes',
     '/configuracion', '/configuracion', ...PIE,
   ],
+  // Added with "Mis 1 a 1" (uno-a-uno T4): right after Dashboard, server-fed like Niños.
+  'lider-uno-a-uno': ['/dashboard', '/mis-uno-a-uno', '/users', '/grupos-vida', ...PIE],
   'plataforma-grupos-pastoral': ['/dashboard', '/users', '/grupos-vida', '/grupos-vida', '/talleres/explorar', ...PIE],
 }
 
@@ -133,7 +139,8 @@ const BOTTOM_BAR_CHANGES: Record<string, string[]> = {
 const BARRA_INFERIOR_DESPUES: Record<string, string[]> = { ...BARRA_INFERIOR_ANTES, ...BOTTOM_BAR_CHANGES }
 
 function conProveedores(ui: ReactElement, perfil: Perfil): ReactElement {
-  return perfil.ninos ? <NinosAccesoProvider puedeOperar puedeVerSalon puedeConfigurar>{ui}</NinosAccesoProvider> : ui
+  const conUnoAUno = perfil.unoAUno ? <UnoAUnoAccesoProvider lideraAAlguien>{ui}</UnoAUnoAccesoProvider> : ui
+  return perfil.ninos ? <NinosAccesoProvider puedeOperar puedeVerSalon puedeConfigurar>{conUnoAUno}</NinosAccesoProvider> : conUnoAUno
 }
 
 function hrefsDe(container: HTMLElement): string[] {

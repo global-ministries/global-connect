@@ -5,6 +5,7 @@ import { useMemo } from 'react'
 import { insertNinosMenuItem, useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
 import { insertDreamTeamMenuItem, useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
+import { insertUnoAUnoMenuItem, useUnoAUnoMenuItem } from '@/components/uno-a-uno/uno-a-uno-menu-item'
 import { useCachedAccessCredentials } from '@/hooks/useCachedAccessCredentials'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import {
@@ -35,8 +36,9 @@ export function useCredencialesNavegacion(): CredencialesNavegacion {
 
 /**
  * The visible entries for the sidebar and the mobile drawer: the registry's
- * main list with Dream Team and Niños right after Grupos de Vida, then the
- * platform navigation items, then the footer and account links.
+ * main list with "Mis 1 a 1" right after Dashboard, Dream Team and Niños right
+ * after Grupos de Vida, then the platform navigation items, then the footer
+ * and account links.
  */
 export function useEntradasNavegacion() {
   const { platformSession } = useCurrentUser()
@@ -44,20 +46,25 @@ export function useEntradasNavegacion() {
   const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
   const dreamTeam: EntradaMenu | null = useDreamTeamMenuItem(platformSession)
   const ninos: EntradaMenu | null = useNinosMenuItem()
+  // Server-fed flag (hooks/useUnoAUnoAcceso): only whoever leads someone. Not in the bottom bar.
+  const unoAUno: EntradaMenu | null = useUnoAUnoMenuItem()
 
   const principales = useMemo(
     () =>
       filtrarVisibles<EntradaMenu>(
         [
-          ...insertNinosMenuItem<EntradaMenu>(
-            insertDreamTeamMenuItem<EntradaMenu>(entradasDelGrupo('principal'), dreamTeam),
-            ninos,
+          ...insertUnoAUnoMenuItem<EntradaMenu>(
+            insertNinosMenuItem<EntradaMenu>(
+              insertDreamTeamMenuItem<EntradaMenu>(entradasDelGrupo('principal'), dreamTeam),
+              ninos,
+            ),
+            unoAUno,
           ),
           ...platformNavigationItems,
         ],
         credenciales,
       ),
-    [credenciales, dreamTeam, ninos, platformNavigationItems],
+    [credenciales, dreamTeam, ninos, unoAUno, platformNavigationItems],
   )
   const pie = useMemo(() => filtrarVisibles<EntradaMenu>(entradasDelGrupo('pie'), credenciales), [credenciales])
   const cuenta = useMemo(() => filtrarVisibles<EntradaMenu>(entradasDelGrupo('cuenta'), credenciales), [credenciales])

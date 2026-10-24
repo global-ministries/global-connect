@@ -9,6 +9,7 @@ import { createSupabaseServerClient, createSupabaseServerClientOrNull } from "@/
 import { resolveCurrentUserSnapshot } from "@/lib/auth/currentUserSnapshot"
 import { DreamTeamAccesoProvider } from "@/hooks/useDreamTeamAcceso"
 import { NinosAccesoProvider } from "@/hooks/useNinosAcceso"
+import { UnoAUnoAccesoProvider } from "@/hooks/useUnoAUnoAcceso"
 import { isDreamTeamEnabled } from "@/lib/platform/dream-team/route-access"
 import { puedeRegistrarParaNavegacion } from "@/lib/platform/dream-team/ficha-persona"
 
@@ -41,6 +42,18 @@ async function resolveNinosAcceso(supabase: SupabaseServerClient | null) {
     }
   } catch {
     return sinAcceso
+  }
+}
+
+// "Mis 1 a 1" menu entry (odd/tasks/uno-a-uno.md, T4): shown only to whoever
+// leads someone, i.e. mis_dirigidos() has a row. Fails closed on any error.
+async function resolveUnoAUnoAcceso(supabase: SupabaseServerClient | null): Promise<boolean> {
+  if (!supabase) return false
+  try {
+    const { data, error } = await supabase.rpc("mis_dirigidos").limit(1)
+    return !error && Array.isArray(data) && data.length > 0
+  } catch {
+    return false
   }
 }
 
@@ -84,11 +97,12 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
   // resolveCurrentUserSnapshot's doc comment.
   // The Dream Team sidebar links Mi equipo for the volunteer coordinator, whose
   // session carries no read capability: one registrables lookup, fails closed.
-  const [branding, initialCurrentUser, dreamTeamPuedeRegistrar, ninosAcceso] = await Promise.all([
+  const [branding, initialCurrentUser, dreamTeamPuedeRegistrar, ninosAcceso, lideraAAlguien] = await Promise.all([
     supabase ? resolveBranding(supabase) : Promise.resolve(DEFAULT_BRANDING),
     resolveCurrentUserSnapshot(supabase ?? undefined),
     puedeRegistrarParaNavegacion(supabase, isDreamTeamEnabled()),
     resolveNinosAcceso(supabase),
+    resolveUnoAUnoAcceso(supabase),
   ])
 
   return (
@@ -103,6 +117,7 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
         <DreamTeamAccesoProvider puedeRegistrar={dreamTeamPuedeRegistrar}>
           <NinosAccesoProvider puedeOperar={ninosAcceso.puedeOperar} puedeVerSalon={ninosAcceso.puedeVerSalon}
             puedeConfigurar={ninosAcceso.puedeConfigurar} puedeMarcarVoluntarios={ninosAcceso.puedeMarcarVoluntarios}>
+            <UnoAUnoAccesoProvider lideraAAlguien={lideraAAlguien}>
             <CampusProvider>
               <div className="min-h-screen bg-[var(--surface-primary)]">
                 <HeaderMovil />
@@ -113,6 +128,7 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
                 <MenuInferiorMovil />
               </div>
             </CampusProvider>
+            </UnoAUnoAccesoProvider>
           </NinosAccesoProvider>
         </DreamTeamAccesoProvider>
       </CurrentUserProvider>
