@@ -79,6 +79,53 @@ describe('PreregistrosPendientes', () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).payload.padre).toEqual({ id: 'px' })
   })
 
+  async function confirmarConGenero() {
+    fireEvent.click(await screen.findByRole('button', { name: /Ana Pérez/ }))
+    fireEvent.change(screen.getByLabelText('Género del representante'), { target: { value: 'Femenino' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar familia' }))
+  }
+
+  it('tells the anfitrión the invitation went out', async () => {
+    responder()
+    render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+    await confirmarConGenero()
+    expect(await screen.findByText(/Le enviamos una invitación para crear su cuenta\./)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reenviar invitación' })).not.toBeInTheDocument()
+  })
+
+  it('a failed invitation can be resent from the table', async () => {
+    responder()
+    fetchMock.mockResolvedValueOnce({
+      ok: true, status: 200, json: async () => ({ ok: true, padreId: 'p1', correo: 'programado', invitacion: 'fallo' }),
+    })
+    render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+    await confirmarConGenero()
+    expect(await screen.findByText(/No se pudo enviar la invitación para crear la cuenta\./)).toBeInTheDocument()
+
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true, invitacion: 'enviada' }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Reenviar invitación' }))
+    expect(await screen.findByText('Invitación reenviada a ana@example.test.')).toBeInTheDocument()
+    const [url, init] = fetchMock.mock.calls[1]
+    expect(url).toBe('/api/ninos/preregistro/pr1')
+    expect(JSON.parse(init.body)).toEqual({ accion: 'invitar', email: 'ana@example.test' })
+    expect(screen.queryByRole('button', { name: 'Reenviar invitación' })).not.toBeInTheDocument()
+  })
+
+  it('a refused resend shows the reason and hides the button', async () => {
+    responder()
+    fetchMock.mockResolvedValueOnce({
+      ok: true, status: 200, json: async () => ({ ok: true, padreId: 'p1', correo: 'programado', invitacion: 'fallo' }),
+    })
+    render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+    await confirmarConGenero()
+    fetchMock.mockResolvedValueOnce({
+      ok: false, status: 403, json: async () => ({ error: 'Ya no se puede reenviar desde aquí.', invitacion: 'fallo', codigo: 'sin_autoridad' }),
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Reenviar invitación' }))
+    expect(await screen.findByText('Ya no se puede reenviar desde aquí.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reenviar invitación' })).not.toBeInTheDocument()
+  })
+
   it('discards', async () => {
     responder()
     render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
