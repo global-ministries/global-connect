@@ -3,10 +3,12 @@
  * Realizados and Cancelados. Each card names the other side (couples
  * together). Only the leader side sees the actions and, once realizado, the
  * resumen and the private note (mis_uno_a_uno already nulls them for the
- * dirigido side). Rendered on the server; the dialogs are client islands.
+ * dirigido side). The celebración and the motivo de cancelación are leader-side
+ * too (T7): the dirigido side gets only the history. Rendered on the
+ * server; the dialogs are client islands.
  */
 
-import type { ReactElement, ReactNode } from 'react'
+import type { ReactElement } from 'react'
 import { CalendarDays, Lock, MapPin } from 'lucide-react'
 
 import { BadgeSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
@@ -14,6 +16,7 @@ import { formatearFechaHora } from '@/lib/uno-a-uno/fecha'
 import { agruparUnoAUno, nombresDe, type UnoAUno } from '@/lib/uno-a-uno/vista'
 
 import { CancelarUnoAUnoDialog } from './cancelar-uno-a-uno'
+import { CelebracionUnoAUno, Detalle } from './detalles-uno-a-uno'
 import { RegistrarUnoAUnoDialog } from './registrar-uno-a-uno'
 import { ReprogramarUnoAUnoDialog } from './reprogramar-uno-a-uno'
 
@@ -24,15 +27,6 @@ function conQuien(u: UnoAUno): string {
 function etiquetaLado(u: UnoAUno): string {
   if (u.miLado === 'lider') return 'Tú lideras'
   return u.lideres.length > 1 ? 'Te lideran' : 'Te lidera'
-}
-
-function Detalle({ icono: Icono, children }: { icono: typeof MapPin; children: ReactNode }): ReactElement {
-  return (
-    <TextoSistema variante="sutil" tamaño="sm" className="flex items-center gap-1.5">
-      <Icono className="h-4 w-4 shrink-0" aria-hidden />
-      <span>{children}</span>
-    </TextoSistema>
-  )
 }
 
 function TarjetaUnoAUno({ u }: { u: UnoAUno }): ReactElement {
@@ -70,7 +64,9 @@ function TarjetaUnoAUno({ u }: { u: UnoAUno }): ReactElement {
         </div>
       ) : null}
 
-      {u.estado === 'cancelado' && u.motivoCancelacion ? (
+      {esLider && u.celebracion ? <CelebracionUnoAUno texto={u.celebracion} /> : null}
+
+      {esLider && u.estado === 'cancelado' && u.motivoCancelacion ? (
         <TextoSistema variante="sutil" tamaño="sm">{`Motivo: ${u.motivoCancelacion}`}</TextoSistema>
       ) : null}
 

@@ -136,6 +136,11 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // like the ninos_* entries, so the "Mis 1 a 1" page, its server actions and
   // the (auth) layout's menu check call them typed. Additive only: no
   // existing type is renamed or removed.
+  // uno-a-uno T7 (2026-10-24): 20261024120000_uno_a_uno_supervision.sql adds
+  // uno_a_uno_acceso, uno_a_uno_supervision and uno_a_uno_supervision_lideres
+  // (hand-added the same way), the celebracion column of mis_uno_a_uno and
+  // the optional p_celebracion of uno_a_uno_registrar / _registrar_sin_agenda.
+  // Additive only, like T4.
   'lib/supabase/database.types.ts',
 ])
 

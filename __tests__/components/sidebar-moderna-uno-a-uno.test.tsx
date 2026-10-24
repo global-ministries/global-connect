@@ -4,12 +4,15 @@ import { HeaderMovil } from '@/components/ui/header-movil'
 import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 import { SidebarModerna } from '@/components/ui/sidebar-moderna'
 import { UnoAUnoAccesoProvider } from '@/hooks/useUnoAUnoAcceso'
+import { SIN_ACCESO_UNO_A_UNO } from '@/lib/uno-a-uno/acceso'
 
-// T4 (odd/tasks/uno-a-uno.md) — "Mis 1 a 1" only for whoever leads someone
-// (mis_dirigidos() has a row), fed by the (auth) layout through
-// UnoAUnoAccesoProvider and composed into the menus by
+// T4/T7 (odd/tasks/uno-a-uno.md, S7.5) — "Mis 1 a 1" for whoever leads
+// someone, supervises or takes part in a 1:1 (uno_a_uno_acceso()), fed by the
+// (auth) layout through UnoAUnoAccesoProvider and composed into the menus by
 // components/navegacion/use-entradas-navegacion.ts. Same harness as
 // __tests__/components/navegacion/paridad-navegacion.test.tsx.
+
+const LIDERA = { ...SIN_ACCESO_UNO_A_UNO, lidera: true }
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
@@ -38,7 +41,7 @@ function hrefsDe(container: HTMLElement): string[] {
 describe('SidebarModerna "Mis 1 a 1"', () => {
   it('shows the entry right after Dashboard to whoever leads someone', () => {
     render(
-      <UnoAUnoAccesoProvider lideraAAlguien>
+      <UnoAUnoAccesoProvider acceso={LIDERA}>
         <SidebarModerna />
       </UnoAUnoAccesoProvider>,
     )
@@ -47,9 +50,18 @@ describe('SidebarModerna "Mis 1 a 1"', () => {
     expect(hrefsDe(nav).slice(0, 2)).toEqual(['/dashboard', '/mis-uno-a-uno'])
   })
 
-  it('hides it when the user leads no one', () => {
+  it.each(['supervisa', 'participa'] as const)('shows the entry to whoever only %s', (flag) => {
     render(
-      <UnoAUnoAccesoProvider lideraAAlguien={false}>
+      <UnoAUnoAccesoProvider acceso={{ ...SIN_ACCESO_UNO_A_UNO, [flag]: true }}>
+        <SidebarModerna />
+      </UnoAUnoAccesoProvider>,
+    )
+    expect(screen.getByRole('link', { name: 'Mis 1 a 1' })).toHaveAttribute('href', '/mis-uno-a-uno')
+  })
+
+  it('hides it when the user leads no one, supervises no one and takes part in no 1:1', () => {
+    render(
+      <UnoAUnoAccesoProvider acceso={SIN_ACCESO_UNO_A_UNO}>
         <SidebarModerna />
       </UnoAUnoAccesoProvider>,
     )
@@ -70,7 +82,7 @@ describe('HeaderMovil "Mis 1 a 1"', () => {
 
   it('lists the entry in the drawer for whoever leads someone', () => {
     render(
-      <UnoAUnoAccesoProvider lideraAAlguien>
+      <UnoAUnoAccesoProvider acceso={LIDERA}>
         <HeaderMovil />
       </UnoAUnoAccesoProvider>,
     )
@@ -86,7 +98,7 @@ describe('HeaderMovil "Mis 1 a 1"', () => {
 describe('MenuInferiorMovil "Mis 1 a 1"', () => {
   it('stays out of the bottom bar, like the other server-fed sections', () => {
     render(
-      <UnoAUnoAccesoProvider lideraAAlguien>
+      <UnoAUnoAccesoProvider acceso={LIDERA}>
         <MenuInferiorMovil />
       </UnoAUnoAccesoProvider>,
     )

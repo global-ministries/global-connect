@@ -6,6 +6,7 @@ import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 import { SidebarModerna } from '@/components/ui/sidebar-moderna'
 import { NinosAccesoProvider } from '@/hooks/useNinosAcceso'
 import { UnoAUnoAccesoProvider } from '@/hooks/useUnoAUnoAcceso'
+import type { AccesoUnoAUno } from '@/lib/uno-a-uno/acceso'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 /**
@@ -27,8 +28,8 @@ type Perfil = {
   supportCapabilities?: string[]
   platformSession?: PlatformSession | null
   ninos?: boolean
-  /** Leads someone (mis_dirigidos has a row): "Mis 1 a 1", odd/tasks/uno-a-uno.md T4. */
-  unoAUno?: boolean
+  /** uno_a_uno_acceso() for "Mis 1 a 1", odd/tasks/uno-a-uno.md T4/T7. */
+  unoAUno?: AccesoUnoAUno
   dreamTeam?: boolean
   platformNavigation?: boolean
 }
@@ -72,7 +73,7 @@ const PERFILES: Record<string, Perfil> = {
     ninos: true,
     platformSession: { ...baseSession, capabilities: [{ key: 'dream_team.org.manage', experience: 'dream_team', scopeType: 'experience', source: 'manual' }] },
   },
-  'lider-uno-a-uno': { roles: ['lider'], unoAUno: true },
+  'lider-uno-a-uno': { roles: ['lider'], unoAUno: { lidera: true, supervisa: false, participa: false } },
   'plataforma-grupos-pastoral': {
     roles: ['lider'],
     platformNavigation: true,
@@ -139,7 +140,7 @@ const BOTTOM_BAR_CHANGES: Record<string, string[]> = {
 const BARRA_INFERIOR_DESPUES: Record<string, string[]> = { ...BARRA_INFERIOR_ANTES, ...BOTTOM_BAR_CHANGES }
 
 function conProveedores(ui: ReactElement, perfil: Perfil): ReactElement {
-  const conUnoAUno = perfil.unoAUno ? <UnoAUnoAccesoProvider lideraAAlguien>{ui}</UnoAUnoAccesoProvider> : ui
+  const conUnoAUno = perfil.unoAUno ? <UnoAUnoAccesoProvider acceso={perfil.unoAUno}>{ui}</UnoAUnoAccesoProvider> : ui
   return perfil.ninos ? <NinosAccesoProvider puedeOperar puedeVerSalon puedeConfigurar>{conUnoAUno}</NinosAccesoProvider> : conUnoAUno
 }
 

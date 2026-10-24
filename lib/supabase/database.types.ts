@@ -8627,8 +8627,12 @@ export type Database = {
           nota_privada: string | null
           realizado_en: string | null
           resumen: string | null
+          celebracion: string | null
         }[]
       }
+      // Hand-added (2026-10-24, odd/tasks/uno-a-uno.md T7): access and supervision
+      // of supabase/migrations/20261024120000_uno_a_uno_supervision.sql.
+      uno_a_uno_acceso: { Args: never; Returns: Json }
       uno_a_uno_agendar: {
         Args: { p_dirigido_id: string; p_fecha_hora: string; p_lugar?: string | null }
         Returns: string
@@ -8638,11 +8642,18 @@ export type Database = {
         Returns: undefined
       }
       uno_a_uno_registrar: {
-        Args: { p_fecha_hora?: string | null; p_id: string; p_nota_privada?: string | null; p_resumen: string }
+        Args: {
+          p_celebracion?: string | null
+          p_fecha_hora?: string | null
+          p_id: string
+          p_nota_privada?: string | null
+          p_resumen: string
+        }
         Returns: undefined
       }
       uno_a_uno_registrar_sin_agenda: {
         Args: {
+          p_celebracion?: string | null
           p_dirigido_id: string
           p_fecha_hora: string
           p_lugar?: string | null
@@ -8654,6 +8665,35 @@ export type Database = {
       uno_a_uno_reprogramar: {
         Args: { p_fecha_hora: string; p_id: string }
         Returns: undefined
+      }
+      uno_a_uno_supervision: {
+        Args: { p_desde?: string | null; p_hasta?: string | null }
+        Returns: {
+          cancelado_en: string | null
+          celebracion: string | null
+          dirigidos: Json
+          estado: string
+          fecha_hora: string
+          id: string
+          lideres: Json
+          lugar: string | null
+          motivo_cancelacion: string | null
+          realizado_en: string | null
+          resumen: string | null
+        }[]
+      }
+      uno_a_uno_supervision_lideres: {
+        Args: { p_dias?: number }
+        Returns: {
+          agendados: number
+          apellido: string
+          contextos: string[]
+          dirigidos: number
+          nombre: string
+          realizados: number
+          ultimo_realizado: string | null
+          usuario_id: string
+        }[]
       }
       normalizar_cedula_ve: { Args: { p: string }; Returns: string }
       normalizar_telefono_ve: { Args: { p: string }; Returns: string }

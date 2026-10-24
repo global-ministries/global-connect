@@ -3,13 +3,15 @@ import type { ComponentType } from 'react'
 import { Handshake } from 'lucide-react'
 
 import { useUnoAUnoAcceso } from '@/hooks/useUnoAUnoAcceso'
+import { veMisUnoAUno, type AccesoUnoAUno } from '@/lib/uno-a-uno/acceso'
 
 /**
  * The "Mis 1 a 1" menu entry (odd/tasks/uno-a-uno.md, T4), composed into the
  * sidebar and the mobile drawer by components/navegacion/use-entradas-navegacion.ts
- * like the Niños section (components/ninos/ninos-menu-item.ts). Shown only to
- * whoever leads someone, from the server-fed flag in hooks/useUnoAUnoAcceso;
- * not in the bottom bar (no registry prioridadMovil, same as Niños).
+ * like the Niños section (components/ninos/ninos-menu-item.ts). Shown to
+ * whoever leads someone, supervises or takes part in a 1:1 (T7, S7.5), from
+ * the server-fed flags in hooks/useUnoAUnoAcceso; not in the bottom bar (no
+ * registry prioridadMovil, same as Niños).
  */
 
 export const RUTA_MIS_UNO_A_UNO = '/mis-uno-a-uno'
@@ -21,14 +23,14 @@ export interface UnoAUnoMenuItem {
   href: string
 }
 
-export function buildUnoAUnoMenuItem(lideraAAlguien: boolean): UnoAUnoMenuItem | null {
-  if (!lideraAAlguien) return null
+export function buildUnoAUnoMenuItem(acceso: AccesoUnoAUno): UnoAUnoMenuItem | null {
+  if (!veMisUnoAUno(acceso)) return null
   return { id: 'mis-uno-a-uno', label: 'Mis 1 a 1', icon: Handshake, href: RUTA_MIS_UNO_A_UNO }
 }
 
 export function useUnoAUnoMenuItem(): UnoAUnoMenuItem | null {
-  const lideraAAlguien = useUnoAUnoAcceso()
-  return useMemo(() => buildUnoAUnoMenuItem(lideraAAlguien), [lideraAAlguien])
+  const acceso = useUnoAUnoAcceso()
+  return useMemo(() => buildUnoAUnoMenuItem(acceso), [acceso])
 }
 
 /** Inserts the entry right after 'dashboard', or first when there is none. */

@@ -3,6 +3,8 @@
  *
  * T4 (odd/tasks/uno-a-uno.md) — the "Mis 1 a 1" sections: actions and the
  * private fields only on the leader side; the dirigido side is read-only.
+ * T7 (S7.3): the celebración and the motivo de cancelación show only on the
+ * leader side; the dirigido side gets the history, nothing the leader wrote.
  */
 
 import { render, screen, within } from '@testing-library/react'
@@ -33,6 +35,7 @@ function uno(over: Partial<UnoAUno>): UnoAUno {
     resumen: null,
     notaPrivada: null,
     motivoCancelacion: null,
+    celebracion: null,
     ...over,
   }
 }
@@ -67,6 +70,34 @@ describe('ListaUnoAUno', () => {
     expect(realizados.getByText('Hablamos de su familia.')).toBeInTheDocument()
     expect(realizados.getByText('Orar por su trabajo')).toBeInTheDocument()
     expect(realizados.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('shows the celebración of a realizado on the leader side', () => {
+    render(<ListaUnoAUno lista={[uno({ estado: 'realizado', resumen: 'Bien', celebracion: 'Se bautizó' })]} lideraAAlguien />)
+    const realizados = within(screen.getByRole('region', { name: 'Realizados' }))
+    expect(realizados.getByText('Celebración')).toBeInTheDocument()
+    expect(realizados.getByText('Se bautizó')).toBeInTheDocument()
+  })
+
+  it('never shows what the leader wrote on the dirigido side, even if it arrives', () => {
+    render(
+      <ListaUnoAUno
+        lista={[
+          uno({ id: 'r', estado: 'realizado', miLado: 'dirigido', resumen: null, celebracion: 'Se bautizó' }),
+          uno({ id: 'c', estado: 'cancelado', miLado: 'dirigido', motivoCancelacion: 'Viaje' }),
+        ]}
+        lideraAAlguien={false}
+      />,
+    )
+    expect(screen.queryByText('Celebración')).not.toBeInTheDocument()
+    expect(screen.queryByText('Se bautizó')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Viaje/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: /Cancelados/ })).getByText(/Te lidera/)).toBeInTheDocument()
+  })
+
+  it('shows no celebración block when there is none', () => {
+    render(<ListaUnoAUno lista={[uno({ estado: 'realizado', resumen: 'Bien' })]} lideraAAlguien />)
+    expect(screen.queryByText('Celebración')).not.toBeInTheDocument()
   })
 
   it('shows empty states and hides Cancelados when there are none', () => {

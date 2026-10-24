@@ -46,7 +46,7 @@ export function useEntradasNavegacion() {
   const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
   const dreamTeam: EntradaMenu | null = useDreamTeamMenuItem(platformSession)
   const ninos: EntradaMenu | null = useNinosMenuItem()
-  // Server-fed flag (hooks/useUnoAUnoAcceso): only whoever leads someone. Not in the bottom bar.
+  // Server-fed flags (hooks/useUnoAUnoAcceso): whoever leads, supervises or takes part in a 1:1. Not in the bottom bar.
   const unoAUno: EntradaMenu | null = useUnoAUnoMenuItem()
 
   const principales = useMemo(

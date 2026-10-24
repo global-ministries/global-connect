@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  *
  * T4 (odd/tasks/uno-a-uno.md) — the log dialog, used to register a scheduled
- * 1:1 and to register one that was never scheduled.
+ * 1:1 and to register one that was never scheduled. T7 (S7.3, S7.6): an
+ * optional celebración and who sees each field.
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -44,17 +45,33 @@ describe('RegistrarUnoAUnoDialog — scheduled 1:1', () => {
     expect(guardar).toBeEnabled()
   })
 
-  it('submits the resumen and the private note, then closes', async () => {
+  it('says who sees each field (S7.6)', () => {
+    abrir()
+    const dialogo = screen.getByRole('dialog')
+    expect(dialogo).toHaveTextContent('Lo ve tu cadena de supervisión.')
+    expect(dialogo).toHaveTextContent('Solo la ves tú (y tu cónyuge).')
+    expect(dialogo).toHaveTextContent('La ve tu cadena de supervisión.')
+    expect(dialogo).not.toHaveTextContent('El resumen y la nota solo los ve quien lidera este 1 a 1.')
+  })
+
+  it('caps the celebración at 500 characters', () => {
+    abrir()
+    expect(screen.getByLabelText('Celebración (opcional)')).toHaveAttribute('maxLength', '500')
+  })
+
+  it('submits the resumen, the private note and the celebración, then closes', async () => {
     registrarMock.mockResolvedValue({ ok: true })
     abrir()
     fireEvent.change(screen.getByLabelText('Resumen'), { target: { value: 'Hablamos de su familia.' } })
     fireEvent.change(screen.getByLabelText('Nota privada (opcional)'), { target: { value: 'Orar por su trabajo' } })
+    fireEvent.change(screen.getByLabelText('Celebración (opcional)'), { target: { value: 'Se bautizó' } })
     fireEvent.click(screen.getByRole('button', { name: /^guardar$/i }))
     await waitFor(() =>
       expect(registrarMock).toHaveBeenCalledWith({
         id: 'u-1',
         resumen: 'Hablamos de su familia.',
         notaPrivada: 'Orar por su trabajo',
+        celebracion: 'Se bautizó',
       }),
     )
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -85,6 +102,14 @@ describe('RegistrarUnoAUnoDialog — without a schedule', () => {
     expect(screen.getByLabelText('Hora')).toBeInTheDocument()
   })
 
+  it('shows the same field help as a scheduled 1:1 (S7.6)', () => {
+    abrir()
+    const dialogo = screen.getByRole('dialog')
+    expect(dialogo).toHaveTextContent('Lo ve tu cadena de supervisión.')
+    expect(dialogo).toHaveTextContent('Solo la ves tú (y tu cónyuge).')
+    expect(dialogo).toHaveTextContent('La ve tu cadena de supervisión.')
+  })
+
   it('submits every field to registrarSinAgenda', async () => {
     sinAgendaMock.mockResolvedValue({ ok: true })
     abrir()
@@ -95,6 +120,7 @@ describe('RegistrarUnoAUnoDialog — without a schedule', () => {
     fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-10-10' } })
     fireEvent.change(screen.getByLabelText('Hora'), { target: { value: '09:00' } })
     fireEvent.change(screen.getByLabelText('Lugar (opcional)'), { target: { value: 'Su casa' } })
+    fireEvent.change(screen.getByLabelText('Celebración (opcional)'), { target: { value: 'Consiguió trabajo' } })
     fireEvent.click(guardar)
     await waitFor(() =>
       expect(sinAgendaMock).toHaveBeenCalledWith({
@@ -103,6 +129,7 @@ describe('RegistrarUnoAUnoDialog — without a schedule', () => {
         hora: '09:00',
         resumen: 'Bien',
         notaPrivada: '',
+        celebracion: 'Consiguió trabajo',
         lugar: 'Su casa',
       }),
     )
