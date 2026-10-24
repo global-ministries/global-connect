@@ -152,6 +152,11 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // uno-a-uno T12 (2026-10-24): 20261024200000_uno_a_uno_supervision_rango.sql
   // adds `rango integer` and `rol text` (each row's highest role) to
   // uno_a_uno_supervision_lideres, hand-added the same way. Additive only.
+  // uno-a-uno T5 (2026-10-24): 20261024220000_uno_a_uno_recordatorios.sql adds
+  // the reminder queue functions uno_a_uno_recordatorios_encolar / _reclamar /
+  // _resultado (service_role only, called by app/api/uno-a-uno/recordatorios),
+  // hand-added the same way. The queue table is not added: only those
+  // functions touch it. Additive only.
   'lib/supabase/database.types.ts',
 ])
 

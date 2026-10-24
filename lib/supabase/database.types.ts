@@ -8662,6 +8662,30 @@ export type Database = {
         }
         Returns: string
       }
+      // Hand-added (2026-10-24, odd/tasks/uno-a-uno.md T5): the reminder queue of
+      // supabase/migrations/20261024220000_uno_a_uno_recordatorios.sql (service_role only).
+      uno_a_uno_recordatorios_encolar: {
+        Args: { p_ahora?: string }
+        Returns: number
+      }
+      uno_a_uno_recordatorios_reclamar: {
+        Args: { p_limite?: number }
+        Returns: {
+          con_quien: Json
+          email: string
+          fecha_hora: string
+          id: string
+          intentos: number
+          lado: string
+          lugar: string | null
+          nombre: string
+          uno_a_uno_id: string
+        }[]
+      }
+      uno_a_uno_recordatorios_resultado: {
+        Args: { p_error?: string | null; p_id: string; p_ok: boolean }
+        Returns: undefined
+      }
       uno_a_uno_reprogramar: {
         Args: { p_fecha_hora: string; p_id: string }
         Returns: undefined
