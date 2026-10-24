@@ -8,14 +8,13 @@
 --   a. SELECT visibility of every table whose policies change: the sorted ids
 --      each identity sees, before and after the migration block. After must
 --      contain before, and every id gained must be in the set the policy text
---      grants that person (computed as postgres from the roles, usuario_campus,
---      segmento_lideres and the pastoral mentor column). Admin and pastor must
+--      grants that person (computed as postgres from the roles, usuario_campus
+--      and segmento_lideres). Admin and pastor must
 --      see every row of the tables with an es_superadmin SELECT branch. anon
 --      gets the same rows, or an error with the same SQLSTATE, before and after.
 --   b. UPDATE reach (UPDATE ... SET id = id, inside a rolled-back
 --      subtransaction) of every table with a changed UPDATE policy: admin and
---      pastor reach every row after; the others reach what they reached before,
---      except the pastoral rows where they are the mentor.
+--      pastor reach every row after; the others reach what they reached before.
 --   c. mis_campus_ids and mi_campus_principal with the own auth id: {} / NULL
 --      before, the person's usuario_campus rows after; with somebody else's
 --      auth id: {} / NULL before and after (the phase 2 guard).
@@ -36,6 +35,12 @@
 -- Run against STAGING inside BEGIN...ROLLBACK: nothing here is kept. The last
 -- statement returns the failing cases (kind 'failure', none expected), then
 -- the summary rows.
+--
+-- The pastoral tables (pastoral_one_on_one, pastoral_triada,
+-- pastoral_triada_miembros) and their six policies were dropped by
+-- 20261015110000_quitar_modulo_pastoral, so their cases were removed from this
+-- file. The migration copy below is kept verbatim; its pastoral block is
+-- guarded by to_regclass and does nothing once the tables are gone.
 
 BEGIN;
 
@@ -144,27 +149,19 @@ BEGIN
      WHERE v_sup OR sl.usuario_id = p_uid OR (sl.tipo_lider = 'director_etapa' AND v_creacion);
   ELSIF p_tab = 'usuarios' THEN
     SELECT array_agg(u.id::text) INTO v FROM public.usuarios u WHERE v_sup;
-  ELSIF p_tab = 'pastoral_triada' THEN
-    EXECUTE 'SELECT array_agg(t.id::text) FROM public.pastoral_triada t WHERE t.mentor_oficial_persona_id = $1' INTO v USING p_uid;
   END IF;
   RETURN coalesce(v, '{}');
 END;
 $$;
 
 -- Rows a person may UPDATE after, computed as postgres: every row for admin
--- and pastor on the es_superadmin tables, the mentor's rows on the pastoral
--- tables, NULL (= unchanged) otherwise.
+-- and pastor on the es_superadmin tables, NULL (= unchanged) otherwise.
 CREATE OR REPLACE FUNCTION pg_temp.upd_expected(p_uid uuid, p_tab text)
 RETURNS text LANGUAGE plpgsql AS $$
 DECLARE
   v bigint;
 BEGIN
-  IF p_tab = 'pastoral_one_on_one' OR p_tab = 'pastoral_triada' THEN
-    EXECUTE format('SELECT count(*) FROM public.%I t WHERE t.mentor_oficial_persona_id = $1', p_tab) INTO v USING p_uid;
-  ELSIF p_tab = 'pastoral_triada_miembros' THEN
-    EXECUTE 'SELECT count(*) FROM public.pastoral_triada_miembros m JOIN public.pastoral_triada t ON t.id = m.triada_id
-              WHERE t.mentor_oficial_persona_id = $1' INTO v USING p_uid;
-  ELSIF pg_temp.has_role(p_uid, 'admin') OR pg_temp.has_role(p_uid, 'pastor') THEN
+  IF pg_temp.has_role(p_uid, 'admin') OR pg_temp.has_role(p_uid, 'pastor') THEN
     EXECUTE format('SELECT count(*) FROM public.%I', p_tab) INTO v;
   ELSE
     RETURN NULL;
@@ -255,9 +252,7 @@ SELECT v.tab, v.upd, v.admin_all
   FROM (VALUES ('audit_grupo_miembros', false, true), ('campus', true, false), ('campus_localidades', true, false),
                ('configuracion_grupos_vida', true, true), ('director_general_directores', true, true),
                ('director_general_segmentos', true, true), ('tipos_grupo', true, false), ('usuario_campus', true, true),
-               ('segmento_lideres', false, true), ('usuarios', false, true),
-               ('pastoral_one_on_one', true, false), ('pastoral_triada', true, false),
-               ('pastoral_triada_miembros', true, false)) v(tab, upd, admin_all)
+               ('segmento_lideres', false, true), ('usuarios', false, true)) v(tab, upd, admin_all)
  WHERE to_regclass('public.' || v.tab) IS NOT NULL;
 
 CREATE TEMP TABLE t_id_ctx ON COMMIT DROP AS SELECT pg_temp.applied() AS applied_before;
@@ -678,19 +673,16 @@ SELECT n.tab, n.pol, n.expr, o.expr AS old_expr
                  'dg_directores_select', 'dg_segmentos_admin_pastor', 'tipos_grupo_admin_insert', 'tipos_grupo_admin_update',
                  'usuario_campus_delete_superadmin', 'usuario_campus_insert_superadmin', 'usuario_campus_update_superadmin',
                  'usuario_campus_select', 'segmento_lideres_select_directores_creacion', 'segmento_lideres_select_roles_superiores',
-                 'segmento_lideres_select_self', 'usuarios_can_view_profile_photos', 'pastoral_one_on_one_update_mentor',
-                 'pastoral_triada_delete_mentor', 'pastoral_triada_select_miembro', 'pastoral_triada_update_mentor',
-                 'pastoral_triada_miembros_delete', 'pastoral_triada_miembros_update');
+                 'segmento_lideres_select_self', 'usuarios_can_view_profile_photos');
 
 SELECT pg_temp.fail('d expr ' || pol, left(expr, 160))
   FROM t_id_changed
  WHERE expr ~ '(es_superadmin\(\s*\(?\s*(SELECT )?auth\.uid|usuario_id = \(?\s*(SELECT )?auth\.uid|persona_id = \(?\s*(SELECT )?auth\.uid)'
     OR expr NOT LIKE '%get_my_internal_id()%';
 
-SELECT pg_temp.fail('d expr count', format('%s changed policies found, expected %s', count(*),
-                    23 + 6 * (SELECT count(*) FILTER (WHERE tab LIKE 'pastoral%') FROM t_id_tab) / 3))
+SELECT pg_temp.fail('d expr count', format('%s changed policies found, expected 23', count(*)))
   FROM t_id_changed
-HAVING count(*) <> 23 + 6 * (SELECT count(*) FILTER (WHERE tab LIKE 'pastoral%') FROM t_id_tab) / 3;
+HAVING count(*) <> 23;
 
 SELECT pg_temp.fail('d other policies', format('%s.%s changed', n.tab, n.pol))
   FROM t_id_pol n JOIN t_id_pol o ON o.phase = 'old' AND o.tab = n.tab AND o.pol = n.pol

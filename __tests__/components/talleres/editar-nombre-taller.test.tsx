@@ -87,7 +87,7 @@ describe('EditarNombreTaller', () => {
 
   it('gives the edit action a 44px touch target', () => {
     render(<EditarNombreTaller tallerId="t-1" tallerSlug="proximo-paso" nombre="Próximo Paso" />)
-    expect(screen.getByRole('button', { name: /editar/i })).toHaveClass('min-h-[44px]')
+    expect(screen.getByRole('button', { name: /editar/i })).toHaveClass('h-11', 'w-11')
   })
 
   // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — the

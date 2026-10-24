@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useDirectorGroupAssignments } from '@/hooks/useDirectorGroupAssignments'
 import { useToast } from '@/hooks/use-toast'
-import { TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { TituloSistema, TextoSistema, BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { X, Save, Users, AlertTriangle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+
+// Outlined destructive action: keeps the outline look with the readable danger
+// text token (docs/design-system.md, status colors).
+const CLASE_PELIGRO = "border-danger/40 text-danger-text hover:bg-danger/10 focus:ring-danger"
 
 interface DirectorGroupsModalProps {
   open: boolean
@@ -153,7 +156,7 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
     <>
       <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-[160] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
-        <div className="bg-card rounded-t-2xl sm:rounded-3xl shadow-2xl w-full sm:max-w-5xl max-h-[92vh] sm:max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-border">
+        <div className="bg-card rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-5xl max-h-[92vh] sm:max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-border">
           {/* Header */}
           <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border bg-gradient-to-br from-accent to-card">
             <div className="flex items-center justify-between">
@@ -167,10 +170,10 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <Button variant="default" size="sm" onClick={guardado} disabled={cargandoGuardar} className="hidden sm:flex">
+                <BotonSistema variante="primario" tamaño="sm" onClick={guardado} disabled={cargandoGuardar} className="hidden sm:flex">
                   <Save className="w-4 h-4 mr-1" />
                   {cargandoGuardar ? 'Guardando...' : 'Guardar'}
-                </Button>
+                </BotonSistema>
                 <button onClick={onClose} className="p-2 rounded-full hover:bg-accent transition-colors">
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -181,9 +184,9 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
           {/* Controles y filtros */}
           <div className="px-4 sm:px-6 py-3 sm:py-4 bg-muted border-b border-border space-y-3">
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                <TextoSistema className="text-sm text-red-700">{error}</TextoSistema>
+              <div className="bg-danger/10 border border-danger/30 rounded-xl p-3 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-danger mt-0.5 flex-shrink-0" />
+                <TextoSistema className="text-sm text-danger-text">{error}</TextoSistema>
               </div>
             )}
 
@@ -191,16 +194,16 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
             {!soloNuevos && (
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Modo de guardado</label>
-                <div className="flex items-center gap-1 bg-card rounded-lg p-1 border border-border w-fit">
+                <div className="flex items-center gap-1 bg-card rounded-xl p-1 border border-border w-fit">
                   <button
                     type="button"
                     onClick={() => setModo('merge')}
-                    className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo === 'merge' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
+                    className={`px-3 py-1.5 rounded-lg transition text-xs font-medium ${modo === 'merge' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
                   >Cambios puntuales</button>
                   <button
                     type="button"
                     onClick={() => setModo('replace')}
-                    className={`px-3 py-1.5 rounded-md transition text-xs font-medium ${modo === 'replace' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
+                    className={`px-3 py-1.5 rounded-lg transition text-xs font-medium ${modo === 'replace' ? 'bg-orange-500 text-white shadow-sm' : 'text-muted-foreground hover:bg-accent/50'}`}
                     title="Dejará asignados solamente los grupos seleccionados y quitará el resto"
                   >Reemplazar todo</button>
                 </div>
@@ -219,13 +222,13 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                   value={buscarLider}
                   onChange={e => setBuscarLider(e.target.value)}
                   placeholder="Nombre del líder..."
-                  className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                  className="border border-border rounded-xl px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                 />
               </div>
               <div className="grid grid-cols-2 sm:flex gap-2">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Estado</label>
-                  <select value={filtroActivo} onChange={e => setFiltroActivo(e.target.value as any)} className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40">
+                  <select value={filtroActivo} onChange={e => setFiltroActivo(e.target.value as any)} className="border border-border rounded-xl px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40">
                     <option value="todos">Todos</option>
                     <option value="activos">Activos</option>
                     <option value="inactivos">Inactivos</option>
@@ -233,16 +236,16 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">Temporada</label>
-                  <select value={filtroTemporada} onChange={e => setFiltroTemporada(e.target.value)} className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40">
+                  <select value={filtroTemporada} onChange={e => setFiltroTemporada(e.target.value)} className="border border-border rounded-xl px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40">
                     <option value="">Todas</option>
                     {temporadasUnicas.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
               </div>
               {(filtroActivo !== 'todos' || filtroTemporada || buscarLider) && (
-                <Button variant="outline" size="sm" className="self-end" onClick={() => { setFiltroActivo('todos'); setFiltroTemporada(''); setBuscarLider('') }}>
+                <BotonSistema variante="outline" tamaño="sm" className="self-end" onClick={() => { setFiltroActivo('todos'); setFiltroTemporada(''); setBuscarLider('') }}>
                   Limpiar
-                </Button>
+                </BotonSistema>
               )}
             </div>
             <div className="flex items-center justify-end gap-3">
@@ -309,10 +312,10 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
 
           {/* Botón fijo en móvil */}
           <div className="sm:hidden px-4 py-3 border-t border-border bg-card">
-            <Button variant="default" className="w-full" onClick={guardado} disabled={cargandoGuardar}>
+            <BotonSistema variante="primario" className="w-full" onClick={guardado} disabled={cargandoGuardar}>
               <Save className="w-4 h-4 mr-2" />
               {cargandoGuardar ? 'Guardando...' : `Guardar (${seleccion.size})`}
-            </Button>
+            </BotonSistema>
           </div>
         </div>
       </div>
@@ -340,8 +343,8 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
               </ul>
               <TextoSistema className="text-sm">¿Confirmas añadir también a <strong>{directorNombre || 'este director'}</strong>?</TextoSistema>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => setConfirmData(null)}>Cancelar</Button>
-                <Button variant="default" size="sm" onClick={confirmarAgregar}>Confirmar</Button>
+                <BotonSistema variante="outline" tamaño="sm" onClick={() => setConfirmData(null)}>Cancelar</BotonSistema>
+                <BotonSistema variante="primario" tamaño="sm" onClick={confirmarAgregar}>Confirmar</BotonSistema>
               </div>
             </div>
           </div>
@@ -360,8 +363,8 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
             </div>
             <div className="px-6 py-5 space-y-4">
               <TextoSistema className="text-sm">Vas a dejar asignados únicamente los grupos marcados.</TextoSistema>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <TextoSistema className="text-sm text-amber-900">
+              <div className="bg-warning/10 border border-warning/30 rounded-xl p-3">
+                <TextoSistema className="text-sm text-foreground">
                   Se quitarán <strong>{confirmReplace.quitar}</strong> y quedarán <strong>{confirmReplace.agregar}</strong> seleccionados.
                 </TextoSistema>
               </div>
@@ -369,8 +372,8 @@ export const DirectorGroupsModal: React.FC<DirectorGroupsModalProps> = ({ open, 
                 ℹ️ Esta acción no afecta a otros directores del mismo grupo.
               </TextoSistema>
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => setConfirmReplace(null)}>Cancelar</Button>
-                <Button variant="destructive" size="sm" onClick={() => { guardado() }}>Reemplazar</Button>
+                <BotonSistema variante="outline" tamaño="sm" onClick={() => setConfirmReplace(null)}>Cancelar</BotonSistema>
+                <BotonSistema variante="outline" tamaño="sm" className={CLASE_PELIGRO} onClick={() => { guardado() }}>Reemplazar</BotonSistema>
               </div>
             </div>
           </div>

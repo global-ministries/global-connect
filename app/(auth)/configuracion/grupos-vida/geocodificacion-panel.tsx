@@ -45,8 +45,8 @@ export function GeocodificacionPanel({ sinCoordenadas }: GeocodificacionPanelPro
 
     if (sinCoordenadas === 0) {
         return (
-            <div className="flex items-center gap-2 rounded-lg bg-green-500/10 p-3">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+            <div className="flex items-center gap-2 rounded-xl bg-success/10 p-3">
+                <CheckCircle className="h-5 w-5 shrink-0 text-success" aria-hidden="true" />
                 <TextoSistema tamaño="sm">
                     Todas las direcciones tienen coordenadas. ¡El mapa está completo!
                 </TextoSistema>
@@ -56,8 +56,8 @@ export function GeocodificacionPanel({ sinCoordenadas }: GeocodificacionPanelPro
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 p-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <div className="flex items-center gap-2 rounded-xl bg-warning/10 p-3">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-warning-text" aria-hidden="true" />
                 <TextoSistema tamaño="sm">
                     {sinCoordenadas} dirección{sinCoordenadas !== 1 && "es"} sin coordenadas.
                     El proceso toma ~{Math.ceil(sinCoordenadas * 1.1 / 60)} minuto{Math.ceil(sinCoordenadas * 1.1 / 60) !== 1 && "s"} (rate limit de Nominatim/OSM).
@@ -74,15 +74,15 @@ export function GeocodificacionPanel({ sinCoordenadas }: GeocodificacionPanelPro
             </BotonSistema>
 
             {resultado && (
-                <div className="space-y-1 rounded-lg border border-border p-3">
+                <div className="space-y-1 rounded-xl border border-border p-3">
                     <TextoSistema tamaño="sm">
                         <span className="font-medium">Procesadas:</span> {resultado.totalProcesadas}
                     </TextoSistema>
-                    <TextoSistema tamaño="sm" className="text-green-600">
+                    <TextoSistema tamaño="sm" className="text-success-text">
                         <span className="font-medium">Geocodificadas:</span> {resultado.totalGeocodificadas}
                     </TextoSistema>
                     {resultado.totalFallidas > 0 && (
-                        <TextoSistema tamaño="sm" className="text-amber-600">
+                        <TextoSistema tamaño="sm" className="text-warning-text">
                             <span className="font-medium">Fallidas:</span> {resultado.totalFallidas}
                         </TextoSistema>
                     )}

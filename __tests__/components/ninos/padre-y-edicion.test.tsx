@@ -36,9 +36,15 @@ describe('RegistrarFamiliaForm — existing parent', () => {
   })
 
   it('"Sí, es esta persona" registers with the explicit parent id', async () => {
-    rpc
-      .mockResolvedValueOnce({ data: [coincidencia], error: null })
-      .mockResolvedValueOnce({ data: { padre_id: 'p9', padre_nuevo: false, hijos: ['h1'] }, error: null })
+    rpc.mockImplementation((fn: string) =>
+      Promise.resolve(
+        fn === 'ninos_buscar_padre'
+          ? { data: [coincidencia], error: null }
+          : fn === 'ninos_conyuge_de'
+            ? { data: null, error: null }
+            : { data: { padre_id: 'p9', padre_nuevo: false, hijos: ['h1'] }, error: null },
+      ),
+    )
     const onRegistrada = jest.fn()
     render(<RegistrarFamiliaForm onRegistrada={onRegistrada} onCancelar={jest.fn()} />)
     llenarFamilia()

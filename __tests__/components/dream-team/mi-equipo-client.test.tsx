@@ -40,15 +40,14 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace, refresh, push: jest.fn() }),
 }))
 
-// ContenedorDashboard lazy-loads its header behind Suspense — same synchronous
-// test double as __tests__/app/dashboard-page.test.tsx.
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ...jest.requireActual('@/components/ui/sistema-diseno'),
-  ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo?: string }) => (
-    <section>
+// PaginaSistema renders DesktopHeader behind React.lazy + Suspense; this
+// synchronous double shows the title and the header actions.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ titulo, accionPrincipal }: { titulo?: string; accionPrincipal?: React.ReactNode }) => (
+    <header>
       <h1>{titulo}</h1>
-      {children}
-    </section>
+      {accionPrincipal}
+    </header>
   ),
 }))
 
@@ -451,5 +450,17 @@ describe('MiEquipoClient — the volunteer coordinator registers new people', ()
 
     render(<MiEquipoClient {...propsConexion()} />)
     expect(screen.queryByRole('button', { name: 'Agregar persona' })).not.toBeInTheDocument()
+  })
+})
+
+describe('MiEquipoClient — page layout (docs/design-system.md)', () => {
+  it('is a full-width system page, with or without teams', async () => {
+    const { container, unmount } = render(<MiEquipoClient {...propsConexion()} />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mi equipo' })).toBeInTheDocument()
+    expect(container.querySelector('[data-ancho="default"]')).not.toBeNull()
+    unmount()
+
+    const vacio = render(<MiEquipoClient {...propsConexion({ direcciones: [], vista: null })} />)
+    expect(vacio.container.querySelector('[data-ancho="default"]')).not.toBeNull()
   })
 })

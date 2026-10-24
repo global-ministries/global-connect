@@ -107,7 +107,7 @@ export function ModalDetalleSolicitud({
                             </BadgeSistema>
                             <button
                                 onClick={onClose}
-                                className="p-1 rounded-lg hover:bg-muted/80 transition-colors duration-200 text-muted-foreground"
+                                className="p-1 rounded-xl hover:bg-muted/80 transition-colors duration-200 text-muted-foreground"
                                 aria-label="Cerrar"
                             >
                                 <X className="h-4 w-4" />

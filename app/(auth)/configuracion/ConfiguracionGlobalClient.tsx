@@ -11,6 +11,9 @@ import {
     BotonSistema,
     SeparadorSistema,
     BadgeSistema,
+    PieAccionesSistema,
+    SeccionesSistema,
+    CamposSistema,
 } from "@/components/ui/sistema-diseno"
 import {
     Building2,
@@ -320,8 +323,9 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
         }
     }
 
+    // Each settings section is a card; wide screens show several side by side.
     return (
-        <div className="space-y-4 max-w-4xl">
+        <SeccionesSistema>
             {secciones.map((seccion) => {
                 const Icono = seccion.icono
                 const abierta = seccionAbierta === seccion.id
@@ -331,18 +335,20 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                     <TarjetaSistema key={seccion.id} variante="default" className="overflow-hidden p-0">
                         {/* Header de la sección */}
                         <button
+                            type="button"
                             onClick={() => !esBloqueada && toggleSeccion(seccion.id)}
                             disabled={esBloqueada}
-                            className={`w-full flex items-center gap-4 p-5 text-left transition-colors duration-200 ${esBloqueada
+                            aria-expanded={esBloqueada ? undefined : abierta}
+                            className={`w-full flex items-center gap-3 p-4 sm:gap-4 sm:p-5 text-left transition-colors duration-200 ${esBloqueada
                                 ? "opacity-60 cursor-not-allowed"
                                 : "hover:bg-muted/30 cursor-pointer"
                                 }`}
                         >
                             <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
-                                <Icono className="h-5 w-5 text-muted-foreground" />
+                                <Icono className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
+                                <div className="flex min-w-0 items-center gap-2">
                                     <TituloSistema nivel={3} className="truncate">
                                         {seccion.titulo}
                                     </TituloSistema>
@@ -359,9 +365,9 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                             {!esBloqueada && (
                                 <div className="flex-shrink-0">
                                     {abierta ? (
-                                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                                        <ChevronDown className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                                     ) : (
-                                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                        <ChevronRight className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
                                     )}
                                 </div>
                             )}
@@ -369,13 +375,13 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
 
                         {/* Contenido expandido */}
                         {abierta && !esBloqueada && (
-                            <div className="px-5 pb-5">
+                            <div className="px-4 pb-4 sm:px-5 sm:pb-5">
                                 <SeparadorSistema className="mb-5" />
 
                                 {/* Sección: Datos de la Organización */}
                                 {seccion.id === "organizacion" && (
                                     <div className="space-y-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <CamposSistema>
                                             <InputSistema
                                                 label="Nombre de la organización"
                                                 icono={Building2}
@@ -391,8 +397,6 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                 onChange={e => setOrgEmail(e.target.value)}
                                                 placeholder="contacto@ejemplo.com"
                                             />
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <InputSistema
                                                 label="Dirección"
                                                 icono={MapPin}
@@ -407,18 +411,17 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                 onChange={e => setOrgTelefono(e.target.value)}
                                                 placeholder="+1 234 567 8900"
                                             />
-                                        </div>
-                                        <div className="flex justify-end pt-2">
+                                        </CamposSistema>
+                                        <PieAccionesSistema fijo={false} className="bg-transparent">
                                             <BotonSistema
                                                 variante="primario"
-                                                tamaño="sm"
                                                 icono={Save}
                                                 cargando={guardando}
                                                 onClick={guardarOrganizacion}
                                             >
                                                 Guardar cambios
                                             </BotonSistema>
-                                        </div>
+                                        </PieAccionesSistema>
                                     </div>
                                 )}
 
@@ -435,76 +438,34 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                 Sube el logo de tu organización para modo claro y oscuro. Recomendado: PNG transparente, mínimo 200×200px.
                                             </TextoSistema>
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                {/* Logo modo claro */}
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                                        <Sun className="h-4 w-4 text-amber-500" />
-                                                        Logo modo claro
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => fileInputLightRef.current?.click()}
-                                                        className="w-full h-36 rounded-xl border-2 border-dashed border-border hover:border-[var(--brand-primary)]/50 bg-white dark:bg-zinc-900 flex flex-col items-center justify-center gap-2 transition-colors duration-200 cursor-pointer group"
-                                                    >
-                                                        {logoLightPreview ? (
-                                                            <div className="relative w-full h-full p-4">
-                                                                <Image src={logoLightPreview} alt="Logo claro" fill className="object-contain p-3" />
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => { e.stopPropagation(); handleRemoveLogo('light') }}
-                                                                    className="absolute top-2 right-2 p-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
-                                                                >
-                                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <>
-                                                                <Upload className="h-6 w-6 text-muted-foreground group-hover:text-[var(--brand-primary)] transition-colors" />
-                                                                <TextoSistema variante="muted" tamaño="sm">Arrastra o haz clic</TextoSistema>
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                    <input ref={fileInputLightRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect('light')} />
-                                                </div>
+                                            <CamposSistema>
+                                                <ZonaLogo
+                                                    titulo="Logo modo claro"
+                                                    icono={<Sun className="h-4 w-4 text-warning" aria-hidden="true" />}
+                                                    preview={logoLightPreview}
+                                                    alt="Logo claro"
+                                                    fondoClassName="bg-white text-zinc-600"
+                                                    onElegir={() => fileInputLightRef.current?.click()}
+                                                    onQuitar={() => handleRemoveLogo('light')}
+                                                />
+                                                <input ref={fileInputLightRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect('light')} />
 
-                                                {/* Logo modo oscuro */}
-                                                <div className="space-y-2">
-                                                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                                        <Moon className="h-4 w-4 text-blue-400" />
-                                                        Logo modo oscuro
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => fileInputDarkRef.current?.click()}
-                                                        className="w-full h-36 rounded-xl border-2 border-dashed border-border hover:border-[var(--brand-primary)]/50 bg-zinc-900 dark:bg-zinc-950 flex flex-col items-center justify-center gap-2 transition-colors duration-200 cursor-pointer group"
-                                                    >
-                                                        {logoDarkPreview ? (
-                                                            <div className="relative w-full h-full p-4">
-                                                                <Image src={logoDarkPreview} alt="Logo oscuro" fill className="object-contain p-3" />
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => { e.stopPropagation(); handleRemoveLogo('dark') }}
-                                                                    className="absolute top-2 right-2 p-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
-                                                                >
-                                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <>
-                                                                <Upload className="h-6 w-6 text-muted-foreground group-hover:text-[var(--brand-primary)] transition-colors" />
-                                                                <TextoSistema variante="muted" tamaño="sm">Arrastra o haz clic</TextoSistema>
-                                                            </>
-                                                        )}
-                                                    </button>
-                                                    <input ref={fileInputDarkRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect('dark')} />
-                                                </div>
-                                            </div>
+                                                <ZonaLogo
+                                                    titulo="Logo modo oscuro"
+                                                    icono={<Moon className="h-4 w-4 text-info" aria-hidden="true" />}
+                                                    preview={logoDarkPreview}
+                                                    alt="Logo oscuro"
+                                                    fondoClassName="bg-zinc-900 text-zinc-300"
+                                                    onElegir={() => fileInputDarkRef.current?.click()}
+                                                    onQuitar={() => handleRemoveLogo('dark')}
+                                                />
+                                                <input ref={fileInputDarkRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect('dark')} />
+                                            </CamposSistema>
 
                                             {/* Favicon */}
                                             <div className="mt-4 space-y-2">
-                                                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                                    <Globe className="h-4 w-4 text-muted-foreground" />
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-foreground">
+                                                    <Globe className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                                                     Favicon
                                                     <TextoSistema variante="muted" tamaño="sm">— Ícono de la pestaña del navegador (32×32px recomendado)</TextoSistema>
                                                 </div>
@@ -512,12 +473,13 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                     <button
                                                         type="button"
                                                         onClick={() => fileInputFaviconRef.current?.click()}
-                                                        className="w-16 h-16 rounded-xl border-2 border-dashed border-border hover:border-[var(--brand-primary)]/50 bg-muted/20 flex items-center justify-center transition-colors duration-200 cursor-pointer group flex-shrink-0"
+                                                        aria-label={faviconPreview ? "Cambiar favicon" : "Subir favicon"}
+                                                        className="w-16 h-16 rounded-xl border-2 border-dashed border-border hover:border-brand/50 bg-muted/20 flex items-center justify-center transition-colors duration-200 cursor-pointer group flex-shrink-0"
                                                     >
                                                         {faviconPreview ? (
                                                             <Image src={faviconPreview} alt="Favicon" width={32} height={32} className="object-contain" />
                                                         ) : (
-                                                            <Upload className="h-5 w-5 text-muted-foreground group-hover:text-[var(--brand-primary)] transition-colors" />
+                                                            <Upload className="h-5 w-5 text-muted-foreground group-hover:text-brand transition-colors" aria-hidden="true" />
                                                         )}
                                                     </button>
                                                     <TextoSistema variante="muted" tamaño="sm">
@@ -540,7 +502,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                 Define los colores principales de tu organización. Se usan en botones, enlaces y elementos de acento.
                                             </TextoSistema>
 
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <CamposSistema>
                                                 {/* Color primario */}
                                                 <div className="space-y-2">
                                                     <label className="text-sm font-medium text-foreground">Color primario</label>
@@ -548,13 +510,15 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                         <div className="relative">
                                                             <input
                                                                 type="color"
+                                                                aria-label="Elegir color primario"
                                                                 value={brandColor}
                                                                 onChange={e => setBrandColor(e.target.value)}
-                                                                className="w-12 h-12 rounded-xl border-2 border-border cursor-pointer appearance-none bg-transparent [&::-webkit-color-swatch-wrapper]:p-1 [&::-webkit-color-swatch]:rounded-lg [&::-webkit-color-swatch]:border-0"
+                                                                className="w-12 h-12 rounded-xl border-2 border-border cursor-pointer appearance-none bg-transparent [&::-webkit-color-swatch-wrapper]:p-1 [&::-webkit-color-swatch]:rounded-[10px] [&::-webkit-color-swatch]:border-0"
                                                             />
                                                         </div>
-                                                        <div className="flex-1">
+                                                        <div className="min-w-0 flex-1">
                                                             <InputSistema
+                                                                aria-label="Código del color primario"
                                                                 value={brandColor}
                                                                 onChange={e => setBrandColor(e.target.value)}
                                                                 placeholder="#E96C20"
@@ -572,13 +536,15 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                         <div className="relative">
                                                             <input
                                                                 type="color"
+                                                                aria-label="Elegir color secundario"
                                                                 value={brandColorLight}
                                                                 onChange={e => setBrandColorLight(e.target.value)}
-                                                                className="w-12 h-12 rounded-xl border-2 border-border cursor-pointer appearance-none bg-transparent [&::-webkit-color-swatch-wrapper]:p-1 [&::-webkit-color-swatch]:rounded-lg [&::-webkit-color-swatch]:border-0"
+                                                                className="w-12 h-12 rounded-xl border-2 border-border cursor-pointer appearance-none bg-transparent [&::-webkit-color-swatch-wrapper]:p-1 [&::-webkit-color-swatch]:rounded-[10px] [&::-webkit-color-swatch]:border-0"
                                                             />
                                                         </div>
-                                                        <div className="flex-1">
+                                                        <div className="min-w-0 flex-1">
                                                             <InputSistema
+                                                                aria-label="Código del color secundario"
                                                                 value={brandColorLight}
                                                                 onChange={e => setBrandColorLight(e.target.value)}
                                                                 placeholder="#F59E0B"
@@ -588,7 +554,7 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                     </div>
                                                     <TextoSistema variante="muted" tamaño="sm">Gradientes, hover, elementos complementarios</TextoSistema>
                                                 </div>
-                                            </div>
+                                            </CamposSistema>
                                         </div>
 
                                         <SeparadorSistema />
@@ -600,11 +566,11 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                 Vista previa
                                             </TituloSistema>
 
-                                            <div className="rounded-xl border border-border overflow-hidden">
+                                            <div className="rounded-2xl border border-border overflow-hidden" aria-hidden="true">
                                                 {/* Barra de navegación simulada */}
                                                 <div className="px-4 py-3 flex items-center gap-3 border-b border-border" style={{ backgroundColor: `${brandColor}10` }}>
                                                     <div
-                                                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                                                        className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold"
                                                         style={{ background: `linear-gradient(135deg, ${brandColor}, ${brandColorLight})` }}
                                                     >
                                                         G
@@ -622,20 +588,18 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                         <div className="text-sm font-medium text-foreground">Elemento activo</div>
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <button
-                                                            type="button"
-                                                            className="px-3 py-1.5 rounded-lg text-white text-xs font-medium transition-opacity hover:opacity-90"
+                                                        <span
+                                                            className="px-3 py-1.5 rounded-xl text-white text-xs font-medium"
                                                             style={{ background: `linear-gradient(135deg, ${brandColor}, ${brandColorLight})` }}
                                                         >
                                                             Botón primario
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-opacity hover:opacity-90"
+                                                        </span>
+                                                        <span
+                                                            className="px-3 py-1.5 rounded-xl text-xs font-medium border"
                                                             style={{ borderColor: brandColor, color: brandColor }}
                                                         >
                                                             Botón outline
-                                                        </button>
+                                                        </span>
                                                     </div>
                                                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                                                         <div
@@ -647,17 +611,16 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                             </div>
                                         </div>
 
-                                        <div className="flex justify-end pt-2">
+                                        <PieAccionesSistema fijo={false} className="bg-transparent">
                                             <BotonSistema
                                                 variante="primario"
-                                                tamaño="sm"
                                                 icono={Save}
                                                 cargando={guardando}
                                                 onClick={guardarBranding}
                                             >
                                                 Guardar branding
                                             </BotonSistema>
-                                        </div>
+                                        </PieAccionesSistema>
                                     </div>
                                 )}
 
@@ -669,11 +632,11 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                             return (
                                                 <div
                                                     key={modulo.id}
-                                                    className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border/50"
+                                                    className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-muted/20 border border-border/50"
                                                 >
-                                                    <div className="flex items-center gap-3">
-                                                        <ModuloIcono className="h-5 w-5 text-muted-foreground" />
-                                                        <div>
+                                                    <div className="flex min-w-0 items-center gap-3">
+                                                        <ModuloIcono className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                        <div className="min-w-0">
                                                             <TextoSistema className="font-medium">
                                                                 {modulo.nombre}
                                                             </TextoSistema>
@@ -683,30 +646,33 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                                                         </div>
                                                     </div>
                                                     <button
+                                                        type="button"
+                                                        role="switch"
+                                                        aria-checked={modulo.activo}
+                                                        aria-label={modulo.nombre}
                                                         onClick={() => toggleModulo(modulo.id)}
-                                                        className="flex-shrink-0 transition-colors duration-200"
+                                                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors duration-200 hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                                         title={modulo.activo ? "Desactivar" : "Activar"}
                                                     >
                                                         {modulo.activo ? (
-                                                            <ToggleRight className="h-8 w-8 text-green-500" />
+                                                            <ToggleRight className="h-8 w-8 text-success" aria-hidden="true" />
                                                         ) : (
-                                                            <ToggleLeft className="h-8 w-8 text-muted-foreground" />
+                                                            <ToggleLeft className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
                                                         )}
                                                     </button>
                                                 </div>
                                             )
                                         })}
-                                        <div className="flex justify-end pt-2">
+                                        <PieAccionesSistema fijo={false} className="bg-transparent">
                                             <BotonSistema
                                                 variante="primario"
-                                                tamaño="sm"
                                                 icono={Save}
                                                 cargando={guardando}
                                                 onClick={guardarModulos}
                                             >
                                                 Guardar configuración
                                             </BotonSistema>
-                                        </div>
+                                        </PieAccionesSistema>
                                     </div>
                                 )}
                             </div>
@@ -714,6 +680,63 @@ export function ConfiguracionGlobalClient({ datosOrganizacion, datosBranding }: 
                     </TarjetaSistema>
                 )
             })}
+        </SeccionesSistema>
+    )
+}
+
+interface ZonaLogoProps {
+    titulo: string
+    icono: React.ReactNode
+    preview: string | null
+    alt: string
+    /** Fixed surface and text color: each logo is previewed on the background it is meant for, whatever the app theme. */
+    fondoClassName: string
+    onElegir: () => void
+    onQuitar: () => void
+}
+
+/**
+ * Upload area for one logo. The remove action is a sibling of the upload
+ * button (a button cannot contain another one), pinned to its corner.
+ */
+function ZonaLogo({ titulo, icono, preview, alt, fondoClassName, onElegir, onQuitar }: ZonaLogoProps) {
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                {icono}
+                {titulo}
+            </div>
+            <div className="relative">
+                <button
+                    type="button"
+                    onClick={onElegir}
+                    aria-label={preview ? `Cambiar ${titulo.toLowerCase()}` : `Subir ${titulo.toLowerCase()}`}
+                    className={`group flex h-36 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border transition-colors duration-200 hover:border-brand/50 ${fondoClassName}`}
+                >
+                    {preview ? (
+                        <div className="relative h-full w-full">
+                            <Image src={preview} alt={alt} fill className="object-contain p-4" />
+                        </div>
+                    ) : (
+                        <>
+                            <Upload className="h-6 w-6 opacity-70 transition-colors group-hover:text-brand group-hover:opacity-100" aria-hidden="true" />
+                            <span className="text-sm">Arrastra o haz clic</span>
+                        </>
+                    )}
+                </button>
+                {preview && (
+                    <BotonSistema
+                        type="button"
+                        variante="outline"
+                        tamaño="sm"
+                        soloIcono
+                        icono={Trash2}
+                        aria-label={`Quitar ${titulo.toLowerCase()}`}
+                        onClick={onQuitar}
+                        className="absolute right-2 top-2 border border-danger/40 bg-background/90 text-danger-text hover:bg-danger/10"
+                    />
+                )}
+            </div>
         </div>
     )
 }

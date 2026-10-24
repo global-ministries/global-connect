@@ -27,7 +27,7 @@
 
 import Link from 'next/link'
 import GrupoDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/[grupo]/page'
-import { ContenedorDashboard, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { LecturaAsistenciaClase } from '@/components/talleres/lectura-asistencia-clase.client'
 import { RegistroAsistenciaClase } from '@/components/talleres/registro-asistencia-clase.client'
 import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
@@ -457,9 +457,9 @@ describe('GrupoDetallePage — full access', () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
-    const dashboard = findByType(element, ContenedorDashboard)
+    const dashboard = findByType(element, PaginaSistema)
     expect(dashboard?.props.titulo).toBe('Martes 7pm')
-    expect(dashboard?.props.botonRegreso).toEqual({
+    expect(dashboard?.props.regreso).toEqual({
       href: rutaEdicion('proximo-paso', 'e-1'),
       texto: 'Octubre 2026',
     })

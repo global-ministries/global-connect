@@ -26,14 +26,13 @@ jest.mock('@/lib/platform/grupos-vida/directores-datos', () => ({
 
 // The island (and the server actions it imports) is not under test here.
 jest.mock('@/components/grupos-vida/directores/directores-client', () => ({ DirectoresClient: () => null }))
-// ContenedorDashboard lazy-loads its header behind Suspense — synchronous test double.
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ...jest.requireActual('@/components/ui/sistema-diseno'),
-  ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo?: string }) => (
-    <section>
+// The page header renders behind Suspense (React.lazy) — synchronous test double.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ titulo, accionPrincipal }: { titulo?: string; accionPrincipal?: React.ReactNode }) => (
+    <header>
       <h1>{titulo}</h1>
-      {children}
-    </section>
+      {accionPrincipal}
+    </header>
   ),
 }))
 
@@ -174,8 +173,8 @@ describe('/configuracion/directores-generales — legacy route', () => {
 })
 
 describe('/grupos-vida/directores — loading', () => {
-  it('renders the page skeleton under the page title', () => {
+  it('renders the page skeleton under the page title', async () => {
     render(<LoadingDirectores />)
-    expect(screen.getByRole('heading', { level: 1, name: 'Directores' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Directores' })).toBeInTheDocument()
   })
 })

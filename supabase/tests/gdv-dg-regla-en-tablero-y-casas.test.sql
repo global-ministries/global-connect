@@ -10,13 +10,14 @@
 --   casas_map_director_general_can_view_group      cvg
 --   puede_crear_casa_anfitriona_para               pcc
 --   listar_usuarios_con_permisos                   lup
---   get_personas_under_me                          gpm
 --   obtener_kpis_grupos_para_usuario(uuid, uuid)   kpi
+-- get_personas_under_me (gpm) was covered too until
+-- 20261015110000_quitar_modulo_pastoral dropped it with the pastoral module.
 --
 -- Most observations are a signature: one letter per fixture group, in name order
 --   GA1 GA2 GB1 GB2 GB3 GB4 GC1   (T = yes, F = no)
 -- where the question is about the group itself (cvg, dsh_r, rsk_sin, mer) or about
--- the group's own member (pcc, cvi, lup, gpm: each group has one primary member
+-- the group's own member (pcc, cvi, lup: each group has one primary member
 -- with an account and a casa). The others are numbers or short strings:
 --   dsh_n / rsk_n / kpi   groups counted (ALL = every group, for admin and pastor)
 --   dsh_m                 distinct active members in the scoped groups
@@ -98,8 +99,7 @@ BEGIN
     (p_who, 'cvg', pg_temp.sig($q$public.casas_map_director_general_can_view_group(':uid', ':gid')$q$, p_uid, p_aid)),
     (p_who, 'pcc', pg_temp.sig($q$public.puede_crear_casa_anfitriona_para(':aid', ':mid')$q$, p_uid, p_aid)),
     (p_who, 'cvi', pg_temp.sig($q$(':cid'::uuid = ANY (public.obtener_casas_visibles_ids(':aid')))$q$, p_uid, p_aid)),
-    (p_who, 'lup', pg_temp.sig($q$EXISTS (SELECT 1 FROM public.listar_usuarios_con_permisos(':aid', p_limite => 100000) l WHERE l.id = ':mid')$q$, p_uid, p_aid)),
-    (p_who, 'gpm', pg_temp.sig($q$EXISTS (SELECT 1 FROM public.get_personas_under_me(':aid') p WHERE p.persona_id = ':mid')$q$, p_uid, p_aid));
+    (p_who, 'lup', pg_temp.sig($q$EXISTS (SELECT 1 FROM public.listar_usuarios_con_permisos(':aid', p_limite => 100000) l WHERE l.id = ':mid')$q$, p_uid, p_aid));
 
   -- Members at risk: admin and pastor read live data (500-row limit), so skipped.
   IF p_kind = 'super' THEN
@@ -332,37 +332,35 @@ CREATE TEMP TABLE t_tb_expected (who text, fn text, sig text) ON COMMIT DROP;
 INSERT INTO t_tb_expected VALUES
   -- director general, scope segmento in SA and directores in SB: GA1 GA2 GB1
   ('dg_a', 'cvg', 'TTTFFFF'), ('dg_a', 'pcc', 'TTTFFFF'), ('dg_a', 'cvi', 'TTTFFFF'),
-  ('dg_a', 'lup', 'TTTFFFF'), ('dg_a', 'gpm', 'TTTFFFF'), ('dg_a', 'mer', 'TTTFFFF'),
+  ('dg_a', 'lup', 'TTTFFFF'), ('dg_a', 'mer', 'TTTFFFF'),
   ('dg_a', 'dsh_n', '3'), ('dg_a', 'dsh_m', '6'), ('dg_a', 'dsh_a', '33.3'),
   ('dg_a', 'dsh_r', 'TFTFFFF'), ('dg_a', 'dsh_d', 'SA=4,SB=2'),
   ('dg_a', 'rsk_n', '3'), ('dg_a', 'rsk_sin', 'FTFFFFF'), ('dg_a', 'kpi', '3'),
   -- the same person with the scopes flipped: GA1 GB1 GB2 GB3 GB4
   ('dg_b', 'cvg', 'TFTTTTF'), ('dg_b', 'pcc', 'TFTTTTF'), ('dg_b', 'cvi', 'TFTTTTF'),
-  ('dg_b', 'lup', 'TFTTTTF'), ('dg_b', 'gpm', 'TFTTTTF'), ('dg_b', 'mer', 'TFTTTTF'),
+  ('dg_b', 'lup', 'TFTTTTF'), ('dg_b', 'mer', 'TFTTTTF'),
   ('dg_b', 'dsh_n', '5'), ('dg_b', 'dsh_m', '10'), ('dg_b', 'dsh_a', '30.0'),
   ('dg_b', 'dsh_r', 'TFTTFFF'), ('dg_b', 'dsh_d', 'SA=2,SB=8'),
   ('dg_b', 'rsk_n', '5'), ('dg_b', 'rsk_sin', 'FFFFTTF'), ('dg_b', 'kpi', '5'),
   -- director general with no rows
   ('dg_empty', 'cvg', 'FFFFFFF'), ('dg_empty', 'pcc', 'FFFFFFF'), ('dg_empty', 'cvi', 'FFFFFFF'),
-  ('dg_empty', 'lup', 'FFFFFFF'), ('dg_empty', 'gpm', 'FFFFFFF'), ('dg_empty', 'mer', 'FFFFFFF'),
+  ('dg_empty', 'lup', 'FFFFFFF'), ('dg_empty', 'mer', 'FFFFFFF'),
   ('dg_empty', 'dsh_n', '0'), ('dg_empty', 'dsh_m', '0'), ('dg_empty', 'dsh_a', '0'),
   ('dg_empty', 'dsh_r', 'FFFFFFF'), ('dg_empty', 'dsh_d', ''),
   ('dg_empty', 'rsk_n', '0'), ('dg_empty', 'rsk_sin', 'FFFFFFF'), ('dg_empty', 'kpi', '0'),
   -- answers of the ORIGINAL functions for the same fixtures (captured before the change)
   ('admin', 'cvg', 'FFFFFFF'), ('admin', 'cvi', 'TTTTTTT'), ('admin', 'pcc', 'TTTTTTT'), ('admin', 'lup', 'TTTTTTT'),
-  ('admin', 'gpm', 'TTTTTTT'), ('admin', 'dsh_n', 'ALL'), ('admin', 'rsk_n', 'ALL'), ('admin', 'kpi', 'ALL'),
+  ('admin', 'dsh_n', 'ALL'), ('admin', 'rsk_n', 'ALL'), ('admin', 'kpi', 'ALL'),
   ('pastor', 'cvg', 'FFFFFFF'), ('pastor', 'cvi', 'TTTTTTT'), ('pastor', 'pcc', 'TTTTTTT'), ('pastor', 'lup', 'TTTTTTT'),
-  ('pastor', 'gpm', 'TTTTTTT'), ('pastor', 'dsh_n', 'ALL'), ('pastor', 'rsk_n', 'ALL'), ('pastor', 'kpi', 'ALL'),
+  ('pastor', 'dsh_n', 'ALL'), ('pastor', 'rsk_n', 'ALL'), ('pastor', 'kpi', 'ALL'),
   ('dir_etapa', 'cvg', 'FFFFFFF'), ('dir_etapa', 'cvi', 'FFTTTTF'), ('dir_etapa', 'pcc', 'FFTFFFF'), ('dir_etapa', 'lup', 'FFTFFFF'),
-  -- get_personas_under_me compares director_etapa_grupos.director_etapa_id (a segmento_lideres.id)
-  -- with a usuarios.id, so a director de etapa gets nobody: kept as it was (not part of this change)
-  ('dir_etapa', 'gpm', 'FFFFFFF'), ('dir_etapa', 'mer', 'FFTFFFF'), ('dir_etapa', 'dsh_n', '1'),
+  ('dir_etapa', 'mer', 'FFTFFFF'), ('dir_etapa', 'dsh_n', '1'),
   ('dir_etapa', 'rsk_n', '1'), ('dir_etapa', 'rsk_sin', 'FFFFFFF'), ('dir_etapa', 'kpi', '1'),
   ('leader', 'cvg', 'FFFFFFF'), ('leader', 'cvi', 'FTFTFFF'), ('leader', 'pcc', 'FTFTFFF'), ('leader', 'lup', 'FTFTFFF'),
-  ('leader', 'gpm', 'FTFTFFF'), ('leader', 'mer', 'ERR P0001 Sin permisos para acceder a este recurso'),
+  ('leader', 'mer', 'ERR P0001 Sin permisos para acceder a este recurso'),
   ('leader', 'dsh_n', 'none'), ('leader', 'rsk_n', 'Sin permisos'), ('leader', 'kpi', '2'),
   ('member', 'cvg', 'FFFFFFF'), ('member', 'cvi', 'FFFFFFF'), ('member', 'pcc', 'FFFFFFF'), ('member', 'lup', 'FFFFFFF'),
-  ('member', 'gpm', 'FFFFFFF'), ('member', 'mer', 'ERR P0001 Sin permisos para acceder a este recurso'),
+  ('member', 'mer', 'ERR P0001 Sin permisos para acceder a este recurso'),
   ('member', 'dsh_n', 'none'), ('member', 'rsk_n', 'Sin permisos'), ('member', 'kpi', '0');
 
 SELECT count(*) AS failing_cases,

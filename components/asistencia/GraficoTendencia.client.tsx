@@ -1,7 +1,9 @@
 "use client"
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { BarChart3 } from 'lucide-react'
+import { TarjetaSistema, coloresMarca } from '@/components/ui/sistema-diseno'
+import { EstadoVacioAsistencia } from './partes-asistencia'
 
 type SerieTemporal = {
   semana: string
@@ -33,17 +35,17 @@ export default function GraficoTendencia({ data }: GraficoTendenciaProps) {
   }))
 
   return (
-    <TarjetaSistema className="p-6">
-      <TituloSistema nivel={3} className="mb-6">
+    <TarjetaSistema className="p-4 sm:p-6">
+      <h2 className="mb-4 text-lg font-semibold text-foreground sm:mb-6">
         Tendencia de Asistencia
-      </TituloSistema>
+      </h2>
 
       {chartData.length === 0 ? (
-        <div className="flex items-center justify-center h-64 text-muted-foreground/50">
-          <div className="text-center">
-            <p className="text-lg">📊</p>
-            <p className="mt-2">No hay datos suficientes para mostrar el gráfico</p>
-          </div>
+        <div className="flex h-64 items-center justify-center">
+          <EstadoVacioAsistencia
+            icono={BarChart3}
+            titulo="No hay datos suficientes para mostrar el gráfico"
+          />
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={300}>
@@ -67,13 +69,14 @@ export default function GraficoTendencia({ data }: GraficoTendenciaProps) {
               contentStyle={{
                 backgroundColor: 'var(--card)',
                 border: '1px solid var(--border)',
-                borderRadius: '12px',
+                // Surface radius (rounded-2xl)
+                borderRadius: 'calc(var(--radius) + 8px)',
                 padding: '8px 12px',
                 color: 'var(--foreground)',
               }}
               formatter={(value: number) => [`${value}%`, 'Asistencia']}
-              labelFormatter={(_, payload: any[]) => {
-                const iso = payload && payload[0] && payload[0].payload ? payload[0].payload.fecha_original : undefined
+              labelFormatter={(_, payload: ReadonlyArray<{ payload?: { fecha_original?: string } }>) => {
+                const iso = payload?.[0]?.payload?.fecha_original
                 return iso ? etiquetaCorta(String(iso)) : ''
               }}
               labelStyle={{ color: 'var(--foreground)', fontWeight: 600 }}
@@ -85,9 +88,9 @@ export default function GraficoTendencia({ data }: GraficoTendenciaProps) {
             <Line
               type="monotone"
               dataKey="porcentaje"
-              stroke="#E96C20"
+              stroke={coloresMarca.naranja}
               strokeWidth={3}
-              dot={{ fill: '#E96C20', r: 4 }}
+              dot={{ fill: coloresMarca.naranja, r: 4 }}
               activeDot={{ r: 6 }}
               name="% Asistencia"
             />

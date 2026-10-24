@@ -6,6 +6,8 @@ export interface InvitacionCuentaEmailProps {
   readonly nombre: string
   /** One-use confirm link; it carries the hashed token. */
   readonly urlAceptar: string
+  /** Sent from Niños: tells the parent where their children are (R3b). */
+  readonly deNinos?: boolean
 }
 
 /**
@@ -16,6 +18,7 @@ export interface InvitacionCuentaEmailProps {
 export function InvitacionCuentaEmail({
   nombre = 'Hola',
   urlAceptar = 'https://miembros.yosoyglobal.org',
+  deNinos = false,
 }: InvitacionCuentaEmailProps) {
   return (
     <EmailLayout preview="Te invitamos a crear tu cuenta en GlobalConnect">
@@ -24,6 +27,12 @@ export function InvitacionCuentaEmail({
         Te invitamos a entrar a GlobalConnect. Tu ficha ya está registrada: solo tienes que aceptar
         la invitación y elegir tu contraseña.
       </Text>
+      {deNinos && (
+        <Text style={styles.text}>
+          Después, en Mi Perfil → Mis hijos, verás a tus niños registrados en Waumba Land / UpStreet y podrás avisar
+          a la mesa que van en camino.
+        </Text>
+      )}
       <EmailButton href={urlAceptar}>Aceptar invitación</EmailButton>
       <Text style={styles.hint}>
         Este enlace solo funciona una vez y vence pronto; si vence, pide que te lo reenvíen. Si no

@@ -6,11 +6,11 @@
  * with its filter pills and rows, per docs/sistema-diseno.md's `loading.tsx`
  * skeleton pattern.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingMiEquipo() {
   return (
-    <ContenedorDashboard titulo="Mi equipo">
+    <PaginaSistema titulo="Mi equipo">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <SkeletonSistema ancho="260px" alto="32px" />
@@ -50,6 +50,6 @@ export default function LoadingMiEquipo() {
           ))}
         </div>
       </TarjetaSistema>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

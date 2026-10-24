@@ -32,7 +32,7 @@ import { GruposSection } from '@/components/talleres/grupos-section'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
-import { ContenedorDashboard, TituloSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
 import type { EdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
@@ -641,9 +641,9 @@ describe('EdicionDetallePage — content', () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
-    const dashboard = findByType(element, ContenedorDashboard)
+    const dashboard = findByType(element, PaginaSistema)
     expect(dashboard?.props.titulo).toBe('Septiembre 2026')
-    expect(dashboard?.props.botonRegreso).toEqual({
+    expect(dashboard?.props.regreso).toEqual({
       href: rutaTaller('matrimonio-sobre-la-roca'),
       texto: 'Matrimonio sobre la Roca',
     })

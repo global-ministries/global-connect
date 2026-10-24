@@ -92,6 +92,6 @@ describe('EditarDescripcionTaller', () => {
 
   it('gives the edit action a 44px touch target', () => {
     render(<EditarDescripcionTaller tallerId="t-1" tallerSlug="proximo-paso" descripcion="Un taller de ejemplo." />)
-    expect(screen.getByRole('button', { name: /editar descripción/i })).toHaveClass('min-h-[44px]')
+    expect(screen.getByRole('button', { name: /editar descripción/i })).toHaveClass('h-11', 'w-11')
   })
 })
