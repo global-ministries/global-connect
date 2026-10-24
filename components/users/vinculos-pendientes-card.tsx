@@ -46,7 +46,7 @@ export function VinculosPendientesCard() {
   return (
     <TarjetaSistema className="p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <Link2 className="h-5 w-5 text-orange-500" aria-hidden="true" />
+        <Link2 className="h-5 w-5 text-brand" aria-hidden="true" />
         <TituloSistema nivel={3}>Vínculos pendientes</TituloSistema>
       </div>
       <TextoSistema variante="sutil" tamaño="sm">
@@ -54,7 +54,7 @@ export function VinculosPendientesCard() {
         reconoces a quien lo pide.
       </TextoSistema>
       {error && (
-        <TextoSistema tamaño="sm" className="text-red-600" role="alert">
+        <TextoSistema tamaño="sm" className="text-danger-text" role="alert">
           {error}
         </TextoSistema>
       )}
@@ -77,8 +77,8 @@ export function VinculosPendientesCard() {
                 variante="primario"
                 disabled={enCurso === s.id}
                 onClick={() => resolver(s.id, true)}
+                icono={Check}
               >
-                <Check className="h-4 w-4" aria-hidden="true" />
                 Aprobar
               </BotonSistema>
               <BotonSistema
@@ -86,8 +86,8 @@ export function VinculosPendientesCard() {
                 variante="outline"
                 disabled={enCurso === s.id}
                 onClick={() => resolver(s.id, false)}
+                icono={X}
               >
-                <X className="h-4 w-4" aria-hidden="true" />
                 Rechazar
               </BotonSistema>
             </div>
