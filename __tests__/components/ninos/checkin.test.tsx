@@ -348,4 +348,15 @@ describe('CheckinClient — child without ficha (N10)', () => {
     fireEvent.click(within(mia).getByRole('button', { name: 'Completar ficha' }))
     expect(await screen.findByRole('button', { name: 'Crear ficha' })).toBeInTheDocument()
   })
+
+  it('the add-child sheet names the representative only once', async () => {
+    const adulto = { id: 'a1', nombre: 'Adela', apellido: 'Ruiz', telefono: '•••0951', cedula: null, hijos: [], padres: [], sin_hijos: true }
+    responder({ ninos_buscar_familias: { data: [adulto], error: null } })
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    fireEvent.change(screen.getByLabelText('Buscar familia'), { target: { value: 'V-99990951' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar niño' }))
+    expect(await screen.findByLabelText('Nombre del niño 1')).toBeInTheDocument()
+    expect(screen.getAllByText(/Representante/)).toHaveLength(1)
+  })
 })

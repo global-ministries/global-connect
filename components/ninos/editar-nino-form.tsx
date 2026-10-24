@@ -21,6 +21,7 @@ import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { CamposAutorizados, CamposNino, type ModoCamposNino } from './campos-nino'
+import { PieFormulario } from './pie-formulario'
 
 /** What the form saves: the ficha (identity included unless hidden) and the pickup list. */
 export type PayloadEdicionNino = Partial<EdicionNinoPayload> & { autorizados: AutorizadoPayload[] }
@@ -137,14 +138,14 @@ export function EditarNinoForm({ hijo, onGuardado, onCancelar, salones, modo = '
           ))}
         </ul>
       )}
-      <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-background py-4">
+      <PieFormulario>
         <BotonSistema type="button" variante="outline" className="flex-1 sm:flex-none" onClick={onCancelar}>
           Cancelar
         </BotonSistema>
         <BotonSistema type="submit" className="flex-1 sm:flex-none" disabled={guardando}>
           {guardando ? 'Guardando…' : textoBoton}
         </BotonSistema>
-      </div>
+      </PieFormulario>
     </form>
   )
 }

@@ -20,6 +20,7 @@ import type { FamiliaEncontrada } from '@/lib/platform/ninos/familias-vista'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { OPCIONES_GENERO } from './campos-nino'
+import { PieFormulario } from './pie-formulario'
 
 type Props = {
   familia: FamiliaEncontrada
@@ -282,7 +283,7 @@ export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
         </ul>
       )}
 
-      <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-background py-4">
+      <PieFormulario>
         <BotonSistema type="button" variante="outline" className="flex-1 sm:flex-none" onClick={onCancelar}>
           Cancelar
         </BotonSistema>
@@ -291,7 +292,7 @@ export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
             {guardando ? 'Guardando…' : 'Agregar a la familia'}
           </BotonSistema>
         )}
-      </div>
+      </PieFormulario>
     </div>
   )
 }
