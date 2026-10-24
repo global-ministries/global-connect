@@ -6,6 +6,7 @@ import { UserEditForm } from "@/components/forms/UserEditForm"
 
 import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { MisHijos } from '@/components/perfil/mis-hijos'
+import { PerfilPestanas } from '@/components/perfil/perfil-pestanas'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { esMayorDeEdad, parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
@@ -208,22 +209,24 @@ export default async function PerfilPage() {
         subtitulo="Gestiona tu información personal"
         botonRegreso={{ href: '/dashboard', texto: 'Volver al Dashboard' }}
       >
-        <div className="space-y-6">
-          {/* Formulario de Edición */}
-          <UserEditForm
-            usuario={usuarioCompleto}
-            ocupaciones={ocupaciones || []}
-            profesiones={profesiones || []}
-            paises={paises || []}
-            estados={estados || []}
-            municipios={municipios || []}
-            parroquias={parroquias || []}
-            sugerenciasDireccion={sugerenciasDireccion}
-            esPerfil={true}
-          />
-          {/* Shown to every adult account: a parent without children registers them here (M5). */}
-          {conMisHijos && <MisHijos hijos={misHijos} pendientes={misHijosPendientes} prechecks={misPrechecks} />}
-        </div>
+        {/* "Mis datos" and "Mis hijos" tabs (F3). Mis hijos is shown to every adult account:
+            a parent without children registers them there (M5). */}
+        <PerfilPestanas
+          datos={
+            <UserEditForm
+              usuario={usuarioCompleto}
+              ocupaciones={ocupaciones || []}
+              profesiones={profesiones || []}
+              paises={paises || []}
+              estados={estados || []}
+              municipios={municipios || []}
+              parroquias={parroquias || []}
+              sugerenciasDireccion={sugerenciasDireccion}
+              esPerfil={true}
+            />
+          }
+          hijos={conMisHijos ? <MisHijos hijos={misHijos} pendientes={misHijosPendientes} prechecks={misPrechecks} /> : null}
+        />
       </ContenedorDashboard>
 )
 }
