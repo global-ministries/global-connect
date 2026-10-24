@@ -20,6 +20,8 @@
 --   S7.5 uno_a_uno_acceso(): lidera / supervisa / participa per persona.
 --   R    uno_a_uno_relaciones() (the set-based rule, one pass) gives, for EVERY
 --        usuario of the database, exactly what uno_a_uno_dirigidos_de gives.
+--   S9   ubicaciones: where each leader sits (dirección > área > equipo), Grupos
+--        de Vida under its own dirección; spouses share places; internal only.
 --   P    Privileges: the internal functions are service_role only, the public
 --        ones authenticated only; all security definer with search_path pinned.
 --
@@ -258,6 +260,12 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT pg_temp.u('PAS'), id FROM public.roles_sistema WHERE nombre_interno = 'pastor'
 ON CONFLICT DO NOTHING;
+
+-- The real Grupos de Vida dirección (S9), read as postgres.
+INSERT INTO t_u7_ids (k, id)
+SELECT 'gdv', e.id FROM public.dream_team_equipos e
+ WHERE e.parent_equipo_id IS NULL AND e.experiencia = 'grupos_vida'
+ ORDER BY e.activo DESC, e.label LIMIT 1;
 
 -- ── T7 helpers (plpgsql, so the file loads before the migration) ────
 
@@ -521,6 +529,48 @@ SELECT pg_temp.as_nobody();
 SELECT pg_temp.assert_eq('S7.5: no session', $q$SELECT pg_temp.acceso_txt()$q$, 'f/f/f');
 
 -- ── P. the internal functions as authenticated ──────────────────────
+
+
+-- ── S9 where each leader sits (T9, 20261024140000) ─────────────────
+-- `LABEL=dirección>área>equipo|…` of the fixture leaders the session reads,
+-- with '-' for a null área or equipo. The Grupos de Vida dirección is the real
+-- root equipo with experiencia 'grupos_vida' of the database (kept as 'gdv' by
+-- the fixtures, read as postgres: RLS hides equipos from most callers), shown
+-- as GDV.
+
+CREATE OR REPLACE FUNCTION pg_temp.ubic_txt() RETURNS text LANGUAGE plpgsql AS $$
+DECLARE v text;
+BEGIN
+  SELECT coalesce(string_agg(l.label || '=' || (
+           SELECT string_agg(CASE WHEN e ->> 'direccion_id' = pg_temp.k('gdv')::text
+                                  THEN 'GDV' ELSE e ->> 'direccion' END
+                             || '>' || coalesce(e ->> 'area', '-') || '>' || coalesce(e ->> 'equipo', '-'), '|'
+                             ORDER BY e ->> 'direccion', e ->> 'area', e ->> 'equipo')
+             FROM jsonb_array_elements(x.ubicaciones) e), ', ' ORDER BY l.label COLLATE "C"), '')
+    INTO v
+    FROM public.uno_a_uno_supervision_lideres() x
+    JOIN t_u7_labels l ON l.id = x.usuario_id;
+  RETURN v;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION pg_temp.ubic_txt() TO PUBLIC;
+
+SELECT pg_temp.as_persona(pg_temp.a('ADM'));
+SELECT pg_temp.assert_eq('S9.2: every leader sits in the Dream Team tree, Grupos de Vida included', $q$SELECT pg_temp.ubic_txt()$q$,
+  'CC=ZZ U7 padre>ZZ U7 hija>-, '
+  || 'CL=ZZ U7 padre>ZZ U7 hija>-, '
+  || 'DE1=GDV>ZZ U7 S>-|GDV>ZZ U7 S2>-, '
+  || 'DGD=GDV>ZZ U7 S>-, '
+  || 'DGS=GDV>ZZ U7 S>-|GDV>ZZ U7 S2>-, '
+  || 'LA=GDV>ZZ U7 S>ZZ U7 G1, '
+  || 'LA2=GDV>ZZ U7 S>ZZ U7 G1, '
+  || 'PC=ZZ U7 padre>->-');
+SELECT pg_temp.as_persona(pg_temp.a('DGS'));
+SELECT pg_temp.assert_eq('S9.3: a supervisor gets the same places for their chain', $q$SELECT pg_temp.ubic_txt()$q$,
+  'DE1=GDV>ZZ U7 S>-|GDV>ZZ U7 S2>-, LA=GDV>ZZ U7 S>ZZ U7 G1, LA2=GDV>ZZ U7 S>ZZ U7 G1');
+SELECT pg_temp.as_persona(pg_temp.a('ADM'));
+SELECT pg_temp.assert_raises('S9.3: authenticated cannot call uno_a_uno_ubicaciones',
+  $q$SELECT count(*) FROM public.uno_a_uno_ubicaciones()$q$, '42501');
 
 SELECT pg_temp.as_persona(pg_temp.a('ADM'));
 SELECT pg_temp.assert_raises('P: authenticated cannot call uno_a_uno_relaciones',
