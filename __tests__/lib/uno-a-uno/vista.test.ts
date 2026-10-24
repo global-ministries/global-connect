@@ -1,10 +1,19 @@
 /**
  * T4 (odd/tasks/uno-a-uno.md) — pure view helpers for "Mis 1 a 1": parsing
  * mis_uno_a_uno() rows, splitting them into sections and building the
- * dirigido picker (couples shown once).
+ * dirigido picker (couples shown once). T7: the celebración and the
+ * supervision rows (uno_a_uno_supervision, uno_a_uno_supervision_lideres).
  */
 
-import { agruparUnoAUno, nombresDe, opcionesDirigidos, parsearUnoAUno } from '@/lib/uno-a-uno/vista'
+import {
+  agruparUnoAUno,
+  nombresDe,
+  opcionesDirigidos,
+  parsearLideresSupervision,
+  parsearSupervision,
+  parsearUnoAUno,
+  vistaUnoAUno,
+} from '@/lib/uno-a-uno/vista'
 
 function fila(over: Record<string, unknown>) {
   return {
@@ -20,6 +29,7 @@ function fila(over: Record<string, unknown>) {
     motivo_cancelacion: null,
     realizado_en: null,
     cancelado_en: null,
+    celebracion: null,
     ...over,
   }
 }
@@ -39,6 +49,141 @@ describe('parsearUnoAUno', () => {
 
   it('returns an empty list for null', () => {
     expect(parsearUnoAUno(null)).toEqual([])
+  })
+
+  // S7.3: the celebración reaches both sides.
+  it.each(['lider', 'dirigido'])('reads the celebración on the %s side', (lado) => {
+    const [u] = parsearUnoAUno([fila({ estado: 'realizado', mi_lado: lado, celebracion: 'Se bautizó' })])
+    expect(u.celebracion).toBe('Se bautizó')
+  })
+
+  it('leaves the celebración null when there is none', () => {
+    expect(parsearUnoAUno([fila({})])[0].celebracion).toBeNull()
+  })
+})
+
+function filaSupervision(over: Record<string, unknown>) {
+  return {
+    id: 's-1',
+    estado: 'realizado',
+    fecha_hora: '2026-10-10T14:00:00Z',
+    lugar: 'Café Centro',
+    lideres: [{ id: 'l-1', nombre: 'Ana', apellido: 'Pérez' }],
+    dirigidos: [{ id: 'd-1', nombre: 'Luis', apellido: 'Gómez' }],
+    resumen: 'Hablamos de su familia.',
+    celebracion: 'Se bautizó',
+    motivo_cancelacion: null,
+    realizado_en: '2026-10-10T15:00:00Z',
+    cancelado_en: null,
+    ...over,
+  }
+}
+
+// S7.2: who with whom, date, place, estado, resumen, celebración, motivo; never the private note.
+describe('parsearSupervision', () => {
+  it('types every visible field', () => {
+    expect(parsearSupervision([filaSupervision({})])).toEqual([
+      {
+        id: 's-1',
+        estado: 'realizado',
+        fechaHora: '2026-10-10T14:00:00Z',
+        lugar: 'Café Centro',
+        lideres: [{ id: 'l-1', nombre: 'Ana', apellido: 'Pérez' }],
+        dirigidos: [{ id: 'd-1', nombre: 'Luis', apellido: 'Gómez' }],
+        resumen: 'Hablamos de su familia.',
+        celebracion: 'Se bautizó',
+        motivoCancelacion: null,
+      },
+    ])
+  })
+
+  it('never carries a nota_privada, even if a row had one', () => {
+    const [u] = parsearSupervision([filaSupervision({ nota_privada: 'Secreto pastoral' })])
+    expect(u).not.toHaveProperty('notaPrivada')
+    expect(JSON.stringify(u)).not.toContain('Secreto pastoral')
+  })
+
+  it('keeps the database order and drops rows with an unknown estado', () => {
+    const lista = parsearSupervision([
+      filaSupervision({ id: 'b', fecha_hora: '2026-10-01T14:00:00Z' }),
+      filaSupervision({ id: 'x', estado: 'raro' }),
+      filaSupervision({ id: 'a', fecha_hora: '2026-10-09T14:00:00Z' }),
+    ])
+    expect(lista.map((u) => u.id)).toEqual(['b', 'a'])
+  })
+
+  it('returns an empty list for null', () => {
+    expect(parsearSupervision(null)).toEqual([])
+  })
+})
+
+// S7.4: per leader of the chain, in the database order (longest without a 1:1 first).
+describe('parsearLideresSupervision', () => {
+  it('types each leader and keeps the database order', () => {
+    const lista = parsearLideresSupervision([
+      {
+        usuario_id: 'l-2',
+        nombre: 'Pedro',
+        apellido: 'Ruiz',
+        contextos: ['GDV: Norte'],
+        dirigidos: 3,
+        realizados: 0,
+        agendados: 1,
+        ultimo_realizado: null,
+      },
+      {
+        usuario_id: 'l-1',
+        nombre: 'Ana',
+        apellido: null,
+        contextos: null,
+        dirigidos: 2,
+        realizados: 4,
+        agendados: 0,
+        ultimo_realizado: '2026-10-20T19:30:00Z',
+      },
+    ])
+    expect(lista).toEqual([
+      {
+        usuarioId: 'l-2',
+        nombre: 'Pedro',
+        apellido: 'Ruiz',
+        contextos: ['GDV: Norte'],
+        dirigidos: 3,
+        realizados: 0,
+        agendados: 1,
+        ultimoRealizado: null,
+      },
+      {
+        usuarioId: 'l-1',
+        nombre: 'Ana',
+        apellido: null,
+        contextos: [],
+        dirigidos: 2,
+        realizados: 4,
+        agendados: 0,
+        ultimoRealizado: '2026-10-20T19:30:00Z',
+      },
+    ])
+  })
+
+  it('drops rows without an id or a name', () => {
+    expect(parsearLideresSupervision([{ usuario_id: null, nombre: 'X' }, { usuario_id: 'l-1' }])).toEqual([])
+  })
+})
+
+// S7.1: the supervision view only for whoever supervises.
+describe('vistaUnoAUno', () => {
+  it('opens supervision when asked and the user supervises', () => {
+    expect(vistaUnoAUno('supervision', true)).toBe('supervision')
+    expect(vistaUnoAUno(['supervision', 'mis'], true)).toBe('supervision')
+  })
+
+  it.each([
+    ['supervision', false],
+    [undefined, true],
+    ['otra', true],
+  ] as const)('falls back to "mis" for %p (supervisa=%p)', (param, supervisa) => {
+    expect(vistaUnoAUno(param, supervisa)).toBe('mis')
   })
 })
 

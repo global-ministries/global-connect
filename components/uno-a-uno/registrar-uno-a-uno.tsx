@@ -2,8 +2,9 @@
 
 /**
  * Registering a 1:1 after it happened (odd/tasks/uno-a-uno.md, T4): a
- * required resumen and an optional private note, both seen only by the
- * leader side. Two uses:
+ * required resumen (the leader side and their supervision chain read it), an
+ * optional private note (the leader side only) and, since T7, an optional
+ * celebración (the chain and the person too). Two uses:
  *
  *   - a scheduled 1:1 (`unoAUnoId`): registrarUnoAUno; the database keeps
  *     the scheduled time, or now when registered early;
@@ -11,7 +12,7 @@
  *     also needs the person, the (past) date and time and an optional place.
  */
 
-import { useState, useTransition, type ReactElement } from 'react'
+import { useState, useTransition, type ReactElement, type ReactNode } from 'react'
 import { NotebookPen } from 'lucide-react'
 
 import { BotonSistema, TextareaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
@@ -22,6 +23,18 @@ import { hoyEnCaracas } from '@/lib/uno-a-uno/fecha'
 import type { OpcionDirigido } from '@/lib/uno-a-uno/vista'
 
 import { CamposCita, CITA_VACIA, citaCompleta, type ValoresCita } from './campos-cita'
+
+/** A field with a line below it saying who reads it (S7.6). */
+function CampoConAyuda({ ayuda, children }: { ayuda: string; children: ReactNode }): ReactElement {
+  return (
+    <div className="space-y-1">
+      {children}
+      <TextoSistema variante="sutil" tamaño="sm">
+        {ayuda}
+      </TextoSistema>
+    </div>
+  )
+}
 
 type Props =
   | { readonly unoAUnoId: string; readonly conQuien: string; readonly dirigidos?: never }
@@ -34,12 +47,14 @@ export function RegistrarUnoAUnoDialog(props: Props): ReactElement {
   const [error, setError] = useState<string | null>(null)
   const [resumen, setResumen] = useState('')
   const [notaPrivada, setNotaPrivada] = useState('')
+  const [celebracion, setCelebracion] = useState('')
   const [cita, setCita] = useState<ValoresCita>(CITA_VACIA)
   const [hoy, setHoy] = useState('')
 
   function abrir(): void {
     setResumen('')
     setNotaPrivada('')
+    setCelebracion('')
     setCita(CITA_VACIA)
     setError(null)
     setHoy(hoyEnCaracas())
@@ -59,13 +74,14 @@ export function RegistrarUnoAUnoDialog(props: Props): ReactElement {
     startTransition(async () => {
       const result =
         props.unoAUnoId !== undefined
-          ? await registrarUnoAUno({ id: props.unoAUnoId, resumen, notaPrivada })
+          ? await registrarUnoAUno({ id: props.unoAUnoId, resumen, notaPrivada, celebracion })
           : await registrarSinAgenda({
               dirigidoId: cita.dirigidoId,
               fecha: cita.fecha,
               hora: cita.hora,
               resumen,
               notaPrivada,
+              celebracion,
               lugar: cita.lugar,
             })
       if (result.ok) setOpen(false)
@@ -100,14 +116,16 @@ export function RegistrarUnoAUnoDialog(props: Props): ReactElement {
             <CamposCita dirigidos={props.dirigidos} valores={cita} onChange={setCita} fechaMax={hoy || undefined} />
           ) : null}
 
-          <TextareaSistema
-            label="Resumen"
-            value={resumen}
-            maxLength={LIMITES_UNO_A_UNO.resumen}
-            onChange={(e) => setResumen(e.target.value)}
-            filas={4}
-          />
-          <div className="space-y-1">
+          <CampoConAyuda ayuda="Lo ve tu cadena de supervisión.">
+            <TextareaSistema
+              label="Resumen"
+              value={resumen}
+              maxLength={LIMITES_UNO_A_UNO.resumen}
+              onChange={(e) => setResumen(e.target.value)}
+              filas={4}
+            />
+          </CampoConAyuda>
+          <CampoConAyuda ayuda="Solo la ves tú (y tu cónyuge).">
             <TextareaSistema
               label="Nota privada (opcional)"
               value={notaPrivada}
@@ -115,10 +133,16 @@ export function RegistrarUnoAUnoDialog(props: Props): ReactElement {
               onChange={(e) => setNotaPrivada(e.target.value)}
               filas={2}
             />
-            <TextoSistema variante="sutil" tamaño="sm">
-              El resumen y la nota solo los ve quien lidera este 1 a 1.
-            </TextoSistema>
-          </div>
+          </CampoConAyuda>
+          <CampoConAyuda ayuda="La ven tu cadena de supervisión y la persona.">
+            <TextareaSistema
+              label="Celebración (opcional)"
+              value={celebracion}
+              maxLength={LIMITES_UNO_A_UNO.celebracion}
+              onChange={(e) => setCelebracion(e.target.value)}
+              filas={2}
+            />
+          </CampoConAyuda>
 
           {error ? (
             <TextoSistema role="alert" className="block text-destructive">

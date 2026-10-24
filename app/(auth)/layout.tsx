@@ -10,6 +10,7 @@ import { resolveCurrentUserSnapshot } from "@/lib/auth/currentUserSnapshot"
 import { DreamTeamAccesoProvider } from "@/hooks/useDreamTeamAcceso"
 import { NinosAccesoProvider } from "@/hooks/useNinosAcceso"
 import { UnoAUnoAccesoProvider } from "@/hooks/useUnoAUnoAcceso"
+import { parsearAccesoUnoAUno, SIN_ACCESO_UNO_A_UNO, type AccesoUnoAUno } from "@/lib/uno-a-uno/acceso"
 import { isDreamTeamEnabled } from "@/lib/platform/dream-team/route-access"
 import { puedeRegistrarParaNavegacion } from "@/lib/platform/dream-team/ficha-persona"
 
@@ -45,15 +46,15 @@ async function resolveNinosAcceso(supabase: SupabaseServerClient | null) {
   }
 }
 
-// "Mis 1 a 1" menu entry (odd/tasks/uno-a-uno.md, T4): shown only to whoever
-// leads someone, i.e. mis_dirigidos() has a row. Fails closed on any error.
-async function resolveUnoAUnoAcceso(supabase: SupabaseServerClient | null): Promise<boolean> {
-  if (!supabase) return false
+// "Mis 1 a 1" menu entry (odd/tasks/uno-a-uno.md, T4/T7): shown to whoever
+// leads someone, supervises or takes part in a 1:1 (uno_a_uno_acceso()).
+// Fails closed on any error.
+async function resolveUnoAUnoAcceso(supabase: SupabaseServerClient | null): Promise<AccesoUnoAUno> {
+  if (!supabase) return SIN_ACCESO_UNO_A_UNO
   try {
-    const { data, error } = await supabase.rpc("mis_dirigidos").limit(1)
-    return !error && Array.isArray(data) && data.length > 0
+    return parsearAccesoUnoAUno(await supabase.rpc("uno_a_uno_acceso"))
   } catch {
-    return false
+    return SIN_ACCESO_UNO_A_UNO
   }
 }
 
@@ -97,7 +98,7 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
   // resolveCurrentUserSnapshot's doc comment.
   // The Dream Team sidebar links Mi equipo for the volunteer coordinator, whose
   // session carries no read capability: one registrables lookup, fails closed.
-  const [branding, initialCurrentUser, dreamTeamPuedeRegistrar, ninosAcceso, lideraAAlguien] = await Promise.all([
+  const [branding, initialCurrentUser, dreamTeamPuedeRegistrar, ninosAcceso, unoAUnoAcceso] = await Promise.all([
     supabase ? resolveBranding(supabase) : Promise.resolve(DEFAULT_BRANDING),
     resolveCurrentUserSnapshot(supabase ?? undefined),
     puedeRegistrarParaNavegacion(supabase, isDreamTeamEnabled()),
@@ -117,7 +118,7 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
         <DreamTeamAccesoProvider puedeRegistrar={dreamTeamPuedeRegistrar}>
           <NinosAccesoProvider puedeOperar={ninosAcceso.puedeOperar} puedeVerSalon={ninosAcceso.puedeVerSalon}
             puedeConfigurar={ninosAcceso.puedeConfigurar} puedeMarcarVoluntarios={ninosAcceso.puedeMarcarVoluntarios}>
-            <UnoAUnoAccesoProvider lideraAAlguien={lideraAAlguien}>
+            <UnoAUnoAccesoProvider acceso={unoAUnoAcceso}>
             <CampusProvider>
               <div className="min-h-screen bg-[var(--surface-primary)]">
                 <HeaderMovil />

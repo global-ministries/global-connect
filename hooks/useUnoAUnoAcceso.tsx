@@ -2,22 +2,25 @@
 
 import { createContext, useContext, type ReactNode } from 'react'
 
+import { SIN_ACCESO_UNO_A_UNO, type AccesoUnoAUno } from '@/lib/uno-a-uno/acceso'
+
 /**
- * Whether the user leads someone (odd/tasks/uno-a-uno.md, T4): mis_dirigidos()
- * has at least one row. The (auth) layout computes it once, server-side, and
- * provides it here so the menu shows "Mis 1 a 1". Outside the provider it is
- * false (fails closed).
+ * What the user does with 1:1s (odd/tasks/uno-a-uno.md, T4/T7): leads
+ * someone, supervises a chain, takes part in one (uno_a_uno_acceso()). The
+ * (auth) layout computes it once, server-side, and provides it here so the
+ * menu shows "Mis 1 a 1". Outside the provider every flag is false (fails
+ * closed).
  */
-const UnoAUnoAccesoContext = createContext<boolean>(false)
+const UnoAUnoAccesoContext = createContext<AccesoUnoAUno>(SIN_ACCESO_UNO_A_UNO)
 
 export function UnoAUnoAccesoProvider({
-  lideraAAlguien,
+  acceso,
   children,
 }: {
-  readonly lideraAAlguien: boolean
+  readonly acceso: AccesoUnoAUno
   readonly children: ReactNode
 }) {
-  return <UnoAUnoAccesoContext.Provider value={lideraAAlguien}>{children}</UnoAUnoAccesoContext.Provider>
+  return <UnoAUnoAccesoContext.Provider value={acceso}>{children}</UnoAUnoAccesoContext.Provider>
 }
 
-export const useUnoAUnoAcceso = (): boolean => useContext(UnoAUnoAccesoContext)
+export const useUnoAUnoAcceso = (): AccesoUnoAUno => useContext(UnoAUnoAccesoContext)

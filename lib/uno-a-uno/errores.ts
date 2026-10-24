@@ -20,6 +20,7 @@ const MENSAJES_CONOCIDOS: ReadonlySet<string> = new Set([
   'El resumen es obligatorio.',
   'Este 1 a 1 ya no está agendado.',
   'No encontramos este 1 a 1.',
+  'La celebración no puede superar 500 caracteres.',
 ])
 
 export const MENSAJE_SIN_SESION = 'Necesitas iniciar sesión.'
@@ -51,4 +52,5 @@ export const LIMITES_UNO_A_UNO = {
   resumen: 4000,
   notaPrivada: 4000,
   motivo: 300,
+  celebracion: 500,
 } as const

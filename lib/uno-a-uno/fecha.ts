@@ -84,3 +84,10 @@ export function partesEnCaracas(instante: string | null): { fecha: string; hora:
 export function hoyEnCaracas(ahora: Date = new Date()): string {
   return partesEnCaracas(ahora.toISOString()).fecha
 }
+
+const MS_POR_DIA = 86_400_000
+
+/** The instant `dias` days before `ahora`, as ISO, for the windows of the supervision view. */
+export function desdeHaceDias(dias: number, ahora: Date = new Date()): string {
+  return new Date(ahora.getTime() - dias * MS_POR_DIA).toISOString()
+}

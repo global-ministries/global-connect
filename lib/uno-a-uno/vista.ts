@@ -1,7 +1,9 @@
 /**
  * View helpers for "Mis 1 a 1" (odd/tasks/uno-a-uno.md, T4): typed rows from
  * mis_uno_a_uno(), the page's three sections, and the dirigido picker built
- * from mis_dirigidos(). Pure, so the page and the tests share them.
+ * from mis_dirigidos(). T7: the "Supervisión" view's rows from
+ * uno_a_uno_supervision() and uno_a_uno_supervision_lideres(). Pure, so the
+ * page and the tests share them.
  */
 
 export type EstadoUnoAUno = 'agendado' | 'realizado' | 'cancelado'
@@ -25,7 +27,47 @@ export interface UnoAUno {
   readonly resumen: string | null
   readonly notaPrivada: string | null
   readonly motivoCancelacion: string | null
+  /** Both sides read it (T7). */
+  readonly celebracion: string | null
 }
+
+/**
+ * A 1:1 of the user's chain (uno_a_uno_supervision). There is no private
+ * note field on purpose: it never leaves the leader side.
+ */
+export interface UnoAUnoSupervisado {
+  readonly id: string
+  readonly estado: EstadoUnoAUno
+  readonly fechaHora: string
+  readonly lugar: string | null
+  readonly lideres: readonly PersonaUnoAUno[]
+  readonly dirigidos: readonly PersonaUnoAUno[]
+  /** Only once realizado (the database nulls it otherwise). */
+  readonly resumen: string | null
+  readonly celebracion: string | null
+  readonly motivoCancelacion: string | null
+}
+
+/** One leader of the user's chain (uno_a_uno_supervision_lideres). */
+export interface LiderSupervisado {
+  readonly usuarioId: string
+  readonly nombre: string
+  readonly apellido: string | null
+  /** What they lead, e.g. "GDV: Norte". */
+  readonly contextos: readonly string[]
+  readonly dirigidos: number
+  /** Realizados within the window the page asked for. */
+  readonly realizados: number
+  readonly agendados: number
+  readonly ultimoRealizado: string | null
+}
+
+/** The two views of /mis-uno-a-uno, picked with ?vista=. */
+export type VistaUnoAUno = 'mis' | 'supervision'
+
+/** The supervision windows: leaders over the last 30 days, 1:1s of the last 90. */
+export const DIAS_SUPERVISION_LIDERES = 30
+export const DIAS_SUPERVISION_RECIENTES = 90
 
 /** One mis_dirigidos() row. */
 export interface DirigidoFila {
@@ -46,6 +88,14 @@ const LADOS: ReadonlySet<string> = new Set(['lider', 'dirigido'])
 
 function texto(value: unknown): string | null {
   return typeof value === 'string' ? value : null
+}
+
+function entero(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function textos(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 }
 
 function personas(value: unknown): PersonaUnoAUno[] {
@@ -80,9 +130,62 @@ export function parsearUnoAUno(rows: readonly Record<string, unknown>[] | null |
       resumen: texto(row.resumen),
       notaPrivada: texto(row.nota_privada),
       motivoCancelacion: texto(row.motivo_cancelacion),
+      celebracion: texto(row.celebracion),
     })
   }
   return result
+}
+
+/** Typed 1:1s from uno_a_uno_supervision(), in its order; unknown estados are dropped. */
+export function parsearSupervision(rows: readonly Record<string, unknown>[] | null | undefined): UnoAUnoSupervisado[] {
+  const result: UnoAUnoSupervisado[] = []
+  for (const row of rows ?? []) {
+    const id = texto(row.id)
+    const fechaHora = texto(row.fecha_hora)
+    const estado = texto(row.estado)
+    if (!id || !fechaHora || !estado || !ESTADOS.has(estado)) continue
+    result.push({
+      id,
+      estado: estado as EstadoUnoAUno,
+      fechaHora,
+      lugar: texto(row.lugar),
+      lideres: personas(row.lideres),
+      dirigidos: personas(row.dirigidos),
+      resumen: texto(row.resumen),
+      celebracion: texto(row.celebracion),
+      motivoCancelacion: texto(row.motivo_cancelacion),
+    })
+  }
+  return result
+}
+
+/** Typed leaders from uno_a_uno_supervision_lideres(), in its order (longest without a 1:1 first). */
+export function parsearLideresSupervision(
+  rows: readonly Record<string, unknown>[] | null | undefined,
+): LiderSupervisado[] {
+  const result: LiderSupervisado[] = []
+  for (const row of rows ?? []) {
+    const usuarioId = texto(row.usuario_id)
+    const nombre = texto(row.nombre)
+    if (!usuarioId || !nombre) continue
+    result.push({
+      usuarioId,
+      nombre,
+      apellido: texto(row.apellido),
+      contextos: textos(row.contextos),
+      dirigidos: entero(row.dirigidos),
+      realizados: entero(row.realizados),
+      agendados: entero(row.agendados),
+      ultimoRealizado: texto(row.ultimo_realizado),
+    })
+  }
+  return result
+}
+
+/** The view asked for in ?vista=; supervision only for whoever supervises. */
+export function vistaUnoAUno(param: string | readonly string[] | undefined, supervisa: boolean): VistaUnoAUno {
+  const pedida = Array.isArray(param) ? param[0] : param
+  return supervisa && pedida === 'supervision' ? 'supervision' : 'mis'
 }
 
 function porFecha(a: UnoAUno, b: UnoAUno): number {

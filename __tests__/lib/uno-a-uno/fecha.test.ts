@@ -5,6 +5,7 @@
  */
 
 import {
+  desdeHaceDias,
   fechaHoraCaracasAIso,
   formatearFechaHora,
   hoyEnCaracas,
@@ -67,5 +68,11 @@ describe('partesEnCaracas', () => {
 describe('hoyEnCaracas', () => {
   it('gives the Caracas date, not the UTC one', () => {
     expect(hoyEnCaracas(new Date('2026-10-17T02:00:00Z'))).toBe('2026-10-16')
+  })
+})
+
+describe('desdeHaceDias', () => {
+  it('is the instant that many days before now', () => {
+    expect(desdeHaceDias(90, new Date('2026-10-24T12:00:00Z'))).toBe('2026-07-26T12:00:00.000Z')
   })
 })

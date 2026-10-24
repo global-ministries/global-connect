@@ -10,6 +10,8 @@
  * (supabase/migrations/20261015120000_uno_a_uno_modelo.sql), mapped to
  * Spanish by lib/uno-a-uno/errores.ts. Dates arrive as a Caracas date and
  * time and are turned into a timestamptz here, never trusted pre-built.
+ * T7: both register actions take an optional celebración
+ * (20261024120000_uno_a_uno_supervision.sql).
  */
 
 import { revalidatePath } from 'next/cache'
@@ -55,6 +57,10 @@ function opcional(value: unknown, max: number, campo: string): string | null {
 
 function resumen(value: unknown): string {
   return opcional(value, LIMITES_UNO_A_UNO.resumen, 'El resumen') ?? invalido('El resumen es obligatorio.')
+}
+
+function celebracion(value: unknown): string | null {
+  return opcional(value, LIMITES_UNO_A_UNO.celebracion, 'La celebración')
 }
 
 /**
@@ -113,6 +119,7 @@ export interface RegistrarUnoAUnoInput {
   readonly id: string
   readonly resumen: string
   readonly notaPrivada?: string | null
+  readonly celebracion?: string | null
 }
 
 export async function registrarUnoAUno(input: RegistrarUnoAUnoInput): Promise<UnoAUnoActionResult> {
@@ -121,6 +128,7 @@ export async function registrarUnoAUno(input: RegistrarUnoAUnoInput): Promise<Un
       p_id: uuid(input.id, 'No encontramos este 1 a 1.'),
       p_resumen: resumen(input.resumen),
       p_nota_privada: opcional(input.notaPrivada, LIMITES_UNO_A_UNO.notaPrivada, 'La nota privada'),
+      p_celebracion: celebracion(input.celebracion),
     }),
     (client, args) => client.rpc('uno_a_uno_registrar', args),
     'No se pudo registrar el 1 a 1.',
@@ -133,6 +141,7 @@ export interface RegistrarSinAgendaInput {
   readonly hora: string
   readonly resumen: string
   readonly notaPrivada?: string | null
+  readonly celebracion?: string | null
   readonly lugar?: string | null
 }
 
@@ -144,6 +153,7 @@ export async function registrarSinAgenda(input: RegistrarSinAgendaInput): Promis
       p_resumen: resumen(input.resumen),
       p_nota_privada: opcional(input.notaPrivada, LIMITES_UNO_A_UNO.notaPrivada, 'La nota privada'),
       p_lugar: opcional(input.lugar, LIMITES_UNO_A_UNO.lugar, 'El lugar'),
+      p_celebracion: celebracion(input.celebracion),
     }),
     (client, args) => client.rpc('uno_a_uno_registrar_sin_agenda', args),
     'No se pudo registrar el 1 a 1.',

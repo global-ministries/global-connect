@@ -4,6 +4,7 @@
  * T4 (odd/tasks/uno-a-uno.md) — server actions for /mis-uno-a-uno. The gate
  * is an authenticated session only; who may act on a 1:1 is decided by the
  * uno_a_uno_* functions (42501 / 22023 / P0002), mapped here to Spanish.
+ * T7 (S7.3): both register actions carry an optional celebración (≤ 500).
  */
 
 import {
@@ -115,6 +116,26 @@ describe('input validation', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['registrarUnoAUno', () => registrarUnoAUno({ id: UNO, resumen: 'Bien', celebracion: 'x'.repeat(501) })],
+    ['registrarSinAgenda', () => registrarSinAgenda({ ...sinAgendaInput, celebracion: 'x'.repeat(501) })],
+  ])('%s rejects a celebración over 500 characters', async (_name, run) => {
+    const { rpc } = setup()
+    expect(await run()).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: 'La celebración admite hasta 500 caracteres.',
+    })
+    expect(rpc).not.toHaveBeenCalled()
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+
+  it('accepts a celebración of exactly 500 characters', async () => {
+    const { rpc } = setup({ rpcResult: { data: null, error: null } })
+    expect(await registrarUnoAUno({ id: UNO, resumen: 'Bien', celebracion: 'x'.repeat(500) })).toEqual({ ok: true })
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_celebracion: 'x'.repeat(500) })
+  })
+
   it('rejects text over the length limit', async () => {
     const { rpc } = setup()
     const result = await cancelarUnoAUno({ id: UNO, motivo: 'x'.repeat(301) })
@@ -151,8 +172,21 @@ describe('happy path', () => {
       p_id: UNO,
       p_resumen: 'Bien',
       p_nota_privada: 'Orar por su trabajo',
+      p_celebracion: null,
     })
     expect(revalidatePathMock).toHaveBeenCalledWith('/mis-uno-a-uno')
+  })
+
+  it('registrarUnoAUno sends the trimmed celebración', async () => {
+    const { rpc } = setup({ rpcResult: { data: null, error: null } })
+    expect(await registrarUnoAUno({ id: UNO, resumen: 'Bien', celebracion: ' Se bautizó ' })).toEqual({ ok: true })
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_celebracion: 'Se bautizó' })
+  })
+
+  it('registrarSinAgenda sends the trimmed celebración', async () => {
+    const { rpc } = setup()
+    expect(await registrarSinAgenda({ ...sinAgendaInput, celebracion: ' Consiguió trabajo ' })).toEqual({ ok: true })
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_celebracion: 'Consiguió trabajo' })
   })
 
   it('registrarSinAgenda sends every field, blanks as null', async () => {
@@ -164,6 +198,7 @@ describe('happy path', () => {
       p_resumen: 'Hablamos de su familia.',
       p_nota_privada: null,
       p_lugar: null,
+      p_celebracion: null,
     })
     expect(revalidatePathMock).toHaveBeenCalledWith('/mis-uno-a-uno')
   })
@@ -226,6 +261,18 @@ describe('database errors', () => {
     setup({ rpcResult: { data: null, error: { code: '22023', message: 'Este 1 a 1 ya no está agendado.' } } })
     const result = await registrarUnoAUno({ id: UNO, resumen: 'Bien' })
     expect(result).toEqual({ ok: false, error: 'invalid-input', message: 'Este 1 a 1 ya no está agendado.' })
+  })
+
+  it('maps the database celebración limit (22023) to invalid-input with its message', async () => {
+    setup({
+      rpcResult: { data: null, error: { code: '22023', message: 'La celebración no puede superar 500 caracteres.' } },
+    })
+    const result = await registrarSinAgenda(sinAgendaInput)
+    expect(result).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: 'La celebración no puede superar 500 caracteres.',
+    })
   })
 
   it('maps not found (P0002) to not-found', async () => {

@@ -3,6 +3,7 @@
  *
  * T4 (odd/tasks/uno-a-uno.md) — the "Mis 1 a 1" sections: actions and the
  * private fields only on the leader side; the dirigido side is read-only.
+ * T7 (S7.3): the celebración shows on both sides.
  */
 
 import { render, screen, within } from '@testing-library/react'
@@ -33,6 +34,7 @@ function uno(over: Partial<UnoAUno>): UnoAUno {
     resumen: null,
     notaPrivada: null,
     motivoCancelacion: null,
+    celebracion: null,
     ...over,
   }
 }
@@ -67,6 +69,23 @@ describe('ListaUnoAUno', () => {
     expect(realizados.getByText('Hablamos de su familia.')).toBeInTheDocument()
     expect(realizados.getByText('Orar por su trabajo')).toBeInTheDocument()
     expect(realizados.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it.each(['lider', 'dirigido'] as const)('shows the celebración of a realizado on the %s side', (miLado) => {
+    render(
+      <ListaUnoAUno
+        lista={[uno({ estado: 'realizado', miLado, resumen: miLado === 'lider' ? 'Bien' : null, celebracion: 'Se bautizó' })]}
+        lideraAAlguien={miLado === 'lider'}
+      />,
+    )
+    const realizados = within(screen.getByRole('region', { name: 'Realizados' }))
+    expect(realizados.getByText('Celebración')).toBeInTheDocument()
+    expect(realizados.getByText('Se bautizó')).toBeInTheDocument()
+  })
+
+  it('shows no celebración block when there is none', () => {
+    render(<ListaUnoAUno lista={[uno({ estado: 'realizado', resumen: 'Bien' })]} lideraAAlguien />)
+    expect(screen.queryByText('Celebración')).not.toBeInTheDocument()
   })
 
   it('shows empty states and hides Cancelados when there are none', () => {
