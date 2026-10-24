@@ -2,8 +2,9 @@
  * View helpers for "Mis 1 a 1" (odd/tasks/uno-a-uno.md, T4): typed rows from
  * mis_uno_a_uno(), the page's three sections, and the dirigido picker built
  * from mis_dirigidos(). T7: the "Supervisión" view's rows from
- * uno_a_uno_supervision() and uno_a_uno_supervision_lideres(). Pure, so the
- * page and the tests share them.
+ * uno_a_uno_supervision() and uno_a_uno_supervision_lideres(). T9: each
+ * leader's places in the Dream Team tree. Pure, so the page and the tests
+ * share them.
  */
 
 export type EstadoUnoAUno = 'agendado' | 'realizado' | 'cancelado'
@@ -48,6 +49,20 @@ export interface UnoAUnoSupervisado {
   readonly motivoCancelacion: string | null
 }
 
+/**
+ * One place of a leader in the Dream Team tree (T9 S9.2): the dirección, its
+ * área and the equipo or grupo they lead. No área when they lead the
+ * dirección itself; no equipo when they lead the área.
+ */
+export interface UbicacionLider {
+  readonly direccionId: string
+  readonly direccion: string
+  readonly areaId: string | null
+  readonly area: string | null
+  readonly equipoId: string | null
+  readonly equipo: string | null
+}
+
 /** One leader of the user's chain (uno_a_uno_supervision_lideres). */
 export interface LiderSupervisado {
   readonly usuarioId: string
@@ -60,6 +75,8 @@ export interface LiderSupervisado {
   readonly realizados: number
   readonly agendados: number
   readonly ultimoRealizado: string | null
+  /** Every place they lead in; they show under each one. */
+  readonly ubicaciones: readonly UbicacionLider[]
 }
 
 /** The two views of /mis-uno-a-uno, picked with ?vista=. */
@@ -106,6 +123,34 @@ function personas(value: unknown): PersonaUnoAUno[] {
     const { id, nombre, apellido } = item as Record<string, unknown>
     if (typeof id !== 'string' || typeof nombre !== 'string') continue
     result.push({ id, nombre, apellido: texto(apellido) })
+  }
+  return result
+}
+
+/** An id and its name, or neither: one without the other cannot be filtered or shown. */
+function nodo(id: unknown, nombre: unknown): { id: string | null; nombre: string | null } {
+  return typeof id === 'string' && typeof nombre === 'string' ? { id, nombre } : { id: null, nombre: null }
+}
+
+/** The well-formed places of the `ubicaciones` jsonb; anything without a dirección is dropped. */
+function ubicaciones(value: unknown): UbicacionLider[] {
+  if (!Array.isArray(value)) return []
+  const result: UbicacionLider[] = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const fila = item as Record<string, unknown>
+    const direccion = nodo(fila.direccion_id, fila.direccion)
+    if (!direccion.id || !direccion.nombre) continue
+    const area = nodo(fila.area_id, fila.area)
+    const equipo = nodo(fila.equipo_id, fila.equipo)
+    result.push({
+      direccionId: direccion.id,
+      direccion: direccion.nombre,
+      areaId: area.id,
+      area: area.nombre,
+      equipoId: equipo.id,
+      equipo: equipo.nombre,
+    })
   }
   return result
 }
@@ -177,6 +222,7 @@ export function parsearLideresSupervision(
       realizados: entero(row.realizados),
       agendados: entero(row.agendados),
       ultimoRealizado: texto(row.ultimo_realizado),
+      ubicaciones: ubicaciones(row.ubicaciones),
     })
   }
   return result

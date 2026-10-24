@@ -2,7 +2,8 @@
 
 /**
  * "Líderes" of the supervision view (odd/tasks/uno-a-uno.md, T8): the three
- * counters that filter by estado (S8.1), the filters (S8.2), "Mostrando X de
+ * counters that filter by estado (S8.1), the filters (S8.2; T9 S9.1 for
+ * Dirección → Área → Equipo o grupo), "Mostrando X de
  * N" with "Limpiar filtros", and the table or the phone list (S8.3, S8.4).
  * Filters and sorting live in local state over the leaders the page loaded
  * (S8.6); the rules are in lib/uno-a-uno/supervision.ts.
@@ -17,7 +18,7 @@ import {
   contadoresLideres,
   filtrarLideres,
   hayFiltrosLideres,
-  opcionesGrupo,
+  opcionesUbicacion,
   ordenarLideres,
   siguienteOrden,
   type ColumnaLider,
@@ -74,7 +75,7 @@ export function LideresSupervision({ lideres }: { lideres: readonly LiderSupervi
   const [filtros, setFiltros] = useState<FiltrosLideres>(FILTROS_LIDERES_VACIOS)
   const [orden, setOrden] = useState<OrdenLideres>(null)
 
-  const grupos = useMemo(() => opcionesGrupo(lideres), [lideres])
+  const opciones = useMemo(() => opcionesUbicacion(lideres, filtros), [lideres, filtros])
   const visibles = useMemo(() => ordenarLideres(filtrarLideres(lideres, filtros), orden), [lideres, filtros, orden])
 
   if (lideres.length === 0) {
@@ -87,7 +88,7 @@ export function LideresSupervision({ lideres }: { lideres: readonly LiderSupervi
   return (
     <div className="space-y-4">
       <ContadoresLideres lideres={lideres} estado={filtros.estado} onEstado={(estado) => cambiar({ estado })} />
-      <FiltrosLideresSupervision filtros={filtros} grupos={grupos} visibles={visibles.length} onCambio={cambiar} />
+      <FiltrosLideresSupervision filtros={filtros} opciones={opciones} visibles={visibles.length} onCambio={cambiar} />
 
       <div className="flex min-h-[44px] flex-wrap items-center justify-between gap-2">
         <TextoSistema variante="sutil" tamaño="sm" aria-live="polite">

@@ -1,49 +1,21 @@
 /**
  * The supervision table of /mis-uno-a-uno (odd/tasks/uno-a-uno.md, T8): the
- * área and the grupo or equipo of a leader from their `contextos`, the
- * leaders' filters, counters and sorting, and the recent 1:1s' filters. All
- * of it runs in the browser over the rows the page already loaded (S8.6);
- * pure, so the components and the tests share it.
+ * leaders' filters, counters and sorting, and the recent 1:1s' filters. T9:
+ * the Dirección → Área → Equipo o grupo filters over each leader's places,
+ * with the cascade of Dream Team → Servidores. All of it runs in the browser
+ * over the rows the page already loaded (S8.6); pure, so the components and
+ * the tests share it.
  */
 
-import { nombresDe, type EstadoUnoAUno, type LiderSupervisado, type UnoAUnoSupervisado } from './vista'
+import {
+  nombresDe,
+  type EstadoUnoAUno,
+  type LiderSupervisado,
+  type UbicacionLider,
+  type UnoAUnoSupervisado,
+} from './vista'
 
-export type AreaLider = 'gdv' | 'dream_team'
 export type EstadoLider = 'sin_uno_a_uno' | 'al_dia' | 'con_agendados'
-
-export const AREAS_LIDER: readonly { valor: AreaLider; etiqueta: string }[] = [
-  { valor: 'gdv', etiqueta: 'Grupos de Vida' },
-  { valor: 'dream_team', etiqueta: 'Dream Team' },
-]
-
-// Prefixes written by uno_a_uno_dirigidos_de (the database's contexts).
-const PREFIJOS: readonly { prefijo: string; area: AreaLider }[] = [
-  { prefijo: 'GDV:', area: 'gdv' },
-  { prefijo: 'Director de etapa:', area: 'gdv' },
-  { prefijo: 'Director general:', area: 'gdv' },
-  { prefijo: 'Dream Team:', area: 'dream_team' },
-]
-
-function prefijoDe(contexto: string): (typeof PREFIJOS)[number] | undefined {
-  return PREFIJOS.find((p) => contexto.startsWith(p.prefijo))
-}
-
-/** "GDV: Norte" → 'gdv'; null for a context with an unknown prefix. */
-export function areaDeContexto(contexto: string): AreaLider | null {
-  return prefijoDe(contexto)?.area ?? null
-}
-
-/** "GDV: Norte" → "Norte"; an unknown context stays whole. */
-export function grupoDeContexto(contexto: string): string {
-  const conocido = prefijoDe(contexto)
-  return conocido ? contexto.slice(conocido.prefijo.length).trim() : contexto
-}
-
-/** Every grupo or equipo of the loaded leaders, once and sorted. */
-export function opcionesGrupo(lideres: readonly LiderSupervisado[]): string[] {
-  const grupos = new Set(lideres.flatMap((l) => l.contextos.map(grupoDeContexto)))
-  return [...grupos].sort((a, b) => a.localeCompare(b, 'es'))
-}
 
 function normalizar(valor: string): string {
   return valor.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim()
@@ -60,15 +32,98 @@ export function nombreDeLider(lider: LiderSupervisado): string {
 
 export interface FiltrosLideres {
   readonly q: string
-  readonly area: AreaLider | null
-  readonly grupo: string | null
+  /** Ids of the Dream Team tree (S9.1). */
+  readonly direccion: string | null
+  readonly area: string | null
+  readonly equipo: string | null
   readonly estado: EstadoLider | null
 }
 
-export const FILTROS_LIDERES_VACIOS: FiltrosLideres = { q: '', area: null, grupo: null, estado: null }
+export const FILTROS_LIDERES_VACIOS: FiltrosLideres = { q: '', direccion: null, area: null, equipo: null, estado: null }
 
 export function hayFiltrosLideres(filtros: FiltrosLideres): boolean {
-  return filtros.q.trim() !== '' || filtros.area !== null || filtros.grupo !== null || filtros.estado !== null
+  const { q, direccion, area, equipo, estado } = filtros
+  return q.trim() !== '' || [direccion, area, equipo, estado].some((filtro) => filtro !== null)
+}
+
+export interface OpcionUbicacion {
+  readonly id: string
+  readonly label: string
+}
+
+export interface OpcionArea extends OpcionUbicacion {
+  readonly direccionId: string
+}
+
+export interface OpcionEquipo extends OpcionUbicacion {
+  readonly direccionId: string
+  readonly areaId: string | null
+}
+
+export interface OpcionesUbicacion {
+  readonly direcciones: readonly OpcionUbicacion[]
+  readonly areas: readonly OpcionArea[]
+  readonly equipos: readonly OpcionEquipo[]
+}
+
+function porLabel(a: OpcionUbicacion, b: OpcionUbicacion): number {
+  return a.label.localeCompare(b.label, 'es')
+}
+
+/** The options keyed by id, once each and sorted by label. */
+function unicas<T extends OpcionUbicacion>(opciones: readonly T[]): T[] {
+  return [...new Map(opciones.map((opcion) => [opcion.id, opcion])).values()].sort(porLabel)
+}
+
+/**
+ * The options of the three place filters, from the loaded leaders' places
+ * (S9.1): every dirección; the áreas of the chosen dirección (none until one
+ * is chosen, as in Servidores); the equipos of the chosen área, or else of
+ * the chosen dirección, or else all of them.
+ */
+export function opcionesUbicacion(lideres: readonly LiderSupervisado[], filtros: FiltrosLideres): OpcionesUbicacion {
+  const lugares = lideres.flatMap((lider) => lider.ubicaciones)
+  const direcciones = unicas(lugares.map((u) => ({ id: u.direccionId, label: u.direccion })))
+  const areas = unicas(
+    lugares.flatMap((u) =>
+      u.areaId && u.area && u.direccionId === filtros.direccion
+        ? [{ id: u.areaId, label: u.area, direccionId: u.direccionId }]
+        : [],
+    ),
+  )
+  const equipos = unicas(
+    lugares.flatMap((u) =>
+      u.equipoId && u.equipo && enDireccionYArea(u, filtros)
+        ? [{ id: u.equipoId, label: u.equipo, direccionId: u.direccionId, areaId: u.areaId }]
+        : [],
+    ),
+  )
+  return { direcciones, areas, equipos }
+}
+
+function enDireccionYArea(lugar: UbicacionLider, { direccion, area }: FiltrosLideres): boolean {
+  return (direccion === null || lugar.direccionId === direccion) && (area === null || lugar.areaId === area)
+}
+
+/** The patch that picks a dirección: the área and the equipo are dropped (S9.1). */
+export function parcheElegirDireccion(direccionId: string | null): Partial<FiltrosLideres> {
+  return { direccion: direccionId, area: null, equipo: null }
+}
+
+/** The patch that picks an área: the equipo is dropped and the dirección follows the área. */
+export function parcheElegirArea(areaId: string | null, opciones: readonly OpcionArea[]): Partial<FiltrosLideres> {
+  if (areaId === null) return { area: null, equipo: null }
+  const direccion = opciones.find((opcion) => opcion.id === areaId)?.direccionId
+  return direccion === undefined ? { area: areaId, equipo: null } : { area: areaId, equipo: null, direccion }
+}
+
+/** The patch that picks an equipo: its área and its dirección follow it. */
+export function parcheElegirEquipo(equipoId: string | null, opciones: readonly OpcionEquipo[]): Partial<FiltrosLideres> {
+  if (equipoId === null) return { equipo: null }
+  const opcion = opciones.find((o) => o.id === equipoId)
+  return opcion === undefined
+    ? { equipo: equipoId }
+    : { equipo: equipoId, area: opcion.areaId, direccion: opcion.direccionId }
 }
 
 const CUMPLE_ESTADO: Record<EstadoLider, (lider: LiderSupervisado) => boolean> = {
@@ -77,11 +132,22 @@ const CUMPLE_ESTADO: Record<EstadoLider, (lider: LiderSupervisado) => boolean> =
   con_agendados: (l) => l.agendados > 0,
 }
 
+function sinFiltroDeLugar({ direccion, area, equipo }: FiltrosLideres): boolean {
+  return direccion === null && area === null && equipo === null
+}
+
+// One single place must match the dirección, the área and the equipo (S9.2).
+function cumpleLugar(lider: LiderSupervisado, filtros: FiltrosLideres): boolean {
+  if (sinFiltroDeLugar(filtros)) return true
+  return lider.ubicaciones.some(
+    (lugar) => enDireccionYArea(lugar, filtros) && (filtros.equipo === null || lugar.equipoId === filtros.equipo),
+  )
+}
+
 function cumpleFiltros(lider: LiderSupervisado, filtros: FiltrosLideres): boolean {
-  const { q, area, grupo, estado } = filtros
+  const { q, estado } = filtros
   if (!coincideTexto(nombreDeLider(lider), q)) return false
-  if (area && !lider.contextos.some((c) => areaDeContexto(c) === area)) return false
-  if (grupo && !lider.contextos.some((c) => grupoDeContexto(c) === grupo)) return false
+  if (!cumpleLugar(lider, filtros)) return false
   return !estado || CUMPLE_ESTADO[estado](lider)
 }
 
