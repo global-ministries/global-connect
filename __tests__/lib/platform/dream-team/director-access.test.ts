@@ -133,3 +133,38 @@ describe('getDreamTeamNavItems for directors', () => {
     expect(getDreamTeamNavItems(undefined, true)).toEqual([])
   })
 })
+
+// Area and sub-area coordinators (dream_team.coordinate, scope equipo) open Mi equipo READ-ONLY
+// (user decision 2026-10-24, odd/tasks/ninos-roles-ui.md F1). RLS already lets them read the
+// servicios of their subtree; they never pass the read or write gates.
+describe('area and sub-area coordinators', () => {
+  const coordinateCap: PlatformSessionCapability = {
+    key: 'dream_team.coordinate',
+    experience: 'dream_team',
+    scopeType: 'equipo',
+    scopeId: 'equipo-waumba-land',
+    source: 'dream-team',
+  }
+  const serveCap: PlatformSessionCapability = { ...coordinateCap, key: 'dream_team.serve' }
+  const coordinador = makeSession(['miembro'], [serveCap, coordinateCap])
+
+  it('opens Mi equipo for a coordinator', () => {
+    expect(hasDreamTeamMiEquipoAccess(coordinador)).toBe(true)
+  })
+
+  it('keeps a coordinator read-only and out of Servidores and Estructura', () => {
+    expect(hasDreamTeamReadCapability(coordinador)).toBe(false)
+    expect(hasDreamTeamWriteCapability(coordinador)).toBe(false)
+    expect(hasDreamTeamOrgManageCapability(coordinador)).toBe(false)
+  })
+
+  it('shows a coordinator only Mi equipo in the menu', () => {
+    expect(getDreamTeamNavItems(coordinador, true).map((i) => i.href)).toEqual([MI_EQUIPO])
+  })
+
+  it('does not open Mi equipo for someone who only serves', () => {
+    const voluntario = makeSession(['miembro'], [serveCap])
+    expect(hasDreamTeamMiEquipoAccess(voluntario)).toBe(false)
+    expect(getDreamTeamNavItems(voluntario, true)).toEqual([])
+  })
+})
