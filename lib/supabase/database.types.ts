@@ -7404,6 +7404,8 @@ export type Database = {
           autoriza_imagen: boolean | null
           cambio_panal: boolean | null
           created_at: string
+          desde_casa_at: string | null
+          desde_casa_por: string | null
           es_vip_desde: string | null
           escolarizado: boolean | null
           grado: number | null
@@ -7421,6 +7423,8 @@ export type Database = {
           autoriza_imagen?: boolean | null
           cambio_panal?: boolean | null
           created_at?: string
+          desde_casa_at?: string | null
+          desde_casa_por?: string | null
           es_vip_desde?: string | null
           escolarizado?: boolean | null
           grado?: number | null
@@ -7438,6 +7442,8 @@ export type Database = {
           autoriza_imagen?: boolean | null
           cambio_panal?: boolean | null
           created_at?: string
+          desde_casa_at?: string | null
+          desde_casa_por?: string | null
           es_vip_desde?: string | null
           escolarizado?: boolean | null
           grado?: number | null
@@ -7451,6 +7457,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ninos_fichas_desde_casa_por_fkey"
+            columns: ["desde_casa_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ninos_fichas_salon_preferido_id_fkey"
             columns: ["salon_preferido_id"]
@@ -7485,6 +7498,7 @@ export type Database = {
           id: string
           ip_hash: string | null
           payload: Json
+          solicitado_por: string | null
         }
         Insert: {
           campus_id: string
@@ -7496,6 +7510,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           payload: Json
+          solicitado_por?: string | null
         }
         Update: {
           campus_id?: string
@@ -7507,6 +7522,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           payload?: Json
+          solicitado_por?: string | null
         }
         Relationships: []
       }
@@ -8210,7 +8226,11 @@ export type Database = {
       ninos_conyuge_de: { Args: { p_usuario_id: string }; Returns: Json }
       ninos_texto: { Args: { p: Json; p_key: string }; Returns: string }
       ninos_mis_hijos: { Args: never; Returns: Json }
+      ninos_mis_hijos_campus: { Args: never; Returns: Json }
       ninos_mis_hijos_guardar: { Args: { p: Json; p_nino_id: string }; Returns: Json }
+      ninos_mis_hijos_pendientes: { Args: never; Returns: Json }
+      ninos_mis_hijos_registrar: { Args: { p: Json }; Returns: Json }
+      ninos_preregistros_cuentas: { Args: never; Returns: Json }
       _puede_ver_segmento_lider: {
         Args: {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]

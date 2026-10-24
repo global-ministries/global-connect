@@ -4,7 +4,13 @@
  * N8 — public pre-registration: parser, size limits, honeypot, IP hash and
  * the create flow behind POST /api/ninos/preregistro.
  */
-import { LIMITES_PREREGISTRO, formDesdePreregistro, parsePreregistro } from '@/lib/platform/ninos/preregistro'
+import {
+  LIMITES_PREREGISTRO,
+  conExistentes,
+  formDesdePreregistro,
+  parseCuentasPreregistro,
+  parsePreregistro,
+} from '@/lib/platform/ninos/preregistro'
 import { crearPreregistro, hashIp, ipDeSolicitud } from '@/lib/platform/ninos/preregistro-servidor'
 
 const HOY = '2026-10-08'
@@ -189,5 +195,37 @@ describe('formDesdePreregistro', () => {
     const { form, email } = formDesdePreregistro({ padre: null, hijos: 'x' } as never)
     expect(email).toBe('')
     expect(form.hijos.length).toBe(1)
+  })
+})
+
+describe('requests made from an account (M6a)', () => {
+  it('parses the requester and the likely duplicates, dropping malformed rows', () => {
+    const cuentas = parseCuentasPreregistro([
+      {
+        id: 'pr1',
+        solicitante: { id: 'u5', nombre: 'Rita', apellido: 'Gómez' },
+        coincidencias: [
+          { indice: 0, id: 'x1', nombre: 'Sofia', apellido: 'Perez', fecha_nacimiento: '2021-03-04', tiene_ficha: true, padres: ['Olga Díaz', 3] },
+          { indice: '0', id: 'x2' },
+        ],
+      },
+      { id: 'pr2', solicitante: null },
+      'basura',
+    ])
+    expect(cuentas).toEqual({
+      pr1: {
+        solicitante: { id: 'u5', nombre: 'Rita', apellido: 'Gómez' },
+        coincidencias: [
+          { indice: 0, id: 'x1', nombre: 'Sofia', apellido: 'Perez', fechaNacimiento: '2021-03-04', tieneFicha: true, padres: ['Olga Díaz'] },
+        ],
+      },
+    })
+    expect(parseCuentasPreregistro(null)).toEqual({})
+  })
+
+  it('adds existente_id only to the chosen children', () => {
+    const payload = { padre: { id: 'u5' }, hijos: [{ nombre: 'A' }, { nombre: 'B' }], autorizados: [] }
+    expect(conExistentes(payload, { 1: 'x1' }).hijos).toEqual([{ nombre: 'A' }, { nombre: 'B', existente_id: 'x1' }])
+    expect(conExistentes(payload, {})).toEqual(payload)
   })
 })

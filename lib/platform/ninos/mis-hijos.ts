@@ -233,3 +233,15 @@ export function mensajeDeErrorMisHijos(error: { code?: string; message?: string 
   if (error?.code === '22023') return MENSAJES.datos_invalidos
   return 'No se pudo guardar. Intenta de nuevo.'
 }
+
+/**
+ * G8 (adopted default): an account whose birth date says under 18 has no Mis
+ * hijos. `hoy` is the Caracas date (YYYY-MM-DD); an unknown birth date counts
+ * as adult, like ninos_es_mayor_de_edad in SQL.
+ */
+export function esMayorDeEdad(fechaNacimiento: string | null | undefined, hoy: string): boolean {
+  const fecha = (fechaNacimiento ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !/^\d{4}-\d{2}-\d{2}$/.test(hoy)) return true
+  const cumple18 = `${Number(fecha.slice(0, 4)) + 18}${fecha.slice(4)}`
+  return cumple18 <= hoy
+}

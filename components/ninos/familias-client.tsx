@@ -178,6 +178,11 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
                                 VIP
                               </BadgeSistema>
                             )}
+                            {h.desde_casa && (
+                              <BadgeSistema variante="info" tamaño="sm">
+                                Registrado desde casa
+                              </BadgeSistema>
+                            )}
                             {!h.tiene_ficha && (
                               <BadgeSistema variante="info" tamaño="sm">
                                 Sin ficha de niños

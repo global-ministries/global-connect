@@ -384,6 +384,11 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                                   VIP
                                 </BadgeSistema>
                               )}
+                              {h.desde_casa && (
+                                <BadgeSistema variante="info" tamaño="sm">
+                                  Registrado desde casa
+                                </BadgeSistema>
+                              )}
                             </label>
                           )}
                           {alertasDeHijo(h).length > 0 && (

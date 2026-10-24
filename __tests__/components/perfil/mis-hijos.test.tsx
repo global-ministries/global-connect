@@ -10,7 +10,17 @@ jest.mock('@/lib/platform/ninos/fecha', () => ({
   hoyEnCaracas: () => '2026-10-10',
 }))
 
-beforeEach(() => rpc.mockReset())
+const fetchMock = jest.fn()
+global.fetch = fetchMock as unknown as typeof fetch
+
+beforeEach(() => {
+  rpc.mockReset()
+  fetchMock.mockReset()
+  fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ campos: ['alergias'] }) })
+})
+
+/** The JSON body of the n-th save sent to the route. */
+const guardado = (n = 0) => JSON.parse(fetchMock.mock.calls[n][1].body) as { payload: Record<string, unknown> }
 
 const luis = {
   id: 'h1', nombre: 'Luis', apellido: 'Pérez', fecha_nacimiento: '2021-05-05', genero: 'Masculino', edad: 5,
@@ -39,9 +49,7 @@ describe('MisHijos', () => {
   })
 
   it('edits a child in parent mode and refreshes the list after saving', async () => {
-    rpc
-      .mockResolvedValueOnce({ data: { campos: ['alergias'] }, error: null })
-      .mockResolvedValueOnce({ data: [{ ...luis, alergias: 'Maní y huevo' }, eva], error: null })
+    rpc.mockResolvedValueOnce({ data: [{ ...luis, alergias: 'Maní y huevo' }, eva], error: null })
     render(<MisHijos hijos={parseMisHijos([luis, eva])} />)
     fireEvent.click(screen.getByRole('button', { name: 'Editar datos de Luis' }))
 
@@ -50,18 +58,17 @@ describe('MisHijos', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(await screen.findByText('Guardamos los datos de Luis.')).toBeInTheDocument()
-    expect(rpc).toHaveBeenNthCalledWith(1, 'ninos_mis_hijos_guardar', {
-      p_nino_id: 'h1',
-      p: expect.objectContaining({ alergias: 'Maní y huevo', nombre: 'Luis' }),
-    })
-    expect(rpc.mock.calls[0][1].p).not.toHaveProperty('salon_preferido_id')
-    expect(rpc).toHaveBeenNthCalledWith(2, 'ninos_mis_hijos')
+    // Saved through the route (it emails the other parents when the pickup list changes).
+    expect(fetchMock).toHaveBeenCalledWith('/api/ninos/mis-hijos/h1', expect.objectContaining({ method: 'POST' }))
+    expect(guardado().payload).toEqual(expect.objectContaining({ alergias: 'Maní y huevo', nombre: 'Luis' }))
+    expect(guardado().payload).not.toHaveProperty('salon_preferido_id')
+    expect(rpc).not.toHaveBeenCalledWith('ninos_mis_hijos_guardar', expect.anything())
+    expect(rpc).toHaveBeenNthCalledWith(1, 'ninos_mis_hijos')
     await waitFor(() => expect(screen.getAllByTestId('mi-hijo')[0]).toHaveTextContent('Alergias: Maní y huevo'))
   })
 
   it('says the data was saved but not refreshed when the reload fails, and retries', async () => {
     rpc
-      .mockResolvedValueOnce({ data: { campos: ['alergias'] }, error: null })
       .mockResolvedValueOnce({ data: null, error: { code: '500', message: 'fetch failed' } })
       .mockResolvedValueOnce({ data: [{ ...luis, alergias: 'Maní y huevo' }], error: null })
     render(<MisHijos hijos={parseMisHijos([luis])} />)
@@ -77,7 +84,7 @@ describe('MisHijos', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar lista' }))
     await waitFor(() => expect(screen.getAllByTestId('mi-hijo')[0]).toHaveTextContent('Alergias: Maní y huevo'))
-    expect(rpc).toHaveBeenNthCalledWith(3, 'ninos_mis_hijos')
+    expect(rpc).toHaveBeenNthCalledWith(2, 'ninos_mis_hijos')
     expect(screen.queryByRole('button', { name: 'Actualizar lista' })).not.toBeInTheDocument()
   })
 
@@ -89,14 +96,27 @@ describe('MisHijos', () => {
   })
 
   it('shows the Spanish message of an RPC error and keeps the form open', async () => {
-    rpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'nino_no_encontrado' } })
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      json: async () => ({ error: { code: '22023', message: 'nino_no_encontrado' } }),
+    })
     render(<MisHijos hijos={parseMisHijos([luis])} />)
     fireEvent.click(screen.getByRole('button', { name: 'Editar datos de Luis' }))
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No encontramos a este niño entre tus hijos. Recarga la página.')
-    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(rpc).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
+  })
+
+  it('a network failure while saving keeps the form open with a retry message', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('offline'))
+    render(<MisHijos hijos={parseMisHijos([luis])} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Editar datos de Luis' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo guardar. Intenta de nuevo.')
   })
 
   it('tells a parent how to add a missing child', () => {

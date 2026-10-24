@@ -198,3 +198,55 @@ export function formDesdePreregistro(payload: PreregistroPayload): { form: Famil
   }
   return { form, email: texto(padre.email) }
 }
+
+/** A person that looks like child `indice` of a request made from an account (same name key and birth date). */
+export type CoincidenciaHijo = {
+  indice: number
+  id: string
+  nombre: string
+  apellido: string
+  fechaNacimiento: string | null
+  tieneFicha: boolean
+  /** "Nombre Apellido" of that person's parents; never contact data. */
+  padres: string[]
+}
+
+/** A pending request made from an account (M6a): who asked and the likely duplicates. */
+export type CuentaPreregistro = {
+  solicitante: { id: string; nombre: string; apellido: string }
+  coincidencias: CoincidenciaHijo[]
+}
+
+/** Parses ninos_preregistros_cuentas() into a map by request id (defensive: it is jsonb). */
+export function parseCuentasPreregistro(data: unknown): Record<string, CuentaPreregistro> {
+  const cuentas: Record<string, CuentaPreregistro> = {}
+  for (const c of Array.isArray(data) ? data.filter(esObjeto) : []) {
+    const s = esObjeto(c.solicitante) ? c.solicitante : null
+    if (typeof c.id !== 'string' || !s || typeof s.id !== 'string') continue
+    const coincidencias = (Array.isArray(c.coincidencias) ? c.coincidencias.filter(esObjeto) : [])
+      .filter((m) => typeof m.id === 'string' && typeof m.indice === 'number')
+      .map((m) => ({
+        indice: m.indice as number,
+        id: m.id as string,
+        nombre: texto(m.nombre),
+        apellido: texto(m.apellido),
+        fechaNacimiento: typeof m.fecha_nacimiento === 'string' ? m.fecha_nacimiento : null,
+        tieneFicha: m.tiene_ficha === true,
+        padres: Array.isArray(m.padres) ? m.padres.filter((p): p is string => typeof p === 'string') : [],
+      }))
+    cuentas[c.id] = { solicitante: { id: s.id, nombre: texto(s.nombre), apellido: texto(s.apellido) }, coincidencias }
+  }
+  return cuentas
+}
+
+/**
+ * The confirm payload with the existing person the team chose for each child
+ * (by position). The database links that person to the requester instead of
+ * creating the child, and refuses one whose name or birth date does not match.
+ */
+export function conExistentes<P extends { hijos: readonly object[] }>(
+  payload: P,
+  elegidos: Readonly<Record<number, string>>,
+): P {
+  return { ...payload, hijos: payload.hijos.map((h, i) => (elegidos[i] ? { ...h, existente_id: elegidos[i] } : h)) }
+}
