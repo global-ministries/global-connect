@@ -34,12 +34,26 @@ async function abrirMenu() {
 }
 
 describe('MenuPersona — Editar ficha (T11)', () => {
-  it('the volunteer coordinator (no write capability) gets only Editar ficha', async () => {
+  it('the volunteer coordinator (no write capability) gets Editar ficha and Turnos, not Cambiar etapa', async () => {
     expect(tieneAccionesDisponibles(PERSONA, false)).toBe(true)
     render(<MenuPersona persona={PERSONA} puedeEditarServicio={false} onActualizado={jest.fn()} />)
     await abrirMenu()
     expect(await screen.findByRole('menuitem', { name: 'Editar ficha' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Turnos' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Cambiar etapa' })).not.toBeInTheDocument()
+  })
+
+  it('the volunteer coordinator opens the shifts dialog of that servicio', async () => {
+    render(<MenuPersona persona={PERSONA} puedeEditarServicio={false} onActualizado={jest.fn()} />)
+    await abrirMenu()
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Turnos' }))
+    expect(global.fetch).toHaveBeenCalledWith('/api/dream-team/servicios/s-1/turnos', expect.anything())
+  })
+
+  it('no Turnos for a person without servicio (a Grupos de Vida leader)', async () => {
+    render(<MenuPersona persona={{ ...PERSONA, servicioId: undefined }} puedeEditarServicio={false} onActualizado={jest.fn()} />)
+    await abrirMenu()
+    expect(await screen.findByRole('menuitem', { name: 'Editar ficha' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Turnos' })).not.toBeInTheDocument()
   })
 
