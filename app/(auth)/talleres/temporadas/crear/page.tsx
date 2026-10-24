@@ -19,7 +19,7 @@
  */
 
 import {
-  ContenedorDashboard,
+  PaginaSistema,
   TarjetaSistema,
   TextoSistema,
 } from '@/components/ui/sistema-diseno'
@@ -40,11 +40,11 @@ export const metadata = { title: 'Crear Temporada' }
 export default async function CrearTemporadaPage() {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Crear Temporada">
+      <PaginaSistema titulo="Crear Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -53,11 +53,11 @@ export default async function CrearTemporadaPage() {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Crear Temporada">
+      <PaginaSistema titulo="Crear Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -68,11 +68,11 @@ export default async function CrearTemporadaPage() {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Crear Temporada">
+      <PaginaSistema titulo="Crear Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -82,14 +82,14 @@ export default async function CrearTemporadaPage() {
 
   if (direcciones.length === 0) {
     return (
-      <ContenedorDashboard
+      <PaginaSistema
         titulo="Crear Temporada"
-        botonRegreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
+        regreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
       >
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No tienes permisos para crear temporadas.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -102,11 +102,11 @@ export default async function CrearTemporadaPage() {
   )
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Crear Temporada"
-      botonRegreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
+      regreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
     >
       <TallerTemporadaForm direcciones={direccionesConTalleres} />
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

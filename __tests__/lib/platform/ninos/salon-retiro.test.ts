@@ -2,8 +2,10 @@ import { alertasDeLista, edadOGrado, type FilaLista } from '@/lib/platform/ninos
 import {
   agruparRetiro,
   mensajeDeErrorRetiro,
+  parseOpcionesRetiro,
   textoRetirado,
   validarCodigo,
+  validarRetiro,
   type FilaCodigo,
 } from '@/lib/platform/ninos/retiro'
 
@@ -90,5 +92,48 @@ describe('mensajeDeErrorRetiro', () => {
     expect(mensajeDeErrorRetiro({ code: '42501' })).toBe('No tienes permiso para retirar niños de ese salón.')
     expect(mensajeDeErrorRetiro({ code: '22023' })).toBe('Escribe quién retira al niño.')
     expect(mensajeDeErrorRetiro(null)).toBe('No se pudo registrar el retiro. Intenta de nuevo.')
+  })
+  it('explains a person outside the list', () => {
+    expect(mensajeDeErrorRetiro({ code: '22023', message: 'retiro_no_autorizado' })).toBe(
+      'Esa persona no está autorizada para retirar a todos los niños de este código. Elige «Otra persona» y escribe el motivo.',
+    )
+  })
+})
+
+describe('parseOpcionesRetiro', () => {
+  it('keeps well-formed rows and the representante/autorizado kind', () => {
+    expect(
+      parseOpcionesRetiro([
+        { nombre: 'Ana Pérez', telefono: '0414', relacion: 'Representante', tipo: 'representante' },
+        { nombre: 'Rosa', telefono: null, relacion: null, tipo: 'autorizado' },
+        { nombre: '', tipo: 'autorizado' },
+        null,
+      ]),
+    ).toEqual([
+      { nombre: 'Ana Pérez', telefono: '0414', relacion: 'Representante', tipo: 'representante' },
+      { nombre: 'Rosa', telefono: null, relacion: null, tipo: 'autorizado' },
+    ])
+    expect(parseOpcionesRetiro(null)).toEqual([])
+  })
+})
+
+describe('validarRetiro', () => {
+  it('a person from the list goes without a reason', () => {
+    expect(validarRetiro({ tipo: 'lista', nombre: 'Ana Pérez' })).toEqual({ ok: true, retiradoPor: 'Ana Pérez', motivoOtra: null })
+  })
+  it('asks to choose someone first', () => {
+    expect(validarRetiro(null)).toEqual({ ok: false, error: 'Elige quién retira al niño.' })
+  })
+  it('another person needs a name and a reason', () => {
+    expect(validarRetiro({ tipo: 'otra', nombre: ' ', motivo: 'x' })).toEqual({ ok: false, error: 'Escribe el nombre de quien retira.' })
+    expect(validarRetiro({ tipo: 'otra', nombre: 'Vecina', motivo: '  ' })).toEqual({
+      ok: false, error: 'Escribe por qué retira una persona que no está en la lista.',
+    })
+    expect(validarRetiro({ tipo: 'otra', nombre: 'Vecina', motivo: 'x'.repeat(301) })).toEqual({
+      ok: false, error: 'El motivo es muy largo (máximo 300 caracteres).',
+    })
+    expect(validarRetiro({ tipo: 'otra', nombre: ' Vecina ', motivo: ' La mamá avisó ' })).toEqual({
+      ok: true, retiradoPor: 'Vecina', motivoOtra: 'La mamá avisó',
+    })
   })
 })

@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { prepararCedula } from "@/lib/utils/cedula";
 import { vincularFichaConfirmada } from "@/lib/supabase/vincular-ficha";
+import { safeInternalPath } from "@/lib/auth/redirect-seguro";
 
 const MENSAJE_PENDIENTE_APROBACION = "Tu cuenta está pendiente de aprobación por tu director";
 
@@ -23,7 +24,7 @@ export async function login(formData: FormData) {
     return { error: "Credenciales inválidas. Por favor, inténtalo de nuevo." };
   }
 
-  redirect("/dashboard");
+  redirect(safeInternalPath(formData.get("redirect")) ?? "/dashboard");
 }
 
 export async function signup(formData: FormData) {

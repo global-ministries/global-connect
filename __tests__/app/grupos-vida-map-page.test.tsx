@@ -17,7 +17,7 @@ jest.mock('next/navigation', () => ({ redirect: (path: string) => redirect(path)
 jest.mock('@/components/layout/dashboard-layout', () => ({ DashboardLayout: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }))
 jest.mock('@/components/ui/sistema-diseno', () => ({
   BadgeSistema: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo: string }) => <section><h1>{titulo}</h1>{children}</section>,
+  PaginaSistema: ({ children, titulo }: { children: React.ReactNode; titulo: string }) => <section><h1>{titulo}</h1>{children}</section>,
   TarjetaSistema: ({ children, className, role }: { children: React.ReactNode; className?: string; role?: string }) => <section className={className} role={role}>{children}</section>,
   TextoSistema: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
 }))

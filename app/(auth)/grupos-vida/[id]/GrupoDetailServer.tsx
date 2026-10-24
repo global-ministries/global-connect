@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import GrupoDetailClient from "./GrupoDetailClient"
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TarjetaSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 import { AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions"
@@ -60,9 +60,9 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
 
   if (error || !grupo) {
     return (
-<ContenedorDashboard
+<PaginaSistema
           titulo="Grupo no encontrado"
-          botonRegreso={{ href: "/grupos-vida", texto: "Volver a Grupos" }}
+          regreso={{ href: "/grupos-vida", texto: "Volver a Grupos" }}
         >
           <TarjetaSistema variante="outlined" className="py-12 text-center">
             <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -78,7 +78,7 @@ export default async function GrupoDetailServer({ params }: { params: Promise<{ 
               </BotonSistema>
             </Link>
           </TarjetaSistema>
-        </ContenedorDashboard>
+        </PaginaSistema>
 );
   }
 

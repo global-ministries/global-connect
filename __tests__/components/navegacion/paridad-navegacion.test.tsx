@@ -127,6 +127,8 @@ const BARRA_INFERIOR_ANTES: Record<string, string[]> = {
 const BOTTOM_BAR_CHANGES: Record<string, string[]> = {
   miembro: ['/dashboard', '/grupos-vida', '/ayuda'],
   'staff-soporte': ['/dashboard', '/grupos-vida', '/ayuda'],
+  // F5 (odd/tasks/ninos-roles-ui.md): whoever has Niños access gets Niños after Grupos de Vida.
+  'admin-dream-team-ninos': ['/dashboard', '/users', '/grupos-vida', '/ninos/checkin', '/ayuda'],
 }
 const BARRA_INFERIOR_DESPUES: Record<string, string[]> = { ...BARRA_INFERIOR_ANTES, ...BOTTOM_BAR_CHANGES }
 
@@ -179,9 +181,13 @@ describe('navigation parity per permission set', () => {
     const cambiados = Object.keys(BARRA_INFERIOR_ANTES).filter(
       (perfil) => BARRA_INFERIOR_ANTES[perfil].join() !== BARRA_INFERIOR_DESPUES[perfil].join(),
     )
-    expect(cambiados).toEqual(['miembro', 'staff-soporte'])
-    for (const perfil of cambiados) {
+    expect(cambiados).toEqual(['miembro', 'staff-soporte', 'admin-dream-team-ninos'])
+    for (const perfil of ['miembro', 'staff-soporte']) {
       expect(BARRA_INFERIOR_ANTES[perfil].filter((href) => !BARRA_INFERIOR_DESPUES[perfil].includes(href))).toEqual(['/users'])
     }
+    // The Niños profile only gains Niños; nothing is removed.
+    const ninos = 'admin-dream-team-ninos'
+    expect(BARRA_INFERIOR_DESPUES[ninos].filter((href) => !BARRA_INFERIOR_ANTES[ninos].includes(href))).toEqual(['/ninos/checkin'])
+    expect(BARRA_INFERIOR_ANTES[ninos].every((href) => BARRA_INFERIOR_DESPUES[ninos].includes(href))).toBe(true)
   })
 })

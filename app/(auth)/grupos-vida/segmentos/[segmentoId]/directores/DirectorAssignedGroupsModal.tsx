@@ -2,9 +2,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useDirectorGroupAssignments } from '@/hooks/useDirectorGroupAssignments'
 import { createPortal } from 'react-dom'
-import { TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { TituloSistema, TextoSistema, BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { X, RefreshCw, Users } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 interface Props {
   open: boolean
@@ -56,7 +55,7 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
     <>
       <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-[310] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
-        <div className="bg-card rounded-t-2xl sm:rounded-3xl shadow-2xl w-full sm:max-w-4xl max-h-[92vh] sm:max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-border">
+        <div className="bg-card rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl max-h-[92vh] sm:max-h-[90vh] flex flex-col pointer-events-auto overflow-hidden border border-border">
           {/* Header */}
           <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border bg-gradient-to-br from-accent to-card">
             <div className="flex items-center justify-between">
@@ -70,10 +69,10 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <Button variant="outline" size="sm" onClick={() => refresh()}>
+                <BotonSistema variante="outline" tamaño="sm" onClick={() => refresh()}>
                   <RefreshCw className="w-4 h-4 mr-1" />
                   Refrescar
-                </Button>
+                </BotonSistema>
                 <button onClick={onClose} className="p-2 rounded-full hover:bg-accent transition-colors">
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
@@ -90,7 +89,7 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                   value={buscar}
                   onChange={e => setBuscar(e.target.value)}
                   placeholder="Nombre o líder"
-                  className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                  className="border border-border rounded-xl px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                 />
               </div>
               <div className="grid grid-cols-2 sm:flex gap-2">
@@ -99,7 +98,7 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                   <select
                     value={filtroTemporada}
                     onChange={e => setFiltroTemporada(e.target.value)}
-                    className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                    className="border border-border rounded-xl px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                   >
                     <option value="">Todas</option>
                     {temporadas.map(t => <option key={t}>{t}</option>)}
@@ -110,7 +109,7 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                   <select
                     value={filtroActivo}
                     onChange={e => setFiltroActivo(e.target.value as any)}
-                    className="border border-border rounded-lg px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                    className="border border-border rounded-xl px-3 py-2.5 sm:py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                   >
                     <option value="todos">Todos</option>
                     <option value="activos">Activos</option>
@@ -119,9 +118,9 @@ export const DirectorAssignedGroupsModal: React.FC<Props> = ({ open, onClose, se
                 </div>
               </div>
               {(buscar || filtroTemporada || filtroActivo !== 'todos') && (
-                <Button variant="outline" size="sm" className="self-end" onClick={() => { setBuscar(''); setFiltroTemporada(''); setFiltroActivo('todos') }}>
+                <BotonSistema variante="outline" tamaño="sm" className="self-end" onClick={() => { setBuscar(''); setFiltroTemporada(''); setFiltroActivo('todos') }}>
                   Limpiar
-                </Button>
+                </BotonSistema>
               )}
             </div>
             <div className="flex justify-end mt-2">

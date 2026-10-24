@@ -203,3 +203,21 @@ describe('TallerTemporadaForm — neutral Spanish (no voseo)', () => {
     expect(screen.queryByText(/tenés|podés|creá\b|elegí\b/i)).not.toBeInTheDocument()
   })
 })
+
+describe('TallerTemporadaForm — full-width layout', () => {
+  it('lays its sections out with SeccionesSistema and its fields with CamposSistema', () => {
+    const { container } = render(
+      <TallerTemporadaForm
+        direcciones={[{ id: 'root-1', label: 'Dirección de Conexión', talleres: [taller()] }]}
+      />,
+    )
+    const secciones = container.querySelector('[data-slot="secciones"]')
+    expect(secciones).not.toBeNull()
+    for (const etiqueta of [/^dirección$/i, /^nombre$/i, /fecha de apertura/i, /fecha de cierre/i]) {
+      const campo = screen.getByLabelText(etiqueta)
+      expect(campo.closest('[data-slot="campos"]')).not.toBeNull()
+      expect(secciones).toContainElement(campo)
+    }
+    expect(secciones).toContainElement(screen.getByRole('checkbox', { name: 'Matrimonio' }))
+  })
+})

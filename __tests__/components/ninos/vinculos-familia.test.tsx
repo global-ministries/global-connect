@@ -70,14 +70,35 @@ describe('FamiliasClient card (N10)', () => {
   })
 })
 
+describe('FamiliasClient card — registered from home (M6b)', () => {
+  it('shows the "Registrado desde casa" badge only on that child', async () => {
+    rpc.mockResolvedValueOnce({
+      data: [{ ...familia, hijos: [hijo({ id: 'h1', nombre: 'Luis', desde_casa: true }), hijo({ id: 'h3', nombre: 'Teo' })] }],
+      error: null,
+    })
+    render(<FamiliasClient salones={[]} fechaServicio="2026-10-11" />)
+    fireEvent.change(screen.getByLabelText('Buscar familia'), { target: { value: 'Pérez' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+    const tarjeta = (await screen.findAllByTestId('familia-tarjeta'))[0]
+    expect(within(tarjeta).getAllByText('Registrado desde casa')).toHaveLength(1)
+    expect(within(tarjeta).getByText('Registrado desde casa').closest('li')).toHaveTextContent('Luis')
+  })
+})
+
+/** Routes the rpc mock by function name: the form also looks up the adult's spouse on open (no spouse here). */
+function responder(respuestas: Record<string, { data: unknown; error: null }>) {
+  rpc.mockImplementation((fn: string) => Promise.resolve(respuestas[fn] ?? { data: null, error: null }))
+}
+
 describe('AgregarPadreForm', () => {
   it('links an existing person after an explicit confirmation, for the checked children', async () => {
-    rpc
-      .mockResolvedValueOnce({
+    responder({
+      ninos_buscar_padre: {
         data: [{ id: 'p2', nombre: 'Juan', apellido: 'Pérez', telefono: '•••9876', cedula: null, coincide_por: 'telefono' }],
         error: null,
-      })
-      .mockResolvedValueOnce({ data: { padre_id: 'p2', padre_nuevo: false, vinculados: 1 }, error: null })
+      },
+      ninos_vincular_padre: { data: { padre_id: 'p2', padre_nuevo: false, vinculados: 1 }, error: null },
+    })
     const onVinculado = jest.fn()
     render(<AgregarPadreForm familia={familia} onVinculado={onVinculado} onCancelar={jest.fn()} />)
 
@@ -90,12 +111,12 @@ describe('AgregarPadreForm', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Sí, es esta persona' }))
 
     await waitFor(() => expect(onVinculado).toHaveBeenCalled())
-    expect(rpc).toHaveBeenNthCalledWith(1, 'ninos_buscar_padre', { p_cedula: '', p_telefono: '0414 555 9876' })
-    expect(rpc).toHaveBeenNthCalledWith(2, 'ninos_vincular_padre', { p_nino_ids: ['h1'], p_padre_id: 'p2', p_padre_nuevo: null })
+    expect(rpc).toHaveBeenCalledWith('ninos_buscar_padre', { p_cedula: '', p_telefono: '0414 555 9876' })
+    expect(rpc).toHaveBeenCalledWith('ninos_vincular_padre', { p_nino_ids: ['h1'], p_padre_id: 'p2', p_padre_nuevo: null })
   })
 
   it('creates a new person as the second parent', async () => {
-    rpc.mockResolvedValueOnce({ data: { padre_id: 'p3', padre_nuevo: true, vinculados: 2 }, error: null })
+    responder({ ninos_vincular_padre: { data: { padre_id: 'p3', padre_nuevo: true, vinculados: 2 }, error: null } })
     const onVinculado = jest.fn()
     render(<AgregarPadreForm familia={familia} onVinculado={onVinculado} onCancelar={jest.fn()} />)
 
@@ -121,7 +142,7 @@ describe('AgregarPadreForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Persona nueva' }))
     fireEvent.click(screen.getByRole('button', { name: 'Agregar a la familia' }))
     expect(await screen.findByText('Elige al menos un niño.')).toBeInTheDocument()
-    expect(rpc).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalledWith('ninos_vincular_padre', expect.anything())
   })
 })
 

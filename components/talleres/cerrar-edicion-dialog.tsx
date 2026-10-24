@@ -227,7 +227,7 @@ const CELDA_ENCABEZADO = 'px-3 py-2 text-xs font-medium uppercase tracking-wider
 
 function TablaVistaPrevia({ filas }: { readonly filas: readonly FilaVistaPreviaCierre[] }): ReactElement {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="overflow-x-auto rounded-2xl border border-border">
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-border">

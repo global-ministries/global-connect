@@ -11,6 +11,7 @@ import {
     TituloSistema,
     TextoSistema,
     SeparadorSistema,
+    PieAccionesSistema,
 } from "@/components/ui/sistema-diseno";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
 import { crearSolicitudGrupo } from "@/lib/actions/solicitudes-grupo.actions";
@@ -185,7 +186,7 @@ export function FormNuevaSolicitud({
                 <SeparadorSistema />
 
                 {/* Acciones */}
-                <div className="flex gap-3 justify-end">
+                <PieAccionesSistema fijo={false} className="bg-transparent">
                     {onCancelar && (
                         <BotonSistema
                             type="button"
@@ -204,7 +205,7 @@ export function FormNuevaSolicitud({
                     >
                         Crear Solicitud
                     </BotonSistema>
-                </div>
+                </PieAccionesSistema>
             </form>
         </TarjetaSistema>
     );

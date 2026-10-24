@@ -111,7 +111,9 @@ describe('POST /api/ninos/checkout', () => {
     const res = await checkout(req('checkout', cuerpoCheckout))
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ filas })
-    expect(rpc).toHaveBeenCalledWith('ninos_checkout', { p_codigo: '4821', p_turno_id: T1, p_fecha: '2026-10-11', p_retirado_por: 'Ana' })
+    expect(rpc).toHaveBeenCalledWith('ninos_checkout', {
+      p_codigo: '4821', p_turno_id: T1, p_fecha: '2026-10-11', p_retirado_por: 'Ana', p_motivo_otra: null,
+    })
     expect(sendEmail).not.toHaveBeenCalled()
     await despuesDeResponder()
     expect(rpc).toHaveBeenCalledWith('ninos_correos_visita', { p_nino_ids: [N1], p_turno_id: T1, p_fecha: '2026-10-11', p_evento: 'retiro' })
@@ -136,5 +138,23 @@ describe('POST /api/ninos/checkout', () => {
     setup({})
     expect((await checkout(req('checkout', { ...cuerpoCheckout, retiradoPor: ' ' }))).status).toBe(400)
     expect((await checkout(req('checkout', { ...cuerpoCheckout, codigo: '12' }))).status).toBe(400)
+    expect((await checkout(req('checkout', { ...cuerpoCheckout, motivoOtra: 'x'.repeat(301) }))).status).toBe(400)
+  })
+
+  it('another person travels with the reason', async () => {
+    setup({ ninos_checkout: { data: [] } })
+    await checkout(req('checkout', { ...cuerpoCheckout, retiradoPor: 'Vecina', motivoOtra: ' La mamá avisó ' }))
+    expect(rpc).toHaveBeenCalledWith('ninos_checkout', {
+      p_codigo: '4821', p_turno_id: T1, p_fecha: '2026-10-11', p_retirado_por: 'Vecina', p_motivo_otra: 'La mamá avisó',
+    })
+  })
+
+  it('a person outside the list comes back as its known code, never another message', async () => {
+    setup({ ninos_checkout: { error: { code: '22023', message: 'retiro_no_autorizado' } } })
+    const res = await checkout(req('checkout', cuerpoCheckout))
+    expect(res.status).toBe(422)
+    expect(await res.json()).toEqual({ error: { code: '22023', message: 'retiro_no_autorizado' } })
+    setup({ ninos_checkout: { error: { code: '22023', message: 'room ZZ of Sofía' } } })
+    expect(await (await checkout(req('checkout', cuerpoCheckout))).json()).toEqual({ error: { code: '22023' } })
   })
 })

@@ -16,7 +16,7 @@ import { useEffect, useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Pencil, X } from 'lucide-react'
 
-import { TituloSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { updateTallerNombre } from '@/app/(auth)/talleres/[taller]/actions'
 
 interface Props {
@@ -24,8 +24,6 @@ interface Props {
   readonly tallerSlug: string
   readonly nombre: string
 }
-
-const BOTON_ICONO = 'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground'
 
 export function EditarNombreTaller({ tallerId, tallerSlug, nombre }: Props): ReactElement {
   const router = useRouter()
@@ -43,18 +41,18 @@ export function EditarNombreTaller({ tallerId, tallerSlug, nombre }: Props): Rea
     return (
       <div className="flex flex-wrap items-center gap-2">
         <TituloSistema nivel={2}>{nombreActual}</TituloSistema>
-        <button
+        <BotonSistema
           type="button"
+          variante="ghost"
+          soloIcono
+          icono={Pencil}
           aria-label="Editar nombre"
-          className={BOTON_ICONO}
           onClick={() => {
             setValor(nombreActual)
             setError(null)
             setEditing(true)
           }}
-        >
-          <Pencil className="h-4 w-4" />
-        </button>
+        />
       </div>
     )
   }
@@ -79,32 +77,32 @@ export function EditarNombreTaller({ tallerId, tallerSlug, nombre }: Props): Rea
         value={valor}
         onChange={(e) => setValor(e.target.value)}
         aria-label="Nombre del taller"
-        className="min-h-[44px] flex-1 min-w-[12rem] rounded-lg border border-border bg-card/50 px-3 py-2 text-foreground"
+        className="h-11 min-w-[12rem] flex-1 rounded-xl border border-border bg-card/50 px-3 py-2 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
         autoFocus
       />
-      <button
+      <BotonSistema
         type="button"
+        variante="ghost"
+        icono={Check}
         aria-label="Guardar nombre"
-        className={BOTON_ICONO}
         disabled={pending}
         onClick={submit}
       >
-        <Check className="h-4 w-4" />
-        <span className="sr-only sm:not-sr-only sm:ml-1 sm:text-sm">Guardar</span>
-      </button>
-      <button
+        <span className="sr-only sm:not-sr-only">Guardar</span>
+      </BotonSistema>
+      <BotonSistema
         type="button"
+        variante="ghost"
+        icono={X}
         aria-label="Cancelar edición del nombre"
-        className={BOTON_ICONO}
         disabled={pending}
         onClick={() => {
           setEditing(false)
           setError(null)
         }}
       >
-        <X className="h-4 w-4" />
-        <span className="sr-only sm:not-sr-only sm:ml-1 sm:text-sm">Cancelar</span>
-      </button>
+        <span className="sr-only sm:not-sr-only">Cancelar</span>
+      </BotonSistema>
       {error && (
         <span role="alert" className="block w-full text-sm text-destructive">
           {error}

@@ -22,7 +22,7 @@ import PendientesPage from '@/app/(auth)/talleres/pendientes/page'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { ResolverSolicitudRetiroControls } from '@/components/talleres/resolver-solicitud-retiro-controls'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { InscripcionAdminRow } from '@/lib/platform/talleres/inscripciones-types'
 import type { PendienteSolicitudRow } from '@/lib/platform/talleres/pendientes'
@@ -435,7 +435,7 @@ describe('PendientesPage — sections', () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await PendientesPage()) as any
-    const dashboard = findByType(element, ContenedorDashboard)
+    const dashboard = findByType(element, PaginaSistema)
     expect(dashboard?.props.titulo).toBe('Pendientes')
   })
 })

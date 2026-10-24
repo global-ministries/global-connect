@@ -3,11 +3,14 @@ import { useEffect, useState } from 'react'
 import DirectorGroupsModal from './DirectorGroupsModal'
 import DirectorAssignedGroupsModal from './DirectorAssignedGroupsModal'
 import { useSegmentDirectors } from '@/hooks/useSegmentDirectors'
-import { Button } from '@/components/ui/button'
-import { TituloSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { TituloSistema, TextoSistema, BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
+
+// Outlined destructive action: keeps the outline look with the readable danger
+// text token (docs/design-system.md, status colors).
+const CLASE_PELIGRO = "border-danger/40 text-danger-text hover:bg-danger/10 focus:ring-danger"
 
 interface Props { segmentoId: string; esSuperior?: boolean }
 
@@ -85,9 +88,9 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
           <TextoSistema variante="sutil" className="text-xs">Asigna ciudades a cada director de etapa.</TextoSistema>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>Refrescar</Button>
+          <BotonSistema variante="outline" tamaño="sm" onClick={refresh} disabled={loading}>Refrescar</BotonSistema>
           {esSuperior && (
-            <Button size="sm" onClick={async () => {
+            <BotonSistema tamaño="sm" onClick={async () => {
               setShowModal(true);
               setLoadingCandidatos(true);
               try {
@@ -101,11 +104,11 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
               } finally {
                 setLoadingCandidatos(false);
               }
-            }}>Agregar Director</Button>
+            }}>Agregar Director</BotonSistema>
           )}
         </div>
       </div>
-      {error && <div className="text-sm text-red-600">{error}</div>}
+      {error && <div className="text-sm text-danger-text">{error}</div>}
 
       {/* Estados */}
       {loading && (
@@ -131,12 +134,12 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                   </div>
                   <div>
                     {!esSuperior ? (
-                      <span className="text-[11px] px-2 py-1 rounded border bg-card text-foreground">{actual || '—'}</span>
+                      <span className="text-[11px] px-2 py-1 rounded-xl border bg-card text-foreground">{actual || '—'}</span>
                     ) : (
                       <div className="flex items-center gap-2">
                         <select
                           disabled={!esSuperior || ubicaciones.length === 0}
-                          className="border rounded px-2 py-1 text-[11px] bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                          className="border rounded-xl px-2 py-1 text-[11px] bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                           value={(function () { if (!actual) return ''; const m = ubicaciones.find(u => u.nombre === actual); return m ? m.id : '' })()}
                           onChange={async (e) => {
                             const nuevaId = e.target.value
@@ -175,7 +178,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                                 toast({ title: 'Ciudad quitada' })
                               }
                             }}
-                            className="text-[10px] px-2 py-1 border rounded bg-card hover:bg-muted disabled:opacity-40"
+                            className="text-[10px] px-2 py-1 border rounded-xl bg-card hover:bg-muted disabled:opacity-40"
                           >Quitar</button>
                         )}
                       </div>
@@ -185,17 +188,18 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                     )}
                   </div>
                   <div className="flex items-center gap-2 justify-end">
-                    <Button variant="outline" size="sm" onClick={() => abrirModalVerGrupos(d.id, d.nombre)}>Ver grupos</Button>
-                    <Button variant="secondary" size="sm" onClick={() => abrirModalGrupos(d.id, d.nombre)}>Asignar grupos</Button>
+                    <BotonSistema variante="outline" tamaño="sm" onClick={() => abrirModalVerGrupos(d.id, d.nombre)}>Ver grupos</BotonSistema>
+                    <BotonSistema variante="secundario" tamaño="sm" onClick={() => abrirModalGrupos(d.id, d.nombre)}>Asignar grupos</BotonSistema>
                     {esSuperior && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
+                      <BotonSistema
+                        variante="outline"
+                        tamaño="sm"
+                        className={CLASE_PELIGRO}
                         onClick={() => {
                           setPendingDeleteId(d.id)
                           setConfirmDeleteOpen(true)
                         }}
-                      >Eliminar</Button>
+                      >Eliminar</BotonSistema>
                     )}
                   </div>
                 </div>
@@ -209,12 +213,12 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                   <div className="text-[10px] text-muted-foreground mb-2 truncate">{d.usuario_id}</div>
                   <div className="flex items-center gap-2 mb-3">
                     {!esSuperior ? (
-                      <span className="text-[11px] px-2 py-1 rounded border bg-card text-foreground">{actual || '—'}</span>
+                      <span className="text-[11px] px-2 py-1 rounded-xl border bg-card text-foreground">{actual || '—'}</span>
                     ) : (
                       <>
                         <select
                           disabled={!esSuperior || ubicaciones.length === 0}
-                          className="border rounded px-2 py-1 text-[11px] bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
+                          className="border rounded-xl px-2 py-1 text-[11px] bg-card focus:outline-none focus:ring-2 focus:ring-orange-400/40"
                           value={(function () { if (!actual) return ''; const m = ubicaciones.find(u => u.nombre === actual); return m ? m.id : '' })()}
                           onChange={async (e) => {
                             const nuevaId = e.target.value
@@ -253,24 +257,25 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                                 toast({ title: 'Ciudad quitada' })
                               }
                             }}
-                            className="text-[10px] px-2 py-1 border rounded bg-card hover:bg-muted disabled:opacity-40"
+                            className="text-[10px] px-2 py-1 border rounded-xl bg-card hover:bg-muted disabled:opacity-40"
                           >Quitar</button>
                         )}
                       </>
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Button variant="outline" size="sm" onClick={() => abrirModalVerGrupos(d.id, d.nombre)}>Ver grupos</Button>
-                    <Button variant="secondary" size="sm" onClick={() => abrirModalGrupos(d.id, d.nombre)}>Asignar grupos</Button>
+                    <BotonSistema variante="outline" tamaño="sm" onClick={() => abrirModalVerGrupos(d.id, d.nombre)}>Ver grupos</BotonSistema>
+                    <BotonSistema variante="secundario" tamaño="sm" onClick={() => abrirModalGrupos(d.id, d.nombre)}>Asignar grupos</BotonSistema>
                     {esSuperior && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
+                      <BotonSistema
+                        variante="outline"
+                        tamaño="sm"
+                        className={CLASE_PELIGRO}
                         onClick={() => {
                           setPendingDeleteId(d.id)
                           setConfirmDeleteOpen(true)
                         }}
-                      >Eliminar</Button>
+                      >Eliminar</BotonSistema>
                     )}
                   </div>
                 </div>
@@ -300,7 +305,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
       )}
       {esSuperior && showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30">
-          <div className="bg-card rounded shadow-lg w-full max-w-md p-4 space-y-4">
+          <div className="bg-card rounded-2xl shadow-lg w-full max-w-md p-4 space-y-4">
             <div className="flex items-center justify-between">
               <TituloSistema nivel={4}>Agregar Director</TituloSistema>
               <button onClick={() => setShowModal(false)} className="text-xs text-muted-foreground hover:text-foreground">Cerrar</button>
@@ -311,7 +316,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
               <select
                 value={ciudadSeleccionada}
                 onChange={e => setCiudadSeleccionada(e.target.value)}
-                className="w-full border rounded px-2 py-1 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                className="w-full border rounded-xl px-2 py-1 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
               >
                 <option value="">(Sin asignar ahora)</option>
                 {ubicaciones.map(u => (
@@ -319,7 +324,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
                 ))}
               </select>
             </div>
-            <div className="border rounded max-h-64 overflow-auto divide-y">
+            <div className="border rounded-xl max-h-64 overflow-auto divide-y">
               {loadingCandidatos && <div className="p-3 text-sm">Cargando...</div>}
               {!loadingCandidatos && candidatos.length === 0 && <div className="p-3 text-sm text-muted-foreground">Sin candidatos disponibles</div>}
               {!loadingCandidatos && candidatos.map(c => (
@@ -381,7 +386,7 @@ export default function DirectoresSegmentoClient({ segmentoId, esSuperior = fals
               ))}
             </div>
             <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => { setShowModal(false); setCiudadSeleccionada(''); }} disabled={creando}>Cancelar</Button>
+              <BotonSistema variante="outline" tamaño="sm" onClick={() => { setShowModal(false); setCiudadSeleccionada(''); }} disabled={creando}>Cancelar</BotonSistema>
             </div>
           </div>
         </div>

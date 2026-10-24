@@ -63,9 +63,6 @@ interface Props {
   readonly puedeEditar: boolean
 }
 
-const BOTON_ICONO =
-  'inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent'
-
 export function PlantillaClasesSection({
   tallerId,
   tallerSlug,
@@ -182,24 +179,24 @@ export function PlantillaClasesSection({
                         className="min-w-[10rem] flex-1"
                         autoFocus
                       />
-                      <button
+                      <BotonSistema
                         type="button"
+                        variante="ghost"
+                        soloIcono
+                        icono={Check}
                         aria-label={`Guardar tema de clase ${clase.numero}`}
                         title="Guardar tema"
-                        className={BOTON_ICONO}
                         onClick={() => guardarTema(clase.id)}
-                      >
-                        <Check className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                      <button
+                      />
+                      <BotonSistema
                         type="button"
+                        variante="ghost"
+                        soloIcono
+                        icono={X}
                         aria-label={`Cancelar edición de clase ${clase.numero}`}
                         title="Cancelar"
-                        className={BOTON_ICONO}
                         onClick={() => setEditandoId(null)}
-                      >
-                        <X className="h-4 w-4" aria-hidden="true" />
-                      </button>
+                      />
                     </div>
                   ) : (
                     <div className="flex flex-wrap items-center gap-2">
@@ -217,39 +214,39 @@ export function PlantillaClasesSection({
 
                 {puedeEditar && editandoId !== clase.id && (
                   <div className="flex items-center gap-1">
-                    <button
+                    <BotonSistema
                       type="button"
+                      variante="ghost"
+                      soloIcono
+                      icono={ArrowUp}
                       aria-label={`Subir clase ${clase.numero}`}
                       title="Subir"
-                      className={BOTON_ICONO}
                       disabled={index === 0}
                       onClick={() => mover(clase.id, 'subir')}
-                    >
-                      <ArrowUp className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <button
+                    />
+                    <BotonSistema
                       type="button"
+                      variante="ghost"
+                      soloIcono
+                      icono={ArrowDown}
                       aria-label={`Bajar clase ${clase.numero}`}
                       title="Bajar"
-                      className={BOTON_ICONO}
                       disabled={index === ordenadas.length - 1}
                       onClick={() => mover(clase.id, 'bajar')}
-                    >
-                      <ArrowDown className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <button
+                    />
+                    <BotonSistema
                       type="button"
+                      variante="ghost"
+                      soloIcono
+                      icono={Pencil}
                       aria-label={`Editar tema de clase ${clase.numero}`}
                       title="Editar tema"
-                      className={BOTON_ICONO}
                       onClick={() => {
                         setEditandoId(clase.id)
                         setTemaEditado(clase.tema)
                         setError(null)
                       }}
-                    >
-                      <Pencil className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                    />
                     <BotonSistema
                       type="button"
                       variante="outline"
